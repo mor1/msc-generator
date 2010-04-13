@@ -26,8 +26,8 @@ using namespace std;
 
 template class PtrList<ArcList>;
 
-ArcBase::ArcBase(MscArcType t, long unsigned l, Msc *msc) :
-    type(t), linenum(msc->current_file, l), chart(msc), valid(true), compress(false), yPos(0)
+ArcBase::ArcBase(MscArcType t, file_line l, Msc *msc) :
+    type(t), linenum(l), chart(msc), valid(true), compress(false), yPos(0)
 {
     if (msc)
         compress = msc->StyleSets.top().compress;
@@ -81,7 +81,7 @@ string ArcBase::PrintType(void) const
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcLabelled::ArcLabelled(MscArcType t, long unsigned l, Msc *msc, const MscStyle &s) :
+ArcLabelled::ArcLabelled(MscArcType t, file_line l, Msc *msc, const MscStyle &s) :
     ArcBase(t, l, msc), style(s), parsed_label(msc)
 {
     numbering = msc->StyleSets.top().numbering?-999:-1000;
@@ -227,18 +227,17 @@ void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, int &numbe
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, long unsigned l,
+ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line l,
                            Msc *msc, const MscStyle &st, double ys) :
     ArcArrow(t, l, msc, st), YSize(ys)
 {
     src = chart->FindAllocEntity(s, l, &valid);
 }
 
-ArcArrow * ArcSelfArrow::AddSegment(const char *m, bool forward, long unsigned l)
+ArcArrow * ArcSelfArrow::AddSegment(const char *m, bool forward, file_line l)
 {
     if (!valid) return this; //display error only once
-    chart->Error.Error(file_line(chart->current_file,l),
-                         "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
+    chart->Error.Error(l, "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
     valid = false;
     return this;
 }
@@ -332,7 +331,7 @@ void ArcSelfArrow::PostHeightProcess(void)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, const char *d, long unsigned l,
+ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, const char *d, file_line l,
                          Msc *msc, const MscStyle &st) :
     ArcArrow(t, l, msc, st)
 {
@@ -341,7 +340,7 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, const char *d, long unsign
 	modifyFirstLineSpacing = true;
 };
 
-ArcArrow * ArcDirArrow::AddSegment(const char *m, bool forward, long unsigned l)
+ArcArrow * ArcDirArrow::AddSegment(const char *m, bool forward, file_line l)
 {
     EIterator mid;
     if (m==NULL) {
@@ -868,7 +867,7 @@ void ArcBigArrow::PostHeightProcess(void)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-VertXPos::VertXPos(long unsigned l, Msc&m, const char *e1, postype p, const char *e2)
+VertXPos::VertXPos(file_line l, Msc&m, const char *e1, postype p, const char *e2)
 {
     valid = true;
     pos = p;
@@ -878,7 +877,7 @@ VertXPos::VertXPos(long unsigned l, Msc&m, const char *e1, postype p, const char
 }
 
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
-                                   VertXPos *p, long unsigned l, Msc *msc) :
+                                   VertXPos *p, file_line l, Msc *msc) :
     ArcArrow(t, l, msc, msc->StyleSets.top()["vertical"]), pos(l, *msc, NULL),
     ypos(2)
 {
@@ -925,11 +924,10 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
     }
 }
 
-ArcArrow * ArcVerticalArrow::AddSegment(const char *m, bool forward, long unsigned l)
+ArcArrow * ArcVerticalArrow::AddSegment(const char *m, bool forward, file_line l)
 {
     if (!valid) return this; //display error only once
-    chart->Error.Error(file_line(chart->current_file,l),
-                         "Cannot add further segments to vertical arrow. Ignoring it.");
+    chart->Error.Error(l, "Cannot add further segments to vertical arrow. Ignoring it.");
     valid = false;
     return this;
 }
@@ -1166,7 +1164,7 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcEmphasis::ArcEmphasis(MscArcType t,const char *s, const char *d, long unsigned l, Msc *msc) :
+ArcEmphasis::ArcEmphasis(MscArcType t,const char *s, const char *d, file_line l, Msc *msc) :
     ArcLabelled(t, l, msc, msc->StyleSets.top()["emptyemphasis"]),
     pipe(false), follow(true), height(0), total_height(0)
 {
@@ -1567,7 +1565,7 @@ void ArcEmphasis::PostHeightProcess(void)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcDivider::ArcDivider(MscArcType t, long unsigned l, Msc *msc)
+ArcDivider::ArcDivider(MscArcType t, file_line l, Msc *msc)
     : ArcLabelled(t, l, msc, msc->StyleSets.top()["divider"]), nudge(t==MSC_COMMAND_NUDGE)
 {
 }
@@ -1905,21 +1903,21 @@ double CommandNewBackground::DrawHeight(double y, Geometry &g,
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandMark::CommandMark(const char *m, long unsigned l, Msc *msc)
+CommandMark::CommandMark(const char *m, file_line l, Msc *msc)
 : ArcCommand(MSC_COMMAND_MARK, l, msc), name(m)
 {
     map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
     if (i != chart->Markers.end()) {
         string msg = "Marker '"+name+"' has already been defined at line ";
         msg << i->second.first.line;
-        if (i->second.first.file != chart->current_file)
+        if (i->second.first.file != chart->current_pos.file)
             msg << " (in input '" + chart->Error.Files[i->second.first.file] + "')";
         msg.append(". Keeping old definition.");
         chart->Error.Error(linenum, msg);
         valid = false;
         return;
     }
-    chart->Markers[name].first = file_line(chart->current_file, l);
+    chart->Markers[name].first = l;
     chart->Markers[name].second = -1001;
     offset = 0;
 }

@@ -134,21 +134,25 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         msg.insert(pos+1, " or");
     }
     msg.append(".");
-    const file_line fileline(msc.current_file, yyget_lineno(yyscanner),
-                             yyget_lloc(yyscanner)->first_column);
-
-    msc.Error.Error(fileline, msg, once_msg);
+	if (msc.current_pos.line == 0) {
+		msc.current_pos.line = yyget_lineno(yyscanner);
+        msc.current_pos.col = 0;
+	}		
+	msc.Error.Error(msc.current_pos, msg, once_msg);
+	msc.current_pos.line = 0;
+	msc.current_pos.col = 0;
 };
 
 void MscParse(Msc &msc, const char *buff, unsigned len)
 {
     parse_parm  pp;
-
     pp.buf = const_cast<char*>(buff);
     pp.length = len;
     pp.pos = 0;
     yylex_init(&pp.yyscanner);
     yyset_extra(&pp, pp.yyscanner);
+	msc.current_pos.line = 0;
+	msc.current_pos.col = 0;
     yyparse(msc, pp.yyscanner);
     yylex_destroy(pp.yyscanner);
 }
@@ -157,6 +161,16 @@ inline bool string_to_bool(const char*s)
 {
    return (s[0]!='n' && s[0]!='N') || (s[1]!='o' && s[1]!='O');
 }
+
+//locations somehow do not work, so we hide them with macros
+//define this, if locations actually work
+#ifdef LOCATIONS_ACTUALLY_WORK
+#define YYMSC_GETLINENO(A) A.first_line
+#define YYSMC_GETCOLNO(A) A.first_column
+#else
+#define YYMSC_GETLINENO(A) yyget_lineno(yyscanner)
+#define YYMSC_GETCOLNO(A) 0
+#endif
 
 
 %}
@@ -270,6 +284,8 @@ arclist:    arc
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
+	msc.current_pos.line = YYMSC_GETLINENO(@2);
+	msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 }
             | arclist_no_semicolon arc
 {
@@ -284,6 +300,8 @@ arclist:    arc
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
+	msc.current_pos.line = YYMSC_GETLINENO(@2);
+	msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 arclist_no_semicolon: mscenclosed
@@ -349,19 +367,22 @@ arc:
 }
               | full_arcattrlist_with_label
 {
-    $$ = (new ArcDivider(MSC_ARC_VSPACE, yyget_lineno(yyscanner), &msc))->AddAttributeList($1);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = (new ArcDivider(MSC_ARC_VSPACE, l, &msc))->AddAttributeList($1);
 }
               | entitylist
 {
-    $$ = new CommandEntity($1, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new CommandEntity($1, l, &msc);
 }
               | optlist
 {
     /* If there were arcs defined by the options (e.g., background)
      * enclose them in a single item parallel element. */
-    if ($1)
-        $$ = (new ArcParallel(yyget_lineno(yyscanner), &msc))->AddArcList($1);
-    else
+    if ($1) {
+		file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+        $$ = (new ArcParallel(l, &msc))->AddArcList($1);
+    } else
         $$ = NULL;
 }
               | emphasis_list
@@ -386,42 +407,50 @@ arc:
 }
               | TOK_COMMAND_HEADING
 {
-    $$ = new CommandEntity(NULL, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new CommandEntity(NULL, l, &msc);
     free($1);
 }
               | TOK_COMMAND_HEADING full_arcattrlist
 {
-    $$ = (new CommandEntity(NULL, yyget_lineno(yyscanner), &msc))->AddAttributeList($2);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = (new CommandEntity(NULL, l, &msc))->AddAttributeList($2);
     free($1);
 }
 	      | TOK_COMMAND_NUDGE
 {
-    $$ = new ArcDivider(MSC_COMMAND_NUDGE, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcDivider(MSC_COMMAND_NUDGE, l, &msc);
     free($1);
 }
 	      | TOK_COMMAND_NUDGE  full_arcattrlist
 {
-    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, yyget_lineno(yyscanner), &msc))->AddAttributeList($2);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = (new ArcDivider(MSC_COMMAND_NUDGE, l, &msc))->AddAttributeList($2);
     free($1);
 }
               | TOK_COMMAND_MARK string
 {
-    $$ = new CommandMark($2, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new CommandMark($2, l, &msc);
     free($2);
 }
               | TOK_COMMAND_MARK string full_arcattrlist
 {
-    $$ = (new CommandMark($2, yyget_lineno(yyscanner), &msc))->AddAttributeList($3);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = (new CommandMark($2, l, &msc))->AddAttributeList($3);
     free($2);
 }
               | TOK_COMMAND_NEWPAGE
 {
-    $$ = new CommandNewpage(yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new CommandNewpage(l, &msc);
     free($1);
 }
               | TOK_COMMAND_NEWPAGE full_arcattrlist
 {
-    $$ = (new CommandNewpage(yyget_lineno(yyscanner), &msc))->AddAttributeList($2);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = (new CommandNewpage(l, &msc))->AddAttributeList($2);
     free($1);
 };
 
@@ -432,7 +461,8 @@ msckey:       TOK_MSC
 }
               | TOK_MSC TOK_EQUAL string
 {
-    msc.AddDesignAttribute(Attribute("msc", $3, file_line(msc.current_file, yyget_lineno(yyscanner))));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    msc.AddDesignAttribute(Attribute("msc", $3, l));
     free($1);
     free($3);
 };
@@ -463,33 +493,37 @@ optlist:     opt
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
+	msc.current_pos.line = YYMSC_GETLINENO(@2);
+	msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 opt:         entity_string TOK_EQUAL TOK_BOOLEAN
 {
-    msc.AddAttribute(Attribute($1, string_to_bool($3), file_line(msc.current_file,
-                               yyget_lineno(yyscanner)), $3));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    msc.AddAttribute(Attribute($1, string_to_bool($3), l, $3));
     free($1);
     free($3);
     $$ = NULL;
 }
             | entity_string TOK_EQUAL TOK_NUMBER
 {
-    msc.AddAttribute(Attribute($1, atof($3),
-                  file_line(msc.current_file, yyget_lineno(yyscanner)), $3));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    msc.AddAttribute(Attribute($1, atof($3), l, $3));
     free($1);
     free($3);
     $$ = NULL;
 }
             | entity_string TOK_EQUAL string
 {
-    Attribute a($1, $3, file_line(msc.current_file, yyget_lineno(yyscanner)));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    Attribute a($1, $3, l);
     MscFillAttr fill;
     fill.Empty();
     if (a.StartsWith("background") && fill.AddAttribute(a, &msc, STYLE_OPTION)) {
-        $$ = new CommandNewBackground(a.linenum.line, &msc, fill);
+        $$ = new CommandNewBackground(a.linenum, &msc, fill);
     } else {
-        msc.AddAttribute(Attribute($1, $3, file_line(msc.current_file, yyget_lineno(yyscanner))));
+    	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+        msc.AddAttribute(Attribute($1, $3, l));
         $$ = NULL;
     }
     free($1);
@@ -497,7 +531,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
 }
             | TOK_MSC TOK_EQUAL string
 {
-    msc.AddAttribute(Attribute("msc", $3, file_line(msc.current_file, yyget_lineno(yyscanner))));
+    msc.AddAttribute(Attribute("msc", $3, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$))));
     $$ = NULL;
     free($1);
     free($3);
@@ -519,6 +553,8 @@ entitylist:   entity
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
+	msc.current_pos.line = YYMSC_GETLINENO(@2);
+	msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 entity:       entity_string full_arcattrlist
@@ -567,7 +603,7 @@ colordeflist: colordef
 
 colordef : TOK_STRING TOK_EQUAL string
 {
-    msc.ColorSets.top().AddColor($1, $3, msc.Error, file_line(msc.current_file, yyget_lineno(yyscanner)));
+    msc.ColorSets.top().AddColor($1, $3, msc.Error, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)));
     free($1);
     free($3);
 };
@@ -609,32 +645,36 @@ designoptlist: designopt
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
+	msc.current_pos.line = YYMSC_GETLINENO(@2);
+	msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 
 designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
 {
-    msc.AddDesignAttribute(Attribute($1, string_to_bool($3), file_line(msc.current_file,
-                                     yyget_lineno(yyscanner)), $3));
+    msc.AddDesignAttribute(Attribute($1, string_to_bool($3), 
+	                                 file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)), 
+									 $3));
     free($1);
     free($3);
 }
             | entity_string TOK_EQUAL TOK_NUMBER
 {
-    msc.AddDesignAttribute(Attribute($1, atof($3), file_line(msc.current_file,
-                                     yyget_lineno(yyscanner)), $3));
+    msc.AddDesignAttribute(Attribute($1, atof($3), 
+                           file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)), 
+						   $3));
     free($1);
     free($3);
 }
             | entity_string TOK_EQUAL string
 {
-    msc.AddDesignAttribute(Attribute($1, $3, file_line(msc.current_file, yyget_lineno(yyscanner))));
+    msc.AddDesignAttribute(Attribute($1, $3, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$))));
     free($1);
     free($3);
 }
             | TOK_MSC TOK_EQUAL string
 {
-    msc.AddDesignAttribute(Attribute("msc", $3, file_line(msc.current_file, yyget_lineno(yyscanner))));
+    msc.AddDesignAttribute(Attribute("msc", $3, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$))));
     free($1);
     free($3);
 };
@@ -642,7 +682,8 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
 
 parallel:    parallel_element
 {
-    $$ = (new ArcParallel(yyget_lineno(yyscanner), &msc))->AddArcList($1);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = (new ArcParallel(l, &msc))->AddArcList($1);
 }
 	     | parallel parallel_element
 {
@@ -656,7 +697,8 @@ parallel_element: scope_open arclist TOK_SEMICOLON scope_close
 };
 	      | scope_open scope_close
 {
-    $$ = (new ArcList)->Append(new ArcDivider(MSC_ARC_VSPACE, yyget_lineno(yyscanner), &msc));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = (new ArcList)->Append(new ArcDivider(MSC_ARC_VSPACE, l, &msc));
 };
 
 emphasis_list: first_emphasis
@@ -730,59 +772,67 @@ pipe_emphasis:   emphrel
 
 emphrel:   entity_string TOK_EMPH entity_string
 {
-    $$ = new ArcEmphasis($2, $1, $3, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcEmphasis($2, $1, $3, l, &msc);
     free($1);
     free($3);
 }
            | TOK_EMPH entity_string
 {
-    $$ = new ArcEmphasis($1, NULL, $2, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcEmphasis($1, NULL, $2, l, &msc);
     free($2);
 }
            | entity_string TOK_EMPH
 {
-    $$ = new ArcEmphasis($2, $1, NULL, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcEmphasis($2, $1, NULL, l, &msc);
     free($1);
 }
            | TOK_EMPH
 {
-    $$ = new ArcEmphasis($1, NULL, NULL, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcEmphasis($1, NULL, NULL, l, &msc);
 };
 
 vertxpos: TOK_AT entity_string
 {
-    $$ = new VertXPos(yyget_lineno(yyscanner), msc, $2);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new VertXPos(l, msc, $2);
     free($1);
     free($2);
 }
          | TOK_AT entity_string TOK_DASH
 {
-    $$ = new VertXPos(yyget_lineno(yyscanner), msc, $2, VertXPos::POS_LEFT_SIDE);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new VertXPos(l, msc, $2, VertXPos::POS_LEFT_SIDE);
     free($1);
     free($2);
 }
          | TOK_AT entity_string TOK_PLUS
 {
-    $$ = new VertXPos(yyget_lineno(yyscanner), msc, $2, VertXPos::POS_RIGHT_SIDE);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new VertXPos(l, msc, $2, VertXPos::POS_RIGHT_SIDE);
     free($1);
     free($2);
 }
          | TOK_AT entity_string TOK_EMPH
 {
     $$ = NULL;
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
     switch ($3) {
     case MSC_EMPH_SOLID:
-        $$ = new VertXPos(yyget_lineno(yyscanner), msc, $2, VertXPos::POS_LEFT_BY);
+        $$ = new VertXPos(l, msc, $2, VertXPos::POS_LEFT_BY);
         break;
     case MSC_EMPH_DASHED:
-        $$ = new VertXPos(yyget_lineno(yyscanner), msc, $2, VertXPos::POS_RIGHT_BY);
+        $$ = new VertXPos(l, msc, $2, VertXPos::POS_RIGHT_BY);
         break;
     case MSC_EMPH_DOTTED:
-        msc.Error.Error(file_line(msc.current_file, yyget_lineno(yyscanner)),
+        msc.Error.Error(file_line(msc.current_pos.file, YYMSC_GETLINENO(@3), YYMSC_GETCOLNO(@3)),
                         "unexpected '..', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); break;
     case MSC_EMPH_DOUBLE:
-        msc.Error.Error(file_line(msc.current_file, yyget_lineno(yyscanner)),
+        msc.Error.Error(file_line(msc.current_pos.file, YYMSC_GETLINENO(@3), YYMSC_GETCOLNO(@3)),
                         "unexpected '==', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); break;
     }
@@ -791,7 +841,8 @@ vertxpos: TOK_AT entity_string
 }
          | TOK_AT entity_string TOK_DASH entity_string
 {
-    $$ = new VertXPos(yyget_lineno(yyscanner), msc, $2, VertXPos::POS_CENTER, $4);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new VertXPos(l, msc, $2, VertXPos::POS_CENTER, $4);
     free($1);
     free($2);
     free($4);
@@ -801,59 +852,66 @@ empharcrel_straight: TOK_EMPH | relation_to | relation_bidir;
 
 vertrel: entity_string empharcrel_straight entity_string vertxpos
 {
-    $$ = new ArcVerticalArrow($2, $1, $3, $4, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($2, $1, $3, $4, l, &msc);
     free($1);
     free($3);
     delete $4;
 }
        | empharcrel_straight entity_string vertxpos
 {
-    $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, $2, $3, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, $2, $3, l, &msc);
     free($2);
     delete $3;
 }
        | entity_string empharcrel_straight vertxpos
 {
-    $$ = new ArcVerticalArrow($2, $1, MARKER_HERE_STR, $3, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($2, $1, MARKER_HERE_STR, $3, l, &msc);
     free($1);
     delete $3;
 }
        | empharcrel_straight vertxpos
 {
-    $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, $2,
-                              yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, $2, l, &msc);
     delete $2;
 }
        | entity_string relation_from entity_string vertxpos
 {
-    $$ = new ArcVerticalArrow($2, $3, $1, $4, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($2, $3, $1, $4, l, &msc);
     free($1);
     free($3);
     delete $4;
 }
        | relation_from entity_string vertxpos
 {
-    $$ = new ArcVerticalArrow($1, $2, MARKER_HERE_STR, $3, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($1, $2, MARKER_HERE_STR, $3, l, &msc);
     free($2);
     delete $3;
 }
        | entity_string relation_from vertxpos
 {
-    $$ = new ArcVerticalArrow($2, MARKER_HERE_STR, $1, $3, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($2, MARKER_HERE_STR, $1, $3, l, &msc);
     free($1);
     delete $3;
 }
        | relation_from vertxpos
 {
-    $$ = new ArcVerticalArrow($1, MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, $2,
-                              yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcVerticalArrow($1, MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, $2, l, &msc);
     delete $2;
 };
 
 
 arcrel:       TOK_SPECIAL_ARC
 {
-    $$ = new ArcDivider($1, yyget_lineno(yyscanner), &msc);
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = new ArcDivider($1, l, &msc);
 }
             | arcrel_to
 {
@@ -870,81 +928,96 @@ arcrel:       TOK_SPECIAL_ARC
 
 arcrel_to:    entity_string relation_to entity_string
 {
-    $$ = msc.CreateArcArrow($2, $1, $3, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($2, $1, $3, l);
     free($1);
     free($3);
 }
             | relation_to entity_string
 {
-    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR , $2, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR , $2, l);
     free($2);
 }
             | entity_string relation_to
 {
-    $$ = msc.CreateArcArrow($2, $1, RSIDE_ENT_STR , yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($2, $1, RSIDE_ENT_STR , l);
     free($1);
 }
             | arcrel_to relation_to_cont entity_string
 {
-    $$ = ($1)->AddSegment($3, true, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@3), YYMSC_GETCOLNO(@3));
+    $$ = ($1)->AddSegment($3, true, l);
     free($3);
 }
             | arcrel_to relation_to_cont
 {
-    $$ = ($1)->AddSegment(NULL, true, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@2), YYMSC_GETCOLNO(@2));
+    $$ = ($1)->AddSegment(NULL, true, l);
 };
 
 
 arcrel_from:    entity_string relation_from entity_string
 {
-    $$ = msc.CreateArcArrow($2, $3, $1, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($2, $3, $1, l);
     free($1);
     free($3);
 }
              | relation_from entity_string
 {
-    $$ = msc.CreateArcArrow($1, $2, LSIDE_ENT_STR, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($1, $2, LSIDE_ENT_STR, l);
     free($2);
 }
              | entity_string relation_from
 {
-    $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, $1, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, $1, l);
     free($1);
 }
              | arcrel_from relation_from_cont entity_string
 {
-    $$ = ($1)->AddSegment($3, false, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@3), YYMSC_GETCOLNO(@3));
+    $$ = ($1)->AddSegment($3, false, l);
     free($3);
 }
              | arcrel_from relation_from_cont
 {
-    $$ = ($1)->AddSegment(NULL, false, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@2), YYMSC_GETCOLNO(@2));
+    $$ = ($1)->AddSegment(NULL, false, l);
 };
 
 arcrel_bidir:    entity_string relation_bidir entity_string
 {
-    $$ = msc.CreateArcArrow($2, $1, $3, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($2, $1, $3, l);
     free($1);
     free($3);
 }
             | relation_bidir entity_string
 {
-    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, $2, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, $2, l);
     free($2);
 }
             | entity_string relation_bidir
 {
-    $$ = msc.CreateArcArrow($2, $1, RSIDE_ENT_STR, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$));
+    $$ = msc.CreateArcArrow($2, $1, RSIDE_ENT_STR, l);
     free($1);
 }
             | arcrel_bidir relation_bidir_cont entity_string
 {
-    $$ = ($1)->AddSegment($3, true, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@3), YYMSC_GETCOLNO(@3));
+    $$ = ($1)->AddSegment($3, true, l);
     free($3);
 }
             | arcrel_bidir relation_bidir_cont
 {
-    $$ = ($1)->AddSegment(NULL, true, yyget_lineno(yyscanner));
+	file_line l(msc.current_pos.file, YYMSC_GETLINENO(@2), YYMSC_GETCOLNO(@2));
+    $$ = ($1)->AddSegment(NULL, true, l);
 };
 
 relation_to:   TOK_REL_SOLID_TO | TOK_REL_DOUBLE_TO | TOK_REL_DASHED_TO | TOK_REL_DOTTED_TO;
@@ -959,17 +1032,17 @@ relation_bidir_cont : relation_bidir | TOK_DASH;
 
 full_arcattrlist_with_label: TOK_COLON_STRING
 {
-    $$ = (new AttributeList)->Append(new Attribute("label", $1, file_line(msc.current_file, yyget_lineno(yyscanner))));
+    $$ = (new AttributeList)->Append(new Attribute("label", $1, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$))));
     free($1);
 }
               | TOK_COLON_STRING full_arcattrlist
 {
-    $$ = ($2)->Append(new Attribute("label", $1, file_line(msc.current_file, yyget_lineno(yyscanner))));
+    $$ = ($2)->Append(new Attribute("label", $1, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$))));
     free($1);
 }
               | full_arcattrlist TOK_COLON_STRING
 {
-    $$ = ($1)->Append(new Attribute("label", $2, file_line(msc.current_file, yyget_lineno(yyscanner))));
+    $$ = ($1)->Append(new Attribute("label", $2, file_line(msc.current_pos.file, YYMSC_GETLINENO(@2), YYMSC_GETCOLNO(@2))));
     free($2);
 }
               | full_arcattrlist;
@@ -1000,36 +1073,40 @@ arcattrlist:    arcattr
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
+	msc.current_pos.line = YYMSC_GETLINENO(@2);
+	msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 arcattr:         string TOK_EQUAL string
 {
-    $$ = new Attribute($1, $3, file_line(msc.current_file, yyget_lineno(yyscanner)));
+    $$ = new Attribute($1, $3, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)));
     free($1);
     free($3);
 }
 	    | string TOK_EQUAL TOK_NUMBER
 {
-    $$ = new Attribute($1, atof($3), file_line(msc.current_file,
-                       yyget_lineno(yyscanner)), $3);
+    $$ = new Attribute($1, atof($3), 
+	                   file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)), 
+					   $3);
     free($1);
     free($3);
 }
 	    | string TOK_EQUAL TOK_BOOLEAN
 {
-    $$ = new Attribute($1, string_to_bool($3), file_line(msc.current_file,
-                       yyget_lineno(yyscanner)), $3);
+    $$ = new Attribute($1, string_to_bool($3), 
+	                   file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)), 
+					   $3);
     free($1);
     free($3);
 }
 	    | string TOK_EQUAL
 {
-    $$ = new Attribute($1, (char*)NULL, file_line(msc.current_file, yyget_lineno(yyscanner)));
+    $$ = new Attribute($1, (char*)NULL, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)));
     free($1);
 }
 	    | string
 {
-    $$ = new Attribute($1, file_line(msc.current_file, yyget_lineno(yyscanner)));
+    $$ = new Attribute($1, file_line(msc.current_pos.file, YYMSC_GETLINENO(@$), YYMSC_GETCOLNO(@$)));
     free($1);
 };
 

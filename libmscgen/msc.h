@@ -322,7 +322,7 @@ class ArcBase
               bool       at_top_level; /* if at top level by PostParseProcess() */
               bool       compress;     /* if compress mechanism is on for this arc */
 
-        ArcBase(MscArcType t, long unsigned l, Msc *msc);
+        ArcBase(MscArcType t, file_line l, Msc *msc);
         virtual ~ArcBase() {};
 
         virtual ArcBase* AddAttributeList(AttributeList *);
@@ -352,7 +352,7 @@ class ArcLabelled : public ArcBase
         int             numbering; //-999:Yes, -1000: no, >=0 concrete num.
         MscStyle        style; //numbering and compress fields of style are not used. The Arc member fields are used instead.
     public:
-        ArcLabelled(MscArcType t, long unsigned l, Msc *msc, const MscStyle &);
+        ArcLabelled(MscArcType t, file_line l, Msc *msc, const MscStyle &);
         ArcBase* AddAttributeList(AttributeList *);
         bool AddAttribute(const Attribute &);
         string Print(int ident=0) const;
@@ -362,9 +362,9 @@ class ArcLabelled : public ArcBase
 class ArcArrow : public ArcLabelled
 {
     public:
-        ArcArrow(MscArcType t, long unsigned l, Msc *msc, const MscStyle &s) :
+        ArcArrow(MscArcType t, file_line l, Msc *msc, const MscStyle &s) :
             ArcLabelled(t, l, msc, s) {}
-        virtual ArcArrow *AddSegment(const char *m, bool forward, long unsigned l) = 0;
+        virtual ArcArrow *AddSegment(const char *m, bool forward, file_line l) = 0;
         bool isBidir(void) const
             {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
                     type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR;}
@@ -376,9 +376,9 @@ class ArcSelfArrow : public ArcArrow
         EIterator       src;
         double YSize;
     public:
-        ArcSelfArrow(MscArcType t, const char *s, long unsigned l,
+        ArcSelfArrow(MscArcType t, const char *s, file_line l,
                      Msc *msc, const MscStyle &, double ys);
-        virtual ArcArrow *AddSegment(const char *m, bool forward, long unsigned l);
+        virtual ArcArrow *AddSegment(const char *m, bool forward, file_line l);
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
@@ -394,9 +394,9 @@ class ArcDirArrow : public ArcArrow
         std::vector<EIterator> middle;
 		bool modifyFirstLineSpacing;
     public:
-        ArcDirArrow(MscArcType t, const char *s, const char *d, long unsigned l,
+        ArcDirArrow(MscArcType t, const char *s, const char *d, file_line l,
                  Msc *msc, const MscStyle &);
-        virtual ArcArrow *AddSegment(const char *m, bool forward, long unsigned l);
+        virtual ArcArrow *AddSegment(const char *m, bool forward, file_line l);
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
@@ -431,7 +431,7 @@ struct VertXPos {
     enum postype {POS_INVALID=0, POS_AT, POS_CENTER,
         POS_LEFT_BY, POS_LEFT_SIDE,
         POS_RIGHT_BY, POS_RIGHT_SIDE} pos;
-    VertXPos(long unsigned l, Msc&m, const char *e1, postype p=POS_AT, const char *e2=NULL);
+    VertXPos(file_line l, Msc&m, const char *e1, postype p=POS_AT, const char *e2=NULL);
 };
 
 class ArcVerticalArrow : public ArcArrow
@@ -446,8 +446,8 @@ class ArcVerticalArrow : public ArcArrow
         std::vector<double> ypos; //calculate them in DrawHeight(final)
     public:
         ArcVerticalArrow(MscArcType t, const char *s, const char *d,
-                         VertXPos *p, long unsigned l, Msc *msc);
-        ArcArrow *AddSegment(const char *m, bool forward, long unsigned l);
+                         VertXPos *p, file_line l, Msc *msc);
+        ArcArrow *AddSegment(const char *m, bool forward, file_line l);
         bool AddAttribute(const Attribute &);
         void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
@@ -467,7 +467,7 @@ class ArcEmphasis : public ArcLabelled
         double left_space, right_space;
     public:
         //Constructor to construct the first emphasis in a series
-        ArcEmphasis(MscArcType t, const char *s, const char *d, long unsigned l, Msc *msc);
+        ArcEmphasis(MscArcType t, const char *s, const char *d, file_line l, Msc *msc);
         ~ArcEmphasis()
             {if (*follow.begin()==this) follow.pop_front(); delete emphasis;}
         ArcEmphasis* SetPipe();
@@ -487,7 +487,7 @@ class ArcParallel : public ArcBase
     protected:
         PtrList<ArcList> parallel;
     public:
-        ArcParallel(long unsigned l, Msc *msc) :
+        ArcParallel(file_line l, Msc *msc) :
             ArcBase(MSC_ARC_PARALLEL, l, msc) {}
         ArcParallel* AddArcList(ArcList*l)
             {parallel.push_back(l); return this;}
@@ -506,7 +506,7 @@ class ArcDivider : public ArcLabelled
         const bool  nudge;
 		bool wide;
     public:
-        ArcDivider(MscArcType t, long unsigned l, Msc *msc);
+        ArcDivider(MscArcType t, file_line l, Msc *msc);
         bool AddAttribute(const Attribute &);
         virtual void Width(EntityDistanceMap &distances);
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
@@ -517,7 +517,7 @@ class ArcDivider : public ArcLabelled
 class ArcCommand : public ArcBase
 {
     public:
-        ArcCommand(MscArcType t, long unsigned l, Msc *msc) :
+        ArcCommand(MscArcType t, file_line l, Msc *msc) :
             ArcBase(t, l, msc) {};
         bool AddAttribute(const Attribute &) {return false;}
         string Print(int ident=0) const;
@@ -529,7 +529,7 @@ class CommandEntity : public ArcCommand
         EntityDefList *entities;
         bool full_heading;
     public:
-        CommandEntity(EntityDefList *e, long unsigned l, Msc *msc)
+        CommandEntity(EntityDefList *e, file_line l, Msc *msc)
             : ArcCommand(MSC_COMMAND_ENTITY, l, msc) {entities=e; full_heading = e==NULL;}
         ~CommandEntity()
             {delete entities;}
@@ -545,7 +545,7 @@ class CommandEntity : public ArcCommand
 class CommandNewpage : public ArcCommand
 {
     public:
-        CommandNewpage(long unsigned l, Msc *msc)
+        CommandNewpage(file_line l, Msc *msc)
             : ArcCommand(MSC_COMMAND_NEWPAGE, l, msc) {compress=false;}
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
 };
@@ -555,7 +555,7 @@ class CommandNewBackground : public ArcCommand
     public:
         MscFillAttr fill;
 
-        CommandNewBackground(long unsigned l, Msc *msc, MscFillAttr f)
+        CommandNewBackground(file_line l, Msc *msc, MscFillAttr f)
             : ArcCommand(MSC_COMMAND_NEWBACKGROUND, l, msc), fill(f) {}
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
 };
@@ -565,7 +565,7 @@ class CommandMark : public ArcCommand
     public:
         string name;
         double offset;
-        CommandMark(const char *m, long unsigned l, Msc *msc);
+        CommandMark(const char *m, file_line l, Msc *msc);
         bool AddAttribute(const Attribute &);
         double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
 };
@@ -619,9 +619,9 @@ public:
     bool AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
 
-    EIterator FindAllocEntity(const char *, unsigned long, bool*validptr=NULL);
+    EIterator FindAllocEntity(const char *, file_line, bool*validptr=NULL);
     void AddArcs(ArcList *a);
-    ArcArrow *CreateArcArrow(MscArcType t, const char*s, const char*d, long unsigned l);
+    ArcArrow *CreateArcArrow(MscArcType t, const char*s, const char*d, file_line l);
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
     void PushContext();
     void PopContext();

@@ -671,7 +671,7 @@ void CMscGenDoc::ReadRegistryValues(bool reportProblem)
 	FillDesignDesignCombo();
 	m_ChartSourcePostscript = "";
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
-		              "http://msc-generator.sourceforge.net v2.4.0pre1";
+		              "http://msc-generator.sourceforge.net v2.4.0";
 	//m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
 }
 

@@ -55,7 +55,9 @@ MscDrawer::MscDrawer() :
 	, win32_dc(NULL), save_hdc(NULL)
 #endif
 {
-	current_file = Error.AddFile("[config]");
+	current_pos.file = Error.AddFile("[config]");
+	current_pos.line = 0;
+	current_pos.col = 0;
     SetLowLevelParams();
 }
 
@@ -156,7 +158,7 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
         else {
             outFile = fopen(fileName.c_str(), "wb");
             if (!outFile) {
-                Error.Error(file_line(current_file,0), string("Failed to open output file '").append(fileName).append("'"));
+                Error.Error(file_line(current_pos.file,0), string("Failed to open output file '").append(fileName).append("'"));
                 //We still do the drawing, but no file will be produced
             }
         }

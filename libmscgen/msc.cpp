@@ -837,14 +837,14 @@ string Msc::GetDesigns() const
     return retval;
 }
 
-EIterator Msc::FindAllocEntity(const char *e, unsigned long l, bool*validptr)
+EIterator Msc::FindAllocEntity(const char *e, file_line l, bool*validptr)
 {
     if (e==NULL)
         return NoEntity;
     EIterator ei = Entities.Find_by_Name(e);
     if (ei == NoEntity) {
         if (pedantic)
-            Error.Warning(file_line(current_file,l), "Unknown entity '" + string(e)
+            Error.Warning(l, "Unknown entity '" + string(e)
                           + "'. Assuming implicit definition.",
                           "This may be a mistyped entity name."
                           " Try turning 'pedantic' off to remove these messages.");
@@ -856,7 +856,7 @@ EIterator Msc::FindAllocEntity(const char *e, unsigned long l, bool*validptr)
     return ei;
 }
 
-ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, const char*d, long unsigned l)
+ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, const char*d, file_line l)
 {
     if (strcmp(s,d))
         return new ArcDirArrow(t,s,d,l, this, StyleSets.top()["arrow"]);
@@ -1038,7 +1038,7 @@ void Msc::PostParseProcess(void)
     ArcList::iterator i = Arcs.begin();
     if (i == Arcs.end()) return; //we cannot have autogen entities either.
     if ((*i)->type != MSC_COMMAND_ENTITY)
-        i = Arcs.insert(i, new CommandEntity(new EntityDefList, 0, this));
+        i = Arcs.insert(i, new CommandEntity(new EntityDefList, file_line(0, 0), this));
     dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
 
     //Traverse Arc tree and perform post-parse processing
@@ -1298,7 +1298,7 @@ void Msc::PostHeightProcess(void)
 
 void Msc::ParseText(const char *input, unsigned length, const char *filename)
 {
-    current_file = Error.AddFile(filename);
+    current_pos.file = Error.AddFile(filename);
     MscParse(*this, input, length);
 }
 
@@ -1321,15 +1321,15 @@ void Msc::CompleteParse(OutputType ot)
 void Msc::DrawCopyrightText(int page) 
 {
 	if (totalWidth==0 || !cr) return;
-	XY size;
-	GetPagePosition(page, XY(), size);
-	std::set<Block> dummy;
+	XY size, dummy;
+	GetPagePosition(page, dummy, size);
+	std::set<Block> dummy2;
 	Label label(copyrightText, this, StringFormat());
 	if (white_background) {
 	    MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
 		filledRectangle(XY(0,size.y), XY(totalWidth,size.y+label.getTextWidthHeight().y), fill_bkg);
 	}
-	label.DrawCovers(0, totalWidth, size.y, dummy, true);
+	label.DrawCovers(0, totalWidth, size.y, dummy2, true);
 }
 
 void Msc::Draw(void)

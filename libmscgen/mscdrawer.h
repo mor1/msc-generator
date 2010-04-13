@@ -97,7 +97,7 @@ class MscDrawer
 		                      double outer_radius, double inner_radius, MscGradientType type);
   public:
     MscError     Error;
-    unsigned     current_file;  /* The number of the file under parsing */
+    file_line    current_pos;  /* The number of the file under parsing, plus the error location */
     /** The total width & height of the drawing and the height of the bottom copyright text (all to be calculated) */
     double totalWidth, totalHeight;
 	double copyrightTextHeight;
