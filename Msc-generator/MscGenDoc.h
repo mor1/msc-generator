@@ -1,0 +1,183 @@
+/*
+    This file is part of Msc-generator.
+	Copyright 2008,2009,2010 Zoltan Turanyi
+	Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// MscGenDoc.h : interface of the CMscGenDoc class
+//
+
+
+#pragma once
+#include "ChartData.h"
+#include "afxwin.h"
+
+class CMscGenSrvrItem;
+
+
+// COptionDlg dialog
+
+class COptionDlg : public CDialog
+{
+	DECLARE_DYNCREATE(COptionDlg)
+
+public:
+	COptionDlg(CWnd* pParent = NULL);   // standard constructor
+	virtual ~COptionDlg();
+// Overrides
+
+// Dialog Data
+	enum { IDD = IDD_DIALOG_OPTIONS};
+
+protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog();
+	afx_msg void OnBnClickedTextEditorRadio();
+
+	DECLARE_MESSAGE_MAP()
+public:
+	BOOL m_Pedantic;
+	BOOL m_Warnings;
+	CString m_DefaultText;
+	int m_TextEditorRadioButtons;
+	CString m_TextEditStartCommand;
+	CString m_TextEditorJumpToLineCommand;
+	bool m_bNppExists;
+};
+
+enum EStopEditor {STOPEDITOR_NOWAIT, STOPEDITOR_WAIT, STOPEDITOR_FORCE};
+
+class CMscGenDoc : public COleServerDocEx
+{
+protected: // create from serialization only
+	CMscGenDoc();
+	DECLARE_DYNCREATE(CMscGenDoc)
+
+// Attributes
+public:
+	CMscGenSrvrItem* GetEmbeddedItem()
+		{ return reinterpret_cast<CMscGenSrvrItem*>(COleServerDoc::GetEmbeddedItem()); }
+	//Actual Signalling Chart Data and undo list
+	std::list<CChartData> m_charts;
+	IChartData m_itrSaved; //The chart that is the one last saved
+	IChartData m_itrCurrent; //The chart that is the current one
+	//Compilation options
+	bool m_Pedantic;
+	BOOL m_Warnings;
+	CString m_ChartSourcePreamble;
+	CString m_SetOfDesigns;
+	CString m_ChartSourcePostscript;
+	CString m_CopyrightText;
+	CString m_FileName; //to be used in compilation
+	unsigned m_page;
+	// View related 
+	int m_zoom; //In percentage. 100 is normal
+	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
+#define MAX_ERROR_LENGTH 4096
+	char m_errorText[MAX_ERROR_LENGTH];
+
+	//Clipboard format
+	static CLIPFORMAT m_cfPrivate;
+	//The non-modal windows
+	CDialog m_ErrorWindow;
+	CDialog m_ProgressWindow;
+	//Editor related
+	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
+	CString m_sStartTextEditor;
+	CString m_sJumpToLine;
+	CString m_DefaultText;
+	CString m_NppPath;
+	//Text editor spawned process related
+	DWORD m_EditorProcessId;
+	CString m_EditorFileName;
+	CTime m_EditorFileLastMod;
+	HWND m_hWndForEditor;
+
+// Operations
+public:
+	void InsertNewChart(const CChartData &);
+	void ReadRegistryValues(bool reportProblem);
+	bool ReadDesigns(bool reportProblem=false, const char *fileName="designlib.signalling");
+	void FillDesignDesignCombo(void);
+	//Editor functions
+	void OnUpdate(bool resetZoom=true);
+	void CopyErrorsToWindow(char *text);
+	void StartEditor(CString = "");
+	void JumpToLine(unsigned line);
+	bool CheckEditorAndFile(void);
+	void StopEditor(EStopEditor force);
+	void StartDrawingProgress();
+	void StopDrawingProgress();
+
+// Overrides
+protected:
+	virtual COleServerItem* OnGetEmbeddedItem();
+	virtual void OnSetItemRects(LPCRECT lpPosRect , LPCRECT lpClipRect);
+public:
+	virtual void Serialize(CArchive& ar);
+	virtual void DeleteContents(); // Destroys existing data, updates views
+	virtual BOOL OnNewDocument();
+	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
+	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
+	virtual void OnCloseDocument();
+	afx_msg void OnFileExport();
+	afx_msg void OnEditCopy();
+	afx_msg void OnEditPaste();
+	afx_msg void OnEditPreferences();
+	afx_msg void OnEditUndo();
+	afx_msg void OnEditRedo();
+	afx_msg void OnUpdateEditPaste(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateEditUndo(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateEditRedo(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
+
+	//Zoom functions
+			void SetZoom(int zoom);
+	afx_msg void OnViewZoomin();
+	afx_msg void OnViewZoomout();
+	afx_msg void OnDesignZoom();
+			void ArrangeViews(EZoomMode mode);
+			void ArrangeViews() {ArrangeViews(m_ZoomMode);}
+			void SwitchZoomMode(EZoomMode mode);
+	afx_msg void OnViewZoomnormalize();
+	afx_msg void OnViewAdjustwidth();
+	afx_msg void OnViewFittowidth();
+	afx_msg void OnZoommodeKeepinoverview();
+	afx_msg void OnZoommodeKeepadjustingwindowwidth();
+	afx_msg void OnZoommodeKeepfittingtowidth();
+	afx_msg void OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateZoommodeKeepadjustingwindowwidth(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI);
+
+// Implementation
+public:
+	virtual ~CMscGenDoc();
+#ifdef _DEBUG
+	virtual void AssertValid() const;
+	virtual void Dump(CDumpContext& dc) const;
+#endif
+
+protected:
+	virtual CDocObjectServer* GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite);
+	virtual void DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd);
+	virtual COleIPFrameWnd* CreateInPlaceFrame(CWnd* pParentWnd);
+
+// Generated message map functions
+protected:
+	DECLARE_MESSAGE_MAP()
+};
+
+
