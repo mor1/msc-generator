@@ -1203,7 +1203,8 @@ ArcEmphasis* ArcEmphasis::SetPipe()
 
 ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
 {
-    emphasis=l;
+	if (l!=NULL && l->size()>0)
+		emphasis=l;
     style += chart->StyleSets.top()["emphasis"];
     return this;
 }

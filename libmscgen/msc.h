@@ -469,7 +469,7 @@ class ArcEmphasis : public ArcLabelled
         //Constructor to construct the first emphasis in a series
         ArcEmphasis(MscArcType t, const char *s, const char *d, file_line l, Msc *msc);
         ~ArcEmphasis()
-            {if (*follow.begin()==this) follow.pop_front(); delete emphasis;}
+            {if (follow.size()>0 && *follow.begin()==this) follow.pop_front(); delete emphasis;}
         ArcEmphasis* SetPipe();
         ArcEmphasis* AddArcList(ArcList*l);
         bool AddAttribute(const Attribute &);
