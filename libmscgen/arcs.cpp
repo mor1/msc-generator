@@ -1009,11 +1009,11 @@ static const MscGradientType readfrom_right_gardient[] = {
 	GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
     GRADIENT_LEFT, GRADIENT_RIGHT, GRADIENT_UP, GRADIENT_DOWN,
 	GRADIENT_RIGHT};
- 
+
 	if (style.fill.gradient.first) {
 		if (readfromleft)
 			style.fill.gradient.second = readfrom_left_gardient[style.fill.gradient.second];
-		else 
+		else
 			style.fill.gradient.second = readfrom_right_gardient[style.fill.gradient.second];
 	}
 }
@@ -1203,8 +1203,15 @@ ArcEmphasis* ArcEmphasis::SetPipe()
 
 ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
 {
-	if (l!=NULL && l->size()>0)
-		emphasis=l;
+    if (l!=NULL && l->size()>0) {
+        if (emphasis) {
+            emphasis->insert(emphasis->end(), l->begin(), l->end());
+            l->clear(); //so that l's constructor does not delete Arcs in arclist
+            delete l;
+        } else {
+            emphasis=l;
+        }
+    }
     style += chart->StyleSets.top()["emphasis"];
     return this;
 }
@@ -1461,8 +1468,8 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         geom.cover.insert(limiter);
         geom.mainline.till = y;
         //Advance label height if not fully opaque
-		if (style.solid.second < 255)
-			y += (*i)->parsed_label.getTextWidthHeight().y;
+        if (style.solid.second < 255)
+            y += (*i)->parsed_label.getTextWidthHeight().y;
         //Draw arrows if any
         if ((*i)->emphasis) {
             //If compress is on, draw entities in a block and shift them up in one
@@ -1497,7 +1504,7 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         XY cd(d.x, (s.y+d.y)/2);
         XY wh(style.line.radius.second*2, d.y-s.y);
         XY shift(style.line.radius.second, 0);
-		//Draw covering part of pipe
+        //Draw covering part of pipe
         if (style.fill.color.second.valid) {
             MscFillAttr fill = style.fill;
             //combine opaqueness of the pipe color and the solid attribute
