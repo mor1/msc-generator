@@ -19,23 +19,22 @@
 
 
 #pragma once
-#include "libmscgen.h"
 #include <list>
+
+class Msc;
 
 class CChartData {
 protected:
 	char *m_buff;
 	size_t m_length;
-	mutable void *m_msc;
+	mutable Msc *m_msc;
 	//References are to the MscGenDoc members
 	CString &m_ChartSourcePreamble;
-	CString &m_ChartSourcePostscript;
 	CString &m_CopyrightText;
-	CString &m_FileName;
 	bool    &m_Pedantic;
 	CString m_ForcedDesign;
 public:
-	CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &ChartSourcePostscript, CString &CopyrightText, CString &FileName);
+	CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &CopyrightText);
 	CChartData(const CChartData&);
 	~CChartData() {Delete();}
 	CChartData & operator = (const CChartData&);
@@ -47,7 +46,7 @@ public:
 	CString GetDesign () {return m_ForcedDesign;}
 	const char *GetText() const {return m_buff;}
 	unsigned GetLength() const {return m_length;}
-	void FreeMsc() const {if (m_msc) Msc_Destroy(m_msc); m_msc=NULL;}
+	void FreeMsc() const;
 	void CompileIfNeeded() const;
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
 	BOOL IsEmpty() const {return m_length==0 || m_buff==NULL;}

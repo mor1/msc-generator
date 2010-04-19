@@ -32,12 +32,15 @@ unsigned MscError::AddFile(const string &filename)
     return Files.size()-1;
 }
 
-void MscError::Add(const Attribute &a, const std::string &s, const std::string &once,
+void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once,
                    std::multimap<file_line, std::string>& store)
 {
     if (a.error) return;
     a.error = true;
-    Add(a.linenum, s, once, store);
+    if (atValue)
+        Add(a.linenum_value, s, once, store);
+    else
+        Add(a.linenum_attr, s, once, store);
 }
 
 void MscError::Add(file_line linenum, const std::string &s, const std::string &once,
@@ -99,4 +102,3 @@ file_line MscError::GetFileLineOfErrorNo(unsigned num) const
 		return i->first;
 	return file_line(0,0,0);
 }
- 

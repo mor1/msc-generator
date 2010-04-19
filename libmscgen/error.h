@@ -24,6 +24,7 @@ public:
         }
         else return file < a.file;
     }
+    file_line &IncCol(unsigned i=1) {col+=i; return *this;}
 };
 
 
@@ -34,8 +35,8 @@ protected:
 
     void Add(file_line linenum, const std::string &s, const std::string &once,
               std::multimap<file_line, std::string>& store);
-    void Add(const Attribute &a, const std::string &s, const std::string &once,
-              std::multimap<file_line, std::string>& store);
+    void Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once,
+             std::multimap<file_line, std::string>& store);
 
 public:
     std::vector<std::string> Files;
@@ -44,12 +45,12 @@ public:
     unsigned AddFile(const std::string &filename);
     void Warning(file_line linenum, const std::string &s, const std::string &once="")
         {Add(linenum, s, once, Warnings);}
-    void Warning(const Attribute &a, const std::string &s, const std::string &once="")
-        {Add(a, s, once, Warnings);}
+    void Warning(const Attribute &a, bool atValue, const std::string &s, const std::string &once="")
+        {Add(a, atValue, s, once, Warnings);}
     void Error(file_line linenum, const std::string &s, const std::string &once="")
         {Add(linenum, s, once, Errors);}
-    void Error(const Attribute &a, const std::string &s, const std::string &once="")
-        {Add(a, s, once, Errors);}
+    void Error(const Attribute &a, bool atValue, const std::string &s, const std::string &once="")
+        {Add(a, atValue, s, once, Errors);}
 
     std::string Print(bool oWarnings) const;
     bool hasErrors() const {return Errors.size()>0;}

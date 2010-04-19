@@ -79,9 +79,7 @@ public:
 	BOOL m_Warnings;
 	CString m_ChartSourcePreamble;
 	CString m_SetOfDesigns;
-	CString m_ChartSourcePostscript;
 	CString m_CopyrightText;
-	CString m_FileName; //to be used in compilation
 	unsigned m_page;
 	// View related 
 	int m_zoom; //In percentage. 100 is normal

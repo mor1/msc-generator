@@ -19,13 +19,12 @@
 
 #include "stdafx.h"
 #include "ChartData.h"
-
+#include "msc.h"
 
 //CChartData
 
-CChartData::CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &ChartSourcePostscript, CString &CopyrightText, CString &FileName) :
-    m_Pedantic(Pedantic), m_ChartSourcePreamble(ChartSourcePreamble), m_ChartSourcePostscript(ChartSourcePostscript), 
-	m_CopyrightText(CopyrightText), m_FileName(FileName)
+CChartData::CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &CopyrightText) :
+    m_Pedantic(Pedantic), m_ChartSourcePreamble(ChartSourcePreamble), m_CopyrightText(CopyrightText)
 {
 	m_buff=NULL; 
 	m_length=0; 	
@@ -34,8 +33,7 @@ CChartData::CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &Ch
 
 
 CChartData::CChartData(const CChartData& other) :
-     m_Pedantic(other.m_Pedantic), m_ChartSourcePreamble(other.m_ChartSourcePreamble), m_ChartSourcePostscript(other.m_ChartSourcePostscript), 
-	 m_CopyrightText(other.m_CopyrightText), m_FileName(other.m_FileName)
+     m_Pedantic(other.m_Pedantic), m_ChartSourcePreamble(other.m_ChartSourcePreamble), m_CopyrightText(other.m_CopyrightText)
 {
 	m_buff = NULL;
 	m_length = 0;
@@ -59,10 +57,9 @@ CChartData & CChartData::operator = (const CChartData& other)
 
 void CChartData::Delete(void) 
 {
+	FreeMsc();
 	if (m_buff) free(m_buff); 
 	m_buff=NULL; 
-	if (m_msc) Msc_Destroy(m_msc); 
-	m_msc=NULL; 
 	m_length=0; 
 }
 
@@ -85,11 +82,8 @@ void CChartData::SetDesign (const char *design)
 {
 	if (!design) return;
 	if (m_ForcedDesign == design) return;
+	FreeMsc();
 	m_ForcedDesign = design;
-	if (m_msc) {
-		Msc_Destroy(m_msc); 
-		m_msc = NULL;
-	}
 }
 
 BOOL CChartData::Save(const CString &fileName) const
@@ -145,25 +139,40 @@ BOOL CChartData::Load(const CString &fileName, BOOL reportError)
 	Delete();
 	m_buff = buff;
 	m_length = length;
+	return TRUE;
+}
+
+void CChartData::FreeMsc() const
+{
 	if (m_msc) {
-		Msc_Destroy(m_msc); 
+		delete m_msc;
 		m_msc = NULL;
 	}
-	return TRUE;
 }
 
 void CChartData::CompileIfNeeded() const 
 {
 	//To force a recompilation, call ReCompile()
 	if (m_msc) return;
+	m_msc = new Msc;
 	if (!m_ChartSourcePreamble.IsEmpty()) {
-		m_msc = Msc_ParseText(m_ChartSourcePreamble, m_ChartSourcePreamble.GetLength(), "[designlib]", m_msc, m_Pedantic);
+		m_msc->pedantic = m_Pedantic;
+		m_msc->ParseText(m_ChartSourcePreamble, m_ChartSourcePreamble.GetLength(), "[designlib]");
 		if (!m_ForcedDesign.IsEmpty())
-			Msc_ForceDesign(m_msc, m_ForcedDesign);
+			if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
+				m_msc->ignore_designs = true;
 	}
-	m_msc = Msc_ParseText(m_buff, m_length, m_FileName, m_msc, m_Pedantic);
-	Msc_SetCopyrightText(m_msc, m_CopyrightText);
-	if (!m_ChartSourcePostscript.IsEmpty()) 
-		m_msc = Msc_ParseText(m_ChartSourcePostscript, m_ChartSourcePostscript.GetLength(), "[postscript]", m_msc, m_Pedantic);
-	Msc_PostParse(m_msc);
+	m_msc->ParseText(m_buff, m_length, "");
+	m_msc->copyrightText = (const char*)m_CopyrightText;
+    
+	//Allocate (non-sized) output object and assign it to the chart
+    //From this point on, the chart sees xy dimensions
+    m_msc->SetOutput(MscDrawer::WMF);
+    //Sort Entities, add numbering, fill in auto-calculated values,
+    //and throw warnings for badly constructed diagrams.
+    m_msc->PostParseProcess();
+    m_msc->CalculateWidthHeight();
+    //A final step of prcessing, checking for additional drawing warnings
+    m_msc->PostHeightProcess();
+    m_msc->CloseOutput();
 }

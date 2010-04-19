@@ -87,15 +87,15 @@ bool Attribute::CheckType(MscAttrType t, MscError &error) const
         if (type != MSC_ATTR_STYLE)
             return true;
         ss << "Attribute '" << name << "' seems to be a style. Ignoring attribute.";
-        error.Error(*this, ss, "Use quotation marks to force this value.");
+        error.Error(*this, true, ss, "Use quotation marks to force this value.");
         break;
 
     case MSC_ATTR_BOOL:
-        error.Error(*this, ss << "must be 'yes' or 'no'. Ignoring attribute.");
+        error.Error(*this, true, ss << "must be 'yes' or 'no'. Ignoring attribute.");
         break;
 
     case MSC_ATTR_NUMBER:
-        error.Error(*this, ss << "must be a number. Ignoring attribute.");
+        error.Error(*this, true, ss << "must be a number. Ignoring attribute.");
         break;
     }
     return false;
@@ -109,7 +109,7 @@ bool Attribute::CheckColor(const ColorSet &colors, MscError &error) const
     }
     string ss;
     ss << "Unrecognized color name or definition: '" << value << "'. Ignoring attribute.";
-    error.Error(*this, ss);
+    error.Error(*this, true, ss);
     return false;
 }
 
@@ -123,21 +123,21 @@ void Attribute::InvalidValueError(const string &candidates, MscError &error) con
     }
     s.append("' for attribute '").append(name);
     s.append("'. Use '").append(candidates).append("'. Ignoring attribute.");
-    error.Error(*this, s);
+    error.Error(*this, true, s);
 }
 
 void Attribute::InvalidAttrError(MscError &error) const
 {
     string s;
     s << "Attribute  '" << name << "' cannot be applied here. Ignoring it.";
-    error.Error(*this, s);
+    error.Error(*this, false, s);
 }
 
 void Attribute::InvalidStyleError(MscError &error) const
 {
     string s;
     s << "Undefined style: '" << name << "'. Ignoring it.";
-    error.Error(*this, s);
+    error.Error(*this, false, s);
 }
 
 bool Attribute::EnsureNotClear(MscError &error, StyleType t) const
@@ -157,7 +157,7 @@ bool Attribute::EnsureNotClear(MscError &error, StyleType t) const
         break;
     }
     s.append(" Ignoring attempt.");
-    error.Error(*this, s, "Can only unset attributes of non-default styles.");
+    error.Error(*this, false, s, "Can only unset attributes of non-default styles.");
     return false;
 }
 

@@ -505,13 +505,13 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         if (sc.length()>0) {
             sc.insert(0, "Unrecognized color name/definition(s) in attribute 'format': ");
             ss.append(". Ignoring color.");
-            msc->Error.Error(a, sc);
+            msc->Error.Error(a, true, sc);
             return true;
         }
         if (ss.length()>0) {
             ss.insert(0, "Unrecognized style(s) in attribute 'format': ");
             ss.append(". Ignoring style.");
-            msc->Error.Error(a, ss);
+            msc->Error.Error(a, false, ss);
         }
 
         StringFormat sf(tmp);
@@ -519,7 +519,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
             string s("Could not recognize these escapes:'");
             s.append(tmp).append("' in attribute '").append(a.name).append("'.");
             s.append(" Applying only what I understood.");
-            msc->Error.Warning(a, s);
+            msc->Error.Warning(a, true, s);
             if (!msc->Error.strict) Apply(&sf);
             return true;
         }

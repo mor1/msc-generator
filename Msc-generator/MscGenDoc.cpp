@@ -152,7 +152,7 @@ CMscGenDoc::CMscGenDoc()
 	m_bModified = FALSE;
 	m_hWndForEditor = NULL;
 
-	m_charts.push_back(CChartData(m_Pedantic, m_ChartSourcePreamble, m_ChartSourcePostscript, m_CopyrightText, m_FileName));
+	m_charts.push_back(CChartData(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText));
 	m_itrCurrent = m_charts.begin();
 	m_itrSaved = m_charts.end(); //start as modified
 }
@@ -246,7 +246,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
 					break;
 			}
 		}
-		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_ChartSourcePostscript, m_CopyrightText, m_FileName);
+		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
 		data.Set(buff, length);
 		data.SetDesign(design);
 		InsertNewChart(data);
@@ -275,7 +275,7 @@ void CMscGenDoc::Dump(CDumpContext& dc) const
 void CMscGenDoc::DeleteContents()
 {
 	m_charts.clear();
-	m_charts.push_back(CChartData(m_Pedantic, m_ChartSourcePreamble, m_ChartSourcePostscript, m_CopyrightText, m_FileName));
+	m_charts.push_back(CChartData(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText));
 	m_itrCurrent = m_charts.begin();
 	m_itrSaved = m_charts.end(); //start as modified
 	COleServerDoc::DeleteContents();
@@ -301,7 +301,7 @@ BOOL CMscGenDoc::OnNewDocument()
 		return FALSE;
 
 	// (SDI documents will reuse this document)
-	CChartData data(m_Pedantic, m_ChartSourcePreamble, m_ChartSourcePostscript, m_CopyrightText, m_FileName);
+	CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
 	data.Set(m_DefaultText, m_DefaultText.GetLength());
 	m_charts.clear();
 	m_charts.push_back(data);
@@ -330,7 +330,6 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 		//Will use serialize which sets m_itrCurrent to loaded entry
 		if (!COleServerDoc::OnOpenDocument(lpszPathName))
 			return FALSE;
-		m_FileName = "Embedded";
 	} else {
 		// always register the document before opening it
 		Revoke();
@@ -345,9 +344,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 		if (IsModified())
 			TRACE(traceOle, 0, "Warning: OnOpenDocument replaces an unsaved document.\n");
 
-		CString fn(lpszPathName);
-		m_FileName = fn.Mid(fn.ReverseFind('\\')+1);
-		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_ChartSourcePostscript, m_CopyrightText, m_FileName);
+		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
 		if (!data.Load(lpszPathName)) {
 			CFileException e;
 			ReportSaveLoadException(lpszPathName, &e,
@@ -533,7 +530,7 @@ void CMscGenDoc::OnEditPaste()
 		}
 		StartDrawingProgress();
 		if (editor_running) StopEditor(STOPEDITOR_FORCE);
-		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_ChartSourcePostscript, m_CopyrightText, m_FileName);
+		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
 		data.Set((char*)v, length);
 		data.SetDesign(m_itrCurrent->GetDesign());
 		GlobalUnlock(hGlobal);
@@ -669,7 +666,6 @@ void CMscGenDoc::ReadRegistryValues(bool reportProblem)
 
 	ReadDesigns(reportProblem); //fills m_ChartSourcePreamble appropriately, default filename applies
 	FillDesignDesignCombo();
-	m_ChartSourcePostscript = "";
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
 		              "http://msc-generator.sourceforge.net v2.4.0";
 	//m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
@@ -696,8 +692,7 @@ bool CMscGenDoc::ReadDesigns(bool reportProblem, const char *fileName)
 		bFound = finder.FindNextFile();
 		bool designlib_pedantic = true;
 		CString designlib_strings;
-		CString designlib_filename("[designlib]");
-		CChartData data(designlib_pedantic, designlib_strings, designlib_strings, designlib_strings, designlib_filename);
+		CChartData data(designlib_pedantic, designlib_strings, designlib_strings);
 		if (data.Load(finder.GetFilePath(), false)) {
 			char buff[4096]; //needed later for designs, too
 			Msc_GetErrors(data.GetMsc(), true, buff, sizeof(buff));
@@ -888,7 +883,7 @@ bool CMscGenDoc::CheckEditorAndFile()
 			//Check if the file has been updated by the editor
 			if (m_EditorFileLastMod != status.m_mtime) {
 				//Load modification
-				CChartData data(m_Pedantic, m_ChartSourcePreamble, m_ChartSourcePostscript, m_CopyrightText, m_FileName);
+				CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
 				if (data.Load(m_EditorFileName, FALSE)) {
 					StartDrawingProgress();
 					m_EditorFileLastMod = status.m_mtime;

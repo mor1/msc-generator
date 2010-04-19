@@ -364,7 +364,7 @@ class ArcArrow : public ArcLabelled
     public:
         ArcArrow(MscArcType t, file_line l, Msc *msc, const MscStyle &s) :
             ArcLabelled(t, l, msc, s) {}
-        virtual ArcArrow *AddSegment(const char *m, bool forward, file_line l) = 0;
+        virtual ArcArrow *AddSegment(const char *m, file_line ml, bool forward, file_line l) = 0;
         bool isBidir(void) const
             {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
                     type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR;}
@@ -378,7 +378,7 @@ class ArcSelfArrow : public ArcArrow
     public:
         ArcSelfArrow(MscArcType t, const char *s, file_line l,
                      Msc *msc, const MscStyle &, double ys);
-        virtual ArcArrow *AddSegment(const char *m, bool forward, file_line l);
+        virtual ArcArrow *AddSegment(const char *m, file_line ml, bool forward, file_line l);
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
@@ -390,18 +390,21 @@ class ArcSelfArrow : public ArcArrow
 class ArcDirArrow : public ArcArrow
 {
     protected:
-        EIterator       src, dst;
+        EIterator              src, dst;
+        file_line              linenum_src, linenum_dst;
         std::vector<EIterator> middle;
-		bool modifyFirstLineSpacing;
+        std::vector<file_line> linenum_middle;
+        bool modifyFirstLineSpacing;
     public:
-        ArcDirArrow(MscArcType t, const char *s, const char *d, file_line l,
+        ArcDirArrow(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l,
                  Msc *msc, const MscStyle &);
-        virtual ArcArrow *AddSegment(const char *m, bool forward, file_line l);
+        virtual ArcArrow *AddSegment(const char *m, file_line ml, bool forward, file_line l);
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
-        virtual void PostHeightProcess(void);
+                void CheckSegmentOrder(double y);
+        virtual void PostHeightProcess(void) {CheckSegmentOrder(yPos);}
 };
 
 class ArcBigArrow : public ArcDirArrow
@@ -418,7 +421,7 @@ class ArcBigArrow : public ArcDirArrow
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
-        virtual void PostHeightProcess(void);
+        virtual void PostHeightProcess(void) {CheckSegmentOrder(yPos + height/2);}
 };
 
 struct VertXPos {
@@ -447,7 +450,7 @@ class ArcVerticalArrow : public ArcArrow
     public:
         ArcVerticalArrow(MscArcType t, const char *s, const char *d,
                          VertXPos *p, file_line l, Msc *msc);
-        ArcArrow *AddSegment(const char *m, bool forward, file_line l);
+        ArcArrow *AddSegment(const char *m, file_line ml, bool forward, file_line l);
         bool AddAttribute(const Attribute &);
         void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
@@ -467,7 +470,7 @@ class ArcEmphasis : public ArcLabelled
         double left_space, right_space;
     public:
         //Constructor to construct the first emphasis in a series
-        ArcEmphasis(MscArcType t, const char *s, const char *d, file_line l, Msc *msc);
+        ArcEmphasis(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l, Msc *msc);
         ~ArcEmphasis()
             {if (follow.size()>0 && *follow.begin()==this) follow.pop_front(); delete emphasis;}
         ArcEmphasis* SetPipe();
@@ -621,7 +624,7 @@ public:
 
     EIterator FindAllocEntity(const char *, file_line, bool*validptr=NULL);
     void AddArcs(ArcList *a);
-    ArcArrow *CreateArcArrow(MscArcType t, const char*s, const char*d, file_line l);
+    ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line sl, const char*d, file_line dl, file_line l);
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
     void PushContext();
     void PopContext();
@@ -651,9 +654,9 @@ public:
     void CalculateWidthHeight(void);
     void PostHeightProcess(void);
     void Draw(void);
-	void DrawCopyrightText(int page=-1);
+    void DrawCopyrightText(int page=-1);
 
-	void ParseText(const char *input, unsigned length, const char *filename);
+    void ParseText(const char *input, unsigned length, const char *filename);
     void CompleteParse(OutputType);
     void DrawToOutput(OutputType, const string &);
 };

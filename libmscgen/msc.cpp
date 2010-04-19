@@ -137,7 +137,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
             return true;
         }
         if (a.type != MSC_ATTR_BOOL) {
-            msc->Error.Error(a, "The 'number' attribute must be 'yes' or 'no' for styles. Ignoring it.");
+            msc->Error.Error(a, true, "The 'number' attribute must be 'yes' or 'no' for styles. Ignoring it.");
             return true;
         }
         numbering.first = true;
@@ -542,20 +542,20 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
         //if MSC_ATTR_CLEAR, we are OK above and a.value is ""
         label.first = true;
         label.second = a.value;
-        label.third = a.linenum;
+        label.third = a.linenum_attr;
         return true;
     }
     if (a.Is("pos")) {
         if (a.type == MSC_ATTR_CLEAR) {
             pos.first = true;
             pos.second = 0;
-            pos.third = a.linenum;
+            pos.third = a.linenum_attr;
             return true;
         }
         if (!a.CheckType(MSC_ATTR_NUMBER, msc->Error)) return true;
         pos.first = true;
         pos.second = a.number;
-        pos.third = a.linenum;
+        pos.third = a.linenum_attr;
         return true;
     }
     if (a.Is("relative")) {
@@ -563,7 +563,7 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
         //if MSC_ATTR_CLEAR, we are OK above and a.value is ""
         rel.second = a.value;
         rel.first = true;
-        rel.third = a.linenum;
+        rel.third = a.linenum_attr;
         return true;
     }
     if (a.Is("show")) {
@@ -593,7 +593,7 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
     if (style.AddAttribute(a, msc)) return true;
     if (a.Is("id")) {
         s << "Attribute '"<< a.name <<"' is no longer supported. Ignoring it.";
-        msc->Error.Error(a, s, "Try '\\^' inside a label for superscript.");
+        msc->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
         return false;
     }
     a.InvalidAttrError(msc->Error);
@@ -856,10 +856,10 @@ EIterator Msc::FindAllocEntity(const char *e, file_line l, bool*validptr)
     return ei;
 }
 
-ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, const char*d, file_line l)
+ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line sl, const char*d, file_line dl, file_line l)
 {
     if (strcmp(s,d))
-        return new ArcDirArrow(t,s,d,l, this, StyleSets.top()["arrow"]);
+        return new ArcDirArrow(t,s,sl,d,dl,l, this, StyleSets.top()["arrow"]);
     MscStyle style = StyleSets.top()["arrow"];
     style.text.Apply("\\pr");
     return new ArcSelfArrow(t,s,l, this, style, selfArrowYSize);
@@ -892,7 +892,7 @@ bool Msc::AddAttribute(const Attribute &a)
     if (a.Is("msc")) {
         if (!a.CheckType(MSC_ATTR_STRING, Error)) return true;
         if (!SetDesign(a.value, false))
-            Error.Warning(a.linenum, "Unknown chart design: '" + a.value +
+            Error.Warning(a.linenum_value, "Unknown chart design: '" + a.value +
                           "'. Ignoring design selection.",
                           "Available styles are: " + GetDesigns() +".");
         return true;
@@ -930,7 +930,7 @@ bool Msc::AddAttribute(const Attribute &a)
     }
 
     string ss;
-    Error.Error(a, "Option '" + a.name + "' not recognized. Ignoring it.");
+    Error.Error(a, false, "Option '" + a.name + "' not recognized. Ignoring it.");
     return false;
 }
 
@@ -940,7 +940,7 @@ bool Msc::AddDesignAttribute(const Attribute &a)
 {
     if (a.Is("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc"))
         return AddAttribute(a);
-    Error.Warning(a, "Cannot set attribute '" + a.name +
+    Error.Warning(a, false, "Cannot set attribute '" + a.name +
                   "' as part of a design definition. Ignoring it.");
     return false;
 }
@@ -1095,7 +1095,7 @@ double Msc::FindCollision(const set<Block> &a, const set<Block> &b,
     double y = INT_MAX;
     for (set<Block>::const_iterator i=a.begin(); i!=a.end(); i++)
         for (set<Block>::const_iterator j=b.begin(); j!=b.end(); j++)
-			if (i->x.Overlaps(j->x, compressXGap)) 
+			if (i->x.Overlaps(j->x, compressXGap))
                 if (y > j->y.from - i->y.till - compressYGap) {
                     y = j->y.from - i->y.till - compressYGap;
                     CollisionYPos = i->y.till + compressYGap/2;
@@ -1318,7 +1318,7 @@ void Msc::CompleteParse(OutputType ot)
     CloseOutput();
 }
 
-void Msc::DrawCopyrightText(int page) 
+void Msc::DrawCopyrightText(int page)
 {
 	if (totalWidth==0 || !cr) return;
 	XY size, dummy;

@@ -118,6 +118,11 @@ ArcLabelled::ArcLabelled(MscArcType t, file_line l, Msc *msc, const MscStyle &s)
 
 ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
 {
+    if (l==NULL) return this;
+    //Find label attribute
+    file_line linenum_label;
+    for (AttributeList::iterator i = l->begin(); i!=l->end(); i++)
+        if ((*i)->Is("label")) linenum_label = (*i)->linenum_value;
     //Add attributest first
     ArcBase::AddAttributeList(l);
     //Then convert color and style names in labels
@@ -128,12 +133,12 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
         if (sc.length()>0) {
             sc.insert(0, "Unrecognized color name/definition(s) in label: ");
             sc.append(". Treating color definition as plain text.");
-            chart->Error.Error(linenum, sc);
+            chart->Error.Error(linenum_label, sc);
         }
         if (ss.length()>0) {
             ss.insert(0, "Unrecognized style(s) in label: ");
             ss.append(". Treating style definition as small text.");
-            chart->Error.Error(linenum, ss, "Use of \\s for small text is obsolete, use \\- instead.");
+            chart->Error.Error(linenum_label, ss, "Use of \\s for small text is obsolete, use \\- instead.");
         }
     }
     return this;
@@ -187,11 +192,11 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
             numbering = a.yes?-999:-1000;
             return true;
         }
-        chart->Error.Error(a, "Value for 'number' must be 'yes', 'no' or a number. Ignoring attribute.");
+        chart->Error.Error(a, true, "Value for 'number' must be 'yes', 'no' or a number. Ignoring attribute.");
         return true;
     }
     if (a.Is("id")) {
-        chart->Error.Error(a, "Attribute '" + a.name
+        chart->Error.Error(a, false, "Attribute '" + a.name
                            + "' is no longer supported. Ignoring it.",
                           "Try '\\^' inside a label for superscript.");
         return true;
@@ -234,7 +239,7 @@ ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line l,
     src = chart->FindAllocEntity(s, l, &valid);
 }
 
-ArcArrow * ArcSelfArrow::AddSegment(const char *m, bool forward, file_line l)
+ArcArrow * ArcSelfArrow::AddSegment(const char *m, file_line ml, bool forward, file_line l)
 {
     if (!valid) return this; //display error only once
     chart->Error.Error(l, "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
@@ -331,42 +336,46 @@ void ArcSelfArrow::PostHeightProcess(void)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, const char *d, file_line l,
+ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l,
                          Msc *msc, const MscStyle &st) :
-    ArcArrow(t, l, msc, st)
+    ArcArrow(t, l, msc, st), linenum_src(sl), linenum_dst(dl)
 {
-    src = chart->FindAllocEntity(s, l, &valid);
-    dst = chart->FindAllocEntity(d, l, &valid);
-	modifyFirstLineSpacing = true;
+    src = chart->FindAllocEntity(s, sl, &valid);
+    dst = chart->FindAllocEntity(d, dl, &valid);
+    modifyFirstLineSpacing = true;
 };
 
-ArcArrow * ArcDirArrow::AddSegment(const char *m, bool forward, file_line l)
+ArcArrow * ArcDirArrow::AddSegment(const char *m, file_line ml, bool forward, file_line l)
 {
     EIterator mid;
     if (m==NULL) {
         if (((*src)->pos < (*dst)->pos) ^ forward)
             // b->a-> and b<-a<-
-            mid = chart->FindAllocEntity(LSIDE_ENT_STR, l);
+            mid = chart->FindAllocEntity(LSIDE_ENT_STR, ml);
         else
             // a->b-> and a<-b<-
-            mid = chart->FindAllocEntity(RSIDE_ENT_STR, l);
+            mid = chart->FindAllocEntity(RSIDE_ENT_STR, ml);
     } else
-        mid = chart->FindAllocEntity(m, l);
+        mid = chart->FindAllocEntity(m, ml);
     assert(mid != chart->NoEntity);
     if (forward) {
         //check for this situation: ->b->a (where a is left of b)
         if (middle.size()==0 && (*src)->name ==LSIDE_ENT_STR &&
             (*dst)->pos > (*mid)->pos && m!=NULL)
-            src = chart->FindAllocEntity(RSIDE_ENT_STR, l);
+            src = chart->FindAllocEntity(RSIDE_ENT_STR, ml);
         middle.push_back(dst);
+        linenum_middle.push_back(linenum_dst);
         dst = mid;
+        linenum_dst = ml;
     } else {
         //check for this situation: <-b<-a (where a is left of b)
         if (middle.size()==0 && (*dst)->name ==LSIDE_ENT_STR &&
             (*src)->pos > (*mid)->pos && m!=NULL)
-            dst = chart->FindAllocEntity(RSIDE_ENT_STR, l);
+            dst = chart->FindAllocEntity(RSIDE_ENT_STR, ml);
         middle.insert(middle.begin(), src);
+        linenum_middle.insert(linenum_middle.begin(), linenum_src);
         src = mid;
+        linenum_src = ml;
     };
     return this;
 }
@@ -451,7 +460,7 @@ void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, int &numbe
 
 void ArcDirArrow::Width(EntityDistanceMap &distances)
 {
-	if (!valid) return;
+    if (!valid) return;
     distances.Insert((*src)->index, (*dst)->index,
                      style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END, chart).x +
                      style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START, chart).x +
@@ -567,7 +576,7 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 }
 
 
-void ArcDirArrow::PostHeightProcess(void)
+void ArcDirArrow::CheckSegmentOrder(double y)
 {
     if (!valid) return;
 
@@ -575,13 +584,21 @@ void ArcDirArrow::PostHeightProcess(void)
     //we can only do this check here, as entity status is filled
     //During the Height() process, and can be considered complete only here
     vector<EIterator> temp = middle;
+    vector<file_line> linenum_temp = linenum_middle;
     temp.insert(temp.begin(), src);
-    if (src!=dst) temp.push_back(dst);
+    linenum_temp.insert(linenum_temp.begin(), linenum_src);
+    if (src!=dst) {
+        temp.push_back(dst);
+        linenum_temp.push_back(linenum_dst);
+    }
     std::vector<string> ss;
-    for (vector<EIterator>::iterator i = temp.begin(); i!=temp.end(); i++)
-        if (!(**i)->status.Get(yPos).status &&
-            (**i)->name != LSIDE_ENT_STR && (**i)->name != RSIDE_ENT_STR)
-            ss.push_back("'" + (**i)->name + "'");
+    int earliest = -1;
+    for (int i = 0; i<temp.size(); i++)
+        if (!(*temp[i])->status.Get(y).status &&
+            (*temp[i])->name != LSIDE_ENT_STR && (*temp[i])->name != RSIDE_ENT_STR) {
+            ss.push_back("'" + (*temp[i])->name + "'");
+            if (earliest == -1 || linenum_temp[i] < linenum_temp[earliest]) earliest = i;
+        }
     if (ss.size()>0) {
         string sss;
         if (ss.size() == 1)  //One missing entity
@@ -593,7 +610,7 @@ void ArcDirArrow::PostHeightProcess(void)
             sss << ss[ss.size()-2] << " and " << ss[ss.size()-1] << " are";
         }
         sss << " turned off, but referenced here.";
-        chart->Error.Warning(linenum, sss, "It will look strange.");
+        chart->Error.Warning(linenum_temp[earliest], sss, "It will look strange.");
     }
 }
 
@@ -617,7 +634,7 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
     case MSC_ARC_DOUBLE_BIDIR:
         style += chart->StyleSets.top()["block=>"]; break;
     }
-	modifyFirstLineSpacing = false;
+    modifyFirstLineSpacing = false;
 }
 
 string ArcBigArrow::Print(int ident) const
@@ -830,41 +847,6 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     return height;
 }
 
-void ArcBigArrow::PostHeightProcess(void)
-{
-    if (!valid) return;
-
-    //Check if all entities involved are actually turned on.
-    //we can only do this check here, as entity status is filled
-    //During the Height() process, and can be considered complete only here
-    vector<EIterator> temp = middle;
-    temp.insert(temp.begin(), src);
-    temp.push_back(dst);
-    string ss;
-    unsigned count = 0;
-    double y = yPos + height/2; //be turned on at the middle
-    for (vector<EIterator>::iterator i = temp.begin(); i!=temp.end(); i++) {
-        if (!(**i)->status.Get(y).status &&
-            (**i)->name != LSIDE_ENT_STR &&
-            (**i)->name != RSIDE_ENT_STR) {
-            ss << " '" << (**i)->name << "'";
-            ++count;
-        }
-    }
-    if (count) {
-        string sss;
-        if (count == 1)  //One missing entity
-            sss << "Entity" << ss << " is";
-        else
-            sss << "Entities " << ss << " are";
-        sss << " turned off, but referenced here.";
-        chart->Error.Warning(linenum, sss, "It will look strange.");
-    }
-    if (content)
-        for (ArcList::iterator i = content->begin(); i!=content->end(); i++)
-            (*i)->PostHeightProcess();
-}
-
 //////////////////////////////////////////////////////////////////////////////////////
 
 VertXPos::VertXPos(file_line l, Msc&m, const char *e1, postype p, const char *e2)
@@ -924,7 +906,7 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
     }
 }
 
-ArcArrow * ArcVerticalArrow::AddSegment(const char *m, bool forward, file_line l)
+ArcArrow * ArcVerticalArrow::AddSegment(const char *m, file_line ml, bool forward, file_line l)
 {
     if (!valid) return this; //display error only once
     chart->Error.Error(l, "Cannot add further segments to vertical arrow. Ignoring it.");
@@ -1164,14 +1146,14 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcEmphasis::ArcEmphasis(MscArcType t,const char *s, const char *d, file_line l, Msc *msc) :
+ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l, Msc *msc) :
     ArcLabelled(t, l, msc, msc->StyleSets.top()["emptyemphasis"]),
     pipe(false), follow(true), height(0), total_height(0)
 {
     first = NULL;
     emphasis=NULL;
-    src = chart->FindAllocEntity(s, l, &valid);
-    dst = chart->FindAllocEntity(d, l, &valid);
+    src = chart->FindAllocEntity(s, sl, &valid);
+    dst = chart->FindAllocEntity(d, dl, &valid);
 
     //If both src and dst specified, order them
     if (src!=chart->NoEntity && dst!=chart->NoEntity)

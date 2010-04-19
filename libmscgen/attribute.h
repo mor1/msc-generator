@@ -37,6 +37,8 @@ class PtrList : public std::list<Object*>
             {responsible=r;}
         PtrList *Append(Object *o)
             {if (o) push_back(o); return this;}
+        PtrList *Prepend(Object *o)
+            {if (o) push_front(o); return this;}
         ~PtrList()
             {typename std::list<Object*>::iterator i=std::list<Object*>::begin();
              if (responsible)
@@ -122,17 +124,22 @@ class Attribute
         string          value;
         double          number;
         bool            yes;
-        file_line       linenum;
+        file_line       linenum_attr;
+        file_line       linenum_value;
         mutable bool    error;
 
-        Attribute(const char*a, const char *s, file_line l) : error(false), linenum(l)
-            {type=s?MSC_ATTR_STRING:MSC_ATTR_CLEAR; name=a; value=s?s:"";}
-        Attribute(const char*a, double n, file_line l, const char *s) : error(false), linenum(l)
-            {type= MSC_ATTR_NUMBER; name=a; number = n; value=s;}
-        Attribute(const char*a, bool b, file_line l, const char *s) : error(false), linenum(l)
-            {type= MSC_ATTR_BOOL; name=a; yes = b; value=s;}
-        Attribute(const char*a, file_line l) : error(false), linenum(l)
-            {type=MSC_ATTR_STYLE; name=a;}
+        Attribute(const char*a, const char *s, file_line l, file_line v) :
+            error(false), linenum_attr(l), linenum_value(v), name(a),
+            type(s?MSC_ATTR_STRING:MSC_ATTR_CLEAR), value(s?s:"") {}
+        Attribute(const char*a, double n, file_line l, file_line v, const char *s) :
+            error(false), linenum_attr(l), linenum_value(v), name(a),
+            type(MSC_ATTR_NUMBER), number(n), value(s) {}
+        Attribute(const char*a, bool b, file_line l, file_line v, const char *s) :
+            error(false), linenum_attr(l), linenum_value(v), name(a),
+            type(MSC_ATTR_BOOL), yes(b), value(s) {}
+        Attribute(const char*a, file_line l) :
+            error(false), linenum_attr(l), linenum_value(l),
+            type(MSC_ATTR_STYLE), name(a) {}
 
         string Print(int ident=0) const;
         bool Is(const char *a) const

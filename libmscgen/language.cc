@@ -1,23 +1,24 @@
-
-/* A Bison parser, made by GNU Bison 2.4.1.  */
+/* A Bison parser, made by GNU Bison 2.3.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
-   
-      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-   
-   This program is free software: you can redistribute it and/or modify
+
+   This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-   
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -28,7 +29,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-   
+
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -46,7 +47,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.4.1"
+#define YYBISON_VERSION "2.3"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -54,21 +55,108 @@
 /* Pure parsers.  */
 #define YYPURE 1
 
-/* Push parsers.  */
-#define YYPUSH 0
-
-/* Pull parsers.  */
-#define YYPULL 1
-
 /* Using locations.  */
 #define YYLSP_NEEDED 1
 
 
 
-/* Copy the first part of user declarations.  */
+/* Tokens.  */
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
+      know about them.  */
+   enum yytokentype {
+     TOK_STRING = 258,
+     TOK_QSTRING = 259,
+     TOK_NUMBER = 260,
+     TOK_DASH = 261,
+     TOK_EQUAL = 262,
+     TOK_COMMA = 263,
+     TOK_SEMICOLON = 264,
+     TOK_PLUS = 265,
+     TOK_OCBRACKET = 266,
+     TOK_CCBRACKET = 267,
+     TOK_OSBRACKET = 268,
+     TOK_CSBRACKET = 269,
+     TOK_MSC = 270,
+     TOK_COLON_STRING = 271,
+     TOK_STYLE_NAME = 272,
+     TOK_BOOLEAN = 273,
+     TOK_REL_SOLID_TO = 274,
+     TOK_REL_SOLID_FROM = 275,
+     TOK_REL_SOLID_BIDIR = 276,
+     TOK_REL_DOUBLE_TO = 277,
+     TOK_REL_DOUBLE_FROM = 278,
+     TOK_REL_DOUBLE_BIDIR = 279,
+     TOK_REL_DASHED_TO = 280,
+     TOK_REL_DASHED_FROM = 281,
+     TOK_REL_DASHED_BIDIR = 282,
+     TOK_REL_DOTTED_TO = 283,
+     TOK_REL_DOTTED_FROM = 284,
+     TOK_REL_DOTTED_BIDIR = 285,
+     TOK_SPECIAL_ARC = 286,
+     TOK_EMPH = 287,
+     TOK_COMMAND_HEADING = 288,
+     TOK_COMMAND_NUDGE = 289,
+     TOK_COMMAND_NEWPAGE = 290,
+     TOK_COMMAND_DEFCOLOR = 291,
+     TOK_COMMAND_DEFSTYLE = 292,
+     TOK_COMMAND_DEFDESIGN = 293,
+     TOK_COMMAND_BIG = 294,
+     TOK_COMMAND_PIPE = 295,
+     TOK_COMMAND_MARK = 296,
+     TOK_VERTICAL = 297,
+     TOK_AT = 298
+   };
+#endif
+/* Tokens.  */
+#define TOK_STRING 258
+#define TOK_QSTRING 259
+#define TOK_NUMBER 260
+#define TOK_DASH 261
+#define TOK_EQUAL 262
+#define TOK_COMMA 263
+#define TOK_SEMICOLON 264
+#define TOK_PLUS 265
+#define TOK_OCBRACKET 266
+#define TOK_CCBRACKET 267
+#define TOK_OSBRACKET 268
+#define TOK_CSBRACKET 269
+#define TOK_MSC 270
+#define TOK_COLON_STRING 271
+#define TOK_STYLE_NAME 272
+#define TOK_BOOLEAN 273
+#define TOK_REL_SOLID_TO 274
+#define TOK_REL_SOLID_FROM 275
+#define TOK_REL_SOLID_BIDIR 276
+#define TOK_REL_DOUBLE_TO 277
+#define TOK_REL_DOUBLE_FROM 278
+#define TOK_REL_DOUBLE_BIDIR 279
+#define TOK_REL_DASHED_TO 280
+#define TOK_REL_DASHED_FROM 281
+#define TOK_REL_DASHED_BIDIR 282
+#define TOK_REL_DOTTED_TO 283
+#define TOK_REL_DOTTED_FROM 284
+#define TOK_REL_DOTTED_BIDIR 285
+#define TOK_SPECIAL_ARC 286
+#define TOK_EMPH 287
+#define TOK_COMMAND_HEADING 288
+#define TOK_COMMAND_NUDGE 289
+#define TOK_COMMAND_NEWPAGE 290
+#define TOK_COMMAND_DEFCOLOR 291
+#define TOK_COMMAND_DEFSTYLE 292
+#define TOK_COMMAND_DEFDESIGN 293
+#define TOK_COMMAND_BIG 294
+#define TOK_COMMAND_PIPE 295
+#define TOK_COMMAND_MARK 296
+#define TOK_VERTICAL 297
+#define TOK_AT 298
 
-/* Line 189 of yacc.c  */
-#line 7 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+
+
+
+/* Copy the first part of user declarations.  */
+#line 7 "language.yy"
 
 /*
     This file is part of Msc-generator.
@@ -199,13 +287,13 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         msg.insert(pos+1, " or");
     }
     msg.append(".");
-	if (msc.current_pos.line == 0) {
-		msc.current_pos.line = yyget_lineno(yyscanner);
-        msc.current_pos.col = 0;
-	}		
-	msc.Error.Error(msc.current_pos, msg, once_msg);
-	msc.current_pos.line = 0;
-	msc.current_pos.col = 0;
+//    if (msc.current_pos.line == 0) {
+        msc.current_pos.line = loc->first_line;
+        msc.current_pos.col = loc->first_column;
+//    }
+    msc.Error.Error(msc.current_pos, msg, once_msg);
+    msc.current_pos.line = 0;
+    msc.current_pos.col = 0;
 };
 
 void MscParse(Msc &msc, const char *buff, unsigned len)
@@ -227,20 +315,12 @@ inline bool string_to_bool(const char*s)
    return (s[0]!='n' && s[0]!='N') || (s[1]!='o' && s[1]!='O');
 }
 
-//locations somehow do not work, so we hide them with macros
-#ifdef LOCATIONS_ACTUALLY_WORK
 #define YYMSC_GETLINENO(A) A.first_line
-#define YYSMC_GETCOLNO(A) A.first_column
-#else
-#define YYMSC_GETLINENO(A) yyget_lineno(yyscanner)
-#define YYMSC_GETCOLNO(A) 0
-#endif
+#define YYMSC_GETCOLNO(A) A.first_column
+#define YYMSC_GETPOS(A) file_line(msc.current_pos.file, A.first_line, A.first_column)
 
 
 
-
-/* Line 189 of yacc.c  */
-#line 244 "y.tab.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -260,109 +340,10 @@ inline bool string_to_bool(const char*s)
 # define YYTOKEN_TABLE 0
 #endif
 
-
-/* Tokens.  */
-#ifndef YYTOKENTYPE
-# define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     TOK_STRING = 258,
-     TOK_QSTRING = 259,
-     TOK_NUMBER = 260,
-     TOK_DASH = 261,
-     TOK_EQUAL = 262,
-     TOK_COMMA = 263,
-     TOK_SEMICOLON = 264,
-     TOK_PLUS = 265,
-     TOK_OCBRACKET = 266,
-     TOK_CCBRACKET = 267,
-     TOK_OSBRACKET = 268,
-     TOK_CSBRACKET = 269,
-     TOK_MSC = 270,
-     TOK_COLON_STRING = 271,
-     TOK_STYLE_NAME = 272,
-     TOK_BOOLEAN = 273,
-     TOK_REL_SOLID_TO = 274,
-     TOK_REL_SOLID_FROM = 275,
-     TOK_REL_SOLID_BIDIR = 276,
-     TOK_REL_DOUBLE_TO = 277,
-     TOK_REL_DOUBLE_FROM = 278,
-     TOK_REL_DOUBLE_BIDIR = 279,
-     TOK_REL_DASHED_TO = 280,
-     TOK_REL_DASHED_FROM = 281,
-     TOK_REL_DASHED_BIDIR = 282,
-     TOK_REL_DOTTED_TO = 283,
-     TOK_REL_DOTTED_FROM = 284,
-     TOK_REL_DOTTED_BIDIR = 285,
-     TOK_SPECIAL_ARC = 286,
-     TOK_EMPH = 287,
-     TOK_COMMAND_HEADING = 288,
-     TOK_COMMAND_NUDGE = 289,
-     TOK_COMMAND_NEWPAGE = 290,
-     TOK_COMMAND_DEFCOLOR = 291,
-     TOK_COMMAND_DEFSTYLE = 292,
-     TOK_COMMAND_DEFDESIGN = 293,
-     TOK_COMMAND_BIG = 294,
-     TOK_COMMAND_PIPE = 295,
-     TOK_COMMAND_MARK = 296,
-     TOK_VERTICAL = 297,
-     TOK_AT = 298
-   };
-#endif
-/* Tokens.  */
-#define TOK_STRING 258
-#define TOK_QSTRING 259
-#define TOK_NUMBER 260
-#define TOK_DASH 261
-#define TOK_EQUAL 262
-#define TOK_COMMA 263
-#define TOK_SEMICOLON 264
-#define TOK_PLUS 265
-#define TOK_OCBRACKET 266
-#define TOK_CCBRACKET 267
-#define TOK_OSBRACKET 268
-#define TOK_CSBRACKET 269
-#define TOK_MSC 270
-#define TOK_COLON_STRING 271
-#define TOK_STYLE_NAME 272
-#define TOK_BOOLEAN 273
-#define TOK_REL_SOLID_TO 274
-#define TOK_REL_SOLID_FROM 275
-#define TOK_REL_SOLID_BIDIR 276
-#define TOK_REL_DOUBLE_TO 277
-#define TOK_REL_DOUBLE_FROM 278
-#define TOK_REL_DOUBLE_BIDIR 279
-#define TOK_REL_DASHED_TO 280
-#define TOK_REL_DASHED_FROM 281
-#define TOK_REL_DASHED_BIDIR 282
-#define TOK_REL_DOTTED_TO 283
-#define TOK_REL_DOTTED_FROM 284
-#define TOK_REL_DOTTED_BIDIR 285
-#define TOK_SPECIAL_ARC 286
-#define TOK_EMPH 287
-#define TOK_COMMAND_HEADING 288
-#define TOK_COMMAND_NUDGE 289
-#define TOK_COMMAND_NEWPAGE 290
-#define TOK_COMMAND_DEFCOLOR 291
-#define TOK_COMMAND_DEFSTYLE 292
-#define TOK_COMMAND_DEFDESIGN 293
-#define TOK_COMMAND_BIG 294
-#define TOK_COMMAND_PIPE 295
-#define TOK_COMMAND_MARK 296
-#define TOK_VERTICAL 297
-#define TOK_AT 298
-
-
-
-
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
+#line 186 "language.yy"
 {
-
-/* Line 214 of yacc.c  */
-#line 191 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
-
     char             *str;
     Msc              *msc;
     ArcBase          *arcbase;
@@ -378,15 +359,13 @@ typedef union YYSTYPE
     VertXPos         *vertxpos;
     std::list<string>*stringlist;
     unsigned long     linenum;
-
-
-
-/* Line 214 of yacc.c  */
-#line 386 "y.tab.c"
-} YYSTYPE;
-# define YYSTYPE_IS_TRIVIAL 1
+}
+/* Line 187 of yacc.c.  */
+#line 365 "language.cc"
+	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
+# define YYSTYPE_IS_TRIVIAL 1
 #endif
 
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
@@ -406,8 +385,8 @@ typedef struct YYLTYPE
 /* Copy the second part of user declarations.  */
 
 
-/* Line 264 of yacc.c  */
-#line 411 "y.tab.c"
+/* Line 216 of yacc.c.  */
+#line 390 "language.cc"
 
 #ifdef short
 # undef short
@@ -482,14 +461,14 @@ typedef short int yytype_int16;
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static int
-YYID (int yyi)
+YYID (int i)
 #else
 static int
-YYID (yyi)
-    int yyi;
+YYID (i)
+    int i;
 #endif
 {
-  return yyi;
+  return i;
 }
 #endif
 
@@ -571,9 +550,9 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
 {
-  yytype_int16 yyss_alloc;
-  YYSTYPE yyvs_alloc;
-  YYLTYPE yyls_alloc;
+  yytype_int16 yyss;
+  YYSTYPE yyvs;
+    YYLTYPE yyls;
 };
 
 /* The size of the maximum gap between one aligned stack and the next.  */
@@ -608,12 +587,12 @@ union yyalloc
    elements in the stack, and YYPTR gives the new location of the
    stack.  Advance YYPTR to a properly aligned location for the next
    stack.  */
-# define YYSTACK_RELOCATE(Stack_alloc, Stack)				\
+# define YYSTACK_RELOCATE(Stack)					\
     do									\
       {									\
 	YYSIZE_T yynewbytes;						\
-	YYCOPY (&yyptr->Stack_alloc, Stack, yysize);			\
-	Stack = &yyptr->Stack_alloc;					\
+	YYCOPY (&yyptr->Stack, Stack, yysize);				\
+	Stack = &yyptr->Stack;						\
 	yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
 	yyptr += yynewbytes / sizeof (*yyptr);				\
       }									\
@@ -769,26 +748,26 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   254,   254,   257,   261,   266,   273,   278,   289,   294,
-     306,   310,   317,   325,   333,   336,   337,   341,   348,   357,
-     362,   367,   372,   377,   387,   388,   392,   397,   402,   407,
-     413,   419,   425,   431,   437,   443,   449,   457,   461,   469,
-     476,   487,   499,   507,   515,   531,   539,   543,   547,   559,
-     564,   571,   572,   574,   587,   593,   600,   601,   603,   610,
-     622,   631,   632,   634,   635,   636,   638,   639,   640,   652,
-     660,   668,   674,   682,   687,   692,   697,   703,   707,   712,
-     718,   722,   726,   730,   736,   740,   744,   748,   755,   759,
-     763,   767,   772,   779,   785,   791,   797,   804,   811,   818,
-     841,   850,   850,   850,   852,   860,   867,   874,   880,   888,
-     895,   902,   910,   915,   919,   923,   928,   935,   941,   947,
-     953,   960,   967,   973,   979,   985,   991,   998,  1004,  1010,
-    1016,  1022,  1022,  1022,  1022,  1023,  1023,  1023,  1023,  1024,
-    1024,  1024,  1024,  1026,  1026,  1027,  1027,  1028,  1028,  1032,
-    1037,  1042,  1047,  1050,  1054,  1059,  1063,  1067,  1079,  1085,
-    1093,  1101,  1106,  1113,  1113,  1115,  1115,  1116,  1116,  1117,
-    1117,  1117,  1118,  1120,  1121,  1122,  1123,  1124,  1125,  1126,
-    1127,  1128,  1129,  1130,  1131,  1132,  1139,  1149,  1149,  1149,
-    1149,  1151,  1156
+       0,   249,   249,   252,   256,   261,   268,   273,   284,   289,
+     301,   305,   312,   320,   328,   331,   332,   336,   343,   352,
+     357,   362,   366,   370,   379,   380,   384,   389,   394,   399,
+     404,   409,   414,   419,   424,   429,   434,   441,   445,   452,
+     459,   470,   482,   489,   496,   510,   518,   522,   526,   538,
+     543,   550,   551,   553,   566,   572,   579,   580,   582,   589,
+     601,   610,   611,   613,   614,   615,   617,   618,   619,   631,
+     637,   643,   649,   657,   661,   666,   671,   676,   680,   685,
+     691,   695,   699,   703,   709,   713,   717,   721,   728,   732,
+     736,   740,   745,   751,   756,   761,   766,   772,   778,   784,
+     809,   817,   817,   817,   819,   826,   832,   838,   843,   850,
+     856,   862,   869,   873,   877,   881,   886,   892,   897,   902,
+     907,   913,   919,   924,   929,   934,   939,   945,   950,   955,
+     960,   965,   965,   965,   965,   966,   966,   966,   966,   967,
+     967,   967,   967,   969,   969,   970,   970,   971,   971,   975,
+     980,   985,   990,   993,   997,  1002,  1006,  1010,  1022,  1028,
+    1034,  1040,  1045,  1052,  1052,  1054,  1054,  1055,  1055,  1056,
+    1056,  1056,  1057,  1059,  1060,  1061,  1062,  1063,  1064,  1065,
+    1066,  1067,  1068,  1069,  1070,  1071,  1078,  1088,  1088,  1088,
+    1088,  1090,  1095
 };
 #endif
 
@@ -1382,20 +1361,17 @@ yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp, msc, yyscanner)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_stack_print (yytype_int16 *yybottom, yytype_int16 *yytop)
+yy_stack_print (yytype_int16 *bottom, yytype_int16 *top)
 #else
 static void
-yy_stack_print (yybottom, yytop)
-    yytype_int16 *yybottom;
-    yytype_int16 *yytop;
+yy_stack_print (bottom, top)
+    yytype_int16 *bottom;
+    yytype_int16 *top;
 #endif
 {
   YYFPRINTF (stderr, "Stack now");
-  for (; yybottom <= yytop; yybottom++)
-    {
-      int yybot = *yybottom;
-      YYFPRINTF (stderr, " %d", yybot);
-    }
+  for (; bottom <= top; ++bottom)
+    YYFPRINTF (stderr, " %d", *bottom);
   YYFPRINTF (stderr, "\n");
 }
 
@@ -1432,11 +1408,11 @@ yy_reduce_print (yyvsp, yylsp, yyrule, msc, yyscanner)
   /* The symbols being reduced.  */
   for (yyi = 0; yyi < yynrhs; yyi++)
     {
-      YYFPRINTF (stderr, "   $%d = ", yyi + 1);
+      fprintf (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
 		       &(yyvsp[(yyi + 1) - (yynrhs)])
 		       , &(yylsp[(yyi + 1) - (yynrhs)])		       , msc, yyscanner);
-      YYFPRINTF (stderr, "\n");
+      fprintf (stderr, "\n");
     }
 }
 
@@ -1718,417 +1694,239 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, msc, yyscanner)
   switch (yytype)
     {
       case 3: /* "TOK_STRING" */
-
-/* Line 1000 of yacc.c  */
-#line 245 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 240 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1728 "y.tab.c"
+#line 1700 "language.cc"
 	break;
       case 4: /* "TOK_QSTRING" */
-
-/* Line 1000 of yacc.c  */
-#line 245 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 240 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1737 "y.tab.c"
+#line 1705 "language.cc"
 	break;
       case 5: /* "TOK_NUMBER" */
-
-/* Line 1000 of yacc.c  */
-#line 249 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 244 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1746 "y.tab.c"
+#line 1710 "language.cc"
 	break;
       case 15: /* "TOK_MSC" */
-
-/* Line 1000 of yacc.c  */
-#line 246 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 241 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1755 "y.tab.c"
+#line 1715 "language.cc"
 	break;
       case 16: /* "TOK_COLON_STRING" */
-
-/* Line 1000 of yacc.c  */
-#line 245 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 240 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1764 "y.tab.c"
+#line 1720 "language.cc"
 	break;
       case 17: /* "TOK_STYLE_NAME" */
-
-/* Line 1000 of yacc.c  */
-#line 245 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 240 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1773 "y.tab.c"
+#line 1725 "language.cc"
 	break;
       case 18: /* "TOK_BOOLEAN" */
-
-/* Line 1000 of yacc.c  */
-#line 249 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 244 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1782 "y.tab.c"
+#line 1730 "language.cc"
 	break;
       case 33: /* "TOK_COMMAND_HEADING" */
-
-/* Line 1000 of yacc.c  */
-#line 248 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 243 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1791 "y.tab.c"
+#line 1735 "language.cc"
 	break;
       case 34: /* "TOK_COMMAND_NUDGE" */
-
-/* Line 1000 of yacc.c  */
-#line 248 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 243 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1800 "y.tab.c"
+#line 1740 "language.cc"
 	break;
       case 35: /* "TOK_COMMAND_NEWPAGE" */
-
-/* Line 1000 of yacc.c  */
-#line 248 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 243 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1809 "y.tab.c"
+#line 1745 "language.cc"
 	break;
       case 36: /* "TOK_COMMAND_DEFCOLOR" */
-
-/* Line 1000 of yacc.c  */
-#line 247 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 242 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1818 "y.tab.c"
+#line 1750 "language.cc"
 	break;
       case 37: /* "TOK_COMMAND_DEFSTYLE" */
-
-/* Line 1000 of yacc.c  */
-#line 247 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 242 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1827 "y.tab.c"
+#line 1755 "language.cc"
 	break;
       case 38: /* "TOK_COMMAND_DEFDESIGN" */
-
-/* Line 1000 of yacc.c  */
-#line 247 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 242 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1836 "y.tab.c"
+#line 1760 "language.cc"
 	break;
       case 39: /* "TOK_COMMAND_BIG" */
-
-/* Line 1000 of yacc.c  */
-#line 246 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 241 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1845 "y.tab.c"
+#line 1765 "language.cc"
 	break;
       case 40: /* "TOK_COMMAND_PIPE" */
-
-/* Line 1000 of yacc.c  */
-#line 246 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 241 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 1854 "y.tab.c"
+#line 1770 "language.cc"
 	break;
       case 46: /* "arclist" */
-
-/* Line 1000 of yacc.c  */
-#line 241 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 236 "language.yy"
 	{delete (yyvaluep->arclist);};
-
-/* Line 1000 of yacc.c  */
-#line 1863 "y.tab.c"
+#line 1775 "language.cc"
 	break;
       case 47: /* "arclist_no_semicolon" */
-
-/* Line 1000 of yacc.c  */
-#line 241 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 236 "language.yy"
 	{delete (yyvaluep->arclist);};
-
-/* Line 1000 of yacc.c  */
-#line 1872 "y.tab.c"
+#line 1780 "language.cc"
 	break;
       case 48: /* "mscenclosed" */
-
-/* Line 1000 of yacc.c  */
-#line 241 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 236 "language.yy"
 	{delete (yyvaluep->arclist);};
-
-/* Line 1000 of yacc.c  */
-#line 1881 "y.tab.c"
+#line 1785 "language.cc"
 	break;
       case 49: /* "arc" */
-
-/* Line 1000 of yacc.c  */
-#line 238 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 233 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 1890 "y.tab.c"
+#line 1790 "language.cc"
 	break;
       case 51: /* "optlist" */
-
-/* Line 1000 of yacc.c  */
-#line 241 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 236 "language.yy"
 	{delete (yyvaluep->arclist);};
-
-/* Line 1000 of yacc.c  */
-#line 1899 "y.tab.c"
+#line 1795 "language.cc"
 	break;
       case 52: /* "opt" */
-
-/* Line 1000 of yacc.c  */
-#line 238 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 233 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 1908 "y.tab.c"
+#line 1800 "language.cc"
 	break;
       case 53: /* "entitylist" */
-
-/* Line 1000 of yacc.c  */
-#line 242 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 237 "language.yy"
 	{delete (yyvaluep->entitylist);};
-
-/* Line 1000 of yacc.c  */
-#line 1917 "y.tab.c"
+#line 1805 "language.cc"
 	break;
       case 54: /* "entity" */
-
-/* Line 1000 of yacc.c  */
-#line 242 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 237 "language.yy"
 	{delete (yyvaluep->entity);};
-
-/* Line 1000 of yacc.c  */
-#line 1926 "y.tab.c"
+#line 1810 "language.cc"
 	break;
       case 57: /* "tok_stringlist" */
-
-/* Line 1000 of yacc.c  */
-#line 243 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 238 "language.yy"
 	{delete (yyvaluep->stringlist);};
-
-/* Line 1000 of yacc.c  */
-#line 1935 "y.tab.c"
+#line 1815 "language.cc"
 	break;
       case 66: /* "parallel" */
-
-/* Line 1000 of yacc.c  */
-#line 240 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 235 "language.yy"
 	{delete (yyvaluep->arcparallel);};
-
-/* Line 1000 of yacc.c  */
-#line 1944 "y.tab.c"
+#line 1820 "language.cc"
 	break;
       case 67: /* "parallel_element" */
-
-/* Line 1000 of yacc.c  */
-#line 241 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 236 "language.yy"
 	{delete (yyvaluep->arclist);};
-
-/* Line 1000 of yacc.c  */
-#line 1953 "y.tab.c"
+#line 1825 "language.cc"
 	break;
       case 68: /* "emphasis_list" */
-
-/* Line 1000 of yacc.c  */
-#line 238 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 233 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 1962 "y.tab.c"
+#line 1830 "language.cc"
 	break;
       case 69: /* "first_emphasis" */
-
-/* Line 1000 of yacc.c  */
-#line 238 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 233 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 1971 "y.tab.c"
+#line 1835 "language.cc"
 	break;
       case 70: /* "follow_emphasis" */
-
-/* Line 1000 of yacc.c  */
-#line 238 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 233 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 1980 "y.tab.c"
+#line 1840 "language.cc"
 	break;
       case 71: /* "pipe_emphasis" */
-
-/* Line 1000 of yacc.c  */
-#line 238 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 233 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 1989 "y.tab.c"
+#line 1845 "language.cc"
 	break;
       case 72: /* "emphrel" */
-
-/* Line 1000 of yacc.c  */
-#line 240 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 235 "language.yy"
 	{delete (yyvaluep->arcemph);};
-
-/* Line 1000 of yacc.c  */
-#line 1998 "y.tab.c"
+#line 1850 "language.cc"
 	break;
       case 73: /* "vertxpos" */
-
-/* Line 1000 of yacc.c  */
-#line 237 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 232 "language.yy"
 	{delete (yyvaluep->vertxpos);};
-
-/* Line 1000 of yacc.c  */
-#line 2007 "y.tab.c"
+#line 1855 "language.cc"
 	break;
       case 75: /* "vertrel" */
-
-/* Line 1000 of yacc.c  */
-#line 236 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 231 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 2016 "y.tab.c"
+#line 1860 "language.cc"
 	break;
       case 76: /* "arcrel" */
-
-/* Line 1000 of yacc.c  */
-#line 238 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 233 "language.yy"
 	{delete (yyvaluep->arcbase);};
-
-/* Line 1000 of yacc.c  */
-#line 2025 "y.tab.c"
+#line 1865 "language.cc"
 	break;
       case 77: /* "arcrel_to" */
-
-/* Line 1000 of yacc.c  */
-#line 239 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 234 "language.yy"
 	{delete (yyvaluep->arcarrow);};
-
-/* Line 1000 of yacc.c  */
-#line 2034 "y.tab.c"
+#line 1870 "language.cc"
 	break;
       case 78: /* "arcrel_from" */
-
-/* Line 1000 of yacc.c  */
-#line 239 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 234 "language.yy"
 	{delete (yyvaluep->arcarrow);};
-
-/* Line 1000 of yacc.c  */
-#line 2043 "y.tab.c"
+#line 1875 "language.cc"
 	break;
       case 79: /* "arcrel_bidir" */
-
-/* Line 1000 of yacc.c  */
-#line 239 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 234 "language.yy"
 	{delete (yyvaluep->arcarrow);};
-
-/* Line 1000 of yacc.c  */
-#line 2052 "y.tab.c"
+#line 1880 "language.cc"
 	break;
       case 86: /* "full_arcattrlist_with_label" */
-
-/* Line 1000 of yacc.c  */
-#line 243 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 238 "language.yy"
 	{delete (yyvaluep->attriblist);};
-
-/* Line 1000 of yacc.c  */
-#line 2061 "y.tab.c"
+#line 1885 "language.cc"
 	break;
       case 87: /* "full_arcattrlist" */
-
-/* Line 1000 of yacc.c  */
-#line 243 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 238 "language.yy"
 	{delete (yyvaluep->attriblist);};
-
-/* Line 1000 of yacc.c  */
-#line 2070 "y.tab.c"
+#line 1890 "language.cc"
 	break;
       case 88: /* "arcattrlist" */
-
-/* Line 1000 of yacc.c  */
-#line 243 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 238 "language.yy"
 	{delete (yyvaluep->attriblist);};
-
-/* Line 1000 of yacc.c  */
-#line 2079 "y.tab.c"
+#line 1895 "language.cc"
 	break;
       case 89: /* "arcattr" */
-
-/* Line 1000 of yacc.c  */
-#line 243 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 238 "language.yy"
 	{delete (yyvaluep->attrib);};
-
-/* Line 1000 of yacc.c  */
-#line 2088 "y.tab.c"
+#line 1900 "language.cc"
 	break;
       case 90: /* "entity_string" */
-
-/* Line 1000 of yacc.c  */
-#line 244 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 239 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 2097 "y.tab.c"
+#line 1905 "language.cc"
 	break;
       case 91: /* "reserved_word_string" */
-
-/* Line 1000 of yacc.c  */
-#line 244 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 239 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 2106 "y.tab.c"
+#line 1910 "language.cc"
 	break;
       case 92: /* "symbol_string" */
-
-/* Line 1000 of yacc.c  */
-#line 244 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 239 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 2115 "y.tab.c"
+#line 1915 "language.cc"
 	break;
       case 93: /* "string" */
-
-/* Line 1000 of yacc.c  */
-#line 244 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 239 "language.yy"
 	{free((yyvaluep->str));};
-
-/* Line 1000 of yacc.c  */
-#line 2124 "y.tab.c"
+#line 1920 "language.cc"
 	break;
 
       default:
 	break;
     }
 }
+
 
 /* Prevent warnings from -Wmissing-prototypes.  */
+
 #ifdef YYPARSE_PARAM
 #if defined __STDC__ || defined __cplusplus
 int yyparse (void *YYPARSE_PARAM);
@@ -2147,9 +1945,10 @@ int yyparse ();
 
 
 
-/*-------------------------.
-| yyparse or yypush_parse.  |
-`-------------------------*/
+
+/*----------.
+| yyparse.  |
+`----------*/
 
 #ifdef YYPARSE_PARAM
 #if (defined __STDC__ || defined __C99__FUNC__ \
@@ -2174,59 +1973,24 @@ yyparse (msc, yyscanner)
 #endif
 #endif
 {
-/* The lookahead symbol.  */
+  /* The look-ahead symbol.  */
 int yychar;
 
-/* The semantic value of the lookahead symbol.  */
+/* The semantic value of the look-ahead symbol.  */
 YYSTYPE yylval;
 
-/* Location data for the lookahead symbol.  */
+/* Number of syntax errors so far.  */
+int yynerrs;
+/* Location data for the look-ahead symbol.  */
 YYLTYPE yylloc;
 
-    /* Number of syntax errors so far.  */
-    int yynerrs;
-
-    int yystate;
-    /* Number of tokens to shift before error messages enabled.  */
-    int yyerrstatus;
-
-    /* The stacks and their tools:
-       `yyss': related to states.
-       `yyvs': related to semantic values.
-       `yyls': related to locations.
-
-       Refer to the stacks thru separate pointers, to allow yyoverflow
-       to reallocate them elsewhere.  */
-
-    /* The state stack.  */
-    yytype_int16 yyssa[YYINITDEPTH];
-    yytype_int16 *yyss;
-    yytype_int16 *yyssp;
-
-    /* The semantic value stack.  */
-    YYSTYPE yyvsa[YYINITDEPTH];
-    YYSTYPE *yyvs;
-    YYSTYPE *yyvsp;
-
-    /* The location stack.  */
-    YYLTYPE yylsa[YYINITDEPTH];
-    YYLTYPE *yyls;
-    YYLTYPE *yylsp;
-
-    /* The locations where the error started and ended.  */
-    YYLTYPE yyerror_range[2];
-
-    YYSIZE_T yystacksize;
-
+  int yystate;
   int yyn;
   int yyresult;
-  /* Lookahead token as an internal (translated) token number.  */
-  int yytoken;
-  /* The variables used to return semantic value and location from the
-     action routines.  */
-  YYSTYPE yyval;
-  YYLTYPE yyloc;
-
+  /* Number of tokens to shift before error messages enabled.  */
+  int yyerrstatus;
+  /* Look-ahead token as an internal (translated) token number.  */
+  int yytoken = 0;
 #if YYERROR_VERBOSE
   /* Buffer for error messages, and its allocated size.  */
   char yymsgbuf[128];
@@ -2234,37 +1998,63 @@ YYLTYPE yylloc;
   YYSIZE_T yymsg_alloc = sizeof yymsgbuf;
 #endif
 
+  /* Three stacks and their tools:
+     `yyss': related to states,
+     `yyvs': related to semantic values,
+     `yyls': related to locations.
+
+     Refer to the stacks thru separate pointers, to allow yyoverflow
+     to reallocate them elsewhere.  */
+
+  /* The state stack.  */
+  yytype_int16 yyssa[YYINITDEPTH];
+  yytype_int16 *yyss = yyssa;
+  yytype_int16 *yyssp;
+
+  /* The semantic value stack.  */
+  YYSTYPE yyvsa[YYINITDEPTH];
+  YYSTYPE *yyvs = yyvsa;
+  YYSTYPE *yyvsp;
+
+  /* The location stack.  */
+  YYLTYPE yylsa[YYINITDEPTH];
+  YYLTYPE *yyls = yylsa;
+  YYLTYPE *yylsp;
+  /* The locations where the error started and ended.  */
+  YYLTYPE yyerror_range[2];
+
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N), yylsp -= (N))
+
+  YYSIZE_T yystacksize = YYINITDEPTH;
+
+  /* The variables used to return semantic value and location from the
+     action routines.  */
+  YYSTYPE yyval;
+  YYLTYPE yyloc;
 
   /* The number of symbols on the RHS of the reduced rule.
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
-
-  yytoken = 0;
-  yyss = yyssa;
-  yyvs = yyvsa;
-  yyls = yylsa;
-  yystacksize = YYINITDEPTH;
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yystate = 0;
   yyerrstatus = 0;
   yynerrs = 0;
-  yychar = YYEMPTY; /* Cause a token to be read.  */
+  yychar = YYEMPTY;		/* Cause a token to be read.  */
 
   /* Initialize stack pointers.
      Waste one element of value and location stack
      so that they stay on the same level as the state stack.
      The wasted elements are never initialized.  */
+
   yyssp = yyss;
   yyvsp = yyvs;
   yylsp = yyls;
-
 #if YYLTYPE_IS_TRIVIAL
   /* Initialize the default location before parsing starts.  */
   yylloc.first_line   = yylloc.last_line   = 1;
-  yylloc.first_column = yylloc.last_column = 1;
+  yylloc.first_column = yylloc.last_column = 0;
 #endif
 
   goto yysetstate;
@@ -2303,7 +2093,6 @@ YYLTYPE yylloc;
 		    &yyvs1, yysize * sizeof (*yyvsp),
 		    &yyls1, yysize * sizeof (*yylsp),
 		    &yystacksize);
-
 	yyls = yyls1;
 	yyss = yyss1;
 	yyvs = yyvs1;
@@ -2325,9 +2114,9 @@ YYLTYPE yylloc;
 	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
 	if (! yyptr)
 	  goto yyexhaustedlab;
-	YYSTACK_RELOCATE (yyss_alloc, yyss);
-	YYSTACK_RELOCATE (yyvs_alloc, yyvs);
-	YYSTACK_RELOCATE (yyls_alloc, yyls);
+	YYSTACK_RELOCATE (yyss);
+	YYSTACK_RELOCATE (yyvs);
+	YYSTACK_RELOCATE (yyls);
 #  undef YYSTACK_RELOCATE
 	if (yyss1 != yyssa)
 	  YYSTACK_FREE (yyss1);
@@ -2348,9 +2137,6 @@ YYLTYPE yylloc;
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
-  if (yystate == YYFINAL)
-    YYACCEPT;
-
   goto yybackup;
 
 /*-----------.
@@ -2359,16 +2145,16 @@ YYLTYPE yylloc;
 yybackup:
 
   /* Do appropriate processing given the current state.  Read a
-     lookahead token if we need one and don't already have one.  */
+     look-ahead token if we need one and don't already have one.  */
 
-  /* First try to decide what to do without reference to lookahead token.  */
+  /* First try to decide what to do without reference to look-ahead token.  */
   yyn = yypact[yystate];
   if (yyn == YYPACT_NINF)
     goto yydefault;
 
-  /* Not known => get a lookahead token if don't already have one.  */
+  /* Not known => get a look-ahead token if don't already have one.  */
 
-  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
+  /* YYCHAR is either YYEMPTY or YYEOF or a valid look-ahead symbol.  */
   if (yychar == YYEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token: "));
@@ -2400,16 +2186,20 @@ yybackup:
       goto yyreduce;
     }
 
+  if (yyn == YYFINAL)
+    YYACCEPT;
+
   /* Count tokens shifted since error; after three, turn off error
      status.  */
   if (yyerrstatus)
     yyerrstatus--;
 
-  /* Shift the lookahead token.  */
+  /* Shift the look-ahead token.  */
   YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);
 
-  /* Discard the shifted token.  */
-  yychar = YYEMPTY;
+  /* Discard the shifted token unless it is eof.  */
+  if (yychar != YYEOF)
+    yychar = YYEMPTY;
 
   yystate = yyn;
   *++yyvsp = yylval;
@@ -2450,36 +2240,28 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-
-/* Line 1455 of yacc.c  */
-#line 254 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 249 "language.yy"
     {
     //no action for empty file
 }
     break;
 
   case 3:
-
-/* Line 1455 of yacc.c  */
-#line 258 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 253 "language.yy"
     {
     msc.AddArcs((yyvsp[(1) - (2)].arclist));
 }
     break;
 
   case 4:
-
-/* Line 1455 of yacc.c  */
-#line 262 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 257 "language.yy"
     {
     msc.AddArcs((yyvsp[(1) - (1)].arclist));
 }
     break;
 
   case 5:
-
-/* Line 1455 of yacc.c  */
-#line 267 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 262 "language.yy"
     {
     if ((yyvsp[(1) - (1)].arcbase))
         (yyval.arclist) = (new ArcList)->Append((yyvsp[(1) - (1)].arcbase)); /* New list */
@@ -2489,9 +2271,7 @@ yyreduce:
     break;
 
   case 6:
-
-/* Line 1455 of yacc.c  */
-#line 274 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 269 "language.yy"
     {
     if ((yyvsp[(3) - (3)].arcbase))
         (yyval.arclist) = ((yyvsp[(1) - (3)].arclist))->Append((yyvsp[(3) - (3)].arcbase));     /* Add to existing list */
@@ -2499,9 +2279,7 @@ yyreduce:
     break;
 
   case 7:
-
-/* Line 1455 of yacc.c  */
-#line 279 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 274 "language.yy"
     {
     (yyval.arclist) = (yyvsp[(1) - (2)].arclist);
     //Skip to next semicolon
@@ -2509,15 +2287,13 @@ yyreduce:
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
-	msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
-	msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
+    msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
+    msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
 }
     break;
 
   case 8:
-
-/* Line 1455 of yacc.c  */
-#line 290 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 285 "language.yy"
     {
     if ((yyvsp[(2) - (2)].arcbase))
         (yyval.arclist) = ((yyvsp[(1) - (2)].arclist))->Append((yyvsp[(2) - (2)].arcbase));     /* Add to existing list */
@@ -2525,9 +2301,7 @@ yyreduce:
     break;
 
   case 9:
-
-/* Line 1455 of yacc.c  */
-#line 295 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 290 "language.yy"
     {
     (yyval.arclist) = (yyvsp[(1) - (2)].arclist);
     //Skip to next semicolon
@@ -2535,24 +2309,20 @@ yyreduce:
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
-	msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
-	msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
+    msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
+    msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
 }
     break;
 
   case 10:
-
-/* Line 1455 of yacc.c  */
-#line 307 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 302 "language.yy"
     {
     (yyval.arclist) = (yyvsp[(1) - (1)].arclist);
 }
     break;
 
   case 11:
-
-/* Line 1455 of yacc.c  */
-#line 311 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 306 "language.yy"
     {
     //Merge $3 into $1
     ((yyvsp[(1) - (3)].arclist))->splice(((yyvsp[(1) - (3)].arclist))->end(), *((yyvsp[(3) - (3)].arclist)));
@@ -2562,9 +2332,7 @@ yyreduce:
     break;
 
   case 12:
-
-/* Line 1455 of yacc.c  */
-#line 318 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 313 "language.yy"
     {
     //Merge $2 into $1
     ((yyvsp[(1) - (2)].arclist))->splice(((yyvsp[(1) - (2)].arclist))->end(), *((yyvsp[(2) - (2)].arclist)));
@@ -2574,36 +2342,28 @@ yyreduce:
     break;
 
   case 13:
-
-/* Line 1455 of yacc.c  */
-#line 326 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 321 "language.yy"
     {
     (yyval.arclist) = (yyvsp[(3) - (5)].arclist);
 }
     break;
 
   case 14:
-
-/* Line 1455 of yacc.c  */
-#line 333 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 328 "language.yy"
     {
     (yyval.arcbase) = NULL;
 }
     break;
 
   case 16:
-
-/* Line 1455 of yacc.c  */
-#line 338 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 333 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (2)].arcbase))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
 }
     break;
 
   case 17:
-
-/* Line 1455 of yacc.c  */
-#line 342 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 337 "language.yy"
     {
     //Returns NULL, if BIG is before a self-pointing arrow
     (yyval.arcbase) = msc.CreateArcBigArrow((yyvsp[(2) - (2)].arcbase));
@@ -2613,9 +2373,7 @@ yyreduce:
     break;
 
   case 18:
-
-/* Line 1455 of yacc.c  */
-#line 349 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 344 "language.yy"
     {
     //Returns NULL, if BIG is before a self-pointing arrow
     ArcBigArrow *arrow = msc.CreateArcBigArrow((yyvsp[(2) - (3)].arcbase));
@@ -2627,9 +2385,7 @@ yyreduce:
     break;
 
   case 19:
-
-/* Line 1455 of yacc.c  */
-#line 358 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 353 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(2) - (2)].arcbase);
     free((yyvsp[(1) - (2)].str));
@@ -2637,9 +2393,7 @@ yyreduce:
     break;
 
   case 20:
-
-/* Line 1455 of yacc.c  */
-#line 363 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 358 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(2) - (3)].arcbase))->AddAttributeList((yyvsp[(3) - (3)].attriblist));
     free((yyvsp[(1) - (3)].str));
@@ -2647,53 +2401,40 @@ yyreduce:
     break;
 
   case 21:
-
-/* Line 1455 of yacc.c  */
-#line 368 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 363 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = (new ArcDivider(MSC_ARC_VSPACE, l, &msc))->AddAttributeList((yyvsp[(1) - (1)].attriblist));
+    (yyval.arcbase) = (new ArcDivider(MSC_ARC_VSPACE, YYMSC_GETPOS((yyloc)), &msc))->AddAttributeList((yyvsp[(1) - (1)].attriblist));
 }
     break;
 
   case 22:
-
-/* Line 1455 of yacc.c  */
-#line 373 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 367 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new CommandEntity((yyvsp[(1) - (1)].entitylist), l, &msc);
+    (yyval.arcbase) = new CommandEntity((yyvsp[(1) - (1)].entitylist), YYMSC_GETPOS((yyloc)), &msc);
 }
     break;
 
   case 23:
-
-/* Line 1455 of yacc.c  */
-#line 378 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 371 "language.yy"
     {
     /* If there were arcs defined by the options (e.g., background)
      * enclose them in a single item parallel element. */
     if ((yyvsp[(1) - (1)].arclist)) {
-		file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-        (yyval.arcbase) = (new ArcParallel(l, &msc))->AddArcList((yyvsp[(1) - (1)].arclist));
+        (yyval.arcbase) = (new ArcParallel(YYMSC_GETPOS((yyloc)), &msc))->AddArcList((yyvsp[(1) - (1)].arclist));
     } else
         (yyval.arcbase) = NULL;
 }
     break;
 
   case 25:
-
-/* Line 1455 of yacc.c  */
-#line 389 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 381 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcparallel);
 }
     break;
 
   case 26:
-
-/* Line 1455 of yacc.c  */
-#line 393 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 385 "language.yy"
     {
     (yyval.arcbase) = NULL;
     free((yyvsp[(1) - (2)].str));
@@ -2701,9 +2442,7 @@ yyreduce:
     break;
 
   case 27:
-
-/* Line 1455 of yacc.c  */
-#line 398 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 390 "language.yy"
     {
     (yyval.arcbase) = NULL;
     free((yyvsp[(1) - (2)].str));
@@ -2711,9 +2450,7 @@ yyreduce:
     break;
 
   case 28:
-
-/* Line 1455 of yacc.c  */
-#line 403 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 395 "language.yy"
     {
     (yyval.arcbase) = NULL;
     free((yyvsp[(1) - (2)].str));
@@ -2721,118 +2458,87 @@ yyreduce:
     break;
 
   case 29:
-
-/* Line 1455 of yacc.c  */
-#line 408 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 400 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new CommandEntity(NULL, l, &msc);
+    (yyval.arcbase) = new CommandEntity(NULL, YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (1)].str));
 }
     break;
 
   case 30:
-
-/* Line 1455 of yacc.c  */
-#line 414 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 405 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = (new CommandEntity(NULL, l, &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    (yyval.arcbase) = (new CommandEntity(NULL, YYMSC_GETPOS((yyloc)), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 31:
-
-/* Line 1455 of yacc.c  */
-#line 420 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 410 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcDivider(MSC_COMMAND_NUDGE, l, &msc);
+    (yyval.arcbase) = new ArcDivider(MSC_COMMAND_NUDGE, YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (1)].str));
 }
     break;
 
   case 32:
-
-/* Line 1455 of yacc.c  */
-#line 426 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 415 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = (new ArcDivider(MSC_COMMAND_NUDGE, l, &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    (yyval.arcbase) = (new ArcDivider(MSC_COMMAND_NUDGE, YYMSC_GETPOS((yyloc)), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 33:
-
-/* Line 1455 of yacc.c  */
-#line 432 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 420 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new CommandMark((yyvsp[(2) - (2)].str), l, &msc);
+    (yyval.arcbase) = new CommandMark((yyvsp[(2) - (2)].str), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(2) - (2)].str));
 }
     break;
 
   case 34:
-
-/* Line 1455 of yacc.c  */
-#line 438 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 425 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = (new CommandMark((yyvsp[(2) - (3)].str), l, &msc))->AddAttributeList((yyvsp[(3) - (3)].attriblist));
+    (yyval.arcbase) = (new CommandMark((yyvsp[(2) - (3)].str), YYMSC_GETPOS((yyloc)), &msc))->AddAttributeList((yyvsp[(3) - (3)].attriblist));
     free((yyvsp[(2) - (3)].str));
 }
     break;
 
   case 35:
-
-/* Line 1455 of yacc.c  */
-#line 444 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 430 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new CommandNewpage(l, &msc);
+    (yyval.arcbase) = new CommandNewpage(YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (1)].str));
 }
     break;
 
   case 36:
-
-/* Line 1455 of yacc.c  */
-#line 450 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 435 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = (new CommandNewpage(l, &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    (yyval.arcbase) = (new CommandNewpage(YYMSC_GETPOS((yyloc)), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 37:
-
-/* Line 1455 of yacc.c  */
-#line 458 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 442 "language.yy"
     {
     free((yyvsp[(1) - (1)].str));
 }
     break;
 
   case 38:
-
-/* Line 1455 of yacc.c  */
-#line 462 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 446 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    msc.AddDesignAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), l));
+    msc.AddDesignAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)]))));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 39:
-
-/* Line 1455 of yacc.c  */
-#line 470 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 453 "language.yy"
     {
     if ((yyvsp[(1) - (1)].arcbase))
         (yyval.arclist) = (new ArcList)->Append((yyvsp[(1) - (1)].arcbase)); /* New list */
@@ -2842,9 +2548,7 @@ yyreduce:
     break;
 
   case 40:
-
-/* Line 1455 of yacc.c  */
-#line 477 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 460 "language.yy"
     {
     if ((yyvsp[(3) - (3)].arcbase)) {
         if ((yyvsp[(1) - (3)].arclist))
@@ -2858,9 +2562,7 @@ yyreduce:
     break;
 
   case 41:
-
-/* Line 1455 of yacc.c  */
-#line 488 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 471 "language.yy"
     {
     (yyval.arclist) = (yyvsp[(1) - (2)].arclist);
     //Skip to next comma or semicolon
@@ -2868,18 +2570,15 @@ yyreduce:
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
-	msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
-	msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
+    msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
+    msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
 }
     break;
 
   case 42:
-
-/* Line 1455 of yacc.c  */
-#line 500 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 483 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    msc.AddAttribute(Attribute((yyvsp[(1) - (3)].str), string_to_bool((yyvsp[(3) - (3)].str)), l, (yyvsp[(3) - (3)].str)));
+    msc.AddAttribute(Attribute((yyvsp[(1) - (3)].str), string_to_bool((yyvsp[(3) - (3)].str)), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])), (yyvsp[(3) - (3)].str)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
     (yyval.arcbase) = NULL;
@@ -2887,12 +2586,9 @@ yyreduce:
     break;
 
   case 43:
-
-/* Line 1455 of yacc.c  */
-#line 508 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 490 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    msc.AddAttribute(Attribute((yyvsp[(1) - (3)].str), atof((yyvsp[(3) - (3)].str)), l, (yyvsp[(3) - (3)].str)));
+    msc.AddAttribute(Attribute((yyvsp[(1) - (3)].str), atof((yyvsp[(3) - (3)].str)), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])), (yyvsp[(3) - (3)].str)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
     (yyval.arcbase) = NULL;
@@ -2900,19 +2596,15 @@ yyreduce:
     break;
 
   case 44:
-
-/* Line 1455 of yacc.c  */
-#line 516 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 497 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    Attribute a((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), l);
+    Attribute a((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])));
     MscFillAttr fill;
     fill.Empty();
     if (a.StartsWith("background") && fill.AddAttribute(a, &msc, STYLE_OPTION)) {
-        (yyval.arcbase) = new CommandNewBackground(a.linenum, &msc, fill);
+        (yyval.arcbase) = new CommandNewBackground(a.linenum_attr, &msc, fill);
     } else {
-    	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-        msc.AddAttribute(Attribute((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), l));
+        msc.AddAttribute(Attribute((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)]))));
         (yyval.arcbase) = NULL;
     }
     free((yyvsp[(1) - (3)].str));
@@ -2921,11 +2613,9 @@ yyreduce:
     break;
 
   case 45:
-
-/* Line 1455 of yacc.c  */
-#line 532 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 511 "language.yy"
     {
-    msc.AddAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)))));
+    msc.AddAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)]))));
     (yyval.arcbase) = NULL;
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
@@ -2933,27 +2623,21 @@ yyreduce:
     break;
 
   case 46:
-
-/* Line 1455 of yacc.c  */
-#line 540 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 519 "language.yy"
     {
     (yyval.entitylist) = (EntityDefList*)((new EntityDefList)->Append((yyvsp[(1) - (1)].entity)));
 }
     break;
 
   case 47:
-
-/* Line 1455 of yacc.c  */
-#line 544 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 523 "language.yy"
     {
     (yyval.entitylist) = (EntityDefList*)(((yyvsp[(1) - (3)].entitylist))->Append((yyvsp[(3) - (3)].entity)));
 }
     break;
 
   case 48:
-
-/* Line 1455 of yacc.c  */
-#line 548 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 527 "language.yy"
     {
     (yyval.entitylist) = (yyvsp[(1) - (2)].entitylist);
     //Skip to next comma or semicolon
@@ -2961,15 +2645,13 @@ yyreduce:
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
-	msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
-	msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
+    msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
+    msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
 }
     break;
 
   case 49:
-
-/* Line 1455 of yacc.c  */
-#line 560 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 539 "language.yy"
     {
     (yyval.entity) = (new EntityDef((yyvsp[(1) - (2)].str), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist), &msc);
     free((yyvsp[(1) - (2)].str));
@@ -2977,9 +2659,7 @@ yyreduce:
     break;
 
   case 50:
-
-/* Line 1455 of yacc.c  */
-#line 565 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 544 "language.yy"
     {
     (yyval.entity) = (new EntityDef((yyvsp[(1) - (1)].str), &msc))->AddAttributeList(NULL, &msc);
     free((yyvsp[(1) - (1)].str));
@@ -2987,9 +2667,7 @@ yyreduce:
     break;
 
   case 53:
-
-/* Line 1455 of yacc.c  */
-#line 575 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 554 "language.yy"
     {
     for (std::list<string>::iterator i = ((yyvsp[(1) - (4)].stringlist))->begin(); i!=((yyvsp[(1) - (4)].stringlist))->end(); i++) {
         MscStyle style = msc.StyleSets.top().GetStyle(*i);
@@ -3004,9 +2682,7 @@ yyreduce:
     break;
 
   case 54:
-
-/* Line 1455 of yacc.c  */
-#line 588 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 567 "language.yy"
     {
     (yyval.stringlist) = new std::list<string>;
     ((yyval.stringlist))->push_back((yyvsp[(1) - (1)].str));
@@ -3015,9 +2691,7 @@ yyreduce:
     break;
 
   case 55:
-
-/* Line 1455 of yacc.c  */
-#line 594 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 573 "language.yy"
     {
     ((yyvsp[(1) - (3)].stringlist))->push_back((yyvsp[(3) - (3)].str));
     (yyval.stringlist) = (yyvsp[(1) - (3)].stringlist);
@@ -3026,20 +2700,16 @@ yyreduce:
     break;
 
   case 58:
-
-/* Line 1455 of yacc.c  */
-#line 604 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 583 "language.yy"
     {
-    msc.ColorSets.top().AddColor((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), msc.Error, file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))));
+    msc.ColorSets.top().AddColor((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), msc.Error, YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 59:
-
-/* Line 1455 of yacc.c  */
-#line 611 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 590 "language.yy"
     {
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
@@ -3053,9 +2723,7 @@ yyreduce:
     break;
 
   case 60:
-
-/* Line 1455 of yacc.c  */
-#line 623 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 602 "language.yy"
     {
     //push empty color & style sets for design definition
     msc.ColorSets.push(ColorSet());
@@ -3066,120 +2734,92 @@ yyreduce:
     break;
 
   case 68:
-
-/* Line 1455 of yacc.c  */
-#line 641 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 620 "language.yy"
     {
     //Skip to next comma or semicolon
     while (yychar > YYEOF && yychar != TOK_COMMA && yychar !=TOK_SEMICOLON) {
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
-	msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
-	msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
+    msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
+    msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
 }
     break;
 
   case 69:
-
-/* Line 1455 of yacc.c  */
-#line 653 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 632 "language.yy"
     {
-    msc.AddDesignAttribute(Attribute((yyvsp[(1) - (3)].str), string_to_bool((yyvsp[(3) - (3)].str)), 
-	                                 file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))), 
-									 (yyvsp[(3) - (3)].str)));
+    msc.AddDesignAttribute(Attribute((yyvsp[(1) - (3)].str), string_to_bool((yyvsp[(3) - (3)].str)), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])), (yyvsp[(3) - (3)].str)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 70:
-
-/* Line 1455 of yacc.c  */
-#line 661 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 638 "language.yy"
     {
-    msc.AddDesignAttribute(Attribute((yyvsp[(1) - (3)].str), atof((yyvsp[(3) - (3)].str)), 
-                           file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))), 
-						   (yyvsp[(3) - (3)].str)));
+    msc.AddDesignAttribute(Attribute((yyvsp[(1) - (3)].str), atof((yyvsp[(3) - (3)].str)), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])), (yyvsp[(3) - (3)].str)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 71:
-
-/* Line 1455 of yacc.c  */
-#line 669 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 644 "language.yy"
     {
-    msc.AddDesignAttribute(Attribute((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)))));
+    msc.AddDesignAttribute(Attribute((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)]))));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 72:
-
-/* Line 1455 of yacc.c  */
-#line 675 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 650 "language.yy"
     {
-    msc.AddDesignAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)))));
+    msc.AddDesignAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)]))));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 73:
-
-/* Line 1455 of yacc.c  */
-#line 683 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 658 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcparallel) = (new ArcParallel(l, &msc))->AddArcList((yyvsp[(1) - (1)].arclist));
+    (yyval.arcparallel) = (new ArcParallel(YYMSC_GETPOS((yyloc)), &msc))->AddArcList((yyvsp[(1) - (1)].arclist));
 }
     break;
 
   case 74:
-
-/* Line 1455 of yacc.c  */
-#line 688 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 662 "language.yy"
     {
     (yyval.arcparallel) = ((yyvsp[(1) - (2)].arcparallel))->AddArcList((yyvsp[(2) - (2)].arclist));
 }
     break;
 
   case 75:
-
-/* Line 1455 of yacc.c  */
-#line 693 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 667 "language.yy"
     {
-	/*MscSetArcListLinenum($2, $1);*/
+    /*MscSetArcListLinenum($2, $1);*/
     (yyval.arclist) = (yyvsp[(2) - (4)].arclist);
 }
     break;
 
   case 76:
-
-/* Line 1455 of yacc.c  */
-#line 698 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 672 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arclist) = (new ArcList)->Append(new ArcDivider(MSC_ARC_VSPACE, l, &msc));
+    (yyval.arclist) = (new ArcList)->Append(new ArcDivider(MSC_ARC_VSPACE, YYMSC_GETPOS((yyloc)), &msc));
 }
     break;
 
   case 77:
-
-/* Line 1455 of yacc.c  */
-#line 704 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 677 "language.yy"
     {
     (yyval.arcbase)=(yyvsp[(1) - (1)].arcbase);
 }
     break;
 
   case 78:
-
-/* Line 1455 of yacc.c  */
-#line 708 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 681 "language.yy"
     {
     (yyval.arcbase)=(yyvsp[(2) - (2)].arcbase);
     free((yyvsp[(1) - (2)].str));
@@ -3187,224 +2827,177 @@ yyreduce:
     break;
 
   case 79:
-
-/* Line 1455 of yacc.c  */
-#line 713 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 686 "language.yy"
     {
     (yyval.arcbase) = static_cast<ArcEmphasis*>((yyvsp[(1) - (2)].arcbase))->AddFollow(static_cast<ArcEmphasis*>((yyvsp[(2) - (2)].arcbase)));
 }
     break;
 
   case 80:
-
-/* Line 1455 of yacc.c  */
-#line 719 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 692 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcemph);
 }
     break;
 
   case 81:
-
-/* Line 1455 of yacc.c  */
-#line 723 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 696 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (2)].arcemph))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
 }
     break;
 
   case 82:
-
-/* Line 1455 of yacc.c  */
-#line 727 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 700 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (5)].arcemph))->AddArcList((yyvsp[(3) - (5)].arclist));
 }
     break;
 
   case 83:
-
-/* Line 1455 of yacc.c  */
-#line 731 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 704 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (6)].arcemph))->AddArcList((yyvsp[(4) - (6)].arclist))->AddAttributeList((yyvsp[(2) - (6)].attriblist));
 }
     break;
 
   case 84:
-
-/* Line 1455 of yacc.c  */
-#line 737 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 710 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (1)].arcemph))->EmptyStyle();
 }
     break;
 
   case 85:
-
-/* Line 1455 of yacc.c  */
-#line 741 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 714 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (2)].arcemph))->EmptyStyle()->AddAttributeList((yyvsp[(2) - (2)].attriblist));
 }
     break;
 
   case 86:
-
-/* Line 1455 of yacc.c  */
-#line 745 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 718 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (5)].arcemph))->AddArcList((yyvsp[(3) - (5)].arclist))->EmptyStyle();
 }
     break;
 
   case 87:
-
-/* Line 1455 of yacc.c  */
-#line 749 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 722 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (6)].arcemph))->AddArcList((yyvsp[(4) - (6)].arclist))->EmptyStyle()->AddAttributeList((yyvsp[(2) - (6)].attriblist));
 }
     break;
 
   case 88:
-
-/* Line 1455 of yacc.c  */
-#line 756 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 729 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (1)].arcemph))->SetPipe();
 }
     break;
 
   case 89:
-
-/* Line 1455 of yacc.c  */
-#line 760 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 733 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (2)].arcemph))->SetPipe()->AddAttributeList((yyvsp[(2) - (2)].attriblist));
 }
     break;
 
   case 90:
-
-/* Line 1455 of yacc.c  */
-#line 764 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 737 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (5)].arcemph))->AddArcList((yyvsp[(3) - (5)].arclist))->SetPipe();
 }
     break;
 
   case 91:
-
-/* Line 1455 of yacc.c  */
-#line 768 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 741 "language.yy"
     {
     (yyval.arcbase) = ((yyvsp[(1) - (6)].arcemph))->AddArcList((yyvsp[(4) - (6)].arclist))->SetPipe()->AddAttributeList((yyvsp[(2) - (6)].attriblist));
 }
     break;
 
   case 92:
-
-/* Line 1455 of yacc.c  */
-#line 773 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 746 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), l, &msc);
+    (yyval.arcemph) = new ArcEmphasis((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), YYMSC_GETPOS((yylsp[(1) - (3)])), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yylsp[(3) - (3)])), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 93:
-
-/* Line 1455 of yacc.c  */
-#line 780 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 752 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(1) - (2)].arctype), NULL, (yyvsp[(2) - (2)].str), l, &msc);
+    (yyval.arcemph) = new ArcEmphasis((yyvsp[(1) - (2)].arctype), NULL, YYMSC_GETPOS((yylsp[(1) - (2)])), (yyvsp[(2) - (2)].str), YYMSC_GETPOS((yylsp[(2) - (2)])), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(2) - (2)].str));
 }
     break;
 
   case 94:
-
-/* Line 1455 of yacc.c  */
-#line 786 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 757 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), NULL, l, &msc);
+    (yyval.arcemph) = new ArcEmphasis((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), YYMSC_GETPOS((yylsp[(1) - (2)])), NULL, YYMSC_GETPOS((yylsp[(2) - (2)])), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 95:
-
-/* Line 1455 of yacc.c  */
-#line 792 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 762 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(1) - (1)].arctype), NULL, NULL, l, &msc);
+    (yyval.arcemph) = new ArcEmphasis((yyvsp[(1) - (1)].arctype), NULL, YYMSC_GETPOS((yylsp[(1) - (1)])), NULL, YYMSC_GETPOS((yylsp[(1) - (1)])), YYMSC_GETPOS((yyloc)), &msc);
 }
     break;
 
   case 96:
-
-/* Line 1455 of yacc.c  */
-#line 798 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 767 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.vertxpos) = new VertXPos(l, msc, (yyvsp[(2) - (2)].str));
+    (yyval.vertxpos) = new VertXPos(YYMSC_GETPOS((yyloc)), msc, (yyvsp[(2) - (2)].str));
     free((yyvsp[(1) - (2)].str));
     free((yyvsp[(2) - (2)].str));
 }
     break;
 
   case 97:
-
-/* Line 1455 of yacc.c  */
-#line 805 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 773 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.vertxpos) = new VertXPos(l, msc, (yyvsp[(2) - (3)].str), VertXPos::POS_LEFT_SIDE);
+    (yyval.vertxpos) = new VertXPos(YYMSC_GETPOS((yyloc)), msc, (yyvsp[(2) - (3)].str), VertXPos::POS_LEFT_SIDE);
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(2) - (3)].str));
 }
     break;
 
   case 98:
-
-/* Line 1455 of yacc.c  */
-#line 812 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 779 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.vertxpos) = new VertXPos(l, msc, (yyvsp[(2) - (3)].str), VertXPos::POS_RIGHT_SIDE);
+    (yyval.vertxpos) = new VertXPos(YYMSC_GETPOS((yyloc)), msc, (yyvsp[(2) - (3)].str), VertXPos::POS_RIGHT_SIDE);
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(2) - (3)].str));
 }
     break;
 
   case 99:
-
-/* Line 1455 of yacc.c  */
-#line 819 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 785 "language.yy"
     {
-    (yyval.vertxpos) = NULL;
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
     switch ((yyvsp[(3) - (3)].arctype)) {
     case MSC_EMPH_SOLID:
-        (yyval.vertxpos) = new VertXPos(l, msc, (yyvsp[(2) - (3)].str), VertXPos::POS_LEFT_BY);
+        (yyval.vertxpos) = new VertXPos(YYMSC_GETPOS((yyloc)), msc, (yyvsp[(2) - (3)].str), VertXPos::POS_LEFT_BY);
         break;
     case MSC_EMPH_DASHED:
-        (yyval.vertxpos) = new VertXPos(l, msc, (yyvsp[(2) - (3)].str), VertXPos::POS_RIGHT_BY);
+        (yyval.vertxpos) = new VertXPos(YYMSC_GETPOS((yyloc)), msc, (yyvsp[(2) - (3)].str), VertXPos::POS_RIGHT_BY);
         break;
     case MSC_EMPH_DOTTED:
-        msc.Error.Error(file_line(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(3) - (3)])), YYMSC_GETCOLNO((yylsp[(3) - (3)]))),
+        msc.Error.Error(YYMSC_GETPOS((yylsp[(3) - (3)])),
                         "unexpected '..', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); break;
+        (yyval.vertxpos) = NULL;
+        break;
     case MSC_EMPH_DOUBLE:
-        msc.Error.Error(file_line(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(3) - (3)])), YYMSC_GETCOLNO((yylsp[(3) - (3)]))),
+        msc.Error.Error(YYMSC_GETPOS((yylsp[(3) - (3)])),
                         "unexpected '==', expected '-', '--', '+' or '++'."
                         " Ignoring vertical."); break;
+        (yyval.vertxpos) = NULL;
+        break;
     }
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(2) - (3)].str));
@@ -3412,12 +3005,9 @@ yyreduce:
     break;
 
   case 100:
-
-/* Line 1455 of yacc.c  */
-#line 842 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 810 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.vertxpos) = new VertXPos(l, msc, (yyvsp[(2) - (4)].str), VertXPos::POS_CENTER, (yyvsp[(4) - (4)].str));
+    (yyval.vertxpos) = new VertXPos(YYMSC_GETPOS((yyloc)), msc, (yyvsp[(2) - (4)].str), VertXPos::POS_CENTER, (yyvsp[(4) - (4)].str));
     free((yyvsp[(1) - (4)].str));
     free((yyvsp[(2) - (4)].str));
     free((yyvsp[(4) - (4)].str));
@@ -3425,12 +3015,9 @@ yyreduce:
     break;
 
   case 104:
-
-/* Line 1455 of yacc.c  */
-#line 853 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 820 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (4)].arctype), (yyvsp[(1) - (4)].str), (yyvsp[(3) - (4)].str), (yyvsp[(4) - (4)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (4)].arctype), (yyvsp[(1) - (4)].str), (yyvsp[(3) - (4)].str), (yyvsp[(4) - (4)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (4)].str));
     free((yyvsp[(3) - (4)].str));
     delete (yyvsp[(4) - (4)].vertxpos);
@@ -3438,47 +3025,35 @@ yyreduce:
     break;
 
   case 105:
-
-/* Line 1455 of yacc.c  */
-#line 861 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 827 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (3)].arctype), MARKER_HERE_STR, (yyvsp[(2) - (3)].str), (yyvsp[(3) - (3)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (3)].arctype), MARKER_HERE_STR, (yyvsp[(2) - (3)].str), (yyvsp[(3) - (3)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(2) - (3)].str));
     delete (yyvsp[(3) - (3)].vertxpos);
 }
     break;
 
   case 106:
-
-/* Line 1455 of yacc.c  */
-#line 868 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 833 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), MARKER_HERE_STR, (yyvsp[(3) - (3)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), MARKER_HERE_STR, (yyvsp[(3) - (3)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (3)].str));
     delete (yyvsp[(3) - (3)].vertxpos);
 }
     break;
 
   case 107:
-
-/* Line 1455 of yacc.c  */
-#line 875 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 839 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (2)].arctype), MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, (yyvsp[(2) - (2)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (2)].arctype), MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, (yyvsp[(2) - (2)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     delete (yyvsp[(2) - (2)].vertxpos);
 }
     break;
 
   case 108:
-
-/* Line 1455 of yacc.c  */
-#line 881 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 844 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (4)].arctype), (yyvsp[(3) - (4)].str), (yyvsp[(1) - (4)].str), (yyvsp[(4) - (4)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (4)].arctype), (yyvsp[(3) - (4)].str), (yyvsp[(1) - (4)].str), (yyvsp[(4) - (4)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (4)].str));
     free((yyvsp[(3) - (4)].str));
     delete (yyvsp[(4) - (4)].vertxpos);
@@ -3486,312 +3061,233 @@ yyreduce:
     break;
 
   case 109:
-
-/* Line 1455 of yacc.c  */
-#line 889 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 851 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (3)].arctype), (yyvsp[(2) - (3)].str), MARKER_HERE_STR, (yyvsp[(3) - (3)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (3)].arctype), (yyvsp[(2) - (3)].str), MARKER_HERE_STR, (yyvsp[(3) - (3)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(2) - (3)].str));
     delete (yyvsp[(3) - (3)].vertxpos);
 }
     break;
 
   case 110:
-
-/* Line 1455 of yacc.c  */
-#line 896 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 857 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (3)].arctype), MARKER_HERE_STR, (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(2) - (3)].arctype), MARKER_HERE_STR, (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     free((yyvsp[(1) - (3)].str));
     delete (yyvsp[(3) - (3)].vertxpos);
 }
     break;
 
   case 111:
-
-/* Line 1455 of yacc.c  */
-#line 903 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 863 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (2)].arctype), MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, (yyvsp[(2) - (2)].vertxpos), l, &msc);
+    (yyval.arcbase) = new ArcVerticalArrow((yyvsp[(1) - (2)].arctype), MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, (yyvsp[(2) - (2)].vertxpos), YYMSC_GETPOS((yyloc)), &msc);
     delete (yyvsp[(2) - (2)].vertxpos);
 }
     break;
 
   case 112:
-
-/* Line 1455 of yacc.c  */
-#line 911 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 870 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcbase) = new ArcDivider((yyvsp[(1) - (1)].arctype), l, &msc);
+    (yyval.arcbase) = new ArcDivider((yyvsp[(1) - (1)].arctype), YYMSC_GETPOS((yyloc)), &msc);
 }
     break;
 
   case 113:
-
-/* Line 1455 of yacc.c  */
-#line 916 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 874 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
     break;
 
   case 114:
-
-/* Line 1455 of yacc.c  */
-#line 920 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 878 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
     break;
 
   case 115:
-
-/* Line 1455 of yacc.c  */
-#line 924 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 882 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
     break;
 
   case 116:
-
-/* Line 1455 of yacc.c  */
-#line 929 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 887 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), YYMSC_GETPOS((yylsp[(1) - (3)])), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yylsp[(3) - (3)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 117:
-
-/* Line 1455 of yacc.c  */
-#line 936 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 893 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(1) - (2)].arctype), LSIDE_ENT_STR , (yyvsp[(2) - (2)].str), l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(1) - (2)].arctype), LSIDE_ENT_STR, YYMSC_GETPOS((yylsp[(1) - (2)])), (yyvsp[(2) - (2)].str), YYMSC_GETPOS((yylsp[(2) - (2)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(2) - (2)].str));
 }
     break;
 
   case 118:
-
-/* Line 1455 of yacc.c  */
-#line 942 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 898 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), RSIDE_ENT_STR , l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), YYMSC_GETPOS((yylsp[(1) - (2)])), RSIDE_ENT_STR, YYMSC_GETPOS((yylsp[(2) - (2)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 119:
-
-/* Line 1455 of yacc.c  */
-#line 948 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 903 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(3) - (3)])), YYMSC_GETCOLNO((yylsp[(3) - (3)])));
-    (yyval.arcarrow) = ((yyvsp[(1) - (3)].arcarrow))->AddSegment((yyvsp[(3) - (3)].str), true, l);
+    (yyval.arcarrow) = ((yyvsp[(1) - (3)].arcarrow))->AddSegment((yyvsp[(3) - (3)].str), YYMSC_GETPOS((yylsp[(3) - (3)])), true, YYMSC_GETPOS((yylsp[(2) - (3)])));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 120:
-
-/* Line 1455 of yacc.c  */
-#line 954 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 908 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(2) - (2)])), YYMSC_GETCOLNO((yylsp[(2) - (2)])));
-    (yyval.arcarrow) = ((yyvsp[(1) - (2)].arcarrow))->AddSegment(NULL, true, l);
+    (yyval.arcarrow) = ((yyvsp[(1) - (2)].arcarrow))->AddSegment(NULL, YYMSC_GETPOS((yylsp[(2) - (2)])), true, YYMSC_GETPOS((yylsp[(2) - (2)])));
 }
     break;
 
   case 121:
-
-/* Line 1455 of yacc.c  */
-#line 961 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 914 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(3) - (3)].str), (yyvsp[(1) - (3)].str), l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yylsp[(3) - (3)])), (yyvsp[(1) - (3)].str), YYMSC_GETPOS((yylsp[(1) - (3)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 122:
-
-/* Line 1455 of yacc.c  */
-#line 968 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 920 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(1) - (2)].arctype), (yyvsp[(2) - (2)].str), LSIDE_ENT_STR, l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(1) - (2)].arctype), (yyvsp[(2) - (2)].str), YYMSC_GETPOS((yylsp[(2) - (2)])), LSIDE_ENT_STR, YYMSC_GETPOS((yylsp[(1) - (2)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(2) - (2)].str));
 }
     break;
 
   case 123:
-
-/* Line 1455 of yacc.c  */
-#line 974 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 925 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (2)].arctype), RSIDE_ENT_STR, (yyvsp[(1) - (2)].str), l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (2)].arctype), RSIDE_ENT_STR, YYMSC_GETPOS((yylsp[(2) - (2)])), (yyvsp[(1) - (2)].str), YYMSC_GETPOS((yylsp[(1) - (2)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 124:
-
-/* Line 1455 of yacc.c  */
-#line 980 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 930 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(3) - (3)])), YYMSC_GETCOLNO((yylsp[(3) - (3)])));
-    (yyval.arcarrow) = ((yyvsp[(1) - (3)].arcarrow))->AddSegment((yyvsp[(3) - (3)].str), false, l);
+    (yyval.arcarrow) = ((yyvsp[(1) - (3)].arcarrow))->AddSegment((yyvsp[(3) - (3)].str), YYMSC_GETPOS((yylsp[(3) - (3)])), false, YYMSC_GETPOS((yylsp[(2) - (3)])));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 125:
-
-/* Line 1455 of yacc.c  */
-#line 986 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 935 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(2) - (2)])), YYMSC_GETCOLNO((yylsp[(2) - (2)])));
-    (yyval.arcarrow) = ((yyvsp[(1) - (2)].arcarrow))->AddSegment(NULL, false, l);
+    (yyval.arcarrow) = ((yyvsp[(1) - (2)].arcarrow))->AddSegment(NULL, YYMSC_GETPOS((yylsp[(2) - (2)])), false, YYMSC_GETPOS((yylsp[(2) - (2)])));
 }
     break;
 
   case 126:
-
-/* Line 1455 of yacc.c  */
-#line 992 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 940 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), YYMSC_GETPOS((yylsp[(1) - (3)])), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yylsp[(3) - (3)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 127:
-
-/* Line 1455 of yacc.c  */
-#line 999 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 946 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(1) - (2)].arctype), LSIDE_ENT_STR, (yyvsp[(2) - (2)].str), l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(1) - (2)].arctype), LSIDE_ENT_STR, YYMSC_GETPOS((yylsp[(1) - (2)])), (yyvsp[(2) - (2)].str), YYMSC_GETPOS((yylsp[(2) - (2)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(2) - (2)].str));
 }
     break;
 
   case 128:
-
-/* Line 1455 of yacc.c  */
-#line 1005 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 951 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)));
-    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), RSIDE_ENT_STR, l);
+    (yyval.arcarrow) = msc.CreateArcArrow((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), YYMSC_GETPOS((yylsp[(1) - (2)])), RSIDE_ENT_STR, YYMSC_GETPOS((yylsp[(2) - (2)])), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 129:
-
-/* Line 1455 of yacc.c  */
-#line 1011 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 956 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(3) - (3)])), YYMSC_GETCOLNO((yylsp[(3) - (3)])));
-    (yyval.arcarrow) = ((yyvsp[(1) - (3)].arcarrow))->AddSegment((yyvsp[(3) - (3)].str), true, l);
+    (yyval.arcarrow) = ((yyvsp[(1) - (3)].arcarrow))->AddSegment((yyvsp[(3) - (3)].str), YYMSC_GETPOS((yylsp[(3) - (3)])), true, YYMSC_GETPOS((yylsp[(2) - (3)])));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 130:
-
-/* Line 1455 of yacc.c  */
-#line 1017 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 961 "language.yy"
     {
-	file_line l(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(2) - (2)])), YYMSC_GETCOLNO((yylsp[(2) - (2)])));
-    (yyval.arcarrow) = ((yyvsp[(1) - (2)].arcarrow))->AddSegment(NULL, true, l);
+    (yyval.arcarrow) = ((yyvsp[(1) - (2)].arcarrow))->AddSegment(NULL, YYMSC_GETPOS((yylsp[(2) - (2)])), true, YYMSC_GETPOS((yylsp[(2) - (2)])));
 }
     break;
 
   case 149:
-
-/* Line 1455 of yacc.c  */
-#line 1033 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 976 "language.yy"
     {
-    (yyval.attriblist) = (new AttributeList)->Append(new Attribute("label", (yyvsp[(1) - (1)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)))));
+    (yyval.attriblist) = (new AttributeList)->Append(new Attribute("label", (yyvsp[(1) - (1)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yyloc)).IncCol()));
     free((yyvsp[(1) - (1)].str));
 }
     break;
 
   case 150:
-
-/* Line 1455 of yacc.c  */
-#line 1038 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 981 "language.yy"
     {
-    (yyval.attriblist) = ((yyvsp[(2) - (2)].attriblist))->Append(new Attribute("label", (yyvsp[(1) - (2)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc)))));
+    (yyval.attriblist) = ((yyvsp[(2) - (2)].attriblist))->Prepend(new Attribute("label", (yyvsp[(1) - (2)].str), YYMSC_GETPOS((yylsp[(1) - (2)])), YYMSC_GETPOS((yylsp[(1) - (2)])).IncCol()));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 151:
-
-/* Line 1455 of yacc.c  */
-#line 1043 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 986 "language.yy"
     {
-    (yyval.attriblist) = ((yyvsp[(1) - (2)].attriblist))->Append(new Attribute("label", (yyvsp[(2) - (2)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yylsp[(2) - (2)])), YYMSC_GETCOLNO((yylsp[(2) - (2)])))));
+    (yyval.attriblist) = ((yyvsp[(1) - (2)].attriblist))->Append(new Attribute("label", (yyvsp[(2) - (2)].str), YYMSC_GETPOS((yylsp[(2) - (2)])), YYMSC_GETPOS((yylsp[(2) - (2)])).IncCol()));
     free((yyvsp[(2) - (2)].str));
 }
     break;
 
   case 153:
-
-/* Line 1455 of yacc.c  */
-#line 1051 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 994 "language.yy"
     {
     (yyval.attriblist) = new AttributeList;
 }
     break;
 
   case 154:
-
-/* Line 1455 of yacc.c  */
-#line 1055 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 998 "language.yy"
     {
     (yyval.attriblist) = (yyvsp[(2) - (3)].attriblist);
 }
     break;
 
   case 155:
-
-/* Line 1455 of yacc.c  */
-#line 1060 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1003 "language.yy"
     {
     (yyval.attriblist) = (new AttributeList)->Append((yyvsp[(1) - (1)].attrib));
 }
     break;
 
   case 156:
-
-/* Line 1455 of yacc.c  */
-#line 1064 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1007 "language.yy"
     {
     (yyval.attriblist) = ((yyvsp[(1) - (3)].attriblist))->Append((yyvsp[(3) - (3)].attrib));
 }
     break;
 
   case 157:
-
-/* Line 1455 of yacc.c  */
-#line 1068 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1011 "language.yy"
     {
     (yyval.attriblist) = (yyvsp[(1) - (2)].attriblist);
     //Skip to next comma or closing bracket
@@ -3799,156 +3295,116 @@ yyreduce:
         yychar = YYLEX;
         yytoken = YYTRANSLATE (yychar);
     }
-	msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
-	msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
+    msc.current_pos.line = YYMSC_GETLINENO((yylsp[(2) - (2)]));
+    msc.current_pos.col  = YYMSC_GETCOLNO((yylsp[(2) - (2)]));
 }
     break;
 
   case 158:
-
-/* Line 1455 of yacc.c  */
-#line 1080 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1023 "language.yy"
     {
-    (yyval.attrib) = new Attribute((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))));
+    (yyval.attrib) = new Attribute((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 159:
-
-/* Line 1455 of yacc.c  */
-#line 1086 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1029 "language.yy"
     {
-    (yyval.attrib) = new Attribute((yyvsp[(1) - (3)].str), atof((yyvsp[(3) - (3)].str)), 
-	                   file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))), 
-					   (yyvsp[(3) - (3)].str));
+    (yyval.attrib) = new Attribute((yyvsp[(1) - (3)].str), atof((yyvsp[(3) - (3)].str)), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])), (yyvsp[(3) - (3)].str));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 160:
-
-/* Line 1455 of yacc.c  */
-#line 1094 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1035 "language.yy"
     {
-    (yyval.attrib) = new Attribute((yyvsp[(1) - (3)].str), string_to_bool((yyvsp[(3) - (3)].str)), 
-	                   file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))), 
-					   (yyvsp[(3) - (3)].str));
+    (yyval.attrib) = new Attribute((yyvsp[(1) - (3)].str), string_to_bool((yyvsp[(3) - (3)].str)), YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yylsp[(3) - (3)])), (yyvsp[(3) - (3)].str));
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
 }
     break;
 
   case 161:
-
-/* Line 1455 of yacc.c  */
-#line 1102 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1041 "language.yy"
     {
-    (yyval.attrib) = new Attribute((yyvsp[(1) - (2)].str), (char*)NULL, file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))));
+    (yyval.attrib) = new Attribute((yyvsp[(1) - (2)].str), (char*)NULL, YYMSC_GETPOS((yyloc)), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (2)].str));
 }
     break;
 
   case 162:
-
-/* Line 1455 of yacc.c  */
-#line 1107 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1046 "language.yy"
     {
-    (yyval.attrib) = new Attribute((yyvsp[(1) - (1)].str), file_line(msc.current_pos.file, YYMSC_GETLINENO((yyloc)), YYMSC_GETCOLNO((yyloc))));
+    (yyval.attrib) = new Attribute((yyvsp[(1) - (1)].str), YYMSC_GETPOS((yyloc)));
     free((yyvsp[(1) - (1)].str));
 }
     break;
 
   case 173:
-
-/* Line 1455 of yacc.c  */
-#line 1120 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1059 "language.yy"
     {(yyval.str) = strdup("->");}
     break;
 
   case 174:
-
-/* Line 1455 of yacc.c  */
-#line 1121 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1060 "language.yy"
     {(yyval.str) = strdup("<-");}
     break;
 
   case 175:
-
-/* Line 1455 of yacc.c  */
-#line 1122 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1061 "language.yy"
     {(yyval.str) = strdup("<->");}
     break;
 
   case 176:
-
-/* Line 1455 of yacc.c  */
-#line 1123 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1062 "language.yy"
     {(yyval.str) = strdup("=>");}
     break;
 
   case 177:
-
-/* Line 1455 of yacc.c  */
-#line 1124 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1063 "language.yy"
     {(yyval.str) = strdup("<=");}
     break;
 
   case 178:
-
-/* Line 1455 of yacc.c  */
-#line 1125 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1064 "language.yy"
     {(yyval.str) = strdup("<=>");}
     break;
 
   case 179:
-
-/* Line 1455 of yacc.c  */
-#line 1126 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1065 "language.yy"
     {(yyval.str) = strdup(">>");}
     break;
 
   case 180:
-
-/* Line 1455 of yacc.c  */
-#line 1127 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1066 "language.yy"
     {(yyval.str) = strdup("<<");}
     break;
 
   case 181:
-
-/* Line 1455 of yacc.c  */
-#line 1128 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1067 "language.yy"
     {(yyval.str) = strdup("<<>>");}
     break;
 
   case 182:
-
-/* Line 1455 of yacc.c  */
-#line 1129 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1068 "language.yy"
     {(yyval.str) = strdup(">");}
     break;
 
   case 183:
-
-/* Line 1455 of yacc.c  */
-#line 1130 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1069 "language.yy"
     {(yyval.str) = strdup("<");}
     break;
 
   case 184:
-
-/* Line 1455 of yacc.c  */
-#line 1131 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1070 "language.yy"
     {(yyval.str) = strdup("<>");}
     break;
 
   case 185:
-
-/* Line 1455 of yacc.c  */
-#line 1133 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1072 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
     case MSC_ARC_DIVIDER:  (yyval.str) = strdup("---"); break;
@@ -3958,9 +3414,7 @@ yyreduce:
     break;
 
   case 186:
-
-/* Line 1455 of yacc.c  */
-#line 1140 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1079 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
     case MSC_EMPH_SOLID:  (yyval.str) = strdup("--"); break;
@@ -3972,27 +3426,22 @@ yyreduce:
     break;
 
   case 191:
-
-/* Line 1455 of yacc.c  */
-#line 1152 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1091 "language.yy"
     {
     msc.PushContext();
 }
     break;
 
   case 192:
-
-/* Line 1455 of yacc.c  */
-#line 1157 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1096 "language.yy"
     {
     msc.PopContext();
 }
     break;
 
 
-
-/* Line 1455 of yacc.c  */
-#line 3996 "y.tab.c"
+/* Line 1267 of yacc.c.  */
+#line 3445 "language.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -4068,7 +3517,7 @@ yyerrlab:
 
   if (yyerrstatus == 3)
     {
-      /* If just tried and failed to reuse lookahead token after an
+      /* If just tried and failed to reuse look-ahead token after an
 	 error, discard it.  */
 
       if (yychar <= YYEOF)
@@ -4085,7 +3534,7 @@ yyerrlab:
 	}
     }
 
-  /* Else will try to reuse lookahead token after shifting the error
+  /* Else will try to reuse look-ahead token after shifting the error
      token.  */
   goto yyerrlab1;
 
@@ -4143,11 +3592,14 @@ yyerrlab1:
       YY_STACK_PRINT (yyss, yyssp);
     }
 
+  if (yyn == YYFINAL)
+    YYACCEPT;
+
   *++yyvsp = yylval;
 
   yyerror_range[1] = yylloc;
   /* Using YYLLOC is tempting, but would change the location of
-     the lookahead.  YYLOC is available though.  */
+     the look-ahead.  YYLOC is available though.  */
   YYLLOC_DEFAULT (yyloc, (yyerror_range - 1), 2);
   *++yylsp = yyloc;
 
@@ -4172,7 +3624,7 @@ yyabortlab:
   yyresult = 1;
   goto yyreturn;
 
-#if !defined(yyoverflow) || YYERROR_VERBOSE
+#ifndef yyoverflow
 /*-------------------------------------------------.
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
@@ -4183,7 +3635,7 @@ yyexhaustedlab:
 #endif
 
 yyreturn:
-  if (yychar != YYEMPTY)
+  if (yychar != YYEOF && yychar != YYEMPTY)
      yydestruct ("Cleanup: discarding lookahead",
 		 yytoken, &yylval, &yylloc, msc, yyscanner);
   /* Do not reclaim the symbols of the rule which action triggered
@@ -4209,9 +3661,7 @@ yyreturn:
 }
 
 
-
-/* Line 1675 of yacc.c  */
-#line 1162 "..\\..\\Documents\\mscgen-sources\\libmscgen\\language.yy"
+#line 1101 "language.yy"
 
 
 

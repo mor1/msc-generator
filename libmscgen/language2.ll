@@ -42,6 +42,11 @@ do {                                                \
     }                                               \
 } while (0)
 
+#define YY_USER_ACTION                                   \
+    yylloc->first_line = yylloc->last_line;              \
+    yylloc->first_column = yylloc->last_column+1;        \
+    yylloc->last_column = yylloc->first_column+yyleng-1;
+
 /* in-place removal of whitespace. Returns new head */
 char *msc_remove_head_tail_whitespace(char *s)
 {
@@ -58,7 +63,7 @@ char *msc_remove_head_tail_whitespace(char *s)
 /* remove heading and trailing whitespace from a string
 ** remove any internal CR or CRLF (and surrounding whitespaces) & replace to \n
 ** (copies to new memory) */
-char* msc_process_colon_string(const char *s)
+char* msc_process_colon_string(const char *s, YYLTYPE *loc)
 {
     char *ret = (char*)malloc(strlen(s)*2+2); //max characters needed
     int old_pos = 0;
@@ -94,6 +99,22 @@ char* msc_process_colon_string(const char *s)
         old_pos = end_line+1;
     }
     ret[new_pos] = 0;
+
+    //OK, now adjust yylloc
+    old_pos = 0;
+    new_pos = 0; //start of line
+    while (1) {
+        while (s[old_pos]!=0 && s[old_pos]!=10 && s[old_pos]!=13) old_pos++;
+        if (s[old_pos]==0) {
+            if (loc->last_column==0) loc->last_column = old_pos-new_pos;
+            break;
+        }
+        if (s[old_pos] == 13 && s[old_pos+1] == 10) old_pos++;
+        old_pos++;
+        new_pos = old_pos;
+        loc->last_line++;
+        loc->last_column = 0;
+    }
     return ret;
 }
 
@@ -114,13 +135,13 @@ char* msc_remove_quotes(const char *s)
 
 %%
 
-\x0d\x0a     yylineno++;
-\x0d         yylineno++;
-\x0a         yylineno++;
+\x0d\x0a     yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;
+\x0d         yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;
+\x0a         yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;
 
-#.*\x0d\x0a  yylineno++;   /* Ignore lines after '#' */
-#.*\x0d      yylineno++;   /* Ignore lines after '#' */
-#.*\x0a      yylineno++;   /* Ignore lines after '#' */
+#.*\x0d\x0a  yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;  /* Ignore lines after '#' */
+#.*\x0d      yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;  /* Ignore lines after '#' */
+#.*\x0a      yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;  /* Ignore lines after '#' */
 
 
 msc       yylval_param->str = strdup(yytext); return TOK_MSC;
@@ -140,10 +161,10 @@ no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 
 \:[ \t]*\"[^\"]*\"                      yylval_param->str = msc_remove_quotes(yytext+1); return TOK_COLON_STRING;
-\:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = msc_process_colon_string(yytext+1); return TOK_COLON_STRING;
+\:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = msc_process_colon_string(yytext+1, yylloc); return TOK_COLON_STRING;
 [+\-]?[0-9]+\.?[0-9]*                   yylval_param->str = strdup(yytext); return TOK_NUMBER;
 [A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* yylval_param->str = strdup(yytext); return TOK_STRING;
-\"[^\"]*\"                              yylval_param->str = strdup(yytext + 1); yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;
+\"[^\"\n]*\"                            yylval_param->str = strdup(yytext + 1); yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;
 
 \.\.\.    yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
 ---       yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */

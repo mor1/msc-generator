@@ -49,15 +49,15 @@
 
 
 MscDrawer::MscDrawer() :
-    totalWidth(0), totalHeight(0), copyrightTextHeight(0), 
+    totalWidth(0), totalHeight(0), copyrightTextHeight(0),
     outFile(NULL), surface(NULL), cr(NULL)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, win32_dc(NULL), save_hdc(NULL)
 #endif
 {
-	current_pos.file = Error.AddFile("[config]");
-	current_pos.line = 0;
-	current_pos.col = 0;
+    current_pos.file = Error.AddFile("[config]");
+    current_pos.line = 0;
+    current_pos.col = 0;
     SetLowLevelParams();
 }
 
