@@ -26,9 +26,6 @@
 #include "MscGenDoc.h"
 #include "SrvrItem.h"
 
-#include "libmscgen.h"
-
-
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -91,8 +88,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	rSize.cx = Msc_GetXSize(pDoc->m_itrCurrent->GetMsc(), pDoc->m_page);
-	rSize.cy = Msc_GetYSize(pDoc->m_itrCurrent->GetMsc(), pDoc->m_page);
+	rSize = pDoc->m_itrCurrent->GetSize(pDoc->m_page);
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -117,7 +113,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	Msc_Draw(pDoc->m_itrCurrent->GetMsc(), pDC->m_hDC, DRAW_WMF, 100, pDoc->m_page);
+	pDoc->m_itrCurrent->Draw(pDC->m_hDC, DRAW_WMF, 100, pDoc->m_page);
 	return TRUE;
 }
 

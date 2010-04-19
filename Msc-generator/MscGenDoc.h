@@ -81,11 +81,10 @@ public:
 	CString m_SetOfDesigns;
 	CString m_CopyrightText;
 	unsigned m_page;
+	unsigned m_pages;
 	// View related 
 	int m_zoom; //In percentage. 100 is normal
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
-#define MAX_ERROR_LENGTH 4096
-	char m_errorText[MAX_ERROR_LENGTH];
 
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
@@ -110,11 +109,11 @@ public:
 	void ReadRegistryValues(bool reportProblem);
 	bool ReadDesigns(bool reportProblem=false, const char *fileName="designlib.signalling");
 	void FillDesignDesignCombo(void);
+	void FillDesignPageCombo(void);
 	//Editor functions
 	void OnUpdate(bool resetZoom=true);
-	void CopyErrorsToWindow(char *text);
 	void StartEditor(CString = "");
-	void JumpToLine(unsigned line);
+	void JumpToLine(unsigned line, unsigned col);
 	bool CheckEditorAndFile(void);
 	void StopEditor(EStopEditor force);
 	void StartDrawingProgress();

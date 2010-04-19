@@ -138,14 +138,8 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	if (pDoc) {
 		ASSERT_KINDOF(CMscGenDoc, pDoc);
 		pDoc->FillDesignDesignCombo();
+		pDoc->FillDesignPageCombo();
 	}
-
-	CMscGenView *pView = static_cast<CMscGenView *>(GetActiveView());
-	if (pView && pView->IsKindOf( RUNTIME_CLASS(CMscGenView))) {
-		ASSERT_KINDOF(CMscGenView, pView);
-		pView->FillDesignPageCombo();
-	}
-
 	return TRUE;
 }
 

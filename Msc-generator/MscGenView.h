@@ -23,6 +23,9 @@
 
 #include "MscGenDoc.h"
 
+inline CSize ScaleSize(const CSize &s, double z) {return CSize(s.cx*z, s.cy*z);}
+inline bool SizeEmpty(const CSize &s) {return s.cx==0 || s.cy==0;}
+
 class CMscGenView : public CScrollView
 {
 protected: // create from serialization only
@@ -35,9 +38,7 @@ public:
 	// Drawn chart
 	HENHMETAFILE m_hemf;
 	//Geometry of data
-	unsigned m_xSize;
-	unsigned m_ySize;
-	unsigned m_pages;
+	CSize m_size;
 	UINT_PTR m_hTimer;
 
 // Operations
@@ -80,14 +81,12 @@ public:
 	afx_msg void OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 
+	afx_msg void OnDesignDesign();
 	afx_msg void OnDesignPage();
-			void FillDesignPageCombo(void);
-
 	afx_msg void OnButtonEdittext();
 	afx_msg void OnUpdateButtonEdittext(CCmdUI *pCmdUI);
 	afx_msg void OnTimer(UINT nIDEvent);
 
-	afx_msg void OnDesignDesign();
 	DECLARE_MESSAGE_MAP()
 protected:
 	virtual void OnPrint(CDC* pDC, CPrintInfo* pInfo);

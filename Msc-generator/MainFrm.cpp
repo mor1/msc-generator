@@ -293,12 +293,8 @@ LRESULT CMainFrame::OnToolbarReset(WPARAM wp, LPARAM)
 		CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 		if (pDoc) {
 			pDoc->FillDesignDesignCombo();
+			pDoc->FillDesignPageCombo();
 			pDoc->SetZoom(pDoc->m_zoom); //reinforce value - it merely fills in zoom combo with list of zoom values
-		}
-
-		CMscGenView *pView = static_cast<CMscGenView *>(GetActiveView());
-		if (pView && pView->IsKindOf( RUNTIME_CLASS(CMscGenView))) {
-			pView->FillDesignPageCombo();
 		}
 	}	  
 

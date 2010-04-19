@@ -147,6 +147,7 @@ CMscGenDoc::CMscGenDoc()
 	ReadRegistryValues(false);
 	m_zoom = 100;
 	m_page = 0; //all
+	m_pages = 0;
 
 	m_EditorProcessId = 0;
 	m_bModified = FALSE;
@@ -283,10 +284,47 @@ void CMscGenDoc::DeleteContents()
 
 void CMscGenDoc::OnUpdate(bool resetZoom)
 {
-	Msc_GetErrors(m_itrCurrent->GetMsc(), m_Warnings, m_errorText, MAX_ERROR_LENGTH);
-	//Copy errors/warnings to the error window & show/hide as appropriate
-	CopyErrorsToWindow(m_errorText);
-	JumpToLine(Msc_GetErrorLine(m_itrCurrent->GetMsc()));
+	//Display error messgaes
+	CEdit *pEdit = (CEdit*)m_ErrorWindow.GetDlgItem(IDC_EDIT1);
+	CString errors;
+	unsigned num = m_itrCurrent->GetErrorNum(m_Warnings);
+	if (num>0) {
+		for (int i=0; i<num; i++) {
+			errors.Append(m_itrCurrent->GetErrorText(i, m_Warnings));
+			errors.Append("\r\n");
+		}
+		pEdit->SetWindowText(errors);
+		m_ErrorWindow.ShowWindow(SW_SHOW); //Activate
+	} else
+		m_ErrorWindow.ShowWindow(SW_HIDE); //Activate
+	if (m_itrCurrent->GetErrorNum(false))
+		JumpToLine(m_itrCurrent->GetErrorLine(0, false), m_itrCurrent->GetErrorCol(0, false));
+
+	//Update page controls and variables
+	unsigned pages = m_itrCurrent->GetPages();
+	if (m_pages != pages) {
+		m_pages = pages;
+		if (m_pages==1)
+			m_page = 0;
+		else if (m_page > m_pages)
+			m_page = m_pages;
+		FillDesignPageCombo();
+	}
+
+	//See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar
+	CObList list;
+	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
+	POSITION p = list.GetHeadPosition();
+	while (p) {
+		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+		int index = combo->FindItem(m_itrCurrent->GetDesign());
+		if (index == CB_ERR) {
+			combo->SelectItem(0);
+			m_itrCurrent->SetDesign("");
+		} else 
+			combo->SelectItem(index);
+	}
+
 	NotifyChanged();  //for OLE
 	UpdateAllViews(NULL);
 	if (resetZoom) ArrangeViews();
@@ -428,7 +466,7 @@ void CMscGenDoc::OnFileExport()
 	m_a.m_pOFN->nMaxFile = sizeof(filename);
 	if (m_a.DoModal() != IDOK)
 		return;
-	Msc_Draw_to_File(m_itrCurrent->GetMsc(), m_a.GetPathName());
+	m_itrCurrent->Draw(m_a.GetPathName());
 }
 
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
@@ -694,13 +732,15 @@ bool CMscGenDoc::ReadDesigns(bool reportProblem, const char *fileName)
 		CString designlib_strings;
 		CChartData data(designlib_pedantic, designlib_strings, designlib_strings);
 		if (data.Load(finder.GetFilePath(), false)) {
-			char buff[4096]; //needed later for designs, too
-			Msc_GetErrors(data.GetMsc(), true, buff, sizeof(buff));
-			if (strlen(buff)) {
-				msg.Append("Errors in design file: ");
+			unsigned num = data.GetErrorNum(true);
+			if (num) {
+				msg.Append("Problems in design file: ");
 				msg.Append(finder.GetFileName());
 				msg.Append("\n");
-				msg.Append(buff);
+				for (int i=0; i<num; i++) {
+					msg.Append(data.GetErrorText(i, true));
+					msg.Append("\n");
+				}
 				errors = true;
 			}
 			char *heyho = (char*)malloc(data.GetLength()+1);
@@ -708,9 +748,8 @@ bool CMscGenDoc::ReadDesigns(bool reportProblem, const char *fileName)
 			heyho[data.GetLength()] = 0;
 			preamble.Append(heyho);
 			free(heyho);
-			Msc_GetDesigns(data.GetMsc(), buff, sizeof(buff));
 			if (m_SetOfDesigns.GetLength()>0) m_SetOfDesigns.Append(" ");
-			m_SetOfDesigns.Append(buff);
+			m_SetOfDesigns.Append(data.GetDesigns());
 		}
 	}
 	if (msg.GetLength()>0 && reportProblem)
@@ -748,27 +787,33 @@ void CMscGenDoc::FillDesignDesignCombo(void) {
 		else 
 			combo->SelectItem(index);
 	}
-};
-
-void CMscGenDoc::CopyErrorsToWindow(char *text) 
-{
-	CEdit *pEdit = (CEdit*)m_ErrorWindow.GetDlgItem(IDC_EDIT1);
-	CString errors(text);
-	int pos = 0;
-	do {
-		pos = errors.Find('\n', pos);
-		if (pos>=0) {
-			errors.Insert(pos, '\r');
-			pos+=2;
-		}
-	} while (pos>=0);
-	pEdit->SetWindowText(errors);
-	if (strlen(text))
-		m_ErrorWindow.ShowWindow(SW_SHOW); //Activate
-	else
-		m_ErrorWindow.ShowWindow(SW_HIDE); //Activate
 }
 
+void CMscGenDoc::FillDesignPageCombo(void)
+{
+	CObList list;
+	CMFCToolBar::GetCommandButtons(ID_DESIGN_PAGE, list);
+
+	POSITION p = list.GetHeadPosition();
+	while(p) {
+		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+		if (!combo) continue;
+		if (m_pages == 1 && combo->GetCount() == 1) continue;
+		if (m_pages+1 == combo->GetCount()) continue;
+		combo->RemoveAllItems();
+		//Fill combo list with the appropriate number of pages
+		combo->AddItem("(all)", 0);
+		CString str;
+		if (m_pages > 1)
+			for (int i=1; i<=m_pages; i++) {
+				str.Format("%d", i);
+				combo->AddItem(str, i);
+			}
+		//Set the index to the current page
+		combo->SelectItem(m_page, TRUE);
+		combo->SetDropDownHeight(250);
+	} 
+}
 
 void CMscGenDoc::StartEditor(CString filename)
 {
@@ -849,7 +894,7 @@ void CMscGenDoc::StartEditor(CString filename)
 	}
 }
 
-void CMscGenDoc::JumpToLine(unsigned line)
+void CMscGenDoc::JumpToLine(unsigned line, unsigned col)
 {
 	if (m_EditorFileName.GetLength()==0 || m_EditorProcessId==0) return;
 	if (m_sJumpToLine.GetLength()==0 || line==0) return;
@@ -1094,7 +1139,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 	if (pos == NULL) return;
     CMscGenView* pView = static_cast<CMscGenView*>(GetNextView(pos));
   	if (!pView->IsKindOf(RUNTIME_CLASS(CMscGenView))) return;
-	if (pView->m_xSize==0 || pView->m_ySize==0) return;
+	if (pView->m_size.cx==0 || pView->m_size.cy==0) return;
 	CMainFrame *pWnd = static_cast<CMainFrame *>(AfxGetMainWnd());
 	if (!pWnd->IsKindOf(RUNTIME_CLASS(CMainFrame))) return;
 
@@ -1126,13 +1171,13 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			pView->GetClientRect(&view);
 
 			//See which dimension is limiting
-			if (double(y)/double(x) > double(pView->m_ySize)/double(pView->m_xSize)) 
-				zoom = double(x)/double(pView->m_xSize)*100.;
+			if (double(y)/double(x) > double(pView->m_size.cy)/double(pView->m_size.cx)) 
+				zoom = double(x)/double(pView->m_size.cx)*100.;
 			else 
-				zoom = double(y)/double(pView->m_ySize)*100.;
+				zoom = double(y)/double(pView->m_size.cy)*100.;
 			if (zoom > 100) zoom = 100;
-			x = zoom*pView->m_xSize/100 + 1;
-			y = zoom*pView->m_ySize/100 + 1;
+			x = zoom*pView->m_size.cx/100 + 1;
+			y = zoom*pView->m_size.cy/100 + 1;
 			//now result is the client size
 			x += (window.right-window.left) - (view.right-view.left);
 			y += (window.bottom-window.top) - (view.bottom-view.top);
@@ -1150,11 +1195,11 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			//Try fit real size
 			zoom = 100;
 			//if window is big enough do nothing
-			if (view.right-view.left > zoom*pView->m_xSize/100 + 1) break;
+			if (view.right-view.left > zoom*pView->m_size.cx/100 + 1) break;
 			//adjust zoom if there is not enough space
-			if (zoom*pView->m_xSize/100 + 1 > x)
-				zoom = (x-1)*100./pView->m_xSize;
-			x = zoom*pView->m_xSize/100 + 1;
+			if (zoom*pView->m_size.cx/100 + 1 > x)
+				zoom = (x-1)*100./pView->m_size.cx;
+			x = zoom*pView->m_size.cx/100 + 1;
 			if (x < 550) x = 580;
 			if (window.left + x > screen.right - SCREEN_MARGIN)
 				window.left = screen.right - SCREEN_MARGIN - x;
@@ -1162,7 +1207,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			pWnd->SetWindowPos(NULL, window.left, window.top, x, (window.bottom-window.top),  SWP_NOZORDER | SWP_NOACTIVATE);
 			break;
 		case CMscGenDoc::ZOOM_WIDTH:
-			zoom = (view.right-view.left)*100./pView->m_xSize;
+			zoom = (view.right-view.left)*100./pView->m_size.cx;
 			if (zoom>150) zoom = 150;
 			SetZoom(zoom);
 			break;

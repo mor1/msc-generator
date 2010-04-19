@@ -258,6 +258,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\commandline.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\error.cpp"
 				>
 			</File>
@@ -267,10 +271,6 @@
 			</File>
 			<File
 				RelativePath=".\language2.cc"
-				>
-			</File>
-			<File
-				RelativePath=".\libmscgen.cpp"
 				>
 			</File>
 			<File
@@ -320,6 +320,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\commandline.h"
+				>
+			</File>
+			<File
 				RelativePath=".\error.h"
 				>
 			</File>
@@ -329,10 +333,6 @@
 			</File>
 			<File
 				RelativePath=".\language2.h"
-				>
-			</File>
-			<File
-				RelativePath=".\libmscgen.h"
 				>
 			</File>
 			<File

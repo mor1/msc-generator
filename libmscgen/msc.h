@@ -44,6 +44,7 @@ typedef enum
     MSC_EMPH_DOTTED,
     MSC_EMPH_DASHED,
     MSC_EMPH_DOUBLE,
+    MSC_EMPH_UNDETERMINED_FOLLOW,
 
     MSC_ARC_PARALLEL,   /* not visible, just container for multiple parallel flows */
 
@@ -476,7 +477,7 @@ class ArcEmphasis : public ArcLabelled
         ArcEmphasis* SetPipe();
         ArcEmphasis* AddArcList(ArcList*l);
         bool AddAttribute(const Attribute &);
-        ArcEmphasis* EmptyStyle() {style.Empty(); style.line.type.first = true; return this;}
+        ArcEmphasis* ChangeStyleForFollow(ArcEmphasis* =NULL);
         ArcEmphasis* AddFollow(ArcEmphasis*f);
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
@@ -626,7 +627,7 @@ public:
     void AddArcs(ArcList *a);
     ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line sl, const char*d, file_line dl, file_line l);
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
-    void PushContext();
+    void PushContext(bool empty=false);
     void PopContext();
 
     void PostParseProcessArcList(ArcList &arcs, bool resetiterators,

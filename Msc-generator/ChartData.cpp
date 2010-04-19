@@ -176,3 +176,84 @@ void CChartData::CompileIfNeeded() const
     m_msc->PostHeightProcess();
     m_msc->CloseOutput();
 }
+
+unsigned CChartData::GetErrorNum(bool oWarnings) const {
+	return GetMsc()->Error.GetErrorNum(oWarnings);
+}
+
+unsigned CChartData::GetErrorLine(unsigned num, bool oWarnings) const 
+{
+	return GetMsc()->Error.GetErrorLoc(num, oWarnings).line;
+}
+
+unsigned CChartData::GetErrorCol(unsigned num, bool oWarnings) const 
+{
+	return GetMsc()->Error.GetErrorLoc(num, oWarnings).col;
+}
+
+CString CChartData::GetErrorText(unsigned num, bool oWarnings) const 
+{
+	return CString(GetMsc()->Error.GetErrorText(num, oWarnings));
+}
+
+CString CChartData::GetDesigns() const 
+{
+	return CString(GetMsc()->GetDesigns().c_str());
+}
+
+
+unsigned CChartData::GetPages() const
+{
+	CompileIfNeeded();
+    return m_msc->yPageStart.size();
+}
+
+CSize CChartData::GetSize(unsigned page) const
+{
+	CompileIfNeeded();
+	XY offset, size;
+	m_msc->GetPagePosition(int(page)-1, offset, size);
+    return CSize(m_msc->totalWidth*m_msc->scale, size.y*m_msc->scale + m_msc->copyrightTextHeight*m_msc->scale);
+}
+
+void CChartData::Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page)
+{
+	CompileIfNeeded();
+	MscDrawer::OutputType ot;
+	switch (type) {
+	case ::DRAW_EMF: ot = MscDrawer::EMF; break;
+	case ::DRAW_WMF: ot = MscDrawer::WMF; break;
+	case ::DRAW_DIRECT: ot = MscDrawer::WIN; break;
+        }
+    if (!m_msc->SetOutputWin32(ot, hdc, zoom, int(page)-1))
+        return;
+    m_msc->Draw();
+	m_msc->UnClip(); //Unclip the banner text exclusion clipped in SetOutputWin32()
+	m_msc->DrawCopyrightText(int(page)-1);
+    m_msc->CloseOutput();
+}
+
+void CChartData::Draw(const char* fileName)
+{
+	CompileIfNeeded();
+	string fn(fileName?fileName:"Untitled");
+    size_t pos = fn.find_last_of('.');
+    if (pos==string::npos) {
+        pos = fn.length();
+        fn += ".png";
+    }
+    string ext = fn.substr(pos+1);
+    MscDrawer::OutputType ot;
+    if (ext == "png") ot = MscDrawer::PNG;
+    else if (ext == "png") ot = MscDrawer::PNG;
+    else if (ext == "emf") ot = MscDrawer::EMF;
+    else if (ext == "svg") ot = MscDrawer::SVG;
+    else if (ext == "pdf") ot = MscDrawer::PDF;
+    else if (ext == "eps") ot = MscDrawer::EPS;
+    else {
+        ot = MscDrawer::PNG;
+        fn += ".png";
+    }
+	//Ignore useTextPaths
+    m_msc->DrawToOutput(ot, fn);
+}

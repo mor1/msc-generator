@@ -946,10 +946,16 @@ bool Msc::AddDesignAttribute(const Attribute &a)
 }
 
 
-void Msc::PushContext()
+void Msc::PushContext(bool empty)
 {
-    ColorSets.push(ColorSets.top());
-    StyleSets.push(StyleSets.top());
+    if (empty) {
+        ColorSets.push(ColorSet());
+        StyleSets.push(StyleSet());
+        SetDesign("plain", true);
+    } else {
+        ColorSets.push(ColorSets.top());
+        StyleSets.push(StyleSets.top());
+    }
 }
 
 void Msc::PopContext()
@@ -1316,6 +1322,7 @@ void Msc::CompleteParse(OutputType ot)
     //A final step of prcessing, checking for additional drawing warnings
     PostHeightProcess();
     CloseOutput();
+	Error.Sort();
 }
 
 void Msc::DrawCopyrightText(int page)

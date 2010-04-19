@@ -107,6 +107,8 @@ ArcLabelled::ArcLabelled(MscArcType t, file_line l, Msc *msc, const MscStyle &s)
         style += msc->StyleSets.top()[".."]; break;
     case MSC_EMPH_DOUBLE:
         style += msc->StyleSets.top()["=="]; break;
+    case MSC_EMPH_UNDETERMINED_FOLLOW:
+        break; /*do nothing*/
     case MSC_ARC_DIVIDER:
         style += msc->StyleSets.top()["---"]; break;
     case MSC_ARC_DISCO:
@@ -1208,6 +1210,15 @@ bool ArcEmphasis::AddAttribute(const Attribute &a)
     return ArcLabelled::AddAttribute(a);
 };
 
+ArcEmphasis* ArcEmphasis::ChangeStyleForFollow(ArcEmphasis* other)
+{
+    style.Empty();
+    if (other)
+        style.line = other->style.line;
+    else
+        style.line.type.first = true;
+    return this;
+}
 
 ArcEmphasis* ArcEmphasis::AddFollow(ArcEmphasis*f)
 {

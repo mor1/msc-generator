@@ -25,14 +25,12 @@
 #include "MscGenDoc.h"
 #include "MscGenView.h"
 
-#include "libmscgen.h"
 #include <string>
 #include <cmath>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
 
 // CMscGenView
 
@@ -68,10 +66,8 @@ CMscGenView::CMscGenView()
 	// construction code here
 	m_hemf = NULL;
 	m_DeleteBkg = false;
-	m_xSize = 0;
-	m_ySize = 0;
-	m_pages = 0;
 	m_hTimer = NULL;
+	m_size.SetSize(0,0);
 	SetScrollSizes(MM_TEXT, CSize(0,0));
 }
 
@@ -97,7 +93,7 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 	CScrollView::OnPrepareDC(pDC, pInfo);
 
 	pDC->SetMapMode(MM_ANISOTROPIC);
-	CSize sizeDoc(m_xSize*pDoc->m_zoom/100.0?m_xSize:10, m_ySize*pDoc->m_zoom/100.0?m_ySize:10);
+	CSize sizeDoc(ScaleSize(m_size, pDoc->m_zoom/100.0));
 	pDC->SetWindowExt(sizeDoc);
 
 	CSize sizeNum, sizeDenom;
@@ -137,13 +133,13 @@ void CMscGenView::OnDraw(CDC* pDC)
 	//m_zoom is always 100% when in place
 	if (pDoc->IsInPlaceActive()) {
 		pDC->FillSolidRect(clip, pDC->GetBkColor());
-		CRect r(0, 0, m_xSize, m_ySize);
+		CRect r(CPoint(0, 0), m_size);
 		pDC->SetMapMode(MM_ANISOTROPIC);
-		//pDC->SetViewportExt(r.Size());
-		//pDC->SetWindowExt(r.Size());
+		//pDC->SetViewportExt(m_size());
+		//pDC->SetWindowExt(m_size());
 		PlayEnhMetaFile(pDC->m_hDC, m_hemf, r);
 	} else {
-		CRect r(0, 0, m_xSize*pDoc->m_zoom/100.0, m_ySize*pDoc->m_zoom/100.0);
+		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
 		CDC memDC;
 		memDC.CreateCompatibleDC(pDC);
 		CBitmap bitmap;
@@ -199,7 +195,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 
-	pInfo->SetMaxPage(m_pages);
+	pInfo->SetMaxPage(pDoc->m_pages);
 	// default preparation
 	return DoPreparePrinting(pInfo);
 }
@@ -220,15 +216,12 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	if (pDoc->m_itrCurrent->IsEmpty())
 		return;
 
-	double fzoom = double(pInfo->m_rectDraw.Width())/Msc_GetXSize(pDoc->m_itrCurrent->GetMsc(), pInfo->m_nCurPage);
-	CRect r(0, 0, Msc_GetXSize(pDoc->m_itrCurrent->GetMsc(), pInfo->m_nCurPage)*fzoom, 
-		          Msc_GetYSize(pDoc->m_itrCurrent->GetMsc(), pInfo->m_nCurPage)*fzoom);
-    CSize size(r.right, r.bottom);
-	//Msc_Draw(m_printing_msc, pDC->m_hDC, DRAW_WMF, fzoom, pDoc->m_TextPaths, pInfo->m_nCurPage);
-	//return;
+    CSize orig_size = pDoc->m_itrCurrent->GetSize(pInfo->m_nCurPage);
+	double fzoom = double(pInfo->m_rectDraw.Width())/orig_size.cx;
+	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
 	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	Msc_Draw(pDoc->m_itrCurrent->GetMsc(), hdc, DRAW_EMF, 100, pInfo->m_nCurPage);
+	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pInfo->m_nCurPage);
 	HENHMETAFILE hemf = CloseEnhMetaFile(hdc);
 	ENHMETAHEADER header;
 	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
@@ -296,52 +289,28 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 		DeleteEnhMetaFile(m_hemf);
 		m_hemf = NULL;
 	}
-	//See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
-	POSITION p = list.GetHeadPosition();
-	while (p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		int index = combo->FindItem(pDoc->m_itrCurrent->GetDesign());
-		if (index == CB_ERR) {
-			combo->SelectItem(0);
-			pDoc->m_itrCurrent->SetDesign("");
-		} else 
-			combo->SelectItem(index);
-	}
-
-	m_pages = Msc_GetPages(pDoc->m_itrCurrent->GetMsc());
-	if (m_pages==1)
-		pDoc->m_page = 0;
-	else if (pDoc->m_page > m_pages)
-		pDoc->m_page = m_pages;
-	FillDesignPageCombo();
-
-	if (m_xSize > Msc_GetXSize(pDoc->m_itrCurrent->GetMsc(), pDoc->m_page) ||
-		m_ySize > Msc_GetYSize(pDoc->m_itrCurrent->GetMsc(), pDoc->m_page))
-		m_DeleteBkg = true;
-
-	//Save old size for in-place editing re-size
-	double old_xSize = m_xSize;
-	double old_ySize = m_ySize;
-	m_xSize = Msc_GetXSize(pDoc->m_itrCurrent->GetMsc(), pDoc->m_page);
-	m_ySize = Msc_GetYSize(pDoc->m_itrCurrent->GetMsc(), pDoc->m_page);
 
     HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	Msc_Draw(pDoc->m_itrCurrent->GetMsc(), hdc, DRAW_EMF, 100, pDoc->m_page);
+	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pDoc->m_page);
 	m_hemf = CloseEnhMetaFile(hdc);
 
+	//Check if some of the background becomes visible
+	CSize new_size = pDoc->m_itrCurrent->GetSize(pDoc->m_page);
+	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
+		m_DeleteBkg = true;
+
 	//readjust size if inplace active
-	if (pDoc->IsInPlaceActive() && m_xSize>0 && m_ySize>0) {
-		if (old_xSize>0 && old_ySize>0) {
+	if (pDoc->IsInPlaceActive() && !SizeEmpty(new_size)) {
+		if (!SizeEmpty(m_size)) {
 			CRect oldPos;
 			pDoc->GetItemPosition(&oldPos);
 			CSize sizeOld = oldPos.Size();
-			CSize sizeNew(sizeOld.cx*m_xSize/old_xSize, sizeOld.cy*m_ySize/old_ySize);
+			CSize sizeNew(sizeOld.cx*new_size.cx/m_size.cy, sizeOld.cy*new_size.cy/m_size.cy);
 			CRect newPos(oldPos.TopLeft(), oldPos.TopLeft()+sizeNew);
 			pDoc->RequestPositionChange(newPos);
 		}
 	}
+	m_size = new_size;
 	Invalidate();
 	ResyncScrollSize();
 }
@@ -402,7 +371,7 @@ void CMscGenView::ResyncScrollSize(void)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	if (m_xSize==0 || m_ySize==0) {
+	if (SizeEmpty(m_size)) {
 		SetScrollSizes(MM_TEXT, CSize(0,0));
 		return;
 	}
@@ -410,11 +379,9 @@ void CMscGenView::ResyncScrollSize(void)
 		//Set the doc size equal to the view size: no scrollbars
 		CRect posView;
 		pDoc->GetItemPosition(&posView);
-		CSize sizeView = posView.Size();
-		SetScrollSizes(MM_TEXT, sizeView);
+		SetScrollSizes(MM_TEXT, posView.Size());
 	} else {
-		CSize sizeDoc(m_xSize*pDoc->m_zoom/100, m_ySize*pDoc->m_zoom/100);
-		SetScrollSizes(MM_TEXT, sizeDoc);
+		SetScrollSizes(MM_TEXT, ScaleSize(m_size, pDoc->m_zoom/100.0));
 	}
 }
 
@@ -427,11 +394,11 @@ void CMscGenView::ResetAspectRatioInPlace(void)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	if (!pDoc->IsInPlaceActive() || m_xSize==0 || m_ySize==0) return;
+	if (!pDoc->IsInPlaceActive() || SizeEmpty(m_size)) return;
 	CRect oldPos;
 	pDoc->GetItemPosition(&oldPos);
 	CSize sizeOld = oldPos.Size();
-	CSize sizeNew(m_xSize, m_ySize);
+	CSize sizeNew(m_size);
 	CClientDC dc(this);
 	dc.LPtoDP(&sizeNew);
 	dc.LPtoDP(&sizeOld);
@@ -444,45 +411,16 @@ void CMscGenView::ResetAspectRatioInPlace(void)
 	CRect newPos(oldPos.CenterPoint()-sizeNew, oldPos.CenterPoint()+sizeNew);
 	pDoc->RequestPositionChange(newPos);
 	Invalidate();
-	//ResizeParentToFit(FALSE);
 }
 
 void CMscGenView::OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	pCmdUI->Enable(pDoc->IsInPlaceActive() && m_xSize>0 && m_ySize>0);
+	pCmdUI->Enable(pDoc->IsInPlaceActive() && !SizeEmpty(m_size));
 }
 
 //Page functions
-void CMscGenView::FillDesignPageCombo(void)
-{
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_PAGE, list);
-
-	POSITION p = list.GetHeadPosition();
-	while(p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		if (!combo) continue;
-		if (m_pages == 1 && combo->GetCount() == 1) continue;
-		if (m_pages+1 == combo->GetCount()) continue;
-		combo->RemoveAllItems();
-		//Fill combo list with the appropriate number of pages
-		combo->AddItem("(all)", 0);
-		CString str;
-		if (m_pages > 1)
-			for (int i=1; i<=m_pages; i++) {
-				str.Format("%d", i);
-				combo->AddItem(str, i);
-			}
-		//Set the index to the current page
-		combo->SelectItem(pDoc->m_page, TRUE);
-		combo->SetDropDownHeight(250);
-	} 
-}
-
 void CMscGenView::OnDesignPage()
 {
 	CObList list;

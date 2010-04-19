@@ -22,6 +22,7 @@
 #include <list>
 
 class Msc;
+enum Msc_DrawType {DRAW_DIRECT=0, DRAW_EMF=1, DRAW_WMF=2};
 
 class CChartData {
 protected:
@@ -33,6 +34,7 @@ protected:
 	CString &m_CopyrightText;
 	bool    &m_Pedantic;
 	CString m_ForcedDesign;
+	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
 public:
 	CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &CopyrightText);
 	CChartData(const CChartData&);
@@ -46,12 +48,24 @@ public:
 	CString GetDesign () {return m_ForcedDesign;}
 	const char *GetText() const {return m_buff;}
 	unsigned GetLength() const {return m_length;}
+	//Compilation related
 	void FreeMsc() const;
 	void CompileIfNeeded() const;
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
 	BOOL IsEmpty() const {return m_length==0 || m_buff==NULL;}
-	BOOL IsDrawn() const {return m_msc!=NULL;}
-	void *GetMsc() const {CompileIfNeeded(); return m_msc;}
+	BOOL IsCompiled() const {return m_msc!=NULL;}
+	//Error related
+	unsigned GetErrorNum(bool oWarnings) const;
+	unsigned GetErrorLine(unsigned num, bool oWarnings) const;
+	unsigned GetErrorCol(unsigned num, bool oWarnings) const;
+	CString GetErrorText(unsigned num, bool oWarnings) const;
+	CString GetDesigns() const;
+	//Drawing related
+	unsigned GetPages() const;
+	CSize GetSize(unsigned page) const;
+	void Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page);
+	void Draw(const char* fileName);
+
 };
 
 typedef std::list<CChartData>::iterator IChartData;

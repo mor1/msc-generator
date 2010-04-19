@@ -17,6 +17,7 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include "error.h"
 #include "msc.h"
 
@@ -32,73 +33,76 @@ unsigned MscError::AddFile(const string &filename)
     return Files.size()-1;
 }
 
-void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once,
-                   std::multimap<file_line, std::string>& store)
+ErrorElement MscError::FormulateElement(file_line linenum, bool is_err, bool is_once, const std::string &msg) const
+{
+    ErrorElement e;
+    e.message = msg;
+    if (Files[linenum.file].length()>0) e.text = Files[linenum.file];
+    if (linenum.line) {
+        if (e.text.length()>0) e.text.append(":");
+        e.text << linenum.line;
+        if (linenum.col)
+            e.text << ":" << linenum.col;
+    }
+    if (e.text.length()>0) e.text.append(": ");
+    if (is_once)
+        e.message = "("+e.message+")";
+    else if (is_err)
+        e.text.append("error: ");
+    else
+        e.text.append("warning: ");
+    e.text.append(e.message);
+    e.relevant_line = linenum;
+    e.ordering_line = linenum;
+    e.isError = is_err;
+    e.isOnlyOnce = is_once;
+    return e;
+}
+
+void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once, bool is_err)
 {
     if (a.error) return;
     a.error = true;
     if (atValue)
-        Add(a.linenum_value, s, once, store);
+        Add(a.linenum_value, s, once, is_err);
     else
-        Add(a.linenum_attr, s, once, store);
+        Add(a.linenum_attr, s, once, is_err);
 }
 
-void MscError::Add(file_line linenum, const std::string &s, const std::string &once,
-                   std::multimap<file_line, std::string>& store)
+void MscError::Add(file_line linenum, const std::string &s, const std::string &once, bool is_err)
 {
-    string msg;
-    if (Files[linenum.file].length()>0) msg = Files[linenum.file];
-    if (linenum.line) {
-        if (msg.length()>0) msg.append(":");
-        msg << linenum.line;
-        if (linenum.col)
-            msg << ":" << linenum.col;
-    }
-    if (msg.length()>0) msg.append(": ");
-    string type;
-    if (&store == &Warnings)
-        type = "warning: ";
-    else
-        type = "error: ";
-    store.insert(std::pair<file_line, string>(linenum, msg+type+s));
-    if (once.length()>0)
-        store.insert(std::pair<file_line, string>(linenum, msg+"_o_n_c_e: ("+once+")"));
+    ErrorElement e1 = FormulateElement(linenum, is_err, false, s);
+    if (is_err)
+        Errors.push_back(e1);
+    ErrorsAndWarnings.push_back(e1);
 
+    if (once.length()>0) {
+        ErrorElement e1 = FormulateElement(linenum, is_err, true, once);
+        if (is_err)
+            Errors.push_back(e1);
+        ErrorsAndWarnings.push_back(e1);
+    }
 };
+
+void MscError::_sort(std::vector<ErrorElement> &store)
+{
+    if (store.size()<2) return;
+    sort(store.begin(), store.end());
+    for (int i=store.size()-1; i>0; i--)
+        if (store[i].isOnlyOnce)
+            for (int j=i-1; j>=0; j--)
+                if (store[j].isOnlyOnce && store[i].message==store[j].message) {
+                    store.erase(store.begin()+i);
+                    break;
+                }
+}
 
 string MscError::Print(bool oWarnings) const
 {
     string a;
-    std::multimap<file_line, string> ErrorsWarnings(Errors);
-    if (oWarnings)
-        ErrorsWarnings.insert(Warnings.begin(), Warnings.end());
-
-    std::set<string> once_printed;
-    std::multimap<file_line, string>::const_iterator i;
-    for (i = ErrorsWarnings.begin(); i!=ErrorsWarnings.end(); i++) {
-        string str = i->second;
-        size_t pos = str.find("_o_n_c_e: ");
-        if (pos != std::string::npos) {
-            str.erase(pos, 10);
-            if (once_printed.find(str.substr(pos)) != once_printed.end())
-                continue;
-            once_printed.insert(str.substr(pos));
-        }
-        a.append(str).append("\n");
-    }
+	const std::vector<ErrorElement> &store = get_store(oWarnings);
+    for (int i = 0; i<store.size(); i++)
+        a.append(store[i].text).append("\n");
     return a;
 }
 
-file_line MscError::GetFileLineOfErrorNo(unsigned num) const
-{
-	if (Errors.size() < num) return file_line(0,0,0);
-    std::multimap<file_line, string>::const_iterator i=Errors.begin();
-	unsigned u=0;
-	while (i!=Errors.end()&&u<num) {
-		i++;
-		u++;
-	}
-	if (i!=Errors.end() && num==u)
-		return i->first;
-	return file_line(0,0,0);
-}

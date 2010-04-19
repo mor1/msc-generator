@@ -134,10 +134,12 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         msg.insert(pos+1, " or");
     }
     msg.append(".");
-//    if (msc.current_pos.line == 0) {
+    //If no error location was set when error was detected
+    //use the location of the lookahead
+    if (msc.current_pos.line == 0) {
         msc.current_pos.line = loc->first_line;
         msc.current_pos.col = loc->first_column;
-//    }
+    }
     msc.Error.Error(msc.current_pos, msg, once_msg);
     msc.current_pos.line = 0;
     msc.current_pos.col = 0;
@@ -162,10 +164,7 @@ inline bool string_to_bool(const char*s)
    return (s[0]!='n' && s[0]!='N') || (s[1]!='o' && s[1]!='O');
 }
 
-#define YYMSC_GETLINENO(A) A.first_line
-#define YYMSC_GETCOLNO(A) A.first_column
 #define YYMSC_GETPOS(A) file_line(msc.current_pos.file, A.first_line, A.first_column)
-
 
 %}
 
@@ -202,11 +201,11 @@ inline bool string_to_bool(const char*s)
 };
 
 %type <msc>        msc
-%type <arcbase>    arcrel arc opt first_emphasis follow_emphasis emphasis_list pipe_emphasis vertrel
+%type <arcbase>    arcrel arc opt vertrel
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
-%type <arcemph>    emphrel
+%type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis
 %type <arcparallel>parallel
-%type <arclist>    arclist arclist_no_semicolon mscenclosed parallel_element optlist
+%type <arclist>    arclist braced_arclist mscenclosed arclist_ending_with_mscenclosed optlist
 %type <entity>     entity
 %type <entitylist> entitylist
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
@@ -230,10 +229,11 @@ inline bool string_to_bool(const char*s)
 
 %destructor {delete $$;} vertrel
 %destructor {delete $$;} vertxpos
-%destructor {delete $$;} arcrel arc opt first_emphasis follow_emphasis emphasis_list pipe_emphasis
+%destructor {delete $$;} arcrel arc opt
 %destructor {delete $$;} arcrel_to arcrel_from arcrel_bidir
-%destructor {delete $$;} emphrel parallel
-%destructor {delete $$;} arclist arclist_no_semicolon mscenclosed parallel_element optlist
+%destructor {delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis
+%destructor {delete $$;} parallel
+%destructor {delete $$;} arclist braced_arclist mscenclosed arclist_ending_with_mscenclosed optlist
 %destructor {delete $$;} entity entitylist
 %destructor {delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
@@ -253,7 +253,7 @@ msc:
 {
     msc.AddArcs($1);
 }
-             | arclist_no_semicolon
+             | arclist_ending_with_mscenclosed
 {
     msc.AddArcs($1);
 };
@@ -268,37 +268,21 @@ arclist:    arc
             | arclist TOK_SEMICOLON arc
 {
     if ($3)
-        $$ = ($1)->Append($3);     /* Add to existing list */
+        ($1)->Append($3);     /* Add to existing list */
+    $$ = ($1);
 }
             | arclist error
 {
     $$ = $1;
-    //Skip to next semicolon
-    while (yychar > YYEOF && yychar != TOK_SEMICOLON) {
-        yychar = YYLEX;
-        yytoken = YYTRANSLATE (yychar);
-    }
-    msc.current_pos.line = YYMSC_GETLINENO(@2);
-    msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 }
-            | arclist_no_semicolon arc
+            | arclist_ending_with_mscenclosed arc
 {
     if ($2)
-        $$ = ($1)->Append($2);     /* Add to existing list */
-}
-            | arclist_no_semicolon error
-{
-    $$ = $1;
-    //Skip to next semicolon
-    while (yychar > YYEOF && yychar != TOK_SEMICOLON) {
-        yychar = YYLEX;
-        yytoken = YYTRANSLATE (yychar);
-    }
-    msc.current_pos.line = YYMSC_GETLINENO(@2);
-    msc.current_pos.col  = YYMSC_GETCOLNO(@2);
+        ($1)->Append($2);     /* Add to existing list */
+    $$ = ($1);
 };
 
-arclist_no_semicolon: mscenclosed
+arclist_ending_with_mscenclosed: mscenclosed
 {
     $$ = $1;
 }
@@ -309,7 +293,7 @@ arclist_no_semicolon: mscenclosed
     delete ($3);
     $$ = $1;
 }
-           | arclist_no_semicolon mscenclosed
+           | arclist_ending_with_mscenclosed mscenclosed
 {
     //Merge $2 into $1
     ($1)->splice(($1)->end(), *($2));
@@ -317,11 +301,31 @@ arclist_no_semicolon: mscenclosed
     $$ = $1;
 };
 
+//here we do not use open_scope, but only TOK_OCBRACKET, because no new
+//scope is opened for an msc {...} arclist: anything you do there spills over
+//to later sections
 mscenclosed: msckey TOK_OCBRACKET arclist TOK_SEMICOLON TOK_CCBRACKET
+{
+    $$ = $3;
+}
+              |msckey TOK_OCBRACKET arclist TOK_SEMICOLON error
 {
     $$ = $3;
 };
 
+braced_arclist: scope_open arclist TOK_SEMICOLON scope_close
+{
+    $$ = $2;
+}
+            | scope_open arclist TOK_SEMICOLON error
+{
+    $$ = $2;
+    msc.PopContext();
+}
+            | scope_open scope_close
+{
+    $$ = new ArcList;
+};
 
 
 arc:
@@ -377,6 +381,9 @@ arc:
         $$ = NULL;
 }
               | emphasis_list
+{
+    $$ = $1; //to remove warning for downcast
+}
               | parallel
 {
     $$ = $1;
@@ -470,13 +477,6 @@ optlist:     opt
             | optlist error
 {
     $$ = $1;
-    //Skip to next comma or semicolon
-    while (yychar > YYEOF && yychar != TOK_COMMA && yychar !=TOK_SEMICOLON) {
-        yychar = YYLEX;
-        yytoken = YYTRANSLATE (yychar);
-    }
-    msc.current_pos.line = YYMSC_GETLINENO(@2);
-    msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 opt:         entity_string TOK_EQUAL TOK_BOOLEAN
@@ -526,13 +526,6 @@ entitylist:   entity
             | entitylist error
 {
     $$ = $1;
-    //Skip to next comma or semicolon
-    while (yychar > YYEOF && yychar != TOK_COMMA && yychar !=TOK_SEMICOLON) {
-        yychar = YYLEX;
-        yytoken = YYTRANSLATE (yychar);
-    }
-    msc.current_pos.line = YYMSC_GETLINENO(@2);
-    msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 entity:       entity_string full_arcattrlist
@@ -596,14 +589,25 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     design.hscale = msc.hscale;
     msc.hscale = msc.saved_hscale;
     msc.PopContext();
-};
+}
+           |TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON error
+{
+    //if closing brace missing, still do the design definition
+    //cope_open_empty pushed an empty color & style set onto the stack
+    //then designelementlist added color & style definitions, now we harvest those
+    Design &design = msc.Designs[$1];
+    design.colors = msc.ColorSets.top();
+    design.styles = msc.StyleSets.top();
+    design.hscale = msc.hscale;
+    msc.hscale = msc.saved_hscale;
+    msc.PopContext();
+}
+
 
 scope_open_empty: TOK_OCBRACKET
 {
     //push empty color & style sets for design definition
-    msc.ColorSets.push(ColorSet());
-    msc.StyleSets.push(StyleSet());
-    msc.SetDesign("plain", true);
+    msc.PushContext(true);
     msc.saved_hscale = msc.hscale;
 };
 
@@ -616,17 +620,7 @@ designelement: TOK_COMMAND_DEFCOLOR colordeflist
 
 designoptlist: designopt
                | designoptlist TOK_COMMA designopt
-               | designoptlist error
-{
-    //Skip to next comma or semicolon
-    while (yychar > YYEOF && yychar != TOK_COMMA && yychar !=TOK_SEMICOLON) {
-        yychar = YYLEX;
-        yytoken = YYTRANSLATE (yychar);
-    }
-    msc.current_pos.line = YYMSC_GETLINENO(@2);
-    msc.current_pos.col  = YYMSC_GETCOLNO(@2);
-};
-
+               | designoptlist error;
 
 designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
 {
@@ -654,37 +648,54 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
 };
 
 
-parallel:    parallel_element
+parallel:    braced_arclist
 {
     $$ = (new ArcParallel(YYMSC_GETPOS(@$), &msc))->AddArcList($1);
 }
-	     | parallel parallel_element
+	     | parallel braced_arclist
 {
     $$ = ($1)->AddArcList($2);
 };
 
-parallel_element: scope_open arclist TOK_SEMICOLON scope_close
-{
-    /*MscSetArcListLinenum($2, $1);*/
-    $$ = $2;
-};
-	      | scope_open scope_close
-{
-    $$ = (new ArcList)->Append(new ArcDivider(MSC_ARC_VSPACE, YYMSC_GETPOS(@$), &msc));
-};
-
 emphasis_list: first_emphasis
 {
-    $$=$1;
+    $$ = $1;
 }
            | TOK_COMMAND_PIPE pipe_emphasis
 {
-    $$=$2;
+    $$ = $2;
     free($1);
 }
-           | emphasis_list follow_emphasis
+/* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
+           | emphasis_list emphrel
 {
-    $$ = static_cast<ArcEmphasis*>($1)->AddFollow(static_cast<ArcEmphasis*>($2));
+    $$ = ($1)->AddFollow(($2)->ChangeStyleForFollow());
+}
+           | emphasis_list emphrel full_arcattrlist_with_label
+{
+    ($2)->ChangeStyleForFollow()->AddAttributeList($3);
+    $$ = ($1)->AddFollow($2);
+}
+           | emphasis_list emphrel braced_arclist
+{
+    $$ = ($1)->AddFollow(($2)->AddArcList($3)->ChangeStyleForFollow());
+}
+           | emphasis_list braced_arclist
+{
+    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$), &msc);
+    temp->AddArcList($2)->ChangeStyleForFollow($1);
+    $$ = ($1)->AddFollow(temp);
+}
+           | emphasis_list emphrel full_arcattrlist_with_label braced_arclist
+{
+    ($2)->AddArcList($4)->ChangeStyleForFollow()->AddAttributeList($3);
+    $$ = ($1)->AddFollow($2);
+}
+           | emphasis_list full_arcattrlist_with_label braced_arclist
+{
+    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$), &msc);
+    temp->AddArcList($3)->ChangeStyleForFollow($1)->AddAttributeList($2);
+    $$ = ($1)->AddFollow(temp);
 };
 
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
@@ -694,33 +705,17 @@ first_emphasis:   emphrel
 }
            | emphrel full_arcattrlist_with_label
 {
-    $$ = ($1)->AddAttributeList($2);
+    ($1)->AddAttributeList($2);
+    $$ = ($1);
 }
-           | emphrel scope_open arclist TOK_SEMICOLON scope_close
+           | emphrel braced_arclist
 {
-    $$ = ($1)->AddArcList($3);
+    $$ = ($1)->AddArcList($2);
 }
-           | emphrel full_arcattrlist_with_label scope_open arclist TOK_SEMICOLON scope_close
+           | emphrel full_arcattrlist_with_label braced_arclist
 {
-    $$ = ($1)->AddArcList($4)->AddAttributeList($2);
-};
-
-/* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
-follow_emphasis:   emphrel
-{
-    $$ = ($1)->EmptyStyle();
-}
-           | emphrel full_arcattrlist_with_label
-{
-    $$ = ($1)->EmptyStyle()->AddAttributeList($2);
-}
-           | emphrel scope_open arclist TOK_SEMICOLON scope_close
-{
-    $$ = ($1)->AddArcList($3)->EmptyStyle();
-}
-           | emphrel full_arcattrlist_with_label scope_open arclist TOK_SEMICOLON scope_close
-{
-    $$ = ($1)->AddArcList($4)->EmptyStyle()->AddAttributeList($2);
+    ($1)->AddArcList($3)->AddAttributeList($2);
+    $$ = ($1);
 };
 
 /* ALWAYS Add Arclist before Attributes or setpipe.
@@ -731,15 +726,17 @@ pipe_emphasis:   emphrel
 }
            | emphrel full_arcattrlist_with_label
 {
-    $$ = ($1)->SetPipe()->AddAttributeList($2);
+    ($1)->SetPipe()->AddAttributeList($2);
+    $$ = ($1);
 }
-           | emphrel scope_open arclist TOK_SEMICOLON scope_close
+           | emphrel braced_arclist
 {
-    $$ = ($1)->AddArcList($3)->SetPipe();
+    $$ = ($1)->AddArcList($2)->SetPipe();
 }
-           | emphrel full_arcattrlist_with_label scope_open arclist TOK_SEMICOLON scope_close
+           | emphrel full_arcattrlist_with_label braced_arclist
 {
-    $$ = ($1)->AddArcList($4)->SetPipe()->AddAttributeList($2);
+    ($1)->AddArcList($3)->SetPipe()->AddAttributeList($2);
+    $$ = ($1);
 };
 
 emphrel:   entity_string TOK_EMPH entity_string
@@ -997,7 +994,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
                    | TOK_OSBRACKET arcattrlist TOK_CSBRACKET
 {
     $$ = $2;
-}
+};
 
 arcattrlist:    arcattr
 {
@@ -1010,13 +1007,6 @@ arcattrlist:    arcattr
               | arcattrlist error
 {
     $$ = $1;
-    //Skip to next comma or closing bracket
-    while (yychar > YYEOF && yychar != TOK_COMMA && yychar !=TOK_CSBRACKET) {
-        yychar = YYLEX;
-        yytoken = YYTRANSLATE (yychar);
-    }
-    msc.current_pos.line = YYMSC_GETLINENO(@2);
-    msc.current_pos.col  = YYMSC_GETCOLNO(@2);
 };
 
 arcattr:         string TOK_EQUAL string
