@@ -89,7 +89,6 @@ public:
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
 	//The non-modal windows
-	CDialog m_ErrorWindow;
 	CDialog m_ProgressWindow;
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
@@ -140,6 +139,7 @@ public:
 	afx_msg void OnUpdateEditUndo(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateEditRedo(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
+	afx_msg void OnSelChange();
 
 	//Zoom functions
 			void SetZoom(int zoom);

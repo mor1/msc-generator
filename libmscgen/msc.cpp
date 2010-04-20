@@ -1302,10 +1302,10 @@ void Msc::PostHeightProcess(void)
 }
 
 
-void Msc::ParseText(const char *input, unsigned length, const char *filename)
+void Msc::ParseText(const char *input, const char *filename)
 {
-    current_pos.file = Error.AddFile(filename);
-    MscParse(*this, input, length);
+    current_file = Error.AddFile(filename);
+    MscParse(*this, input);
 }
 
 void Msc::CompleteParse(OutputType ot)

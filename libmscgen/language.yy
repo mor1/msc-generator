@@ -40,6 +40,7 @@
 int isatty (int) {return 0;}
 #endif
 
+#define YYMSC_GETPOS(A) file_line(msc.current_file, (A).first_line, (A).first_column)
 
 /* yyerror
  *  Error handling function.  The TOK_XXX names are substituted for more
@@ -134,27 +135,17 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         msg.insert(pos+1, " or");
     }
     msg.append(".");
-    //If no error location was set when error was detected
-    //use the location of the lookahead
-    if (msc.current_pos.line == 0) {
-        msc.current_pos.line = loc->first_line;
-        msc.current_pos.col = loc->first_column;
-    }
-    msc.Error.Error(msc.current_pos, msg, once_msg);
-    msc.current_pos.line = 0;
-    msc.current_pos.col = 0;
+    msc.Error.Error(YYMSC_GETPOS(*loc), msg, once_msg);
 };
 
-void MscParse(Msc &msc, const char *buff, unsigned len)
+void MscParse(Msc &msc, const char *buff)
 {
     parse_parm  pp;
     pp.buf = const_cast<char*>(buff);
-    pp.length = len;
+    pp.length = strlen(buff);
     pp.pos = 0;
     yylex_init(&pp.yyscanner);
     yyset_extra(&pp, pp.yyscanner);
-	msc.current_pos.line = 0;
-	msc.current_pos.col = 0;
     yyparse(msc, pp.yyscanner);
     yylex_destroy(pp.yyscanner);
 }
@@ -163,8 +154,6 @@ inline bool string_to_bool(const char*s)
 {
    return (s[0]!='n' && s[0]!='N') || (s[1]!='o' && s[1]!='O');
 }
-
-#define YYMSC_GETPOS(A) file_line(msc.current_pos.file, A.first_line, A.first_column)
 
 %}
 
@@ -201,11 +190,11 @@ inline bool string_to_bool(const char*s)
 };
 
 %type <msc>        msc
-%type <arcbase>    arcrel arc opt vertrel
+%type <arcbase>    arcrel arc complete_arc opt vertrel
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis
 %type <arcparallel>parallel
-%type <arclist>    arclist braced_arclist mscenclosed arclist_ending_with_mscenclosed optlist
+%type <arclist>    arclist braced_arclist mscenclosed optlist
 %type <entity>     entity
 %type <entitylist> entitylist
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
@@ -229,11 +218,11 @@ inline bool string_to_bool(const char*s)
 
 %destructor {delete $$;} vertrel
 %destructor {delete $$;} vertxpos
-%destructor {delete $$;} arcrel arc opt
+%destructor {delete $$;} arcrel arc complete_arc opt
 %destructor {delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis
 %destructor {delete $$;} parallel
-%destructor {delete $$;} arclist braced_arclist mscenclosed arclist_ending_with_mscenclosed optlist
+%destructor {delete $$;} arclist braced_arclist mscenclosed optlist
 %destructor {delete $$;} entity entitylist
 %destructor {delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
@@ -249,51 +238,43 @@ msc:
 {
     //no action for empty file
 }
-             | arclist TOK_SEMICOLON
-{
-    msc.AddArcs($1);
-}
-             | arclist_ending_with_mscenclosed
+             | arclist
 {
     msc.AddArcs($1);
 };
 
-arclist:    arc
+braced_arclist: scope_open arclist scope_close
+{
+    $$ = $2;
+}
+            | scope_open arclist error scope_close
+{
+    $$ = $2;
+}
+            | scope_open scope_close
+{
+    $$ = new ArcList;
+};
+
+
+arclist:    complete_arc
 {
     if ($1)
         $$ = (new ArcList)->Append($1); /* New list */
     else
         $$ = new ArcList;
 }
-            | arclist TOK_SEMICOLON arc
-{
-    if ($3)
-        ($1)->Append($3);     /* Add to existing list */
-    $$ = ($1);
-}
-            | arclist error
-{
-    $$ = $1;
-}
-            | arclist_ending_with_mscenclosed arc
+            | arclist complete_arc
 {
     if ($2)
         ($1)->Append($2);     /* Add to existing list */
     $$ = ($1);
-};
-
-arclist_ending_with_mscenclosed: mscenclosed
+}
+            | mscenclosed
 {
     $$ = $1;
 }
-           | arclist TOK_SEMICOLON mscenclosed
-{
-    //Merge $3 into $1
-    ($1)->splice(($1)->end(), *($3));
-    delete ($3);
-    $$ = $1;
-}
-           | arclist_ending_with_mscenclosed mscenclosed
+            | arclist mscenclosed
 {
     //Merge $2 into $1
     ($1)->splice(($1)->end(), *($2));
@@ -304,35 +285,40 @@ arclist_ending_with_mscenclosed: mscenclosed
 //here we do not use open_scope, but only TOK_OCBRACKET, because no new
 //scope is opened for an msc {...} arclist: anything you do there spills over
 //to later sections
-mscenclosed: msckey TOK_OCBRACKET arclist TOK_SEMICOLON TOK_CCBRACKET
+mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
 {
     $$ = $3;
 }
-              |msckey TOK_OCBRACKET arclist TOK_SEMICOLON error
+              |msckey TOK_OCBRACKET arclist error TOK_CCBRACKET
 {
     $$ = $3;
 };
 
-braced_arclist: scope_open arclist TOK_SEMICOLON scope_close
+msckey:       TOK_MSC
 {
-    $$ = $2;
+    free($1);
 }
-            | scope_open arclist TOK_SEMICOLON error
+              | TOK_MSC TOK_EQUAL string
 {
-    $$ = $2;
-    msc.PopContext();
-}
-            | scope_open scope_close
-{
-    $$ = new ArcList;
+    msc.AddDesignAttribute(Attribute("msc", $3, YYMSC_GETPOS(@$), YYMSC_GETPOS(@3)));
+    free($1);
+    free($3);
 };
 
-
-arc:
+complete_arc: TOK_SEMICOLON
 {
-    $$ = NULL;
+    $$=NULL;
 }
-              |arcrel
+              |arc TOK_SEMICOLON
+{
+    $$ = $1;
+}
+              |arc error TOK_SEMICOLON
+{
+    $$ = $1;
+}
+
+arc:            arcrel
               | arcrel full_arcattrlist_with_label
 {
     $$ = ($1)->AddAttributeList($2);
@@ -442,18 +428,6 @@ arc:
 {
     $$ = (new CommandNewpage(YYMSC_GETPOS(@$), &msc))->AddAttributeList($2);
     free($1);
-};
-
-
-msckey:       TOK_MSC
-{
-    free($1);
-}
-              | TOK_MSC TOK_EQUAL string
-{
-    msc.AddDesignAttribute(Attribute("msc", $3, YYMSC_GETPOS(@$), YYMSC_GETPOS(@3)));
-    free($1);
-    free($3);
 };
 
 optlist:     opt
@@ -650,11 +624,19 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
 
 parallel:    braced_arclist
 {
-    $$ = (new ArcParallel(YYMSC_GETPOS(@$), &msc))->AddArcList($1);
+    if ($1)
+        $$ = (new ArcParallel(YYMSC_GETPOS(@$), &msc))->AddArcList($1);
+    else
+        $$ = NULL;
 }
 	     | parallel braced_arclist
 {
-    $$ = ($1)->AddArcList($2);
+    if ($2==NULL)
+        $$ = $1;
+    else if ($1)
+        $$ = ($1)->AddArcList($2);
+    else
+        $$ = (new ArcParallel(YYMSC_GETPOS(@$), &msc))->AddArcList($2);
 };
 
 emphasis_list: first_emphasis
@@ -762,19 +744,19 @@ emphrel:   entity_string TOK_EMPH entity_string
 
 vertxpos: TOK_AT entity_string
 {
-    $$ = new VertXPos(YYMSC_GETPOS(@$), msc, $2);
+    $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2);
     free($1);
     free($2);
 }
          | TOK_AT entity_string TOK_DASH
 {
-    $$ = new VertXPos(YYMSC_GETPOS(@$), msc, $2, VertXPos::POS_LEFT_SIDE);
+    $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_LEFT_SIDE);
     free($1);
     free($2);
 }
          | TOK_AT entity_string TOK_PLUS
 {
-    $$ = new VertXPos(YYMSC_GETPOS(@$), msc, $2, VertXPos::POS_RIGHT_SIDE);
+    $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_RIGHT_SIDE);
     free($1);
     free($2);
 }
@@ -782,10 +764,10 @@ vertxpos: TOK_AT entity_string
 {
     switch ($3) {
     case MSC_EMPH_SOLID:
-        $$ = new VertXPos(YYMSC_GETPOS(@$), msc, $2, VertXPos::POS_LEFT_BY);
+        $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_LEFT_BY);
         break;
     case MSC_EMPH_DASHED:
-        $$ = new VertXPos(YYMSC_GETPOS(@$), msc, $2, VertXPos::POS_RIGHT_BY);
+        $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_RIGHT_BY);
         break;
     case MSC_EMPH_DOTTED:
         msc.Error.Error(YYMSC_GETPOS(@3),
@@ -805,7 +787,7 @@ vertxpos: TOK_AT entity_string
 }
          | TOK_AT entity_string TOK_DASH entity_string
 {
-    $$ = new VertXPos(YYMSC_GETPOS(@$), msc, $2, VertXPos::POS_CENTER, $4);
+    $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_CENTER, $4);
     free($1);
     free($2);
     free($4);

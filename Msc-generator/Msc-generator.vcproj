@@ -223,6 +223,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\OutputView.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\SrvrItem.cpp"
 				>
 			</File>
@@ -274,6 +278,10 @@
 			</File>
 			<File
 				RelativePath=".\MscGenView.h"
+				>
+			</File>
+			<File
+				RelativePath=".\OutputView.h"
 				>
 			</File>
 			<File

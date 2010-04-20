@@ -128,14 +128,23 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	m_wndStatusBar.SetIndicators(indicators, sizeof(indicators)/sizeof(UINT));
 
-	// Delete these five lines if you don't want the toolbar and menubar to be dockable
+	if (!m_wndOutputView.Create(_T("Errors and Warnings"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_OUTPUT, 
+		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_BOTTOM | CBRS_FLOAT_MULTI))
+	{
+		TRACE0("Failed to create output bar\n");
+		return FALSE;      // fail to create
+	}
+	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = &m_wndOutputView;
+
 	m_wndMenuBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndDesignBar.EnableDocking(CBRS_ALIGN_ANY);
+	m_wndOutputView.EnableDocking(CBRS_ALIGN_ANY);
 	EnableDocking(CBRS_ALIGN_ANY);
 	DockPane(&m_wndMenuBar);
 	DockPane(&m_wndToolBar);
 	DockPane(&m_wndDesignBar);
+	DockPane(&m_wndOutputView);
 
 	// enable Visual Studio 2005 style docking window behavior
 	CDockingManager::SetDockingMode(DT_SMART);

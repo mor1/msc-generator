@@ -26,8 +26,7 @@ enum Msc_DrawType {DRAW_DIRECT=0, DRAW_EMF=1, DRAW_WMF=2};
 
 class CChartData {
 protected:
-	char *m_buff;
-	size_t m_length;
+	CString m_text;
 	mutable Msc *m_msc;
 	//References are to the MscGenDoc members
 	CString &m_ChartSourcePreamble;
@@ -40,19 +39,18 @@ public:
 	CChartData(const CChartData&);
 	~CChartData() {Delete();}
 	CChartData & operator = (const CChartData&);
-	void Delete(void); 
+	void Delete(void) {FreeMsc(); m_text = "";}
 	BOOL Save(const CString &fileName) const;
 	BOOL Load(const CString &fileName,  BOOL reportError=TRUE);
-	BOOL Set(const char *text, unsigned len);
+	void Set(const char *text) {Delete(); m_text=text?text:"";}
 	void SetDesign (const char *design);
 	CString GetDesign () {return m_ForcedDesign;}
-	const char *GetText() const {return m_buff;}
-	unsigned GetLength() const {return m_length;}
+	CString GetText() const {return m_text;}
 	//Compilation related
-	void FreeMsc() const;
+	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL;}}
 	void CompileIfNeeded() const;
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
-	BOOL IsEmpty() const {return m_length==0 || m_buff==NULL;}
+	BOOL IsEmpty() const {return m_text.GetLength()==0;}
 	BOOL IsCompiled() const {return m_msc!=NULL;}
 	//Error related
 	unsigned GetErrorNum(bool oWarnings) const;
@@ -65,7 +63,6 @@ public:
 	CSize GetSize(unsigned page) const;
 	void Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page);
 	void Draw(const char* fileName);
-
 };
 
 typedef std::list<CChartData>::iterator IChartData;

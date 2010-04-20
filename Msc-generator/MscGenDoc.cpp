@@ -100,6 +100,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDoc)
 	ON_COMMAND(ID_EDIT_PASTE, OnEditPaste)
 	ON_COMMAND(ID_FILE_EXPORT, OnFileExport)
 	ON_COMMAND(ID_EDIT_PREFERENCES, OnEditPreferences)
+	ON_LBN_SELCHANGE(IDC_OUTPUT_LIST, OnSelChange)
 	ON_COMMAND(ID_DESIGN_ZOOM, OnDesignZoom)
 	ON_CBN_SELENDOK(ID_DESIGN_ZOOM, OnDesignZoom)
 	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
@@ -136,9 +137,6 @@ CMscGenDoc::CMscGenDoc()
 	{
 		m_cfPrivate = (CLIPFORMAT)
 		::RegisterClipboardFormat(_T("Msc-Generator Signalling Chart"));
-	}
-	if (!m_ErrorWindow.Create(IDD_DIALOG1, NULL)) {
-		MessageBox(0,"Fail to create error window", "Msc-generator", MB_OK);
 	}
 	if (!m_ProgressWindow.Create(IDD_PROGRESSDIALOG, NULL)) {
 		MessageBox(0,"Fail to create progress window", "Msc-generator", MB_OK);
@@ -210,48 +208,59 @@ void CMscGenDoc::Serialize(CArchive& ar)
 {
 	if (ar.IsStoring()) {
 		ar << CString(NEW_VERSION_STRING);
-		ar << unsigned(0); //file format version
+		ar << unsigned(1); //file format version
 		ar << m_itrCurrent->GetDesign();
 		ar << m_page;
-		ar << m_itrCurrent->GetLength();
-		ar.Write(m_itrCurrent->GetText(), m_itrCurrent->GetLength());
+		ar << m_itrCurrent->GetText();
 	} else {
-		char *buff;
-		unsigned length;
+		CString text;
 		CString design;
 		ar >> design;
 		if (design != NEW_VERSION_STRING) {
 			//Old file format
 			ar >> m_page;
 			unsigned alloc = 16384;
-			buff = (char*)malloc(alloc);
-			length = 0;
+			unsigned length = 0;
+			char *buff = (char*)malloc(alloc);
 			while (1) {
-				length += ar.Read(buff+length, alloc-length);
-				if (length == alloc)
+				length += ar.Read(buff+length, alloc-1-length);
+				if (length == alloc-1)
 					buff = (char*)realloc(buff, alloc+=16384);
 				else break;
 			} 
+			buff[length] = 0;
+			text = buff;
+			free(buff);
 		} else {
 			//New file format
 			unsigned file_version;
 			ar >> file_version;
 			switch (file_version) {
-				default:
 				case 0:
+					char *buff;
+					unsigned length;
 					ar >> design;
 					ar >> m_page;
 					ar >> length;
-					buff = (char*)malloc(length);
+					buff = (char*)malloc(length+1);
 					ar.Read(buff, length);
+					buff[length] = 0;
+					text = buff;
+					free(buff);
+					break;
+				default:
+				case 1:
+					ar >> design;
+					ar >> m_page;
+					ar >> length;
+					ar >> text;
 					break;
 			}
 		}
 		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
-		data.Set(buff, length);
+		data.Set(text);
 		data.SetDesign(design);
 		InsertNewChart(data);
-		free(buff);
 	}
 }
 
@@ -285,18 +294,14 @@ void CMscGenDoc::DeleteContents()
 void CMscGenDoc::OnUpdate(bool resetZoom)
 {
 	//Display error messgaes
-	CEdit *pEdit = (CEdit*)m_ErrorWindow.GetDlgItem(IDC_EDIT1);
-	CString errors;
-	unsigned num = m_itrCurrent->GetErrorNum(m_Warnings);
-	if (num>0) {
-		for (int i=0; i<num; i++) {
-			errors.Append(m_itrCurrent->GetErrorText(i, m_Warnings));
-			errors.Append("\r\n");
-		}
-		pEdit->SetWindowText(errors);
-		m_ErrorWindow.ShowWindow(SW_SHOW); //Activate
-	} else
-		m_ErrorWindow.ShowWindow(SW_HIDE); //Activate
+	COutputViewBar *pOutputView = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView;
+	if (pOutputView) {
+		pOutputView->m_wndOutput.ResetContent();
+		unsigned num = m_itrCurrent->GetErrorNum(m_Warnings);
+		for (int i=0; i<num; i++) 
+			pOutputView->m_wndOutput.AddString(m_itrCurrent->GetErrorText(i, m_Warnings));
+		pOutputView->ShowPane(num>0, false, false);
+	}
 	if (m_itrCurrent->GetErrorNum(false))
 		JumpToLine(m_itrCurrent->GetErrorLine(0, false), m_itrCurrent->GetErrorCol(0, false));
 
@@ -340,7 +345,7 @@ BOOL CMscGenDoc::OnNewDocument()
 
 	// (SDI documents will reuse this document)
 	CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
-	data.Set(m_DefaultText, m_DefaultText.GetLength());
+	data.Set(m_DefaultText);
 	m_charts.clear();
 	m_charts.push_back(data);
 	m_itrCurrent = m_charts.begin();
@@ -446,6 +451,14 @@ void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 	pCmdUI->Enable(!m_itrCurrent->IsEmpty());
 }
 
+void CMscGenDoc::OnSelChange()
+{
+	COutputViewBar *pOutputView = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView;
+	if (!pOutputView) return;
+	int sel = pOutputView->m_wndOutput.GetCurSel();
+	if (sel != LB_ERR)
+		JumpToLine(m_itrCurrent->GetErrorLine(sel, m_Warnings), m_itrCurrent->GetErrorCol(sel, m_Warnings));
+}
 
 void CMscGenDoc::OnFileExport()
 {
@@ -567,12 +580,14 @@ void CMscGenDoc::OnEditPaste()
 			return;
 		}
 		StartDrawingProgress();
-		if (editor_running) StopEditor(STOPEDITOR_FORCE);
-		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
-		data.Set((char*)v, length);
-		data.SetDesign(m_itrCurrent->GetDesign());
+		CString text;
+		text.SetString((char*)v, length);
 		GlobalUnlock(hGlobal);
 		GlobalFree(hGlobal);
+		if (editor_running) StopEditor(STOPEDITOR_FORCE);
+		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
+		data.Set(text);
+		data.SetDesign(m_itrCurrent->GetDesign());
 		InsertNewChart(data);
 	}
 	SetModifiedFlag(TRUE);
@@ -743,11 +758,7 @@ bool CMscGenDoc::ReadDesigns(bool reportProblem, const char *fileName)
 				}
 				errors = true;
 			}
-			char *heyho = (char*)malloc(data.GetLength()+1);
-			memcpy(heyho, data.GetText(), data.GetLength());
-			heyho[data.GetLength()] = 0;
-			preamble.Append(heyho);
-			free(heyho);
+			preamble.Append(data.GetText());
 			if (m_SetOfDesigns.GetLength()>0) m_SetOfDesigns.Append(" ");
 			m_SetOfDesigns.Append(data.GetDesigns());
 		}

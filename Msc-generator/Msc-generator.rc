@@ -643,6 +643,7 @@ STRINGTABLE
 BEGIN
     ID_VIEW_TOOLBAR         "Show/Hide the Toolbar"
     ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle Status Bar"
+    ID_VIEW_OUTPUT          "Show/Hide the Error Window\toggle Error Window"
 END
 
 STRINGTABLE 
@@ -706,6 +707,11 @@ BEGIN
     ID_DESIGN_ZOOM          "Set Zoom\nZoom"
     ID_DESIGN_DESIGN        "Set Design\nDesign"
     ID_VIEW_RESETASPECTRATIO_INPLACE "Reset the aspect ratio to 1:1"
+END
+
+STRINGTABLE 
+BEGIN
+    IDC_OUTPUT_LIST         "Output"
 END
 
 #endif    // English (U.S.) resources

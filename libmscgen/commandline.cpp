@@ -23,17 +23,18 @@
 #include "msc.h"
 #include "version.h"
 
-unsigned ReadFile(char **buff, FILE *in)
+char *ReadFile(FILE *in)
 {
     unsigned alloc = 16384;
     unsigned len = 0;
-    *buff = (char*)malloc(alloc);
+    char *buff = (char*)malloc(alloc);
     while (!feof(in)) {
-        len += fread(*buff+len, 1, alloc-len, in);
-        if (len == alloc)
-            *buff = (char*)realloc(*buff, alloc+=16384);
+        len += fread(buff+len, 1, alloc-1-len, in);
+        if (len == alloc-1)
+            buff = (char*)realloc(buff, alloc+=16384);
     }
-    return len;
+    buff[len]=0;
+    return buff;
 }
 
 
@@ -102,48 +103,57 @@ int do_main(const std::list<std::string> &args, const char *designs)
 
     Msc msc;
 
+    const file_line opt_pos(msc.current_file,0,0);
+    bool show_usage = false;
+    bool fail_options = false;
+
     for (std::list<std::string>::const_iterator i=args.begin(); i!=args.end(); i++) {
         if (*i == "-o") {
             if (i==--args.end()) {
-                std::cerr<<"Error: Missing output filename after '-o'.";
-                usage();
-                return EXIT_FAILURE;
-            }
-            oOutputFile = *(++i);
+                msc.Error.Error(opt_pos,
+                                "Missing output filename after '-o'.");
+                show_usage = true;
+                fail_options = true;
+            } else
+                oOutputFile = *(++i);
         } else if (*i == "-T") {
             if (i==--args.end()) {
-                std::cerr<<"Error: Missing output type after '-T'.";
-                usage();
-                return EXIT_FAILURE;
-            }
-            i++;
-#ifdef CAIRO_HAS_PNG_FUNCTIONS
-            if (*i == "png")
+                msc.Error.Error(opt_pos,
+                                "Missing output type after '-T'.",
+                                "Assuming 'png'.");
                 oOutType = MscDrawer::PNG;
-            else
+                show_usage = true;
+            } else {
+                i++;
+#ifdef CAIRO_HAS_PNG_FUNCTIONS
+                if (*i == "png")
+                    oOutType = MscDrawer::PNG;
+                else
 #endif
 #ifdef CAIRO_HAS_PS_SURFACE
-            if (*i == "eps")
-                oOutType = MscDrawer::EPS;
-            else
+                 if (*i == "eps")
+                     oOutType = MscDrawer::EPS;
+                 else
 #endif
 #ifdef CAIRO_HAS_PDF_SURFACE
-	    if (*i == "pdf")
-                oOutType = MscDrawer::PDF;
-            else
+                 if (*i == "pdf")
+                     oOutType = MscDrawer::PDF;
+                 else
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
-            if (*i == "svg")
-                oOutType = MscDrawer::SVG;
-            else
+                 if (*i == "svg")
+                     oOutType = MscDrawer::SVG;
+                 else
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
-            if (*i == "wmf")
-                oOutType = MscDrawer::WMF;
-            else
+                 if (*i == "wmf")
+                     oOutType = MscDrawer::WMF;
+                 else
 #endif
-             {
-                std::cerr<<"Error: Unknown output format '" << *i << "'. Use one of "
+                 {
+                     msc.Error.Error(opt_pos,
+                                     "Unknown output format '" + *i + "'."
+                                     "Use one of "
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
                      " 'png'"
 #endif
@@ -159,36 +169,37 @@ int do_main(const std::list<std::string> &args, const char *designs)
 #ifdef CAIRO_HAS_WIN32_SURFACE
                      " 'wmf'"
 #endif
-                     ".\n";
-                return EXIT_FAILURE;
+                     ". Using 'png'.");
+                     oOutType = MscDrawer::PNG;
+                 }
             }
         } else if ((*i)[0]=='-' && (*i)[1]=='-') { //starts with "--"
             string name(i->substr(2));
             if (name.find("=") == name.npos) {
                 //no "=" in switch
-                Attribute a(name.c_str(), true, msc.current_pos, msc.current_pos, "yes");
+                Attribute a(name.c_str(), true, opt_pos, opt_pos, "yes");
                 a.error = true;  //supress errors in AddAttribute
                 if (msc.AddAttribute(a)) continue;
                 if (!msc.SetDesign(a.name, true))
-                    msc.Error.Warning(msc.current_pos,
-                                      "Unknown chart design: '" + a.name + "'. Using 'plain'.",
-                                      " Available styles are: " + msc.GetDesigns() +".");
+                    msc.Error.Error(opt_pos,
+                                    "Unknown chart design: '" + a.name + "'. Using 'plain'.",
+                                    " Available styles are: " + msc.GetDesigns() +".");
             } else {
                 float num;
                 string value(name.substr(name.find("=")+1));
                 name.erase(name.find("="));
                 if (value == "yes" || name == "Yes" || name == "YES")
-                    msc.AddAttribute(Attribute(name.c_str(), true, msc.current_pos,
-                                               msc.current_pos, value.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), true, opt_pos,
+                                               opt_pos, value.c_str()));
                 else if(value == "no" || name == "No" || name == "NO")
-                    msc.AddAttribute(Attribute(name.c_str(), false, msc.current_pos,
-                                               msc.current_pos, value.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), false, opt_pos,
+                                               opt_pos, value.c_str()));
                 else if (sscanf(value.c_str(), "%f", &num) == 1)
-                    msc.AddAttribute(Attribute(name.c_str(), num, msc.current_pos,
-                                               msc.current_pos, value.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), num, opt_pos,
+                                               opt_pos, value.c_str()));
                 else
-                    msc.AddAttribute(Attribute(name.c_str(), value.c_str(), msc.current_pos,
-                                               msc.current_pos, name.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), value.c_str(), opt_pos,
+                                               opt_pos, name.c_str()));
             }
         } else if (*i == "-l") {
             licence();
@@ -197,16 +208,18 @@ int do_main(const std::list<std::string> &args, const char *designs)
             oWarning = false;
         } else if (*i == "-Werror") {
             oWerror = true;
-        } else if (*i == "-l") {
-            licence();
-            return EXIT_SUCCESS;
         } else
             if (oInputFile=="")
                 oInputFile=*i;
             else {
-                std::cerr<<"Error: Unknown option '"<<*i<<"'. (Can only specify one input file?)";
-                usage();
-                return EXIT_FAILURE;
+                if ((*i)[0] == '-')
+                    msc.Error.Error(opt_pos,
+                                    "Unknown option '" + *i + "'. Ignoring it.");
+                else
+                    msc.Error.Error(opt_pos,
+                                    "Unknown option '" + *i + "'. Ignoring it.",
+                                    "Can only specify one input file.");
+                show_usage = true;
             }
     }
 
@@ -238,37 +251,40 @@ int do_main(const std::list<std::string> &args, const char *designs)
         }
     }
 
-    if (msc.Error.hasErrors()) {
+    if (fail_options) {
         //Problem with switches
         std::cerr << msc.Error.Print(oWarning);
+        if (show_usage) usage();
+        std::cerr << "Bailing out." << std::endl;
         return EXIT_FAILURE;
     }
 
     char *input;
-    unsigned length;
 
     /* Parse input, either from a file, or stdin */
     if (oInputFile == "" || oInputFile == "-") {
-        length = ReadFile(&input, stdin);
+        input = ReadFile(stdin);
     } else {
         FILE *in = fopen(oInputFile.c_str(), "r");
 
         if(!in) {
             std::cerr<< "Error: Failed to open input file '" << oInputFile << "'";
+            std::cerr << "Bailing out." << std::endl;
             return EXIT_FAILURE;
         }
-        length = ReadFile(&input, in);
+        input = ReadFile(in);
         fclose(in);
     }
 
     //Load deisgn definitions
-    msc.ParseText(designs, sizeof(designs)-1, "[designlib]");
+    msc.ParseText(designs, "[designlib]");
     //parse input text;
-    msc.ParseText(input, length, oInputFile.c_str());
+    msc.ParseText(input, oInputFile.c_str());
     msc.CompleteParse(oOutType);
     std::cerr << msc.Error.Print(oWarning);
     //Now cycle through pages and write them to individual files
     msc.DrawToOutput(oOutType, oOutputFile);
     std::cerr << "Success." << std::endl;
+    if (show_usage) usage();
     return EXIT_SUCCESS;
 }

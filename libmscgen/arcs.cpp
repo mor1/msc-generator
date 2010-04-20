@@ -1911,7 +1911,7 @@ CommandMark::CommandMark(const char *m, file_line l, Msc *msc)
     if (i != chart->Markers.end()) {
         string msg = "Marker '"+name+"' has already been defined at line ";
         msg << i->second.first.line;
-        if (i->second.first.file != chart->current_pos.file)
+        if (i->second.first.file != chart->current_file)
             msg << " (in input '" + chart->Error.Files[i->second.first.file] + "')";
         msg.append(". Keeping old definition.");
         chart->Error.Error(linenum, msg);

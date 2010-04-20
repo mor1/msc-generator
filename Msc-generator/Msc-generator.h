@@ -26,6 +26,7 @@
 #endif
 
 #include "resource.h"       // main symbols
+#include "OutputView.h"
 
 
 // CMscGenApp:
@@ -45,6 +46,7 @@ public:
 	COleTemplateServer m_server; // Server object for document creation
 	UINT  m_nAppLook;
 	BOOL  m_bHiColorIcons;
+	COutputViewBar *m_pWndOutputView;
 
 	virtual void PreLoadState();
 	virtual void LoadCustomState();

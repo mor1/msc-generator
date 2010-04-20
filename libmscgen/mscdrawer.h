@@ -97,10 +97,10 @@ class MscDrawer
 		                      double outer_radius, double inner_radius, MscGradientType type);
   public:
     MscError     Error;
-    file_line    current_pos;  /* The number of the file under parsing, plus the error location */
+    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
     /** The total width & height of the drawing and the height of the bottom copyright text (all to be calculated) */
     double totalWidth, totalHeight;
-	double copyrightTextHeight;
+    double copyrightTextHeight;
 	/** The starting ypos of each page. Its number of elements specify the number of pages yPageStart[0] is always 0. */
     std::vector<double> yPageStart;
 

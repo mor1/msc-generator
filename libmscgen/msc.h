@@ -589,7 +589,7 @@ public:
     std::map<string, Design>      Designs;
     std::map<string, MarkerType>  Markers;
     std::map<double, MscFillAttr> Background;
-	std::string                   copyrightText;
+    std::string                   copyrightText;
 
     /** Gap at the bottom of the page for lengthening entity lines */
     double chartTailGap;
@@ -657,7 +657,7 @@ public:
     void Draw(void);
     void DrawCopyrightText(int page=-1);
 
-    void ParseText(const char *input, unsigned length, const char *filename);
+    void ParseText(const char *input, const char *filename);
     void CompleteParse(OutputType);
     void DrawToOutput(OutputType, const string &);
 };
@@ -690,7 +690,7 @@ int     yyparse(Msc&, void *);
 int     yyget_lineno(void* scanner);
 
 
-void MscParse(Msc &msc, const char *buff, unsigned len);
+void MscParse(Msc &msc, const char *buff);
 
 #endif
 

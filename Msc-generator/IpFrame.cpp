@@ -126,6 +126,8 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	// Enable toolbar and docking window menu replacement
 	//EnablePaneMenu(TRUE, ID_VIEW_CUSTOMIZE, "Customize...", ID_VIEW_TOOLBAR);
 
+	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = NULL;
+
 	//Make bars dockable
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
 	pFrame->EnableDocking(CBRS_ALIGN_ANY);

@@ -199,11 +199,12 @@ BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMed
 	if (!(lpFormatEtc->tymed & TYMED_HGLOBAL) || lpStgMedium->hGlobal != NULL)
 		return FALSE;
 
+	CString text(pDoc->m_itrCurrent->GetText());
 	lpStgMedium->tymed= TYMED_HGLOBAL;
-	lpStgMedium->hGlobal = GlobalAlloc(GMEM_MOVEABLE, pDoc->m_itrCurrent->GetLength());
+	lpStgMedium->hGlobal = GlobalAlloc(GMEM_MOVEABLE, text.GetLength()+1);
 	if (lpStgMedium->hGlobal == NULL) 
 		return FALSE;
-	memcpy(GlobalLock(lpStgMedium->hGlobal), pDoc->m_itrCurrent->GetText(), pDoc->m_itrCurrent->GetLength());
+	memcpy(GlobalLock(lpStgMedium->hGlobal), text, text.GetLength()+1);
 	GlobalUnlock(lpStgMedium->hGlobal);
 	return TRUE;
 }

@@ -50,6 +50,7 @@
 #define IDC_RADIO2                      1005
 #define IDC_RADIO3                      1006
 #define IDC_EDIT_DEFAULT_TEXT           1007
+#define IDC_OUTPUT_LIST                 1008
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
@@ -74,6 +75,7 @@
 #define ID_VIEW_RES                     32793
 #define ID_VIEW_TOOLBARSANDDOCKINGWINDOWS 32794
 #define ID_Menu                         32795
+#define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
 // 

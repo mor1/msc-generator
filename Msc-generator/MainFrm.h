@@ -21,6 +21,8 @@
 //
 
 #pragma once
+#include "OutputView.h"
+
 
 class CMainFrame : public CFrameWndEx
 {
@@ -56,6 +58,7 @@ protected:  // control bar embedded members
 	CMFCToolBar       m_wndDesignBar;
 	CMFCStatusBar     m_wndStatusBar;
 	CMFCToolBarImages m_UserImages;
+	COutputViewBar    m_wndOutputView;
 public:
 
 // Generated message map functions
