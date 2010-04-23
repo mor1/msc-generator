@@ -1,4 +1,3 @@
-%option header-file="language2.h"
 %option reentrant noyywrap nounput
 %option bison-bridge bison-locations case-insensitive
 
@@ -22,11 +21,21 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef COLOR_SYNTAX_HIGHLIGHT
+#define C_S_H (1)
+#else
+#define C_S_H (0)
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
 #include "msc.h"
+#ifdef COLOR_SYNTAX_HIGHLIGHT
+#include "colorsyntax.h"  /* Token definitions from Yacc/Bison */
+#else
 #include "language.h"  /* Token definitions from Yacc/Bison */
+#endif
 
 #define YY_INPUT(buffer, res, max_size)             \
 do {                                                \
@@ -42,10 +51,44 @@ do {                                                \
     }                                               \
 } while (0)
 
+#ifdef COLOR_SYNTAX_HIGHLIGHT
+#define YY_USER_ACTION                                   \
+    yylloc->first_pos = yylloc->last_pos+1;              \
+    yylloc->last_pos = yylloc->last_pos+yyleng;
+
+#define YYRHSLOC(Rhs, K) ((Rhs)[K])
+#define YYLLOC_DEFAULT(Current, Rhs, N)				\
+    do									\
+      if (YYID (N))                                                    \
+	{								\
+	  (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos;	\
+	  (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;	\
+	}								\
+      else								\
+	{								\
+	  (Current).first_pos = (Current).last_pos   =		\
+	    YYRHSLOC (Rhs, 0).last_pos;				\
+	}								\
+    while (YYID (0))
+
+#define JUMP_LINE {}
+
+char *msc_remove_head_tail_whitespace(char *s);
+char* msc_process_colon_string(const char *s, YYLTYPE *loc);
+char* msc_remove_quotes(const char *s);
+
+
+#else
 #define YY_USER_ACTION                                   \
     yylloc->first_line = yylloc->last_line;              \
     yylloc->first_column = yylloc->last_column+1;        \
     yylloc->last_column = yylloc->first_column+yyleng-1;
+
+#define JUMP_LINE do {\
+    yylineno++;                                \
+    yylloc->last_line = yylloc->first_line+1;  \
+    yylloc->last_column=0;                     \
+    } while(0)
 
 /* in-place removal of whitespace. Returns new head */
 char *msc_remove_head_tail_whitespace(char *s)
@@ -130,18 +173,19 @@ char* msc_remove_quotes(const char *s)
     }
     return strdup(s);
 }
+#endif /* COLOR_SYNTAX_HIGHLIGHT */
 
 %}
 
 %%
 
-\x0d\x0a     yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;
-\x0d         yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;
-\x0a         yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;
+\x0d\x0a     JUMP_LINE;
+\x0d         JUMP_LINE;
+\x0a         JUMP_LINE;
 
-#.*\x0d\x0a  yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;  /* Ignore lines after '#' */
-#.*\x0d      yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;  /* Ignore lines after '#' */
-#.*\x0a      yylineno++; yylloc->last_line = yylloc->first_line+1; yylloc->last_column=0;  /* Ignore lines after '#' */
+#.*\x0d\x0a  JUMP_LINE;  /* Ignore lines after '#' */
+#.*\x0d      JUMP_LINE;  /* Ignore lines after '#' */
+#.*\x0a      JUMP_LINE;  /* Ignore lines after '#' */
 
 
 msc       yylval_param->str = strdup(yytext); return TOK_MSC;
@@ -160,47 +204,47 @@ at        yylval_param->str = strdup(yytext); return TOK_AT;
 no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 
-\:[ \t]*\"[^\"]*\"                      yylval_param->str = msc_remove_quotes(yytext+1); return TOK_COLON_STRING;
-\:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = msc_process_colon_string(yytext+1, yylloc); return TOK_COLON_STRING;
+\:[ \t]*\"[^\"]*\"                      yylval_param->str = C_S_H?strdup(yytext):msc_remove_quotes(yytext+1); return TOK_COLON_STRING;
+\:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = C_S_H?strdup(yytext):msc_process_colon_string(yytext+1, yylloc); return TOK_COLON_STRING;
 [+\-]?[0-9]+\.?[0-9]*                   yylval_param->str = strdup(yytext); return TOK_NUMBER;
 [A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* yylval_param->str = strdup(yytext); return TOK_STRING;
-\"[^\"\n]*\"                            yylval_param->str = strdup(yytext + 1); yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;
+\"[^\"\n]*\"                            yylval_param->str = strdup(yytext + !C_S_H); if (!C_S_H) yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;
 
-\.\.\.    yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
----       yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */
--\>       yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_TO;         /* -> */
-\<-       yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_FROM;       /* <- */
-\<-\>     yylval_param->arctype = MSC_ARC_SOLID_BIDIR;    return TOK_REL_SOLID_BIDIR;      /* <-> */
-=\>       yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_TO;      /* => */
-\<=       yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_FROM;    /* <= */
-\<=\>     yylval_param->arctype = MSC_ARC_DOUBLE_BIDIR;   return TOK_REL_DOUBLE_BIDIR;   /* <=> */
-\>\>      yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_TO;      /* >> */
-\<\<      yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_FROM;    /* << */
-\<\<\>\>  yylval_param->arctype = MSC_ARC_DASHED_BIDIR;   return TOK_REL_DASHED_BIDIR;   /* <<>> */
-\>        yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_TO;    /* > */
-\<        yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_FROM;  /* < */
-\<\>      yylval_param->arctype = MSC_ARC_DOTTED_BIDIR;   return TOK_REL_DOTTED_BIDIR;  /* <> */
---        yylval_param->arctype = MSC_EMPH_SOLID;   return TOK_EMPH;
-\+\+      yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
-\.\.      yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
-==        yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
--         yylval_param->linenum = yylineno;  return TOK_DASH;
-=         yylval_param->linenum = yylineno;  return TOK_EQUAL;
-,         yylval_param->linenum = yylineno;  return TOK_COMMA;
-\;        yylval_param->linenum = yylineno;  return TOK_SEMICOLON;
-\{        yylval_param->linenum = yylineno;  return TOK_OCBRACKET;
-\}        yylval_param->linenum = yylineno;  return TOK_CCBRACKET;
-\[        yylval_param->linenum = yylineno;  return TOK_OSBRACKET;
-\]        yylval_param->linenum = yylineno;  return TOK_CSBRACKET;
+\.\.\.        if (!C_S_H) yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
+---           if (!C_S_H) yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */
+-\>           if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_TO;         /* -> */
+\<-           if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_FROM;       /* <- */
+\<-\>         if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID_BIDIR;    return TOK_REL_SOLID_BIDIR;      /* <-> */
+=\>           if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_TO;      /* => */
+\<=           if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_FROM;    /* <= */
+\<=\>         if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE_BIDIR;   return TOK_REL_DOUBLE_BIDIR;   /* <=> */
+\>\>          if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_TO;      /* >> */
+\<\<          if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_FROM;    /* << */
+\<\<\>\>      if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED_BIDIR;   return TOK_REL_DASHED_BIDIR;   /* <<>> */
+\>            if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_TO;    /* > */
+\<            if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_FROM;  /* < */
+\<\>          if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED_BIDIR;   return TOK_REL_DOTTED_BIDIR;  /* <> */
+--            if (!C_S_H) yylval_param->arctype = MSC_EMPH_SOLID;   return TOK_EMPH;
+\+\+          if (!C_S_H) yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
+\.\.          if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
+==            if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
+-             if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_DASH;
+=             if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_EQUAL;
+,             if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_COMMA;
+\;            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_SEMICOLON;
+\{            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_OCBRACKET;
+\}            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_CCBRACKET;
+\[            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_OSBRACKET;
+\]            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_CSBRACKET;
 
-pipe--    yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-pipe\+\+  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-pipe==    yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-pipe\.\.  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block-\>  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block\>   yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block\>\> yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block=\>  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+pipe--        yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+pipe\+\+      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+pipe==        yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+pipe\.\.      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+block-\>      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+block\>       yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+block\>\>     yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
+block=\>      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 vertical--    yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 vertical\+\+  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 vertical==    yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;

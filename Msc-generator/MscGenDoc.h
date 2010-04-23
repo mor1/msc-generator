@@ -110,7 +110,7 @@ public:
 	void FillDesignDesignCombo(void);
 	void FillDesignPageCombo(void);
 	//Editor functions
-	void OnUpdate(bool resetZoom=true);
+	void OnUpdate(bool resetZoom=true, bool updateInternalEditor=true);
 	void StartEditor(CString = "");
 	void JumpToLine(unsigned line, unsigned col);
 	bool CheckEditorAndFile(void);
@@ -175,6 +175,9 @@ protected:
 // Generated message map functions
 protected:
 	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnEditUpdate();
+	afx_msg void OnViewNexterror();
 };
 
 

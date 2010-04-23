@@ -811,6 +811,41 @@ Msc::Msc() :
     Entities.Append(entity);
 }
 
+void Msc::AddCSH(CshPos&pos, MscColorSyntaxType i)
+{
+    CshEntry e;
+    e.first_pos = pos.first_pos;
+    e.last_pos = pos.last_pos;
+    e.color = i;
+    CshList.push_back(e);
+}
+
+void Msc::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
+{
+    const char label[]="label";
+    int i = 0;
+    if (name) {
+        while (tolower(name[i]) == label[i] && label[i] && name[i]) i++;
+        // No match - regular attribute value
+        if (label[i] || name[i]) {
+            AddCSH(pos, COLOR_ATTRVALUE);
+            return;
+        }
+    }
+    //This is a label
+    AddCSH(pos, COLOR_LABEL_TEXT);
+    //Add escape symbols
+    StringFormat::ExtractCSH(pos.first_pos, value, *this);
+}
+
+void Msc::ParseForCSH(const char *input, unsigned len)
+{
+    //initialize data struct
+    CshList.clear();
+    CshList.reserve(len);
+    CshParse(*this, input, len);
+}
+
 bool Msc::SetDesign(const string&name, bool force)
 {
     std::map<string,Design>::const_iterator i = Designs.find(name);
@@ -1305,7 +1340,7 @@ void Msc::PostHeightProcess(void)
 void Msc::ParseText(const char *input, const char *filename)
 {
     current_file = Error.AddFile(filename);
-    MscParse(*this, input);
+    MscParse(*this, input, strlen(input));
 }
 
 void Msc::CompleteParse(OutputType ot)
@@ -1322,7 +1357,7 @@ void Msc::CompleteParse(OutputType ot)
     //A final step of prcessing, checking for additional drawing warnings
     PostHeightProcess();
     CloseOutput();
-	Error.Sort();
+    Error.Sort();
 }
 
 void Msc::DrawCopyrightText(int page)

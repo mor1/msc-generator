@@ -86,6 +86,43 @@ StringFormat::StringFormat(const char *s)
     Apply(escape);
 }
 
+void StringFormat::ExtractCSH(int startpos, const char *text, Msc &msc)
+{
+    if (text==NULL) return;
+    int pos=0;
+    do {
+        while(text[pos] && text[pos]!='\\') pos++;
+        if (text[pos] == 0) return;
+        int len = 0;
+        MscColorSyntaxType color = COLOR_LABEL_ESCAPE;
+        if (strchr("-+^_biuBIU0123456789n\\p", text[pos+1])) {
+            len = 2;
+        } else switch (text[pos+1]) {
+        case 'm':
+            if (strchr("udlrins", text[pos+2]))
+                len = 3;
+            break;
+        case 'f':
+        case 'c':
+        case 's':
+            if (text[pos+2]!='(') break;
+            int l=pos+3;
+            while(text[l] && text[l]!=')') l++;
+            if (!text[l]) break;
+            len = l-pos+1;
+            break;
+        }
+        if (len) {
+            CshPos loc;
+            loc.first_pos = startpos+pos;
+            loc.last_pos = loc.first_pos+len-1;
+            msc.AddCSH(loc, color);
+            pos+=len;
+        } else
+            pos++;
+    } while (1);
+}
+
 void StringFormat::ExpandColorAndStyle(string &escape,
                                        string &err_colors, string &err_styles,
                                        const ColorSet &colors, const StyleSet &styles,

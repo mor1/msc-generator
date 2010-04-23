@@ -57,7 +57,10 @@ BEGIN_MESSAGE_MAP(CInPlaceFrame, COleIPFrameWndEx)
 	ON_WM_DESTROY()
 	ON_COMMAND(ID_VIEW_TOOLBAR, OnViewToolBar)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_TOOLBAR, OnUpdateViewToolBar)
-
+	ON_COMMAND(ID_VIEW_OUTPUT, OnViewOutput)
+	ON_UPDATE_COMMAND_UI(ID_VIEW_OUTPUT, OnUpdateViewOutput)
+	ON_COMMAND(ID_VIEW_EDITOR, OnViewEditor)
+	ON_UPDATE_COMMAND_UI(ID_VIEW_EDITOR, OnUpdateViewEditor)
 END_MESSAGE_MAP()
 
 
@@ -123,18 +126,39 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	ASSERT(bNameValid);
 	m_wndToolBar.SetWindowText(strToolBarName);
 
-	// Enable toolbar and docking window menu replacement
-	//EnablePaneMenu(TRUE, ID_VIEW_CUSTOMIZE, "Customize...", ID_VIEW_TOOLBAR);
+	if (!m_wndOutputView.Create(_T("Errors and Warnings"), pFrame, CRect(0, 0, 100, 100), TRUE, ID_VIEW_OUTPUT, 
+		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_BOTTOM | CBRS_FLOAT_MULTI))
+	{
+		TRACE0("Failed to create output bar\n");
+		return FALSE;      // fail to create
+	}
+	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = &m_wndOutputView;
 
-	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = NULL;
+	if (!m_wndEditor.Create(_T("Chart Text"), pFrame, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
+		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
+	{
+		TRACE0("Failed to create editor\n");
+		return FALSE;      // fail to create
+	}
+	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor = &m_wndEditor;
+
+	// Enable toolbar and docking window menu replacement
+	EnablePaneMenu(TRUE, ID_VIEW_CUSTOMIZE, "Customize...", ID_VIEW_TOOLBAR);
 
 	//Make bars dockable
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
+	m_wndOutputView.EnableDocking(CBRS_ALIGN_ANY);
+	m_wndEditor.EnableDocking(CBRS_ALIGN_ANY);
 	pFrame->EnableDocking(CBRS_ALIGN_ANY);
 	pFrame->DockPane(&m_wndToolBar);
+	pFrame->DockPane(&m_wndOutputView);
+	pFrame->DockPane(&m_wndEditor);
+	m_wndOutputView.ShowPane(false,false,false);
 
 	// Set owner to this window, so messages are delivered to correct app
 	m_wndToolBar.SetOwner(this);
+	m_wndOutputView.SetOwner(this);
+	m_wndEditor.SetOwner(this);
 
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	if (pDoc) {
@@ -180,3 +204,24 @@ void CInPlaceFrame::OnUpdateViewToolBar(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_wndToolBar.IsVisible());
 }
+
+void CInPlaceFrame::OnViewOutput()
+{
+	m_wndOutputView.ShowPane(!m_wndOutputView.IsVisible(), FALSE, FALSE);
+}
+
+void CInPlaceFrame::OnUpdateViewOutput(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(m_wndOutputView.IsVisible());
+}
+
+void CInPlaceFrame::OnViewEditor()
+{
+	m_wndEditor.ShowPane(!m_wndEditor.IsVisible(), FALSE, FALSE);
+}
+
+void CInPlaceFrame::OnUpdateViewEditor(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(m_wndEditor.IsVisible());
+}
+

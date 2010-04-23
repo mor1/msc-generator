@@ -98,11 +98,13 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDoc)
 	ON_COMMAND(ID_EDIT_REDO, OnEditRedo)
 	ON_COMMAND(ID_EDIT_COPY, OnEditCopy)
 	ON_COMMAND(ID_EDIT_PASTE, OnEditPaste)
+	ON_COMMAND(ID_EDIT_UPDATE, &CMscGenDoc::OnEditUpdate)
 	ON_COMMAND(ID_FILE_EXPORT, OnFileExport)
 	ON_COMMAND(ID_EDIT_PREFERENCES, OnEditPreferences)
 	ON_LBN_SELCHANGE(IDC_OUTPUT_LIST, OnSelChange)
 	ON_COMMAND(ID_DESIGN_ZOOM, OnDesignZoom)
 	ON_CBN_SELENDOK(ID_DESIGN_ZOOM, OnDesignZoom)
+	ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
 	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
 	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
 	ON_COMMAND(ID_VIEW_ZOOMNORMALIZE, OnViewZoomnormalize)
@@ -252,12 +254,12 @@ void CMscGenDoc::Serialize(CArchive& ar)
 				case 1:
 					ar >> design;
 					ar >> m_page;
-					ar >> length;
 					ar >> text;
 					break;
 			}
 		}
 		CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
+		RemoveCRLF(text);
 		data.Set(text);
 		data.SetDesign(design);
 		InsertNewChart(data);
@@ -291,18 +293,34 @@ void CMscGenDoc::DeleteContents()
 	COleServerDoc::DeleteContents();
 }
 
-void CMscGenDoc::OnUpdate(bool resetZoom)
+void CMscGenDoc::OnUpdate(bool resetZoom, bool updateInternalEditor)
 {
-	//Display error messgaes
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	//Update text in Chart Text
+	if (updateInternalEditor && pEditor) {
+		CString text(m_itrCurrent->GetText());
+		EnsureCRLF(text);
+		pEditor->m_wndEditor.SetWindowText(text);
+
+		pEditor->m_wndEditor.SetSel(0,5);
+		CHARFORMAT cf;
+		cf.cbSize = sizeof(cf);
+		cf.dwMask = CFM_STRIKEOUT|CFM_BOLD|CFM_COLOR;
+		cf.dwEffects = CFE_BOLD;
+		cf.crTextColor = RGB(255,0,0);
+		pEditor->m_wndEditor.SetSelectionCharFormat(cf);
+	}
+
+	//Display error messages
 	COutputViewBar *pOutputView = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView;
 	if (pOutputView) {
 		pOutputView->m_wndOutput.ResetContent();
 		unsigned num = m_itrCurrent->GetErrorNum(m_Warnings);
 		for (int i=0; i<num; i++) 
 			pOutputView->m_wndOutput.AddString(m_itrCurrent->GetErrorText(i, m_Warnings));
-		pOutputView->ShowPane(num>0, false, false);
+		pOutputView->ShowPane(num>0, false, true);
 	}
-	if (m_itrCurrent->GetErrorNum(false))
+	if (m_itrCurrent->GetErrorNum(false)) 
 		JumpToLine(m_itrCurrent->GetErrorLine(0, false), m_itrCurrent->GetErrorCol(0, false));
 
 	//Update page controls and variables
@@ -333,6 +351,9 @@ void CMscGenDoc::OnUpdate(bool resetZoom)
 	NotifyChanged();  //for OLE
 	UpdateAllViews(NULL);
 	if (resetZoom) ArrangeViews();
+
+	//If there is an internal editor, reset focus to it.
+	if (pEditor) pEditor->m_wndEditor.SetFocus();
 }
 
 
@@ -370,7 +391,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	StopEditor(STOPEDITOR_WAIT);
 
 	if (lpszPathName == NULL) {
-		//Will use serialize which sets m_itrCurrent to loaded entry
+		//this one will use serialize which sets m_itrCurrent to loaded entry
 		if (!COleServerDoc::OnOpenDocument(lpszPathName))
 			return FALSE;
 	} else {
@@ -622,7 +643,7 @@ void CMscGenDoc::OnEditPreferences()
 			for (IChartData i = m_charts.begin(); i!=m_charts.end(); i++)
 				i->FreeMsc();
 			m_itrCurrent->CompileIfNeeded();  
-			OnUpdate(false);     //Do not change zoom, merely re-issue errors
+			OnUpdate(false, false);     //Do not change zoom or text in internal editor, merely re-issue errors
 			StopDrawingProgress();
 		}
 		if (m_Warnings != optionDlg.m_Warnings) {
@@ -907,8 +928,15 @@ void CMscGenDoc::StartEditor(CString filename)
 
 void CMscGenDoc::JumpToLine(unsigned line, unsigned col)
 {
+	if (line==0) return;
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (pEditor) {
+		long index = pEditor->m_wndEditor.LineIndex(line-1) + col?col-1:0;
+		pEditor->m_wndEditor.SetSel(index, index);
+	}
+
 	if (m_EditorFileName.GetLength()==0 || m_EditorProcessId==0) return;
-	if (m_sJumpToLine.GetLength()==0 || line==0) return;
+	if (m_sJumpToLine.GetLength()==0) return;
 	CString cmdLine = m_sJumpToLine;
 	CString num;
 	num.Format("%u", line);
@@ -1280,5 +1308,32 @@ void CMscGenDoc::OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI)
 	pCmdUI->SetCheck(m_ZoomMode == ZOOM_WIDTH);
 }
 
+void CMscGenDoc::OnEditUpdate()
+{
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (!pEditor) return;
+	StartDrawingProgress();
+	CString text;
+	pEditor->m_wndEditor.GetWindowText(text);
+	RemoveCRLF(text);
+	CChartData data(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText);
+	data.Set(text);
+	data.SetDesign(m_itrCurrent->GetDesign());
+	InsertNewChart(data);
+	SetModifiedFlag();
+	//Now update the View, update zoom, 
+	//but do not change text in internal editor (this is where change is coming from)
+	OnUpdate(true, false);
+	StopDrawingProgress();
+}
 
-
+void CMscGenDoc::OnViewNexterror()
+{
+	COutputViewBar *pOutputView = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView;
+	if (!pOutputView) return;
+	int maxsel = pOutputView->m_wndOutput.GetCount();
+	if (maxsel == LB_ERR) return;
+	int cursel = pOutputView->m_wndOutput.GetCurSel();
+	cursel = (cursel+1) % maxsel;
+	JumpToLine(m_itrCurrent->GetErrorLine(cursel, false), m_itrCurrent->GetErrorCol(cursel, false));
+}

@@ -55,6 +55,8 @@ protected:
 	CDesignBar      m_wndToolBar;
 	COleDropTarget	m_dropTarget;
 	COleResizeBar   m_wndResizeBar;
+	COutputViewBar  m_wndOutputView;
+	CEditorBar      m_wndEditor;
 
 // Generated message map functions
 protected:
@@ -62,6 +64,10 @@ protected:
 	afx_msg void OnDestroy();
 	afx_msg void OnViewToolBar();
 	afx_msg void OnUpdateViewToolBar(CCmdUI *pCmdUI);
+	afx_msg void OnViewOutput();
+	afx_msg void OnUpdateViewOutput(CCmdUI *pCmdUI);
+	afx_msg void OnViewEditor();
+	afx_msg void OnUpdateViewEditor(CCmdUI *pCmdUI);
 	DECLARE_MESSAGE_MAP()
 };
 

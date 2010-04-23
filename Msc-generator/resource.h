@@ -75,6 +75,10 @@
 #define ID_VIEW_RES                     32793
 #define ID_VIEW_TOOLBARSANDDOCKINGWINDOWS 32794
 #define ID_Menu                         32795
+#define ID_VIEW_EDITOR                  32804
+#define ID_EDIT_UPDATEFROMCHARTTEXTPANEL 32806
+#define ID_EDIT_UPDATE                  32807
+#define ID_VIEW_NEXTERROR               32814
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
@@ -82,7 +86,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        312
-#define _APS_NEXT_COMMAND_VALUE         32804
+#define _APS_NEXT_COMMAND_VALUE         32818
 #define _APS_NEXT_CONTROL_VALUE         1002
 #define _APS_NEXT_SYMED_VALUE           310
 #endif

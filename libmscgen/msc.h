@@ -58,8 +58,37 @@ typedef enum
     MSC_COMMAND_NEWPAGE,
     MSC_COMMAND_NEWBACKGROUND,
     MSC_COMMAND_MARK
-}
-MscArcType;
+} MscArcType;
+
+struct CshPos
+{
+  int first_pos;
+  int last_pos;
+  CshPos() : first_pos(0), last_pos(0) {}
+};
+
+typedef enum
+{
+    COLOR_KEYWORD,
+    COLOR_EQUAL,
+    COLOR_SEMICOLON,
+    COLOR_COLON,
+    COLOR_COMMA,
+    COLOR_SYMBOL,
+    COLOR_BRACE,
+    COLOR_BRACKET,
+    COLOR_DESIGNNAME,
+    COLOR_STYLENAME,
+    COLOR_ENTITYNAME,
+    COLOR_COLORNAME,
+    COLOR_COLORDEF,
+    COLOR_OPTIONNAME,
+    COLOR_ATTRNAME,
+    COLOR_ATTRVALUE,
+    COLOR_LABEL_TEXT,
+    COLOR_LABEL_ESCAPE
+} MscColorSyntaxType;
+
 
 //General gap between boxes, etc. In pos space, will be fed into XCoord().
 #define GAP 0.05
@@ -576,8 +605,16 @@ class CommandMark : public ArcCommand
 
 /////////////////////////////////////////////////////////////////////
 
+struct CshEntry
+{
+    int first_pos;
+    int last_pos;
+    MscColorSyntaxType color;
+};
+
 class Msc : public MscDrawer {
 public:
+    std::vector<CshEntry> CshList;
     typedef std::pair<file_line, double> MarkerType;
     EntityList                    Entities;
     EIterator                     NoEntity;
@@ -615,6 +652,10 @@ public:
     bool         ignore_designs; /* ignore design changes */
 
     Msc();
+
+    void AddCSH(CshPos&, MscColorSyntaxType);
+    void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
+    void ParseForCSH(const char *input, unsigned len);
 
     void AddStandardDesigns(void);
     bool SetDesign(const string &design, bool force);
@@ -662,9 +703,12 @@ public:
     void DrawToOutput(OutputType, const string &);
 };
 
-//Parser and lexer related stuff
 
-#include "language.h"
+//Parser and lexer related stuff
+#ifndef HAVE_UNISTD_H
+#define YY_NO_UNISTD_H
+extern int isatty (int );
+#endif
 
 typedef struct
 {
@@ -676,21 +720,24 @@ typedef struct
 
 #define YY_EXTRA_TYPE   parse_parm *
 
-#ifndef HAVE_UNISTD_H
-#define YY_NO_UNISTD_H
-extern int isatty (int );
+//If we scan for color syntax highlight use this location
+//yyerror is defined by bison, the other is defined for flex
+#if defined yyerror || defined COLOR_SYNTAX_HIGHLIGHT
+#define YYLTYPE_IS_DECLARED
+#define YYLTYPE CshPos
 #endif
 
+#include "language.h"
 
-int     yylex(YYSTYPE *, void *);
+int     yylex(YYSTYPE *, YYLTYPE *, void *);
 int     yylex_init(void **);
 int     yylex_destroy(void *);
 void    yyset_extra(YY_EXTRA_TYPE, void *);
 int     yyparse(Msc&, void *);
 int     yyget_lineno(void* scanner);
 
-
-void MscParse(Msc &msc, const char *buff);
+void MscParse(Msc &msc, const char *buff, unsigned len);
+void CshParse(Msc &msc, const char *buff, unsigned len);
 
 #endif
 

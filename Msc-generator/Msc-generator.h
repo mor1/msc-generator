@@ -27,6 +27,7 @@
 
 #include "resource.h"       // main symbols
 #include "OutputView.h"
+#include "MiniEditor.h"
 
 
 // CMscGenApp:
@@ -47,7 +48,7 @@ public:
 	UINT  m_nAppLook;
 	BOOL  m_bHiColorIcons;
 	COutputViewBar *m_pWndOutputView;
-
+	CEditorBar     *m_pWndEditor;
 	virtual void PreLoadState();
 	virtual void LoadCustomState();
 	virtual void SaveCustomState();

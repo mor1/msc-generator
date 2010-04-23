@@ -211,6 +211,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\MiniEditor.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\Msc-generator.cpp"
 				>
 			</File>
@@ -266,6 +270,10 @@
 			</File>
 			<File
 				RelativePath=".\MainFrm.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MiniEditor.h"
 				>
 			</File>
 			<File

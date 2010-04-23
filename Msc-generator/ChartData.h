@@ -21,6 +21,9 @@
 #pragma once
 #include <list>
 
+void RemoveCRLF(CString &str);
+void EnsureCRLF(CString &str);
+
 class Msc;
 enum Msc_DrawType {DRAW_DIRECT=0, DRAW_EMF=1, DRAW_WMF=2};
 
@@ -45,7 +48,7 @@ public:
 	void Set(const char *text) {Delete(); m_text=text?text:"";}
 	void SetDesign (const char *design);
 	CString GetDesign () {return m_ForcedDesign;}
-	CString GetText() const {return m_text;}
+	const CString &GetText() const {return m_text;}
 	//Compilation related
 	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL;}}
 	void CompileIfNeeded() const;

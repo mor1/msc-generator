@@ -80,6 +80,9 @@ class StringFormat {
 
     //Draw a fragment y specifies baseline (not in cairo sense)
     double drawFragment(const string &, MscDrawer *, XY) const;
+
+    //This adds CSH entries to msc.
+    static void ExtractCSH(int startpos, const char *text, Msc &msc);
     //This adds a number at the beginning of the string
     //Taking all potential escape sequence at the beginning of the string
     //into account

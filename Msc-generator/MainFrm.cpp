@@ -136,15 +136,25 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = &m_wndOutputView;
 
+	if (!m_wndEditor.Create(_T("Chart Text"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
+		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
+	{
+		TRACE0("Failed to create output bar\n");
+		return FALSE;      // fail to create
+	}
+	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor = &m_wndEditor;
+
 	m_wndMenuBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndDesignBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndOutputView.EnableDocking(CBRS_ALIGN_ANY);
+	m_wndEditor.EnableDocking(CBRS_ALIGN_ANY);
 	EnableDocking(CBRS_ALIGN_ANY);
 	DockPane(&m_wndMenuBar);
 	DockPane(&m_wndToolBar);
 	DockPane(&m_wndDesignBar);
 	DockPane(&m_wndOutputView);
+	DockPane(&m_wndEditor);
 
 	// enable Visual Studio 2005 style docking window behavior
 	CDockingManager::SetDockingMode(DT_SMART);
@@ -196,6 +206,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	CMFCToolBar::SetBasicCommands(lstBasicCommands);
 
 	SetWindowPos(NULL, 0, 0, 550, 300,  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+	if (m_wndEditor.IsVisible()) m_wndEditor.m_wndEditor.SetFocus();
 
 	return 0;
 }

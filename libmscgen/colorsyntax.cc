@@ -58,7 +58,15 @@
 /* Using locations.  */
 #define YYLSP_NEEDED 1
 
-
+/* Substitute the variable and function names.  */
+#define yyparse csh_parse
+#define yylex   csh_lex
+#define yyerror csh_error
+#define yylval  csh_lval
+#define yychar  csh_char
+#define yydebug csh_debug
+#define yynerrs csh_nerrs
+#define yylloc csh_lloc
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -405,7 +413,7 @@ typedef union YYSTYPE
     unsigned long     linenum;
 }
 /* Line 187 of yacc.c.  */
-#line 409 "language.cc"
+#line 417 "colorsyntax.cc"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -430,7 +438,7 @@ typedef struct YYLTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 434 "language.cc"
+#line 442 "colorsyntax.cc"
 
 #ifdef short
 # undef short
@@ -1710,222 +1718,222 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, msc, yyscanner)
       case 3: /* "TOK_STRING" */
 #line 285 "language.yy"
 	{free((yyvaluep->str));};
-#line 1714 "language.cc"
+#line 1722 "colorsyntax.cc"
 	break;
       case 4: /* "TOK_QSTRING" */
 #line 285 "language.yy"
 	{free((yyvaluep->str));};
-#line 1719 "language.cc"
+#line 1727 "colorsyntax.cc"
 	break;
       case 5: /* "TOK_NUMBER" */
 #line 289 "language.yy"
 	{free((yyvaluep->str));};
-#line 1724 "language.cc"
+#line 1732 "colorsyntax.cc"
 	break;
       case 15: /* "TOK_MSC" */
 #line 286 "language.yy"
 	{free((yyvaluep->str));};
-#line 1729 "language.cc"
+#line 1737 "colorsyntax.cc"
 	break;
       case 16: /* "TOK_COLON_STRING" */
 #line 285 "language.yy"
 	{free((yyvaluep->str));};
-#line 1734 "language.cc"
+#line 1742 "colorsyntax.cc"
 	break;
       case 17: /* "TOK_STYLE_NAME" */
 #line 285 "language.yy"
 	{free((yyvaluep->str));};
-#line 1739 "language.cc"
+#line 1747 "colorsyntax.cc"
 	break;
       case 18: /* "TOK_BOOLEAN" */
 #line 289 "language.yy"
 	{free((yyvaluep->str));};
-#line 1744 "language.cc"
+#line 1752 "colorsyntax.cc"
 	break;
       case 33: /* "TOK_COMMAND_HEADING" */
 #line 288 "language.yy"
 	{free((yyvaluep->str));};
-#line 1749 "language.cc"
+#line 1757 "colorsyntax.cc"
 	break;
       case 34: /* "TOK_COMMAND_NUDGE" */
 #line 288 "language.yy"
 	{free((yyvaluep->str));};
-#line 1754 "language.cc"
+#line 1762 "colorsyntax.cc"
 	break;
       case 35: /* "TOK_COMMAND_NEWPAGE" */
 #line 288 "language.yy"
 	{free((yyvaluep->str));};
-#line 1759 "language.cc"
+#line 1767 "colorsyntax.cc"
 	break;
       case 36: /* "TOK_COMMAND_DEFCOLOR" */
 #line 287 "language.yy"
 	{free((yyvaluep->str));};
-#line 1764 "language.cc"
+#line 1772 "colorsyntax.cc"
 	break;
       case 37: /* "TOK_COMMAND_DEFSTYLE" */
 #line 287 "language.yy"
 	{free((yyvaluep->str));};
-#line 1769 "language.cc"
+#line 1777 "colorsyntax.cc"
 	break;
       case 38: /* "TOK_COMMAND_DEFDESIGN" */
 #line 287 "language.yy"
 	{free((yyvaluep->str));};
-#line 1774 "language.cc"
+#line 1782 "colorsyntax.cc"
 	break;
       case 39: /* "TOK_COMMAND_BIG" */
 #line 286 "language.yy"
 	{free((yyvaluep->str));};
-#line 1779 "language.cc"
+#line 1787 "colorsyntax.cc"
 	break;
       case 40: /* "TOK_COMMAND_PIPE" */
 #line 286 "language.yy"
 	{free((yyvaluep->str));};
-#line 1784 "language.cc"
+#line 1792 "colorsyntax.cc"
 	break;
       case 46: /* "braced_arclist" */
 #line 281 "language.yy"
 	{delete (yyvaluep->arclist);};
-#line 1789 "language.cc"
+#line 1797 "colorsyntax.cc"
 	break;
       case 47: /* "arclist" */
 #line 281 "language.yy"
 	{delete (yyvaluep->arclist);};
-#line 1794 "language.cc"
+#line 1802 "colorsyntax.cc"
 	break;
       case 48: /* "mscenclosed" */
 #line 281 "language.yy"
 	{delete (yyvaluep->arclist);};
-#line 1799 "language.cc"
+#line 1807 "colorsyntax.cc"
 	break;
       case 50: /* "complete_arc" */
 #line 277 "language.yy"
 	{delete (yyvaluep->arcbase);};
-#line 1804 "language.cc"
+#line 1812 "colorsyntax.cc"
 	break;
       case 51: /* "arc" */
 #line 277 "language.yy"
 	{delete (yyvaluep->arcbase);};
-#line 1809 "language.cc"
+#line 1817 "colorsyntax.cc"
 	break;
       case 52: /* "optlist" */
 #line 281 "language.yy"
 	{delete (yyvaluep->arclist);};
-#line 1814 "language.cc"
+#line 1822 "colorsyntax.cc"
 	break;
       case 53: /* "opt" */
 #line 277 "language.yy"
 	{delete (yyvaluep->arcbase);};
-#line 1819 "language.cc"
+#line 1827 "colorsyntax.cc"
 	break;
       case 54: /* "entitylist" */
 #line 282 "language.yy"
 	{delete (yyvaluep->entitylist);};
-#line 1824 "language.cc"
+#line 1832 "colorsyntax.cc"
 	break;
       case 55: /* "entity" */
 #line 282 "language.yy"
 	{delete (yyvaluep->entity);};
-#line 1829 "language.cc"
+#line 1837 "colorsyntax.cc"
 	break;
       case 58: /* "tok_stringlist" */
 #line 283 "language.yy"
 	{delete (yyvaluep->stringlist);};
-#line 1834 "language.cc"
+#line 1842 "colorsyntax.cc"
 	break;
       case 67: /* "parallel" */
 #line 280 "language.yy"
 	{delete (yyvaluep->arcparallel);};
-#line 1839 "language.cc"
+#line 1847 "colorsyntax.cc"
 	break;
       case 68: /* "emphasis_list" */
 #line 279 "language.yy"
 	{delete (yyvaluep->arcemph);};
-#line 1844 "language.cc"
+#line 1852 "colorsyntax.cc"
 	break;
       case 69: /* "first_emphasis" */
 #line 279 "language.yy"
 	{delete (yyvaluep->arcemph);};
-#line 1849 "language.cc"
+#line 1857 "colorsyntax.cc"
 	break;
       case 70: /* "pipe_emphasis" */
 #line 279 "language.yy"
 	{delete (yyvaluep->arcemph);};
-#line 1854 "language.cc"
+#line 1862 "colorsyntax.cc"
 	break;
       case 71: /* "emphrel" */
 #line 279 "language.yy"
 	{delete (yyvaluep->arcemph);};
-#line 1859 "language.cc"
+#line 1867 "colorsyntax.cc"
 	break;
       case 72: /* "vertxpos" */
 #line 276 "language.yy"
 	{delete (yyvaluep->vertxpos);};
-#line 1864 "language.cc"
+#line 1872 "colorsyntax.cc"
 	break;
       case 74: /* "vertrel" */
 #line 275 "language.yy"
 	{delete (yyvaluep->arcbase);};
-#line 1869 "language.cc"
+#line 1877 "colorsyntax.cc"
 	break;
       case 75: /* "arcrel" */
 #line 277 "language.yy"
 	{delete (yyvaluep->arcbase);};
-#line 1874 "language.cc"
+#line 1882 "colorsyntax.cc"
 	break;
       case 76: /* "arcrel_to" */
 #line 278 "language.yy"
 	{delete (yyvaluep->arcarrow);};
-#line 1879 "language.cc"
+#line 1887 "colorsyntax.cc"
 	break;
       case 77: /* "arcrel_from" */
 #line 278 "language.yy"
 	{delete (yyvaluep->arcarrow);};
-#line 1884 "language.cc"
+#line 1892 "colorsyntax.cc"
 	break;
       case 78: /* "arcrel_bidir" */
 #line 278 "language.yy"
 	{delete (yyvaluep->arcarrow);};
-#line 1889 "language.cc"
+#line 1897 "colorsyntax.cc"
 	break;
       case 85: /* "full_arcattrlist_with_label" */
 #line 283 "language.yy"
 	{delete (yyvaluep->attriblist);};
-#line 1894 "language.cc"
+#line 1902 "colorsyntax.cc"
 	break;
       case 86: /* "full_arcattrlist" */
 #line 283 "language.yy"
 	{delete (yyvaluep->attriblist);};
-#line 1899 "language.cc"
+#line 1907 "colorsyntax.cc"
 	break;
       case 87: /* "arcattrlist" */
 #line 283 "language.yy"
 	{delete (yyvaluep->attriblist);};
-#line 1904 "language.cc"
+#line 1912 "colorsyntax.cc"
 	break;
       case 88: /* "arcattr" */
 #line 283 "language.yy"
 	{delete (yyvaluep->attrib);};
-#line 1909 "language.cc"
+#line 1917 "colorsyntax.cc"
 	break;
       case 89: /* "entity_string" */
 #line 284 "language.yy"
 	{free((yyvaluep->str));};
-#line 1914 "language.cc"
+#line 1922 "colorsyntax.cc"
 	break;
       case 90: /* "reserved_word_string" */
 #line 284 "language.yy"
 	{free((yyvaluep->str));};
-#line 1919 "language.cc"
+#line 1927 "colorsyntax.cc"
 	break;
       case 91: /* "symbol_string" */
 #line 284 "language.yy"
 	{free((yyvaluep->str));};
-#line 1924 "language.cc"
+#line 1932 "colorsyntax.cc"
 	break;
       case 92: /* "string" */
 #line 284 "language.yy"
 	{free((yyvaluep->str));};
-#line 1929 "language.cc"
+#line 1937 "colorsyntax.cc"
 	break;
 
       default:
@@ -3968,7 +3976,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 3972 "language.cc"
+#line 3980 "colorsyntax.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);

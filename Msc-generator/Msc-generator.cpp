@@ -100,6 +100,8 @@ CMscGenApp::CMscGenApp()
 	m_bHiColorIcons = TRUE;
 
 	// Place all significant initialization in InitInstance
+	m_pWndOutputView = 0;
+	m_pWndEditor = 0;
 }
 
 
@@ -129,6 +131,7 @@ BOOL CMscGenApp::InitInstance()
 	InitCommonControlsEx(&InitCtrls);
 
 	CWinAppEx::InitInstance();
+	AfxInitRichEdit();
 
 	// Initialize OLE libraries
 	if (!AfxOleInit())

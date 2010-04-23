@@ -258,6 +258,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\colorsyntax.cc"
+				>
+			</File>
+			<File
+				RelativePath=".\colorsyntax2.cc"
+				>
+			</File>
+			<File
 				RelativePath=".\commandline.cpp"
 				>
 			</File>
@@ -317,6 +325,14 @@
 			</File>
 			<File
 				RelativePath=".\color.h"
+				>
+			</File>
+			<File
+				RelativePath=".\colorsyntax.h"
+				>
+			</File>
+			<File
+				RelativePath=".\colorsyntax2.h"
 				>
 			</File>
 			<File

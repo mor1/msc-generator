@@ -20,6 +20,29 @@
 #include "ChartData.h"
 #include "msc.h"
 
+
+void RemoveCRLF(CString &str)
+{
+	int pos = str.Find("\r");
+	while (pos >= 0) {
+		str.Delete(pos);
+		pos = str.Find("\r", pos);
+	}
+}
+
+void EnsureCRLF(CString &str)
+{
+	int pos = str.Find("\n");
+	while (pos >= 0) {
+		if (pos == 0 || str[pos-1]!='\r') {
+			str.Insert(pos, "\r");
+			pos++;
+		}
+		pos = str.Find("\n", pos+1);
+	}
+}
+
+
 //CChartData
 
 CChartData::CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &CopyrightText) :

@@ -37,8 +37,10 @@ public:
 	bool m_DeleteBkg;
 	// Drawn chart
 	HENHMETAFILE m_hemf;
-	//Geometry of data
-	CSize m_size;
+	CSize        m_size;
+	//stretch for in-place editing
+	double m_stretch_x;
+	double m_stretch_y;
 	UINT_PTR m_hTimer;
 
 // Operations

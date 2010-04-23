@@ -60,15 +60,15 @@ END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
 
-CMscGenView::CMscGenView()
+CMscGenView::CMscGenView() : m_size(0,0)
 {
 	CMscGenApp *pApp = (CMscGenApp *)::AfxGetApp();
 	// construction code here
 	m_hemf = NULL;
 	m_DeleteBkg = false;
 	m_hTimer = NULL;
-	m_size.SetSize(0,0);
-	SetScrollSizes(MM_TEXT, CSize(0,0));
+	m_stretch_x = m_stretch_y = 1;
+	SetScrollSizes(MM_TEXT, m_size);
 }
 
 CMscGenView::~CMscGenView()
@@ -135,8 +135,6 @@ void CMscGenView::OnDraw(CDC* pDC)
 		pDC->FillSolidRect(clip, pDC->GetBkColor());
 		CRect r(CPoint(0, 0), m_size);
 		pDC->SetMapMode(MM_ANISOTROPIC);
-		//pDC->SetViewportExt(m_size());
-		//pDC->SetWindowExt(m_size());
 		PlayEnhMetaFile(pDC->m_hDC, m_hemf, r);
 	} else {
 		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
@@ -285,32 +283,25 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 
-	if (m_hemf) {
-		DeleteEnhMetaFile(m_hemf);
-		m_hemf = NULL;
-	}
-
     HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
 	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pDoc->m_page);
+	if (m_hemf) DeleteEnhMetaFile(m_hemf);
 	m_hemf = CloseEnhMetaFile(hdc);
 
 	//Check if some of the background becomes visible
 	CSize new_size = pDoc->m_itrCurrent->GetSize(pDoc->m_page);
 	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
 		m_DeleteBkg = true;
+	m_size = new_size;
 
 	//readjust size if inplace active
-	if (pDoc->IsInPlaceActive() && !SizeEmpty(new_size)) {
-		if (!SizeEmpty(m_size)) {
-			CRect oldPos;
-			pDoc->GetItemPosition(&oldPos);
-			CSize sizeOld = oldPos.Size();
-			CSize sizeNew(sizeOld.cx*new_size.cx/m_size.cy, sizeOld.cy*new_size.cy/m_size.cy);
-			CRect newPos(oldPos.TopLeft(), oldPos.TopLeft()+sizeNew);
-			pDoc->RequestPositionChange(newPos);
-		}
+	if (pDoc->IsInPlaceActive() && !SizeEmpty(m_size)) {
+		CRect pos;
+		pDoc->GetItemPosition(&pos);
+		pos.right = pos.left + m_size.cx*m_stretch_x;
+		pos.bottom = pos.top + m_size.cy*m_stretch_y;
+		pDoc->RequestPositionChange(pos);
 	}
-	m_size = new_size;
 	Invalidate();
 	ResyncScrollSize();
 }
@@ -386,7 +377,13 @@ void CMscGenView::ResyncScrollSize(void)
 }
 
 void CMscGenView::OnSize(UINT nType, int cx, int cy)
-{
+{ 
+	//Calculate stretch (used only for in-place editing)
+	if (!SizeEmpty(m_size)) {
+		m_stretch_x = double(cx)/m_size.cx;
+		m_stretch_y = double(cy)/m_size.cy;
+	} else 
+		m_stretch_x = m_stretch_y = 1;
 	ResyncScrollSize(); 
 }
 

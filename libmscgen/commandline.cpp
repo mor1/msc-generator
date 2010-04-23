@@ -279,6 +279,7 @@ int do_main(const std::list<std::string> &args, const char *designs)
     //Load deisgn definitions
     msc.ParseText(designs, "[designlib]");
     //parse input text;
+    msc.ParseForCSH(input, strlen(input));
     msc.ParseText(input, oInputFile.c_str());
     msc.CompleteParse(oOutType);
     std::cerr << msc.Error.Print(oWarning);

@@ -149,7 +149,7 @@ typedef union YYSTYPE
     unsigned long     linenum;
 }
 /* Line 1489 of yacc.c.  */
-#line 153 "language.h"
+#line 153 "colorsyntax.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
