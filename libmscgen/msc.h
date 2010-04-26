@@ -16,6 +16,7 @@
 #include "attribute.h"
 #include "arrowhead.h"
 #include "stringparse.h"
+#include "csh.h"
 
 using std::string;
 
@@ -59,36 +60,6 @@ typedef enum
     MSC_COMMAND_NEWBACKGROUND,
     MSC_COMMAND_MARK
 } MscArcType;
-
-struct CshPos
-{
-  int first_pos;
-  int last_pos;
-  CshPos() : first_pos(0), last_pos(0) {}
-};
-
-typedef enum
-{
-    COLOR_KEYWORD,
-    COLOR_EQUAL,
-    COLOR_SEMICOLON,
-    COLOR_COLON,
-    COLOR_COMMA,
-    COLOR_SYMBOL,
-    COLOR_BRACE,
-    COLOR_BRACKET,
-    COLOR_DESIGNNAME,
-    COLOR_STYLENAME,
-    COLOR_ENTITYNAME,
-    COLOR_COLORNAME,
-    COLOR_COLORDEF,
-    COLOR_OPTIONNAME,
-    COLOR_ATTRNAME,
-    COLOR_ATTRVALUE,
-    COLOR_LABEL_TEXT,
-    COLOR_LABEL_ESCAPE
-} MscColorSyntaxType;
-
 
 //General gap between boxes, etc. In pos space, will be fed into XCoord().
 #define GAP 0.05
@@ -605,16 +576,8 @@ class CommandMark : public ArcCommand
 
 /////////////////////////////////////////////////////////////////////
 
-struct CshEntry
-{
-    int first_pos;
-    int last_pos;
-    MscColorSyntaxType color;
-};
-
 class Msc : public MscDrawer {
 public:
-    std::vector<CshEntry> CshList;
     typedef std::pair<file_line, double> MarkerType;
     EntityList                    Entities;
     EIterator                     NoEntity;
@@ -627,6 +590,7 @@ public:
     std::map<string, MarkerType>  Markers;
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
+    MscCshListType                CshList;
 
     /** Gap at the bottom of the page for lengthening entity lines */
     double chartTailGap;
@@ -716,13 +680,14 @@ typedef struct
     char            *buf;
     int             pos;
     int             length;
+    Msc             *msc;
 } parse_parm;
 
 #define YY_EXTRA_TYPE   parse_parm *
 
 //If we scan for color syntax highlight use this location
 //yyerror is defined by bison, the other is defined for flex
-#if defined yyerror || defined COLOR_SYNTAX_HIGHLIGHT
+#ifdef C_S_H_IS_COMPILED
 #define YYLTYPE_IS_DECLARED
 #define YYLTYPE CshPos
 #endif

@@ -24,8 +24,11 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+//if yyerror is defined, we compile with a prefix other than yy (csh_error)
+//thus we compile the colorsyntax highlighting version
 #ifdef yyerror
 #define C_S_H (1)
+#define C_S_H_IS_COMPILED
 #else
 #define C_S_H (0)
 #endif
@@ -36,7 +39,7 @@
 #include <list>
 #include <iostream>
 #include "msc.h"
-#ifdef yyerror
+#ifdef C_S_H_IS_COMPILED
 #include "colorsyntax.h"
 #include "colorsyntax2.h"
 #else
@@ -47,11 +50,7 @@
 /* Use verbose error reporting such that the expected token names are dumped */
 #define YYERROR_VERBOSE
 
-#ifndef HAVE_UNISTD_H
-int isatty (int) {return 0;}
-#endif
-
-#ifdef yyerror
+#ifdef C_S_H_IS_COMPILED
 #define YYMSC_GETPOS(A) file_line()
 #define ADDCSH(A, B) msc.AddCSH(A, B)
 #define ADDCSH_ATTRVALUE(A, C, B) msc.AddCSH_AttrValue(A, C, B)
@@ -64,12 +63,18 @@ int isatty (int) {return 0;}
     msc.AddCSH_AttrValue(A, (B)+1, NULL);   \
     } while (0)
 
-
+#ifndef HAVE_UNISTD_H
+int isatty (int) {return 0;}
+#endif
 #else
 #define YYMSC_GETPOS(A) file_line(msc.current_file, (A).first_line, (A).first_column)
 #define ADDCSH(A, B)
 #define ADDCSH_ATTRVALUE(A, C, B)
 #define ADDCSH_COLON_STRING(A, B)
+#ifndef HAVE_UNISTD_H
+extern int isatty (int);
+#endif
+
 #endif
 
 /* yyerror
@@ -79,7 +84,7 @@ int isatty (int) {return 0;}
 void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
 {
 //only for language parser
-#ifndef yyerror
+#ifndef C_S_H_IS_COMPILED
     static const std::pair<string, string> tokens[] = {
       std::pair<string,string>("TOK_REL_SOLID_TO", "'->'"),
       std::pair<string,string>("TOK_REL_SOLID_FROM", "'<-'"),
@@ -171,7 +176,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
 #endif
 };
 
-#ifdef yyerror
+#ifdef C_S_H_IS_COMPILED
 void CshParse(Msc &msc, const char *buff, unsigned len)
 #else
 void MscParse(Msc &msc, const char *buff, unsigned len)
@@ -181,6 +186,7 @@ void MscParse(Msc &msc, const char *buff, unsigned len)
     pp.buf = const_cast<char*>(buff);
     pp.length = len;
     pp.pos = 0;
+    pp.msc = &msc;
     yylex_init(&pp.yyscanner);
     yyset_extra(&pp, pp.yyscanner);
     yyparse(msc, pp.yyscanner);
@@ -192,7 +198,7 @@ inline bool string_to_bool(const char*s)
    return (s[0]!='n' && s[0]!='N') || (s[1]!='o' && s[1]!='O');
 }
 
-#ifdef yyerror
+#ifdef C_S_H_IS_COMPILED
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
 #define YYLLOC_DEFAULT(Current, Rhs, N)				\
     do									\
@@ -272,15 +278,15 @@ inline bool string_to_bool(const char*s)
 %type <stringlist> tok_stringlist
 %type <linenum>    TOK_OCBRACKET TOK_OSBRACKET
 
-%destructor {delete $$;} vertrel
-%destructor {delete $$;} vertxpos
-%destructor {delete $$;} arcrel arc complete_arc opt
-%destructor {delete $$;} arcrel_to arcrel_from arcrel_bidir
-%destructor {delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis
-%destructor {delete $$;} parallel
-%destructor {delete $$;} arclist braced_arclist mscenclosed optlist
-%destructor {delete $$;} entity entitylist
-%destructor {delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
+%destructor {if (!C_S_H) delete $$;} vertrel
+%destructor {if (!C_S_H) delete $$;} vertxpos
+%destructor {if (!C_S_H) delete $$;} arcrel arc complete_arc opt
+%destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
+%destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis
+%destructor {if (!C_S_H) delete $$;} parallel
+%destructor {if (!C_S_H) delete $$;} arclist braced_arclist mscenclosed optlist
+%destructor {if (!C_S_H) delete $$;} entity entitylist
+%destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
 %destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_STYLE_NAME
 %destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
@@ -304,6 +310,7 @@ msc:
              | arclist error
 {
     if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
     } else {
         msc.AddArcs($1);
     }
@@ -322,6 +329,7 @@ braced_arclist: scope_open arclist scope_close
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_BRACE);
+        ADDCSH(@3, COLOR_ERROR);
         ADDCSH(@4, COLOR_BRACE);
     } else {
         $$ = $2;
@@ -383,6 +391,7 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
 {
     if (C_S_H) {
         ADDCSH(@2, COLOR_BRACE);
+        ADDCSH(@4, COLOR_ERROR);
         ADDCSH(@5, COLOR_BRACE);
     } else {
         $$ = $3;
@@ -429,6 +438,7 @@ complete_arc: TOK_SEMICOLON
               |arc error TOK_SEMICOLON
 {
     if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
         ADDCSH(@3, COLOR_SEMICOLON);
     } else {
         $$=$1;
@@ -638,7 +648,10 @@ optlist:     opt
 }
             | optlist error
 {
-    if (C_S_H) break;
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
+        break;
+    }
     $$ = $1;
 };
 
@@ -717,7 +730,10 @@ entitylist:   entity
 }
             | entitylist error
 {
-    if (C_S_H) break;
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
+        break;
+    }
     $$ = $1;
 };
 
@@ -834,6 +850,7 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
         ADDCSH(@1, COLOR_DESIGNNAME);
         ADDCSH(@2, COLOR_BRACE);
         ADDCSH(@4, COLOR_SEMICOLON);
+        ADDCSH(@5, COLOR_ERROR);
         break;
     }
     //if closing brace missing, still do the design definition
@@ -886,7 +903,12 @@ designoptlist: designopt
         ADDCSH(@2, COLOR_COMMA);
     }
 }
-               | designoptlist error;
+               | designoptlist error
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
+    }
+};
 
 designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
 {
@@ -1521,7 +1543,10 @@ arcattrlist:    arcattr
 }
               | arcattrlist error
 {
-    if (C_S_H) break;
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
+        break;
+    }
     $$ = $1;
 };
 

@@ -23,6 +23,7 @@
 
 #ifdef COLOR_SYNTAX_HIGHLIGHT
 #define C_S_H (1)
+#define C_S_H_IS_COMPILED
 #else
 #define C_S_H (0)
 #endif
@@ -31,7 +32,7 @@
 #include <string.h>
 #include <iostream>
 #include "msc.h"
-#ifdef COLOR_SYNTAX_HIGHLIGHT
+#ifdef C_S_H_IS_COMPILED
 #include "colorsyntax.h"  /* Token definitions from Yacc/Bison */
 #else
 #include "language.h"  /* Token definitions from Yacc/Bison */
@@ -51,44 +52,54 @@ do {                                                \
     }                                               \
 } while (0)
 
-#ifdef COLOR_SYNTAX_HIGHLIGHT
-#define YY_USER_ACTION                                   \
-    yylloc->first_pos = yylloc->last_pos+1;              \
-    yylloc->last_pos = yylloc->last_pos+yyleng;
+#ifdef C_S_H_IS_COMPILED
+#define YY_USER_ACTION do {                     \
+    yylloc->first_pos = yylloc->last_pos+1;     \
+    yylloc->last_pos = yylloc->last_pos+yyleng; \
+    } while(0);
 
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
+
 #define YYLLOC_DEFAULT(Current, Rhs, N)				\
-    do									\
-      if (YYID (N))                                                    \
-	{								\
+    do								\
+      if (YYID (N))                                             \
+	{							\
 	  (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos;	\
 	  (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;	\
-	}								\
-      else								\
-	{								\
-	  (Current).first_pos = (Current).last_pos   =		\
+	}							\
+      else							\
+	{							\
+        (Current).first_pos = (Current).last_pos   =		\
 	    YYRHSLOC (Rhs, 0).last_pos;				\
-	}								\
+	}							\
     while (YYID (0))
 
-#define JUMP_LINE {}
+#define JUMP_LINE do {} while(0)
 
-char *msc_remove_head_tail_whitespace(char *s);
-char* msc_process_colon_string(const char *s, YYLTYPE *loc);
-char* msc_remove_quotes(const char *s);
+#define ADDCSH(A,B) do {                       \
+    yyget_extra(yyscanner)->msc->AddCSH(A, B); \
+    }while(0)
 
+#define REMOVE_QUOTES(A) strdup(A)
+#define PROCESS_COLON_STRING(A, B) strdup(A)
 
 #else
-#define YY_USER_ACTION                                   \
+
+#define YY_USER_ACTION do {                              \
     yylloc->first_line = yylloc->last_line;              \
     yylloc->first_column = yylloc->last_column+1;        \
-    yylloc->last_column = yylloc->first_column+yyleng-1;
+    yylloc->last_column = yylloc->first_column+yyleng-1; \
+    } while(0);
 
 #define JUMP_LINE do {\
     yylineno++;                                \
     yylloc->last_line = yylloc->first_line+1;  \
     yylloc->last_column=0;                     \
     } while(0)
+
+#define ADDCSH(A,B) do {} while(0)
+#define REMOVE_QUOTES(A) msc_remove_quotes((A)+1)
+#define PROCESS_COLON_STRING(A, B) msc_process_colon_string((A)+1, B)
 
 /* in-place removal of whitespace. Returns new head */
 char *msc_remove_head_tail_whitespace(char *s)
@@ -173,7 +184,7 @@ char* msc_remove_quotes(const char *s)
     }
     return strdup(s);
 }
-#endif /* COLOR_SYNTAX_HIGHLIGHT */
+#endif /* C_S_H_IS_COMPILED */
 
 %}
 
@@ -183,9 +194,9 @@ char* msc_remove_quotes(const char *s)
 \x0d         JUMP_LINE;
 \x0a         JUMP_LINE;
 
-#.*\x0d\x0a  JUMP_LINE;  /* Ignore lines after '#' */
-#.*\x0d      JUMP_LINE;  /* Ignore lines after '#' */
-#.*\x0a      JUMP_LINE;  /* Ignore lines after '#' */
+#.*\x0d\x0a  ADDCSH(*yylloc, COLOR_COMMENT); JUMP_LINE;  /* Ignore lines after '#' */
+#.*\x0d      ADDCSH(*yylloc, COLOR_COMMENT); JUMP_LINE;  /* Ignore lines after '#' */
+#.*\x0a      ADDCSH(*yylloc, COLOR_COMMENT); JUMP_LINE;  /* Ignore lines after '#' */
 
 
 msc       yylval_param->str = strdup(yytext); return TOK_MSC;
@@ -204,8 +215,8 @@ at        yylval_param->str = strdup(yytext); return TOK_AT;
 no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 
-\:[ \t]*\"[^\"]*\"                      yylval_param->str = C_S_H?strdup(yytext):msc_remove_quotes(yytext+1); return TOK_COLON_STRING;
-\:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = C_S_H?strdup(yytext):msc_process_colon_string(yytext+1, yylloc); return TOK_COLON_STRING;
+\:[ \t]*\"[^\"]*\"                      yylval_param->str = REMOVE_QUOTES(yytext); return TOK_COLON_STRING;
+\:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = PROCESS_COLON_STRING(yytext, yylloc); return TOK_COLON_STRING;
 [+\-]?[0-9]+\.?[0-9]*                   yylval_param->str = strdup(yytext); return TOK_NUMBER;
 [A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* yylval_param->str = strdup(yytext); return TOK_STRING;
 \"[^\"\n]*\"                            yylval_param->str = strdup(yytext + !C_S_H); if (!C_S_H) yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;

@@ -19,7 +19,9 @@
 
 
 #pragma once
+#include <vector>
 #include <list>
+#include "csh.h"
 
 void RemoveCRLF(CString &str);
 void EnsureCRLF(CString &str);
@@ -31,6 +33,7 @@ class CChartData {
 protected:
 	CString m_text;
 	mutable Msc *m_msc;
+	mutable Msc *m_msc_for_csh;
 	//References are to the MscGenDoc members
 	CString &m_ChartSourcePreamble;
 	CString &m_CopyrightText;
@@ -42,7 +45,7 @@ public:
 	CChartData(const CChartData&);
 	~CChartData() {Delete();}
 	CChartData & operator = (const CChartData&);
-	void Delete(void) {FreeMsc(); m_text = "";}
+	void Delete(void) {FreeMsc(); FreeCsh(); m_text = "";}
 	BOOL Save(const CString &fileName) const;
 	BOOL Load(const CString &fileName,  BOOL reportError=TRUE);
 	void Set(const char *text) {Delete(); m_text=text?text:"";}
@@ -66,6 +69,8 @@ public:
 	CSize GetSize(unsigned page) const;
 	void Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page);
 	void Draw(const char* fileName);
+	const MscCshListType &GetCsh() const;
+	void FreeCsh() const {if (m_msc_for_csh) {delete m_msc_for_csh; m_msc_for_csh=NULL;}}
 };
 
 typedef std::list<CChartData>::iterator IChartData;

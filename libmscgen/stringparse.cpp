@@ -95,18 +95,25 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Msc &msc)
         if (text[pos] == 0) return;
         int len = 0;
         MscColorSyntaxType color = COLOR_LABEL_ESCAPE;
-        if (strchr("-+^_biuBIU0123456789n\\p", text[pos+1])) {
+        if (strchr("-+^_biuBIU0123456789n\\", text[pos+1])) {
             len = 2;
         } else switch (text[pos+1]) {
-        case 'm':
-            if (strchr("udlrins", text[pos+2]))
+        case 'p':
+            if (strchr("lrc", text[pos+2]))
                 len = 3;
             break;
+        case 'm':
+            if (strchr("udlrins", text[pos+2]))
+                len = 1; //indicate next block an extra char
+            //fallthrough
         case 'f':
         case 'c':
         case 's':
-            if (text[pos+2]!='(') break;
-            int l=pos+3;
+            if (text[pos+len+2]!='(') {
+                len = 0; //'m' may have set this to 1.
+                break;
+            }
+            int l=pos+3+len;
             while(text[l] && text[l]!=')') l++;
             if (!text[l]) break;
             len = l-pos+1;

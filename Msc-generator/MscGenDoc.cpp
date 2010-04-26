@@ -96,9 +96,15 @@ IMPLEMENT_DYNCREATE(CMscGenDoc, COleServerDoc)
 BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDoc)
 	ON_COMMAND(ID_EDIT_UNDO, OnEditUndo)
 	ON_COMMAND(ID_EDIT_REDO, OnEditRedo)
+	ON_COMMAND(ID_EDIT_CUT, OnEditCut)
 	ON_COMMAND(ID_EDIT_COPY, OnEditCopy)
 	ON_COMMAND(ID_EDIT_PASTE, OnEditPaste)
-	ON_COMMAND(ID_EDIT_UPDATE, &CMscGenDoc::OnEditUpdate)
+	ON_COMMAND(ID_EDIT_COPYENTIRECHART, OnEditCopyEntireChart)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_COPYENTIRECHART, OnUpdateFileExport)
+	ON_COMMAND(ID_EDIT_PASETENTIRECHART, OnEditPasteEntireChart)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_PASETENTIRECHART, OnUpdateEditPasteEntireChart)
+	ON_COMMAND(ID_EDIT_UPDATE, OnEditUpdate)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_UPDATE, OnUdpateEditUpdate)
 	ON_COMMAND(ID_FILE_EXPORT, OnFileExport)
 	ON_COMMAND(ID_EDIT_PREFERENCES, OnEditPreferences)
 	ON_LBN_SELCHANGE(IDC_OUTPUT_LIST, OnSelChange)
@@ -121,7 +127,8 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDoc)
 	ON_UPDATE_COMMAND_UI(ID_FILE_EXPORT, OnUpdateFileExport)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_UNDO, OnUpdateEditUndo)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_REDO, OnUpdateEditRedo)
-	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY, OnUpdateFileExport)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_CUT, OnUpdateEditCutCopy)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_PASTE, OnUpdateEditPaste)
 END_MESSAGE_MAP()
 
@@ -143,6 +150,15 @@ CMscGenDoc::CMscGenDoc()
 	if (!m_ProgressWindow.Create(IDD_PROGRESSDIALOG, NULL)) {
 		MessageBox(0,"Fail to create progress window", "Msc-generator", MB_OK);
 	}
+
+	CHARFORMAT cf;
+	cf.cbSize = sizeof(cf);
+	cf.dwMask = CFM_UNDERLINE|CFM_ITALIC|CFM_BOLD|CFM_COLOR;
+	cf.dwEffects = 0;
+	cf.crTextColor = RGB(0,0,0);
+	for (int i=0; i<COLOR_MAX; i++)
+		m_csh_cf[i] = cf;
+
 	//Options stored in registry
 	ReadRegistryValues(false);
 	m_zoom = 100;
@@ -150,8 +166,8 @@ CMscGenDoc::CMscGenDoc()
 	m_pages = 0;
 
 	m_EditorProcessId = 0;
-	m_bModified = FALSE;
 	m_hWndForEditor = NULL;
+	m_ProgressWindowCount = 0;
 
 	m_charts.push_back(CChartData(m_Pedantic, m_ChartSourcePreamble, m_CopyrightText));
 	m_itrCurrent = m_charts.begin();
@@ -297,18 +313,29 @@ void CMscGenDoc::OnUpdate(bool resetZoom, bool updateInternalEditor)
 {
 	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
 	//Update text in Chart Text
-	if (updateInternalEditor && pEditor) {
-		CString text(m_itrCurrent->GetText());
-		EnsureCRLF(text);
-		pEditor->m_wndEditor.SetWindowText(text);
-
-		pEditor->m_wndEditor.SetSel(0,5);
-		CHARFORMAT cf;
-		cf.cbSize = sizeof(cf);
-		cf.dwMask = CFM_STRIKEOUT|CFM_BOLD|CFM_COLOR;
-		cf.dwEffects = CFE_BOLD;
-		cf.crTextColor = RGB(255,0,0);
-		pEditor->m_wndEditor.SetSelectionCharFormat(cf);
+	if (pEditor) {
+		int firstline = pEditor->m_wndEditor.GetFirstVisibleLine();
+		pEditor->m_wndEditor.SetRedraw(false);
+		//pEditor->m_bCshUpdateInProgress = true;
+		if (updateInternalEditor) {
+			CString text(m_itrCurrent->GetText());
+			EnsureCRLF(text);
+			pEditor->m_wndEditor.SetWindowText(text);
+		}		
+		pEditor->UpdateCsh(this);
+			//const MscCshListType v(m_itrCurrent->GetCsh());
+			//CHARRANGE cr;
+			//pEditor->m_wndEditor.GetSel(cr);
+			//pEditor->m_wndEditor.SetSel(0,-1);
+			//pEditor->m_wndEditor.SetSelectionCharFormat(m_csh_cf[COLOR_NORMAL]);
+			//for (MscCshListType::const_iterator i=v.begin(); i!=v.end(); i++) {
+			//	pEditor->m_wndEditor.SetSel(i->first_pos-1, i->last_pos);
+			//	pEditor->m_wndEditor.SetSelectionCharFormat(m_csh_cf[i->color]);
+			//}
+			//pEditor->m_wndEditor.SetSel(cr);
+			//pEditor->m_wndEditor.LineScroll(pEditor->m_wndEditor.GetFirstVisibleLine()- firstline);
+			//pEditor->m_wndEditor.UnlockWindowUpdate();
+			//pEditor->m_bCshUpdateInProgress = false;
 	}
 
 	//Display error messages
@@ -505,11 +532,19 @@ void CMscGenDoc::OnFileExport()
 
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(m_itrCurrent != m_charts.begin());
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanUndo()) 
+		pCmdUI->Enable(true);
+	else pCmdUI->Enable(m_itrCurrent != m_charts.begin());
 }
 
 void CMscGenDoc::OnEditUndo()
 {
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanUndo()) {
+		pEditor->m_wndEditor.Undo();
+		return;
+	}
 	if (m_itrCurrent == m_charts.begin()) return;
 	bool editor = false;
 	if (m_EditorProcessId) {
@@ -528,10 +563,18 @@ void CMscGenDoc::OnEditUndo()
 
 void CMscGenDoc::OnUpdateEditRedo(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(m_itrCurrent != --m_charts.end());
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanRedo()) 
+		pCmdUI->Enable(true);
+	else pCmdUI->Enable(m_itrCurrent != --m_charts.end());
 }
 void CMscGenDoc::OnEditRedo()
 {
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanUndo()) {
+		pEditor->m_wndEditor.Redo();
+		return;
+	}
 	if (m_itrCurrent == --m_charts.end()) return;
 	bool editor = false;
 	if (m_EditorProcessId) {
@@ -547,7 +590,28 @@ void CMscGenDoc::OnEditRedo()
 	if (editor)	StartEditor();
 	StopDrawingProgress();
 }
+
+void CMscGenDoc::OnUpdateEditCutCopy(CCmdUI *pCmdUI)
+{
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	pCmdUI->Enable(pEditor && pEditor->IsVisible());
+}
+
+void CMscGenDoc::OnEditCut()
+{
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (!pEditor || !pEditor->IsVisible()) return;
+	pEditor->m_wndEditor.Cut();
+}
+
 void CMscGenDoc::OnEditCopy()
+{
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (!pEditor || !pEditor->IsVisible()) return;
+	pEditor->m_wndEditor.Copy();
+}
+
+void CMscGenDoc::OnEditCopyEntireChart()
 {
 	//Copy is handled by SrvItem
 	CMscGenSrvrItem *pItem= GetEmbeddedItem();
@@ -569,11 +633,31 @@ void CMscGenDoc::OnUpdateEditPaste(CCmdUI *pCmdUI)
 {
 	COleDataObject dataObject;
 	dataObject.AttachClipboard();
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	pCmdUI->Enable(dataObject.IsDataAvailable(CF_TEXT) && pEditor && pEditor->IsVisible());
+}
+
+void CMscGenDoc::OnEditPaste()
+{
+	COleDataObject dataObject;
+	dataObject.AttachClipboard();
+	if (!dataObject.IsDataAvailable(CF_TEXT)) return;
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (!pEditor || !pEditor->IsVisible()) return;
+	pEditor->m_wndEditor.PasteSpecial(CF_TEXT);
+}
+
+
+
+void CMscGenDoc::OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI)
+{
+	COleDataObject dataObject;
+	dataObject.AttachClipboard();
 	pCmdUI->Enable(dataObject.IsDataAvailable(m_cfPrivate) || 
                    dataObject.IsDataAvailable(CF_TEXT));
 }
 
-void CMscGenDoc::OnEditPaste()
+void CMscGenDoc::OnEditPasteEntireChart()
 {
 	// Paste is handled by Document
 	COleDataObject dataObject;
@@ -743,6 +827,29 @@ void CMscGenDoc::ReadRegistryValues(bool reportProblem)
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
 		              "http://msc-generator.sourceforge.net v2.4.0";
 	//m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
+
+	m_csh_cf[COLOR_KEYWORD].crTextColor =           RGB(128,128,  0); m_csh_cf[COLOR_KEYWORD].dwEffects = CFM_BOLD;
+	m_csh_cf[COLOR_ATTRNAME].crTextColor =          RGB(128,128,  0); m_csh_cf[COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[COLOR_OPTIONNAME].crTextColor =        RGB(128,128,  0); m_csh_cf[COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[COLOR_EQUAL].dwEffects = 0;
+	m_csh_cf[COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[COLOR_SEMICOLON].dwEffects = 0;
+	m_csh_cf[COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[COLOR_COLON].dwEffects = 0;
+	m_csh_cf[COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[COLOR_BRACE].dwEffects = 0;
+	m_csh_cf[COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[COLOR_BRACKET].dwEffects = 0;
+	m_csh_cf[COLOR_SYMBOL].crTextColor =            RGB(255,  0,  0); m_csh_cf[COLOR_SYMBOL].dwEffects = CFM_BOLD;
+	m_csh_cf[COLOR_DESIGNNAME].crTextColor =        RGB(128,  0,  0); m_csh_cf[COLOR_DESIGNNAME].dwEffects = 0;
+	m_csh_cf[COLOR_STYLENAME].crTextColor =         RGB(128,  0,  0); m_csh_cf[COLOR_STYLENAME].dwEffects = 0;
+	m_csh_cf[COLOR_COLORNAME].crTextColor =         RGB(128,  0,  0); m_csh_cf[COLOR_COLORNAME].dwEffects = 0;
+	m_csh_cf[COLOR_ENTITYNAME].crTextColor =        RGB(200,  0,  0); m_csh_cf[COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(200,  0,  0); m_csh_cf[COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,255); m_csh_cf[COLOR_ATTRVALUE].dwEffects = 0;
+	m_csh_cf[COLOR_COLORDEF].crTextColor =          RGB(  0,  0,255); m_csh_cf[COLOR_COLORDEF].dwEffects = 0;
+	m_csh_cf[COLOR_LABEL_TEXT].crTextColor =        RGB(  0,200,  0); m_csh_cf[COLOR_LABEL_TEXT].dwEffects = 0;
+	m_csh_cf[COLOR_LABEL_ESCAPE].crTextColor =      RGB(255,  0,  0); m_csh_cf[COLOR_LABEL_ESCAPE].dwEffects = 0;
+	m_csh_cf[COLOR_ERROR].crTextColor =             RGB( 50, 50,  50); m_csh_cf[COLOR_ERROR].dwEffects = 0;
+	m_csh_cf[COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[COLOR_COMMENT].dwEffects = CFM_ITALIC;
+
+	m_csh_cf[COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.
@@ -1082,7 +1189,14 @@ COleIPFrameWnd* CMscGenDoc::CreateInPlaceFrame(CWnd* pParentWnd)
 	COleIPFrameWnd* ret = COleServerDoc::CreateInPlaceFrame(pParentWnd);
 	// Now we are sure to have a view 
 	//Start Editor (needs a view for timer)
-	StartEditor();
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	if (!pEditor || !pEditor->IsVisible()) 
+		StartEditor();
+	else {
+		//CString text(m_itrCurrent->GetText());
+		//EnsureCRLF(text);
+		//pEditor->m_wndEditor.SetWindowText(text);
+	}
 	return ret;
 }
 
@@ -1095,12 +1209,14 @@ void CMscGenDoc::DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd)
 
 void CMscGenDoc::StartDrawingProgress() 
 {
-	m_ProgressWindow.ShowWindow(SW_SHOW); //Activate
+	if (++m_ProgressWindowCount>0)
+		m_ProgressWindow.ShowWindow(SW_SHOW); //Activate
 }
 
 void CMscGenDoc::StopDrawingProgress()
 {
-	m_ProgressWindow.ShowWindow(SW_HIDE); 
+	if (--m_ProgressWindowCount<=0) 
+		m_ProgressWindow.ShowWindow(SW_HIDE); 
 }
 
 void CMscGenDoc::SetZoom(int zoom)
@@ -1311,8 +1427,9 @@ void CMscGenDoc::OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI)
 void CMscGenDoc::OnEditUpdate()
 {
 	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
-	if (!pEditor) return;
+	if (!pEditor || !pEditor->IsVisible()) return;
 	StartDrawingProgress();
+	pEditor->m_wndEditor.EmptyUndoBuffer(); // no more undo in local editor. 
 	CString text;
 	pEditor->m_wndEditor.GetWindowText(text);
 	RemoveCRLF(text);
@@ -1326,6 +1443,13 @@ void CMscGenDoc::OnEditUpdate()
 	OnUpdate(true, false);
 	StopDrawingProgress();
 }
+
+void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
+{
+	CEditorBar *pEditor = static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor;
+	pCmdUI->Enable(pEditor && pEditor->IsVisible());
+}
+
 
 void CMscGenDoc::OnViewNexterror()
 {

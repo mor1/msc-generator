@@ -340,6 +340,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\csh.h"
+				>
+			</File>
+			<File
 				RelativePath=".\error.h"
 				>
 			</File>

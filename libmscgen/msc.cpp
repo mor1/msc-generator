@@ -842,7 +842,6 @@ void Msc::ParseForCSH(const char *input, unsigned len)
 {
     //initialize data struct
     CshList.clear();
-    CshList.reserve(len);
     CshParse(*this, input, len);
 }
 

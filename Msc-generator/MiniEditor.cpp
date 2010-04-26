@@ -22,6 +22,7 @@ static char THIS_FILE[] = __FILE__;
 
 CEditorBar::CEditorBar()
 {
+	m_bCshUpdateInProgress = false;
 }
 
 CEditorBar::~CEditorBar()
@@ -56,9 +57,10 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		TRACE0("Failed to create output window\n");
 		return -1;      // fail to create
 	}
-	m_wndEditor.SetTextMode(TM_SINGLECODEPAGE | TM_SINGLELEVELUNDO | TM_RICHTEXT);
+	m_wndEditor.SetTextMode(TM_SINGLECODEPAGE | TM_MULTILEVELUNDO | TM_RICHTEXT);
 	m_wndEditor.SetFont(&m_Font);
 	m_wndEditor.SetFocus();
+	m_wndEditor.SetEventMask(m_wndEditor.GetEventMask() | ENM_CHANGE);
 
 	return 0;
 }
@@ -71,7 +73,6 @@ void CEditorBar::OnSize(UINT nType, int cx, int cy)
 	GetClientRect(rc);
 
 	m_wndEditor.SetWindowPos(NULL, rc.left + 1, rc.top + 1, rc.Width() - 2, rc.Height() - 2, SWP_NOACTIVATE | SWP_NOZORDER );
-
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -93,4 +94,56 @@ void CEditorBar::OnSetFocus(CWnd* pOldWnd)
 {
 	CDockablePane::OnSetFocus(pOldWnd);
 	m_wndEditor.SetFocus();
+}
+
+void CEditorBar::UpdateCsh(CMscGenDoc *pDoc)
+{
+	if (pDoc == NULL) return;
+	CString text;
+	m_wndEditor.GetWindowText(text);
+	RemoveCRLF(text);
+	CString dummy;
+	bool dummy2;
+	CChartData data(dummy2, dummy, dummy);
+	data.Set(text);
+	const MscCshListType v(data.GetCsh());
+
+	m_wndEditor.SetRedraw(false);
+	//long eventMask = m_wndEditor.GetEventMask();
+	//m_wndEditor.SetEventMask(0);
+	m_bCshUpdateInProgress = true;
+
+	POINT scroll_pos;
+	::SendMessage(m_wndEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+	CHARRANGE cr;
+	m_wndEditor.GetSel(cr);
+
+	m_wndEditor.SetSel(0,-1);
+	m_wndEditor.SetSelectionCharFormat(pDoc->m_csh_cf[COLOR_NORMAL]);
+	for (MscCshListType::const_iterator i=v.begin(); i!=v.end(); i++) {
+		m_wndEditor.SetSel(i->first_pos-1, i->last_pos);
+		m_wndEditor.SetSelectionCharFormat(pDoc->m_csh_cf[i->color]);
+	}
+	m_wndEditor.SetSel(cr);
+	::SendMessage(m_wndEditor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+
+	m_bCshUpdateInProgress = false;
+	m_wndEditor.SetRedraw(true);
+	m_wndEditor.Invalidate();
+	//m_wndEditor.SetEventMask(eventMask);
+}
+
+BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+	UINT nID = LOWORD(wParam);
+	HWND hWndCtrl = (HWND)lParam;
+	int nCode = HIWORD(wParam);
+
+	if (hWndCtrl != m_wndEditor) return CDockablePane::OnCommand(wParam, lParam);
+	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
+	CFrameWnd *pParent = dynamic_cast<CFrameWnd *>(GetParent());
+	if (pParent)
+		if (!m_bCshUpdateInProgress) 
+			UpdateCsh(dynamic_cast<CMscGenDoc*>(pParent->GetActiveDocument()));
+	return TRUE;
 }

@@ -281,6 +281,7 @@ int do_main(const std::list<std::string> &args, const char *designs)
     //parse input text;
     msc.ParseForCSH(input, strlen(input));
     msc.ParseText(input, oInputFile.c_str());
+    free(input);
     msc.CompleteParse(oOutType);
     std::cerr << msc.Error.Print(oWarning);
     //Now cycle through pages and write them to individual files

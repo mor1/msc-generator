@@ -49,6 +49,7 @@ CChartData::CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &Co
     m_Pedantic(Pedantic), m_ChartSourcePreamble(ChartSourcePreamble), m_CopyrightText(CopyrightText)
 {
 	m_msc = NULL;
+	m_msc_for_csh = NULL;
 }
 
 
@@ -56,6 +57,7 @@ CChartData::CChartData(const CChartData& other) :
      m_Pedantic(other.m_Pedantic), m_ChartSourcePreamble(other.m_ChartSourcePreamble), m_CopyrightText(other.m_CopyrightText)
 {
 	m_msc = NULL;
+	m_msc_for_csh = NULL;
 	operator =(other);
 }
 
@@ -240,4 +242,13 @@ void CChartData::Draw(const char* fileName)
     }
 	//Ignore useTextPaths
     m_msc->DrawToOutput(ot, fn);
+}
+
+const MscCshListType &CChartData::GetCsh() const
+{
+	if (!m_msc_for_csh) {
+		m_msc_for_csh = new Msc;
+		m_msc_for_csh->ParseForCSH(m_text, m_text.GetLength());
+	}
+	return m_msc_for_csh->CshList;
 }

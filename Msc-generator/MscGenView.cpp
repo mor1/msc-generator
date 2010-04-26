@@ -62,7 +62,6 @@ END_MESSAGE_MAP()
 
 CMscGenView::CMscGenView() : m_size(0,0)
 {
-	CMscGenApp *pApp = (CMscGenApp *)::AfxGetApp();
 	// construction code here
 	m_hemf = NULL;
 	m_DeleteBkg = false;
@@ -89,8 +88,9 @@ BOOL CMscGenView::PreCreateWindow(CREATESTRUCT& cs)
 
 void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 {
-	CMscGenDoc* pDoc = GetDocument();
 	CScrollView::OnPrepareDC(pDC, pInfo);
+	if (SizeEmpty(m_size)) return;
+	CMscGenDoc* pDoc = GetDocument();
 
 	pDC->SetMapMode(MM_ANISOTROPIC);
 	CSize sizeDoc(ScaleSize(m_size, pDoc->m_zoom/100.0));

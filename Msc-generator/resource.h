@@ -79,6 +79,10 @@
 #define ID_EDIT_UPDATEFROMCHARTTEXTPANEL 32806
 #define ID_EDIT_UPDATE                  32807
 #define ID_VIEW_NEXTERROR               32814
+#define ID_EDIT_CUT32818                32818
+#define ID_EDIT_COPYENTIRECHARTTOCLIPBOARD 32819
+#define ID_EDIT_COPYENTIRECHART         32820
+#define ID_EDIT_PASETENTIRECHART        32821
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
@@ -86,7 +90,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        312
-#define _APS_NEXT_COMMAND_VALUE         32818
+#define _APS_NEXT_COMMAND_VALUE         32826
 #define _APS_NEXT_CONTROL_VALUE         1002
 #define _APS_NEXT_SYMED_VALUE           310
 #endif

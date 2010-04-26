@@ -90,6 +90,7 @@ public:
 	static CLIPFORMAT m_cfPrivate;
 	//The non-modal windows
 	CDialog m_ProgressWindow;
+	int m_ProgressWindowCount;
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
 	CString m_sStartTextEditor;
@@ -101,6 +102,7 @@ public:
 	CString m_EditorFileName;
 	CTime m_EditorFileLastMod;
 	HWND m_hWndForEditor;
+	CHARFORMAT m_csh_cf[COLOR_MAX];
 
 // Operations
 public:
@@ -130,12 +132,17 @@ public:
 	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
 	virtual void OnCloseDocument();
 	afx_msg void OnFileExport();
+	afx_msg void OnEditCut();
 	afx_msg void OnEditCopy();
 	afx_msg void OnEditPaste();
+	afx_msg void OnEditCopyEntireChart();
+	afx_msg void OnEditPasteEntireChart();
 	afx_msg void OnEditPreferences();
 	afx_msg void OnEditUndo();
 	afx_msg void OnEditRedo();
+	afx_msg void OnUpdateEditCutCopy(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateEditPaste(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateEditUndo(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateEditRedo(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
@@ -177,6 +184,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnEditUpdate();
+	afx_msg void OnUdpateEditUpdate(CCmdUI *pCmdUI);
 	afx_msg void OnViewNexterror();
 };
 

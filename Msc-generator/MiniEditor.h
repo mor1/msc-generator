@@ -8,6 +8,7 @@
 // Microsoft Foundation Classes product.
 
 #pragma once
+#include "MscGenDoc.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // CMiniEditor window
@@ -21,18 +22,20 @@ public:
 // Attributes
 	CFont m_Font;
 	CRichEditCtrl m_wndEditor;
-
+	bool m_bCshUpdateInProgress;
 protected:
 
 // Implementation
 public:
 	virtual ~CEditorBar();
+	void UpdateCsh(CMscGenDoc *);
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
+	afx_msg BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 };
 

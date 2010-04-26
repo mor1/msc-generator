@@ -98,8 +98,8 @@ BEGIN
     BUTTON      ID_FILE_SAVE
     BUTTON      ID_FILE_PRINT
     SEPARATOR
-    BUTTON      ID_EDIT_COPY
-    BUTTON      ID_EDIT_PASTE
+    BUTTON      ID_EDIT_COPYENTIRECHART
+    BUTTON      ID_EDIT_PASETENTIRECHART
     BUTTON      ID_EDIT_UNDO
     BUTTON      ID_EDIT_REDO
     SEPARATOR
@@ -114,8 +114,8 @@ BEGIN
     BUTTON      ID_FILE_SAVE
     BUTTON      ID_FILE_PRINT
     SEPARATOR
-    BUTTON      ID_EDIT_COPY
-    BUTTON      ID_EDIT_PASTE
+    BUTTON      ID_EDIT_COPYENTIRECHART
+    BUTTON      ID_EDIT_PASETENTIRECHART
     BUTTON      ID_EDIT_UNDO
     BUTTON      ID_EDIT_REDO
     SEPARATOR
@@ -125,8 +125,8 @@ END
 
 IDR_TOOLBAR_SRVR_INPLACE TOOLBAR  16, 15
 BEGIN
-    BUTTON      ID_EDIT_PASTE
-    BUTTON      ID_EDIT_COPY
+    BUTTON      ID_EDIT_COPYENTIRECHART
+    BUTTON      ID_EDIT_PASETENTIRECHART
     BUTTON      ID_EDIT_UNDO
     BUTTON      ID_EDIT_REDO
     SEPARATOR
@@ -170,8 +170,11 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
-        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
+        MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
         MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
         MENUITEM "&Edit in extrernal text editor...\tCtrl+E", 32772
@@ -228,8 +231,11 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
-        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
+        MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
         MENUITEM "&Export...\tCtrl+X",          ID_FILE_EXPORT
         MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
@@ -273,8 +279,11 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
-        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
+        MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
         MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
         MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
@@ -369,11 +378,14 @@ BEGIN
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
     "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
     "8",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
+    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 IDR_SRVR_INPLACE ACCELERATORS 
@@ -390,9 +402,12 @@ BEGIN
     VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
     "X",            ID_FILE_EXPORT,         VIRTKEY, CONTROL, NOINVERT
+    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     "1",            ID_VIEW_RESETASPECTRATIO_INPLACE, VIRTKEY, CONTROL, NOINVERT
-    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 IDR_SRVR_EMBEDDED ACCELERATORS 
@@ -415,11 +430,14 @@ BEGIN
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
     "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
     "8",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
+    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 
@@ -648,10 +666,10 @@ STRINGTABLE
 BEGIN
     ID_EDIT_CLEAR           "Erase the selection\nErase"
     ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
-    ID_EDIT_COPY            "Copy the selection and put it on the Clipboard\nCopy"
-    ID_EDIT_CUT             "Cut the selection and put it on the Clipboard\nCut"
+    ID_EDIT_COPY            "Copy the selection in the Chart Text pane and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection in the Chart Text pane and put it on the Clipboard\nCut"
     ID_EDIT_FIND            "Find the specified text\nFind"
-    ID_EDIT_PASTE           "Insert Clipboard contents\nPaste"
+    ID_EDIT_PASTE           "Insert Clipboard contents in the Chart Text pane\nPaste"
     ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
     ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
     ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
@@ -739,6 +757,12 @@ BEGIN
     ID_VIEW_EDITOR          "Show/Hide the Error Window\toggle Editor Window"
     ID_EDIT_UPDATE          "Update Chart with the description currently in the Chart Text panel"
     ID_VIEW_NEXTERROR       "Go to the next error"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats"
+    ID_EDIT_PASETENTIRECHART "Paste an entire chart from the Clipboard."
 END
 
 #endif    // English (U.S.) resources

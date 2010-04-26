@@ -134,7 +134,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	}
 	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = &m_wndOutputView;
 
-	if (!m_wndEditor.Create(_T("Chart Text"), pFrame, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
+	if (!m_wndEditor.Create(_T("Chart Text"), pFrame, CRect(0, 0, 400, 400), TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
 	{
 		TRACE0("Failed to create editor\n");
@@ -165,6 +165,11 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 		ASSERT_KINDOF(CMscGenDoc, pDoc);
 		pDoc->FillDesignDesignCombo();
 		pDoc->FillDesignPageCombo();
+		//Copy DOC text to 
+		CString text(pDoc->m_itrCurrent->GetText());
+		EnsureCRLF(text);
+		m_wndEditor.m_wndEditor.SetWindowText(text);
+		m_wndEditor.UpdateCsh(pDoc);
 	}
 	return TRUE;
 }
