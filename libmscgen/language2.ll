@@ -188,16 +188,16 @@ char* msc_remove_quotes(const char *s)
 
 %}
 
+%x COMMENT
+
 %%
 
 \x0d\x0a     JUMP_LINE;
 \x0d         JUMP_LINE;
 \x0a         JUMP_LINE;
 
-#.*\x0d\x0a  ADDCSH(*yylloc, COLOR_COMMENT); JUMP_LINE;  /* Ignore lines after '#' */
-#.*\x0d      ADDCSH(*yylloc, COLOR_COMMENT); JUMP_LINE;  /* Ignore lines after '#' */
-#.*\x0a      ADDCSH(*yylloc, COLOR_COMMENT); JUMP_LINE;  /* Ignore lines after '#' */
-
+#            ADDCSH(*yylloc, COLOR_COMMENT); BEGIN COMMENT;
+<COMMENT>[^\x0d\x0a]*  ADDCSH(*yylloc, COLOR_COMMENT); BEGIN INITIAL;
 
 msc       yylval_param->str = strdup(yytext); return TOK_MSC;
 heading   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
@@ -211,7 +211,6 @@ pipe      yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
 mark      yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
 vertical  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
 at        yylval_param->str = strdup(yytext); return TOK_AT;
-
 no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 
@@ -239,14 +238,14 @@ yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 \+\+          if (!C_S_H) yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
 \.\.          if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
 ==            if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
--             if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_DASH;
-=             if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_EQUAL;
-,             if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_COMMA;
-\;            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_SEMICOLON;
-\{            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_OCBRACKET;
-\}            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_CCBRACKET;
-\[            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_OSBRACKET;
-\]            if (!C_S_H) yylval_param->linenum = yylineno;  return TOK_CSBRACKET;
+-             return TOK_DASH;
+=             return TOK_EQUAL;
+,             return TOK_COMMA;
+\;            return TOK_SEMICOLON;
+\{            return TOK_OCBRACKET;
+\}            return TOK_CCBRACKET;
+\[            return TOK_OSBRACKET;
+\]            return TOK_CSBRACKET;
 
 pipe--        yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 pipe\+\+      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;

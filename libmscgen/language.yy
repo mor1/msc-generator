@@ -248,7 +248,6 @@ inline bool string_to_bool(const char*s)
     AttributeList    *attriblist;
     VertXPos         *vertxpos;
     std::list<string>*stringlist;
-    unsigned long     linenum;
 };
 
 %type <msc>        msc
@@ -276,7 +275,6 @@ inline bool string_to_bool(const char*s)
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT
 %type <stringlist> tok_stringlist
-%type <linenum>    TOK_OCBRACKET TOK_OSBRACKET
 
 %destructor {if (!C_S_H) delete $$;} vertrel
 %destructor {if (!C_S_H) delete $$;} vertxpos
@@ -334,6 +332,7 @@ braced_arclist: scope_open arclist scope_close
     } else {
         $$ = $2;
     }
+    yyerrok;
 }
             | scope_open scope_close
 {
@@ -396,6 +395,7 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
     } else {
         $$ = $3;
     }
+    yyerrok;
 };
 
 msckey:       TOK_MSC
@@ -440,6 +440,15 @@ complete_arc: TOK_SEMICOLON
     if (C_S_H) {
         ADDCSH(@2, COLOR_ERROR);
         ADDCSH(@3, COLOR_SEMICOLON);
+    } else {
+        $$=$1;
+    }
+    yyerrok;
+}
+              |arc error
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
     } else {
         $$=$1;
     }
@@ -686,7 +695,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
     if (C_S_H) {
         ADDCSH(@1, COLOR_OPTIONNAME);
         ADDCSH(@2, COLOR_EQUAL);
-        ADDCSH_ATTRVALUE(@3, $1, $3);
+        ADDCSH_ATTRVALUE(@3, $3, $1);
     } else {
         Attribute a($1, $3, YYMSC_GETPOS(@$), YYMSC_GETPOS(@3));
         MscFillAttr fill;
@@ -1555,7 +1564,7 @@ arcattr:         string TOK_EQUAL string
     if (C_S_H) {
         ADDCSH(@1, COLOR_ATTRNAME);
         ADDCSH(@2, COLOR_EQUAL);
-        ADDCSH_ATTRVALUE(@3, $1, $3);
+        ADDCSH_ATTRVALUE(@3, $3, $1);
     } else {
         $$ = new Attribute($1, $3, YYMSC_GETPOS(@$), YYMSC_GETPOS(@3));
     }

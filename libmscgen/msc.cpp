@@ -822,9 +822,9 @@ void Msc::AddCSH(CshPos&pos, MscColorSyntaxType i)
 
 void Msc::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
-    const char label[]="label";
-    int i = 0;
     if (name) {
+        const char label[]="label";
+        int i = 0;
         while (tolower(name[i]) == label[i] && label[i] && name[i]) i++;
         // No match - regular attribute value
         if (label[i] || name[i]) {
@@ -1276,10 +1276,10 @@ void Msc::CalculateWidthHeight(void)
         //Add distance for arcs,
         //needed for hscale=auto, but also for entity width calculation
         WidthArcList(Arcs, distances);
-        distances.CombineLeftRightToPair_Max(hscaleAutoXGap);
-        distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
-
         if (hscale<0) {
+            distances.CombineLeftRightToPair_Max(hscaleAutoXGap);
+            distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
+
             //Now go through all the pairwise requirements and calc actual pos.
             //dist will hold required distance to the right of entity with index []
             vector<double> dist(Entities.size(), 0);
@@ -1310,14 +1310,14 @@ void Msc::CalculateWidthHeight(void)
                 (*j)->pos = curr_pos;
                 curr_pos += dist[index++]/unit;
             }
-	        totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO);
-		} else {
-	        totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN);
-		}
-		XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight();
-		if (totalWidth<crTexSize.x) totalWidth = crTexSize.x;
+            totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO);
+        } else {
+            totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN);
+        }
+        XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight();
+        if (totalWidth<crTexSize.x) totalWidth = crTexSize.x;
 
-		copyrightTextHeight = crTexSize.y;
+        copyrightTextHeight = crTexSize.y;
         Geometry g;
         //not draw but final
         bool prevCompress = false;
@@ -1342,8 +1342,9 @@ void Msc::ParseText(const char *input, const char *filename)
     MscParse(*this, input, strlen(input));
 }
 
-void Msc::CompleteParse(OutputType ot)
+void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
 {
+
     //Allocate (non-sized) output object and assign it to the chart
     //From this point on, the chart sees xy dimensions
     SetOutput(ot);
@@ -1352,28 +1353,64 @@ void Msc::CompleteParse(OutputType ot)
     //and throw warnings for badly constructed diagrams.
     PostParseProcess();
 
+    //Calculate chart size
     CalculateWidthHeight();
+
+    //If the chart ended up empty we may want to display something
+    if (totalHeight <= chartTailGap && avoidEmpty) {
+        //Add the Empty command
+        Arcs.push_front(new CommandEmpty(this));
+        hscale = -1;
+        //Redo calculations
+        totalWidth = totalHeight = 0;
+        CalculateWidthHeight();
+        //Luckily Width and DrawCover calls do not generate error messages,
+        //So Errors collected so far are OK even after redoing this
+    }
+
     //A final step of prcessing, checking for additional drawing warnings
     PostHeightProcess();
     CloseOutput();
+
     Error.Sort();
 }
 
 void Msc::DrawCopyrightText(int page)
 {
-	if (totalWidth==0 || !cr) return;
-	XY size, dummy;
-	GetPagePosition(page, dummy, size);
-	std::set<Block> dummy2;
-	Label label(copyrightText, this, StringFormat());
-	if (white_background) {
-	    MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
-		filledRectangle(XY(0,size.y), XY(totalWidth,size.y+label.getTextWidthHeight().y), fill_bkg);
-	}
-	label.DrawCovers(0, totalWidth, size.y, dummy2, true);
+    if (totalWidth==0 || !cr) return;
+    XY size, dummy;
+    GetPagePosition(page, dummy, size);
+    std::set<Block> dummy2;
+    Label label(copyrightText, this, StringFormat());
+    if (white_background) {
+        MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
+        filledRectangle(XY(0,size.y), XY(totalWidth,size.y+label.getTextWidthHeight().y), fill_bkg);
+    }
+    label.DrawCovers(0, totalWidth, size.y, dummy2, true);
 }
 
-void Msc::Draw(void)
+void Msc::DrawPageBreaks()
+{
+    if (yPageStart.size()<=1) return;
+    if (totalHeight==0 || !cr) return;
+    MscLineAttr line;
+    line.type.second = LINE_DASHED;
+    StringFormat format;
+    format.Apply("\\pr\\-");
+    Label label(this);
+    std::set<Block> dummy;
+    for (unsigned page=1; page<yPageStart.size(); page++) {
+        char text[20];
+        const double y = yPageStart[page];
+        XY d;
+        MscDrawer::line(XY(0, y), XY(totalWidth, y), line);
+        sprintf(text, "page %d", page);
+        label.Set(text, format);
+        label.DrawCovers(0, totalWidth, y-label.getTextWidthHeight().y, dummy, true);
+    }
+}
+
+void Msc::Draw(bool pageBreaks)
 {
     if (totalHeight == 0 || !cr) return;
     MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
@@ -1392,29 +1429,31 @@ void Msc::Draw(void)
         if (y!=0 || white_background)
             filledRectangle(XY(0,y), XY(totalWidth,totalHeight), fill_bkg);
     }
-
+    if (pageBreaks)
+        DrawPageBreaks();
     DrawEntityLines(0, totalHeight);
     //draw and not final (both true would be confusing)
     Geometry g;
     bool prevCompress = false;
     DrawHeightArcList(Arcs, 0, g, true, false, prevCompress, -1);
+
 }
 
 void Msc::DrawToOutput(OutputType ot, const string &fn)
 {
     if (yPageStart.size()<=1) {
         SetOutput(ot, fn, -1);
-        Draw();
-		UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
-		DrawCopyrightText();
+        Draw(false);
+        UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
+        DrawCopyrightText();
         CloseOutput();
         return;
     }
     for (unsigned page=0; page<yPageStart.size(); page++) {
         SetOutput(ot, fn, page);
-        Draw();
-		UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
-		DrawCopyrightText(page);
+        Draw(false);
+        UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
+        DrawCopyrightText(page);
         CloseOutput();
     }
 }

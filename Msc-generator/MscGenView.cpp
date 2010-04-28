@@ -219,7 +219,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
 	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pInfo->m_nCurPage);
+	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pInfo->m_nCurPage, false);
 	HENHMETAFILE hemf = CloseEnhMetaFile(hdc);
 	ENHMETAHEADER header;
 	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
@@ -252,7 +252,9 @@ void CMscGenView::OnContextMenu(CWnd* pWnd, CPoint point)
 //  the server (not the container) causes the deactivation
 void CMscGenView::OnCancelEditSrvr()
 {
-	GetDocument()->OnDeactivateUI(FALSE);
+	//We comment it out as it does not handle CDockablePanes well...
+	//So we'd rather not deactivate from the server
+	//GetDocument()->OnDeactivateUI(FALSE);
 }
 
 
@@ -282,9 +284,11 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT_VALID(pApp);
 
     HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pDoc->m_page);
+	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pDoc->m_page, pApp->m_bPB_Editing);
 	if (m_hemf) DeleteEnhMetaFile(m_hemf);
 	m_hemf = CloseEnhMetaFile(hdc);
 

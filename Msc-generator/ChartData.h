@@ -35,14 +35,13 @@ protected:
 	mutable Msc *m_msc;
 	mutable Msc *m_msc_for_csh;
 	//References are to the MscGenDoc members
-	CString &m_ChartSourcePreamble;
-	CString &m_CopyrightText;
-	bool    &m_Pedantic;
 	CString m_ForcedDesign;
 	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
 public:
-	CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &CopyrightText);
-	CChartData(const CChartData&);
+	CChartData() : m_msc(NULL), m_msc_for_csh(NULL) {};
+	CChartData(const char *text) : m_msc(NULL), m_msc_for_csh(NULL), m_text(text?text:"") {}
+	CChartData(const char *text, const char *design) : m_msc(NULL), m_msc_for_csh(NULL), m_text(text?text:""), m_ForcedDesign(design?design:"") {}
+	CChartData(const CChartData&o) : m_msc(NULL), m_msc_for_csh(NULL) {operator=(o);}
 	~CChartData() {Delete();}
 	CChartData & operator = (const CChartData&);
 	void Delete(void) {FreeMsc(); FreeCsh(); m_text = "";}
@@ -67,7 +66,7 @@ public:
 	//Drawing related
 	unsigned GetPages() const;
 	CSize GetSize(unsigned page) const;
-	void Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page);
+	void Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page, bool pageBreaks);
 	void Draw(const char* fileName);
 	const MscCshListType &GetCsh() const;
 	void FreeCsh() const {if (m_msc_for_csh) {delete m_msc_for_csh; m_msc_for_csh=NULL;}}

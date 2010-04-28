@@ -28,35 +28,6 @@
 class CMscGenSrvrItem;
 
 
-// COptionDlg dialog
-
-class COptionDlg : public CDialog
-{
-	DECLARE_DYNCREATE(COptionDlg)
-
-public:
-	COptionDlg(CWnd* pParent = NULL);   // standard constructor
-	virtual ~COptionDlg();
-// Overrides
-
-// Dialog Data
-	enum { IDD = IDD_DIALOG_OPTIONS};
-
-protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog();
-	afx_msg void OnBnClickedTextEditorRadio();
-
-	DECLARE_MESSAGE_MAP()
-public:
-	BOOL m_Pedantic;
-	BOOL m_Warnings;
-	CString m_DefaultText;
-	int m_TextEditorRadioButtons;
-	CString m_TextEditStartCommand;
-	CString m_TextEditorJumpToLineCommand;
-	bool m_bNppExists;
-};
 
 enum EStopEditor {STOPEDITOR_NOWAIT, STOPEDITOR_WAIT, STOPEDITOR_FORCE};
 
@@ -69,17 +40,11 @@ protected: // create from serialization only
 // Attributes
 public:
 	CMscGenSrvrItem* GetEmbeddedItem()
-		{ return reinterpret_cast<CMscGenSrvrItem*>(COleServerDoc::GetEmbeddedItem()); }
+		{ return reinterpret_cast<CMscGenSrvrItem*>(COleServerDocEx::GetEmbeddedItem()); }
 	//Actual Signalling Chart Data and undo list
 	std::list<CChartData> m_charts;
 	IChartData m_itrSaved; //The chart that is the one last saved
 	IChartData m_itrCurrent; //The chart that is the current one
-	//Compilation options
-	bool m_Pedantic;
-	BOOL m_Warnings;
-	CString m_ChartSourcePreamble;
-	CString m_SetOfDesigns;
-	CString m_CopyrightText;
 	unsigned m_page;
 	unsigned m_pages;
 	// View related 
@@ -91,29 +56,19 @@ public:
 	//The non-modal windows
 	CDialog m_ProgressWindow;
 	int m_ProgressWindowCount;
-	//Editor related
-	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
-	CString m_sStartTextEditor;
-	CString m_sJumpToLine;
-	CString m_DefaultText;
-	CString m_NppPath;
 	//Text editor spawned process related
 	DWORD m_EditorProcessId;
 	CString m_EditorFileName;
 	CTime m_EditorFileLastMod;
 	HWND m_hWndForEditor;
-	CHARFORMAT m_csh_cf[COLOR_MAX];
 
 // Operations
 public:
 	void InsertNewChart(const CChartData &);
-	void ReadRegistryValues(bool reportProblem);
-	bool ReadDesigns(bool reportProblem=false, const char *fileName="designlib.signalling");
-	void FillDesignDesignCombo(void);
-	void FillDesignPageCombo(void);
 	//Editor functions
 	void OnUpdate(bool resetZoom=true, bool updateInternalEditor=true);
 	void StartEditor(CString = "");
+	void RestartEditor(EStopEditor force);
 	void JumpToLine(unsigned line, unsigned col);
 	bool CheckEditorAndFile(void);
 	void StopEditor(EStopEditor force);
@@ -137,7 +92,6 @@ public:
 	afx_msg void OnEditPaste();
 	afx_msg void OnEditCopyEntireChart();
 	afx_msg void OnEditPasteEntireChart();
-	afx_msg void OnEditPreferences();
 	afx_msg void OnEditUndo();
 	afx_msg void OnEditRedo();
 	afx_msg void OnUpdateEditCutCopy(CCmdUI *pCmdUI);

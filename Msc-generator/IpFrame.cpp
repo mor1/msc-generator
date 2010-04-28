@@ -101,6 +101,11 @@ int CInPlaceFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 //  application can place MFC control bars on either window.
 BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc)
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//If we shall open due to user preference, fail here.
+	if (pApp->m_bAlwaysOpen) return FALSE;
+
 	//Does nothing, but ensures that m_pMainFrame is of type COleCntrFrameWndEx, 
 	//so that we can dock MFC extension pack panes with DockPane below
 	COleIPFrameWndEx::OnCreateControlBars(pWndFrame, pWndDoc);
@@ -132,7 +137,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 		TRACE0("Failed to create output bar\n");
 		return FALSE;      // fail to create
 	}
-	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = &m_wndOutputView;
+	pApp->m_pWndOutputView = &m_wndOutputView;
 
 	if (!m_wndEditor.Create(_T("Chart Text"), pFrame, CRect(0, 0, 400, 400), TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
@@ -140,7 +145,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 		TRACE0("Failed to create editor\n");
 		return FALSE;      // fail to create
 	}
-	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor = &m_wndEditor;
+	pApp->m_pWndEditor = &m_wndEditor;
 
 	// Enable toolbar and docking window menu replacement
 	EnablePaneMenu(TRUE, ID_VIEW_CUSTOMIZE, "Customize...", ID_VIEW_TOOLBAR);
@@ -161,16 +166,15 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	m_wndEditor.SetOwner(this);
 
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
-	if (pDoc) {
-		ASSERT_KINDOF(CMscGenDoc, pDoc);
-		pDoc->FillDesignDesignCombo();
-		pDoc->FillDesignPageCombo();
-		//Copy DOC text to 
-		CString text(pDoc->m_itrCurrent->GetText());
-		EnsureCRLF(text);
-		m_wndEditor.m_wndEditor.SetWindowText(text);
-		m_wndEditor.UpdateCsh(pDoc);
-	}
+	ASSERT(pDoc != NULL);
+	ASSERT_KINDOF(CMscGenDoc, pDoc);
+	//Copy DOC text to internal editor
+	CString text(pDoc->m_itrCurrent->GetText());
+	EnsureCRLF(text);
+	m_wndEditor.m_wndEditor.SetWindowText(text);
+	m_wndEditor.UpdateCsh(true);
+	pApp->FillDesignDesignCombo(pDoc->m_itrCurrent->GetDesign(), true);
+	pApp->FillDesignPageCombo(pDoc->m_pages, pDoc->m_page);
 	return TRUE;
 }
 

@@ -155,7 +155,7 @@ BEGIN
         MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
         MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
         MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
-        MENUITEM "&Export...\tCtrl+X",          ID_FILE_EXPORT
+        MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
         MENUITEM SEPARATOR
         MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT
         MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW
@@ -237,7 +237,7 @@ BEGIN
         MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
         MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
-        MENUITEM "&Export...\tCtrl+X",          ID_FILE_EXPORT
+        MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
         MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
         MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
         MENUITEM "&Preferences...",             ID_EDIT_PREFERENCES
@@ -266,7 +266,7 @@ BEGIN
     BEGIN
         MENUITEM "&Update\tCtrl+S",             ID_FILE_UPDATE
         MENUITEM "Save Copy &As...",            ID_FILE_SAVE_COPY_AS
-        MENUITEM "&Export...\tCtrl+X",          ID_FILE_EXPORT
+        MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
         MENUITEM SEPARATOR
         MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT
         MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW
@@ -362,6 +362,9 @@ BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
     "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
     "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
@@ -369,7 +372,7 @@ BEGIN
     VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
-    "X",            ID_FILE_EXPORT,         VIRTKEY, CONTROL, NOINVERT
+    "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
     "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
     "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
     "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
@@ -383,9 +386,6 @@ BEGIN
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
-    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 IDR_SRVR_INPLACE ACCELERATORS 
@@ -394,6 +394,9 @@ BEGIN
     VK_ESCAPE,      ID_CANCEL_EDIT_SRVR,    VIRTKEY, NOINVERT
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
     "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
     "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
@@ -401,13 +404,10 @@ BEGIN
     VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
-    "X",            ID_FILE_EXPORT,         VIRTKEY, CONTROL, NOINVERT
+    "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
     VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     "1",            ID_VIEW_RESETASPECTRATIO_INPLACE, VIRTKEY, CONTROL, NOINVERT
-    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
-    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 IDR_SRVR_EMBEDDED ACCELERATORS 
@@ -415,6 +415,9 @@ BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
     "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
     "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
@@ -423,7 +426,7 @@ BEGIN
     VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
-    "X",            ID_FILE_EXPORT,         VIRTKEY, CONTROL, NOINVERT
+    "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
     "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
     "S",            ID_FILE_UPDATE,         VIRTKEY, CONTROL, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
@@ -435,9 +438,6 @@ BEGIN
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
-    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 
@@ -454,35 +454,37 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
 END
 
-IDD_DIALOG1 DIALOGEX 0, 0, 340, 311
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_CAPTION | WS_SYSMENU
-CAPTION "Dialog"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    EDITTEXT        IDC_EDIT1,7,7,326,297,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY | WS_VSCROLL | WS_HSCROLL
-END
-
-IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 260
+IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 265
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Msc-generator Preferences"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,137,239,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,200,239,50,14
-    CONTROL         "&Pedantic (entities must be explicitly declared)",IDC_CHECK_PEDANTIC,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,15,209,160,10
-    CONTROL         "Display &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,15,226,71,10
-    LTEXT           "&Start",IDC_STATIC,71,41,17,8
-    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,88,243,112,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
-    LTEXT           "&Initial Chart text",IDC_STATIC,7,77,54,8
-    LTEXT           "Jump to &Line",IDC_STATIC,47,56,41,8
-    EDITTEXT        IDC_EDIT1,90,38,156,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT2,90,54,156,14,ES_AUTOHSCROLL
-    CONTROL         "&Default (Notepad)",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,18,74,10
-    CONTROL         "Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,29,54,10
-    CONTROL         "&Other:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,40,37,10
-    GROUPBOX        "&Text Editor",IDC_STATIC,7,7,243,65
-    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,107,29,140,8
+    DEFPUSHBUTTON   "OK",IDOK,137,244,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,200,244,50,14
+    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
+    CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
+    LTEXT           "&Start",IDC_STATIC,71,190,17,8
+    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
+    LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
+    LTEXT           "Jump to &Line",IDC_STATIC,47,206,41,8
+    EDITTEXT        IDC_EDIT1,90,188,156,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,90,204,156,14,ES_AUTOHSCROLL
+    CONTROL         "&Default (Notepad)",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,166,74,10
+    CONTROL         "Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,178,54,10
+    CONTROL         "&Other:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,190,37,10
+    GROUPBOX        "&External Text Editor",IDC_STATIC,7,156,243,65
+    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,107,178,140,8
+    GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
+    GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
+    CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
+    CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
+    CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,228,213,10
+    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,36
+    CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,130,96,10
+    COMBOBOX        IDC_COMBO_CSH,179,129,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Use scheme:",IDC_STATIC,133,131,42,8
 END
 
 IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
@@ -490,8 +492,8 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "About Msc-gnerator"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,21,20
-    LTEXT           "Msc-generator Version 2.3.4",IDC_STATIC,40,10,119,8,SS_NOPREFIX
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "Msc-generator Version 2.4.1",IDC_STATIC,40,10,119,8,SS_NOPREFIX
     LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
     PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
@@ -504,8 +506,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,3,5,0
- PRODUCTVERSION 2,3,5,0
+ FILEVERSION 2,4,1,0
+ PRODUCTVERSION 2,4,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -522,12 +524,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "2.3.5"
+            VALUE "FileVersion", "2.4.1"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "2.3.5"
+            VALUE "ProductVersion", "2.4.1"
         END
     END
     BLOCK "VarFileInfo"
@@ -551,20 +553,12 @@ BEGIN
         RIGHTMARGIN, 86
     END
 
-    IDD_DIALOG1, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 333
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 304
-    END
-
     IDD_DIALOG_OPTIONS, DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 250
         TOPMARGIN, 7
-        BOTTOMMARGIN, 253
+        BOTTOMMARGIN, 258
     END
 
     IDD_ABOUTBOX, DIALOG
@@ -576,6 +570,25 @@ BEGIN
     END
 END
 #endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_DIALOG_OPTIONS DLGINIT
+BEGIN
+    IDC_COMBO_CSH, 0x403, 8, 0
+0x694d, 0x696e, 0x616d, 0x006c, 
+    IDC_COMBO_CSH, 0x403, 9, 0
+0x7453, 0x6e61, 0x6164, 0x6472, "\000" 
+    IDC_COMBO_CSH, 0x403, 9, 0
+0x6f43, 0x6f6c, 0x6672, 0x6c75, "\000" 
+    IDC_COMBO_CSH, 0x403, 15, 0
+0x7245, 0x6f72, 0x2d72, 0x726f, 0x6569, 0x746e, 0x6465, "\000" 
+    0
+END
 
 
 /////////////////////////////////////////////////////////////////////////////

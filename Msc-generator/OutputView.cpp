@@ -40,7 +40,9 @@ int COutputViewBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CDockablePane::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	m_Font.CreateStockObject(DEFAULT_GUI_FONT);
+	m_Font.CreateFont(16, 0, 0, 0, FW_NORMAL, false, false, false, ANSI_CHARSET, 
+		              OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+					  FIXED_PITCH|FF_MODERN, NULL);
 
 	CRect rectClient(0, 0, lpCreateStruct->cx, lpCreateStruct->cy);
 

@@ -17,6 +17,7 @@
 */
 
 #include "stdafx.h"
+#include "Msc-generator.h"
 #include "ChartData.h"
 #include "msc.h"
 
@@ -44,22 +45,6 @@ void EnsureCRLF(CString &str)
 
 
 //CChartData
-
-CChartData::CChartData(bool &Pedantic, CString &ChartSourcePreamble, CString &CopyrightText) :
-    m_Pedantic(Pedantic), m_ChartSourcePreamble(ChartSourcePreamble), m_CopyrightText(CopyrightText)
-{
-	m_msc = NULL;
-	m_msc_for_csh = NULL;
-}
-
-
-CChartData::CChartData(const CChartData& other) :
-     m_Pedantic(other.m_Pedantic), m_ChartSourcePreamble(other.m_ChartSourcePreamble), m_CopyrightText(other.m_CopyrightText)
-{
-	m_msc = NULL;
-	m_msc_for_csh = NULL;
-	operator =(other);
-}
 
 CChartData & CChartData::operator = (const CChartData& other)
 {
@@ -140,27 +125,22 @@ void CChartData::CompileIfNeeded() const
 {
 	//To force a recompilation, call ReCompile()
 	if (m_msc) return;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp);
 	m_msc = new Msc;
-	m_msc->pedantic = m_Pedantic;
-	if (!m_ChartSourcePreamble.IsEmpty()) {
-		m_msc->ParseText(m_ChartSourcePreamble, "[designlib]");
+	if (pApp) 
+		m_msc->pedantic = pApp->m_Pedantic;
+	if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
+		m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
 		if (!m_ForcedDesign.IsEmpty())
 			if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
 				m_msc->ignore_designs = true;
 	}
 	m_msc->ParseText(m_text, "");
-	m_msc->copyrightText = (const char*)m_CopyrightText;
-    
-	//Allocate (non-sized) output object and assign it to the chart
-    //From this point on, the chart sees xy dimensions
-    m_msc->SetOutput(MscDrawer::WMF);
-    //Sort Entities, add numbering, fill in auto-calculated values,
-    //and throw warnings for badly constructed diagrams.
-    m_msc->PostParseProcess();
-    m_msc->CalculateWidthHeight();
-    //A final step of prcessing, checking for additional drawing warnings
-    m_msc->PostHeightProcess();
-    m_msc->CloseOutput();
+	if (pApp) 
+		m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
+	//Do postparse, compile, calculate sizes and sort errors by line    
+	m_msc->CompleteParse(MscDrawer::WMF, true);
 }
 
 unsigned CChartData::GetErrorNum(bool oWarnings) const {
@@ -202,7 +182,7 @@ CSize CChartData::GetSize(unsigned page) const
     return CSize(m_msc->totalWidth*m_msc->scale, size.y*m_msc->scale + m_msc->copyrightTextHeight*m_msc->scale);
 }
 
-void CChartData::Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page)
+void CChartData::Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page, bool pageBreaks)
 {
 	CompileIfNeeded();
 	MscDrawer::OutputType ot;
@@ -213,7 +193,7 @@ void CChartData::Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page)
         }
     if (!m_msc->SetOutputWin32(ot, hdc, zoom, int(page)-1))
         return;
-    m_msc->Draw();
+    m_msc->Draw(pageBreaks);
 	m_msc->UnClip(); //Unclip the banner text exclusion clipped in SetOutputWin32()
 	m_msc->DrawCopyrightText(int(page)-1);
     m_msc->CloseOutput();

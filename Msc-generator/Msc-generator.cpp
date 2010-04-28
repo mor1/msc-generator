@@ -80,6 +80,113 @@ BOOL CAboutDlg::OnInitDialog( )
 	return a;
 }
 
+// COptionDlg dialog
+
+// COptionDlg dialog
+
+class COptionDlg : public CDialog
+{
+	DECLARE_DYNCREATE(COptionDlg)
+
+public:
+	COptionDlg(CWnd* pParent = NULL);   // standard constructor
+	virtual ~COptionDlg();
+// Overrides
+
+// Dialog Data
+	enum { IDD = IDD_DIALOG_OPTIONS};
+
+protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog();
+	afx_msg void OnBnClickedTextEditorRadio();
+
+	DECLARE_MESSAGE_MAP()
+public:
+	BOOL m_Pedantic;
+	BOOL m_Warnings;
+	CString m_DefaultText;
+	int m_TextEditorRadioButtons;
+	CString m_TextEditStartCommand;
+	CString m_TextEditorJumpToLineCommand;
+	bool m_bNppExists;
+	BOOL m_bPB_Editing;
+	BOOL m_bPB_Embedded;
+	BOOL m_bAlwaysOpen;
+	BOOL m_bCsh;
+	afx_msg void OnBnClickedCheckCsh();
+	int m_nCshScheme;
+};
+
+
+IMPLEMENT_DYNCREATE(COptionDlg, CDialog)
+
+COptionDlg::COptionDlg(CWnd* pParent /*=NULL*/)
+	: CDialog(COptionDlg::IDD, pParent)
+	, m_Pedantic(FALSE)
+	, m_Warnings(FALSE)
+	, m_DefaultText(_T(""))
+	, m_bNppExists(false)
+	, m_bPB_Editing(FALSE)
+	, m_bPB_Embedded(FALSE)
+	, m_bAlwaysOpen(FALSE)
+	, m_bCsh(FALSE)
+	, m_nCshScheme(0)
+{
+}
+
+COptionDlg::~COptionDlg()
+{
+}
+
+void COptionDlg::DoDataExchange(CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+	DDX_Check(pDX, IDC_CHECK_PEDANTIC, m_Pedantic);
+	DDX_Check(pDX, IDC_CHECK_WARNINGS, m_Warnings);
+	DDX_Text(pDX, IDC_EDIT_DEFAULT_TEXT, m_DefaultText);
+	DDX_Radio(pDX, IDC_RADIO1, m_TextEditorRadioButtons);
+	DDX_Text(pDX, IDC_EDIT1, m_TextEditStartCommand);
+	DDX_Text(pDX, IDC_EDIT2, m_TextEditorJumpToLineCommand);
+	DDX_Check(pDX, IDC_CHECK_PB_EDITING, m_bPB_Editing);
+	DDX_Check(pDX, IDC_CHECK_PB_EMBEDDED, m_bPB_Embedded);
+	DDX_Check(pDX, IDC_CHECK_CSH, m_bCsh);
+	DDX_Check(pDX, IDC_CHECK_ALWAYSOPEN, m_bAlwaysOpen);
+	DDX_CBIndex(pDX, IDC_COMBO_CSH, m_nCshScheme);
+}
+
+BOOL COptionDlg::OnInitDialog()
+{
+	CDialog::OnInitDialog();
+	GetDlgItem(IDC_EDIT1)->EnableWindow(m_TextEditorRadioButtons==2);
+	GetDlgItem(IDC_EDIT2)->EnableWindow(m_TextEditorRadioButtons==2);
+	CFileFind finder;
+	GetDlgItem(IDC_RADIO2)->EnableWindow(m_bNppExists);
+	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_bCsh);
+//	((CComboBox*)GetDlgItem(IDC_COMBO_CSH))->SetMinVisibleItems(CSH_SCHEME_MAX);
+	return TRUE;  // return TRUE  unless you set the focus to a control
+}
+
+void COptionDlg::OnBnClickedTextEditorRadio()
+{
+	bool otherSet = ((CButton*)this->GetDlgItem(IDC_RADIO3))->GetCheck();
+	GetDlgItem(IDC_EDIT1)->EnableWindow(otherSet);
+	GetDlgItem(IDC_EDIT2)->EnableWindow(otherSet);
+}
+
+void COptionDlg::OnBnClickedCheckCsh()
+{
+	bool cshSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH))->GetCheck();
+	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(cshSet);
+}
+
+
+BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
+	ON_BN_CLICKED(IDC_RADIO1, &COptionDlg::OnBnClickedTextEditorRadio)
+	ON_BN_CLICKED(IDC_RADIO2, &COptionDlg::OnBnClickedTextEditorRadio)
+	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClickedTextEditorRadio)
+	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClickedCheckCsh)
+END_MESSAGE_MAP()
 
 // CMscGenApp
 
@@ -90,6 +197,7 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
 	ON_COMMAND(ID_FILE_OPEN, &CWinAppEx::OnFileOpen)
 	// Standard print setup command
 	ON_COMMAND(ID_FILE_PRINT_SETUP, &CWinAppEx::OnFilePrintSetup)
+	ON_COMMAND(ID_EDIT_PREFERENCES, OnEditPreferences)
 END_MESSAGE_MAP()
 
 
@@ -193,6 +301,9 @@ BOOL CMscGenApp::InitInstance()
 	MessageBox(0, "In Msc-generator::Appinit", "aa", 0);
 #endif
 
+	//Read options from the registry
+	ReadRegistryValues(false);
+
 	// App was launched with /Embedding or /Automation switch.
 	// Run app as automation server.
 	if (cmdInfo.m_bRunEmbedded || cmdInfo.m_bRunAutomated)
@@ -264,71 +375,356 @@ void CMscGenApp::SaveCustomState()
 {
 }
 
-// CMscGenApp message handlers
+bool CMscGenApp::FillDesignDesignCombo(const char *current, bool updateComboContent) {
+	//ok now designs contains a set of of designs, preable contains a concatenation of designlib text
+	//Add the list of designs to the combo boxes
+	CObList list;
+	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
+	POSITION p = list.GetHeadPosition();
+	bool ret=true;
+	while (p) {
+		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+		if (updateComboContent) {
+			combo->ClearData();
+			combo->AddItem("(use chart-defined)");
+			combo->AddItem("plain");
+			int pos = 0;
+			while (m_SetOfDesigns.GetLength()>pos) {
+				int pos2 = m_SetOfDesigns.Find(' ', pos);
+				if (pos2==-1) pos2 = m_SetOfDesigns.GetLength();
+				if (pos2>pos && m_SetOfDesigns.Mid(pos, pos2-pos).CompareNoCase("plain")!=0)
+					combo->AddItem(m_SetOfDesigns.Mid(pos, pos2-pos));
+				pos = pos2+1;
+			}	
+		}
+		//restore the selection to the given style if it can be found
+		int index = (current==NULL || current[0]==0) ? 0 : combo->FindItem(current);
+		ret = (index != CB_ERR);
+		combo->SelectItem(ret?index:0);
+	}
+	return ret;
+}
 
-//
-//// Command-line operation
-//const char * usage()
-//{
-//    return 
-//"Usage: mscgen [infile]\n"
-//"       mscgen -T <type> [-o <file>] [<infile>] [-q] \n"
-//"       mscgen -l\n"
-//"       mscgen /register\n"
-//"\n"
-//"Where:\n"
-//" -T <type>   Invokes command-line mode and specifies the output file type,\n"
-//"             which maybe one of 'png', 'eps', 'pdf', 'svg' or 'wmf'.\n"
-//"             The absence of -T, -l and /registed makes Msc-generator to start\n"
-//"             as a windowed program.\n"
-//" -o <file>   Write output to the named file.  If omitted the input filename\n"
-//"             will be appended by .png or .ps. If neither input nor output \n"
-//"             file is given, mscgen_out.{png,eps,svg,pdf,wmf} will be used.\n"
-//" <infile>    The file from which to read input.  If omitted or specified as\n"
-//"             '-', input will be read from stdin.\n"
-//" -q          Quiet: Errors and warnings will not display in a dialog.\n"
-//" -l          Display program licence and exit.\n"
-//"/register    Run this once as administrator, from the installed location to\n"
-//"             perform OLE registration.\n"
-//"\n"
-//"Msc-generator version 2.3, Copyright (C) 2008-10 Zoltan Turanyi,\n"
-//"Msc-generator comes with ABSOLUTELY NO WARRANTY.  This is free software, and you are\n"
-//"welcome to redistribute it under certain conditions; type `mscgen -l' for\n"
-//"details.\n";
-//}
-//
-///** Print program licence and return.
-// */
-//const char * licence()
-//{
-//return 
-//"Msc-generator, a message sequence chart renderer.\n"
-//"Copyright (C) 2008-2009-2010 Zoltan Turanyi\n"
-//"Distributed under GNU Affero General Public License.\n"
-//"\n"
-//"This program is free software; you can redistribute it and/or modify\n"
-//"it under the terms of the GNU Affero General Public License as published by\n"
-//"the Free Software Foundation; either version 3 of the License, or\n"
-//"(at your option) any later version.\n"
-//"\n"
-//"This program is distributed in the hope that it will be useful,\n"
-//"but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-//"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
-//"GNU General Public License for more details.\n"
-//"\n"
-//"You should have received a copy of the GNU Affero General Public License\n"
-//"along with this program; if not, see <http://www.gnu.org/licenses/>.\n";
-//}
-//
-//CString GetNextArg(CString &cmd) 
-//{
-//	while (cmd.GetLength()>0) {
-//		int pos = cmd.Find(' ');
-//		if (pos == -1) pos = cmd.GetLength();
-//		CString arg = cmd.Left(pos);
-//		cmd.Delete(0,pos+1);
-//		if (arg.GetLength()>0) return arg;
-//	}
-//	return CString();
-//}
-//
+void CMscGenApp::FillDesignPageCombo(int no_pages, int page)
+{
+	CObList list;
+	CMFCToolBar::GetCommandButtons(ID_DESIGN_PAGE, list);
+
+	POSITION p = list.GetHeadPosition();
+	while(p) {
+		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+		if (!combo) continue;
+		if (no_pages == 1 && combo->GetCount() == 1) continue;
+		if (no_pages+1 == combo->GetCount()) continue;
+		combo->RemoveAllItems();
+		//Fill combo list with the appropriate number of pages
+		combo->AddItem("(all)", 0);
+		CString str;
+		if (no_pages > 1)
+			for (int i=1; i<=no_pages; i++) {
+				str.Format("%d", i);
+				combo->AddItem(str, i);
+			}
+		//Set the index to the current page
+		combo->SelectItem(page, TRUE);
+		combo->SetDropDownHeight(250);
+	} 
+}
+
+void CMscGenApp::OnEditPreferences()
+{
+	CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+	ASSERT(pMainWnd!=NULL);
+	ASSERT(pMainWnd->GetActiveView() != NULL);
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
+	ASSERT(pDoc != NULL);
+
+	COptionDlg optionDlg;
+	optionDlg.m_Pedantic = m_Pedantic;
+	optionDlg.m_Warnings = m_Warnings;
+	optionDlg.m_bPB_Editing  = m_bPB_Editing;
+	optionDlg.m_bPB_Embedded = m_bPB_Embedded;
+	optionDlg.m_bAlwaysOpen  = m_bAlwaysOpen;
+	optionDlg.m_bCsh		 = m_bCsh;
+	optionDlg.m_nCshScheme   = m_nCshScheme;
+
+	EnsureCRLF(m_DefaultText);
+	optionDlg.m_DefaultText = m_DefaultText;
+	optionDlg.m_TextEditStartCommand = m_sStartTextEditor;
+	optionDlg.m_TextEditorJumpToLineCommand = m_sJumpToLine;
+	optionDlg.m_bNppExists = m_NppPath.GetLength()>0;
+
+	switch (m_iTextEditorType) {
+		default:
+		case NOTEPAD: optionDlg.m_TextEditorRadioButtons = 0; break;
+		case NPP: optionDlg.m_TextEditorRadioButtons = m_NppPath.GetLength()?1:0; break;
+		case OTHER: optionDlg.m_TextEditorRadioButtons = 2; break;
+	}
+	if (optionDlg.DoModal() == IDOK) {
+		bool bRestartEditor = false;
+		bool recompile = (m_Pedantic != (bool)optionDlg.m_Pedantic) ||
+			(m_bPB_Editing != optionDlg.m_bPB_Editing) ||
+			(m_bPB_Embedded != optionDlg.m_bPB_Embedded);
+		bool updateCSH = (optionDlg.m_bCsh != m_bCsh) || (m_bCsh &&	optionDlg.m_nCshScheme != m_nCshScheme);
+
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, m_Pedantic = optionDlg.m_Pedantic);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, m_Warnings = optionDlg.m_Warnings);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing = optionDlg.m_bPB_Editing);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded = optionDlg.m_bPB_Embedded);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, m_bAlwaysOpen = optionDlg.m_bAlwaysOpen);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bCsh = optionDlg.m_bCsh);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_nCshScheme = optionDlg.m_nCshScheme);
+
+		EEditorType temp;
+		switch (optionDlg.m_TextEditorRadioButtons) {
+			default:
+			case 0: temp = NOTEPAD; break;
+			case 1: temp = m_NppPath.GetLength()?NPP:NOTEPAD; break;
+			case 2: temp = OTHER; break;
+		}
+		if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
+			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
+			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, m_sStartTextEditor);
+			if (temp==OTHER) bRestartEditor=true;
+		}
+		if (m_sJumpToLine != optionDlg.m_TextEditorJumpToLineCommand) {
+			m_sJumpToLine = optionDlg.m_TextEditorJumpToLineCommand;
+			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_JUMPTOLINE, m_sJumpToLine);
+		}
+		if (temp != m_iTextEditorType) {
+			m_iTextEditorType = temp;
+			WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, m_iTextEditorType);
+			bRestartEditor=true;
+			switch (m_iTextEditorType) {
+				case NPP:
+					m_sStartTextEditor = "\"" +m_NppPath+ "\" -multiInst -nosession %n";
+					m_sJumpToLine = "\"" +m_NppPath+ "\" -n%l -nosession %n";
+					break;
+				case NOTEPAD:
+				default:
+					m_sStartTextEditor = "Notepad.exe %n";
+					m_sJumpToLine = "";
+					break;
+				case OTHER:
+					break; //values already set by user
+			}
+		}
+		if (optionDlg.m_DefaultText != m_DefaultText) {
+			m_DefaultText = optionDlg.m_DefaultText;
+			EnsureCRLF(m_DefaultText);
+			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
+		}
+
+		if (bRestartEditor) 
+			pDoc->RestartEditor(STOPEDITOR_WAIT);
+
+		if (recompile) {
+			pDoc->StartDrawingProgress();
+			for (IChartData i = pDoc->m_charts.begin(); i!=pDoc->m_charts.end(); i++)
+				i->FreeMsc();
+			pDoc->OnUpdate(false, false);     //Do not change zoom or text in internal editor, merely recompile & re-issue errors
+			pDoc->StopDrawingProgress();
+		} 
+		if (updateCSH && m_pWndEditor && m_pWndEditor->IsVisible())
+			m_pWndEditor->UpdateCsh(true);
+	}
+}
+
+//C:\Windows\Notepad.exe %n;"C:\Program Files\Notepad++\notepad++.exe" -multiInst -nosession %n;
+//;-n%l -nosession %n;
+
+
+void CMscGenApp::ReadRegistryValues(bool reportProblem) 
+{
+	//Load Registry values
+	m_Pedantic = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, FALSE);
+	m_Warnings = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, TRUE);
+	m_bPB_Editing  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
+	m_bPB_Embedded = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, FALSE);
+	m_bAlwaysOpen  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, FALSE);
+	m_bCsh         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, FALSE);
+	m_nCshScheme   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
+	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
+
+	m_iTextEditorType = EEditorType(GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, NOTEPAD));
+	m_NppPath = "C:\\Program Files\\Notepad++\\notepad++.exe";
+	CFileFind finder;
+	if (!finder.FindFile(m_NppPath))
+		m_NppPath.Empty(); //empty value means no NPP on this system
+
+	switch (m_iTextEditorType) {
+		case NPP:
+			if (m_NppPath.GetLength()) {
+				m_sStartTextEditor = "\"" +m_NppPath+ "\" -multiInst -nosession %n";
+				m_sJumpToLine = "\"" +m_NppPath+ "\" -n%l -nosession %n";
+				break;
+			}
+			//fallback if notepad++ not found
+		case NOTEPAD:
+		default:
+			m_sStartTextEditor = "Notepad.exe %n";
+			m_sJumpToLine = "";
+			break;
+		case OTHER:
+			m_sStartTextEditor = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, "Notepad.exe %n");
+			m_sJumpToLine = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_JUMPTOLINE, "");
+			break;
+	}
+	m_DefaultText= GetProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, 
+		"#Default signalling chart\r\na,b,c;\r\nb->c:trallala;\r\na->b: new;\r\n");
+
+	ReadDesigns(reportProblem); //fills m_ChartSourcePreamble appropriately, default filename applies
+	FillDesignDesignCombo("", true);
+	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
+		              "http://msc-generator.sourceforge.net v2.4.1";
+	//m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
+
+	CHARFORMAT cf;
+	cf.cbSize = sizeof(cf);
+	cf.dwMask = CFM_UNDERLINE|CFM_ITALIC|CFM_BOLD|CFM_COLOR;
+	cf.dwEffects = 0;
+	cf.crTextColor = RGB(0,0,0);
+	for (int scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
+		for (int i=0; i<COLOR_MAX; i++)
+			m_csh_cf[scheme][i] = cf;
+
+	//CSH_SCHEME ==0 is the Minimal one
+	m_csh_cf[0][COLOR_KEYWORD].crTextColor =           RGB(  0,  0,  0); m_csh_cf[0][COLOR_KEYWORD].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_ATTRNAME].crTextColor =          RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_OPTIONNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[0][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_EQUAL].dwEffects = 0;
+	m_csh_cf[0][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[0][COLOR_SEMICOLON].dwEffects = 0;
+	m_csh_cf[0][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_COLON].dwEffects = 0;
+	m_csh_cf[0][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_BRACE].dwEffects = 0;
+	m_csh_cf[0][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[0][COLOR_BRACKET].dwEffects = 0;
+	m_csh_cf[0][COLOR_SYMBOL].crTextColor =            RGB( 20, 20,  0); m_csh_cf[0][COLOR_SYMBOL].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_DESIGNNAME].crTextColor =        RGB( 50,  0,  0); m_csh_cf[0][COLOR_DESIGNNAME].dwEffects = 0;
+	m_csh_cf[0][COLOR_STYLENAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[0][COLOR_STYLENAME].dwEffects = 0;
+	m_csh_cf[0][COLOR_COLORNAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[0][COLOR_COLORNAME].dwEffects = 0;
+	m_csh_cf[0][COLOR_ENTITYNAME].crTextColor =        RGB(  0, 50,  0); m_csh_cf[0][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[0][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[0][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRVALUE].dwEffects = 0;
+	m_csh_cf[0][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,  0); m_csh_cf[0][COLOR_COLORDEF].dwEffects = 0;
+	m_csh_cf[0][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[0][COLOR_LABEL_TEXT].dwEffects = 0;
+	m_csh_cf[0][COLOR_LABEL_ESCAPE].crTextColor =      RGB(  0,  0,  0); m_csh_cf[0][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[0][COLOR_ERROR].dwEffects = 0;
+	m_csh_cf[0][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[0][COLOR_COMMENT].dwEffects = CFM_ITALIC;
+	m_csh_cf[0][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[0][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
+
+	//CSH_SCHEME ==1 is the Standard one
+	m_csh_cf[1][COLOR_KEYWORD].crTextColor =           RGB(128,128,  0); m_csh_cf[1][COLOR_KEYWORD].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_ATTRNAME].crTextColor =          RGB(128,128,  0); m_csh_cf[1][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_OPTIONNAME].crTextColor =        RGB(128,128,  0); m_csh_cf[1][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_EQUAL].dwEffects = 0;
+	m_csh_cf[1][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_SEMICOLON].dwEffects = 0;
+	m_csh_cf[1][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_COLON].dwEffects = 0;
+	m_csh_cf[1][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_BRACE].dwEffects = 0;
+	m_csh_cf[1][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[1][COLOR_BRACKET].dwEffects = 0;
+	m_csh_cf[1][COLOR_SYMBOL].crTextColor =            RGB(255,  0,  0); m_csh_cf[1][COLOR_SYMBOL].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_DESIGNNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[1][COLOR_DESIGNNAME].dwEffects = 0;
+	m_csh_cf[1][COLOR_STYLENAME].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_STYLENAME].dwEffects = 0;
+	m_csh_cf[1][COLOR_COLORNAME].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_COLORNAME].dwEffects = 0;
+	m_csh_cf[1][COLOR_ENTITYNAME].crTextColor =        RGB(200,  0,  0); m_csh_cf[1][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(200,  0,  0); m_csh_cf[1][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[1][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,200); m_csh_cf[1][COLOR_ATTRVALUE].dwEffects = 0;
+	m_csh_cf[1][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,200); m_csh_cf[1][COLOR_COLORDEF].dwEffects = 0;
+	m_csh_cf[1][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[1][COLOR_LABEL_TEXT].dwEffects = 0;
+	m_csh_cf[1][COLOR_LABEL_ESCAPE].crTextColor =      RGB(  0,150,  0); m_csh_cf[1][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[1][COLOR_ERROR].dwEffects = CFM_ITALIC;
+	m_csh_cf[1][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[1][COLOR_COMMENT].dwEffects = CFM_ITALIC;
+	m_csh_cf[1][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[1][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
+
+	//CSH_SCHEME ==2 is the Colorful one
+	m_csh_cf[2][COLOR_KEYWORD].crTextColor =           RGB(128,128,  0); m_csh_cf[2][COLOR_KEYWORD].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_ATTRNAME].crTextColor =          RGB(128,128,  0); m_csh_cf[2][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_OPTIONNAME].crTextColor =        RGB(128,128,  0); m_csh_cf[2][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_EQUAL].dwEffects = 0;
+	m_csh_cf[2][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[2][COLOR_SEMICOLON].dwEffects = 0;
+	m_csh_cf[2][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_COLON].dwEffects = 0;
+	m_csh_cf[2][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_BRACE].dwEffects = 0;
+	m_csh_cf[2][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[2][COLOR_BRACKET].dwEffects = 0;
+	m_csh_cf[2][COLOR_SYMBOL].crTextColor =            RGB(  0,128,128); m_csh_cf[2][COLOR_SYMBOL].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_DESIGNNAME].crTextColor =        RGB(128,  0,  0); m_csh_cf[2][COLOR_DESIGNNAME].dwEffects = 0;
+	m_csh_cf[2][COLOR_STYLENAME].crTextColor =         RGB(128,  0,  0); m_csh_cf[2][COLOR_STYLENAME].dwEffects = 0;
+	m_csh_cf[2][COLOR_COLORNAME].crTextColor =         RGB(128,  0,  0); m_csh_cf[2][COLOR_COLORNAME].dwEffects = 0;
+	m_csh_cf[2][COLOR_ENTITYNAME].crTextColor =        RGB(200,  0,  0); m_csh_cf[2][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(200,  0,  0); m_csh_cf[2][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[2][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,255); m_csh_cf[2][COLOR_ATTRVALUE].dwEffects = 0;
+	m_csh_cf[2][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,255); m_csh_cf[2][COLOR_COLORDEF].dwEffects = 0;
+	m_csh_cf[2][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,200,  0); m_csh_cf[2][COLOR_LABEL_TEXT].dwEffects = 0;
+	m_csh_cf[2][COLOR_LABEL_ESCAPE].crTextColor =      RGB(255,  0,  0); m_csh_cf[2][COLOR_LABEL_ESCAPE].dwEffects = 0;
+	m_csh_cf[2][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[2][COLOR_ERROR].dwEffects = CFM_ITALIC;
+	m_csh_cf[2][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[2][COLOR_COMMENT].dwEffects = CFM_ITALIC;
+	m_csh_cf[2][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[2][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
+
+	//CSH_SCHEME ==3 is the Error oriented one
+	m_csh_cf[3][COLOR_KEYWORD].crTextColor =           RGB(  0,  0,  0); m_csh_cf[3][COLOR_KEYWORD].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_ATTRNAME].crTextColor =          RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_OPTIONNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[3][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_EQUAL].dwEffects = 0;
+	m_csh_cf[3][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[3][COLOR_SEMICOLON].dwEffects = 0;
+	m_csh_cf[3][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_COLON].dwEffects = 0;
+	m_csh_cf[3][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_BRACE].dwEffects = 0;
+	m_csh_cf[3][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[3][COLOR_BRACKET].dwEffects = 0;
+	m_csh_cf[3][COLOR_SYMBOL].crTextColor =            RGB( 20, 20,  0); m_csh_cf[3][COLOR_SYMBOL].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_DESIGNNAME].crTextColor =        RGB( 50,  0,  0); m_csh_cf[3][COLOR_DESIGNNAME].dwEffects = 0;
+	m_csh_cf[3][COLOR_STYLENAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[3][COLOR_STYLENAME].dwEffects = 0;
+	m_csh_cf[3][COLOR_COLORNAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[3][COLOR_COLORNAME].dwEffects = 0;
+	m_csh_cf[3][COLOR_ENTITYNAME].crTextColor =        RGB(  0, 50,  0); m_csh_cf[3][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[3][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[3][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRVALUE].dwEffects = 0;
+	m_csh_cf[3][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,  0); m_csh_cf[3][COLOR_COLORDEF].dwEffects = 0;
+	m_csh_cf[3][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[3][COLOR_LABEL_TEXT].dwEffects = 0;
+	m_csh_cf[3][COLOR_LABEL_ESCAPE].crTextColor =      RGB(  0,  0,  0); m_csh_cf[3][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_ERROR].crTextColor =             RGB(255,  0,  0); m_csh_cf[3][COLOR_ERROR].dwEffects = CFM_ITALIC;
+	m_csh_cf[3][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[3][COLOR_COMMENT].dwEffects = CFM_ITALIC;
+	m_csh_cf[3][COLOR_ACTIVE_ERROR].crTextColor =      RGB(255,  0,  0); m_csh_cf[3][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
+}
+
+//Read the designs from m_DesignDir, display a modal dialog if there is a problem.
+//If no problem, update m_ChartSourcePreamble and return true
+bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
+{
+	char buff[1024]; 
+	GetModuleFileName(NULL, buff, 1024);
+	std::string dir(buff);
+	int pos = dir.find_last_of('\\');
+	ASSERT(pos!=std::string::npos);
+	CString designlib_filename = dir.substr(0,pos).append("\\").append(fileName).c_str();
+
+	CString preamble;
+	CString msg;
+	CFileFind finder;
+	bool errors = false;
+	bool bFound = finder.FindFile(designlib_filename);
+	if (bFound) m_SetOfDesigns.Empty();
+	while (bFound) {
+		bFound = finder.FindNextFile();
+		bool designlib_pedantic = true;
+		CChartData data;
+		if (data.Load(finder.GetFilePath(), false)) {
+			unsigned num = data.GetErrorNum(true);
+			if (num) {
+				msg.Append("Problems in design file: ");
+				msg.Append(finder.GetFileName());
+				msg.Append("\n");
+				for (int i=0; i<num; i++) {
+					msg.Append(data.GetErrorText(i, true));
+					msg.Append("\n");
+				}
+				errors = true;
+			}
+			preamble.Append(data.GetText());
+			if (m_SetOfDesigns.GetLength()>0) m_SetOfDesigns.Append(" ");
+			m_SetOfDesigns.Append(data.GetDesigns());
+		}
+	}
+	if (msg.GetLength()>0 && reportProblem)
+		MessageBox(NULL, msg, "Msc-generator", MB_OK);
+	if (preamble.GetLength()>0) 
+		m_ChartSourcePreamble = preamble;
+	else 
+		m_ChartSourcePreamble = ";\n";
+	return !errors;
+}
+

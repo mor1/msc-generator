@@ -58,7 +58,8 @@ typedef enum
     MSC_COMMAND_ENTITY,
     MSC_COMMAND_NEWPAGE,
     MSC_COMMAND_NEWBACKGROUND,
-    MSC_COMMAND_MARK
+    MSC_COMMAND_MARK,
+    MSC_COMMAND_EMPTY
 } MscArcType;
 
 //General gap between boxes, etc. In pos space, will be fed into XCoord().
@@ -574,6 +575,15 @@ class CommandMark : public ArcCommand
         double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
 };
 
+class CommandEmpty : public ArcCommand
+{
+        Label parsed_label;
+    public:
+        CommandEmpty(Msc *msc);
+        virtual void Width(EntityDistanceMap &distances);
+        double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
+};
+
 /////////////////////////////////////////////////////////////////////
 
 class Msc : public MscDrawer {
@@ -659,11 +669,12 @@ public:
 
     void CalculateWidthHeight(void);
     void PostHeightProcess(void);
-    void Draw(void);
+    void Draw(bool pageBreaks);
     void DrawCopyrightText(int page=-1);
+    void DrawPageBreaks();
 
     void ParseText(const char *input, const char *filename);
-    void CompleteParse(OutputType);
+    void CompleteParse(OutputType, bool avoidEmpty);
     void DrawToOutput(OutputType, const string &);
 };
 

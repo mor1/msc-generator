@@ -8,7 +8,6 @@
 // Microsoft Foundation Classes product.
 
 #pragma once
-#include "MscGenDoc.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // CMiniEditor window
@@ -28,7 +27,7 @@ protected:
 // Implementation
 public:
 	virtual ~CEditorBar();
-	void UpdateCsh(CMscGenDoc *);
+	void UpdateCsh(bool force = false);
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -37,5 +36,7 @@ protected:
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
+
+	BOOL ShowWindow(int nCmdShow);
 };
 

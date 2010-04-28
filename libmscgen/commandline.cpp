@@ -102,6 +102,8 @@ int do_main(const std::list<std::string> &args, const char *designs)
     string ss;
 
     Msc msc;
+    msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
+                        "http://msc-generator.sourceforge.net";
 
     const file_line opt_pos(msc.current_file,0,0);
     bool show_usage = false;
@@ -227,27 +229,26 @@ int do_main(const std::list<std::string> &args, const char *designs)
     if (oOutputFile == "") {
         if (oInputFile == "" || oInputFile == "-")
             oOutputFile = "mscgen_out";
-        else {
+        else
             oOutputFile = oInputFile;
-            size_t dot=oInputFile.find_last_of('.');
-            size_t dash=oInputFile.find_last_of("/\\");
-            //Remove extension, if any and not only an extension
-            if (dot!=oInputFile.npos && dot!=0 &&
-                (dash==oInputFile.npos || dash<dot))
-                oOutputFile.erase(dot);
-            //oOutputFile.erase(oOutputFile.find_last_of("."));
-	    switch (oOutType) {
-            case MscDrawer::PNG:
-    	        oOutputFile.append(".png"); break;
-            case MscDrawer::EPS:
-    	        oOutputFile.append(".eps"); break;
-            case MscDrawer::PDF:
-    	        oOutputFile.append(".pdf"); break;
-            case MscDrawer::SVG:
-    	        oOutputFile.append(".svg"); break;
-            default:
-                assert(0);
-            }
+        size_t dot=oInputFile.find_last_of('.');
+        size_t dash=oInputFile.find_last_of("/\\");
+        //Remove extension, if any and not only an extension
+        if (dot!=oInputFile.npos && dot!=0 &&
+            (dash==oInputFile.npos || dash<dot))
+            oOutputFile.erase(dot);
+        //oOutputFile.erase(oOutputFile.find_last_of("."));
+        switch (oOutType) {
+        case MscDrawer::PNG:
+            oOutputFile.append(".png"); break;
+        case MscDrawer::EPS:
+            oOutputFile.append(".eps"); break;
+        case MscDrawer::PDF:
+            oOutputFile.append(".pdf"); break;
+        case MscDrawer::SVG:
+            oOutputFile.append(".svg"); break;
+        default:
+            assert(0);
         }
     }
 
@@ -282,10 +283,11 @@ int do_main(const std::list<std::string> &args, const char *designs)
     msc.ParseForCSH(input, strlen(input));
     msc.ParseText(input, oInputFile.c_str());
     free(input);
-    msc.CompleteParse(oOutType);
+    msc.CompleteParse(oOutType, true);
     std::cerr << msc.Error.Print(oWarning);
     //Now cycle through pages and write them to individual files
     msc.DrawToOutput(oOutType, oOutputFile);
+
     std::cerr << "Success." << std::endl;
     if (show_usage) usage();
     return EXIT_SUCCESS;

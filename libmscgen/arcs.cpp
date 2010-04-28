@@ -313,7 +313,7 @@ double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, do
         } else {
             chart->ClipRectangle(XY(dx,0), XY(chart->totalWidth, chart->totalHeight));
             chart->rectangle(XY(0, y), XY(dx,y)+wh, style.line);
-			chart->UnClip();
+            chart->UnClip();
         }
 
         style.arrow.Draw(XY(dx, y+2*YSize), false, isBidir(), MSC_ARROW_END, chart);
@@ -1595,22 +1595,22 @@ void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, int &number
 
 void ArcDivider::Width(EntityDistanceMap &distances)
 {
-	if (!valid) return;
-	if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
-		return;
-	const unsigned lside_index = (*chart->Entities.Find_by_Name(LSIDE_ENT_STR))->index;
-	const unsigned rside_index = (*chart->Entities.Find_by_Name(RSIDE_ENT_STR))->index;
-	//Get marging from chart edge
-	double margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
-	//convert it to a margin from lside and rside
-	if (chart->hscale>0)
-		margin -= chart->XCoord(MARGIN);
-	else
-		margin -= chart->XCoord(MARGIN_HSCALE_AUTO);
-	//calculate space requirement between lside and rside
-	const double width = 2*margin + parsed_label.getTextWidthHeight().x;
-	if (width>0)
-		distances.Insert(lside_index, rside_index, width);
+    if (!valid) return;
+    if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
+        return;
+    const unsigned lside_index = (*chart->Entities.Find_by_Name(LSIDE_ENT_STR))->index;
+    const unsigned rside_index = (*chart->Entities.Find_by_Name(RSIDE_ENT_STR))->index;
+    //Get marging from chart edge
+    double margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
+    //convert it to a margin from lside and rside
+    if (chart->hscale>0)
+        margin -= chart->XCoord(MARGIN);
+    else
+        margin -= chart->XCoord(MARGIN_HSCALE_AUTO);
+    //calculate space requirement between lside and rside
+    const double width = 2*margin + parsed_label.getTextWidthHeight().x;
+    if (width>0)
+        distances.Insert(lside_index, rside_index, width);
 }
 
 
@@ -1942,3 +1942,57 @@ double CommandMark::DrawHeight(double y, Geometry &g,
     return 0;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+
+#define EMPTY_MARGIN_X 50
+#define EMPTY_MARGIN_Y 5
+
+CommandEmpty::CommandEmpty(Msc *msc)
+: ArcCommand(MSC_COMMAND_EMPTY, file_line(), msc), parsed_label(msc)
+{
+    StringFormat format;
+    format.Apply("\\pc\\mu(10)\\md(10)\\ml(10)\\mr(10)\\c(255,255,255)\\b\\i");
+    parsed_label.Set(string("\\i\\bEmpty chart"), format);
+}
+
+void CommandEmpty::Width(EntityDistanceMap &distances)
+{
+    if (!valid) return;
+    const unsigned lside_index = (*chart->Entities.Find_by_Name(LSIDE_ENT_STR))->index;
+    const unsigned rside_index = (*chart->Entities.Find_by_Name(RSIDE_ENT_STR))->index;
+    const double width = parsed_label.getTextWidthHeight().x + 2*EMPTY_MARGIN_X;
+    distances.Insert(lside_index, rside_index, width);
+}
+
+double CommandEmpty::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
+{
+    if (!valid) return 0;
+    const double width  = parsed_label.getTextWidthHeight().x;
+    const double height = parsed_label.getTextWidthHeight().y;
+    if (draw) {
+        MscLineAttr line;
+        line.width.second = 3;
+        line.radius.second = 10;
+
+        MscFillAttr fill;
+        fill.color.second = MscColorType(0,0,128);
+        fill.gradient.second = GRADIENT_BUTTON;
+
+        MscShadowAttr shadow;
+        shadow.offset.second = 5;
+        shadow.blur.second = 5;
+
+        chart->shadow(XY((chart->totalWidth-width)/2 , y+EMPTY_MARGIN_Y),
+                      XY((chart->totalWidth+width)/2 , y+EMPTY_MARGIN_Y+height),
+                      shadow, line.radius.second);
+        chart->filledRectangle(XY((chart->totalWidth-width)/2 , y+EMPTY_MARGIN_Y),
+                               XY((chart->totalWidth+width)/2 , y+EMPTY_MARGIN_Y+height),
+                               fill, line.radius.second);
+        chart->rectangle(XY((chart->totalWidth-width)/2 , y+EMPTY_MARGIN_Y),
+                         XY((chart->totalWidth+width)/2 , y+EMPTY_MARGIN_Y+height), line);
+    }
+    parsed_label.DrawCovers((chart->totalWidth-width)/2,
+                            (chart->totalWidth+width)/2,
+                            y+EMPTY_MARGIN_Y, g.cover, draw);
+    return height + EMPTY_MARGIN_Y*2;
+}

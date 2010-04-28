@@ -146,10 +146,9 @@ typedef union YYSTYPE
     AttributeList    *attriblist;
     VertXPos         *vertxpos;
     std::list<string>*stringlist;
-    unsigned long     linenum;
 }
 /* Line 1489 of yacc.c.  */
-#line 153 "language.h"
+#line 152 "language.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

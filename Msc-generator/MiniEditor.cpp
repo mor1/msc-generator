@@ -9,6 +9,7 @@
 
 #include "stdafx.h"
 #include "Msc-generator.h"
+#include "ChartData.h"
 #include "MiniEditor.h"
 
 #ifdef _DEBUG
@@ -96,16 +97,16 @@ void CEditorBar::OnSetFocus(CWnd* pOldWnd)
 	m_wndEditor.SetFocus();
 }
 
-void CEditorBar::UpdateCsh(CMscGenDoc *pDoc)
+void CEditorBar::UpdateCsh(bool force)
 {
-	if (pDoc == NULL) return;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//Check if Color Syntax Highlghting is enabled
+	if (!pApp->m_bCsh && !force) return;
 	CString text;
 	m_wndEditor.GetWindowText(text);
 	RemoveCRLF(text);
-	CString dummy;
-	bool dummy2;
-	CChartData data(dummy2, dummy, dummy);
-	data.Set(text);
+	CChartData data(text);
 	const MscCshListType v(data.GetCsh());
 
 	m_wndEditor.SetRedraw(false);
@@ -117,13 +118,18 @@ void CEditorBar::UpdateCsh(CMscGenDoc *pDoc)
 	::SendMessage(m_wndEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 	CHARRANGE cr;
 	m_wndEditor.GetSel(cr);
+	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
+	const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
+	const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
 
 	m_wndEditor.SetSel(0,-1);
-	m_wndEditor.SetSelectionCharFormat(pDoc->m_csh_cf[COLOR_NORMAL]);
-	for (MscCshListType::const_iterator i=v.begin(); i!=v.end(); i++) {
-		m_wndEditor.SetSel(i->first_pos-1, i->last_pos);
-		m_wndEditor.SetSelectionCharFormat(pDoc->m_csh_cf[i->color]);
-	}
+	m_wndEditor.SetSelectionCharFormat(scheme[COLOR_NORMAL]);
+	if (pApp->m_bCsh)
+		for (MscCshListType::const_iterator i=v.begin(); i!=v.end(); i++) 
+			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
+				m_wndEditor.SetSel(i->first_pos-1, i->last_pos);
+				m_wndEditor.SetSelectionCharFormat(scheme[i->color]);
+			}
 	m_wndEditor.SetSel(cr);
 	::SendMessage(m_wndEditor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
@@ -142,8 +148,11 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	if (hWndCtrl != m_wndEditor) return CDockablePane::OnCommand(wParam, lParam);
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
 	CFrameWnd *pParent = dynamic_cast<CFrameWnd *>(GetParent());
-	if (pParent)
-		if (!m_bCshUpdateInProgress) 
-			UpdateCsh(dynamic_cast<CMscGenDoc*>(pParent->GetActiveDocument()));
+	if (pParent && !m_bCshUpdateInProgress) UpdateCsh();
 	return TRUE;
+}
+
+BOOL CEditorBar::ShowWindow(int nCmdShow)
+{
+	return CDockablePane::ShowWindow(nCmdShow);
 }

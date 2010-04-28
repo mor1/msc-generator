@@ -21,7 +21,6 @@
 #define IDR_MAINFRAME_256               129
 #define IDR_TOOLBAR_MAINFRAME_256       129
 #define IDR_SigChartTYPE                130
-#define IDD_DIALOG1                     131
 #define IDD_DIALOG_OPTIONS              132
 #define IDD_PROGRESSDIALOG              135
 #define IDD_ABOUTBOX                    136
@@ -51,6 +50,14 @@
 #define IDC_RADIO3                      1006
 #define IDC_EDIT_DEFAULT_TEXT           1007
 #define IDC_OUTPUT_LIST                 1008
+#define IDC_CHECK_WARNINGS2             1008
+#define IDC_CHECK_ALWAYSOPEN            1008
+#define IDC_CHECK_PB_EDITING            1009
+#define IDC_CHECK_PB_EMBEDDED           1010
+#define IDC_CHECK_PB_EXPORTED           1011
+#define IDC_CHECK_CSH                   1011
+#define IDC_COMBO1                      1013
+#define IDC_COMBO_CSH                   1013
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
@@ -89,9 +96,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        312
+#define _APS_NEXT_RESOURCE_VALUE        313
 #define _APS_NEXT_COMMAND_VALUE         32826
-#define _APS_NEXT_CONTROL_VALUE         1002
+#define _APS_NEXT_CONTROL_VALUE         1014
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif
