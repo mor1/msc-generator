@@ -56,6 +56,7 @@
 #define IDC_CHECK_PB_EMBEDDED           1010
 #define IDC_CHECK_PB_EXPORTED           1011
 #define IDC_CHECK_CSH                   1011
+#define IDC_RADIO4                      1012
 #define IDC_COMBO1                      1013
 #define IDC_COMBO_CSH                   1013
 #define ID_CANCEL_EDIT_SRVR             32769

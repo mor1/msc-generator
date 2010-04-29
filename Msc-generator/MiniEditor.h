@@ -22,11 +22,13 @@ public:
 	CFont m_Font;
 	CRichEditCtrl m_wndEditor;
 	bool m_bCshUpdateInProgress;
+	bool m_modified;
 protected:
 
 // Implementation
 public:
 	virtual ~CEditorBar();
+	void UpdateText(const char *text);
 	void UpdateCsh(bool force = false);
 
 protected:

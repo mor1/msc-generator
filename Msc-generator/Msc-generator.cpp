@@ -99,7 +99,7 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
 	virtual BOOL OnInitDialog();
-	afx_msg void OnBnClickedTextEditorRadio();
+	afx_msg void OnBnClicked();
 
 	DECLARE_MESSAGE_MAP()
 public:
@@ -114,7 +114,6 @@ public:
 	BOOL m_bPB_Embedded;
 	BOOL m_bAlwaysOpen;
 	BOOL m_bCsh;
-	afx_msg void OnBnClickedCheckCsh();
 	int m_nCshScheme;
 };
 
@@ -158,34 +157,31 @@ void COptionDlg::DoDataExchange(CDataExchange* pDX)
 BOOL COptionDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
-	GetDlgItem(IDC_EDIT1)->EnableWindow(m_TextEditorRadioButtons==2);
-	GetDlgItem(IDC_EDIT2)->EnableWindow(m_TextEditorRadioButtons==2);
-	CFileFind finder;
-	GetDlgItem(IDC_RADIO2)->EnableWindow(m_bNppExists);
-	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_bCsh);
-//	((CComboBox*)GetDlgItem(IDC_COMBO_CSH))->SetMinVisibleItems(CSH_SCHEME_MAX);
+	GetDlgItem(IDC_EDIT1)->EnableWindow(m_TextEditorRadioButtons==3);
+	GetDlgItem(IDC_EDIT2)->EnableWindow(m_TextEditorRadioButtons==3);
+	GetDlgItem(IDC_RADIO3)->EnableWindow(m_bNppExists);
+	GetDlgItem(IDC_CHECK_CSH)->EnableWindow(m_TextEditorRadioButtons==0);
+	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_TextEditorRadioButtons==0 && m_bCsh);
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
-void COptionDlg::OnBnClickedTextEditorRadio()
+void COptionDlg::OnBnClicked()
 {
-	bool otherSet = ((CButton*)this->GetDlgItem(IDC_RADIO3))->GetCheck();
+	bool otherSet = ((CButton*)this->GetDlgItem(IDC_RADIO4))->GetCheck();
 	GetDlgItem(IDC_EDIT1)->EnableWindow(otherSet);
 	GetDlgItem(IDC_EDIT2)->EnableWindow(otherSet);
-}
-
-void COptionDlg::OnBnClickedCheckCsh()
-{
+	bool internalSet = ((CButton*)this->GetDlgItem(IDC_RADIO1))->GetCheck();
+	GetDlgItem(IDC_CHECK_CSH)->EnableWindow(internalSet);
 	bool cshSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH))->GetCheck();
-	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(cshSet);
+	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(internalSet && cshSet);
 }
-
 
 BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
-	ON_BN_CLICKED(IDC_RADIO1, &COptionDlg::OnBnClickedTextEditorRadio)
-	ON_BN_CLICKED(IDC_RADIO2, &COptionDlg::OnBnClickedTextEditorRadio)
-	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClickedTextEditorRadio)
-	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClickedCheckCsh)
+	ON_BN_CLICKED(IDC_RADIO1, &COptionDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_RADIO2, &COptionDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_RADIO4, &COptionDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClicked)
 END_MESSAGE_MAP()
 
 // CMscGenApp
@@ -456,12 +452,18 @@ void CMscGenApp::OnEditPreferences()
 
 	switch (m_iTextEditorType) {
 		default:
-		case NOTEPAD: optionDlg.m_TextEditorRadioButtons = 0; break;
-		case NPP: optionDlg.m_TextEditorRadioButtons = m_NppPath.GetLength()?1:0; break;
-		case OTHER: optionDlg.m_TextEditorRadioButtons = 2; break;
+		case INTERNAL: optionDlg.m_TextEditorRadioButtons = 0; break;
+		case NOTEPAD: optionDlg.m_TextEditorRadioButtons = 1; break;
+		case NPP: optionDlg.m_TextEditorRadioButtons = m_NppPath.GetLength()?2:0; break;
+		case OTHER: optionDlg.m_TextEditorRadioButtons = 3; break;
 	}
 	if (optionDlg.DoModal() == IDOK) {
-		bool bRestartEditor = false;
+		if (optionDlg.m_DefaultText != m_DefaultText) {
+			m_DefaultText = optionDlg.m_DefaultText;
+			EnsureCRLF(m_DefaultText);
+			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
+		}
+
 		bool recompile = (m_Pedantic != (bool)optionDlg.m_Pedantic) ||
 			(m_bPB_Editing != optionDlg.m_bPB_Editing) ||
 			(m_bPB_Embedded != optionDlg.m_bPB_Embedded);
@@ -475,17 +477,22 @@ void CMscGenApp::OnEditPreferences()
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bCsh = optionDlg.m_bCsh);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_nCshScheme = optionDlg.m_nCshScheme);
 
+		bool bRestartEditor = false;
 		EEditorType temp;
 		switch (optionDlg.m_TextEditorRadioButtons) {
 			default:
-			case 0: temp = NOTEPAD; break;
-			case 1: temp = m_NppPath.GetLength()?NPP:NOTEPAD; break;
-			case 2: temp = OTHER; break;
+			case 0: temp = INTERNAL; break;
+			case 1: temp = NOTEPAD; break;
+			case 2: temp = m_NppPath.GetLength()?NPP:NOTEPAD; break;
+			case 3: temp = OTHER; break;
 		}
 		if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
 			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
 			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, m_sStartTextEditor);
-			if (temp==OTHER) bRestartEditor=true;
+			if (temp==OTHER && pDoc->m_EditorProcessId) {
+				bRestartEditor=true;
+				pDoc->StopEditor(STOPEDITOR_WAIT, false);
+			}
 		}
 		if (m_sJumpToLine != optionDlg.m_TextEditorJumpToLineCommand) {
 			m_sJumpToLine = optionDlg.m_TextEditorJumpToLineCommand;
@@ -501,20 +508,15 @@ void CMscGenApp::OnEditPreferences()
 					m_sJumpToLine = "\"" +m_NppPath+ "\" -n%l -nosession %n";
 					break;
 				case NOTEPAD:
-				default:
 					m_sStartTextEditor = "Notepad.exe %n";
 					m_sJumpToLine = "";
 					break;
+				default:
+				case INTERNAL:
 				case OTHER:
 					break; //values already set by user
 			}
 		}
-		if (optionDlg.m_DefaultText != m_DefaultText) {
-			m_DefaultText = optionDlg.m_DefaultText;
-			EnsureCRLF(m_DefaultText);
-			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
-		}
-
 		if (bRestartEditor) 
 			pDoc->RestartEditor(STOPEDITOR_WAIT);
 
@@ -546,7 +548,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_nCshScheme   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
 
-	m_iTextEditorType = EEditorType(GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, NOTEPAD));
+	m_iTextEditorType = EEditorType(GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, INTERNAL));
 	m_NppPath = "C:\\Program Files\\Notepad++\\notepad++.exe";
 	CFileFind finder;
 	if (!finder.FindFile(m_NppPath))
@@ -561,10 +563,11 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 			}
 			//fallback if notepad++ not found
 		case NOTEPAD:
-		default:
 			m_sStartTextEditor = "Notepad.exe %n";
 			m_sJumpToLine = "";
 			break;
+		default:
+		case INTERNAL:
 		case OTHER:
 			m_sStartTextEditor = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, "Notepad.exe %n");
 			m_sJumpToLine = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_JUMPTOLINE, "");
@@ -591,7 +594,9 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	//CSH_SCHEME ==0 is the Minimal one
 	m_csh_cf[0][COLOR_KEYWORD].crTextColor =           RGB(  0,  0,  0); m_csh_cf[0][COLOR_KEYWORD].dwEffects = CFM_BOLD;
 	m_csh_cf[0][COLOR_ATTRNAME].crTextColor =          RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[0][COLOR_OPTIONNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[0][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(  0,  0,  0); m_csh_cf[0][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[0][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_EQUAL].dwEffects = 0;
 	m_csh_cf[0][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[0][COLOR_SEMICOLON].dwEffects = 0;
 	m_csh_cf[0][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_COLON].dwEffects = 0;
@@ -602,7 +607,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_csh_cf[0][COLOR_STYLENAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[0][COLOR_STYLENAME].dwEffects = 0;
 	m_csh_cf[0][COLOR_COLORNAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[0][COLOR_COLORNAME].dwEffects = 0;
 	m_csh_cf[0][COLOR_ENTITYNAME].crTextColor =        RGB(  0, 50,  0); m_csh_cf[0][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[0][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[0][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[0][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD;
 	m_csh_cf[0][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRVALUE].dwEffects = 0;
 	m_csh_cf[0][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,  0); m_csh_cf[0][COLOR_COLORDEF].dwEffects = 0;
 	m_csh_cf[0][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[0][COLOR_LABEL_TEXT].dwEffects = 0;
@@ -614,7 +619,9 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	//CSH_SCHEME ==1 is the Standard one
 	m_csh_cf[1][COLOR_KEYWORD].crTextColor =           RGB(128,128,  0); m_csh_cf[1][COLOR_KEYWORD].dwEffects = CFM_BOLD;
 	m_csh_cf[1][COLOR_ATTRNAME].crTextColor =          RGB(128,128,  0); m_csh_cf[1][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(128,128,  0); m_csh_cf[1][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[1][COLOR_OPTIONNAME].crTextColor =        RGB(128,128,  0); m_csh_cf[1][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[1][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(128,128,  0); m_csh_cf[1][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[1][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_EQUAL].dwEffects = 0;
 	m_csh_cf[1][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_SEMICOLON].dwEffects = 0;
 	m_csh_cf[1][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_COLON].dwEffects = 0;
@@ -630,14 +637,16 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_csh_cf[1][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,200); m_csh_cf[1][COLOR_COLORDEF].dwEffects = 0;
 	m_csh_cf[1][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[1][COLOR_LABEL_TEXT].dwEffects = 0;
 	m_csh_cf[1][COLOR_LABEL_ESCAPE].crTextColor =      RGB(  0,150,  0); m_csh_cf[1][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[1][COLOR_ERROR].dwEffects = CFM_ITALIC;
+	m_csh_cf[1][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[1][COLOR_ERROR].dwEffects = 0;
 	m_csh_cf[1][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[1][COLOR_COMMENT].dwEffects = CFM_ITALIC;
 	m_csh_cf[1][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[1][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
 
 	//CSH_SCHEME ==2 is the Colorful one
 	m_csh_cf[2][COLOR_KEYWORD].crTextColor =           RGB(128,128,  0); m_csh_cf[2][COLOR_KEYWORD].dwEffects = CFM_BOLD;
 	m_csh_cf[2][COLOR_ATTRNAME].crTextColor =          RGB(128,128,  0); m_csh_cf[2][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(128,128,  0); m_csh_cf[2][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[2][COLOR_OPTIONNAME].crTextColor =        RGB(128,128,  0); m_csh_cf[2][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(128,128,  0); m_csh_cf[2][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[2][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_EQUAL].dwEffects = 0;
 	m_csh_cf[2][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[2][COLOR_SEMICOLON].dwEffects = 0;
 	m_csh_cf[2][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_COLON].dwEffects = 0;
@@ -652,15 +661,17 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_csh_cf[2][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,255); m_csh_cf[2][COLOR_ATTRVALUE].dwEffects = 0;
 	m_csh_cf[2][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,255); m_csh_cf[2][COLOR_COLORDEF].dwEffects = 0;
 	m_csh_cf[2][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,200,  0); m_csh_cf[2][COLOR_LABEL_TEXT].dwEffects = 0;
-	m_csh_cf[2][COLOR_LABEL_ESCAPE].crTextColor =      RGB(255,  0,  0); m_csh_cf[2][COLOR_LABEL_ESCAPE].dwEffects = 0;
-	m_csh_cf[2][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[2][COLOR_ERROR].dwEffects = CFM_ITALIC;
+	m_csh_cf[2][COLOR_LABEL_ESCAPE].crTextColor =      RGB(255,  0,  0); m_csh_cf[2][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
+	m_csh_cf[2][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[2][COLOR_ERROR].dwEffects = 0;
 	m_csh_cf[2][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[2][COLOR_COMMENT].dwEffects = CFM_ITALIC;
 	m_csh_cf[2][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[2][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
 
 	//CSH_SCHEME ==3 is the Error oriented one
 	m_csh_cf[3][COLOR_KEYWORD].crTextColor =           RGB(  0,  0,  0); m_csh_cf[3][COLOR_KEYWORD].dwEffects = CFM_BOLD;
 	m_csh_cf[3][COLOR_ATTRNAME].crTextColor =          RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[3][COLOR_OPTIONNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[3][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
+	m_csh_cf[3][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(  0,  0,  0); m_csh_cf[2][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
 	m_csh_cf[3][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_EQUAL].dwEffects = 0;
 	m_csh_cf[3][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[3][COLOR_SEMICOLON].dwEffects = 0;
 	m_csh_cf[3][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_COLON].dwEffects = 0;

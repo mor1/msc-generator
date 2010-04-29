@@ -67,7 +67,7 @@ public:
 	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
 
 	//Editor related
-	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
+	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2, INTERNAL=3} m_iTextEditorType;
 	CString m_sStartTextEditor;
 	CString m_sJumpToLine;
 	CString m_DefaultText;

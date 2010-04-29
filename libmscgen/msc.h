@@ -601,6 +601,7 @@ public:
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
     MscCshListType                CshList;
+    std::set<string>              CshEntityNames;
 
     /** Gap at the bottom of the page for lengthening entity lines */
     double chartTailGap;
@@ -629,6 +630,8 @@ public:
 
     void AddCSH(CshPos&, MscColorSyntaxType);
     void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
+    void AddCSH_AttrName(CshPos&, const char *name, MscColorSyntaxType);
+    void AddCSH_EntityName(CshPos&pos, const char *name);
     void ParseForCSH(const char *input, unsigned len);
 
     void AddStandardDesigns(void);

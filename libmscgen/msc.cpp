@@ -822,26 +822,65 @@ void Msc::AddCSH(CshPos&pos, MscColorSyntaxType i)
 
 void Msc::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
-    if (name) {
-        const char label[]="label";
-        int i = 0;
-        while (tolower(name[i]) == label[i] && label[i] && name[i]) i++;
+    if (CaseInsensitiveEqual(name, "label") ||
+        CaseInsensitiveEqual(name, "text.format")) {
+        //This is a label or text.format
+        AddCSH(pos, COLOR_LABEL_TEXT);
+        //Add escape symbols
+        StringFormat::ExtractCSH(pos.first_pos, value, *this);
+    } else {
         // No match - regular attribute value
-        if (label[i] || name[i]) {
-            AddCSH(pos, COLOR_ATTRVALUE);
-            return;
-        }
+        AddCSH(pos, COLOR_ATTRVALUE);
     }
-    //This is a label
-    AddCSH(pos, COLOR_LABEL_TEXT);
-    //Add escape symbols
-    StringFormat::ExtractCSH(pos.first_pos, value, *this);
+}
+
+const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
+"pedantic", "strict", ""};
+
+const char *const attr_names[] = {"compress", "color", "label", "number", "id",
+"pos", "relative", "show", "makeroom", "readfrom", "offset",
+"text.color", "text.ident", "ident", "text.format",
+"arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
+"arrow.endtype", "arrow.color",
+"line.color", "line.type", "line.width", "line.radius",
+"vline.color", "vline.type", "vline.width",
+"fill.color", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
+
+int find_opt_attr_name(const char *name, const char * const array[])
+{
+    for (int i=0; array[i][0]; i++)
+        switch (CaseInsensitiveBeginsWidth(array[i], name)) {
+        case 1: return 1;
+        case 2: return 2;
+        }
+    return 0;
+}
+
+void Msc::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color)
+{
+    char const *const *array;
+    if (color == COLOR_OPTIONNAME) array = opt_names;
+    if (color == COLOR_ATTRNAME) array = attr_names;
+    switch (find_opt_attr_name(name, array)) {
+    case 0: AddCSH(pos, COLOR_ERROR); return;
+    case 1: AddCSH(pos, MscColorSyntaxType(color+1)); return;
+    case 2: AddCSH(pos, color); return;
+    }
+}
+
+void Msc::AddCSH_EntityName(CshPos&pos, const char *name)
+{
+    if (CshEntityNames.insert(string(name)).second)
+        AddCSH(pos, COLOR_ENTITYNAME_FIRST);
+    else
+        AddCSH(pos, COLOR_ENTITYNAME);
 }
 
 void Msc::ParseForCSH(const char *input, unsigned len)
 {
     //initialize data struct
     CshList.clear();
+    CshEntityNames.clear();
     CshParse(*this, input, len);
 }
 

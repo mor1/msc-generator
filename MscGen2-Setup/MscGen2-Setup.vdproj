@@ -418,7 +418,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{453AC3C8-F260-4D88-832A-EC957E92FDEB}"
-        "PackageCode" = "8:{772679C9-E342-4BFC-9039-BF73289B4EED}"
+        "PackageCode" = "8:{835F246E-76C7-468C-BA7D-7B882C788411}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
@@ -458,20 +458,6 @@
                     "Transitive" = "11:FALSE"
                         "Keys"
                         {
-                            "{60EA8692-D2D5-43EB-80DC-7906BF13D6EF}:_A75A45A5102B4718BB812517FFF8A0D8"
-                            {
-                            "Name" = "8:[Manufacturer]"
-                            "Condition" = "8:"
-                            "AlwaysCreate" = "11:FALSE"
-                            "DeleteAtUninstall" = "11:FALSE"
-                            "Transitive" = "11:FALSE"
-                                "Keys"
-                                {
-                                }
-                                "Values"
-                                {
-                                }
-                            }
                         }
                         "Values"
                         {
@@ -522,14 +508,6 @@
                                                 }
                                                 "Values"
                                                 {
-                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_35B3484DCB374F47BD50718419B663C8"
-                                                    {
-                                                    "Name" = "8:DefaultText"
-                                                    "Condition" = "8:"
-                                                    "Transitive" = "11:FALSE"
-                                                    "ValueTypes" = "3:1"
-                                                    "Value" = "8:"
-                                                    }
                                                     "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_51279055C00947D3B0E91D5862DB341C"
                                                     {
                                                     "Name" = "8:"
@@ -538,45 +516,13 @@
                                                     "ValueTypes" = "3:1"
                                                     "Value" = "8:"
                                                     }
-                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_6A82CD2FAA1F4B588C262268F177400A"
+                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_F28A9DE1AC1B446EAF374D32833E9C5C"
                                                     {
-                                                    "Name" = "8:TextEditor"
-                                                    "Condition" = "8:NPPEXISTS=\"\""
-                                                    "Transitive" = "11:FALSE"
-                                                    "ValueTypes" = "3:1"
-                                                    "Value" = "8:C:\\Windows\\Notepad.exe %n"
-                                                    }
-                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_7235C8637EF242FF94494BBE26E35A1E"
-                                                    {
-                                                    "Name" = "8:Warnings"
-                                                    "Condition" = "8:"
-                                                    "Transitive" = "11:FALSE"
-                                                    "ValueTypes" = "3:3"
-                                                    "Value" = "3:1"
-                                                    }
-                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_7B3C8DE2E6E642C1AEBBBF1FD0D28EEA"
-                                                    {
-                                                    "Name" = "8:Pedantic"
+                                                    "Name" = "8:TextEditorType"
                                                     "Condition" = "8:"
                                                     "Transitive" = "11:FALSE"
                                                     "ValueTypes" = "3:3"
                                                     "Value" = "3:0"
-                                                    }
-                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_ED6DF0389BF94D5C85A6DE660D2DF182"
-                                                    {
-                                                    "Name" = "8:JumpToLineArguments"
-                                                    "Condition" = "8:NPPEXISTS<>\"\""
-                                                    "Transitive" = "11:FALSE"
-                                                    "ValueTypes" = "3:1"
-                                                    "Value" = "8:-n%l -nosession %n"
-                                                    }
-                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_FA60F40667A44D0B9CC365067AC1A91E"
-                                                    {
-                                                    "Name" = "8:TextEditor"
-                                                    "Condition" = "8:NPPEXISTS<>\"\""
-                                                    "Transitive" = "11:FALSE"
-                                                    "ValueTypes" = "3:1"
-                                                    "Value" = "8:\"C:\\Program Files\\Notepad++\\notepad++.exe\" -multiInst -nosession %n"
                                                     }
                                                 }
                                             }
@@ -606,7 +552,7 @@
                     "Name" = "8:Mscgen.Chart"
                     "Condition" = "8:"
                     "AlwaysCreate" = "11:FALSE"
-                    "DeleteAtUninstall" = "11:FALSE"
+                    "DeleteAtUninstall" = "11:TRUE"
                     "Transitive" = "11:FALSE"
                         "Keys"
                         {
@@ -1056,7 +1002,7 @@
                     "Name" = "8:.signalling"
                     "Condition" = "8:"
                     "AlwaysCreate" = "11:FALSE"
-                    "DeleteAtUninstall" = "11:FALSE"
+                    "DeleteAtUninstall" = "11:TRUE"
                     "Transitive" = "11:FALSE"
                         "Keys"
                         {
@@ -1087,7 +1033,7 @@
                             "Name" = "8:{453AC3C8-F260-4D88-832A-EC957E92FDEC}"
                             "Condition" = "8:"
                             "AlwaysCreate" = "11:FALSE"
-                            "DeleteAtUninstall" = "11:FALSE"
+                            "DeleteAtUninstall" = "11:TRUE"
                             "Transitive" = "11:FALSE"
                                 "Keys"
                                 {
@@ -1858,7 +1804,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_8D210BB11DE54BFF9295776C6C22707B"
             {
-            "SourcePath" = "8:..\\Msc-generator\\Release\\Msc-generator.exe"
+            "SourcePath" = "8:..\\Release\\Msc-generator.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"

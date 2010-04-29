@@ -168,11 +168,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	ASSERT(pDoc != NULL);
 	ASSERT_KINDOF(CMscGenDoc, pDoc);
-	//Copy DOC text to internal editor
-	CString text(pDoc->m_itrCurrent->GetText());
-	EnsureCRLF(text);
-	m_wndEditor.m_wndEditor.SetWindowText(text);
-	m_wndEditor.UpdateCsh(true);
+
 	pApp->FillDesignDesignCombo(pDoc->m_itrCurrent->GetDesign(), true);
 	pApp->FillDesignPageCombo(pDoc->m_pages, pDoc->m_page);
 	return TRUE;
@@ -184,7 +180,7 @@ void CInPlaceFrame::OnDestroy()
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	if (pDoc) {
 		ASSERT_KINDOF(CMscGenDoc, pDoc);
-		pDoc->StopEditor(STOPEDITOR_WAIT);
+		pDoc->StopEditor(STOPEDITOR_WAIT, false);
 	}
     COleIPFrameWndEx::OnDestroy();
 }

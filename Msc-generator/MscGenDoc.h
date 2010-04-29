@@ -69,9 +69,11 @@ public:
 	void OnUpdate(bool resetZoom=true, bool updateInternalEditor=true);
 	void StartEditor(CString = "");
 	void RestartEditor(EStopEditor force);
+	bool IsEditorRunning() const;
+	bool IsCorrectEditorRunning() const;
 	void JumpToLine(unsigned line, unsigned col);
-	bool CheckEditorAndFile(void);
-	void StopEditor(EStopEditor force);
+	bool CheckExternalEditorAndFile(void);
+	void StopEditor(EStopEditor force, bool);
 	void StartDrawingProgress();
 	void StopDrawingProgress();
 

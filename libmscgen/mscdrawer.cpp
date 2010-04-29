@@ -73,11 +73,12 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     /* Set low-level parameters for default */
     white_background = false;
     use_text_path = false;
+    use_text_path_rotated = false;
     individual_chars = false;
     fake_gradients = 0;
     fake_dash = false;
-	fake_shadows = false;
-	scale = 1.0;
+    fake_shadows = false;
+    scale = 1.0;
     fallback_resolution = 300; //irrelevant for bitmaps - no fallback for bitmaps
 
     if (ot == PNG) {
@@ -85,15 +86,16 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     }
     if (ot == EMF) {
         fake_gradients = 30;
-		fake_shadows = true;
+        fake_shadows = true;
         scale = 1;              //do 10 for better precision clipping
         fallback_resolution = 100; //300 is too much for on-screen work
     }
     if (ot == WMF) {
         individual_chars = true; //do this so that it is easier to convert to WMF
+        use_text_path_rotated = true;
         fake_dash = true;
         fake_gradients = 30;
-		fake_shadows = true;
+        fake_shadows = true;
         scale = 1;              //do 10 for better precision clipping
         fallback_resolution = 100; //300 is too much for on-screen work
     }
@@ -676,10 +678,10 @@ void MscDrawer::line(XY s, XY d, MscLineAttr line)
     _new_path();
 }
 
-void MscDrawer::text(XY xy, const string &s)
+void MscDrawer::text(XY xy, const string &s, bool isRotated)
 {
     cairo_move_to (cr, xy.x, xy.y);
-    if (use_text_path) {
+    if (use_text_path || (isRotated && use_text_path_rotated)) {
         cairo_text_path(cr, s.c_str());
         cairo_fill(cr);
         return;

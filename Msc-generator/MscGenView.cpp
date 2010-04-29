@@ -457,15 +457,15 @@ void CMscGenView::OnTimer(UINT nIDEvent)
 	//Check for a modified file (if editor saved file & closed)
 	//and for a missing editor process
 	//Timer is shut down by MscGenDoc::StopEditor, called if editor process is gone
-	pDoc->CheckEditorAndFile();
+	pDoc->CheckExternalEditorAndFile();
 }
 
 void CMscGenView::OnButtonEdittext()
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	if (pDoc->m_EditorProcessId)
-		pDoc->StopEditor(STOPEDITOR_NOWAIT);
+	if (pDoc->IsCorrectEditorRunning())
+		pDoc->StopEditor(STOPEDITOR_NOWAIT, true);
 	else
 		pDoc->StartEditor();
 }
@@ -474,7 +474,7 @@ void CMscGenView::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	pCmdUI->SetCheck(pDoc->m_EditorProcessId != 0);
+	pCmdUI->SetCheck(pDoc->IsCorrectEditorRunning());
 }
 
 //Design combo functions

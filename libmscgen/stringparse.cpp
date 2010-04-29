@@ -694,7 +694,7 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
     return 0;
 }
 
-double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy) const
+double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool isRotated) const
 {
     if (s.length()==0 || mscd==NULL) return 0;
     //Mybe we have not all fields set
@@ -716,7 +716,7 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy) const
     cairo_text_extents_t te;
     cairo_text_extents (mscd->GetContext(), s.c_str(), &te);
 	xy.x += spaceWidth(s, mscd, true);
-	mscd->text(xy, s);
+	mscd->text(xy, s, isRotated);
 
     double advance = spaceWidth(s, mscd, true) + te.x_advance + spaceWidth(s, mscd, false);
 
@@ -782,7 +782,7 @@ ParsedLine::ParsedLine(string s, MscDrawer *mscd, StringFormat &format)
     };
 };
 
-void ParsedLine::Draw(XY xy, MscDrawer *mscd) const
+void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
 {
     StringFormat format = startFormat;
     string s = line;
@@ -795,7 +795,7 @@ void ParsedLine::Draw(XY xy, MscDrawer *mscd) const
 
         if (pos==string::npos || pos == s.length()-1) {
             // if no escape remained: no ''\\' or "\\" is last char
-            format.drawFragment(s, mscd, xy);
+            format.drawFragment(s, mscd, xy, isRotated);
             return;
         }
         if (s[pos+1] == '\\') {       //escaped "\\"
@@ -813,7 +813,7 @@ void ParsedLine::Draw(XY xy, MscDrawer *mscd) const
             continue;
         }
         s.erase(pos); //s now contains the text up to the formating point
-        xy.x += format.drawFragment(s, mscd, xy);
+        xy.x += format.drawFragment(s, mscd, xy, isRotated);
         format += newFormat;
         s = t;
         pos = 0;
@@ -899,7 +899,7 @@ XY Label::getTextWidthHeight(int line) const
 };
 
 void Label::DrawCovers(double sx, double dx, double y,
-                       std::set<Block> &cover, bool draw)
+                       std::set<Block> &cover, bool draw, bool isRotated)
 {
     if (size()==0) return;
     XY xy;
@@ -918,7 +918,7 @@ void Label::DrawCovers(double sx, double dx, double y,
         }
         //Draw line of text
         if (draw)
-            at(i).Draw(xy, msc);
+            at(i).Draw(xy, msc, isRotated);
         cover.insert(Block(xy, xy+wh));
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;

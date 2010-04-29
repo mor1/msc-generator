@@ -79,7 +79,7 @@ class StringFormat {
         {return spacingBelow.first?spacingBelow.second:0;}
 
     //Draw a fragment y specifies baseline (not in cairo sense)
-    double drawFragment(const string &, MscDrawer *, XY) const;
+    double drawFragment(const string &, MscDrawer *, XY, bool isRotated) const;
 
     //This adds CSH entries to msc.
     static void ExtractCSH(int startpos, const char *text, Msc &msc);
@@ -110,7 +110,7 @@ class ParsedLine {
 
   public:
     ParsedLine(string, MscDrawer *, StringFormat &sf);
-    void Draw(XY xy, MscDrawer *) const;
+    void Draw(XY xy, MscDrawer *, bool isRotated) const;
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}
 };
@@ -132,7 +132,7 @@ public:
 
     XY getTextWidthHeight(int line=-1) const;
     void DrawCovers(double sx, double dx, double y,
-                    std::set<Block> &cover, bool draw);
+                    std::set<Block> &cover, bool draw, bool isRotated=false);
 };
 
 

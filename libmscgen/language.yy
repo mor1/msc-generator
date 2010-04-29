@@ -53,7 +53,9 @@
 #ifdef C_S_H_IS_COMPILED
 #define YYMSC_GETPOS(A) file_line()
 #define ADDCSH(A, B) msc.AddCSH(A, B)
-#define ADDCSH_ATTRVALUE(A, C, B) msc.AddCSH_AttrValue(A, C, B)
+#define ADDCSH_ATTRVALUE(A, B, C) msc.AddCSH_AttrValue(A, B, C)
+#define ADDCSH_ATTRNAME(A, B, C) msc.AddCSH_AttrName(A, B, C)
+#define ADDCSH_ENTITYNAME(A, B) msc.AddCSH_EntityName(A, B)
 #define ADDCSH_COLON_STRING(A, B)           \
     do {                                    \
     CshPos colon = (A);                     \
@@ -69,7 +71,9 @@ int isatty (int) {return 0;}
 #else
 #define YYMSC_GETPOS(A) file_line(msc.current_file, (A).first_line, (A).first_column)
 #define ADDCSH(A, B)
-#define ADDCSH_ATTRVALUE(A, C, B)
+#define ADDCSH_ATTRVALUE(A, B, C)
+#define ADDCSH_ATTRNAME(A, B, C)
+#define ADDCSH_ENTITYNAME(A, B)
 #define ADDCSH_COLON_STRING(A, B)
 #ifndef HAVE_UNISTD_H
 extern int isatty (int);
@@ -323,6 +327,15 @@ braced_arclist: scope_open arclist scope_close
         $$ = $2;
     }
 }
+            | scope_open scope_close
+{
+    if (C_S_H) {
+        ADDCSH(@1, COLOR_BRACE);
+        ADDCSH(@2, COLOR_BRACE);
+    } else {
+         $$ = new ArcList;
+    }
+}
             | scope_open arclist error scope_close
 {
     if (C_S_H) {
@@ -334,13 +347,14 @@ braced_arclist: scope_open arclist scope_close
     }
     yyerrok;
 }
-            | scope_open scope_close
+            | scope_open arclist error
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_BRACE);
-        ADDCSH(@2, COLOR_BRACE);
+        ADDCSH(@3, COLOR_ERROR);
     } else {
-         $$ = new ArcList;
+        $$ = $2;
+        //Do not pop context, as the missing scope_close would have done
     }
 };
 
@@ -386,6 +400,15 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
         $$ = $3;
     }
 }
+              |msckey TOK_OCBRACKET TOK_CCBRACKET
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_BRACE);
+        ADDCSH(@3, COLOR_BRACE);
+    } else {
+        $$ = new ArcList;
+    }
+};
               |msckey TOK_OCBRACKET arclist error TOK_CCBRACKET
 {
     if (C_S_H) {
@@ -396,6 +419,15 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
         $$ = $3;
     }
     yyerrok;
+}
+              |msckey TOK_OCBRACKET arclist error
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_BRACE);
+        ADDCSH(@4, COLOR_ERROR);
+    } else {
+        $$ = $3;
+    }
 };
 
 msckey:       TOK_MSC
@@ -423,6 +455,15 @@ complete_arc: TOK_SEMICOLON
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SEMICOLON);
+    } else {
+        $$=NULL;
+    }
+}
+              | error TOK_SEMICOLON
+{
+    if (C_S_H) {
+        ADDCSH(@1, COLOR_ERROR);
+        ADDCSH(@2, COLOR_SEMICOLON);
     } else {
         $$=NULL;
     }
@@ -654,20 +695,12 @@ optlist:     opt
     } else {
         $$ = $1;
     }
-}
-            | optlist error
-{
-    if (C_S_H) {
-        ADDCSH(@2, COLOR_ERROR);
-        break;
-    }
-    $$ = $1;
 };
 
 opt:         entity_string TOK_EQUAL TOK_BOOLEAN
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_OPTIONNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_OPTIONNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
@@ -680,7 +713,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
             | entity_string TOK_EQUAL TOK_NUMBER
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_OPTIONNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_OPTIONNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
@@ -693,7 +726,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
             | entity_string TOK_EQUAL string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_OPTIONNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_OPTIONNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH_ATTRVALUE(@3, $3, $1);
     } else {
@@ -736,20 +769,12 @@ entitylist:   entity
         break;
     }
     $$ = (EntityDefList*)(($1)->Append($3));
-}
-            | entitylist error
-{
-    if (C_S_H) {
-        ADDCSH(@2, COLOR_ERROR);
-        break;
-    }
-    $$ = $1;
 };
 
 entity:       entity_string full_arcattrlist
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
     } else {
         $$ = (new EntityDef($1, &msc))->AddAttributeList($2, &msc);
     }
@@ -758,7 +783,7 @@ entity:       entity_string full_arcattrlist
             | entity_string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
     } else {
         $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL, &msc);
     }
@@ -774,22 +799,20 @@ styledeflist: styledef
     }
 };
 
-styledef : tok_stringlist TOK_OSBRACKET arcattrlist TOK_CSBRACKET
+styledef : tok_stringlist full_arcattrlist
 {
     if (C_S_H) {
-        ADDCSH(@2, COLOR_BRACKET);
-        ADDCSH(@4, COLOR_BRACKET);
         break;
     }
     for (std::list<string>::iterator i = ($1)->begin(); i!=($1)->end(); i++) {
         MscStyle style = msc.StyleSets.top().GetStyle(*i);
-        AttributeList::iterator j=($3)->begin();
-        while (j!=($3)->end())
+        AttributeList::iterator j=($2)->begin();
+        while (j!=($2)->end())
            style.AddAttribute(**(j++), &msc);
         msc.StyleSets.top()[*i] = style;
     }
     delete($1);
-    delete($3);
+    delete($2);
 };
 
 tok_stringlist : string
@@ -853,13 +876,14 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     msc.hscale = msc.saved_hscale;
     msc.PopContext();
 }
-           |TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON error
+           |TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON error TOK_CCBRACKET
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_DESIGNNAME);
         ADDCSH(@2, COLOR_BRACE);
         ADDCSH(@4, COLOR_SEMICOLON);
         ADDCSH(@5, COLOR_ERROR);
+        ADDCSH(@6, COLOR_BRACE);
         break;
     }
     //if closing brace missing, still do the design definition
@@ -871,7 +895,7 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     design.hscale = msc.hscale;
     msc.hscale = msc.saved_hscale;
     msc.PopContext();
-}
+};
 
 
 scope_open_empty: TOK_OCBRACKET
@@ -922,7 +946,7 @@ designoptlist: designopt
 designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_OPTIONNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_OPTIONNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
@@ -934,7 +958,7 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
             | entity_string TOK_EQUAL TOK_NUMBER
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_OPTIONNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_OPTIONNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
@@ -946,7 +970,7 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
             | entity_string TOK_EQUAL string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_OPTIONNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_OPTIONNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
@@ -1092,9 +1116,9 @@ pipe_emphasis:   emphrel
 emphrel:   entity_string TOK_EMPH entity_string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = new ArcEmphasis($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3), YYMSC_GETPOS(@$), &msc);
     }
@@ -1105,7 +1129,7 @@ emphrel:   entity_string TOK_EMPH entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
     } else {
         $$ = new ArcEmphasis($1, NULL, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$), &msc);
     }
@@ -1114,7 +1138,7 @@ emphrel:   entity_string TOK_EMPH entity_string
            | entity_string TOK_EMPH
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = new ArcEmphasis($2, $1, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$), &msc);
@@ -1134,7 +1158,7 @@ vertxpos: TOK_AT entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
     } else {
         $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2);
     }
@@ -1145,7 +1169,7 @@ vertxpos: TOK_AT entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
         ADDCSH(@3, COLOR_SYMBOL);
     } else {
         $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_LEFT_SIDE);
@@ -1157,7 +1181,7 @@ vertxpos: TOK_AT entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
         ADDCSH(@3, COLOR_SYMBOL);
     } else {
         $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_RIGHT_SIDE);
@@ -1169,7 +1193,7 @@ vertxpos: TOK_AT entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
         ADDCSH(@3, COLOR_SYMBOL);
     } else {
         switch ($3) {
@@ -1200,9 +1224,9 @@ vertxpos: TOK_AT entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
         ADDCSH(@3, COLOR_SYMBOL);
-        ADDCSH(@4, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@4, $4);
     } else {
         $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_CENTER, $4);
     }
@@ -1216,9 +1240,9 @@ empharcrel_straight: TOK_EMPH | relation_to | relation_bidir;
 vertrel: entity_string empharcrel_straight entity_string vertxpos
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = new ArcVerticalArrow($2, $1, $3, $4, YYMSC_GETPOS(@$), &msc);
         delete $4;
@@ -1230,7 +1254,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
     } else {
         $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, $2, $3, YYMSC_GETPOS(@$), &msc);
         delete $3;
@@ -1240,7 +1264,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
        | entity_string empharcrel_straight vertxpos
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = new ArcVerticalArrow($2, $1, MARKER_HERE_STR, $3, YYMSC_GETPOS(@$), &msc);
@@ -1260,9 +1284,9 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
        | entity_string relation_from entity_string vertxpos
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = new ArcVerticalArrow($2, $3, $1, $4, YYMSC_GETPOS(@$), &msc);
         delete $4;
@@ -1274,7 +1298,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
     } else {
         $$ = new ArcVerticalArrow($1, $2, MARKER_HERE_STR, $3, YYMSC_GETPOS(@$), &msc);
         delete $3;
@@ -1284,7 +1308,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
        | entity_string relation_from vertxpos
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = new ArcVerticalArrow($2, MARKER_HERE_STR, $1, $3, YYMSC_GETPOS(@$), &msc);
@@ -1327,9 +1351,9 @@ arcrel:       TOK_SPECIAL_ARC
 arcrel_to:    entity_string relation_to entity_string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3), YYMSC_GETPOS(@$));
     }
@@ -1340,7 +1364,7 @@ arcrel_to:    entity_string relation_to entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
     } else {
         $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
     }
@@ -1349,7 +1373,7 @@ arcrel_to:    entity_string relation_to entity_string
             | entity_string relation_to
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), RSIDE_ENT_STR, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
@@ -1360,7 +1384,7 @@ arcrel_to:    entity_string relation_to entity_string
 {
     if (C_S_H) {
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), true, YYMSC_GETPOS(@2));
     }
@@ -1379,9 +1403,9 @@ arcrel_to:    entity_string relation_to entity_string
 arcrel_from:    entity_string relation_from entity_string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = msc.CreateArcArrow($2, $3, YYMSC_GETPOS(@3), $1, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$));
     }
@@ -1392,7 +1416,7 @@ arcrel_from:    entity_string relation_from entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
     } else {
         $$ = msc.CreateArcArrow($1, $2, YYMSC_GETPOS(@2), LSIDE_ENT_STR, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$));
     }
@@ -1401,7 +1425,7 @@ arcrel_from:    entity_string relation_from entity_string
              | entity_string relation_from
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, YYMSC_GETPOS(@2), $1, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$));
@@ -1412,7 +1436,7 @@ arcrel_from:    entity_string relation_from entity_string
 {
     if (C_S_H) {
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), false, YYMSC_GETPOS(@2));
     }
@@ -1430,9 +1454,9 @@ arcrel_from:    entity_string relation_from entity_string
 arcrel_bidir:    entity_string relation_bidir entity_string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3), YYMSC_GETPOS(@$));
     }
@@ -1443,7 +1467,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH(@2, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@2, $2);
     } else {
         $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
     }
@@ -1452,7 +1476,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
             | entity_string relation_bidir
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), RSIDE_ENT_STR, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
@@ -1463,7 +1487,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
 {
     if (C_S_H) {
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH(@3, COLOR_ENTITYNAME);
+        ADDCSH_ENTITYNAME(@3, $3);
     } else {
         $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), true, YYMSC_GETPOS(@2));
     }
@@ -1509,7 +1533,7 @@ full_arcattrlist_with_label: TOK_COLON_STRING
               | full_arcattrlist TOK_COLON_STRING
 {
     if (C_S_H) {
-        ADDCSH_COLON_STRING(@1, $2);
+        ADDCSH_COLON_STRING(@2, $2);
     } else {
         $$ = ($1)->Append(new Attribute("label", $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@2).IncCol()));
     }
@@ -1535,7 +1559,36 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
         break;
     }
     $$ = $2;
-};
+}
+                   | TOK_OSBRACKET arcattrlist error TOK_CSBRACKET
+{
+    if (C_S_H) {
+        ADDCSH(@1, COLOR_BRACKET);
+        ADDCSH(@3, COLOR_ERROR);
+        ADDCSH(@4, COLOR_BRACKET);
+        break;
+    }
+    $$ = $2;
+}
+                   | TOK_OSBRACKET error TOK_CSBRACKET
+{
+    if (C_S_H) {
+        ADDCSH(@1, COLOR_BRACKET);
+        ADDCSH(@2, COLOR_ERROR);
+        ADDCSH(@3, COLOR_BRACKET);
+        break;
+    }
+    $$ = new AttributeList;
+}
+                   | TOK_OSBRACKET arcattrlist error
+{
+    if (C_S_H) {
+        ADDCSH(@1, COLOR_BRACKET);
+        ADDCSH(@3, COLOR_ERROR);
+        break;
+    }
+    $$ = $2;
+}
 
 arcattrlist:    arcattr
 {
@@ -1549,20 +1602,12 @@ arcattrlist:    arcattr
         break;
     }
     $$ = ($1)->Append($3);
-}
-              | arcattrlist error
-{
-    if (C_S_H) {
-        ADDCSH(@2, COLOR_ERROR);
-        break;
-    }
-    $$ = $1;
 };
 
 arcattr:         string TOK_EQUAL string
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ATTRNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_ATTRNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH_ATTRVALUE(@3, $3, $1);
     } else {
@@ -1574,7 +1619,7 @@ arcattr:         string TOK_EQUAL string
 	    | string TOK_EQUAL TOK_NUMBER
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ATTRNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_ATTRNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
@@ -1586,7 +1631,7 @@ arcattr:         string TOK_EQUAL string
 	    | string TOK_EQUAL TOK_BOOLEAN
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ATTRNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_ATTRNAME);
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
@@ -1598,7 +1643,7 @@ arcattr:         string TOK_EQUAL string
 	    | string TOK_EQUAL
 {
     if (C_S_H) {
-        ADDCSH(@1, COLOR_ATTRNAME);
+        ADDCSH_ATTRNAME(@1, $1, COLOR_ATTRNAME);
         ADDCSH(@2, COLOR_EQUAL);
     } else {
         $$ = new Attribute($1, (char*)NULL, YYMSC_GETPOS(@$), YYMSC_GETPOS(@$));

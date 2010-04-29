@@ -17,7 +17,9 @@ template <class T>
         return s;
     };
 
-bool CaseInsensitiveEqual(const char *a, const char *b);
+int CaseInsensitiveBeginsWidth(const char *a, const char *b);
+inline bool CaseInsensitiveEqual(const char *a, const char *b)
+    {return CaseInsensitiveBeginsWidth(a,b)==2;}
 inline bool CaseInsensitiveEqual(const string &a, const char *b)
     {return CaseInsensitiveEqual(a.c_str(), b);}
 inline bool CaseInsensitiveEqual(const char *a, const string &b)

@@ -1137,7 +1137,7 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
     Geometry dummy;
     style.arrow.ClipBig(ypos, x-width/2, x+width/2, isBidir(), chart);
     parsed_label.DrawCovers(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
-                            x-width/2+lw, dummy.cover, draw);
+                            x-width/2+lw, dummy.cover, draw, true);
     chart->UnClip();
     if (readfromleft)
         chart->Rotate90(x-width/2, x+width/2, true);

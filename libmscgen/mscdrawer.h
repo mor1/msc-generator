@@ -107,6 +107,7 @@ class MscDrawer
     /* Low-level drawing options */
     bool         white_background; /* Draw a white background */
     bool         use_text_path;  /* Use cairo_text_path() instead of cairo_show_text (windows metafile & truetype font problem)*/
+    bool         use_text_path_rotated; /* Use text path() on rotated text */
     bool         individual_chars; /* Each character is drawn one by one */
     unsigned     fake_gradients; /* Do not use cairo gradients, mimic them with a lot of fills, #of steps if non-zero */
     bool         fake_shadows; /* Do not use alpha blending in shadows */
@@ -138,7 +139,7 @@ class MscDrawer
     void SetFontFace(const char*face, bool italics, bool bold);
     void SetFontSize(double size) {cairo_set_font_size (cr, size);}
 
-    void text(XY p, const string &s);
+    void text(XY p, const string &s, bool isRotated);
     double textWidth(const string &s);
 
     void arc(XY c, XY wh, double s, double e, MscLineAttr line);

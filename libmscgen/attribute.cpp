@@ -21,16 +21,25 @@
 #include "attribute.h"
 #include "msc.h"
 
-bool CaseInsensitiveEqual(const char *a, const char *b)
+//0 if a does not begin with b
+//1 if a begins with b
+//2 if a == b
+//Rule 1: "" begins with a NULL, but is not equal to it
+//Rule 2: every string begins with a "" or a NULL
+int CaseInsensitiveBeginsWidth(const char *a, const char *b)
 {
+    if (b==NULL) return a==NULL?2:1;
+    if (a==NULL) return 0;
     unsigned i=0;
     while(a[i] && b[i]) {
-        if (toupper(a[i]) != toupper(b[i]))
-            return false;
+        if (tolower(a[i]) != tolower(b[i]))
+            return 0;
         i++;
     }
-    return a[i]==0 && b[i]==0;
+    if (b[i]==0) return a[i]==0?2:1;
+    return 0;
 }
+
 
 string Attribute::Print(int ident) const
 {

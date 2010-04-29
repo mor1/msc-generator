@@ -24,6 +24,7 @@ static char THIS_FILE[] = __FILE__;
 CEditorBar::CEditorBar()
 {
 	m_bCshUpdateInProgress = false;
+	m_modified = false;
 }
 
 CEditorBar::~CEditorBar()
@@ -96,6 +97,16 @@ void CEditorBar::OnSetFocus(CWnd* pOldWnd)
 	CDockablePane::OnSetFocus(pOldWnd);
 	m_wndEditor.SetFocus();
 }
+void CEditorBar::UpdateText(const char *text)
+{
+	CString t(text);
+	EnsureCRLF(t);
+	m_wndEditor.SetRedraw(false);
+	m_wndEditor.SetWindowText(t);
+	m_modified = false;
+	UpdateCsh();
+	m_wndEditor.SetRedraw(true);
+}
 
 void CEditorBar::UpdateCsh(bool force)
 {
@@ -148,7 +159,10 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	if (hWndCtrl != m_wndEditor) return CDockablePane::OnCommand(wParam, lParam);
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
 	CFrameWnd *pParent = dynamic_cast<CFrameWnd *>(GetParent());
-	if (pParent && !m_bCshUpdateInProgress) UpdateCsh();
+	if (pParent && !m_bCshUpdateInProgress) {
+		UpdateCsh();
+		m_modified = true;
+	}
 	return TRUE;
 }
 

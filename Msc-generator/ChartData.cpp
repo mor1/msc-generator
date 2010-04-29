@@ -193,7 +193,8 @@ void CChartData::Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page, bo
         }
     if (!m_msc->SetOutputWin32(ot, hdc, zoom, int(page)-1))
         return;
-    m_msc->Draw(pageBreaks);
+	//draw page breaks only if requested and not drawing a single page only
+    m_msc->Draw(pageBreaks && page==0);
 	m_msc->UnClip(); //Unclip the banner text exclusion clipped in SetOutputWin32()
 	m_msc->DrawCopyrightText(int(page)-1);
     m_msc->CloseOutput();
