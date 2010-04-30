@@ -1,0 +1,12 @@
+vertical markplaces are not entities, should not be marked as first
+design lib
+inplace size of editor
+what if user turns on internal editor
+search replace for internal
+tab for internal and auto ident
+underline all errors and warnings?
+update doc
+click graph, show in editor
+walk in editor, show in graph
+drag and drop files - drag in editor...
+try scale=10 for vertical text
