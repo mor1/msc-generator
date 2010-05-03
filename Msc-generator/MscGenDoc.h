@@ -50,7 +50,9 @@ public:
 	// View related 
 	int m_zoom; //In percentage. 100 is normal
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
-
+	bool m_bTrackMode;
+    int m_nTrackRectNo;
+	RECT m_rctTrack[100];
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
 	//The non-modal windows
@@ -76,7 +78,8 @@ public:
 	void StopEditor(EStopEditor force, bool);
 	void StartDrawingProgress();
 	void StopDrawingProgress();
-
+	void SetTrackMode(bool on);
+	void UpdateTrackRects(CPoint mouse);
 // Overrides
 protected:
 	virtual COleServerItem* OnGetEmbeddedItem();
@@ -142,6 +145,9 @@ public:
 	afx_msg void OnEditUpdate();
 	afx_msg void OnUdpateEditUpdate(CCmdUI *pCmdUI);
 	afx_msg void OnViewNexterror();
+            void OnInternalEditorChange();
+			afx_msg void OnButtonTrack();
+			afx_msg void OnUpdateButtonTrack(CCmdUI *pCmdUI);
 };
 
 

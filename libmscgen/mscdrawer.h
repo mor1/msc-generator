@@ -23,7 +23,7 @@ class XY {
 public:
     double x;
     double y;
-    XY() {};
+    XY() {}
     XY(double a, double b) : x(a), y(b) {}
     XY operator +(XY wh) const
         {return XY(x+wh.x, y+wh.y);}
@@ -43,15 +43,20 @@ struct Range {
         {return from<r.till+gap && r.from < till+gap;}
     void Extend(Range a)
         {if (from>a.from) from=a.from; if (till<a.till) till=a.till;}
+    bool IsWithin(double p) const
+        {return from<=p && p<=till;}
 };
+
+class ArcBase;
 
 struct Block {
     struct Range x;
     struct Range y;
-    Block() {}
-    Block(double sx, double dx, double sy, double dy) :
+    mutable ArcBase *arc;
+    Block(ArcBase *a=NULL) : arc(a) {}
+    Block(double sx, double dx, double sy, double dy, ArcBase *a=NULL) : arc(a),
         x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
-    Block(XY ul, XY dr) {
+    Block(XY ul, XY dr, ArcBase *a=NULL) : arc(a) {
         x.from = ul.x<dr.x?ul.x:dr.x; x.till = ul.x>dr.x?ul.x:dr.x;
         y.from = ul.y<dr.y?ul.y:dr.y; y.till = ul.y>dr.y?ul.y:dr.y;
     }
@@ -68,6 +73,8 @@ struct Block {
         {return XY(x.from, y.from);}
     XY LowerRight(void) const
         {return XY(x.till, y.till);}
+    bool IsWithin(XY p) const
+        {return x.IsWithin(p.x) && y.IsWithin(p.y);}
 };
 
 /***************************************************************************

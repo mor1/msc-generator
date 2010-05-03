@@ -87,17 +87,29 @@ typedef enum
  *  - advances bottom_mainline to its own mainline.
  */
 
-
 struct Geometry
 {
     std::set<Block> cover;
-    Range      mainline;
+    Range           mainline;
+
     Geometry() {mainline.from=INT_MAX; mainline.till=0;}
+    void Clear() {mainline.from=INT_MAX; mainline.till=0; cover.clear();}
+    void SetArc(ArcBase *a) {
+        for(std::set<Block>::iterator i=cover.begin(); i!=cover.end(); i++)
+            i->arc = a;
+    }
     Geometry &operator+=(const Geometry &g) {
         cover.insert(g.cover.begin(), g.cover.end());
         mainline.Extend(g.mainline);
         return *this;
     }
+    Geometry &operator-=(const Geometry &g) {
+        for(std::set<Block>::const_iterator i=g.cover.begin(); i!=g.cover.end(); i++)
+            cover.erase(*i);
+        return *this;
+    }
+
+    bool IsEmpty() const {return cover.size()==0;};
     bool Overlaps(const Geometry &g, double gap=0) const;
     void Draw(MscDrawer *chart, MscLineAttr line=MscLineAttr(MscColorType(255,0,0))) const {
         for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
@@ -111,6 +123,12 @@ struct Geometry
             s << "(" << i->x.from << "-" <<i->x.till
                 << "," << i->y.from << "-" <<i->y.till << ");  ";
         return s;
+    }
+    bool BoundingBlock(Block &) const;
+    const Block *InWhich(XY p) const {
+        for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
+            if (i->IsWithin(p)) return &(*i);
+        return NULL;
     }
 };
 
@@ -241,13 +259,13 @@ class Msc;
 class Entity
 {
 protected:
-    Msc          *chart;
+    Msc             *chart;
 public:
-    const string  name;        // Name of Entity as referenced in src file
-    const string  label;       // Label of the entity (==name if none)
-    double        pos;         // 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
-    unsigned      index;       // counts entities left to right
-    MscStyle      style;
+    const string     name;     // Name of Entity as referenced in src file
+    const string     label;    // Label of the entity (==name if none)
+    double           pos;      // 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
+    unsigned         index;    // counts entities left to right
+    MscStyle         style;
     EntityStatusMap  status;   // contains vertical line status & type & color
 
     Entity(const string &n, const string &l, double p, Msc *msc);
@@ -313,20 +331,22 @@ typedef PtrList<EntityDef> EntityDefList;
 class ArcBase
 {
     protected:
-        Msc *chart;
-        double yPos;
+        Msc       *chart;
+        double     yPos;
+        Geometry   geometry;
+        bool       valid;  /* If false, then construction failed, arc does not exist */
+        bool       at_top_level; /* if at top level by PostParseProcess() */
+        bool       compress;     /* if compress mechanism is on for this arc */
         EIterator MinMaxByPos(EIterator i, EIterator value, bool min);
-
     public:
-              bool       valid;  /* If false, then construction failed, arc does not exist */
-        const MscArcType type;
         const file_line  linenum;
-              bool       at_top_level; /* if at top level by PostParseProcess() */
-              bool       compress;     /* if compress mechanism is on for this arc */
+        const MscArcType type;
 
         ArcBase(MscArcType t, file_line l, Msc *msc);
         virtual ~ArcBase() {};
 
+                bool IsCompressed() const {return compress;}
+                const Geometry &GetGeometry() const {return geometry;};
         virtual ArcBase* AddAttributeList(AttributeList *);
         virtual bool AddAttribute(const Attribute &);
         virtual string PrintType(void) const;
@@ -341,7 +361,7 @@ class ArcBase
         virtual double DrawHeight(double yPos, Geometry &g, bool draw, bool final, double autoMarker) =0;
         /* Then PostHeightProcess goes through the tree once more for
          * drawing warnings that need height. */
-        virtual void PostHeightProcess(void) {};
+        virtual void PostHeightProcess(void);
 };
 
 typedef PtrList<ArcBase> ArcList;
@@ -405,8 +425,8 @@ class ArcDirArrow : public ArcArrow
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
-                void CheckSegmentOrder(double y);
-        virtual void PostHeightProcess(void) {CheckSegmentOrder(yPos);}
+        void CheckSegmentOrder(double y);
+		virtual void PostHeightProcess(void) {ArcBase::PostHeightProcess(); (yPos);}
 };
 
 class ArcBigArrow : public ArcDirArrow
@@ -423,7 +443,7 @@ class ArcBigArrow : public ArcDirArrow
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
-        virtual void PostHeightProcess(void) {CheckSegmentOrder(yPos + height/2);}
+		virtual void PostHeightProcess(void) {ArcBase::PostHeightProcess(); CheckSegmentOrder(yPos + height/2);}
 };
 
 struct VertXPos {
@@ -589,6 +609,7 @@ class CommandEmpty : public ArcCommand
 class Msc : public MscDrawer {
 public:
     typedef std::pair<file_line, double> MarkerType;
+
     EntityList                    Entities;
     EIterator                     NoEntity;
     EntityDefList                 AutoGenEntities;
@@ -600,6 +621,10 @@ public:
     std::map<string, MarkerType>  Markers;
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
+
+    Geometry                      AllCovers;
+    std::map<file_line, ArcBase*> AllArcs;
+
     MscCshListType                CshList;
     std::set<string>              CshEntityNames;
 

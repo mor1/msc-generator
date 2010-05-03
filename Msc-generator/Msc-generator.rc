@@ -105,6 +105,7 @@ BEGIN
     SEPARATOR
     BUTTON      ID_BUTTON_EDITTEXT
     BUTTON      ID_VIEW_ZOOMNORMALIZE
+    BUTTON      ID_BUTTON_TRACK
 END
 
 IDR_TOOLBAR_MAINFRAME TOOLBAR  16, 15
@@ -121,6 +122,7 @@ BEGIN
     SEPARATOR
     BUTTON      ID_BUTTON_EDITTEXT
     BUTTON      ID_VIEW_ZOOMNORMALIZE
+    BUTTON      ID_BUTTON_TRACK
 END
 
 IDR_TOOLBAR_SRVR_INPLACE TOOLBAR  16, 15
@@ -217,6 +219,7 @@ BEGIN
         MENUITEM "Keep &fitting to width",      32781
         MENUITEM SEPARATOR
         MENUITEM "&Redraw\tCtrl+R",             32782
+        MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
     END
     POPUP "&Help"
     BEGIN
@@ -326,6 +329,7 @@ BEGIN
         MENUITEM "Keep &fitting to width",      32815
         MENUITEM SEPARATOR
         MENUITEM "&Redraw\tCtrl+R",             32782
+        MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
     END
     POPUP "&Help"
     BEGIN
@@ -463,7 +467,6 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,200,262,50,14
     LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
     EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
-
     GROUPBOX        "&Text Editor",IDC_STATIC,7,118,243,122
     CONTROL         "&Internal editor",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,131,62,10
     CONTROL         "&Windows Notepad",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,158,74,10
@@ -477,9 +480,8 @@ BEGIN
     EDITTEXT        IDC_EDIT1,81,194,161,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT2,81,210,161,14,ES_AUTOHSCROLL
     LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,226,140,8
-
     GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
-	CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
+    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
                     "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
     CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
     GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
@@ -778,6 +780,7 @@ STRINGTABLE
 BEGIN
     ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats"
     ID_EDIT_PASETENTIRECHART "Paste an entire chart from the Clipboard."
+    ID_BUTTON_TRACK         "Turn element tracking on or off\nToggle Tracking"
 END
 
 #endif    // English (U.S.) resources

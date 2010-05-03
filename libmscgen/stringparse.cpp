@@ -919,7 +919,8 @@ void Label::DrawCovers(double sx, double dx, double y,
         //Draw line of text
         if (draw)
             at(i).Draw(xy, msc, isRotated);
-        cover.insert(Block(xy, xy+wh));
+        else
+            cover.insert(Block(xy, xy+wh));
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;
     }

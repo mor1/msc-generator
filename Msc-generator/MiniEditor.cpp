@@ -9,6 +9,7 @@
 
 #include "stdafx.h"
 #include "Msc-generator.h"
+#include "MscGenDoc.h"
 #include "ChartData.h"
 #include "MiniEditor.h"
 
@@ -162,6 +163,15 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	if (pParent && !m_bCshUpdateInProgress) {
 		UpdateCsh();
 		m_modified = true;
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
+		ASSERT(pMainWnd!=NULL);
+		if (pMainWnd->GetActiveView() != NULL) {
+			CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
+			if (pDoc != NULL);
+				pDoc->OnInternalEditorChange();
+		}
 	}
 	return TRUE;
 }

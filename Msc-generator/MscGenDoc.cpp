@@ -78,6 +78,8 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_CUT, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_PASTE, OnUpdateEditPaste)
+	ON_COMMAND(ID_BUTTON_TRACK, &CMscGenDoc::OnButtonTrack)
+	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, &CMscGenDoc::OnUpdateButtonTrack)
 END_MESSAGE_MAP()
 
 CLIPFORMAT NEAR CMscGenDoc::m_cfPrivate = NULL;
@@ -101,6 +103,8 @@ CMscGenDoc::CMscGenDoc()
 
 	m_ZoomMode = (EZoomMode)AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_DEFAULTZOOMMODE, 0);
 	m_zoom = 100;
+	m_nTrackRectNo = 0;
+	m_bTrackMode = false;
 	m_page = 0; //all
 	m_pages = 0;
 
@@ -1195,4 +1199,81 @@ void CMscGenDoc::OnViewNexterror()
 	int cursel = pOutputView->m_wndOutput.GetCurSel();
 	cursel = (cursel+1) % maxsel;
 	JumpToLine(m_itrCurrent->GetErrorLine(cursel, false), m_itrCurrent->GetErrorCol(cursel, false));
+
+	//Now show boxes for 
+	CEditorBar *pEditor = pApp->m_pWndEditor;
+	if (pEditor == NULL) return;
+	long start, end;
+	pEditor->m_wndEditor.GetSel(start, end);
+	int line = pEditor->m_wndEditor.LineFromChar(start);
+	int col = start - pEditor->m_wndEditor.LineIndex(line);
+	bool wasboxes = m_nTrackRectNo!=0;
+	void *arc = m_itrCurrent->GetArcByLine(line+1, col+1);
+	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
+	if (wasboxes || m_nTrackRectNo) {
+		POSITION pos = GetFirstViewPosition();
+		while (pos) {
+			CMscGenView* pView = (CMscGenView*)GetNextView(pos);
+			pView->Invalidate();
+		}
+	}
+}
+
+void CMscGenDoc::OnInternalEditorChange()
+{
+	bool needtoinvalidate = m_nTrackRectNo!=0;
+	SetTrackMode(false);
+	if (needtoinvalidate) {
+		POSITION pos = GetFirstViewPosition();
+		while (pos) {
+			CMscGenView* pView = (CMscGenView*)GetNextView(pos);
+			pView->Invalidate();
+		}
+	}
+}
+
+void CMscGenDoc::SetTrackMode(bool on)
+{
+	if (on == m_bTrackMode) return;
+	m_bTrackMode = on;
+	if (!on) {
+		m_nTrackRectNo = 0;
+		::ReleaseCapture();
+	}
+	POSITION pos = GetFirstViewPosition();
+	while (pos) {
+		CMscGenView* pView = (CMscGenView*)GetNextView(pos);
+		pView->Invalidate();
+	}
+}
+
+void CMscGenDoc::UpdateTrackRects(CPoint mouse)
+{
+	if (!m_bTrackMode) return;
+	void *arc = m_itrCurrent->GetArcByCoordinate(mouse);
+	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
+	POSITION pos = GetFirstViewPosition();
+	while (pos) {
+		CMscGenView* pView = (CMscGenView*)GetNextView(pos);
+		pView->Invalidate();
+	}
+	unsigned line, col;
+	if (m_itrCurrent->GetLineByArc(arc, line, col)) {
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		CEditorBar *pEditor = pApp->m_pWndEditor;
+		if (pEditor) {
+			long start = pEditor->m_wndEditor.LineIndex(line-1)+col-1;
+			pEditor->m_wndEditor.SetSel(start, start);
+		}
+	}
+}
+void CMscGenDoc::OnButtonTrack()
+{
+	SetTrackMode(!m_bTrackMode);
+}
+
+void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(m_bTrackMode);
 }

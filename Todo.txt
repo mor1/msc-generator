@@ -1,6 +1,9 @@
 vertical markplaces are not entities, should not be marked as first
+move csh from mini editor to richedit control descendant
+add where is cursor method to that control
 design lib
 inplace size of editor
+inplace do not draw onto clip? View::OnDraw?
 what if user turns on internal editor
 search replace for internal
 tab for internal and auto ident

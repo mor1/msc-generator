@@ -79,6 +79,14 @@ string ArcBase::PrintType(void) const
     return arcnames[int(type)-1];
 }
 
+void ArcBase::PostHeightProcess(void)
+{
+    if (valid)
+        chart->AllCovers += geometry;
+    chart->AllArcs[linenum] = this;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcLabelled::ArcLabelled(MscArcType t, file_line l, Msc *msc, const MscStyle &s) :
@@ -278,6 +286,7 @@ double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, do
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
     double dx = chart->XCoord((*src)->pos);
     double sx = 0;
@@ -287,19 +296,23 @@ double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, do
 
     y  += chart->arcVGapAbove;
 
-    /* Here come the self pointing arrows */
-    parsed_label.DrawCovers(sx, dx, y, g.cover, draw);
+    //inserts elements into cover only if not drawing
+    parsed_label.DrawCovers(sx, dx, y, geometry.cover, draw);
     XY wh(chart->XCoord(0.375), 2*YSize);
 
-    Block b;
-    b.y.from = y;
-    b.y.till = y + xy_s.y + wh.y + xy_e.y;
-    b.x.from = dx;
-    b.x.till = dx + wh.x;
-    g.cover.insert(b);
-    b.y.from = y - chart->nudgeSize/2;
-    b.y.till = y + wh.y + chart->nudgeSize/2;
-    g.mainline.Extend(b.y);
+    if (!draw) {
+        Block b;
+        b.y.from = y;
+        b.y.till = y + xy_s.y + wh.y + xy_e.y;
+        b.x.from = dx;
+        b.x.till = dx + wh.x;
+        geometry.cover.insert(b);
+        b.y.from = y - chart->nudgeSize/2;
+        b.y.till = y + wh.y + chart->nudgeSize/2;
+        geometry.mainline.Extend(b.y);
+        geometry.SetArc(this);
+        g += geometry;
+    }
 
     y += xy_s.y;
 
@@ -325,6 +338,7 @@ double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, do
 
 void ArcSelfArrow::PostHeightProcess(void)
 {
+    ArcBase::PostHeightProcess();
     if (!valid) return;
 
     //Check if the entity involved is actually turned on.
@@ -474,6 +488,7 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
     double sx = chart->XCoord((*src)->pos);
     double dx = chart->XCoord((*dst)->pos);
@@ -505,15 +520,13 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         height += chart->arcVGapAbove + chart->arcVGapBelow;
 
         //Determine coverage for the text (or draw it if we already draw)
-        std::set<Block> coverage;
         if (sx<dx)
-            parsed_label.DrawCovers(sx + xy_s.x, dx - xy_e.x, y, coverage, draw);
+            parsed_label.DrawCovers(sx + xy_s.x, dx - xy_e.x, y, geometry.cover, draw);
         else
-            parsed_label.DrawCovers(dx + xy_e.x, sx - xy_s.x, y, coverage, draw);
+            parsed_label.DrawCovers(dx + xy_e.x, sx - xy_s.x, y, geometry.cover, draw);
         //Exclude the areas covered by the text from further drawing
-        if (final) chart->HideEntityLines(coverage);
-        //add coverage to the geometry we got as param
-        g.cover.insert(coverage.begin(), coverage.end());
+        //geometry.cover will be empty if we draw but then it is !final anyway
+        if (final) chart->HideEntityLines(geometry.cover);
         //determine position of arrow midline
         y += max(aH, firstLineHeight+ARROW_TEXT_VSPACE_ABOVE+style.line.LineWidth()/2);
     } else {
@@ -521,12 +534,16 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         height = 2*aH + chart->arcVGapAbove + chart->arcVGapBelow;
         y+=aH;
     }
-    // Now y is midline of arrow. Calculate mainline and add cover block for arrow
-    Block b(min(sx,dx)+1, max(sx,dx)-1, y-aH, y+aH);
-    g.cover.insert(b);
-    b.y.from = y - chart->nudgeSize/2;
-    b.y.till = y + chart->nudgeSize/2;
-    g.mainline.Extend(b.y);
+    if (!draw) {
+        // Now y is midline of arrow. Calculate mainline and add cover block for arrow
+        Block b(min(sx,dx)+1, max(sx,dx)-1, y-aH, y+aH);
+        geometry.cover.insert(b);
+        b.y.from = y - chart->nudgeSize/2;
+        b.y.till = y + chart->nudgeSize/2;
+        geometry.mainline.Extend(b.y);
+        geometry.SetArc(this);
+        g += geometry;
+    }
 
     /* Draw the line */
     if (draw) {
@@ -547,17 +564,14 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
             const double tdx = chart->XCoord((*e[i+1])->pos);
             chart->line(XY(tsx+dir*asize[i].second, y), XY(tdx-dir*asize[i+1].first, y), style.line);
         }
-    }
-
-    Range hideEntityLine;
-
-    /* Now the arrow heads */
-    if (draw) {
+        /* Now the arrow heads */
         style.arrow.Draw(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END, chart);
         style.arrow.Draw(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START, chart);
     }
+
     //record where do we have to skip the entityline
     if (final) {
+        Range hideEntityLine;
         hideEntityLine = style.arrow.EntityLineCover(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END, chart);
         (*dst)->status.HideRange(hideEntityLine);
         hideEntityLine = style.arrow.EntityLineCover(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START, chart);
@@ -570,7 +584,7 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         if (draw)
             style.arrow.Draw(XY(mx, y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, chart);
         if (final) {
-            hideEntityLine = style.arrow.EntityLineCover(XY(mx, y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, chart);
+            Range hideEntityLine = style.arrow.EntityLineCover(XY(mx, y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, chart);
             (*middle[i])->status.HideRange(hideEntityLine);
         }
     }
@@ -761,6 +775,7 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
     const double ah =style.arrow.Big_yExtent(isBidir(), middle.size()>0, chart);
     const XY twh = parsed_label.getTextWidthHeight();
@@ -840,11 +855,15 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 
     height = y - orig_y;
 
-    //Generate one block for cover
-    Block box(s.x, d.x, orig_y+ah, y-ah);
-    g.cover.insert(box);
-    style.arrow.CoverBig(xPos, orig_y+ah, y-ah, isBidir(), chart, g.cover);
-    g.mainline.Extend(box.y);
+    if (!draw) {
+        //Generate one block for cover
+        Block box(s.x, d.x, orig_y+ah, y-ah);
+        geometry.cover.insert(box);
+        style.arrow.CoverBig(xPos, orig_y+ah, y-ah, isBidir(), chart, geometry.cover);
+        geometry.mainline.Extend(box.y);
+        geometry.SetArc(this);
+        g += geometry;
+    }
 
     return height;
 }
@@ -1044,6 +1063,7 @@ void ArcVerticalArrow::Width(EntityDistanceMap &distances)
 
 void ArcVerticalArrow::PostHeightProcess(void)
 {
+    ArcBase::PostHeightProcess();
     if (!valid) return;
 
     //Here we are sure markers are OK
@@ -1094,6 +1114,7 @@ void ArcVerticalArrow::PostHeightProcess(void)
     }
 }
 
+//We do not store anything in here
 double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
@@ -1343,6 +1364,7 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     y += chart->emphVGapOutside;
     if (final) yPos = y;
     if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
     const XY lw(style.line.LineWidth(), style.line.LineWidth());
     const XY lw2(lw.x/2, lw.y/2);
@@ -1546,10 +1568,14 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (final)
         total_height = y - total_orig_y;
 
-    //Generate one block for cover
-    Block box(s.x-lw.x, d.x+lw.x+style.shadow.offset.second, total_orig_y, y);
-    g.cover.insert(box);
-    g.mainline.Extend(box.y);
+    if (!draw) {
+        //Generate one block for cover
+        Block box(s.x-lw.x, d.x+lw.x+style.shadow.offset.second, total_orig_y, y);
+        geometry.cover.insert(box);
+        geometry.mainline.Extend(box.y);
+        geometry.SetArc(this);
+        g += geometry;
+    }
 
     return total_height + 2*chart->emphVGapOutside;
 }
@@ -1557,6 +1583,7 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 //Will only be called for the first box of a multi-segment box series
 void ArcEmphasis::PostHeightProcess(void)
 {
+    ArcBase::PostHeightProcess();
     if (!valid) return;
     for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
         if ((*i)->valid && (*i)->emphasis)
@@ -1619,11 +1646,16 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
     if (nudge) {
-        Block b(0, chart->totalWidth, y, y + chart->nudgeSize);
-        g.cover.insert(b);
-        g.mainline.Extend(b.y);
+        if (!draw) {
+            Block b(0, chart->totalWidth, y, y + chart->nudgeSize);
+            geometry.cover.insert(b);
+            geometry.mainline.Extend(b.y);
+            geometry.SetArc(this);
+            g += geometry;
+        }
         return  chart->nudgeSize;
     }
 
@@ -1634,19 +1666,19 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
     if (!wh.y) wh.y = charheight;
     const double lineYPos = y+wh.y/2;
 
-    std::set<Block> coverage;
-	const double text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
+    const double text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
-                            coverage, draw);
-    //add coverage to the geometry we got as param
-    g.cover.insert(coverage.begin(), coverage.end());
-
+                            geometry.cover, draw);
     if (draw) {
         const double line_margin = chart->XCoord(MARGIN);
         //determine widest extent for coverage at the lineYpos+- style.line.width/2;
         Range yRange(lineYPos - ceil(style.line.width.second/2.), lineYPos + ceil(style.line.width.second/2.));
         Range xRange(chart->totalWidth-line_margin, line_margin);
-        for (std::set<Block>::const_iterator i = coverage.begin(); i!=coverage.end(); i++)
+        //determine text coverage
+        set<Block> text_covers;
+        parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
+                                text_covers, false);
+        for (std::set<Block>::const_iterator i = text_covers.begin(); i!=text_covers.end(); i++)
             if (yRange.Overlaps(i->y))
                 xRange.Extend(i->x);
         chart->line(XY(line_margin, lineYPos),
@@ -1656,15 +1688,24 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
                         XY(chart->totalWidth-line_margin, lineYPos), style.line);
     }
 
-    Block b(0, chart->totalWidth, lineYPos - style.line.width.second*2,
-                                  lineYPos + style.line.width.second*2);
-    g.cover.insert(b);
-    Range r(lineYPos-charheight/2, lineYPos+charheight/2);
-    g.mainline.Extend(r);
+    if (!draw) {
+        //Hide entity lines where text shows
+        chart->HideEntityLines(geometry.cover);
+        //Add a cover block for the line, if one exists
+        if (style.line.type.second != LINE_NONE) {
+            Block b(0, chart->totalWidth, lineYPos - style.line.width.second*2,
+                    lineYPos + style.line.width.second*2);
+            geometry.cover.insert(b);
+        }
+        Range r(lineYPos-charheight/2, lineYPos+charheight/2);
+        geometry.mainline.Extend(r);
+        geometry.SetArc(this);
+        g+=geometry;
+    }
 
     double height = wh.y;
-	if (!wide)
-		height += chart->arcVGapAbove + chart->arcVGapBelow;
+    if (!wide)
+        height += chart->arcVGapAbove + chart->arcVGapBelow;
     if (!final) return height;
     if (style.vline.width.first || style.vline.type.first || style.vline.color.first)
         for(EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
@@ -1677,7 +1718,6 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
                 (*i)->status.SetRange(Range(yPos, yPos+height), new_status);
             }
         }
-    chart->HideEntityLines(coverage);
     return height;
 }
 
@@ -1722,6 +1762,8 @@ double ArcParallel::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw) y = yPos;
+    //For parallel, we keep geometry empty, as it is merely the sum of its content
+
     double height = 0; //this will play the role of autoMarker
     Block bar(0, chart->totalWidth, y, y);
     g.cover.insert(bar); // prevent any compression for now in DrawHeightArcList
@@ -1742,6 +1784,7 @@ double ArcParallel::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 
 void ArcParallel::PostHeightProcess(void)
 {
+    ArcBase::PostHeightProcess();
     if (!valid) return;
     for (PtrList<ArcList>::iterator i=parallel.begin(); i != parallel.end(); i++)
         for (ArcList::iterator j = (*i)->begin(); j != (*i)->end(); j++)
@@ -1846,6 +1889,8 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw)  y = yPos;
+    if (!draw) geometry.Clear();
+
     double height = 0;
     if (entities)   //An entity command
         for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
@@ -1867,17 +1912,20 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
             //Take entity height into account or draw it if show=on was added
             //If full_heading is set we do it below.
             if ((*i)->show.second && (*i)->show.first && !full_heading) {
-                double h = static_cast<Entity*>(*j)->DrawHeight(y, g, draw, final);
+                double h = static_cast<Entity*>(*j)->DrawHeight(y, geometry, draw, final);
                 if (height <h) height = h;
             }
         }
     if (full_heading)  //A "heading" command, draw all entities that are on
         for (EntityList::iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++)
             if ((*i)->status.Get(y).status) {
-                double h = static_cast<Entity*>(*i)->DrawHeight(y, g, draw, final);
+                double h = static_cast<Entity*>(*i)->DrawHeight(y, geometry, draw, final);
                 if (height <h) height = h;
             }
-
+    if (!draw) {
+        geometry.SetArc(this);
+        g += geometry;
+    }
     return height;
 }
 
@@ -1888,6 +1936,7 @@ double CommandNewpage::DrawHeight(double y, Geometry &g, bool draw, bool final, 
     if (!final || !valid) return 0;
     yPos = y;
     chart->yPageStart.push_back(y);
+    geometry.cover.insert(Block(0, chart->totalWidth, y, y, this));
     return 0;
 }
 
@@ -1899,6 +1948,7 @@ double CommandNewBackground::DrawHeight(double y, Geometry &g,
     if (!final || !valid) return 0;
     yPos = y;
     chart->Background[y] = fill;
+    geometry.cover.insert(Block(0, chart->totalWidth, y, y, this));
     return 0;
 }
 
@@ -1939,6 +1989,7 @@ double CommandMark::DrawHeight(double y, Geometry &g,
 {
     if (draw || !valid) return 0;
     chart->Markers[name].second = y+offset;
+    geometry.cover.insert(Block(0, chart->totalWidth, y, y+offset, this));
     return 0;
 }
 

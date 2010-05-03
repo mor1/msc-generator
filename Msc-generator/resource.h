@@ -91,6 +91,10 @@
 #define ID_EDIT_COPYENTIRECHARTTOCLIPBOARD 32819
 #define ID_EDIT_COPYENTIRECHART         32820
 #define ID_EDIT_PASETENTIRECHART        32821
+#define ID_BUTTON_TRACK                 32826
+#define ID_VIEW_TRACKINGMODE            32827
+#define ID_BUTTON_TRACKINGMODE          32828
+#define ID_BUTTON32829                  32829
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
@@ -98,7 +102,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        313
-#define _APS_NEXT_COMMAND_VALUE         32826
+#define _APS_NEXT_COMMAND_VALUE         32830
 #define _APS_NEXT_CONTROL_VALUE         1014
 #define _APS_NEXT_SYMED_VALUE           310
 #endif

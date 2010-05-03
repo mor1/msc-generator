@@ -56,6 +56,9 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_RESETASPECTRATIO_INPLACE, OnUpdateResetAspectRatioInPlace)
 	ON_COMMAND(ID_BUTTON_EDITTEXT, OnButtonEdittext)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITTEXT, OnUpdateButtonEdittext)
+	ON_WM_LBUTTONDBLCLK()
+	ON_WM_MOUSEHOVER()
+	ON_WM_MOUSEMOVE()
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
@@ -148,6 +151,22 @@ void CMscGenView::OnDraw(CDC* pDC)
 		PlayEnhMetaFile(memDC.m_hDC, m_hemf, r);
 		pDC->BitBlt(clip.left, clip.top, clip.Width(),  clip.Height(),
 			        &memDC, clip.left, clip.top, SRCCOPY);   
+		if (pDoc->m_nTrackRectNo) {
+  			CBrush brushBlue(RGB(0, 0, 255));
+			CBrush* pOldBrush = pDC->SelectObject(&brushBlue);
+
+			// create and select a thick, black pen
+			CPen penBlack;
+			penBlack.CreatePen(PS_SOLID, 3, RGB(0, 0, 0));
+			CPen* pOldPen = pDC->SelectObject(&penBlack);
+
+			for (int i = 0; i<pDoc->m_nTrackRectNo; i++)
+				pDC->Rectangle(pDoc->m_rctTrack+i);
+
+			// put back the old objects
+			pDC->SelectObject(pOldBrush);
+			pDC->SelectObject(pOldPen);
+		}
 	}
 	return;
 	//if (m_hwmf) {
@@ -168,6 +187,12 @@ void CMscGenView::OnViewRedraw()
 
 void CMscGenView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	if (nChar == VK_ESCAPE) {
+		CMscGenDoc* pDoc = GetDocument();
+		ASSERT_VALID(pDoc);
+		pDoc->SetTrackMode(false);
+		//fallthrough to default handler, too
+	}
 	switch (nChar) {
 		case VK_HOME:  OnScroll(SB_TOP*256       + SB_ENDSCROLL, 0); break;
 		case VK_END:   OnScroll(SB_BOTTOM*256    + SB_ENDSCROLL, 0); break;
@@ -505,4 +530,38 @@ void CMscGenView::OnDesignDesign()
 	pDoc->m_itrCurrent->SetDesign(new_forcedDesign);
 	pDoc->OnUpdate(false);  //Do not change zoom, juts update views
 	pDoc->StopDrawingProgress();
+}
+
+void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
+{
+	CMscGenDoc *pDoc = GetDocument();
+	if (pDoc == NULL) return;
+	pDoc->SetTrackMode(true);
+	CScrollView::OnLButtonDblClk(nFlags, point);
+}
+
+void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
+{
+	CMscGenDoc *pDoc = GetDocument();
+	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseHover(nFlags, point);
+	
+	point += GetScrollPosition();
+	point.x = point.x*100./pDoc->m_zoom;
+	point.y = point.y*100./pDoc->m_zoom;
+	pDoc->UpdateTrackRects(point);
+
+	return CScrollView::OnMouseHover(nFlags, point);	
+}
+
+void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
+{
+	CMscGenDoc *pDoc = GetDocument();
+	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseMove(nFlags, point);
+	TRACKMOUSEEVENT tme;
+    tme.cbSize = sizeof(tme);
+    tme.hwndTrack = m_hWnd;
+    tme.dwFlags = TME_HOVER;
+    tme.dwHoverTime = 10;
+    TrackMouseEvent(&tme);
+	CScrollView::OnMouseMove(nFlags, point);
 }

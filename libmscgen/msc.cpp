@@ -34,6 +34,19 @@ bool Geometry::Overlaps(const Geometry &g, double gap) const
     return false;
 }
 
+bool Geometry::BoundingBlock(Block &ret) const
+{
+    if (IsEmpty()) return false;
+    ret = Block(INT_MAX, INT_MIN, INT_MAX, INT_MIN);
+    for(set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++) {
+        if (ret.x.from > i->x.from) ret.x.from = i->x.from;
+        if (ret.x.till < i->x.till) ret.x.till = i->x.till;
+        if (ret.y.from > i->y.from) ret.y.from = i->y.from;
+        if (ret.y.till < i->y.till) ret.y.till = i->y.till;
+    }
+    return true;
+}
+
 MscStyle::MscStyle(StyleType tt) : type(tt)
 {
     f_line=f_vline=f_fill=f_shadow=f_text=f_arrow=f_solid=f_numbering=f_compress=true;
@@ -411,13 +424,15 @@ double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
     Label parsed_label(label, chart, style.text);
     XY wh = parsed_label.getTextWidthHeight();
     double lw = style.line.LineWidth();
-	double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow +
-		              2*lw + style.shadow.offset.second;
+    double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow +
+        2*lw + style.shadow.offset.second;
     XY s(xcoord - wh.x/2 - lw, y);
     XY d(xcoord + wh.x/2 + lw, y + height - style.shadow.offset.second);
-    Block b(s,d+XY(0, style.shadow.offset.second));
-    g.cover.insert(b);
-    g.mainline.Extend(b.y);
+    if (!draw) {
+        Block b(s,d+XY(0, style.shadow.offset.second));
+        g.cover.insert(b);
+        g.mainline.Extend(b.y);
+    }
     s.y += chart->headingVGapAbove;
     d.y -= chart->headingVGapBelow;
     if (final)
@@ -1210,7 +1225,7 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
         double size;
         //if we draw y will be ignored by arcs' DrawHeight
         //so we need not calculate compress again
-        if (!draw && (*i)->compress && prevCompress) {
+        if (!draw && (*i)->IsCompressed() && prevCompress) {
             Geometry geom;
             size = (*i)->DrawHeight(y, geom, false, false, autoMarker);
             if (size == 0) {
@@ -1253,7 +1268,7 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
             }
             size = (*i)->DrawHeight(y, g, draw, final, autoMarker);
         }
-        prevCompress = (*i)->compress;
+        prevCompress = (*i)->IsCompressed();
         y += size;
         if (largest_y < y)
             largest_y = y;
@@ -1358,6 +1373,7 @@ void Msc::CalculateWidthHeight(void)
 
         copyrightTextHeight = crTexSize.y;
         Geometry g;
+
         //not draw but final
         bool prevCompress = false;
         double height = DrawHeightArcList(Arcs, 0, g, false, true, prevCompress, -1);

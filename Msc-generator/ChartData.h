@@ -51,23 +51,29 @@ public:
 	void SetDesign (const char *design);
 	CString GetDesign () {return m_ForcedDesign;}
 	const CString &GetText() const {return m_text;}
-	//Compilation related
+//Compilation related
 	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL;}}
 	void CompileIfNeeded() const;
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
 	BOOL IsEmpty() const {return m_text.GetLength()==0;}
 	BOOL IsCompiled() const {return m_msc!=NULL;}
-	//Error related
+//Error related
 	unsigned GetErrorNum(bool oWarnings) const;
 	unsigned GetErrorLine(unsigned num, bool oWarnings) const;
 	unsigned GetErrorCol(unsigned num, bool oWarnings) const;
 	CString GetErrorText(unsigned num, bool oWarnings) const;
 	CString GetDesigns() const;
-	//Drawing related
+//Drawing related
 	unsigned GetPages() const;
 	CSize GetSize(unsigned page) const;
 	void Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page, bool pageBreaks);
 	void Draw(const char* fileName);
+//Cover related
+	void *GetArcByCoordinate(CPoint point) const;
+	void *GetArcByLine(unsigned line, unsigned col) const;
+	bool GetLineByArc(void*arc, unsigned &line, unsigned &col) const;
+	unsigned GetCoversByArc(void *arc, RECT *result, int max_size, double xScale, double yScale) const;
+//Color Syntax Highlighting related
 	const MscCshListType &GetCsh() const;
 	void FreeCsh() const {if (m_msc_for_csh) {delete m_msc_for_csh; m_msc_for_csh=NULL;}}
 };

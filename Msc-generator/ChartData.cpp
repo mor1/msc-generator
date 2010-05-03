@@ -225,6 +225,48 @@ void CChartData::Draw(const char* fileName)
     m_msc->DrawToOutput(ot, fn);
 }
 
+void *CChartData::GetArcByCoordinate(CPoint point) const
+{
+	CompileIfNeeded();
+	const Block *block = m_msc->AllCovers.InWhich(XY(point.x, point.y));
+	if (block==NULL) return NULL;
+	return block->arc;
+}
+
+void *CChartData::GetArcByLine(unsigned line, unsigned col) const
+{
+	CompileIfNeeded();
+	file_line linenum(m_msc->Error.Files.size()-1, line, col);
+	std::map<file_line, ArcBase*>::const_iterator itr = --m_msc->AllArcs.upper_bound(linenum);
+	if (itr == m_msc->AllArcs.end()) return NULL;
+	return  itr->second;
+}
+
+
+bool CChartData::GetLineByArc(void*arc, unsigned &line, unsigned &col) const
+{
+	if (arc==NULL) return false;
+	CompileIfNeeded();
+	line = static_cast<ArcBase*>(arc)->linenum.line;
+	col = static_cast<ArcBase*>(arc)->linenum.col;
+	return true;
+}
+
+unsigned CChartData::GetCoversByArc(void *arc, RECT *result, int max_size, double xScale, double yScale) const
+{
+	if (arc==NULL) return false;
+	CompileIfNeeded();
+	unsigned count=0;
+	for(std::set<Block>::const_iterator i=static_cast<ArcBase*>(arc)->GetGeometry().cover.begin(); 
+		i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++, count++) {
+		result[count].left = i->x.from * xScale;
+		result[count].right = i->x.till * xScale;
+		result[count].top = i->y.from * yScale;
+		result[count].bottom = i->y.till * yScale;
+	}
+	return count;
+}
+
 const MscCshListType &CChartData::GetCsh() const
 {
 	if (!m_msc_for_csh) {

@@ -92,6 +92,10 @@ public:
 	DECLARE_MESSAGE_MAP()
 protected:
 	virtual void OnPrint(CDC* pDC, CPrintInfo* pInfo);
+public:
+	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
+	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 };
 
 #ifndef _DEBUG  // debug version in MscGenView.cpp
