@@ -71,7 +71,7 @@ public:
 //Cover related
 	void *GetArcByCoordinate(CPoint point) const;
 	void *GetArcByLine(unsigned line, unsigned col) const;
-	bool GetLineByArc(void*arc, unsigned &line, unsigned &col) const;
+	bool GetLineByArc(void*arc, unsigned &start_line, unsigned &start_col, unsigned &end_line, unsigned &end_col) const;
 	unsigned GetCoversByArc(void *arc, RECT *result, int max_size, double xScale, double yScale) const;
 //Color Syntax Highlighting related
 	const MscCshListType &GetCsh() const;

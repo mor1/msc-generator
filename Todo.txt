@@ -6,10 +6,9 @@ inplace size of editor
 inplace do not draw onto clip? View::OnDraw?
 what if user turns on internal editor
 search replace for internal
-tab for internal and auto ident
-underline all errors and warnings?
+tab for internal editor and auto ident
 update doc
-click graph, show in editor
-walk in editor, show in graph
 drag and drop files - drag in editor...
 try scale=10 for vertical text
+inplace tracking mode
+error tracking is not removed at next error.

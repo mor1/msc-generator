@@ -338,13 +338,15 @@ class ArcBase
         bool       at_top_level; /* if at top level by PostParseProcess() */
         bool       compress;     /* if compress mechanism is on for this arc */
         EIterator MinMaxByPos(EIterator i, EIterator value, bool min);
+        bool linenum_final;
     public:
-        const file_line  linenum;
+        file_line  line_start, line_end;
         const MscArcType type;
 
         ArcBase(MscArcType t, file_line l, Msc *msc);
         virtual ~ArcBase() {};
 
+                void SetLineEnd(int fl, int fc, int ll, int lc, bool f=true);
                 bool IsCompressed() const {return compress;}
                 const Geometry &GetGeometry() const {return geometry;};
         virtual ArcBase* AddAttributeList(AttributeList *);
@@ -426,7 +428,7 @@ class ArcDirArrow : public ArcArrow
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
         void CheckSegmentOrder(double y);
-		virtual void PostHeightProcess(void) {ArcBase::PostHeightProcess(); (yPos);}
+        virtual void PostHeightProcess(void) {ArcBase::PostHeightProcess(); (yPos);}
 };
 
 class ArcBigArrow : public ArcDirArrow
@@ -443,7 +445,7 @@ class ArcBigArrow : public ArcDirArrow
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
-		virtual void PostHeightProcess(void) {ArcBase::PostHeightProcess(); CheckSegmentOrder(yPos + height/2);}
+        virtual void PostHeightProcess(void) {ArcBase::PostHeightProcess(); CheckSegmentOrder(yPos + height/2);}
 };
 
 struct VertXPos {
@@ -490,6 +492,7 @@ class ArcEmphasis : public ArcLabelled
         PtrList<ArcEmphasis> follow;
         double height, total_height;
         double left_space, right_space;
+		Geometry geometry_all;
     public:
         //Constructor to construct the first emphasis in a series
         ArcEmphasis(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l, Msc *msc);

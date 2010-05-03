@@ -217,6 +217,7 @@
     (A).first_pos++;                        \
     msc.AddCSH_AttrValue(A, (B)+1, NULL);   \
     } while (0)
+#define SETLINEEND(ARC, FL, FC, LL, LC)
 
 #ifndef HAVE_UNISTD_H
 int isatty (int) {return 0;}
@@ -228,6 +229,7 @@ int isatty (int) {return 0;}
 #define ADDCSH_ATTRNAME(A, B, C)
 #define ADDCSH_ENTITYNAME(A, B)
 #define ADDCSH_COLON_STRING(A, B)
+#define SETLINEEND(ARC, FL, FC, LL, LC) do {(ARC)->SetLineEnd(FL, FC, LL, LC);} while(0)
 #ifndef HAVE_UNISTD_H
 extern int isatty (int);
 #endif
@@ -396,7 +398,7 @@ inline bool string_to_bool(const char*s)
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 240 "language.yy"
+#line 242 "language.yy"
 {
     char             *str;
     Msc              *msc;
@@ -414,7 +416,7 @@ typedef union YYSTYPE
     std::list<string>*stringlist;
 }
 /* Line 187 of yacc.c.  */
-#line 418 "language.cc"
+#line 420 "language.cc"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -439,7 +441,7 @@ typedef struct YYLTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 443 "language.cc"
+#line 445 "language.cc"
 
 #ifdef short
 # undef short
@@ -803,26 +805,26 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   302,   302,   305,   312,   321,   330,   339,   350,   362,
-     370,   377,   382,   394,   403,   412,   423,   433,   441,   454,
-     462,   471,   479,   489,   498,   499,   504,   515,   528,   537,
-     546,   551,   556,   566,   571,   576,   585,   594,   603,   612,
-     621,   630,   639,   648,   657,   666,   676,   684,   700,   713,
-     726,   746,   760,   765,   774,   783,   794,   795,   802,   818,
-     828,   840,   841,   848,   861,   879,   901,   908,   909,   916,
-     923,   930,   932,   933,   939,   946,   958,   970,   982,   996,
-    1004,  1015,  1020,  1030,  1035,  1041,  1046,  1053,  1059,  1068,
-    1073,  1079,  1084,  1093,  1098,  1104,  1109,  1116,  1128,  1138,
-    1148,  1157,  1168,  1180,  1192,  1223,  1238,  1238,  1238,  1240,
-    1253,  1264,  1275,  1284,  1297,  1308,  1319,  1330,  1338,  1342,
-    1346,  1351,  1363,  1373,  1383,  1393,  1403,  1415,  1425,  1435,
-    1445,  1454,  1466,  1476,  1486,  1496,  1505,  1505,  1505,  1505,
-    1506,  1506,  1506,  1506,  1507,  1507,  1507,  1507,  1509,  1509,
-    1510,  1510,  1511,  1511,  1515,  1524,  1533,  1542,  1545,  1554,
-    1563,  1573,  1583,  1593,  1598,  1607,  1619,  1631,  1643,  1653,
-    1664,  1664,  1666,  1666,  1667,  1667,  1668,  1668,  1668,  1669,
-    1671,  1672,  1673,  1674,  1675,  1676,  1677,  1678,  1679,  1680,
-    1681,  1682,  1683,  1690,  1700,  1700,  1700,  1700,  1702,  1707
+       0,   304,   304,   307,   314,   323,   332,   341,   352,   364,
+     372,   379,   384,   396,   405,   414,   425,   435,   443,   456,
+     464,   473,   482,   493,   503,   504,   509,   520,   533,   542,
+     551,   556,   561,   571,   576,   581,   590,   599,   608,   617,
+     626,   635,   644,   653,   662,   671,   681,   689,   705,   718,
+     731,   751,   765,   770,   779,   788,   799,   800,   807,   823,
+     833,   845,   846,   853,   866,   884,   906,   913,   914,   921,
+     928,   935,   937,   938,   944,   951,   963,   975,   987,  1001,
+    1009,  1020,  1025,  1036,  1042,  1049,  1055,  1062,  1069,  1079,
+    1085,  1092,  1098,  1108,  1113,  1119,  1124,  1131,  1143,  1153,
+    1163,  1172,  1183,  1195,  1207,  1238,  1253,  1253,  1253,  1255,
+    1268,  1279,  1290,  1299,  1312,  1323,  1334,  1345,  1353,  1357,
+    1361,  1366,  1378,  1388,  1398,  1408,  1418,  1430,  1440,  1450,
+    1460,  1469,  1481,  1491,  1501,  1511,  1520,  1520,  1520,  1520,
+    1521,  1521,  1521,  1521,  1522,  1522,  1522,  1522,  1524,  1524,
+    1525,  1525,  1526,  1526,  1530,  1539,  1548,  1557,  1560,  1569,
+    1578,  1588,  1598,  1608,  1613,  1622,  1634,  1646,  1658,  1668,
+    1679,  1679,  1681,  1681,  1682,  1682,  1683,  1683,  1683,  1684,
+    1686,  1687,  1688,  1689,  1690,  1691,  1692,  1693,  1694,  1695,
+    1696,  1697,  1698,  1705,  1715,  1715,  1715,  1715,  1717,  1722
 };
 #endif
 
@@ -1725,224 +1727,224 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, msc, yyscanner)
   switch (yytype)
     {
       case 3: /* "TOK_STRING" */
-#line 293 "language.yy"
+#line 295 "language.yy"
 	{free((yyvaluep->str));};
-#line 1731 "language.cc"
+#line 1733 "language.cc"
 	break;
       case 4: /* "TOK_QSTRING" */
-#line 293 "language.yy"
+#line 295 "language.yy"
 	{free((yyvaluep->str));};
-#line 1736 "language.cc"
+#line 1738 "language.cc"
 	break;
       case 5: /* "TOK_NUMBER" */
-#line 297 "language.yy"
+#line 299 "language.yy"
 	{free((yyvaluep->str));};
-#line 1741 "language.cc"
+#line 1743 "language.cc"
 	break;
       case 15: /* "TOK_MSC" */
-#line 294 "language.yy"
+#line 296 "language.yy"
 	{free((yyvaluep->str));};
-#line 1746 "language.cc"
+#line 1748 "language.cc"
 	break;
       case 16: /* "TOK_COLON_STRING" */
-#line 293 "language.yy"
+#line 295 "language.yy"
 	{free((yyvaluep->str));};
-#line 1751 "language.cc"
+#line 1753 "language.cc"
 	break;
       case 17: /* "TOK_STYLE_NAME" */
-#line 293 "language.yy"
+#line 295 "language.yy"
 	{free((yyvaluep->str));};
-#line 1756 "language.cc"
+#line 1758 "language.cc"
 	break;
       case 18: /* "TOK_BOOLEAN" */
-#line 297 "language.yy"
+#line 299 "language.yy"
 	{free((yyvaluep->str));};
-#line 1761 "language.cc"
+#line 1763 "language.cc"
 	break;
       case 33: /* "TOK_COMMAND_HEADING" */
-#line 296 "language.yy"
+#line 298 "language.yy"
 	{free((yyvaluep->str));};
-#line 1766 "language.cc"
+#line 1768 "language.cc"
 	break;
       case 34: /* "TOK_COMMAND_NUDGE" */
-#line 296 "language.yy"
+#line 298 "language.yy"
 	{free((yyvaluep->str));};
-#line 1771 "language.cc"
+#line 1773 "language.cc"
 	break;
       case 35: /* "TOK_COMMAND_NEWPAGE" */
-#line 296 "language.yy"
+#line 298 "language.yy"
 	{free((yyvaluep->str));};
-#line 1776 "language.cc"
+#line 1778 "language.cc"
 	break;
       case 36: /* "TOK_COMMAND_DEFCOLOR" */
-#line 295 "language.yy"
+#line 297 "language.yy"
 	{free((yyvaluep->str));};
-#line 1781 "language.cc"
+#line 1783 "language.cc"
 	break;
       case 37: /* "TOK_COMMAND_DEFSTYLE" */
-#line 295 "language.yy"
+#line 297 "language.yy"
 	{free((yyvaluep->str));};
-#line 1786 "language.cc"
+#line 1788 "language.cc"
 	break;
       case 38: /* "TOK_COMMAND_DEFDESIGN" */
-#line 295 "language.yy"
+#line 297 "language.yy"
 	{free((yyvaluep->str));};
-#line 1791 "language.cc"
+#line 1793 "language.cc"
 	break;
       case 39: /* "TOK_COMMAND_BIG" */
-#line 294 "language.yy"
+#line 296 "language.yy"
 	{free((yyvaluep->str));};
-#line 1796 "language.cc"
+#line 1798 "language.cc"
 	break;
       case 40: /* "TOK_COMMAND_PIPE" */
-#line 294 "language.yy"
+#line 296 "language.yy"
 	{free((yyvaluep->str));};
-#line 1801 "language.cc"
+#line 1803 "language.cc"
 	break;
       case 46: /* "braced_arclist" */
-#line 289 "language.yy"
+#line 291 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1806 "language.cc"
+#line 1808 "language.cc"
 	break;
       case 47: /* "arclist" */
-#line 289 "language.yy"
+#line 291 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1811 "language.cc"
+#line 1813 "language.cc"
 	break;
       case 48: /* "mscenclosed" */
-#line 289 "language.yy"
+#line 291 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1816 "language.cc"
+#line 1818 "language.cc"
 	break;
       case 50: /* "complete_arc" */
-#line 285 "language.yy"
+#line 287 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1821 "language.cc"
+#line 1823 "language.cc"
 	break;
       case 51: /* "arc" */
-#line 285 "language.yy"
+#line 287 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1826 "language.cc"
+#line 1828 "language.cc"
 	break;
       case 52: /* "optlist" */
-#line 289 "language.yy"
+#line 291 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1831 "language.cc"
+#line 1833 "language.cc"
 	break;
       case 53: /* "opt" */
-#line 285 "language.yy"
+#line 287 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1836 "language.cc"
+#line 1838 "language.cc"
 	break;
       case 54: /* "entitylist" */
-#line 290 "language.yy"
+#line 292 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->entitylist);};
-#line 1841 "language.cc"
+#line 1843 "language.cc"
 	break;
       case 55: /* "entity" */
-#line 290 "language.yy"
+#line 292 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->entity);};
-#line 1846 "language.cc"
+#line 1848 "language.cc"
 	break;
       case 58: /* "tok_stringlist" */
-#line 291 "language.yy"
+#line 293 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->stringlist);};
-#line 1851 "language.cc"
+#line 1853 "language.cc"
 	break;
       case 67: /* "parallel" */
-#line 288 "language.yy"
+#line 290 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcparallel);};
-#line 1856 "language.cc"
+#line 1858 "language.cc"
 	break;
       case 68: /* "emphasis_list" */
-#line 287 "language.yy"
+#line 289 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1861 "language.cc"
+#line 1863 "language.cc"
 	break;
       case 69: /* "first_emphasis" */
-#line 287 "language.yy"
+#line 289 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1866 "language.cc"
+#line 1868 "language.cc"
 	break;
       case 70: /* "pipe_emphasis" */
-#line 287 "language.yy"
+#line 289 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1871 "language.cc"
+#line 1873 "language.cc"
 	break;
       case 71: /* "emphrel" */
-#line 287 "language.yy"
+#line 289 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1876 "language.cc"
+#line 1878 "language.cc"
 	break;
       case 72: /* "vertxpos" */
-#line 284 "language.yy"
+#line 286 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->vertxpos);};
-#line 1881 "language.cc"
+#line 1883 "language.cc"
 	break;
       case 74: /* "vertrel" */
-#line 283 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1886 "language.cc"
-	break;
-      case 75: /* "arcrel" */
 #line 285 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1891 "language.cc"
+#line 1888 "language.cc"
+	break;
+      case 75: /* "arcrel" */
+#line 287 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcbase);};
+#line 1893 "language.cc"
 	break;
       case 76: /* "arcrel_to" */
-#line 286 "language.yy"
+#line 288 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcarrow);};
-#line 1896 "language.cc"
+#line 1898 "language.cc"
 	break;
       case 77: /* "arcrel_from" */
-#line 286 "language.yy"
+#line 288 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcarrow);};
-#line 1901 "language.cc"
+#line 1903 "language.cc"
 	break;
       case 78: /* "arcrel_bidir" */
-#line 286 "language.yy"
+#line 288 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcarrow);};
-#line 1906 "language.cc"
+#line 1908 "language.cc"
 	break;
       case 85: /* "full_arcattrlist_with_label" */
-#line 291 "language.yy"
+#line 293 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->attriblist);};
-#line 1911 "language.cc"
+#line 1913 "language.cc"
 	break;
       case 86: /* "full_arcattrlist" */
-#line 291 "language.yy"
+#line 293 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->attriblist);};
-#line 1916 "language.cc"
+#line 1918 "language.cc"
 	break;
       case 87: /* "arcattrlist" */
-#line 291 "language.yy"
+#line 293 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->attriblist);};
-#line 1921 "language.cc"
+#line 1923 "language.cc"
 	break;
       case 88: /* "arcattr" */
-#line 291 "language.yy"
+#line 293 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->attrib);};
-#line 1926 "language.cc"
+#line 1928 "language.cc"
 	break;
       case 89: /* "entity_string" */
-#line 292 "language.yy"
+#line 294 "language.yy"
 	{free((yyvaluep->str));};
-#line 1931 "language.cc"
+#line 1933 "language.cc"
 	break;
       case 90: /* "reserved_word_string" */
-#line 292 "language.yy"
+#line 294 "language.yy"
 	{free((yyvaluep->str));};
-#line 1936 "language.cc"
+#line 1938 "language.cc"
 	break;
       case 91: /* "symbol_string" */
-#line 292 "language.yy"
+#line 294 "language.yy"
 	{free((yyvaluep->str));};
-#line 1941 "language.cc"
+#line 1943 "language.cc"
 	break;
       case 92: /* "string" */
-#line 292 "language.yy"
+#line 294 "language.yy"
 	{free((yyvaluep->str));};
-#line 1946 "language.cc"
+#line 1948 "language.cc"
 	break;
 
       default:
@@ -2266,14 +2268,14 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 302 "language.yy"
+#line 304 "language.yy"
     {
     //no action for empty file
 }
     break;
 
   case 3:
-#line 306 "language.yy"
+#line 308 "language.yy"
     {
     if (C_S_H) {
     } else {
@@ -2283,7 +2285,7 @@ yyreduce:
     break;
 
   case 4:
-#line 313 "language.yy"
+#line 315 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (2)]), COLOR_ERROR);
@@ -2294,7 +2296,7 @@ yyreduce:
     break;
 
   case 5:
-#line 322 "language.yy"
+#line 324 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_BRACE);
@@ -2306,7 +2308,7 @@ yyreduce:
     break;
 
   case 6:
-#line 331 "language.yy"
+#line 333 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_BRACE);
@@ -2318,7 +2320,7 @@ yyreduce:
     break;
 
   case 7:
-#line 340 "language.yy"
+#line 342 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (4)]), COLOR_BRACE);
@@ -2332,7 +2334,7 @@ yyreduce:
     break;
 
   case 8:
-#line 351 "language.yy"
+#line 353 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_BRACE);
@@ -2345,7 +2347,7 @@ yyreduce:
     break;
 
   case 9:
-#line 363 "language.yy"
+#line 365 "language.yy"
     {
     if (C_S_H) break;
     if ((yyvsp[(1) - (1)].arcbase))
@@ -2356,7 +2358,7 @@ yyreduce:
     break;
 
   case 10:
-#line 371 "language.yy"
+#line 373 "language.yy"
     {
     if (C_S_H) break;
     if ((yyvsp[(2) - (2)].arcbase))
@@ -2366,7 +2368,7 @@ yyreduce:
     break;
 
   case 11:
-#line 378 "language.yy"
+#line 380 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arclist) = (yyvsp[(1) - (1)].arclist);
@@ -2374,7 +2376,7 @@ yyreduce:
     break;
 
   case 12:
-#line 383 "language.yy"
+#line 385 "language.yy"
     {
     if (C_S_H) break;
     //Merge $2 into $1
@@ -2385,7 +2387,7 @@ yyreduce:
     break;
 
   case 13:
-#line 395 "language.yy"
+#line 397 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (4)]), COLOR_BRACE);
@@ -2397,7 +2399,7 @@ yyreduce:
     break;
 
   case 14:
-#line 404 "language.yy"
+#line 406 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_BRACE);
@@ -2409,7 +2411,7 @@ yyreduce:
     break;
 
   case 15:
-#line 413 "language.yy"
+#line 415 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (5)]), COLOR_BRACE);
@@ -2423,7 +2425,7 @@ yyreduce:
     break;
 
   case 16:
-#line 424 "language.yy"
+#line 426 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (4)]), COLOR_BRACE);
@@ -2435,7 +2437,7 @@ yyreduce:
     break;
 
   case 17:
-#line 434 "language.yy"
+#line 436 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -2446,7 +2448,7 @@ yyreduce:
     break;
 
   case 18:
-#line 442 "language.yy"
+#line 444 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -2461,7 +2463,7 @@ yyreduce:
     break;
 
   case 19:
-#line 455 "language.yy"
+#line 457 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_SEMICOLON);
@@ -2472,7 +2474,7 @@ yyreduce:
     break;
 
   case 20:
-#line 463 "language.yy"
+#line 465 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_ERROR);
@@ -2484,23 +2486,25 @@ yyreduce:
     break;
 
   case 21:
-#line 472 "language.yy"
+#line 474 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (2)]), COLOR_SEMICOLON);
     } else {
+        if ((yyvsp[(1) - (2)].arcbase)) SETLINEEND((yyvsp[(1) - (2)].arcbase), (yyloc).first_line, (yyloc).first_column, (yyloc).last_line, (yyloc).last_column);
         (yyval.arcbase)=(yyvsp[(1) - (2)].arcbase);
     }
 }
     break;
 
   case 22:
-#line 480 "language.yy"
+#line 483 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_ERROR);
         ADDCSH((yylsp[(3) - (3)]), COLOR_SEMICOLON);
     } else {
+        if ((yyvsp[(1) - (3)].arcbase)) SETLINEEND((yyvsp[(1) - (3)].arcbase), (yyloc).first_line, (yyloc).first_column, (yyloc).last_line, (yyloc).last_column);
         (yyval.arcbase)=(yyvsp[(1) - (3)].arcbase);
     }
     yyerrok;
@@ -2508,18 +2512,19 @@ yyreduce:
     break;
 
   case 23:
-#line 490 "language.yy"
+#line 494 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (2)]), COLOR_ERROR);
     } else {
+        if ((yyvsp[(1) - (2)].arcbase)) SETLINEEND((yyvsp[(1) - (2)].arcbase), (yyloc).first_line, (yyloc).first_column, (yyloc).last_line, (yyloc).last_column);
         (yyval.arcbase)=(yyvsp[(1) - (2)].arcbase);
     }
 }
     break;
 
   case 25:
-#line 500 "language.yy"
+#line 505 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcbase) = ((yyvsp[(1) - (2)].arcbase))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -2527,7 +2532,7 @@ yyreduce:
     break;
 
   case 26:
-#line 505 "language.yy"
+#line 510 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2541,7 +2546,7 @@ yyreduce:
     break;
 
   case 27:
-#line 516 "language.yy"
+#line 521 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -2557,7 +2562,7 @@ yyreduce:
     break;
 
   case 28:
-#line 529 "language.yy"
+#line 534 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2569,7 +2574,7 @@ yyreduce:
     break;
 
   case 29:
-#line 538 "language.yy"
+#line 543 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -2581,7 +2586,7 @@ yyreduce:
     break;
 
   case 30:
-#line 547 "language.yy"
+#line 552 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcbase) = (new ArcDivider(MSC_ARC_VSPACE, YYMSC_GETPOS((yyloc)), &msc))->AddAttributeList((yyvsp[(1) - (1)].attriblist));
@@ -2589,7 +2594,7 @@ yyreduce:
     break;
 
   case 31:
-#line 552 "language.yy"
+#line 557 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcbase) = new CommandEntity((yyvsp[(1) - (1)].entitylist), YYMSC_GETPOS((yyloc)), &msc);
@@ -2597,7 +2602,7 @@ yyreduce:
     break;
 
   case 32:
-#line 557 "language.yy"
+#line 562 "language.yy"
     {
     if (C_S_H) break;
     /* If there were arcs defined by the options (e.g., background)
@@ -2610,7 +2615,7 @@ yyreduce:
     break;
 
   case 33:
-#line 567 "language.yy"
+#line 572 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcemph); //to remove warning for downcast
@@ -2618,7 +2623,7 @@ yyreduce:
     break;
 
   case 34:
-#line 572 "language.yy"
+#line 577 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcparallel);
@@ -2626,7 +2631,7 @@ yyreduce:
     break;
 
   case 35:
-#line 577 "language.yy"
+#line 582 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2638,7 +2643,7 @@ yyreduce:
     break;
 
   case 36:
-#line 586 "language.yy"
+#line 591 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2650,7 +2655,7 @@ yyreduce:
     break;
 
   case 37:
-#line 595 "language.yy"
+#line 600 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2662,7 +2667,7 @@ yyreduce:
     break;
 
   case 38:
-#line 604 "language.yy"
+#line 609 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -2674,7 +2679,7 @@ yyreduce:
     break;
 
   case 39:
-#line 613 "language.yy"
+#line 618 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2686,7 +2691,7 @@ yyreduce:
     break;
 
   case 40:
-#line 622 "language.yy"
+#line 627 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -2698,7 +2703,7 @@ yyreduce:
     break;
 
   case 41:
-#line 631 "language.yy"
+#line 636 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2710,7 +2715,7 @@ yyreduce:
     break;
 
   case 42:
-#line 640 "language.yy"
+#line 645 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2722,7 +2727,7 @@ yyreduce:
     break;
 
   case 43:
-#line 649 "language.yy"
+#line 654 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -2734,7 +2739,7 @@ yyreduce:
     break;
 
   case 44:
-#line 658 "language.yy"
+#line 663 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -2746,7 +2751,7 @@ yyreduce:
     break;
 
   case 45:
-#line 667 "language.yy"
+#line 672 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -2758,7 +2763,7 @@ yyreduce:
     break;
 
   case 46:
-#line 677 "language.yy"
+#line 682 "language.yy"
     {
     if (C_S_H) break;
     if ((yyvsp[(1) - (1)].arcbase))
@@ -2769,7 +2774,7 @@ yyreduce:
     break;
 
   case 47:
-#line 685 "language.yy"
+#line 690 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -2787,7 +2792,7 @@ yyreduce:
     break;
 
   case 48:
-#line 701 "language.yy"
+#line 706 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -2803,7 +2808,7 @@ yyreduce:
     break;
 
   case 49:
-#line 714 "language.yy"
+#line 719 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -2819,7 +2824,7 @@ yyreduce:
     break;
 
   case 50:
-#line 727 "language.yy"
+#line 732 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -2842,7 +2847,7 @@ yyreduce:
     break;
 
   case 51:
-#line 747 "language.yy"
+#line 752 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -2858,7 +2863,7 @@ yyreduce:
     break;
 
   case 52:
-#line 761 "language.yy"
+#line 766 "language.yy"
     {
     if (C_S_H) break;
     (yyval.entitylist) = (EntityDefList*)((new EntityDefList)->Append((yyvsp[(1) - (1)].entity)));
@@ -2866,7 +2871,7 @@ yyreduce:
     break;
 
   case 53:
-#line 766 "language.yy"
+#line 771 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -2877,7 +2882,7 @@ yyreduce:
     break;
 
   case 54:
-#line 775 "language.yy"
+#line 780 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -2889,7 +2894,7 @@ yyreduce:
     break;
 
   case 55:
-#line 784 "language.yy"
+#line 789 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
@@ -2901,7 +2906,7 @@ yyreduce:
     break;
 
   case 57:
-#line 796 "language.yy"
+#line 801 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -2910,7 +2915,7 @@ yyreduce:
     break;
 
   case 58:
-#line 803 "language.yy"
+#line 808 "language.yy"
     {
     if (C_S_H) {
         break;
@@ -2928,7 +2933,7 @@ yyreduce:
     break;
 
   case 59:
-#line 819 "language.yy"
+#line 824 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_STYLENAME);
@@ -2941,7 +2946,7 @@ yyreduce:
     break;
 
   case 60:
-#line 829 "language.yy"
+#line 834 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -2955,7 +2960,7 @@ yyreduce:
     break;
 
   case 62:
-#line 842 "language.yy"
+#line 847 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -2964,7 +2969,7 @@ yyreduce:
     break;
 
   case 63:
-#line 849 "language.yy"
+#line 854 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_COLORNAME);
@@ -2979,7 +2984,7 @@ yyreduce:
     break;
 
   case 64:
-#line 862 "language.yy"
+#line 867 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (5)]), COLOR_DESIGNNAME);
@@ -3000,7 +3005,7 @@ yyreduce:
     break;
 
   case 65:
-#line 880 "language.yy"
+#line 885 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (6)]), COLOR_DESIGNNAME);
@@ -3023,7 +3028,7 @@ yyreduce:
     break;
 
   case 66:
-#line 902 "language.yy"
+#line 907 "language.yy"
     {
     //push empty color & style sets for design definition
     msc.PushContext(true);
@@ -3032,7 +3037,7 @@ yyreduce:
     break;
 
   case 68:
-#line 910 "language.yy"
+#line 915 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_SEMICOLON);
@@ -3041,7 +3046,7 @@ yyreduce:
     break;
 
   case 69:
-#line 917 "language.yy"
+#line 922 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3051,7 +3056,7 @@ yyreduce:
     break;
 
   case 70:
-#line 924 "language.yy"
+#line 929 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3061,7 +3066,7 @@ yyreduce:
     break;
 
   case 73:
-#line 934 "language.yy"
+#line 939 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -3070,7 +3075,7 @@ yyreduce:
     break;
 
   case 74:
-#line 940 "language.yy"
+#line 945 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (2)]), COLOR_ERROR);
@@ -3079,7 +3084,7 @@ yyreduce:
     break;
 
   case 75:
-#line 947 "language.yy"
+#line 952 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -3094,7 +3099,7 @@ yyreduce:
     break;
 
   case 76:
-#line 959 "language.yy"
+#line 964 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -3109,7 +3114,7 @@ yyreduce:
     break;
 
   case 77:
-#line 971 "language.yy"
+#line 976 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -3124,7 +3129,7 @@ yyreduce:
     break;
 
   case 78:
-#line 983 "language.yy"
+#line 988 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3139,7 +3144,7 @@ yyreduce:
     break;
 
   case 79:
-#line 997 "language.yy"
+#line 1002 "language.yy"
     {
     if (C_S_H) break;
     if ((yyvsp[(1) - (1)].arclist))
@@ -3150,7 +3155,7 @@ yyreduce:
     break;
 
   case 80:
-#line 1005 "language.yy"
+#line 1010 "language.yy"
     {
     if (C_S_H) break;
     if ((yyvsp[(2) - (2)].arclist)==NULL)
@@ -3163,7 +3168,7 @@ yyreduce:
     break;
 
   case 81:
-#line 1016 "language.yy"
+#line 1021 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcemph) = (yyvsp[(1) - (1)].arcemph);
@@ -3171,11 +3176,12 @@ yyreduce:
     break;
 
   case 82:
-#line 1021 "language.yy"
+#line 1026 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
     } else {
+        if ((yyvsp[(1) - (2)].str)) SETLINEEND((yyvsp[(2) - (2)].arcemph), (yyloc).first_line, (yyloc).first_column, (yyloc).last_line, (yyloc).last_column);
         (yyval.arcemph) = (yyvsp[(2) - (2)].arcemph);
     }
     free((yyvsp[(1) - (2)].str));
@@ -3183,32 +3189,35 @@ yyreduce:
     break;
 
   case 83:
-#line 1031 "language.yy"
+#line 1037 "language.yy"
     {
     if (C_S_H) break;
+    SETLINEEND((yyvsp[(2) - (2)].arcemph), (yylsp[(2) - (2)]).first_line, (yylsp[(2) - (2)]).first_column, (yylsp[(2) - (2)]).last_line, (yylsp[(2) - (2)]).last_column);
     (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddFollow(((yyvsp[(2) - (2)].arcemph))->ChangeStyleForFollow());
 }
     break;
 
   case 84:
-#line 1036 "language.yy"
+#line 1043 "language.yy"
     {
     if (C_S_H) break;
     ((yyvsp[(2) - (3)].arcemph))->ChangeStyleForFollow()->AddAttributeList((yyvsp[(3) - (3)].attriblist));
+    SETLINEEND((yyvsp[(2) - (3)].arcemph), (yylsp[(2) - (3)]).first_line, (yylsp[(2) - (3)]).first_column, (yylsp[(3) - (3)]).last_line, (yylsp[(3) - (3)]).last_column);
     (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph))->AddFollow((yyvsp[(2) - (3)].arcemph));
 }
     break;
 
   case 85:
-#line 1042 "language.yy"
+#line 1050 "language.yy"
     {
     if (C_S_H) break;
+    SETLINEEND((yyvsp[(2) - (3)].arcemph), (yylsp[(2) - (3)]).first_line, (yylsp[(2) - (3)]).first_column, (yylsp[(2) - (3)]).last_line, (yylsp[(2) - (3)]).last_column);
     (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph))->AddFollow(((yyvsp[(2) - (3)].arcemph))->AddArcList((yyvsp[(3) - (3)].arclist))->ChangeStyleForFollow());
 }
     break;
 
   case 86:
-#line 1047 "language.yy"
+#line 1056 "language.yy"
     {
     if (C_S_H) break;
     ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS((yylsp[(1) - (2)])), NULL, YYMSC_GETPOS((yylsp[(1) - (2)])), YYMSC_GETPOS((yyloc)), &msc);
@@ -3218,60 +3227,66 @@ yyreduce:
     break;
 
   case 87:
-#line 1054 "language.yy"
+#line 1063 "language.yy"
     {
     if (C_S_H) break;
+    SETLINEEND((yyvsp[(2) - (4)].arcemph), (yylsp[(2) - (4)]).first_line, (yylsp[(2) - (4)]).first_column, (yylsp[(3) - (4)]).last_line, (yylsp[(3) - (4)]).last_column);
     ((yyvsp[(2) - (4)].arcemph))->AddArcList((yyvsp[(4) - (4)].arclist))->ChangeStyleForFollow()->AddAttributeList((yyvsp[(3) - (4)].attriblist));
     (yyval.arcemph) = ((yyvsp[(1) - (4)].arcemph))->AddFollow((yyvsp[(2) - (4)].arcemph));
 }
     break;
 
   case 88:
-#line 1060 "language.yy"
+#line 1070 "language.yy"
     {
     if (C_S_H) break;
     ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS((yylsp[(1) - (3)])), NULL, YYMSC_GETPOS((yylsp[(1) - (3)])), YYMSC_GETPOS((yyloc)), &msc);
+    SETLINEEND(temp, (yylsp[(2) - (3)]).first_line, (yylsp[(2) - (3)]).first_column, (yylsp[(2) - (3)]).last_line, (yylsp[(2) - (3)]).last_column);
     temp->AddArcList((yyvsp[(3) - (3)].arclist))->ChangeStyleForFollow((yyvsp[(1) - (3)].arcemph))->AddAttributeList((yyvsp[(2) - (3)].attriblist));
     (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph))->AddFollow(temp);
 }
     break;
 
   case 89:
-#line 1069 "language.yy"
+#line 1080 "language.yy"
     {
     if (C_S_H) break;
+    SETLINEEND((yyvsp[(1) - (1)].arcemph), (yyloc).first_line, (yyloc).first_column, (yyloc).last_line, (yyloc).last_column);
     (yyval.arcemph) = (yyvsp[(1) - (1)].arcemph);
 }
     break;
 
   case 90:
-#line 1074 "language.yy"
+#line 1086 "language.yy"
     {
     if (C_S_H) break;
     ((yyvsp[(1) - (2)].arcemph))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    SETLINEEND((yyvsp[(1) - (2)].arcemph), (yyloc).first_line, (yyloc).first_column, (yyloc).last_line, (yyloc).last_column);
     (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph));
 }
     break;
 
   case 91:
-#line 1080 "language.yy"
+#line 1093 "language.yy"
     {
     if (C_S_H) break;
+    SETLINEEND((yyvsp[(1) - (2)].arcemph), (yylsp[(1) - (2)]).first_line, (yylsp[(1) - (2)]).first_column, (yylsp[(1) - (2)]).last_line, (yylsp[(1) - (2)]).last_column);
     (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddArcList((yyvsp[(2) - (2)].arclist));
 }
     break;
 
   case 92:
-#line 1085 "language.yy"
+#line 1099 "language.yy"
     {
     if (C_S_H) break;
+    SETLINEEND((yyvsp[(1) - (3)].arcemph), (yylsp[(1) - (3)]).first_line, (yylsp[(1) - (3)]).first_column, (yylsp[(2) - (3)]).last_line, (yylsp[(2) - (3)]).last_column);
     ((yyvsp[(1) - (3)].arcemph))->AddArcList((yyvsp[(3) - (3)].arclist))->AddAttributeList((yyvsp[(2) - (3)].attriblist));
     (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph));
 }
     break;
 
   case 93:
-#line 1094 "language.yy"
+#line 1109 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcemph) = ((yyvsp[(1) - (1)].arcemph))->SetPipe();
@@ -3279,7 +3294,7 @@ yyreduce:
     break;
 
   case 94:
-#line 1099 "language.yy"
+#line 1114 "language.yy"
     {
     if (C_S_H) break;
     ((yyvsp[(1) - (2)].arcemph))->SetPipe()->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -3288,7 +3303,7 @@ yyreduce:
     break;
 
   case 95:
-#line 1105 "language.yy"
+#line 1120 "language.yy"
     {
     if (C_S_H) break;
     (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddArcList((yyvsp[(2) - (2)].arclist))->SetPipe();
@@ -3296,7 +3311,7 @@ yyreduce:
     break;
 
   case 96:
-#line 1110 "language.yy"
+#line 1125 "language.yy"
     {
     if (C_S_H) break;
     ((yyvsp[(1) - (3)].arcemph))->AddArcList((yyvsp[(3) - (3)].arclist))->SetPipe()->AddAttributeList((yyvsp[(2) - (3)].attriblist));
@@ -3305,7 +3320,7 @@ yyreduce:
     break;
 
   case 97:
-#line 1117 "language.yy"
+#line 1132 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
@@ -3320,7 +3335,7 @@ yyreduce:
     break;
 
   case 98:
-#line 1129 "language.yy"
+#line 1144 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -3333,7 +3348,7 @@ yyreduce:
     break;
 
   case 99:
-#line 1139 "language.yy"
+#line 1154 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -3346,7 +3361,7 @@ yyreduce:
     break;
 
   case 100:
-#line 1149 "language.yy"
+#line 1164 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -3357,7 +3372,7 @@ yyreduce:
     break;
 
   case 101:
-#line 1158 "language.yy"
+#line 1173 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3371,7 +3386,7 @@ yyreduce:
     break;
 
   case 102:
-#line 1169 "language.yy"
+#line 1184 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3386,7 +3401,7 @@ yyreduce:
     break;
 
   case 103:
-#line 1181 "language.yy"
+#line 1196 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3401,7 +3416,7 @@ yyreduce:
     break;
 
   case 104:
-#line 1193 "language.yy"
+#line 1208 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3435,7 +3450,7 @@ yyreduce:
     break;
 
   case 105:
-#line 1224 "language.yy"
+#line 1239 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (4)]), COLOR_KEYWORD);
@@ -3452,7 +3467,7 @@ yyreduce:
     break;
 
   case 109:
-#line 1241 "language.yy"
+#line 1256 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (4)]), (yyvsp[(1) - (4)].str));
@@ -3468,7 +3483,7 @@ yyreduce:
     break;
 
   case 110:
-#line 1254 "language.yy"
+#line 1269 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_SYMBOL);
@@ -3482,7 +3497,7 @@ yyreduce:
     break;
 
   case 111:
-#line 1265 "language.yy"
+#line 1280 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
@@ -3496,7 +3511,7 @@ yyreduce:
     break;
 
   case 112:
-#line 1276 "language.yy"
+#line 1291 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -3508,7 +3523,7 @@ yyreduce:
     break;
 
   case 113:
-#line 1285 "language.yy"
+#line 1300 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (4)]), (yyvsp[(1) - (4)].str));
@@ -3524,7 +3539,7 @@ yyreduce:
     break;
 
   case 114:
-#line 1298 "language.yy"
+#line 1313 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_SYMBOL);
@@ -3538,7 +3553,7 @@ yyreduce:
     break;
 
   case 115:
-#line 1309 "language.yy"
+#line 1324 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
@@ -3552,7 +3567,7 @@ yyreduce:
     break;
 
   case 116:
-#line 1320 "language.yy"
+#line 1335 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -3564,7 +3579,7 @@ yyreduce:
     break;
 
   case 117:
-#line 1331 "language.yy"
+#line 1346 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -3575,28 +3590,28 @@ yyreduce:
     break;
 
   case 118:
-#line 1339 "language.yy"
+#line 1354 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
     break;
 
   case 119:
-#line 1343 "language.yy"
+#line 1358 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
     break;
 
   case 120:
-#line 1347 "language.yy"
+#line 1362 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
     break;
 
   case 121:
-#line 1352 "language.yy"
+#line 1367 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
@@ -3611,7 +3626,7 @@ yyreduce:
     break;
 
   case 122:
-#line 1364 "language.yy"
+#line 1379 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -3624,7 +3639,7 @@ yyreduce:
     break;
 
   case 123:
-#line 1374 "language.yy"
+#line 1389 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -3637,7 +3652,7 @@ yyreduce:
     break;
 
   case 124:
-#line 1384 "language.yy"
+#line 1399 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_SYMBOL);
@@ -3650,7 +3665,7 @@ yyreduce:
     break;
 
   case 125:
-#line 1394 "language.yy"
+#line 1409 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
@@ -3661,7 +3676,7 @@ yyreduce:
     break;
 
   case 126:
-#line 1404 "language.yy"
+#line 1419 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
@@ -3676,7 +3691,7 @@ yyreduce:
     break;
 
   case 127:
-#line 1416 "language.yy"
+#line 1431 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -3689,7 +3704,7 @@ yyreduce:
     break;
 
   case 128:
-#line 1426 "language.yy"
+#line 1441 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -3702,7 +3717,7 @@ yyreduce:
     break;
 
   case 129:
-#line 1436 "language.yy"
+#line 1451 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_SYMBOL);
@@ -3715,7 +3730,7 @@ yyreduce:
     break;
 
   case 130:
-#line 1446 "language.yy"
+#line 1461 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
@@ -3726,7 +3741,7 @@ yyreduce:
     break;
 
   case 131:
-#line 1455 "language.yy"
+#line 1470 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
@@ -3741,7 +3756,7 @@ yyreduce:
     break;
 
   case 132:
-#line 1467 "language.yy"
+#line 1482 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -3754,7 +3769,7 @@ yyreduce:
     break;
 
   case 133:
-#line 1477 "language.yy"
+#line 1492 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ENTITYNAME((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -3767,7 +3782,7 @@ yyreduce:
     break;
 
   case 134:
-#line 1487 "language.yy"
+#line 1502 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_SYMBOL);
@@ -3780,7 +3795,7 @@ yyreduce:
     break;
 
   case 135:
-#line 1497 "language.yy"
+#line 1512 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
@@ -3791,7 +3806,7 @@ yyreduce:
     break;
 
   case 154:
-#line 1516 "language.yy"
+#line 1531 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_COLON_STRING((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
@@ -3803,7 +3818,7 @@ yyreduce:
     break;
 
   case 155:
-#line 1525 "language.yy"
+#line 1540 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_COLON_STRING((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -3815,7 +3830,7 @@ yyreduce:
     break;
 
   case 156:
-#line 1534 "language.yy"
+#line 1549 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_COLON_STRING((yylsp[(2) - (2)]), (yyvsp[(2) - (2)].str));
@@ -3827,7 +3842,7 @@ yyreduce:
     break;
 
   case 158:
-#line 1546 "language.yy"
+#line 1561 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (2)]), COLOR_BRACKET);
@@ -3839,7 +3854,7 @@ yyreduce:
     break;
 
   case 159:
-#line 1555 "language.yy"
+#line 1570 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
@@ -3851,7 +3866,7 @@ yyreduce:
     break;
 
   case 160:
-#line 1564 "language.yy"
+#line 1579 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (4)]), COLOR_BRACKET);
@@ -3864,7 +3879,7 @@ yyreduce:
     break;
 
   case 161:
-#line 1574 "language.yy"
+#line 1589 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
@@ -3877,7 +3892,7 @@ yyreduce:
     break;
 
   case 162:
-#line 1584 "language.yy"
+#line 1599 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
@@ -3889,7 +3904,7 @@ yyreduce:
     break;
 
   case 163:
-#line 1594 "language.yy"
+#line 1609 "language.yy"
     {
     if (C_S_H) break;
     (yyval.attriblist) = (new AttributeList)->Append((yyvsp[(1) - (1)].attrib));
@@ -3897,7 +3912,7 @@ yyreduce:
     break;
 
   case 164:
-#line 1599 "language.yy"
+#line 1614 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -3908,7 +3923,7 @@ yyreduce:
     break;
 
   case 165:
-#line 1608 "language.yy"
+#line 1623 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_ATTRNAME);
@@ -3923,7 +3938,7 @@ yyreduce:
     break;
 
   case 166:
-#line 1620 "language.yy"
+#line 1635 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_ATTRNAME);
@@ -3938,7 +3953,7 @@ yyreduce:
     break;
 
   case 167:
-#line 1632 "language.yy"
+#line 1647 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_ATTRNAME);
@@ -3953,7 +3968,7 @@ yyreduce:
     break;
 
   case 168:
-#line 1644 "language.yy"
+#line 1659 "language.yy"
     {
     if (C_S_H) {
         ADDCSH_ATTRNAME((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str), COLOR_ATTRNAME);
@@ -3966,7 +3981,7 @@ yyreduce:
     break;
 
   case 169:
-#line 1654 "language.yy"
+#line 1669 "language.yy"
     {
     if (C_S_H) {
         ADDCSH((yylsp[(1) - (1)]), COLOR_STYLENAME);
@@ -3978,67 +3993,67 @@ yyreduce:
     break;
 
   case 180:
-#line 1671 "language.yy"
+#line 1686 "language.yy"
     {(yyval.str) = strdup("->");}
     break;
 
   case 181:
-#line 1672 "language.yy"
+#line 1687 "language.yy"
     {(yyval.str) = strdup("<-");}
     break;
 
   case 182:
-#line 1673 "language.yy"
+#line 1688 "language.yy"
     {(yyval.str) = strdup("<->");}
     break;
 
   case 183:
-#line 1674 "language.yy"
+#line 1689 "language.yy"
     {(yyval.str) = strdup("=>");}
     break;
 
   case 184:
-#line 1675 "language.yy"
+#line 1690 "language.yy"
     {(yyval.str) = strdup("<=");}
     break;
 
   case 185:
-#line 1676 "language.yy"
+#line 1691 "language.yy"
     {(yyval.str) = strdup("<=>");}
     break;
 
   case 186:
-#line 1677 "language.yy"
+#line 1692 "language.yy"
     {(yyval.str) = strdup(">>");}
     break;
 
   case 187:
-#line 1678 "language.yy"
+#line 1693 "language.yy"
     {(yyval.str) = strdup("<<");}
     break;
 
   case 188:
-#line 1679 "language.yy"
+#line 1694 "language.yy"
     {(yyval.str) = strdup("<<>>");}
     break;
 
   case 189:
-#line 1680 "language.yy"
+#line 1695 "language.yy"
     {(yyval.str) = strdup(">");}
     break;
 
   case 190:
-#line 1681 "language.yy"
+#line 1696 "language.yy"
     {(yyval.str) = strdup("<");}
     break;
 
   case 191:
-#line 1682 "language.yy"
+#line 1697 "language.yy"
     {(yyval.str) = strdup("<>");}
     break;
 
   case 192:
-#line 1684 "language.yy"
+#line 1699 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
     case MSC_ARC_DIVIDER:  (yyval.str) = strdup("---"); break;
@@ -4048,7 +4063,7 @@ yyreduce:
     break;
 
   case 193:
-#line 1691 "language.yy"
+#line 1706 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
     case MSC_EMPH_SOLID:  (yyval.str) = strdup("--"); break;
@@ -4060,14 +4075,14 @@ yyreduce:
     break;
 
   case 198:
-#line 1703 "language.yy"
+#line 1718 "language.yy"
     {
     msc.PushContext();
 }
     break;
 
   case 199:
-#line 1708 "language.yy"
+#line 1723 "language.yy"
     {
     msc.PopContext();
 }
@@ -4075,7 +4090,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 4079 "language.cc"
+#line 4094 "language.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -4295,7 +4310,7 @@ yyreturn:
 }
 
 
-#line 1713 "language.yy"
+#line 1728 "language.yy"
 
 
 

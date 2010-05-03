@@ -53,7 +53,7 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// Create output pane:
 	const DWORD dwStyle = WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | 
-						  ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | ES_AUTOHSCROLL;
+						  ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_NOHIDESEL;
 
 	if (!m_wndEditor.Create(dwStyle, rectClient, this, IDC_OUTPUT_LIST))
 	{

@@ -64,6 +64,7 @@
     (A).first_pos++;                        \
     msc.AddCSH_AttrValue(A, (B)+1, NULL);   \
     } while (0)
+#define SETLINEEND(ARC, FL, FC, LL, LC)
 
 #ifndef HAVE_UNISTD_H
 int isatty (int) {return 0;}
@@ -75,6 +76,7 @@ int isatty (int) {return 0;}
 #define ADDCSH_ATTRNAME(A, B, C)
 #define ADDCSH_ENTITYNAME(A, B)
 #define ADDCSH_COLON_STRING(A, B)
+#define SETLINEEND(ARC, FL, FC, LL, LC) do {(ARC)->SetLineEnd(FL, FC, LL, LC);} while(0)
 #ifndef HAVE_UNISTD_H
 extern int isatty (int);
 #endif
@@ -473,6 +475,7 @@ complete_arc: TOK_SEMICOLON
     if (C_S_H) {
         ADDCSH(@2, COLOR_SEMICOLON);
     } else {
+        if ($1) SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         $$=$1;
     }
 }
@@ -482,6 +485,7 @@ complete_arc: TOK_SEMICOLON
         ADDCSH(@2, COLOR_ERROR);
         ADDCSH(@3, COLOR_SEMICOLON);
     } else {
+        if ($1) SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         $$=$1;
     }
     yyerrok;
@@ -491,6 +495,7 @@ complete_arc: TOK_SEMICOLON
     if (C_S_H) {
         ADDCSH(@2, COLOR_ERROR);
     } else {
+        if ($1) SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         $$=$1;
     }
 };
@@ -1022,6 +1027,7 @@ emphasis_list: first_emphasis
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
+        if ($1) SETLINEEND($2, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         $$ = $2;
     }
     free($1);
@@ -1030,17 +1036,20 @@ emphasis_list: first_emphasis
            | emphasis_list emphrel
 {
     if (C_S_H) break;
+    SETLINEEND($2, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
     $$ = ($1)->AddFollow(($2)->ChangeStyleForFollow());
 }
            | emphasis_list emphrel full_arcattrlist_with_label
 {
     if (C_S_H) break;
     ($2)->ChangeStyleForFollow()->AddAttributeList($3);
+    SETLINEEND($2, @2.first_line, @2.first_column, @3.last_line, @3.last_column);
     $$ = ($1)->AddFollow($2);
 }
            | emphasis_list emphrel braced_arclist
 {
     if (C_S_H) break;
+    SETLINEEND($2, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
     $$ = ($1)->AddFollow(($2)->AddArcList($3)->ChangeStyleForFollow());
 }
            | emphasis_list braced_arclist
@@ -1053,6 +1062,7 @@ emphasis_list: first_emphasis
            | emphasis_list emphrel full_arcattrlist_with_label braced_arclist
 {
     if (C_S_H) break;
+    SETLINEEND($2, @2.first_line, @2.first_column, @3.last_line, @3.last_column);
     ($2)->AddArcList($4)->ChangeStyleForFollow()->AddAttributeList($3);
     $$ = ($1)->AddFollow($2);
 }
@@ -1060,6 +1070,7 @@ emphasis_list: first_emphasis
 {
     if (C_S_H) break;
     ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$), &msc);
+    SETLINEEND(temp, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
     temp->AddArcList($3)->ChangeStyleForFollow($1)->AddAttributeList($2);
     $$ = ($1)->AddFollow(temp);
 };
@@ -1068,22 +1079,26 @@ emphasis_list: first_emphasis
 first_emphasis:   emphrel
 {
     if (C_S_H) break;
+    SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
     $$ = $1;
 }
            | emphrel full_arcattrlist_with_label
 {
     if (C_S_H) break;
     ($1)->AddAttributeList($2);
+    SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
     $$ = ($1);
 }
            | emphrel braced_arclist
 {
     if (C_S_H) break;
+    SETLINEEND($1, @1.first_line, @1.first_column, @1.last_line, @1.last_column);
     $$ = ($1)->AddArcList($2);
 }
            | emphrel full_arcattrlist_with_label braced_arclist
 {
     if (C_S_H) break;
+    SETLINEEND($1, @1.first_line, @1.first_column, @2.last_line, @2.last_column);
     ($1)->AddArcList($3)->AddAttributeList($2);
     $$ = ($1);
 };

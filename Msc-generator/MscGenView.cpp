@@ -24,6 +24,8 @@
 
 #include "MscGenDoc.h"
 #include "MscGenView.h"
+#include "cairo.h"
+#include "cairo-win32.h"
 
 #include <string>
 #include <cmath>
@@ -92,8 +94,9 @@ BOOL CMscGenView::PreCreateWindow(CREATESTRUCT& cs)
 void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 {
 	CScrollView::OnPrepareDC(pDC, pInfo);
-	if (SizeEmpty(m_size)) return;
+/*	if (SizeEmpty(m_size)) return;
 	CMscGenDoc* pDoc = GetDocument();
+	if (pDoc==NULL) return; 
 
 	pDC->SetMapMode(MM_ANISOTROPIC);
 	CSize sizeDoc(ScaleSize(m_size, pDoc->m_zoom/100.0));
@@ -110,80 +113,10 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 	long yExt = (long)sizeDoc.cy * yLogPixPerInch * sizeNum.cy;
 	yExt /= 100 * (long)sizeDenom.cy;
 	pDC->SetViewportExt((int)xExt, (int)yExt);
+*/
 }
 
 
-BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
-{
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	if (pDoc->IsInPlaceActive())
-		return TRUE;
-	if (m_DeleteBkg) {
-		m_DeleteBkg = false;
-		return TRUE;
-	}
-	return FALSE;
-}
-
-void CMscGenView::OnDraw(CDC* pDC)
-{
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	if (m_hemf==NULL) return;
-	CRect clip;
-	pDC->GetClipBox(&clip);
-	//m_zoom is always 100% when in place
-	if (pDoc->IsInPlaceActive()) {
-		pDC->FillSolidRect(clip, pDC->GetBkColor());
-		CRect r(CPoint(0, 0), m_size);
-		pDC->SetMapMode(MM_ANISOTROPIC);
-		PlayEnhMetaFile(pDC->m_hDC, m_hemf, r);
-	} else {
-		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
-		CDC memDC;
-		memDC.CreateCompatibleDC(pDC);
-		CBitmap bitmap;
-		bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
-		memDC.SelectObject(&bitmap);
-		memDC.SetWindowOrg(clip.left, clip.top);
-		memDC.FillSolidRect(clip, pDC->GetBkColor());
-		PlayEnhMetaFile(memDC.m_hDC, m_hemf, r);
-		pDC->BitBlt(clip.left, clip.top, clip.Width(),  clip.Height(),
-			        &memDC, clip.left, clip.top, SRCCOPY);   
-		if (pDoc->m_nTrackRectNo) {
-  			CBrush brushBlue(RGB(0, 0, 255));
-			CBrush* pOldBrush = pDC->SelectObject(&brushBlue);
-
-			// create and select a thick, black pen
-			CPen penBlack;
-			penBlack.CreatePen(PS_SOLID, 3, RGB(0, 0, 0));
-			CPen* pOldPen = pDC->SelectObject(&penBlack);
-
-			for (int i = 0; i<pDoc->m_nTrackRectNo; i++)
-				pDC->Rectangle(pDoc->m_rctTrack+i);
-
-			// put back the old objects
-			pDC->SelectObject(pOldBrush);
-			pDC->SelectObject(pOldPen);
-		}
-	}
-	return;
-	//if (m_hwmf) {
-	//  CSize size(r.right, r.bottom);
-	//	pDC->SetMapMode(MM_ANISOTROPIC);
-	//	pDC->SetWindowExt(size);
-	//	pDC->SetViewportExt(size);
-	//	PlayMetaFile(pDC->m_hDC, m_hwmf);
-	//}
-}
-
-void CMscGenView::OnViewRedraw()
-{
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
-	pDoc->UpdateAllViews(NULL);
-}
 
 void CMscGenView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
@@ -304,6 +237,89 @@ CMscGenDoc* CMscGenView::GetDocument() const // non-debug version is inline
 #endif //_DEBUG
 
 // CMscGenView message handlers
+
+BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
+{
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	if (pDoc->IsInPlaceActive())
+		return TRUE;
+	if (m_DeleteBkg) {
+		m_DeleteBkg = false;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+void CMscGenView::OnDraw(CDC* pDC)
+{
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	if (m_hemf==NULL) return;
+	CRect clip;
+	pDC->GetClipBox(&clip);
+	//m_zoom is always 100% when in place
+	if (pDoc->IsInPlaceActive()) {
+		pDC->FillSolidRect(clip, pDC->GetBkColor());
+		CRect r(CPoint(0, 0), m_size);
+		pDC->SetMapMode(MM_ANISOTROPIC);
+		PlayEnhMetaFile(pDC->m_hDC, m_hemf, r);
+	} else {
+		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
+		CDC memDC;
+		memDC.CreateCompatibleDC(pDC);
+		CBitmap bitmap;
+		bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
+		memDC.SelectObject(&bitmap);
+		memDC.SetWindowOrg(clip.left, clip.top);
+		memDC.FillSolidRect(clip, pDC->GetBkColor());
+		PlayEnhMetaFile(memDC.m_hDC, m_hemf, r);
+		if (pDoc->m_nTrackRectNo) {
+			//create fill surface
+			cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
+			cairo_t *cr = cairo_create(surface2);
+		    cairo_set_source_rgba(cr, 1, 1, 1, 1);
+			for (int i = 0; i<pDoc->m_nTrackRectNo; i++) {
+				CRect rr(pDoc->m_rctTrack[i]);
+				rr.InflateRect(2, 2);
+				cairo_rectangle(cr, rr.left, rr.top, rr.Width(), rr.Height());
+				cairo_fill(cr);
+			}
+			cairo_destroy(cr);
+
+			//create outline surface
+			cairo_surface_t *surface3 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
+			cr = cairo_create(surface3);
+			cairo_set_operator(cr, CAIRO_OPERATOR_XOR);
+			cairo_set_source_rgba(cr, 1, 1, 1, 1);
+			cairo_mask_surface(cr, surface2, 0, 0);
+			cairo_mask_surface(cr, surface2, 1, 1);
+			cairo_destroy(cr);
+
+			//This is the destination surface
+			cairo_surface_t *surface = cairo_win32_surface_create(memDC);
+			cr = cairo_create(surface);
+			cairo_set_source_rgba(cr, 1, 0, 0, 0.5);
+			cairo_mask_surface(cr, surface2, 0, 0);
+			cairo_set_source_rgba(cr, 0.5, 0, 0, 1);
+			cairo_mask_surface(cr, surface3, 0, 0);
+			cairo_destroy(cr);
+			//Cleanup
+			cairo_surface_destroy(surface3);
+			cairo_surface_destroy(surface2);
+			cairo_surface_destroy(surface);
+		}
+		pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
+			        &memDC, clip.left, clip.top, SRCCOPY);   
+	}
+}
+
+void CMscGenView::OnViewRedraw()
+{
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	pDoc->UpdateAllViews(NULL);
+}
 
 void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 {
@@ -544,13 +560,10 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseHover(nFlags, point);
-	
 	point += GetScrollPosition();
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);
-
-	return CScrollView::OnMouseHover(nFlags, point);	
 }
 
 void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)

@@ -243,12 +243,14 @@ void *CChartData::GetArcByLine(unsigned line, unsigned col) const
 }
 
 
-bool CChartData::GetLineByArc(void*arc, unsigned &line, unsigned &col) const
+bool CChartData::GetLineByArc(void*arc, unsigned &start_line, unsigned &start_col, unsigned &end_line, unsigned &end_col) const
 {
 	if (arc==NULL) return false;
 	CompileIfNeeded();
-	line = static_cast<ArcBase*>(arc)->linenum.line;
-	col = static_cast<ArcBase*>(arc)->linenum.col;
+	start_line = static_cast<ArcBase*>(arc)->line_start.line;
+	start_col = static_cast<ArcBase*>(arc)->line_start.col;
+	end_line = static_cast<ArcBase*>(arc)->line_end.line;
+	end_col = static_cast<ArcBase*>(arc)->line_end.col;
 	return true;
 }
 
@@ -258,12 +260,17 @@ unsigned CChartData::GetCoversByArc(void *arc, RECT *result, int max_size, doubl
 	CompileIfNeeded();
 	unsigned count=0;
 	for(std::set<Block>::const_iterator i=static_cast<ArcBase*>(arc)->GetGeometry().cover.begin(); 
-		i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++, count++) {
-		result[count].left = i->x.from * xScale;
-		result[count].right = i->x.till * xScale;
-		result[count].top = i->y.from * yScale;
-		result[count].bottom = i->y.till * yScale;
-	}
+		     i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++) 
+		switch(i->type) {
+			case Block::NONE: continue;
+			case Block::EMPHASIS: continue;
+			case Block::NORMAL:
+				result[count].left = i->x.from * xScale;
+				result[count].right = i->x.till * xScale;
+				result[count].top = i->y.from * yScale;
+				result[count].bottom = i->y.till * yScale;
+				count++;
+		}
 	return count;
 }
 

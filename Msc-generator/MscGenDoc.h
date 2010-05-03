@@ -53,6 +53,7 @@ public:
 	bool m_bTrackMode;
     int m_nTrackRectNo;
 	RECT m_rctTrack[100];
+	CHARRANGE m_saved_charrange;
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
 	//The non-modal windows

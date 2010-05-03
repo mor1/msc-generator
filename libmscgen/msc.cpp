@@ -958,7 +958,7 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
     const ArcDirArrow *arrow = dynamic_cast<const ArcDirArrow *>(base);
     //We can only get ArcSelfArrow or ArcDirArrow here
     if (!arrow) {
-        Error.Error(base->linenum, "Big arrows cannot point back to the same entity. Ignoring it.");
+        Error.Error(base->line_start, "Big arrows cannot point back to the same entity. Ignoring it.");
         return NULL;
     }
     return new ArcBigArrow(*arrow, StyleSets.top()["blockarrow"]);

@@ -478,7 +478,7 @@
 			IntermediateDirectory=".\Win32_LIB_Debug"
 			ConfigurationType="4"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
+			UseOfMFC="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"

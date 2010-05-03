@@ -105,6 +105,8 @@ CMscGenDoc::CMscGenDoc()
 	m_zoom = 100;
 	m_nTrackRectNo = 0;
 	m_bTrackMode = false;
+	m_saved_charrange.cpMax = 0;
+	m_saved_charrange.cpMin = 0;
 	m_page = 0; //all
 	m_pages = 0;
 
@@ -1236,9 +1238,14 @@ void CMscGenDoc::SetTrackMode(bool on)
 {
 	if (on == m_bTrackMode) return;
 	m_bTrackMode = on;
-	if (!on) {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	CEditorBar *pEditor = pApp->m_pWndEditor;
+	if (on) {
+		if (pEditor) pEditor->m_wndEditor.GetSel(m_saved_charrange);
+	} else {
 		m_nTrackRectNo = 0;
-		::ReleaseCapture();
+		if (pEditor) pEditor->m_wndEditor.SetSel(m_saved_charrange);
 	}
 	POSITION pos = GetFirstViewPosition();
 	while (pos) {
@@ -1250,6 +1257,7 @@ void CMscGenDoc::SetTrackMode(bool on)
 void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
 	if (!m_bTrackMode) return;
+	bool wasTrackRect = m_nTrackRectNo!=0;
 	void *arc = m_itrCurrent->GetArcByCoordinate(mouse);
 	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
 	POSITION pos = GetFirstViewPosition();
@@ -1257,17 +1265,30 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 		CMscGenView* pView = (CMscGenView*)GetNextView(pos);
 		pView->Invalidate();
 	}
-	unsigned line, col;
-	if (m_itrCurrent->GetLineByArc(arc, line, col)) {
-		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-		ASSERT(pApp != NULL);
-		CEditorBar *pEditor = pApp->m_pWndEditor;
-		if (pEditor) {
-			long start = pEditor->m_wndEditor.LineIndex(line-1)+col-1;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	CEditorBar *pEditor = pApp->m_pWndEditor;
+	if (pEditor) {
+		unsigned start_line, start_col;
+		unsigned end_line, end_col;
+		if (m_itrCurrent->GetLineByArc(arc, start_line, start_col, end_line, end_col)) {
+			if (!wasTrackRect) pEditor->m_wndEditor.GetSel(m_saved_charrange);
+			long start = pEditor->m_wndEditor.LineIndex(start_line-1)+start_col-1;
+			long end = pEditor->m_wndEditor.LineIndex(end_line-1)+end_col;
+			pEditor->m_wndEditor.SetRedraw(false);
 			pEditor->m_wndEditor.SetSel(start, start);
+			POINT scroll_pos;
+			::SendMessage(pEditor->m_wndEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+			pEditor->m_wndEditor.SetSel(start, end);
+			::SendMessage(pEditor->m_wndEditor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+			pEditor->m_wndEditor.SetRedraw(true);
+			pEditor->m_wndEditor.Invalidate();
+		} else {
+			pEditor->m_wndEditor.SetSel(m_saved_charrange);
 		}
 	}
 }
+
 void CMscGenDoc::OnButtonTrack()
 {
 	SetTrackMode(!m_bTrackMode);

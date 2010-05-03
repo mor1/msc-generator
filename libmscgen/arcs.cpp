@@ -27,10 +27,21 @@ using namespace std;
 template class PtrList<ArcList>;
 
 ArcBase::ArcBase(MscArcType t, file_line l, Msc *msc) :
-    type(t), linenum(l), chart(msc), valid(true), compress(false), yPos(0)
+    type(t), line_start(l), line_end(l), linenum_final(false),
+    chart(msc), valid(true), compress(false), yPos(0)
 {
     if (msc)
         compress = msc->StyleSets.top().compress;
+}
+
+void ArcBase::SetLineEnd(int fl, int fc, int ll, int lc, bool f)
+{
+    if (linenum_final) return;
+    linenum_final = f;
+    line_start.line = fl;
+    line_start.col = fc;
+    line_end.line = ll;
+    line_end.col = lc;
 }
 
 //Helper function. If the pos of *value is smaller (or larger) than i
@@ -83,7 +94,7 @@ void ArcBase::PostHeightProcess(void)
 {
     if (valid)
         chart->AllCovers += geometry;
-    chart->AllArcs[linenum] = this;
+    chart->AllArcs[line_start] = this;
 }
 
 
@@ -346,7 +357,7 @@ void ArcSelfArrow::PostHeightProcess(void)
         string sss;
         sss << "Entity '" << (*src)->name << "' is";
         sss << " turned off, but referenced here.";
-        chart->Error.Warning(linenum, sss, "It will look strange.");
+        chart->Error.Warning(line_start, sss, "It will look strange.");
     }
 }
 
@@ -471,7 +482,7 @@ void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, int &numbe
             ss << arrow_string << (*ii++)->name;
         ss << ". Ignoring arc.";
         valid = false;
-        chart->Error.Error(linenum, ss);
+        chart->Error.Error(line_start, ss);
 }
 
 void ArcDirArrow::Width(EntityDistanceMap &distances)
@@ -967,7 +978,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     if (src == MARKER_HERE_STR || src == MARKER_PREV_PARALLEL_STR)
         if (dst == MARKER_HERE_STR || dst == MARKER_PREV_PARALLEL_STR)
             if (top_level) {
-                chart->Error.Error(linenum, "Need at least one marker specified."
+                chart->Error.Error(line_start, "Need at least one marker specified."
                                    " Ignoring vertical arrow.",
                                    "Only verticals inside a parallel block can omit both markers.");
                 valid = false;
@@ -977,7 +988,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     if (src != MARKER_HERE_STR && src != MARKER_PREV_PARALLEL_STR) {
         std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(src);
         if (i == chart->Markers.end()) {
-            chart->Error.Error(linenum, "Cannot find marker '" + src + "'."
+            chart->Error.Error(line_start, "Cannot find marker '" + src + "'."
                                " Ignoring vertical arrow.");
             valid=false;
             return;
@@ -987,7 +998,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     if (dst != MARKER_HERE_STR && dst != MARKER_PREV_PARALLEL_STR) {
         std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(dst);
         if (i == chart->Markers.end()) {
-            chart->Error.Error(linenum, "Cannot find marker '" + dst + "'."
+            chart->Error.Error(line_start, "Cannot find marker '" + dst + "'."
                                " Ignoring vertical arrow.");
             valid=false;
             return;
@@ -1074,7 +1085,7 @@ void ArcVerticalArrow::PostHeightProcess(void)
     else if (aMarker>=0)
         ypos[0] = aMarker;
     else {
-        chart->Error.Error(linenum, "Vertical with no markers cannot take its size from the preceeding blocks."
+        chart->Error.Error(line_start, "Vertical with no markers cannot take its size from the preceeding blocks."
                             " Ignoring vertical arrow.",
                             "Try putting it into a later block.");
         valid = false;
@@ -1088,7 +1099,7 @@ void ArcVerticalArrow::PostHeightProcess(void)
     else if (aMarker>=0)
         ypos[1] = aMarker;
     else {
-        chart->Error.Error(linenum, "Vertical with no markers cannot take its size from the preceeding blocks."
+        chart->Error.Error(line_start, "Vertical with no markers cannot take its size from the preceeding blocks."
                             " Ignoring vertical arrow.",
                             "Try putting it into a later block.");
         valid = false;
@@ -1106,10 +1117,10 @@ void ArcVerticalArrow::PostHeightProcess(void)
     arrow_x_size += style.arrow.getBigEndWidthMargin(isBidir(), MSC_ARROW_END, chart);
     if (arrow_x_size + twh.x > fabs(ypos[0]-ypos[1])) {
         if (arrow_x_size>0)
-            chart->Error.Warning(linenum, "Size of vertical element is smaller than needed for text and arrow.",
+            chart->Error.Warning(line_start, "Size of vertical element is smaller than needed for text and arrow.",
                                  "May look strange.");
         else
-            chart->Error.Warning(linenum, "Size of vertical element is smaller than needed for text.",
+            chart->Error.Warning(line_start, "Size of vertical element is smaller than needed for text.",
                                  "May look strange.");
     }
 }
@@ -1358,13 +1369,18 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
 }
 
 //Will only be called for the first box of a multi-segment box series
+//geometry conatins cover for label (if any), all of the labels in the first box's geometry (rest empty)
+//geomery_all is set only the first box, and is a full cover for all, as well
 double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
     y += chart->emphVGapOutside;
     if (final) yPos = y;
     if (draw) y = yPos;
-    if (!draw) geometry.Clear();
+	if (!draw) {
+		geometry_all.Clear();
+		geometry.Clear();
+	}
 
     const XY lw(style.line.LineWidth(), style.line.LineWidth());
     const XY lw2(lw.x/2, lw.y/2);
@@ -1476,6 +1492,8 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
                 curve_gap = style.line.radius.second;
             (*i)->parsed_label.DrawCovers(s.x, d.x-curve_gap, y, geom.cover, draw);
         }
+		geom.SetArc(this);
+		geometry += geom;
         //If final position, cover the entity lines where text goes
         if (final) chart->HideEntityLines(geom.cover);
         //set an upper limit for arrows inside the box
@@ -1571,10 +1589,12 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (!draw) {
         //Generate one block for cover
         Block box(s.x-lw.x, d.x+lw.x+style.shadow.offset.second, total_orig_y, y);
-        geometry.cover.insert(box);
-        geometry.mainline.Extend(box.y);
-        geometry.SetArc(this);
-        g += geometry;
+        if (emphasis)
+            box.type = Block::EMPHASIS;
+        geometry_all.cover.insert(box);
+        geometry_all.mainline.Extend(box.y);
+        geometry_all.SetArc(this);
+        g += geometry_all;
     }
 
     return total_height + 2*chart->emphVGapOutside;
@@ -1583,7 +1603,14 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 //Will only be called for the first box of a multi-segment box series
 void ArcEmphasis::PostHeightProcess(void)
 {
-    ArcBase::PostHeightProcess();
+    //This 2 are done by ArcBase::PostHeightProcess normally, but here we add a different geometry
+	//than the one stored in this->geometry
+	if (valid) 
+		chart->AllCovers += geometry_all;
+	if (!emphasis)
+		geometry = geometry_all;
+    chart->AllArcs[line_start] = this;
+	
     if (!valid) return;
     for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
         if ((*i)->valid && (*i)->emphasis)
@@ -1616,7 +1643,7 @@ void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, int &number
     if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER)) {
         string ss;
         ss << (type==MSC_ARC_DISCO ? "'...'" : "'---'") << " is specified inside a parallel block.";
-        chart->Error.Warning(linenum, ss, "May display incorrectly.");
+        chart->Error.Warning(line_start, ss, "May display incorrectly.");
     }
 }
 
@@ -1936,7 +1963,6 @@ double CommandNewpage::DrawHeight(double y, Geometry &g, bool draw, bool final, 
     if (!final || !valid) return 0;
     yPos = y;
     chart->yPageStart.push_back(y);
-    geometry.cover.insert(Block(0, chart->totalWidth, y, y, this));
     return 0;
 }
 
@@ -1948,7 +1974,6 @@ double CommandNewBackground::DrawHeight(double y, Geometry &g,
     if (!final || !valid) return 0;
     yPos = y;
     chart->Background[y] = fill;
-    geometry.cover.insert(Block(0, chart->totalWidth, y, y, this));
     return 0;
 }
 
@@ -1964,7 +1989,7 @@ CommandMark::CommandMark(const char *m, file_line l, Msc *msc)
         if (i->second.first.file != chart->current_file)
             msg << " (in input '" + chart->Error.Files[i->second.first.file] + "')";
         msg.append(". Keeping old definition.");
-        chart->Error.Error(linenum, msg);
+        chart->Error.Error(line_start, msg);
         valid = false;
         return;
     }
@@ -1989,7 +2014,6 @@ double CommandMark::DrawHeight(double y, Geometry &g,
 {
     if (draw || !valid) return 0;
     chart->Markers[name].second = y+offset;
-    geometry.cover.insert(Block(0, chart->totalWidth, y, y+offset, this));
     return 0;
 }
 

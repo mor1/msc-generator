@@ -53,10 +53,11 @@ struct Block {
     struct Range x;
     struct Range y;
     mutable ArcBase *arc;
-    Block(ArcBase *a=NULL) : arc(a) {}
-    Block(double sx, double dx, double sy, double dy, ArcBase *a=NULL) : arc(a),
+    enum {NONE, NORMAL, EMPHASIS} type;
+    Block(ArcBase *a=NULL) : arc(a), type(NORMAL) {}
+    Block(double sx, double dx, double sy, double dy, ArcBase *a=NULL) : arc(a), type(NORMAL),
         x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
-    Block(XY ul, XY dr, ArcBase *a=NULL) : arc(a) {
+    Block(XY ul, XY dr, ArcBase *a=NULL) : arc(a), type(NORMAL) {
         x.from = ul.x<dr.x?ul.x:dr.x; x.till = ul.x>dr.x?ul.x:dr.x;
         y.from = ul.y<dr.y?ul.y:dr.y; y.till = ul.y>dr.y?ul.y:dr.y;
     }
