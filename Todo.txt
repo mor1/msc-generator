@@ -1,14 +1,12 @@
-vertical markplaces are not entities, should not be marked as first
-move csh from mini editor to richedit control descendant
-add where is cursor method to that control
-design lib
+inplace tracking mode
 inplace size of editor
-inplace do not draw onto clip? View::OnDraw?
+inplace draw via bitmap, too. View::OnDraw?
+
+move csh from mini editor to richedit control descendant
+design lib
 what if user turns on internal editor
 search replace for internal
 tab for internal editor and auto ident
 update doc
 drag and drop files - drag in editor...
 try scale=10 for vertical text
-inplace tracking mode
-error tracking is not removed at next error.

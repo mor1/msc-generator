@@ -527,7 +527,7 @@ void CMscGenApp::OnEditPreferences()
 			pDoc->OnUpdate(false, false);     //Do not change zoom or text in internal editor, merely recompile & re-issue errors
 			pDoc->StopDrawingProgress();
 		} 
-		if (updateCSH && m_pWndEditor && m_pWndEditor->IsVisible())
+		if (updateCSH && m_pWndEditor && m_pWndEditor->m_hWnd!=0 && m_pWndEditor->IsVisible())
 			m_pWndEditor->UpdateCsh(true);
 	}
 }
@@ -579,7 +579,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	ReadDesigns(reportProblem); //fills m_ChartSourcePreamble appropriately, default filename applies
 	FillDesignDesignCombo("", true);
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
-		              "http://msc-generator.sourceforge.net v2.4.1";
+		              "http://msc-generator.sourceforge.net v2.4.2";
 	//m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
 
 	CHARFORMAT cf;

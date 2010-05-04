@@ -37,7 +37,8 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg BOOL OnCommand(WPARAM wParam, LPARAM lParam);
-	DECLARE_MESSAGE_MAP()
+    afx_msg void OnSelChange(NMHDR*pNotifyStruct, LRESULT*result);
+DECLARE_MESSAGE_MAP()
 
 	BOOL ShowWindow(int nCmdShow);
 };

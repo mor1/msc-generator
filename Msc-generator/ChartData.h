@@ -29,6 +29,13 @@ void EnsureCRLF(CString &str);
 class Msc;
 enum Msc_DrawType {DRAW_DIRECT=0, DRAW_EMF=1, DRAW_WMF=2};
 
+struct TrackRect {
+	CRect r;
+	bool frame_only;
+	TrackRect() {};
+	TrackRect(const CRect &rect, bool f=false) : r(rect), frame_only(f) {};
+};
+
 class CChartData {
 protected:
 	CString m_text;
@@ -72,7 +79,7 @@ public:
 	void *GetArcByCoordinate(CPoint point) const;
 	void *GetArcByLine(unsigned line, unsigned col) const;
 	bool GetLineByArc(void*arc, unsigned &start_line, unsigned &start_col, unsigned &end_line, unsigned &end_col) const;
-	unsigned GetCoversByArc(void *arc, RECT *result, int max_size, double xScale, double yScale) const;
+	unsigned GetCoversByArc(void *arc, TrackRect *result, int max_size, double xScale, double yScale) const;
 //Color Syntax Highlighting related
 	const MscCshListType &GetCsh() const;
 	void FreeCsh() const {if (m_msc_for_csh) {delete m_msc_for_csh; m_msc_for_csh=NULL;}}

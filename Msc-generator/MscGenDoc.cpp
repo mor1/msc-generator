@@ -78,8 +78,8 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_CUT, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_PASTE, OnUpdateEditPaste)
-	ON_COMMAND(ID_BUTTON_TRACK, &CMscGenDoc::OnButtonTrack)
-	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, &CMscGenDoc::OnUpdateButtonTrack)
+	ON_COMMAND(ID_BUTTON_TRACK, OnButtonTrack)
+	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, OnUpdateButtonTrack)
 END_MESSAGE_MAP()
 
 CLIPFORMAT NEAR CMscGenDoc::m_cfPrivate = NULL;
@@ -463,7 +463,7 @@ void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanUndo()) 
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanUndo()) 
 		pCmdUI->Enable(true);
 	else pCmdUI->Enable(m_itrCurrent != m_charts.begin());
 }
@@ -473,7 +473,7 @@ void CMscGenDoc::OnEditUndo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanUndo()) {
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanUndo()) {
 		pEditor->m_wndEditor.Undo();
 		return;
 	}
@@ -498,7 +498,7 @@ void CMscGenDoc::OnUpdateEditRedo(CCmdUI *pCmdUI)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanRedo()) 
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanRedo()) 
 		pCmdUI->Enable(true);
 	else pCmdUI->Enable(m_itrCurrent != --m_charts.end());
 }
@@ -507,7 +507,7 @@ void CMscGenDoc::OnEditRedo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (pEditor && pEditor->IsVisible() && pEditor->m_wndEditor.CanUndo()) {
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanUndo()) {
 		pEditor->m_wndEditor.Redo();
 		return;
 	}
@@ -529,10 +529,7 @@ void CMscGenDoc::OnEditRedo()
 
 void CMscGenDoc::OnUpdateEditCutCopy(CCmdUI *pCmdUI)
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	pCmdUI->Enable(pEditor && pEditor->IsVisible());
+	pCmdUI->Enable(IsInternalEditorRunning());
 }
 
 void CMscGenDoc::OnEditCut()
@@ -540,7 +537,7 @@ void CMscGenDoc::OnEditCut()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (!pEditor || !pEditor->IsVisible()) return;
+	if (!IsInternalEditorRunning()) return;
 	pEditor->m_wndEditor.Cut();
 }
 
@@ -549,7 +546,7 @@ void CMscGenDoc::OnEditCopy()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (!pEditor || !pEditor->IsVisible()) return;
+	if (!IsInternalEditorRunning()) return;
 	pEditor->m_wndEditor.Copy();
 }
 
@@ -575,21 +572,18 @@ void CMscGenDoc::OnUpdateEditPaste(CCmdUI *pCmdUI)
 {
 	COleDataObject dataObject;
 	dataObject.AttachClipboard();
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	pCmdUI->Enable(dataObject.IsDataAvailable(CF_TEXT) && pEditor && pEditor->IsVisible());
+	pCmdUI->Enable(dataObject.IsDataAvailable(CF_TEXT) && IsInternalEditorRunning());
 }
 
 void CMscGenDoc::OnEditPaste()
 {
+	if (!IsInternalEditorRunning()) return;
 	COleDataObject dataObject;
 	dataObject.AttachClipboard();
 	if (!dataObject.IsDataAvailable(CF_TEXT)) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (!pEditor || !pEditor->IsVisible()) return;
 	pEditor->m_wndEditor.PasteSpecial(CF_TEXT);
 }
 
@@ -651,11 +645,9 @@ void CMscGenDoc::StartEditor(CString filename)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (pApp->m_iTextEditorType == CMscGenApp::INTERNAL && pEditor) {
-		if (!pEditor->IsVisible()) {
-			pEditor->ShowPane(TRUE, FALSE, TRUE);
-			pEditor->UpdateText(m_itrCurrent->GetText());
-		}
+	if (pApp->m_iTextEditorType == CMscGenApp::INTERNAL && IsInternalEditorRunning()) {
+		pEditor->ShowPane(TRUE, FALSE, TRUE);
+		pEditor->UpdateText(m_itrCurrent->GetText());
 		return;
 	}
 	//OK, it should be an external editor.		
@@ -735,11 +727,16 @@ void CMscGenDoc::StartEditor(CString filename)
 	}
 }
 
-bool CMscGenDoc::IsEditorRunning() const
+bool CMscGenDoc::IsInternalEditorRunning() const
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	return m_EditorProcessId || pApp->m_pWndEditor->IsVisible();
+	return pApp->m_pWndEditor && pApp->m_pWndEditor->m_hWnd!=0 && pApp->m_pWndEditor->IsVisible();
+}
+
+bool CMscGenDoc::IsEditorRunning() const
+{
+	return m_EditorProcessId || IsInternalEditorRunning();
 }
 
 bool CMscGenDoc::IsCorrectEditorRunning() const
@@ -747,7 +744,7 @@ bool CMscGenDoc::IsCorrectEditorRunning() const
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	return (m_EditorProcessId && pApp->m_iTextEditorType != CMscGenApp::INTERNAL) ||
-		   (pApp->m_pWndEditor->IsVisible() && pApp->m_iTextEditorType == CMscGenApp::INTERNAL);
+		   (IsInternalEditorRunning() && pApp->m_iTextEditorType == CMscGenApp::INTERNAL);
 }
 
 //Restarts editor, if it is running
@@ -769,7 +766,7 @@ void CMscGenDoc::JumpToLine(unsigned line, unsigned col)
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
 	//Jump in the internal editor
-	if (pEditor && pEditor->IsVisible()) {
+	if (IsInternalEditorRunning()) {
 		long index = pEditor->m_wndEditor.LineIndex(line-1) + (col?col-1:0);
 		pEditor->m_wndEditor.SetSel(index, index);
 		pEditor->m_wndEditor.SetFocus();
@@ -918,7 +915,7 @@ void CMscGenDoc::StopEditor(EStopEditor force, bool stopEvenInternal)
 		m_EditorFileName.Empty();
 	}
 	//OK, see if internal editor is running. DO it afterr the external, since that may update the text in the internal one.
-	if (pApp->m_pWndEditor->IsVisible()) {
+	if (IsInternalEditorRunning()) {
 		if (stopEvenInternal || pApp->m_iTextEditorType != CMscGenApp::INTERNAL) {
 			if (pApp->m_pWndEditor->m_modified) 
 				if (IDYES == pApp->m_pWndEditor->MessageBox("Do you want to keep changes made in the internal editor?", 
@@ -1164,10 +1161,10 @@ void CMscGenDoc::OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI)
 
 void CMscGenDoc::OnEditUpdate()
 {
+	if (!IsInternalEditorRunning()) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (!pEditor || !pEditor->IsVisible()) return;
 	StartDrawingProgress();
 	pEditor->m_wndEditor.EmptyUndoBuffer(); // no more undo in local editor. 
 	CString text;
@@ -1183,10 +1180,7 @@ void CMscGenDoc::OnEditUpdate()
 
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	pCmdUI->Enable(pEditor && pEditor->IsVisible());
+	pCmdUI->Enable(IsInternalEditorRunning());
 }
 
 
@@ -1196,15 +1190,57 @@ void CMscGenDoc::OnViewNexterror()
 	ASSERT(pApp != NULL);
 	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
 	if (!pOutputView) return;
+
+	//Move to next error
 	int maxsel = pOutputView->m_wndOutput.GetCount();
-	if (maxsel == LB_ERR) return;
+	if (maxsel == LB_ERR || maxsel==0) return; //no error
 	int cursel = pOutputView->m_wndOutput.GetCurSel();
 	cursel = (cursel+1) % maxsel;
-	JumpToLine(m_itrCurrent->GetErrorLine(cursel, false), m_itrCurrent->GetErrorCol(cursel, false));
+	pOutputView->m_wndOutput.SetCurSel(cursel);
+	//Jump to that pos in editor
+	int line = m_itrCurrent->GetErrorLine(cursel, pApp->m_Warnings);
+	int col = m_itrCurrent->GetErrorCol(cursel, pApp->m_Warnings);
+	JumpToLine(line, col);
+	//Turn tracking off
+	SetTrackMode(false);
+	//Show tracking boxes for the error
+	bool wasboxes = m_nTrackRectNo!=0;
+	void *arc = m_itrCurrent->GetArcByLine(line, col);
+	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
+	if (wasboxes || m_nTrackRectNo) {
+		POSITION pos = GetFirstViewPosition();
+		while (pos) {
+			CMscGenView* pView = (CMscGenView*)GetNextView(pos);
+			pView->Invalidate();
+		}
+	}
+}
 
-	//Now show boxes for 
+void CMscGenDoc::OnInternalEditorChange()
+{
+	//SetTrackMode invalidates if tracking is turned off
+	//It may be that tracking was already off, but we ahd track rects shown (e.g., due to displaying a warning or error)
+	//In that case we meed to invalidate (clear the retcs) here.
+	if (m_bTrackMode) {
+		SetTrackMode(false);
+	} else if (m_nTrackRectNo!=0) {
+		m_nTrackRectNo = 0;
+		POSITION pos = GetFirstViewPosition();
+		while (pos) {
+			CMscGenView* pView = (CMscGenView*)GetNextView(pos);
+			pView->Invalidate();
+		}
+	}
+}
+
+void CMscGenDoc::OnInternalEditorSelChange()
+{
+	if (!m_bTrackMode || !IsInternalEditorRunning()) return;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
 	if (pEditor == NULL) return;
+
 	long start, end;
 	pEditor->m_wndEditor.GetSel(start, end);
 	int line = pEditor->m_wndEditor.LineFromChar(start);
@@ -1221,18 +1257,6 @@ void CMscGenDoc::OnViewNexterror()
 	}
 }
 
-void CMscGenDoc::OnInternalEditorChange()
-{
-	bool needtoinvalidate = m_nTrackRectNo!=0;
-	SetTrackMode(false);
-	if (needtoinvalidate) {
-		POSITION pos = GetFirstViewPosition();
-		while (pos) {
-			CMscGenView* pView = (CMscGenView*)GetNextView(pos);
-			pView->Invalidate();
-		}
-	}
-}
 
 void CMscGenDoc::SetTrackMode(bool on)
 {
@@ -1242,15 +1266,17 @@ void CMscGenDoc::SetTrackMode(bool on)
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
 	if (on) {
-		if (pEditor) pEditor->m_wndEditor.GetSel(m_saved_charrange);
-	} else {
+		if (IsInternalEditorRunning()) pEditor->m_wndEditor.GetSel(m_saved_charrange);
+		//Highlight rect for current text editor pos
+		OnInternalEditorSelChange();
+	} else if (m_nTrackRectNo) {
+		//Delete trackrects from screen
 		m_nTrackRectNo = 0;
-		if (pEditor) pEditor->m_wndEditor.SetSel(m_saved_charrange);
-	}
-	POSITION pos = GetFirstViewPosition();
-	while (pos) {
-		CMscGenView* pView = (CMscGenView*)GetNextView(pos);
-		pView->Invalidate();
+		POSITION pos = GetFirstViewPosition();
+		while (pos) {
+			CMscGenView* pView = (CMscGenView*)GetNextView(pos);
+			pView->Invalidate();
+		}
 	}
 }
 
@@ -1265,10 +1291,11 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 		CMscGenView* pView = (CMscGenView*)GetNextView(pos);
 		pView->Invalidate();
 	}
+	if (!IsInternalEditorRunning()) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (pEditor) {
+	if (m_nTrackRectNo) {
 		unsigned start_line, start_col;
 		unsigned end_line, end_col;
 		if (m_itrCurrent->GetLineByArc(arc, start_line, start_col, end_line, end_col)) {
@@ -1283,9 +1310,9 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 			::SendMessage(pEditor->m_wndEditor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 			pEditor->m_wndEditor.SetRedraw(true);
 			pEditor->m_wndEditor.Invalidate();
-		} else {
-			pEditor->m_wndEditor.SetSel(m_saved_charrange);
 		}
+	} else {
+		pEditor->m_wndEditor.SetSel(m_saved_charrange);
 	}
 }
 
@@ -1298,3 +1325,4 @@ void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_bTrackMode);
 }
+

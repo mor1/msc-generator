@@ -239,6 +239,10 @@ void *CChartData::GetArcByLine(unsigned line, unsigned col) const
 	file_line linenum(m_msc->Error.Files.size()-1, line, col);
 	std::map<file_line, ArcBase*>::const_iterator itr = --m_msc->AllArcs.upper_bound(linenum);
 	if (itr == m_msc->AllArcs.end()) return NULL;
+	//OK now itr points to the arc with start pos just before the cursor
+	//Now see that the end pos of the arc is after the cursor
+	if (itr->second->line_end.line<line) return NULL;
+	if (itr->second->line_end.line==line && itr->second->line_end.col < col)  return NULL;
 	return  itr->second;
 }
 
@@ -254,23 +258,21 @@ bool CChartData::GetLineByArc(void*arc, unsigned &start_line, unsigned &start_co
 	return true;
 }
 
-unsigned CChartData::GetCoversByArc(void *arc, RECT *result, int max_size, double xScale, double yScale) const
+unsigned CChartData::GetCoversByArc(void *arc, TrackRect *result, int max_size, double xScale, double yScale) const
 {
 	if (arc==NULL) return false;
 	CompileIfNeeded();
 	unsigned count=0;
 	for(std::set<Block>::const_iterator i=static_cast<ArcBase*>(arc)->GetGeometry().cover.begin(); 
-		     i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++) 
-		switch(i->type) {
-			case Block::NONE: continue;
-			case Block::EMPHASIS: continue;
-			case Block::NORMAL:
-				result[count].left = i->x.from * xScale;
-				result[count].right = i->x.till * xScale;
-				result[count].top = i->y.from * yScale;
-				result[count].bottom = i->y.till * yScale;
-				count++;
-		}
+		    i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++) {
+		if (i->drawType == Block::DRAW_NONE) continue;
+		result[count].r.left = i->x.from * xScale;
+		result[count].r.right = i->x.till * xScale;
+		result[count].r.top = i->y.from * yScale;
+		result[count].r.bottom = i->y.till * yScale;
+		result[count].frame_only = i->drawType == Block::DRAW_FRAME;
+		count++;
+	}
 	return count;
 }
 

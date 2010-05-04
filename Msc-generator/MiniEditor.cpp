@@ -37,6 +37,7 @@ BEGIN_MESSAGE_MAP(CEditorBar, CDockablePane)
 	ON_WM_SIZE()
 	ON_WM_PAINT()
 	ON_WM_SETFOCUS()
+	ON_NOTIFY(EN_SELCHANGE, IDC_INTERNAL_EDITOR, OnSelChange)
 END_MESSAGE_MAP()
 
 int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
@@ -55,7 +56,7 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	const DWORD dwStyle = WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | 
 						  ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_NOHIDESEL;
 
-	if (!m_wndEditor.Create(dwStyle, rectClient, this, IDC_OUTPUT_LIST))
+	if (!m_wndEditor.Create(dwStyle, rectClient, this, IDC_INTERNAL_EDITOR))
 	{
 		TRACE0("Failed to create output window\n");
 		return -1;      // fail to create
@@ -63,7 +64,7 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_wndEditor.SetTextMode(TM_SINGLECODEPAGE | TM_MULTILEVELUNDO | TM_RICHTEXT);
 	m_wndEditor.SetFont(&m_Font);
 	m_wndEditor.SetFocus();
-	m_wndEditor.SetEventMask(m_wndEditor.GetEventMask() | ENM_CHANGE);
+	m_wndEditor.SetEventMask(m_wndEditor.GetEventMask() | ENM_CHANGE | ENM_SELCHANGE);
 
 	return 0;
 }
@@ -159,8 +160,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 
 	if (hWndCtrl != m_wndEditor) return CDockablePane::OnCommand(wParam, lParam);
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
-	CFrameWnd *pParent = dynamic_cast<CFrameWnd *>(GetParent());
-	if (pParent && !m_bCshUpdateInProgress) {
+	if (!m_bCshUpdateInProgress) {
 		UpdateCsh();
 		m_modified = true;
 		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -174,6 +174,20 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 		}
 	}
 	return TRUE;
+}
+
+void CEditorBar::OnSelChange(NMHDR *pNotifyStruct, LRESULT *result) 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
+	ASSERT(pMainWnd!=NULL);
+	if (pMainWnd->GetActiveView() != NULL) {
+		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
+		if (pDoc != NULL);
+			pDoc->OnInternalEditorSelChange();
+	}
+	*result = 0;
 }
 
 BOOL CEditorBar::ShowWindow(int nCmdShow)

@@ -53,6 +53,7 @@
 #define IDC_CHECK_WARNINGS2             1008
 #define IDC_CHECK_ALWAYSOPEN            1008
 #define IDC_CHECK_PB_EDITING            1009
+#define IDC_INTERNAL_EDITOR             1009
 #define IDC_CHECK_PB_EMBEDDED           1010
 #define IDC_CHECK_PB_EXPORTED           1011
 #define IDC_CHECK_CSH                   1011
@@ -94,7 +95,8 @@
 #define ID_BUTTON_TRACK                 32826
 #define ID_VIEW_TRACKINGMODE            32827
 #define ID_BUTTON_TRACKINGMODE          32828
-#define ID_BUTTON32829                  32829
+#define ID_VIEW_MARKCURRENTLINEONCHART  32830
+#define ID_VIEW_MARK                    32831
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
@@ -102,7 +104,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        313
-#define _APS_NEXT_COMMAND_VALUE         32830
+#define _APS_NEXT_COMMAND_VALUE         32841
 #define _APS_NEXT_CONTROL_VALUE         1014
 #define _APS_NEXT_SYMED_VALUE           310
 #endif

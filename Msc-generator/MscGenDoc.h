@@ -50,9 +50,9 @@ public:
 	// View related 
 	int m_zoom; //In percentage. 100 is normal
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
-	bool m_bTrackMode;
-    int m_nTrackRectNo;
-	RECT m_rctTrack[100];
+	bool m_bTrackMode; //True if mouse is tracked over arcs
+    int m_nTrackRectNo; //True if there are boxes to display
+	TrackRect m_rctTrack[100];
 	CHARRANGE m_saved_charrange;
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
@@ -73,6 +73,7 @@ public:
 	void StartEditor(CString = "");
 	void RestartEditor(EStopEditor force);
 	bool IsEditorRunning() const;
+	bool IsInternalEditorRunning() const;
 	bool IsCorrectEditorRunning() const;
 	void JumpToLine(unsigned line, unsigned col);
 	bool CheckExternalEditorAndFile(void);
@@ -147,8 +148,9 @@ public:
 	afx_msg void OnUdpateEditUpdate(CCmdUI *pCmdUI);
 	afx_msg void OnViewNexterror();
             void OnInternalEditorChange();
-			afx_msg void OnButtonTrack();
-			afx_msg void OnUpdateButtonTrack(CCmdUI *pCmdUI);
+            void OnInternalEditorSelChange();
+	afx_msg void OnButtonTrack();
+	afx_msg void OnUpdateButtonTrack(CCmdUI *pCmdUI);
 };
 
 

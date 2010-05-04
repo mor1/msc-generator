@@ -53,11 +53,13 @@ struct Block {
     struct Range x;
     struct Range y;
     mutable ArcBase *arc;
-    enum {NONE, NORMAL, EMPHASIS} type;
-    Block(ArcBase *a=NULL) : arc(a), type(NORMAL) {}
-    Block(double sx, double dx, double sy, double dy, ArcBase *a=NULL) : arc(a), type(NORMAL),
+    mutable enum DrawType {DRAW_NONE, DRAW_NORMAL, DRAW_FRAME} drawType;
+    mutable enum FindType {FIND_NONE, FIND_NORMAL} findType;
+    Block(ArcBase *a=NULL) : arc(a), drawType(DRAW_NORMAL), findType(FIND_NORMAL) {}
+    Block(double sx, double dx, double sy, double dy, ArcBase *a=NULL) : arc(a),
+        drawType(DRAW_NORMAL), findType(FIND_NORMAL),
         x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
-    Block(XY ul, XY dr, ArcBase *a=NULL) : arc(a), type(NORMAL) {
+    Block(XY ul, XY dr, ArcBase *a=NULL) : arc(a), drawType(DRAW_NORMAL), findType(FIND_NORMAL) {
         x.from = ul.x<dr.x?ul.x:dr.x; x.till = ul.x>dr.x?ul.x:dr.x;
         y.from = ul.y<dr.y?ul.y:dr.y; y.till = ul.y>dr.y?ul.y:dr.y;
     }

@@ -251,6 +251,54 @@ BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
 	return FALSE;
 }
 
+//Use zoom of the pDoc
+void CMscGenView::DrawTrackRects(CDC* pDC, const CRect &clip)
+{
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	if (!pDoc->m_nTrackRectNo || pDC==NULL) return;
+	int lw = (pDoc->m_zoom+50)/100;
+	if (lw<1) lw = 1;
+	//create fill surface
+	cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
+	cairo_t *cr = cairo_create(surface2);
+    cairo_set_source_rgba(cr, 1, 1, 1, 1);
+	cairo_set_line_width(cr, 2*lw);
+	for (int i = 0; i<pDoc->m_nTrackRectNo; i++) {
+		CRect rr(pDoc->m_rctTrack[i].r);
+		rr.InflateRect(2*lw, 2*lw);
+		cairo_rectangle(cr, rr.left, rr.top, rr.Width(), rr.Height());
+		if (pDoc->m_rctTrack[i].frame_only) 
+			cairo_stroke(cr);
+		else 
+			cairo_fill(cr);
+	}
+	cairo_destroy(cr);
+
+	//create outline surface
+	cairo_surface_t *surface3 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
+	cr = cairo_create(surface3);
+	cairo_set_operator(cr, CAIRO_OPERATOR_XOR);
+	cairo_set_source_rgba(cr, 1, 1, 1, 1);
+	cairo_mask_surface(cr, surface2, 0, 0);
+	cairo_mask_surface(cr, surface2, lw, lw);
+	cairo_destroy(cr);
+
+	//This is the destination surface
+	cairo_surface_t *surface = cairo_win32_surface_create(*pDC);
+	cr = cairo_create(surface);
+	cairo_set_source_rgba(cr, 1, 0, 0, 0.5);
+	cairo_mask_surface(cr, surface2, 0, 0);
+	cairo_set_source_rgba(cr, 0.5, 0, 0, 1);
+	cairo_mask_surface(cr, surface3, 0, 0);
+	cairo_destroy(cr);
+	//Cleanup
+	cairo_surface_destroy(surface3);
+	cairo_surface_destroy(surface2);
+	cairo_surface_destroy(surface);
+}
+
+
 void CMscGenView::OnDraw(CDC* pDC)
 {
 	CMscGenDoc* pDoc = GetDocument();
@@ -274,41 +322,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 		memDC.SetWindowOrg(clip.left, clip.top);
 		memDC.FillSolidRect(clip, pDC->GetBkColor());
 		PlayEnhMetaFile(memDC.m_hDC, m_hemf, r);
-		if (pDoc->m_nTrackRectNo) {
-			//create fill surface
-			cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
-			cairo_t *cr = cairo_create(surface2);
-		    cairo_set_source_rgba(cr, 1, 1, 1, 1);
-			for (int i = 0; i<pDoc->m_nTrackRectNo; i++) {
-				CRect rr(pDoc->m_rctTrack[i]);
-				rr.InflateRect(2, 2);
-				cairo_rectangle(cr, rr.left, rr.top, rr.Width(), rr.Height());
-				cairo_fill(cr);
-			}
-			cairo_destroy(cr);
-
-			//create outline surface
-			cairo_surface_t *surface3 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
-			cr = cairo_create(surface3);
-			cairo_set_operator(cr, CAIRO_OPERATOR_XOR);
-			cairo_set_source_rgba(cr, 1, 1, 1, 1);
-			cairo_mask_surface(cr, surface2, 0, 0);
-			cairo_mask_surface(cr, surface2, 1, 1);
-			cairo_destroy(cr);
-
-			//This is the destination surface
-			cairo_surface_t *surface = cairo_win32_surface_create(memDC);
-			cr = cairo_create(surface);
-			cairo_set_source_rgba(cr, 1, 0, 0, 0.5);
-			cairo_mask_surface(cr, surface2, 0, 0);
-			cairo_set_source_rgba(cr, 0.5, 0, 0, 1);
-			cairo_mask_surface(cr, surface3, 0, 0);
-			cairo_destroy(cr);
-			//Cleanup
-			cairo_surface_destroy(surface3);
-			cairo_surface_destroy(surface2);
-			cairo_surface_destroy(surface);
-		}
+		DrawTrackRects(&memDC, clip);
 		pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
 			        &memDC, clip.left, clip.top, SRCCOPY);   
 	}
@@ -398,8 +412,11 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	pos -= pt;
 	if (pos.x < 0) pos.x = 0;
 	if (pos.y < 0) pos.y = 0;
+	SetRedraw(false);
 	pDoc->SetZoom(zoom);
 	ScrollToDevicePosition(pos);
+	SetRedraw(true);
+	Invalidate();
 	return TRUE;
 }
 

@@ -98,6 +98,14 @@ struct Geometry
         for(std::set<Block>::iterator i=cover.begin(); i!=cover.end(); i++)
             i->arc = a;
     }
+    void SetDrawType(Block::DrawType t) {
+        for(std::set<Block>::iterator i=cover.begin(); i!=cover.end(); i++)
+            i->drawType = t;
+    }
+    void SetFindType(Block::FindType t) {
+        for(std::set<Block>::iterator i=cover.begin(); i!=cover.end(); i++)
+            i->findType = t;
+    }
     Geometry &operator+=(const Geometry &g) {
         cover.insert(g.cover.begin(), g.cover.end());
         mainline.Extend(g.mainline);
@@ -127,7 +135,7 @@ struct Geometry
     bool BoundingBlock(Block &) const;
     const Block *InWhich(XY p) const {
         for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
-            if (i->IsWithin(p)) return &(*i);
+            if (i->findType==Block::FIND_NORMAL && i->IsWithin(p)) return &(*i);
         return NULL;
     }
 };
@@ -492,7 +500,6 @@ class ArcEmphasis : public ArcLabelled
         PtrList<ArcEmphasis> follow;
         double height, total_height;
         double left_space, right_space;
-		Geometry geometry_all;
     public:
         //Constructor to construct the first emphasis in a series
         ArcEmphasis(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l, Msc *msc);
@@ -531,8 +538,8 @@ class ArcParallel : public ArcBase
 class ArcDivider : public ArcLabelled
 {
     protected:
-        const bool  nudge;
-		bool wide;
+        const bool nudge;
+	      bool wide;
     public:
         ArcDivider(MscArcType t, file_line l, Msc *msc);
         bool AddAttribute(const Attribute &);

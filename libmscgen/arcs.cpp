@@ -810,7 +810,7 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         xPos.push_back(chart->XCoord((*middle[i])->pos));
     xPos.push_back(d.x);
 
-	if (draw) {
+    if (draw) {
         //Draw background
         style.arrow.FillBig(xPos, s.y, d.y, isBidir(), chart, style.fill);
         //Draw outline
@@ -1016,20 +1016,20 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     style.arrow.line = style.line;
 
 static const MscGradientType readfrom_left_gardient[] = {
-	GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
+    GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
     GRADIENT_RIGHT, GRADIENT_LEFT, GRADIENT_DOWN, GRADIENT_UP,
-	GRADIENT_LEFT};
+    GRADIENT_LEFT};
 static const MscGradientType readfrom_right_gardient[] = {
-	GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
+    GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
     GRADIENT_LEFT, GRADIENT_RIGHT, GRADIENT_UP, GRADIENT_DOWN,
-	GRADIENT_RIGHT};
+    GRADIENT_RIGHT};
 
-	if (style.fill.gradient.first) {
-		if (readfromleft)
-			style.fill.gradient.second = readfrom_left_gardient[style.fill.gradient.second];
-		else
-			style.fill.gradient.second = readfrom_right_gardient[style.fill.gradient.second];
-	}
+    if (style.fill.gradient.first) {
+        if (readfromleft)
+            style.fill.gradient.second = readfrom_left_gardient[style.fill.gradient.second];
+        else
+            style.fill.gradient.second = readfrom_right_gardient[style.fill.gradient.second];
+    }
 }
 
 void ArcVerticalArrow::Width(EntityDistanceMap &distances)
@@ -1133,7 +1133,7 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
         yPos = y;
         aMarker = autoMarker;
     }
-    if (!draw) return 0;
+    if (!draw) geometry.Clear();
 
     // here draw=true
     const XY twh = parsed_label.getTextWidthHeight();
@@ -1158,23 +1158,43 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
     };
     x += offset;
 
-    if (readfromleft)
-        chart->Rotate90(x-width/2, x+width/2, false);
-    else
-        chart->Rotate90(ypos[0], ypos[1], true);
-    //Draw background
-    style.arrow.FillBig(ypos, x-width/2, x+width/2, isBidir(), chart, style.fill);
+    if (draw) {
+        if (readfromleft)
+            chart->Rotate90(x-width/2, x+width/2, false);
+        else
+            chart->Rotate90(ypos[0], ypos[1], true);
+        //Draw background
+        style.arrow.FillBig(ypos, x-width/2, x+width/2, isBidir(), chart, style.fill);
         //Draw outline
-    style.arrow.DrawBig(ypos, x-width/2, x+width/2, isBidir(), chart);
-    Geometry dummy;
-    style.arrow.ClipBig(ypos, x-width/2, x+width/2, isBidir(), chart);
-    parsed_label.DrawCovers(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
-                            x-width/2+lw, dummy.cover, draw, true);
-    chart->UnClip();
-    if (readfromleft)
-        chart->Rotate90(x-width/2, x+width/2, true);
-    else
-        chart->Rotate90(ypos[0], ypos[1], false);
+        style.arrow.DrawBig(ypos, x-width/2, x+width/2, isBidir(), chart);
+        Geometry dummy;
+        style.arrow.ClipBig(ypos, x-width/2, x+width/2, isBidir(), chart);
+        parsed_label.DrawCovers(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+                                x-width/2+lw, dummy.cover, draw, true);
+        chart->UnClip();
+        if (readfromleft)
+            chart->Rotate90(x-width/2, x+width/2, true);
+        else
+            chart->Rotate90(ypos[0], ypos[1], false);
+    }
+
+    if (final) {
+        //Generate one block for cover
+        Geometry geom;
+        Block box(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]), x-width/2, x+width/2);
+        geom.cover.insert(box);
+        style.arrow.CoverBig(ypos, x-width/2, x+width/2, isBidir(), chart, geom.cover);
+        //Ok, now rotate it by 90
+        for(std::set<Block>::iterator i=geom.cover.begin(); i!=geom.cover.end(); i++) {
+            Block b;
+            b.x.from = x-i->y.from;
+            b.x.till = x-i->y.till;
+            b.y = i->x;
+            b.arc = this;
+            geometry.cover.insert(b);
+        }
+    }
+
     return 0;
 }
 
@@ -1321,7 +1341,7 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
 //will only be called for the first box of a multi-segment box series
 void ArcEmphasis::Width(EntityDistanceMap &distances)
 {
-	if (!valid) return;
+    if (!valid) return;
     EntityDistanceMap d;
     double width = 0;
     for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
@@ -1377,10 +1397,6 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     y += chart->emphVGapOutside;
     if (final) yPos = y;
     if (draw) y = yPos;
-	if (!draw) {
-		geometry_all.Clear();
-		geometry.Clear();
-	}
 
     const XY lw(style.line.LineWidth(), style.line.LineWidth());
     const XY lw2(lw.x/2, lw.y/2);
@@ -1480,6 +1496,7 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         // y now points to the *top* of the line of the top edge of this box
         const double orig_y = y;
         if (draw) y = (*i)->yPos;
+        else (*i)->geometry.Clear();
         Geometry geom;
 
         //Advance upper line and spacing
@@ -1492,10 +1509,15 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
                 curve_gap = style.line.radius.second;
             (*i)->parsed_label.DrawCovers(s.x, d.x-curve_gap, y, geom.cover, draw);
         }
-		geom.SetArc(this);
-		geometry += geom;
-        //If final position, cover the entity lines where text goes
-        if (final) chart->HideEntityLines(geom.cover);
+        if (final) {
+            //Add cover block only to this->geometry not to g
+            //We collect geometries of all follow's the geometry of the first box
+            geom.SetArc(*i);
+            geom.SetFindType(Block::FIND_NONE);
+            (*i)->geometry += geom;
+            //If final position, cover the entity lines where text goes
+            chart->HideEntityLines(geom.cover);
+        }
         //set an upper limit for arrows inside the box
         Block limiter(0, chart->totalWidth, y, y);
         geom.cover.insert(limiter);
@@ -1513,8 +1535,8 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
                 chart->DrawHeightArcList(*((*i)->emphasis), y, geom2, draw, false, prevCompress, -1);
                 geom2.cover.erase(limiter);
                 double dummy;
-				if (geom2.cover.size()>0)
-					y -= chart->FindCollision(geom.cover, geom2.cover, dummy);
+                if (geom2.cover.size()>0)
+                    y -= chart->FindCollision(geom.cover, geom2.cover, dummy);
             }
             bool prevCompress=true;
             y += chart->DrawHeightArcList(*((*i)->emphasis), y, geom, draw, final, prevCompress, -1);
@@ -1525,6 +1547,15 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         if (final) {
             (*i)->yPos = orig_y;
             (*i)->height = y - orig_y;
+            //Add a frame/box for tracking for the entire box
+            Block box(s.x-lw.x, d.x+lw.x+style.shadow.offset.second, orig_y, y, *i);
+            //If we are the last in the follow series extend to cover bottom shadow
+            if (++PtrList<ArcEmphasis>::iterator(i) == follow.end())
+                box.y.till += lw.y + style.shadow.offset.second;
+            //If we have content, draw only the frame of the box for tracking
+            if ((*i)->emphasis)
+                box.drawType = Block::DRAW_FRAME;
+            (*i)->geometry.cover.insert(box);
         }
     }
 
@@ -1589,12 +1620,8 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (!draw) {
         //Generate one block for cover
         Block box(s.x-lw.x, d.x+lw.x+style.shadow.offset.second, total_orig_y, y);
-        if (emphasis)
-            box.type = Block::EMPHASIS;
-        geometry_all.cover.insert(box);
-        geometry_all.mainline.Extend(box.y);
-        geometry_all.SetArc(this);
-        g += geometry_all;
+        g.cover.insert(box);
+        g.mainline.Extend(box.y);
     }
 
     return total_height + 2*chart->emphVGapOutside;
@@ -1603,19 +1630,16 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 //Will only be called for the first box of a multi-segment box series
 void ArcEmphasis::PostHeightProcess(void)
 {
-    //This 2 are done by ArcBase::PostHeightProcess normally, but here we add a different geometry
-	//than the one stored in this->geometry
-	if (valid) 
-		chart->AllCovers += geometry_all;
-	if (!emphasis)
-		geometry = geometry_all;
-    chart->AllArcs[line_start] = this;
-	
-    if (!valid) return;
-    for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
-        if ((*i)->valid && (*i)->emphasis)
-            for (ArcList::iterator j = (*i)->emphasis->begin(); j!=(*i)->emphasis->end(); j++)
-                (*j)->PostHeightProcess();
+    for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+        if ((*i)->valid) {
+            if ((*i)->emphasis)
+                for (ArcList::iterator j = (*i)->emphasis->begin(); j!=(*i)->emphasis->end(); j++)
+                    (*j)->PostHeightProcess();
+            chart->AllCovers += (*i)->geometry;
+        }
+        chart->AllArcs[line_start] = *i;
+    }
+
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1963,6 +1987,9 @@ double CommandNewpage::DrawHeight(double y, Geometry &g, bool draw, bool final, 
     if (!final || !valid) return 0;
     yPos = y;
     chart->yPageStart.push_back(y);
+    Block b(0, chart->totalWidth, y, y, this);
+    b.findType = Block::FIND_NONE;
+    geometry.cover.insert(b);
     return 0;
 }
 
@@ -1974,6 +2001,9 @@ double CommandNewBackground::DrawHeight(double y, Geometry &g,
     if (!final || !valid) return 0;
     yPos = y;
     chart->Background[y] = fill;
+    Block b(0, chart->totalWidth, y, y, this);
+    b.findType = Block::FIND_NONE;
+    geometry.cover.insert(b);
     return 0;
 }
 
@@ -2014,6 +2044,9 @@ double CommandMark::DrawHeight(double y, Geometry &g,
 {
     if (draw || !valid) return 0;
     chart->Markers[name].second = y+offset;
+    Block b(0, chart->totalWidth, y, y+offset, this);
+    b.findType = Block::FIND_NONE;
+    geometry.cover.insert(b);
     return 0;
 }
 
