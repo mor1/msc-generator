@@ -157,31 +157,23 @@ void COptionDlg::DoDataExchange(CDataExchange* pDX)
 BOOL COptionDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
-	GetDlgItem(IDC_EDIT1)->EnableWindow(m_TextEditorRadioButtons==3);
-	GetDlgItem(IDC_EDIT2)->EnableWindow(m_TextEditorRadioButtons==3);
-	GetDlgItem(IDC_RADIO3)->EnableWindow(m_bNppExists);
-	GetDlgItem(IDC_CHECK_CSH)->EnableWindow(m_TextEditorRadioButtons==0);
-	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_TextEditorRadioButtons==0 && m_bCsh);
+	GetDlgItem(IDC_EDIT1)->EnableWindow(m_TextEditorRadioButtons==2);
+	GetDlgItem(IDC_EDIT2)->EnableWindow(m_TextEditorRadioButtons==2);
+	GetDlgItem(IDC_RADIO2)->EnableWindow(m_bNppExists);
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
 void COptionDlg::OnBnClicked()
 {
-	bool otherSet = ((CButton*)this->GetDlgItem(IDC_RADIO4))->GetCheck();
+	bool otherSet = ((CButton*)this->GetDlgItem(IDC_RADIO3))->GetCheck();
 	GetDlgItem(IDC_EDIT1)->EnableWindow(otherSet);
 	GetDlgItem(IDC_EDIT2)->EnableWindow(otherSet);
-	bool internalSet = ((CButton*)this->GetDlgItem(IDC_RADIO1))->GetCheck();
-	GetDlgItem(IDC_CHECK_CSH)->EnableWindow(internalSet);
-	bool cshSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH))->GetCheck();
-	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(internalSet && cshSet);
 }
 
 BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
 	ON_BN_CLICKED(IDC_RADIO1, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_RADIO2, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_RADIO4, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClicked)
 END_MESSAGE_MAP()
 
 // CMscGenApp
@@ -380,7 +372,7 @@ bool CMscGenApp::FillDesignDesignCombo(const char *current, bool updateComboCont
 	bool ret=true;
 	while (p) {
 		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		if (updateComboContent) {
+		if (updateComboContent || combo->GetCount()==0) {
 			combo->ClearData();
 			combo->AddItem("(use chart-defined)");
 			combo->AddItem("plain");
@@ -452,10 +444,9 @@ void CMscGenApp::OnEditPreferences()
 
 	switch (m_iTextEditorType) {
 		default:
-		case INTERNAL: optionDlg.m_TextEditorRadioButtons = 0; break;
-		case NOTEPAD: optionDlg.m_TextEditorRadioButtons = 1; break;
-		case NPP: optionDlg.m_TextEditorRadioButtons = m_NppPath.GetLength()?2:0; break;
-		case OTHER: optionDlg.m_TextEditorRadioButtons = 3; break;
+		case NOTEPAD: optionDlg.m_TextEditorRadioButtons = 0; break;
+		case NPP: optionDlg.m_TextEditorRadioButtons = m_NppPath.GetLength()?1:0; break;
+		case OTHER: optionDlg.m_TextEditorRadioButtons = 2; break;
 	}
 	if (optionDlg.DoModal() == IDOK) {
 		if (optionDlg.m_DefaultText != m_DefaultText) {
@@ -481,18 +472,15 @@ void CMscGenApp::OnEditPreferences()
 		EEditorType temp;
 		switch (optionDlg.m_TextEditorRadioButtons) {
 			default:
-			case 0: temp = INTERNAL; break;
-			case 1: temp = NOTEPAD; break;
-			case 2: temp = m_NppPath.GetLength()?NPP:NOTEPAD; break;
-			case 3: temp = OTHER; break;
+			case 0: temp = NOTEPAD; break;
+			case 1: temp = m_NppPath.GetLength()?NPP:NOTEPAD; break;
+			case 2: temp = OTHER; break;
 		}
 		if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
 			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
 			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, m_sStartTextEditor);
-			if (temp==OTHER && pDoc->m_EditorProcessId) {
+			if (temp==OTHER && pDoc->IsExternalEditorRunning()) 
 				bRestartEditor=true;
-				pDoc->StopEditor(STOPEDITOR_WAIT, false);
-			}
 		}
 		if (m_sJumpToLine != optionDlg.m_TextEditorJumpToLineCommand) {
 			m_sJumpToLine = optionDlg.m_TextEditorJumpToLineCommand;
@@ -507,18 +495,17 @@ void CMscGenApp::OnEditPreferences()
 					m_sStartTextEditor = "\"" +m_NppPath+ "\" -multiInst -nosession %n";
 					m_sJumpToLine = "\"" +m_NppPath+ "\" -n%l -nosession %n";
 					break;
+				default:
 				case NOTEPAD:
 					m_sStartTextEditor = "Notepad.exe %n";
 					m_sJumpToLine = "";
 					break;
-				default:
-				case INTERNAL:
 				case OTHER:
 					break; //values already set by user
 			}
 		}
 		if (bRestartEditor) 
-			pDoc->RestartEditor(STOPEDITOR_WAIT);
+			pDoc->RestartExternalEditor(STOPEDITOR_WAIT);
 
 		if (recompile) {
 			pDoc->StartDrawingProgress();
@@ -527,8 +514,8 @@ void CMscGenApp::OnEditPreferences()
 			pDoc->OnUpdate(false, false);     //Do not change zoom or text in internal editor, merely recompile & re-issue errors
 			pDoc->StopDrawingProgress();
 		} 
-		if (updateCSH && m_pWndEditor && m_pWndEditor->m_hWnd!=0 && m_pWndEditor->IsVisible())
-			m_pWndEditor->UpdateCsh(true);
+		if (updateCSH && pDoc->IsInternalEditorRunning())
+			m_pWndEditor->m_wndEditor.UpdateCsh(true);
 	}
 }
 
@@ -544,33 +531,34 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_bPB_Editing  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
 	m_bPB_Embedded = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, FALSE);
 	m_bAlwaysOpen  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, FALSE);
-	m_bCsh         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, FALSE);
+	m_bCsh         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
 	m_nCshScheme   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
 
-	m_iTextEditorType = EEditorType(GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, INTERNAL));
 	m_NppPath = "C:\\Program Files\\Notepad++\\notepad++.exe";
 	CFileFind finder;
 	if (!finder.FindFile(m_NppPath))
 		m_NppPath.Empty(); //empty value means no NPP on this system
 
-	switch (m_iTextEditorType) {
-		case NPP:
+	switch (GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, NPP)) {
+		case 1:
 			if (m_NppPath.GetLength()) {
 				m_sStartTextEditor = "\"" +m_NppPath+ "\" -multiInst -nosession %n";
 				m_sJumpToLine = "\"" +m_NppPath+ "\" -n%l -nosession %n";
+				m_iTextEditorType = NPP;
 				break;
 			}
 			//fallback if notepad++ not found
-		case NOTEPAD:
+		default:
+		case 0:
 			m_sStartTextEditor = "Notepad.exe %n";
 			m_sJumpToLine = "";
+			m_iTextEditorType = NOTEPAD;
 			break;
-		default:
-		case INTERNAL:
-		case OTHER:
+		case 2:
 			m_sStartTextEditor = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, "Notepad.exe %n");
 			m_sJumpToLine = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_JUMPTOLINE, "");
+			m_iTextEditorType = OTHER;
 			break;
 	}
 	m_DefaultText= GetProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, 

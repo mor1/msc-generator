@@ -522,17 +522,17 @@ void CMscGenView::OnButtonEdittext()
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	if (pDoc->IsCorrectEditorRunning())
-		pDoc->StopEditor(STOPEDITOR_NOWAIT, true);
+	if (pDoc->IsExternalEditorRunning())
+		pDoc->StopExternalEditor(STOPEDITOR_WAIT);
 	else
-		pDoc->StartEditor();
+		pDoc->StartExternalEditor();
 }
 
 void CMscGenView::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	pCmdUI->SetCheck(pDoc->IsCorrectEditorRunning());
+	pCmdUI->SetCheck(pDoc->IsExternalEditorRunning());
 }
 
 //Design combo functions

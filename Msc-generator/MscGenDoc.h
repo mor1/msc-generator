@@ -70,14 +70,13 @@ public:
 	void InsertNewChart(const CChartData &);
 	//Editor functions
 	void OnUpdate(bool resetZoom=true, bool updateInternalEditor=true);
-	void StartEditor(CString = "");
-	void RestartEditor(EStopEditor force);
-	bool IsEditorRunning() const;
+	void StartExternalEditor(CString = "");
+	void RestartExternalEditor(EStopEditor force);
+	bool IsExternalEditorRunning() const {return m_EditorProcessId!=0;}
 	bool IsInternalEditorRunning() const;
-	bool IsCorrectEditorRunning() const;
 	void JumpToLine(unsigned line, unsigned col);
 	bool CheckExternalEditorAndFile(void);
-	void StopEditor(EStopEditor force, bool);
+	void StopExternalEditor(EStopEditor force);
 	void StartDrawingProgress();
 	void StopDrawingProgress();
 	void SetTrackMode(bool on);
@@ -110,7 +109,7 @@ public:
 	afx_msg void OnSelChange();
 
 	//Zoom functions
-			void SetZoom(int zoom);
+			void SetZoom(int zoom=0); //==0 means just reset toolbar
 	afx_msg void OnViewZoomin();
 	afx_msg void OnViewZoomout();
 	afx_msg void OnDesignZoom();

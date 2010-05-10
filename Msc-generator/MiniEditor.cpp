@@ -19,13 +19,116 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
+CCshRichEditCtrl::CCshRichEditCtrl()
+{
+	m_bCshUpdateInProgress = false;
+	m_UndoList.push_back(CEditorUndoRecord());
+	m_itrCurrent = --m_UndoList.end();
+}
+
+void CCshRichEditCtrl::UpdateText(const char *text)
+{
+	CEditorUndoRecord undoRec;
+	undoRec.text = text;
+	EnsureCRLF(undoRec.text);
+	SetRedraw(false);
+	GetSel(undoRec.pos);
+	SetWindowText(undoRec.text);
+	SetSel(undoRec.pos);
+	GetSel(undoRec.pos);
+	UpdateCsh();
+	m_UndoList.erase(++m_itrCurrent, m_UndoList.end());
+	m_UndoList.push_back(undoRec);
+	m_itrCurrent = --m_UndoList.end();
+}
+
+void CCshRichEditCtrl::UpdateCsh(bool force)
+{
+	if (m_bCshUpdateInProgress) return;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//Check if Color Syntax Highlghting is enabled
+	if (!pApp->m_bCsh && !force) return;
+	CString text;
+	GetWindowText(text);
+	RemoveCRLF(text);
+	CChartData data(text);
+	const MscCshListType v(data.GetCsh());
+
+	SetRedraw(false);
+	//long eventMask = GetEventMask();
+	//SetEventMask(0);
+	m_bCshUpdateInProgress = true;
+
+	POINT scroll_pos;
+	::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+	CHARRANGE cr;
+	GetSel(cr);
+	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
+	const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
+	const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
+
+	SetSel(0,-1);
+	SetSelectionCharFormat(scheme[COLOR_NORMAL]);
+	if (pApp->m_bCsh)
+		for (MscCshListType::const_iterator i=v.begin(); i!=v.end(); i++) 
+			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
+				SetSel(i->first_pos-1, i->last_pos);
+				SetSelectionCharFormat(scheme[i->color]);
+			}
+	SetSel(cr);
+	::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+
+	m_bCshUpdateInProgress = false;
+	SetRedraw(true);
+	Invalidate();
+	//SetEventMask(eventMask);
+}
+
+void CCshRichEditCtrl::StoreUndo()
+{
+	CEditorUndoRecord undoRec;
+	GetWindowText(undoRec.text);
+	if (m_itrCurrent->text == undoRec.text) return;
+	m_UndoList.erase(++m_itrCurrent, m_UndoList.end());
+	GetSel(undoRec.pos);
+	m_UndoList.push_back(undoRec);
+	m_itrCurrent = --m_UndoList.end();
+}
+
+void CCshRichEditCtrl::ClearUndo()
+{
+	m_UndoList.clear();
+	m_UndoList.push_back(CEditorUndoRecord());
+	m_itrCurrent = --m_UndoList.end();
+	GetWindowText(m_itrCurrent->text);
+	GetSel(m_itrCurrent->pos);
+}
+
+void CCshRichEditCtrl::MyUndo()
+{
+	if (m_UndoList.begin() == m_itrCurrent) return;
+	m_itrCurrent--;
+	SetRedraw(false);
+	SetWindowText(m_itrCurrent->text);
+	SetSel(m_itrCurrent->pos);
+}
+
+void CCshRichEditCtrl::MyRedo()
+{
+	if (--m_UndoList.end() == m_itrCurrent) return;
+	m_itrCurrent++;
+	SetRedraw(false);
+	SetWindowText(m_itrCurrent->text);
+	SetSel(m_itrCurrent->pos);
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 // COutputBar
 
 CEditorBar::CEditorBar()
 {
-	m_bCshUpdateInProgress = false;
-	m_modified = false;
 }
 
 CEditorBar::~CEditorBar()
@@ -66,7 +169,30 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_wndEditor.SetFocus();
 	m_wndEditor.SetEventMask(m_wndEditor.GetEventMask() | ENM_CHANGE | ENM_SELCHANGE);
 
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
+	ASSERT(pMainWnd!=NULL);
+	if (pMainWnd->GetActiveView() != NULL) {
+		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
+		if (pDoc != NULL && pDoc->IsExternalEditorRunning())
+			SetReadOnly();
+	}
+
 	return 0;
+}
+
+#define READONLY_STRING " (Read-only)"
+void CEditorBar::SetReadOnly(bool readonly)
+{
+	if (!m_wndEditor.SetReadOnly(readonly)) return;
+	CString text;
+	GetWindowText(text);
+	if (text.Right(12).CompareNoCase(READONLY_STRING)==0) {
+		if (!readonly)
+			SetWindowText(text.Left(text.GetLength()-12));
+	} else if (readonly)
+		SetWindowText(text + READONLY_STRING);
 }
 
 void CEditorBar::OnSize(UINT nType, int cx, int cy)
@@ -99,58 +225,7 @@ void CEditorBar::OnSetFocus(CWnd* pOldWnd)
 	CDockablePane::OnSetFocus(pOldWnd);
 	m_wndEditor.SetFocus();
 }
-void CEditorBar::UpdateText(const char *text)
-{
-	CString t(text);
-	EnsureCRLF(t);
-	m_wndEditor.SetRedraw(false);
-	m_wndEditor.SetWindowText(t);
-	m_modified = false;
-	UpdateCsh();
-	m_wndEditor.SetRedraw(true);
-}
 
-void CEditorBar::UpdateCsh(bool force)
-{
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	//Check if Color Syntax Highlghting is enabled
-	if (!pApp->m_bCsh && !force) return;
-	CString text;
-	m_wndEditor.GetWindowText(text);
-	RemoveCRLF(text);
-	CChartData data(text);
-	const MscCshListType v(data.GetCsh());
-
-	m_wndEditor.SetRedraw(false);
-	//long eventMask = m_wndEditor.GetEventMask();
-	//m_wndEditor.SetEventMask(0);
-	m_bCshUpdateInProgress = true;
-
-	POINT scroll_pos;
-	::SendMessage(m_wndEditor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-	CHARRANGE cr;
-	m_wndEditor.GetSel(cr);
-	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
-	const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
-	const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
-
-	m_wndEditor.SetSel(0,-1);
-	m_wndEditor.SetSelectionCharFormat(scheme[COLOR_NORMAL]);
-	if (pApp->m_bCsh)
-		for (MscCshListType::const_iterator i=v.begin(); i!=v.end(); i++) 
-			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
-				m_wndEditor.SetSel(i->first_pos-1, i->last_pos);
-				m_wndEditor.SetSelectionCharFormat(scheme[i->color]);
-			}
-	m_wndEditor.SetSel(cr);
-	::SendMessage(m_wndEditor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-
-	m_bCshUpdateInProgress = false;
-	m_wndEditor.SetRedraw(true);
-	m_wndEditor.Invalidate();
-	//m_wndEditor.SetEventMask(eventMask);
-}
 
 BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 {
@@ -160,9 +235,9 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 
 	if (hWndCtrl != m_wndEditor) return CDockablePane::OnCommand(wParam, lParam);
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
-	if (!m_bCshUpdateInProgress) {
-		UpdateCsh();
-		m_modified = true;
+	if (!m_wndEditor.IsCshUpdateInProgress()) {
+		m_wndEditor.UpdateCsh();
+		m_wndEditor.StoreUndo();
 		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 		ASSERT(pApp != NULL);
 		CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
@@ -184,13 +259,8 @@ void CEditorBar::OnSelChange(NMHDR *pNotifyStruct, LRESULT *result)
 	ASSERT(pMainWnd!=NULL);
 	if (pMainWnd->GetActiveView() != NULL) {
 		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
-		if (pDoc != NULL);
+		if (pDoc != NULL)
 			pDoc->OnInternalEditorSelChange();
 	}
 	*result = 0;
-}
-
-BOOL CEditorBar::ShowWindow(int nCmdShow)
-{
-	return CDockablePane::ShowWindow(nCmdShow);
 }

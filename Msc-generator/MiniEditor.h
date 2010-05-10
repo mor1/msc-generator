@@ -8,9 +8,34 @@
 // Microsoft Foundation Classes product.
 
 #pragma once
-
+#include <list>
 /////////////////////////////////////////////////////////////////////////////
 // CMiniEditor window
+
+struct CEditorUndoRecord {
+	CString text;
+	CHARRANGE pos;
+};
+
+class CCshRichEditCtrl : public CRichEditCtrl
+{
+	std::list<CEditorUndoRecord> m_UndoList;
+	std::list<CEditorUndoRecord>::iterator m_itrCurrent;
+	bool m_bCshUpdateInProgress;
+public:
+	CCshRichEditCtrl();
+	void UpdateText(const char *text);
+	void UpdateCsh(bool force = false);
+	long ConvertLineColToPos(unsigned line, unsigned col) {return LineIndex(line) + col;}
+	void ConvertPosToLineCol(long pos, int &line, int &col) {line=LineFromChar(pos); col=pos-LineIndex(line);}
+	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
+	void StoreUndo();
+	void ClearUndo();
+	bool MyCanUndo() {return m_itrCurrent != m_UndoList.begin();}
+	bool MyCanRedo() {return m_itrCurrent != --m_UndoList.end();}
+	void MyUndo();
+	void MyRedo();
+};
 
 class CEditorBar : public CDockablePane
 {
@@ -20,17 +45,13 @@ public:
 
 // Attributes
 	CFont m_Font;
-	CRichEditCtrl m_wndEditor;
-	bool m_bCshUpdateInProgress;
-	bool m_modified;
+	CCshRichEditCtrl m_wndEditor;
 protected:
 
 // Implementation
 public:
 	virtual ~CEditorBar();
-	void UpdateText(const char *text);
-	void UpdateCsh(bool force = false);
-
+	void SetReadOnly(bool=true);
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
@@ -39,7 +60,5 @@ protected:
 	afx_msg BOOL OnCommand(WPARAM wParam, LPARAM lParam);
     afx_msg void OnSelChange(NMHDR*pNotifyStruct, LRESULT*result);
 DECLARE_MESSAGE_MAP()
-
-	BOOL ShowWindow(int nCmdShow);
 };
 

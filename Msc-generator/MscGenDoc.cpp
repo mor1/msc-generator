@@ -257,14 +257,13 @@ void CMscGenDoc::OnUpdate(bool resetZoom, bool updateInternalEditor)
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
 	//Update text in Chart Text
-	if (pEditor) {
+	if (IsInternalEditorRunning()) {
 		if (updateInternalEditor) 
-			pEditor->UpdateText(m_itrCurrent->GetText());
-		else {
-			pEditor->m_wndEditor.SetRedraw(false);
-			pEditor->UpdateCsh();
-			pEditor->m_wndEditor.SetRedraw(true);
-		}
+			//update text and csh
+			pEditor->m_wndEditor.UpdateText(m_itrCurrent->GetText());
+		else 
+			//update csh only
+			pEditor->m_wndEditor.UpdateCsh();
 	}
 
 	//Display error messages
@@ -299,14 +298,15 @@ void CMscGenDoc::OnUpdate(bool resetZoom, bool updateInternalEditor)
 	if (resetZoom) ArrangeViews();
 
 	//If there is an internal editor, reset focus to it.
-	if (pEditor) pEditor->m_wndEditor.SetFocus();
+	if (IsInternalEditorRunning()) pEditor->m_wndEditor.SetFocus();
 }
 
 
 BOOL CMscGenDoc::OnNewDocument()
 {
-	bool restartEditor = IsCorrectEditorRunning();
-	StopEditor(STOPEDITOR_WAIT, false);
+	bool restartEditor = IsExternalEditorRunning();
+	if (restartEditor) 
+		StopExternalEditor(STOPEDITOR_WAIT);
 	if (!COleServerDocEx::OnNewDocument())
 		return FALSE;
 
@@ -323,9 +323,12 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_itrSaved = m_charts.end(); //start as modified
 	SetModifiedFlag(FALSE); //start as modified
 	pApp->FillDesignDesignCombo("");
+	SetZoom(); //reset toolbar
 	OnUpdate();
+	if (IsInternalEditorRunning())
+		pApp->m_pWndEditor->m_wndEditor.ClearUndo();
 	if (restartEditor)
-		StartEditor("Untitled");
+		StartExternalEditor("Untitled");
 	return TRUE;
 }
 
@@ -337,8 +340,9 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
-	bool restartEditor = IsCorrectEditorRunning();
-	StopEditor(STOPEDITOR_WAIT, false);
+	bool restartEditor = IsExternalEditorRunning();
+	if (restartEditor) 
+		StopExternalEditor(STOPEDITOR_WAIT);
 
 	if (lpszPathName == NULL) {
 		//this one will use serialize which sets m_itrCurrent to loaded entry
@@ -383,8 +387,9 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 		AfxOleSetUserCtrl(TRUE);
 	}
 	pApp->FillDesignDesignCombo(m_itrCurrent->GetDesign());
+	SetZoom(); //reset toolbar
 	if (restartEditor)
-		StartEditor(lpszPathName);
+		StartExternalEditor(lpszPathName);
 	SetModifiedFlag(FALSE);     // back to unmodified}
 	OnUpdate();
 	return TRUE;
@@ -397,10 +402,10 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	bool restartEditor = (lpszPathName!=GetPathName() && m_EditorProcessId!=0) 
-		                  && pApp->m_iTextEditorType != CMscGenApp::INTERNAL;
+	//Restart external editor only if file name changes
+	bool restartEditor = lpszPathName!=GetPathName() && IsExternalEditorRunning();
 	if (restartEditor) 
-		StopEditor(STOPEDITOR_WAIT, true);
+		StopExternalEditor(STOPEDITOR_WAIT);
 	if (!m_itrCurrent->Save(lpszPathName)) {
 		CFileException e;
 		ReportSaveLoadException(lpszPathName, &e,
@@ -408,7 +413,7 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 		return FALSE;
 	}
 	if (restartEditor) 
-		StartEditor(lpszPathName);
+		StartExternalEditor(lpszPathName);
 	m_itrSaved = m_itrCurrent;
 	SetModifiedFlag(FALSE);     // back to unmodified}
 	return TRUE;
@@ -416,7 +421,7 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 
 void CMscGenDoc::OnCloseDocument()
 {
-	StopEditor(STOPEDITOR_FORCE, false);
+	StopExternalEditor(STOPEDITOR_FORCE);
 	COleServerDocEx::OnCloseDocument();
 }
 
@@ -463,7 +468,7 @@ void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanUndo()) 
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanUndo()) 
 		pCmdUI->Enable(true);
 	else pCmdUI->Enable(m_itrCurrent != m_charts.begin());
 }
@@ -473,23 +478,22 @@ void CMscGenDoc::OnEditUndo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanUndo()) {
-		pEditor->m_wndEditor.Undo();
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanUndo()) {
+		pEditor->m_wndEditor.MyUndo();
 		return;
 	}
 	if (m_itrCurrent == m_charts.begin()) return;
-	bool editor = false;
-	if (m_EditorProcessId) {
-		StopEditor(STOPEDITOR_WAIT, false);
-		editor = pApp->m_iTextEditorType != CMscGenApp::INTERNAL;
-	}
+	bool restartEditor = IsExternalEditorRunning();
+	if (restartEditor) 
+		StopExternalEditor(STOPEDITOR_WAIT);
 	m_itrCurrent--;
 	//if (!m_itrCurrent->IsDrawn()) 
 	StartDrawingProgress();
 	m_itrCurrent->CompileIfNeeded();
     SetModifiedFlag(m_itrCurrent != m_itrSaved);
 	OnUpdate();
-	if (editor)	StartEditor();
+	if (restartEditor)
+		StartExternalEditor();
 	StopDrawingProgress();
 }
 
@@ -498,7 +502,7 @@ void CMscGenDoc::OnUpdateEditRedo(CCmdUI *pCmdUI)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanRedo()) 
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanRedo()) 
 		pCmdUI->Enable(true);
 	else pCmdUI->Enable(m_itrCurrent != --m_charts.end());
 }
@@ -507,23 +511,22 @@ void CMscGenDoc::OnEditRedo()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.CanUndo()) {
-		pEditor->m_wndEditor.Redo();
+	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanRedo()) {
+		pEditor->m_wndEditor.MyRedo();
 		return;
 	}
 	if (m_itrCurrent == --m_charts.end()) return;
-	bool editor = false;
-	if (m_EditorProcessId) {
-		StopEditor(STOPEDITOR_WAIT, false);
-		editor = pApp->m_iTextEditorType != CMscGenApp::INTERNAL;
-	}
+	bool restartEditor = IsExternalEditorRunning();
+	if (restartEditor) 
+		StopExternalEditor(STOPEDITOR_WAIT);
 	m_itrCurrent++;
 	//if (!m_itrCurrent->IsDrawn()) 
 	StartDrawingProgress();
 	m_itrCurrent->CompileIfNeeded();
     SetModifiedFlag(m_itrCurrent != m_itrSaved);
 	OnUpdate();
-	if (editor)	StartEditor();
+	if (restartEditor)	
+		StartExternalEditor();
 	StopDrawingProgress();
 }
 
@@ -602,13 +605,14 @@ void CMscGenDoc::OnEditPasteEntireChart()
 	// Paste is handled by Document
 	COleDataObject dataObject;
 	dataObject.AttachClipboard();
-	bool editor_running = IsCorrectEditorRunning();
+	bool restartEditor = IsExternalEditorRunning();
 	if (dataObject.IsDataAvailable(m_cfPrivate)) {
 		// get file refering to clipboard data
 		CFile *pFile = dataObject.GetFileData(m_cfPrivate);
 		if (pFile == NULL) return;
 		StartDrawingProgress();
-		if (editor_running) StopEditor(STOPEDITOR_FORCE, false);
+		if (restartEditor) 
+			StopExternalEditor(STOPEDITOR_FORCE);
 		// connect the file to the archive and read the contents
 		CArchive ar(pFile, CArchive::load);
 		ar.m_pDocument = this; // for COleClientItem serialize
@@ -629,28 +633,19 @@ void CMscGenDoc::OnEditPasteEntireChart()
 		text.SetString((char*)v, length);
 		GlobalUnlock(hGlobal);
 		GlobalFree(hGlobal);
-		if (editor_running) StopEditor(STOPEDITOR_FORCE, false);
+		if (restartEditor) StopExternalEditor(STOPEDITOR_FORCE);
 		InsertNewChart(CChartData(text, m_itrCurrent->GetDesign()));
 	}
 	SetModifiedFlag(TRUE);
 	OnUpdate();
-	if (editor_running) StartEditor();
+	if (restartEditor) 
+		StartExternalEditor();
 	StopDrawingProgress();
 }
 
 
-void CMscGenDoc::StartEditor(CString filename)
+void CMscGenDoc::StartExternalEditor(CString filename)
 {
-	
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (pApp->m_iTextEditorType == CMscGenApp::INTERNAL && IsInternalEditorRunning()) {
-		pEditor->ShowPane(TRUE, FALSE, TRUE);
-		pEditor->UpdateText(m_itrCurrent->GetText());
-		return;
-	}
-	//OK, it should be an external editor.		
 	if (m_EditorProcessId) return;
 	//Determine filename
 	//Reuse existing filename, if no new name is given
@@ -693,6 +688,8 @@ void CMscGenDoc::StartEditor(CString filename)
 	m_EditorFileLastMod = status.m_mtime;
 
 	//Fire up editor process
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	CString cmdLine = pApp->m_sStartTextEditor;
 	cmdLine.Replace("%n", "\"" + CString(m_EditorFileName) + "\"");
 	char* cmdline = strdup(cmdLine);
@@ -708,7 +705,7 @@ void CMscGenDoc::StartEditor(CString filename)
 	if (!CreateProcess(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL,  &si, &pi)) {
 		free(cmdline);
 		free(si.lpTitle);
-		StopEditor(STOPEDITOR_FORCE, false); //Delete temp file and null the filename
+		StopExternalEditor(STOPEDITOR_FORCE); //Delete temp file and null the filename
 		return;
 	}
 	m_EditorProcessId = pi.dwProcessId;
@@ -725,38 +722,26 @@ void CMscGenDoc::StartEditor(CString filename)
 			pView->m_hTimer = pView->SetTimer(1, 100, NULL);
 		}
 	}
+	if (IsInternalEditorRunning()) {
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		pApp->m_pWndEditor->SetReadOnly();
+	}
 }
 
 bool CMscGenDoc::IsInternalEditorRunning() const
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	return pApp->m_pWndEditor && pApp->m_pWndEditor->m_hWnd!=0 && pApp->m_pWndEditor->IsVisible();
-}
-
-bool CMscGenDoc::IsEditorRunning() const
-{
-	return m_EditorProcessId || IsInternalEditorRunning();
-}
-
-bool CMscGenDoc::IsCorrectEditorRunning() const
-{
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	return (m_EditorProcessId && pApp->m_iTextEditorType != CMscGenApp::INTERNAL) ||
-		   (IsInternalEditorRunning() && pApp->m_iTextEditorType == CMscGenApp::INTERNAL);
+	return pApp->m_pWndEditor && IsWindow(pApp->m_pWndEditor->m_hWnd) && pApp->m_pWndEditor->IsVisible();
 }
 
 //Restarts editor, if it is running
-//stops only if the non-correct one is running (internal vs external)
-void CMscGenDoc::RestartEditor(EStopEditor force)
+void CMscGenDoc::RestartExternalEditor(EStopEditor force)
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	const bool correctRunning = IsCorrectEditorRunning();
-	StopEditor(force, pApp->m_iTextEditorType != CMscGenApp::INTERNAL);
-	if (correctRunning) 
-		StartEditor();
+	if (!IsExternalEditorRunning()) return;
+	StopExternalEditor(force);
+	StartExternalEditor();
 }
 
 void CMscGenDoc::JumpToLine(unsigned line, unsigned col)
@@ -764,10 +749,10 @@ void CMscGenDoc::JumpToLine(unsigned line, unsigned col)
 	if (line==0) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
 	//Jump in the internal editor
 	if (IsInternalEditorRunning()) {
-		long index = pEditor->m_wndEditor.LineIndex(line-1) + (col?col-1:0);
+		CEditorBar *pEditor = pApp->m_pWndEditor;
+		long index = pEditor->m_wndEditor.ConvertLineColToPos(line-1, col?col-1:0);
 		pEditor->m_wndEditor.SetSel(index, index);
 		pEditor->m_wndEditor.SetFocus();
 	}
@@ -827,7 +812,7 @@ bool CMscGenDoc::CheckExternalEditorAndFile()
 	if (m_EditorProcessId) {
 		HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, m_EditorProcessId);
 		if (!GetPriorityClass(h)) { //this checks if process still there
-			StopEditor(STOPEDITOR_FORCE, false); //remove editor file & zero out 
+			StopExternalEditor(STOPEDITOR_FORCE); //remove editor file & zero out 
 		}
 		CloseHandle(h);
 	}
@@ -849,11 +834,8 @@ BOOL CALLBACK EnumWindowsProcFindTopWindowByProcess(HWND hwnd, LPARAM lParam)
 	return true; //continue iteration
 }
 
-void CMscGenDoc::StopEditor(EStopEditor force, bool stopEvenInternal)
+void CMscGenDoc::StopExternalEditor(EStopEditor force)
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	//If external editor is running always stop it
 	if (m_EditorProcessId) {
 		switch (force) {
 		case STOPEDITOR_FORCE:
@@ -881,7 +863,7 @@ void CMscGenDoc::StopEditor(EStopEditor force, bool stopEvenInternal)
 			if (force == STOPEDITOR_NOWAIT)
 				//Okay let us wait till the editor actually closes
 				//CView::OnTimer will come back to us in CheckEditorAndFile and when editor is gone
-				//MscGenDoc::StopEditor will be called with STOPEDITOR_FORCE, which will remove timers and editor file
+				//MscGenDoc::StopExternalEditor will be called with STOPEDITOR_FORCE, which will remove timers and editor file
 				return;
 			//If we are forced to close, wait till editor process closes
 			bool wait = true;
@@ -914,15 +896,10 @@ void CMscGenDoc::StopEditor(EStopEditor force, bool stopEvenInternal)
 		END_CATCH
 		m_EditorFileName.Empty();
 	}
-	//OK, see if internal editor is running. DO it afterr the external, since that may update the text in the internal one.
 	if (IsInternalEditorRunning()) {
-		if (stopEvenInternal || pApp->m_iTextEditorType != CMscGenApp::INTERNAL) {
-			if (pApp->m_pWndEditor->m_modified) 
-				if (IDYES == pApp->m_pWndEditor->MessageBox("Do you want to keep changes made in the internal editor?", 
-					"Msc-generator", MB_ICONQUESTION | MB_YESNO))
-					OnEditUpdate();
-			pApp->m_pWndEditor->ShowPane(FALSE, FALSE, FALSE);
-		}
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		pApp->m_pWndEditor->SetReadOnly(false);
 	}
 }
 
@@ -931,14 +908,19 @@ COleIPFrameWnd* CMscGenDoc::CreateInPlaceFrame(CWnd* pParentWnd)
 	COleIPFrameWnd* ret = COleServerDocEx::CreateInPlaceFrame(pParentWnd);
 	// Now we are sure to have a view 
 	//Start Editor (exteral one needs a view for timer)
-	StartEditor();
+	//StartExternalEditor(); This is not needed, we have internal editor
+	if (IsInternalEditorRunning()) {
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrCurrent->GetText());
+	}
 	return ret;
 }
 
 void CMscGenDoc::DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd)
 {
 	// Stop editor
-	StopEditor(STOPEDITOR_WAIT, false);
+	StopExternalEditor(STOPEDITOR_WAIT);
 	COleServerDocEx::DestroyInPlaceFrame(pFrameWnd);
 }
 
@@ -959,7 +941,7 @@ void CMscGenDoc::SetZoom(int zoom)
 	//No zooming by ourselves during in-place editing
 	if (IsInPlaceActive()) return;
 
-	if (zoom < 1) return; //0 or -1 are errors probably
+	if (zoom < 1) zoom = m_zoom;
 	if (zoom > 10000) zoom = 10000;
 	if (zoom < 10) zoom = 10;
 
@@ -1243,8 +1225,8 @@ void CMscGenDoc::OnInternalEditorSelChange()
 
 	long start, end;
 	pEditor->m_wndEditor.GetSel(start, end);
-	int line = pEditor->m_wndEditor.LineFromChar(start);
-	int col = start - pEditor->m_wndEditor.LineIndex(line);
+	int line, col;
+	pEditor->m_wndEditor.ConvertPosToLineCol(start, line, col);
 	bool wasboxes = m_nTrackRectNo!=0;
 	void *arc = m_itrCurrent->GetArcByLine(line+1, col+1);
 	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
@@ -1300,8 +1282,8 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 		unsigned end_line, end_col;
 		if (m_itrCurrent->GetLineByArc(arc, start_line, start_col, end_line, end_col)) {
 			if (!wasTrackRect) pEditor->m_wndEditor.GetSel(m_saved_charrange);
-			long start = pEditor->m_wndEditor.LineIndex(start_line-1)+start_col-1;
-			long end = pEditor->m_wndEditor.LineIndex(end_line-1)+end_col;
+			long start = pEditor->m_wndEditor.ConvertLineColToPos(start_line, start_col)-1;
+			long end = pEditor->m_wndEditor.ConvertLineColToPos(end_line-1,end_col);
 			pEditor->m_wndEditor.SetRedraw(false);
 			pEditor->m_wndEditor.SetSel(start, start);
 			POINT scroll_pos;

@@ -1,12 +1,18 @@
+add multiple pipes
+vertical positions should not show as entities
+
 inplace tracking mode
 inplace size of editor
 inplace draw via bitmap, too. View::OnDraw?
+text does not appear in internal editor initially.
 
-move csh from mini editor to richedit control descendant
-design lib
-what if user turns on internal editor
+combo boxes are empty initially, for zoom and design.
+
+escape in editor kills it, prepare for a closedown...
 search replace for internal
 tab for internal editor and auto ident
+
+design lib
 update doc
 drag and drop files - drag in editor...
 try scale=10 for vertical text

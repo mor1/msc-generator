@@ -180,7 +180,7 @@ void CInPlaceFrame::OnDestroy()
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	if (pDoc) {
 		ASSERT_KINDOF(CMscGenDoc, pDoc);
-		pDoc->StopEditor(STOPEDITOR_WAIT, false);
+		pDoc->StopExternalEditor(STOPEDITOR_WAIT);
 	}
     COleIPFrameWndEx::OnDestroy();
 }
