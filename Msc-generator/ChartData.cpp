@@ -43,7 +43,6 @@ void EnsureCRLF(CString &str)
 	}
 }
 
-
 //CChartData
 
 CChartData & CChartData::operator = (const CChartData& other)
@@ -53,6 +52,7 @@ CChartData & CChartData::operator = (const CChartData& other)
 	if (other.IsEmpty()) 
 		return *this;
 	m_text = other.m_text;
+	m_sel = other.m_sel;
 	return *this;
 }
 
@@ -258,29 +258,21 @@ bool CChartData::GetLineByArc(void*arc, unsigned &start_line, unsigned &start_co
 	return true;
 }
 
-unsigned CChartData::GetCoversByArc(void *arc, TrackRect *result, int max_size, double xScale, double yScale) const
+unsigned CChartData::GetCoversByArc(void *arc, TrackRect *result, int max_size) const
 {
-	if (arc==NULL) return false;
+	if (arc==NULL) return 0;
 	CompileIfNeeded();
 	unsigned count=0;
 	for(std::set<Block>::const_iterator i=static_cast<ArcBase*>(arc)->GetGeometry().cover.begin(); 
 		    i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++) {
 		if (i->drawType == Block::DRAW_NONE) continue;
-		result[count].r.left = i->x.from * xScale;
-		result[count].r.right = i->x.till * xScale;
-		result[count].r.top = i->y.from * yScale;
-		result[count].r.bottom = i->y.till * yScale;
+		result[count].r.left = i->x.from;
+		result[count].r.right = i->x.till;
+		result[count].r.top = i->y.from;
+		result[count].r.bottom = i->y.till;
 		result[count].frame_only = i->drawType == Block::DRAW_FRAME;
 		count++;
 	}
 	return count;
 }
 
-const MscCshListType &CChartData::GetCsh() const
-{
-	if (!m_msc_for_csh) {
-		m_msc_for_csh = new Msc;
-		m_msc_for_csh->ParseForCSH(m_text, m_text.GetLength());
-	}
-	return m_msc_for_csh->CshList;
-}

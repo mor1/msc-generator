@@ -88,7 +88,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	rSize = pDoc->m_itrCurrent->GetSize(pDoc->m_page);
+	rSize = pDoc->m_itrShown->GetSize(pDoc->m_page);
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -115,7 +115,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-	pDoc->m_itrCurrent->Draw(pDC->m_hDC, DRAW_WMF, 100, pDoc->m_page, pApp->m_bPB_Embedded);
+	pDoc->m_itrShown->Draw(pDC->m_hDC, DRAW_WMF, 100, pDoc->m_page, pApp->m_bPB_Embedded);
 	return TRUE;
 }
 
@@ -194,14 +194,14 @@ BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMed
 	ASSERT(lpStgMedium->tymed == TYMED_NULL);   // GetDataHere not valid
 	ASSERT(lpStgMedium->pUnkForRelease == NULL);
 
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-
 	// medium must be TYMED_HGLOBAL and we must fill in 
 	if (!(lpFormatEtc->tymed & TYMED_HGLOBAL) || lpStgMedium->hGlobal != NULL)
 		return FALSE;
 
-	CString text(pDoc->m_itrCurrent->GetText());
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	pDoc->SyncShownWithEditing();
+	CString text(pDoc->m_itrEditing->GetText());
 	lpStgMedium->tymed= TYMED_HGLOBAL;
 	lpStgMedium->hGlobal = GlobalAlloc(GMEM_MOVEABLE, text.GetLength()+1);
 	if (lpStgMedium->hGlobal == NULL) 

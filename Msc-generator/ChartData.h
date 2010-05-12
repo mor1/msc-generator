@@ -19,9 +19,7 @@
 
 
 #pragma once
-#include <vector>
 #include <list>
-#include "csh.h"
 
 void RemoveCRLF(CString &str);
 void EnsureCRLF(CString &str);
@@ -39,19 +37,21 @@ struct TrackRect {
 class CChartData {
 protected:
 	CString m_text;
-	mutable Msc *m_msc;
-	mutable Msc *m_msc_for_csh;
-	//References are to the MscGenDoc members
 	CString m_ForcedDesign;
+	mutable Msc *m_msc;
 	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
 public:
-	CChartData() : m_msc(NULL), m_msc_for_csh(NULL) {};
-	CChartData(const char *text) : m_msc(NULL), m_msc_for_csh(NULL), m_text(text?text:"") {}
-	CChartData(const char *text, const char *design) : m_msc(NULL), m_msc_for_csh(NULL), m_text(text?text:""), m_ForcedDesign(design?design:"") {}
-	CChartData(const CChartData&o) : m_msc(NULL), m_msc_for_csh(NULL) {operator=(o);}
+	CHARRANGE m_sel;
+
+	CChartData() : m_msc(NULL) {m_sel.cpMax = m_sel.cpMin = 0;}
+	CChartData(const char *text, const char *design=NULL) 
+		:m_msc(NULL), m_text(text?text:""), m_ForcedDesign(design?design:"") {m_sel.cpMax = m_sel.cpMin = 0;}
+	CChartData(const char *text, const CHARRANGE &sel, const char *design=NULL) 
+		:m_msc(NULL), m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:"") {}
+	CChartData(const CChartData&o) : m_msc(NULL) {operator=(o);}
 	~CChartData() {Delete();}
 	CChartData & operator = (const CChartData&);
-	void Delete(void) {FreeMsc(); FreeCsh(); m_text = "";}
+	void Delete(void) {FreeMsc(); m_text.Empty();}
 	BOOL Save(const CString &fileName) const;
 	BOOL Load(const CString &fileName,  BOOL reportError=TRUE);
 	void Set(const char *text) {Delete(); m_text=text?text:"";}
@@ -79,10 +79,7 @@ public:
 	void *GetArcByCoordinate(CPoint point) const;
 	void *GetArcByLine(unsigned line, unsigned col) const;
 	bool GetLineByArc(void*arc, unsigned &start_line, unsigned &start_col, unsigned &end_line, unsigned &end_col) const;
-	unsigned GetCoversByArc(void *arc, TrackRect *result, int max_size, double xScale, double yScale) const;
-//Color Syntax Highlighting related
-	const MscCshListType &GetCsh() const;
-	void FreeCsh() const {if (m_msc_for_csh) {delete m_msc_for_csh; m_msc_for_csh=NULL;}}
+	unsigned GetCoversByArc(void *arc, TrackRect *result, int max_size) const;
 };
 
 typedef std::list<CChartData>::iterator IChartData;

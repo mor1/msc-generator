@@ -510,8 +510,11 @@ void CMscGenApp::OnEditPreferences()
 		if (recompile) {
 			pDoc->StartDrawingProgress();
 			for (IChartData i = pDoc->m_charts.begin(); i!=pDoc->m_charts.end(); i++)
-				i->FreeMsc();
-			pDoc->OnUpdate(false, false);     //Do not change zoom or text in internal editor, merely recompile & re-issue errors
+				if (i->IsCompiled()) {
+					i->FreeMsc();
+					i->CompileIfNeeded();
+				}
+			pDoc->OnShownChange();     //Do not change zoom, merely recompile & re-issue errors
 			pDoc->StopDrawingProgress();
 		} 
 		if (updateCSH && pDoc->IsInternalEditorRunning())

@@ -1,12 +1,16 @@
+Embedded should not save but update
+Embedded should not start with fixed window size
+
+track rectangles do not show when zoomed
+
 add multiple pipes
 vertical positions should not show as entities
 
-inplace tracking mode
 inplace size of editor
 inplace draw via bitmap, too. View::OnDraw?
 text does not appear in internal editor initially.
 
-combo boxes are empty initially, for zoom and design.
+zoom combo says 300% initially
 
 escape in editor kills it, prepare for a closedown...
 search replace for internal

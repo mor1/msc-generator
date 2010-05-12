@@ -27,8 +27,6 @@
 
 class CMscGenSrvrItem;
 
-
-
 enum EStopEditor {STOPEDITOR_NOWAIT, STOPEDITOR_WAIT, STOPEDITOR_FORCE};
 
 class CMscGenDoc : public COleServerDocEx
@@ -43,8 +41,9 @@ public:
 		{ return reinterpret_cast<CMscGenSrvrItem*>(COleServerDocEx::GetEmbeddedItem()); }
 	//Actual Signalling Chart Data and undo list
 	std::list<CChartData> m_charts;
-	IChartData m_itrSaved; //The chart that is the one last saved
-	IChartData m_itrCurrent; //The chart that is the current one
+	IChartData m_itrSaved; //The chart that is the one last saved. This iterator may be invalid, use only for comparison
+	IChartData m_itrEditing; //The chart that is the current one in the editor
+	IChartData m_itrShown; //The chart that is compiled and shown in view
 	unsigned m_page;
 	unsigned m_pages;
 	// View related 
@@ -54,6 +53,7 @@ public:
     int m_nTrackRectNo; //True if there are boxes to display
 	TrackRect m_rctTrack[100];
 	CHARRANGE m_saved_charrange;
+	void* m_last_arc; //the arc for which current track rects are valid
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
 	//The non-modal windows
@@ -68,8 +68,9 @@ public:
 // Operations
 public:
 	void InsertNewChart(const CChartData &);
+	void SyncShownWithEditing();
 	//Editor functions
-	void OnUpdate(bool resetZoom=true, bool updateInternalEditor=true);
+	void OnShownChange(bool resetZoom=true);
 	void StartExternalEditor(CString = "");
 	void RestartExternalEditor(EStopEditor force);
 	bool IsExternalEditorRunning() const {return m_EditorProcessId!=0;}
@@ -107,6 +108,11 @@ public:
 	afx_msg void OnUpdateEditRedo(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
 	afx_msg void OnSelChange();
+
+	afx_msg void OnButtonEdittext();
+	afx_msg void OnUpdateButtonEdittext(CCmdUI *pCmdUI);
+	afx_msg void OnDesignDesign(); //design combo box changes
+	afx_msg void OnDesignPage(); //page combo box changes
 
 	//Zoom functions
 			void SetZoom(int zoom=0); //==0 means just reset toolbar

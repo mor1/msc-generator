@@ -71,7 +71,7 @@
 				RegisterOutput="false"
 				AdditionalDependencies="cairo-static.lib Nafxcwd.lib libcpmtd.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;..\libmscgen\Release&quot;;&quot;..\cairo\src\release&quot;;&quot;..\pixman\pixman\release&quot;;&quot;..\libpng\projects\visualc71\Win32_LIB_Release&quot;;&quot;..\zlib\projects\visualc71\Win32_LIB_Release\ZLib&quot;"
+				AdditionalLibraryDirectories="&quot;..\libmscgen\Debug&quot;;&quot;..\cairo\src\debug&quot;;&quot;..\pixman\pixman\debug&quot;;&quot;..\libpng\projects\visualc71\Win32_LIB_Debug&quot;;&quot;..\zlib\projects\visualc71\Win32_LIB_Debug\ZLib&quot;"
 				IgnoreDefaultLibraryNames="libcpmtd; nafxcwd; msvcprtd; libcmt"
 				GenerateDebugInformation="true"
 				SubSystem="2"

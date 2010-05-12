@@ -169,7 +169,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	ASSERT(pDoc != NULL);
 	ASSERT_KINDOF(CMscGenDoc, pDoc);
 
-	pApp->FillDesignDesignCombo(pDoc->m_itrCurrent->GetDesign(), true);
+	pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
 	pApp->FillDesignPageCombo(pDoc->m_pages, pDoc->m_page);
 	return TRUE;
 }

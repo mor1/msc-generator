@@ -10,7 +10,7 @@
 #include "stdafx.h"
 #include "Msc-generator.h"
 #include "MscGenDoc.h"
-#include "ChartData.h"
+#include "msc.h"
 #include "MiniEditor.h"
 
 #ifdef _DEBUG
@@ -22,24 +22,16 @@ static char THIS_FILE[] = __FILE__;
 CCshRichEditCtrl::CCshRichEditCtrl()
 {
 	m_bCshUpdateInProgress = false;
-	m_UndoList.push_back(CEditorUndoRecord());
-	m_itrCurrent = --m_UndoList.end();
 }
 
-void CCshRichEditCtrl::UpdateText(const char *text)
+void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr)
 {
 	CEditorUndoRecord undoRec;
 	undoRec.text = text;
 	EnsureCRLF(undoRec.text);
 	SetRedraw(false);
-	GetSel(undoRec.pos);
 	SetWindowText(undoRec.text);
-	SetSel(undoRec.pos);
-	GetSel(undoRec.pos);
-	UpdateCsh();
-	m_UndoList.erase(++m_itrCurrent, m_UndoList.end());
-	m_UndoList.push_back(undoRec);
-	m_itrCurrent = --m_UndoList.end();
+	SetSel(cr);
 }
 
 void CCshRichEditCtrl::UpdateCsh(bool force)
@@ -47,13 +39,9 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 	if (m_bCshUpdateInProgress) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	//Check if Color Syntax Highlghting is enabled
+	//Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
 	if (!pApp->m_bCsh && !force) return;
-	CString text;
-	GetWindowText(text);
-	RemoveCRLF(text);
-	CChartData data(text);
-	const MscCshListType v(data.GetCsh());
+	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
 
 	SetRedraw(false);
 	//long eventMask = GetEventMask();
@@ -64,18 +52,23 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 	::SendMessage(m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 	CHARRANGE cr;
 	GetSel(cr);
-	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
-	const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
-	const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
 
-	SetSel(0,-1);
-	SetSelectionCharFormat(scheme[COLOR_NORMAL]);
-	if (pApp->m_bCsh)
-		for (MscCshListType::const_iterator i=v.begin(); i!=v.end(); i++) 
+	SetSel(0,-1); //select all
+	SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
+	if (pApp->m_bCsh) {
+		const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
+		const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
+		CString text;
+		GetWindowText(text);
+		RemoveCRLF(text);
+		Msc csh;
+		csh.ParseForCSH(text, text.GetLength());
+		for (MscCshListType::const_iterator i=csh.CshList.begin(); i!=csh.CshList.end(); i++) 
 			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
 				SetSel(i->first_pos-1, i->last_pos);
 				SetSelectionCharFormat(scheme[i->color]);
 			}
+	}
 	SetSel(cr);
 	::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 
@@ -84,45 +77,6 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 	Invalidate();
 	//SetEventMask(eventMask);
 }
-
-void CCshRichEditCtrl::StoreUndo()
-{
-	CEditorUndoRecord undoRec;
-	GetWindowText(undoRec.text);
-	if (m_itrCurrent->text == undoRec.text) return;
-	m_UndoList.erase(++m_itrCurrent, m_UndoList.end());
-	GetSel(undoRec.pos);
-	m_UndoList.push_back(undoRec);
-	m_itrCurrent = --m_UndoList.end();
-}
-
-void CCshRichEditCtrl::ClearUndo()
-{
-	m_UndoList.clear();
-	m_UndoList.push_back(CEditorUndoRecord());
-	m_itrCurrent = --m_UndoList.end();
-	GetWindowText(m_itrCurrent->text);
-	GetSel(m_itrCurrent->pos);
-}
-
-void CCshRichEditCtrl::MyUndo()
-{
-	if (m_UndoList.begin() == m_itrCurrent) return;
-	m_itrCurrent--;
-	SetRedraw(false);
-	SetWindowText(m_itrCurrent->text);
-	SetSel(m_itrCurrent->pos);
-}
-
-void CCshRichEditCtrl::MyRedo()
-{
-	if (--m_UndoList.end() == m_itrCurrent) return;
-	m_itrCurrent++;
-	SetRedraw(false);
-	SetWindowText(m_itrCurrent->text);
-	SetSel(m_itrCurrent->pos);
-}
-
 
 /////////////////////////////////////////////////////////////////////////////
 // COutputBar
@@ -237,7 +191,6 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
 	if (!m_wndEditor.IsCshUpdateInProgress()) {
 		m_wndEditor.UpdateCsh();
-		m_wndEditor.StoreUndo();
 		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 		ASSERT(pApp != NULL);
 		CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());

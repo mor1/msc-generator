@@ -84,10 +84,6 @@ public:
 	afx_msg void OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 
-	afx_msg void OnDesignDesign();
-	afx_msg void OnDesignPage();
-	afx_msg void OnButtonEdittext();
-	afx_msg void OnUpdateButtonEdittext(CCmdUI *pCmdUI);
 	afx_msg void OnTimer(UINT nIDEvent);
 
 	DECLARE_MESSAGE_MAP()

@@ -49,15 +49,9 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_COMMAND(ID_CANCEL_EDIT_SRVR, &CMscGenView::OnCancelEditSrvr)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CScrollView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CMscGenView::OnFilePrintPreview)
-	ON_COMMAND(ID_DESIGN_PAGE, OnDesignPage)
-	ON_CBN_SELENDOK(ID_DESIGN_PAGE, OnDesignPage)
-	ON_COMMAND(ID_DESIGN_DESIGN, OnDesignDesign)
-	ON_CBN_SELENDOK(ID_DESIGN_DESIGN, OnDesignDesign)
 	ON_COMMAND(ID_VIEW_REDRAW, OnViewRedraw)
 	ON_COMMAND(ID_VIEW_RESETASPECTRATIO_INPLACE, ResetAspectRatioInPlace)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_RESETASPECTRATIO_INPLACE, OnUpdateResetAspectRatioInPlace)
-	ON_COMMAND(ID_BUTTON_EDITTEXT, OnButtonEdittext)
-	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITTEXT, OnUpdateButtonEdittext)
 	ON_WM_LBUTTONDBLCLK()
 	ON_WM_MOUSEHOVER()
 	ON_WM_MOUSEMOVE()
@@ -94,7 +88,7 @@ BOOL CMscGenView::PreCreateWindow(CREATESTRUCT& cs)
 void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 {
 	CScrollView::OnPrepareDC(pDC, pInfo);
-/*	if (SizeEmpty(m_size)) return;
+	if (SizeEmpty(m_size)) return;
 	CMscGenDoc* pDoc = GetDocument();
 	if (pDoc==NULL) return; 
 
@@ -113,7 +107,6 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 	long yExt = (long)sizeDoc.cy * yLogPixPerInch * sizeNum.cy;
 	yExt /= 100 * (long)sizeDenom.cy;
 	pDC->SetViewportExt((int)xExt, (int)yExt);
-*/
 }
 
 
@@ -150,7 +143,10 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-
+	//If user has made modifications reflect them
+	if (pDoc->IsExternalEditorRunning())
+		pDoc->RestartExternalEditor(STOPEDITOR_WAIT);
+	pDoc->SyncShownWithEditing();
 	pInfo->SetMaxPage(pDoc->m_pages);
 	// default preparation
 	return DoPreparePrinting(pInfo);
@@ -159,25 +155,21 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
 {
 	// extra initialization before printing
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	if (pDoc->m_itrCurrent->IsEmpty())
-		return;
 }
 
 void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (pDoc->m_itrCurrent->IsEmpty())
+	if (pDoc->m_itrShown->IsEmpty())
 		return;
 
-    CSize orig_size = pDoc->m_itrCurrent->GetSize(pInfo->m_nCurPage);
+    CSize orig_size = pDoc->m_itrShown->GetSize(pInfo->m_nCurPage);
 	double fzoom = double(pInfo->m_rectDraw.Width())/orig_size.cx;
 	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
 	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pInfo->m_nCurPage, false);
+	pDoc->m_itrShown->Draw(hdc, DRAW_EMF, 100, pInfo->m_nCurPage, false);
 	HENHMETAFILE hemf = CloseEnhMetaFile(hdc);
 	ENHMETAHEADER header;
 	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
@@ -265,8 +257,11 @@ void CMscGenView::DrawTrackRects(CDC* pDC, const CRect &clip)
     cairo_set_source_rgba(cr, 1, 1, 1, 1);
 	cairo_set_line_width(cr, 2*lw);
 	for (int i = 0; i<pDoc->m_nTrackRectNo; i++) {
-		CRect rr(pDoc->m_rctTrack[i].r);
-		rr.InflateRect(2*lw, 2*lw);
+		CRect rr;
+		rr.top = pDoc->m_rctTrack[i].r.top / 100. * pDoc->m_zoom - 2*lw;
+		rr.bottom = pDoc->m_rctTrack[i].r.bottom / 100. * pDoc->m_zoom + 2*lw;
+		rr.left= pDoc->m_rctTrack[i].r.left / 100. * pDoc->m_zoom - 2*lw;
+		rr.right= pDoc->m_rctTrack[i].r.right / 100. * pDoc->m_zoom +2*lw;
 		cairo_rectangle(cr, rr.left, rr.top, rr.Width(), rr.Height());
 		if (pDoc->m_rctTrack[i].frame_only) 
 			cairo_stroke(cr);
@@ -312,6 +307,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 		CRect r(CPoint(0, 0), m_size);
 		pDC->SetMapMode(MM_ANISOTROPIC);
 		PlayEnhMetaFile(pDC->m_hDC, m_hemf, r);
+		DrawTrackRects(pDC, clip);
 	} else {
 		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
 		CDC memDC;
@@ -343,12 +339,12 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	ASSERT_VALID(pApp);
 
     HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrCurrent->Draw(hdc, DRAW_EMF, 100, pDoc->m_page, pApp->m_bPB_Editing);
+	pDoc->m_itrShown->Draw(hdc, DRAW_EMF, 100, pDoc->m_page, pApp->m_bPB_Editing);
 	if (m_hemf) DeleteEnhMetaFile(m_hemf);
 	m_hemf = CloseEnhMetaFile(hdc);
 
 	//Check if some of the background becomes visible
-	CSize new_size = pDoc->m_itrCurrent->GetSize(pDoc->m_page);
+	CSize new_size = pDoc->m_itrShown->GetSize(pDoc->m_page);
 	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
 		m_DeleteBkg = true;
 	m_size = new_size;
@@ -479,34 +475,6 @@ void CMscGenView::OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI)
 	pCmdUI->Enable(pDoc->IsInPlaceActive() && !SizeEmpty(m_size));
 }
 
-//Page functions
-void CMscGenView::OnDesignPage()
-{
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_PAGE, list);
-
-	POSITION p = list.GetHeadPosition();
-	if (!p) return;
-	CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-	int index = combo->GetCurSel();
-	//Set this setting on oll remaining ones
-	while (p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		combo->SelectItem(index);
-	}
-	CMscGenDoc *pDoc = GetDocument();
-	if (pDoc == NULL) return;
-	unsigned oldPage = pDoc->m_page;
-	pDoc->m_page = index;
-	if (pDoc->m_page == oldPage)
-		return;
-	//We save forceddesign only in an embedded doc, so changing that counts as modified
-	if (pDoc->IsEmbedded())
-		pDoc->SetModifiedFlag(); 
-	pDoc->NotifyChanged();  //for OLE
-	pDoc->UpdateAllViews(NULL);
-}
-
 void CMscGenView::OnTimer(UINT nIDEvent)
 {
 	CMscGenDoc *pDoc = GetDocument();
@@ -516,53 +484,6 @@ void CMscGenView::OnTimer(UINT nIDEvent)
 	//and for a missing editor process
 	//Timer is shut down by MscGenDoc::StopEditor, called if editor process is gone
 	pDoc->CheckExternalEditorAndFile();
-}
-
-void CMscGenView::OnButtonEdittext()
-{
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
-	if (pDoc->IsExternalEditorRunning())
-		pDoc->StopExternalEditor(STOPEDITOR_WAIT);
-	else
-		pDoc->StartExternalEditor();
-}
-
-void CMscGenView::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
-{
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
-	pCmdUI->SetCheck(pDoc->IsExternalEditorRunning());
-}
-
-//Design combo functions
-void CMscGenView::OnDesignDesign() 
-{
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
-	POSITION p = list.GetHeadPosition();
-	if (!p) return;
-	CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-	unsigned index = combo->GetCurSel();
-	//Set this setting on oll remaining ones
-	while (p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		combo->SelectItem(index, TRUE);
-	}
-	CMscGenDoc *pDoc = GetDocument();
-	if (pDoc == NULL) return;
-	CString old_forcedDesign(pDoc->m_itrCurrent->GetDesign());
-	CString new_forcedDesign; 
-	if (index > 0)
-		new_forcedDesign = combo->GetItem(index);
-	if (new_forcedDesign == old_forcedDesign)
-		return;
-	pDoc->StartDrawingProgress();
-	if (pDoc->IsEmbedded())
-		pDoc->SetModifiedFlag();
-	pDoc->m_itrCurrent->SetDesign(new_forcedDesign);
-	pDoc->OnUpdate(false);  //Do not change zoom, juts update views
-	pDoc->StopDrawingProgress();
 }
 
 void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)

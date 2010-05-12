@@ -19,22 +19,14 @@ struct CEditorUndoRecord {
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-	std::list<CEditorUndoRecord> m_UndoList;
-	std::list<CEditorUndoRecord>::iterator m_itrCurrent;
 	bool m_bCshUpdateInProgress;
 public:
 	CCshRichEditCtrl();
-	void UpdateText(const char *text);
+	void UpdateText(const char *text, CHARRANGE &cr);
 	void UpdateCsh(bool force = false);
 	long ConvertLineColToPos(unsigned line, unsigned col) {return LineIndex(line) + col;}
 	void ConvertPosToLineCol(long pos, int &line, int &col) {line=LineFromChar(pos); col=pos-LineIndex(line);}
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
-	void StoreUndo();
-	void ClearUndo();
-	bool MyCanUndo() {return m_itrCurrent != m_UndoList.begin();}
-	bool MyCanRedo() {return m_itrCurrent != --m_UndoList.end();}
-	void MyUndo();
-	void MyRedo();
 };
 
 class CEditorBar : public CDockablePane

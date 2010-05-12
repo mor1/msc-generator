@@ -58,6 +58,10 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_LBN_SELCHANGE(IDC_OUTPUT_LIST, OnSelChange)
 	ON_COMMAND(ID_DESIGN_ZOOM, OnDesignZoom)
 	ON_CBN_SELENDOK(ID_DESIGN_ZOOM, OnDesignZoom)
+	ON_COMMAND(ID_DESIGN_PAGE, OnDesignPage)
+	ON_CBN_SELENDOK(ID_DESIGN_PAGE, OnDesignPage)
+	ON_COMMAND(ID_DESIGN_DESIGN, OnDesignDesign)
+	ON_CBN_SELENDOK(ID_DESIGN_DESIGN, OnDesignDesign)
 	ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
 	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
 	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
@@ -78,6 +82,8 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_CUT, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_PASTE, OnUpdateEditPaste)
+	ON_COMMAND(ID_BUTTON_EDITTEXT, OnButtonEdittext)
+	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITTEXT, OnUpdateButtonEdittext)
 	ON_COMMAND(ID_BUTTON_TRACK, OnButtonTrack)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, OnUpdateButtonTrack)
 END_MESSAGE_MAP()
@@ -105,6 +111,7 @@ CMscGenDoc::CMscGenDoc()
 	m_zoom = 100;
 	m_nTrackRectNo = 0;
 	m_bTrackMode = false;
+	m_last_arc = NULL;
 	m_saved_charrange.cpMax = 0;
 	m_saved_charrange.cpMin = 0;
 	m_page = 0; //all
@@ -115,8 +122,9 @@ CMscGenDoc::CMscGenDoc()
 	m_ProgressWindowCount = 0;
 
 	m_charts.push_back(CChartData());
-	m_itrCurrent = m_charts.begin();
-	m_itrSaved = m_charts.end(); //start as modified
+	m_itrEditing = m_charts.begin();
+	m_itrShown = m_charts.begin();
+	m_itrSaved = m_charts.end(); //start as unmodified
 }
 
 CMscGenDoc::~CMscGenDoc()
@@ -131,19 +139,41 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 	//The mfc stl implementation changes the value of .end() at insert.
 	//Re-set m_itrSaved to .end() after list manipulation, if it was .end() before
 	bool saved_chart_is_deleted = m_itrSaved == m_charts.end();
-	IChartData i = m_itrCurrent;
+	IChartData i = m_itrEditing;
 	i++;
 	while (i!=m_charts.end() && !saved_chart_is_deleted) {
 		if (i == m_itrSaved) saved_chart_is_deleted = true;
 		i++;
 	}
-	i = m_itrCurrent;
+	i = m_itrEditing;
 	i++;
 	m_charts.erase(i, m_charts.end());
 	m_charts.push_back(data);
-	m_itrCurrent = --m_charts.end();
+	m_itrEditing = --m_charts.end();
 	if (saved_chart_is_deleted) 
 		m_itrSaved = m_charts.end();
+}
+
+void CMscGenDoc::SyncShownWithEditing() {
+	if (m_itrEditing == m_itrShown) return;
+	if (IDYES == MessageBox(NULL, "I want to redraw, but you have made changes to the chart in the text editor.\n"
+		                          "Do you want to save them?\n"
+								  "(Even if you click No, the changes will be available using Redo.)", 
+		                          "Msc-generator", MB_ICONQUESTION | MB_YESNO)) {
+		m_itrShown = m_itrEditing;
+		//Draw new text and update views
+		OnShownChange();
+	} else {
+		//Keep items between itrshowm and itrediting in the redo buffer
+		m_itrEditing = m_itrShown;
+		//Copy the old text to internal editor
+		if (IsInternalEditorRunning()) {
+			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+			ASSERT(pApp != NULL);
+			pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+		}
+	}
+	//Now m_itrEditing == m_itrShown
 }
 
 
@@ -172,9 +202,9 @@ void CMscGenDoc::Serialize(CArchive& ar)
 	if (ar.IsStoring()) {
 		ar << CString(NEW_VERSION_STRING);
 		ar << unsigned(1); //file format version
-		ar << m_itrCurrent->GetDesign();
+		ar << m_itrShown->GetDesign();
 		ar << m_page;
-		ar << m_itrCurrent->GetText();
+		ar << m_itrShown->GetText();
 	} else {
 		CString text;
 		CString design;
@@ -220,6 +250,8 @@ void CMscGenDoc::Serialize(CArchive& ar)
 			}
 		}
 		EnsureCRLF(text);
+		CHARRANGE cr;
+		cr.cpMax = cr.cpMin = 0;
 		InsertNewChart(CChartData(text, design));
 	}
 }
@@ -246,40 +278,30 @@ void CMscGenDoc::DeleteContents()
 {
 	m_charts.clear();
 	m_charts.push_back(CChartData());
-	m_itrCurrent = m_charts.begin();
+	m_itrEditing = m_charts.begin();
+	m_itrShown = m_charts.begin();
 	m_itrSaved = m_charts.end(); //start as modified
 	COleServerDocEx::DeleteContents();
 }
 
-void CMscGenDoc::OnUpdate(bool resetZoom, bool updateInternalEditor)
+//Display the chart pointed by m_itrShown
+void CMscGenDoc::OnShownChange(bool resetZoom)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	//Update text in Chart Text
-	if (IsInternalEditorRunning()) {
-		if (updateInternalEditor) 
-			//update text and csh
-			pEditor->m_wndEditor.UpdateText(m_itrCurrent->GetText());
-		else 
-			//update csh only
-			pEditor->m_wndEditor.UpdateCsh();
-	}
 
 	//Display error messages
 	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
 	if (pOutputView) {
 		pOutputView->m_wndOutput.ResetContent();
-		unsigned num = m_itrCurrent->GetErrorNum(pApp->m_Warnings);
+		unsigned num = m_itrShown->GetErrorNum(pApp->m_Warnings);
 		for (int i=0; i<num; i++) 
-			pOutputView->m_wndOutput.AddString(m_itrCurrent->GetErrorText(i, pApp->m_Warnings));
+			pOutputView->m_wndOutput.AddString(m_itrShown->GetErrorText(i, pApp->m_Warnings));
 		pOutputView->ShowPane(num>0, false, true);
 	}
-	if (m_itrCurrent->GetErrorNum(false)) 
-		JumpToLine(m_itrCurrent->GetErrorLine(0, false), m_itrCurrent->GetErrorCol(0, false));
 
 	//Update page controls and variables
-	unsigned pages = m_itrCurrent->GetPages();
+	unsigned pages = m_itrShown->GetPages();
 	if (m_pages != pages) {
 		m_pages = pages;
 		if (m_pages==1)
@@ -290,15 +312,15 @@ void CMscGenDoc::OnUpdate(bool resetZoom, bool updateInternalEditor)
 	}
 
 	//See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar
-	if (!pApp->FillDesignDesignCombo(m_itrCurrent->GetDesign()))
-		m_itrCurrent->SetDesign("");
+	if (!pApp->FillDesignDesignCombo(m_itrShown->GetDesign()))
+		m_itrShown->SetDesign("");
 
 	NotifyChanged();  //for OLE
 	UpdateAllViews(NULL);
 	if (resetZoom) ArrangeViews();
 
 	//If there is an internal editor, reset focus to it.
-	if (IsInternalEditorRunning()) pEditor->m_wndEditor.SetFocus();
+	if (IsInternalEditorRunning()) pApp->m_pWndEditor->m_wndEditor.SetFocus();
 }
 
 
@@ -319,14 +341,15 @@ BOOL CMscGenDoc::OnNewDocument()
 		data.Set(pApp->m_DefaultText);
 	m_charts.clear();
 	m_charts.push_back(data);
-	m_itrCurrent = m_charts.begin();
-	m_itrSaved = m_charts.end(); //start as modified
-	SetModifiedFlag(FALSE); //start as modified
+	m_itrEditing = m_charts.begin();
+	m_itrSaved = m_charts.end(); //start as unmodified
+	SetModifiedFlag(FALSE); //start as unmodified
+	m_itrShown = m_charts.begin();
+	if (IsInternalEditorRunning())
+		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+	OnShownChange();
 	pApp->FillDesignDesignCombo("");
 	SetZoom(); //reset toolbar
-	OnUpdate();
-	if (IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_wndEditor.ClearUndo();
 	if (restartEditor)
 		StartExternalEditor("Untitled");
 	return TRUE;
@@ -369,14 +392,20 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 				FALSE, AFX_IDP_FAILED_TO_OPEN_DOC);
 			return FALSE;
 		}
-		data.SetDesign(m_itrCurrent->GetDesign());
+		data.SetDesign(m_itrEditing->GetDesign());
 		InsertNewChart(data);
 
-	};
+	}
+	//Copy text to the internal editor
+	if (IsInternalEditorRunning())
+		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 	//Delete all entries before the currently loaded one (no undo)
 	//part after (redo) was deleted by Serialize or InsertNewChart
-	m_charts.erase(m_charts.begin(), m_itrCurrent);
-	m_itrSaved = m_itrCurrent;
+	m_charts.erase(m_charts.begin(), m_itrEditing);
+	SetModifiedFlag(FALSE);     // back to unmodified
+	m_itrSaved = m_itrEditing;
+	m_itrShown = m_itrEditing; 
+	OnShownChange();
 
 	// if the app was started only to print, don't set user control
 	//Copied from COleLinkingDoc
@@ -386,12 +415,10 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-	pApp->FillDesignDesignCombo(m_itrCurrent->GetDesign());
-	SetZoom(); //reset toolbar
+	pApp->FillDesignDesignCombo(m_itrEditing->GetDesign());
+	SetZoom(); //reset toolbar, do not chnage zoom
 	if (restartEditor)
 		StartExternalEditor(lpszPathName);
-	SetModifiedFlag(FALSE);     // back to unmodified}
-	OnUpdate();
 	return TRUE;
 }
 
@@ -406,7 +433,8 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	bool restartEditor = lpszPathName!=GetPathName() && IsExternalEditorRunning();
 	if (restartEditor) 
 		StopExternalEditor(STOPEDITOR_WAIT);
-	if (!m_itrCurrent->Save(lpszPathName)) {
+	SyncShownWithEditing();
+	if (!m_itrEditing->Save(lpszPathName)) {
 		CFileException e;
 		ReportSaveLoadException(lpszPathName, &e,
 			TRUE, AFX_IDP_FAILED_TO_SAVE_DOC);
@@ -414,8 +442,8 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	}
 	if (restartEditor) 
 		StartExternalEditor(lpszPathName);
-	m_itrSaved = m_itrCurrent;
-	SetModifiedFlag(FALSE);     // back to unmodified}
+	m_itrSaved = m_itrEditing;
+	SetModifiedFlag(FALSE);     // back to unmodified
 	return TRUE;
 }
 
@@ -427,7 +455,7 @@ void CMscGenDoc::OnCloseDocument()
 
 void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(!m_itrCurrent->IsEmpty());
+	pCmdUI->Enable(!m_itrShown->IsEmpty());
 }
 
 void CMscGenDoc::OnSelChange()
@@ -438,12 +466,13 @@ void CMscGenDoc::OnSelChange()
 	if (!pOutputView) return;
 	int sel = pOutputView->m_wndOutput.GetCurSel();
 	if (sel != LB_ERR)
-		JumpToLine(m_itrCurrent->GetErrorLine(sel, pApp->m_Warnings), m_itrCurrent->GetErrorCol(sel, pApp->m_Warnings));
+		JumpToLine(m_itrShown->GetErrorLine(sel, pApp->m_Warnings), m_itrShown->GetErrorCol(sel, pApp->m_Warnings));
 }
 
 void CMscGenDoc::OnFileExport()
 {
-	if (m_itrCurrent->IsEmpty()) 
+	SyncShownWithEditing();
+	if (m_itrShown->IsEmpty()) 
 		return;
 	CFileDialog m_a(false);
 	m_a.m_pOFN->lpstrTitle = "Export to file";
@@ -460,74 +489,66 @@ void CMscGenDoc::OnFileExport()
 	m_a.m_pOFN->nMaxFile = sizeof(filename);
 	if (m_a.DoModal() != IDOK)
 		return;
-	m_itrCurrent->Draw(m_a.GetPathName());
+	m_itrShown->Draw(m_a.GetPathName());
 }
 
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanUndo()) 
-		pCmdUI->Enable(true);
-	else pCmdUI->Enable(m_itrCurrent != m_charts.begin());
+	pCmdUI->Enable(m_itrEditing != m_charts.begin());
 }
 
 void CMscGenDoc::OnEditUndo()
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanUndo()) {
-		pEditor->m_wndEditor.MyUndo();
-		return;
-	}
-	if (m_itrCurrent == m_charts.begin()) return;
+	if (m_itrEditing == m_charts.begin()) return;
 	bool restartEditor = IsExternalEditorRunning();
 	if (restartEditor) 
 		StopExternalEditor(STOPEDITOR_WAIT);
-	m_itrCurrent--;
-	//if (!m_itrCurrent->IsDrawn()) 
-	StartDrawingProgress();
-	m_itrCurrent->CompileIfNeeded();
-    SetModifiedFlag(m_itrCurrent != m_itrSaved);
-	OnUpdate();
+	//if current element was shown, search back to a previous chart that was shown
+	if (m_itrShown == m_itrEditing)  {
+		while (m_itrShown != m_charts.begin()) {
+			m_itrShown--; 
+			if (m_itrShown->IsCompiled()) break;
+		}
+		//update the view
+		OnShownChange();
+	}
+	//Now step back and update the internal editor
+	m_itrEditing--;
+	if (IsInternalEditorRunning()) {
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+	}
+
+    SetModifiedFlag(m_itrEditing != m_itrSaved);
 	if (restartEditor)
 		StartExternalEditor();
-	StopDrawingProgress();
 }
 
 void CMscGenDoc::OnUpdateEditRedo(CCmdUI *pCmdUI)
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanRedo()) 
-		pCmdUI->Enable(true);
-	else pCmdUI->Enable(m_itrCurrent != --m_charts.end());
+	pCmdUI->Enable(m_itrEditing != --m_charts.end());
 }
 void CMscGenDoc::OnEditRedo()
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	if (IsInternalEditorRunning() && pEditor->m_wndEditor.MyCanRedo()) {
-		pEditor->m_wndEditor.MyRedo();
-		return;
-	}
-	if (m_itrCurrent == --m_charts.end()) return;
+	if (m_itrEditing == --m_charts.end()) return;
 	bool restartEditor = IsExternalEditorRunning();
 	if (restartEditor) 
 		StopExternalEditor(STOPEDITOR_WAIT);
-	m_itrCurrent++;
-	//if (!m_itrCurrent->IsDrawn()) 
-	StartDrawingProgress();
-	m_itrCurrent->CompileIfNeeded();
-    SetModifiedFlag(m_itrCurrent != m_itrSaved);
-	OnUpdate();
-	if (restartEditor)	
+	m_itrEditing++;
+	//If we hit a chart that was previously shown, update views
+	if (m_itrEditing->IsCompiled()) {
+		m_itrShown = m_itrEditing;
+		OnShownChange();
+	}
+	if (IsInternalEditorRunning()) {
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+	}
+    SetModifiedFlag(m_itrEditing != m_itrSaved);
+	if (restartEditor)
 		StartExternalEditor();
-	StopDrawingProgress();
 }
 
 void CMscGenDoc::OnUpdateEditCutCopy(CCmdUI *pCmdUI)
@@ -590,8 +611,6 @@ void CMscGenDoc::OnEditPaste()
 	pEditor->m_wndEditor.PasteSpecial(CF_TEXT);
 }
 
-
-
 void CMscGenDoc::OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI)
 {
 	COleDataObject dataObject;
@@ -610,7 +629,6 @@ void CMscGenDoc::OnEditPasteEntireChart()
 		// get file refering to clipboard data
 		CFile *pFile = dataObject.GetFileData(m_cfPrivate);
 		if (pFile == NULL) return;
-		StartDrawingProgress();
 		if (restartEditor) 
 			StopExternalEditor(STOPEDITOR_FORCE);
 		// connect the file to the archive and read the contents
@@ -628,21 +646,31 @@ void CMscGenDoc::OnEditPasteEntireChart()
 			GlobalFree(hGlobal);
 			return;
 		}
-		StartDrawingProgress();
 		CString text;
 		text.SetString((char*)v, length);
 		GlobalUnlock(hGlobal);
 		GlobalFree(hGlobal);
 		if (restartEditor) StopExternalEditor(STOPEDITOR_FORCE);
-		InsertNewChart(CChartData(text, m_itrCurrent->GetDesign()));
+		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));
 	}
-	SetModifiedFlag(TRUE);
-	OnUpdate();
+	m_itrShown = m_itrEditing;
+	OnShownChange();
 	if (restartEditor) 
 		StartExternalEditor();
-	StopDrawingProgress();
 }
 
+void CMscGenDoc::OnButtonEdittext()
+{
+	if (IsExternalEditorRunning())
+		StopExternalEditor(STOPEDITOR_WAIT);
+	else
+		StartExternalEditor();
+}
+
+void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(IsExternalEditorRunning());
+}
 
 void CMscGenDoc::StartExternalEditor(CString filename)
 {
@@ -682,7 +710,7 @@ void CMscGenDoc::StartExternalEditor(CString filename)
 		m_EditorFileName.Insert(0, buff);
 	}
 	//Save file, record last modification time (pretty much now)
-	m_itrCurrent->Save(m_EditorFileName);
+	m_itrEditing->Save(m_EditorFileName);
 	CFileStatus status;
 	CFile::GetStatus(m_EditorFileName, status);
 	m_EditorFileLastMod = status.m_mtime;
@@ -794,11 +822,12 @@ bool CMscGenDoc::CheckExternalEditorAndFile()
 					StartDrawingProgress();
 					m_EditorFileLastMod = status.m_mtime;
 					//OK: File successfully read, update the Document.
-					data.SetDesign(m_itrCurrent->GetDesign());
+					data.SetDesign(m_itrEditing->GetDesign());
 					InsertNewChart(data);
 					SetModifiedFlag();
 					//Now update the View
-					OnUpdate();
+					m_itrShown = m_itrEditing;
+					OnShownChange();
 					StopDrawingProgress();
 					return true;
 				}
@@ -912,7 +941,7 @@ COleIPFrameWnd* CMscGenDoc::CreateInPlaceFrame(CWnd* pParentWnd)
 	if (IsInternalEditorRunning()) {
 		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 		ASSERT(pApp != NULL);
-		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrCurrent->GetText());
+		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
 	}
 	return ret;
 }
@@ -934,6 +963,57 @@ void CMscGenDoc::StopDrawingProgress()
 {
 	if (--m_ProgressWindowCount<=0) 
 		m_ProgressWindow.ShowWindow(SW_HIDE); 
+}
+
+//Page functions
+void CMscGenDoc::OnDesignPage()
+{
+	CObList list;
+	CMFCToolBar::GetCommandButtons(ID_DESIGN_PAGE, list);
+
+	POSITION p = list.GetHeadPosition();
+	if (!p) return;
+	CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+	int index = combo->GetCurSel();
+	//Set this setting on oll remaining ones
+	while (p) {
+		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+		combo->SelectItem(index);
+	}
+	unsigned oldPage = m_page;
+	m_page = index;
+	if (m_page == oldPage)
+		return;
+	//We save forceddesign only in an embedded doc, so changing that counts as modified
+	if (IsEmbedded())
+		SetModifiedFlag(); 
+	NotifyChanged();  //for OLE
+	UpdateAllViews(NULL);
+}
+
+//Design combo functions
+void CMscGenDoc::OnDesignDesign() 
+{
+	CObList list;
+	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
+	POSITION p = list.GetHeadPosition();
+	if (!p) return;
+	CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+	unsigned index = combo->GetCurSel();
+	//Set this setting on oll remaining ones
+	while (p) {
+		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
+		combo->SelectItem(index, TRUE);
+	}
+	CString new_forcedDesign; 
+	if (index > 0)
+		new_forcedDesign = combo->GetItem(index);
+	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
+	SyncShownWithEditing();
+	m_itrEditing->SetDesign(new_forcedDesign);
+	OnShownChange();  //Do not change zoom, juts update views
+	if (IsEmbedded())
+		SetModifiedFlag();
 }
 
 void CMscGenDoc::SetZoom(int zoom)
@@ -1143,26 +1223,14 @@ void CMscGenDoc::OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI)
 
 void CMscGenDoc::OnEditUpdate()
 {
-	if (!IsInternalEditorRunning()) return;
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	CEditorBar *pEditor = pApp->m_pWndEditor;
-	StartDrawingProgress();
-	pEditor->m_wndEditor.EmptyUndoBuffer(); // no more undo in local editor. 
-	CString text;
-	pEditor->m_wndEditor.GetWindowText(text);
-	EnsureCRLF(text);
-	InsertNewChart(CChartData(text, m_itrCurrent->GetDesign()));
-	SetModifiedFlag();
-	//Now update the View, update zoom, 
-	//but do not change text in internal editor (this is where change is coming from)
-	OnUpdate(true, false);
-	StopDrawingProgress();
+	//update the View, update zoom, 
+	m_itrShown = m_itrEditing;
+	OnShownChange(true);
 }
 
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(IsInternalEditorRunning());
+	pCmdUI->Enable(m_itrShown != m_itrEditing);
 }
 
 
@@ -1180,15 +1248,15 @@ void CMscGenDoc::OnViewNexterror()
 	cursel = (cursel+1) % maxsel;
 	pOutputView->m_wndOutput.SetCurSel(cursel);
 	//Jump to that pos in editor
-	int line = m_itrCurrent->GetErrorLine(cursel, pApp->m_Warnings);
-	int col = m_itrCurrent->GetErrorCol(cursel, pApp->m_Warnings);
+	int line = m_itrShown->GetErrorLine(cursel, pApp->m_Warnings);
+	int col = m_itrShown->GetErrorCol(cursel, pApp->m_Warnings);
 	JumpToLine(line, col);
 	//Turn tracking off
 	SetTrackMode(false);
 	//Show tracking boxes for the error
 	bool wasboxes = m_nTrackRectNo!=0;
-	void *arc = m_itrCurrent->GetArcByLine(line, col);
-	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
+	void *arc = m_itrShown->GetArcByLine(line, col);
+	m_nTrackRectNo = m_itrShown->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT));
 	if (wasboxes || m_nTrackRectNo) {
 		POSITION pos = GetFirstViewPosition();
 		while (pos) {
@@ -1213,6 +1281,16 @@ void CMscGenDoc::OnInternalEditorChange()
 			pView->Invalidate();
 		}
 	}
+	ASSERT(IsInternalEditorRunning());
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	CString text;
+	pApp->m_pWndEditor->m_wndEditor.GetWindowText(text);
+	if (text != m_itrEditing->GetText()) {
+		CHARRANGE cr;
+		pApp->m_pWndEditor->m_wndEditor.GetSel(cr);
+		InsertNewChart(CChartData(text, cr, m_itrEditing->GetDesign()));
+	}
 }
 
 void CMscGenDoc::OnInternalEditorSelChange()
@@ -1228,8 +1306,8 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	int line, col;
 	pEditor->m_wndEditor.ConvertPosToLineCol(start, line, col);
 	bool wasboxes = m_nTrackRectNo!=0;
-	void *arc = m_itrCurrent->GetArcByLine(line+1, col+1);
-	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
+	void *arc = m_itrShown->GetArcByLine(line+1, col+1);
+	m_nTrackRectNo = m_itrShown->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT));
 	if (wasboxes || m_nTrackRectNo) {
 		POSITION pos = GetFirstViewPosition();
 		while (pos) {
@@ -1243,6 +1321,7 @@ void CMscGenDoc::OnInternalEditorSelChange()
 void CMscGenDoc::SetTrackMode(bool on)
 {
 	if (on == m_bTrackMode) return;
+	m_last_arc = NULL;
 	m_bTrackMode = on;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -1266,8 +1345,11 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
 	if (!m_bTrackMode) return;
 	bool wasTrackRect = m_nTrackRectNo!=0;
-	void *arc = m_itrCurrent->GetArcByCoordinate(mouse);
-	m_nTrackRectNo = m_itrCurrent->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT), m_zoom/100., m_zoom/100.);
+	void *arc = m_itrShown->GetArcByCoordinate(mouse);
+	//If arc has not changed, do nothing
+	if (arc == m_last_arc) return;
+	m_last_arc = arc;
+	m_nTrackRectNo = m_itrShown->GetCoversByArc(arc, m_rctTrack, sizeof(m_rctTrack)/sizeof(RECT));
 	POSITION pos = GetFirstViewPosition();
 	while (pos) {
 		CMscGenView* pView = (CMscGenView*)GetNextView(pos);
@@ -1280,10 +1362,10 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	if (m_nTrackRectNo) {
 		unsigned start_line, start_col;
 		unsigned end_line, end_col;
-		if (m_itrCurrent->GetLineByArc(arc, start_line, start_col, end_line, end_col)) {
+		if (m_itrShown->GetLineByArc(arc, start_line, start_col, end_line, end_col)) {
 			if (!wasTrackRect) pEditor->m_wndEditor.GetSel(m_saved_charrange);
-			long start = pEditor->m_wndEditor.ConvertLineColToPos(start_line, start_col)-1;
-			long end = pEditor->m_wndEditor.ConvertLineColToPos(end_line-1,end_col);
+			long start = pEditor->m_wndEditor.ConvertLineColToPos(start_line-1, start_col-1);
+			long end = pEditor->m_wndEditor.ConvertLineColToPos(end_line-1, end_col);
 			pEditor->m_wndEditor.SetRedraw(false);
 			pEditor->m_wndEditor.SetSel(start, start);
 			POINT scroll_pos;
