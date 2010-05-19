@@ -25,7 +25,6 @@ void RemoveCRLF(CString &str);
 void EnsureCRLF(CString &str);
 
 class Msc;
-enum Msc_DrawType {DRAW_DIRECT=0, DRAW_EMF=1, DRAW_WMF=2};
 
 struct TrackRect {
 	CRect r;
@@ -73,7 +72,7 @@ public:
 //Drawing related
 	unsigned GetPages() const;
 	CSize GetSize(unsigned page) const;
-	void Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page, bool pageBreaks);
+	void Draw(HDC hdc, bool doEMF, unsigned page, bool pageBreaks);
 	void Draw(const char* fileName);
 //Cover related
 	void *GetArcByCoordinate(CPoint point) const;

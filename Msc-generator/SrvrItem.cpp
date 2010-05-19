@@ -115,7 +115,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-	pDoc->m_itrShown->Draw(pDC->m_hDC, DRAW_WMF, 100, pDoc->m_page, pApp->m_bPB_Embedded);
+	pDoc->m_itrShown->Draw(pDC->m_hDC, false, pDoc->m_page, pApp->m_bPB_Embedded);
 	return TRUE;
 }
 

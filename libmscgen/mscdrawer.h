@@ -131,7 +131,7 @@ class MscDrawer
     bool SetOutput(OutputType, const string &fn=string(), int page=-1);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, save_hdc;
-    bool SetOutputWin32(OutputType, HDC hdc, double zoom, int page=-1);
+    bool SetOutputWin32(OutputType, HDC hdc, int page=-1);
     HENHMETAFILE CloseOutputRetainHandleEMF();
     HMETAFILE CloseOutputRetainHandleWMF();
 #endif

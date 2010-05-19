@@ -91,7 +91,7 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 	if (SizeEmpty(m_size)) return;
 	CMscGenDoc* pDoc = GetDocument();
 	if (pDoc==NULL) return; 
-
+	
 	pDC->SetMapMode(MM_ANISOTROPIC);
 	CSize sizeDoc(ScaleSize(m_size, pDoc->m_zoom/100.0));
 	pDC->SetWindowExt(sizeDoc);
@@ -169,7 +169,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
 	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrShown->Draw(hdc, DRAW_EMF, 100, pInfo->m_nCurPage, false);
+	pDoc->m_itrShown->Draw(hdc, true, pInfo->m_nCurPage, false);
 	HENHMETAFILE hemf = CloseEnhMetaFile(hdc);
 	ENHMETAHEADER header;
 	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
@@ -232,37 +232,33 @@ CMscGenDoc* CMscGenView::GetDocument() const // non-debug version is inline
 
 BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
 {
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	if (pDoc->IsInPlaceActive())
-		return TRUE;
-	if (m_DeleteBkg) {
-		m_DeleteBkg = false;
-		return TRUE;
-	}
-	return FALSE;
+	if (!m_DeleteBkg) return false;
+	m_DeleteBkg = false;
+	return true;
 }
 
-//Use zoom of the pDoc
-void CMscGenView::DrawTrackRects(CDC* pDC, const CRect &clip)
+//clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
+void CMscGenView::DrawTrackRects(CDC* pDC, const CRect &clip, double xScale, double yScale)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (!pDoc->m_nTrackRectNo || pDC==NULL) return;
-	int lw = (pDoc->m_zoom+50)/100;
-	if (lw<1) lw = 1;
-	//create fill surface
-	cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
+	int lwx = floor(xScale+0.5);
+	if (lwx<1) lwx = 1;
+	int lwy = floor(yScale+0.5);
+	if (lwy<1) lwy = 1;
+	//create fill surface (we make it lwx, lwy larger...)
+	cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width()+lwx, clip.Height()+lwy);
 	cairo_t *cr = cairo_create(surface2);
     cairo_set_source_rgba(cr, 1, 1, 1, 1);
-	cairo_set_line_width(cr, 2*lw);
+	cairo_set_line_width(cr, lwx+lwy);
 	for (int i = 0; i<pDoc->m_nTrackRectNo; i++) {
 		CRect rr;
-		rr.top = pDoc->m_rctTrack[i].r.top / 100. * pDoc->m_zoom - 2*lw;
-		rr.bottom = pDoc->m_rctTrack[i].r.bottom / 100. * pDoc->m_zoom + 2*lw;
-		rr.left= pDoc->m_rctTrack[i].r.left / 100. * pDoc->m_zoom - 2*lw;
-		rr.right= pDoc->m_rctTrack[i].r.right / 100. * pDoc->m_zoom +2*lw;
-		cairo_rectangle(cr, rr.left, rr.top, rr.Width(), rr.Height());
+		rr.left   = pDoc->m_rctTrack[i].r.left * xScale - 2*lwx;
+		rr.right  = pDoc->m_rctTrack[i].r.right * xScale + 2*lwx;
+		rr.top    = pDoc->m_rctTrack[i].r.top * yScale - 2*lwy;
+		rr.bottom = pDoc->m_rctTrack[i].r.bottom * yScale + 2*lwy;
+		cairo_rectangle(cr, rr.left - clip.left + lwx, rr.top - clip.top + lwy, rr.Width(), rr.Height());
 		if (pDoc->m_rctTrack[i].frame_only) 
 			cairo_stroke(cr);
 		else 
@@ -270,22 +266,22 @@ void CMscGenView::DrawTrackRects(CDC* pDC, const CRect &clip)
 	}
 	cairo_destroy(cr);
 
-	//create outline surface
-	cairo_surface_t *surface3 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width(), clip.Height());
+	//create outline surface  (we make it lwx, lwy larger...)
+	cairo_surface_t *surface3 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width()+lwx, clip.Height()+lwy);
 	cr = cairo_create(surface3);
 	cairo_set_operator(cr, CAIRO_OPERATOR_XOR);
 	cairo_set_source_rgba(cr, 1, 1, 1, 1);
 	cairo_mask_surface(cr, surface2, 0, 0);
-	cairo_mask_surface(cr, surface2, lw, lw);
+	cairo_mask_surface(cr, surface2, lwx, lwy);
 	cairo_destroy(cr);
 
 	//This is the destination surface
 	cairo_surface_t *surface = cairo_win32_surface_create(*pDC);
 	cr = cairo_create(surface);
 	cairo_set_source_rgba(cr, 1, 0, 0, 0.5);
-	cairo_mask_surface(cr, surface2, 0, 0);
+	cairo_mask_surface(cr, surface2, clip.left, clip.top);
 	cairo_set_source_rgba(cr, 0.5, 0, 0, 1);
-	cairo_mask_surface(cr, surface3, 0, 0);
+	cairo_mask_surface(cr, surface3, clip.left-lwx, clip.top-lwy);
 	cairo_destroy(cr);
 	//Cleanup
 	cairo_surface_destroy(surface3);
@@ -299,28 +295,37 @@ void CMscGenView::OnDraw(CDC* pDC)
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (m_hemf==NULL) return;
-	CRect clip;
-	pDC->GetClipBox(&clip);
 	//m_zoom is always 100% when in place
 	if (pDoc->IsInPlaceActive()) {
-		pDC->FillSolidRect(clip, pDC->GetBkColor());
-		CRect r(CPoint(0, 0), m_size);
-		pDC->SetMapMode(MM_ANISOTROPIC);
-		PlayEnhMetaFile(pDC->m_hDC, m_hemf, r);
-		DrawTrackRects(pDC, clip);
+		//physical size of in place frame
+		CRect viewPort(CPoint(0, 0), pDC->GetViewportExt());
+		pDC->SetMapMode(MM_TEXT);
+		CDC memDC;
+		memDC.CreateCompatibleDC(pDC);
+		CBitmap bitmap;
+		bitmap.CreateCompatibleBitmap(pDC, viewPort.Width(), viewPort.Height());
+		CBitmap *oldBitmap = memDC.SelectObject(&bitmap);
+		memDC.FillSolidRect(viewPort, pDC->GetBkColor());
+		PlayEnhMetaFile(memDC.m_hDC, m_hemf, viewPort);
+		DrawTrackRects(&memDC, viewPort, viewPort.Width()/double(m_size.cx), viewPort.Height()/double(m_size.cy));
+		pDC->BitBlt(0, 0, viewPort.Width(), viewPort.Height(), &memDC, 0, 0, SRCCOPY);   
+		memDC.SelectObject(oldBitmap);
 	} else {
+		CRect clip;
+		pDC->GetClipBox(&clip);
 		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
 		CDC memDC;
 		memDC.CreateCompatibleDC(pDC);
 		CBitmap bitmap;
 		bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
-		memDC.SelectObject(&bitmap);
+		CBitmap *oldBitmap = memDC.SelectObject(&bitmap);
 		memDC.SetWindowOrg(clip.left, clip.top);
 		memDC.FillSolidRect(clip, pDC->GetBkColor());
 		PlayEnhMetaFile(memDC.m_hDC, m_hemf, r);
-		DrawTrackRects(&memDC, clip);
+		DrawTrackRects(&memDC, clip, pDoc->m_zoom/100., pDoc->m_zoom/100.);
 		pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
 			        &memDC, clip.left, clip.top, SRCCOPY);   
+		memDC.SelectObject(oldBitmap);
 	}
 }
 
@@ -339,14 +344,15 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	ASSERT_VALID(pApp);
 
     HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrShown->Draw(hdc, DRAW_EMF, 100, pDoc->m_page, pApp->m_bPB_Editing);
+	pDoc->m_itrShown->Draw(hdc, true, pDoc->m_page, pApp->m_bPB_Editing);
 	if (m_hemf) DeleteEnhMetaFile(m_hemf);
 	m_hemf = CloseEnhMetaFile(hdc);
 
-	//Check if some of the background becomes visible
+	//Check if some of the background becomes visible (only if not in-place)
 	CSize new_size = pDoc->m_itrShown->GetSize(pDoc->m_page);
 	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
-		m_DeleteBkg = true;
+		if (!pDoc->IsInPlaceActive())
+			m_DeleteBkg = true;
 	m_size = new_size;
 
 	//readjust size if inplace active
@@ -498,7 +504,14 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseHover(nFlags, point);
-	point += GetScrollPosition();
+	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
+	//So we first convert the device units to logical ones...
+	CClientDC dc(this);
+	OnPrepareDC(&dc);
+	dc.DPtoLP(&point);
+	//...then substract the effect of scrolling...
+	//point += GetScrollPosition();
+	//...then take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);

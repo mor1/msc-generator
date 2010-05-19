@@ -182,17 +182,11 @@ CSize CChartData::GetSize(unsigned page) const
     return CSize(m_msc->totalWidth*m_msc->scale, size.y*m_msc->scale + m_msc->copyrightTextHeight*m_msc->scale);
 }
 
-void CChartData::Draw(HDC hdc, Msc_DrawType type, double zoom, unsigned page, bool pageBreaks)
+void CChartData::Draw(HDC hdc, bool doEMF, unsigned page, bool pageBreaks)
 {
 	CompileIfNeeded();
-	MscDrawer::OutputType ot;
-	switch (type) {
-	case ::DRAW_EMF: ot = MscDrawer::EMF; break;
-	case ::DRAW_WMF: ot = MscDrawer::WMF; break;
-	case ::DRAW_DIRECT: ot = MscDrawer::WIN; break;
-        }
-    if (!m_msc->SetOutputWin32(ot, hdc, zoom, int(page)-1))
-        return;
+	MscDrawer::OutputType ot = doEMF ? MscDrawer::EMF : MscDrawer::WMF;
+    if (!m_msc->SetOutputWin32(ot, hdc, int(page)-1)) return;
 	//draw page breaks only if requested and not drawing a single page only
     m_msc->Draw(pageBreaks && page==0);
 	m_msc->UnClip(); //Unclip the banner text exclusion clipped in SetOutputWin32()

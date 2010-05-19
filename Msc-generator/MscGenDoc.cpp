@@ -938,11 +938,11 @@ COleIPFrameWnd* CMscGenDoc::CreateInPlaceFrame(CWnd* pParentWnd)
 	// Now we are sure to have a view 
 	//Start Editor (exteral one needs a view for timer)
 	//StartExternalEditor(); This is not needed, we have internal editor
-	if (IsInternalEditorRunning()) {
-		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-		ASSERT(pApp != NULL);
-		pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
-	}
+	//if (IsInternalEditorRunning()) {
+	//	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	//	ASSERT(pApp != NULL);
+	//	pApp->m_pWndEditor->m_wndEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel);
+	//}
 	return ret;
 }
 
@@ -1039,8 +1039,9 @@ void CMscGenDoc::SetZoom(int zoom)
 				text.Format("%u%%", zoom_values[i]);
 				combo->AddItem(text, zoom_values[i]);
 			}
+			combo->SetText(text);
 		}
-		if (zoom != m_zoom) combo->SetText(text);
+		else if (zoom != m_zoom) combo->SetText(text);
 	}
 	if (zoom == m_zoom) return;
 	m_zoom = zoom;
@@ -1317,7 +1318,6 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	}
 }
 
-
 void CMscGenDoc::SetTrackMode(bool on)
 {
 	if (on == m_bTrackMode) return;
@@ -1341,6 +1341,7 @@ void CMscGenDoc::SetTrackMode(bool on)
 	}
 }
 
+//Expects the coordinates in MscDrawer space (MscDrawer::totalWidth & Height)
 void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
 	if (!m_bTrackMode) return;

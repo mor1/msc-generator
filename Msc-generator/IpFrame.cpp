@@ -146,7 +146,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 		return FALSE;      // fail to create
 	}
 	pApp->m_pWndEditor = &m_wndEditor;
-
+	
 	// Enable toolbar and docking window menu replacement
 	EnablePaneMenu(TRUE, ID_VIEW_CUSTOMIZE, "Customize...", ID_VIEW_TOOLBAR);
 
@@ -171,6 +171,9 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 
 	pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
 	pApp->FillDesignPageCombo(pDoc->m_pages, pDoc->m_page);
+
+	//Set the text of the chart in the editor
+	m_wndEditor.m_wndEditor.UpdateText(pDoc->m_itrEditing->GetText(), pDoc->m_itrEditing->m_sel);
 	return TRUE;
 }
 

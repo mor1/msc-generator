@@ -265,8 +265,9 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
 
 //Draw to a DC that is either a display DC or a metafile
 //Use this to display a chart, use SetOutput to save the chart to a file
-bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, double zoom, int page)
+bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, int page)
 {
+	const double zoom = 100;
     if (surface) CloseOutput();
     if (ot!=WIN && ot!=WMF && ot!=EMF) return false;
 
@@ -280,9 +281,10 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, double zoom, int page)
 
     XY origSize, size, offset;
     GetPagePosition(page, offset, origSize);
+	size = origSize;
     size.y += copyrightTextHeight;
     offset = offset*(scale*zoom/100.);
-    size = origSize*(scale*zoom/100.);
+    size = size*(scale*zoom/100.);
 
     switch (ot) {
     case WIN:
