@@ -219,9 +219,11 @@ void CChartData::Draw(const char* fileName)
     m_msc->DrawToOutput(ot, fn);
 }
 
-void *CChartData::GetArcByCoordinate(CPoint point) const
+void *CChartData::GetArcByCoordinate(CPoint point, int page_shown) const
 {
 	CompileIfNeeded();
+	if (page_shown>0)
+		point.y += m_msc->yPageStart[page_shown];
 	const Block *block = m_msc->AllCovers.InWhich(XY(point.x, point.y));
 	if (block==NULL) return NULL;
 	return block->arc;
@@ -252,21 +254,28 @@ bool CChartData::GetLineByArc(void*arc, unsigned &start_line, unsigned &start_co
 	return true;
 }
 
-unsigned CChartData::GetCoversByArc(void *arc, TrackRect *result, int max_size) const
+unsigned CChartData::GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const
 {
 	if (arc==NULL) return 0;
 	CompileIfNeeded();
+	XY size, offset;
+    m_msc->GetPagePosition(page_shown, offset, size);
 	unsigned count=0;
 	for(std::set<Block>::const_iterator i=static_cast<ArcBase*>(arc)->GetGeometry().cover.begin(); 
 		    i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++) {
 		if (i->drawType == Block::DRAW_NONE) continue;
+		//If it lies entirely off the page, do not generate a record
+		if (i->y.from > offset.y + size.y) continue;
+		if (i->y.till < offset.y) continue;
+
 		result[count].r.left = i->x.from;
 		result[count].r.right = i->x.till;
-		result[count].r.top = i->y.from;
-		result[count].r.bottom = i->y.till;
+		result[count].r.top = i->y.from - offset.y; //shift tops by page start
+		result[count].r.bottom = i->y.till - offset.y;
 		result[count].frame_only = i->drawType == Block::DRAW_FRAME;
 		count++;
 	}
+	bottom_clip = size.y;
 	return count;
 }
 

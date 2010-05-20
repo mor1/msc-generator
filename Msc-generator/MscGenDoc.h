@@ -23,116 +23,20 @@
 
 #pragma once
 #include "ChartData.h"
+#include "ExternalEditor.h"
 #include "afxwin.h"
 
 class CMscGenSrvrItem;
-
-enum EStopEditor {STOPEDITOR_NOWAIT, STOPEDITOR_WAIT, STOPEDITOR_FORCE};
 
 class CMscGenDoc : public COleServerDocEx
 {
 protected: // create from serialization only
 	CMscGenDoc();
 	DECLARE_DYNCREATE(CMscGenDoc)
-
-// Attributes
-public:
-	CMscGenSrvrItem* GetEmbeddedItem()
-		{ return reinterpret_cast<CMscGenSrvrItem*>(COleServerDocEx::GetEmbeddedItem()); }
-	//Actual Signalling Chart Data and undo list
-	std::list<CChartData> m_charts;
-	IChartData m_itrSaved; //The chart that is the one last saved. This iterator may be invalid, use only for comparison
-	IChartData m_itrEditing; //The chart that is the current one in the editor
-	IChartData m_itrShown; //The chart that is compiled and shown in view
-	unsigned m_page;
-	unsigned m_pages;
-	// View related 
-	int m_zoom; //In percentage. 100 is normal
-	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
-	bool m_bTrackMode; //True if mouse is tracked over arcs
-    int m_nTrackRectNo; //True if there are boxes to display
-	TrackRect m_rctTrack[100];
-	CHARRANGE m_saved_charrange;
-	void* m_last_arc; //the arc for which current track rects are valid
-	//Clipboard format
-	static CLIPFORMAT m_cfPrivate;
-	//The non-modal windows
-	CDialog m_ProgressWindow;
-	int m_ProgressWindowCount;
-	//Text editor spawned process related
-	DWORD m_EditorProcessId;
-	CString m_EditorFileName;
-	CTime m_EditorFileLastMod;
-	HWND m_hWndForEditor;
-
-// Operations
-public:
-	void InsertNewChart(const CChartData &);
-	void SyncShownWithEditing();
-	//Editor functions
-	void OnShownChange(bool resetZoom=true);
-	void StartExternalEditor(CString = "");
-	void RestartExternalEditor(EStopEditor force);
-	bool IsExternalEditorRunning() const {return m_EditorProcessId!=0;}
-	bool IsInternalEditorRunning() const;
-	void JumpToLine(unsigned line, unsigned col);
-	bool CheckExternalEditorAndFile(void);
-	void StopExternalEditor(EStopEditor force);
-	void StartDrawingProgress();
-	void StopDrawingProgress();
-	void SetTrackMode(bool on);
-	void UpdateTrackRects(CPoint mouse);
-// Overrides
-protected:
+	DECLARE_MESSAGE_MAP()
 	virtual COleServerItem* OnGetEmbeddedItem();
-	virtual void OnSetItemRects(LPCRECT lpPosRect , LPCRECT lpClipRect);
-public:
-	virtual void Serialize(CArchive& ar);
-	virtual void DeleteContents(); // Destroys existing data, updates views
-	virtual BOOL OnNewDocument();
-	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
-	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
-	virtual void OnCloseDocument();
-	afx_msg void OnFileExport();
-	afx_msg void OnEditCut();
-	afx_msg void OnEditCopy();
-	afx_msg void OnEditPaste();
-	afx_msg void OnEditCopyEntireChart();
-	afx_msg void OnEditPasteEntireChart();
-	afx_msg void OnEditUndo();
-	afx_msg void OnEditRedo();
-	afx_msg void OnUpdateEditCutCopy(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateEditPaste(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateEditUndo(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateEditRedo(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
-	afx_msg void OnSelChange();
-
-	afx_msg void OnButtonEdittext();
-	afx_msg void OnUpdateButtonEdittext(CCmdUI *pCmdUI);
-	afx_msg void OnDesignDesign(); //design combo box changes
-	afx_msg void OnDesignPage(); //page combo box changes
-
-	//Zoom functions
-			void SetZoom(int zoom=0); //==0 means just reset toolbar
-	afx_msg void OnViewZoomin();
-	afx_msg void OnViewZoomout();
-	afx_msg void OnDesignZoom();
-			void ArrangeViews(EZoomMode mode);
-			void ArrangeViews() {ArrangeViews(m_ZoomMode);}
-			void SwitchZoomMode(EZoomMode mode);
-	afx_msg void OnViewZoomnormalize();
-	afx_msg void OnViewAdjustwidth();
-	afx_msg void OnViewFittowidth();
-	afx_msg void OnZoommodeKeepinoverview();
-	afx_msg void OnZoommodeKeepadjustingwindowwidth();
-	afx_msg void OnZoommodeKeepfittingtowidth();
-	afx_msg void OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateZoommodeKeepadjustingwindowwidth(CCmdUI *pCmdUI);
-	afx_msg void OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI);
-
-// Implementation
+	virtual CDocObjectServer* GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite);
+	virtual void DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd);
 public:
 	virtual ~CMscGenDoc();
 #ifdef _DEBUG
@@ -140,22 +44,92 @@ public:
 	virtual void Dump(CDumpContext& dc) const;
 #endif
 
-protected:
-	virtual CDocObjectServer* GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite);
-	virtual void DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd);
-	virtual COleIPFrameWnd* CreateInPlaceFrame(CWnd* pParentWnd);
-
-// Generated message map functions
-protected:
-	DECLARE_MESSAGE_MAP()
+// Attributes
 public:
-	afx_msg void OnEditUpdate();
+	//Actual Signalling Chart Data and various pointers to this list
+	std::list<CChartData> m_charts;
+	IChartData m_itrSaved; //The chart that is the one last saved. This iterator may be invalid, use only for comparison
+	IChartData m_itrEditing; //The chart that is the current one in the editor
+	IChartData m_itrShown; //The chart that is compiled and shown in view
+	unsigned m_page; //current page to show
+
+	// Zoom related 
+	int m_zoom; //In percentage. 100 is normal
+	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
+	// Track mode related
+	bool m_bTrackMode; //True if mouse is tracked over arcs
+    int m_nTrackRectNo; //True if there are boxes to display
+	TrackRect m_rctTrack[100];
+	int m_nTrackBottomClip; //the bottom of the clip region (in MscDrawer space) to clip at (above the copyright label)
+	CHARRANGE m_saved_charrange;
+	void* m_last_arc; //the arc for which current track rects are valid
+	//Clipboard format
+	static CLIPFORMAT m_cfPrivate;
+	//The external editor object
+	CExternalEditor m_ExternalEditor; //A hidden window to do external editor functions
+
+//Menu and toolbar functions
+public:
+	virtual void Serialize(CArchive& ar);
+	virtual void DeleteContents(); // Destroys existing data, updates views
+	virtual BOOL OnNewDocument();
+	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
+	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
+	virtual void OnCloseDocument();
+
+	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
+	afx_msg void OnFileExport();
+	afx_msg void OnUpdateEditUndo(CCmdUI *pCmdUI);
+	afx_msg void OnEditUndo();
+	afx_msg void OnUpdateEditRedo(CCmdUI *pCmdUI);
+	afx_msg void OnEditRedo();
+	afx_msg void OnUpdateEditCutCopy(CCmdUI *pCmdUI);
+	afx_msg void OnEditCut();
+	afx_msg void OnEditCopy();
+	afx_msg void OnUpdateEditPaste(CCmdUI *pCmdUI);
+	afx_msg void OnEditPaste();
+	afx_msg void OnEditCopyEntireChart();
+	afx_msg void OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI);
+	afx_msg void OnEditPasteEntireChart();
+	afx_msg void OnUpdateButtonEdittext(CCmdUI *pCmdUI);
+	afx_msg void OnButtonEdittext();          //External editor button
 	afx_msg void OnUdpateEditUpdate(CCmdUI *pCmdUI);
-	afx_msg void OnViewNexterror();
-            void OnInternalEditorChange();
-            void OnInternalEditorSelChange();
-	afx_msg void OnButtonTrack();
+	afx_msg void OnEditUpdate();              //update chart from internal editor
 	afx_msg void OnUpdateButtonTrack(CCmdUI *pCmdUI);
+	afx_msg void OnButtonTrack();             //Tracking mode button
+	afx_msg void OnViewNexterror();           //User advances error
+	afx_msg void OnSelChange();               //Another error is selected
+
+	afx_msg void OnDesignDesign(); //design combo box changes
+	afx_msg void OnDesignPage(); //page combo box changes
+
+	//Zoom functions
+			void SetZoom(int zoom=0);                        //Update views with new zoom factor. ==0 means just reset toolbar
+	afx_msg void OnViewZoomin();                             //zoom in 10%
+	afx_msg void OnViewZoomout();                            //zoom out 10%
+	afx_msg void OnDesignZoom();                             //user changed zoom combo
+			void ArrangeViews(EZoomMode mode);               //Automatically adjust zoom and window size
+			void ArrangeViews() {ArrangeViews(m_ZoomMode);}  //Automatically adjust zoom and window size using existng zoom mode (if any)
+	afx_msg void OnViewZoomnormalize();                      //Automatically adjust zoom and window size: overview mode
+	afx_msg void OnViewAdjustwidth();                        //Automatically adjust zoom and window size: set window width
+	afx_msg void OnViewFittowidth();                         //Automatically adjust zoom and window size: set width to window
+			void SwitchZoomMode(EZoomMode mode);             //Set zoom mode to specified value (and adjust zoom)
+	afx_msg void OnZoommodeKeepinoverview();                 //Set zoom mode
+	afx_msg void OnZoommodeKeepadjustingwindowwidth();       //Set zoom mode
+	afx_msg void OnZoommodeKeepfittingtowidth();             //Set zoom mode
+	afx_msg void OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateZoommodeKeepadjustingwindowwidth(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI);
+
+public:
+	void InsertNewChart(const CChartData &);             //insert a new chart into the list (destroys redo, updates iterators)
+	void SyncShownWithEditing(const CString &action);    //Ask the user what to do if editing iterator != shown iterator
+    void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
+    void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
+    void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
+	void OnShownChange(bool resetZoom);                  //Call this if you change shown iterator, it compiles and updates the views
+	void SetTrackMode(bool on);                          //Turns tracking mode on
+	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 };
 
 

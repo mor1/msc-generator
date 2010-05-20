@@ -41,7 +41,6 @@ public:
 	//stretch for in-place editing
 	double m_stretch_x;
 	double m_stretch_y;
-	UINT_PTR m_hTimer;
 
 // Operations
 public:
@@ -52,7 +51,7 @@ public:
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
-		    void DrawTrackRects(CDC* pDC, const CRect &clip, double xScale, double yScale);
+		    void DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
@@ -83,8 +82,6 @@ public:
 	afx_msg void ResetAspectRatioInPlace(void);
 	afx_msg void OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-
-	afx_msg void OnTimer(UINT nIDEvent);
 
 	DECLARE_MESSAGE_MAP()
 protected:

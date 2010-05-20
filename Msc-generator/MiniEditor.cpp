@@ -78,6 +78,13 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 	//SetEventMask(eventMask);
 }
 
+void CCshRichEditCtrl::JumpToLine(int line, int col) {
+	long index = ConvertLineColToPos(line-1, col?col-1:0);
+	SetSel(index, index);
+	SetFocus();
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 // COutputBar
 
@@ -129,7 +136,7 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	ASSERT(pMainWnd!=NULL);
 	if (pMainWnd->GetActiveView() != NULL) {
 		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
-		if (pDoc != NULL && pDoc->IsExternalEditorRunning())
+		if (pDoc != NULL && pDoc->m_ExternalEditor.IsRunning())
 			SetReadOnly();
 	}
 

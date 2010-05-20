@@ -200,7 +200,7 @@ BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMed
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	pDoc->SyncShownWithEditing();
+	pDoc->SyncShownWithEditing("copy the chart to the clipboard");
 	CString text(pDoc->m_itrEditing->GetText());
 	lpStgMedium->tymed= TYMED_HGLOBAL;
 	lpStgMedium->hGlobal = GlobalAlloc(GMEM_MOVEABLE, text.GetLength()+1);

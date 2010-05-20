@@ -75,10 +75,11 @@ public:
 	void Draw(HDC hdc, bool doEMF, unsigned page, bool pageBreaks);
 	void Draw(const char* fileName);
 //Cover related
-	void *GetArcByCoordinate(CPoint point) const;
+	void *GetArcByCoordinate(CPoint point, int page_shown) const;
 	void *GetArcByLine(unsigned line, unsigned col) const;
 	bool GetLineByArc(void*arc, unsigned &start_line, unsigned &start_col, unsigned &end_line, unsigned &end_col) const;
-	unsigned GetCoversByArc(void *arc, TrackRect *result, int max_size) const;
+	unsigned GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const;
 };
 
 typedef std::list<CChartData>::iterator IChartData;
+typedef std::list<CChartData>::const_iterator IChartData_const;

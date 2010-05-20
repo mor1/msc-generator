@@ -134,11 +134,11 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
 
     SetLowLevelParams(ot);
 
-    XY size, origSize, offset;
-    GetPagePosition(page, offset, origSize);
+    XY size, origSize, origOffset;
+    GetPagePosition(page, origOffset, origSize);
+	size = origSize;
     size.y += copyrightTextHeight;
-    offset = offset*scale;
-    size = origSize*scale;
+    size = size*scale;
 
     outType = ot;
     if (fn.length()==0) {
@@ -212,24 +212,6 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
          */
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
-
-	//case WMF:
-        // Create the Enhanced Metafile
-        if (fileName.length() > 0)
-            win32_dc = CreateMetaFile(fileName.c_str());
-        else
-            win32_dc = CreateMetaFile(NULL);
-        // Did you get a good metafile?
-        if( win32_dc == NULL ) {
-            fileName.clear();
-            return false;
-        }
-        HRGN hrgn = CreateRectRgn(0, 0, size.x, size.y);
-        SelectClipRgn(win32_dc, hrgn);
-        DeleteObject(hrgn);
-        surface = cairo_win32_printing_surface_create(win32_dc);
-        break;
-
 #endif
     }
 	//OK, check surface creation
@@ -248,16 +230,15 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
         return false;
     }
 
-    cairo_translate(cr, -offset.x, -offset.y);
-    cairo_scale(cr, scale, scale);
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-
+    cairo_scale(cr, scale, scale);
     if (totalWidth>0 && totalHeight>0) {
         //clip first to allow for banner text
         ClipRectangle(XY(0,0), origSize + XY(0, copyrightTextHeight));
         //then clip again to exclude banner text
         ClipRectangle(XY(0,0), origSize);
     }
+    cairo_translate(cr, -origOffset.x, -origOffset.y);
     return true;
 }
 
@@ -279,11 +260,10 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, int page)
 
     SetLowLevelParams(ot);
 
-    XY origSize, size, offset;
-    GetPagePosition(page, offset, origSize);
+    XY size, origSize, origOffset;
+    GetPagePosition(page, origOffset, origSize);
 	size = origSize;
     size.y += copyrightTextHeight;
-    offset = offset*(scale*zoom/100.);
     size = size*(scale*zoom/100.);
 
     switch (ot) {
@@ -308,10 +288,8 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, int page)
     st = cairo_status(cr);
     if (st) goto problem;
 
-    cairo_translate(cr, -offset.x, -offset.y);
-    cairo_scale(cr, scale*zoom/100., scale*zoom/100.);
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-
+    cairo_scale(cr, scale*zoom/100., scale*zoom/100.);
     if (totalWidth>0 && totalHeight>0) {
         //clip first to allow for banner text
         ClipRectangle(XY(0,0), origSize + XY(0, copyrightTextHeight));
@@ -323,6 +301,7 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, int page)
         //then clip again to exclude banner text
         ClipRectangle(XY(0,0), origSize);
     }
+    cairo_translate(cr, -origOffset.x, -origOffset.y);
     return true;
 
     problem:

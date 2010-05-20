@@ -170,7 +170,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	ASSERT_KINDOF(CMscGenDoc, pDoc);
 
 	pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
-	pApp->FillDesignPageCombo(pDoc->m_pages, pDoc->m_page);
+	pApp->FillDesignPageCombo(pDoc->m_itrEditing->GetPages(), pDoc->m_page);
 
 	//Set the text of the chart in the editor
 	m_wndEditor.m_wndEditor.UpdateText(pDoc->m_itrEditing->GetText(), pDoc->m_itrEditing->m_sel);
@@ -183,7 +183,7 @@ void CInPlaceFrame::OnDestroy()
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	if (pDoc) {
 		ASSERT_KINDOF(CMscGenDoc, pDoc);
-		pDoc->StopExternalEditor(STOPEDITOR_WAIT);
+		pDoc->m_ExternalEditor.Stop(STOPEDITOR_WAIT);
 	}
     COleIPFrameWndEx::OnDestroy();
 }

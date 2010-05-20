@@ -41,7 +41,6 @@ IMPLEMENT_DYNCREATE(CMscGenView, CScrollView)
 BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_MOUSEWHEEL() 
 	ON_WM_SIZE()
-	ON_WM_TIMER()
 	ON_WM_ERASEBKGND()
 	ON_WM_KEYUP()
 	// Standard printing commands
@@ -64,7 +63,6 @@ CMscGenView::CMscGenView() : m_size(0,0)
 	// construction code here
 	m_hemf = NULL;
 	m_DeleteBkg = false;
-	m_hTimer = NULL;
 	m_stretch_x = m_stretch_y = 1;
 	SetScrollSizes(MM_TEXT, m_size);
 }
@@ -144,10 +142,10 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	//If user has made modifications reflect them
-	if (pDoc->IsExternalEditorRunning())
-		pDoc->RestartExternalEditor(STOPEDITOR_WAIT);
-	pDoc->SyncShownWithEditing();
-	pInfo->SetMaxPage(pDoc->m_pages);
+	if (pDoc->m_ExternalEditor.IsRunning())
+		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
+	pDoc->SyncShownWithEditing("print");
+	pInfo->SetMaxPage(pDoc->m_itrShown->GetPages());
 	// default preparation
 	return DoPreparePrinting(pInfo);
 }
@@ -238,16 +236,21 @@ BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
 }
 
 //clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
-void CMscGenView::DrawTrackRects(CDC* pDC, const CRect &clip, double xScale, double yScale)
+void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (!pDoc->m_nTrackRectNo || pDC==NULL) return;
+	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
+	if (clip.bottom > yScale*pDoc->m_nTrackBottomClip)
+		clip.bottom = yScale*pDoc->m_nTrackBottomClip;
+	//Calculate line width
 	int lwx = floor(xScale+0.5);
 	if (lwx<1) lwx = 1;
 	int lwy = floor(yScale+0.5);
 	if (lwy<1) lwy = 1;
-	//create fill surface (we make it lwx, lwy larger...)
+	//create fill surface
+	//We make it lwx, lwy larger at top and left, so xor operations are not truncated there
 	cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width()+lwx, clip.Height()+lwy);
 	cairo_t *cr = cairo_create(surface2);
     cairo_set_source_rgba(cr, 1, 1, 1, 1);
@@ -479,17 +482,6 @@ void CMscGenView::OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI)
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
 	pCmdUI->Enable(pDoc->IsInPlaceActive() && !SizeEmpty(m_size));
-}
-
-void CMscGenView::OnTimer(UINT nIDEvent)
-{
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
-
-	//Check for a modified file (if editor saved file & closed)
-	//and for a missing editor process
-	//Timer is shut down by MscGenDoc::StopEditor, called if editor process is gone
-	pDoc->CheckExternalEditorAndFile();
 }
 
 void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)

@@ -1,7 +1,5 @@
-Multiple page support seems buggy on displaying the 2nd page.
-Track records should not show in copyright line (nor sense)
-
 Embedded should not save but update
+Problem with embedded doc editing...
 Embedded should not start with fixed window size
 
 add multiple pipes
@@ -9,6 +7,7 @@ vertical positions should not show as entities
 
 inplace size of editor
 zoom combo says 300% initially
+mouse wheel should work where it actually points
 
 escape in editor kills it, prepare for a closedown...
 search replace for internal

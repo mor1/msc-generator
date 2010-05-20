@@ -203,6 +203,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ExternalEditor.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\IpFrame.cpp"
 				>
 			</File>
@@ -262,6 +266,10 @@
 			>
 			<File
 				RelativePath=".\ChartData.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ExternalEditor.h"
 				>
 			</File>
 			<File

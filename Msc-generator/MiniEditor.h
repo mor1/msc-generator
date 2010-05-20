@@ -26,6 +26,7 @@ public:
 	void UpdateCsh(bool force = false);
 	long ConvertLineColToPos(unsigned line, unsigned col) {return LineIndex(line) + col;}
 	void ConvertPosToLineCol(long pos, int &line, int &col) {line=LineFromChar(pos); col=pos-LineIndex(line);}
+	void JumpToLine(int line, int col);
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
 };
 

@@ -198,6 +198,7 @@ CMscGenApp::CMscGenApp()
 	// Place all significant initialization in InitInstance
 	m_pWndOutputView = 0;
 	m_pWndEditor = 0;
+	m_ProgressWindowCount = 0;
 }
 
 
@@ -291,6 +292,11 @@ BOOL CMscGenApp::InitInstance()
 
 	//Read options from the registry
 	ReadRegistryValues(false);
+
+	//Create the progress dialog
+	if (!m_ProgressWindow.Create(IDD_PROGRESSDIALOG, NULL)) {
+		MessageBox(0,"Fail to create progress window", "Msc-generator", MB_OK);
+	}
 
 	// App was launched with /Embedding or /Automation switch.
 	// Run app as automation server.
@@ -403,19 +409,21 @@ void CMscGenApp::FillDesignPageCombo(int no_pages, int page)
 		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
 		if (!combo) continue;
 		if (no_pages == 1 && combo->GetCount() == 1) continue;
-		if (no_pages+1 == combo->GetCount()) continue;
-		combo->RemoveAllItems();
-		//Fill combo list with the appropriate number of pages
-		combo->AddItem("(all)", 0);
-		CString str;
-		if (no_pages > 1)
-			for (int i=1; i<=no_pages; i++) {
-				str.Format("%d", i);
-				combo->AddItem(str, i);
-			}
+		//If the combo shows different number of pages then we have, update the combo
+		if (no_pages+1 != combo->GetCount()) {
+			combo->RemoveAllItems();
+			//Fill combo list with the appropriate number of pages
+			combo->AddItem("(all)", 0);
+			CString str;
+			if (no_pages > 1)
+				for (int i=1; i<=no_pages; i++) {
+					str.Format("%d", i);
+					combo->AddItem(str, i);
+				}
+			combo->SetDropDownHeight(250);
+		}
 		//Set the index to the current page
 		combo->SelectItem(page, TRUE);
-		combo->SetDropDownHeight(250);
 	} 
 }
 
@@ -479,7 +487,7 @@ void CMscGenApp::OnEditPreferences()
 		if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
 			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
 			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, m_sStartTextEditor);
-			if (temp==OTHER && pDoc->IsExternalEditorRunning()) 
+			if (temp==OTHER && pDoc->m_ExternalEditor.IsRunning()) 
 				bRestartEditor=true;
 		}
 		if (m_sJumpToLine != optionDlg.m_TextEditorJumpToLineCommand) {
@@ -505,19 +513,18 @@ void CMscGenApp::OnEditPreferences()
 			}
 		}
 		if (bRestartEditor) 
-			pDoc->RestartExternalEditor(STOPEDITOR_WAIT);
+			pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 
 		if (recompile) {
-			pDoc->StartDrawingProgress();
+			ShowDrawingProgress sdp;
 			for (IChartData i = pDoc->m_charts.begin(); i!=pDoc->m_charts.end(); i++)
 				if (i->IsCompiled()) {
 					i->FreeMsc();
 					i->CompileIfNeeded();
 				}
-			pDoc->OnShownChange();     //Do not change zoom, merely recompile & re-issue errors
-			pDoc->StopDrawingProgress();
+			pDoc->OnShownChange(false);     //Do not change zoom, merely recompile & re-issue errors
 		} 
-		if (updateCSH && pDoc->IsInternalEditorRunning())
+		if (updateCSH && IsInternalEditorRunning())
 			m_pWndEditor->m_wndEditor.UpdateCsh(true);
 	}
 }
@@ -728,5 +735,19 @@ bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 	else 
 		m_ChartSourcePreamble = ";\n";
 	return !errors;
+}
+
+void CMscGenApp::StartDrawingProgress() 
+{
+	ASSERT(this);
+	if (++m_ProgressWindowCount>0)
+		m_ProgressWindow.ShowWindow(SW_SHOW); //Activate
+}
+
+void CMscGenApp::StopDrawingProgress()
+{
+	ASSERT(this);
+	if (--m_ProgressWindowCount<=0) 
+		m_ProgressWindow.ShowWindow(SW_HIDE); 
 }
 
