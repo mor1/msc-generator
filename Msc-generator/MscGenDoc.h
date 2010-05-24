@@ -67,11 +67,14 @@ public:
 	static CLIPFORMAT m_cfPrivate;
 	//The external editor object
 	CExternalEditor m_ExternalEditor; //A hidden window to do external editor functions
+	//This indicates to OnSaveDocument if we are closing 
+	bool m_bAttemptingToClose;
 
 //Menu and toolbar functions
 public:
 	virtual void Serialize(CArchive& ar);
 	virtual void DeleteContents(); // Destroys existing data, updates views
+	virtual BOOL CanCloseFrame(CFrameWnd* pFrame);
 	virtual BOOL OnNewDocument();
 	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
 	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
@@ -88,6 +91,10 @@ public:
 	afx_msg void OnEditCopy();
 	afx_msg void OnUpdateEditPaste(CCmdUI *pCmdUI);
 	afx_msg void OnEditPaste();
+	afx_msg void OnUpdateEditFindReplace(CCmdUI *pCmdUI);
+	afx_msg void OnEditFind();
+	afx_msg void OnEditRepeat();
+	afx_msg void OnEditReplace();
 	afx_msg void OnEditCopyEntireChart();
 	afx_msg void OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI);
 	afx_msg void OnEditPasteEntireChart();
@@ -121,9 +128,11 @@ public:
 	afx_msg void OnUpdateZoommodeKeepadjustingwindowwidth(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI);
 
+	        bool DispatchMouseWheel(UINT nFlags, short zDelta, CPoint pt);
+
 public:
 	void InsertNewChart(const CChartData &);             //insert a new chart into the list (destroys redo, updates iterators)
-	void SyncShownWithEditing(const CString &action);    //Ask the user what to do if editing iterator != shown iterator
+	void SyncShownWithEditing(const CString &, bool);    //Ask the user what to do if editing iterator != shown iterator
     void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes

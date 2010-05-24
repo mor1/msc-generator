@@ -198,7 +198,6 @@ CMscGenApp::CMscGenApp()
 	// Place all significant initialization in InitInstance
 	m_pWndOutputView = 0;
 	m_pWndEditor = 0;
-	m_ProgressWindowCount = 0;
 }
 
 
@@ -216,6 +215,10 @@ static const CLSID clsid =
 
 BOOL CMscGenApp::InitInstance()
 {
+#ifdef _DEBUG
+	MessageBox(0, "In Msc-generator::Appinit", "aa", 0);
+#endif
+
 	srand((unsigned)time(NULL)); 
 	// InitCommonControlsEx() is required on Windows XP if an application
 	// manifest specifies use of ComCtl32.dll version 6 or later to enable
@@ -286,17 +289,8 @@ BOOL CMscGenApp::InitInstance()
 	CCommandLineInfo cmdInfo;
 	ParseCommandLine(cmdInfo);
 
-#ifdef _DEBUG
-	MessageBox(0, "In Msc-generator::Appinit", "aa", 0);
-#endif
-
 	//Read options from the registry
 	ReadRegistryValues(false);
-
-	//Create the progress dialog
-	if (!m_ProgressWindow.Create(IDD_PROGRESSDIALOG, NULL)) {
-		MessageBox(0,"Fail to create progress window", "Msc-generator", MB_OK);
-	}
 
 	// App was launched with /Embedding or /Automation switch.
 	// Run app as automation server.
@@ -516,7 +510,7 @@ void CMscGenApp::OnEditPreferences()
 			pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 
 		if (recompile) {
-			ShowDrawingProgress sdp;
+			CWaitCursor wait;
 			for (IChartData i = pDoc->m_charts.begin(); i!=pDoc->m_charts.end(); i++)
 				if (i->IsCompiled()) {
 					i->FreeMsc();
@@ -525,7 +519,7 @@ void CMscGenApp::OnEditPreferences()
 			pDoc->OnShownChange(false);     //Do not change zoom, merely recompile & re-issue errors
 		} 
 		if (updateCSH && IsInternalEditorRunning())
-			m_pWndEditor->m_wndEditor.UpdateCsh(true);
+			m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 	}
 }
 
@@ -606,6 +600,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_csh_cf[0][COLOR_COLORNAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[0][COLOR_COLORNAME].dwEffects = 0;
 	m_csh_cf[0][COLOR_ENTITYNAME].crTextColor =        RGB(  0, 50,  0); m_csh_cf[0][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[0][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[0][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD;
+	m_csh_cf[0][COLOR_MARKERNAME].crTextColor =        RGB(  0,  0, 50); m_csh_cf[0][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[0][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRVALUE].dwEffects = 0;
 	m_csh_cf[0][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,  0); m_csh_cf[0][COLOR_COLORDEF].dwEffects = 0;
 	m_csh_cf[0][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[0][COLOR_LABEL_TEXT].dwEffects = 0;
@@ -631,6 +626,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_csh_cf[1][COLOR_COLORNAME].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_COLORNAME].dwEffects = 0;
 	m_csh_cf[1][COLOR_ENTITYNAME].crTextColor =        RGB(200,  0,  0); m_csh_cf[1][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[1][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(200,  0,  0); m_csh_cf[1][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[1][COLOR_MARKERNAME].crTextColor =        RGB(  0,200,  0); m_csh_cf[1][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[1][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,200); m_csh_cf[1][COLOR_ATTRVALUE].dwEffects = 0;
 	m_csh_cf[1][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,200); m_csh_cf[1][COLOR_COLORDEF].dwEffects = 0;
 	m_csh_cf[1][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[1][COLOR_LABEL_TEXT].dwEffects = 0;
@@ -656,6 +652,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_csh_cf[2][COLOR_COLORNAME].crTextColor =         RGB(128,  0,  0); m_csh_cf[2][COLOR_COLORNAME].dwEffects = 0;
 	m_csh_cf[2][COLOR_ENTITYNAME].crTextColor =        RGB(200,  0,  0); m_csh_cf[2][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[2][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(200,  0,  0); m_csh_cf[2][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[3][COLOR_MARKERNAME].crTextColor =        RGB(  0,255,  0); m_csh_cf[2][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[2][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,255); m_csh_cf[2][COLOR_ATTRVALUE].dwEffects = 0;
 	m_csh_cf[2][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,255); m_csh_cf[2][COLOR_COLORDEF].dwEffects = 0;
 	m_csh_cf[2][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,200,  0); m_csh_cf[2][COLOR_LABEL_TEXT].dwEffects = 0;
@@ -681,6 +678,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_csh_cf[3][COLOR_COLORNAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[3][COLOR_COLORNAME].dwEffects = 0;
 	m_csh_cf[3][COLOR_ENTITYNAME].crTextColor =        RGB(  0, 50,  0); m_csh_cf[3][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[3][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[3][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
+	m_csh_cf[3][COLOR_MARKERNAME].crTextColor =        RGB(  0,  0, 50); m_csh_cf[3][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
 	m_csh_cf[3][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRVALUE].dwEffects = 0;
 	m_csh_cf[3][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,  0); m_csh_cf[3][COLOR_COLORDEF].dwEffects = 0;
 	m_csh_cf[3][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[3][COLOR_LABEL_TEXT].dwEffects = 0;
@@ -736,18 +734,3 @@ bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 		m_ChartSourcePreamble = ";\n";
 	return !errors;
 }
-
-void CMscGenApp::StartDrawingProgress() 
-{
-	ASSERT(this);
-	if (++m_ProgressWindowCount>0)
-		m_ProgressWindow.ShowWindow(SW_SHOW); //Activate
-}
-
-void CMscGenApp::StopDrawingProgress()
-{
-	ASSERT(this);
-	if (--m_ProgressWindowCount<=0) 
-		m_ProgressWindow.ShowWindow(SW_HIDE); 
-}
-

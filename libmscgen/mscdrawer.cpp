@@ -96,7 +96,7 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
         fake_dash = true;
         fake_gradients = 30;
         fake_shadows = true;
-        scale = 1;              //do 10 for better precision clipping
+        scale = 10;              //do 10 for better precision clipping
         fallback_resolution = 100; //300 is too much for on-screen work
     }
     if (ot == WIN) {

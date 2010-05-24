@@ -1,19 +1,9 @@
-Embedded should not save but update
-Problem with embedded doc editing...
-Embedded should not start with fixed window size
+Demo chart making double lined pipe width=4
+Double spaced curve curves inverse...?
+lw/2 lower for arcs.
 
-add multiple pipes
-vertical positions should not show as entities
-
-inplace size of editor
-zoom combo says 300% initially
-mouse wheel should work where it actually points
-
-escape in editor kills it, prepare for a closedown...
-search replace for internal
-tab for internal editor and auto ident
+update doc
 
 design lib
-update doc
 drag and drop files - drag in editor...
-try scale=10 for vertical text
+Re-add escape to in-place editor...

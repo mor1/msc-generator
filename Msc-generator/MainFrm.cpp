@@ -136,25 +136,25 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = &m_wndOutputView;
 
-	if (!m_wndEditor.Create(_T("Chart Text"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
+	if (!m_ctrlEditor.Create(_T("Chart Text"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
 	{
 		TRACE0("Failed to create output bar\n");
 		return FALSE;      // fail to create
 	}
-	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor = &m_wndEditor;
+	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor = &m_ctrlEditor;
 
 	m_wndMenuBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndDesignBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndOutputView.EnableDocking(CBRS_ALIGN_ANY);
-	m_wndEditor.EnableDocking(CBRS_ALIGN_ANY);
+	m_ctrlEditor.EnableDocking(CBRS_ALIGN_ANY);
 	EnableDocking(CBRS_ALIGN_ANY);
 	DockPane(&m_wndMenuBar);
 	DockPane(&m_wndToolBar);
 	DockPane(&m_wndDesignBar);
 	DockPane(&m_wndOutputView);
-	DockPane(&m_wndEditor);
+	DockPane(&m_ctrlEditor);
 
 	// enable Visual Studio 2005 style docking window behavior
 	CDockingManager::SetDockingMode(DT_SMART);
@@ -166,7 +166,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// enable quick (Alt+drag) toolbar customization
 	CMFCToolBar::EnableQuickCustomization();
-
+	
 	// enable menu personalization (most-recently used commands)
 	CList<UINT, UINT> lstBasicCommands;
 
@@ -205,9 +205,9 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	CMFCToolBar::SetBasicCommands(lstBasicCommands);
 
-	SetWindowPos(NULL, 0, 0, 550, 300,  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+	//SetWindowPos(NULL, 0, 0, 550, 300,  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 
-	if (m_wndEditor.IsVisible()) m_wndEditor.m_wndEditor.SetFocus();
+	if (m_ctrlEditor.IsVisible()) m_ctrlEditor.m_ctrlEditor.SetFocus();
 
 	return 0;
 }
@@ -264,11 +264,11 @@ void CMainFrame::OnViewCustomize()
 	pDlgCust->ReplaceButton(ID_DESIGN_PAGE, pageButton);
 
 	CMFCToolBarComboBoxButton zoomButton (ID_DESIGN_ZOOM,
-		GetCmdMgr ()->GetCmdImage (ID_DESIGN_ZOOM, FALSE), CBS_DROPDOWN, 50);
+		GetCmdMgr ()->GetCmdImage (ID_WINDOW_ARRANGE, FALSE), CBS_DROPDOWN, 50);
 	pDlgCust->ReplaceButton(ID_DESIGN_ZOOM, zoomButton);
 
 	CMFCToolBarComboBoxButton designButton (ID_DESIGN_DESIGN,
-		GetCmdMgr ()->GetCmdImage (ID_DESIGN_DESIGN, FALSE));
+		GetCmdMgr ()->GetCmdImage (ID_FILE_PRINT_SETUP, FALSE));
 	pDlgCust->ReplaceButton(ID_DESIGN_DESIGN, designButton);
 
 	pDlgCust->Create();
@@ -304,11 +304,11 @@ LRESULT CMainFrame::OnToolbarReset(WPARAM wp, LPARAM)
 		m_wndDesignBar.ReplaceButton(ID_DESIGN_PAGE, pageButton);
 
 		CMFCToolBarComboBoxButton zoomButton (ID_DESIGN_ZOOM,
-			GetCmdMgr ()->GetCmdImage (ID_DESIGN_ZOOM, FALSE), CBS_DROPDOWN, 50);
+			GetCmdMgr ()->GetCmdImage (ID_WINDOW_ARRANGE, FALSE), CBS_DROPDOWN, 50);
 		m_wndDesignBar.ReplaceButton(ID_DESIGN_ZOOM, zoomButton);
 
 		CMFCToolBarComboBoxButton designButton (ID_DESIGN_DESIGN,
-			GetCmdMgr ()->GetCmdImage (ID_DESIGN_DESIGN, FALSE));
+			GetCmdMgr ()->GetCmdImage (ID_FILE_PRINT_SETUP, FALSE));
 		m_wndDesignBar.ReplaceButton(ID_DESIGN_DESIGN, designButton);
 
 		CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
@@ -317,7 +317,7 @@ LRESULT CMainFrame::OnToolbarReset(WPARAM wp, LPARAM)
 			ASSERT(pApp != NULL);
 			pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
 			pApp->FillDesignPageCombo(pDoc->m_itrEditing->GetPages(), pDoc->m_page);
-			pDoc->SetZoom(pDoc->m_zoom); //reinforce value - it merely fills in zoom combo with list of zoom values
+			pDoc->SetZoom(); //merely fill in zoom combo with list of zoom values
 		}
 	}	  
 
@@ -398,8 +398,6 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	{
 		return FALSE;
 	}
-
-
 	// enable customization button for all user toolbars
 	BOOL bNameValid;
 	CString strCustomize;
@@ -418,12 +416,36 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	return TRUE;
 }
 
-
-
 void CMainFrame::OnSize(UINT nType, int cx, int cy)
 {
 	CFrameWndEx::OnSize(nType, cx, cy);
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	if (pDoc && pDoc->m_ZoomMode == CMscGenDoc::ZOOM_WIDTH) 
-		pDoc->ArrangeViews(pDoc->m_ZoomMode);
+		pDoc->ArrangeViews();
 }
+
+void CMainFrame::OnSetFocus(CWnd* pOldWnd) 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	if (pApp->IsInternalEditorRunning())
+		pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
+}
+
+void CMainFrame::OnUpdateFrameMenu(HMENU hMenuAlt)
+{
+	CFrameWndEx::OnUpdateFrameMenu(hMenuAlt);
+	//The following is a fix of the framework - we need to change menu in the menubar for embedded mode
+	if (hMenuAlt == NULL)
+	{
+		// attempt to get default menu from document
+		CDocument* pDoc = GetActiveDocument();
+		if (pDoc != NULL)
+			hMenuAlt = pDoc->GetDefaultMenu();
+		// use default menu stored in frame if none from document
+		if (hMenuAlt == NULL)
+			hMenuAlt = m_hMenuDefault;
+	}
+	m_wndMenuBar.CreateFromMenu(hMenuAlt);
+}
+

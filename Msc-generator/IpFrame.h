@@ -56,7 +56,7 @@ protected:
 	COleDropTarget	m_dropTarget;
 	COleResizeBar   m_wndResizeBar;
 	COutputViewBar  m_wndOutputView;
-	CEditorBar      m_wndEditor;
+	CEditorBar      m_ctrlEditor;
 
 // Generated message map functions
 protected:

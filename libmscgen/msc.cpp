@@ -34,19 +34,6 @@ bool Geometry::Overlaps(const Geometry &g, double gap) const
     return false;
 }
 
-bool Geometry::BoundingBlock(Block &ret) const
-{
-    if (IsEmpty()) return false;
-    ret = Block(INT_MAX, INT_MIN, INT_MAX, INT_MIN);
-    for(set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++) {
-        if (ret.x.from > i->x.from) ret.x.from = i->x.from;
-        if (ret.x.till < i->x.till) ret.x.till = i->x.till;
-        if (ret.y.from > i->y.from) ret.y.from = i->y.from;
-        if (ret.y.till < i->y.till) ret.y.till = i->y.till;
-    }
-    return true;
-}
-
 MscStyle::MscStyle(StyleType tt) : type(tt)
 {
     f_line=f_vline=f_fill=f_shadow=f_text=f_arrow=f_solid=f_numbering=f_compress=true;
@@ -837,7 +824,7 @@ void Msc::AddCSH(CshPos&pos, MscColorSyntaxType i)
 
 void Msc::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
-    if (CaseInsensitiveEqual(name, "label") ||
+    if (!name || CaseInsensitiveEqual(name, "label") ||
         CaseInsensitiveEqual(name, "text.format")) {
         //This is a label or text.format
         AddCSH(pos, COLOR_LABEL_TEXT);

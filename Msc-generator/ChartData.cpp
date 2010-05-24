@@ -224,7 +224,7 @@ void *CChartData::GetArcByCoordinate(CPoint point, int page_shown) const
 	CompileIfNeeded();
 	if (page_shown>0)
 		point.y += m_msc->yPageStart[page_shown];
-	const Block *block = m_msc->AllCovers.InWhich(XY(point.x, point.y));
+	const Block *block = InWhich(m_msc->AllCovers, XY(point.x, point.y));
 	if (block==NULL) return NULL;
 	return block->arc;
 }

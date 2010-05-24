@@ -139,13 +139,23 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	}
 	pApp->m_pWndOutputView = &m_wndOutputView;
 
-	if (!m_wndEditor.Create(_T("Chart Text"), pFrame, CRect(0, 0, 400, 400), TRUE, ID_VIEW_EDITOR, 
+	//Before creating the editor, query pFrame size
+	CRect r;
+	pFrame->GetClientRect(&r);
+	if (r.right < 500) r.right = 100;
+	else if (r.right > 2000) r.right = 400;
+	else r.right /= 5;
+	if (r.bottom < 500) r.bottom = 100;
+	else if (r.bottom > 2000) r.bottom = 400;
+	else r.bottom /= 5;
+
+	if (!m_ctrlEditor.Create(_T("Chart Text"), pFrame, r, TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
 	{
 		TRACE0("Failed to create editor\n");
 		return FALSE;      // fail to create
 	}
-	pApp->m_pWndEditor = &m_wndEditor;
+	pApp->m_pWndEditor = &m_ctrlEditor;
 	
 	// Enable toolbar and docking window menu replacement
 	EnablePaneMenu(TRUE, ID_VIEW_CUSTOMIZE, "Customize...", ID_VIEW_TOOLBAR);
@@ -153,17 +163,17 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	//Make bars dockable
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndOutputView.EnableDocking(CBRS_ALIGN_ANY);
-	m_wndEditor.EnableDocking(CBRS_ALIGN_ANY);
+	m_ctrlEditor.EnableDocking(CBRS_ALIGN_ANY);
 	pFrame->EnableDocking(CBRS_ALIGN_ANY);
 	pFrame->DockPane(&m_wndToolBar);
 	pFrame->DockPane(&m_wndOutputView);
-	pFrame->DockPane(&m_wndEditor);
+	pFrame->DockPane(&m_ctrlEditor);
 	m_wndOutputView.ShowPane(false,false,false);
 
 	// Set owner to this window, so messages are delivered to correct app
 	m_wndToolBar.SetOwner(this);
 	m_wndOutputView.SetOwner(this);
-	m_wndEditor.SetOwner(this);
+	m_ctrlEditor.SetOwner(this);
 
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	ASSERT(pDoc != NULL);
@@ -171,9 +181,10 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 
 	pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
 	pApp->FillDesignPageCombo(pDoc->m_itrEditing->GetPages(), pDoc->m_page);
+	pDoc->SetZoom(); //Adjust combo
 
 	//Set the text of the chart in the editor
-	m_wndEditor.m_wndEditor.UpdateText(pDoc->m_itrEditing->GetText(), pDoc->m_itrEditing->m_sel);
+	m_ctrlEditor.m_ctrlEditor.UpdateText(pDoc->m_itrEditing->GetText(), pDoc->m_itrEditing->m_sel, true);
 	return TRUE;
 }
 
@@ -225,11 +236,11 @@ void CInPlaceFrame::OnUpdateViewOutput(CCmdUI* pCmdUI)
 
 void CInPlaceFrame::OnViewEditor()
 {
-	m_wndEditor.ShowPane(!m_wndEditor.IsVisible(), FALSE, FALSE);
+	m_ctrlEditor.ShowPane(!m_ctrlEditor.IsVisible(), FALSE, FALSE);
 }
 
 void CInPlaceFrame::OnUpdateViewEditor(CCmdUI* pCmdUI)
 {
-	pCmdUI->SetCheck(m_wndEditor.IsVisible());
+	pCmdUI->SetCheck(m_ctrlEditor.IsVisible());
 }
 

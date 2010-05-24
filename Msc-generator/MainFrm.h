@@ -60,7 +60,7 @@ protected:  // control bar embedded members
 	CMFCStatusBar     m_wndStatusBar;
 	CMFCToolBarImages m_UserImages;
 	COutputViewBar    m_wndOutputView;
-	CEditorBar        m_wndEditor;
+	CEditorBar        m_ctrlEditor;
 public:
 
 // Generated message map functions
@@ -74,6 +74,9 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
+	        void OnUpdateFrameMenu(HMENU hMenuAlt);
+	afx_msg void OnSetFocus(CWnd* pOldWnd);
+
 };
 
 

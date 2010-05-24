@@ -22,12 +22,18 @@ class CCshRichEditCtrl : public CRichEditCtrl
 	bool m_bCshUpdateInProgress;
 public:
 	CCshRichEditCtrl();
-	void UpdateText(const char *text, CHARRANGE &cr);
+	BOOL PreTranslateMessage(MSG* pMsg);
+	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateCsh(bool force = false);
 	long ConvertLineColToPos(unsigned line, unsigned col) {return LineIndex(line) + col;}
 	void ConvertPosToLineCol(long pos, int &line, int &col) {line=LineFromChar(pos); col=pos-LineIndex(line);}
 	void JumpToLine(int line, int col);
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
+	bool NotifyDocumentOfChange(bool onlySelChange=false);
+	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
+	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
+
+	DECLARE_MESSAGE_MAP()
 };
 
 class CEditorBar : public CDockablePane
@@ -38,8 +44,17 @@ public:
 
 // Attributes
 	CFont m_Font;
-	CCshRichEditCtrl m_wndEditor;
-protected:
+	CCshRichEditCtrl m_ctrlEditor;
+	CFindReplaceDialog* m_pFindReplaceDialog;
+	CString m_sLastFindString;
+	CString m_sLastReplaceString;
+	bool m_bLastMatchCase;
+	bool m_bLastMatchWholeWord;
+	CPoint m_ptLastFindPos;
+	long m_lInitialSearchPos;
+	UINT m_nPasteType;
+	BOOL m_bFirstSearch;
+	bool m_bSuspendNotifications;
 
 // Implementation
 public:
@@ -52,6 +67,16 @@ protected:
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg BOOL OnCommand(WPARAM wParam, LPARAM lParam);
     afx_msg void OnSelChange(NMHDR*pNotifyStruct, LRESULT*result);
-DECLARE_MESSAGE_MAP()
-};
+	LRESULT OnFindReplaceMessage(WPARAM wParam, LPARAM lParam);
+	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnEditFindReplace(bool findOnly);
+	afx_msg void OnEditRepeat();
 
+	bool UpdateLastFindStringFromSelection();
+	BOOL SameAsSelected(LPCTSTR lpszCompare, BOOL bCase);
+	void AdjustDialogPosition(CDialog* pDlg);
+	BOOL FindText(LPCTSTR lpszFind, BOOL bCase = TRUE, BOOL bWord = TRUE, BOOL bNext = TRUE);
+	long FindAndSelect(DWORD dwFlags, FINDTEXTEX& ft);
+	void TextNotFound(LPCTSTR lpszFind);
+};

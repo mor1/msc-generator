@@ -173,13 +173,18 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
-        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
-        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
-        MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
-        MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
+        MENUITEM "C&ut\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
         MENUITEM SEPARATOR
-        MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
+        MENUITEM "&Find...\tCtrl+F",            ID_EDIT_FIND
+        MENUITEM "Find &Next\tF3",              ID_EDIT_REPEAT
+        MENUITEM "R&eplace...\tCtrl+H",         ID_EDIT_REPLACE
+        MENUITEM SEPARATOR
+        MENUITEM "C&opy entire chart\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
+        MENUITEM "P&aste entire chart\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
+        MENUITEM SEPARATOR
+        MENUITEM "Update drawing\tCtrl+W",      ID_EDIT_UPDATE
         MENUITEM "&Edit in extrernal text editor...\tCtrl+E", 32772
         MENUITEM "P&references...",             ID_EDIT_PREFERENCES
     END
@@ -208,18 +213,18 @@ BEGIN
         MENUITEM "S&plit",                      ID_WINDOW_SPLIT
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
         MENUITEM SEPARATOR
-        MENUITEM "Zoom &in\tCtrl+'+'",          32775
-        MENUITEM "Zoom &out\tCtrl+'-'",         32776
+        MENUITEM "Zoom &in\tCtrl+'+'",          ID_VIEW_ZOOMIN
+        MENUITEM "Zoom &out\tCtrl+'-'",         ID_VIEW_ZOOMOUT
         MENUITEM SEPARATOR
-        MENUITEM "Zoom to &overview\tCtrl+0",   32794
-        MENUITEM "&Adjust width\tCtrl+9",       32777
-        MENUITEM "&Fit to width\tCtrl+8",       32778
+        MENUITEM "Zoom to &overview\tCtrl+0",   ID_VIEW_ZOOMNORMALIZE
+        MENUITEM "&Adjust width\tCtrl+9",       ID_VIEW_ADJUSTWIDTH
+        MENUITEM "&Fit to width\tCtrl+8",       ID_VIEW_FITTOWIDTH
         MENUITEM SEPARATOR
-        MENUITEM "Keep in &Overview",           32779
-        MENUITEM "Keep adjusting &width",       32780
-        MENUITEM "Keep &fitting to width",      32781
+        MENUITEM "Keep in &Overview",           ID_ZOOMMODE_KEEPINOVERVIEW
+        MENUITEM "Keep adjusting &width",       ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH
+        MENUITEM "Keep &fitting to width",      ID_ZOOMMODE_KEEPFITTINGTOWIDTH
         MENUITEM SEPARATOR
-        MENUITEM "&Redraw\tCtrl+R",             32782
+        MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
     END
     POPUP "&Help"
@@ -248,9 +253,9 @@ BEGIN
     END
     POPUP "&View"
     BEGIN
-        MENUITEM "&Toolbar",                    65535
+        MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
         MENUITEM "&Errors and Warnings",        ID_VIEW_OUTPUT
-        MENUITEM "&Chart Text",                 32804
+        MENUITEM "&Chart Text",                 ID_VIEW_EDITOR
         MENUITEM SEPARATOR
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
@@ -322,15 +327,15 @@ BEGIN
         MENUITEM "Zoom &in\tCtrl+'+'",          ID_VIEW_ZOOMIN
         MENUITEM "Zoom &out\tCtrl+'-'",         ID_VIEW_ZOOMOUT
         MENUITEM SEPARATOR
-        MENUITEM "Zoom to &overview\tCtrl+0",   32783
-        MENUITEM "&Adjust width\tCtrl+9",       32816
-        MENUITEM "&Fit to width\tCtrl+8",       32817
+        MENUITEM "Zoom to &overview\tCtrl+0",   ID_VIEW_ZOOMNORMALIZE
+        MENUITEM "&Adjust width\tCtrl+9",       ID_VIEW_ADJUSTWIDTH
+        MENUITEM "&Fit to width\tCtrl+8",       ID_VIEW_FITTOWIDTH
         MENUITEM SEPARATOR
-        MENUITEM "Keep in &Overview",           32813
-        MENUITEM "Keep adjusting &width",       ID_VIEW_NEXTERROR
-        MENUITEM "Keep &fitting to width",      32815
+        MENUITEM "Keep in &Overview",           ID_ZOOMMODE_KEEPINOVERVIEW
+        MENUITEM "Keep adjusting &width",       ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH
+        MENUITEM "Keep &fitting to width",      ID_ZOOMMODE_KEEPFITTINGTOWIDTH
         MENUITEM SEPARATOR
-        MENUITEM "&Redraw\tCtrl+R",             32782
+        MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
     END
     POPUP "&Help"
@@ -366,6 +371,7 @@ END
 IDR_MAINFRAME ACCELERATORS 
 BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
@@ -392,7 +398,9 @@ BEGIN
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
+    "F",            ID_EDIT_FIND,           VIRTKEY, CONTROL, NOINVERT
+    VK_F3,          ID_EDIT_REPEAT,         VIRTKEY, NOINVERT
+    "H",            ID_EDIT_REPLACE,        VIRTKEY, CONTROL, NOINVERT
 END
 
 IDR_SRVR_INPLACE ACCELERATORS 
@@ -703,7 +711,7 @@ STRINGTABLE
 BEGIN
     ID_VIEW_TOOLBAR         "Show/Hide the Toolbar"
     ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle Status Bar"
-    ID_VIEW_OUTPUT          "Show/Hide the Error Window\toggle Error Window"
+    ID_VIEW_OUTPUT          "Show/Hide the Error Window\nToggle Error Window"
 END
 
 STRINGTABLE 
@@ -744,21 +752,21 @@ END
 
 STRINGTABLE 
 BEGIN
-    ID_FILE_EXPORT          "Export to graphics or text file."
-    ID_BUTTON_EDITTEXT      "Edit Chart in Text Editor"
-    ID_EDIT_PREFERENCES     "Edit Msc-generator options"
-    ID_VIEW_ZOOMIN          "Increase zoom factor by 10%."
-    ID_VIEW_ZOOMOUT         "Decrease zoom factor by 10%."
-    ID_VIEW_ADJUSTWIDTH     "Adjust window width to fit chart with current zoom level."
-    ID_VIEW_FITTOWIDTH      "Adjust zoom level to fit window width."
+    ID_FILE_EXPORT          "Export to graphics or text file\nExport"
+    ID_BUTTON_EDITTEXT      "Edit Chart in External Text Editor\nExternal Editor"
+    ID_EDIT_PREFERENCES     "Edit Msc-generator options\nPreferences"
+    ID_VIEW_ZOOMIN          "Increase zoom factor by 10%\nZoom in"
+    ID_VIEW_ZOOMOUT         "Decrease zoom factor by 10%\\Zoom out"
+    ID_VIEW_ADJUSTWIDTH     "Adjust window width to fit chart with current zoom level\nFit width"
+    ID_VIEW_FITTOWIDTH      "Adjust zoom level to fit window width\nFit to width"
     ID_ZOOMMODE_KEEPINOVERVIEW 
-                            "Automatically adjust zoom and window size after each update."
+                            "Automatically adjust zoom and window size after each update\nKeep in overview"
     ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH 
-                            "Automatically adjust window width after each update."
+                            "Automatically adjust window width after each update\nKeep adjusting width"
     ID_ZOOMMODE_KEEPFITTINGTOWIDTH 
-                            "Automatically adjust zoom level to fit window width after each update."
-    ID_VIEW_REDRAW          "Regenerate the visual appearance of the chart."
-    ID_VIEW_ZOOMNORMALIZE   "Adjust window size to fit all the chart."
+                            "Automatically adjust zoom level to fit window width after each update\nKeep fitting to width"
+    ID_VIEW_REDRAW          "Regenerate the visual appearance of the chart\nRedraw"
+    ID_VIEW_ZOOMNORMALIZE   "Adjust window size to fit all the chart\nOverview"
 END
 
 STRINGTABLE 
@@ -766,7 +774,8 @@ BEGIN
     ID_DESIGN_PAGE          "Select Page\nPage"
     ID_DESIGN_ZOOM          "Set Zoom\nZoom"
     ID_DESIGN_DESIGN        "Set Design\nDesign"
-    ID_VIEW_RESETASPECTRATIO_INPLACE "Reset the aspect ratio to 1:1"
+    ID_VIEW_RESETASPECTRATIO_INPLACE 
+                            "Reset the aspect ratio to 1:1\nReset Aspect Ratio"
 END
 
 STRINGTABLE 
@@ -777,17 +786,17 @@ END
 
 STRINGTABLE 
 BEGIN
-    ID_VIEW_EDITOR          "Show/Hide the Error Window\toggle Editor Window"
-    ID_EDIT_UPDATE          "Update Chart with the description currently in the Chart Text panel"
-    ID_VIEW_NEXTERROR       "Go to the next error"
+    ID_VIEW_EDITOR          "Show/Hide the Error Window\nToggle Editor Window"
+    ID_EDIT_UPDATE          "Update & redraw chart with the description currently in the Chart Text panel\nUpdate & redraw"
+    ID_VIEW_NEXTERROR       "Go to the next error\nNext error"
 END
 
 STRINGTABLE 
 BEGIN
-    ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats"
-    ID_EDIT_PASETENTIRECHART "Paste an entire chart from the Clipboard."
+    ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats\nCopy entire chart"
+    ID_EDIT_PASETENTIRECHART 
+                            "Paste an entire chart from the Clipboard\nPaste entire chart"
     ID_BUTTON_TRACK         "Turn element tracking on or off\nToggle Tracking"
-    ID_VIEW_MARK            "Mark the arrow of the current line of the internal editor in the chart.\nMark the current line"
 END
 
 #endif    // English (U.S.) resources

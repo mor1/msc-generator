@@ -132,23 +132,39 @@ struct Geometry
                 << "," << i->y.from << "-" <<i->y.till << ");  ";
         return s;
     }
-    bool BoundingBlock(Block &) const;
-    const Block *InWhich(XY p) const {
-        for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
-            if (i->findType==Block::FIND_NORMAL && i->IsWithin(p)) return &(*i);
-        return NULL;
+};
+
+template <typename BlockContainer>
+bool BoundingBlock(const BlockContainer &container, Block &)
+{
+    if (container.size()==0) return false;
+    Block ret = Block(INT_MAX, INT_MIN, INT_MAX, INT_MIN);
+    for(typename BlockContainer::const_iterator i=container.begin(); i!=container.end(); i++) {
+        if (ret.x.from > i->x.from) ret.x.from = i->x.from;
+        if (ret.x.till < i->x.till) ret.x.till = i->x.till;
+        if (ret.y.from > i->y.from) ret.y.from = i->y.from;
+        if (ret.y.till < i->y.till) ret.y.till = i->y.till;
     }
+    return true;
+};
+
+template <typename BlockContainer>
+const Block *InWhich(const BlockContainer &container, XY p) //search backwards - as drawing z order decreases
+{
+    for (typename BlockContainer::const_reverse_iterator i=container.rbegin(); i!=container.rend(); i++)
+        if (i->findType==Block::FIND_NORMAL && i->IsWithin(p)) return &(*i);
+    return NULL;
 };
 
 //Types for hscale=auto mechanism
 class IPair  {
 public:
     //If both first>0 and second>0 then the ipair represents a pair of entities (via indexes)
-	//first can be< in that case -1:to the left, -2:to the right of the entity represented by second
-	//In the latter case Diff() is erroneous.
+    //first can be< in that case -1:to the left, -2:to the right of the entity represented by second
+    //In the latter case Diff() is erroneous.
     unsigned first, second;
     IPair(unsigned e1, unsigned e2) : first(std::min(e1,e2)), second(std::max(e1,e2)) {}
-	unsigned Diff() const {return second-first;}
+    unsigned Diff() const {return second-first;}
 };
 
 class IPairComp {
@@ -485,7 +501,8 @@ class ArcVerticalArrow : public ArcArrow
         ArcArrow *AddSegment(const char *m, file_line ml, bool forward, file_line l);
         bool AddAttribute(const Attribute &);
         void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
-        virtual void Width(EntityDistanceMap &distances);
+        void Width(EntityDistanceMap &distances);
+        void CalculateXandWidth(double &x, double &width) const;
         double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
         void PostHeightProcess(void);
 };
@@ -500,6 +517,7 @@ class ArcEmphasis : public ArcLabelled
         PtrList<ArcEmphasis> follow;
         double height, total_height;
         double left_space, right_space;
+        bool pipe_connect_left, pipe_connect_right; //true if connects to neighbour pipe in pipe series
     public:
         //Constructor to construct the first emphasis in a series
         ArcEmphasis(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l, Msc *msc);
@@ -513,7 +531,9 @@ class ArcEmphasis : public ArcLabelled
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
+                void WidthPipe(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
+                void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool text);
         virtual void PostHeightProcess(void);
 };
 
@@ -632,7 +652,7 @@ public:
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
 
-    Geometry                      AllCovers;
+	std::list<Block>              AllCovers;
     std::map<file_line, ArcBase*> AllArcs;
 
     MscCshListType                CshList;

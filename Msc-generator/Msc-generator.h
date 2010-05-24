@@ -52,8 +52,6 @@ public:
 	BOOL			   m_bHiColorIcons;
 	COutputViewBar    *m_pWndOutputView;
 	CEditorBar        *m_pWndEditor;
-	CDialog			   m_ProgressWindow; //A window to indicate drawing progress
-	int                m_ProgressWindowCount; 
 
 //Options
 	bool m_Pedantic;
@@ -86,21 +84,11 @@ public:
 	void FillDesignPageCombo(int no_pages, int page);
 	bool IsInternalEditorRunning() const {
 		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) && m_pWndEditor->IsVisible();}
-	void StartDrawingProgress();                      
-	void StopDrawingProgress();
 
 	afx_msg void OnAppAbout();
 	afx_msg void OnEditPreferences();
 	DECLARE_MESSAGE_MAP()
 };
-
-class ShowDrawingProgress {
-public:
-	ShowDrawingProgress() {static_cast<CMscGenApp *>(AfxGetApp())->StartDrawingProgress();}
-	ShowDrawingProgress(const ShowDrawingProgress&) {static_cast<CMscGenApp *>(AfxGetApp())->StartDrawingProgress();}
-	~ShowDrawingProgress() {static_cast<CMscGenApp *>(AfxGetApp())->StopDrawingProgress();}
-};
-
 
 extern CMscGenApp theApp;
 
@@ -118,3 +106,6 @@ extern CMscGenApp theApp;
 #define REG_KEY_DEFAULTZOOMMODE "DefaultZoomMode"
 #define REG_KEY_CSHENABLED "CshEnabled"
 #define REG_KEY_CSHSCHEME "CshScheme"
+#define REG_KEY_FINDWINPOS_X "FindReplaceWindowXPos"
+#define REG_KEY_FINDWINPOS_Y "FindReplaceWindowYPos"
+#define REG_KEY_FINDMATCHCASE "FindReplaceMatchCase"

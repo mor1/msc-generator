@@ -259,7 +259,7 @@ inline bool string_to_bool(const char*s)
 %type <msc>        msc
 %type <arcbase>    arcrel arc complete_arc opt vertrel
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
-%type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis
+%type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def pipe_def_list
 %type <arcparallel>parallel
 %type <arclist>    arclist braced_arclist mscenclosed optlist
 %type <entity>     entity
@@ -286,7 +286,7 @@ inline bool string_to_bool(const char*s)
 %destructor {if (!C_S_H) delete $$;} vertxpos
 %destructor {if (!C_S_H) delete $$;} arcrel arc complete_arc opt
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
-%destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis
+%destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def pipe_def_list
 %destructor {if (!C_S_H) delete $$;} parallel
 %destructor {if (!C_S_H) delete $$;} arclist braced_arclist mscenclosed optlist
 %destructor {if (!C_S_H) delete $$;} entity entitylist
@@ -645,6 +645,7 @@ arc:            arcrel
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
+        ADDCSH(@2, COLOR_MARKERNAME);
     } else {
         $$ = new CommandMark($2, YYMSC_GETPOS(@$), &msc);
     }
@@ -654,6 +655,7 @@ arc:            arcrel
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
+        ADDCSH(@1, COLOR_MARKERNAME);
     } else {
         $$ = (new CommandMark($2, YYMSC_GETPOS(@$), &msc))->AddAttributeList($3);
     }
@@ -1103,9 +1105,7 @@ first_emphasis:   emphrel
     $$ = ($1);
 };
 
-/* ALWAYS Add Arclist before Attributes or setpipe.
-** AddArcList changes default attributes to style "emphasis" */
-pipe_emphasis:   emphrel
+pipe_def:    emphrel
 {
     if (C_S_H) break;
     $$ = ($1)->SetPipe();
@@ -1114,18 +1114,23 @@ pipe_emphasis:   emphrel
 {
     if (C_S_H) break;
     ($1)->SetPipe()->AddAttributeList($2);
+    SETLINEEND($1, @1.first_line, @1.first_column, @2.last_line, @2.last_column);
     $$ = ($1);
-}
-           | emphrel braced_arclist
+};
+
+pipe_def_list: pipe_def
+             | pipe_def_list pipe_def
 {
     if (C_S_H) break;
-    $$ = ($1)->AddArcList($2)->SetPipe();
-}
-           | emphrel full_arcattrlist_with_label braced_arclist
+    $$ = ($1)->AddFollow($2);
+};
+
+/* You can add arclist after setpipe safely */
+pipe_emphasis: pipe_def_list
+             | pipe_def_list braced_arclist
 {
     if (C_S_H) break;
-    ($1)->AddArcList($3)->SetPipe()->AddAttributeList($2);
-    $$ = ($1);
+    $$ = ($1)->AddArcList($2);
 };
 
 emphrel:   entity_string TOK_EMPH entity_string
@@ -1255,9 +1260,9 @@ empharcrel_straight: TOK_EMPH | relation_to | relation_bidir;
 vertrel: entity_string empharcrel_straight entity_string vertxpos
 {
     if (C_S_H) {
-        ADDCSH_ENTITYNAME(@1, $1);
+        ADDCSH(@1, COLOR_MARKERNAME);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH_ENTITYNAME(@3, $3);
+        ADDCSH(@3, COLOR_MARKERNAME);
     } else {
         $$ = new ArcVerticalArrow($2, $1, $3, $4, YYMSC_GETPOS(@$), &msc);
         delete $4;
@@ -1269,7 +1274,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH_ENTITYNAME(@2, $2);
+        ADDCSH(@2, COLOR_MARKERNAME);
     } else {
         $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, $2, $3, YYMSC_GETPOS(@$), &msc);
         delete $3;
@@ -1279,7 +1284,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
        | entity_string empharcrel_straight vertxpos
 {
     if (C_S_H) {
-        ADDCSH_ENTITYNAME(@1, $1);
+        ADDCSH(@1, COLOR_MARKERNAME);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = new ArcVerticalArrow($2, $1, MARKER_HERE_STR, $3, YYMSC_GETPOS(@$), &msc);
@@ -1299,9 +1304,9 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
        | entity_string relation_from entity_string vertxpos
 {
     if (C_S_H) {
-        ADDCSH_ENTITYNAME(@1, $1);
+        ADDCSH(@1, COLOR_MARKERNAME);
         ADDCSH(@2, COLOR_SYMBOL);
-        ADDCSH_ENTITYNAME(@3, $3);
+        ADDCSH(@3, COLOR_MARKERNAME);
     } else {
         $$ = new ArcVerticalArrow($2, $3, $1, $4, YYMSC_GETPOS(@$), &msc);
         delete $4;
@@ -1313,7 +1318,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
 {
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
-        ADDCSH_ENTITYNAME(@2, $2);
+        ADDCSH(@2, COLOR_MARKERNAME);
     } else {
         $$ = new ArcVerticalArrow($1, $2, MARKER_HERE_STR, $3, YYMSC_GETPOS(@$), &msc);
         delete $3;
@@ -1323,7 +1328,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
        | entity_string relation_from vertxpos
 {
     if (C_S_H) {
-        ADDCSH_ENTITYNAME(@1, $1);
+        ADDCSH(@1, COLOR_MARKERNAME);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
         $$ = new ArcVerticalArrow($2, MARKER_HERE_STR, $1, $3, YYMSC_GETPOS(@$), &msc);

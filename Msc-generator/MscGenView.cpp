@@ -144,7 +144,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	//If user has made modifications reflect them
 	if (pDoc->m_ExternalEditor.IsRunning())
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
-	pDoc->SyncShownWithEditing("print");
+	pDoc->SyncShownWithEditing("print", true);
 	pInfo->SetMaxPage(pDoc->m_itrShown->GetPages());
 	// default preparation
 	return DoPreparePrinting(pInfo);
@@ -375,33 +375,29 @@ BOOL CMscGenView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
+	if (pDoc->DispatchMouseWheel(nFlags, zDelta, pt)) return TRUE;
 	if (pDoc->IsInPlaceActive()) 
 		return CView::OnMouseWheel(nFlags, zDelta, pt);
-	POSITION pos = pDoc->GetFirstViewPosition();
-	while (pos != NULL) {
-        CMscGenView* pView = static_cast<CMscGenView*>(pDoc->GetNextView(pos));
-  	    if (pView->IsKindOf(RUNTIME_CLASS(CMscGenView))) {
-			//Each view handles this message only if pt is within its area
-	        pView->DoMouseWheel(nFlags, zDelta, pt);
-		}
-	}
 	return TRUE;
 }
 
 
+//returns true if point is within our rectangle. Does nothing otherwise
 BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
 	CRect view;
 	GetClientRect(&view);
 	ScreenToClient(&pt);
 	//Process message only if within our view
-	if (!view.PtInRect(pt)) return TRUE;
+	if (!view.PtInRect(pt)) return FALSE;
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	//if we fall within, and in-place active, do default action
+	if (pDoc->IsInPlaceActive()) {
+		CView::OnMouseWheel(nFlags, zDelta, pt);
+		return TRUE;
+	}
 	if (!(nFlags & MK_CONTROL)) {
-		if (pt.x > view.right || pt.x < 0 || 
-			pt.y > view.bottom || pt.y <0) return TRUE; //Do nothing if outside client area
-
 		if (zDelta>0) OnScroll(SB_PAGEUP*256    + SB_ENDSCROLL, 0); 
 		if (zDelta<0) OnScroll(SB_PAGEDOWN*256  + SB_ENDSCROLL, 0);
 		return TRUE;

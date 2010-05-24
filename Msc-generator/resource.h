@@ -45,20 +45,16 @@
 #define IDC_EDIT2                       1002
 #define IDC_CHECK_PEDANTIC              1003
 #define IDC_CHECK_WARNINGS              1004
-#define IDC_COMBO_EDITOR2               1005
 #define IDC_RADIO2                      1005
 #define IDC_RADIO3                      1006
 #define IDC_EDIT_DEFAULT_TEXT           1007
 #define IDC_OUTPUT_LIST                 1008
-#define IDC_CHECK_WARNINGS2             1008
 #define IDC_CHECK_ALWAYSOPEN            1008
 #define IDC_CHECK_PB_EDITING            1009
 #define IDC_INTERNAL_EDITOR             1009
 #define IDC_CHECK_PB_EMBEDDED           1010
-#define IDC_CHECK_PB_EXPORTED           1011
 #define IDC_CHECK_CSH                   1011
 #define IDC_RADIO4                      1012
-#define IDC_COMBO1                      1013
 #define IDC_COMBO_CSH                   1013
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
@@ -75,28 +71,16 @@
 #define ID_VIEW_REDRAW                  32782
 #define ID_VIEW_ZOOMNORMALIZE           32783
 #define ID_DESIGN_PAGE                  32784
-#define ID_FILE_AA                      32786
-#define ID_FILE_AAA                     32787
 #define ID_DESIGN_ZOOM                  32788
 #define ID_DESIGN_DESIGN                32789
-#define ID_BU                           32789
 #define ID_VIEW_RESETASPECTRATIO_INPLACE 32790
-#define ID_VIEW_RES                     32793
-#define ID_VIEW_TOOLBARSANDDOCKINGWINDOWS 32794
-#define ID_Menu                         32795
 #define ID_VIEW_EDITOR                  32804
 #define ID_EDIT_UPDATEFROMCHARTTEXTPANEL 32806
 #define ID_EDIT_UPDATE                  32807
 #define ID_VIEW_NEXTERROR               32814
-#define ID_EDIT_CUT32818                32818
-#define ID_EDIT_COPYENTIRECHARTTOCLIPBOARD 32819
 #define ID_EDIT_COPYENTIRECHART         32820
 #define ID_EDIT_PASETENTIRECHART        32821
 #define ID_BUTTON_TRACK                 32826
-#define ID_VIEW_TRACKINGMODE            32827
-#define ID_BUTTON_TRACKINGMODE          32828
-#define ID_VIEW_MARKCURRENTLINEONCHART  32830
-#define ID_VIEW_MARK                    32831
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
@@ -104,7 +88,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        313
-#define _APS_NEXT_COMMAND_VALUE         32841
+#define _APS_NEXT_COMMAND_VALUE         32846
 #define _APS_NEXT_CONTROL_VALUE         1014
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
