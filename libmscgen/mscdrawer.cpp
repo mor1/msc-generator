@@ -719,18 +719,14 @@ void MscDrawer::_arc_path(XY c, XY wh, double s, double e, double wider, MscLine
         cairo_arc (cr, 0., 0., 1., ss, ee);
         cairo_restore (cr);
     } else if (type == LINE_DOUBLE) {
-        cairo_save (cr);
-        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
-        cairo_scale (cr, (wh.x-wider) / 2., (wh.y-wider) / 2.);
+		XY w(2*wider, 2*wider);
         cairo_new_sub_path(cr);
-        cairo_arc (cr, 0., 0., 1., s*(M_PI/180.), e*(M_PI/180.));
-        cairo_restore (cr);
-        cairo_save (cr);
-        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
-        cairo_scale (cr, (wh.x+wider) / 2., (wh.y+wider) / 2.);
+		_arc_path(c, wh+w, s, e, 0, LINE_SOLID, reverse);
         cairo_new_sub_path(cr);
-        cairo_arc (cr, 0., 0., 1., s*(M_PI/180.), e*(M_PI/180.));
-        cairo_restore (cr);
+		//ensure that radius adjusted by wider is always nonzero
+		if (wh.x<wider) w.x = wh.x;
+		if (wh.y<wider) w.y = wh.y;
+		_arc_path(c, wh-w, s, e, 0, LINE_SOLID, reverse);
     } else {
         cairo_save (cr);
         cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);

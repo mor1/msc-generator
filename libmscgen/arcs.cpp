@@ -1472,19 +1472,24 @@ void ArcEmphasis::WidthPipe(EntityDistanceMap &distances)
 void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool text)
 {
 	if (!valid || !pipe) return;
+	//ls and ld will point to the middle of the line
+	const double lw2 = style.line.LineWidth()/2;
     XY ls, ld;
-    ls.y = yPos + style.line.LineWidth()/2;
-    ld.y = yPos + height - style.line.LineWidth()/2;
+    ls.y = yPos + lw2;
+    ld.y = yPos + height - lw2;
     ls.x = chart->XCoord((*src)->pos) - left_space;
     ld.x = chart->XCoord((*dst)->pos) + right_space;
 
-    chart->shadow(ls, ld+XY(style.line.radius.second/2, 0), style.shadow, 0, false);
     XY cs(ls.x, (ls.y+ld.y)/2);
     XY cd(ld.x, (ls.y+ld.y)/2);
     XY wh(style.line.radius.second*2, ld.y-ls.y);
     XY shift(style.line.radius.second, 0);
-    MscFillAttr fill = style.fill;
-    if (topSideFill) {
+	MscFillAttr fill = style.fill;
+
+	if (backSide) {
+		chart->shadow(ls, ld+XY(style.line.radius.second/2, 0), style.shadow, 0, false);
+	}
+	if (topSideFill) {
         //If we do not draw the backside, reflect solidicity of pipe
         if (!backSide)
             fill.color.second.a = unsigned(style.solid.second) * unsigned(fill.color.second.a) / 255;
@@ -1505,14 +1510,14 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
         chart->UnClip();
 
         //Draw the backside line
-        chart->_arc_path(cd, wh, 270, 90, style.line.LineWidth(), style.line.type.second);
+        chart->_arc_path(cd, wh, 270, 90, style.line.width.second, style.line.type.second); //and not line.LineWidth()!
         chart->SetLineAttr(style.line);
         cairo_stroke(chart->GetContext());
     }
     if (topSideLine) {
-        chart->_arc_path(cs, wh, 90, 270, style.line.LineWidth(), style.line.type.second);
+        chart->_arc_path(cs, wh, 90, 270, style.line.width.second, style.line.type.second);
         cairo_new_sub_path(chart->GetContext());
-        chart->_arc_path(cd, wh, 90, 270, style.line.LineWidth(), style.line.type.second);
+        chart->_arc_path(cd, wh, 90, 270, style.line.width.second, style.line.type.second);
         chart->SetLineAttr(style.line);
         cairo_stroke(chart->GetContext());
         chart->line(ls, XY(ld.x, ls.y), style.line);

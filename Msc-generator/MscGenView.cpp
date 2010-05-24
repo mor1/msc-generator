@@ -145,7 +145,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	if (pDoc->m_ExternalEditor.IsRunning())
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 	pDoc->SyncShownWithEditing("print", true);
-	pInfo->SetMaxPage(pDoc->m_itrShown->GetPages());
+	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
 	// default preparation
 	return DoPreparePrinting(pInfo);
 }
@@ -159,15 +159,15 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (pDoc->m_itrShown->IsEmpty())
+	if (pDoc->m_ChartShown.IsEmpty())
 		return;
 
-    CSize orig_size = pDoc->m_itrShown->GetSize(pInfo->m_nCurPage);
+    CSize orig_size = pDoc->m_ChartShown.GetSize(pInfo->m_nCurPage);
 	double fzoom = double(pInfo->m_rectDraw.Width())/orig_size.cx;
 	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
 	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrShown->Draw(hdc, true, pInfo->m_nCurPage, false);
+	pDoc->m_ChartShown.Draw(hdc, true, pInfo->m_nCurPage, false);
 	HENHMETAFILE hemf = CloseEnhMetaFile(hdc);
 	ENHMETAHEADER header;
 	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
@@ -347,12 +347,12 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	ASSERT_VALID(pApp);
 
     HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_itrShown->Draw(hdc, true, pDoc->m_page, pApp->m_bPB_Editing);
+	pDoc->m_ChartShown.Draw(hdc, true, pDoc->m_page, pApp->m_bPB_Editing);
 	if (m_hemf) DeleteEnhMetaFile(m_hemf);
 	m_hemf = CloseEnhMetaFile(hdc);
 
 	//Check if some of the background becomes visible (only if not in-place)
-	CSize new_size = pDoc->m_itrShown->GetSize(pDoc->m_page);
+	CSize new_size = pDoc->m_ChartShown.GetSize(pDoc->m_page);
 	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
 		if (!pDoc->IsInPlaceActive())
 			m_DeleteBkg = true;

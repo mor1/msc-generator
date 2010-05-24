@@ -516,7 +516,7 @@ void CMscGenApp::OnEditPreferences()
 					i->FreeMsc();
 					i->CompileIfNeeded();
 				}
-			pDoc->OnShownChange(false);     //Do not change zoom, merely recompile & re-issue errors
+			pDoc->ShowNewChart(pDoc->m_itrEditing, false);     //Do not change zoom, merely recompile & re-issue errors
 		} 
 		if (updateCSH && IsInternalEditorRunning())
 			m_pWndEditor->m_ctrlEditor.UpdateCsh(true);

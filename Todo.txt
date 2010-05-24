@@ -1,7 +1,3 @@
-Demo chart making double lined pipe width=4
-Double spaced curve curves inverse...?
-lw/2 lower for arcs.
-
 update doc
 
 design lib

@@ -50,7 +50,8 @@ public:
 	std::list<CChartData> m_charts;
 	IChartData m_itrSaved; //The chart that is the one last saved. This iterator may be invalid, use only for comparison
 	IChartData m_itrEditing; //The chart that is the current one in the editor
-	IChartData m_itrShown; //The chart that is compiled and shown in view
+	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
+	CChartData m_ChartShown;
 	unsigned m_page; //current page to show
 
 	// Zoom related 
@@ -136,7 +137,7 @@ public:
     void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
-	void OnShownChange(bool resetZoom);                  //Call this if you change shown iterator, it compiles and updates the views
+	void ShowNewChart(IChartData, bool resetZoom);       //Call this if you wnat to show a new chart, it compiles and updates the views
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 };
