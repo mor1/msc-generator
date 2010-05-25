@@ -371,7 +371,7 @@ void CMscGenDoc::OnCloseDocument()
 
 void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(m_ChartShown.IsEmpty());
+	pCmdUI->Enable(!m_ChartShown.IsEmpty() || !m_itrEditing->IsEmpty());
 }
 
 void CMscGenDoc::OnFileExport()
@@ -1060,13 +1060,12 @@ void CMscGenDoc::OnInternalEditorSelChange()
 void CMscGenDoc::ShowNewChart(IChartData itrNew, bool resetZoom)
 {
 	if (itrNew == m_charts.end()) return;
+	CWaitCursor wait;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
 	m_itrShown = itrNew;
 	m_ChartShown = *itrNew;
-
-	CWaitCursor wait;
 
 	//Display error messages
 	COutputViewBar *pOutputView = pApp->m_pWndOutputView;

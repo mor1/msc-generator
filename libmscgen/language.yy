@@ -56,14 +56,7 @@
 #define ADDCSH_ATTRVALUE(A, B, C) msc.AddCSH_AttrValue(A, B, C)
 #define ADDCSH_ATTRNAME(A, B, C) msc.AddCSH_AttrName(A, B, C)
 #define ADDCSH_ENTITYNAME(A, B) msc.AddCSH_EntityName(A, B)
-#define ADDCSH_COLON_STRING(A, B)           \
-    do {                                    \
-    CshPos colon = (A);                     \
-    colon.last_pos = colon.first_pos;       \
-    msc.AddCSH(colon, COLOR_COLON);         \
-    (A).first_pos++;                        \
-    msc.AddCSH_AttrValue(A, (B)+1, NULL);   \
-    } while (0)
+#define ADDCSH_COLON_STRING(A, B, C) msc.AddCSH_ColonString(A, B, C)
 #define SETLINEEND(ARC, FL, FC, LL, LC)
 
 #ifndef HAVE_UNISTD_H
@@ -75,7 +68,7 @@ int isatty (int) {return 0;}
 #define ADDCSH_ATTRVALUE(A, B, C)
 #define ADDCSH_ATTRNAME(A, B, C)
 #define ADDCSH_ENTITYNAME(A, B)
-#define ADDCSH_COLON_STRING(A, B)
+#define ADDCSH_COLON_STRING(A, B, C)
 #define SETLINEEND(ARC, FL, FC, LL, LC) do {(ARC)->SetLineEnd(FL, FC, LL, LC);} while(0)
 #ifndef HAVE_UNISTD_H
 extern int isatty (int);
@@ -132,6 +125,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
       std::pair<string,string>("TOK_VERTICAL", "'vertical'"),
       std::pair<string,string>("TOK_AT", "'at'"),
       std::pair<string,string>("TOK_COLON_STRING", "':'"),  //just say colon to the user
+      std::pair<string,string>("TOK_COLON_QUOTED_STRING", "':'"),  //just say colon to the user
       std::pair<string,string>("TOK_NUMBER", "number"),
       std::pair<string,string>("TOK_STRING", "string"),
       std::pair<string,string>("TOK_STYLE_NAME", "style name"),
@@ -228,7 +222,7 @@ inline bool string_to_bool(const char*s)
 %token TOK_STRING TOK_QSTRING TOK_NUMBER TOK_DASH TOK_EQUAL TOK_COMMA
        TOK_SEMICOLON TOK_PLUS
        TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET TOK_MSC
-       TOK_COLON_STRING TOK_STYLE_NAME
+       TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
        TOK_BOOLEAN
        TOK_REL_SOLID_TO    TOK_REL_SOLID_FROM	TOK_REL_SOLID_BIDIR
        TOK_REL_DOUBLE_TO   TOK_REL_DOUBLE_FROM	TOK_REL_DOUBLE_BIDIR
@@ -274,9 +268,9 @@ inline bool string_to_bool(const char*s)
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
-%type <str>        entity_string reserved_word_string string symbol_string
-                   TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_STYLE_NAME
-                   TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
+%type <str>        entity_string reserved_word_string string symbol_string colon_string
+                   TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING
+                   TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT
@@ -292,7 +286,7 @@ inline bool string_to_bool(const char*s)
 %destructor {if (!C_S_H) delete $$;} entity entitylist
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
-%destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_STYLE_NAME
+%destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
 %destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
@@ -1024,15 +1018,9 @@ emphasis_list: first_emphasis
     if (C_S_H) break;
     $$ = $1;
 }
-           | TOK_COMMAND_PIPE pipe_emphasis
+           | pipe_emphasis
 {
-    if (C_S_H) {
-        ADDCSH(@1, COLOR_KEYWORD);
-    } else {
-        if ($1) SETLINEEND($2, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
-        $$ = $2;
-    }
-    free($1);
+    $$ = $1;
 }
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
            | emphasis_list emphrel
@@ -1118,11 +1106,31 @@ pipe_def:    emphrel
     $$ = ($1);
 };
 
-pipe_def_list: pipe_def
+pipe_def_list: TOK_COMMAND_PIPE pipe_def
+{
+    if (C_S_H) {
+        ADDCSH(@1, COLOR_KEYWORD);
+    } else {
+        SETLINEEND($2, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = $2;
+    }
+    free($1);
+}
              | pipe_def_list pipe_def
 {
     if (C_S_H) break;
+    SETLINEEND($2, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
     $$ = ($1)->AddFollow($2);
+}
+             | pipe_def_list TOK_COMMAND_PIPE pipe_def
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_KEYWORD);
+    } else {
+        SETLINEEND($3, @2.first_line, @2.first_column, @3.last_line, @3.last_column);
+        $$ = ($1)->AddFollow($3);
+    }
+    free($2);
 };
 
 /* You can add arclist after setpipe safely */
@@ -1531,31 +1539,54 @@ relation_from_cont : relation_from | TOK_DASH;
 relation_bidir_cont : relation_bidir | TOK_DASH;
 
 
-
-full_arcattrlist_with_label: TOK_COLON_STRING
+colon_string: TOK_COLON_QUOTED_STRING
 {
     if (C_S_H) {
-        ADDCSH_COLON_STRING(@1, $1);
+        ADDCSH_COLON_STRING(@1, $1, false);
+    };
+    $$ = $1;
+}
+             | TOK_COLON_STRING
+{
+    if (C_S_H) {
+        ADDCSH_COLON_STRING(@1, $1, true);
+    };
+    $$ = $1;
+};
+
+full_arcattrlist_with_label: colon_string
+{
+    if (C_S_H) {
     } else {
         $$ = (new AttributeList)->Append(new Attribute("label", $1, YYMSC_GETPOS(@$), YYMSC_GETPOS(@$).IncCol()));
     }
     free($1);
 }
-              | TOK_COLON_STRING full_arcattrlist
+              | colon_string full_arcattrlist
 {
     if (C_S_H) {
-        ADDCSH_COLON_STRING(@1, $1);
     } else {
         $$ = ($2)->Prepend(new Attribute("label", $1, YYMSC_GETPOS(@1), YYMSC_GETPOS(@1).IncCol()));
     }
     free($1);
 }
-              | full_arcattrlist TOK_COLON_STRING
+              | full_arcattrlist colon_string
 {
     if (C_S_H) {
-        ADDCSH_COLON_STRING(@2, $2);
     } else {
         $$ = ($1)->Append(new Attribute("label", $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@2).IncCol()));
+    }
+    free($2);
+}
+              | full_arcattrlist colon_string full_arcattrlist
+{
+    if (C_S_H) {
+    } else {
+        ($1)->Append(new Attribute("label", $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@2).IncCol()));
+        //Merge $3 at the end of $1
+        ($1)->splice(($1)->end(), *($3));
+        delete ($3); //empty list now
+        $$ = $1;
     }
     free($2);
 }

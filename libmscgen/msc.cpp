@@ -21,6 +21,7 @@
 #include <sstream>
 #include <assert.h>
 #include <climits>
+#include <math.h>
 #include "msc.h"
 
 using namespace std;
@@ -836,6 +837,39 @@ void Msc::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
     }
 }
 
+void Msc::AddCSH_ColonString(CshPos& pos, const char *value, bool processComments)
+{
+    CshPos colon = pos;
+    colon.last_pos = colon.first_pos;
+    AddCSH(colon, COLOR_COLON);
+    pos.first_pos++;
+    char *copy = strdup(value);
+    if (processComments) {
+        char *p = copy;
+        while (*p!=0) {
+            //search for #
+            while (*p!=0 && *p!='#') p++;
+            if (!*p) break;
+            //if we hit a # count the \s before
+            unsigned count = 0;
+            //string starts with colon, so we are limited by that
+            while (*(p-1-count) == '\\') count++;
+            //if even number then replace comment with spaces till end of line
+			if (count%2 == 0) {
+				CshPos comment;
+				comment.first_pos = pos.first_pos + (p - copy)-1;
+                while (*p!=0 && *p!=0x0d && *p!=0x0a) *(p++) = ' ';
+				comment.last_pos = pos.first_pos + (p - copy);
+				AddCSH(comment, COLOR_COMMENT);
+			} else 
+				p++; //step over the escaped #
+
+        }
+    }
+    AddCSH_AttrValue(pos, copy+1, NULL);
+    free(copy);
+}
+
 const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
 "pedantic", "strict", ""};
 
@@ -1191,8 +1225,7 @@ void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
 }
 
 double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
-                              bool draw, bool final, bool &prevCompress,
-                              double autoMarker)
+                              bool draw, bool final, double autoMarker)
 {
     double original_y = y;
 
@@ -1212,8 +1245,9 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
         double size;
         //if we draw y will be ignored by arcs' DrawHeight
         //so we need not calculate compress again
-        if (!draw && (*i)->IsCompressed() && prevCompress) {
+        if (!draw && (*i)->IsCompressed()) {
             Geometry geom;
+			//Drawheight for non final locations can be called at fractional y
             size = (*i)->DrawHeight(y, geom, false, false, autoMarker);
             if (size == 0) {
                 if (first_zero_height == arcs.end())
@@ -1238,14 +1272,19 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
                 if (CollisionYPos < g.mainline.till ||
                     CollisionYPos > geom.mainline.from-up)
                     CollisionYPos = (g.mainline.till + geom.mainline.from-up)/2;
+			CollisionYPos = ceil(CollisionYPos);
             while (first_zero_height != i && first_zero_height != arcs.end())
                 (*first_zero_height++)->DrawHeight(CollisionYPos, g, false, final,
                                                    autoMarker);
             first_zero_height = arcs.end();
             //recalculate cover again for current arc and add it's cover to g
-            size = (*i)->DrawHeight(y-up, g, false, final, autoMarker);
-            size -= up;
+			//We ensure DrawHeight is always called on integer y position for bitmaps
+			double draw_y = ceil(y-up);
+            draw_y += (*i)->DrawHeight(draw_y, g, false, final, autoMarker);
+            size = draw_y - y;
         } else {
+			//Ensure drawheight is only called at integer positions
+			y = ceil(y);
             //if we do not yet draw and last arcs before a non-compressed one
             //were of zero height re-invoke them at the current pos
             if (!draw) {
@@ -1255,17 +1294,19 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
             }
             size = (*i)->DrawHeight(y, g, draw, final, autoMarker);
         }
-        prevCompress = (*i)->IsCompressed();
         y += size;
         if (largest_y < y)
             largest_y = y;
     }
     //if we do not yet draw and last arcs were of zero height
     //re-invoke them at final pos
-    if (!draw)
+	if (!draw) {
+		y = ceil(y);
+        if (largest_y < y)
+            largest_y = y;
         while (first_zero_height != arcs.end())
             (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
-
+	}
     return largest_y - original_y;
 }
 
@@ -1362,8 +1403,7 @@ void Msc::CalculateWidthHeight(void)
         Geometry g;
 
         //not draw but final
-        bool prevCompress = false;
-        double height = DrawHeightArcList(Arcs, 0, g, false, true, prevCompress, -1);
+        double height = DrawHeightArcList(Arcs, 0, g, false, true);
         totalHeight = height + chartTailGap;
     }
 }
@@ -1476,9 +1516,7 @@ void Msc::Draw(bool pageBreaks)
     DrawEntityLines(0, totalHeight);
     //draw and not final (both true would be confusing)
     Geometry g;
-    bool prevCompress = false;
-    DrawHeightArcList(Arcs, 0, g, true, false, prevCompress, -1);
-
+    DrawHeightArcList(Arcs, 0, g, true, false);
 }
 
 void Msc::DrawToOutput(OutputType ot, const string &fn)

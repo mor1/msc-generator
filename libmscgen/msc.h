@@ -652,7 +652,7 @@ public:
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
 
-	std::list<Block>              AllCovers;
+    std::list<Block>              AllCovers;
     std::map<file_line, ArcBase*> AllArcs;
 
     MscCshListType                CshList;
@@ -685,6 +685,7 @@ public:
 
     void AddCSH(CshPos&, MscColorSyntaxType);
     void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
+    void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments);
     void AddCSH_AttrName(CshPos&, const char *name, MscColorSyntaxType);
     void AddCSH_EntityName(CshPos&pos, const char *name);
     void ParseForCSH(const char *input, unsigned len);
@@ -722,8 +723,7 @@ public:
 
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
     double DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
-                             bool draw, bool final, bool &prevCompress,
-                             double autoMarker);
+                             bool draw, bool final, double autoMarker=-1);
 
     void CalculateWidthHeight(void);
     void PostHeightProcess(void);

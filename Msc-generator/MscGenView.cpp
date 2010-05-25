@@ -346,9 +346,19 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
 
-    HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+	if (m_hemf) {
+		DeleteEnhMetaFile(m_hemf);
+		m_hemf = NULL;
+	}
+	if (pDoc->m_ChartShown.IsEmpty()) {
+		m_size.cx = m_size.cy = 0;
+		m_DeleteBkg = true;
+		Invalidate();
+		return;
+	}
+
+	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
 	pDoc->m_ChartShown.Draw(hdc, true, pDoc->m_page, pApp->m_bPB_Editing);
-	if (m_hemf) DeleteEnhMetaFile(m_hemf);
 	m_hemf = CloseEnhMetaFile(hdc);
 
 	//Check if some of the background becomes visible (only if not in-place)

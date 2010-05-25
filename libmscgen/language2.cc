@@ -699,6 +699,7 @@ char *msc_remove_head_tail_whitespace(char *s)
 
 /* remove heading and trailing whitespace from a string
 ** remove any internal CR or CRLF (and surrounding whitespaces) & replace to \n
+** Remove comments between # and lineend, except if # is preceeded by even number of \s
 ** (copies to new memory) */
 char* msc_process_colon_string(const char *s, YYLTYPE *loc)
 {
@@ -716,17 +717,40 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
         int start_line = old_pos;
         while (s[start_line]==' ' || s[start_line]=='\t') start_line++;
         //find the last non-whitespace in the line
-        int a = end_line-1;
+        int a = end_line-1; //a can be smaller than start_line here if line is empty
         while (a>=start_line && (s[a]==' ' || s[a]=='\t')) a--;
         //now append the line (without the whitespaces)
-        memcpy(ret+new_pos, s+start_line, a-start_line+1);
-        new_pos += a-start_line+1;
+        //but remove anything after a potential #
+        bool wasComment = false;
+        bool emptyLine = true;
+        while (start_line<=a) {
+            //count number of consecutive \s
+            unsigned num_of_backsp = 0;
+            while(start_line<=a && s[start_line] != '#') {
+                if (s[start_line] == '\\') num_of_backsp++;
+                else num_of_backsp = 0;
+                ret[new_pos++] = s[start_line++];
+                emptyLine = false;
+            }
+            //if we hit a # leave rest of line only if not preceeded by even number of \s
+            if (s[start_line] == '#') {
+                if (num_of_backsp%2) {
+                    ret[new_pos++] = s[start_line++]; //step over escaped #
+                    emptyLine = false;
+                } else {
+                    wasComment = true;
+                    break;
+                }
+            }
+        }
+        //We may have copied spaces before the comment, we skip those
+        while (new_pos>0 && (ret[new_pos-1]==' ' || ret[new_pos-1]=='\t')) new_pos--;
         //if ending was a null we are done with processing all lines
         if (!ending) break;
         //append "\n" escape for msc-generator, but only if not an empty first line
         if (new_pos) {
-            //add a space for empty lines
-            if (a-start_line+1 == 0)
+            //add a space for empty lines, if line did not contain a comment
+            if (emptyLine && !wasComment )
                 ret[new_pos++] = ' ';
             ret[new_pos++] = '\\';
             ret[new_pos++] = 'n';
@@ -770,7 +794,7 @@ char* msc_remove_quotes(const char *s)
 #endif /* C_S_H_IS_COMPILED */
 
 
-#line 774 "<stdout>"
+#line 798 "<stdout>"
 
 #define INITIAL 0
 #define COMMENT 1
@@ -1015,10 +1039,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 193 "language2.ll"
+#line 217 "language2.ll"
 
 
-#line 1022 "<stdout>"
+#line 1046 "<stdout>"
 
     yylval = yylval_param;
 
@@ -1108,348 +1132,348 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 195 "language2.ll"
+#line 219 "language2.ll"
 JUMP_LINE;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 196 "language2.ll"
+#line 220 "language2.ll"
 JUMP_LINE;
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 197 "language2.ll"
+#line 221 "language2.ll"
 JUMP_LINE;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 199 "language2.ll"
+#line 223 "language2.ll"
 ADDCSH(*yylloc, COLOR_COMMENT); BEGIN COMMENT;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 200 "language2.ll"
+#line 224 "language2.ll"
 ADDCSH(*yylloc, COLOR_COMMENT); BEGIN INITIAL;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 202 "language2.ll"
+#line 226 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_MSC;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 203 "language2.ll"
+#line 227 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 204 "language2.ll"
+#line 228 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_NUDGE;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 205 "language2.ll"
+#line 229 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFCOLOR;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 206 "language2.ll"
+#line 230 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFSTYLE;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 207 "language2.ll"
+#line 231 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFDESIGN;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 208 "language2.ll"
+#line 232 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_NEWPAGE;
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 209 "language2.ll"
+#line 233 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_BIG;
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 210 "language2.ll"
+#line 234 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 211 "language2.ll"
+#line 235 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 212 "language2.ll"
+#line 236 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_VERTICAL;
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 213 "language2.ll"
+#line 237 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_AT;
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 214 "language2.ll"
+#line 238 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 215 "language2.ll"
+#line 239 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 	YY_BREAK
 case 20:
 /* rule 20 can match eol */
 YY_RULE_SETUP
-#line 217 "language2.ll"
-yylval_param->str = REMOVE_QUOTES(yytext); return TOK_COLON_STRING;
+#line 241 "language2.ll"
+yylval_param->str = REMOVE_QUOTES(yytext+1); return TOK_COLON_QUOTED_STRING;
 	YY_BREAK
 case 21:
 /* rule 21 can match eol */
 YY_RULE_SETUP
-#line 218 "language2.ll"
+#line 242 "language2.ll"
 yylval_param->str = PROCESS_COLON_STRING(yytext, yylloc); return TOK_COLON_STRING;
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 219 "language2.ll"
+#line 243 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_NUMBER;
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 220 "language2.ll"
+#line 244 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STRING;
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 221 "language2.ll"
+#line 245 "language2.ll"
 yylval_param->str = strdup(yytext + !C_S_H); if (!C_S_H) yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 223 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
+#line 247 "language2.ll"
+yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 224 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */
+#line 248 "language2.ll"
+yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 225 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_TO;         /* -> */
+#line 249 "language2.ll"
+yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_TO;         /* -> */
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 226 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_FROM;       /* <- */
+#line 250 "language2.ll"
+yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_FROM;       /* <- */
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 227 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID_BIDIR;    return TOK_REL_SOLID_BIDIR;      /* <-> */
+#line 251 "language2.ll"
+yylval_param->arctype = MSC_ARC_SOLID_BIDIR;    return TOK_REL_SOLID_BIDIR;      /* <-> */
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 228 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_TO;      /* => */
+#line 252 "language2.ll"
+yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_TO;      /* => */
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 229 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_FROM;    /* <= */
+#line 253 "language2.ll"
+yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_FROM;    /* <= */
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 230 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE_BIDIR;   return TOK_REL_DOUBLE_BIDIR;   /* <=> */
+#line 254 "language2.ll"
+yylval_param->arctype = MSC_ARC_DOUBLE_BIDIR;   return TOK_REL_DOUBLE_BIDIR;   /* <=> */
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 231 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_TO;      /* >> */
+#line 255 "language2.ll"
+yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_TO;      /* >> */
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 232 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_FROM;    /* << */
+#line 256 "language2.ll"
+yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_FROM;    /* << */
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 233 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED_BIDIR;   return TOK_REL_DASHED_BIDIR;   /* <<>> */
+#line 257 "language2.ll"
+yylval_param->arctype = MSC_ARC_DASHED_BIDIR;   return TOK_REL_DASHED_BIDIR;   /* <<>> */
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 234 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_TO;    /* > */
+#line 258 "language2.ll"
+yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_TO;    /* > */
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 235 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_FROM;  /* < */
+#line 259 "language2.ll"
+yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_FROM;  /* < */
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 236 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED_BIDIR;   return TOK_REL_DOTTED_BIDIR;  /* <> */
+#line 260 "language2.ll"
+yylval_param->arctype = MSC_ARC_DOTTED_BIDIR;   return TOK_REL_DOTTED_BIDIR;  /* <> */
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 237 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_EMPH_SOLID;   return TOK_EMPH;
+#line 261 "language2.ll"
+yylval_param->arctype = MSC_EMPH_SOLID;   return TOK_EMPH;
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 238 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
+#line 262 "language2.ll"
+yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 239 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
+#line 263 "language2.ll"
+yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 240 "language2.ll"
-if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
+#line 264 "language2.ll"
+yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 241 "language2.ll"
+#line 265 "language2.ll"
 return TOK_DASH;
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 242 "language2.ll"
+#line 266 "language2.ll"
 return TOK_EQUAL;
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 243 "language2.ll"
+#line 267 "language2.ll"
 return TOK_COMMA;
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 244 "language2.ll"
+#line 268 "language2.ll"
 return TOK_SEMICOLON;
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 245 "language2.ll"
+#line 269 "language2.ll"
 return TOK_OCBRACKET;
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 246 "language2.ll"
+#line 270 "language2.ll"
 return TOK_CCBRACKET;
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 247 "language2.ll"
+#line 271 "language2.ll"
 return TOK_OSBRACKET;
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 248 "language2.ll"
+#line 272 "language2.ll"
 return TOK_CSBRACKET;
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 250 "language2.ll"
+#line 274 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 251 "language2.ll"
+#line 275 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 252 "language2.ll"
+#line 276 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 253 "language2.ll"
+#line 277 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 254 "language2.ll"
+#line 278 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 255 "language2.ll"
+#line 279 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 256 "language2.ll"
+#line 280 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 257 "language2.ll"
+#line 281 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 258 "language2.ll"
+#line 282 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 259 "language2.ll"
+#line 283 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 260 "language2.ll"
+#line 284 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 261 "language2.ll"
+#line 285 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 262 "language2.ll"
+#line 286 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 263 "language2.ll"
+#line 287 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 264 "language2.ll"
+#line 288 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 265 "language2.ll"
+#line 289 "language2.ll"
 yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 267 "language2.ll"
+#line 291 "language2.ll"
 /* ignore whitespace */;
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 268 "language2.ll"
+#line 292 "language2.ll"
 ECHO;
 	YY_BREAK
-#line 1453 "<stdout>"
+#line 1477 "<stdout>"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMENT):
 	yyterminate();
@@ -2591,7 +2615,7 @@ void yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 268 "language2.ll"
+#line 292 "language2.ll"
 
 
 

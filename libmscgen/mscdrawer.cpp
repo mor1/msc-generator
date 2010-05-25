@@ -81,26 +81,20 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     scale = 1.0;
     fallback_resolution = 300; //irrelevant for bitmaps - no fallback for bitmaps
 
-    if (ot == PNG) {
-        white_background = true;
-    }
-    if (ot == EMF) {
-        fake_gradients = 30;
-        fake_shadows = true;
-        scale = 1;              //do 10 for better precision clipping
-        fallback_resolution = 100; //300 is too much for on-screen work
-    }
-    if (ot == WMF) {
-        individual_chars = true; //do this so that it is easier to convert to WMF
-        use_text_path_rotated = true;
-        fake_dash = true;
-        fake_gradients = 30;
-        fake_shadows = true;
-        scale = 10;              //do 10 for better precision clipping
-        fallback_resolution = 100; //300 is too much for on-screen work
-    }
-    if (ot == WIN) {
-        individual_chars = true; //do this to look the very same as for EMF output
+	switch (ot) {
+		case PNG:
+			white_background = true;
+			break;
+		case WMF: 
+			individual_chars = true; //do this so that it is easier to convert to WMF
+			use_text_path_rotated = true;
+			fake_dash = true;
+			//Fallthrough
+		case EMF: 
+			fake_gradients = 30;
+			fake_shadows = true;
+			scale = 10;              //do 10 for better precision clipping
+			fallback_resolution = 100; //300 is too much for on-screen work
     }
 }
 
@@ -719,11 +713,11 @@ void MscDrawer::_arc_path(XY c, XY wh, double s, double e, double wider, MscLine
         cairo_arc (cr, 0., 0., 1., ss, ee);
         cairo_restore (cr);
     } else if (type == LINE_DOUBLE) {
-		XY w(2*wider, 2*wider);
         cairo_new_sub_path(cr);
-		_arc_path(c, wh+w, s, e, 0, LINE_SOLID, reverse);
+		_arc_path(c, wh+XY(0, 2*wider), s, e, 0, LINE_SOLID, reverse);
         cairo_new_sub_path(cr);
 		//ensure that radius adjusted by wider is always nonzero
+		XY w(2*wider, 2*wider);
 		if (wh.x<wider) w.x = wh.x;
 		if (wh.y<wider) w.y = wh.y;
 		_arc_path(c, wh-w, s, e, 0, LINE_SOLID, reverse);

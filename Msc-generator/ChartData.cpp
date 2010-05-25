@@ -179,7 +179,7 @@ CSize CChartData::GetSize(unsigned page) const
 	CompileIfNeeded();
 	XY offset, size;
 	m_msc->GetPagePosition(int(page)-1, offset, size);
-    return CSize(m_msc->totalWidth*m_msc->scale, size.y*m_msc->scale + m_msc->copyrightTextHeight*m_msc->scale);
+    return CSize(m_msc->totalWidth, size.y + m_msc->copyrightTextHeight);
 }
 
 void CChartData::Draw(HDC hdc, bool doEMF, unsigned page, bool pageBreaks)

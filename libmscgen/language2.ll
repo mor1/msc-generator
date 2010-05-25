@@ -116,6 +116,7 @@ char *msc_remove_head_tail_whitespace(char *s)
 
 /* remove heading and trailing whitespace from a string
 ** remove any internal CR or CRLF (and surrounding whitespaces) & replace to \n
+** Remove comments between # and lineend, except if # is preceeded by even number of \s
 ** (copies to new memory) */
 char* msc_process_colon_string(const char *s, YYLTYPE *loc)
 {
@@ -133,17 +134,40 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
         int start_line = old_pos;
         while (s[start_line]==' ' || s[start_line]=='\t') start_line++;
         //find the last non-whitespace in the line
-        int a = end_line-1;
+        int a = end_line-1; //a can be smaller than start_line here if line is empty
         while (a>=start_line && (s[a]==' ' || s[a]=='\t')) a--;
         //now append the line (without the whitespaces)
-        memcpy(ret+new_pos, s+start_line, a-start_line+1);
-        new_pos += a-start_line+1;
+        //but remove anything after a potential #
+        bool wasComment = false;
+        bool emptyLine = true;
+        while (start_line<=a) {
+            //count number of consecutive \s
+            unsigned num_of_backsp = 0;
+            while(start_line<=a && s[start_line] != '#') {
+                if (s[start_line] == '\\') num_of_backsp++;
+                else num_of_backsp = 0;
+                ret[new_pos++] = s[start_line++];
+                emptyLine = false;
+            }
+            //if we hit a # leave rest of line only if not preceeded by even number of \s
+            if (s[start_line] == '#') {
+                if (num_of_backsp%2) {
+                    ret[new_pos++] = s[start_line++]; //step over escaped #
+                    emptyLine = false;
+                } else {
+                    wasComment = true;
+                    break;
+                }
+            }
+        }
+        //We may have copied spaces before the comment, we skip those
+        while (new_pos>0 && (ret[new_pos-1]==' ' || ret[new_pos-1]=='\t')) new_pos--;
         //if ending was a null we are done with processing all lines
         if (!ending) break;
         //append "\n" escape for msc-generator, but only if not an empty first line
         if (new_pos) {
-            //add a space for empty lines
-            if (a-start_line+1 == 0)
+            //add a space for empty lines, if line did not contain a comment
+            if (emptyLine && !wasComment )
                 ret[new_pos++] = ' ';
             ret[new_pos++] = '\\';
             ret[new_pos++] = 'n';
@@ -214,30 +238,30 @@ at        yylval_param->str = strdup(yytext); return TOK_AT;
 no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 
-\:[ \t]*\"[^\"]*\"                      yylval_param->str = REMOVE_QUOTES(yytext); return TOK_COLON_STRING;
+\:[ \t]*\"[^\"]*\"                      yylval_param->str = REMOVE_QUOTES(yytext+1); return TOK_COLON_QUOTED_STRING;
 \:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = PROCESS_COLON_STRING(yytext, yylloc); return TOK_COLON_STRING;
 [+\-]?[0-9]+\.?[0-9]*                   yylval_param->str = strdup(yytext); return TOK_NUMBER;
 [A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* yylval_param->str = strdup(yytext); return TOK_STRING;
 \"[^\"\n]*\"                            yylval_param->str = strdup(yytext + !C_S_H); if (!C_S_H) yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;
 
-\.\.\.        if (!C_S_H) yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
----           if (!C_S_H) yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */
--\>           if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_TO;         /* -> */
-\<-           if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_FROM;       /* <- */
-\<-\>         if (!C_S_H) yylval_param->arctype = MSC_ARC_SOLID_BIDIR;    return TOK_REL_SOLID_BIDIR;      /* <-> */
-=\>           if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_TO;      /* => */
-\<=           if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_FROM;    /* <= */
-\<=\>         if (!C_S_H) yylval_param->arctype = MSC_ARC_DOUBLE_BIDIR;   return TOK_REL_DOUBLE_BIDIR;   /* <=> */
-\>\>          if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_TO;      /* >> */
-\<\<          if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_FROM;    /* << */
-\<\<\>\>      if (!C_S_H) yylval_param->arctype = MSC_ARC_DASHED_BIDIR;   return TOK_REL_DASHED_BIDIR;   /* <<>> */
-\>            if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_TO;    /* > */
-\<            if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_FROM;  /* < */
-\<\>          if (!C_S_H) yylval_param->arctype = MSC_ARC_DOTTED_BIDIR;   return TOK_REL_DOTTED_BIDIR;  /* <> */
---            if (!C_S_H) yylval_param->arctype = MSC_EMPH_SOLID;   return TOK_EMPH;
-\+\+          if (!C_S_H) yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
-\.\.          if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
-==            if (!C_S_H) yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
+\.\.\.        yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
+---           yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */
+-\>           yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_TO;         /* -> */
+\<-           yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_FROM;       /* <- */
+\<-\>         yylval_param->arctype = MSC_ARC_SOLID_BIDIR;    return TOK_REL_SOLID_BIDIR;      /* <-> */
+=\>           yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_TO;      /* => */
+\<=           yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_FROM;    /* <= */
+\<=\>         yylval_param->arctype = MSC_ARC_DOUBLE_BIDIR;   return TOK_REL_DOUBLE_BIDIR;   /* <=> */
+\>\>          yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_TO;      /* >> */
+\<\<          yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_FROM;    /* << */
+\<\<\>\>      yylval_param->arctype = MSC_ARC_DASHED_BIDIR;   return TOK_REL_DASHED_BIDIR;   /* <<>> */
+\>            yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_TO;    /* > */
+\<            yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_FROM;  /* < */
+\<\>          yylval_param->arctype = MSC_ARC_DOTTED_BIDIR;   return TOK_REL_DOTTED_BIDIR;  /* <> */
+--            yylval_param->arctype = MSC_EMPH_SOLID;   return TOK_EMPH;
+\+\+          yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
+\.\.          yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
+==            yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
 -             return TOK_DASH;
 =             return TOK_EQUAL;
 ,             return TOK_COMMA;

@@ -185,6 +185,9 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 
 	//Set the text of the chart in the editor
 	m_ctrlEditor.m_ctrlEditor.UpdateText(pDoc->m_itrEditing->GetText(), pDoc->m_itrEditing->m_sel, true);
+
+	//Show error window only if there are errors, actually. At this point we have pDoc all set up.
+	m_wndOutputView.ShowPane(pDoc->m_ChartShown.GetErrorNum(pApp->m_Warnings), TRUE, FALSE); 
 	return TRUE;
 }
 
