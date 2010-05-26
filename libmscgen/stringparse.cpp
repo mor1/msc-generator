@@ -95,7 +95,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Msc &msc)
         if (text[pos] == 0) return;
         int len = 0;
         MscColorSyntaxType color = COLOR_LABEL_ESCAPE;
-        if (strchr("-+^_biuBIU0123456789n\\", text[pos+1])) {
+		if (strchr("-+^_biuBIU0123456789n\\#", text[pos+1])) {
             len = 2;
         } else switch (text[pos+1]) {
         case 'p':
@@ -143,7 +143,7 @@ void StringFormat::ExpandColorAndStyle(string &escape,
             continue;
         }
         const char e = escape[pos+1];
-        if (string("-+^_biuBIU0123456789n\\p").find(e) != string::npos) {
+		if (string("-+^_biuBIU0123456789n\\#p").find(e) != string::npos) {
             pos+=2;
             continue;
         }
@@ -244,6 +244,7 @@ bool StringFormat::Apply(string &escape)
      ** "\c(color) - set color, E.g., \c(0,0,0) is black
      ** "\pX"- set paragraph ident to _c_enter, _l_eft, _r_ight
      ** "\\" - an escaped "\"
+	 ** "\#| - an escaped "#"
      ** "\0".."\9" - keep this much of line space after the line
      */
 
@@ -366,6 +367,7 @@ bool StringFormat::Apply(string &escape)
 
         case 'n':
         case '\\':          // escaped "\"
+		case '#':           // escaped "#"
         default:            // not an escaped char
             return ret;
         }

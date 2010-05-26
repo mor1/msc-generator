@@ -133,7 +133,7 @@ public:
 
 public:
 	void InsertNewChart(const CChartData &);             //insert a new chart into the list (destroys redo, updates iterators)
-	void SyncShownWithEditing(const CString &, bool);    //Ask the user what to do if editing iterator != shown iterator
+	void SyncShownWithEditing(const CString &action);    //Ask the user what to do if editing iterator != shown iterator
     void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes

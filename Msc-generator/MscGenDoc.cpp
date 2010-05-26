@@ -339,7 +339,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 {
 	if (lpszPathName==NULL) {
-		SyncShownWithEditing("update the container document", !m_bAttemptingToClose);
+		SyncShownWithEditing("update the container document");
 		return COleServerDocEx::OnSaveDocument(lpszPathName);
 	}
 
@@ -349,7 +349,7 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	bool restartEditor = lpszPathName!=GetPathName() && m_ExternalEditor.IsRunning();
 	if (restartEditor) 
 		m_ExternalEditor.Stop(STOPEDITOR_WAIT);
-	SyncShownWithEditing("save", !m_bAttemptingToClose);
+	SyncShownWithEditing("save");
 	if (!m_itrEditing->Save(lpszPathName)) {
 		CFileException e;
 		ReportSaveLoadException(lpszPathName, &e,
@@ -376,7 +376,7 @@ void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 
 void CMscGenDoc::OnFileExport()
 {
-	SyncShownWithEditing("export", true);
+	SyncShownWithEditing("export");
 	CFileDialog m_a(false);
 	m_a.m_pOFN->lpstrTitle = "Export to file";
 	m_a.m_pOFN->lpstrFilter =	
@@ -676,7 +676,7 @@ void CMscGenDoc::OnDesignDesign()
 	if (index > 0)
 		new_forcedDesign = combo->GetItem(index);
 	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
-	SyncShownWithEditing("change the design", true);
+	SyncShownWithEditing("change the design");
 	m_itrEditing->SetDesign(new_forcedDesign);
 	ShowNewChart(m_itrEditing, false);  //Do not change zoom, juts update views
 	if (IsEmbedded())
@@ -959,36 +959,17 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 		m_itrShown = m_charts.end();
 }
 
-void CMscGenDoc::SyncShownWithEditing(const CString &action, bool redoPossible) 
+void CMscGenDoc::SyncShownWithEditing(const CString &action) 
 {
 	if (m_itrEditing == m_itrShown) return;
 	CString message = "I want to " + action + ", but you have made changes in the text editor.\n";
-	if (redoPossible) 
-		message.Append("Do you want to include the changes and redraw the chart before I " + action + "?\n" 
-					   "(Even if you click No your changes will be accessible afterwards using " +
-					   (m_itrShown == m_charts.begin()?"Undo.)":"Redo.)"));
-	else 
+	if (m_bAttemptingToClose) 
 		message.Append("Do you want to include the changes (or permanently loose them)?"); 
+	else 
+		message.Append("Do you want to include the changes and redraw the chart before I " + action + "?\n");
 
-	if (IDYES == MessageBox(NULL, message, "Msc-generator", MB_ICONQUESTION | MB_YESNO)) {
-		//Draw new text and update views
+	if (IDYES == MessageBox(NULL, message, "Msc-generator", MB_ICONQUESTION | MB_YESNO)) 
 		ShowNewChart(m_itrEditing, true);
-	} else {
-		if (m_itrShown == m_charts.end()) {
-			//User has already undoed the shown chart away
-			InsertNewChart(m_ChartShown);
-			ShowNewChart(m_itrEditing, false);
-		} else {
-			//Keep items between itrshowm and itrediting in the redo buffer
-			m_itrEditing = m_itrShown;
-		}
-		//Copy the old text to internal editor
-		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-		ASSERT(pApp != NULL);
-		if (pApp->IsInternalEditorRunning()) 
-			pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
-	}
-	//Now m_itrEditing == m_itrShown
 }
 
 void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 

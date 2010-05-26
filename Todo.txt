@@ -1,4 +1,22 @@
+investigate why big white stuff is there....
+smart ident for colon labels...
+change emphasis style to box
+Add parallel to the language (do not set mainline.till for these)
+Make IChartData inherit drawing operations
+
+FIXED: bug in MiniEditor (Getline needs at least a sizeof(int) buffer...)
+FIXED: Add \# escape to string escapes
+FIXED: Maybe consider changing scale back to 1 for EMF
+FIXED: color = none should omit drawing operation
+FIXED: why a line.color=254 transparent does not work in a box
+FIXED: Sync should not actually change m_charts...
+FIXED: Print preview tul nagy
+FIXED: Errorok nem latszanak.
+
+
+
 update doc
+Call everything a box
 
 design lib
 drag and drop files - drag in editor...

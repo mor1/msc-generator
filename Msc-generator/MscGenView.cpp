@@ -144,7 +144,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	//If user has made modifications reflect them
 	if (pDoc->m_ExternalEditor.IsRunning())
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
-	pDoc->SyncShownWithEditing("print", true);
+	pDoc->SyncShownWithEditing("print");
 	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
 	// default preparation
 	return DoPreparePrinting(pInfo);

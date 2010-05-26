@@ -79,7 +79,7 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     fake_dash = false;
     fake_shadows = false;
     scale = 1.0;
-    fallback_resolution = 300; //irrelevant for bitmaps - no fallback for bitmaps
+    fallback_resolution = 200; //irrelevant for bitmaps - no fallback for bitmaps
 
 	switch (ot) {
 		case PNG:
@@ -89,12 +89,11 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
 			individual_chars = true; //do this so that it is easier to convert to WMF
 			use_text_path_rotated = true;
 			fake_dash = true;
+			scale = 10;              //do 10 for better precision clipping
 			//Fallthrough
 		case EMF: 
 			fake_gradients = 30;
 			fake_shadows = true;
-			scale = 10;              //do 10 for better precision clipping
-			fallback_resolution = 100; //300 is too much for on-screen work
     }
 }
 
@@ -215,7 +214,7 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
         CloseOutput();
         return false;
     }
-    cairo_surface_set_fallback_resolution (surface, fallback_resolution, fallback_resolution); //default is 300 DPI
+    cairo_surface_set_fallback_resolution(surface, fallback_resolution/scale, fallback_resolution/scale); 
 
     cr = cairo_create (surface);
     st = cairo_status(cr);
@@ -274,11 +273,12 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, int page)
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
     }
-
-    cr = cairo_create (surface);
-
     cairo_status_t st = cairo_surface_status(surface);
     if (st) goto problem;
+
+    cairo_surface_set_fallback_resolution(surface, fallback_resolution/scale, fallback_resolution/scale); 
+
+	cr = cairo_create (surface);
     st = cairo_status(cr);
     if (st) goto problem;
 
@@ -499,7 +499,8 @@ void MscDrawer::Rotate90(double s, double d, bool clockwise)
 
 void MscDrawer::SetColor(MscColorType pen)
 {
-    cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
+	if (pen.valid)
+		cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
 }
 
 #define MSC_DASH_DOTTED 2
@@ -519,11 +520,10 @@ void MscDrawer::SetLineAttr(MscLineAttr line)
         case LINE_SOLID:
             cairo_set_dash(cr, NULL,0,0); break;
         };
-    if (line.color.first)
+	if (line.color.first && line.color.second.valid)
         SetColor(line.color.second);
     if (line.width.first)
         cairo_set_line_width(cr, line.width.second);
-
 }
 
 void _add_color_stop(cairo_pattern_t *pattern, double offset, MscColorType color)
@@ -647,7 +647,7 @@ void MscDrawer::_line_path(double sx, double sy, double dx, double dy, double wi
 void MscDrawer::line(XY s, XY d, MscLineAttr line)
 {
     line = (MscLineAttr() += line);
-    if (line.type.second == LINE_NONE || !line.color.second.valid) return;
+    if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     SetLineAttr(line);
     _line_path(s, d, line.width.second, line.type.second);
     cairo_stroke(cr);
@@ -739,7 +739,7 @@ void MscDrawer::arc(XY c, XY wh, double s, double e,
                     MscLineAttr line)
 {
     line = (MscLineAttr() += line);
-    if (line.type.second == LINE_NONE || !line.color.second.valid) return;
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     SetLineAttr(line);
     _arc_path(c, wh, s, e, line.width.second, line.type.second);
     cairo_stroke(cr);
@@ -799,7 +799,7 @@ void MscDrawer::rectangle_path(XY s, XY d,
 void MscDrawer::rectangle(XY s, XY d, MscLineAttr line)
 {
     line = (MscLineAttr() += line);
-    if (line.type.second == LINE_NONE || !line.color.second.valid) return;
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     SetLineAttr(line);
     _rectangle_line_path(s, d, CAIRO_OFF, line.width.second,
 		                 line.radius.second, line.type.second);
@@ -879,6 +879,7 @@ void MscDrawer::shadow(XY s, XY d, MscShadowAttr shadow, int radius, bool clip)
 {
     shadow = (MscShadowAttr() += shadow);
     if (shadow.offset.second==0) return;
+	if (!shadow.color.second.valid || shadow.color.second.a==0) return;
     MscColorType inner = shadow.color.second;
     d.x++; d.y++;
 

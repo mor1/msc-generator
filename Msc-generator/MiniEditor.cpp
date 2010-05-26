@@ -45,7 +45,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 			if (shift) { //Shift+TAB
 				CString strLine;
 				int nLineLength = LineLength(line);
-				GetLine(line, strLine.GetBufferSetLength(nLineLength + 1), nLineLength);
+				int nBuffLen = std::max<int>(sizeof(int), nLineLength);
+				GetLine(line, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
 				int del = 0;
 				while (del < TABSTOP && col > del && (strLine[col-del-1] == ' ' || strLine[col-del-1] == '\t')) del++;
 				if (del>0) {
@@ -136,7 +137,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		if (nCol==0) return FALSE;
 		CString strLine;
 		int nLineLength = LineLength(nLine);
-		GetLine(nLine, strLine.GetBufferSetLength(nLineLength + 1), nLineLength);
+		int nBuffLen = std::max<int>(sizeof(int), nLineLength);
+		GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
 		int i=0;
 		while (i<nLineLength && (strLine[i]==' ' || strLine[i]=='\t')) i++;
 		//If there are non-whitespace chars before current position in line, do regular stuff
