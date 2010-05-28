@@ -180,7 +180,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	ASSERT_KINDOF(CMscGenDoc, pDoc);
 
 	pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
-	pApp->FillDesignPageCombo(pDoc->m_itrEditing->GetPages(), pDoc->m_page);
+	pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
 	pDoc->SetZoom(); //Adjust combo
 
 	//Set the text of the chart in the editor

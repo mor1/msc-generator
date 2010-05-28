@@ -309,6 +309,10 @@
 				RelativePath=".\stringparse.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\style.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -365,6 +369,14 @@
 			</File>
 			<File
 				RelativePath=".\stringparse.h"
+				>
+			</File>
+			<File
+				RelativePath=".\style.h"
+				>
+			</File>
+			<File
+				RelativePath=".\trackable.h"
 				>
 			</File>
 			<File

@@ -901,7 +901,7 @@ XY Label::getTextWidthHeight(int line) const
 };
 
 void Label::DrawCovers(double sx, double dx, double y,
-                       std::set<Block> &cover, bool draw, bool isRotated)
+                       Geometry &cover, bool draw, bool isRotated)
 {
     if (size()==0) return;
     XY xy;
@@ -922,7 +922,7 @@ void Label::DrawCovers(double sx, double dx, double y,
         if (draw)
             at(i).Draw(xy, msc, isRotated);
         else
-            cover.insert(Block(xy, xy+wh));
+            cover += Block(xy, xy+wh);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;
     }

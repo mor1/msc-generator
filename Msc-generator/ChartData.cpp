@@ -60,7 +60,6 @@ void CChartData::SetDesign (const char *design)
 {
 	if (!design) return;
 	if (m_ForcedDesign == design) return;
-	FreeMsc();
 	m_ForcedDesign = design;
 }
 
@@ -121,7 +120,15 @@ BOOL CChartData::Load(const CString &fileName, BOOL reportError)
 	return TRUE;
 }
 
-void CChartData::CompileIfNeeded() const 
+void CDrawingChartData::SetDesign (const char *design)
+{
+	if (!design) return;
+	if (GetDesign() == design) return;
+	FreeMsc();
+	m_ForcedDesign = design;
+}
+
+void CDrawingChartData::CompileIfNeeded() const 
 {
 	//To force a recompilation, call ReCompile()
 	if (m_msc) return;
@@ -141,60 +148,77 @@ void CChartData::CompileIfNeeded() const
 		m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	//Do postparse, compile, calculate sizes and sort errors by line    
 	m_msc->CompleteParse(MscDrawer::WMF, true);
+
+	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+	Draw(hdc, true, pApp->m_bPB_Editing);
+	m_hemf = CloseEnhMetaFile(hdc);
 }
 
-unsigned CChartData::GetErrorNum(bool oWarnings) const {
+unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {
 	return GetMsc()->Error.GetErrorNum(oWarnings);
 }
 
-unsigned CChartData::GetErrorLine(unsigned num, bool oWarnings) const 
+unsigned CDrawingChartData::GetErrorLine(unsigned num, bool oWarnings) const 
 {
 	return GetMsc()->Error.GetErrorLoc(num, oWarnings).line;
 }
 
-unsigned CChartData::GetErrorCol(unsigned num, bool oWarnings) const 
+unsigned CDrawingChartData::GetErrorCol(unsigned num, bool oWarnings) const 
 {
 	return GetMsc()->Error.GetErrorLoc(num, oWarnings).col;
 }
 
-CString CChartData::GetErrorText(unsigned num, bool oWarnings) const 
+CString CDrawingChartData::GetErrorText(unsigned num, bool oWarnings) const 
 {
 	return CString(GetMsc()->Error.GetErrorText(num, oWarnings));
 }
 
-CString CChartData::GetDesigns() const 
+CString CDrawingChartData::GetDesigns() const 
 {
 	return CString(GetMsc()->GetDesigns().c_str());
 }
 
 
-unsigned CChartData::GetPages() const
+unsigned CDrawingChartData::GetPages() const
 {
-	CompileIfNeeded();
-    return m_msc->yPageStart.size();
+    return GetMsc()->yPageStart.size();
 }
 
-CSize CChartData::GetSize(unsigned page) const
+CSize CDrawingChartData::GetSize() const
 {
-	CompileIfNeeded();
 	XY offset, size;
-	m_msc->GetPagePosition(int(page)-1, offset, size);
-    return CSize(m_msc->totalWidth, size.y + m_msc->copyrightTextHeight);
+	GetMsc()->GetPagePosition(int(m_page)-1, offset, size);
+    return CSize(GetMsc()->totalWidth, size.y + GetMsc()->copyrightTextHeight);
 }
 
-void CChartData::Draw(HDC hdc, bool doEMF, unsigned page, bool pageBreaks)
+double CDrawingChartData::GetPageYShift() const
+{
+	XY offset, size;
+	GetMsc()->GetPagePosition(int(m_page)-1, offset, size);
+    return offset.y;
+}
+
+
+double CDrawingChartData::GetBottomWithoutCopyright() const
+{
+	XY offset, size;
+	GetMsc()->GetPagePosition(int(m_page)-1, offset, size);
+    return size.y;
+}
+
+void CDrawingChartData::Draw(HDC hdc, bool doEMF, bool pageBreaks) const
 {
 	CompileIfNeeded();
 	MscDrawer::OutputType ot = doEMF ? MscDrawer::EMF : MscDrawer::WMF;
-    if (!m_msc->SetOutputWin32(ot, hdc, int(page)-1)) return;
+    if (!m_msc->SetOutputWin32(ot, hdc, int(m_page)-1)) return;
 	//draw page breaks only if requested and not drawing a single page only
-    m_msc->Draw(pageBreaks && page==0);
+    m_msc->Draw(pageBreaks && m_page==0);
 	m_msc->UnClip(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-	m_msc->DrawCopyrightText(int(page)-1);
+	m_msc->DrawCopyrightText(int(m_page)-1);
     m_msc->CloseOutput();
 }
 
-void CChartData::Draw(const char* fileName)
+void CDrawingChartData::Draw(const char* fileName) const
 {
 	CompileIfNeeded();
 	string fn(fileName?fileName:"Untitled");
@@ -219,17 +243,17 @@ void CChartData::Draw(const char* fileName)
     m_msc->DrawToOutput(ot, fn);
 }
 
-void *CChartData::GetArcByCoordinate(CPoint point, int page_shown) const
+TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
 	CompileIfNeeded();
-	if (page_shown>0)
-		point.y += m_msc->yPageStart[page_shown];
+	if (m_page>0)
+		point.y += m_msc->yPageStart[m_page];
 	const Block *block = InWhich(m_msc->AllCovers, XY(point.x, point.y));
 	if (block==NULL) return NULL;
 	return block->arc;
 }
 
-void *CChartData::GetArcByLine(unsigned line, unsigned col) const
+TrackableElement *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
 {
 	CompileIfNeeded();
 	file_line linenum(m_msc->Error.Files.size()-1, line, col);
@@ -242,19 +266,7 @@ void *CChartData::GetArcByLine(unsigned line, unsigned col) const
 	return  itr->second;
 }
 
-
-bool CChartData::GetLineByArc(void*arc, unsigned &start_line, unsigned &start_col, unsigned &end_line, unsigned &end_col) const
-{
-	if (arc==NULL) return false;
-	CompileIfNeeded();
-	start_line = static_cast<ArcBase*>(arc)->line_start.line;
-	start_col = static_cast<ArcBase*>(arc)->line_start.col;
-	end_line = static_cast<ArcBase*>(arc)->line_end.line;
-	end_col = static_cast<ArcBase*>(arc)->line_end.col;
-	return true;
-}
-
-unsigned CChartData::GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const
+/*unsigned CDrawingChartData::GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const
 {
 	if (arc==NULL) return 0;
 	CompileIfNeeded();
@@ -278,4 +290,4 @@ unsigned CChartData::GetCoversByArc(void *arc, int page_shown, TrackRect *result
 	bottom_clip = size.y;
 	return count;
 }
-
+*/

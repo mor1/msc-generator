@@ -243,10 +243,10 @@ std::pair<double, double> ArrowHead::getWidthForLine(bool bidir, MscArrowEnd whi
 }
 
 
-void ArrowHead::triangle(cairo_t *cr,
+void triangle(cairo_t *cr,
                          double x1, double y1,
                          double x2, double y2,
-                         double x3, double y3) const
+                         double x3, double y3) 
 {
     cairo_move_to(cr, x1+CAIRO_OFF, y1+CAIRO_OFF);
     cairo_line_to(cr, x2+CAIRO_OFF, y2+CAIRO_OFF);
@@ -254,7 +254,7 @@ void ArrowHead::triangle(cairo_t *cr,
     cairo_close_path(cr);
 }
 
-void ArrowHead::diamond(cairo_t *cr, XY xy, XY wh) const
+void diamond(cairo_t *cr, XY xy, XY wh) 
 {
     cairo_move_to(cr, xy.x-wh.x+CAIRO_OFF, xy.y+CAIRO_OFF);
     cairo_line_to(cr, xy.x+CAIRO_OFF, xy.y+wh.y+CAIRO_OFF);
@@ -756,12 +756,21 @@ void ArrowHead::FillBig(const std::vector<double> &xPos, double sy, double dy,
     msc->UnClip();
 }
 
+//Also extends mainline
 void ArrowHead::CoverBig(const std::vector<double> &xPos, double sy, double dy,
-                         bool bidir, MscDrawer * msc, std::set<Block> &cover) const
+                         bool bidir, MscDrawer * msc, Geometry &cover) const
 {
     const bool forward = xPos[0] < xPos[1];
-    cover.insert(big_cover_block(xPos[0],             sy, dy, bidir, MSC_ARROW_START, forward, msc));
-    cover.insert(big_cover_block(xPos[xPos.size()-1], sy, dy, bidir, MSC_ARROW_END,   forward, msc));
+    cover += big_cover_block(xPos[0],             sy, dy, bidir, MSC_ARROW_START, forward, msc);
+    cover += big_cover_block(xPos[xPos.size()-1], sy, dy, bidir, MSC_ARROW_END,   forward, msc);
     for (int i=1; i<xPos.size()-1; i++)
-        cover.insert(big_cover_block(xPos[i], sy, dy, bidir, MSC_ARROW_MIDDLE, forward, msc));
+        cover += big_cover_block(xPos[i], sy, dy, bidir, MSC_ARROW_MIDDLE, forward, msc);
+	cover.mainline.Extend(Range(sy, dy));
+}
+
+void ArrowHead::ClipBig(std::vector<double> xPos, double sy, double dy,
+                 bool bidir, MscDrawer *m) const
+{
+	big_path(xPos, sy, dy, m, LINE_SOLID, bidir, 0); 
+	m->Clip();
 }

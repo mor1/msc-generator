@@ -215,10 +215,6 @@ static const CLSID clsid =
 
 BOOL CMscGenApp::InitInstance()
 {
-#ifdef _DEBUG
-	MessageBox(0, "In Msc-generator::Appinit", "aa", 0);
-#endif
-
 	srand((unsigned)time(NULL)); 
 	// InitCommonControlsEx() is required on Windows XP if an application
 	// manifest specifies use of ComCtl32.dll version 6 or later to enable
@@ -296,6 +292,9 @@ BOOL CMscGenApp::InitInstance()
 	// Run app as automation server.
 	if (cmdInfo.m_bRunEmbedded || cmdInfo.m_bRunAutomated)
 	{
+	#ifdef _DEBUG
+		MessageBox(0, "In Msc-generator::Appinit", "aa", 0);
+	#endif
 		// Register all OLE server factories as running.  This enables the
 		//  OLE libraries to create objects from other applications
 		COleTemplateServer::RegisterAll();
@@ -509,15 +508,8 @@ void CMscGenApp::OnEditPreferences()
 		if (bRestartEditor) 
 			pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 
-		if (recompile) {
-			CWaitCursor wait;
-			for (IChartData i = pDoc->m_charts.begin(); i!=pDoc->m_charts.end(); i++)
-				if (i->IsCompiled()) {
-					i->FreeMsc();
-					i->CompileIfNeeded();
-				}
-			pDoc->ShowNewChart(pDoc->m_itrEditing, false);     //Do not change zoom, merely recompile & re-issue errors
-		} 
+		if (recompile) 
+			pDoc->ShowNewChart(pDoc->m_itrEditing, false);     //Do not change zoom, merely recompile & re-issue 
 		if (updateCSH && IsInternalEditorRunning())
 			m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 	}
@@ -708,7 +700,7 @@ bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 	while (bFound) {
 		bFound = finder.FindNextFile();
 		bool designlib_pedantic = true;
-		CChartData data;
+		CDrawingChartData data;
 		if (data.Load(finder.GetFilePath(), false)) {
 			unsigned num = data.GetErrorNum(true);
 			if (num) {

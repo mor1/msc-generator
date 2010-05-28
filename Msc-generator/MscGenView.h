@@ -36,11 +36,18 @@ protected: // create from serialization only
 public:
 	bool m_DeleteBkg;
 	// Drawn chart
-	HENHMETAFILE m_hemf;
 	CSize        m_size;
+	//Cached bitmap containing the picture at indicated zoom and clip
+	CBitmap  m_cachedBitmap;
+	CRect    m_cachedBitmapClip;
+	unsigned m_cachedBitmapZoom;
 	//stretch for in-place editing
 	double m_stretch_x;
 	double m_stretch_y;
+	//Fading Timer
+	UINT_PTR m_FadingTimer;
+	int m_xLogPixPerInch; //screen properties 
+	int m_yLogPixPerInch;
 
 // Operations
 public:
@@ -51,7 +58,8 @@ public:
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
-		    void DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale);
+			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in MscGen page space)
+			void DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
@@ -90,6 +98,9 @@ public:
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+
+	void StartFadingTimer();
+	afx_msg void OnTimer(UINT_PTR);
 };
 
 #ifndef _DEBUG  // debug version in MscGenView.cpp

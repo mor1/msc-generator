@@ -11,11 +11,9 @@
 #include <set>
 #include <vector>
 #include <stack>
-#include "error.h"
+#include "trackable.h"
 #include "color.h"
-#include "attribute.h"
-#include "arrowhead.h"
-#include "stringparse.h"
+#include "style.h"
 #include "csh.h"
 
 using std::string;
@@ -70,91 +68,21 @@ typedef enum
 
 /////////////////////////////////////////////////////////////
 
-//Structs for compress mechanism
 /* Compress mechanism changes Height behaviour of Arcs.
- * yPos input parameter remains unchanged meaning: the total bottom of the item
+ * y input parameter to DrawHeight remains unchanged meaning: the total bottom of the item
  * above. However, the object can be placed higher if
  *  -its upper mainline is still below the lower mainline of the object above
  *  -it does not overlap in any way with the object above.
- * The object is never placed lower than yPos input parameter.
+ * The object is never placed lower than y input parameter.
  * (In case of overlap a warning may be thrown.)
  * Return value will not be full object height, but rather the difference between
- * the placed objects bottomline and the original yPos. So next yPos can be
+ * the placed objects bottomline and the original y. So next y can be
  * still calculated by adding the return value to a running y counter.
  *
- * As side effect Height() for ArcBase descendants
- *  - adds its covering blocks to Plain_Msc::cover
- *  - advances bottom_mainline to its own mainline.
+ * As side effect DrawHeight(draw==false) for ArcBase descendants
+ *  - adds its covering blocks to input parameter Geometry
+ *  - advances Geometry.mainline to its own mainline (if parallel flag is not set)
  */
-
-struct Geometry
-{
-    std::set<Block> cover;
-    Range           mainline;
-
-    Geometry() {mainline.from=INT_MAX; mainline.till=0;}
-    void Clear() {mainline.from=INT_MAX; mainline.till=0; cover.clear();}
-    void SetArc(ArcBase *a) {
-        for(std::set<Block>::iterator i=cover.begin(); i!=cover.end(); i++)
-            i->arc = a;
-    }
-    void SetDrawType(Block::DrawType t) {
-        for(std::set<Block>::iterator i=cover.begin(); i!=cover.end(); i++)
-            i->drawType = t;
-    }
-    void SetFindType(Block::FindType t) {
-        for(std::set<Block>::iterator i=cover.begin(); i!=cover.end(); i++)
-            i->findType = t;
-    }
-    Geometry &operator+=(const Geometry &g) {
-        cover.insert(g.cover.begin(), g.cover.end());
-        mainline.Extend(g.mainline);
-        return *this;
-    }
-    Geometry &operator-=(const Geometry &g) {
-        for(std::set<Block>::const_iterator i=g.cover.begin(); i!=g.cover.end(); i++)
-            cover.erase(*i);
-        return *this;
-    }
-
-    bool IsEmpty() const {return cover.size()==0;};
-    bool Overlaps(const Geometry &g, double gap=0) const;
-    void Draw(MscDrawer *chart, MscLineAttr line=MscLineAttr(MscColorType(255,0,0))) const {
-        for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
-            chart->rectangle(i->UpperLeft(), i->LowerRight(), line);
-        //chart->line((XY){0, mainline.from}, (XY){chart->totalWidth, mainline.from},MscColorType(255,0,0),LINE_SOLID,1);
-        //chart->line((XY){0, mainline.till}, (XY){chart->totalWidth, mainline.till},MscColorType(255,0,0),LINE_DASHED,1);
-    }
-    string Print() const {
-        string s;
-        for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
-            s << "(" << i->x.from << "-" <<i->x.till
-                << "," << i->y.from << "-" <<i->y.till << ");  ";
-        return s;
-    }
-};
-
-template <typename BlockContainer>
-bool BoundingBlock(const BlockContainer &container, Block &)
-{
-    if (container.size()==0) return false;
-    Block ret = Block(INT_MAX, INT_MIN, INT_MAX, INT_MIN);
-    for(typename BlockContainer::const_iterator i=container.begin(); i!=container.end(); i++) {
-        if (ret.x.from > i->x.from) ret.x.from = i->x.from;
-        if (ret.x.till < i->x.till) ret.x.till = i->x.till;
-        if (ret.y.from > i->y.from) ret.y.from = i->y.from;
-        if (ret.y.till < i->y.till) ret.y.till = i->y.till;
-    }
-    return true;
-};
-
-template <typename BlockContainer>
-const Block *InWhich(const BlockContainer &container, XY p) //search backwards - as drawing z order decreases
-{
-    for (typename BlockContainer::const_reverse_iterator i=container.rbegin(); i!=container.rend(); i++)
-        if (i->findType==Block::FIND_NORMAL && i->IsWithin(p)) return &(*i);
-    return NULL;
-};
 
 //Types for hscale=auto mechanism
 class IPair  {
@@ -196,54 +124,6 @@ public:
     void CombineLeftRightToPair_Single(double gap);
     EntityDistanceMap &operator +=(const EntityDistanceMap &d);
     string Print();
-};
-
-/////////////////////////////////////////////////////////////
-
-struct MscStyle
-{
-    MscLineAttr line, vline;
-    MscFillAttr fill;
-    MscShadowAttr shadow;
-    ArrowHead arrow;
-    StringFormat text;
-    std::pair<bool, unsigned char> solid;
-    std::pair<bool, bool> numbering;
-    std::pair<bool, bool> compress;
-
-    StyleType type;
-
-    bool f_line, f_vline, f_fill, f_shadow, f_text, f_arrow, f_solid, f_numbering, f_compress;
-
-    MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
-    MscStyle(StyleType tt, bool a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co);
-    void Empty();
-    MscStyle &operator +=(const MscStyle &toadd);
-    bool AddAttribute(const Attribute &a, Msc *m);
-    std::string Print(int ident = 0) const;
-};
-
-class StyleSet : public std::map<std::string, MscStyle>
-{
-public:
-    bool numbering;
-    bool compress;
-
-    MscStyle defaultStyle;
-    StyleSet() : numbering(false), compress(false) {} //def style is empty
-    StyleSet(const MscStyle &a, bool num, bool comp) :
-        defaultStyle(a), numbering(num), compress(comp) {};
-    const MscStyle &GetStyle(const string&) const;
-};
-
-class Design
-{
-public:
-    StyleSet styles;
-    ColorSet colors;
-    double hscale;
-    Design() {Reset();}
-    void Reset();
 };
 
 /////////////////////////////////////////////////////////////
@@ -331,7 +211,7 @@ template <class T1, class T2, class T3> struct triplet
 };
 
 /* Class allocated during parse */
-class EntityDef
+class EntityDef //: public TrackableElement
 {
     public:
         //Store attribute values added in an entity command subsequent to declaration
@@ -352,19 +232,17 @@ class EntityDef
 typedef PtrList<EntityDef> EntityDefList;
 
 /////////////////////////////////////////////////////////////////////
-class ArcBase
+class ArcBase : public TrackableElement
 {
     protected:
         Msc       *chart;
         double     yPos;
-        Geometry   geometry;
         bool       valid;  /* If false, then construction failed, arc does not exist */
         bool       at_top_level; /* if at top level by PostParseProcess() */
         bool       compress;     /* if compress mechanism is on for this arc */
         EIterator MinMaxByPos(EIterator i, EIterator value, bool min);
         bool linenum_final;
     public:
-        file_line  line_start, line_end;
         const MscArcType type;
 
         ArcBase(MscArcType t, file_line l, Msc *msc);
@@ -712,10 +590,11 @@ public:
 
     double XCoord(double pos) const
         {return pos*130*(hscale>0?hscale:1);}
-    double FindCollision(const std::set<Block> &a, const  std::set<Block> &b,
-                         double &CollisionYPos) const;
+    double FindCollision(const Geometry &a, const Geometry &b, double &CollisionYPos) const;
+    double FindCollision(const Geometry &a, const Geometry &b) const 
+	    {double dummy; return FindCollision(a,b,dummy);}
 
-    void HideEntityLines(const std::set<Block> &blocks);
+    void HideEntityLines(const Geometry &geom);
 
     void DrawEntityLines(double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(double y, double height)

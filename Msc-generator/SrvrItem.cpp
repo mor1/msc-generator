@@ -88,7 +88,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	rSize = pDoc->m_ChartShown.GetSize(pDoc->m_page);
+	rSize = pDoc->m_ChartShown.GetSize();
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -115,7 +115,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-	pDoc->m_ChartShown.Draw(pDC->m_hDC, false, pDoc->m_page, pApp->m_bPB_Embedded);
+	pDoc->m_ChartShown.Draw(pDC->m_hDC, false, pApp->m_bPB_Embedded);
 	return TRUE;
 }
 

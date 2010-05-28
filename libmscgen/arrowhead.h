@@ -1,7 +1,8 @@
 #if !defined(ARROWHEAD_H)
 #define ARROWHEAD_H
+#include <vector>
 #include "attribute.h"
-#include "mscdrawer.h"
+#include "trackable.h" //for Block
 
 typedef enum {
     MSC_ARROW_INVALID = 0,
@@ -32,6 +33,8 @@ typedef enum {
     MSC_ARROW_START
 } MscArrowEnd;
 
+class MscDrawer;
+
 class ArrowHead
 {
 protected:
@@ -41,10 +44,6 @@ protected:
     static double baseDotSize;
     static double arrowSizePercentage[6];
 
-
-    void triangle(cairo_t *cr, double x1, double y1,
-                  double x2, double y2, double x3, double y3) const;
-    void diamond(cairo_t *, XY xy, XY wh) const;
 
     void big_end_path(double &xpos, double x, double sy, double dy, bool dir,
                       bool up, MscDrawer *, MscArrowType, MscLineType, double lw) const;
@@ -88,10 +87,9 @@ public:
     void FillBig(const std::vector<double> &xPos, double sy, double dy,
                  bool bidir, MscDrawer *, MscFillAttr);
     void CoverBig(const std::vector<double> &xPos, double sy, double dy,
-                  bool bidir, MscDrawer * msc, std::set<Block> &cover) const;
+                  bool bidir, MscDrawer * msc, Geometry &cover) const;
     void ClipBig(std::vector<double> xPos, double sy, double dy,
-                 bool bidir, MscDrawer *m) const
-        {big_path(xPos, sy, dy, m, LINE_SOLID, bidir, 0); m->Clip();}
+                 bool bidir, MscDrawer *m) const;
 };
 
 #endif //ARROWHEAD_H

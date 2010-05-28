@@ -20,49 +20,61 @@
 
 #pragma once
 #include <list>
+#undef min
+#undef max
+#include "trackable.h"
 
 void RemoveCRLF(CString &str);
 void EnsureCRLF(CString &str);
 
 class Msc;
 
-struct TrackRect {
-	CRect r;
-	bool frame_only;
-	TrackRect() {};
-	TrackRect(const CRect &rect, bool f=false) : r(rect), frame_only(f) {};
-};
-
 class CChartData {
 protected:
 	CString m_text;
 	CString m_ForcedDesign;
-	mutable Msc *m_msc;
-	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
+	unsigned m_page;
 public:
 	CHARRANGE m_sel;
-
-	CChartData() : m_msc(NULL) {m_sel.cpMax = m_sel.cpMin = 0;}
-	CChartData(const char *text, const char *design=NULL) 
-		:m_msc(NULL), m_text(text?text:""), m_ForcedDesign(design?design:"") {m_sel.cpMax = m_sel.cpMin = 0;}
-	CChartData(const char *text, const CHARRANGE &sel, const char *design=NULL) 
-		:m_msc(NULL), m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:"") {}
-	CChartData(const CChartData&o) : m_msc(NULL) {operator=(o);}
-	~CChartData() {Delete();}
+	CChartData() : m_page(0) {m_sel.cpMax = m_sel.cpMin = 0;}
+	CChartData(const char *text, const char *design=NULL, unsigned page = 0) 
+		:m_text(text?text:""), m_ForcedDesign(design?design:""), m_page(page) {m_sel.cpMax = m_sel.cpMin = 0;}
+	CChartData(const char *text, const CHARRANGE &sel, const char *design=NULL, unsigned page = 0) 
+		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""), m_page(page) {}
+	CChartData(const CChartData&o) {operator=(o);}
+	virtual ~CChartData() {Delete();}
 	CChartData & operator = (const CChartData&);
-	void Delete(void) {FreeMsc(); m_text.Empty();}
+	virtual void Delete(void) {m_text.Empty();}
 	BOOL Save(const CString &fileName) const;
 	BOOL Load(const CString &fileName,  BOOL reportError=TRUE);
 	void Set(const char *text) {Delete(); m_text=text?text:"";}
-	void SetDesign (const char *design);
+	virtual void SetDesign (const char *design);
 	CString GetDesign () {return m_ForcedDesign;}
 	const CString &GetText() const {return m_text;}
+	BOOL IsEmpty() const {return m_text.GetLength()==0;}
+	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page;}
+	unsigned GetPage() const {return m_page;}
+};
+
+class CDrawingChartData : public CChartData {
+protected:
+	mutable Msc *m_msc;
+	mutable HENHMETAFILE m_hemf;
+	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
+public:
+	CDrawingChartData() : m_msc(NULL), m_hemf(NULL) {}
+	CDrawingChartData(const CChartData&o) : m_msc(NULL), m_hemf(NULL) {operator=(o);}
+	CDrawingChartData & operator = (const CChartData& o) {FreeMsc(); CChartData::operator =(o); return *this;}
+	virtual void Delete(void) {CChartData::Delete(); FreeMsc();}
+	virtual void SetDesign (const char *design);
+	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; if (m_msc) Recompile();}
+	unsigned GetPage() const {return m_page;}
 //Compilation related
-	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL;}}
+	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL; DeleteEnhMetaFile(m_hemf); m_hemf=NULL;}}
 	void CompileIfNeeded() const;
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
-	BOOL IsEmpty() const {return m_text.GetLength()==0;}
 	BOOL IsCompiled() const {return m_msc!=NULL;}
+	HENHMETAFILE GetEMF() const {CompileIfNeeded(); return m_hemf;}
 //Error related
 	unsigned GetErrorNum(bool oWarnings) const;
 	unsigned GetErrorLine(unsigned num, bool oWarnings) const;
@@ -71,14 +83,15 @@ public:
 	CString GetDesigns() const;
 //Drawing related
 	unsigned GetPages() const;
-	CSize GetSize(unsigned page) const;
-	void Draw(HDC hdc, bool doEMF, unsigned page, bool pageBreaks);
-	void Draw(const char* fileName);
+	CSize GetSize() const;
+	double GetPageYShift() const;
+	double GetBottomWithoutCopyright() const;
+	void Draw(HDC hdc, bool doEMF, bool pageBreaks) const;
+	void Draw(const char* fileName) const;
 //Cover related
-	void *GetArcByCoordinate(CPoint point, int page_shown) const;
-	void *GetArcByLine(unsigned line, unsigned col) const;
-	bool GetLineByArc(void*arc, unsigned &start_line, unsigned &start_col, unsigned &end_line, unsigned &end_col) const;
-	unsigned GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const;
+	TrackableElement *GetArcByCoordinate(CPoint point) const;
+	TrackableElement *GetArcByLine(unsigned line, unsigned col) const;
+	//unsigned GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const;
 };
 
 typedef std::list<CChartData>::iterator IChartData;

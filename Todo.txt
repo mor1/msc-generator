@@ -1,8 +1,9 @@
 investigate why big white stuff is there....
 smart ident for colon labels...
-change emphasis style to box
 Add parallel to the language (do not set mainline.till for these)
-Make IChartData inherit drawing operations
+Add fading tracking - ALMOST THERE
+click once shoud just flash the arrow and go to editing mode
+Add tracking to entitydefs and auto-generated (or all) entities, too
 
 FIXED: bug in MiniEditor (Getline needs at least a sizeof(int) buffer...)
 FIXED: Add \# escape to string escapes
@@ -12,6 +13,9 @@ FIXED: why a line.color=254 transparent does not work in a box
 FIXED: Sync should not actually change m_charts...
 FIXED: Print preview tul nagy
 FIXED: Errorok nem latszanak.
+FIXED: Reorganized libmscgen code a bit. (Added 3 new files)
+FIXED: Make IChartData inherit drawing operations, or be fully separate
+FIXED: change emphasis style to box
 
 
 

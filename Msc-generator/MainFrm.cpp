@@ -316,7 +316,7 @@ LRESULT CMainFrame::OnToolbarReset(WPARAM wp, LPARAM)
 			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 			ASSERT(pApp != NULL);
 			pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
-			pApp->FillDesignPageCombo(pDoc->m_itrEditing->GetPages(), pDoc->m_page);
+			pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
 			pDoc->SetZoom(); //merely fill in zoom combo with list of zoom values
 		}
 	}	  

@@ -26,312 +26,6 @@
 
 using namespace std;
 
-bool Geometry::Overlaps(const Geometry &g, double gap) const
-{
-    for(set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
-        for(set<Block>::const_iterator j=g.cover.begin(); j!=g.cover.end(); j++)
-            if (j->Overlaps(*i, gap))
-                return true;
-    return false;
-}
-
-MscStyle::MscStyle(StyleType tt) : type(tt)
-{
-    f_line=f_vline=f_fill=f_shadow=f_text=f_arrow=f_solid=f_numbering=f_compress=true;
-    Empty();
-}
-
-MscStyle::MscStyle(StyleType tt, bool a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co) :
-    type(tt), f_arrow(a), f_text(t), f_line(l), f_vline(vl), f_fill(f),
-    f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co)
-{
-    solid.first=so;
-    solid.second = 128;
-    compress.first = co;
-    compress.second = false;
-    numbering.first = nu;
-    numbering.second = false;
-}
-
-void MscStyle::Empty()
-{
-    line.Empty();
-    vline.Empty();
-    fill.Empty();
-    text.Empty();
-    arrow.Empty();
-    shadow.Empty();
-    solid.first = false;
-    compress.first = false;
-    numbering.first = false;
-}
-
-MscStyle & MscStyle::operator +=(const MscStyle &toadd)
-{
-    if (toadd.f_line && f_line) line += toadd.line;
-    if (toadd.f_vline && f_vline) vline += toadd.vline;
-    if (toadd.f_fill && f_fill) fill += toadd.fill;
-    if (toadd.f_shadow &&f_shadow) shadow += toadd.shadow;
-    if (toadd.f_text && f_text) text += toadd.text;
-    if (toadd.f_arrow && f_arrow) arrow += toadd.arrow;
-    if (toadd.f_solid && f_solid && toadd.solid.first) solid = toadd.solid;
-    if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
-    if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
-    return *this;
-}
-
-bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
-{
-    if (a.type == MSC_ATTR_STYLE) {
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
-            a.InvalidStyleError(msc->Error);
-            return true;
-        }
-        operator +=(msc->StyleSets.top()[a.name]);
-        return true;
-    }
-    if (a.Is("line.width")) {
-        if (f_arrow) arrow.AddAttribute(a, msc, type);
-        if (f_line) line.AddAttribute(a, msc, type);
-        return f_arrow || f_line;
-    }
-    if ((a.StartsWith("text") || a.Is("ident")) && f_text)
-        return text.AddAttribute(a, msc, type);
-    if (a.StartsWith("line") && f_line)
-        return line.AddAttribute(a, msc, type);
-    if (a.StartsWith("vline") && f_vline)
-        return vline.AddAttribute(a, msc, type);
-    if (a.StartsWith("fill") && f_fill)
-        return fill.AddAttribute(a, msc, type);
-    if (a.StartsWith("shadow") && f_shadow)
-        return shadow.AddAttribute(a, msc, type);
-    if ((a.StartsWith("arrow") || a.Is("arrowsize")) && f_arrow)
-        return arrow.AddAttribute(a, msc, type);
-    if (a.Is("solid") && f_solid) {
-        if (a.type == MSC_ATTR_CLEAR) {
-            if (a.EnsureNotClear(msc->Error, type))
-                solid.first = false;
-            return true;
-        }
-        if (a.type == MSC_ATTR_NUMBER && a.number>=0 && a.number <= 255) {
-            solid.first = true;
-            solid.second = a.number<=1 ? (unsigned char)(a.number*255) : (unsigned char)a.number;
-            return true;
-        }
-        a.InvalidValueError("0..1' or '0..255", msc->Error);
-    }
-    if (a.Is("compress")) {
-        if (a.type == MSC_ATTR_CLEAR) {
-            if (a.EnsureNotClear(msc->Error, type))
-                compress.first = false;
-            return true;
-        }
-        if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
-        compress.first = true;
-        compress.second = a.yes;
-        return true;
-    }
-    if (a.Is("number")) {
-        if (a.type == MSC_ATTR_CLEAR) {
-            if (a.EnsureNotClear(msc->Error, type))
-                numbering.first = false;
-            return true;
-        }
-        if (a.type != MSC_ATTR_BOOL) {
-            msc->Error.Error(a, true, "The 'number' attribute must be 'yes' or 'no' for styles. Ignoring it.");
-            return true;
-        }
-        numbering.first = true;
-        numbering.second = a.yes;
-        return true;
-    }
-    return false;
-}
-
-string MscStyle::Print(int ident) const
-{
-    string s = "style:(";
-    if (f_line) s.append(line.Print());
-    if (f_vline) s.append(vline.Print());
-    if (f_fill) s.append(fill.Print());
-    if (f_shadow) s.append(shadow.Print());
-    if (f_solid) s.append("solid:").append(solid.second?"yes":"no").append("\n");
-//    if (f_arrow) s.append(arrow.Print());
-//    if (f_text) s.append(text.Print());
-    s.append(")");
-    return s;
-}
-
-const MscStyle &StyleSet::GetStyle(const string &s) const
-{
-    const_iterator i = find(s);
-    if (i==end()) return defaultStyle;
-    else return i->second;
-};
-
-void Design::Reset()
-{
-    hscale = 1.0;
-
-    colors.clear();
-    colors["none"]  = MscColorType(  0,   0,   0, 0);
-    colors["black"] = MscColorType(  0,   0,   0);
-    colors["white"] = MscColorType(255, 255, 255);
-    colors["red"]   = MscColorType(255,   0,   0);
-    colors["green"] = MscColorType(  0, 255,   0);
-    colors["blue"]  = MscColorType(  0,   0, 255);
-    colors["yellow"]= MscColorType(255, 255,   0);
-    colors["gray"]  = MscColorType(150, 150, 150);
-    colors["lgray"] = MscColorType(200, 200, 200);
-
-    styles.clear();
-    styles.numbering=false;
-    styles.compress=false;
-
-    MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
-    style.compress.first = false;
-    style.line.radius.second = -1;
-    styles["arrow"] = style;
-
-    style.Empty();
-    style.type = STYLE_STYLE;
-    style.compress.first = false;
-    style.line.type.first = true;
-    style.line.type.second = LINE_SOLID;
-    styles["->"] = style;
-    style.line.type.second = LINE_DOTTED;
-    styles[">"] = style;
-    style.line.type.second = LINE_DASHED;
-    styles[">>"] = style;
-    style.line.type.second = LINE_DOUBLE;
-    styles["=>"] = style;
-
-    style= MscStyle(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
-    style.compress.first = false;
-    style.line.radius.second = -1;
-    styles["blockarrow"] = style;
-
-    style.Empty();
-    style.type = STYLE_STYLE;
-    style.line.type.first = true;
-    style.line.type.second = LINE_SOLID;
-    styles["block->"] = style;
-    style.line.type.second = LINE_DOTTED;
-    styles["block>"] = style;
-    style.line.type.second = LINE_DASHED;
-    styles["block>>"] = style;
-    style.line.type.second = LINE_DOUBLE;
-    styles["block=>"] = style;
-
-    style= MscStyle(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
-    style.line.radius.second = -1;
-    styles["vertical"] = style;
-
-    style.Empty();
-    style.type = STYLE_STYLE;
-    style.line.type.first = true;
-    style.line.type.second = LINE_SOLID;
-    styles["vertical->"] = style;
-    style.line.type.second = LINE_DOTTED;
-    styles["vertical>"] = style;
-    style.line.type.second = LINE_DASHED;
-    styles["vertical>>"] = style;
-    style.line.type.second = LINE_DOUBLE;
-    styles["vertical=>"] = style;
-
-    style.arrow.startType.first = true;
-    style.arrow.startType.second = MSC_ARROW_NONE;
-    style.arrow.midType.first = true;
-    style.arrow.midType.second = MSC_ARROW_NONE;
-    style.arrow.endType.first = true;
-    style.arrow.endType.second = MSC_ARROW_NONE;
-    style.line.type.second = LINE_SOLID;
-    styles["vertical--"] = style;
-    style.line.type.second = LINE_DASHED;
-    styles["vertical++"] = style;
-    style.line.type.second = LINE_DOTTED;
-    styles["vertical.."] = style;
-    style.line.type.second = LINE_DOUBLE;
-    styles["vertical=="] = style;
-
-    style = MscStyle(STYLE_DEFAULT, false, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
-    style.vline.Empty();
-    style.line.type.second = LINE_NONE;
-    styles["divider"] = style;
-
-    style.Empty();
-    style.type = STYLE_STYLE;
-    style.line.type.first = true;
-    style.line.type.second = LINE_DOTTED;
-    styles["---"] = style;
-    style.Empty();
-    style.vline.type.first = true;
-    style.vline.type.second = LINE_DOTTED;
-    style.text.Apply("\\mu(10)\\md(10)");
-    styles["..."] = style;
-
-    style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, false, false, true, true); //no arrow, vline solid
-    style.compress.first = false;
-    styles["emptyemphasis"] = style;
-    style.text.Apply("\\pl");
-    style.line.type.first = false;
-    styles["emphasis"] = style;
-
-    style.Empty();
-    style.type = STYLE_STYLE;
-    style.line.type.first = true;
-    style.line.type.second = LINE_SOLID;
-    styles["--"] = style;
-    style.line.type.second = LINE_DASHED;
-    styles["++"] = style;
-    style.line.type.second = LINE_DOTTED;
-    styles[".."] = style;
-    style.line.type.second = LINE_DASHED;
-    style.line.type.second = LINE_DOUBLE;
-    styles["=="] = style;
-
-    style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, false, true, true, true); //no arrow, vline
-    style.compress.first = false;
-    style.line.radius.second = 5;
-    styles["pipe"] = style;
-
-    style.Empty();
-    style.type = STYLE_STYLE;
-    style.line.type.first = true;
-    style.line.type.second = LINE_SOLID;
-    styles["pipe--"] = style;
-    style.line.type.second = LINE_DASHED;
-    styles["pipe++"] = style;
-    style.line.type.second = LINE_DOTTED;
-    styles["pipe.."] = style;
-    style.line.type.second = LINE_DASHED;
-    style.line.type.second = LINE_DOUBLE;
-    styles["pipe=="] = style;
-
-
-    style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
-    styles["entity"] = style;
-
-    style = MscStyle(STYLE_STYLE); //has everything, but is empty
-    MscLineAttr line(MscColorType(150,150,150));
-    style.line += line;;
-    style.vline += line;
-    style.arrow.line += line;
-    style.text.SetColor(line.color.second);
-	style.text.Apply("\\i");
-    styles["weak"] = style;
-
-    style.Empty();
-    line.Empty();
-    line.width.first = true;
-    line.width.second = 2.0;
-    style.line += line;
-    style.vline += line;
-    style.arrow.line += line;
-    style.text.Apply("\\b");
-    styles["strong"] = style;
-}
-
 void EntityStatusMap::SetRange(Range pos, EntityStatus status)
 {
     if (pos.from == pos.till) return;
@@ -418,7 +112,7 @@ double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
     XY d(xcoord + wh.x/2 + lw, y + height - style.shadow.offset.second);
     if (!draw) {
         Block b(s,d+XY(0, style.shadow.offset.second));
-        g.cover.insert(b);
+        g += b;
         g.mainline.Extend(b.y);
     }
     s.y += chart->headingVGapAbove;
@@ -434,7 +128,7 @@ double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
     //Draw line around
     chart->rectangle(s, d, style.line);
     //Draw text
-    set<Block> dummy;
+    Geometry dummy;
     parsed_label.DrawCovers(xcoord, xcoord, s.y + lw, dummy, true);
     return height;
 }
@@ -1168,14 +862,14 @@ void Msc::PostParseProcess(void)
 
 
 
-void Msc::HideEntityLines(const std::set<Block> &blocks)
+void Msc::HideEntityLines(const Geometry &geom)
 {
     for (EIterator i = Entities.begin(); i!=Entities.end(); i++) {
         if ((*i)->name == NONE_ENT_STR) continue;
         if ((*i)->name == LSIDE_ENT_STR) continue;
         if ((*i)->name == RSIDE_ENT_STR) continue;
         double xpos = XCoord((*i)->pos);
-        for (set<Block>::const_iterator b = blocks.begin(); b!=blocks.end(); b++)
+        for (set<Block>::const_iterator b = geom.GetCover().begin(); b!=geom.GetCover().end(); b++)
             if (b->x.from <= xpos && xpos <= b->x.till)
                 (*i)->status.HideRange(b->y);
     }
@@ -1204,18 +898,22 @@ void Msc::DrawEntityLines(double y, double height,
 //This is not symmetric. We have the 'a' blocks established
 //and want to see if the 'b' blocks (supposedly below the 'a' ones)
 //can be shifted up, and by how much
-double Msc::FindCollision(const set<Block> &a, const set<Block> &b,
+double Msc::FindCollision(const Geometry &a, const Geometry &b,
                           double &CollisionYPos) const
 {
-    double y = INT_MAX;
-    for (set<Block>::const_iterator i=a.begin(); i!=a.end(); i++)
-        for (set<Block>::const_iterator j=b.begin(); j!=b.end(); j++)
+    double up = MAINLINE_INF;
+	if (a.mainline.HasValidTill() && b.mainline.HasValidFrom()) {
+		up = b.mainline.from - a.mainline.till - compressYGap;
+		CollisionYPos = a.mainline.till + compressYGap/2;
+	}
+    for (set<Block>::const_iterator i=a.GetCover().begin(); i!=a.GetCover().end(); i++)
+        for (set<Block>::const_iterator j=b.GetCover().begin(); j!=b.GetCover().end(); j++)
 			if (i->x.Overlaps(j->x, compressXGap))
-                if (y > j->y.from - i->y.till - compressYGap) {
-                    y = j->y.from - i->y.till - compressYGap;
+                if (up > j->y.from - i->y.till - compressYGap) {
+                    up = j->y.from - i->y.till - compressYGap;
                     CollisionYPos = i->y.till + compressYGap/2;
                 }
-    return y;
+    return up;
 }
 
 void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
@@ -1254,13 +952,9 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
                     first_zero_height = i;
                 continue;
             }
-            double up, CollisionYPos = -1;
-            if (geom.mainline.from == INT_MAX && geom.cover.size()==0) {
-                //if the arc has nothing to draw, do not move up
-                up =0;
-            } else {
-                up = FindCollision(g.cover, geom.cover, CollisionYPos);
-                up = min (up, geom.mainline.from - g.mainline.till);
+            double up = 0, CollisionYPos = -1;
+			if (geom.mainline.HasValidFrom() || geom.GetCover().size()>0) {
+                up = FindCollision(g, geom, CollisionYPos);
                 //if (up<0) up =0;
             }
             //Now we know how much be can compess it up
@@ -1268,7 +962,7 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
             //so that they can store correct y pos if final==true
             // use the median of the two mainlines, if both exists
             // and the returned collision position is outside
-            if (g.mainline.till != 0 && geom.mainline.from != INT_MAX)
+			if (g.mainline.HasValidTill() && geom.mainline.HasValidFrom())
                 if (CollisionYPos < g.mainline.till ||
                     CollisionYPos > geom.mainline.from-up)
                     CollisionYPos = (g.mainline.till + geom.mainline.from-up)/2;
@@ -1462,12 +1156,12 @@ void Msc::DrawCopyrightText(int page)
     if (totalWidth==0 || !cr) return;
     XY size, dummy;
     GetPagePosition(page, dummy, size);
-    std::set<Block> dummy2;
     Label label(copyrightText, this, StringFormat());
     if (white_background) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
         filledRectangle(XY(0,size.y), XY(totalWidth,size.y+label.getTextWidthHeight().y), fill_bkg);
     }
+    Geometry dummy2;
     label.DrawCovers(0, totalWidth, size.y, dummy2, true);
 }
 
@@ -1480,7 +1174,7 @@ void Msc::DrawPageBreaks()
     StringFormat format;
     format.Apply("\\pr\\-");
     Label label(this);
-    std::set<Block> dummy;
+    Geometry dummy;
     for (unsigned page=1; page<yPageStart.size(); page++) {
         char text[20];
         const double y = yPageStart[page];

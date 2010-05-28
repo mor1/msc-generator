@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include <set>
 #include "cairo.h"
 #ifdef CAIRO_HAS_WIN32_SURFACE
 #include "cairo-win32.h"
@@ -13,72 +14,12 @@
 #endif
 #include "error.h"
 #include "attribute.h"
-#include <set>
+#include "trackable.h"
 
 #define CAIRO_OFF (0.5)
 
 
 ////////////////////Helpers//////////////////////////////////
-class XY {
-public:
-    double x;
-    double y;
-    XY() {}
-    XY(double a, double b) : x(a), y(b) {}
-    XY operator +(XY wh) const
-        {return XY(x+wh.x, y+wh.y);}
-    XY operator -(XY wh) const
-        {return XY(x-wh.x, y-wh.y);}
-    XY operator *(double scale) const
-        {return XY(x*scale, y*scale);}
-};
-
-//Structs for compress mechanism
-struct Range {
-    double from;
-    double till;
-    Range() {}
-    Range(double s, double d) : from(s), till(d) {}
-    bool Overlaps(const struct Range &r, double gap=0) const
-        {return from<r.till+gap && r.from < till+gap;}
-    void Extend(Range a)
-        {if (from>a.from) from=a.from; if (till<a.till) till=a.till;}
-    bool IsWithin(double p) const
-        {return from<=p && p<=till;}
-};
-
-class ArcBase;
-
-struct Block {
-    struct Range x;
-    struct Range y;
-    mutable ArcBase *arc;
-    mutable enum DrawType {DRAW_NONE, DRAW_NORMAL, DRAW_FRAME} drawType;
-    mutable enum FindType {FIND_NONE, FIND_NORMAL} findType;
-    Block(ArcBase *a=NULL) : arc(a), drawType(DRAW_NORMAL), findType(FIND_NORMAL) {}
-    Block(double sx, double dx, double sy, double dy, ArcBase *a=NULL) : arc(a),
-        drawType(DRAW_NORMAL), findType(FIND_NORMAL),
-        x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
-    Block(XY ul, XY dr, ArcBase *a=NULL) : arc(a), drawType(DRAW_NORMAL), findType(FIND_NORMAL) {
-        x.from = ul.x<dr.x?ul.x:dr.x; x.till = ul.x>dr.x?ul.x:dr.x;
-        y.from = ul.y<dr.y?ul.y:dr.y; y.till = ul.y>dr.y?ul.y:dr.y;
-    }
-    //operator required for set ordering
-    //this improves performance when checking overlaps (lower blocks later)
-    bool operator <(const struct Block &b) const {
-        if (y.till != b.y.till) return y.till < b.y.till;
-        if (x.till != b.x.till) return x.till < b.x.till;
-        if (x.from != b.x.from) return x.from < b.x.from;
-        return y.from < b.y.from;}
-    bool Overlaps(const struct Block &b, double gap=0) const
-        {return x.Overlaps(b.x, gap) && y.Overlaps(b.y, gap);}
-    XY UpperLeft(void) const
-        {return XY(x.from, y.from);}
-    XY LowerRight(void) const
-        {return XY(x.till, y.till);}
-    bool IsWithin(XY p) const
-        {return x.IsWithin(p.x) && y.IsWithin(p.y);}
-};
 
 /***************************************************************************
  ***************************************************************************/

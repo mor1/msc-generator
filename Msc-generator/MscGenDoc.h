@@ -28,6 +28,13 @@
 
 class CMscGenSrvrItem;
 
+struct TrackedArc {
+	TrackableElement *arc;
+	int               delay_fade;  //in ms. negative means never fade, 0 means is fading
+	unsigned char     alpha;
+	TrackedArc(TrackableElement *a, int delay = -1) : arc(a), delay_fade(delay), alpha(255) {}
+};
+
 class CMscGenDoc : public COleServerDocEx
 {
 protected: // create from serialization only
@@ -51,19 +58,17 @@ public:
 	IChartData m_itrSaved; //The chart that is the one last saved. This iterator may be invalid, use only for comparison
 	IChartData m_itrEditing; //The chart that is the current one in the editor
 	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
-	CChartData m_ChartShown;
-	unsigned m_page; //current page to show
+	CDrawingChartData m_ChartShown;
 
 	// Zoom related 
 	int m_zoom; //In percentage. 100 is normal
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
 	// Track mode related
 	bool m_bTrackMode; //True if mouse is tracked over arcs
-    int m_nTrackRectNo; //True if there are boxes to display
-	TrackRect m_rctTrack[100];
-	int m_nTrackBottomClip; //the bottom of the clip region (in MscDrawer space) to clip at (above the copyright label)
+	std::vector<TrackedArc> m_trackArcs;  //arcs to track currently
 	CHARRANGE m_saved_charrange;
-	void* m_last_arc; //the arc for which current track rects are valid
+	TrackableElement *m_last_arc; //During tracking the arc highlighted in the editor
+	CView *m_pViewFadingTimer;
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
 	//The external editor object
@@ -138,6 +143,11 @@ public:
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
 	void ShowNewChart(IChartData, bool resetZoom);       //Call this if you wnat to show a new chart, it compiles and updates the views
+
+	void StartFadingTimer();                             //Ensure that one and only one View runs a fading timer;
+	bool DoFading();                                     //Do one step fading. Return true if there are still elements in the process of fading
+	bool AddTrackArc(TrackableElement *, int delay=-1);  //Add a tracking element to the list. Updates Views if needed & rets ture if so
+	void StartFadingAll();                               //Start the fading process for all rectangles (even for delay<0)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 };

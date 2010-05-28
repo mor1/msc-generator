@@ -54,23 +54,29 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_LBUTTONDBLCLK()
 	ON_WM_MOUSEHOVER()
 	ON_WM_MOUSEMOVE()
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
 
 CMscGenView::CMscGenView() : m_size(0,0)
 {
+	m_size.SetSize(0,0);
+	m_cachedBitmapClip.SetRectEmpty();
+	m_cachedBitmapZoom = 100;
 	// construction code here
-	m_hemf = NULL;
 	m_DeleteBkg = false;
 	m_stretch_x = m_stretch_y = 1;
+	m_FadingTimer = NULL;
 	SetScrollSizes(MM_TEXT, m_size);
+	CDC dc;
+	dc.CreateCompatibleDC(NULL);
+	m_xLogPixPerInch = dc.GetDeviceCaps(LOGPIXELSX);
+	m_yLogPixPerInch = dc.GetDeviceCaps(LOGPIXELSY);
 }
 
 CMscGenView::~CMscGenView()
 {
-	if (m_hemf)
-		DeleteEnhMetaFile(m_hemf);
 }
 
 BOOL CMscGenView::PreCreateWindow(CREATESTRUCT& cs)
@@ -162,19 +168,20 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	if (pDoc->m_ChartShown.IsEmpty())
 		return;
 
-    CSize orig_size = pDoc->m_ChartShown.GetSize(pInfo->m_nCurPage);
+	CWaitCursor wait;
+	CDrawingChartData data(pDoc->m_ChartShown);
+	data.SetPage(pInfo->m_nCurPage);
+
+    CSize orig_size = data.GetSize(); //This one compiles
 	double fzoom = double(pInfo->m_rectDraw.Width())/orig_size.cx;
 	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
-	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_ChartShown.Draw(hdc, true, pInfo->m_nCurPage, false);
-	HENHMETAFILE hemf = CloseEnhMetaFile(hdc);
+	HENHMETAFILE hemf = data.GetEMF();
 	ENHMETAHEADER header;
 	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
 	r.SetRect(header.rclBounds.left*fzoom, header.rclBounds.top*fzoom,
 		      header.rclBounds.right*fzoom, header.rclBounds.bottom*fzoom); 
 	PlayEnhMetaFile(pDC->m_hDC, hemf, r);
-	DeleteEnhMetaFile(hemf);
 }
 
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
@@ -235,15 +242,37 @@ BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
 	return true;
 }
 
+void CMscGenView::InvalidateBlock(const Block &b) 
+{
+	CSize sizeNum, sizeDenom;
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
+	double xFactor = pDoc->m_zoom / 100. * m_xLogPixPerInch * sizeNum.cx / 100 / sizeDenom.cx;
+	double yFactor = pDoc->m_zoom / 100. * m_yLogPixPerInch * sizeNum.cy / 100 / sizeDenom.cy;
+
+	double pageTop = pDoc->m_ChartShown.GetPageYShift();
+
+	CPoint point = GetDeviceScrollPosition();
+	//inflate by 2 pixels, as track rects cover a bigger area
+	//Shift so that we are in page coordinates
+	//then scale to device units
+	//then shift by the scroll position
+	CRect r((b.x.from-2)*xFactor - point.x, (b.y.from-pageTop-2)*yFactor - point.y, 
+		    (b.x.till+4)*xFactor - point.x, (b.y.till-pageTop+4)*yFactor - point.y);
+	InvalidateRect(&r);
+//	Invalidate();
+}
+
 //clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
 void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (!pDoc->m_nTrackRectNo || pDC==NULL) return;
+	if (pDoc->m_trackArcs.size()==0 || pDC==NULL) return;
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
-	if (clip.bottom > yScale*pDoc->m_nTrackBottomClip)
-		clip.bottom = yScale*pDoc->m_nTrackBottomClip;
+	if (clip.bottom > yScale*pDoc->m_ChartShown.GetBottomWithoutCopyright());
+		clip.bottom = yScale*pDoc->m_ChartShown.GetBottomWithoutCopyright();
 	//Calculate line width
 	int lwx = floor(xScale+0.5);
 	if (lwx<1) lwx = 1;
@@ -253,19 +282,23 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 	//We make it lwx, lwy larger at top and left, so xor operations are not truncated there
 	cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width()+lwx, clip.Height()+lwy);
 	cairo_t *cr = cairo_create(surface2);
-    cairo_set_source_rgba(cr, 1, 1, 1, 1);
 	cairo_set_line_width(cr, lwx+lwy);
-	for (int i = 0; i<pDoc->m_nTrackRectNo; i++) {
-		CRect rr;
-		rr.left   = pDoc->m_rctTrack[i].r.left * xScale - 2*lwx;
-		rr.right  = pDoc->m_rctTrack[i].r.right * xScale + 2*lwx;
-		rr.top    = pDoc->m_rctTrack[i].r.top * yScale - 2*lwy;
-		rr.bottom = pDoc->m_rctTrack[i].r.bottom * yScale + 2*lwy;
-		cairo_rectangle(cr, rr.left - clip.left + lwx, rr.top - clip.top + lwy, rr.Width(), rr.Height());
-		if (pDoc->m_rctTrack[i].frame_only) 
-			cairo_stroke(cr);
-		else 
-			cairo_fill(cr);
+	for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
+		cairo_set_source_rgba(cr, i->alpha/255., i->alpha/255., i->alpha/255., i->alpha/255.);
+		for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) {
+			if (j->drawType == Block::DRAW_NONE) continue;
+			CRect rr;
+			rr.left   = j->x.from * xScale - 2*lwx;
+			rr.right  = j->x.till * xScale + 2*lwx;
+			rr.top    = j->y.from * yScale - 2*lwy;
+			rr.bottom = j->y.till * yScale + 2*lwy;
+			if (!CRect().IntersectRect(clip, rr)) return;
+			cairo_rectangle(cr, rr.left - clip.left + lwx, rr.top - clip.top + lwy, rr.Width(), rr.Height());
+			if (j->drawType == Block::DRAW_FRAME) 
+				cairo_stroke(cr);
+			else 
+				cairo_fill(cr);
+		}
 	}
 	cairo_destroy(cr);
 
@@ -297,7 +330,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (m_hemf==NULL) return;
+	if (SizeEmpty(m_size)) return;
 	//m_zoom is always 100% when in place
 	if (pDoc->IsInPlaceActive()) {
 		//physical size of in place frame
@@ -309,25 +342,61 @@ void CMscGenView::OnDraw(CDC* pDC)
 		bitmap.CreateCompatibleBitmap(pDC, viewPort.Width(), viewPort.Height());
 		CBitmap *oldBitmap = memDC.SelectObject(&bitmap);
 		memDC.FillSolidRect(viewPort, pDC->GetBkColor());
-		PlayEnhMetaFile(memDC.m_hDC, m_hemf, viewPort);
+		PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(), viewPort);
 		DrawTrackRects(&memDC, viewPort, viewPort.Width()/double(m_size.cx), viewPort.Height()/double(m_size.cy));
 		pDC->BitBlt(0, 0, viewPort.Width(), viewPort.Height(), &memDC, 0, 0, SRCCOPY);   
 		memDC.SelectObject(oldBitmap);
 	} else {
-		CRect clip;
+		CRect clip, devClip;
 		pDC->GetClipBox(&clip);
+		devClip = clip;
+		pDC->LPtoDP(&devClip);
 		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
 		CDC memDC;
 		memDC.CreateCompatibleDC(pDC);
-		CBitmap bitmap;
-		bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
-		CBitmap *oldBitmap = memDC.SelectObject(&bitmap);
-		memDC.SetWindowOrg(clip.left, clip.top);
-		memDC.FillSolidRect(clip, pDC->GetBkColor());
-		PlayEnhMetaFile(memDC.m_hDC, m_hemf, r);
-		DrawTrackRects(&memDC, clip, pDoc->m_zoom/100., pDoc->m_zoom/100.);
-		pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
-			        &memDC, clip.left, clip.top, SRCCOPY);   
+		CBitmap *oldBitmap;
+		//See if the cached bitmap is OK (same zoom & clip falls entirely within the bitmap)
+		if (m_cachedBitmapZoom == pDoc->m_zoom && ((m_cachedBitmapClip | devClip) == m_cachedBitmapClip)) {
+			//Yes, select it into memDC
+			oldBitmap = memDC.SelectObject(&m_cachedBitmap);
+			memDC.SetWindowOrg(m_cachedBitmapClip.left, m_cachedBitmapClip.top);
+		} else {
+			//No, discard and regenerate bitmap
+			//A null m_cachedBitmapClp indicates m_cachedBitmap is invalid;
+			if (!m_cachedBitmapClip.IsRectNull()) m_cachedBitmap.DeleteObject();
+			m_cachedBitmap.CreateCompatibleBitmap(pDC, devClip.Width(), devClip.Height());
+			oldBitmap = memDC.SelectObject(&m_cachedBitmap);
+			memDC.SetWindowOrg(clip.left, clip.top);
+			memDC.FillSolidRect(clip, pDC->GetBkColor());
+			PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(), r);
+			m_cachedBitmapClip = clip;
+			m_cachedBitmapZoom = pDoc->m_zoom;
+		}
+
+		//See if we have to draw trackrects
+		if (pDoc->m_trackArcs.size()>0) {
+			//Define second bitmap, copy chart there and add darw trackrects on top
+			CDC memDC2;
+			memDC2.CreateCompatibleDC(pDC);
+			CBitmap bitmap;
+			bitmap.CreateCompatibleBitmap(pDC, devClip.Width(), devClip.Height());
+			CBitmap *oldBitmap2 = memDC2.SelectObject(&bitmap);
+			memDC2.SetWindowOrg(clip.left, clip.top);
+			memDC2.BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
+						  &memDC, clip.left, clip.top, SRCCOPY);   
+			DrawTrackRects(&memDC2, clip, pDoc->m_zoom/100., pDoc->m_zoom/100.);
+			//Finally copy to output DC
+			pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
+						&memDC2, clip.left, clip.top, SRCCOPY);   
+			memDC2.SelectObject(oldBitmap2);
+			//clip.DeflateRect(1,1);
+			//pDC->DPtoLP(clip);
+			//pDC->Rectangle(clip);
+		} else {
+			//Else just use the cached bitmap
+			pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
+						&memDC, clip.left, clip.top, SRCCOPY);   
+		}
 		memDC.SelectObject(oldBitmap);
 	}
 }
@@ -346,10 +415,11 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
 
-	if (m_hemf) {
-		DeleteEnhMetaFile(m_hemf);
-		m_hemf = NULL;
-	}
+	//Delete the cached bitmap
+	if (!m_cachedBitmapClip.IsRectNull()) 
+		m_cachedBitmap.DeleteObject();
+	m_cachedBitmapClip.SetRectEmpty();
+
 	if (pDoc->m_ChartShown.IsEmpty()) {
 		m_size.cx = m_size.cy = 0;
 		m_DeleteBkg = true;
@@ -357,12 +427,8 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 		return;
 	}
 
-	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	pDoc->m_ChartShown.Draw(hdc, true, pDoc->m_page, pApp->m_bPB_Editing);
-	m_hemf = CloseEnhMetaFile(hdc);
-
 	//Check if some of the background becomes visible (only if not in-place)
-	CSize new_size = pDoc->m_ChartShown.GetSize(pDoc->m_page);
+	CSize new_size = pDoc->m_ChartShown.GetSize();
 	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
 		if (!pDoc->IsInPlaceActive())
 			m_DeleteBkg = true;
@@ -495,6 +561,17 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL) return;
 	pDoc->SetTrackMode(true);
+	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
+	//So we first convert the device units to logical ones...
+	CClientDC dc(this);
+	OnPrepareDC(&dc);
+	dc.DPtoLP(&point);
+	//...then substract the effect of scrolling...
+	//point += GetScrollPosition();
+	//...then take zooming into account.
+	point.x = point.x*100./pDoc->m_zoom;
+	point.y = point.y*100./pDoc->m_zoom;
+	pDoc->UpdateTrackRects(point);
 	CScrollView::OnLButtonDblClk(nFlags, point);
 }
 
@@ -526,4 +603,24 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
     tme.dwHoverTime = 10;
     TrackMouseEvent(&tme);
 	CScrollView::OnMouseMove(nFlags, point);
+} 
+
+void CMscGenView::StartFadingTimer() 
+{
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	pDoc->m_pViewFadingTimer = this;
+	if (m_FadingTimer) return;
+	m_FadingTimer = SetTimer(1, 100, NULL);
+}
+
+void CMscGenView::OnTimer(UINT_PTR)
+{
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	if (pDoc->DoFading()) return;
+	//If no more currently fading rects, kill timer
+	KillTimer(1);
+	pDoc->m_pViewFadingTimer = NULL;
+	m_FadingTimer = NULL;
 }

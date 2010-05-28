@@ -132,7 +132,7 @@ public:
 
     XY getTextWidthHeight(int line=-1) const;
     void DrawCovers(double sx, double dx, double y,
-                    std::set<Block> &cover, bool draw, bool isRotated=false);
+                    Geometry &cover, bool draw, bool isRotated=false);
 };
 
 
