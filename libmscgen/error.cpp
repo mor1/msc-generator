@@ -18,7 +18,6 @@
 */
 
 #include <algorithm>
-#include "error.h"
 #include "msc.h"
 
 MscError::MscError() {
@@ -64,9 +63,9 @@ void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const
     if (a.error) return;
     a.error = true;
     if (atValue)
-        Add(a.linenum_value, s, once, is_err);
+        Add(a.linenum_value.start, s, once, is_err);
     else
-        Add(a.linenum_attr, s, once, is_err);
+        Add(a.linenum_attr.start, s, once, is_err);
 }
 
 void MscError::Add(file_line linenum, const std::string &s, const std::string &once, bool is_err)

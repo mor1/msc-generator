@@ -67,12 +67,12 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
 bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
 {
     if (a.type == MSC_ATTR_STYLE) {
-		const char *newname = a.name == "emphasis"?"box":"emptybox";
-		if (a.name == "emphasis" || a.name == "emptyemphasis") {
-			msc->Error.Warning(a.linenum_attr, "Stylename '" + a.name + "' is deprecated, using " + newname + " instead.");
-	        operator +=(msc->StyleSets.top()[newname]);
+        const char *newname = a.name == "emphasis"?"box":"emptybox";
+        if (a.name == "emphasis" || a.name == "emptyemphasis") {
+            msc->Error.Warning(a.linenum_attr.start, "Stylename '" + a.name + "' is deprecated, using " + newname + " instead.");
+            operator +=(msc->StyleSets.top()[newname]);
             return true;
-		}
+        }
         if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
             a.InvalidStyleError(msc->Error);
             return true;

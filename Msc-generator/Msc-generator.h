@@ -31,6 +31,10 @@
 #include "csh.h"
 
 
+//Extending WinGDI definitions for trackrects color fill and line
+#define GetAValue(rgb)      (LOBYTE((rgb)>>24))
+#define RGBA(r,g,b,a)       ((COLORREF)(((BYTE)(r)|((WORD)((BYTE)(g))<<8))|(((DWORD)(BYTE)(b))<<16)|(((DWORD)(BYTE)(a))<<24)))
+
 // CMscGenApp:
 // See Msc-generator.cpp for the implementation of this class
 //
@@ -65,6 +69,8 @@ public:
 	BOOL m_bCsh;
 	int m_nCshScheme;
 	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
+	COLORREF m_trackFillColor;
+	COLORREF m_trackLineColor;
 
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
@@ -109,3 +115,5 @@ extern CMscGenApp theApp;
 #define REG_KEY_FINDWINPOS_X "FindReplaceWindowXPos"
 #define REG_KEY_FINDWINPOS_Y "FindReplaceWindowYPos"
 #define REG_KEY_FINDMATCHCASE "FindReplaceMatchCase"
+#define REG_KEY_TRACKFILLRGBA "TrackFillRGBA"
+#define REG_KEY_TRACKLINERGBA "TrackLineRGBA"

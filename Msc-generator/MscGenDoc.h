@@ -150,6 +150,7 @@ public:
 	void StartFadingAll();                               //Start the fading process for all rectangles (even for delay<0)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
+	void HighLightArc(const TrackableElement *arc);      //Select in internal editor
 };
 
 

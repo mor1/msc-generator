@@ -23,6 +23,8 @@
 
 #include "MscGenDoc.h"
 
+#define FADE_TIMER 30
+
 inline CSize ScaleSize(const CSize &s, double z) {return CSize(s.cx*z, s.cy*z);}
 inline bool SizeEmpty(const CSize &s) {return s.cx==0 || s.cy==0;}
 
@@ -46,8 +48,6 @@ public:
 	double m_stretch_y;
 	//Fading Timer
 	UINT_PTR m_FadingTimer;
-	int m_xLogPixPerInch; //screen properties 
-	int m_yLogPixPerInch;
 
 // Operations
 public:
@@ -95,6 +95,7 @@ public:
 protected:
 	virtual void OnPrint(CDC* pDC, CPrintInfo* pInfo);
 public:
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);

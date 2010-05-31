@@ -52,6 +52,7 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_COMMAND(ID_VIEW_RESETASPECTRATIO_INPLACE, ResetAspectRatioInPlace)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_RESETASPECTRATIO_INPLACE, OnUpdateResetAspectRatioInPlace)
 	ON_WM_LBUTTONDBLCLK()
+	ON_WM_LBUTTONUP()
 	ON_WM_MOUSEHOVER()
 	ON_WM_MOUSEMOVE()
 	ON_WM_TIMER()
@@ -69,10 +70,6 @@ CMscGenView::CMscGenView() : m_size(0,0)
 	m_stretch_x = m_stretch_y = 1;
 	m_FadingTimer = NULL;
 	SetScrollSizes(MM_TEXT, m_size);
-	CDC dc;
-	dc.CreateCompatibleDC(NULL);
-	m_xLogPixPerInch = dc.GetDeviceCaps(LOGPIXELSX);
-	m_yLogPixPerInch = dc.GetDeviceCaps(LOGPIXELSY);
 }
 
 CMscGenView::~CMscGenView()
@@ -95,22 +92,27 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 	if (SizeEmpty(m_size)) return;
 	CMscGenDoc* pDoc = GetDocument();
 	if (pDoc==NULL) return; 
-	
-	pDC->SetMapMode(MM_ANISOTROPIC);
+
 	CSize sizeDoc(ScaleSize(m_size, pDoc->m_zoom/100.0));
-	pDC->SetWindowExt(sizeDoc);
+	if (pDoc->IsInPlaceActive()) {
+		pDC->SetMapMode(MM_ANISOTROPIC);
+		pDC->SetWindowExt(sizeDoc);
 
-	CSize sizeNum, sizeDenom;
-	pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
+		CSize sizeNum, sizeDenom;
+		pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
 
-	int xLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSX);
-	int yLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSY);
+		int xLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSX);
+		int yLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSY);
 
-	long xExt = (long)sizeDoc.cx * xLogPixPerInch * sizeNum.cx;
-	xExt /= 100 * (long)sizeDenom.cx;
-	long yExt = (long)sizeDoc.cy * yLogPixPerInch * sizeNum.cy;
-	yExt /= 100 * (long)sizeDenom.cy;
-	pDC->SetViewportExt((int)xExt, (int)yExt);
+		long xExt = (long)sizeDoc.cx * xLogPixPerInch * sizeNum.cx;
+		xExt /= 100 * (long)sizeDenom.cx;
+		long yExt = (long)sizeDoc.cy * yLogPixPerInch * sizeNum.cy;
+		yExt /= 100 * (long)sizeDenom.cy;
+		pDC->SetViewportExt((int)xExt, (int)yExt);
+	} else {
+		pDC->SetMapMode(MM_TEXT);
+		pDC->SetWindowExt(sizeDoc);
+	}
 }
 
 
@@ -247,9 +249,9 @@ void CMscGenView::InvalidateBlock(const Block &b)
 	CSize sizeNum, sizeDenom;
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
-	double xFactor = pDoc->m_zoom / 100. * m_xLogPixPerInch * sizeNum.cx / 100 / sizeDenom.cx;
-	double yFactor = pDoc->m_zoom / 100. * m_yLogPixPerInch * sizeNum.cy / 100 / sizeDenom.cy;
+	//pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
+	double xFactor = pDoc->m_zoom / 100.; 
+	double yFactor = pDoc->m_zoom / 100.; 
 
 	double pageTop = pDoc->m_ChartShown.GetPageYShift();
 
@@ -260,69 +262,125 @@ void CMscGenView::InvalidateBlock(const Block &b)
 	//then shift by the scroll position
 	CRect r((b.x.from-2)*xFactor - point.x, (b.y.from-pageTop-2)*yFactor - point.y, 
 		    (b.x.till+4)*xFactor - point.x, (b.y.till-pageTop+4)*yFactor - point.y);
-	InvalidateRect(&r);
-//	Invalidate();
+//	InvalidateRect(&r);
+	Invalidate();
 }
+
+//Draw covers to the dest surface
+//only draw normal ones, skip frames
+void AddTrackRectsToSurface(const Geometry &geometry, double alpha, cairo_t *cr_dest, 
+							double xScale, double yScale, COLORREF lineColor, COLORREF fillColor)
+{
+	//Calculate line width
+	int lwx = floor(xScale+0.5);
+	if (lwx<1) lwx = 1;
+	int lwy = floor(yScale+0.5);
+	if (lwy<1) lwy = 1;
+	Block b;
+	geometry.GetBoundingBox(b);
+	b.x.from = (b.x.from-2) * xScale;
+	b.x.till = (b.x.till+4) * xScale;
+	b.y.from = (b.y.from-2) * yScale;
+	b.y.till = (b.y.till+4) * yScale;
+	//create fill surface
+	//We make it lwx, lwy larger at top and left, so xor operations are not truncated there
+	cairo_surface_t *surface_fill = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
+	cairo_t *cr_fill = cairo_create(surface_fill);
+	cairo_set_source_rgba(cr_fill, 1, 1, 1, 1);
+	
+	for (std::set<Block>::const_iterator j = geometry.GetCover().begin(); j!=geometry.GetCover().end(); j++) {
+		CRect rr;
+		rr.left   = j->x.from * xScale - 2*lwx;
+		rr.right  = j->x.till * xScale + 2*lwx;
+		rr.top    = j->y.from * yScale - 2*lwy;
+		rr.bottom = j->y.till * yScale + 2*lwy;
+		cairo_rectangle(cr_fill, rr.left - b.x.from + lwx, rr.top - b.y.from + lwy, rr.Width(), rr.Height());
+		//Here j->drawType can only be NORMAL. FFRAMEs are handled in CMscGenView::DrawTrackRects
+		cairo_fill(cr_fill);
+	}	
+	cairo_destroy(cr_fill);
+
+	//create outline surface  (we make it lwx, lwy larger...)
+	cairo_surface_t *surface_line = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
+	cairo_t *cr_line = cairo_create(surface_line);
+	cairo_set_operator(cr_line, CAIRO_OPERATOR_XOR);
+	cairo_set_source_rgba(cr_line, 1, 1, 1, 1);
+	cairo_mask_surface(cr_line, surface_fill, 0, 0);
+	cairo_mask_surface(cr_line, surface_fill, lwx, lwy);
+	cairo_destroy(cr_line);
+
+	//Copy stuff to the destination surface
+	cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+		                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+	cairo_mask_surface(cr_dest, surface_fill, b.x.from, b.y.from);
+	cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+		                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+	cairo_mask_surface(cr_dest, surface_line, b.x.from-lwx, b.y.from-lwy);
+	cairo_surface_destroy(surface_line);
+	cairo_surface_destroy(surface_fill);
+}
+
+//Draw a frame to the dest surface, assume b is a frame
+void AddFrameToSurface(const Block &block, double alpha, cairo_t *cr_dest, 
+					   double xScale, double yScale, COLORREF lineColor, COLORREF fillColor)
+{
+	//Calculate line width
+	int lwx = floor(xScale+0.5);
+	if (lwx<1) lwx = 1;
+	int lwy = floor(yScale+0.5);
+	if (lwy<1) lwy = 1;
+	Block b;
+	b.x.from = (block.x.from) * xScale;
+	b.x.till = (block.x.till) * xScale;
+	b.y.from = (block.y.from) * yScale;
+	b.y.till = (block.y.till) * yScale;
+	cairo_rectangle(cr_dest, b.x.from,         b.y.from,         b.x.Spans(),         b.y.Spans());
+	cairo_rectangle(cr_dest, b.x.from - 3*lwx, b.y.from - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
+	cairo_set_fill_rule(cr_dest, CAIRO_FILL_RULE_EVEN_ODD);
+	cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+		                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+	cairo_fill(cr_dest);
+
+	cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+		                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+	cairo_rectangle(cr_dest, b.x.from+0.5,         b.y.from+0.5,         b.x.Spans(),         b.y.Spans());
+	cairo_rectangle(cr_dest, b.x.from+0.5 - 3*lwx, b.y.from+0.5 - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
+	cairo_set_line_width(cr_dest, (lwx+lwy)/2);
+	cairo_stroke(cr_dest);
+}
+
 
 //clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
 void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale)
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (pDoc->m_trackArcs.size()==0 || pDC==NULL) return;
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
 	if (clip.bottom > yScale*pDoc->m_ChartShown.GetBottomWithoutCopyright());
 		clip.bottom = yScale*pDoc->m_ChartShown.GetBottomWithoutCopyright();
-	//Calculate line width
-	int lwx = floor(xScale+0.5);
-	if (lwx<1) lwx = 1;
-	int lwy = floor(yScale+0.5);
-	if (lwy<1) lwy = 1;
-	//create fill surface
-	//We make it lwx, lwy larger at top and left, so xor operations are not truncated there
-	cairo_surface_t *surface2 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width()+lwx, clip.Height()+lwy);
-	cairo_t *cr = cairo_create(surface2);
-	cairo_set_line_width(cr, lwx+lwy);
-	for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
-		cairo_set_source_rgba(cr, i->alpha/255., i->alpha/255., i->alpha/255., i->alpha/255.);
-		for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) {
-			if (j->drawType == Block::DRAW_NONE) continue;
-			CRect rr;
-			rr.left   = j->x.from * xScale - 2*lwx;
-			rr.right  = j->x.till * xScale + 2*lwx;
-			rr.top    = j->y.from * yScale - 2*lwy;
-			rr.bottom = j->y.till * yScale + 2*lwy;
-			if (!CRect().IntersectRect(clip, rr)) return;
-			cairo_rectangle(cr, rr.left - clip.left + lwx, rr.top - clip.top + lwy, rr.Width(), rr.Height());
-			if (j->drawType == Block::DRAW_FRAME) 
-				cairo_stroke(cr);
-			else 
-				cairo_fill(cr);
-		}
-	}
-	cairo_destroy(cr);
-
-	//create outline surface  (we make it lwx, lwy larger...)
-	cairo_surface_t *surface3 = cairo_image_surface_create(CAIRO_FORMAT_A8, clip.Width()+lwx, clip.Height()+lwy);
-	cr = cairo_create(surface3);
-	cairo_set_operator(cr, CAIRO_OPERATOR_XOR);
-	cairo_set_source_rgba(cr, 1, 1, 1, 1);
-	cairo_mask_surface(cr, surface2, 0, 0);
-	cairo_mask_surface(cr, surface2, lwx, lwy);
-	cairo_destroy(cr);
-
 	//This is the destination surface
-	cairo_surface_t *surface = cairo_win32_surface_create(*pDC);
-	cr = cairo_create(surface);
-	cairo_set_source_rgba(cr, 1, 0, 0, 0.5);
-	cairo_mask_surface(cr, surface2, clip.left, clip.top);
-	cairo_set_source_rgba(cr, 0.5, 0, 0, 1);
-	cairo_mask_surface(cr, surface3, clip.left-lwx, clip.top-lwy);
-	cairo_destroy(cr);
+	cairo_surface_t *surface_dest = cairo_win32_surface_create(*pDC);
+	cairo_t *cr_dest = cairo_create(surface_dest);
+	for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
+		//Draw normal covers, leave out FRAME
+		Geometry geometry;
+		for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
+			if (j->drawType == Block::DRAW_NORMAL)
+				geometry += *j;
+		AddTrackRectsToSurface(geometry, i->alpha/255., cr_dest, xScale, yScale, 
+			                   pApp->m_trackLineColor, pApp->m_trackFillColor);
+		//Do the frames
+		for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
+			if (j->drawType == Block::DRAW_FRAME) 
+				AddFrameToSurface(*j, i->alpha/255., cr_dest, xScale, yScale, 
+				                  pApp->m_trackLineColor, pApp->m_trackFillColor);
+	}
 	//Cleanup
-	cairo_surface_destroy(surface3);
-	cairo_surface_destroy(surface2);
-	cairo_surface_destroy(surface);
+	cairo_destroy(cr_dest);
+	cairo_surface_destroy(surface_dest);
 }
 
 
@@ -347,16 +405,14 @@ void CMscGenView::OnDraw(CDC* pDC)
 		pDC->BitBlt(0, 0, viewPort.Width(), viewPort.Height(), &memDC, 0, 0, SRCCOPY);   
 		memDC.SelectObject(oldBitmap);
 	} else {
-		CRect clip, devClip;
+		CRect clip;
 		pDC->GetClipBox(&clip);
-		devClip = clip;
-		pDC->LPtoDP(&devClip);
 		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
 		CDC memDC;
 		memDC.CreateCompatibleDC(pDC);
 		CBitmap *oldBitmap;
 		//See if the cached bitmap is OK (same zoom & clip falls entirely within the bitmap)
-		if (m_cachedBitmapZoom == pDoc->m_zoom && ((m_cachedBitmapClip | devClip) == m_cachedBitmapClip)) {
+		if (m_cachedBitmapZoom == pDoc->m_zoom && ((m_cachedBitmapClip | clip) == m_cachedBitmapClip)) {
 			//Yes, select it into memDC
 			oldBitmap = memDC.SelectObject(&m_cachedBitmap);
 			memDC.SetWindowOrg(m_cachedBitmapClip.left, m_cachedBitmapClip.top);
@@ -364,7 +420,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 			//No, discard and regenerate bitmap
 			//A null m_cachedBitmapClp indicates m_cachedBitmap is invalid;
 			if (!m_cachedBitmapClip.IsRectNull()) m_cachedBitmap.DeleteObject();
-			m_cachedBitmap.CreateCompatibleBitmap(pDC, devClip.Width(), devClip.Height());
+			m_cachedBitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
 			oldBitmap = memDC.SelectObject(&m_cachedBitmap);
 			memDC.SetWindowOrg(clip.left, clip.top);
 			memDC.FillSolidRect(clip, pDC->GetBkColor());
@@ -379,7 +435,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 			CDC memDC2;
 			memDC2.CreateCompatibleDC(pDC);
 			CBitmap bitmap;
-			bitmap.CreateCompatibleBitmap(pDC, devClip.Width(), devClip.Height());
+			bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
 			CBitmap *oldBitmap2 = memDC2.SelectObject(&bitmap);
 			memDC2.SetWindowOrg(clip.left, clip.top);
 			memDC2.BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
@@ -562,17 +618,45 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	if (pDoc == NULL) return;
 	pDoc->SetTrackMode(true);
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
-	//So we first convert the device units to logical ones...
+	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
 	CClientDC dc(this);
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
-	//...then substract the effect of scrolling...
-	//point += GetScrollPosition();
-	//...then take zooming into account.
+	//then take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);
 	CScrollView::OnLButtonDblClk(nFlags, point);
+}
+
+void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	const double delay_before_fade = 500; //in ms
+	CMscGenDoc *pDoc = GetDocument();
+	if (pDoc == NULL) return;
+	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
+	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
+	CClientDC dc(this);
+	OnPrepareDC(&dc);
+	dc.DPtoLP(&point);
+	//then take zooming into account.
+	point.x = point.x*100./pDoc->m_zoom;
+	point.y = point.y*100./pDoc->m_zoom;
+	if (pDoc->m_bTrackMode) 
+		pDoc->UpdateTrackRects(point);
+	else {
+		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
+		if (arc) {
+			pDoc->StartFadingAll();
+			pDoc->AddTrackArc(arc, delay_before_fade/FADE_TIMER);
+			pDoc->HighLightArc(arc);
+			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+			ASSERT(pApp != NULL);
+			if (pApp->IsInternalEditorRunning()) 
+				pApp->m_pWndEditor->SetFocus();
+		} else
+			CScrollView::OnLButtonUp(nFlags, point);  //This sets focus to view
+	}
 }
 
 void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
@@ -580,13 +664,11 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseHover(nFlags, point);
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
-	//So we first convert the device units to logical ones...
+	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
 	CClientDC dc(this);
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
-	//...then substract the effect of scrolling...
-	//point += GetScrollPosition();
-	//...then take zooming into account.
+	//take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);
@@ -611,7 +693,7 @@ void CMscGenView::StartFadingTimer()
 	ASSERT(pDoc);
 	pDoc->m_pViewFadingTimer = this;
 	if (m_FadingTimer) return;
-	m_FadingTimer = SetTimer(1, 100, NULL);
+	m_FadingTimer = SetTimer(1, FADE_TIMER, NULL);
 }
 
 void CMscGenView::OnTimer(UINT_PTR)

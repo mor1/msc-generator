@@ -126,20 +126,20 @@ class Attribute
         string          value;
         double          number;
         bool            yes;
-        file_line       linenum_attr;
-        file_line       linenum_value;
+        file_line_range linenum_attr;
+        file_line_range linenum_value;
         mutable bool    error;
 
-        Attribute(const char*a, const char *s, file_line l, file_line v) :
+        Attribute(const char*a, const char *s, file_line_range l, file_line_range v) :
             error(false), linenum_attr(l), linenum_value(v), name(a),
             type(s?MSC_ATTR_STRING:MSC_ATTR_CLEAR), value(s?s:"") {}
-        Attribute(const char*a, double n, file_line l, file_line v, const char *s) :
+        Attribute(const char*a, double n, file_line_range l, file_line_range v, const char *s) :
             error(false), linenum_attr(l), linenum_value(v), name(a),
             type(MSC_ATTR_NUMBER), number(n), value(s) {}
-        Attribute(const char*a, bool b, file_line l, file_line v, const char *s) :
+        Attribute(const char*a, bool b, file_line_range l, file_line_range v, const char *s) :
             error(false), linenum_attr(l), linenum_value(v), name(a),
             type(MSC_ATTR_BOOL), yes(b), value(s) {}
-        Attribute(const char*a, file_line l) :
+        Attribute(const char*a, file_line_range l) :
             error(false), linenum_attr(l), linenum_value(l),
             type(MSC_ATTR_STYLE), name(a) {}
 

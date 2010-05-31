@@ -20,296 +20,17 @@
 #include <iostream>
 #include <sstream>
 #include <assert.h>
-#include <climits>
 #include <math.h>
 #include "msc.h"
 
 using namespace std;
 
-void EntityStatusMap::SetRange(Range pos, EntityStatus status)
+void TrackableElement::SetLineEnd(file_line_range l, bool f)
 {
-    if (pos.from == pos.till) return;
-    std::map<double, EntityStatus>::iterator i;
-    i = storage.upper_bound(pos.till);  //the value just after pos.till
-    EntityStatus es = defaultStatus;
-    if (i!=storage.begin()) {//if there is acually a setting at till
-        //store line status that shall be restored at till
-        i--;  //i now points to or before pos.till
-        es = i->second;
-        //remove all state changes between from and till
-        while (pos.from < i->first)
-            if (i==storage.begin()) {
-                storage.erase(i);
-                break;
-            } else
-                storage.erase(i--);
-    }
-    storage[pos.from] = status;
-    storage[pos.till] = es;
+    if (linenum_final) return;
+    linenum_final = f;
+    file_pos = l;
 }
-
-EntityStatus EntityStatusMap::Get(double pos) const
-{
-    std::map<double, EntityStatus>::const_iterator i;
-    i = storage.upper_bound(pos);  //the value just after pos
-    if (i==storage.begin())
-        return defaultStatus;
-    return (--i)->second;
-}
-
-double EntityStatusMap::Till(double pos) const
-{
-    std::map<double, EntityStatus>::const_iterator i;
-    i = storage.upper_bound(pos);
-    if (i==storage.end())
-        return INT_MAX; //big num if no further status line changes
-    return i->first;
-}
-
-string EntityStatusMap::Print(int ident)
-{
-    string s(ident*2, ' ');
-    for (std::map<double, EntityStatus>::iterator i=storage.begin(); i!=storage.end(); i++)
-        s << i->first << ":" << (i->second.status?"on":"off") << "\n";
-    return s;
-}
-
-template class PtrList<Entity>;
-
-Entity::Entity(const string &n, const string &l, double p, Msc* msc) :
-    name(n), label(l), pos(p), index(0), chart(msc)
-{
-	style = chart->StyleSets.top()["entity"];
-	status.SetDefaultStatus(EntityStatus(style.vline, false));
-}
-
-string Entity::Print(int ident) const
-{
-    string ss;
-    ss << string(ident*2, ' ') << name << " pos:" << pos;
-    return ss;
-}
-
-double Entity::Width()
-{
-    if (name == LSIDE_ENT_STR || name == RSIDE_ENT_STR) return 0;
-    Label parsed_label(label, chart, style.text);
-    XY wh = parsed_label.getTextWidthHeight();
-	return style.line.LineWidth()*2 + wh.x + style.shadow.offset.second;
-}
-
-//This can be called multiple times with final=true.
-//Once for each time we draw this entity heading
-double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
-{
-    double xcoord = chart->XCoord(pos);
-    Label parsed_label(label, chart, style.text);
-    XY wh = parsed_label.getTextWidthHeight();
-    double lw = style.line.LineWidth();
-    double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow +
-        2*lw + style.shadow.offset.second;
-    XY s(xcoord - wh.x/2 - lw, y);
-    XY d(xcoord + wh.x/2 + lw, y + height - style.shadow.offset.second);
-    if (!draw) {
-        Block b(s,d+XY(0, style.shadow.offset.second));
-        g += b;
-        g.mainline.Extend(b.y);
-    }
-    s.y += chart->headingVGapAbove;
-    d.y -= chart->headingVGapBelow;
-    if (final)
-        status.HideRange(Range(s.y, d.y));
-    if (!draw) return height;
-    //Fill color
-	if (draw && style.fill.color.first && style.fill.color.second.valid) {
-        chart->filledRectangle(s, d, style.fill, style.line.radius.second);
-        chart->shadow(s, d, style.shadow, style.line.radius.second, true);
-	}
-    //Draw line around
-    chart->rectangle(s, d, style.line);
-    //Draw text
-    Geometry dummy;
-    parsed_label.DrawCovers(xcoord, xcoord, s.y + lw, dummy, true);
-    return height;
-}
-
-
-inline bool SmallerByPos(Entity *e1, Entity *e2)
-{
-    if (e1==NULL) return true;
-    if (e2==NULL) return false;
-    return e1->pos < e2->pos;
-}
-
-void EntityList::SortByPos(void)
-{
-    PtrList<Entity>::sort(SmallerByPos);
-}
-
-EntityDef::EntityDef(const char *s, Msc* chart) : name(s),
-    style(STYLE_ARC, false/*arrow*/, true, true, true, true, true,
-	  false /*solid*/, false /*numbering*/, false /*compress*/)
-{
-    label.first = false;
-    pos.first = false;
-    pos.second = 0; //field 'pos' is used even if no such attribute
-    rel.first = false;
-    show.second = show.first = true; //if no attributes, we are ON
-    style.Empty();
-}
-
-EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
-{
-    EIterator i = msc->Entities.Find_by_Name(name);
-    if (i != msc->NoEntity) {
-        // Existing entity: kill auto-assumed "show=on"
-        show.first = false;
-    }
-
-    // Process attribute list
-    if (l) {
-        for (AttributeList::iterator j=l->begin(); j!=l->end(); j++)
-            AddAttribute(**j, msc);
-        delete l;
-    }
-
-    if (i == msc->NoEntity) {
-        //Calculate pos attribute
-        if (rel.first) {
-            //Look up the entity in a potential 'relative' attribute
-            EntityList::iterator j = msc->Entities.Find_by_Name(rel.second);
-            if (j == msc->NoEntity) {
-                if (msc->pedantic) {
-                    string s;
-                    s << "Cound not find entity '" << rel.second;
-                    s << "' in attribute 'relative'. Ignoring attriute.";
-                    msc->Error.Error(rel.third, s);
-                    pos.second += msc->Entity_max_pos;
-                } else {
-                    Entity *e;
-                    e = new Entity(rel.second, rel.second, msc->Entity_max_pos, msc);
-                    msc->Entities.Append(e);
-                    msc->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), msc));
-                    pos.second += msc->Entity_max_pos;  //the pos of the new entity
-                    msc->Entity_max_pos ++;  //Increment for the new entity
-                }
-            }
-        } else
-            pos.second += msc->Entity_max_pos;
-
-        //If no show attribute, set it to "ON"
-        if (!show.first)
-            show.second = show.first = true;
-
-        //Allocate new entity with correct label
-        Entity *e = new Entity(name, label.first?label.second:name, pos.second, msc);
-        //Add to entity list
-        msc->Entities.Append(e);
-        //Calculate potential pos for next entity
-        msc->Entity_max_pos = std::max(msc->Entity_max_pos, pos.second+1);
-    } else {
-        // An existing entity. Disallow attributes that change drawing positions
-        if (label.first && label.second != (*i)->label)
-            msc->Error.Error(label.third,
-                             "Cannot change the label of an entity after declaration. Keeping old label :'"
-                             + (*i)->label + "'.");
-        if (pos.first)
-            msc->Error.Error(pos.third,
-                               "Cannot change the position of an entity after declaration. Ignoring attribute 'pos'.");
-        if (rel.first)
-            msc->Error.Error(rel.third,
-                               "Cannot change the position of an entity after declaration. Ignoring attribute 'relative'.");
-    }
-    return this;
-}
-
-bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
-{
-    if (a.type == MSC_ATTR_STYLE) {
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
-            a.InvalidStyleError(msc->Error);
-            return true;
-        }
-        style += msc->StyleSets.top()[a.name];
-        return true;
-    }
-    string s;
-    if (a.Is("label")) {
-        if (!a.CheckType(MSC_ATTR_STRING, msc->Error)) return true;
-        //if MSC_ATTR_CLEAR, we are OK above and a.value is ""
-        label.first = true;
-        label.second = a.value;
-        label.third = a.linenum_attr;
-        return true;
-    }
-    if (a.Is("pos")) {
-        if (a.type == MSC_ATTR_CLEAR) {
-            pos.first = true;
-            pos.second = 0;
-            pos.third = a.linenum_attr;
-            return true;
-        }
-        if (!a.CheckType(MSC_ATTR_NUMBER, msc->Error)) return true;
-        pos.first = true;
-        pos.second = a.number;
-        pos.third = a.linenum_attr;
-        return true;
-    }
-    if (a.Is("relative")) {
-        if (!a.CheckType(MSC_ATTR_STRING, msc->Error)) return true;
-        //if MSC_ATTR_CLEAR, we are OK above and a.value is ""
-        rel.second = a.value;
-        rel.first = true;
-        rel.third = a.linenum_attr;
-        return true;
-    }
-    if (a.Is("show")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
-        // MSC_ATTR_CLEAR is handled above
-        show.second = a.yes;
-        show.first = true;
-        return true;
-    }
-    if (a.Is("color")) {
-        bool was = false;
-        // MSC_ATTR_CLEAR is handled by individual attributes below
-        if (style.f_line) {
-            style.line.AddAttribute(a, msc, style.type);
-            was = true;
-        }
-        if (style.f_vline) {
-            style.vline.AddAttribute(a, msc, style.type);
-            was = true;
-        }
-        if (style.f_text) {
-            style.text.AddAttribute(a, msc, style.type);
-            was = true;
-        }
-        return was;
-    }
-    if (style.AddAttribute(a, msc)) return true;
-    if (a.Is("id")) {
-        s << "Attribute '"<< a.name <<"' is no longer supported. Ignoring it.";
-        msc->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
-        return false;
-    }
-    a.InvalidAttrError(msc->Error);
-    return false;
-};
-
-string EntityDef::Print(int ident) const
-{
-    string ss;
-    ss << string(ident*2, ' ') << name;
-
-    if (label.first) ss << "(\"" << label.second << "\")";
-    if (pos.first) ss << " pos:" << pos.second;
-    if (rel.first) ss << " rel:" << rel.second;
-    if (show.first) ss << " show:" << show.second;
-    ss << " " << style.Print();
-    return ss;
-};
-
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -555,7 +276,7 @@ void Msc::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
                 while (*p!=0 && *p!=0x0d && *p!=0x0a) *(p++) = ' ';
 				comment.last_pos = pos.first_pos + (p - copy);
 				AddCSH(comment, COLOR_COMMENT);
-			} else 
+			} else
 				p++; //step over the escaped #
 
         }
@@ -640,32 +361,35 @@ string Msc::GetDesigns() const
     return retval;
 }
 
-EIterator Msc::FindAllocEntity(const char *e, file_line l, bool*validptr)
+EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
 {
     if (e==NULL)
         return NoEntity;
     EIterator ei = Entities.Find_by_Name(e);
     if (ei == NoEntity) {
         if (pedantic)
-            Error.Warning(l, "Unknown entity '" + string(e)
+            Error.Warning(l.start, "Unknown entity '" + string(e)
                           + "'. Assuming implicit definition.",
                           "This may be a mistyped entity name."
                           " Try turning 'pedantic' off to remove these messages.");
         Entity *entity = new Entity(e, e, Entity_max_pos++, this);
         Entities.Append(entity);
-        AutoGenEntities.Append(new EntityDef(e, this));
+        EntityDef *ed = new EntityDef(e, this);
+        ed->SetLineEnd(l);
+        AutoGenEntities.Append(ed);
         ei = Entities.Find_by_Name(e);
     }
     return ei;
 }
 
-ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line sl, const char*d, file_line dl, file_line l)
+ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
+                              const char*d, file_line_range dl)
 {
     if (strcmp(s,d))
-        return new ArcDirArrow(t,s,sl,d,dl,l, this, StyleSets.top()["arrow"]);
+        return new ArcDirArrow(t, s, sl, d, dl, this, StyleSets.top()["arrow"]);
     MscStyle style = StyleSets.top()["arrow"];
     style.text.Apply("\\pr");
-    return new ArcSelfArrow(t,s,l, this, style, selfArrowYSize);
+    return new ArcSelfArrow(t, s, sl, this, style, selfArrowYSize);
 }
 
 ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
@@ -673,7 +397,7 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
     const ArcDirArrow *arrow = dynamic_cast<const ArcDirArrow *>(base);
     //We can only get ArcSelfArrow or ArcDirArrow here
     if (!arrow) {
-        Error.Error(base->line_start, "Big arrows cannot point back to the same entity. Ignoring it.");
+        Error.Error(base->file_pos.start, "Big arrows cannot point back to the same entity. Ignoring it.");
         return NULL;
     }
     return new ArcBigArrow(*arrow, StyleSets.top()["blockarrow"]);
@@ -695,7 +419,7 @@ bool Msc::AddAttribute(const Attribute &a)
     if (a.Is("msc")) {
         if (!a.CheckType(MSC_ATTR_STRING, Error)) return true;
         if (!SetDesign(a.value, false))
-            Error.Warning(a.linenum_value, "Unknown chart design: '" + a.value +
+            Error.Warning(a.linenum_value.start, "Unknown chart design: '" + a.value +
                           "'. Ignoring design selection.",
                           "Available styles are: " + GetDesigns() +".");
         return true;
@@ -847,7 +571,7 @@ void Msc::PostParseProcess(void)
     ArcList::iterator i = Arcs.begin();
     if (i == Arcs.end()) return; //we cannot have autogen entities either.
     if ((*i)->type != MSC_COMMAND_ENTITY)
-        i = Arcs.insert(i, new CommandEntity(new EntityDefList, file_line(0, 0), this));
+        i = Arcs.insert(i, new CommandEntity(new EntityDefList, this));
     dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
 
     //Traverse Arc tree and perform post-parse processing
@@ -939,11 +663,17 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
     //height arc so we can go back and adjust the zero height ones
     ArcList::iterator first_zero_height = arcs.end();
 
+    //if one arc is set "parallel" the next one should be compressed,
+    //even if not set so
+    bool previousWasParallel = false;
+    //the one coming after a parallel should not be compressed higher than this
+    double lastNonParallelBottom = y;
+
     for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) {
         double size;
         //if we draw y will be ignored by arcs' DrawHeight
         //so we need not calculate compress again
-        if (!draw && (*i)->IsCompressed()) {
+        if (!draw && ((*i)->IsCompressed() || previousWasParallel)) {
             Geometry geom;
 			//Drawheight for non final locations can be called at fractional y
             size = (*i)->DrawHeight(y, geom, false, false, autoMarker);
@@ -953,32 +683,37 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
                 continue;
             }
             double up = 0, CollisionYPos = -1;
-			if (geom.mainline.HasValidFrom() || geom.GetCover().size()>0) {
+            if (geom.mainline.HasValidFrom() || geom.GetCover().size()>0) {
                 up = FindCollision(g, geom, CollisionYPos);
                 //if (up<0) up =0;
+                //If we compress this one just because the previous was set parallel
+                //do not allow shifting higher than the top of the object set parallel
+                if (!(*i)->IsCompressed())
+                    if (up > y - lastNonParallelBottom)
+                        up = y - lastNonParallelBottom;
             }
             //Now we know how much be can compess it up
             //position known, re-invoke any previous zero-height at this pos
             //so that they can store correct y pos if final==true
             // use the median of the two mainlines, if both exists
             // and the returned collision position is outside
-			if (g.mainline.HasValidTill() && geom.mainline.HasValidFrom())
+            if (g.mainline.HasValidTill() && geom.mainline.HasValidFrom())
                 if (CollisionYPos < g.mainline.till ||
                     CollisionYPos > geom.mainline.from-up)
                     CollisionYPos = (g.mainline.till + geom.mainline.from-up)/2;
-			CollisionYPos = ceil(CollisionYPos);
+            CollisionYPos = ceil(CollisionYPos);
             while (first_zero_height != i && first_zero_height != arcs.end())
                 (*first_zero_height++)->DrawHeight(CollisionYPos, g, false, final,
                                                    autoMarker);
             first_zero_height = arcs.end();
             //recalculate cover again for current arc and add it's cover to g
-			//We ensure DrawHeight is always called on integer y position for bitmaps
-			double draw_y = ceil(y-up);
+            //We ensure DrawHeight is always called on integer y position for bitmaps
+            double draw_y = ceil(y-up);
             draw_y += (*i)->DrawHeight(draw_y, g, false, final, autoMarker);
             size = draw_y - y;
         } else {
-			//Ensure drawheight is only called at integer positions
-			y = ceil(y);
+            //Ensure drawheight is only called at integer positions
+            y = ceil(y);
             //if we do not yet draw and last arcs before a non-compressed one
             //were of zero height re-invoke them at the current pos
             if (!draw) {
@@ -988,19 +723,26 @@ double Msc::DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
             }
             size = (*i)->DrawHeight(y, g, draw, final, autoMarker);
         }
+        if ((*i)->IsParallel()) {
+            if (!previousWasParallel) {
+                lastNonParallelBottom = y;
+                previousWasParallel = true;
+            }
+        } else
+            previousWasParallel = false;
         y += size;
         if (largest_y < y)
             largest_y = y;
     }
     //if we do not yet draw and last arcs were of zero height
     //re-invoke them at final pos
-	if (!draw) {
-		y = ceil(y);
+    if (!draw) {
+        y = ceil(y);
         if (largest_y < y)
             largest_y = y;
         while (first_zero_height != arcs.end())
             (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
-	}
+    }
     return largest_y - original_y;
 }
 
@@ -1095,7 +837,7 @@ void Msc::CalculateWidthHeight(void)
 
         copyrightTextHeight = crTexSize.y;
         Geometry g;
-
+		g += Block(0, totalWidth, 0, 0); //limiter
         //not draw but final
         double height = DrawHeightArcList(Arcs, 0, g, false, true);
         totalHeight = height + chartTailGap;

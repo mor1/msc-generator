@@ -18,9 +18,8 @@
 */
 #include <assert.h>
 #include <iostream>
-#include "stringparse.h"
-#include "color.h"
 #include "msc.h"
+
 //////////////////////////////////////////////////////////////////////////////////
 
 template<> const char EnumEncapsulator<MscIdentType>::names[][15] =

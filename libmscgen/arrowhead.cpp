@@ -19,7 +19,6 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <algorithm>
-#include "arrowhead.h"
 #include "msc.h"
 
 template<> const char EnumEncapsulator<MscArrowType>::names[][15] =

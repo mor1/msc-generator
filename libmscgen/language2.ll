@@ -233,6 +233,7 @@ newpage   yylval_param->str = strdup(yytext); return TOK_COMMAND_NEWPAGE;
 block     yylval_param->str = strdup(yytext); return TOK_COMMAND_BIG;
 pipe      yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
 mark      yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
+parallel  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
 vertical  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
 at        yylval_param->str = strdup(yytext); return TOK_AT;
 no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;

@@ -51,25 +51,29 @@
 #define YYERROR_VERBOSE
 
 #ifdef C_S_H_IS_COMPILED
-#define YYMSC_GETPOS(A) file_line()
+#define YYMSC_GETPOS(A) file_line_range()
+#define YYMSC_GETPOS2(A, B) file_line_range()
 #define ADDCSH(A, B) msc.AddCSH(A, B)
 #define ADDCSH_ATTRVALUE(A, B, C) msc.AddCSH_AttrValue(A, B, C)
 #define ADDCSH_ATTRNAME(A, B, C) msc.AddCSH_AttrName(A, B, C)
 #define ADDCSH_ENTITYNAME(A, B) msc.AddCSH_EntityName(A, B)
 #define ADDCSH_COLON_STRING(A, B, C) msc.AddCSH_ColonString(A, B, C)
-#define SETLINEEND(ARC, FL, FC, LL, LC)
+#define SETLINEEND(ARC, F, L)
 
 #ifndef HAVE_UNISTD_H
 int isatty (int) {return 0;}
 #endif
 #else
-#define YYMSC_GETPOS(A) file_line(msc.current_file, (A).first_line, (A).first_column)
+#define YYMSC_GETPOS(A) YYMSC_GETPOS2(A,A)
+#define YYMSC_GETPOS2(A, B) file_line_range(                                   \
+            file_line(msc.current_file, (A).first_line, (A).first_column), \
+            file_line(msc.current_file, (B).last_line, (B).last_column))
 #define ADDCSH(A, B)
 #define ADDCSH_ATTRVALUE(A, B, C)
 #define ADDCSH_ATTRNAME(A, B, C)
 #define ADDCSH_ENTITYNAME(A, B)
 #define ADDCSH_COLON_STRING(A, B, C)
-#define SETLINEEND(ARC, FL, FC, LL, LC) do {(ARC)->SetLineEnd(FL, FC, LL, LC);} while(0)
+#define SETLINEEND(ARC, F, L) do {(ARC)->SetLineEnd(YYMSC_GETPOS2(F,L));} while(0)
 #ifndef HAVE_UNISTD_H
 extern int isatty (int);
 #endif
@@ -122,6 +126,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
       std::pair<string,string>("TOK_COMMAND_BIG", "'block'"),
       std::pair<string,string>("TOK_COMMAND_PIPE", "'pipe'"),
       std::pair<string,string>("TOK_COMMAND_MARK", "'mark'"),
+      std::pair<string,string>("TOK_COMMAND_PARALLEL", "'parallel'"),
       std::pair<string,string>("TOK_VERTICAL", "'vertical'"),
       std::pair<string,string>("TOK_AT", "'at'"),
       std::pair<string,string>("TOK_COLON_STRING", "':'"),  //just say colon to the user
@@ -172,7 +177,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         msg.insert(pos+1, " or");
     }
     msg.append(".");
-    msc.Error.Error(YYMSC_GETPOS(*loc), msg, once_msg);
+    msc.Error.Error(YYMSC_GETPOS(*loc).start, msg, once_msg);
 #endif
 };
 
@@ -206,12 +211,12 @@ inline bool string_to_bool(const char*s)
 	{								\
 	  (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos;	\
 	  (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;	\
-	}								\
-      else								\
-	{								\
+	}						        \
+      else							\
+	{							\
 	  (Current).first_pos = (Current).last_pos   =		\
 	    YYRHSLOC (Rhs, 0).last_pos;				\
-	}								\
+	}							\
     while (YYID (0))
 #endif
 
@@ -231,7 +236,8 @@ inline bool string_to_bool(const char*s)
        TOK_SPECIAL_ARC     TOK_EMPH
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
-       TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_VERTICAL TOK_AT
+       TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
+       TOK_VERTICAL TOK_AT
 %union
 {
     char             *str;
@@ -251,7 +257,7 @@ inline bool string_to_bool(const char*s)
 };
 
 %type <msc>        msc
-%type <arcbase>    arcrel arc complete_arc opt vertrel
+%type <arcbase>    arcrel arc arc_with_parallel complete_arc opt vertrel
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def pipe_def_list
 %type <arcparallel>parallel
@@ -273,12 +279,13 @@ inline bool string_to_bool(const char*s)
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
+                   TOK_COMMAND_PARALLEL
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertrel
 %destructor {if (!C_S_H) delete $$;} vertxpos
-%destructor {if (!C_S_H) delete $$;} arcrel arc complete_arc opt
+%destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel complete_arc opt
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def pipe_def_list
 %destructor {if (!C_S_H) delete $$;} parallel
@@ -287,7 +294,7 @@ inline bool string_to_bool(const char*s)
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
 %destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
-%destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
+%destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_PARALLEL
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
 %destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN
@@ -441,7 +448,8 @@ msckey:       TOK_MSC
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_DESIGNNAME);
     } else {
-        msc.AddDesignAttribute(Attribute("msc", $3, YYMSC_GETPOS(@$), YYMSC_GETPOS(@3)));
+        msc.AddDesignAttribute(Attribute("msc", $3, YYMSC_GETPOS(@1),
+                                                    YYMSC_GETPOS(@3)));
     }
     free($1);
     free($3);
@@ -464,35 +472,47 @@ complete_arc: TOK_SEMICOLON
         $$=NULL;
     }
 }
-              |arc TOK_SEMICOLON
+              |arc_with_parallel TOK_SEMICOLON
 {
     if (C_S_H) {
         ADDCSH(@2, COLOR_SEMICOLON);
     } else {
-        if ($1) SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        if ($1) SETLINEEND($1, @$, @$);
         $$=$1;
     }
 }
-              |arc error TOK_SEMICOLON
+              |arc_with_parallel error TOK_SEMICOLON
 {
     if (C_S_H) {
         ADDCSH(@2, COLOR_ERROR);
         ADDCSH(@3, COLOR_SEMICOLON);
     } else {
-        if ($1) SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        if ($1) SETLINEEND($1, @$, @$);
         $$=$1;
     }
     yyerrok;
 }
-              |arc error
+              |arc_with_parallel error
 {
     if (C_S_H) {
         ADDCSH(@2, COLOR_ERROR);
     } else {
-        if ($1) SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        if ($1) SETLINEEND($1, @$, @$);
         $$=$1;
     }
 };
+
+arc_with_parallel: arc
+                  | TOK_COMMAND_PARALLEL arc
+{
+    if (C_S_H) {
+        ADDCSH(@1, COLOR_KEYWORD);
+    } else {
+        ($2)->SetParallel();
+        $$ = $2;
+    }
+    free($1);
+}
 
 arc:            arcrel
               | arcrel full_arcattrlist_with_label
@@ -545,12 +565,12 @@ arc:            arcrel
               | full_arcattrlist_with_label
 {
     if (C_S_H) break;
-    $$ = (new ArcDivider(MSC_ARC_VSPACE, YYMSC_GETPOS(@$), &msc))->AddAttributeList($1);
+    $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc))->AddAttributeList($1);
 }
               | entitylist
 {
     if (C_S_H) break;
-    $$ = new CommandEntity($1, YYMSC_GETPOS(@$), &msc);
+    $$ = new CommandEntity($1, &msc);
 }
               | optlist
 {
@@ -558,7 +578,7 @@ arc:            arcrel
     /* If there were arcs defined by the options (e.g., background)
      * enclose them in a single item parallel element. */
     if ($1) {
-        $$ = (new ArcParallel(YYMSC_GETPOS(@$), &msc))->AddArcList($1);
+        $$ = (new ArcParallel(&msc))->AddArcList($1);
     } else
         $$ = NULL;
 }
@@ -604,7 +624,7 @@ arc:            arcrel
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
-        $$ = new CommandEntity(NULL, YYMSC_GETPOS(@$), &msc);
+        $$ = new CommandEntity(NULL, &msc);
     }
     free($1);
 }
@@ -613,7 +633,7 @@ arc:            arcrel
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
-        $$ = (new CommandEntity(NULL, YYMSC_GETPOS(@$), &msc))->AddAttributeList($2);
+        $$ = (new CommandEntity(NULL, &msc))->AddAttributeList($2);
     }
     free($1);
 }
@@ -622,7 +642,7 @@ arc:            arcrel
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
-        $$ = new ArcDivider(MSC_COMMAND_NUDGE, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcDivider(MSC_COMMAND_NUDGE, &msc);
     }
     free($1);
 }
@@ -631,7 +651,7 @@ arc:            arcrel
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
-        $$ = (new ArcDivider(MSC_COMMAND_NUDGE, YYMSC_GETPOS(@$), &msc))->AddAttributeList($2);
+        $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList($2);
     }
     free($1);
 }
@@ -660,7 +680,7 @@ arc:            arcrel
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
-        $$ = new CommandNewpage(YYMSC_GETPOS(@$), &msc);
+        $$ = new CommandNewpage(&msc);
     }
     free($1);
 }
@@ -669,7 +689,7 @@ arc:            arcrel
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
-        $$ = (new CommandNewpage(YYMSC_GETPOS(@$), &msc))->AddAttributeList($2);
+        $$ = (new CommandNewpage(&msc))->AddAttributeList($2);
     }
     free($1);
 };
@@ -705,7 +725,8 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
-        msc.AddAttribute(Attribute($1, string_to_bool($3), YYMSC_GETPOS(@$), YYMSC_GETPOS(@3), $3));
+        msc.AddAttribute(Attribute($1, string_to_bool($3), YYMSC_GETPOS(@1),
+                                                           YYMSC_GETPOS(@3), $3));
         $$ = NULL;
     }
     free($1);
@@ -718,7 +739,8 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         ADDCSH(@2, COLOR_EQUAL);
         ADDCSH(@3, COLOR_ATTRVALUE);
     } else {
-       msc.AddAttribute(Attribute($1, atof($3), YYMSC_GETPOS(@$), YYMSC_GETPOS(@3), $3));
+       msc.AddAttribute(Attribute($1, atof($3), YYMSC_GETPOS(@1),
+                                                YYMSC_GETPOS(@3), $3));
        $$ = NULL;
     }
     free($1);
@@ -735,7 +757,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         MscFillAttr fill;
         fill.Empty();
         if (a.StartsWith("background") && fill.AddAttribute(a, &msc, STYLE_OPTION)) {
-            $$ = new CommandNewBackground(a.linenum_attr, &msc, fill);
+            $$ = new CommandNewBackground(&msc, fill);
         } else {
             msc.AddAttribute(Attribute($1, $3, YYMSC_GETPOS(@$), YYMSC_GETPOS(@3)));
             $$ = NULL;
@@ -778,6 +800,7 @@ entity:       entity_string full_arcattrlist
         ADDCSH_ENTITYNAME(@1, $1);
     } else {
         $$ = (new EntityDef($1, &msc))->AddAttributeList($2, &msc);
+        SETLINEEND($$, @$, @$);
     }
     free($1);
 }
@@ -787,6 +810,7 @@ entity:       entity_string full_arcattrlist
         ADDCSH_ENTITYNAME(@1, $1);
     } else {
         $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL, &msc);
+        SETLINEEND($$, @$, @$);
     }
     free($1);
 };
@@ -998,7 +1022,7 @@ parallel:    braced_arclist
 {
     if (C_S_H) break;
     if ($1)
-        $$ = (new ArcParallel(YYMSC_GETPOS(@$), &msc))->AddArcList($1);
+        $$ = (new ArcParallel(&msc))->AddArcList($1);
     else
         $$ = NULL;
 }
@@ -1010,7 +1034,7 @@ parallel:    braced_arclist
     else if ($1)
         $$ = ($1)->AddArcList($2);
     else
-        $$ = (new ArcParallel(YYMSC_GETPOS(@$), &msc))->AddArcList($2);
+        $$ = (new ArcParallel(&msc))->AddArcList($2);
 };
 
 emphasis_list: first_emphasis
@@ -1026,41 +1050,41 @@ emphasis_list: first_emphasis
            | emphasis_list emphrel
 {
     if (C_S_H) break;
-    SETLINEEND($2, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
+    SETLINEEND($2, @2, @2);
     $$ = ($1)->AddFollow(($2)->ChangeStyleForFollow());
 }
            | emphasis_list emphrel full_arcattrlist_with_label
 {
     if (C_S_H) break;
     ($2)->ChangeStyleForFollow()->AddAttributeList($3);
-    SETLINEEND($2, @2.first_line, @2.first_column, @3.last_line, @3.last_column);
+    SETLINEEND($2, @2, @3);
     $$ = ($1)->AddFollow($2);
 }
            | emphasis_list emphrel braced_arclist
 {
     if (C_S_H) break;
-    SETLINEEND($2, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
+    SETLINEEND($2, @2, @2);
     $$ = ($1)->AddFollow(($2)->AddArcList($3)->ChangeStyleForFollow());
 }
            | emphasis_list braced_arclist
 {
     if (C_S_H) break;
-    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$), &msc);
+    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), &msc);
     temp->AddArcList($2)->ChangeStyleForFollow($1);
     $$ = ($1)->AddFollow(temp);
 }
            | emphasis_list emphrel full_arcattrlist_with_label braced_arclist
 {
     if (C_S_H) break;
-    SETLINEEND($2, @2.first_line, @2.first_column, @3.last_line, @3.last_column);
+    SETLINEEND($2, @2, @3);
     ($2)->AddArcList($4)->ChangeStyleForFollow()->AddAttributeList($3);
     $$ = ($1)->AddFollow($2);
 }
            | emphasis_list full_arcattrlist_with_label braced_arclist
 {
     if (C_S_H) break;
-    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$), &msc);
-    SETLINEEND(temp, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
+    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), &msc);
+    SETLINEEND(temp, @2, @2);
     temp->AddArcList($3)->ChangeStyleForFollow($1)->AddAttributeList($2);
     $$ = ($1)->AddFollow(temp);
 };
@@ -1069,26 +1093,26 @@ emphasis_list: first_emphasis
 first_emphasis:   emphrel
 {
     if (C_S_H) break;
-    SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+    SETLINEEND($1, @$, @$);
     $$ = $1;
 }
            | emphrel full_arcattrlist_with_label
 {
     if (C_S_H) break;
     ($1)->AddAttributeList($2);
-    SETLINEEND($1, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+    SETLINEEND($1, @$, @$);
     $$ = ($1);
 }
            | emphrel braced_arclist
 {
     if (C_S_H) break;
-    SETLINEEND($1, @1.first_line, @1.first_column, @1.last_line, @1.last_column);
+    SETLINEEND($1, @1, @1);
     $$ = ($1)->AddArcList($2);
 }
            | emphrel full_arcattrlist_with_label braced_arclist
 {
     if (C_S_H) break;
-    SETLINEEND($1, @1.first_line, @1.first_column, @2.last_line, @2.last_column);
+    SETLINEEND($1, @1, @2);
     ($1)->AddArcList($3)->AddAttributeList($2);
     $$ = ($1);
 };
@@ -1102,7 +1126,6 @@ pipe_def:    emphrel
 {
     if (C_S_H) break;
     ($1)->SetPipe()->AddAttributeList($2);
-    SETLINEEND($1, @1.first_line, @1.first_column, @2.last_line, @2.last_column);
     $$ = ($1);
 };
 
@@ -1111,7 +1134,7 @@ pipe_def_list: TOK_COMMAND_PIPE pipe_def
     if (C_S_H) {
         ADDCSH(@1, COLOR_KEYWORD);
     } else {
-        SETLINEEND($2, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        SETLINEEND($2, @$, @$);
         $$ = $2;
     }
     free($1);
@@ -1119,7 +1142,7 @@ pipe_def_list: TOK_COMMAND_PIPE pipe_def
              | pipe_def_list pipe_def
 {
     if (C_S_H) break;
-    SETLINEEND($2, @2.first_line, @2.first_column, @2.last_line, @2.last_column);
+    SETLINEEND($2, @2, @2);
     $$ = ($1)->AddFollow($2);
 }
              | pipe_def_list TOK_COMMAND_PIPE pipe_def
@@ -1127,7 +1150,7 @@ pipe_def_list: TOK_COMMAND_PIPE pipe_def
     if (C_S_H) {
         ADDCSH(@2, COLOR_KEYWORD);
     } else {
-        SETLINEEND($3, @2.first_line, @2.first_column, @3.last_line, @3.last_column);
+        SETLINEEND($3, @2, @3);
         $$ = ($1)->AddFollow($3);
     }
     free($2);
@@ -1148,7 +1171,7 @@ emphrel:   entity_string TOK_EMPH entity_string
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@3, $3);
     } else {
-        $$ = new ArcEmphasis($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3), YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcEmphasis($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3), &msc);
     }
     free($1);
     free($3);
@@ -1159,7 +1182,7 @@ emphrel:   entity_string TOK_EMPH entity_string
         ADDCSH(@1, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@2, $2);
     } else {
-        $$ = new ArcEmphasis($1, NULL, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcEmphasis($1, NULL, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2), &msc);
     }
     free($2);
 }
@@ -1169,7 +1192,7 @@ emphrel:   entity_string TOK_EMPH entity_string
         ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
-        $$ = new ArcEmphasis($2, $1, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcEmphasis($2, $1, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@2), &msc);
     }
     free($1);
 }
@@ -1178,7 +1201,7 @@ emphrel:   entity_string TOK_EMPH entity_string
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
     } else {
-        $$ = new ArcEmphasis($1, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcEmphasis($1, NULL, YYMSC_GETPOS(@1), NULL, YYMSC_GETPOS(@1), &msc);
     }
 };
 
@@ -1188,7 +1211,7 @@ vertxpos: TOK_AT entity_string
         ADDCSH(@1, COLOR_KEYWORD);
         ADDCSH_ENTITYNAME(@2, $2);
     } else {
-        $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2);
+        $$ = new VertXPos(msc, $2, YYMSC_GETPOS(@2));
     }
     free($1);
     free($2);
@@ -1200,7 +1223,7 @@ vertxpos: TOK_AT entity_string
         ADDCSH_ENTITYNAME(@2, $2);
         ADDCSH(@3, COLOR_SYMBOL);
     } else {
-        $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_LEFT_SIDE);
+        $$ = new VertXPos(msc, $2, YYMSC_GETPOS(@2), VertXPos::POS_LEFT_SIDE);
     }
     free($1);
     free($2);
@@ -1212,7 +1235,7 @@ vertxpos: TOK_AT entity_string
         ADDCSH_ENTITYNAME(@2, $2);
         ADDCSH(@3, COLOR_SYMBOL);
     } else {
-        $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_RIGHT_SIDE);
+        $$ = new VertXPos(msc, $2, YYMSC_GETPOS(@2), VertXPos::POS_RIGHT_SIDE);
     }
     free($1);
     free($2);
@@ -1226,19 +1249,19 @@ vertxpos: TOK_AT entity_string
     } else {
         switch ($3) {
         case MSC_EMPH_SOLID:
-            $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_LEFT_BY);
+            $$ = new VertXPos(msc, $2, YYMSC_GETPOS(@2), VertXPos::POS_LEFT_BY);
             break;
         case MSC_EMPH_DASHED:
-            $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_RIGHT_BY);
+            $$ = new VertXPos(msc, $2, YYMSC_GETPOS(@2), VertXPos::POS_RIGHT_BY);
             break;
         case MSC_EMPH_DOTTED:
-            msc.Error.Error(YYMSC_GETPOS(@3),
+            msc.Error.Error(YYMSC_GETPOS(@3).start,
                             "unexpected '..', expected '-', '--', '+' or '++'."
                             " Ignoring vertical."); break;
             $$ = NULL;
             break;
         case MSC_EMPH_DOUBLE:
-            msc.Error.Error(YYMSC_GETPOS(@3),
+            msc.Error.Error(YYMSC_GETPOS(@3).start,
                             "unexpected '==', expected '-', '--', '+' or '++'."
                             " Ignoring vertical."); break;
             $$ = NULL;
@@ -1256,7 +1279,7 @@ vertxpos: TOK_AT entity_string
         ADDCSH(@3, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@4, $4);
     } else {
-        $$ = new VertXPos(YYMSC_GETPOS(@2), msc, $2, VertXPos::POS_CENTER, $4);
+        $$ = new VertXPos(msc, $2, YYMSC_GETPOS(@2), $4, YYMSC_GETPOS(@4), VertXPos::POS_CENTER);
     }
     free($1);
     free($2);
@@ -1272,7 +1295,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH(@3, COLOR_MARKERNAME);
     } else {
-        $$ = new ArcVerticalArrow($2, $1, $3, $4, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcVerticalArrow($2, $1, $3, $4, &msc);
         delete $4;
     }
     free($1);
@@ -1284,7 +1307,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
         ADDCSH(@1, COLOR_SYMBOL);
         ADDCSH(@2, COLOR_MARKERNAME);
     } else {
-        $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, $2, $3, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, $2, $3, &msc);
         delete $3;
     }
     free($2);
@@ -1295,7 +1318,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
         ADDCSH(@1, COLOR_MARKERNAME);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
-        $$ = new ArcVerticalArrow($2, $1, MARKER_HERE_STR, $3, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcVerticalArrow($2, $1, MARKER_HERE_STR, $3, &msc);
         delete $3;
     }
     free($1);
@@ -1305,7 +1328,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
     if (C_S_H) {
         ADDCSH(@1, COLOR_SYMBOL);
     } else {
-        $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, $2, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, $2, &msc);
         delete $2;
     }
 }
@@ -1316,7 +1339,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH(@3, COLOR_MARKERNAME);
     } else {
-        $$ = new ArcVerticalArrow($2, $3, $1, $4, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcVerticalArrow($2, $3, $1, $4, &msc);
         delete $4;
     }
     free($1);
@@ -1328,7 +1351,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
         ADDCSH(@1, COLOR_SYMBOL);
         ADDCSH(@2, COLOR_MARKERNAME);
     } else {
-        $$ = new ArcVerticalArrow($1, $2, MARKER_HERE_STR, $3, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcVerticalArrow($1, $2, MARKER_HERE_STR, $3, &msc);
         delete $3;
     }
     free($2);
@@ -1339,7 +1362,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
         ADDCSH(@1, COLOR_MARKERNAME);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
-        $$ = new ArcVerticalArrow($2, MARKER_HERE_STR, $1, $3, YYMSC_GETPOS(@$), &msc);
+        $$ = new ArcVerticalArrow($2, MARKER_HERE_STR, $1, $3, &msc);
         delete $3;
     }
     free($1);
@@ -1350,7 +1373,7 @@ vertrel: entity_string empharcrel_straight entity_string vertxpos
         ADDCSH(@1, COLOR_SYMBOL);
         break;
     }
-    $$ = new ArcVerticalArrow($1, MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, $2, YYMSC_GETPOS(@$), &msc);
+    $$ = new ArcVerticalArrow($1, MARKER_PREV_PARALLEL_STR, MARKER_HERE_STR, $2, &msc);
     delete $2;
 };
 
@@ -1361,7 +1384,7 @@ arcrel:       TOK_SPECIAL_ARC
         ADDCSH(@1, COLOR_SYMBOL);
         break;
     }
-    $$ = new ArcDivider($1, YYMSC_GETPOS(@$), &msc);
+    $$ = new ArcDivider($1, &msc);
 }
             | arcrel_to
 {
@@ -1383,7 +1406,7 @@ arcrel_to:    entity_string relation_to entity_string
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@3, $3);
     } else {
-        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3));
     }
     free($1);
     free($3);
@@ -1394,7 +1417,7 @@ arcrel_to:    entity_string relation_to entity_string
         ADDCSH(@1, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@2, $2);
     } else {
-        $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2));
     }
     free($2);
 }
@@ -1404,7 +1427,7 @@ arcrel_to:    entity_string relation_to entity_string
         ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
-        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), RSIDE_ENT_STR, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), RSIDE_ENT_STR, YYMSC_GETPOS(@2));
     }
     free($1);
 }
@@ -1414,7 +1437,7 @@ arcrel_to:    entity_string relation_to entity_string
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@3, $3);
     } else {
-        $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), true, YYMSC_GETPOS(@2));
+        $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), true, YYMSC_GETPOS2(@2, @3));
     }
     free($3);
 }
@@ -1435,7 +1458,7 @@ arcrel_from:    entity_string relation_from entity_string
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@3, $3);
     } else {
-        $$ = msc.CreateArcArrow($2, $3, YYMSC_GETPOS(@3), $1, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($2, $3, YYMSC_GETPOS(@3), $1, YYMSC_GETPOS(@1));
     }
     free($1);
     free($3);
@@ -1446,7 +1469,7 @@ arcrel_from:    entity_string relation_from entity_string
         ADDCSH(@1, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@2, $2);
     } else {
-        $$ = msc.CreateArcArrow($1, $2, YYMSC_GETPOS(@2), LSIDE_ENT_STR, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($1, $2, YYMSC_GETPOS(@2), LSIDE_ENT_STR, YYMSC_GETPOS(@1));
     }
     free($2);
 }
@@ -1456,7 +1479,7 @@ arcrel_from:    entity_string relation_from entity_string
         ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
-        $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, YYMSC_GETPOS(@2), $1, YYMSC_GETPOS(@1), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, YYMSC_GETPOS(@2), $1, YYMSC_GETPOS(@1));
     }
     free($1);
 }
@@ -1466,7 +1489,7 @@ arcrel_from:    entity_string relation_from entity_string
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@3, $3);
     } else {
-        $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), false, YYMSC_GETPOS(@2));
+        $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), false, YYMSC_GETPOS2(@2, @3));
     }
     free($3);
 }
@@ -1486,7 +1509,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@3, $3);
     } else {
-        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), $3, YYMSC_GETPOS(@3));
     }
     free($1);
     free($3);
@@ -1497,7 +1520,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
         ADDCSH(@1, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@2, $2);
     } else {
-        $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, YYMSC_GETPOS(@1), $2, YYMSC_GETPOS(@2));
     }
     free($2);
 }
@@ -1507,7 +1530,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
         ADDCSH_ENTITYNAME(@1, $1);
         ADDCSH(@2, COLOR_SYMBOL);
     } else {
-        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), RSIDE_ENT_STR, YYMSC_GETPOS(@2), YYMSC_GETPOS(@$));
+        $$ = msc.CreateArcArrow($2, $1, YYMSC_GETPOS(@1), RSIDE_ENT_STR, YYMSC_GETPOS(@2));
     }
     free($1);
 }
@@ -1517,7 +1540,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
         ADDCSH(@2, COLOR_SYMBOL);
         ADDCSH_ENTITYNAME(@3, $3);
     } else {
-        $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), true, YYMSC_GETPOS(@2));
+        $$ = ($1)->AddSegment($3, YYMSC_GETPOS(@3), true, YYMSC_GETPOS2(@2, @3));
     }
     free($3);
 }
@@ -1558,7 +1581,7 @@ full_arcattrlist_with_label: colon_string
 {
     if (C_S_H) {
     } else {
-        $$ = (new AttributeList)->Append(new Attribute("label", $1, YYMSC_GETPOS(@$), YYMSC_GETPOS(@$).IncCol()));
+        $$ = (new AttributeList)->Append(new Attribute("label", $1, YYMSC_GETPOS(@$), YYMSC_GETPOS(@$).IncStartCol()));
     }
     free($1);
 }
@@ -1566,7 +1589,7 @@ full_arcattrlist_with_label: colon_string
 {
     if (C_S_H) {
     } else {
-        $$ = ($2)->Prepend(new Attribute("label", $1, YYMSC_GETPOS(@1), YYMSC_GETPOS(@1).IncCol()));
+        $$ = ($2)->Prepend(new Attribute("label", $1, YYMSC_GETPOS(@1), YYMSC_GETPOS(@1).IncStartCol()));
     }
     free($1);
 }
@@ -1574,7 +1597,7 @@ full_arcattrlist_with_label: colon_string
 {
     if (C_S_H) {
     } else {
-        $$ = ($1)->Append(new Attribute("label", $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@2).IncCol()));
+        $$ = ($1)->Append(new Attribute("label", $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@2).IncStartCol()));
     }
     free($2);
 }
@@ -1582,7 +1605,7 @@ full_arcattrlist_with_label: colon_string
 {
     if (C_S_H) {
     } else {
-        ($1)->Append(new Attribute("label", $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@2).IncCol()));
+        ($1)->Append(new Attribute("label", $2, YYMSC_GETPOS(@2), YYMSC_GETPOS(@2).IncStartCol()));
         //Merge $3 at the end of $1
         ($1)->splice(($1)->end(), *($3));
         delete ($3); //empty list now

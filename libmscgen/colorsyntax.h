@@ -79,8 +79,9 @@
      TOK_COMMAND_BIG = 295,
      TOK_COMMAND_PIPE = 296,
      TOK_COMMAND_MARK = 297,
-     TOK_VERTICAL = 298,
-     TOK_AT = 299
+     TOK_COMMAND_PARALLEL = 298,
+     TOK_VERTICAL = 299,
+     TOK_AT = 300
    };
 #endif
 /* Tokens.  */
@@ -124,15 +125,16 @@
 #define TOK_COMMAND_BIG 295
 #define TOK_COMMAND_PIPE 296
 #define TOK_COMMAND_MARK 297
-#define TOK_VERTICAL 298
-#define TOK_AT 299
+#define TOK_COMMAND_PARALLEL 298
+#define TOK_VERTICAL 299
+#define TOK_AT 300
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 236 "language.yy"
+#line 242 "language.yy"
 {
     char             *str;
     Msc              *msc;
@@ -150,7 +152,7 @@ typedef union YYSTYPE
     std::list<string>*stringlist;
 }
 /* Line 1489 of yacc.c.  */
-#line 154 "colorsyntax.h"
+#line 156 "colorsyntax.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

@@ -18,7 +18,6 @@
 */
 #include <cassert>
 #include <cstring>
-#include "attribute.h"
 #include "msc.h"
 
 //0 if a does not begin with b

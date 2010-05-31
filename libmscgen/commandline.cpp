@@ -106,6 +106,7 @@ int do_main(const std::list<std::string> &args, const char *designs)
                         "http://msc-generator.sourceforge.net";
 
     const file_line opt_pos(msc.current_file,0,0);
+    const file_line_range opt_pos_range(opt_pos, opt_pos);
     bool show_usage = false;
     bool fail_options = false;
 
@@ -179,7 +180,7 @@ int do_main(const std::list<std::string> &args, const char *designs)
             string name(i->substr(2));
             if (name.find("=") == name.npos) {
                 //no "=" in switch
-                Attribute a(name.c_str(), true, opt_pos, opt_pos, "yes");
+                Attribute a(name.c_str(), true, opt_pos_range, opt_pos_range, "yes");
                 a.error = true;  //supress errors in AddAttribute
                 if (msc.AddAttribute(a)) continue;
                 if (!msc.SetDesign(a.name, true))
@@ -191,17 +192,17 @@ int do_main(const std::list<std::string> &args, const char *designs)
                 string value(name.substr(name.find("=")+1));
                 name.erase(name.find("="));
                 if (value == "yes" || name == "Yes" || name == "YES")
-                    msc.AddAttribute(Attribute(name.c_str(), true, opt_pos,
-                                               opt_pos, value.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), true, opt_pos_range,
+                                               opt_pos_range, value.c_str()));
                 else if(value == "no" || name == "No" || name == "NO")
-                    msc.AddAttribute(Attribute(name.c_str(), false, opt_pos,
-                                               opt_pos, value.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), false, opt_pos_range,
+                                               opt_pos_range, value.c_str()));
                 else if (sscanf(value.c_str(), "%f", &num) == 1)
-                    msc.AddAttribute(Attribute(name.c_str(), num, opt_pos,
-                                               opt_pos, value.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), num, opt_pos_range,
+                                               opt_pos_range, value.c_str()));
                 else
-                    msc.AddAttribute(Attribute(name.c_str(), value.c_str(), opt_pos,
-                                               opt_pos, name.c_str()));
+                    msc.AddAttribute(Attribute(name.c_str(), value.c_str(), opt_pos_range,
+                                               opt_pos_range, name.c_str()));
             }
         } else if (*i == "-l") {
             licence();

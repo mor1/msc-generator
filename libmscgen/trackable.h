@@ -2,6 +2,7 @@
 #define TRACKABLE_H
 
 #include <set>
+#include <climits>
 #include "error.h" //for file_line
 
 class XY {
@@ -25,14 +26,18 @@ struct Range {
     double till;
     Range() {}
     Range(double s, double d) : from(s), till(d) {}
+	void MakeInvalid() {from = MAINLINE_INF; till = -MAINLINE_INF;}
+	bool IsInvalid() const {return from == MAINLINE_INF && till == -MAINLINE_INF;}
     bool Overlaps(const struct Range &r, double gap=0) const
         {return from<r.till+gap && r.from < till+gap;}
-    void Extend(Range a)
-        {if (from>a.from) from=a.from; if (till<a.till) till=a.till;}
+    void Extend(Range a, bool onlyFrom=false)
+        {if (from>a.from) from=a.from; if (!onlyFrom && till<a.till) till=a.till;}
     bool IsWithin(double p) const
         {return from<=p && p<=till;}
 	bool HasValidFrom() const {return from != MAINLINE_INF;}
-	bool HasValidTill() const {return till != MAINLINE_INF;}
+	bool HasValidTill() const {return till != -MAINLINE_INF;}
+	double Spans() const
+   	    {return till-from;}
 };
 
 class TrackableElement;
@@ -51,6 +56,8 @@ struct Block {
         x.from = ul.x<dr.x?ul.x:dr.x; x.till = ul.x>dr.x?ul.x:dr.x;
         y.from = ul.y<dr.y?ul.y:dr.y; y.till = ul.y>dr.y?ul.y:dr.y;
     }
+	void MakeInvalid() {x.MakeInvalid(); y.MakeInvalid();}
+	bool IsInvalid() const {return x.IsInvalid() && y.IsInvalid();}
     //operator required for set ordering
     //this improves performance when checking overlaps (lower blocks later)
     bool operator <(const struct Block &b) const {
@@ -66,14 +73,15 @@ struct Block {
         {return XY(x.till, y.till);}
     bool IsWithin(XY p) const
         {return x.IsWithin(p.x) && y.IsWithin(p.y);}
+	Block & operator|=(const Block &b)
+	    {x.Extend(b.x); y.Extend(b.y); return *this;}
 };
 
 template <typename BlockContainer>
-bool BoundingBlock(const BlockContainer &container, Block &ret)
+bool BoundingBlock(const BlockContainer &container, Block &ret, bool reuse=false)
 {
     if (container.size()==0) return false;
-	ret.x.from = ret.y.from = INT_MAX;
-	ret.x.till = ret.y.till = INT_MIN;
+	if (!reuse) ret.MakeInvalid();
     for(typename BlockContainer::const_iterator i=container.begin(); i!=container.end(); i++) {
         if (ret.x.from > i->x.from) ret.x.from = i->x.from;
         if (ret.x.till < i->x.till) ret.x.till = i->x.till;
@@ -99,9 +107,9 @@ class Geometry
 public:
     Range           mainline;
 
-	Geometry() : boundingBoxCurrent(false), mainline(MAINLINE_INF, -MAINLINE_INF) {}
-	const std::set<Block> &GetCover() const {return cover;}
-    void Clear() {mainline.from=INT_MAX; mainline.till=0; cover.clear(); boundingBoxCurrent=false;}
+    Geometry() : boundingBoxCurrent(false) {mainline.MakeInvalid();}
+    const std::set<Block> &GetCover() const {return cover;}
+    void Clear() {mainline.MakeInvalid(); cover.clear(); boundingBoxCurrent=false;}
     void SetArc(TrackableElement *a) const {
         for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
             i->arc = a;
@@ -136,31 +144,32 @@ public:
 		boundingBoxCurrent=false;
         return *this;
     }
-    bool IsEmpty() const {return cover.size()==0;};
-	bool Overlaps(const Geometry &g, double gap=0) const {
-		for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
-			for(std::set<Block>::const_iterator j=g.cover.begin(); j!=g.cover.end(); j++)
-				if (j->Overlaps(*i, gap))
-					return true;
-		return false;
-	}
-	bool GetBoundingBox(Block &b) const {
-		if (!boundingBoxCurrent) {
-			boundingBoxEmpty = !BoundingBlock(cover, boundingBox);
-			boundingBoxCurrent = true;
-		}
-		b = boundingBox;
-		return !boundingBoxEmpty;
+    bool IsEmpty() const {return cover.size()==0;}
+    bool Overlaps(const Geometry &g, double gap=0) const {
+        for(std::set<Block>::const_iterator i=cover.begin(); i!=cover.end(); i++)
+            for(std::set<Block>::const_iterator j=g.cover.begin(); j!=g.cover.end(); j++)
+                if (j->Overlaps(*i, gap))
+                    return true;
+        return false;
+    }
+    bool GetBoundingBox(Block &b) const {
+        if (!boundingBoxCurrent) {
+            boundingBoxEmpty = !BoundingBlock(cover, boundingBox);
+            boundingBoxCurrent = true;
+        }
+        b = boundingBox;
+        return !boundingBoxEmpty;
     }
 };
 
-
-
 class TrackableElement {
+protected:
+    bool linenum_final;
 public:
-	Geometry  geometry;
-    file_line line_start, line_end;
+    Geometry  geometry;
+    file_line_range file_pos;
+    TrackableElement() : linenum_final(false) {}
+    void SetLineEnd(file_line_range l, bool f=true);
 };
-
 
 #endif //TRACKABLE_H

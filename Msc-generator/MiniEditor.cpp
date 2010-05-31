@@ -405,7 +405,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 
 void CEditorBar::OnSelChange(NMHDR *pNotifyStruct, LRESULT *result) 
 {
-	if (m_bSuspendNotifications) return;
+	if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) return;
 	m_ctrlEditor.NotifyDocumentOfChange(true);
 	*result = 0;
 }

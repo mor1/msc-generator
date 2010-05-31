@@ -633,7 +633,8 @@ void CMscGenDoc::OnViewNexterror()
 		m_ExternalEditor.JumpToLine(line, col);
 
 	//Turn tracking off
-	SetTrackMode(false);
+	if (m_bTrackMode) SetTrackMode(false);
+	else StartFadingAll();
 	//Show tracking boxes for the error
 	AddTrackArc(m_ChartShown.GetArcByLine(line, col));
 }
@@ -1011,12 +1012,12 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (!m_bTrackMode || !pApp->IsInternalEditorRunning()) return;
-
 	long start, end;
 	pApp->m_pWndEditor->m_ctrlEditor.GetSel(start, end);
 	int line, col;
 	pApp->m_pWndEditor->m_ctrlEditor.ConvertPosToLineCol(start, line, col);
 	//Add new track arc and update the views if there is a change
+	StartFadingAll();
 	AddTrackArc(m_ChartShown.GetArcByLine(line+1, col+1)); 
 }
 
@@ -1076,10 +1077,10 @@ void CMscGenDoc::StartFadingTimer()
 
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 500; //millisecons
-	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/100.));
+	const double fade_completely = 300; //millisecons
+	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
 	bool keep_coming_back = false;
-	CDC dc;
+	Block bounding;
 	for (int i = 0; i<m_trackArcs.size(); i++) {
 		if (m_trackArcs[i].delay_fade < 0)
 			continue;
@@ -1093,13 +1094,14 @@ bool CMscGenDoc::DoFading()
 			m_trackArcs.erase(m_trackArcs.begin()+i);
 			i--;
 		}
-		//if it is the first rectangle prepare a DC to calc invalidate rect)
+		if (!keep_coming_back) bounding = b;
+		else bounding |= b;
 		keep_coming_back = true;
-		POSITION pos = GetFirstViewPosition();
-		while(pos) {
-			CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-			if (pView) pView->InvalidateBlock(b);
-		}
+	}
+	POSITION pos = GetFirstViewPosition();
+	while(pos) {
+		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+		if (pView) pView->InvalidateBlock(bounding);
 	}
 	return keep_coming_back;
 }
@@ -1127,7 +1129,7 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
 			}
 		}
 	if (!found)
-		m_trackArcs.push_back(TrackedArc(arc));
+		m_trackArcs.push_back(TrackedArc(arc, delay));
 	POSITION pos = GetFirstViewPosition();
 	while(pos) {
 		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
@@ -1179,21 +1181,35 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	ASSERT(pApp != NULL);
 	if (!pApp->IsInternalEditorRunning()) return;
 	CCshRichEditCtrl &editor = pApp->m_pWndEditor->m_ctrlEditor;
+	DWORD eventmask = editor.GetEventMask();
+	//Disable selection change events - we are causing selection change
+	//and we do not want to be notified (and add more track rects)
+	editor.SetEventMask(eventmask & ~ENM_SELCHANGE);
 	if (arc) {
 		//Store selection if there was no previous highlight
 		if (!wasArc) editor.GetSel(m_saved_charrange);
-		long start = editor.ConvertLineColToPos(arc->line_start.line-1, arc->line_start.col-1);
-		long end = editor.ConvertLineColToPos(arc->line_end.line-1, arc->line_end.col);
-		editor.SetRedraw(false);
-		editor.SetSel(start, start);
-		POINT scroll_pos;
-		::SendMessage(editor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-		editor.SetSel(start, end);
-		::SendMessage(editor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
-		editor.SetRedraw(true);
-		editor.Invalidate();
+		HighLightArc(arc);
 	} else {
 		//restore selection to the one before tracking was initiated
 		editor.SetSel(m_saved_charrange);
 	}
+	editor.SetEventMask(eventmask);
+}
+
+void CMscGenDoc::HighLightArc(const TrackableElement *arc)
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	if (!pApp->IsInternalEditorRunning()) return;
+	CCshRichEditCtrl &editor = pApp->m_pWndEditor->m_ctrlEditor;
+	long start = editor.ConvertLineColToPos(arc->file_pos.start.line-1, arc->file_pos.start.col-1);
+	long end = editor.ConvertLineColToPos(arc->file_pos.end.line-1, arc->file_pos.end.col);
+	editor.SetRedraw(false);
+	editor.SetSel(start, start);
+	POINT scroll_pos;
+	::SendMessage(editor.m_hWnd, EM_GETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+	editor.SetSel(start, end);
+	::SendMessage(editor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
+	editor.SetRedraw(true);
+	editor.Invalidate();
 }

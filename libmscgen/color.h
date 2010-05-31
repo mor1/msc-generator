@@ -38,7 +38,7 @@ public:
 class ColorSet : public std::map<std::string, MscColorType>
 {
 public:
-    bool AddColor(std::string, std::string, MscError &error, file_line linenum);
+    bool AddColor(std::string, std::string, MscError &error, file_line_range linenum);
     MscColorType GetColor(const std::string &s) const;
 };
 

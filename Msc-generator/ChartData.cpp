@@ -66,7 +66,7 @@ void CChartData::SetDesign (const char *design)
 BOOL CChartData::Save(const CString &fileName) const
 {
 	TRY {
-		CStdioFile outfile(fileName, CFile::modeCreate | CFile::modeWrite | CFile::typeText);
+		CStdioFile outfile(fileName, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);
 		TRY {
 			if (m_text.GetLength()>0)
 				outfile.Write(m_text, m_text.GetLength());
@@ -257,13 +257,12 @@ TrackableElement *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) c
 {
 	CompileIfNeeded();
 	file_line linenum(m_msc->Error.Files.size()-1, line, col);
-	std::map<file_line, ArcBase*>::const_iterator itr = --m_msc->AllArcs.upper_bound(linenum);
+	Msc::LineToArcMapType::const_iterator itr;
+	//in the map linenum_ranges are sorted by increasing length, we search the shortest first
+	for (itr = m_msc->AllArcs.begin(); itr!=m_msc->AllArcs.end(); itr++)
+		if (itr->first.start <= linenum && linenum <= itr->first.end) break;
 	if (itr == m_msc->AllArcs.end()) return NULL;
-	//OK now itr points to the arc with start pos just before the cursor
-	//Now see that the end pos of the arc is after the cursor
-	if (itr->second->line_end.line<line) return NULL;
-	if (itr->second->line_end.line==line && itr->second->line_end.col < col)  return NULL;
-	return  itr->second;
+	return itr->second;
 }
 
 /*unsigned CDrawingChartData::GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const

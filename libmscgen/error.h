@@ -23,7 +23,29 @@ public:
         }
         else return file < a.file;
     }
-    file_line &IncCol(unsigned i=1) {col+=i; return *this;}
+	bool operator > (const file_line &a) const {
+        if (file==a.file) {
+            if (line==a.line)
+                return col>a.col;
+            else
+                return line>a.line;
+        }
+        else return file>a.file;
+    }
+	bool operator <= (const file_line &a) const {
+		return !operator>(a);
+	}
+	bool operator >= (const file_line &a) const {
+		return !operator<(a);
+	}
+};
+
+struct file_line_range {
+    file_line start;
+    file_line end;
+    file_line_range() {}
+    file_line_range(file_line s, file_line e) : start(s), end(e) {}
+    file_line_range &IncStartCol(unsigned i=1) {start.col+=i; return *this;}
 };
 
 struct ErrorElement

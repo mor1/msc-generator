@@ -17,7 +17,6 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <sstream>
-#include "color.h"
 #include "msc.h"
 
 using namespace std;
@@ -57,7 +56,7 @@ string MscColorType::Print(void) const
 }
 
 bool ColorSet::AddColor(const std::string alias, const std::string colordef,
-                        MscError &error, file_line linenum)
+                        MscError &error, file_line_range linenum)
 {
     MscColorType c = GetColor(colordef);
     if (c.valid) {
@@ -66,7 +65,7 @@ bool ColorSet::AddColor(const std::string alias, const std::string colordef,
     }
     string ss = "Invalid color definition for ";
     ss << alias << ": '" << colordef << "'. Ignoring color alias definition.";
-    error.Error(linenum, ss);
+    error.Error(linenum.start, ss);
     return false;
 }
 

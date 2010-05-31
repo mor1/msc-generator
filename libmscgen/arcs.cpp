@@ -24,25 +24,13 @@
 
 using namespace std;
 
-template class PtrList<ArcList>;
+//template class PtrList<ArcBase>;
 
-ArcBase::ArcBase(MscArcType t, file_line l, Msc *msc) :
-    type(t), linenum_final(false),
-    chart(msc), valid(true), compress(false), yPos(0)
+ArcBase::ArcBase(MscArcType t, Msc *msc) :
+    type(t), chart(msc), valid(true), compress(false), parallel(false), yPos(0)
 {
     if (msc)
         compress = msc->StyleSets.top().compress;
-	line_start = line_end = l; 
-}
-
-void ArcBase::SetLineEnd(int fl, int fc, int ll, int lc, bool f)
-{
-    if (linenum_final) return;
-    linenum_final = f;
-    line_start.line = fl;
-    line_start.col = fc;
-    line_end.line = ll;
-    line_end.col = lc;
 }
 
 //Helper function. If the pos of *value is smaller (or larger) than i
@@ -70,13 +58,20 @@ ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 
 bool ArcBase::AddAttribute(const Attribute &a)
 {
-    //In case of ArcLabelled this will not be called, there the style.AddAtribute
-    //will process any compress attribute. Then in ArcLabelled::PostParseProcess
+    //In case of ArcLabelled this will not be called, for a compress attribute.
+    //There the style.AddAtribute will process any compress attribute.
+    //Then in ArcLabelled::PostParseProcess
     //we copy style.compress.second to the ArcBase::compress.
     if (a.Is("compress")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
         compress = a.yes;
+        return true;
+    }
+    if (a.Is("parallel")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        parallel = a.yes;
         return true;
     }
     return false;
@@ -98,14 +93,14 @@ void ArcBase::PostHeightProcess(void)
 {
     if (valid)
         chart->AllCovers.insert(chart->AllCovers.end(), geometry.GetCover().begin(), geometry.GetCover().end());
-    chart->AllArcs[line_start] = this;
+    chart->AllArcs[file_pos] = this;
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcLabelled::ArcLabelled(MscArcType t, file_line l, Msc *msc, const MscStyle &s) :
-    ArcBase(t, l, msc), style(s), parsed_label(msc)
+ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
+    ArcBase(t, msc), style(s), parsed_label(msc)
 {
     numbering = msc->StyleSets.top().numbering?-999:-1000;
     style.type = STYLE_ARC;
@@ -145,7 +140,7 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
     //Find label attribute
     file_line linenum_label;
     for (AttributeList::iterator i = l->begin(); i!=l->end(); i++)
-        if ((*i)->Is("label")) linenum_label = (*i)->linenum_value;
+        if ((*i)->Is("label")) linenum_label = (*i)->linenum_value.start;
     //Add attributest first
     ArcBase::AddAttributeList(l);
     //Then convert color and style names in labels
@@ -255,17 +250,17 @@ void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, int &numbe
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line l,
+ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
                            Msc *msc, const MscStyle &st, double ys) :
-    ArcArrow(t, l, msc, st), YSize(ys)
+    ArcArrow(t, msc, st), YSize(ys)
 {
-    src = chart->FindAllocEntity(s, l, &valid);
+    src = chart->FindAllocEntity(s, sl, &valid);
 }
 
-ArcArrow * ArcSelfArrow::AddSegment(const char *m, file_line ml, bool forward, file_line l)
+ArcArrow * ArcSelfArrow::AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l)
 {
     if (!valid) return this; //display error only once
-    chart->Error.Error(l, "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
+    chart->Error.Error(l.start, "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
     valid = false;
     return this;
 }
@@ -322,7 +317,7 @@ double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, do
         geometry += b;
         b.y.from = y - chart->nudgeSize/2;
         b.y.till = y + wh.y + chart->nudgeSize/2;
-        geometry.mainline.Extend(b.y);
+        geometry.mainline.Extend(b.y, parallel);
         geometry.SetArc(this);
         g += geometry;
     }
@@ -359,22 +354,22 @@ void ArcSelfArrow::PostHeightProcess(void)
         string sss;
         sss << "Entity '" << (*src)->name << "' is";
         sss << " turned off, but referenced here.";
-        chart->Error.Warning(line_start, sss, "It will look strange.");
+        chart->Error.Warning(file_pos.start, sss, "It will look strange.");
     }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l,
-                         Msc *msc, const MscStyle &st) :
-    ArcArrow(t, l, msc, st), linenum_src(sl), linenum_dst(dl)
+ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
+                         const char *d, file_line_range dl, Msc *msc, const MscStyle &st) :
+    ArcArrow(t, msc, st), linenum_src(sl.start), linenum_dst(dl.start)
 {
     src = chart->FindAllocEntity(s, sl, &valid);
     dst = chart->FindAllocEntity(d, dl, &valid);
     modifyFirstLineSpacing = true;
 };
 
-ArcArrow * ArcDirArrow::AddSegment(const char *m, file_line ml, bool forward, file_line l)
+ArcArrow * ArcDirArrow::AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l)
 {
     EIterator mid;
     if (m==NULL) {
@@ -395,7 +390,7 @@ ArcArrow * ArcDirArrow::AddSegment(const char *m, file_line ml, bool forward, fi
         middle.push_back(dst);
         linenum_middle.push_back(linenum_dst);
         dst = mid;
-        linenum_dst = ml;
+        linenum_dst = ml.start;
     } else {
         //check for this situation: <-b<-a (where a is left of b)
         if (middle.size()==0 && (*dst)->name ==LSIDE_ENT_STR &&
@@ -404,7 +399,7 @@ ArcArrow * ArcDirArrow::AddSegment(const char *m, file_line ml, bool forward, fi
         middle.insert(middle.begin(), src);
         linenum_middle.insert(linenum_middle.begin(), linenum_src);
         src = mid;
-        linenum_src = ml;
+        linenum_src = ml.start;
     };
     return this;
 }
@@ -484,7 +479,7 @@ void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, int &numbe
             ss << arrow_string << (*ii++)->name;
         ss << ". Ignoring arc.";
         valid = false;
-        chart->Error.Error(line_start, ss);
+		chart->Error.Error(file_pos.start, ss);
 }
 
 void ArcDirArrow::Width(EntityDistanceMap &distances)
@@ -553,7 +548,7 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         geometry += b;
         b.y.from = y - chart->nudgeSize/2;
         b.y.till = y + chart->nudgeSize/2;
-        geometry.mainline.Extend(b.y);
+        geometry.mainline.Extend(b.y, parallel);
         geometry.SetArc(this);
         g += geometry;
     }
@@ -849,20 +844,20 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     //Draw arrows if any
     if (content) {
         //If the first entity compress is on, draw entities in a block and shift them up in one
-		if (!draw && (*content->begin())->IsCompressed()) {
-			//use the bottom of the text as a limiter to query the cover of the content
-		    Block limiter2(0, chart->totalWidth, y, y);
-			Geometry geom2;
+        if (!draw && (*content->begin())->IsCompressed()) {
+            //use the bottom of the text as a limiter to query the cover of the content
+            Block limiter2(0, chart->totalWidth, y, y);
+            Geometry geom2;
             geom2 += limiter2;
             chart->DrawHeightArcList(*content, y, geom2, false, false);
             geom2 -= limiter2;
-			geom += limiter; //limiter is at the top of the label. we need this to prevent infinite up
+            geom += limiter; //limiter is at the top of the label. we need this to prevent infinite up
             y -= chart->FindCollision(geom, geom2);
             geom -= limiter;
-			//Set new position for the content
-			limiter.y = Range(y, y);
+            //Set new position for the content
+            limiter.y = Range(y, y);
         }
-		geom += limiter;
+        geom += limiter;
         y += chart->DrawHeightArcList(*content, y, geom, draw, final);
     }
     //Final advance of linewidth, gap and arrow tips
@@ -876,6 +871,7 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         Block box(s.x, d.x, orig_y+ah, y-ah);
         geometry += box;
         style.arrow.CoverBig(xPos, orig_y+ah, y-ah, isBidir(), chart, geometry);
+        if (parallel) geometry.mainline.till = -MAINLINE_INF;
         geometry.SetArc(this);
         g += geometry;
     }
@@ -885,18 +881,34 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-VertXPos::VertXPos(file_line l, Msc&m, const char *e1, postype p, const char *e2)
+VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l,
+                   const char *e2, file_line_range e2l, postype p)
 {
     valid = true;
     pos = p;
-    entity1 = m.FindAllocEntity(e1, l, &valid);
-    if (e2 && pos == POS_CENTER) entity2 = m.FindAllocEntity(e2, l, &valid);
+    entity1 = m.FindAllocEntity(e1, e1l, &valid);
+    if (pos == POS_CENTER) entity2 = m.FindAllocEntity(e2, e2l, &valid);
     else entity2 = m.NoEntity;
 }
 
+VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p)
+{
+    valid = true;
+    pos = p;
+    entity1 = m.FindAllocEntity(e1, e1l, &valid);
+    entity2 = m.NoEntity;
+}
+
+VertXPos::VertXPos(Msc&m, postype p)
+{
+    valid = true;
+    entity1 = m.NoEntity;
+    entity2 = m.NoEntity;
+}
+
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
-                                   VertXPos *p, file_line l, Msc *msc) :
-    ArcArrow(t, l, msc, msc->StyleSets.top()["vertical"]), pos(l, *msc, NULL),
+                                   VertXPos *p, Msc *msc) :
+    ArcArrow(t, msc, msc->StyleSets.top()["vertical"]), pos(*p),
     ypos(2)
 {
     if (!p || !p->valid) {
@@ -905,7 +917,6 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
     }
     if (s) src = s;
     if (d) dst = d;
-    pos = *p;
     switch (pos.pos) {
     case VertXPos::POS_LEFT_BY:
     case VertXPos::POS_LEFT_SIDE:
@@ -942,10 +953,11 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
     }
 }
 
-ArcArrow * ArcVerticalArrow::AddSegment(const char *m, file_line ml, bool forward, file_line l)
+ArcArrow *ArcVerticalArrow::AddSegment(const char *m, file_line_range ml,
+                                        bool forward, file_line_range l)
 {
     if (!valid) return this; //display error only once
-    chart->Error.Error(l, "Cannot add further segments to vertical arrow. Ignoring it.");
+    chart->Error.Error(l.start, "Cannot add further segments to vertical arrow. Ignoring it.");
     valid = false;
     return this;
 }
@@ -982,7 +994,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     if (src == MARKER_HERE_STR || src == MARKER_PREV_PARALLEL_STR)
         if (dst == MARKER_HERE_STR || dst == MARKER_PREV_PARALLEL_STR)
             if (top_level) {
-                chart->Error.Error(line_start, "Need at least one marker specified."
+                chart->Error.Error(file_pos.start, "Need at least one marker specified."
                                    " Ignoring vertical arrow.",
                                    "Only verticals inside a parallel block can omit both markers.");
                 valid = false;
@@ -992,7 +1004,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     if (src != MARKER_HERE_STR && src != MARKER_PREV_PARALLEL_STR) {
         std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(src);
         if (i == chart->Markers.end()) {
-            chart->Error.Error(line_start, "Cannot find marker '" + src + "'."
+            chart->Error.Error(file_pos.start, "Cannot find marker '" + src + "'."
                                " Ignoring vertical arrow.");
             valid=false;
             return;
@@ -1002,7 +1014,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     if (dst != MARKER_HERE_STR && dst != MARKER_PREV_PARALLEL_STR) {
         std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(dst);
         if (i == chart->Markers.end()) {
-            chart->Error.Error(line_start, "Cannot find marker '" + dst + "'."
+            chart->Error.Error(file_pos.start, "Cannot find marker '" + dst + "'."
                                " Ignoring vertical arrow.");
             valid=false;
             return;
@@ -1090,7 +1102,7 @@ void ArcVerticalArrow::PostHeightProcess(void)
     else if (aMarker>=0)
         ypos[0] = aMarker;
     else {
-        chart->Error.Error(line_start, "Vertical with no markers cannot take its size from the preceeding blocks."
+        chart->Error.Error(file_pos.start, "Vertical with no markers cannot take its size from the preceeding blocks."
                             " Ignoring vertical arrow.",
                             "Try putting it into a later block.");
         valid = false;
@@ -1104,7 +1116,7 @@ void ArcVerticalArrow::PostHeightProcess(void)
     else if (aMarker>=0)
         ypos[1] = aMarker;
     else {
-        chart->Error.Error(line_start, "Vertical with no markers cannot take its size from the preceeding blocks."
+        chart->Error.Error(file_pos.start, "Vertical with no markers cannot take its size from the preceeding blocks."
                             " Ignoring vertical arrow.",
                             "Try putting it into a later block.");
         valid = false;
@@ -1122,10 +1134,10 @@ void ArcVerticalArrow::PostHeightProcess(void)
     arrow_x_size += style.arrow.getBigEndWidthMargin(isBidir(), MSC_ARROW_END, chart);
     if (arrow_x_size + twh.x > fabs(ypos[0]-ypos[1])) {
         if (arrow_x_size>0)
-            chart->Error.Warning(line_start, "Size of vertical element is smaller than needed for text and arrow.",
+            chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text and arrow.",
                                  "May look strange.");
         else
-            chart->Error.Warning(line_start, "Size of vertical element is smaller than needed for text.",
+            chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
                                  "May look strange.");
     }
 	double x, width;
@@ -1210,8 +1222,9 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line sl, const char *d, file_line dl, file_line l, Msc *msc) :
-ArcLabelled(t, l, msc, msc->StyleSets.top()["emptybox"]),
+ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
+                         const char *d, file_line_range dl, Msc *msc) :
+    ArcLabelled(t, msc, msc->StyleSets.top()["emptybox"]),
     emphasis(NULL), follow(true), first(NULL), height(0), total_height(0),
     pipe(false), pipe_connect_left(false), pipe_connect_right(false)
 {
@@ -1225,7 +1238,6 @@ ArcLabelled(t, l, msc, msc->StyleSets.top()["emptybox"]),
             dst = src;
             src = e;
         }
-
 };
 
 ArcEmphasis* ArcEmphasis::SetPipe()
@@ -1343,7 +1355,7 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
     EIterator last = dst;
     for (PtrList<ArcEmphasis>::iterator i = ++follow.begin(); i!=follow.end(); i++) {
         if ((*i)->src==chart->NoEntity && (*i)->dst==chart->NoEntity) {
-            chart->Error.Error((*i)->line_start, "Pipes in a pipe series must be given at least an end entity."
+            chart->Error.Error((*i)->file_pos.start, "Pipes in a pipe series must be given at least an end entity."
                             " Ignoring pipe segment.");
             (*i)->valid = false;
             continue;
@@ -1356,7 +1368,7 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
 
         //We can be here if follow.size()>1, so we are definitely talking about segments, not full pipes
         if ((*i)->src == (*i)->dst) {
-            chart->Error.Error((*i)->line_start, "This pipe segment seems to start and end at the same entity."
+            chart->Error.Error((*i)->file_pos.start, "This pipe segment seems to start and end at the same entity."
                                " Ignoring pipe segment.");
             (*i)->valid = false;
             continue;
@@ -1369,7 +1381,7 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
             (*i)->pipe_connect_right = true;
             i++;
         } else if (last == MinMaxByPos((*i)->src, last, true)) {
-            chart->Error.Warning((*i)->line_start, "This pipe segment overlaps the previous."
+            chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previous."
                                  " It may not look so good.",
                                  "Encapsulate one in the other if you want that effect.");
         }
@@ -1563,6 +1575,8 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, and for pipes the lower linewidth, too
     //yPos is pointing to the upper edge of the upper line
     const double total_orig_y = y;
+    //save original mainline, so we can restore it if we are parallel
+    const double orig_mainline_till = g.mainline.till;
 
     if (pipe) {
         //If we are drawing, first iterate through the segments and draw their backside
@@ -1747,12 +1761,12 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
             (*i)->parsed_label.DrawCovers(s.x, d.x, y, geom_label, draw);
             if (final) {
                 //Add label cover block only to this->geometry not to g
-				//Only if box has content. Else we just add a rectangle covering all of it later
-				if ((*i)->emphasis) {
-					geom_label.SetArc(*i);
-					geom_label.SetFindType(Block::FIND_NONE);
-					(*i)->geometry += geom_label;
-				}
+                //Only if box has content. Else we just add a rectangle covering all of it later
+                if ((*i)->emphasis) {
+                    geom_label.SetArc(*i);
+                    geom_label.SetFindType(Block::FIND_NONE);
+                    (*i)->geometry += geom_label;
+                }
                 //If final position, cover the entity lines where text goes
                 chart->HideEntityLines(geom_label);
             }
@@ -1814,8 +1828,10 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         }
     } /* else if pipe */
 
-    if (!draw)
+    if (!draw) {
         total_height = y - total_orig_y;
+        if (parallel) g.mainline.till = orig_mainline_till;
+    }
 
     return total_height + 2*chart->emphVGapOutside;
 }
@@ -1823,41 +1839,42 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 //Will only be called for the first box of a multi-segment box series
 void ArcEmphasis::PostHeightProcess(void)
 {
-	if (pipe) {
-		//For pipes we first add those covers to chart->AllCovers that are at least a bit transparent,
-		//then the content (only in the first segment)
-		//then those segments, which are fully opaque
-		//(this is because search is backwards and this arrangement fits the visual best
-		for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
-			if (!(*i)->valid || (*i)->style.solid.second == 255) continue;
-			chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
-			chart->AllArcs[(*i)->line_start] = *i;
-		}
-		if (emphasis)
-			for (ArcList::iterator j = emphasis->begin(); j!=emphasis->end(); j++)
-				(*j)->PostHeightProcess();
-		for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
-			if (!(*i)->valid || (*i)->style.solid.second < 255) continue;
-			chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
-			chart->AllArcs[(*i)->line_start] = *i;
-		}
-	} else
-		//For boxes we always add the background first then the content
-		//And we do this for each segment sequentially
-		for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
-			if ((*i)->valid) {
-				chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
-				chart->AllArcs[(*i)->line_start] = *i;
-				if ((*i)->emphasis)
-					for (ArcList::iterator j = (*i)->emphasis->begin(); j!=(*i)->emphasis->end(); j++)
-						(*j)->PostHeightProcess();
-			}
+    if (pipe) {
+        //For pipes we first add those covers to chart->AllCovers that are at least a bit transparent,
+        //then the content (only in the first segment)
+        //then those segments, which are fully opaque
+        //(this is because search is backwards and this arrangement fits the visual best
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+            if (!(*i)->valid || (*i)->style.solid.second == 255) continue;
+            chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+            chart->AllArcs[(*i)->file_pos] = *i;
+        }
+        if (emphasis)
+            for (ArcList::iterator j = emphasis->begin(); j!=emphasis->end(); j++)
+                (*j)->PostHeightProcess();
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+            if (!(*i)->valid || (*i)->style.solid.second < 255) continue;
+            chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+            chart->AllArcs[(*i)->file_pos] = *i;
+        }
+    } else
+        //For boxes we always add the background first then the content
+        //And we do this for each segment sequentially
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
+            if ((*i)->valid) {
+                chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+                chart->AllArcs[(*i)->file_pos] = *i;
+                if ((*i)->emphasis)
+                    for (ArcList::iterator j = (*i)->emphasis->begin(); j!=(*i)->emphasis->end(); j++)
+                        (*j)->PostHeightProcess();
+            }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcDivider::ArcDivider(MscArcType t, file_line l, Msc *msc)
-    : ArcLabelled(t, l, msc, msc->StyleSets.top()["divider"]), nudge(t==MSC_COMMAND_NUDGE)
+ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
+    ArcLabelled(t, msc, msc->StyleSets.top()["divider"]),
+    nudge(t==MSC_COMMAND_NUDGE)
 {
 }
 
@@ -1879,7 +1896,7 @@ void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, int &number
     if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER)) {
         string ss;
         ss << (type==MSC_ARC_DISCO ? "'...'" : "'---'") << " is specified inside a parallel block.";
-        chart->Error.Warning(line_start, ss, "May display incorrectly.");
+        chart->Error.Warning(file_pos.start, ss, "May display incorrectly.");
     }
 }
 
@@ -1915,7 +1932,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
         if (!draw) {
             Block b(0, chart->totalWidth, y, y + chart->nudgeSize);
             geometry += b;
-            geometry.mainline.Extend(b.y);
+            geometry.mainline.Extend(b.y, parallel);
             geometry.SetArc(this);
             g += geometry;
         }
@@ -1937,11 +1954,8 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
         //determine widest extent for coverage at the lineYpos+- style.line.LineWidth()/2;
         Range yRange(lineYPos - ceil(style.line.LineWidth()/2.), lineYPos + ceil(style.line.LineWidth()/2.));
         Range xRange(chart->totalWidth-line_margin, line_margin);
-        //determine text coverage
-        Geometry text_covers;
-        parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
-                                text_covers, false);
-		for (std::set<Block>::const_iterator i = text_covers.GetCover().begin(); i!=text_covers.GetCover().end(); i++)
+		//geometry so far contains the cover of the text
+		for (std::set<Block>::const_iterator i = geometry.GetCover().begin(); i!=geometry.GetCover().end(); i++)
             if (yRange.Overlaps(i->y))
                 xRange.Extend(i->x);
         chart->line(XY(line_margin, lineYPos),
@@ -1951,17 +1965,17 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
                         XY(chart->totalWidth-line_margin, lineYPos), style.line);
     }
 
-    if (!draw) {
-        //Hide entity lines where text shows
+    //Hide entity lines where text shows
+    if (final)
         chart->HideEntityLines(geometry);
+
+    if (!draw) {
         //Add a cover block for the line, if one exists
-        if (style.line.type.second != LINE_NONE) {
-            Block b(0, chart->totalWidth, lineYPos - style.line.LineWidth()*2,
-                    lineYPos + style.line.LineWidth()*2);
-            geometry += b;
-        }
+        if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
+            geometry += Block(text_margin, chart->totalWidth-text_margin,
+                              lineYPos - style.line.LineWidth()*2, lineYPos + style.line.LineWidth()*2);
         Range r(lineYPos-charheight/2, lineYPos+charheight/2);
-        geometry.mainline.Extend(r);
+        geometry.mainline.Extend(r, parallel);
         geometry.SetArc(this);
         g+=geometry;
     }
@@ -1991,12 +2005,11 @@ string ArcParallel::Print(int ident) const
     string ss;
     ss << string(ident*2, ' ');
     ss << PrintType() << "\n";
-    PtrList<ArcList>::const_iterator i = parallel.begin();
-    while (i!=parallel.end()) {
-        if (i!=parallel.begin())
+    for (PtrList<ArcList>::const_iterator i = blocks.begin(); i!=blocks.end(); i++) {
+        if (i!=blocks.begin())
             ss << string(ident*2+2, ' ') << "---\n";
-        ss << (*i++)->Print(ident+2);
-        if (i!=parallel.end())
+        ss << (*i)->Print(ident+2);
+        if (i!=blocks.end())
             ss << "\n";
     }
     return ss;
@@ -2005,15 +2018,15 @@ string ArcParallel::Print(int ident) const
 void ArcParallel::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
 {
     at_top_level = top_level;
-    for (PtrList<ArcList>::iterator i=parallel.begin(); i != parallel.end(); i++)
+    for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
         chart->PostParseProcessArcList(**i, false, left, right, number, false);
 }
 
 void ArcParallel::Width(EntityDistanceMap &distances)
 {
-	if (!valid) return;
+    if (!valid) return;
     EntityDistanceMap d;
-    for (PtrList<ArcList>::iterator i=parallel.begin(); i != parallel.end(); i++)
+    for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
         chart->WidthArcList(**i, d);
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
@@ -2025,21 +2038,31 @@ double ArcParallel::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw) y = yPos;
-    //For parallel, we keep geometry empty, as it is merely the sum of its content
+    //For parallel, we keep this->geometry empty, as it is merely the sum of its content
 
-    double height = 0; //this will play the role of autoMarker
-    Block limiter(0, chart->totalWidth, y, y);
-    g += limiter; // prevent any compression for now in DrawHeightArcList
-    Geometry g_original = g;
-    for (PtrList<ArcList>::iterator i=parallel.begin(); i != parallel.end(); i++) {
-        //Each parallel block is compressed without regard to the others
-        Geometry geom = g_original;
-        double h = chart->DrawHeightArcList(**i, y, geom, draw, final, height?y+height:-1);
-        if (height < h) height = h;
-        g += geom;
-    };
-    g -= limiter; //remove blockage
-    if (height==-1) return 0;
+    //save original mainline, so if we are parallel, it does not change
+    const double orig_mainline_till = g.mainline.till;
+
+    double height = 0;
+    if (draw) { //quicker without the geometry manipulations
+        for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++) {
+            double h = chart->DrawHeightArcList(**i, y, g, true, final, height?y+height:autoMarker);
+            if (height < h) height = h;
+        }
+    } else {
+        Block limiter(0, chart->totalWidth, y, y);
+        g += limiter; // prevent any compression for now in DrawHeightArcList
+        Geometry g_original = g;
+        for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++) {
+            //Each parallel block is compressed without regard to the others
+            Geometry geom = g_original;
+            double h = chart->DrawHeightArcList(**i, y, geom, false, final, height?y+height:autoMarker);
+            if (height < h) height = h;
+            g += geom;
+        };
+        g -= limiter; //remove blockage
+        if (IsParallel()) g.mainline.till = orig_mainline_till;
+    }
     return height;
 }
 
@@ -2047,7 +2070,7 @@ void ArcParallel::PostHeightProcess(void)
 {
     ArcBase::PostHeightProcess();
     if (!valid) return;
-    for (PtrList<ArcList>::iterator i=parallel.begin(); i != parallel.end(); i++)
+    for (PtrList<ArcList>::iterator i=blocks.begin(); i!=blocks.end(); i++)
         for (ArcList::iterator j = (*i)->begin(); j != (*i)->end(); j++)
             (*j)->PostHeightProcess();
 }
@@ -2152,8 +2175,14 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
     if (draw)  y = yPos;
     if (!draw) geometry.Clear();
 
+    //save original mainline, so we can restore it if we are parallel
+    const double orig_mainline_till = g.mainline.till;
     double height = 0;
-    if (entities)   //An entity command
+	//Those entities explicitly listed, put their cover in their geometry
+	//only the ones added by a heading command to this commandentity will
+	//put anything into this->geometry
+    list<EIterator> explicitly_listed_entities;
+	if (entities) {  //An entity command
         for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
             EIterator j = chart->Entities.Find_by_Name((*i)->name);
             assert(j != chart->NoEntity);
@@ -2171,24 +2200,56 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
                 (*j)->style += (*i)->style;
 
             //Take entity height into account or draw it if show=on was added
-            //If full_heading is set we do it below.
-            if ((*i)->show.second && (*i)->show.first && !full_heading) {
-                double h = static_cast<Entity*>(*j)->DrawHeight(y, geometry, draw, final);
+            //If full_heading is set and we are drawing, we do it below.
+            //If we are not drawing, we add the cover to the entitydef's geometry
+            if ((*i)->show.second && (*i)->show.first && (!full_heading || !draw)) {
+                double h = static_cast<Entity*>(*j)->DrawHeight(y, (*i)->geometry, draw, final);
+                if (!draw) {
+                    (*i)->geometry.SetArc(*i);
+                    g += (*i)->geometry; //we add it to the one returned
+                }
+                //We add this entity to the list of entities already done
+                explicitly_listed_entities.push_back(j);
                 if (height <h) height = h;
             }
         }
-    if (full_heading)  //A "heading" command, draw all entities that are on
+	}
+	if (full_heading) { //A "heading" command, draw all entities that are on
         for (EntityList::iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++)
             if ((*i)->status.Get(y).status) {
-                double h = static_cast<Entity*>(*i)->DrawHeight(y, geometry, draw, final);
-                if (height <h) height = h;
+                bool was = false;
+                for (list<EIterator>::const_iterator k = explicitly_listed_entities.begin(); k!=explicitly_listed_entities.end(); k++)
+                    if (*k == i) {
+                        was = false;
+                        break;
+                    }
+                if (!was) {
+                    double h = static_cast<Entity*>(*i)->DrawHeight(y, geometry, draw, final);
+                    if (height <h) height = h;
+                }
             }
-    if (!draw) {
-        geometry.SetArc(this);
-        g += geometry;
-    }
+		if (!draw) {
+			geometry.SetArc(this);
+			g += geometry;
+		}
+	}
+    if (parallel) g.mainline.till = orig_mainline_till;
     return height;
 }
+
+void CommandEntity::PostHeightProcess(void)
+{
+    if (valid) {
+        chart->AllCovers.insert(chart->AllCovers.end(), geometry.GetCover().begin(), geometry.GetCover().end());
+        if (entities)   //An entity command
+            for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
+                chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+    }
+    for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
+        chart->AllArcs[(*i)->file_pos] = *i;
+    chart->AllArcs[file_pos] = this;
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -2219,8 +2280,8 @@ double CommandNewBackground::DrawHeight(double y, Geometry &g,
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandMark::CommandMark(const char *m, file_line l, Msc *msc)
-: ArcCommand(MSC_COMMAND_MARK, l, msc), name(m)
+CommandMark::CommandMark(const char *m, file_line_range ml, Msc *msc) :
+    ArcCommand(MSC_COMMAND_MARK, msc), name(m)
 {
     map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
     if (i != chart->Markers.end()) {
@@ -2229,11 +2290,11 @@ CommandMark::CommandMark(const char *m, file_line l, Msc *msc)
         if (i->second.first.file != chart->current_file)
             msg << " (in input '" + chart->Error.Files[i->second.first.file] + "')";
         msg.append(". Keeping old definition.");
-        chart->Error.Error(line_start, msg);
+		chart->Error.Error(file_pos.start, msg);
         valid = false;
         return;
     }
-    chart->Markers[name].first = l;
+    chart->Markers[name].first = ml.start;
     chart->Markers[name].second = -1001;
     offset = 0;
 }
@@ -2266,8 +2327,8 @@ double CommandMark::DrawHeight(double y, Geometry &g,
 #define EMPTY_MARGIN_X 50
 #define EMPTY_MARGIN_Y 5
 
-CommandEmpty::CommandEmpty(Msc *msc)
-: ArcCommand(MSC_COMMAND_EMPTY, file_line(), msc), parsed_label(msc)
+CommandEmpty::CommandEmpty(Msc *msc) :
+    ArcCommand(MSC_COMMAND_EMPTY, msc), parsed_label(msc)
 {
     StringFormat format;
     format.Apply("\\pc\\mu(10)\\md(10)\\ml(10)\\mr(10)\\c(255,255,255)\\b\\i");
