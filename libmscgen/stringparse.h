@@ -90,11 +90,8 @@ class StringFormat {
     //This converts color names to RGBA numbers, returns the list of
     //unrecognized color names separated by commas, empty string if all is OK.
     //unrecognized color escapes are left intact
-    static void ExpandColorAndStyle(string &escape,
-                                    string &err_colors, string &err_styles,
-                                    const ColorSet &colors, const StyleSet &styles,
-                                    const StringFormat *basic, bool keep);
-
+    static void ExpandColorAndStyle(string &escape, Msc *msc, file_line linenum,
+									const StringFormat *basic, bool label);
 };
 
 //An object that stores a line (no '\n' inside)

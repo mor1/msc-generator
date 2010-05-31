@@ -562,12 +562,12 @@ void ArrowHead::big_end_path(double &xpos, double x, double sy, double dy, bool 
                 if (dir) {
                     msc->_arc_path(c, wh+wh, angle, 360-angle, lw, type, false);
                     xpos = x + dx;
-                    msc->_line_path_to(xpos, ypos, 0, type);
+                    if (type == LINE_SOLID || !msc->fake_dash) msc->_line_path_to(xpos, ypos, 0, type);
                 } else {
                     msc->_line_path(xpos, ypos, x-dx, ypos, 0, type);
                     msc->_arc_path(c, wh+wh, 180+angle, 180-angle, lw, type, false);
                     xpos = x - dx;
-                    msc->_line_path_to(xpos, dy-lw, 0, type);
+                    if (type == LINE_SOLID || !msc->fake_dash)msc->_line_path_to(xpos, dy-lw, 0, type);
                 }
             } else {
                 if (dir) {
@@ -643,12 +643,12 @@ void ArrowHead::big_mid_path(double &xpos, double x, double sy, double dy,
                 msc->_line_path(xpos, ypos, x-dx, ypos, 0, type);
                 msc->_arc_path(c, wh+wh, 180+angle, 360-angle, lw, type, false);
                 xpos = x + dx;
-                msc->_line_path_to(xpos, ypos, 0, type);
+				if (type == LINE_SOLID || !msc->fake_dash) msc->_line_path_to(xpos, ypos, 0, type);
             } else {
                 msc->_line_path(xpos, ypos, x+dx, ypos, 0, type);
                 msc->_arc_path(c, wh+wh, angle, 180-angle, lw, type, false);
                 xpos = x - dx;
-                msc->_line_path_to(xpos, ypos, 0, type);
+                if (type == LINE_SOLID || !msc->fake_dash)msc->_line_path_to(xpos, ypos, 0, type);
             }
             break;
         }

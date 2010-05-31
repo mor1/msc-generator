@@ -129,103 +129,216 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Msc &msc)
     } while (1);
 }
 
-void StringFormat::ExpandColorAndStyle(string &escape,
-                                       string &err_colors, string &err_styles,
-                                       const ColorSet &colors, const StyleSet &styles,
-                                       const StringFormat *basic, bool keep)
+//Replaces style and color references to actual definitions found in msc->StyleSets.top()
+//and ColorSets.top(). Also performs syntax error checking and generates errors/warnings
+//escape contais the string to parse (and change)
+//if label is true we are expanding a label, else a text.format attribute
+//basic contains the baseline style and color 
+//(the one to return to at \s() and \c() and \f(), mX())
+#define PER_S_DEPRECATED_MSG "The use of '\\s' control escape to indicate small text is deprecated. Use '\\-' instead."
+#define MAX_ESCAPE_M_VALUE 500
+#define TOO_LARGE_M_VALUE_MSG  "Use an integer between [0..500]."
+void StringFormat::ExpandColorAndStyle(string &escape, Msc *msc, file_line linenum,
+									   const StringFormat *basic, bool label)
 {
-    int pos=0;
+	int pos=0;
 
     while(escape.length()>=pos+2) {
         if (escape[pos] != '\\') {
             pos++;
             continue;
         }
-        const char e = escape[pos+1];
-		if (string("-+^_biuBIU0123456789n\\#p").find(e) != string::npos) {
+        char e = escape[pos+1];
+		if (string("-+^_biuBIU0123456789n\\#").find(e) != string::npos) {
             pos+=2;
             continue;
         }
+		bool was_m = false;
         switch (e) {
+		case 'p': 
+            if (string("lrc").find(escape[pos+2]) == string::npos) {
+				msc->Error.Warning(linenum, string("Escape '\\p' shall be continued with one of 'lrc'. ") +(label?"Keeping it as verbatim text.":"Ignoring it."));
+				if (label) pos += 2;
+				else escape.erase(pos, 2);
+            } else
+				pos += 3;
+			continue;
         case 'm':
             if (string("udlrins").find(escape[pos+2]) == string::npos) {
-                pos += 2;
+				msc->Error.Warning(linenum, string("Escape '\\m' shall be continued with one of 'udlrins'. ") +(label?"Keeping it as verbatim text.":"Ignoring it."));
+				if (label) pos += 2;
+				else escape.erase(pos, 2);
                 continue;
             }
-            pos ++;
-            //fallthrough
-        case 'f':
-            if (escape.length()<pos+4) return;
-            if (escape[pos+2]!='(') {
-                pos += 2;
-                continue;
-            }
-            pos = escape.find(")", pos);
-            if (pos==string::npos) return;
-            pos++;
+			was_m = true;
+			pos++; //m escapes are 2 char long, others below just one
+			e = escape[pos+1];
+			//Fallthrough
+		case 'f':
+		case 'c':
+		case 's':
+            break;
+		default:
+			if (label) {
+				string ee;
+				ee.push_back(e);
+				msc->Error.Warning(linenum, string("Unrecognized control escape '\\") + ee + (label?"'. Keeping it as verbatim text.":"'. Ignoring it."));
+	            pos += 2;
+			} else
+				escape.erase(pos, 2);
             continue;
         }
-
-        if (e != 'c' && e != 's') {
-            pos += 2;
-            continue;
-        }
-        //stop if not enough characters for a well-formed color descr
-        if (escape.length()<pos+4) return;
-        //continue parsing after the "\c"
+        //continue parsing after the "\c", \s, \f, \mX
         pos += 2;
+		string esc = "\\";
+		if (was_m) esc.append("m");
+		esc += e;
         //leave it as is, if no opening parenthesis
-        if (escape[pos]!='(') continue;
+		if (escape.length()<pos+1 || escape[pos]!='(') {
+			if (!was_m && e=='s') {
+				escape[pos-1] = '-';
+				msc->Error.Warning(linenum, "Missing style name after \\s control escape. Assuming small text switch.",
+				                   PER_S_DEPRECATED_MSG);
+			} else {
+				msc->Error.Warning(linenum, "Escape '" +esc+ "' requires a value in parenthesis. " +(label?"Keeping it as verbatim text.":"Ignoring it."));
+				if (!label) {
+					pos -= 2 + was_m;
+					escape.erase(pos, 2+was_m);
+				}
+			}
+			continue;
+		}
         int pos2 = escape.find(")", pos);
         //stop if no closing parenthesis
-        if (pos2==string::npos) return;
+		if (pos2==string::npos) {
+			string msg = "Missing ')' after '" + esc;
+			if (label) msg += "(' in label";
+			else msg += " in attribute 'format'";
+			msg += ". Ignoring after '" + esc + "('.";
+			msc->Error.Error(linenum, msg);
+			escape.erase(pos-2-was_m);
+			return;
+		}
         string subst = escape.substr(pos+1,pos2-pos-1);
+		bool replace = false;
         //subst now contains the text inside the parenthesis
-        if (e=='c') {
+		if (was_m) {
+			if (subst.length()==0) {
+				const std::pair<bool, double> *p;
+				int modifer = 0;
+				switch (e) {
+					case 'u': p = &basic->textVGapAbove; modifer = +2; break;
+					case 'd': p = &basic->textVGapBelow; modifer = +2; break;
+					case 'l': p = &basic->textHGapPre;   modifer = +4; break;
+					case 'r': p = &basic->textHGapPost;  modifer = +2; break;
+					case 'i': p = &basic->textVGapLineSpacing; break;
+					case 'n': p = &basic->normalFontSize; break;
+					case 's': p = &basic->smallFontSize; break;
+				}
+				if (p && p->first) {
+					modifer = p->second - modifer;
+					if (modifer<0) modifer = 0; 
+					subst << "\\m" << e << "(" << modifer << ")";
+				} else 
+					subst.erase();
+				replace = true;
+			}
+			else {
+				int local_pos = 0;
+				double value = 0;               
+				while (subst.length()>local_pos && subst[local_pos]>='0' && subst[local_pos]<='9') {
+					value = value*10 + subst[local_pos]-'0';
+	                local_pos++;
+				}
+				if (subst.length()>local_pos) {
+					string msg = "Invalid value to the '\\m";
+					msg += e;
+					msg.append("' control escape: '").append(subst).append("'.");
+					if (value>MAX_ESCAPE_M_VALUE) {
+						msg.append(" I could deduct '").append(subst.substr(0, local_pos));
+						msg.append("', but that seems too large.");
+						msg.append(" Ignoring control escape.");
+						subst.erase();
+						replace = true;
+					} else {
+						msg.append(" Using value '").append(subst.substr(0, local_pos));
+						msg.append("' instead.");
+						subst = string("\\m")+ e + "(" + subst.substr(0, local_pos) + ")";
+						replace = true;
+					}
+					msc->Error.Error(linenum, msg, TOO_LARGE_M_VALUE_MSG);
+				} else if (value>MAX_ESCAPE_M_VALUE) {
+					string msg = "Too large value after the '\\m";
+					msg += e;
+					msg.append("' control escape: '").append(subst).append("'.");
+					msg.append(" Ignoring control escape.");
+					subst.erase();
+					replace = true;
+					msc->Error.Error(linenum, msg, TOO_LARGE_M_VALUE_MSG);
+				}
+					//else: if value is a good number, keep replace = false and keep the number
+            }
+		} else if (e=='f') {
             if (subst.length()==0) {
-                if (basic)
+				if (basic && basic->face.first) 
+					subst = "\\f(" + basic->face.second + ")";
+				replace = true; //if basic does not exist we remove this switch
+            } //else if there is a non-empty font name here, we keep it
+		} else if (e=='c') {
+            if (subst.length()==0) {
+				if (basic && basic->color.first) 
                     subst = "\\c" + basic->color.second.Print();
-                else
-                    subst.erase();
+				replace = true; //if basic does not exist we remove this switch
             } else {
-                MscColorType color = colors.GetColor(subst);
+				MscColorType color = msc->ColorSets.top().GetColor(subst);
                 if (color.valid)
                     subst = "\\c" + color.Print();
                 else {
-                    //record erroneous color name
-                    if (err_colors.length()>0) err_colors<<", ";
-                    err_colors<<"'"<<escape.substr(pos+1,pos2-pos-1)<<"'";
-                    if (keep) continue;
-                    else subst.erase();
+                    //report error 
+					string msg="Unrecognized color name/definition: '";
+					msg.append(subst).append("' in ");
+					if (label) msg.append("label. Treating color definition as verbatim text.");
+					else msg.append("attribute 'format'. Ignoring color change.");
+					msc->Error.Error(linenum, msg, "");
+					if (!label) subst.erase();
                 }
+				replace = true;
             }
         } else if (e=='s') {
             if (subst.length()==0) {
                 if (basic)
                     subst = basic->Print();
-                else
-                    subst.erase();
+				replace = true;
             } else {
-                StyleSet::const_iterator i = styles.find(subst);
-                if (i==styles.end()) {
+				StyleSet::const_iterator i = msc->StyleSets.top().find(subst);
+                if (i==msc->StyleSets.top().end()) {
                     //record erroneous style name
-                    if (err_styles.length()>0) err_styles<<", ";
-                    err_styles<<"'"<<escape.substr(pos+1,pos2-pos-1)<<"'";
-                    if (keep) subst = "\\-(" + subst + ")";
+					string msg="Unrecognized style '";
+					msg.append(subst).append("' in ");
+					if (label) msg.append("label. Treating style name as small text in parenthesis.");
+					else msg.append("attribute 'format'. Ignoring style.");
+					msc->Error.Error(linenum, msg, label?PER_S_DEPRECATED_MSG:"");
+                    if (label) subst = "\\-(" + subst + ")";
                     else subst.erase();
+					replace = true;
                 } else {
                     if (i->second.f_text)
                         subst = i->second.text.Print();
                     else
                         subst.erase();
+					replace = true;
                 }
             }
         }
         //subst now contains a full escape sequence
-        pos -= 2;
-        escape.erase(pos,pos2-pos+1);
-        escape.insert(pos, subst);
-        pos += subst.length();
+		if (replace) {
+	        pos -= 2;
+			if (was_m) pos --;
+	        escape.erase(pos,pos2-pos+1);
+		    escape.insert(pos, subst);
+		} else 
+			pos +=2; //we are not replacing, skip over the two parenthesis
+		pos += subst.length();
     }
 }
 
@@ -338,16 +451,17 @@ bool StringFormat::Apply(string &escape)
                 pos++;
             }
             if (escape.length()==pos || escape[pos] != ')') return ret;
-            switch (escape[2]) {
-            case 'u': textVGapAbove.first = true; textVGapAbove.second = value+2; break;
-            case 'd': textVGapBelow.first = true; textVGapBelow.second = value+2; break;
-            case 'l': textHGapPre.first   = true; textHGapPre.second   = value+4; break;
-            case 'r': textHGapPost.first  = true; textHGapPost.second  = value+2; break;
-            case 'i': textVGapLineSpacing.first  = true; textVGapLineSpacing.second  = value; break;
-            case 'n': normalFontSize.first= true; normalFontSize.second= value; break;
-            case 's': smallFontSize.first = true; smallFontSize.second = value; break;
-            default: return ret;
-            }
+			if (value<=MAX_ESCAPE_M_VALUE)
+				switch (escape[2]) {
+				case 'u': textVGapAbove.first = true; textVGapAbove.second = value+2; break;
+				case 'd': textVGapBelow.first = true; textVGapBelow.second = value+2; break;
+				case 'l': textHGapPre.first   = true; textHGapPre.second   = value+4; break;
+				case 'r': textHGapPost.first  = true; textHGapPost.second  = value+2; break;
+				case 'i': textVGapLineSpacing.first  = true; textVGapLineSpacing.second  = value; break;
+				case 'n': normalFontSize.first= true; normalFontSize.second= value; break;
+				case 's': smallFontSize.first = true; smallFontSize.second = value; break;
+				default: return ret;
+				}
             escape.erase(0,pos+1);
             ret = true;
             break;
@@ -544,24 +658,11 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         string tmp = a.value;
         if (tmp.length()==0) return true;
 
-        string sc, ss;
-        StringFormat::ExpandColorAndStyle(tmp, sc, ss, msc->ColorSets.top(),
-                                          msc->StyleSets.top(), NULL, false);
-        if (sc.length()>0) {
-            sc.insert(0, "Unrecognized color name/definition(s) in attribute 'format': ");
-            ss.append(". Ignoring color.");
-            msc->Error.Error(a, true, sc);
-            return true;
-        }
-        if (ss.length()>0) {
-            ss.insert(0, "Unrecognized style(s) in attribute 'format': ");
-            ss.append(". Ignoring style.");
-            msc->Error.Error(a, false, ss);
-        }
+		StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, NULL, false);
 
         StringFormat sf(tmp);
         if (tmp.length()) {
-            string s("Could not recognize these escapes:'");
+            string s("Could not recognize these:'");
             s.append(tmp).append("' in attribute '").append(a.name).append("'.");
             s.append(" Applying only what I understood.");
             msc->Error.Warning(a, true, s);

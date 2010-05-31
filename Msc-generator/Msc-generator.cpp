@@ -560,7 +560,12 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 			break;
 	}
 	m_DefaultText= GetProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, 
-		"#Default signalling chart\r\na,b,c;\r\nb->c:trallala;\r\na->b: new;\r\n");
+		"#Default signalling chart\r\n"
+		": You can change the default chart\r\n"
+		"  in the \f(courier new)Edit|Preferences...\f() menu.;\r\n"
+		"a,b,c;\r\n"
+		"b->c:trallala;\r\n"
+		"a->b: new;\r\n");
 
 	ReadDesigns(reportProblem); //fills m_ChartSourcePreamble appropriately, default filename applies
 	FillDesignDesignCombo("", true);

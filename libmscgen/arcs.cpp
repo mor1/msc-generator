@@ -144,21 +144,8 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
     //Add attributest first
     ArcBase::AddAttributeList(l);
     //Then convert color and style names in labels
-    if (label.length()>0) {
-        string sc, ss;
-        StringFormat::ExpandColorAndStyle(label, sc, ss, chart->ColorSets.top(),
-                                          chart->StyleSets.top(), &style.text, true);
-        if (sc.length()>0) {
-            sc.insert(0, "Unrecognized color name/definition(s) in label: ");
-            sc.append(". Treating color definition as plain text.");
-            chart->Error.Error(linenum_label, sc);
-        }
-        if (ss.length()>0) {
-            ss.insert(0, "Unrecognized style(s) in label: ");
-            ss.append(". Treating style definition as small text.");
-            chart->Error.Error(linenum_label, ss, "Use of \\s for small text is obsolete, use \\- instead.");
-        }
-    }
+    if (label.length()>0) 
+        StringFormat::ExpandColorAndStyle(label, chart, linenum_label, &style.text, true);
     return this;
 }
 
@@ -1380,7 +1367,7 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
             i--;
             (*i)->pipe_connect_right = true;
             i++;
-        } else if (last == MinMaxByPos((*i)->src, last, true)) {
+        } else if (last == MinMaxByPos((*i)->src, last, false)) {
             chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previous."
                                  " It may not look so good.",
                                  "Encapsulate one in the other if you want that effect.");
@@ -1947,15 +1934,16 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
     const double lineYPos = y+wh.y/2;
 
     const double text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
+    const double line_margin = chart->XCoord(MARGIN);
+	Geometry text_cover;
     parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
-                            geometry, draw);
+                            text_cover, draw);
     if (draw) {
-        const double line_margin = chart->XCoord(MARGIN);
         //determine widest extent for coverage at the lineYpos+- style.line.LineWidth()/2;
         Range yRange(lineYPos - ceil(style.line.LineWidth()/2.), lineYPos + ceil(style.line.LineWidth()/2.));
         Range xRange(chart->totalWidth-line_margin, line_margin);
 		//geometry so far contains the cover of the text
-		for (std::set<Block>::const_iterator i = geometry.GetCover().begin(); i!=geometry.GetCover().end(); i++)
+		for (std::set<Block>::const_iterator i = text_cover.GetCover().begin(); i!=text_cover.GetCover().end(); i++)
             if (yRange.Overlaps(i->y))
                 xRange.Extend(i->x);
         chart->line(XY(line_margin, lineYPos),
@@ -1967,12 +1955,13 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
 
     //Hide entity lines where text shows
     if (final)
-        chart->HideEntityLines(geometry);
+        chart->HideEntityLines(text_cover);
 
     if (!draw) {
+		geometry += text_cover;
         //Add a cover block for the line, if one exists
         if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
-            geometry += Block(text_margin, chart->totalWidth-text_margin,
+            geometry += Block(line_margin, chart->totalWidth-line_margin,
                               lineYPos - style.line.LineWidth()*2, lineYPos + style.line.LineWidth()*2);
         Range r(lineYPos-charheight/2, lineYPos+charheight/2);
         geometry.mainline.Extend(r, parallel);

@@ -119,7 +119,7 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
 	m_itrEditing = m_charts.begin();
 	m_itrShown = m_charts.end();
 	m_itrSaved = m_charts.end(); //start as unmodified
-
+	m_itrDoNotSyncForThis = m_charts.end();
 	m_bAttemptingToClose = false;
 }
 
@@ -142,10 +142,24 @@ CDocObjectServer *CMscGenDoc::GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite)
 	return new CDocObjectServer(this, pDocSite);
 }
 
+COleIPFrameWnd *CMscGenDoc::CreateInPlaceFrame(CWnd *pParentWnd) 
+{
+	m_itrDoNotSyncForThis = m_charts.end();
+	m_bAttemptingToClose = false;
+	return COleServerDocEx::CreateInPlaceFrame(pParentWnd);
+}
+
 void CMscGenDoc::DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd)
 {
 	// Stop editor
+	m_bAttemptingToClose = true;
 	m_ExternalEditor.Stop(STOPEDITOR_WAIT);
+	SyncShownWithEditing("exit in-place editing");
+	//If the user selected not to sync, we save this itrEditing and will not ask again
+	//This is to avoid popping up a sync question window long after the user has 
+	//exited in-place editing in the container app
+	if (m_itrEditing != m_itrShown) 
+		m_itrDoNotSyncForThis = m_itrEditing;
 	COleServerDocEx::DestroyInPlaceFrame(pFrameWnd);
 }
 // CMscGenDoc diagnostics
@@ -959,6 +973,7 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 void CMscGenDoc::SyncShownWithEditing(const CString &action) 
 {
 	if (m_itrEditing == m_itrShown) return;
+	if (m_itrEditing == m_itrDoNotSyncForThis) return;
 	CString message = "I want to " + action + ", but you have made changes in the text editor.\n";
 	if (m_bAttemptingToClose) 
 		message.Append("Do you want to include the changes (or permanently loose them)?"); 
@@ -1038,16 +1053,18 @@ void CMscGenDoc::ShowNewChart(IChartData itrNew, bool resetZoom)
 		unsigned num = m_ChartShown.GetErrorNum(pApp->m_Warnings);
 		for (int i=0; i<num; i++) 
 			pOutputView->m_wndOutput.AddString(m_ChartShown.GetErrorText(i, pApp->m_Warnings));
-		pOutputView->ShowPane(num>0, false, true);
+		if (!m_bAttemptingToClose) pOutputView->ShowPane(num>0, false, true);
 	}
 
-	//Update page controls and variables
-	pApp->FillDesignPageCombo(m_ChartShown.GetPages(), m_ChartShown.GetPage());
+	if (!m_bAttemptingToClose) {
+		//Update page controls and variables
+		pApp->FillDesignPageCombo(m_ChartShown.GetPages(), m_ChartShown.GetPage());
 
-	//See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar
-	if (!pApp->FillDesignDesignCombo(m_ChartShown.GetDesign())) {
-		m_ChartShown.SetDesign("");
-		m_itrShown->SetDesign("");
+		//See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar
+		if (!pApp->FillDesignDesignCombo(m_ChartShown.GetDesign())) {
+			m_ChartShown.SetDesign("");
+			m_itrShown->SetDesign("");
+		}
 	}
 
 	//Abruptly delete all tracking rectangles
@@ -1055,12 +1072,14 @@ void CMscGenDoc::ShowNewChart(IChartData itrNew, bool resetZoom)
 	SetTrackMode(false);
 
 	NotifyChanged();  //for OLE
-	UpdateAllViews(NULL);
-	if (resetZoom) ArrangeViews();
-	else SetZoom(); //just make sure combo shows right value
+	if (!m_bAttemptingToClose) {
+		UpdateAllViews(NULL);
+		if (resetZoom) ArrangeViews();
+		else SetZoom(); //just make sure combo shows right value
 
-	//If there is an internal editor, reset focus to it.
-	if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
+		//If there is an internal editor, reset focus to it.
+		if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
+	}
 }
 
 void CMscGenDoc::StartFadingTimer() 

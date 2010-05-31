@@ -79,7 +79,7 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     fake_dash = false;
     fake_shadows = false;
     scale = 1.0;
-    fallback_resolution = 200; //irrelevant for bitmaps - no fallback for bitmaps
+    fallback_resolution = 300; //irrelevant for bitmaps - no fallback for bitmaps
 
 	switch (ot) {
 		case PNG:

@@ -73,28 +73,43 @@ MscColorType ColorSet::GetColor(const std::string &s) const
 {
     /* s can be one of four things
      * 1. a color name
-     * 2. a color name, followidered by a comma and an alpha value
-     * 3. three int value separated by commas (rgb)
-     * 4. four int values separated by commas (rgba)
+     * 2. a color name, followed by a comma and an alpha value
+	 * 3. a color name followed by {+-} and a percentage of lightness
+	 * 4. a color name, followed by a comma and an alpha value,  followed by {+-} and a percentage of lightness
+     * 5. three int value separated by commas (rgb)
+     * 6. four int values separated by commas (rgba)
      */
     const_iterator i = find(s);
     //if #1, return the value for the color name
     if (this->end()!=i) return i->second;
-    size_t pos = s.find(",");
-    //if no comma and not #1, return invalid color
+	size_t pos = s.find_first_of(",+-");
+    //if no comma, + or - and not #1, return invalid color
     if (pos == string::npos) return MscColorType();
     i = find(s.substr(0, pos));
-    //if first element in collection, see if followidered by an alpha value
+    //if first element in collection, see if followidered by an alpha value and/or lightness
     if (this->end()!=i) {
-        double alpha;
-        if (sscanf(s.c_str()+pos+1,"%lf",&alpha)!=1) return MscColorType();
-        if (alpha<0 || alpha>255) return MscColorType();
-        MscColorType color = i->second;
-        if (alpha <= 1.0) color.a = (unsigned char)(alpha*255);
-        else color.a = (unsigned char)(alpha);
-        return color;
+		MscColorType color = i->second;
+		if (s[pos] == ',') {
+			double alpha;
+			if (sscanf(s.c_str()+pos+1,"%lf",&alpha)!=1) return MscColorType();
+			if (alpha<0 || alpha>255) return MscColorType();
+			if (alpha <= 1.0) color.a = (unsigned char)(alpha*255);
+			else color.a = (unsigned char)(alpha);
+			//now search for + or -
+			pos = s.find_first_of("+-", pos);
+			//Ok, this is case #2, exit with what we have
+		    if (pos == string::npos) return color;
+		}
+		//s[pos] is either + or - here, either case #3 or #4
+		double lighter;
+		//include sign, too
+		if (sscanf(s.c_str()+pos,"%lf",&lighter)!=1) return MscColorType();
+		if (lighter<-200 || lighter >200) return MscColorType();
+		if (lighter<-1.0 || lighter>1.0) lighter /= 100;
+		if (lighter>=0) return color.Lighter(lighter);
+		else return color.Darker(-lighter);
     }
-    //if first element not in collection, it is either #3 or #4,
+    //if first element not in collection, it is either #5 or #6 (or completely invalid)
     //MscColorType constructor can handle these
     return  MscColorType(s);
 }

@@ -43,6 +43,7 @@ protected: // create from serialization only
 	DECLARE_MESSAGE_MAP()
 	virtual COleServerItem* OnGetEmbeddedItem();
 	virtual CDocObjectServer* GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite);
+	virtual COleIPFrameWnd *CreateInPlaceFrame(CWnd *pParentWnd);
 	virtual void DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd);
 public:
 	virtual ~CMscGenDoc();
@@ -58,6 +59,7 @@ public:
 	IChartData m_itrSaved; //The chart that is the one last saved. This iterator may be invalid, use only for comparison
 	IChartData m_itrEditing; //The chart that is the current one in the editor
 	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
+	IChartData m_itrDoNotSyncForThis; //At inplace exit we asked if we should sync this itrEditing to shown, but she said no, so we store it not to ask again
 	CDrawingChartData m_ChartShown;
 
 	// Zoom related 
