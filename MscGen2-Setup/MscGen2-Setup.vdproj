@@ -28,13 +28,13 @@
         "Entry"
         {
         "MsmKey" = "8:_2DE2CE117A2A1BE7D343752A1F1D1DFA"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_2DE2CE117A2A1BE7D343752A1F1D1DFA"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -430,7 +430,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{453AC3C8-F260-4D88-832A-EC957E92FDEB}"
-        "PackageCode" = "8:{CB0A2907-23BA-4D04-901D-E8BE8B855FF5}"
+        "PackageCode" = "8:{FE95F587-5FF0-470E-A45C-A19A203A67CA}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
@@ -1526,7 +1526,7 @@
                             "ContextData" = "8:"
                             "Attributes" = "3:0"
                             "Setting" = "3:2"
-                            "Value" = "8:This computer program is protected by copyright law. It is released under the GPLv2 licence. (This means that you are free to use it.)"
+                            "Value" = "8:This computer program is protected by copyright law. It is released under the GNU Affero GPL v3 licence. (This roughly means that you are free to use it, see licence for more info.)"
                             "DefaultValue" = "8:#1202"
                             "UsePlugInResources" = "11:TRUE"
                             }

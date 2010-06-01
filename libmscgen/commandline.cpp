@@ -58,16 +58,13 @@ static void usage()
 "             used.\n"
 " <infile>    The file from which to read input.  If omitted or specified as\n"
 "             '-', input will be read from stdin.\n"
-" -Wno        No warnings displayed."
-" -Werror     Warnings result in errors and no output."
+" -Wno        No warnings displayed.\n"
+" -Werror     Warnings result in errors and no output.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
 " --strict    Requires strict adherence to syntax rules, will bail out on errors.\n"
-" [<chart_option>=<value> ...]\n"
-"             Any chart option can be specified here, see documentation for a\n"
-"             available options. Using 'msc=<design>' you can override the\n"
-"             design specified in the input file. All other chart option\n"
-"             specified in the input file takes precedence over command line\n"
-"             values\n"
+" --<chart_design>\n"
+"             Any chart design can be specified here, taking precedence over the\n"
+"             design specified in the input file.\n"
 " -l          Display program licence and exit.\n"
 "\n"
 "Msc-generator version %s, Copyright (C) 2008-9 Zoltan Turanyi,\n"
@@ -203,6 +200,8 @@ int do_main(const std::list<std::string> &args, const char *designs)
                     msc.Error.Error(opt_pos,
                                     "Unknown chart design: '" + a.name + "'. Using 'plain'.",
                                     " Available styles are: " + msc.GetDesigns() +".");
+				else
+					msc.ignore_designs = true;
             } else {
                 float num;
                 string value(name.substr(name.find("=")+1));
