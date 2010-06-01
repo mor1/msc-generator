@@ -25,6 +25,7 @@
 
 char *ReadFile(FILE *in)
 {
+	if (!in) return NULL;
     unsigned alloc = 16384;
     unsigned len = 0;
     char *buff = (char*)malloc(alloc);
@@ -43,28 +44,36 @@ char *ReadFile(FILE *in)
 static void usage()
 {
     printf(
-"Usage: mscgen [-p] [-T <type>] [--pedantic] [--strict] [-o <file>] [<infile>]\n"
-"       mscgen -l\n"
+"Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno] [-Werror]\n"
+"               [--pedantic] [--strict] [<chart_option>=<value> ...]\n"
+"       msc-gen -l\n"
 "\n"
 "Where:\n"
 " -T <type>   Specifies the output file type, which maybe one of 'png', 'eps',\n"
-"             'pdf', 'svg' or 'wmf' (if supported on your system). Default is 'png'.\n"
-" -o <file>   Write output to the named file.  If omitted the input filename\n"
-"             will be appended by .png or .ps. If neither input nor output \n"
-"             file is given, mscgen_out.{png,eps,svg,pdf,wmf} will be used.\n"
+"             'pdf', 'svg' or 'wmf' (if supported on your system).\n" 
+"             Default is 'png'.\n"
+" -o <file>   Write output to the named file.  If omitted, the input filename\n"
+"             will be appended by an extension suitable for the output format.\n"
+"             If neither input nor output file is given, msc-gen_out.* will be\n"
+"             used.\n"
 " <infile>    The file from which to read input.  If omitted or specified as\n"
 "             '-', input will be read from stdin.\n"
-" -l          Display program licence and exit.\n"
-" -p          Print parsed msc output (for parser debug).\n"
-" --pedantic  When used all entities must be declared before being used.\n"
-" --strict    Requires strict adherence to syntax rules, will bail out on errors\n"
 " -Wno        No warnings displayed."
 " -Werror     Warnings result in errors and no output."
+" --pedantic  When used, all entities must be declared before being used.\n"
+" --strict    Requires strict adherence to syntax rules, will bail out on errors.\n"
+" [<chart_option>=<value> ...]\n"
+"             Any chart option can be specified here, see documentation for a\n"
+"             available options. Using 'msc=<design>' you can override the\n"
+"             design specified in the input file. All other chart option\n"
+"             specified in the input file takes precedence over command line\n"
+"             values\n"
+" -l          Display program licence and exit.\n"
 "\n"
 "Msc-generator version %s, Copyright (C) 2008-9 Zoltan Turanyi,\n"
-"Msc-generator comes with ABSOLUTELY NO WARRANTY.  This is free software, and you are\n"
-"welcome to redistribute it under certain conditions; type `mscgen -l' for\n"
-"details.\n",
+"Msc-generator comes with ABSOLUTELY NO WARRANTY.\n" 
+"This is free software, and you are welcome to redistribute it under certain\n" 
+"conditions; type `mscgen -l' for details.\n",
 VERSION);
 }
 
@@ -74,21 +83,22 @@ static void licence()
 {
     printf(
 "Msc-generator, a message sequence chart renderer.\n"
-"Copyright (C) 2008-2009 Zoltan Turanyi\n"
+"This file is part of Msc-generator.\n"
+"Copyright 2008,2009,2010 Zoltan Turanyi\n"
+"Distributed under GNU Affero General Public License.\n"
 "\n"
-"This program is free software; you can redistribute it and/or modify\n"
-"it under the terms of the GNU General Public License as published by\n"
-"the Free Software Foundation; either version 2 of the License, or\n"
+"Msc-generator is free software: you can redistribute it and/or modify\n"
+"it under the terms of the GNU Affero General Public License as published by\n"
+"the Free Software Foundation, either version 3 of the License, or\n"
 "(at your option) any later version.\n"
 "\n"
-"This program is distributed in the hope that it will be useful,\n"
+"Msc-generator is distributed in the hope that it will be useful,\n"
 "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
 "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
-"GNU General Public License for more details.\n"
+"GNU Affero General Public License for more details.\n"
 "\n"
-"You should have received a copy of the GNU General Public License\n"
-"along with this program; if not, write to the Free Software\n"
-"Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA\n");
+"You should have received a copy of the GNU Affero General Public License\n"
+"along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.\n");
 }
 
 int do_main(const std::list<std::string> &args, const char *designs)
@@ -103,12 +113,18 @@ int do_main(const std::list<std::string> &args, const char *designs)
 
     Msc msc;
     msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
-                        "http://msc-generator.sourceforge.net";
-
+                        "http://msc-generator.sourceforge.net ";
+	msc.copyrightText.append(VERSION);
+	
+	msc.Error.AddFile("[options]");
     const file_line opt_pos(msc.current_file,0,0);
     const file_line_range opt_pos_range(opt_pos, opt_pos);
     bool show_usage = false;
     bool fail_options = false;
+
+	//Load deisgn definitions
+	if (designs)
+		msc.ParseText(designs, "[designlib]");
 
     for (std::list<std::string>::const_iterator i=args.begin(); i!=args.end(); i++) {
         if (*i == "-o") {
@@ -270,7 +286,7 @@ int do_main(const std::list<std::string> &args, const char *designs)
         FILE *in = fopen(oInputFile.c_str(), "r");
 
         if(!in) {
-            std::cerr<< "Error: Failed to open input file '" << oInputFile << "'";
+            std::cerr<< "Error: Failed to open input file '" << oInputFile << "'.\n";
             std::cerr << "Bailing out." << std::endl;
             return EXIT_FAILURE;
         }
@@ -278,10 +294,7 @@ int do_main(const std::list<std::string> &args, const char *designs)
         fclose(in);
     }
 
-    //Load deisgn definitions
-    msc.ParseText(designs, "[designlib]");
     //parse input text;
-    msc.ParseForCSH(input, strlen(input));
     msc.ParseText(input, oInputFile.c_str());
     free(input);
     msc.CompleteParse(oOutType, true);

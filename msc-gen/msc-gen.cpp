@@ -30,27 +30,22 @@ using namespace std;
 
 string ReadDesigns(const char *fileName) 
 {
+	if (!fileName || !fileName[0]) fileName = "designlib.signalling";
 	char buff[1024]; 
 	GetModuleFileName(NULL, buff, 1024);
 	std::string dir(buff);
 	int pos = dir.find_last_of('\\');
-	const string designlib_filename = dir.substr(0,pos).append("\\").append(fileName);
+	dir = dir.substr(0,pos).append("\\");
 	string ret; 
 
 	WIN32_FIND_DATA find_data;
-	HANDLE h= FindFirstFile(designlib_filename.c_str(), &find_data);
+	HANDLE h= FindFirstFile((dir+fileName).c_str(), &find_data);
 	bool bFound = h != INVALID_HANDLE_VALUE;
 	while (bFound) {
-		ifstream in(find_data.cFileName);
-		filebuf *pbuf = in.rdbuf();
-		// get file size using buffer's members
-		long size=pbuf->pubseekoff (0,ios::end,ios::in);
-		pbuf->pubseekpos (0,ios::in);
-		char *buffer=new char[size+1];
-		// get file data  
-		pbuf->sgetn(buffer,size);
-		buffer[size]=0;
+		FILE *in = fopen((dir+find_data.cFileName).c_str(), "rb");
+		char *buffer = ReadFile(in);
 		ret += buffer;
+		free(buffer);
 		bFound = FindNextFile(h, &find_data);
 	}
 	FindClose(h);

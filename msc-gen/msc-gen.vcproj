@@ -47,7 +47,7 @@
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
-				WarningLevel="3"
+				WarningLevel="1"
 				DebugInformationFormat="4"
 			/>
 			<Tool
@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="cairo-static.lib "
+				AdditionalDependencies="cairo-static.lib Msimg32.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="&quot;..\libmscgen\Debug&quot;;&quot;..\cairo\src\debug&quot;;&quot;..\pixman\pixman\debug&quot;;&quot;..\libpng\projects\visualc71\Win32_LIB_Debug&quot;;&quot;..\zlib\projects\visualc71\Win32_LIB_Debug\ZLib&quot;"
 				GenerateDebugInformation="true"
@@ -95,6 +95,7 @@
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
+			UseOfMFC="0"
 			CharacterSet="0"
 			WholeProgramOptimization="1"
 			>
@@ -122,7 +123,7 @@
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="2"
-				WarningLevel="3"
+				WarningLevel="1"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -136,7 +137,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="cairo-static.lib"
+				AdditionalDependencies="cairo-static.lib Msimg32.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="&quot;..\libmscgen\Release&quot;;&quot;..\cairo\src\release&quot;;&quot;..\pixman\pixman\release&quot;;&quot;..\libpng\projects\visualc71\Win32_LIB_Release&quot;;&quot;..\zlib\projects\visualc71\Win32_LIB_Release\ZLib&quot;"
 				GenerateDebugInformation="true"

@@ -11,7 +11,6 @@ If (argCount < 1) Then
 	Wscript.Quit 1
 End If
 Dim databasePath:databasePath = Wscript.Arguments(0)
-Dim queryText:queryText = "UPDATE Property SET Property.Value = 'PREVIOUSVERSIONSINSTALLED;NEWERPRODUCTFOUND;TARGETDIR;USERNAME;COMPANYNAME;SOURCEDIR;ROOTDRIVE' WHERE Property.Property = 'SecureCustomProperties'"
 
 
 ' Connect to Windows installer object
@@ -21,11 +20,29 @@ Set installer = Wscript.CreateObject("WindowsInstaller.Installer") : CheckError
 
 ' Open database, 1=transaction mode
 Dim database : Set database = installer.OpenDatabase(databasePath, 1) : CheckError
-
-' Process SQL statement
 Dim view
+
+' Change SecureCustomProperties so that TARGETDIR goes through (bugfx)
+Dim queryText:queryText = "UPDATE Property SET Property.Value = 'PREVIOUSVERSIONSINSTALLED;NEWERPRODUCTFOUND;TARGETDIR;USERNAME;COMPANYNAME;SOURCEDIR;ROOTDRIVE' WHERE Property.Property = 'SecureCustomProperties'"
 Set view = database.OpenView(queryText) : CheckError
 view.Execute : CheckError
+View.Close
+
+' Now first query the Component that creates the targetdir
+Dim queryComponent:queryComponent = "SELECT CreateFolder.Component_ FROM CreateFolder WHERE CreateFolder.Directory_ = 'TARGETDIR'"
+Set view = database.OpenView(queryComponent) : CheckError
+view.Execute : CheckError
+Dim record
+Set record = view.Fetch : CheckError
+view.Close
+
+' Now add PATH row to Environment table
+Dim queryPATH:queryPATH = "INSERT INTO Environment (Environment.Component_, Environment.Environment, Environment.Name,  Environment.Value) VALUES (?, 'PATH', '*=-PATH', '[~];[TARGETDIR]')"
+Set view = database.OpenView(queryPATH) : CheckError
+view.Execute(record) : CheckError
+view.Close
+
+' Commit database and exit
 database.Commit
 Wscript.Quit 0
 

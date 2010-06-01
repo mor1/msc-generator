@@ -21,8 +21,20 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_2DE2CE117A2A1BE7D343752A1F1D1DFA"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_2DE2CE117A2A1BE7D343752A1F1D1DFA"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -57,14 +69,14 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_EB17DFA3CA8C3FE04F588B0D64007ED4"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmKey" = "8:_D1577691887741E4AEAC85348835952C"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_EEF70A0D65AE4FE584A673A379B9824C"
-        "OwnerKey" = "8:_UNDEFINED"
+        "MsmKey" = "8:_EB17DFA3CA8C3FE04F588B0D64007ED4"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
     }
@@ -287,6 +299,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D1577691887741E4AEAC85348835952C"
+            {
+            "SourcePath" = "8:..\\Msc-generator\\Documentation\\designlib.signalling"
+            "TargetName" = "8:designlib.signalling"
+            "Tag" = "8:"
+            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_EB17DFA3CA8C3FE04F588B0D64007ED4"
             {
             "SourcePath" = "8:oledlg.dll"
@@ -305,26 +337,6 @@
             "Register" = "3:1"
             "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_EEF70A0D65AE4FE584A673A379B9824C"
-            {
-            "SourcePath" = "8:..\\Msc-generator\\Release\\designlib.signalling"
-            "TargetName" = "8:designlib.signalling"
-            "Tag" = "8:"
-            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
         }
@@ -418,7 +430,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{453AC3C8-F260-4D88-832A-EC957E92FDEB}"
-        "PackageCode" = "8:{835F246E-76C7-468C-BA7D-7B882C788411}"
+        "PackageCode" = "8:{CB0A2907-23BA-4D04-901D-E8BE8B855FF5}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
@@ -440,7 +452,7 @@
         "UseSystemSearchPath" = "11:TRUE"
         "TargetPlatform" = "3:0"
         "PreBuildEvent" = "8:"
-        "PostBuildEvent" = "8:\"$(ProjectDir)updatesecurecustomproperties.vbs\" \"$(BuiltOuputPath)\""
+        "PostBuildEvent" = "8:\"$(ProjectDir)postbuild.vbs\" \"$(BuiltOuputPath)\""
         "RunPostBuildEvent" = "3:0"
         }
         "Registry"
@@ -1802,6 +1814,34 @@
         }
         "ProjectOutput"
         {
+            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+            {
+            "SourcePath" = "8:..\\Release\\msc-gen.exe"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            "ProjectOutputGroupRegister" = "3:1"
+            "OutputConfiguration" = "8:"
+            "OutputGroupCanonicalName" = "8:Built"
+            "OutputProjectGuid" = "8:{8D98EBE1-4C46-4F05-ACDA-390B5BA33631}"
+            "ShowKeyOutput" = "11:TRUE"
+                "ExcludeFilters"
+                {
+                }
+            }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_8D210BB11DE54BFF9295776C6C22707B"
             {
             "SourcePath" = "8:..\\Release\\Msc-generator.exe"
