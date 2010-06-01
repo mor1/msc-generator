@@ -3,9 +3,10 @@ Drag-move chart
 Drag and drop
 maybe invalidate only the spots needed?
 full screen
-add command-line project, plus PATH setting for updater
 
 update doc, add doc project (Call everything a box)
+Add F1 key and help menu
+Add update search on web
 
 design lib
 Re-add escape to in-place editor...

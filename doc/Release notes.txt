@@ -1,0 +1,83 @@
+Welcome to Msc-generator!
+10/Apr/2010, version 2.4.0
+
+With Msc-generator you can generate signalling charts from a textual descriptions.
+This allows easy editing and overview and is a viable alternative to mouse-based
+tools, such as Visio or PowerPoint.
+
+The language of msc-generator resembles a bit to the graphviz tool and is documented
+in detail in the accompanying pdf file.
+
+Msc-generator works both as a command-line tool and as an OLE server application.
+A Linux port is also maintained, use mercurial to obtain the latest snapshot from sourceforge.
+
+Installation on Windows is easy:
+Just double-click Msc-generator.msi.
+
+On Linux, I suggest to check out the mercurial repo. It uses automake+autoconf.
+The cvs repository contains old v1.x code.
+The svn repository will contain the windows code.
+
+Contact the author by mail: teknos at gmail.com.
+
+Changelog 2.4.0
+- No longer experimental
+- Same language syntax as 2.3.1
+- A lot of speed improvements
+- Customizable toolbars and menus and other MFC goodies (came for free)
+- Added windows installer
+- Added Print and Print preview
+- Added unlimited undo
+- Fixed in-place editing caveats, added 1:1 aspect ratio button
+- Fixed a few bugs in the language engine
+
+Changelog 2.3.3 (experimental)
+- Based on 2.3.2
+- Fixed a few bugs
+
+Changelog 2.3.2 (experimental)
+- Based on 2.3.1
+- Fixed a number of bugs
+- Added handling of navigation keypresses to Windows
+
+Changelog 2.3.1 (experimental)
+- Based on 2.3.0
+- Added zoom modes to Windows
+- Pedantic now only gives a warning, but does not ignore the arc
+- Changed syntax for vertical visual elements to fit existing language logic better.
+
+Changelog 2.3.0 (experimental)
+- Based on a pre 2.2.11
+- Added "vertical" visual elements 
+
+Changelog 2.2.11
+- Much improved error reporting
+- Pedantic now only gives a warning, but does not ignore the arc
+- Added "++" as a symbol for dashed arrows.
+- Removed the need to quote built-in style names
+- Added zoom modes to windows
+
+Changelog 2.2.10
+- Added "dot" style to block arrows. This completes all the features in the documentation.
+
+Changelog 2.2.9
+- Added flicker-free scolling and zooming
+- Added Zoom control on toolbar, zoom menu commands and shortcut keys
+- Added "Overview" zoom mode and "O" button on toolbar
+- Mouse wheel zooming now is centered around the current pointer position
+- Removed redundant menu items and buttons, made menu more consistent
+- Removed registry setting for designlib.signalling: it is now searched besides the executable
+- Removed registry settings for textpath & viewmode. User should not notice it.
+- fixed # comment bug
+- labels can be now entered in multiple lines
+- added string formatting escapes: \B \U \I \s(style) and the ability to do empty \c()
+- added GNU Affero License template to all source files
+
+Changelog 2.2.8
+- You can shut down the text editor by pressing the "E" button again
+- Text editor is not simply terminated, but its content is offered to be saved first
+- bugfixes in \b\u\i handling: now you can turn these on and off in the same string
+- number and compress attributes now work well with as part of styles
+- bugfix in block arrows
+- updated documentation
+
