@@ -658,8 +658,8 @@ void ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, int &numbe
 {
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
     ArcDirArrow::PostParseProcess(left, right, number, top_level);
-	//Check if we still play
-	if (!valid) return;
+    //Check if we still play
+    if (!valid) return;
 
     if (content)
         chart->PostParseProcessArcList(*content, false, left, right, number, top_level);
@@ -670,7 +670,7 @@ void ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, int &numbe
 
 void ArcBigArrow::Width(EntityDistanceMap &distances)
 {
-	if (!valid) return;
+    if (!valid) return;
     //Add distances for the content
     if (content) {
         EntityDistanceMap d;
@@ -1935,21 +1935,25 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
 
     const double text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     const double line_margin = chart->XCoord(MARGIN);
-	Geometry text_cover;
+    Geometry text_cover;
+    //Never draw here, just obtain the cover
+    //(DrawCovers does not return a cover if drawing)
     parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
-                            text_cover, draw);
+                            text_cover, false);
     if (draw) {
+        parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
+                                text_cover, true);
         //determine widest extent for coverage at the lineYpos+- style.line.LineWidth()/2;
         Range yRange(lineYPos - ceil(style.line.LineWidth()/2.), lineYPos + ceil(style.line.LineWidth()/2.));
         Range xRange(chart->totalWidth-line_margin, line_margin);
-		//geometry so far contains the cover of the text
-		for (std::set<Block>::const_iterator i = text_cover.GetCover().begin(); i!=text_cover.GetCover().end(); i++)
-            if (yRange.Overlaps(i->y))
+        //geometry so far contains the cover of the text
+        for (std::set<Block>::const_iterator i = text_cover.GetCover().begin(); i!=text_cover.GetCover().end(); i++)
+            if (yRange.Overlaps(i->y, chart->compressYGap))
                 xRange.Extend(i->x);
         chart->line(XY(line_margin, lineYPos),
-                    XY(xRange.from, lineYPos), style.line);
+                    XY(xRange.from-chart->compressXGap/2., lineYPos), style.line);
         if (xRange.from < xRange.till) // Text covers the line - two part drawing
-            chart->line(XY(xRange.till, lineYPos),
+            chart->line(XY(xRange.till+chart->compressXGap, lineYPos),
                         XY(chart->totalWidth-line_margin, lineYPos), style.line);
     }
 
@@ -1958,7 +1962,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
         chart->HideEntityLines(text_cover);
 
     if (!draw) {
-		geometry += text_cover;
+        geometry += text_cover;
         //Add a cover block for the line, if one exists
         if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
             geometry += Block(line_margin, chart->totalWidth-line_margin,
