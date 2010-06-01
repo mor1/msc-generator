@@ -144,7 +144,7 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
     //Add attributest first
     ArcBase::AddAttributeList(l);
     //Then convert color and style names in labels
-    if (label.length()>0) 
+    if (label.length()>0)
         StringFormat::ExpandColorAndStyle(label, chart, linenum_label, &style.text, true);
     return this;
 }
@@ -2234,8 +2234,9 @@ void CommandEntity::PostHeightProcess(void)
             for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
                 chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
     }
-    for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
-        chart->AllArcs[(*i)->file_pos] = *i;
+    if (entities)
+        for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
+            chart->AllArcs[(*i)->file_pos] = *i;
     chart->AllArcs[file_pos] = this;
 }
 
