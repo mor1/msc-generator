@@ -103,8 +103,6 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	//If we shall open due to user preference, fail here.
-	if (pApp->m_bAlwaysOpen) return FALSE;
 
 	//Does nothing, but ensures that m_pMainFrame is of type COleCntrFrameWndEx, 
 	//so that we can dock MFC extension pack panes with DockPane below

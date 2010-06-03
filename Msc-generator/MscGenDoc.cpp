@@ -90,6 +90,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITTEXT, OnUpdateButtonEdittext)
 	ON_COMMAND(ID_BUTTON_TRACK, OnButtonTrack)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, OnUpdateButtonTrack)
+	ON_COMMAND(ID_HELP_HELP, &CMscGenDoc::OnHelpHelp)
 END_MESSAGE_MAP()
 
 CLIPFORMAT NEAR CMscGenDoc::m_cfPrivate = NULL;
@@ -529,15 +530,18 @@ void CMscGenDoc::OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI)
 {
 	COleDataObject dataObject;
 	dataObject.AttachClipboard();
-	pCmdUI->Enable(dataObject.IsDataAvailable(m_cfPrivate) || 
-                   dataObject.IsDataAvailable(CF_TEXT));
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	pCmdUI->Enable(!pApp->m_bFullScreenViewMode && (dataObject.IsDataAvailable(m_cfPrivate) || 
+						        					dataObject.IsDataAvailable(CF_TEXT)));
 }
 
-void CMscGenDoc::OnEditPasteEntireChart()
+void CMscGenDoc::DoPasteData(COleDataObject &dataObject) 
 {
-	// Paste is handled by Document
-	COleDataObject dataObject;
-	dataObject.AttachClipboard();
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//Do not insert when in FullScreenViewMode
+	if (pApp->m_bFullScreenViewMode) return;
 	bool restartEditor = m_ExternalEditor.IsRunning();
 	if (dataObject.IsDataAvailable(m_cfPrivate)) {
 		// get file refering to clipboard data
@@ -570,29 +574,58 @@ void CMscGenDoc::OnEditPasteEntireChart()
 	SetModifiedFlag();
 	ShowNewChart(m_itrEditing, true);
 	//Copy text to the internal editor
+	if (pApp->IsInternalEditorRunning())
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
+	if (restartEditor) 
+		m_ExternalEditor.Start();
+};
+
+void CMscGenDoc::OnEditPasteEntireChart()
+{
+	COleDataObject dataObject;
+	dataObject.AttachClipboard();
+	DoPasteData(dataObject);
+}
+
+void CMscGenDoc::OnFileDropped(const char *file)
+{
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+	bool restartEditor = m_ExternalEditor.IsRunning();
+	if (restartEditor) m_ExternalEditor.Stop(STOPEDITOR_FORCE);
+	CChartData data;
+	data.Load(file, true);
+	data.SetDesign(m_itrEditing->GetDesign());
+	InsertNewChart(data);
+	SetModifiedFlag();
+	ShowNewChart(m_itrEditing, true);
+	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
 	if (restartEditor) 
 		m_ExternalEditor.Start();
 }
 
+
 void CMscGenDoc::OnButtonEdittext()
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	if (m_ExternalEditor.IsRunning())
 		m_ExternalEditor.Stop(STOPEDITOR_WAIT);
-	else
+	else if (!pApp->m_bFullScreenViewMode)
 		m_ExternalEditor.Start();
 }
 
 void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	pCmdUI->SetCheck(m_ExternalEditor.IsRunning());
 	if (!m_ExternalEditor.CanStart())
 		if (!m_ExternalEditor.Init()) 
 			MessageBox(0, "Fail to create external editor window", "Msc-generator", MB_OK);
-	pCmdUI->Enable(m_ExternalEditor.CanStart());
+	pCmdUI->Enable(m_ExternalEditor.CanStart() && pApp->m_bFullScreenViewMode);
 }
 
 void CMscGenDoc::OnEditUpdate()
@@ -1231,4 +1264,16 @@ void CMscGenDoc::HighLightArc(const TrackableElement *arc)
 	::SendMessage(editor.m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
 	editor.SetRedraw(true);
 	editor.Invalidate();
+}
+
+void CMscGenDoc::OnHelpHelp()
+{
+	char buff[1024]; 
+	GetModuleFileName(NULL, buff, 1024);
+	std::string dir(buff);
+	int pos = dir.find_last_of('\\');
+	ASSERT(pos!=std::string::npos);
+	string cmdLine = "\"" + dir.substr(0,pos) + "\\msc-gen.chm\"";
+
+	ShellExecute(NULL, NULL, cmdLine.c_str(), NULL, NULL, SW_SHOW); 
 }

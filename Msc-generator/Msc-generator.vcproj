@@ -376,6 +376,11 @@
 			</File>
 		</Filter>
 		<File
+			RelativePath=".\res\html1.htm"
+			DeploymentContent="true"
+			>
+		</File>
+		<File
 			RelativePath=".\Msc-generator.reg"
 			>
 		</File>

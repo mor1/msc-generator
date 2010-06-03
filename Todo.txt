@@ -1,12 +1,4 @@
-smart ident for colon labels...
-Drag-move chart
-Drag and drop
-maybe invalidate only the spots needed?
-full screen
-
 update doc, add doc project (Call everything a box)
-Add F1 key and help menu
-Add update search on web
 
 design lib
 Re-add escape to in-place editor...

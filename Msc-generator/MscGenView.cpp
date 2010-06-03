@@ -24,6 +24,7 @@
 
 #include "MscGenDoc.h"
 #include "MscGenView.h"
+#include "SrvrItem.h"
 #include "cairo.h"
 #include "cairo-win32.h"
 
@@ -56,6 +57,9 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_MOUSEHOVER()
 	ON_WM_MOUSEMOVE()
 	ON_WM_TIMER()
+	ON_WM_CREATE()
+	ON_WM_DROPFILES()
+	ON_WM_LBUTTONDOWN()
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
@@ -70,6 +74,7 @@ CMscGenView::CMscGenView() : m_size(0,0)
 	m_stretch_x = m_stretch_y = 1;
 	m_FadingTimer = NULL;
 	SetScrollSizes(MM_TEXT, m_size);
+	m_nDropEffect = DROPEFFECT_NONE;
 }
 
 CMscGenView::~CMscGenView()
@@ -464,6 +469,14 @@ void CMscGenView::OnViewRedraw()
 	pDoc->UpdateAllViews(NULL);
 }
 
+void CMscGenView::OnInitialUpdate()
+{
+	CScrollView::OnInitialUpdate();
+	//m_pDropTarget is a CWnd memeber and holds the droptarget object
+	//If we are already registered, do not register again.
+	if (!m_pDropTarget) m_DropTarget.Register(this);
+}
+
 void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 {
 	CMscGenDoc* pDoc = GetDocument();
@@ -612,21 +625,72 @@ void CMscGenView::OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI)
 	pCmdUI->Enable(pDoc->IsInPlaceActive() && !SizeEmpty(m_size));
 }
 
-void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
+void CMscGenView::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	CScrollView::OnLButtonDown(nFlags, point);
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	if (1) {
+		if (pDoc->IsInPlaceActive()) return;
+		//Mouse drag scrolling
+		m_DragPoint = point;
+		SetCapture();
+	} else {
+		//This is what we had to do for drag and drop
+		//Copy is handled by SrvItem
+		CMscGenSrvrItem *pItem = reinterpret_cast<CMscGenSrvrItem*>(pDoc->GetEmbeddedItem());
+		TRY {
+			COleDataSource *pDataSource = pItem->OnGetClipboardData(FALSE, NULL, NULL);
+			if (pDataSource) pDataSource->DoDragDrop(DROPEFFECT_COPY);
+		} CATCH_ALL(e) {
+			//Do nothing if error happened in GetDataSource
+		}
+		END_CATCH_ALL
+	}
+}
+
+void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
-	if (pDoc == NULL) return;
-	pDoc->SetTrackMode(true);
+	if (pDoc == NULL) return CScrollView::OnMouseMove(nFlags, point);
+	//If we are in drag mode
+	if (GetCapture() == this) { 
+		CPoint pos = GetScrollPosition();
+		pos -= point - m_DragPoint;
+		m_DragPoint = point;
+		if (pos.x<0) pos.x = 0;
+		if (pos.y<0) pos.y = 0;
+		CRect client;
+		GetClientRect(client);
+		if (pos.x + client.right > m_size.cx*pDoc->m_zoom/100)
+			pos.x = m_size.cx*pDoc->m_zoom/100 - client.right;
+		if (pos.y + client.bottom > m_size.cy*pDoc->m_zoom/100)
+			pos.y = m_size.cy*pDoc->m_zoom/100 - client.bottom;
+		ScrollToPosition(pos);
+	} else if (pDoc->m_bTrackMode) {
+		TRACKMOUSEEVENT tme;
+		tme.cbSize = sizeof(tme);
+		tme.hwndTrack = m_hWnd;
+		tme.dwFlags = TME_HOVER;
+		tme.dwHoverTime = 10;
+		TrackMouseEvent(&tme);
+	}
+	CScrollView::OnMouseMove(nFlags, point);
+} 
+
+void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
+{
+	CMscGenDoc *pDoc = GetDocument();
+	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseHover(nFlags, point);
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
 	CClientDC dc(this);
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
-	//then take zooming into account.
+	//take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);
-	CScrollView::OnLButtonDblClk(nFlags, point);
 }
 
 void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
@@ -634,6 +698,12 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	const double delay_before_fade = 500; //in ms
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL) return;
+	//If we were doing dragging stop it
+	if (GetCapture() == this) {
+		ReleaseCapture();
+		return;
+	}
+
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
 	CClientDC dc(this);
@@ -659,33 +729,22 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	}
 }
 
-void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
+void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
-	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseHover(nFlags, point);
+	if (pDoc == NULL) return;
+	pDoc->SetTrackMode(true);
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
 	CClientDC dc(this);
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
-	//take zooming into account.
+	//then take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);
+	CScrollView::OnLButtonDblClk(nFlags, point);
 }
-
-void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
-{
-	CMscGenDoc *pDoc = GetDocument();
-	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseMove(nFlags, point);
-	TRACKMOUSEEVENT tme;
-    tme.cbSize = sizeof(tme);
-    tme.hwndTrack = m_hWnd;
-    tme.dwFlags = TME_HOVER;
-    tme.dwHoverTime = 10;
-    TrackMouseEvent(&tme);
-	CScrollView::OnMouseMove(nFlags, point);
-} 
 
 void CMscGenView::StartFadingTimer() 
 {
@@ -706,3 +765,79 @@ void CMscGenView::OnTimer(UINT_PTR)
 	pDoc->m_pViewFadingTimer = NULL;
 	m_FadingTimer = NULL;
 }
+
+int CMscGenView::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+	if (CScrollView::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	// Accept files dropped on the view
+	//Do not accept dropped files when in FullScreenViewMode
+	if (!pApp->m_bFullScreenViewMode) 
+		DragAcceptFiles(true);
+
+	return 0;
+}
+
+void CMscGenView::OnDropFiles(HDROP hDropInfo)
+{
+	int nFiles = ::DragQueryFile(hDropInfo, (UINT)-1, NULL, 0);
+	switch (nFiles) {
+		default:
+			MessageBox("Sorry, I cannot handle multiple files dropped on me. Drop just one.", 
+				       "Msc-generator", MB_OK);
+			break;
+		case 0:
+			break; //do nothing
+		case 1:
+			CString s;
+			LPTSTR pFileName = s.GetBufferSetLength(MAX_PATH);
+			::DragQueryFile(hDropInfo, 0, pFileName, MAX_PATH);
+			s.ReleaseBuffer();
+			CMscGenDoc *pDoc = GetDocument();
+			ASSERT(pDoc);
+			pDoc->OnFileDropped(s);
+			break;
+	}
+	::DragFinish(hDropInfo);
+
+	CScrollView::OnDropFiles(hDropInfo);
+}
+
+DROPEFFECT CMscGenView::OnDragEnter(COleDataObject* pDataObject, DWORD dwKeyState, CPoint point)
+{
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	ASSERT(pDataObject);
+	if (pDataObject->IsDataAvailable(CF_TEXT) || 
+		pDataObject->IsDataAvailable(pDoc->m_cfPrivate)) {
+		m_nDropEffect = DROPEFFECT_COPY;
+	} else
+		m_nDropEffect = DROPEFFECT_NONE;
+	return m_nDropEffect;
+}
+
+DROPEFFECT CMscGenView::OnDragOver(COleDataObject* pDataObject, DWORD dwKeyState, CPoint point)
+{
+	return m_nDropEffect;
+}
+
+void CMscGenView::OnDragLeave()
+{
+	m_nDropEffect = DROPEFFECT_NONE;
+}
+
+BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT dropEffect, CPoint point)
+{
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
+	ASSERT(pDataObject);
+	if (m_nDropEffect == DROPEFFECT_NONE) 
+		return FALSE;
+	pDoc->DoPasteData(*pDataObject);
+	return TRUE;
+}
+
+

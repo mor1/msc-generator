@@ -24,6 +24,7 @@
 #include "Msc-generator.h"
 
 #include "MscGenDoc.h"
+#include "MainFrm.h"
 #include "SrvrItem.h"
 
 #ifdef _DEBUG
@@ -212,3 +213,27 @@ BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMed
 }
 
 
+void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
+{
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT_VALID(pApp);
+	if (iVerb == 2) {
+		pApp->m_bFullScreenViewMode = true;
+		CDocObjectServerItem::OnDoVerb(1); //Open
+		//Switch to full screen
+		CFrameWnd* pFrameWnd;
+		if ((pFrameWnd = pDoc->GetFirstFrame()) != NULL) {
+			CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pFrameWnd);
+			if (pMainFrame) pMainFrame->ShowFullScreen();
+		} 
+		if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->SetReadOnly(true);
+	} else {
+		pApp->m_bFullScreenViewMode = false;
+		//Avoid in-place editing (verb 0) if user set this option
+		if (iVerb == 0 && pApp->m_bAlwaysOpen) iVerb = 1; //Open
+		CDocObjectServerItem::OnDoVerb(iVerb);
+	}
+
+}

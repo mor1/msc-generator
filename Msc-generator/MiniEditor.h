@@ -8,7 +8,9 @@
 // Microsoft Foundation Classes product.
 
 #pragma once
-#include <list>
+#undef min
+#undef max
+#include <msc.h>
 /////////////////////////////////////////////////////////////////////////////
 // CMiniEditor window
 
@@ -20,8 +22,11 @@ struct CEditorUndoRecord {
 class CCshRichEditCtrl : public CRichEditCtrl
 {
 	bool m_bCshUpdateInProgress;
+	Msc  m_msc_csh;
 public:
 	CCshRichEditCtrl();
+	int  FindColonLabelIdent(long lStart);
+	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
 	BOOL PreTranslateMessage(MSG* pMsg);
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateCsh(bool force = false);

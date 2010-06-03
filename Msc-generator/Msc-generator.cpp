@@ -28,6 +28,7 @@
 #include "IpFrame.h"
 #include "MscGenDoc.h"
 #include "MscGenView.h"
+#include "version.h"
 
 #include <sstream>
 #include <vector>
@@ -80,6 +81,7 @@ BOOL CAboutDlg::OnInitDialog( )
 	return a;
 }
 
+
 // COptionDlg dialog
 
 // COptionDlg dialog
@@ -115,6 +117,7 @@ public:
 	BOOL m_bAlwaysOpen;
 	BOOL m_bCsh;
 	int m_nCshScheme;
+	BOOL m_bSmartIdent;
 };
 
 
@@ -130,6 +133,7 @@ COptionDlg::COptionDlg(CWnd* pParent /*=NULL*/)
 	, m_bPB_Embedded(FALSE)
 	, m_bAlwaysOpen(FALSE)
 	, m_bCsh(FALSE)
+	, m_bSmartIdent(FALSE)
 	, m_nCshScheme(0)
 {
 }
@@ -150,8 +154,10 @@ void COptionDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_CHECK_PB_EDITING, m_bPB_Editing);
 	DDX_Check(pDX, IDC_CHECK_PB_EMBEDDED, m_bPB_Embedded);
 	DDX_Check(pDX, IDC_CHECK_CSH, m_bCsh);
+	DDX_Check(pDX, IDC_CHECK_SMART_IDENT, m_bSmartIdent);
 	DDX_Check(pDX, IDC_CHECK_ALWAYSOPEN, m_bAlwaysOpen);
 	DDX_CBIndex(pDX, IDC_COMBO_CSH, m_nCshScheme);
+	
 }
 
 BOOL COptionDlg::OnInitDialog()
@@ -160,6 +166,8 @@ BOOL COptionDlg::OnInitDialog()
 	GetDlgItem(IDC_EDIT1)->EnableWindow(m_TextEditorRadioButtons==2);
 	GetDlgItem(IDC_EDIT2)->EnableWindow(m_TextEditorRadioButtons==2);
 	GetDlgItem(IDC_RADIO2)->EnableWindow(m_bNppExists);
+	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_bCsh);
+	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(m_bCsh);
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -168,12 +176,16 @@ void COptionDlg::OnBnClicked()
 	bool otherSet = ((CButton*)this->GetDlgItem(IDC_RADIO3))->GetCheck();
 	GetDlgItem(IDC_EDIT1)->EnableWindow(otherSet);
 	GetDlgItem(IDC_EDIT2)->EnableWindow(otherSet);
+	bool cshSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH))->GetCheck();
+	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(cshSet);
+	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(cshSet);
 }
 
 BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
 	ON_BN_CLICKED(IDC_RADIO1, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_RADIO2, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClicked)
 END_MESSAGE_MAP()
 
 // CMscGenApp
@@ -198,6 +210,7 @@ CMscGenApp::CMscGenApp()
 	// Place all significant initialization in InitInstance
 	m_pWndOutputView = 0;
 	m_pWndEditor = 0;
+	m_bFullScreenViewMode = false;
 }
 
 
@@ -210,6 +223,8 @@ CMscGenApp theApp;
 static const CLSID clsid =
 { 0x453AC3C8, 0xF260, 0x4D88, { 0x83, 0x2A, 0xEC, 0x95, 0x7E, 0x92, 0xFD, 0xEC } };
 
+
+UINT CheckVersionFreshness(LPVOID);
 
 // CMscGenApp initialization
 
@@ -287,6 +302,8 @@ BOOL CMscGenApp::InitInstance()
 
 	//Read options from the registry
 	ReadRegistryValues(false);
+	//Start process that checks if we are the latest version
+	CWinThread* check_thread  = AfxBeginThread(&CheckVersionFreshness, NULL);
 
 	// App was launched with /Embedding or /Automation switch.
 	// Run app as automation server.
@@ -436,6 +453,7 @@ void CMscGenApp::OnEditPreferences()
 	optionDlg.m_bAlwaysOpen  = m_bAlwaysOpen;
 	optionDlg.m_bCsh		 = m_bCsh;
 	optionDlg.m_nCshScheme   = m_nCshScheme;
+	optionDlg.m_bSmartIdent  = m_bSmartIdent;
 
 	EnsureCRLF(m_DefaultText);
 	optionDlg.m_DefaultText = m_DefaultText;
@@ -455,6 +473,8 @@ void CMscGenApp::OnEditPreferences()
 			EnsureCRLF(m_DefaultText);
 			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
 		}
+		if (optionDlg.m_bSmartIdent != m_bSmartIdent) 
+			WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_bSmartIdent = optionDlg.m_bSmartIdent);
 
 		bool recompile = (m_Pedantic != (bool)optionDlg.m_Pedantic) ||
 			(m_bPB_Editing != optionDlg.m_bPB_Editing) ||
@@ -530,6 +550,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_bCsh         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
 	m_nCshScheme   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
+	m_bSmartIdent  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
 	m_trackLineColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKLINERGBA, RGBA(128, 0, 0, 255));
 	m_trackFillColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKFILLRGBA, RGBA(255, 0, 0, 128));
 
@@ -570,8 +591,8 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	ReadDesigns(reportProblem); //fills m_ChartSourcePreamble appropriately, default filename applies
 	FillDesignDesignCombo("", true);
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
-		              "http://msc-generator.sourceforge.net v2.4.2";
-	//m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
+		              "http://msc-generator.sourceforge.net";
+	m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
 
 	CHARFORMAT cf;
 	cf.cbSize = sizeof(cf);
@@ -732,4 +753,94 @@ bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 	else 
 		m_ChartSourcePreamble = ";\n";
 	return !errors;
+}
+
+
+//Version reminder dialog
+class CVersionDlg : public CDialog
+{
+public:
+	CVersionDlg() : CDialog(CVersionDlg::IDD) , m_sCurrentVersion(_T(""))
+		, m_sLatestVersion(_T(""))
+	{}
+
+// Dialog Data
+	enum { IDD = IDD_DIALOG_VERSION };
+	CMFCLinkCtrl m_btnLink;
+
+protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog( );
+
+public:
+	CString m_sCurrentVersion;
+	CString m_sLatestVersion;
+};
+
+void CVersionDlg::DoDataExchange(CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_BUTTON_URL2, m_btnLink);
+	DDX_Text(pDX, IDC_EDIT2, m_sCurrentVersion);
+	DDX_Text(pDX, IDC_EDIT3, m_sLatestVersion);
+}
+
+BOOL CVersionDlg::OnInitDialog( ) 
+{
+	bool a = CDialog::OnInitDialog();
+	m_btnLink.SetURL(_T("https://sourceforge.net/projects/msc-generator/"));
+	m_btnLink.SetTooltip(_T("Download from SourceForge"));
+	m_btnLink.SizeToContent();
+	return a;
+}
+
+
+
+UINT CheckVersionFreshness(LPVOID)
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	CString latest_version;
+	TRY {
+		CInternetSession session("Msc-generator", 1, 0, NULL, NULL, INTERNET_FLAG_DONT_CACHE);
+		CHttpConnection *httpconn = session.GetHttpConnection("msc-generator.sourceforge.net", 
+			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE, INTERNET_PORT(80));
+		CHttpFile *file = httpconn->OpenRequest("GET", "version", NULL, 1, NULL, NULL, 
+			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE);
+		if (!file->SendRequest()) return false;
+		if (!file->ReadString(latest_version)) return false;
+	} CATCH(CInternetException, pEx) {
+		return false;
+	}
+	END_CATCH
+
+	if (latest_version.GetLength()==0) return false;
+	int a=-1,b=-1,c=-1;
+	sscanf(latest_version, "v%d.%d.%d", &a, &b, &c);
+	//MessageBox(0, "This is what I read: " + latest_version, "Msc-generator", MB_OK);
+
+	//If we are the latest version (or erroneous string read from web), exit
+	if (a<LIBMSCGEN_MAJOR) return false;
+	if (a==LIBMSCGEN_MAJOR && b<LIBMSCGEN_MINOR) return false;
+	if (a==LIBMSCGEN_MAJOR && b==LIBMSCGEN_MINOR && c<=LIBMSCGEN_SUPERMINOR) return false;	
+
+	//If user do not want to get reminded for the new version, exit
+	int no_a = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MAJOR, -1);
+	int no_b = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MINOR, -1);
+	int no_c = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, -1);
+
+	if (no_a == a && no_b == b && no_c == c) return false;
+	
+	char current[100]; sprintf(current, "v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
+	char latest[100];  sprintf(latest,  "v%d.%d.%d", a, b, c);
+
+	CVersionDlg dlg;
+	dlg.m_sCurrentVersion = current;
+	dlg.m_sLatestVersion = latest;
+	if (dlg.DoModal() == IDOK) {
+		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MAJOR, a);
+		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MINOR, b);
+		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, c);
+	}
+	return true;
 }

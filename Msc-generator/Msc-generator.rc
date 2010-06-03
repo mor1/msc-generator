@@ -226,10 +226,12 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+        MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
     END
     POPUP "&Help"
     BEGIN
         MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
+        MENUITEM "&Help...\tF1",                ID_HELP_HELP
     END
 END
 
@@ -267,6 +269,7 @@ BEGIN
     POPUP "&Help"
     BEGIN
         MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
+        MENUITEM "&Help...\tF1",                ID_HELP_HELP
     END
 END
 
@@ -337,10 +340,12 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+        MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
     END
     POPUP "&Help"
     BEGIN
         MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
+        MENUITEM "&Help...\tF1",                ID_HELP_HELP
     END
 END
 
@@ -376,10 +381,13 @@ BEGIN
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
     "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "F",            ID_EDIT_FIND,           VIRTKEY, CONTROL, NOINVERT
     "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
     "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
     "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
+    VK_F3,          ID_EDIT_REPEAT,         VIRTKEY, NOINVERT
+    "H",            ID_EDIT_REPLACE,        VIRTKEY, CONTROL, NOINVERT
     "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
     VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
@@ -393,19 +401,19 @@ BEGIN
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
     "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
     "8",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
+    VK_F11,         ID_VIEW_FULL_SCREEN,    VIRTKEY, NOINVERT
     VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    "F",            ID_EDIT_FIND,           VIRTKEY, CONTROL, NOINVERT
-    VK_F3,          ID_EDIT_REPEAT,         VIRTKEY, NOINVERT
-    "H",            ID_EDIT_REPLACE,        VIRTKEY, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
 END
 
 IDR_SRVR_INPLACE ACCELERATORS 
 BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
     VK_ESCAPE,      ID_CANCEL_EDIT_SRVR,    VIRTKEY, NOINVERT
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
@@ -423,12 +431,13 @@ BEGIN
     VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     "1",            ID_VIEW_RESETASPECTRATIO_INPLACE, VIRTKEY, CONTROL, NOINVERT
-    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
 END
 
 IDR_SRVR_EMBEDDED ACCELERATORS 
 BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
@@ -449,12 +458,13 @@ BEGIN
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
     "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
     "8",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
+    VK_F11,         ID_VIEW_FULL_SCREEN,    VIRTKEY, NOINVERT
     VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
 END
 
 
@@ -471,27 +481,27 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
 END
 
-IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 283
+IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 300
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Msc-generator Preferences"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,137,262,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,200,262,50,14
+    DEFPUSHBUTTON   "OK",IDOK,137,279,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,200,279,50,14
     LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
     EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
-    GROUPBOX        "External Text Editor",IDC_STATIC,7,149,243,93
-    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,160,74,10
-    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,172,54,10
-    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,184,87,10
+    GROUPBOX        "External Text Editor",IDC_STATIC,7,160,243,93
+    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,171,74,10
+    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,184,54,10
+    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,195,87,10
     CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,127,96,10
     COMBOBOX        IDC_COMBO_CSH,179,126,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Use scheme:",IDC_STATIC,133,128,42,8
-    LTEXT           "&Start Command",IDC_STATIC,27,198,50,8
-    LTEXT           "Jump to &Line",IDC_STATIC,27,214,41,8
-    EDITTEXT        IDC_EDIT1,81,196,161,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT2,81,212,161,14,ES_AUTOHSCROLL
-    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,228,140,8
+    LTEXT           "&Start Command",IDC_STATIC,27,209,50,8
+    LTEXT           "Jump to &Line",IDC_STATIC,27,225,41,8
+    EDITTEXT        IDC_EDIT1,81,208,161,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,81,224,161,14,ES_AUTOHSCROLL
+    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,240,140,8
     GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
     CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
                     "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
@@ -500,8 +510,9 @@ BEGIN
     CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
     CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
     CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,248,213,10
-    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,29
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,259,213,10
+    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,40
+    CONTROL         "&Smart &ident for labels",IDC_CHECK_SMART_IDENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,43,140,84,10
 END
 
 IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
@@ -510,10 +521,24 @@ CAPTION "About Msc-gnerator"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
-    LTEXT           "Msc-generator Version 2.4.2",IDC_STATIC,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Msc-generator Version 2.4.3",IDC_STATIC,40,10,119,8,SS_NOPREFIX
     LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
     PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
+END
+
+IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "A new version of Msc-generator  is available"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,61,75,14
+    PUSHBUTTON      "Do not remind me",IDOK,103,61,84,14
+    PUSHBUTTON      "https://sourceforge.net/projects/msc-generator/",IDC_BUTTON_URL2,14,39,169,14
+    LTEXT           "Currently installed version:",IDC_STATIC,26,9,95,8
+    LTEXT           "Latest version available:",IDC_STATIC,35,24,95,8
+    EDITTEXT        IDC_EDIT2,117,7,50,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_EDIT3,117,22,50,14,ES_AUTOHSCROLL | WS_DISABLED
 END
 
 
@@ -523,8 +548,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,4,2,0
- PRODUCTVERSION 2,4,2,0
+ FILEVERSION 2,4,3,0
+ PRODUCTVERSION 2,4,3,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -541,12 +566,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "2.4.2"
+            VALUE "FileVersion", "2.4.3"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "2.4.2"
+            VALUE "ProductVersion", "2.4.3"
         END
     END
     BLOCK "VarFileInfo"
@@ -575,7 +600,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 250
         TOPMARGIN, 7
-        BOTTOMMARGIN, 276
+        BOTTOMMARGIN, 293
     END
 
     IDD_ABOUTBOX, DIALOG
@@ -584,6 +609,14 @@ BEGIN
         RIGHTMARGIN, 228
         TOPMARGIN, 7
         BOTTOMMARGIN, 48
+    END
+
+    IDD_DIALOG_VERSION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 187
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 75
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -607,6 +640,13 @@ BEGIN
     0
 END
 
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// HTML
+//
+
+IDR_HTML1               HTML                    "res\\html1.htm"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -797,6 +837,16 @@ BEGIN
     ID_EDIT_PASETENTIRECHART 
                             "Paste an entire chart from the Clipboard\nPaste entire chart"
     ID_BUTTON_TRACK         "Turn element tracking on or off\nToggle Tracking"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_VIEW_FULL_SCREEN     "Toggles full screen mode\nFull Screen"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_HELP_HELP            "Opens help"
 END
 
 #endif    // English (U.S.) resources

@@ -10,7 +10,6 @@
 #include "stdafx.h"
 #include "Msc-generator.h"
 #include "MscGenDoc.h"
-#include "msc.h"
 #include "MiniEditor.h"
 
 #ifdef _DEBUG
@@ -29,6 +28,46 @@ CCshRichEditCtrl::CCshRichEditCtrl()
 	m_bCshUpdateInProgress = false;
 }
 
+int CCshRichEditCtrl::FindColonLabelIdent(long lStart) 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	if (!pApp->m_bSmartIdent || !pApp->m_bCsh) return -1;
+	//Go through the list of color syntax highlight entries
+	for (MscCshListType::const_iterator i = m_msc_csh.CshList.begin(); i!=m_msc_csh.CshList.end(); i++) 
+		//if we fall into a label...
+		if (i->first_pos<lStart && i->last_pos>=lStart && i->color == COLOR_LABEL_TEXT) {
+			//...preceeded by a colon...
+			MscCshListType::const_iterator j = i;
+			j--;
+			if (j->color != COLOR_COLON) continue;
+			//then find the first non-space in the label
+			int nLine, nCol;
+			ConvertPosToLineCol(i->first_pos, nLine, nCol);
+			CString strLine;
+			int nLineLength = LineLength(nLine);
+			int nBuffLen = std::max<int>(sizeof(int), nLineLength);
+			nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+			int pos = nCol-1;
+			while (pos>0 && pos<nLineLength && (strLine[pos]==' ' || strLine[pos]=='\t')) pos++;
+			//if there is such a non-space in the label on the same line as the colon
+			if (pos>0 && pos<nLineLength) {
+				return pos;
+			}
+		}
+	return -1;
+}
+
+int CCshRichEditCtrl::FirstNonWhitespaceIdent(const char *str, int Max) 
+{
+	int i = 0;
+	if (Max == -1) 
+		while (str[i] && (str[i]==' ' || str[i]=='\t')) i++;
+	else 
+		while (i<Max && (str[i]==' ' || str[i]=='\t')) i++;
+	return i;
+}
+
 #define TABSTOP 4
 //We assume no TAB characters...
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
@@ -42,22 +81,34 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		if (lStart == lEnd) {
 			int line, col;
 			ConvertPosToLineCol(lStart, line, col);
+			int smartIdent = FindColonLabelIdent(lStart);
 			if (shift) { //Shift+TAB
 				CString strLine;
 				int nLineLength = LineLength(line);
 				int nBuffLen = std::max<int>(sizeof(int), nLineLength);
-				GetLine(line, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+				nLineLength = GetLine(line, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+				int ident = FirstNonWhitespaceIdent(strLine, nLineLength);
 				int del = 0;
-				while (del < TABSTOP && col > del && (strLine[col-del-1] == ' ' || strLine[col-del-1] == '\t')) del++;
+				//Caret not in leading whitespace
+				if (col>ident) 
+					while (del < TABSTOP && col > del && (strLine[col-del-1] == ' ' || strLine[col-del-1] == '\t')) del++;
+				else if (col>smartIdent && smartIdent>0)
+					del = col - smartIdent;
+				else if (col>TABSTOP)
+					del = TABSTOP;
+				else 
+					del = col;
 				if (del>0) {
 					SetSel(lStart-del, lEnd);
 					ReplaceSel("", FALSE);
 				}
 			} else { //regular TAB
-				col = TABSTOP - col%TABSTOP;
-				char spaces[] = "                        ";
-				spaces[col] = 0;
-				ReplaceSel(spaces, FALSE);
+				if (col<smartIdent) 
+					col = smartIdent-col;
+				else
+					col = TABSTOP - col%TABSTOP;
+				string spaces(col, ' ');
+				ReplaceSel(spaces.c_str(), FALSE);
 			}
 		} else { //OK, a full selection, do identation
 			if (m_bCshUpdateInProgress) return TRUE; //If this happens we cannot ident
@@ -75,14 +126,22 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 			char spaces[] = "                        ";
 			spaces[TABSTOP] = 0;
 			for (int line = startLine; line<=endLine; line++) {
+				int smartIdent = FindColonLabelIdent(lStart);
 				long index = LineIndex(line);
+				int nLineLength = LineLength(line);
+				int nBuffLen = std::max<int>(sizeof(int), nLineLength);
+				CString strLine;
+				nLineLength = GetLine(line, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+				int ident = FirstNonWhitespaceIdent(strLine, nLineLength);
 				if (shift) {
-					SetSel(index,index+TABSTOP);
-					GetSelText(spaces);
-					int del = 0;
-					while (del<TABSTOP && (spaces[del] == ' ' || spaces[del] == '\t')) del++;
-					if (del != TABSTOP)
-						SetSel(index,index+del);
+					int del;
+					if (ident>smartIdent && smartIdent>0) 
+						del = ident - smartIdent;
+					else if (ident>=TABSTOP)
+						del = TABSTOP;
+					else 
+						del = ident;
+					SetSel(index,index+del);
 					ReplaceSel("", FALSE);
 					lEnd -= del;
 					if (index < lStart) { //can happen only at the first line, if selection does not start at the beginning of line
@@ -91,12 +150,18 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 						else 
 							lStart -= del;
 					}
-				} else {
+				} else { // Normal tab, no SHIFT
+					int insert;
+					if (ident<smartIdent) 
+						insert = smartIdent-ident;
+					else 
+						insert = TABSTOP;
 					SetSel(index,index);
-					ReplaceSel(spaces);
-					lEnd += TABSTOP;
+					string spaces(insert, ' ');
+					ReplaceSel(spaces.c_str());
+					lEnd += insert;
 					if (index < lStart)  //can happen only at the first line, if selection does not start at the beginning of line
-						lStart += TABSTOP;
+						lStart += insert;
 				}
 			}
 			SetSel(lStart, lEnd);
@@ -109,6 +174,16 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 	if (pMsg->wParam == VK_RETURN) {
 		long lStart, lEnd;
 		GetSel(lStart, lEnd);
+		//See if we are in a label, preceeded by a colon
+		int ident = FindColonLabelIdent(lStart);
+		if (ident>0) {
+			//insert that many spaces as ident after the newline
+			string spaces(ident, ' ');
+			spaces.insert(0, "\n");
+			ReplaceSel(spaces.c_str(), FALSE);
+			return TRUE;
+		}
+		//If no smart ident, look for any ident above		
 		int nLine = LineFromChar(lStart);
 		//Find a line (current or above) with a non-whitespace char
 		//ident to that char
@@ -197,9 +272,8 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 		CString text;
 		GetWindowText(text);
 		RemoveCRLF(text);
-		Msc csh;
-		csh.ParseForCSH(text, text.GetLength());
-		for (MscCshListType::const_iterator i=csh.CshList.begin(); i!=csh.CshList.end(); i++) 
+		m_msc_csh.ParseForCSH(text, text.GetLength());
+		for (MscCshListType::const_iterator i=m_msc_csh.CshList.begin(); i!=m_msc_csh.CshList.end(); i++) 
 			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
 				SetSel(i->first_pos-1, i->last_pos);
 				SetSelectionCharFormat(scheme[i->color]);

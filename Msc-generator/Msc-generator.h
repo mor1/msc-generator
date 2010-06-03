@@ -57,6 +57,9 @@ public:
 	COutputViewBar    *m_pWndOutputView;
 	CEditorBar        *m_pWndEditor;
 
+//Status 
+	bool m_bFullScreenViewMode; //we were opened by "ViewFullScreen OLE verb"
+
 //Options
 	bool m_Pedantic;
 	BOOL m_Warnings;
@@ -68,6 +71,7 @@ public:
 	BOOL m_bAlwaysOpen;
 	BOOL m_bCsh;
 	int m_nCshScheme;
+	BOOL m_bSmartIdent;
 	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
 	COLORREF m_trackFillColor;
 	COLORREF m_trackLineColor;
@@ -82,7 +86,6 @@ public:
 	virtual void PreLoadState();
 	virtual void LoadCustomState();
 	virtual void SaveCustomState();
-	//bool CommandLineMain(CString cmd);
 
 	void ReadRegistryValues(bool reportProblem);
 	bool ReadDesigns(bool reportProblem=false, const char *fileName="designlib.signalling");
@@ -112,8 +115,12 @@ extern CMscGenApp theApp;
 #define REG_KEY_DEFAULTZOOMMODE "DefaultZoomMode"
 #define REG_KEY_CSHENABLED "CshEnabled"
 #define REG_KEY_CSHSCHEME "CshScheme"
+#define REG_KEY_SMARTIDENT "SmartIdent"
 #define REG_KEY_FINDWINPOS_X "FindReplaceWindowXPos"
 #define REG_KEY_FINDWINPOS_Y "FindReplaceWindowYPos"
 #define REG_KEY_FINDMATCHCASE "FindReplaceMatchCase"
 #define REG_KEY_TRACKFILLRGBA "TrackFillRGBA"
 #define REG_KEY_TRACKLINERGBA "TrackLineRGBA"
+#define REG_KEY_NOREMIND_VERSION_MAJOR "NoRemindVersionMajor"
+#define REG_KEY_NOREMIND_VERSION_MINOR "NoRemindVersionMinor"
+#define REG_KEY_NOREMIND_VERSION_SUPER_MINOR "NoRemindVersionSuperMinor"

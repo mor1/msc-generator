@@ -42,6 +42,9 @@ public:
 	BOOL GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMedium);
 	BOOL GetBitmapData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMedium);
 
+	virtual void OnDoVerb(LONG iVerb);
+
+
 // Implementation
 public:
 	~CMscGenSrvrItem();

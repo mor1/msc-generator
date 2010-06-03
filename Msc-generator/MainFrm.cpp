@@ -42,6 +42,7 @@ const UINT uiLastUserToolBarId = uiFirstUserToolBarId + iMaxUserToolbars - 1;
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_CREATE()
 	ON_COMMAND(ID_VIEW_CUSTOMIZE, OnViewCustomize)
+	ON_COMMAND(ID_VIEW_FULL_SCREEN, OnViewFullScreen)
 //	ON_REGISTERED_MESSAGE(AFX_WM_CREATETOOLBAR, &CMainFrame::OnToolbarCreateNew)
 	ON_REGISTERED_MESSAGE(AFX_WM_RESETTOOLBAR, OnToolbarReset)
 	ON_COMMAND_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnApplicationLook)
@@ -70,6 +71,9 @@ CMainFrame::~CMainFrame()
 
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+
 	if (CFrameWndEx::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
@@ -134,7 +138,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		TRACE0("Failed to create output bar\n");
 		return FALSE;      // fail to create
 	}
-	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndOutputView = &m_wndOutputView;
+	pApp->m_pWndOutputView = &m_wndOutputView;
 
 	if (!m_ctrlEditor.Create(_T("Chart Text"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
@@ -142,7 +146,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		TRACE0("Failed to create output bar\n");
 		return FALSE;      // fail to create
 	}
-	static_cast<CMscGenApp*>(AfxGetApp())->m_pWndEditor = &m_ctrlEditor;
+	pApp->m_pWndEditor = &m_ctrlEditor;
 
 	m_wndMenuBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
@@ -182,6 +186,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	lstBasicCommands.AddTail(ID_APP_ABOUT);
 	lstBasicCommands.AddTail(ID_VIEW_STATUS_BAR);
 	lstBasicCommands.AddTail(ID_VIEW_TOOLBAR);
+	lstBasicCommands.AddTail (ID_VIEW_FULL_SCREEN);
 	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2003);
 	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_VS_2005);
 	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_BLUE);
@@ -208,6 +213,9 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	//SetWindowPos(NULL, 0, 0, 550, 300,  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 
 	if (m_ctrlEditor.IsVisible()) m_ctrlEditor.m_ctrlEditor.SetFocus();
+
+	EnableFullScreenMode (ID_VIEW_FULL_SCREEN);
+	EnableFullScreenMainMenu (FALSE);
 
 	return 0;
 }
@@ -272,6 +280,18 @@ void CMainFrame::OnViewCustomize()
 	pDlgCust->ReplaceButton(ID_DESIGN_DESIGN, designButton);
 
 	pDlgCust->Create();
+}
+
+void CMainFrame::OnViewFullScreen() 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	if (pApp->m_bFullScreenViewMode && IsFullScreen()) {
+		SetRedraw(false);
+		OnClose();
+	} else {
+		ShowFullScreen();
+	}
 }
 
 LRESULT CMainFrame::OnToolbarCreateNew(WPARAM wp,LPARAM lp)

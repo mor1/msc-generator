@@ -84,7 +84,8 @@ void COutputViewBar::AdjusrHorzScroll(CListBox& wndListBox)
 		CString strItem;
 		wndListBox.GetText(i, strItem);
 
-		cxExtentMax = max(cxExtentMax, dc.GetTextExtent(strItem).cx);
+		if (cxExtentMax < dc.GetTextExtent(strItem).cx)
+			cxExtentMax = dc.GetTextExtent(strItem).cx;
 	}
 
 	wndListBox.SetHorizontalExtent(cxExtentMax);

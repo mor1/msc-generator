@@ -75,8 +75,8 @@ public:
 	static CLIPFORMAT m_cfPrivate;
 	//The external editor object
 	CExternalEditor m_ExternalEditor; //A hidden window to do external editor functions
-	//This indicates to OnSaveDocument if we are closing 
-	bool m_bAttemptingToClose;
+	//Status flags
+	bool m_bAttemptingToClose; //This indicates to OnSaveDocument if we are closing 
 
 //Menu and toolbar functions
 public:
@@ -105,7 +105,9 @@ public:
 	afx_msg void OnEditReplace();
 	afx_msg void OnEditCopyEntireChart();
 	afx_msg void OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI);
+			void DoPasteData(COleDataObject &dataObject);
 	afx_msg void OnEditPasteEntireChart();
+	afx_msg void OnFileDropped(const char *);
 	afx_msg void OnUpdateButtonEdittext(CCmdUI *pCmdUI);
 	afx_msg void OnButtonEdittext();          //External editor button
 	afx_msg void OnUdpateEditUpdate(CCmdUI *pCmdUI);
@@ -153,6 +155,7 @@ public:
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 	void HighLightArc(const TrackableElement *arc);      //Select in internal editor
+	afx_msg void OnHelpHelp();
 };
 
 

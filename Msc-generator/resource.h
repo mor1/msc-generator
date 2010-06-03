@@ -37,6 +37,8 @@
 #define ID_VIEW_APPLOOK_OFF_2007_AQUA   218
 #define IDS_EDIT_MENU                   306
 #define IDR_DESIGNBAR                   310
+#define IDD_DIALOG_VERSION              313
+#define IDR_HTML1                       314
 #define IDC_RADIO1                      1000
 #define IDC_EDIT1                       1001
 #define IDC_BUTTON1                     1001
@@ -44,6 +46,7 @@
 #define IDC_COMBO_EDITOR                1002
 #define IDC_EDIT2                       1002
 #define IDC_CHECK_PEDANTIC              1003
+#define IDC_EDIT3                       1003
 #define IDC_CHECK_WARNINGS              1004
 #define IDC_RADIO2                      1005
 #define IDC_RADIO3                      1006
@@ -55,7 +58,9 @@
 #define IDC_CHECK_PB_EMBEDDED           1010
 #define IDC_CHECK_CSH                   1011
 #define IDC_RADIO4                      1012
+#define IDC_CHECK_SMART_IDENT           1012
 #define IDC_COMBO_CSH                   1013
+#define IDC_BUTTON_URL2                 1014
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
@@ -81,15 +86,18 @@
 #define ID_EDIT_COPYENTIRECHART         32820
 #define ID_EDIT_PASETENTIRECHART        32821
 #define ID_BUTTON_TRACK                 32826
+#define ID_VIEW_FULLSCREEN              32846
+#define ID_VIEW_FULL_SCREEN             32847
+#define ID_HELP_HELP                    32851
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        313
-#define _APS_NEXT_COMMAND_VALUE         32846
-#define _APS_NEXT_CONTROL_VALUE         1014
+#define _APS_NEXT_RESOURCE_VALUE        315
+#define _APS_NEXT_COMMAND_VALUE         32856
+#define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

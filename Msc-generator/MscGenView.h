@@ -48,6 +48,11 @@ public:
 	double m_stretch_y;
 	//Fading Timer
 	UINT_PTR m_FadingTimer;
+	//Drag and Drop 
+	COleDropTarget m_DropTarget;
+	DROPEFFECT m_nDropEffect;
+	//Draging
+	CPoint m_DragPoint;
 
 // Operations
 public:
@@ -64,8 +69,10 @@ public:
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 protected:
+	virtual void OnInitialUpdate();
 	virtual void OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/);
 
+	virtual void OnPrint(CDC* pDC, CPrintInfo* pInfo);
 	afx_msg void OnFilePrintPreview();
 	virtual BOOL OnPreparePrinting(CPrintInfo* pInfo);
 	virtual void OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo);
@@ -87,21 +94,26 @@ public:
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 			void ResyncScrollSize(void);
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void ResetAspectRatioInPlace(void);
 	afx_msg void OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI);
-	afx_msg void OnSize(UINT nType, int cx, int cy);
 
 	DECLARE_MESSAGE_MAP()
-protected:
-	virtual void OnPrint(CDC* pDC, CPrintInfo* pInfo);
 public:
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
-	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
-	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 
-	void StartFadingTimer();
+			void StartFadingTimer();
 	afx_msg void OnTimer(UINT_PTR);
+	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg void OnDropFiles(HDROP hDropInfo);
+	virtual DROPEFFECT OnDragEnter(COleDataObject* pDataObject, DWORD dwKeyState, CPoint point);
+	virtual DROPEFFECT OnDragOver(COleDataObject* pDataObject, DWORD dwKeyState, CPoint point);
+	virtual void OnDragLeave();
+	virtual BOOL OnDrop(COleDataObject* pDataObject, DROPEFFECT dropEffect, CPoint point);
 };
 
 #ifndef _DEBUG  // debug version in MscGenView.cpp
