@@ -667,6 +667,12 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 		if (pos.y + client.bottom > m_size.cy*pDoc->m_zoom/100)
 			pos.y = m_size.cy*pDoc->m_zoom/100 - client.bottom;
 		ScrollToPosition(pos);
+		//Now apply the same x scroll for the other view(s)
+		POSITION p = pDoc->GetFirstViewPosition();
+		while (p != NULL) {
+			CMscGenView* pView = static_cast<CMscGenView*>(pDoc->GetNextView(p));
+			if (pView != this) pView->Invalidate();
+		}
 	} else if (pDoc->m_bTrackMode) {
 		TRACKMOUSEEVENT tme;
 		tme.cbSize = sizeof(tme);

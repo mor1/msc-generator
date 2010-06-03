@@ -103,11 +103,7 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
 	EnableCompoundFile();
 
 	// one-time construction code here
-	if (m_cfPrivate == NULL)
-	{
-		m_cfPrivate = (CLIPFORMAT)
-		::RegisterClipboardFormat(_T("Msc-Generator Signalling Chart"));
-	}
+	m_cfPrivate = (CLIPFORMAT)::RegisterClipboardFormat(_T("Msc-Generator Signalling Chart"));
 	m_ZoomMode = (EZoomMode)AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_DEFAULTZOOMMODE, 0);
 	m_zoom = 100;
 	m_bTrackMode = false;
