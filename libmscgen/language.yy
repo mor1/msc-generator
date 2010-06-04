@@ -59,7 +59,17 @@
 #define ADDCSH_ENTITYNAME(A, B) msc.AddCSH_EntityName(A, B)
 #define ADDCSH_COLON_STRING(A, B, C) msc.AddCSH_ColonString(A, B, C)
 #define SETLINEEND(ARC, F, L)
+string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc* msc)
+{
+    const char *newname = style == "emphasis"?"box":"emptybox";
+    if (style == "emphasis" || style == "emptyemphasis") {
 
+        msc->Error.Warning(YYMSC_GETPOS(*loc).start,
+            "Stylename '" + style + "' is deprecated, using " + newname + " instead.");
+        return newname;
+    }
+    return style;
+}
 #ifndef HAVE_UNISTD_H
 int isatty (int) {return 0;}
 #endif
@@ -74,6 +84,7 @@ int isatty (int) {return 0;}
 #define ADDCSH_ENTITYNAME(A, B)
 #define ADDCSH_COLON_STRING(A, B, C)
 #define SETLINEEND(ARC, F, L) do {(ARC)->SetLineEnd(YYMSC_GETPOS2(F,L));} while(0)
+string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc* msc) {return string();}
 #ifndef HAVE_UNISTD_H
 extern int isatty (int);
 #endif
@@ -279,7 +290,7 @@ inline bool string_to_bool(const char*s)
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
-                   TOK_COMMAND_PARALLEL
+                   TOK_COMMAND_PARALLEL TOK_COMMAND_MARK
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT
 %type <stringlist> tok_stringlist
 
@@ -297,7 +308,7 @@ inline bool string_to_bool(const char*s)
 %destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_PARALLEL
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
-%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN
+%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_COMMAND_MARK
 
 %%
 
@@ -663,6 +674,7 @@ arc:            arcrel
     } else {
         $$ = new CommandMark($2, YYMSC_GETPOS(@$), &msc);
     }
+    free($1);
     free($2);
 }
               | TOK_COMMAND_MARK string full_arcattrlist
@@ -673,6 +685,7 @@ arc:            arcrel
     } else {
         $$ = (new CommandMark($2, YYMSC_GETPOS(@$), &msc))->AddAttributeList($3);
     }
+    free($1);
     free($2);
 }
               | TOK_COMMAND_NEWPAGE
@@ -846,7 +859,7 @@ tok_stringlist : string
         ADDCSH(@1, COLOR_STYLENAME);
     } else {
         $$ = new std::list<string>;
-        ($$)->push_back($1);
+        ($$)->push_back(ConvertEmphasisToBox($1, &@1, &msc));
     }
     free($1);
 }
@@ -856,7 +869,7 @@ tok_stringlist : string
         ADDCSH(@2, COLOR_COMMA);
         ADDCSH(@3, COLOR_STYLENAME);
     } else {
-       ($1)->push_back($3);
+       ($1)->push_back(ConvertEmphasisToBox($3, &@3, &msc));
        $$ = $1;
     }
     free($3);
@@ -1740,7 +1753,9 @@ entity_string: TOK_QSTRING | TOK_STRING;
 reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_DEFSTYLE | TOK_COMMAND_DEFDESIGN |
                        TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_PIPE |
-                       TOK_VERTICAL
+                       TOK_VERTICAL | TOK_COMMAND_PARALLEL |
+                       TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
+                       TOK_COMMAND_MARK | TOK_AT
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}

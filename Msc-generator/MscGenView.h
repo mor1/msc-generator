@@ -53,6 +53,7 @@ public:
 	DROPEFFECT m_nDropEffect;
 	//Draging
 	CPoint m_DragPoint;
+	CPoint m_DragStartPoint;
 
 // Operations
 public:

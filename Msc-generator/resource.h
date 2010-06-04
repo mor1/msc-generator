@@ -89,6 +89,7 @@
 #define ID_VIEW_FULLSCREEN              32846
 #define ID_VIEW_FULL_SCREEN             32847
 #define ID_HELP_HELP                    32851
+#define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
 // Next default values for new objects

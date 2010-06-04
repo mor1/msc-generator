@@ -220,19 +220,34 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
 	if (iVerb == 2) {
-		pApp->m_bFullScreenViewMode = true;
-		CDocObjectServerItem::OnDoVerb(1); //Open
-		//Switch to full screen
+		//If the embedded object has been activated with this verb (Full Screen View)
+		//The CMainFrame is already loaded with CMainFrame::LoadFrame, but is not shown yet
 		CFrameWnd* pFrameWnd;
 		if ((pFrameWnd = pDoc->GetFirstFrame()) != NULL) {
 			CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pFrameWnd);
-			if (pMainFrame) pMainFrame->ShowFullScreen();
+			if (pMainFrame) {
+				//Signal to MscGenDoc that chart is read only and "nothing" works, just viewing
+				pApp->m_bFullScreenViewMode = true;
+				//Switch to full screen
+				pMainFrame->ShowFullScreen();
+				if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->SetReadOnly(true);
+				//Finally show the CMainFrame Window
+				CDocObjectServerItem::OnDoVerb(1); //Open
+				//Hide menu, seems to be needed, or else a native menu appears
+				pMainFrame->SetMenu(NULL); 
+				return;
+			}
 		} 
-		if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->SetReadOnly(true);
+		//We could not do full screen, do nothing
 	} else {
 		pApp->m_bFullScreenViewMode = false;
 		//Avoid in-place editing (verb 0) if user set this option
-		if (iVerb == 0 && pApp->m_bAlwaysOpen) iVerb = 1; //Open
+		if (pApp->m_bAlwaysOpen) 
+			switch (iVerb) {
+			case OLEIVERB_PRIMARY: //primary verb is edit (in-place)
+			case OLEIVERB_SHOW:    //this is the show (in-place edit command ==-1)
+				iVerb = 1; //The secondary verb, which is open
+			}
 		CDocObjectServerItem::OnDoVerb(iVerb);
 	}
 

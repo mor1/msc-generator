@@ -538,15 +538,25 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
 	//if we fall within, and in-place active, do default action
-	if (pDoc->IsInPlaceActive()) {
-		CView::OnMouseWheel(nFlags, zDelta, pt);
-		return TRUE;
-	}
+	if (pDoc->IsInPlaceActive()) 
+		return CView::OnMouseWheel(nFlags, zDelta, pt);
+	//If no control, just scroll
 	if (!(nFlags & MK_CONTROL)) {
-		if (zDelta>0) OnScroll(SB_PAGEUP*256    + SB_ENDSCROLL, 0); 
-		if (zDelta<0) OnScroll(SB_PAGEDOWN*256  + SB_ENDSCROLL, 0);
+		CRect client;
+		GetClientRect(client);
+		//scoll 10% of the view height (zDelta can be negative for up)
+		const int amount = client.Height()*0.1*zDelta/WHEEL_DELTA;
+		CPoint pos = GetScrollPosition();
+		pos.y += amount;
+		if (pos.y<0) pos.y = 0;
+		if (pos.y + client.bottom > m_size.cy*pDoc->m_zoom/100)
+			pos.y = m_size.cy*pDoc->m_zoom/100 - client.bottom;
+		//See that we do not go out of the map
+		ScrollToPosition(pos);
 		return TRUE;
 	}
+
+	//Change zoom, but keep point under mouse stationary
 	unsigned zoom = pDoc->m_zoom*(1+float(zDelta)/WHEEL_DELTA/10);  //10% per wheel tick
 	if (zoom < 10) zoom = 10;
 	if (zoom > 10000) zoom = 10000;
@@ -634,6 +644,7 @@ void CMscGenView::OnLButtonDown(UINT nFlags, CPoint point)
 		if (pDoc->IsInPlaceActive()) return;
 		//Mouse drag scrolling
 		m_DragPoint = point;
+		m_DragStartPoint = point;
 		SetCapture();
 	} else {
 		//This is what we had to do for drag and drop
@@ -655,6 +666,14 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 	if (pDoc == NULL) return CScrollView::OnMouseMove(nFlags, point);
 	//If we are in drag mode
 	if (GetCapture() == this) { 
+		//allow only horizontal or vertical scrolling if SHIFT is down
+		if (nFlags & MK_SHIFT) {
+			//Keep that coordinate at start value that has changed less
+			if (abs(point.x - m_DragStartPoint.x) > abs(point.y - m_DragStartPoint.y))
+				point.y = m_DragStartPoint.y;
+			else 
+				point.x = m_DragStartPoint.x;
+		}
 		CPoint pos = GetScrollPosition();
 		pos -= point - m_DragPoint;
 		m_DragPoint = point;
@@ -707,7 +726,9 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	//If we were doing dragging stop it
 	if (GetCapture() == this) {
 		ReleaseCapture();
-		return;
+		//If we did actually drag, stop here do not highlight arc below cursor
+		if (point != m_DragStartPoint)
+			return;
 	}
 
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.

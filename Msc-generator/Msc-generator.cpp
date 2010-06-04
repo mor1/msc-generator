@@ -529,7 +529,7 @@ void CMscGenApp::OnEditPreferences()
 			pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 
 		if (recompile) 
-			pDoc->ShowNewChart(pDoc->m_itrEditing, false);     //Do not change zoom, merely recompile & re-issue 
+			pDoc->ShowEditingChart(false);     //Do not change zoom, merely recompile & re-issue 
 		if (updateCSH && IsInternalEditorRunning())
 			m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 	}

@@ -8,11 +8,11 @@ Default topic=index.html
 Display compile progress=Yes
 Full-text search=Yes
 Language=0x0409 English (UNITED STATES)
-Title=Msc-generator v2.4.3
+Title=Msc-generator v2.5.0
 Enhanced decompilation=No
 
 [WINDOWS]
-Main="Msc-generator v2.4.3","toc.hhc",,"index.html","index.html",,,,,0x2520,,0x603006,,,,,,,,0
+Main="Msc-generator v2.5.0","toc.hhc",,"index.html","index.html",,,,,0x2520,,0x603006,,,,,,,,0
 
 
 [FILES]

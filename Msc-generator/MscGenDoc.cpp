@@ -90,6 +90,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITTEXT, OnUpdateButtonEdittext)
 	ON_COMMAND(ID_BUTTON_TRACK, OnButtonTrack)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, OnUpdateButtonTrack)
+	ON_COMMAND(ID_INDICATOR_TRK, OnButtonTrack)
 	ON_COMMAND(ID_HELP_HELP, &CMscGenDoc::OnHelpHelp)
 END_MESSAGE_MAP()
 
@@ -270,7 +271,7 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_charts.push_back(data);
 	m_itrEditing = m_charts.begin();
 	m_itrSaved = m_charts.end(); //start as unmodified
-	ShowNewChart(m_charts.begin(), true);
+	ShowEditingChart(true);
 	SetModifiedFlag(FALSE); //start as unmodified
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
@@ -329,7 +330,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	m_charts.erase(m_charts.begin(), m_itrEditing);
 	SetModifiedFlag(FALSE);     // back to unmodified
 	m_itrSaved = m_itrEditing;
-	ShowNewChart(m_itrEditing, true);
+	ShowEditingChart(true);
 
 	// if the app was started only to print, don't set user control
 	//Copied from COleLinkingDoc
@@ -426,6 +427,8 @@ void CMscGenDoc::OnEditUndo()
 	SetModifiedFlag(m_itrEditing != m_itrSaved || m_itrShown != m_itrSaved);
 	if (restartEditor)
 		m_ExternalEditor.Start();
+	if (m_itrEditing->m_wasDrawn)
+		ShowEditingChart(true);
 }
 
 void CMscGenDoc::OnUpdateEditRedo(CCmdUI *pCmdUI)
@@ -448,6 +451,8 @@ void CMscGenDoc::OnEditRedo()
     SetModifiedFlag(m_itrEditing != m_itrSaved || m_itrShown != m_itrSaved);
 	if (restartEditor)
 		m_ExternalEditor.Start();
+	if (m_itrEditing->m_wasDrawn)
+		ShowEditingChart(true);
 }
 
 void CMscGenDoc::OnUpdateEditCutCopy(CCmdUI *pCmdUI)
@@ -568,7 +573,7 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));
 	}
 	SetModifiedFlag();
-	ShowNewChart(m_itrEditing, true);
+	ShowEditingChart(true);
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
@@ -594,7 +599,7 @@ void CMscGenDoc::OnFileDropped(const char *file)
 	data.SetDesign(m_itrEditing->GetDesign());
 	InsertNewChart(data);
 	SetModifiedFlag();
-	ShowNewChart(m_itrEditing, true);
+	ShowEditingChart(true);
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
@@ -621,13 +626,13 @@ void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 	if (!m_ExternalEditor.CanStart())
 		if (!m_ExternalEditor.Init()) 
 			MessageBox(0, "Fail to create external editor window", "Msc-generator", MB_OK);
-	pCmdUI->Enable(m_ExternalEditor.CanStart() && pApp->m_bFullScreenViewMode);
+	pCmdUI->Enable(m_ExternalEditor.CanStart() && !pApp->m_bFullScreenViewMode);
 }
 
 void CMscGenDoc::OnEditUpdate()
 {
 	//update the View, update zoom, 
-	ShowNewChart(m_itrEditing, true);
+	ShowEditingChart(true);
 }
 
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
@@ -650,6 +655,9 @@ void CMscGenDoc::OnButtonTrack()
 void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_bTrackMode);
+	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+	if (!IsInPlaceActive() && pWnd) 
+		pWnd->m_wndStatusBar.SetPaneTextColor(1, m_bTrackMode?RGB(0,0,0):RGB(100,100,100));
 }
 
 
@@ -718,7 +726,7 @@ void CMscGenDoc::OnDesignDesign()
 	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
 	SyncShownWithEditing("change the design");
 	m_itrEditing->SetDesign(new_forcedDesign);
-	ShowNewChart(m_itrEditing, false);  //Do not change zoom, juts update views
+	ShowEditingChart(false);  //Do not change zoom, juts update views
 	if (IsEmbedded())
 		SetModifiedFlag();
 }
@@ -836,9 +844,14 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 	//calculate the space available to a view on the screen
 	unsigned x, y;
 	x = screen.right-screen.left;
-	x -= (window.right-window.left) - (view.right-view.left) + SCREEN_MARGIN;
 	y = screen.bottom-screen.top;
-	y -= (window.bottom-window.top) - (view.bottom-view.top) + SCREEN_MARGIN; 
+	//For a full screen window, the entire screen is there
+	//If not full screen, we reduce the sizes with a MARGIN and the elements of the
+	//main window outside the view (toolbars, title, menus, border, docking windows, etc.)
+	if (!pWnd->IsFullScreen()) {
+		x -= (window.right-window.left) - (view.right-view.left) + SCREEN_MARGIN;
+		y -= (window.bottom-window.top) - (view.bottom-view.top) + SCREEN_MARGIN; 
+	}
 	int zoom;
 
 	//OK, we have a sane View, with some drawing in it and we are not in place with a sane main window
@@ -860,20 +873,24 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			else 
 				zoom = double(y)/double(pView->m_size.cy)*100.;
 			if (zoom > 100) zoom = 100;
-			x = zoom*pView->m_size.cx/100 + 1;
-			y = zoom*pView->m_size.cy/100 + 1;
-			//now result is the client size
-			x += (window.right-window.left) - (view.right-view.left);
-			y += (window.bottom-window.top) - (view.bottom-view.top);
-			//now result is the window size, now adjust for minimum size
-			if (x < 550) x = 580;
-			if (y < 300) y = 300;
-			if (window.left + x > screen.right - SCREEN_MARGIN)
-				window.left = screen.right - SCREEN_MARGIN - x;
-			if (window.top + y > screen.bottom - SCREEN_MARGIN)
-				window.top = screen.bottom - SCREEN_MARGIN - y;
 			SetZoom(zoom);
-			pWnd->SetWindowPos(NULL, window.left, window.top, x, y,  SWP_NOZORDER | SWP_NOACTIVATE);
+			//If not fullscreen, adjust window size, too
+			if (!pWnd->IsFullScreen()) {
+				x = zoom*pView->m_size.cx/100 + 1;
+				y = zoom*pView->m_size.cy/100 + 1;
+				//now xy contains is the required client size
+				x += (window.right-window.left) - (view.right-view.left);
+				y += (window.bottom-window.top) - (view.bottom-view.top);
+				//now xy contains is the required client size, 
+				//next, we adjust for minimum size
+				if (x < 550) x = 580;
+				if (y < 300) y = 300;
+				if (window.left + x > screen.right - SCREEN_MARGIN)
+					window.left = screen.right - SCREEN_MARGIN - x;
+				if (window.top + y > screen.bottom - SCREEN_MARGIN)
+					window.top = screen.bottom - SCREEN_MARGIN - y;
+				pWnd->SetWindowPos(NULL, window.left, window.top, x, y,  SWP_NOZORDER | SWP_NOACTIVATE);
+			}
 			break;
 		case CMscGenDoc::WINDOW_WIDTH:
 			//Try fit real size
@@ -883,12 +900,15 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			//adjust zoom if there is not enough space
 			if (zoom*pView->m_size.cx/100 + 1 > x)
 				zoom = (x-1)*100./pView->m_size.cx;
-			x = zoom*pView->m_size.cx/100 + 1;
-			if (x < 550) x = 580;
-			if (window.left + x > screen.right - SCREEN_MARGIN)
-				window.left = screen.right - SCREEN_MARGIN - x;
 			SetZoom(zoom);
-			pWnd->SetWindowPos(NULL, window.left, window.top, x, (window.bottom-window.top),  SWP_NOZORDER | SWP_NOACTIVATE);
+			//If not fullscreen, adjust window size, too
+			if (!pWnd->IsFullScreen()) {
+				x = zoom*pView->m_size.cx/100 + 1;
+				if (x < 550) x = 580;
+				if (window.left + x > screen.right - SCREEN_MARGIN)
+					window.left = screen.right - SCREEN_MARGIN - x;
+				pWnd->SetWindowPos(NULL, window.left, window.top, x, (window.bottom-window.top),  SWP_NOZORDER | SWP_NOACTIVATE);
+			}
 			break;
 		case CMscGenDoc::ZOOM_WIDTH:
 			zoom = (view.right-view.left)*100./pView->m_size.cx;
@@ -1010,7 +1030,7 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 		message.Append("Do you want to include the changes and redraw the chart before I " + action + "?\n");
 
 	if (IDYES == MessageBox(NULL, message, "Msc-generator", MB_ICONQUESTION | MB_YESNO)) 
-		ShowNewChart(m_itrEditing, true);
+		ShowEditingChart(true);
 }
 
 void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 
@@ -1019,7 +1039,7 @@ void CMscGenDoc::OnExternalEditorChange(const CChartData &data)
 	InsertNewChart(data);
 	SetModifiedFlag();
 	//Now update the View
-	ShowNewChart(m_itrEditing, true);
+	ShowEditingChart(true);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (pApp->IsInternalEditorRunning())
@@ -1065,15 +1085,15 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	AddTrackArc(m_ChartShown.GetArcByLine(line+1, col+1)); 
 }
 
-void CMscGenDoc::ShowNewChart(IChartData itrNew, bool resetZoom)
+void CMscGenDoc::ShowEditingChart(bool resetZoom)
 {
-	if (itrNew == m_charts.end()) return;
 	CWaitCursor wait;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
-	m_itrShown = itrNew;
-	m_ChartShown = *itrNew;
+	m_itrShown = m_itrEditing;
+	m_itrShown->m_wasDrawn = true;
+	m_ChartShown = *m_itrEditing;
 
 	//Display error messages
 	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
@@ -1207,8 +1227,10 @@ void CMscGenDoc::SetTrackMode(bool on)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	StartFadingAll(); //Delete trackrects from screen (even if turned on)
-	if (on) 
+	if (on) {
+		SyncShownWithEditing("turn tracking on");
 		if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_saved_charrange);
+	}
 }
 
 //Expects the coordinates in MscDrawer space (MscDrawer::totalWidth & Height, except local to the current page)

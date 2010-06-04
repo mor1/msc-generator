@@ -36,11 +36,13 @@ protected:
 	unsigned m_page;
 public:
 	CHARRANGE m_sel;
-	CChartData() : m_page(0) {m_sel.cpMax = m_sel.cpMin = 0;}
+	bool m_wasDrawn;
+	CChartData() : m_page(0), m_wasDrawn(false) {m_sel.cpMax = m_sel.cpMin = 0;}
 	CChartData(const char *text, const char *design=NULL, unsigned page = 0) 
-		:m_text(text?text:""), m_ForcedDesign(design?design:""), m_page(page) {m_sel.cpMax = m_sel.cpMin = 0;}
+		:m_text(text?text:""), m_ForcedDesign(design?design:""), m_page(page), 
+		 m_wasDrawn(false) {m_sel.cpMax = m_sel.cpMin = 0;}
 	CChartData(const char *text, const CHARRANGE &sel, const char *design=NULL, unsigned page = 0) 
-		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""), m_page(page) {}
+		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""), m_page(page), m_wasDrawn(false) {}
 	CChartData(const CChartData&o) {operator=(o);}
 	virtual ~CChartData() {Delete();}
 	CChartData & operator = (const CChartData&);

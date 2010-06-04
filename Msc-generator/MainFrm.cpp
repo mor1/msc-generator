@@ -53,6 +53,7 @@ END_MESSAGE_MAP()
 static UINT indicators[] =
 {
 	ID_SEPARATOR,           // status line indicator
+	ID_INDICATOR_TRK,
 	ID_INDICATOR_CAPS,
 	ID_INDICATOR_NUM,
 	ID_INDICATOR_SCRL,
@@ -131,6 +132,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;      // fail to create
 	}
 	m_wndStatusBar.SetIndicators(indicators, sizeof(indicators)/sizeof(UINT));
+	m_wndStatusBar.EnablePaneDoubleClick();
+	m_wndStatusBar.SetTipText(1, _T("Toggle Tracking Mode")); //index 1 is ID_INDICATOR_TRK
 
 	if (!m_wndOutputView.Create(_T("Errors and Warnings"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_OUTPUT, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_BOTTOM | CBRS_FLOAT_MULTI))
@@ -174,39 +177,44 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// enable menu personalization (most-recently used commands)
 	CList<UINT, UINT> lstBasicCommands;
 
+	lstBasicCommands.AddTail(ID_APP_ABOUT);
+	lstBasicCommands.AddTail(ID_APP_EXIT);
+	lstBasicCommands.AddTail(ID_BUTTON_EDITTEXT);              
+	lstBasicCommands.AddTail(ID_EDIT_CUT);
+	lstBasicCommands.AddTail(ID_EDIT_COPY);
+	lstBasicCommands.AddTail(ID_EDIT_PASTE);
+	lstBasicCommands.AddTail(ID_EDIT_COPYENTIRECHART);
+	lstBasicCommands.AddTail(ID_EDIT_PASETENTIRECHART);
+	lstBasicCommands.AddTail(ID_EDIT_PREFERENCES);             
+	lstBasicCommands.AddTail(ID_EDIT_UNDO);
+	lstBasicCommands.AddTail(ID_EDIT_REDO);
+	lstBasicCommands.AddTail(ID_EDIT_UPDATE);
+	lstBasicCommands.AddTail(ID_FILE_EXPORT);
 	lstBasicCommands.AddTail(ID_FILE_NEW);
 	lstBasicCommands.AddTail(ID_FILE_OPEN);
-	lstBasicCommands.AddTail(ID_FILE_SAVE);
 	lstBasicCommands.AddTail(ID_FILE_PRINT);
-	lstBasicCommands.AddTail(ID_FILE_EXPORT);
-	lstBasicCommands.AddTail(ID_APP_EXIT);
-	lstBasicCommands.AddTail(ID_EDIT_CUT);
-	lstBasicCommands.AddTail(ID_EDIT_PASTE);
-	lstBasicCommands.AddTail(ID_EDIT_UNDO);
-	lstBasicCommands.AddTail(ID_APP_ABOUT);
-	lstBasicCommands.AddTail(ID_VIEW_STATUS_BAR);
-	lstBasicCommands.AddTail(ID_VIEW_TOOLBAR);
-	lstBasicCommands.AddTail (ID_VIEW_FULL_SCREEN);
+	lstBasicCommands.AddTail(ID_FILE_SAVE);
+	lstBasicCommands.AddTail(ID_HELP_HELP);
+	lstBasicCommands.AddTail(ID_VIEW_ADJUSTWIDTH);             
 	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2003);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_VS_2005);
+	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_AQUA);
+	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_BLACK);
 	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_BLUE);
 	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_SILVER);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_BLACK);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_AQUA);
-	lstBasicCommands.AddTail(ID_DESIGN_PAGE);
-	lstBasicCommands.AddTail(ID_DESIGN_ZOOM);
-	lstBasicCommands.AddTail(ID_DESIGN_DESIGN);
-	lstBasicCommands.AddTail(ID_BUTTON_EDITTEXT);              
-	lstBasicCommands.AddTail(ID_EDIT_PREFERENCES);             
-	lstBasicCommands.AddTail(ID_VIEW_REDRAW);                  
-	lstBasicCommands.AddTail(ID_VIEW_ZOOMIN);                  
-	lstBasicCommands.AddTail(ID_VIEW_ZOOMOUT);                 
-	lstBasicCommands.AddTail(ID_VIEW_ZOOMNORMALIZE);           
-	lstBasicCommands.AddTail(ID_VIEW_ADJUSTWIDTH);             
+	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_VS_2005);
 	lstBasicCommands.AddTail(ID_VIEW_FITTOWIDTH);              
-	lstBasicCommands.AddTail(ID_ZOOMMODE_KEEPINOVERVIEW);      
+	lstBasicCommands.AddTail(ID_VIEW_FULL_SCREEN);
+	lstBasicCommands.AddTail(ID_VIEW_REDRAW);                  
+	lstBasicCommands.AddTail(ID_VIEW_STATUS_BAR);
+	lstBasicCommands.AddTail(ID_VIEW_TOOLBAR);
+	lstBasicCommands.AddTail(ID_VIEW_ZOOMIN);                  
+	lstBasicCommands.AddTail(ID_VIEW_ZOOMNORMALIZE);           
+	lstBasicCommands.AddTail(ID_VIEW_ZOOMOUT);                 
+	lstBasicCommands.AddTail(ID_VIEW_NEXTERROR);                 
+	lstBasicCommands.AddTail(ID_BUTTON_TRACK);                 
 	lstBasicCommands.AddTail(ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH); 
 	lstBasicCommands.AddTail(ID_ZOOMMODE_KEEPFITTINGTOWIDTH);  
+	lstBasicCommands.AddTail(ID_ZOOMMODE_KEEPINOVERVIEW);      
 
 	CMFCToolBar::SetBasicCommands(lstBasicCommands);
 
@@ -214,8 +222,10 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	if (m_ctrlEditor.IsVisible()) m_ctrlEditor.m_ctrlEditor.SetFocus();
 
-	EnableFullScreenMode (ID_VIEW_FULL_SCREEN);
-	EnableFullScreenMainMenu (FALSE);
+	EnableFullScreenMode(ID_VIEW_FULL_SCREEN);
+	EnableFullScreenMainMenu(FALSE);
+
+	CMFCButton::EnableWindowsTheming ();
 
 	return 0;
 }
@@ -280,18 +290,6 @@ void CMainFrame::OnViewCustomize()
 	pDlgCust->ReplaceButton(ID_DESIGN_DESIGN, designButton);
 
 	pDlgCust->Create();
-}
-
-void CMainFrame::OnViewFullScreen() 
-{
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	if (pApp->m_bFullScreenViewMode && IsFullScreen()) {
-		SetRedraw(false);
-		OnClose();
-	} else {
-		ShowFullScreen();
-	}
 }
 
 LRESULT CMainFrame::OnToolbarCreateNew(WPARAM wp,LPARAM lp)
@@ -433,6 +431,16 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 		}
 	}
 
+	//Actualize combo box values
+	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
+	if (pDoc) {
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
+		pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
+		pDoc->SetZoom(); //merely fill in zoom combo with list of zoom values
+	}
+
 	return TRUE;
 }
 
@@ -469,3 +477,49 @@ void CMainFrame::OnUpdateFrameMenu(HMENU hMenuAlt)
 	m_wndMenuBar.CreateFromMenu(hMenuAlt);
 }
 
+//We need to override it to capture ESCAPE key.
+//CFrameWndEx handles it in this message by shutting down full screen
+//We do the same, but if we show an embedded object in fullscreen mode, we have to exit 
+BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	if (pApp->m_bFullScreenViewMode && pMsg->message == WM_KEYDOWN && 
+		pMsg->wParam == VK_ESCAPE && IsFullScreen()) {
+		//CFrameWndEx::PreTranslateMessage first checks it against a menu
+		//But we have no menus in full screen mode
+		//Ok, Hide window and kill it:
+		CMainFrame::OnViewFullScreen();
+		return TRUE;
+	}
+	return CFrameWndEx::PreTranslateMessage(pMsg);
+}
+
+void CMainFrame::OnViewFullScreen() 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//if we show an embedded object in fullscreen mode, we have to exit now.
+	if (pApp->m_bFullScreenViewMode && IsFullScreen()) {
+		//Hide, so user does not see as fullscreen is first restored
+		ShowWindow(SW_HIDE);
+		//Exit app.
+		//Instead of CFrameWndEx::OnClose we call CFrameWnd::OnClose.
+		//The former does the following before calling CFrameWnd::OnClose:
+		//1. It shuts down print preview (ethere is none in full screen view mode)
+		//2. it kills OLE container (we are not one, there is nothing to kill); 
+		//3. it restores Fullscreen (we do not want this: we just want the full screen to disapear)
+		//4. saves window state by calling CWinAppEx::OnClosingMainFrame
+		//5. saves window placement by calling CFrameImpl::StoreWindowPlacement.
+		//The last two we dont want since a full screen windows has all the wrong state and placement
+		CFrameWnd::OnClose();
+	} else {
+		//If we are cancelling full screen update the zoom combo box with current value
+		if (IsFullScreen()) {
+			CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
+			if (pDoc) 
+				pDoc->SetZoom(); 
+		}
+		ShowFullScreen();
+	}
+}

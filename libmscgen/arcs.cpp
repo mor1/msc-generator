@@ -152,11 +152,7 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
 bool ArcLabelled::AddAttribute(const Attribute &a)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (chart->StyleSets.top().find(a.name) == chart->StyleSets.top().end()) {
-            a.InvalidStyleError(chart->Error);
-            return true;
-        }
-        style += chart->StyleSets.top()[a.name];
+		style.AddAttribute(a, chart);
         if (style.numbering.first && numbering < 0)
             numbering = style.numbering.second?-999:-1000;
         return true;
@@ -1492,8 +1488,8 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
         chart->shadow(ls, ld+XY(style.line.radius.second/2, lw/2), style.shadow, 0, false);
 
 		//The back of the main pipe
-		chart->_arc_path(cs, wh+XY(0,lw), 270, 90, 0, LINE_SOLID);
-        chart->_arc_path(cd, wh+XY(0,lw), 90, 270, 0, LINE_SOLID);
+		chart->_arc_path(cs, wh, 270, 90, 0, LINE_SOLID, true);
+        chart->_arc_path(cd, wh, 90, 270, 0, LINE_SOLID);
         chart->Clip();
         chart->filledRectangle(ls-shift, ld+shift, style.fill, 0);
         chart->UnClip();
@@ -1504,7 +1500,7 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
             fill.gradient.second = GRADIENT_DOWN;
         else if (fill.gradient.second == GRADIENT_DOWN)
             fill.gradient.second = GRADIENT_UP;
-        chart->_arc_path(cd, wh+XY(0,lw), 0, 360, 0, LINE_SOLID);
+        chart->_arc_path(cd, wh, 0, 360, 0, LINE_SOLID);
         chart->Clip();
         chart->filledRectangle(ls-shift, ld+shift, fill, 0);
         chart->UnClip();
@@ -1519,8 +1515,8 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
     if (topSideFill) {
 		MscFillAttr fill = style.fill;
         fill.color.second.a = unsigned(style.solid.second) * unsigned(fill.color.second.a) / 255;
-        chart->_arc_path(cs, wh+XY(0,lw), 270, 90, 0, LINE_SOLID, true);
-        chart->_arc_path(cd, wh+XY(0,lw), 90, 270, 0, LINE_SOLID);
+        chart->_arc_path(cs, wh, 270, 90, 0, LINE_SOLID, true);
+        chart->_arc_path(cd, wh, 90, 270, 0, LINE_SOLID);
         chart->Clip();
         chart->filledRectangle(ls-shift, ld+shift, fill, 0);
         chart->UnClip();
@@ -1714,9 +1710,16 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
             chart->ClipRectangle(s, d, style.line.radius.second);
             //ls and ld are the inner edges of the lines of the local box (that of (*i))
             XY ls = s, ld = d;
-            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+            for (PtrList<ArcEmphasis>::const_iterator i = follow.begin(); i!=follow.end(); i++) {
                 ls.y = (*i)->yPos + (*i)->style.line.LineWidth();
                 ld.y = (*i)->yPos + (*i)->height;
+				//Increase the fill area downward by half of the linewidth below us
+				PtrList<ArcEmphasis>::const_iterator next = i;
+				next++;
+				if (next==follow.end())
+					ld.y += style.line.LineWidth()/2;
+				else
+					ld.y += (*next)->style.line.LineWidth()/2;
                 //Draw square-corenered rectangles, radius = 0
                 chart->filledRectangle(ls, ld, (*i)->style.fill, 0);
                 //if there are contained entities, draw entity lines
@@ -1724,7 +1727,7 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
                     chart->DrawEntityLines(ls.y, ld.y-ls.y, src, ++EIterator(dst));
             }
             //Draw box lines - Cycle only for subsequent boxes
-            for (PtrList<ArcEmphasis>::iterator i = ++(follow.begin()); i!=follow.end(); i++) {
+            for (PtrList<ArcEmphasis>::const_iterator i = ++(follow.begin()); i!=follow.end(); i++) {
                 ls.y = ld.y = ceil((*i)->yPos + (*i)->style.line.LineWidth()/2);
                 chart->line(ls, ld, (*i)->style.line);
             }

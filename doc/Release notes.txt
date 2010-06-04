@@ -6,19 +6,57 @@ This allows easy editing and overview and is a viable alternative to mouse-based
 tools, such as Visio or PowerPoint.
 
 The language of msc-generator resembles a bit to the graphviz tool and is documented
-in detail in the accompanying pdf file.
+in detail in the accompanying pdf file and help.
 
 Msc-generator works both as a command-line tool and as an OLE server application.
-A Linux port is also maintained, use mercurial to obtain the latest snapshot from sourceforge.
+A Linux port is also maintained for the the command-line tool.
 
 Installation on Windows is easy:
-Just double-click Msc-generator.msi.
+Just donwload and double-click Msc-generator.msi.
+If you want to compile on windows, you need Visual C++ 2008 SP1 and msys 
+(to build cairo). All the library sources are included in the repo (ugly, I know).
+Access the svn repository on sourceforge for msc-generator (e.g., using TurtleSVN).
 
-On Linux, I suggest to check out the mercurial repo. It uses automake+autoconf.
-The cvs repository contains old v1.x code.
-The svn repository will contain the windows code.
+On Linux, I suggest to check out the mercurial repo. 
+(hg clone http://msc-generator.hg.sourceforge.net/hgroot/msc-generator/msc-generator)
+It uses gnu automake+autoconf, yacc, lex, cairolib (and texinfo for the documentation).
 
 Contact the author by mail: teknos at gmail.com.
+
+Changelog 2.5.0
+Language changes:
+- Boxes now can be multi-segment by concatenating multiple boxes  without a ';' in between.
+- Changed the default style for boxes from 'emphasis' and 'emptyemphasis' to 'box' and
+  'emptybox'. Old names are still recognized.
+- Pipes can also have multiple segments to show as traffic moves from one pipe to another.
+- Prefixing any element with the "parallel" keyword makes it parallel with the rest of the
+  chart.
+- Expanded the syntax for color definition. Now you can use + and - after a color name to
+  get a lighter or darker version of that color. Use a percentage after the sign, such as
+  'red+50' makes red 50% brighter. Any color +100% is white, and any color -100% is black.
+  You can still append a comma and a transparency value: red+20,30. Transparency values
+  shall be between 0..255.
+- You can now enter #-style comments also in the middle of a multi-line label. To this end
+  the \# escape has been introduced to generate a real #.
+- You can revert to the original font and margin values in a string by using the \f() and
+  \mu(), \md(), \ml(), \mr(), \mn(), \ms(), \ml() escapes.
+- Lots of improvements in grammar parsing and error reporting.
+
+Windows interface improvements:
+- Added internal dockable editor with Color Syntax Highlighting. The editor also supports
+  auto-ident for RETURN, TAB and BACKSPACE keys. Optionally it also relies on parsing to
+  find the correct identation for multi-line labels.
+- Added Tracking mode. By clicking a chart element the text editor is moved there. By double
+  clicking or pressing Ctrl+T such tracking becomes permanent. It makes it easy to navigate
+  in a big chart and to quickly jump to the relevant part of the text. Also, in tracking
+  mode, as you move around in the text the currently selected element is highlighted on the
+  drawn chart.
+- Added clickable and dockable error window. If you click an error the cursor jumps there in
+  the editor.
+- Full screen support. There is a new OLE verb to show an embedded chart in full screen right
+  away.
+- Added drop support: now you can drop files or text to the view and they are opened.
+
 
 Changelog 2.4.0
 - No longer experimental

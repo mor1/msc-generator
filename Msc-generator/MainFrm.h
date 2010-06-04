@@ -34,16 +34,33 @@ protected: // create from serialization only
 
 // Attributes
 public:
-	CSplitterWnd m_wndSplitter;
+	CSplitterWnd      m_wndSplitter;
+	CMFCStatusBar     m_wndStatusBar;
+protected:  
+	CMFCMenuBar       m_wndMenuBar;
+	CMFCToolBar       m_wndToolBar;
+	CMFCToolBar       m_wndDesignBar;
+	CMFCToolBarImages m_UserImages;
+	COutputViewBar    m_wndOutputView;
+	CEditorBar        m_ctrlEditor;
 
-// Operations
-public:
-
-// Overrides
+protected:
+	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg void OnViewCustomize();
+	afx_msg LRESULT OnToolbarCreateNew(WPARAM wp, LPARAM lp);
+	afx_msg LRESULT OnToolbarReset(WPARAM wp, LPARAM lp);
+	afx_msg void OnApplicationLook(UINT id);
+	afx_msg void OnUpdateApplicationLook(CCmdUI* pCmdUI);
+	DECLARE_MESSAGE_MAP()
 public:
 	virtual BOOL OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext);
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	virtual BOOL LoadFrame(UINT nIDResource, DWORD dwDefaultStyle = WS_OVERLAPPEDWINDOW | FWS_ADDTOTITLE, CWnd* pParentWnd = NULL, CCreateContext* pContext = NULL);
+	afx_msg void OnSize(UINT nType, int cx, int cy);
+	        void OnUpdateFrameMenu(HMENU hMenuAlt);
+	afx_msg void OnSetFocus(CWnd* pOldWnd);
+	        BOOL PreTranslateMessage(MSG* pMsg);
+	afx_msg void OnViewFullScreen();
 
 // Implementation
 public:
@@ -52,31 +69,6 @@ public:
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
 #endif
-
-protected:  // control bar embedded members
-	CMFCMenuBar       m_wndMenuBar;
-	CMFCToolBar       m_wndToolBar;
-	CMFCToolBar       m_wndDesignBar;
-	CMFCStatusBar     m_wndStatusBar;
-	CMFCToolBarImages m_UserImages;
-	COutputViewBar    m_wndOutputView;
-	CEditorBar        m_ctrlEditor;
-public:
-
-// Generated message map functions
-protected:
-	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
-	afx_msg void OnViewCustomize();
-	afx_msg void OnViewFullScreen();
-	afx_msg LRESULT OnToolbarCreateNew(WPARAM wp, LPARAM lp);
-	afx_msg LRESULT OnToolbarReset(WPARAM wp, LPARAM lp);
-	afx_msg void OnApplicationLook(UINT id);
-	afx_msg void OnUpdateApplicationLook(CCmdUI* pCmdUI);
-	DECLARE_MESSAGE_MAP()
-public:
-	afx_msg void OnSize(UINT nType, int cx, int cy);
-	        void OnUpdateFrameMenu(HMENU hMenuAlt);
-	afx_msg void OnSetFocus(CWnd* pOldWnd);
 
 };
 

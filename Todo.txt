@@ -1,9 +1,10 @@
-update doc, add doc project (Call everything a box)
+update doc, add doc project 
 
 design lib
 Re-add escape to in-place editor...
 Make divider only within a box
 Allow divider to have entities
+Multi-level numbers
 
 
 ???investigate why big white stuff is there....
