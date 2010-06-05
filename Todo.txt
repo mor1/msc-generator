@@ -2,10 +2,9 @@ update doc, add doc project
 
 design lib
 Re-add escape to in-place editor...
+Multi-level numbers
+Add a<->b<<>>c
+Add colon_string labels also for entities
 Make divider only within a box
 Allow divider to have entities
-Multi-level numbers
 
-
-???investigate why big white stuff is there....
-????parallel does not work with box, block arrow

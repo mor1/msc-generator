@@ -1,7 +1,7 @@
 [OPTIONS]
 Binary TOC=Yes
 Compatibility=1.1 or later
-Compiled file=htmlhelp.chm
+Compiled file=msc-gen.chm
 Contents file=toc.hhc
 Default Window=Main
 Default topic=index.html
@@ -24,20 +24,27 @@ ch02s03.html
 ch02s04.html
 ch02s05.html
 ch02s06.html
-ch02s07.html
-ch02s08.html
 ch03.html
 ch03s02.html
 ch03s03.html
 ch03s04.html
 ch03s05.html
 ch03s06.html
-ch03s07.html
-ch03s08.html
-ch03s09.html
-ch03s10.html
-ch03s11.html
-ch03s12.html
-ch03s13.html
-ch03s14.html
-ch03s15.html
+ch04.html
+ch04s02.html
+ch04s03.html
+ch04s04.html
+ch04s05.html
+ch05.html
+ch05s02.html
+ch05s03.html
+ch05s04.html
+ch05s05.html
+ch05s06.html
+ch05s07.html
+ch05s08.html
+ch05s09.html
+ch05s10.html
+ch05s11.html
+ch05s12.html
+ch05s13.html

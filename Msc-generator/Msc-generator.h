@@ -39,8 +39,6 @@
 // See Msc-generator.cpp for the implementation of this class
 //
 
-#define CSH_SCHEME_MAX 4
-
 class CMscGenApp : public CWinAppEx
 {
 public:

@@ -73,8 +73,6 @@ protected:
 
 public:
     std::vector<std::string> Files;
-    bool strict;
-    MscError();
     unsigned AddFile(const std::string &filename);
     void Warning(file_line linenum, const std::string &s, const std::string &once="")
         {Add(linenum, s, once, false);}

@@ -59,17 +59,7 @@
 #define ADDCSH_ENTITYNAME(A, B) msc.AddCSH_EntityName(A, B)
 #define ADDCSH_COLON_STRING(A, B, C) msc.AddCSH_ColonString(A, B, C)
 #define SETLINEEND(ARC, F, L)
-string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc* msc)
-{
-    const char *newname = style == "emphasis"?"box":"emptybox";
-    if (style == "emphasis" || style == "emptyemphasis") {
-
-        msc->Error.Warning(YYMSC_GETPOS(*loc).start,
-            "Stylename '" + style + "' is deprecated, using " + newname + " instead.");
-        return newname;
-    }
-    return style;
-}
+string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc &msc) {return string();}
 #ifndef HAVE_UNISTD_H
 int isatty (int) {return 0;}
 #endif
@@ -84,7 +74,17 @@ int isatty (int) {return 0;}
 #define ADDCSH_ENTITYNAME(A, B)
 #define ADDCSH_COLON_STRING(A, B, C)
 #define SETLINEEND(ARC, F, L) do {(ARC)->SetLineEnd(YYMSC_GETPOS2(F,L));} while(0)
-string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc* msc) {return string();}
+string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc &msc)
+{
+    const char *newname = style == "emphasis"?"box":"emptybox";
+    if (style == "emphasis" || style == "emptyemphasis") {
+
+        msc.Error.Warning(YYMSC_GETPOS(*loc).start,
+            "Stylename '" + style + "' is deprecated, using " + newname + " instead.");
+        return newname;
+    }
+    return style;
+}
 #ifndef HAVE_UNISTD_H
 extern int isatty (int);
 #endif
@@ -859,7 +859,7 @@ tok_stringlist : string
         ADDCSH(@1, COLOR_STYLENAME);
     } else {
         $$ = new std::list<string>;
-        ($$)->push_back(ConvertEmphasisToBox($1, &@1, &msc));
+        ($$)->push_back(ConvertEmphasisToBox($1, &@1, msc));
     }
     free($1);
 }
@@ -869,7 +869,7 @@ tok_stringlist : string
         ADDCSH(@2, COLOR_COMMA);
         ADDCSH(@3, COLOR_STYLENAME);
     } else {
-       ($1)->push_back(ConvertEmphasisToBox($3, &@3, &msc));
+       ($1)->push_back(ConvertEmphasisToBox($3, &@3, msc));
        $$ = $1;
     }
     free($3);

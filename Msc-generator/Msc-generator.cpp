@@ -594,6 +594,8 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 		              "http://msc-generator.sourceforge.net";
 	m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
 
+	MscInitializeCshAppearanceList();
+
 	CHARFORMAT cf;
 	cf.cbSize = sizeof(cf);
 	cf.dwMask = CFM_UNDERLINE|CFM_ITALIC|CFM_BOLD|CFM_COLOR;

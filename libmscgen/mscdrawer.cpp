@@ -78,6 +78,7 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     fake_gradients = 0;
     fake_dash = false;
     fake_shadows = false;
+	fake_spaces = false;
     scale = 1.0;
     fallback_resolution = 300; //irrelevant for bitmaps - no fallback for bitmaps
 

@@ -270,6 +270,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\csh.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\entity.cpp"
 				>
 			</File>

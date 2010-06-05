@@ -63,6 +63,7 @@ class MscDrawer
     unsigned     fake_gradients; /* Do not use cairo gradients, mimic them with a lot of fills, #of steps if non-zero */
     bool         fake_shadows; /* Do not use alpha blending in shadows */
     bool         fake_dash; /* Do not use cairo dash, mimic them with individual dashes */
+	bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
     double       scale; /*final rendering should be scaled like this */
     unsigned	 fallback_resolution; /* for cairo WMF backends */
 

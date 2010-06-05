@@ -26,18 +26,18 @@ struct Range {
     double till;
     Range() {}
     Range(double s, double d) : from(s), till(d) {}
-	void MakeInvalid() {from = MAINLINE_INF; till = -MAINLINE_INF;}
-	bool IsInvalid() const {return from == MAINLINE_INF && till == -MAINLINE_INF;}
+    void MakeInvalid() {from = MAINLINE_INF; till = -MAINLINE_INF;}
+    bool IsInvalid() const {return from == MAINLINE_INF && till == -MAINLINE_INF;}
     bool Overlaps(const struct Range &r, double gap=0) const
         {return from<r.till+gap && r.from < till+gap;}
-    void Extend(Range a, bool onlyFrom=false)
-        {if (from>a.from) from=a.from; if (!onlyFrom && till<a.till) till=a.till;}
+    void Extend(Range a)
+        {if (from>a.from) from=a.from; if (till<a.till) till=a.till;}
     bool IsWithin(double p) const
         {return from<=p && p<=till;}
-	bool HasValidFrom() const {return from != MAINLINE_INF;}
-	bool HasValidTill() const {return till != -MAINLINE_INF;}
-	double Spans() const
-   	    {return till-from;}
+    bool HasValidFrom() const {return from != MAINLINE_INF;}
+    bool HasValidTill() const {return till != -MAINLINE_INF;}
+    double Spans() const
+        {return till-from;}
 };
 
 class TrackableElement;
@@ -56,8 +56,8 @@ struct Block {
         x.from = ul.x<dr.x?ul.x:dr.x; x.till = ul.x>dr.x?ul.x:dr.x;
         y.from = ul.y<dr.y?ul.y:dr.y; y.till = ul.y>dr.y?ul.y:dr.y;
     }
-	void MakeInvalid() {x.MakeInvalid(); y.MakeInvalid();}
-	bool IsInvalid() const {return x.IsInvalid() && y.IsInvalid();}
+    void MakeInvalid() {x.MakeInvalid(); y.MakeInvalid();}
+    bool IsInvalid() const {return x.IsInvalid() && y.IsInvalid();}
     //operator required for set ordering
     //this improves performance when checking overlaps (lower blocks later)
     bool operator <(const struct Block &b) const {
@@ -73,8 +73,8 @@ struct Block {
         {return XY(x.till, y.till);}
     bool IsWithin(XY p) const
         {return x.IsWithin(p.x) && y.IsWithin(p.y);}
-	Block & operator|=(const Block &b)
-	    {x.Extend(b.x); y.Extend(b.y); return *this;}
+    Block & operator|=(const Block &b)
+        {x.Extend(b.x); y.Extend(b.y); return *this;}
 };
 
 template <typename BlockContainer>

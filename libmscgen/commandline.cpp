@@ -44,13 +44,14 @@ char *ReadFile(FILE *in)
 static void usage()
 {
     printf(
-"Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno] [-Werror]\n"
-"               [--pedantic] [--strict] [<chart_option>=<value> ...]\n"
+"Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno]\n"
+"               [--pedantic] [--<chart_option>=<value> ...]\n"
+"               [--<chart_design>]\n"
 "       msc-gen -l\n"
 "\n"
 "Where:\n"
 " -T <type>   Specifies the output file type, which maybe one of 'png', 'eps',\n"
-"             'pdf', 'svg' or 'wmf' (if supported on your system).\n" 
+"             'pdf', 'svg' or 'wmf' (if supported on your system).\n"
 "             Default is 'png'.\n"
 " -o <file>   Write output to the named file.  If omitted, the input filename\n"
 "             will be appended by an extension suitable for the output format.\n"
@@ -59,17 +60,18 @@ static void usage()
 " <infile>    The file from which to read input.  If omitted or specified as\n"
 "             '-', input will be read from stdin.\n"
 " -Wno        No warnings displayed.\n"
-" -Werror     Warnings result in errors and no output.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
-" --strict    Requires strict adherence to syntax rules, will bail out on errors.\n"
+" --<chart_option>=<value>\n"
+"             These options will be evaluated before the input file. Any value\n"
+"             here will be overwritten by a conflicting option in the file.\n"
 " --<chart_design>\n"
 "             Any chart design can be specified here, taking precedence over the\n"
 "             design specified in the input file.\n"
 " -l          Display program licence and exit.\n"
 "\n"
 "Msc-generator version %s, Copyright (C) 2008-9 Zoltan Turanyi,\n"
-"Msc-generator comes with ABSOLUTELY NO WARRANTY.\n" 
-"This is free software, and you are welcome to redistribute it under certain\n" 
+"Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
+"This is free software, and you are welcome to redistribute it under certain\n"
 "conditions; type `mscgen -l' for details.\n",
 VERSION);
 }
@@ -98,22 +100,23 @@ static void licence()
 "along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.\n");
 }
 
-int do_main(const std::list<std::string> &args, const char *designs)
+int do_main(const std::list<std::string> &args, const char *designs,
+            string csh_textformat)
 {
     MscDrawer::OutputType oOutType=MscDrawer::PNG;
     string                oOutputFile;
     string                oInputFile;
     bool                  oPrint = false;
-    bool                  oWerror = false;
     bool                  oWarning = true;
+    bool                  oCshize = false;
     string ss;
 
     Msc msc;
     msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
                         "http://msc-generator.sourceforge.net ";
-	msc.copyrightText.append(VERSION);
-	
-	msc.Error.AddFile("[options]");
+    msc.copyrightText.append(VERSION);
+
+    msc.Error.AddFile("[options]");
     const file_line opt_pos(msc.current_file,0,0);
     const file_line_range opt_pos_range(opt_pos, opt_pos);
     bool show_usage = false;
@@ -141,6 +144,9 @@ int do_main(const std::list<std::string> &args, const char *designs)
                 show_usage = true;
             } else {
                 i++;
+                if (*i == "csh")
+                    oCshize = true;
+                else
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
                 if (*i == "png")
                     oOutType = MscDrawer::PNG;
@@ -162,8 +168,8 @@ int do_main(const std::list<std::string> &args, const char *designs)
                  else
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
-                 if (*i == "wmf")
-                     oOutType = MscDrawer::WMF;
+                 if (*i == "emf")
+                     oOutType = MscDrawer::EMF;
                  else
 #endif
                  {
@@ -183,12 +189,23 @@ int do_main(const std::list<std::string> &args, const char *designs)
                      " 'svg'"
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
-                     " 'wmf'"
+                     " 'emf'"
 #endif
                      ". Using 'png'.");
                      oOutType = MscDrawer::PNG;
                  }
             }
+        } else if (*i == "-l") {
+            licence();
+            return EXIT_SUCCESS;
+        } else if (*i == "-Wno") {
+            oWarning = false;
+        } else if (*i == "--nocopyright") {
+            msc.copyrightText.erase();
+        } else if (*i == "--pedantic") {
+            msc.pedantic = true;
+        } else if (i->substr(0,13) == "--csh_format=") {
+            csh_textformat += i->substr(13);
         } else if ((*i)[0]=='-' && (*i)[1]=='-') { //starts with "--"
             string name(i->substr(2));
             if (name.find("=") == name.npos) {
@@ -200,8 +217,8 @@ int do_main(const std::list<std::string> &args, const char *designs)
                     msc.Error.Error(opt_pos,
                                     "Unknown chart design: '" + a.name + "'. Using 'plain'.",
                                     " Available styles are: " + msc.GetDesigns() +".");
-				else
-					msc.ignore_designs = true;
+                else
+                    msc.ignore_designs = true;
             } else {
                 float num;
                 string value(name.substr(name.find("=")+1));
@@ -219,13 +236,6 @@ int do_main(const std::list<std::string> &args, const char *designs)
                     msc.AddAttribute(Attribute(name.c_str(), value.c_str(), opt_pos_range,
                                                opt_pos_range, name.c_str()));
             }
-        } else if (*i == "-l") {
-            licence();
-            return EXIT_SUCCESS;
-        } else if (*i == "-Wno") {
-            oWarning = false;
-        } else if (*i == "-Werror") {
-            oWerror = true;
         } else
             if (oInputFile=="")
                 oInputFile=*i;
@@ -254,7 +264,9 @@ int do_main(const std::list<std::string> &args, const char *designs)
             (dash==oInputFile.npos || dash<dot))
             oOutputFile.erase(dot);
         //oOutputFile.erase(oOutputFile.find_last_of("."));
-        switch (oOutType) {
+        if (oCshize)
+            oOutputFile.append(".csh");
+        else switch (oOutType) {
         case MscDrawer::PNG:
             oOutputFile.append(".png"); break;
         case MscDrawer::EPS:
@@ -263,6 +275,8 @@ int do_main(const std::list<std::string> &args, const char *designs)
             oOutputFile.append(".pdf"); break;
         case MscDrawer::SVG:
             oOutputFile.append(".svg"); break;
+        case MscDrawer::EMF:
+            oOutputFile.append(".emf"); break;
         default:
             assert(0);
         }
@@ -292,14 +306,30 @@ int do_main(const std::list<std::string> &args, const char *designs)
         input = ReadFile(in);
         fclose(in);
     }
+    //Replace chart text with the cshized version of it
+    if (oCshize) {
+        MscInitializeCshAppearanceList();
+        Msc m;
+        m.ParseForCSH(input, strlen(input));
+        string tmp = Cshize(input, strlen(input), m.CshList, 1, csh_textformat.c_str());
+        FILE *out = fopen(oOutputFile.c_str(), "w");
+        if (!out) {
+            std::cerr<< "Error: Failed to open output file '" << oOutputFile << "'.\n";
+            std::cerr << "Bailing out." << std::endl;
+            return EXIT_FAILURE;
+        }
+        fwrite(tmp.c_str(), 1, tmp.length(), out);
+        fclose(out);
+    } else {
+        //parse input text;
+        msc.ParseText(input, oInputFile.c_str());
+        msc.CompleteParse(oOutType, true);
+        std::cerr << msc.Error.Print(oWarning);
+        //Now cycle through pages and write them to individual files
+        msc.DrawToOutput(oOutType, oOutputFile);
+    }
 
-    //parse input text;
-    msc.ParseText(input, oInputFile.c_str());
     free(input);
-    msc.CompleteParse(oOutType, true);
-    std::cerr << msc.Error.Print(oWarning);
-    //Now cycle through pages and write them to individual files
-    msc.DrawToOutput(oOutType, oOutputFile);
 
     std::cerr << "Success." << std::endl;
     if (show_usage) usage();

@@ -165,10 +165,16 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
         //if ending was a null we are done with processing all lines
         if (!ending) break;
         //append "\n" escape for msc-generator, but only if not an empty first line
+        //append "\\n" if line ended with odd number of \s
         if (new_pos) {
             //add a space for empty lines, if line did not contain a comment
             if (emptyLine && !wasComment )
                 ret[new_pos++] = ' ';
+            //test for how many \s we have
+            int pp = new_pos-1;
+            while (pp>=0 && ret[pp]=='\\') pp--;
+            //if odd, we insert an extra '\' to keep lines ending with \s
+            if ((new_pos-pp)%2==0) ret[new_pos++] = '\\';
             ret[new_pos++] = '\\';
             ret[new_pos++] = 'n';
         }
@@ -240,7 +246,7 @@ no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 
 \:[ \t]*\"[^\"]*\"                      yylval_param->str = REMOVE_QUOTES(yytext+1); return TOK_COLON_QUOTED_STRING;
-\:[ \t]*[^ \t\"\;\[\{]?[^\;\[\{]*       yylval_param->str = PROCESS_COLON_STRING(yytext, yylloc); return TOK_COLON_STRING;
+\:([^\"\;\[\{\\]*(\\.)*)*               yylval_param->str = PROCESS_COLON_STRING(yytext, yylloc); return TOK_COLON_STRING;
 [+\-]?[0-9]+\.?[0-9]*                   yylval_param->str = strdup(yytext); return TOK_NUMBER;
 [A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* yylval_param->str = strdup(yytext); return TOK_STRING;
 \"[^\"\n]*\"                            yylval_param->str = strdup(yytext + !C_S_H); if (!C_S_H) yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;

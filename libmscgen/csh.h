@@ -2,6 +2,7 @@
 #define CSH_H
 
 #include<vector>
+#include<string>
 
 struct CshPos
 {
@@ -49,5 +50,31 @@ struct CshEntry
 };
 
 typedef std::vector<CshEntry> MscCshListType;
+
+typedef enum
+{
+    COLOR_FLAG_BOLD = 1,
+    COLOR_FLAG_ITALICS = 2,
+    COLOR_FLAG_UNDERLINE = 4,
+	COLOR_FLAG_COLOR = 8
+} MscColorSyntaxFlag;
+
+struct MscColorSyntaxAppearance {
+	int effects;
+	int mask;
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
+	void SetColor(unsigned char rr, unsigned char gg, unsigned char bb)
+	{r=rr; g=gg; b=bb;}
+};
+
+#define CSH_SCHEME_MAX 4
+
+extern MscColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
+void MscInitializeCshAppearanceList(void);
+
+std::string Cshize(const char *input, unsigned len, const MscCshListType &cshList, int cshStyle,
+                   const char *command=NULL);
 
 #endif

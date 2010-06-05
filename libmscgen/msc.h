@@ -193,7 +193,12 @@ public:
          {DrawEntityLines(y, height, Entities.begin(), Entities.end());}
 
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
-    double DrawHeightArcList(ArcList &arcs, double y, Geometry &g,
+    double PlaceDrawListUnder(ArcList::iterator from, ArcList::iterator to,
+                              double top_y, double low_y,
+                              Geometry &g, Geometry &g_result,
+                              bool draw, bool final, bool forceCompress=false);
+    double DrawHeightArcList(ArcList::iterator from, ArcList::iterator to,
+                             double y, Geometry &g,
                              bool draw, bool final, double autoMarker=-1);
 
     void CalculateWidthHeight(void);

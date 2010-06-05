@@ -61,7 +61,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	string designs = ReadDesigns("designlib.signalling");
 
-    return do_main(args, designs.c_str());
+    return do_main(args, designs.c_str(), "\\f(courier new)\\mn(12)");
 	return 0;
 }
 

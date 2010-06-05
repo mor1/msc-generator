@@ -300,7 +300,7 @@ double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, do
         geometry += b;
         b.y.from = y - chart->nudgeSize/2;
         b.y.till = y + wh.y + chart->nudgeSize/2;
-        geometry.mainline.Extend(b.y, parallel);
+        geometry.mainline.Extend(b.y);
         geometry.SetArc(this);
         g += geometry;
     }
@@ -531,7 +531,7 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         geometry += b;
         b.y.from = y - chart->nudgeSize/2;
         b.y.till = y + chart->nudgeSize/2;
-        geometry.mainline.Extend(b.y, parallel);
+        geometry.mainline.Extend(b.y);
         geometry.SetArc(this);
         g += geometry;
     }
@@ -817,32 +817,18 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
 
     //If final position, cover the entity lines where text goes
     if (final) chart->HideEntityLines(geom);
-	//store upper part of the text in a limiter block
-    Block limiter(0, chart->totalWidth, y, y);
+    //store the uppermost level where content can come
+    double low_y = y;
     //Advance label height
     if (twh.y == 0)
         y += Label("M", chart, style.text).getTextWidthHeight().y;
     else
         y += twh.y;
-    //Draw arrows if any
-    if (content) {
-        //If the first entity compress is on, draw entities in a block and shift them up in one
-        if (!draw && (*content->begin())->IsCompressed()) {
-            //use the bottom of the text as a limiter to query the cover of the content
-            Block limiter2(0, chart->totalWidth, y, y);
-            Geometry geom2;
-            geom2 += limiter2;
-            chart->DrawHeightArcList(*content, y, geom2, false, false);
-            geom2 -= limiter2;
-            geom += limiter; //limiter is at the top of the label. we need this to prevent infinite up
-            y -= chart->FindCollision(geom, geom2);
-            geom -= limiter;
-            //Set new position for the content
-            limiter.y = Range(y, y);
-        }
-        geom += limiter;
-        y += chart->DrawHeightArcList(*content, y, geom, draw, final);
-    }
+    //Draw content if any
+    if (content)
+        y += chart->PlaceDrawListUnder(content->begin(), content->end(),
+                                       low_y, y, geom, geom, draw, final);
+
     //Final advance of linewidth, gap and arrow tips
     y += lw; //+ chart->emphVGapInside;
     y += ah;
@@ -854,7 +840,6 @@ double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         Block box(s.x, d.x, orig_y+ah, y-ah);
         geometry += box;
         style.arrow.CoverBig(xPos, orig_y+ah, y-ah, isBidir(), chart, geometry);
-        if (parallel) geometry.mainline.till = -MAINLINE_INF;
         geometry.SetArc(this);
         g += geometry;
     }
@@ -1558,8 +1543,6 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, and for pipes the lower linewidth, too
     //yPos is pointing to the upper edge of the upper line
     const double total_orig_y = y;
-    //save original mainline, so we can restore it if we are parallel
-    const double orig_mainline_till = g.mainline.till;
 
     if (pipe) {
         //If we are drawing, first iterate through the segments and draw their backside
@@ -1618,28 +1601,10 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         } /* if (!draw) */
 
         //Draw content arrows if any. If not yet drawing, then just calculate their pos
-        if (emphasis) {
-            //If first element is compressed, draw entities in a block and shift them up in one
-            if (!draw && (*emphasis->begin())->IsCompressed()) {
-                Geometry geom_content;
-                //set an upper limit for arrows inside the box - just to make them start fully below the labels
-                Block limiter_below_text(0, chart->totalWidth, lowest_label_bottom, lowest_label_bottom);
-                geom_content += limiter_below_text;
-                chart->DrawHeightArcList(*emphasis, lowest_label_bottom, geom_content, draw, false);
-                geom_content -= limiter_below_text;
-                //Now see how much we can shift the content upwards as one block
-                if (geom_content.GetCover().size()>0) {
-                    Block limiter_above_text(0, chart->totalWidth, lowest_line_bottom, lowest_line_bottom);
-                    geom_labels += limiter_above_text;
-                    y -= chart->FindCollision(geom_labels, geom_content);
-                }
-            }
-            Block limiter_at_exact_position(0, chart->totalWidth, y, y);
-            g += limiter_at_exact_position;
-            //If not yet drawing add the covers of the content to g, to be returned to caller
-            y += chart->DrawHeightArcList(*emphasis, y, g, draw, final);
-            g -= limiter_at_exact_position;
-        }
+        if (emphasis)
+            y += chart->PlaceDrawListUnder(emphasis->begin(), emphasis->end(),
+                                           lowest_line_bottom, lowest_label_bottom,
+                                           geom_labels, g, draw, final);
         //now y contains the bottom of the content arrows
         //draw the top side of the pipe and the label
         for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
@@ -1713,13 +1678,13 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
             for (PtrList<ArcEmphasis>::const_iterator i = follow.begin(); i!=follow.end(); i++) {
                 ls.y = (*i)->yPos + (*i)->style.line.LineWidth();
                 ld.y = (*i)->yPos + (*i)->height;
-				//Increase the fill area downward by half of the linewidth below us
-				PtrList<ArcEmphasis>::const_iterator next = i;
-				next++;
-				if (next==follow.end())
-					ld.y += style.line.LineWidth()/2;
-				else
-					ld.y += (*next)->style.line.LineWidth()/2;
+                //Increase the fill area downward by half of the linewidth below us
+                PtrList<ArcEmphasis>::const_iterator next = i;
+                next++;
+                if (next==follow.end())
+                    ld.y += style.line.LineWidth()/2;
+                else
+                    ld.y += (*next)->style.line.LineWidth()/2;
                 //Draw square-corenered rectangles, radius = 0
                 chart->filledRectangle(ls, ld, (*i)->style.fill, 0);
                 //if there are contained entities, draw entity lines
@@ -1760,36 +1725,14 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
                 //If final position, cover the entity lines where text goes
                 chart->HideEntityLines(geom_label);
             }
-            //set an upper limit for arrows inside the box
-            Block label_limiter(0, chart->totalWidth, y, y);
-            geom_label += label_limiter;
-            geom_label.mainline.till = y;
             //Advance label height
-            y += (*i)->parsed_label.getTextWidthHeight().y;
-            //Draw arrows if any (for pipes this happen only for the first follow)
-            if ((*i)->emphasis) {
-                //If first element is compressed, draw entities in a block and shift them up in one
-                if (!draw && (*(*i)->emphasis->begin())->IsCompressed()) {
-                    Geometry geom_temp_content;
-                    Block content_limiter(0, chart->totalWidth, y, y);
-                    geom_temp_content += content_limiter;
-                    chart->DrawHeightArcList(*((*i)->emphasis), y, geom_temp_content, draw, false);
-                    geom_temp_content -= content_limiter;
-                    if (geom_temp_content.GetCover().size()>0)
-                        y -= chart->FindCollision(geom_label, geom_temp_content);
-                    //Now y is the position at which we need to start drawing the content of the box.
-                    //At this point y is not below the bottom of the emph label and not above the top of the label
-                    //if y is not exactly at the top of the label (stored previously in limiter), we change limiter
-                    //We need limiter to be at the right pos, because DrawHeightArcList below will try to compress upwards.
-                    if (y > label_limiter.y.till) {
-                        geom_label -= label_limiter;
-                        label_limiter.y.till = label_limiter.y.from = y;
-                        geom_label.mainline.till = y;
-                        geom_label += label_limiter;
-                    }
-                }
-                y += chart->DrawHeightArcList(*((*i)->emphasis), y, geom_label, draw, final);
-            }
+            double th = (*i)->parsed_label.getTextWidthHeight().y;
+            y += th;
+            //Draw arrows if any under the label (place cover in geom_label, which we will discard)
+            if ((*i)->emphasis)
+                y += chart->PlaceDrawListUnder((*i)->emphasis->begin(), (*i)->emphasis->end(),
+                                               y - th, y, geom_label, geom_label, draw, final);
+
             y += chart->emphVGapInside;
 
             //Set variables to store for later to draw the box lines and bkg above
@@ -1818,10 +1761,8 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         }
     } /* else if pipe */
 
-    if (!draw) {
+    if (!draw)
         total_height = y - total_orig_y;
-        if (parallel) g.mainline.till = orig_mainline_till;
-    }
 
     return total_height + 2*chart->emphVGapOutside;
 }
@@ -1922,7 +1863,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
         if (!draw) {
             Block b(0, chart->totalWidth, y, y + chart->nudgeSize);
             geometry += b;
-            geometry.mainline.Extend(b.y, parallel);
+            geometry.mainline.Extend(b.y);
             geometry.SetArc(this);
             g += geometry;
         }
@@ -1971,7 +1912,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
             geometry += Block(line_margin, chart->totalWidth-line_margin,
                               lineYPos - style.line.LineWidth()*2, lineYPos + style.line.LineWidth()*2);
         Range r(lineYPos-charheight/2, lineYPos+charheight/2);
-        geometry.mainline.Extend(r, parallel);
+        geometry.mainline.Extend(r);
         geometry.SetArc(this);
         g+=geometry;
     }
@@ -2034,15 +1975,13 @@ double ArcParallel::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (!valid) return 0;
     if (final) yPos = y;
     if (draw) y = yPos;
-    //For parallel, we keep this->geometry empty, as it is merely the sum of its content
-
-    //save original mainline, so if we are parallel, it does not change
-    const double orig_mainline_till = g.mainline.till;
+    //we keep this->geometry empty, as it is merely the sum of its content
 
     double height = 0;
     if (draw) { //quicker without the geometry manipulations
         for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++) {
-            double h = chart->DrawHeightArcList(**i, y, g, true, final, height?y+height:autoMarker);
+            double h = chart->DrawHeightArcList((*i)->begin(), (*i)->end(),
+                                                y, g, true, final, height?y+height:autoMarker);
             if (height < h) height = h;
         }
     } else {
@@ -2052,12 +1991,12 @@ double ArcParallel::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++) {
             //Each parallel block is compressed without regard to the others
             Geometry geom = g_original;
-            double h = chart->DrawHeightArcList(**i, y, geom, false, final, height?y+height:autoMarker);
+            double h = chart->DrawHeightArcList((*i)->begin(), (*i)->end(),
+                                                y, geom, false, final, height?y+height:autoMarker);
             if (height < h) height = h;
             g += geom;
         };
         g -= limiter; //remove blockage
-        if (IsParallel()) g.mainline.till = orig_mainline_till;
     }
     return height;
 }
@@ -2171,8 +2110,6 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
     if (draw)  y = yPos;
     if (!draw) geometry.Clear();
 
-    //save original mainline, so we can restore it if we are parallel
-    const double orig_mainline_till = g.mainline.till;
     double height = 0;
 	//Those entities explicitly listed, put their cover in their geometry
 	//only the ones added by a heading command to this commandentity will
@@ -2224,12 +2161,11 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
                     if (height <h) height = h;
                 }
             }
-		if (!draw) {
-			geometry.SetArc(this);
-			g += geometry;
-		}
-	}
-    if (parallel) g.mainline.till = orig_mainline_till;
+            if (!draw) {
+                geometry.SetArc(this);
+                g += geometry;
+            }
+        }
     return height;
 }
 

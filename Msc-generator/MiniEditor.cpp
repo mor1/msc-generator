@@ -188,9 +188,10 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		//Find a line (current or above) with a non-whitespace char
 		//ident to that char
 		do {
-			CString strLine;
 			int nLineLength = LineLength(nLine);
-			nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nLineLength + 1), nLineLength);
+			int nBuffLen = std::max<int>(sizeof(int), nLineLength);
+			CString strLine;
+			nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
 			int i=0;
 			while (i<nLineLength && (strLine[i]==' ' || strLine[i]=='\t')) i++;
 			if (i<nLineLength) {
@@ -387,6 +388,8 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Font.CreateFont(16, 0, 0, 0, FW_NORMAL, false, false, false, ANSI_CHARSET, 
 		              OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
 					  FIXED_PITCH|FF_MODERN, NULL);
+	LOGFONT logFont;
+	m_Font.GetLogFont(&logFont);
 
 	CRect rectClient(0, 0, lpCreateStruct->cx, lpCreateStruct->cy);
 

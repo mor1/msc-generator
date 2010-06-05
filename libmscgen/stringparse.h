@@ -64,7 +64,6 @@ class StringFormat {
     bool Apply(const char *s) {string t(s); return Apply(t);}
     StringFormat &operator +=(const char*s) {Apply(s); return *this;};
     StringFormat &operator +=(const StringFormat& toadd);
-    void Apply(const StringFormat *a);
     void SetColor(MscColorType c);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
 
@@ -106,7 +105,7 @@ class ParsedLine {
     friend class Label;
 
   public:
-    ParsedLine(string, MscDrawer *, StringFormat &sf);
+    ParsedLine(const string&, MscDrawer *, StringFormat &sf);
     void Draw(XY xy, MscDrawer *, bool isRotated) const;
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}

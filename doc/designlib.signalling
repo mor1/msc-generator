@@ -50,7 +50,7 @@ defdesign modern_blue {
 defdesign round_green {
 	defcolor green="161,207,169";
 	defcolor brown="165,132,88", lbrown="232,204,180";
-	defstyle entity, box, emptybox [line.radius=7];
+	defstyle arrow, entity, box, emptybox [line.radius=7];
 	defstyle entity [fill.color=green, line.color=green];
 	defstyle entity [text.format="\mu(6)\ml(6)\mr(6)\md(6)"];
 	defstyle entity [vline.color=gray, vline.type=dashed];

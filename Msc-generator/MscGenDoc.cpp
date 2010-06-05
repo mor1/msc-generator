@@ -116,7 +116,7 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
 	m_charts.push_back(m_ChartShown);
 	m_itrEditing = m_charts.begin();
 	m_itrShown = m_charts.end();
-	m_itrSaved = m_charts.end(); //start as unmodified
+	m_itrSaved = m_itrEditing; //start as unmodified
 	m_itrDoNotSyncForThis = m_charts.end();
 	m_bAttemptingToClose = false;
 }
@@ -270,9 +270,9 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_charts.clear();
 	m_charts.push_back(data);
 	m_itrEditing = m_charts.begin();
-	m_itrSaved = m_charts.end(); //start as unmodified
+	m_itrSaved = m_itrEditing; //start as unmodified
 	ShowEditingChart(true);
-	SetModifiedFlag(FALSE); //start as unmodified
+	CheckIfChanged(); 
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
 	SetZoom(); //reset toolbar
@@ -327,10 +327,12 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
 	//Delete all entries before the currently loaded one (no undo)
 	//part after (redo) was deleted by Serialize or InsertNewChart
+	//Here we set all our m_itr* iterators to valid values afterwards
 	m_charts.erase(m_charts.begin(), m_itrEditing);
-	SetModifiedFlag(FALSE);     // back to unmodified
 	m_itrSaved = m_itrEditing;
 	ShowEditingChart(true);
+	m_itrDoNotSyncForThis = m_charts.end();
+	CheckIfChanged();     
 
 	// if the app was started only to print, don't set user control
 	//Copied from COleLinkingDoc
@@ -370,7 +372,7 @@ BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	if (restartEditor) 
 		m_ExternalEditor.Start(lpszPathName);
 	m_itrSaved = m_itrEditing;
-	SetModifiedFlag(FALSE);     // back to unmodified
+	CheckIfChanged();     
 	return TRUE;
 }
 
@@ -424,7 +426,7 @@ void CMscGenDoc::OnEditUndo()
 	if (pApp->IsInternalEditorRunning()) 
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
 
-	SetModifiedFlag(m_itrEditing != m_itrSaved || m_itrShown != m_itrSaved);
+	CheckIfChanged();     
 	if (restartEditor)
 		m_ExternalEditor.Start();
 	if (m_itrEditing->m_wasDrawn)
@@ -448,7 +450,7 @@ void CMscGenDoc::OnEditRedo()
 	if (pApp->IsInternalEditorRunning()) 
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
 	
-    SetModifiedFlag(m_itrEditing != m_itrSaved || m_itrShown != m_itrSaved);
+	CheckIfChanged();     
 	if (restartEditor)
 		m_ExternalEditor.Start();
 	if (m_itrEditing->m_wasDrawn)
@@ -572,8 +574,8 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		if (restartEditor) m_ExternalEditor.Stop(STOPEDITOR_FORCE);
 		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));
 	}
-	SetModifiedFlag();
 	ShowEditingChart(true);
+	CheckIfChanged();     
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
@@ -598,8 +600,8 @@ void CMscGenDoc::OnFileDropped(const char *file)
 	data.Load(file, true);
 	data.SetDesign(m_itrEditing->GetDesign());
 	InsertNewChart(data);
-	SetModifiedFlag();
 	ShowEditingChart(true);
+	CheckIfChanged();     
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
@@ -727,8 +729,7 @@ void CMscGenDoc::OnDesignDesign()
 	SyncShownWithEditing("change the design");
 	m_itrEditing->SetDesign(new_forcedDesign);
 	ShowEditingChart(false);  //Do not change zoom, juts update views
-	if (IsEmbedded())
-		SetModifiedFlag();
+	CheckIfChanged();     
 }
 
 void CMscGenDoc::OnDesignPage()
@@ -749,10 +750,7 @@ void CMscGenDoc::OnDesignPage()
 		return;
 	CWaitCursor wait;
 	m_ChartShown.SetPage(index);
-	//We save forceddesign only in an embedded doc, so changing that counts as modified
-	if (IsEmbedded())
-		SetModifiedFlag(); 
-	NotifyChanged();  //for OLE
+	CheckIfChanged();     
 	UpdateAllViews(NULL);
 }
 
@@ -998,25 +996,27 @@ bool CMscGenDoc::DispatchMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 void CMscGenDoc::InsertNewChart(const CChartData &data)
 {
 	//The mfc stl implementation changes the value of .end() at insert.
-	//Re-set m_itrSaved to .end() after list manipulation, if it was .end() before
+	//Re-set m_itr* to .end() after list manipulation, if it was .end() before
+	//or if we delete it now
 	bool saved_chart_is_deleted = m_itrSaved == m_charts.end();
 	bool shown_chart_is_deleted = m_itrShown == m_charts.end();
-	IChartData i = m_itrEditing;
-	i++;
-	while (i!=m_charts.end() && !saved_chart_is_deleted) {
+	bool donot_chart_is_deleted = m_itrDoNotSyncForThis == m_charts.end();
+	IChartData i;
+	for (i = ++IChartData(m_itrEditing); i!=m_charts.end(); i++) {
 		if (i == m_itrSaved) saved_chart_is_deleted = true;
 		if (i == m_itrShown) shown_chart_is_deleted = true;
+		if (i == m_itrDoNotSyncForThis) donot_chart_is_deleted = true;
 		i++;
 	}
-	i = m_itrEditing;
-	i++;
-	m_charts.erase(i, m_charts.end());
+	m_charts.erase(++IChartData(m_itrEditing), m_charts.end());
 	m_charts.push_back(data);
 	m_itrEditing = --m_charts.end();
 	if (saved_chart_is_deleted) 
 		m_itrSaved = m_charts.end();
 	if (shown_chart_is_deleted) 
 		m_itrShown = m_charts.end();
+	if (donot_chart_is_deleted) 
+		m_itrDoNotSyncForThis = m_charts.end();
 }
 
 void CMscGenDoc::SyncShownWithEditing(const CString &action) 
@@ -1033,13 +1033,27 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 		ShowEditingChart(true);
 }
 
+void CMscGenDoc::CheckIfChanged()
+{
+	if (m_itrSaved == m_charts.end()) goto modified;
+	if (m_itrSaved->GetText() != m_itrEditing->GetText()) goto modified;
+	if (IsEmbedded()) {
+		if (m_itrSaved->GetPage() != m_itrEditing->GetPage()) goto modified;
+		if (m_itrSaved->GetDesign() != m_itrEditing->GetDesign()) goto modified;
+	}
+	SetModifiedFlag(FALSE);
+	return;
+modified:
+	SetModifiedFlag(TRUE);
+}
+
 void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 
 {
 	SetTrackMode(false);
 	InsertNewChart(data);
-	SetModifiedFlag();
-	//Now update the View
 	ShowEditingChart(true);
+	CheckIfChanged();     
+
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (pApp->IsInternalEditorRunning())
@@ -1067,7 +1081,7 @@ void CMscGenDoc::OnInternalEditorChange()
 	//But when it does (e.g., at multi-line TAB identation) we store a new version just for the selection
 	if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
 		InsertNewChart(CChartData(text, cr, m_itrEditing->GetDesign()));
-		SetModifiedFlag();
+		CheckIfChanged();     
 	}
 }
 
@@ -1094,7 +1108,7 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	m_itrShown = m_itrEditing;
 	m_itrShown->m_wasDrawn = true;
 	m_ChartShown = *m_itrEditing;
-
+	
 	//Display error messages
 	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
 	if (pOutputView && ::IsWindow(pOutputView->m_wndOutput)) {
@@ -1119,8 +1133,8 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	//Abruptly delete all tracking rectangles
 	m_trackArcs.clear();
 	SetTrackMode(false);
+	NotifyChanged(); 
 
-	NotifyChanged();  //for OLE
 	if (!m_bAttemptingToClose) {
 		UpdateAllViews(NULL);
 		if (resetZoom) ArrangeViews();

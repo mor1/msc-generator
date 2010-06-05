@@ -51,7 +51,9 @@ string MscColorType::Print(void) const
 {
     if (!valid) return "-invalid-";
     std::ostringstream ss;
-    ss<<"("<<(int)r<<","<<(int)g<<","<<(int)b<<","<<int(a)<<")";
+    ss<<"("<<(int)r<<","<<(int)g<<","<<(int)b;
+	if (a!=255) ss<<","<<int(a);
+	ss<<")";
     return ss.str();
 }
 

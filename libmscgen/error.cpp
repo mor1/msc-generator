@@ -20,10 +20,6 @@
 #include <algorithm>
 #include "msc.h"
 
-MscError::MscError() {
-    strict = false;
-}
-
 unsigned MscError::AddFile(const string &filename)
 {
     for (int i=0; i<Files.size(); i++)
