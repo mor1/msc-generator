@@ -47,6 +47,19 @@ class StringFormat {
     void ApplyFontToContext(MscDrawer *) const;
     double spaceWidth(const string &, MscDrawer *, bool front) const;
 
+	typedef enum {FORMATTING_OK, FORMATTING_NOK, NON_FORMATTING, NON_ESCAPE} EEscapeType;
+	typedef enum {APPLY, RESOLVE, NOOP} EEscapeAction;
+	EEscapeType _process_escape(const char *input, int pos, unsigned &length, 
+		                        EEscapeAction action, string &replaceto, 
+						    	const StringFormat *basic, Msc *msc, file_line linenum, bool label);
+	EEscapeType ApplyOneEscape(const char *input, int pos, unsigned &length)
+	    {string dummy; return _process_escape(input, pos, length, APPLY, dummy, NULL, NULL, file_line(), false);}
+	static EEscapeType ResolveOneEscape(const char *input, int pos, unsigned &length, string &replaceto, 
+						    	const StringFormat *basic, Msc *msc, file_line linenum, bool label)
+	    {string dummy; StringFormat d2; return d2._process_escape(input, pos, length, RESOLVE, replaceto, basic, msc, linenum, label);}
+	static EEscapeType ParseOneEscape(const char *input, int pos, unsigned &length) 
+	    {string dummy; StringFormat d2; return d2._process_escape(input, pos, length, NOOP, dummy, NULL, NULL, file_line(), false);}
+
     friend class Label;
 
   public:
@@ -128,7 +141,7 @@ public:
 
     XY getTextWidthHeight(int line=-1) const;
     void DrawCovers(double sx, double dx, double y,
-                    Geometry &cover, bool draw, bool isRotated=false);
+                    Geometry &cover, bool draw, bool isRotated=false) const;
 };
 
 

@@ -1671,6 +1671,15 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         //First draw the background and lines
         if (draw) {
             //for boxes draw background for each segment, then separator lines, then bounding rectangle lines
+            //First draw the shadow. If we have non-opaque fill colors, draw also
+            //"behind" the box
+            bool clipShadow = true;
+            for (PtrList<ArcEmphasis>::const_iterator i = follow.begin(); i!=follow.end(); i++)
+                if ((*i)->style.fill.color.second.a<255) {
+                    clipShadow = false;
+                    break;
+                }
+            chart->shadow(s-lw2, d+lw2, style.shadow, style.line.radius.second, clipShadow);
             //First do a clip region for the overall box (for round corners)
             chart->ClipRectangle(s, d, style.line.radius.second);
             //ls and ld are the inner edges of the lines of the local box (that of (*i))
@@ -1698,7 +1707,6 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
             }
             chart->UnClip();
             //Finally draw the overall line around the box using original s and d
-            chart->shadow(s-lw2, d+lw2, style.shadow, style.line.radius.second, true);
             chart->rectangle(s-lw2, d+lw2, style.line);
         } /* if (draw) */
         for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
@@ -2045,6 +2053,10 @@ void CommandEntity::Combine(CommandEntity *ce)
 {
     if (!ce) return;
     if (!ce->valid) return;
+    //Always keep the line_pos of the heading command
+    //If we are already one, keep ours
+    if (!full_heading && ce->full_heading)
+        file_pos = ce->file_pos;
     if (ce->full_heading) full_heading = true;
     if (ce->entities) {
         AppendToEntities(*(ce->entities));
@@ -2053,10 +2065,15 @@ void CommandEntity::Combine(CommandEntity *ce)
 }
 
 
-void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
+void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, int &number,
+                                     bool top_level)
 {
     at_top_level = top_level;
-    if (full_heading) return; //"heading" command does not change left or right
+    if (full_heading && !top_level)
+        chart->Error.Warning(file_pos.start, "The command 'heading' is specified "
+                             "inside a parallel block. May display incorrectly.");
+    if (!entities)
+        return; //a pure "heading" command does not change left or right
     for (EntityDefList::iterator i=entities->begin(); i!=entities->end(); i++) {
         EIterator j = chart->Entities.Find_by_Name((*i)->name);
         if (left != chart->NoEntity)
@@ -2071,7 +2088,7 @@ void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, int &num
 
 void CommandEntity::Width(EntityDistanceMap &distances)
 {
-	if (!valid) return;
+    if (!valid) return;
     //Add distances for entity heading
     EntityDistanceMap d;
     if (entities)   //An entity command
@@ -2111,12 +2128,15 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
     if (!draw) geometry.Clear();
 
     double height = 0;
-	//Those entities explicitly listed, put their cover in their geometry
-	//only the ones added by a heading command to this commandentity will
-	//put anything into this->geometry
+    //Those entities explicitly listed, put their cover in their geometry
+    //only the ones added by a heading command to this commandentity will
+    //put anything into this->geometry
     list<EIterator> explicitly_listed_entities;
-	if (entities) {  //An entity command
+    if (entities) {  //An entity command
         for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
+            //Clear geometry that may have been accumulated by !final rounds
+            if (!draw)
+                (*i)->geometry.Clear();
             EIterator j = chart->Entities.Find_by_Name((*i)->name);
             assert(j != chart->NoEntity);
             EntityStatus newstatus = (*j)->status.Get(y);
@@ -2132,11 +2152,14 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
             if (draw)
                 (*j)->style += (*i)->style;
 
-            //Take entity height into account or draw it if show=on was added
-            //If full_heading is set and we are drawing, we do it below.
-            //If we are not drawing, we add the cover to the entitydef's geometry
-            if ((*i)->show.second && (*i)->show.first && (!full_heading || !draw)) {
-                double h = static_cast<Entity*>(*j)->DrawHeight(y, (*i)->geometry, draw, final);
+            //Take entity height into account if it gets drawn
+            //It can get drawn because we 1) said show=yes, or
+            //2) because it is on, we mention it (without show=yes) and it is
+            //a full heading.
+            if (((*i)->show.second && (*i)->show.first) ||
+                (full_heading && newstatus.status)) {
+                const double h = (*j)->DrawHeight(y, (*i)->geometry, draw, final);
+                //If we are not drawing, we add the cover to the entitydef's geometry
                 if (!draw) {
                     (*i)->geometry.SetArc(*i);
                     g += (*i)->geometry; //we add it to the one returned
@@ -2146,26 +2169,26 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
                 if (height <h) height = h;
             }
         }
-	}
-	if (full_heading) { //A "heading" command, draw all entities that are on
-        for (EntityList::iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++)
-            if ((*i)->status.Get(y).status) {
-                bool was = false;
-                for (list<EIterator>::const_iterator k = explicitly_listed_entities.begin(); k!=explicitly_listed_entities.end(); k++)
-                    if (*k == i) {
-                        was = false;
-                        break;
-                    }
-                if (!was) {
-                    double h = static_cast<Entity*>(*i)->DrawHeight(y, geometry, draw, final);
-                    if (height <h) height = h;
-                }
-            }
-            if (!draw) {
-                geometry.SetArc(this);
-                g += geometry;
-            }
+    }
+
+    if (!full_heading) return height;
+    //A "heading" command, draw all entities that are on
+    for (EntityList::const_iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
+        if (!(*i)->status.Get(y).status) continue;
+        bool was = false;
+        for (list<EIterator>::const_iterator k = explicitly_listed_entities.begin(); k!=explicitly_listed_entities.end(); k++) {
+            if (*k != i) continue;
+            was = true;
+            break;
         }
+        if (was) continue;
+        const double h = (*i)->DrawHeight(y, geometry, draw, final);
+        if (height <h) height = h;
+    }
+    if (!draw) {
+        geometry.SetArc(this);
+        g += geometry;
+    }
     return height;
 }
 

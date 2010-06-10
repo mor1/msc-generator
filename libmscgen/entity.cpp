@@ -95,16 +95,16 @@ double Entity::Width()
 //Once for each time we draw this entity heading
 double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
 {
-    double xcoord = chart->XCoord(pos);
-    Label parsed_label(label, chart, style.text);
-    XY wh = parsed_label.getTextWidthHeight();
-    double lw = style.line.LineWidth();
-    double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow +
+    const double xcoord = chart->XCoord(pos);
+    const Label parsed_label(label, chart, style.text);
+    const XY wh = parsed_label.getTextWidthHeight();
+    const double lw = style.line.LineWidth();
+    const double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow +
         2*lw + style.shadow.offset.second;
     XY s(xcoord - wh.x/2 - lw, y);
     XY d(xcoord + wh.x/2 + lw, y + height - style.shadow.offset.second);
     if (!draw) {
-        Block b(s,d+XY(0, style.shadow.offset.second));
+        const Block b(s,d+XY(0, style.shadow.offset.second));
         g += b;
         g.mainline.Extend(b.y);
     }
@@ -114,10 +114,10 @@ double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
         status.HideRange(Range(s.y, d.y));
     if (!draw) return height;
     //Fill color
-	if (draw && style.fill.color.first && style.fill.color.second.valid) {
+    if (draw && style.fill.color.first && style.fill.color.second.valid) {
         chart->filledRectangle(s, d, style.fill, style.line.radius.second);
         chart->shadow(s, d, style.shadow, style.line.radius.second, true);
-	}
+    }
     //Draw line around
     chart->rectangle(s, d, style.line);
     //Draw text

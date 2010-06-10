@@ -369,9 +369,9 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
     if (ei == NoEntity) {
         if (pedantic)
             Error.Error(l.start, "Unknown entity '" + string(e)
-                          + "'. Assuming implicit definition.",
-                          "This may be a mistyped entity name."
-                          " Try turning 'pedantic' off to remove these messages.");
+                        + "'. Assuming implicit definition.",
+                        "This may be a mistyped entity name."
+                        " Try turning 'pedantic' off to remove these messages.");
         Entity *entity = new Entity(e, e, Entity_max_pos++, this);
         Entities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);

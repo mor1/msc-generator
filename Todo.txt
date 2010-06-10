@@ -1,3 +1,48 @@
+Undo sucks: ujrarajzol mindig
+
+Zoom bizbaz a View:Onsize-ba.
+
+Add closing parenthesis as arc with error
+
+If label starts with an escape, numbering is inserted to the wrong place.
+Do: enum result ProcessOneEscape(const char *s, int pos, int &length, enum whattodo, string &replaceto)
+whattodo could be:
+- apply: apply to stringformatting
+- resolve: resolve style and color names
+- just jump over
+result should be:
+- formatting, OK (replaceto = "" if apply, same string or resolved if resolve)
+- formatting NOK (replaceto == same string)
+- non-formatting (replaceto == what to replace to)
+- regular chars (replaceto == same string)
+
+Take Csh out of Msc. Reorg .yy to make distinction on preprocessor level
+(so no need to define all #defines for both modes)
+
+Check if design combo actually detects a missing designlib. 
+Then add only one label: ---only plain available---
+
+Expand parallel behaviour
+- add valign={top, center, bottom} attribute
+- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
+   should return one)
+- add overlap=no attribute to use compress, but downward...
+- add these attributes to the style under parallel.valign and parallel.overlaps
+
+Add prev error Shift+F8
+Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
+make that read-only. 
+Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
+
+...: text; does not hide entity lines. Split entity status into 2 parts: on/off and style.
+Entity height should take variable entity shadows into account, because the entitydef style is
+only copied to the entity when drawing. Create full style store (map indexed by y) for entities, 
+separate from on/off status
+Add entity create/destroy
+
+Wheelscroll ford`tva van
+
+
 update doc, add doc project 
 
 design lib
