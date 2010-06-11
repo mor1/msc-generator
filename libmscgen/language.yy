@@ -272,7 +272,7 @@ inline bool string_to_bool(const char*s)
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def pipe_def_list
 %type <arcparallel>parallel
-%type <arclist>    arclist braced_arclist mscenclosed optlist
+%type <arclist>    top_level_arclist arclist braced_arclist mscenclosed optlist
 %type <entity>     entity
 %type <entitylist> entitylist
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
@@ -300,7 +300,7 @@ inline bool string_to_bool(const char*s)
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def pipe_def_list
 %destructor {if (!C_S_H) delete $$;} parallel
-%destructor {if (!C_S_H) delete $$;} arclist braced_arclist mscenclosed optlist
+%destructor {if (!C_S_H) delete $$;} top_level_arclist arclist braced_arclist mscenclosed optlist
 %destructor {if (!C_S_H) delete $$;} entity entitylist
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
@@ -316,21 +316,43 @@ msc:
 {
     //no action for empty file
 }
-             | arclist
+             | top_level_arclist
 {
     if (C_S_H) {
-    } else {
-        msc.AddArcs($1);
-    }
-}
-             | arclist error
-{
-    if (C_S_H) {
-        ADDCSH(@2, COLOR_ERROR);
     } else {
         msc.AddArcs($1);
     }
 };
+
+top_level_arclist: arclist
+                 | arclist error
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
+    } else {
+        $$ = $1;
+    }
+}
+                 | arclist TOK_CCBRACKET
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
+    } else {
+        $$ = $1;
+    }
+}
+                 | arclist TOK_CCBRACKET top_level_arclist
+{
+    if (C_S_H) {
+        ADDCSH(@2, COLOR_ERROR);
+    } else {
+        //Merge $3 into $1
+        ($1)->splice(($1)->end(), *($3));
+        delete ($3);
+        $$ = $1;
+    }
+};
+
 
 braced_arclist: scope_open arclist scope_close
 {

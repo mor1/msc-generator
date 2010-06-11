@@ -603,8 +603,8 @@ void Msc::DrawEntityLines(double y, double height,
         const double till = y+height;
         while (up.y < till) {
             down.y = min((*from)->status.Till(up.y), till);
-			if ((*from)->status.GetHideStatus(up.y) && 
-				(*from)->status.GetStatus(up.y)) 
+			if ((*from)->status.GetHideStatus(up.y) &&
+				(*from)->status.GetStatus(up.y))
                 line(up, down, (*from)->status.GetStyle(up.y).vline);
             up.y = down.y;
         }

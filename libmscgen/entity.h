@@ -8,14 +8,14 @@
 template <typename type>
 void SetMapRange(std::map<double, type> &Map, Range pos, type value)
 {
-	if (pos.till <= pos.from) return;
-	typename std::map<double, type>::iterator i = --Map.upper_bound(pos.till);
-	if (i->first == pos.till) {
-		Map.erase(Map.upper_bound(pos.from), i);
-	} else {
-		Map[pos.till] = i->second;
-		Map.erase(Map.upper_bound(pos.from), ++i);
-	}
+    if (pos.till <= pos.from) return;
+    typename std::map<double, type>::iterator i = --Map.upper_bound(pos.till);
+    if (i->first == pos.till) {
+        Map.erase(Map.upper_bound(pos.from), i);
+    } else {
+        Map[pos.till] = i->second;
+        Map.erase(Map.upper_bound(pos.from), ++i);
+    }
     Map[pos.from] = value;
 }
 
@@ -50,10 +50,10 @@ public:
     bool GetHideStatus(double pos) const
         {return (--hideStatus.upper_bound(pos))->second;}
 	double Till(double pos) const {
-        return std::min(std::min(hideStatus.upper_bound(pos)->first,
-                                  showStatus.upper_bound(pos)->first),
-                         styleStatus.upper_bound(pos)->first);
-	}
+            return std::min(std::min(hideStatus.upper_bound(pos)->first,
+                                     showStatus.upper_bound(pos)->first),
+                            styleStatus.upper_bound(pos)->first);
+        }
 };
 
 class Msc;

@@ -23,7 +23,7 @@ template class PtrList<Entity>;
 
 Entity::Entity(const string &n, const string &l, double p, Msc* msc) :
     chart(msc), maxwidth(0), running_style(chart->StyleSets.top()["entity"]),
-	name(n), label(l), pos(p), index(0), status(chart->StyleSets.top()["entity"])
+    name(n), label(l), pos(p), index(0), status(chart->StyleSets.top()["entity"])
 {
 }
 
@@ -37,9 +37,9 @@ string Entity::Print(int ident) const
 //returns how wide the entity is drawn with a certain style
 double Entity::Width(const MscStyle &style)
 {
-	const Label parsed_label(label, chart, style.text);
+    const Label parsed_label(label, chart, style.text);
     const XY wh = parsed_label.getTextWidthHeight();
-	return style.line.LineWidth()*2 + wh.x + style.shadow.offset.second;
+    return style.line.LineWidth()*2 + wh.x + style.shadow.offset.second;
 }
 
 //This can be called multiple times with final=true.

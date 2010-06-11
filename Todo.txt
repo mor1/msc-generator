@@ -4,8 +4,6 @@ Undo sucks: ujrarajzol mindig
 
 Zoom bizbaz a View:Onsize-ba.
 
-Add closing parenthesis as arc with error
-
 Take Csh out of Msc. Reorg .yy to make distinction on preprocessor level
 (so no need to define all #defines for both modes)
 
