@@ -24,6 +24,8 @@ struct MscStyle
     MscStyle(StyleType tt, bool a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co);
     void Empty();
     MscStyle &operator +=(const MscStyle &toadd);
+    MscStyle operator +(const MscStyle &toadd) const
+        {return MscStyle(*this) += toadd;}
     bool AddAttribute(const Attribute &a, Msc *m);
     std::string Print(int ident = 0) const;
 };

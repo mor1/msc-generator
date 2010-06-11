@@ -600,12 +600,12 @@ void Msc::DrawEntityLines(double y, double height,
     while(from != to) {
         XY up(XCoord((*from)->pos), y);
         XY down(up.x, y);
-        double till = y+height;
+        const double till = y+height;
         while (up.y < till) {
-            EntityStatus s = (*from)->status.Get(up.y);
             down.y = min((*from)->status.Till(up.y), till);
-            if (s.status)
-                line(up, down, s.line);
+			if ((*from)->status.GetHideStatus(up.y) && 
+				(*from)->status.GetStatus(up.y)) 
+                line(up, down, (*from)->status.GetStyle(up.y).vline);
             up.y = down.y;
         }
         from++;

@@ -333,7 +333,8 @@ void ArcSelfArrow::PostHeightProcess(void)
     if (!valid) return;
 
     //Check if the entity involved is actually turned on.
-    if (!(*src)->status.Get(yPos).status) {
+    if (!(*src)->status.GetHideStatus(yPos) || 
+		!(*src)->status.GetStatus(yPos)) {
         string sss;
         sss << "Entity '" << (*src)->name << "' is";
         sss << " turned off, but referenced here.";
@@ -602,7 +603,8 @@ void ArcDirArrow::CheckSegmentOrder(double y)
     std::vector<string> ss;
     int earliest = -1;
     for (int i = 0; i<temp.size(); i++)
-        if (!(*temp[i])->status.Get(y).status &&
+	    if ((!(*temp[i])->status.GetHideStatus(y) || 
+			 !(*temp[i])->status.GetStatus(y)) &&
             (*temp[i])->name != LSIDE_ENT_STR && (*temp[i])->name != RSIDE_ENT_STR) {
             ss.push_back("'" + (*temp[i])->name + "'");
             if (earliest == -1 || linenum_temp[i] < linenum_temp[earliest]) earliest = i;
@@ -1929,17 +1931,13 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
     if (!wide)
         height += chart->arcVGapAbove + chart->arcVGapBelow;
     if (!final) return height;
-    if (style.vline.width.first || style.vline.type.first || style.vline.color.first)
-        for(EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
-            /* If status is "on" so far, then add a dotted segment
-             ** then revert to current line style  */
-            EntityStatus status = (*i)->status.Get(y);
-            if (status.status) {
-                EntityStatus new_status = status;
-                new_status.line += style.vline;
-                (*i)->status.SetRange(Range(yPos, yPos+height), new_status);
-            }
-        }
+	//If there is a vline in the current style, add that to entitylines
+	if (style.vline.width.first || style.vline.type.first || style.vline.color.first) {
+		MscStyle toadd;
+		toadd.vline = style.vline;
+        for(EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) 
+			(*i)->status.ApplyStyleRange(Range(yPos, yPos+height), toadd);
+	}
     return height;
 }
 
@@ -2082,6 +2080,11 @@ void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, int &num
         if (right != chart->NoEntity)
             if ((*j)->pos > (*right)->pos)
                 right = j;
+		//Make the style of the entitydef fully specified using the accumulated style info in Entity
+		(*j)->running_style += (*i)->style;
+		(*i)->style = (*j)->running_style;
+		double w = (*j)->Width((*j)->running_style);
+		if ((*j)->maxwidth < w) (*j)->maxwidth = w;
     }
 }
 
@@ -2096,21 +2099,21 @@ void CommandEntity::Width(EntityDistanceMap &distances)
             EIterator j = chart->Entities.Find_by_Name((*i)->name);
             //Take entity height into account or draw it if show=on was added
             if ((*i)->show.second && (*i)->show.first) {
-                const double halfsize = static_cast<Entity*>(*j)->Width()/2;
-                const unsigned index =static_cast<Entity*>(*j)->index;
+				const double halfsize = (*j)->maxwidth/2;
+                const unsigned index = (*j)->index;
                 d.Insert(index, DISTANCE_LEFT, halfsize);
                 d.Insert(index, DISTANCE_RIGHT, halfsize);
             }
         }
     if (full_heading)  //A "heading" command, all entities that are on
-        for (EntityList::iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
+        for (EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
             if ((*i)->name == NONE_ENT_STR) continue;
             if ((*i)->name == LSIDE_ENT_STR) continue;
             if ((*i)->name == RSIDE_ENT_STR) continue;
             //Here we do not know if all entities will be on at the same time.
             //So we assume worst case (yes) and add distances for all
-            const double halfsize = static_cast<Entity*>(*i)->Width()/2;
-            const unsigned index =static_cast<Entity*>(*i)->index;
+            const double halfsize = (*i)->maxwidth/2;
+            const unsigned index = (*i)->index;
             d.Insert(index, DISTANCE_LEFT, halfsize);
             d.Insert(index, DISTANCE_RIGHT, halfsize);
 
@@ -2139,25 +2142,13 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
                 (*i)->geometry.Clear();
             EIterator j = chart->Entities.Find_by_Name((*i)->name);
             assert(j != chart->NoEntity);
-            EntityStatus newstatus = (*j)->status.Get(y);
 
-            //Apply attributes relevant for the vertical line
-            newstatus.line += (*i)->style.vline;
-            if ((*i)->show.first)
-                newstatus.status = (*i)->show.second;
-            // Record status change, if any
-            if (!((*j)->status.Get(y) ==  newstatus) && final)
-                (*j)->status.Set(y, newstatus);
-            //apply entitydef attributes to the actual entity if drawing
-            if (draw)
-                (*j)->style += (*i)->style;
-
-            //Take entity height into account if it gets drawn
+			//Take entity height into account if it gets drawn
             //It can get drawn because we 1) said show=yes, or
             //2) because it is on, we mention it (without show=yes) and it is
             //a full heading.
             if (((*i)->show.second && (*i)->show.first) ||
-                (full_heading && newstatus.status)) {
+				(full_heading && (*j)->status.GetStatus(y))) {
                 const double h = (*j)->DrawHeight(y, (*i)->geometry, draw, final);
                 //If we are not drawing, we add the cover to the entitydef's geometry
                 if (!draw) {
@@ -2174,7 +2165,7 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
     if (!full_heading) return height;
     //A "heading" command, draw all entities that are on
     for (EntityList::const_iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
-        if (!(*i)->status.Get(y).status) continue;
+		if (!(*i)->status.GetHideStatus(y) || !(*i)->status.GetStatus(y)) continue;
         bool was = false;
         for (list<EIterator>::const_iterator k = explicitly_listed_entities.begin(); k!=explicitly_listed_entities.end(); k++) {
             if (*k != i) continue;
@@ -2194,16 +2185,29 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
 
 void CommandEntity::PostHeightProcess(void)
 {
-    if (valid) {
-        chart->AllCovers.insert(chart->AllCovers.end(), geometry.GetCover().begin(), geometry.GetCover().end());
-        if (entities)   //An entity command
-            for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
-                chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
-    }
-    if (entities)
+	//Add us to the big file positions list
+	if (entities)
         for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
             chart->AllArcs[(*i)->file_pos] = *i;
     chart->AllArcs[file_pos] = this;
+    if (!valid) return;
+	//Add our covers to the big cover list
+    chart->AllCovers.insert(chart->AllCovers.end(), geometry.GetCover().begin(), geometry.GetCover().end());
+    if (entities)   //An entity command
+        for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
+            chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+
+	//Record style changes
+    if (!entities) return;
+    for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
+        EIterator j = chart->Entities.Find_by_Name((*i)->name);
+        assert(j != chart->NoEntity);
+		//Apply changes in style
+		(*j)->status.ApplyStyle(yPos, (*i)->style);
+		//Apply changes in show status
+        if ((*i)->show.first)
+			(*j)->status.SetStatus(yPos, (*i)->show.second);
+    }
 }
 
 

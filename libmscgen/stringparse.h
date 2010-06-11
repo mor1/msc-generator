@@ -17,9 +17,6 @@ MscIdentType;
 
 enum tristate {no=0, yes, invert};
 
-class ColorSet;
-class StyleSet;
-
 //This class stores string formatting (bold, color, fontsize, etc.)
 //It can do operations on a fragment (a string containing no escape sequences)
 // - It calculate height or width of a fragment using a drawing context
@@ -47,34 +44,26 @@ class StringFormat {
     void ApplyFontToContext(MscDrawer *) const;
     double spaceWidth(const string &, MscDrawer *, bool front) const;
 
-	typedef enum {FORMATTING_OK, FORMATTING_NOK, NON_FORMATTING, NON_ESCAPE} EEscapeType;
-	typedef enum {APPLY, RESOLVE, NOOP} EEscapeAction;
-	EEscapeType _process_escape(const char *input, int pos, unsigned &length, 
-		                        EEscapeAction action, string &replaceto, 
-						    	const StringFormat *basic, Msc *msc, file_line linenum, bool label);
-	EEscapeType ApplyOneEscape(const char *input, int pos, unsigned &length)
-	    {string dummy; return _process_escape(input, pos, length, APPLY, dummy, NULL, NULL, file_line(), false);}
-	static EEscapeType ResolveOneEscape(const char *input, int pos, unsigned &length, string &replaceto, 
-						    	const StringFormat *basic, Msc *msc, file_line linenum, bool label)
-	    {string dummy; StringFormat d2; return d2._process_escape(input, pos, length, RESOLVE, replaceto, basic, msc, linenum, label);}
-	static EEscapeType ParseOneEscape(const char *input, int pos, unsigned &length) 
-	    {string dummy; StringFormat d2; return d2._process_escape(input, pos, length, NOOP, dummy, NULL, NULL, file_line(), false);}
-
+    typedef enum {FORMATTING_OK, FORMATTING_NOK, NON_FORMATTING, NON_ESCAPE, LINE_BREAK} EEscapeType;
+    EEscapeType ProcessEscape(const char *input, int pos, unsigned &length,
+                              bool apply=false, string *replaceto=NULL, const StringFormat *basic=NULL,
+                              Msc *msc=NULL, file_line linenum=file_line(0,0), bool reportError=false, bool sayIgnore=true);
     friend class Label;
+    friend class ParsedLine;
 
   public:
     // Generate the default formatting (all value set == all .second is true)
     StringFormat(void);
-    // Generate a diff formatting from the escape (start with '\')
-    // Returns the string to continue parsing on.
-    explicit StringFormat(string&);
-    explicit StringFormat(const char *s);
+    StringFormat &operator =(const StringFormat &f);
+    explicit StringFormat(string&text) {Empty(); Apply(text);}
+    explicit StringFormat(const char *s) {Empty(); Apply(s);}
+
 
     void Empty();
 
     // Apply a formatting to us
-    bool Apply(string &escape); //this one removes the escape char form input!
-    bool Apply(const char *s) {string t(s); return Apply(t);}
+    unsigned Apply(string &escape); //this one removes the escape chars form beginning of input!
+    unsigned Apply(const char *s);
     StringFormat &operator +=(const char*s) {Apply(s); return *this;};
     StringFormat &operator +=(const StringFormat& toadd);
     void SetColor(MscColorType c);

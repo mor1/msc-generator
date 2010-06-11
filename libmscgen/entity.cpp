@@ -19,61 +19,12 @@
 
 #include "msc.h"
 
-void EntityStatusMap::SetRange(Range pos, EntityStatus status)
-{
-    if (pos.from == pos.till) return;
-    std::map<double, EntityStatus>::iterator i;
-    i = storage.upper_bound(pos.till);  //the value just after pos.till
-    EntityStatus es = defaultStatus;
-    if (i!=storage.begin()) {//if there is acually a setting at till
-        //store line status that shall be restored at till
-        i--;  //i now points to or before pos.till
-        es = i->second;
-        //remove all state changes between from and till
-        while (pos.from < i->first)
-            if (i==storage.begin()) {
-                storage.erase(i);
-                break;
-            } else
-                storage.erase(i--);
-    }
-    storage[pos.from] = status;
-    storage[pos.till] = es;
-}
-
-EntityStatus EntityStatusMap::Get(double pos) const
-{
-    std::map<double, EntityStatus>::const_iterator i;
-    i = storage.upper_bound(pos);  //the value just after pos
-    if (i==storage.begin())
-        return defaultStatus;
-    return (--i)->second;
-}
-
-double EntityStatusMap::Till(double pos) const
-{
-    std::map<double, EntityStatus>::const_iterator i;
-    i = storage.upper_bound(pos);
-    if (i==storage.end())
-        return INT_MAX; //big num if no further status line changes
-    return i->first;
-}
-
-string EntityStatusMap::Print(int ident)
-{
-    string s(ident*2, ' ');
-    for (std::map<double, EntityStatus>::iterator i=storage.begin(); i!=storage.end(); i++)
-        s << i->first << ":" << (i->second.status?"on":"off") << "\n";
-    return s;
-}
-
 template class PtrList<Entity>;
 
 Entity::Entity(const string &n, const string &l, double p, Msc* msc) :
-    name(n), label(l), pos(p), index(0), chart(msc)
+    chart(msc), maxwidth(0), running_style(chart->StyleSets.top()["entity"]),
+	name(n), label(l), pos(p), index(0), status(chart->StyleSets.top()["entity"])
 {
-	style = chart->StyleSets.top()["entity"];
-	status.SetDefaultStatus(EntityStatus(style.vline, false));
 }
 
 string Entity::Print(int ident) const
@@ -83,11 +34,11 @@ string Entity::Print(int ident) const
     return ss;
 }
 
-double Entity::Width()
+//returns how wide the entity is drawn with a certain style
+double Entity::Width(const MscStyle &style)
 {
-    if (name == LSIDE_ENT_STR || name == RSIDE_ENT_STR) return 0;
-    Label parsed_label(label, chart, style.text);
-    XY wh = parsed_label.getTextWidthHeight();
+	const Label parsed_label(label, chart, style.text);
+    const XY wh = parsed_label.getTextWidthHeight();
 	return style.line.LineWidth()*2 + wh.x + style.shadow.offset.second;
 }
 
@@ -95,6 +46,7 @@ double Entity::Width()
 //Once for each time we draw this entity heading
 double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
 {
+    const MscStyle &style = status.GetStyle(y);
     const double xcoord = chart->XCoord(pos);
     const Label parsed_label(label, chart, style.text);
     const XY wh = parsed_label.getTextWidthHeight();

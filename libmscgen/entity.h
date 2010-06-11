@@ -1,37 +1,59 @@
 #if !defined(ENTITY_H)
 #define ENTITY_H
 
+#include <cfloat>
 #include "trackable.h"
 #include "style.h"
 
-class EntityStatus
+template <typename type>
+void SetMapRange(std::map<double, type> &Map, Range pos, type value)
 {
-public:
-    MscLineAttr  line;
-    bool         status;
-    EntityStatus() {}
-    EntityStatus(const MscLineAttr &l, bool s) : status(s) {line=l;}
-    bool operator == (const EntityStatus &a)
-        {return line==a.line && status==a.status;}
-};
+	if (pos.till <= pos.from) return;
+	typename std::map<double, type>::iterator i = --Map.upper_bound(pos.till);
+	if (i->first == pos.till) {
+		Map.erase(Map.upper_bound(pos.from), i);
+	} else {
+		Map[pos.till] = i->second;
+		Map.erase(Map.upper_bound(pos.from), ++i);
+	}
+    Map[pos.from] = value;
+}
 
 class EntityStatusMap
 {
-    protected:
-        std::map<double, EntityStatus> storage;
-        EntityStatus defaultStatus;
-    public:
-        void SetDefaultStatus(EntityStatus def)
-            {defaultStatus=def;}
-        void Set(double pos, EntityStatus status)
-            {storage[pos] = status;}
-        void SetRange(Range pos, EntityStatus status);
-        void HideRange(Range pos)
-            {SetRange(pos, EntityStatus(MscLineAttr(LINE_NONE, MscColorType(), 0, 0), true));}
-        EntityStatus Get(double pos) const;
-        double Till(double pos) const;
-        string Print(int ident = 0);
-
+protected:
+    std::map<double, MscStyle>      styleStatus;
+    std::map<double, bool>          hideStatus;
+    std::map<double, bool>          showStatus;
+public:
+    explicit EntityStatusMap(const MscStyle &def) {
+        styleStatus[-DBL_MAX] = styleStatus[DBL_MAX] = def;
+        hideStatus[-DBL_MAX]  = hideStatus[DBL_MAX]  = true;
+        showStatus[-DBL_MAX]  = showStatus[DBL_MAX]  = false;
+    }
+    void ApplyStyle(double pos, const MscStyle &style)
+    {styleStatus[pos] = GetStyle(pos); styleStatus[pos] += style;}
+    void ApplyStyleRange(Range pos, const MscStyle &style) {
+        styleStatus[pos.from] = GetStyle(pos.from); styleStatus[pos.from] += style;
+        styleStatus[pos.till] = GetStyle(pos.till); styleStatus[pos.till] += style;
+        for (std::map<double, MscStyle>::iterator i = styleStatus.upper_bound(pos.from); i!=styleStatus.find(pos.till); i++)
+            i->second += style;
+    }
+    void SetStatus(double pos, bool status)
+        {showStatus[pos] = status;}
+    void HideRange(Range pos)
+        {SetMapRange(hideStatus, pos, false);}
+    const MscStyle &GetStyle(double pos) const
+        {return (--styleStatus.upper_bound(pos))->second;}
+    bool GetStatus(double pos) const
+        {return (--showStatus.upper_bound(pos))->second;}
+    bool GetHideStatus(double pos) const
+        {return (--hideStatus.upper_bound(pos))->second;}
+	double Till(double pos) const {
+        return std::min(std::min(hideStatus.upper_bound(pos)->first,
+                                  showStatus.upper_bound(pos)->first),
+                         styleStatus.upper_bound(pos)->first);
+	}
 };
 
 class Msc;
@@ -45,14 +67,15 @@ public:
     const string     label;    // Label of the entity (==name if none)
     double           pos;      // 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
     unsigned         index;    // counts entities left to right
-    MscStyle         style;
     EntityStatusMap  status;   // contains vertical line status & type & color
+    MscStyle         running_style;  //Used during PostParse process to make EntityDef::style's fully specified
+    double           maxwidth;       //Used during PostParse process to collect the maximum width of the entity
 
     Entity(const string &n, const string &l, double p, Msc *msc);
     virtual ~Entity() {};
     string Print(int ident = 0) const;
     double DrawHeight(double yPos, Geometry &g, bool draw, bool final);
-    double Width();
+	double Width(const MscStyle &style);
 };
 
 class EntityList : public PtrList<Entity>
@@ -60,12 +83,13 @@ class EntityList : public PtrList<Entity>
     public:
         explicit EntityList(bool r=true) :PtrList<Entity>(r) {}
         //Returns ::begin() if not found, assuming NoEntity is there
-        PtrList<Entity>::iterator Find_by_Name(const string &name)
-            {PtrList<Entity>::iterator i = PtrList<Entity>::begin();
-             while (i!=PtrList<Entity>::end()) {
+        PtrList<Entity>::iterator Find_by_Name(const string &name) {
+            PtrList<Entity>::iterator i = PtrList<Entity>::begin();
+            while (i!=PtrList<Entity>::end()) {
                 if ((*i)->name == name) return i;
                 i++;}
-             return PtrList<Entity>::begin();}
+                return PtrList<Entity>::begin();
+        }
         void SortByPos(void);
 };
 typedef EntityList::iterator EIterator;
@@ -73,13 +97,13 @@ typedef EntityList::iterator EIterator;
 
 template <class T1, class T2, class T3> struct triplet
 {
-  typedef T1 first_type;
-  typedef T2 second_type;
-  typedef T3 third_type;
+    typedef T1 first_type;
+    typedef T2 second_type;
+    typedef T3 third_type;
 
-  T1 first;
-  T2 second;
-  T3 third;
+    T1 first;
+    T2 second;
+    T3 third;
 //  triplet() : first(T1()), second(T2(), third(T3()) {}
 //  triplet(const T1& x, const T2& y, const T3& z) : first(x), second(y), third(z) {}
 //  template <class U, class V, class W>
