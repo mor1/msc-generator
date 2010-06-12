@@ -56,7 +56,6 @@ public:
 	virtual BOOL OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext);
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	virtual BOOL LoadFrame(UINT nIDResource, DWORD dwDefaultStyle = WS_OVERLAPPEDWINDOW | FWS_ADDTOTITLE, CWnd* pParentWnd = NULL, CCreateContext* pContext = NULL);
-	afx_msg void OnSize(UINT nType, int cx, int cy);
 	        void OnUpdateFrameMenu(HMENU hMenuAlt);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	        BOOL PreTranslateMessage(MSG* pMsg);

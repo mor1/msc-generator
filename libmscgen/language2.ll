@@ -31,11 +31,43 @@
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
-#include "msc.h"
+
+#ifndef HAVE_UNISTD_H
+#define YY_NO_UNISTD_H
+extern int isatty(int);
+#endif
+
+
+
 #ifdef C_S_H_IS_COMPILED
-#include "colorsyntax.h"  /* Token definitions from Yacc/Bison */
+#include "csh.h"
+#define YYMSC_RESULT_TYPE Csh
+#define RESULT csh
+
+//If we scan for color syntax highlight use this location
+//yyerror is defined by bison, the other is defined for flex
+#define YYLTYPE_IS_DECLARED
+#define YYLTYPE CshPos
+#define CHAR_IF_CSH(A) char
+
+#include "colorsyntax.h"
+#include "parserhelper.h"
+#include "arcs.h" //MSC_XXX defs
 #else
-#include "language.h"  /* Token definitions from Yacc/Bison */
+#include "msc.h"
+#define YYMSC_RESULT_TYPE Msc
+#define RESULT msc
+
+#define CHAR_IF_CSH(A) A
+#include "language.h"
+#include "parserhelper.h"
+
+//define isatty - only once, so we put inside the #ifdef
+#ifndef HAVE_UNISTD_H
+int isatty (int) {return 0;}
+#endif
+
+
 #endif
 
 #define YY_INPUT(buffer, res, max_size)             \
@@ -76,10 +108,6 @@ do {                                                \
 
 #define JUMP_LINE do {} while(0)
 
-#define ADDCSH(A,B) do {                       \
-    yyget_extra(yyscanner)->msc->AddCSH(A, B); \
-    }while(0)
-
 #define REMOVE_QUOTES(A) strdup(A)
 #define PROCESS_COLON_STRING(A, B) strdup(A)
 
@@ -97,7 +125,6 @@ do {                                                \
     yylloc->last_column=0;                     \
     } while(0)
 
-#define ADDCSH(A,B) do {} while(0)
 #define REMOVE_QUOTES(A) msc_remove_quotes((A)+1)
 #define PROCESS_COLON_STRING(A, B) msc_process_colon_string((A)+1, B)
 
@@ -226,8 +253,19 @@ char* msc_remove_quotes(const char *s)
 \x0d         JUMP_LINE;
 \x0a         JUMP_LINE;
 
-#            ADDCSH(*yylloc, COLOR_COMMENT); BEGIN COMMENT;
-<COMMENT>[^\x0d\x0a]*  ADDCSH(*yylloc, COLOR_COMMENT); BEGIN INITIAL;
+#                      %{
+                         #ifdef C_S_H_IS_COMPILED
+                           yyget_extra(yyscanner)->csh->AddCSH(*yylloc, COLOR_COMMENT);
+                         #endif
+                           BEGIN COMMENT;
+                       %}
+
+<COMMENT>[^\x0d\x0a]*  %{
+                         #ifdef C_S_H_IS_COMPILED
+                           yyget_extra(yyscanner)->csh->AddCSH(*yylloc, COLOR_COMMENT);
+                         #endif
+                           BEGIN INITIAL;
+                       %}
 
 msc       yylval_param->str = strdup(yytext); return TOK_MSC;
 heading   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;

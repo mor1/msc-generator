@@ -18,6 +18,7 @@
 */
 #include <assert.h>
 #include <iostream>
+#include "csh.h"
 #include "msc.h"
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -464,7 +465,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return FORMATTING_OK;
 }
 
-void StringFormat::ExtractCSH(int startpos, const char *text, Msc &msc)
+void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 {
     if (text==NULL) return;
     int pos=0;
@@ -486,7 +487,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Msc &msc)
             CshPos loc;
             loc.first_pos = startpos+pos;
             loc.last_pos = loc.first_pos+length-1;
-            msc.AddCSH(loc, color);
+            csh.AddCSH(loc, color);
         }
         pos+=length;
     }

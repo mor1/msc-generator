@@ -64,6 +64,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_COMMAND(ID_DESIGN_DESIGN, OnDesignDesign)
 	ON_CBN_SELENDOK(ID_DESIGN_DESIGN, OnDesignDesign)
 	ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
+	ON_COMMAND(ID_VIEW_PREVERROR, &CMscGenDoc::OnViewPreverror)
 	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
 	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
 	ON_COMMAND(ID_VIEW_ZOOMNORMALIZE, OnViewZoomnormalize)
@@ -275,6 +276,8 @@ BOOL CMscGenDoc::OnNewDocument()
 	CheckIfChanged(); 
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
+	pApp->FillDesignDesignCombo(m_itrEditing->GetDesign(), true);
+	pApp->FillDesignPageCombo(m_ChartShown.GetPages(), m_ChartShown.GetPage());
 	SetZoom(); //reset toolbar
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
@@ -342,7 +345,8 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-	pApp->FillDesignDesignCombo(m_itrEditing->GetDesign());
+	pApp->FillDesignDesignCombo(m_itrEditing->GetDesign(), true);
+	pApp->FillDesignPageCombo(m_ChartShown.GetPages(), m_ChartShown.GetPage());
 	SetZoom(); //reset toolbar, do not chnage zoom
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
@@ -662,8 +666,17 @@ void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
 		pWnd->m_wndStatusBar.SetPaneTextColor(1, m_bTrackMode?RGB(0,0,0):RGB(100,100,100));
 }
 
-
 void CMscGenDoc::OnViewNexterror()
+{
+	DoViewNexterror(true);
+}
+
+void CMscGenDoc::OnViewPreverror()
+{
+	DoViewNexterror(false);
+}
+
+void CMscGenDoc::DoViewNexterror(bool next)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -674,7 +687,7 @@ void CMscGenDoc::OnViewNexterror()
 	int maxsel = pOutputView->m_wndOutput.GetCount();
 	if (maxsel == LB_ERR || maxsel==0) return; //no error
 	int cursel = pOutputView->m_wndOutput.GetCurSel();
-	cursel = (cursel+1) % maxsel;
+	cursel = (cursel + (next ? 1 : -1) + maxsel) % maxsel;
 	pOutputView->m_wndOutput.SetCurSel(cursel);
 	//Jump to that pos in editor
 	int line = m_ChartShown.GetErrorLine(cursel, pApp->m_Warnings);
@@ -726,9 +739,9 @@ void CMscGenDoc::OnDesignDesign()
 	if (index > 0)
 		new_forcedDesign = combo->GetItem(index);
 	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
-	SyncShownWithEditing("change the design");
+	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
 	m_itrEditing->SetDesign(new_forcedDesign);
-	ShowEditingChart(false);  //Do not change zoom, juts update views
+	ShowEditingChart(true);
 	CheckIfChanged();     
 }
 
@@ -748,16 +761,19 @@ void CMscGenDoc::OnDesignPage()
 	}
 	if (index == m_ChartShown.GetPage())
 		return;
-	CWaitCursor wait;
-	m_ChartShown.SetPage(index);
+	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
+	m_itrEditing->SetPage(index);
+	ShowEditingChart(true);
 	CheckIfChanged();     
-	UpdateAllViews(NULL);
 }
 
 void CMscGenDoc::SetZoom(int zoom)
 {
 	//No zooming by ourselves during in-place editing
-	if (IsInPlaceActive()) return;
+	if (IsInPlaceActive()) {
+		m_zoom = 100;
+		return;
+	}
 
 	if (zoom < 1) zoom = m_zoom;
 	if (zoom > 10000) zoom = 10000;
@@ -1006,7 +1022,6 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 		if (i == m_itrSaved) saved_chart_is_deleted = true;
 		if (i == m_itrShown) shown_chart_is_deleted = true;
 		if (i == m_itrDoNotSyncForThis) donot_chart_is_deleted = true;
-		i++;
 	}
 	m_charts.erase(++IChartData(m_itrEditing), m_charts.end());
 	m_charts.push_back(data);
@@ -1036,10 +1051,12 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 void CMscGenDoc::CheckIfChanged()
 {
 	if (m_itrSaved == m_charts.end()) goto modified;
-	if (m_itrSaved->GetText() != m_itrEditing->GetText()) goto modified;
-	if (IsEmbedded()) {
-		if (m_itrSaved->GetPage() != m_itrEditing->GetPage()) goto modified;
-		if (m_itrSaved->GetDesign() != m_itrEditing->GetDesign()) goto modified;
+	if (m_itrSaved != m_itrEditing) {
+		if (m_itrSaved->GetText() != m_itrEditing->GetText()) goto modified;
+		if (IsEmbedded()) {
+			if (m_itrSaved->GetPage() != m_itrEditing->GetPage()) goto modified;
+			if (m_itrSaved->GetDesign() != m_itrEditing->GetDesign()) goto modified;
+		}
 	}
 	SetModifiedFlag(FALSE);
 	return;

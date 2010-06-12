@@ -2,7 +2,7 @@
 #define STRINGPARSE_H
 #include <set>
 #include "mscdrawer.h"
-
+#include "csh.h"
 
 class Label;
 
@@ -82,8 +82,8 @@ class StringFormat {
     //Draw a fragment y specifies baseline (not in cairo sense)
     double drawFragment(const string &, MscDrawer *, XY, bool isRotated) const;
 
-    //This adds CSH entries to msc.
-    static void ExtractCSH(int startpos, const char *text, Msc &msc);
+    //This adds CSH entries to csh.
+    static void ExtractCSH(int startpos, const char *text, Csh &csh);
     //This adds a number at the beginning of the string
     //Taking all potential escape sequence at the beginning of the string
     //into account

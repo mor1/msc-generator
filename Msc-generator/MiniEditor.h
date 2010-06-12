@@ -22,7 +22,7 @@ struct CEditorUndoRecord {
 class CCshRichEditCtrl : public CRichEditCtrl
 {
 	bool m_bCshUpdateInProgress;
-	Msc  m_msc_csh;
+	Csh  m_csh;
 public:
 	CCshRichEditCtrl();
 	int  FindColonLabelIdent(long lStart);

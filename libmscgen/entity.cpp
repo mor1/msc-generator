@@ -119,39 +119,46 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
     }
 
     if (i == msc->NoEntity) {
-        //Calculate pos attribute
+        double position = msc->Entity_max_pos;
         if (rel.first) {
             //Look up the entity in a potential 'relative' attribute
             EntityList::iterator j = msc->Entities.Find_by_Name(rel.second);
             if (j == msc->NoEntity) {
                 if (msc->pedantic) {
-                    string s;
-                    s << "Cound not find entity '" << rel.second;
-                    s << "' in attribute 'relative'. Ignoring attriute.";
+                    string s = "Cound not find entity '" + rel.second;
+                    s += "' in attribute 'relative'. Ignoring attriute.";
                     msc->Error.Error(rel.third, s);
-                    pos.second += msc->Entity_max_pos;
                 } else {
-                    Entity *e;
-                    e = new Entity(rel.second, rel.second, msc->Entity_max_pos, msc);
-                    msc->Entities.Append(e);
+                    msc->Entities.Append(new Entity(rel.second, rel.second, msc->Entity_max_pos++, msc));
                     msc->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), msc));
-                    pos.second += msc->Entity_max_pos;  //the pos of the new entity
-                    msc->Entity_max_pos ++;  //Increment for the new entity
+                    //position remains at the old, not incremented Entity_max_pos
                 }
+            } else {
+                position = (*j)->pos;
             }
-        } else
-            pos.second += msc->Entity_max_pos;
+        }
+
+        //Add the effect of pos attribute to position
+        if (pos.first) {
+            if (pos.second<-10 || pos.second>10) {
+                string msg = "Exterme value for 'pos' attribute: '";
+                msg << pos.second << "'. Ignoring it.";
+                msc->Error.Error(pos.third, msg, "Use a value between [-10..10].");
+            } else {
+                position += pos.second;
+            }
+        }
 
         //If no show attribute, set it to "ON"
         if (!show.first)
             show.second = show.first = true;
 
         //Allocate new entity with correct label
-        Entity *e = new Entity(name, label.first?label.second:name, pos.second, msc);
+        Entity *e = new Entity(name, label.first?label.second:name, position, msc);
         //Add to entity list
         msc->Entities.Append(e);
         //Calculate potential pos for next entity
-        msc->Entity_max_pos = std::max(msc->Entity_max_pos, pos.second+1);
+        msc->Entity_max_pos = std::max(msc->Entity_max_pos, position+1);
     } else {
         // An existing entity. Disallow attributes that change drawing positions
         if (label.first && label.second != (*i)->label)

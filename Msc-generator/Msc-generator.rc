@@ -212,6 +212,7 @@ BEGIN
         END
         MENUITEM "S&plit",                      ID_WINDOW_SPLIT
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
+        MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
         MENUITEM SEPARATOR
         MENUITEM "Zoom &in\tCtrl+'+'",          ID_VIEW_ZOOMIN
         MENUITEM "Zoom &out\tCtrl+'-'",         ID_VIEW_ZOOMOUT
@@ -260,6 +261,7 @@ BEGIN
         MENUITEM "&Chart Text",                 ID_VIEW_EDITOR
         MENUITEM SEPARATOR
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
+        MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Reset &Aspect Ratio to 1:1\tCtrl+1", ID_VIEW_RESETASPECTRATIO_INPLACE
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
@@ -326,7 +328,7 @@ BEGIN
         END
         MENUITEM "S&plit",                      ID_WINDOW_SPLIT
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
-        MENUITEM SEPARATOR
+        MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
         MENUITEM "Zoom &in\tCtrl+'+'",          ID_VIEW_ZOOMIN
         MENUITEM "Zoom &out\tCtrl+'-'",         ID_VIEW_ZOOMOUT
         MENUITEM SEPARATOR
@@ -397,6 +399,7 @@ BEGIN
     "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
     "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
     "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
     "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
@@ -407,7 +410,7 @@ BEGIN
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
+    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
 END
 
 IDR_SRVR_INPLACE ACCELERATORS 
@@ -428,10 +431,11 @@ BEGIN
     VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
     "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
     "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
     VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
     "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
     "1",            ID_VIEW_RESETASPECTRATIO_INPLACE, VIRTKEY, CONTROL, NOINVERT
-    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
+    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
 END
 
 IDR_SRVR_EMBEDDED ACCELERATORS 
@@ -454,6 +458,7 @@ BEGIN
     "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
     "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
     "S",            ID_FILE_UPDATE,         VIRTKEY, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
     "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
@@ -464,7 +469,7 @@ BEGIN
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
+    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
 END
 
 
@@ -846,6 +851,7 @@ END
 STRINGTABLE 
 BEGIN
     ID_HELP_HELP            "Opens help"
+    ID_VIEW_PREVERROR       "Go to the previous error\nPrevious error"
 END
 
 STRINGTABLE 

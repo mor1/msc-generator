@@ -134,22 +134,22 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 253 "language.yy"
+#line 272 "language.yy"
 {
-    char             *str;
-    Msc              *msc;
-    ArcBase          *arcbase;
-    ArcList          *arclist;
-    ArcArrow         *arcarrow;
-    ArcEmphasis      *arcemph;
-    ArcParallel      *arcparallel;
-    MscArcType        arctype;
-    EntityDef        *entity;
-    EntityDefList    *entitylist;
-    Attribute        *attrib;
-    AttributeList    *attriblist;
-    VertXPos         *vertxpos;
-    std::list<string>*stringlist;
+    char                          *str;
+    CHAR_IF_CSH(Msc)              *msc;
+    CHAR_IF_CSH(ArcBase)          *arcbase;
+    CHAR_IF_CSH(ArcList)          *arclist;
+    CHAR_IF_CSH(ArcArrow)         *arcarrow;
+    CHAR_IF_CSH(ArcEmphasis)      *arcemph;
+    CHAR_IF_CSH(ArcParallel)      *arcparallel;
+    CHAR_IF_CSH(MscArcType)        arctype;
+    CHAR_IF_CSH(EntityDef)        *entity;
+    CHAR_IF_CSH(EntityDefList)    *entitylist;
+    CHAR_IF_CSH(Attribute)        *attrib;
+    CHAR_IF_CSH(AttributeList)    *attriblist;
+    CHAR_IF_CSH(VertXPos)         *vertxpos;
+    std::list<std::string>*stringlist;
 }
 /* Line 1489 of yacc.c.  */
 #line 156 "language.h"

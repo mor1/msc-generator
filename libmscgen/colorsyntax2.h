@@ -351,7 +351,7 @@ extern int csh_lex \
 #undef YY_DECL
 #endif
 
-#line 299 "language2.ll"
+#line 337 "language2.ll"
 
 
 #line 358 "colorsyntax2.h"

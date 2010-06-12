@@ -1,28 +1,9 @@
-Oldalt váltani embeddedben: nem rajzolja újra a beágyazottat
-
-Undo sucks: ujrarajzol mindig
-
-Zoom bizbaz a View:Onsize-ba.
-
-Take Csh out of Msc. Reorg .yy to make distinction on preprocessor level
-(so no need to define all #defines for both modes)
-
-Check if design combo actually detects a missing designlib. 
-Then add only one label: ---only plain available---
-
-Add prev error Shift+F8
-Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
-make that read-only. 
-Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
-
-Wheelscroll ford`tva van
-
-
 update doc, add doc project 
 
 design lib
-Re-add escape to in-place editor...
+Re-add escape key to exit in-place editing...
 Multi-level numbers
+- numbering = +, +A, +X
 Add a<->b<<>>c
 Add colon_string labels also for entities
 Make divider only within a box
@@ -34,5 +15,7 @@ Expand parallel behaviour
    should return one)
 - add overlap=no attribute to use compress, but downward...
 - add these attributes to the style under parallel.valign and parallel.overlaps
-
+Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
+make that read-only. 
+Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
 

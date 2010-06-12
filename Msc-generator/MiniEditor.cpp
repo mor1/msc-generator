@@ -34,7 +34,7 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart)
 	ASSERT(pApp != NULL);
 	if (!pApp->m_bSmartIdent || !pApp->m_bCsh) return -1;
 	//Go through the list of color syntax highlight entries
-	for (MscCshListType::const_iterator i = m_msc_csh.CshList.begin(); i!=m_msc_csh.CshList.end(); i++) 
+	for (MscCshListType::const_iterator i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) 
 		//if we fall into a label...
 		if (i->first_pos<lStart && i->last_pos>=lStart && i->color == COLOR_LABEL_TEXT) {
 			//...preceeded by a colon...
@@ -273,8 +273,8 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 		CString text;
 		GetWindowText(text);
 		RemoveCRLF(text);
-		m_msc_csh.ParseForCSH(text, text.GetLength());
-		for (MscCshListType::const_iterator i=m_msc_csh.CshList.begin(); i!=m_msc_csh.CshList.end(); i++) 
+		m_csh.ParseText(text, text.GetLength());
+		for (MscCshListType::const_iterator i=m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) 
 			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
 				SetSel(i->first_pos-1, i->last_pos);
 				SetSelectionCharFormat(scheme[i->color]);

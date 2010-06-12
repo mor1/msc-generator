@@ -19,7 +19,7 @@
 #include "stdafx.h"
 #include "Msc-generator.h"
 #include "ChartData.h"
-#include "msc.h"
+#include "csh.h"
 
 
 void RemoveCRLF(CString &str)
@@ -44,17 +44,6 @@ void EnsureCRLF(CString &str)
 }
 
 //CChartData
-
-CChartData & CChartData::operator = (const CChartData& other)
-{
-	Delete();
-	m_ForcedDesign = other.m_ForcedDesign;
-	if (other.IsEmpty()) 
-		return *this;
-	m_text = other.m_text;
-	m_sel = other.m_sel;
-	return *this;
-}
 
 void CChartData::SetDesign (const char *design)
 {

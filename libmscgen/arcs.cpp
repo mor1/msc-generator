@@ -333,8 +333,7 @@ void ArcSelfArrow::PostHeightProcess(void)
     if (!valid) return;
 
     //Check if the entity involved is actually turned on.
-    if (!(*src)->status.GetHideStatus(yPos) || 
-		!(*src)->status.GetStatus(yPos)) {
+    if (!(*src)->status.GetStatus(yPos)) {
         string sss;
         sss << "Entity '" << (*src)->name << "' is";
         sss << " turned off, but referenced here.";
@@ -603,9 +602,9 @@ void ArcDirArrow::CheckSegmentOrder(double y)
     std::vector<string> ss;
     int earliest = -1;
     for (int i = 0; i<temp.size(); i++)
-	    if ((!(*temp[i])->status.GetHideStatus(y) || 
-			 !(*temp[i])->status.GetStatus(y)) &&
-            (*temp[i])->name != LSIDE_ENT_STR && (*temp[i])->name != RSIDE_ENT_STR) {
+        if (!(*temp[i])->status.GetStatus(y) &&
+            (*temp[i])->name != LSIDE_ENT_STR &&
+            (*temp[i])->name != RSIDE_ENT_STR) {
             ss.push_back("'" + (*temp[i])->name + "'");
             if (earliest == -1 || linenum_temp[i] < linenum_temp[earliest]) earliest = i;
         }
@@ -1166,8 +1165,8 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
     }
     if (!draw) return 0; //all relevant calculation happens in postheightprocess
 
-	double x, width;
-	CalculateXandWidth(x, width);
+    double x, width;
+    CalculateXandWidth(x, width);
 
     if (readfromleft)
         chart->Rotate90(x-width/2, x+width/2, false);
@@ -1474,15 +1473,15 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
     if (backSide) {
         chart->shadow(ls, ld+XY(style.line.radius.second/2, lw/2), style.shadow, 0, false);
 
-		//The back of the main pipe
-		chart->_arc_path(cs, wh, 270, 90, 0, LINE_SOLID, true);
+        //The back of the main pipe
+        chart->_arc_path(cs, wh, 270, 90, 0, LINE_SOLID, true);
         chart->_arc_path(cd, wh, 90, 270, 0, LINE_SOLID);
         chart->Clip();
         chart->filledRectangle(ls-shift, ld+shift, style.fill, 0);
         chart->UnClip();
 
-		//the back of the small ellipsis visible from the side
-		MscFillAttr fill = style.fill;
+        //the back of the small ellipsis visible from the side
+        MscFillAttr fill = style.fill;
         if (fill.gradient.second == GRADIENT_UP)
             fill.gradient.second = GRADIENT_DOWN;
         else if (fill.gradient.second == GRADIENT_DOWN)
@@ -1500,7 +1499,7 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
         cairo_stroke(chart->GetContext());
     }
     if (topSideFill) {
-		MscFillAttr fill = style.fill;
+        MscFillAttr fill = style.fill;
         fill.color.second.a = unsigned(style.solid.second) * unsigned(fill.color.second.a) / 255;
         chart->_arc_path(cs, wh, 270, 90, 0, LINE_SOLID, true);
         chart->_arc_path(cd, wh, 90, 270, 0, LINE_SOLID);
@@ -1549,18 +1548,21 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
     if (pipe) {
         //If we are drawing, first iterate through the segments and draw their backside
         if (draw)
-            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
+            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
                 //Draw the topside fill only if the pipe is at least a bit transparent. Else it will be later covered anyway.
                 //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
                 //Draw the backside in any case.
                 //Do not draw text
                 (*i)->DrawPipe((*i)->style.solid.second < 255, (*i)->style.solid.second == 0, true, false);
+                //if (emphasis)
+                //    chart->DrawEntityLines(yPos, height, (*i)->src, ++EIterator((*i)->dst));
+            }
         //if we just calculate collect the cover for those labels that are not on a fully opaque segment
         //Then we draw the content of the first segment's emphasis
         Geometry geom_labels;
         double max_lineWidth = 0;
         double lowest_label_bottom = total_orig_y;
-        double lowest_line_bottom;
+        double lowest_line_bottom = total_orig_y;
         if (!draw) {
             //Determine thickest line for precise pipe alignment
             for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
@@ -1935,7 +1937,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
 	if (style.vline.width.first || style.vline.type.first || style.vline.color.first) {
 		MscStyle toadd;
 		toadd.vline = style.vline;
-        for(EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) 
+        for(EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++)
 			(*i)->status.ApplyStyleRange(Range(yPos, yPos+height), toadd);
 	}
     return height;
@@ -2070,21 +2072,19 @@ void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, int &num
     if (full_heading && !top_level)
         chart->Error.Warning(file_pos.start, "The command 'heading' is specified "
                              "inside a parallel block. May display incorrectly.");
-    if (!entities)
-        return; //a pure "heading" command does not change left or right
+	//a pure "heading" command does not change left or right and change no entity style/status
+	if (!entities)
+        return;
     for (EntityDefList::iterator i=entities->begin(); i!=entities->end(); i++) {
         EIterator j = chart->Entities.Find_by_Name((*i)->name);
-        if (left != chart->NoEntity)
-            if ((*j)->pos < (*left)->pos)
-                left = j;
-        if (right != chart->NoEntity)
-            if ((*j)->pos > (*right)->pos)
-                right = j;
-		//Make the style of the entitydef fully specified using the accumulated style info in Entity
-		(*j)->running_style += (*i)->style;
-		(*i)->style = (*j)->running_style;
-		double w = (*j)->Width((*j)->running_style);
-		if ((*j)->maxwidth < w) (*j)->maxwidth = w;
+        //Expand left and right to cover j
+        left = MinMaxByPos(left, j, true);
+        right = MinMaxByPos(right, j, false);
+        //Make the style of the entitydef fully specified using the accumulated style info in Entity
+        (*j)->running_style += (*i)->style;  //(*i)->style is a partial style here specified by the user
+        (*i)->style = (*j)->running_style;	 //(*i)->style now become the full style to use from this point
+        double w = (*j)->Width((*j)->running_style);
+        if ((*j)->maxwidth < w) (*j)->maxwidth = w;
     }
 }
 
@@ -2094,7 +2094,7 @@ void CommandEntity::Width(EntityDistanceMap &distances)
     if (!valid) return;
     //Add distances for entity heading
     EntityDistanceMap d;
-    if (entities)   //An entity command
+    if (entities)   //we have individually named entities
         for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
             EIterator j = chart->Entities.Find_by_Name((*i)->name);
             //Take entity height into account or draw it if show=on was added
@@ -2116,7 +2116,6 @@ void CommandEntity::Width(EntityDistanceMap &distances)
             const unsigned index = (*i)->index;
             d.Insert(index, DISTANCE_LEFT, halfsize);
             d.Insert(index, DISTANCE_RIGHT, halfsize);
-
         }
     //convert left and right requirements (added above) to pairwise ones.
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
@@ -2134,7 +2133,7 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
     //Those entities explicitly listed, put their cover in their geometry
     //only the ones added by a heading command to this commandentity will
     //put anything into this->geometry
-    list<EIterator> explicitly_listed_entities;
+    set<Entity*> explicitly_listed_entities;
     if (entities) {  //An entity command
         for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
             //Clear geometry that may have been accumulated by !final rounds
@@ -2143,12 +2142,22 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
             EIterator j = chart->Entities.Find_by_Name((*i)->name);
             assert(j != chart->NoEntity);
 
-			//Take entity height into account if it gets drawn
+            //Record status and style changes
+            if (final) {
+                EIterator j = chart->Entities.Find_by_Name((*i)->name);
+                assert(j != chart->NoEntity);
+                //Apply changes in style
+                (*j)->status.ApplyStyle(yPos, (*i)->style);
+                //Apply changes in show status
+                if ((*i)->show.first)
+                    (*j)->status.SetStatus(yPos, (*i)->show.second);
+            }
+            //Take entity height into account if it gets drawn
             //It can get drawn because we 1) said show=yes, or
             //2) because it is on, we mention it (without show=yes) and it is
             //a full heading.
             if (((*i)->show.second && (*i)->show.first) ||
-				(full_heading && (*j)->status.GetStatus(y))) {
+                (full_heading && (*j)->status.GetStatus(y))) {
                 const double h = (*j)->DrawHeight(y, (*i)->geometry, draw, final);
                 //If we are not drawing, we add the cover to the entitydef's geometry
                 if (!draw) {
@@ -2156,7 +2165,7 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
                     g += (*i)->geometry; //we add it to the one returned
                 }
                 //We add this entity to the list of entities already done
-                explicitly_listed_entities.push_back(j);
+                explicitly_listed_entities.insert(*j);
                 if (height <h) height = h;
             }
         }
@@ -2165,14 +2174,8 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
     if (!full_heading) return height;
     //A "heading" command, draw all entities that are on
     for (EntityList::const_iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
-		if (!(*i)->status.GetHideStatus(y) || !(*i)->status.GetStatus(y)) continue;
-        bool was = false;
-        for (list<EIterator>::const_iterator k = explicitly_listed_entities.begin(); k!=explicitly_listed_entities.end(); k++) {
-            if (*k != i) continue;
-            was = true;
-            break;
-        }
-        if (was) continue;
+        if (!(*i)->status.GetStatus(y)) continue;
+        if (explicitly_listed_entities.find(*i) != explicitly_listed_entities.end()) continue;
         const double h = (*i)->DrawHeight(y, geometry, draw, final);
         if (height <h) height = h;
     }
@@ -2185,8 +2188,8 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
 
 void CommandEntity::PostHeightProcess(void)
 {
-	//Add us to the big file positions list
-	if (entities)
+    //Add us to the big file positions list
+    if (entities)
         for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
             chart->AllArcs[(*i)->file_pos] = *i;
     chart->AllArcs[file_pos] = this;
@@ -2196,18 +2199,6 @@ void CommandEntity::PostHeightProcess(void)
     if (entities)   //An entity command
         for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
             chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
-
-	//Record style changes
-    if (!entities) return;
-    for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
-        EIterator j = chart->Entities.Find_by_Name((*i)->name);
-        assert(j != chart->NoEntity);
-		//Apply changes in style
-		(*j)->status.ApplyStyle(yPos, (*i)->style);
-		//Apply changes in show status
-        if ((*i)->show.first)
-			(*j)->status.SetStatus(yPos, (*i)->show.second);
-    }
 }
 
 

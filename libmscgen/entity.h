@@ -92,7 +92,7 @@ class EntityList : public PtrList<Entity>
         }
         void SortByPos(void);
 };
-typedef EntityList::iterator EIterator;
+typedef EntityList::const_iterator EIterator;
 
 
 template <class T1, class T2, class T3> struct triplet

@@ -78,23 +78,23 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     fake_gradients = 0;
     fake_dash = false;
     fake_shadows = false;
-	fake_spaces = false;
+    fake_spaces = false;
     scale = 1.0;
     fallback_resolution = 300; //irrelevant for bitmaps - no fallback for bitmaps
 
-	switch (ot) {
-		case PNG:
-			white_background = true;
-			break;
-		case WMF: 
-			individual_chars = true; //do this so that it is easier to convert to WMF
-			use_text_path_rotated = true;
-			fake_dash = true;
-			scale = 10;              //do 10 for better precision clipping
-			//Fallthrough
-		case EMF: 
-			fake_gradients = 30;
-			fake_shadows = true;
+    switch (ot) {
+    case PNG:
+        white_background = true;
+        break;
+    case WMF:
+        individual_chars = true; //do this so that it is easier to convert to WMF
+        use_text_path_rotated = true;
+        fake_dash = true;
+        scale = 10;              //do 10 for better precision clipping
+        //Fallthrough
+    case EMF:
+        fake_gradients = 30;
+        fake_shadows = true;
     }
 }
 
@@ -215,7 +215,7 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
         CloseOutput();
         return false;
     }
-    cairo_surface_set_fallback_resolution(surface, fallback_resolution/scale, fallback_resolution/scale); 
+    cairo_surface_set_fallback_resolution(surface, fallback_resolution/scale, fallback_resolution/scale);
 
     cr = cairo_create (surface);
     st = cairo_status(cr);
@@ -277,7 +277,7 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, int page)
     cairo_status_t st = cairo_surface_status(surface);
     if (st) goto problem;
 
-    cairo_surface_set_fallback_resolution(surface, fallback_resolution/scale, fallback_resolution/scale); 
+    cairo_surface_set_fallback_resolution(surface, fallback_resolution/scale, fallback_resolution/scale);
 
 	cr = cairo_create (surface);
     st = cairo_status(cr);

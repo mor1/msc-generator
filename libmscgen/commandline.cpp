@@ -175,7 +175,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                  {
                      msc.Error.Error(opt_pos,
                                      "Unknown output format '" + *i + "'."
-                                     "Use one of "
+                                     "Use one of"
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
                      " 'png'"
 #endif
@@ -191,7 +191,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
 #ifdef CAIRO_HAS_WIN32_SURFACE
                      " 'emf'"
 #endif
-                     ". Using 'png'.");
+                     " or 'csh'. Using 'png'.");
                      oOutType = MscDrawer::PNG;
                  }
             }
@@ -309,9 +309,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
     //Replace chart text with the cshized version of it
     if (oCshize) {
         MscInitializeCshAppearanceList();
-        Msc m;
-        m.ParseForCSH(input, strlen(input));
-        string tmp = Cshize(input, strlen(input), m.CshList, 1, csh_textformat.c_str());
+        Csh csh;
+        csh.ParseText(input, strlen(input));
+        string tmp = Cshize(input, strlen(input), csh.CshList, 1, csh_textformat.c_str());
         FILE *out = fopen(oOutputFile.c_str(), "w");
         if (!out) {
             std::cerr<< "Error: Failed to open output file '" << oOutputFile << "'.\n";

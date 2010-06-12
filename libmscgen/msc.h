@@ -10,7 +10,6 @@
 #include <set>
 #include <vector>
 #include <stack>
-#include "csh.h"
 #include "trackable.h"
 #include "style.h"
 #include "entity.h"
@@ -124,9 +123,6 @@ public:
     LineToArcMapType              AllArcs;
     std::list<Block>              AllCovers;
 
-    MscCshListType                CshList;
-    std::set<string>              CshEntityNames;
-
     /** Gap at the bottom of the page for lengthening entity lines */
     double chartTailGap;
     /** Self Pointing arc Y size. */
@@ -151,13 +147,6 @@ public:
     bool         ignore_designs; /* ignore design changes */
 
     Msc();
-
-    void AddCSH(CshPos&, MscColorSyntaxType);
-    void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
-    void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments);
-    void AddCSH_AttrName(CshPos&, const char *name, MscColorSyntaxType);
-    void AddCSH_EntityName(CshPos&pos, const char *name);
-    void ParseForCSH(const char *input, unsigned len);
 
     void AddStandardDesigns(void);
     bool SetDesign(const string &design, bool force);
@@ -213,41 +202,7 @@ public:
 };
 
 
-//Parser and lexer related stuff
-#ifndef HAVE_UNISTD_H
-#define YY_NO_UNISTD_H
-extern int isatty (int );
-#endif
-
-typedef struct
-{
-    void            *yyscanner;
-    char            *buf;
-    int             pos;
-    int             length;
-    Msc             *msc;
-} parse_parm;
-
-#define YY_EXTRA_TYPE   parse_parm *
-
-//If we scan for color syntax highlight use this location
-//yyerror is defined by bison, the other is defined for flex
-#ifdef C_S_H_IS_COMPILED
-#define YYLTYPE_IS_DECLARED
-#define YYLTYPE CshPos
-#endif
-
-#include "language.h"
-
-int     yylex(YYSTYPE *, YYLTYPE *, void *);
-int     yylex_init(void **);
-int     yylex_destroy(void *);
-void    yyset_extra(YY_EXTRA_TYPE, void *);
-int     yyparse(Msc&, void *);
-int     yyget_lineno(void* scanner);
-
 void MscParse(Msc &msc, const char *buff, unsigned len);
-void CshParse(Msc &msc, const char *buff, unsigned len);
 
 #endif
 

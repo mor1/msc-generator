@@ -114,7 +114,9 @@ public:
 	afx_msg void OnEditUpdate();              //update chart from internal editor
 	afx_msg void OnUpdateButtonTrack(CCmdUI *pCmdUI);
 	afx_msg void OnButtonTrack();             //Tracking mode button
+			void DoViewNexterror(bool next);  //This does the stepping
 	afx_msg void OnViewNexterror();           //User advances error
+	afx_msg void OnViewPreverror();           //User steps back in errors
 	afx_msg void OnSelChange();               //Another error is selected
 
 	afx_msg void OnDesignDesign(); //design combo box changes

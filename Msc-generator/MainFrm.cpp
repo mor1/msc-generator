@@ -47,7 +47,6 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_REGISTERED_MESSAGE(AFX_WM_RESETTOOLBAR, OnToolbarReset)
 	ON_COMMAND_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnApplicationLook)
 	ON_UPDATE_COMMAND_UI_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnUpdateApplicationLook)
-	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -444,14 +443,6 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	return TRUE;
 }
 
-void CMainFrame::OnSize(UINT nType, int cx, int cy)
-{
-	CFrameWndEx::OnSize(nType, cx, cy);
-	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
-	if (pDoc && pDoc->m_ZoomMode == CMscGenDoc::ZOOM_WIDTH) 
-		pDoc->ArrangeViews();
-}
-
 void CMainFrame::OnSetFocus(CWnd* pOldWnd) 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -520,6 +511,7 @@ void CMainFrame::OnViewFullScreen()
 			if (pDoc) 
 				pDoc->SetZoom(); 
 		}
+
 		ShowFullScreen();
 	}
 }

@@ -98,10 +98,9 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 	CMscGenDoc* pDoc = GetDocument();
 	if (pDoc==NULL) return; 
 
-	CSize sizeDoc(ScaleSize(m_size, pDoc->m_zoom/100.0));
 	if (pDoc->IsInPlaceActive()) {
 		pDC->SetMapMode(MM_ANISOTROPIC);
-		pDC->SetWindowExt(sizeDoc);
+		pDC->SetWindowExt(m_size);
 
 		CSize sizeNum, sizeDenom;
 		pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
@@ -109,14 +108,14 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 		int xLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSX);
 		int yLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSY);
 
-		long xExt = (long)sizeDoc.cx * xLogPixPerInch * sizeNum.cx;
+		long xExt = (long)m_size.cx * xLogPixPerInch * sizeNum.cx;
 		xExt /= 100 * (long)sizeDenom.cx;
-		long yExt = (long)sizeDoc.cy * yLogPixPerInch * sizeNum.cy;
+		long yExt = (long)m_size.cy * yLogPixPerInch * sizeNum.cy;
 		yExt /= 100 * (long)sizeDenom.cy;
 		pDC->SetViewportExt((int)xExt, (int)yExt);
 	} else {
 		pDC->SetMapMode(MM_TEXT);
-		pDC->SetWindowExt(sizeDoc);
+		pDC->SetWindowExt(ScaleSize(m_size, pDoc->m_zoom/100.0));
 	}
 }
 
@@ -189,6 +188,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	r.SetRect(header.rclBounds.left*fzoom, header.rclBounds.top*fzoom,
 		      header.rclBounds.right*fzoom, header.rclBounds.bottom*fzoom); 
 	PlayEnhMetaFile(pDC->m_hDC, hemf, r);
+	DeleteEnhMetaFile(hemf);
 }
 
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
@@ -251,7 +251,6 @@ BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
 
 void CMscGenView::InvalidateBlock(const Block &b) 
 {
-	CSize sizeNum, sizeDenom;
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
 	//pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
@@ -547,7 +546,7 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 		//scoll 10% of the view height (zDelta can be negative for up)
 		const int amount = client.Height()*0.1*zDelta/WHEEL_DELTA;
 		CPoint pos = GetScrollPosition();
-		pos.y += amount;
+		pos.y -= amount;
 		if (pos.y<0) pos.y = 0;
 		if (pos.y + client.bottom > m_size.cy*pDoc->m_zoom/100)
 			pos.y = m_size.cy*pDoc->m_zoom/100 - client.bottom;
@@ -596,13 +595,18 @@ void CMscGenView::ResyncScrollSize(void)
 
 void CMscGenView::OnSize(UINT nType, int cx, int cy)
 { 
+	CMscGenDoc *pDoc = GetDocument();
+	ASSERT(pDoc);
 	//Calculate stretch (used only for in-place editing)
 	if (!SizeEmpty(m_size)) {
 		m_stretch_x = double(cx)/m_size.cx;
 		m_stretch_y = double(cy)/m_size.cy;
 	} else 
 		m_stretch_x = m_stretch_y = 1;
-	ResyncScrollSize(); 
+	if (!pDoc->IsInPlaceActive() && pDoc->m_ZoomMode == CMscGenDoc::ZOOM_WIDTH)
+		pDoc->ArrangeViews();
+	else 
+		ResyncScrollSize(); 
 }
 
 void CMscGenView::ResetAspectRatioInPlace(void)

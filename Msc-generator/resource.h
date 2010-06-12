@@ -89,6 +89,8 @@
 #define ID_VIEW_FULLSCREEN              32846
 #define ID_VIEW_FULL_SCREEN             32847
 #define ID_HELP_HELP                    32851
+#define ID_VIEW_PREVERROR               32856
+#define ID_VIEW_GOTOPREVIOUSERROR       32859
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -97,7 +99,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        315
-#define _APS_NEXT_COMMAND_VALUE         32856
+#define _APS_NEXT_COMMAND_VALUE         32860
 #define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           310
 #endif

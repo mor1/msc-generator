@@ -45,8 +45,7 @@ public:
 		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""), m_page(page), m_wasDrawn(false) {}
 	CChartData(const CChartData&o) {operator=(o);}
 	virtual ~CChartData() {Delete();}
-	CChartData & operator = (const CChartData&);
-	virtual void Delete(void) {m_text.Empty();}
+	virtual void Delete(void) {m_text.Empty(); m_wasDrawn = false; m_page=0; m_ForcedDesign.Empty(); m_sel.cpMax = m_sel.cpMin = 0;}
 	BOOL Save(const CString &fileName) const;
 	BOOL Load(const CString &fileName,  BOOL reportError=TRUE);
 	void Set(const char *text) {Delete(); m_text=text?text:"";}

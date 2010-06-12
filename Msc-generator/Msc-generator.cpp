@@ -29,6 +29,7 @@
 #include "MscGenDoc.h"
 #include "MscGenView.h"
 #include "version.h"
+#include "csh.h"
 
 #include <sstream>
 #include <vector>
@@ -389,17 +390,21 @@ bool CMscGenApp::FillDesignDesignCombo(const char *current, bool updateComboCont
 	while (p) {
 		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
 		if (updateComboContent || combo->GetCount()==0) {
-			combo->ClearData();
-			combo->AddItem("(use chart-defined)");
-			combo->AddItem("plain");
-			int pos = 0;
-			while (m_SetOfDesigns.GetLength()>pos) {
-				int pos2 = m_SetOfDesigns.Find(' ', pos);
-				if (pos2==-1) pos2 = m_SetOfDesigns.GetLength();
-				if (pos2>pos && m_SetOfDesigns.Mid(pos, pos2-pos).CompareNoCase("plain")!=0)
-					combo->AddItem(m_SetOfDesigns.Mid(pos, pos2-pos));
-				pos = pos2+1;
-			}	
+			combo->RemoveAllItems();
+			if (m_SetOfDesigns.GetLength()) {
+				combo->AddItem("(use chart-defined)");
+				combo->AddItem("plain");
+				int pos = 0;
+				while (m_SetOfDesigns.GetLength()>pos) {
+					int pos2 = m_SetOfDesigns.Find(' ', pos);
+					if (pos2==-1) pos2 = m_SetOfDesigns.GetLength();
+					if (pos2>pos && m_SetOfDesigns.Mid(pos, pos2-pos).CompareNoCase("plain")!=0)
+						combo->AddItem(m_SetOfDesigns.Mid(pos, pos2-pos));
+					pos = pos2+1;
+				}	
+			} else {
+				combo->AddItem("-(only plain is available)-");
+			}
 		}
 		//restore the selection to the given style if it can be found
 		int index = (current==NULL || current[0]==0) ? 0 : combo->FindItem(current);
@@ -538,6 +543,21 @@ void CMscGenApp::OnEditPreferences()
 //C:\Windows\Notepad.exe %n;"C:\Program Files\Notepad++\notepad++.exe" -multiInst -nosession %n;
 //;-n%l -nosession %n;
 
+DWORD ConvertMscColorSyntaxFlagsToCHARFORMATFlags(int input)
+{
+	return ((input & COLOR_FLAG_BOLD     ) ? CFM_BOLD      : 0) |
+		   ((input & COLOR_FLAG_ITALICS  ) ? CFM_ITALIC    : 0) |
+		   ((input & COLOR_FLAG_UNDERLINE) ? CFM_UNDERLINE : 0) |
+		   ((input & COLOR_FLAG_COLOR    ) ? CFM_COLOR     : 0);
+}
+
+void ConvertMscCshAppearanceToCHARFORMAT(const MscColorSyntaxAppearance &app, CHARFORMAT &cf)
+{
+	cf.cbSize      = sizeof(cf);
+	cf.dwMask      = ConvertMscColorSyntaxFlagsToCHARFORMATFlags(app.mask);
+	cf.dwEffects   = ConvertMscColorSyntaxFlagsToCHARFORMATFlags(app.effects);
+	cf.crTextColor = RGB(app.r, app.g, app.b);
+}
 
 void CMscGenApp::ReadRegistryValues(bool reportProblem) 
 {
@@ -546,7 +566,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_Warnings = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, TRUE);
 	m_bPB_Editing  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
 	m_bPB_Embedded = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, FALSE);
-	m_bAlwaysOpen  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, FALSE);
+	m_bAlwaysOpen  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, TRUE);
 	m_bCsh         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
 	m_nCshScheme   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
@@ -594,120 +614,11 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 		              "http://msc-generator.sourceforge.net";
 	m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
 
+	//Complie csh colors from the variables defined in csh.{cpp,h} into CHARFORMAT elements for faster CSH
 	MscInitializeCshAppearanceList();
-
-	CHARFORMAT cf;
-	cf.cbSize = sizeof(cf);
-	cf.dwMask = CFM_UNDERLINE|CFM_ITALIC|CFM_BOLD|CFM_COLOR;
-	cf.dwEffects = 0;
-	cf.crTextColor = RGB(0,0,0);
 	for (int scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
-		for (int i=0; i<COLOR_MAX; i++)
-			m_csh_cf[scheme][i] = cf;
-
-	//CSH_SCHEME ==0 is the Minimal one
-	m_csh_cf[0][COLOR_KEYWORD].crTextColor =           RGB(  0,  0,  0); m_csh_cf[0][COLOR_KEYWORD].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_ATTRNAME].crTextColor =          RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[0][COLOR_OPTIONNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[0][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(  0,  0,  0); m_csh_cf[0][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[0][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_EQUAL].dwEffects = 0;
-	m_csh_cf[0][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[0][COLOR_SEMICOLON].dwEffects = 0;
-	m_csh_cf[0][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_COLON].dwEffects = 0;
-	m_csh_cf[0][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[0][COLOR_BRACE].dwEffects = 0;
-	m_csh_cf[0][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[0][COLOR_BRACKET].dwEffects = 0;
-	m_csh_cf[0][COLOR_SYMBOL].crTextColor =            RGB( 20, 20,  0); m_csh_cf[0][COLOR_SYMBOL].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_DESIGNNAME].crTextColor =        RGB( 50,  0,  0); m_csh_cf[0][COLOR_DESIGNNAME].dwEffects = 0;
-	m_csh_cf[0][COLOR_STYLENAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[0][COLOR_STYLENAME].dwEffects = 0;
-	m_csh_cf[0][COLOR_COLORNAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[0][COLOR_COLORNAME].dwEffects = 0;
-	m_csh_cf[0][COLOR_ENTITYNAME].crTextColor =        RGB(  0, 50,  0); m_csh_cf[0][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[0][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_MARKERNAME].crTextColor =        RGB(  0,  0, 50); m_csh_cf[0][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,  0); m_csh_cf[0][COLOR_ATTRVALUE].dwEffects = 0;
-	m_csh_cf[0][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,  0); m_csh_cf[0][COLOR_COLORDEF].dwEffects = 0;
-	m_csh_cf[0][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[0][COLOR_LABEL_TEXT].dwEffects = 0;
-	m_csh_cf[0][COLOR_LABEL_ESCAPE].crTextColor =      RGB(  0,  0,  0); m_csh_cf[0][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
-	m_csh_cf[0][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[0][COLOR_ERROR].dwEffects = 0;
-	m_csh_cf[0][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[0][COLOR_COMMENT].dwEffects = CFM_ITALIC;
-	m_csh_cf[0][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[0][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
-
-	//CSH_SCHEME ==1 is the Standard one
-	m_csh_cf[1][COLOR_KEYWORD].crTextColor =           RGB(128,128,  0); m_csh_cf[1][COLOR_KEYWORD].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_ATTRNAME].crTextColor =          RGB(128,128,  0); m_csh_cf[1][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(128,128,  0); m_csh_cf[1][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[1][COLOR_OPTIONNAME].crTextColor =        RGB(128,128,  0); m_csh_cf[1][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(128,128,  0); m_csh_cf[1][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[1][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_EQUAL].dwEffects = 0;
-	m_csh_cf[1][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_SEMICOLON].dwEffects = 0;
-	m_csh_cf[1][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_COLON].dwEffects = 0;
-	m_csh_cf[1][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[1][COLOR_BRACE].dwEffects = 0;
-	m_csh_cf[1][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[1][COLOR_BRACKET].dwEffects = 0;
-	m_csh_cf[1][COLOR_SYMBOL].crTextColor =            RGB(255,  0,  0); m_csh_cf[1][COLOR_SYMBOL].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_DESIGNNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[1][COLOR_DESIGNNAME].dwEffects = 0;
-	m_csh_cf[1][COLOR_STYLENAME].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_STYLENAME].dwEffects = 0;
-	m_csh_cf[1][COLOR_COLORNAME].crTextColor =         RGB(  0,  0,  0); m_csh_cf[1][COLOR_COLORNAME].dwEffects = 0;
-	m_csh_cf[1][COLOR_ENTITYNAME].crTextColor =        RGB(200,  0,  0); m_csh_cf[1][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(200,  0,  0); m_csh_cf[1][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
-	m_csh_cf[1][COLOR_MARKERNAME].crTextColor =        RGB(  0,200,  0); m_csh_cf[1][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,200); m_csh_cf[1][COLOR_ATTRVALUE].dwEffects = 0;
-	m_csh_cf[1][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,200); m_csh_cf[1][COLOR_COLORDEF].dwEffects = 0;
-	m_csh_cf[1][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[1][COLOR_LABEL_TEXT].dwEffects = 0;
-	m_csh_cf[1][COLOR_LABEL_ESCAPE].crTextColor =      RGB(  0,150,  0); m_csh_cf[1][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
-	m_csh_cf[1][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[1][COLOR_ERROR].dwEffects = 0;
-	m_csh_cf[1][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[1][COLOR_COMMENT].dwEffects = CFM_ITALIC;
-	m_csh_cf[1][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[1][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
-
-	//CSH_SCHEME ==2 is the Colorful one
-	m_csh_cf[2][COLOR_KEYWORD].crTextColor =           RGB(128,128,  0); m_csh_cf[2][COLOR_KEYWORD].dwEffects = CFM_BOLD;
-	m_csh_cf[2][COLOR_ATTRNAME].crTextColor =          RGB(128,128,  0); m_csh_cf[2][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[2][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(128,128,  0); m_csh_cf[2][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[2][COLOR_OPTIONNAME].crTextColor =        RGB(128,128,  0); m_csh_cf[2][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[2][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(128,128,  0); m_csh_cf[2][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[2][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_EQUAL].dwEffects = 0;
-	m_csh_cf[2][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[2][COLOR_SEMICOLON].dwEffects = 0;
-	m_csh_cf[2][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_COLON].dwEffects = 0;
-	m_csh_cf[2][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[2][COLOR_BRACE].dwEffects = 0;
-	m_csh_cf[2][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[2][COLOR_BRACKET].dwEffects = 0;
-	m_csh_cf[2][COLOR_SYMBOL].crTextColor =            RGB(  0,128,128); m_csh_cf[2][COLOR_SYMBOL].dwEffects = CFM_BOLD;
-	m_csh_cf[2][COLOR_DESIGNNAME].crTextColor =        RGB(128,  0,  0); m_csh_cf[2][COLOR_DESIGNNAME].dwEffects = 0;
-	m_csh_cf[2][COLOR_STYLENAME].crTextColor =         RGB(128,  0,  0); m_csh_cf[2][COLOR_STYLENAME].dwEffects = 0;
-	m_csh_cf[2][COLOR_COLORNAME].crTextColor =         RGB(128,  0,  0); m_csh_cf[2][COLOR_COLORNAME].dwEffects = 0;
-	m_csh_cf[2][COLOR_ENTITYNAME].crTextColor =        RGB(200,  0,  0); m_csh_cf[2][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[2][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(200,  0,  0); m_csh_cf[2][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
-	m_csh_cf[3][COLOR_MARKERNAME].crTextColor =        RGB(  0,255,  0); m_csh_cf[2][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[2][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,255); m_csh_cf[2][COLOR_ATTRVALUE].dwEffects = 0;
-	m_csh_cf[2][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,255); m_csh_cf[2][COLOR_COLORDEF].dwEffects = 0;
-	m_csh_cf[2][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,200,  0); m_csh_cf[2][COLOR_LABEL_TEXT].dwEffects = 0;
-	m_csh_cf[2][COLOR_LABEL_ESCAPE].crTextColor =      RGB(255,  0,  0); m_csh_cf[2][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
-	m_csh_cf[2][COLOR_ERROR].crTextColor =             RGB( 50, 50, 50); m_csh_cf[2][COLOR_ERROR].dwEffects = 0;
-	m_csh_cf[2][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[2][COLOR_COMMENT].dwEffects = CFM_ITALIC;
-	m_csh_cf[2][COLOR_ACTIVE_ERROR].dwMask = CFM_UNDERLINE;              m_csh_cf[2][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
-
-	//CSH_SCHEME ==3 is the Error oriented one
-	m_csh_cf[3][COLOR_KEYWORD].crTextColor =           RGB(  0,  0,  0); m_csh_cf[3][COLOR_KEYWORD].dwEffects = CFM_BOLD;
-	m_csh_cf[3][COLOR_ATTRNAME].crTextColor =          RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[3][COLOR_ATTRNAME_PARTIAL].crTextColor =  RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[3][COLOR_OPTIONNAME].crTextColor =        RGB(  0,  0,  0); m_csh_cf[3][COLOR_OPTIONNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[3][COLOR_OPTIONNAME_PARTIAL].crTextColor =RGB(  0,  0,  0); m_csh_cf[2][COLOR_OPTIONNAME_PARTIAL].dwEffects = 0;
-	m_csh_cf[3][COLOR_EQUAL].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_EQUAL].dwEffects = 0;
-	m_csh_cf[3][COLOR_SEMICOLON].crTextColor =         RGB(  0,  0,  0); m_csh_cf[3][COLOR_SEMICOLON].dwEffects = 0;
-	m_csh_cf[3][COLOR_COLON].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_COLON].dwEffects = 0;
-	m_csh_cf[3][COLOR_BRACE].crTextColor =             RGB(  0,  0,  0); m_csh_cf[3][COLOR_BRACE].dwEffects = 0;
-	m_csh_cf[3][COLOR_BRACKET].crTextColor =           RGB(  0,  0,  0); m_csh_cf[3][COLOR_BRACKET].dwEffects = 0;
-	m_csh_cf[3][COLOR_SYMBOL].crTextColor =            RGB( 20, 20,  0); m_csh_cf[3][COLOR_SYMBOL].dwEffects = CFM_BOLD;
-	m_csh_cf[3][COLOR_DESIGNNAME].crTextColor =        RGB( 50,  0,  0); m_csh_cf[3][COLOR_DESIGNNAME].dwEffects = 0;
-	m_csh_cf[3][COLOR_STYLENAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[3][COLOR_STYLENAME].dwEffects = 0;
-	m_csh_cf[3][COLOR_COLORNAME].crTextColor =         RGB( 50,  0,  0); m_csh_cf[3][COLOR_COLORNAME].dwEffects = 0;
-	m_csh_cf[3][COLOR_ENTITYNAME].crTextColor =        RGB(  0, 50,  0); m_csh_cf[3][COLOR_ENTITYNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[3][COLOR_ENTITYNAME_FIRST].crTextColor =  RGB(  0,  0,  0); m_csh_cf[3][COLOR_ENTITYNAME_FIRST].dwEffects = CFM_BOLD|CFM_UNDERLINE;
-	m_csh_cf[3][COLOR_MARKERNAME].crTextColor =        RGB(  0,  0, 50); m_csh_cf[3][COLOR_MARKERNAME].dwEffects = CFM_BOLD;
-	m_csh_cf[3][COLOR_ATTRVALUE].crTextColor =         RGB(  0,  0,  0); m_csh_cf[3][COLOR_ATTRVALUE].dwEffects = 0;
-	m_csh_cf[3][COLOR_COLORDEF].crTextColor =          RGB(  0,  0,  0); m_csh_cf[3][COLOR_COLORDEF].dwEffects = 0;
-	m_csh_cf[3][COLOR_LABEL_TEXT].crTextColor =        RGB(  0,  0,  0); m_csh_cf[3][COLOR_LABEL_TEXT].dwEffects = 0;
-	m_csh_cf[3][COLOR_LABEL_ESCAPE].crTextColor =      RGB(  0,  0,  0); m_csh_cf[3][COLOR_LABEL_ESCAPE].dwEffects = CFM_BOLD;
-	m_csh_cf[3][COLOR_ERROR].crTextColor =             RGB(255,  0,  0); m_csh_cf[3][COLOR_ERROR].dwEffects = CFM_ITALIC;
-	m_csh_cf[3][COLOR_COMMENT].crTextColor =           RGB(100,100,100); m_csh_cf[3][COLOR_COMMENT].dwEffects = CFM_ITALIC;
-	m_csh_cf[3][COLOR_ACTIVE_ERROR].crTextColor =      RGB(255,  0,  0); m_csh_cf[3][COLOR_ACTIVE_ERROR].dwEffects = CFM_UNDERLINE;
+		for (int i=0; i<COLOR_MAX; i++) 
+			ConvertMscCshAppearanceToCHARFORMAT(MscCshAppearanceList[scheme][i], m_csh_cf[scheme][i]);
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.

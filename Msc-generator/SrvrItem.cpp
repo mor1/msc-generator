@@ -84,8 +84,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 		return CDocObjectServerItem::OnGetExtent(dwDrawAspect, rSize);
 
 	// CMscGenSrvrItem::OnGetExtent is called to get the extent in
-	//  HIMETRIC units of the entire item.  The default implementation
-	//  here simply returns a hard-coded number of units.
+	//  HIMETRIC units of the entire item.  
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);

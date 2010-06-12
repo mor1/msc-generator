@@ -2,7 +2,9 @@
 #define CSH_H
 
 #include<vector>
+#include<list>
 #include<string>
+#include<set>
 
 struct CshPos
 {
@@ -76,5 +78,22 @@ void MscInitializeCshAppearanceList(void);
 
 std::string Cshize(const char *input, unsigned len, const MscCshListType &cshList, int cshStyle,
                    const char *command=NULL);
+
+class Csh
+{
+public:
+    MscCshListType        CshList;
+    std::set<std::string> CshEntityNames;
+
+    void AddCSH(CshPos&, MscColorSyntaxType);
+    void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
+    void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments);
+    void AddCSH_AttrName(CshPos&, const char *name, MscColorSyntaxType);
+    void AddCSH_EntityName(CshPos&pos, const char *name);
+    void ParseText(const char *input, unsigned len);
+};
+
+void CshParse(Csh &csh, const char *buff, unsigned len);
+
 
 #endif
