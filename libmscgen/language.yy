@@ -191,35 +191,43 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
 
     string once_msg;
 
+    //replace tokens in string. We assume
+    //-each toke appears only once
+    //-replaced strings will not be mistaken for a a token
     for (int i=0; i<tokArrayLen; i++) {
         int pos = 0;
-        while (1) {
-            pos = msg.find(tokens[i].first, pos);
-            if (pos == string::npos) break;
-            msg.erase(pos, tokens[i].first.length());
-            string ins = tokens[i].second;
-            //special comment for unexpected symbols
-            //special handling for numbers and strings
-            if (i>tokArrayLen-5) {
-                int exppos = msg.find("expecting");
-                //If we replace what was unexpected, use actual token text
-                if (pos < exppos) {
-                    if (i==tokArrayLen-1)
-                        ins += ": " + string(yyget_text(yyscanner));
-                    else
-                        ins += ": '" + string(yyget_text(yyscanner)) + "'";
-                    if (i==tokArrayLen-2) {
-                        string hint(yyget_text(yyscanner));
-                        int pos = hint.find_first_not_of("abcdefghijklmnopqrstuvwxyz");
-                        hint.insert(pos," ");
-                        once_msg = "Try splitting it with a space: '"+hint+"'.";
-                    }
-                } else {
-                    ins = "a <" + ins + ">";
+        //Search for the current token
+        pos = msg.find(tokens[i].first, pos);
+        //continue if not found
+        if (pos == string::npos) continue;
+        //if msg continues with an uppercase letter or _ we are not matching
+        char next = msg.c_str()[pos+tokens[i].first.length()];
+        if ((next<='Z' && next>='A') || next == '_') continue;
+
+        //Ok, token found, create substitution
+        string ins = tokens[i].second;
+        //special comment for unexpected symbols
+        //special handling for numbers and strings
+        if (i>tokArrayLen-5) {
+            int exppos = msg.find("expecting");
+            //If we replace what was unexpected, use actual token text
+            if (pos < exppos) {
+                if (i==tokArrayLen-1)
+                    ins += ": " + string(yyget_text(yyscanner));
+                else
+                    ins += ": '" + string(yyget_text(yyscanner)) + "'";
+                if (i==tokArrayLen-2) {
+                    string hint(yyget_text(yyscanner));
+                    int pos = hint.find_first_not_of("abcdefghijklmnopqrstuvwxyz");
+                    hint.insert(pos," ");
+                    once_msg = "Try splitting it with a space: '"+hint+"'.";
                 }
+            } else {
+                ins = "a <" + ins + ">";
             }
-            msg.insert(pos, ins);
         }
+        //replace token
+        msg.replace(pos, tokens[i].first.length(), ins);
     }
     int pos = msg.rfind("', '");
     if (pos != string::npos) {

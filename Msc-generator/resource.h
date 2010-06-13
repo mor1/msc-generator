@@ -61,6 +61,9 @@
 #define IDC_CHECK_SMART_IDENT           1012
 #define IDC_COMBO_CSH                   1013
 #define IDC_BUTTON_URL2                 1014
+#define IDC_STATIC_VERSION              1015
+#define IDC_STATIC_CURRENT_VERSION      1016
+#define IDC_STATIC_LATEST_VERSION       1017
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
@@ -100,7 +103,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        315
 #define _APS_NEXT_COMMAND_VALUE         32860
-#define _APS_NEXT_CONTROL_VALUE         1015
+#define _APS_NEXT_CONTROL_VALUE         1018
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

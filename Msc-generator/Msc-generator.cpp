@@ -28,8 +28,8 @@
 #include "IpFrame.h"
 #include "MscGenDoc.h"
 #include "MscGenView.h"
-#include "version.h"
 #include "csh.h"
+#include "commandline.h" //for VersionText
 
 #include <sstream>
 #include <vector>
@@ -79,6 +79,8 @@ BOOL CAboutDlg::OnInitDialog( )
 	m_btnLink.SetURL(_T("http://msc-generator.sourcforge.net"));
 	m_btnLink.SetTooltip(_T("Visit the Msc-generator site"));
 	m_btnLink.SizeToContent();
+	CString text = "Msc-generator Version ";
+	GetDlgItem(IDC_STATIC_VERSION)->SetWindowText(text + (VersionText()+1));
 	return a;
 }
 
@@ -611,8 +613,8 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	ReadDesigns(reportProblem); //fills m_ChartSourcePreamble appropriately, default filename applies
 	FillDesignDesignCombo("", true);
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
-		              "http://msc-generator.sourceforge.net";
-	m_CopyrightText.AppendFormat(" v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
+		              "http://msc-generator.sourceforge.net ";
+	m_CopyrightText.Append(VersionText());
 
 	//Complie csh colors from the variables defined in csh.{cpp,h} into CHARFORMAT elements for faster CSH
 	MscInitializeCshAppearanceList();
@@ -673,8 +675,7 @@ bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 class CVersionDlg : public CDialog
 {
 public:
-	CVersionDlg() : CDialog(CVersionDlg::IDD) , m_sCurrentVersion(_T(""))
-		, m_sLatestVersion(_T(""))
+	CVersionDlg() : CDialog(CVersionDlg::IDD), a(-1), b(-1), c(-1)
 	{}
 
 // Dialog Data
@@ -684,18 +685,14 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
 	virtual BOOL OnInitDialog( );
-
 public:
-	CString m_sCurrentVersion;
-	CString m_sLatestVersion;
+	int a, b, c;
 };
 
 void CVersionDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_BUTTON_URL2, m_btnLink);
-	DDX_Text(pDX, IDC_EDIT2, m_sCurrentVersion);
-	DDX_Text(pDX, IDC_EDIT3, m_sLatestVersion);
 }
 
 BOOL CVersionDlg::OnInitDialog( ) 
@@ -704,6 +701,10 @@ BOOL CVersionDlg::OnInitDialog( )
 	m_btnLink.SetURL(_T("https://sourceforge.net/projects/msc-generator/"));
 	m_btnLink.SetTooltip(_T("Download from SourceForge"));
 	m_btnLink.SizeToContent();
+ 	CString text = "Currently installed version: ";
+	GetDlgItem(IDC_STATIC_CURRENT_VERSION)->SetWindowText(text + VersionText());
+ 	text = "Latest version available: ";
+	GetDlgItem(IDC_STATIC_LATEST_VERSION)->SetWindowText(text + VersionText());
 	return a;
 }
 
@@ -727,33 +728,25 @@ UINT CheckVersionFreshness(LPVOID)
 	}
 	END_CATCH
 
-	if (latest_version.GetLength()==0) return false;
-	int a=-1,b=-1,c=-1;
-	sscanf(latest_version, "v%d.%d.%d", &a, &b, &c);
-	//MessageBox(0, "This is what I read: " + latest_version, "Msc-generator", MB_OK);
 
+	if (latest_version.GetLength()==0) return false;
+	CVersionDlg dlg;
+	sscanf(latest_version, "v%d.%d.%d", &dlg.a, &dlg.b, &dlg.c);
 	//If we are the latest version (or erroneous string read from web), exit
-	if (a<LIBMSCGEN_MAJOR) return false;
-	if (a==LIBMSCGEN_MAJOR && b<LIBMSCGEN_MINOR) return false;
-	if (a==LIBMSCGEN_MAJOR && b==LIBMSCGEN_MINOR && c<=LIBMSCGEN_SUPERMINOR) return false;	
+	if (dlg.a<LIBMSCGEN_MAJOR) return false;
+	if (dlg.a==LIBMSCGEN_MAJOR && dlg.b<LIBMSCGEN_MINOR) return false;
+	if (dlg.a==LIBMSCGEN_MAJOR && dlg.b==LIBMSCGEN_MINOR && dlg.c<=LIBMSCGEN_SUPERMINOR) return false;	
 
 	//If user do not want to get reminded for the new version, exit
 	int no_a = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MAJOR, -1);
 	int no_b = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MINOR, -1);
 	int no_c = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, -1);
-
-	if (no_a == a && no_b == b && no_c == c) return false;
+	if (no_a == dlg.a && no_b == dlg.b && no_c == dlg.c) return false;
 	
-	char current[100]; sprintf(current, "v%d.%d.%d", LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR);
-	char latest[100];  sprintf(latest,  "v%d.%d.%d", a, b, c);
-
-	CVersionDlg dlg;
-	dlg.m_sCurrentVersion = current;
-	dlg.m_sLatestVersion = latest;
 	if (dlg.DoModal() == IDOK) {
-		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MAJOR, a);
-		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MINOR, b);
-		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, c);
+		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MAJOR, dlg.a);
+		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MINOR, dlg.b);
+		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, dlg.c);
 	}
 	return true;
 }

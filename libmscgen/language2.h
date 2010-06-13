@@ -227,7 +227,6 @@ void yyfree (void * ,yyscan_t yyscanner );
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
-#define COMMENT 1
 
 #endif
 
@@ -350,9 +349,9 @@ extern int yylex \
 #undef YY_DECL
 #endif
 
-#line 337 "language2.ll"
+#line 392 "language2.ll"
 
 
-#line 357 "language2.h"
+#line 356 "language2.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

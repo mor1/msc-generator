@@ -108,7 +108,8 @@ struct file_line_range_length_compare
 class Msc : public MscDrawer {
 public:
     typedef std::pair<file_line, double> MarkerType;
-	typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare> LineToArcMapType;
+    typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
+            LineToArcMapType;
     EntityList                    Entities;
     EIterator                     NoEntity;
     EntityDefList                 AutoGenEntities;

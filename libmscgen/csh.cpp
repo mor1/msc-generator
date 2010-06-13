@@ -298,14 +298,14 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
             //string starts with colon, so we are limited by that
             while (*(p-1-count) == '\\') count++;
             //if even number then replace comment with spaces till end of line
-			if (count%2 == 0) {
-				CshPos comment;
-				comment.first_pos = pos.first_pos + (p - copy)-1;
+            if (count%2 == 0) {
+                CshPos comment;
+                comment.first_pos = pos.first_pos + (p - copy)-1;
                 while (*p!=0 && *p!=0x0d && *p!=0x0a) *(p++) = ' ';
-				comment.last_pos = pos.first_pos + (p - copy);
-				AddCSH(comment, COLOR_COMMENT);
-			} else
-				p++; //step over the escaped #
+                comment.last_pos = pos.first_pos + (p - copy);
+                AddCSH(comment, COLOR_COMMENT);
+            } else
+                p++; //step over the escaped #
 
         }
     }
@@ -314,7 +314,7 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
 }
 
 const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
-"pedantic", "strict", ""};
+"pedantic", "background.color", "background.gradient", ""};
 
 const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 "pos", "relative", "show", "makeroom", "readfrom", "offset",
@@ -340,7 +340,11 @@ void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color
     char const *const *array;
     if (color == COLOR_OPTIONNAME) array = opt_names;
     if (color == COLOR_ATTRNAME) array = attr_names;
-    switch (find_opt_attr_name(name, array)) {
+    int match_result = find_opt_attr_name(name, array);
+    //Honor partial matches only if cursor is right after
+    if (pos.last_pos != cursor_pos && match_result == 1)
+        match_result = 0;
+    switch (match_result) {
     case 0: AddCSH(pos, COLOR_ERROR); return;
     case 1: AddCSH(pos, MscColorSyntaxType(color+1)); return;
     case 2: AddCSH(pos, color); return;

@@ -228,7 +228,6 @@ void csh_free (void * ,yyscan_t yyscanner );
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
-#define COMMENT 1
 
 #endif
 
@@ -351,9 +350,9 @@ extern int csh_lex \
 #undef YY_DECL
 #endif
 
-#line 337 "language2.ll"
+#line 392 "language2.ll"
 
 
-#line 358 "colorsyntax2.h"
+#line 357 "colorsyntax2.h"
 #undef csh_IN_HEADER
 #endif /* csh_HEADER_H */

@@ -58,17 +58,17 @@ typedef enum
     COLOR_FLAG_BOLD = 1,
     COLOR_FLAG_ITALICS = 2,
     COLOR_FLAG_UNDERLINE = 4,
-	COLOR_FLAG_COLOR = 8
+    COLOR_FLAG_COLOR = 8
 } MscColorSyntaxFlag;
 
 struct MscColorSyntaxAppearance {
-	int effects;
-	int mask;
-	unsigned char r;
-	unsigned char g;
-	unsigned char b;
-	void SetColor(unsigned char rr, unsigned char gg, unsigned char bb)
-	{r=rr; g=gg; b=bb;}
+    int effects;
+    int mask;
+    unsigned char r;
+    unsigned char g;
+    unsigned char b;
+    void SetColor(unsigned char rr, unsigned char gg, unsigned char bb)
+    {r=rr; g=gg; b=bb;}
 };
 
 #define CSH_SCHEME_MAX 4
@@ -84,7 +84,9 @@ class Csh
 public:
     MscCshListType        CshList;
     std::set<std::string> CshEntityNames;
+    int                   cursor_pos;  //makes a difference for partial keyword names
 
+    Csh() : cursor_pos(-1) {}
     void AddCSH(CshPos&, MscColorSyntaxType);
     void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
     void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments);

@@ -21,7 +21,20 @@
 #include <assert.h>
 #include "commandline.h"
 #include "msc.h"
-#include "version.h"
+
+const char *VersionText(char a, char b, char c)
+{
+    static char buff[20];
+    if (c<0) c=0;
+    if (b<0) b=0;
+    if (a<0) a=0;
+    if (c!=0)
+        sprintf(buff, "v%d.%d.%d", unsigned(a), unsigned(b), unsigned(c));
+    else
+        sprintf(buff, "v%d.%d", unsigned(a), unsigned(b));
+    return buff;
+}
+
 
 char *ReadFile(FILE *in)
 {
@@ -73,7 +86,7 @@ static void usage()
 "Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it under certain\n"
 "conditions; type `mscgen -l' for details.\n",
-VERSION);
+VersionText());
 }
 
 /** Print program licence and return.
@@ -114,7 +127,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     Msc msc;
     msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
                         "http://msc-generator.sourceforge.net ";
-    msc.copyrightText.append(VERSION);
+    msc.copyrightText.append(VersionText());
 
     msc.Error.AddFile("[options]");
     const file_line opt_pos(msc.current_file,0,0);

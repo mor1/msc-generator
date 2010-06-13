@@ -1,9 +1,8 @@
-update doc, add doc project 
-
 design lib
 Re-add escape key to exit in-place editing...
 Multi-level numbers
 - numbering = +, +A, +X
+- numbering = +<text>{123,abc,ABC,III,iii}<text>
 Add a<->b<<>>c
 Add colon_string labels also for entities
 Make divider only within a box
@@ -18,4 +17,6 @@ Expand parallel behaviour
 Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
 make that read-only. 
 Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
-
+Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
+Add global text.format chart option to impact all text
+Add command bye so that file end can be used for comments

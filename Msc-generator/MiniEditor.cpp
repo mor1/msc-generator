@@ -273,6 +273,10 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 		CString text;
 		GetWindowText(text);
 		RemoveCRLF(text);
+		if (cr.cpMax == cr.cpMin) 
+			m_csh.cursor_pos = cr.cpMin;
+		else
+			m_csh.cursor_pos = -1;
 		m_csh.ParseText(text, text.GetLength());
 		for (MscCshListType::const_iterator i=m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) 
 			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {

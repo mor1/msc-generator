@@ -46,7 +46,7 @@ class StringFormat {
 
     typedef enum {FORMATTING_OK, FORMATTING_NOK, NON_FORMATTING, NON_ESCAPE, LINE_BREAK} EEscapeType;
     EEscapeType ProcessEscape(const char *input, int pos, unsigned &length,
-                              bool apply=false, string *replaceto=NULL, const StringFormat *basic=NULL,
+                              bool resolve=false, bool apply=false, string *replaceto=NULL, const StringFormat *basic=NULL,
                               Msc *msc=NULL, file_line linenum=file_line(0,0), bool reportError=false, bool sayIgnore=true);
     friend class Label;
     friend class ParsedLine;
@@ -61,7 +61,7 @@ class StringFormat {
 
     void Empty();
 
-    // Apply a formatting to us
+    // Apply a formatting to us, stop at non-formatting escape or a bad formatting one or at one including style/color name
     unsigned Apply(string &escape); //this one removes the escape chars form beginning of input!
     unsigned Apply(const char *s);
     StringFormat &operator +=(const char*s) {Apply(s); return *this;};
@@ -82,11 +82,11 @@ class StringFormat {
     //Draw a fragment y specifies baseline (not in cairo sense)
     double drawFragment(const string &, MscDrawer *, XY, bool isRotated) const;
 
-    //This adds CSH entries to csh.
+    //This adds CSH entries to csh. Malformed \c and \s arguments are assumed OK
     static void ExtractCSH(int startpos, const char *text, Csh &csh);
     //This adds a number at the beginning of the string
     //Taking all potential escape sequence at the beginning of the string
-    //into account
+    //into account, exept \s and \c containing a style or color name 
     static void AddNumbering(string &label, int num);
     //This converts color names to RGBA numbers, returns the list of
     //unrecognized color names separated by commas, empty string if all is OK.

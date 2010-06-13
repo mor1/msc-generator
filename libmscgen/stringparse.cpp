@@ -116,6 +116,9 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 //for NON_ESCAPE return the text verbatim
 //for FORMATTING_NOK return empty string
 //- if apply==true: Apply the string formatting escape to "this". (or do nothing for not valid formating escapes)
+//- if resolve==true we resolve strings in msc. If msc==NULL, or we do not find the stye/color we return NOK
+//  if apply==true, resolve parameter is ignored, we assume resolve==true.
+//  resolve has no impact on other than \s \c and only if msc==NULL, apply==false
 //- if reportError==true: any problem is generated an Error. if sayIgnore the we say we ignore the error,
 //                        otherwise we say we keep it as verbatim text.
 #define PER_S_DEPRECATED_MSG "The use of '\\s' control escape to indicate small text is deprecated. Use '\\-' instead."
@@ -123,7 +126,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 #define TOO_LARGE_M_VALUE_MSG  "Use an integer between [0..500]."
 StringFormat::EEscapeType StringFormat::ProcessEscape(
 	const char * const input, const int pos, unsigned &length,
-	bool apply, string *replaceto, const StringFormat *basic,
+	bool resolve, bool apply, string *replaceto, const StringFormat *basic,
 	Msc *msc, file_line linenum, bool reportError, bool sayIgnore)
 {
     /*
@@ -297,15 +300,17 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         if (msc)
             c = msc->ColorSets.top().GetColor(parameter); //consider color names and defs
-        else
+        else if (apply || resolve) //try to resolve this if we are applying
             c = MscColorType(parameter);  //just consider defs
+        else	   //if we are just parsing (probably for csh) keep as is.
+            goto ok;
         if (c.valid) {
             if (apply) {
                 color.first = true;
                 color.second = c;
             }
             if (replaceto) replaceto->assign("\\c" + c.Print());
-            goto ok;
+            return FORMATTING_OK;
         }
         if (msc && reportError)
             msc->Error.Error(linenum, "Unrecognized color name or definition: '" + parameter + "'." + errorAction);
@@ -322,8 +327,12 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 *this += *basic;
             return FORMATTING_OK;
         }
-        if (!msc) //drop silently if there is a style in a place where it should not be
-            goto nok;
+        if (!msc) {
+            if (apply || resolve) //drop silently if there is a style in a place where it should not be
+                goto nok;
+            else	   //if we are just parsing (probably for csh) keep as is.
+                goto ok;
+        }
         i = msc->StyleSets.top().find(parameter);
         if (i==msc->StyleSets.top().end()) {
             maybe_s_msg="Unrecognized style '" + parameter + "'.";
@@ -508,7 +517,7 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
     StringFormat sf;
     while(text.length()>pos) {
         unsigned length;
-        switch (sf.ProcessEscape(text.c_str(), pos, length, false, &replaceto, basic, msc, linenum, true, ignore)) {
+        switch (sf.ProcessEscape(text.c_str(), pos, length, true, false, &replaceto, basic, msc, linenum, true, ignore)) {
         case FORMATTING_NOK:
             if (ignore) break;  //replaceto is empty here, we will remove the bad esc.
             //fallthrough
@@ -529,7 +538,7 @@ unsigned StringFormat::Apply(const char *text)
     unsigned pos = 0;
     unsigned length;
     while (pos < strlen(text)) {
-        if (FORMATTING_OK != ProcessEscape(text, pos, length, true)) break;
+        if (FORMATTING_OK != ProcessEscape(text, pos, length, true, true)) break;
         pos += length;
     }
     return pos;
@@ -705,7 +714,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         string tmp = a.value;
         if (tmp.length()==0) return true;
 
-		StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, NULL, false);
+		StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, NULL, this);
 
         StringFormat sf(tmp);
         if (tmp.length()) {
@@ -721,7 +730,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 
 }
-
+//This shall be called only after StringFormat::ExpandColorAndStyle on a label
 void StringFormat::AddNumbering(string &label, int num)
 {
     if (label.length()==0 || num == -1000) return;
@@ -891,7 +900,7 @@ ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) 
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
             //we avoid changing format!
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str(), pos, length, false, &replaceto, &startFormat)) break;
+            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str(), pos, length, true, false, &replaceto, &startFormat)) break;
             fragment.append(replaceto);
             pos += length;
         }
@@ -925,7 +934,7 @@ void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
         fragment.erase();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str(), pos, length, false, &replaceto, &startFormat)) break;
+            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str(), pos, length, true, false, &replaceto, &startFormat)) break;
             fragment.append(replaceto);
             pos += length;
         }

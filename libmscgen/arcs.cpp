@@ -217,13 +217,14 @@ string ArcLabelled::Print(int ident) const
 
 void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
 {
+	//At this point the label must be fully resolved!!
     at_top_level = top_level;
     if (label.length()!=0 && numbering != -1000) {
         if (numbering == -999)
             numbering = number;
         else
             number = numbering;
-        style.text.AddNumbering(label, numbering);
+        StringFormat::AddNumbering(label, numbering);
         number++;
     }
     parsed_label.Set(label, style.text);

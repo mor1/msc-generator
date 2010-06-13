@@ -497,8 +497,8 @@ void Msc::DrawEntityLines(double y, double height,
         const double till = y+height;
         while (up.y < till) {
             down.y = min((*from)->status.Till(up.y), till);
-			if ((*from)->status.GetHideStatus(up.y) &&
-				(*from)->status.GetStatus(up.y))
+            if ((*from)->status.GetHideStatus(up.y) &&
+                (*from)->status.GetStatus(up.y))
                 line(up, down, (*from)->status.GetStyle(up.y).vline);
             up.y = down.y;
         }
@@ -514,12 +514,12 @@ double Msc::FindCollision(const Geometry &a, const Geometry &b,
 {
     double up = MAINLINE_INF;
 	if (a.mainline.HasValidTill() && b.mainline.HasValidFrom()) {
-		up = b.mainline.from - a.mainline.till - compressYGap;
-		CollisionYPos = a.mainline.till + compressYGap/2;
-	}
+            up = b.mainline.from - a.mainline.till - compressYGap;
+            CollisionYPos = a.mainline.till + compressYGap/2;
+        }
     for (set<Block>::const_iterator i=a.GetCover().begin(); i!=a.GetCover().end(); i++)
         for (set<Block>::const_iterator j=b.GetCover().begin(); j!=b.GetCover().end(); j++)
-			if (i->x.Overlaps(j->x, compressXGap))
+            if (i->x.Overlaps(j->x, compressXGap))
                 if (up > j->y.from - i->y.till - compressYGap) {
                     up = j->y.from - i->y.till - compressYGap;
                     CollisionYPos = i->y.till + compressYGap/2;
@@ -876,6 +876,8 @@ void Msc::Draw(bool pageBreaks)
             y = i->first;
         }
         fill_bkg += i->second;
+        if (white_background && fill_bkg.color.second.a == 0)
+            fill_bkg.color.second = MscColorType(255,255,255);
         i++;
     }
     if (y < totalHeight) {

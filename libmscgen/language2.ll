@@ -1,5 +1,5 @@
 %option reentrant noyywrap nounput
-%option bison-bridge bison-locations case-insensitive
+%option bison-bridge bison-locations
 
 %{
 /*
@@ -106,10 +106,7 @@ do {                                                \
 	}							\
     while (YYID (0))
 
-#define JUMP_LINE do {} while(0)
-
-#define REMOVE_QUOTES(A) strdup(A)
-#define PROCESS_COLON_STRING(A, B) strdup(A)
+#define JUMP_LINE
 
 #else
 
@@ -124,9 +121,6 @@ do {                                                \
     yylloc->last_line = yylloc->first_line+1;  \
     yylloc->last_column=0;                     \
     } while(0)
-
-#define REMOVE_QUOTES(A) msc_remove_quotes((A)+1)
-#define PROCESS_COLON_STRING(A, B) msc_process_colon_string((A)+1, B)
 
 /* in-place removal of whitespace. Returns new head */
 char *msc_remove_head_tail_whitespace(char *s)
@@ -229,109 +223,170 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
     return ret;
 }
 
-/* remove heading and trailing quotation from a string (copies to new memory) */
-char* msc_remove_quotes(const char *s)
-{
-    unsigned a=0;
-    while (s[a]==' ' || s[a]=='\t') a++;
-    if (strlen(s)>=2+a && s[a]=='"' && s[strlen(s)-1]=='"') {
-        char * r = strdup(s+a+1);
-        r[strlen(s)-2-a] = 0;
-        return r;
-    }
-    return strdup(s);
-}
 #endif /* C_S_H_IS_COMPILED */
 
 %}
 
-%x COMMENT
-
 %%
 
+ /* Newline characters in all forms accepted */
 \x0d\x0a     JUMP_LINE;
 \x0d         JUMP_LINE;
 \x0a         JUMP_LINE;
 
-#                      %{
-                         #ifdef C_S_H_IS_COMPILED
-                           yyget_extra(yyscanner)->csh->AddCSH(*yylloc, COLOR_COMMENT);
-                         #endif
-                           BEGIN COMMENT;
-                       %}
+ /* # starts a comment last until end of line */
+#[^\x0d\x0a]* %{
+  #ifdef C_S_H_IS_COMPILED
+    yyget_extra(yyscanner)->csh->AddCSH(*yylloc, COLOR_COMMENT);
+  #endif
+%}
 
-<COMMENT>[^\x0d\x0a]*  %{
-                         #ifdef C_S_H_IS_COMPILED
-                           yyget_extra(yyscanner)->csh->AddCSH(*yylloc, COLOR_COMMENT);
-                         #endif
-                           BEGIN INITIAL;
-                       %}
 
-msc       yylval_param->str = strdup(yytext); return TOK_MSC;
-heading   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
-nudge     yylval_param->str = strdup(yytext); return TOK_COMMAND_NUDGE;
-defcolor  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFCOLOR;
-defstyle  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFSTYLE;
-defdesign yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFDESIGN;
-newpage   yylval_param->str = strdup(yytext); return TOK_COMMAND_NEWPAGE;
-block     yylval_param->str = strdup(yytext); return TOK_COMMAND_BIG;
-pipe      yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
-mark      yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
-parallel  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
-vertical  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
-at        yylval_param->str = strdup(yytext); return TOK_AT;
-no        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
-yes       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
+ /* This is a colon-quoted string, finished by a quotation mark
+ ** : "<string>"
+ ** <string> can contain escaped quotation marks, but no line breaks
+ */
+\:[ \t]*\"([^\"\x0d\x0a]*(\\\")*)*\" %{
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext);
+  #else
+    /* after whitespaces we are guaranteed to have a tailing and heading quot */
+    yylval_param->str = strdup(msc_remove_head_tail_whitespace(yytext+1)+1);
+    yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
+  #endif
+    return TOK_COLON_QUOTED_STRING;
+%}
 
-\:[ \t]*\"[^\"]*\"                      yylval_param->str = REMOVE_QUOTES(yytext+1); return TOK_COLON_QUOTED_STRING;
-\:([^\"\;\[\{\\]*(\\.)*)*               yylval_param->str = PROCESS_COLON_STRING(yytext, yylloc); return TOK_COLON_STRING;
+ /* This is a colon-quoted string, finished by a newline (trailing context)
+ ** : "<string>$
+ ** <string> can contain escaped quotation marks, but no line breaks
+ */
+\:[ \t]*\"([^\"\x0d\x0a]*(\\\")*)*/[\x0d\x0a] %{
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext);
+  #else
+    {
+    /* after whitespaces we are guaranteed to have a heading quot */
+    const char *s = msc_remove_head_tail_whitespace(yytext+1);
+    // s now points to heading quotation mark
+    yylval_param->str = strdup(s+1);
+    file_line pos(yyget_extra(yyscanner)->msc->current_file,
+                 yylloc->first_line, yylloc->first_column + (s - yytext));
+    yyget_extra(yyscanner)->msc->Error.Error(pos,
+         "This opening quotation mark misses its closing pair. "
+         "Assuming string termination at line-end.",
+         "Quoted strings cannot have line breaks. Use \'\\n\' to insert a line break.");
+    }
+  #endif
+    return TOK_COLON_QUOTED_STRING;
+%}
+
+ /* This is a non quoted colon-string
+ ** : <string>
+ ** terminated by any of: quot mark, backslash [ { or ;
+ ** Honors escaping of the above via a backslash
+ */
+\:([^\"\;\[\{\\]*(\\.)*)*  %{
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext);
+  #else
+    yylval_param->str = msc_process_colon_string(yytext+1, yylloc);
+  #endif
+    return TOK_COLON_STRING;
+%}
+
+ /* A simple quoted string. */
+\"[^\"\x0d\x0a]*\" %{
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext);
+  #else
+    yylval_param->str = strdup(yytext+1);
+    yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
+  #endif
+    return TOK_QSTRING;
+%}
+
+ /* A simple quoted string, missing a closing quotation mark */
+\"[^\"\x0d\x0a]*/\x0d\x0a %{
+  #ifdef C_S_H_IS_COMPILED
+    yylval_param->str = strdup(yytext);
+  #else
+    {
+    yylval_param->str = strdup(yytext+1);
+    file_line pos(yyget_extra(yyscanner)->msc->current_file,
+                 yylloc->first_line, yylloc->first_column);
+    yyget_extra(yyscanner)->msc->Error.Error(pos,
+         "This opening quotation mark misses its closing pair. "
+         "Assuming string termination at line-end.",
+         "Quoted strings cannot have line breaks. Use \'\\n\' to insert a line break.");
+    }
+  #endif
+    return TOK_QSTRING;
+%}
+
+ /* These keywords are case insensitive */
+(?i:msc)       yylval_param->str = strdup(yytext); return TOK_MSC;
+(?i:heading)   yylval_param->str = strdup(yytext); return TOK_COMMAND_HEADING;
+(?i:nudge)     yylval_param->str = strdup(yytext); return TOK_COMMAND_NUDGE;
+(?i:defcolor)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFCOLOR;
+(?i:defstyle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFSTYLE;
+(?i:defdesign) yylval_param->str = strdup(yytext); return TOK_COMMAND_DEFDESIGN;
+(?i:newpage)   yylval_param->str = strdup(yytext); return TOK_COMMAND_NEWPAGE;
+(?i:block)     yylval_param->str = strdup(yytext); return TOK_COMMAND_BIG;
+(?i:pipe)      yylval_param->str = strdup(yytext); return TOK_COMMAND_PIPE;
+(?i:mark)      yylval_param->str = strdup(yytext); return TOK_COMMAND_MARK;
+(?i:parallel)  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
+(?i:vertical)  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
+(?i:at)        yylval_param->str = strdup(yytext); return TOK_AT;
+(?i:no)        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
+(?i:yes)       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
+
+\.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
+---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
+-\>      yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_TO;     // ->
+\<-      yylval_param->arctype=MSC_ARC_SOLID;       return TOK_REL_SOLID_FROM;   // <-
+\<-\>    yylval_param->arctype=MSC_ARC_SOLID_BIDIR; return TOK_REL_SOLID_BIDIR;  // <->
+=\>      yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_TO;    // =>
+\<=      yylval_param->arctype=MSC_ARC_DOUBLE;      return TOK_REL_DOUBLE_FROM;  // <=
+\<=\>    yylval_param->arctype=MSC_ARC_DOUBLE_BIDIR;return TOK_REL_DOUBLE_BIDIR; // <=>
+\>\>     yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_TO;    // >>
+\<\<     yylval_param->arctype=MSC_ARC_DASHED;      return TOK_REL_DASHED_FROM;  // <<
+\<\<\>\> yylval_param->arctype=MSC_ARC_DASHED_BIDIR;return TOK_REL_DASHED_BIDIR; // <<>>
+\>       yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_TO;    // >
+\<       yylval_param->arctype=MSC_ARC_DOTTED;      return TOK_REL_DOTTED_FROM;  // <
+\<\>     yylval_param->arctype=MSC_ARC_DOTTED_BIDIR;return TOK_REL_DOTTED_BIDIR; // <>
+--       yylval_param->arctype=MSC_EMPH_SOLID;      return TOK_EMPH;             // --
+\+\+     yylval_param->arctype=MSC_EMPH_DASHED;     return TOK_EMPH;             // ++
+\.\.     yylval_param->arctype=MSC_EMPH_DOTTED;     return TOK_EMPH;             // ..
+==       yylval_param->arctype=MSC_EMPH_DOUBLE;     return TOK_EMPH;             // ==
+-        return TOK_DASH;
+=        return TOK_EQUAL;
+,        return TOK_COMMA;
+\;       return TOK_SEMICOLON;
+\{       return TOK_OCBRACKET;
+\}       return TOK_CCBRACKET;
+\[       return TOK_OSBRACKET;
+\]       return TOK_CSBRACKET;
+
+pipe--        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+pipe\+\+      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+pipe==        yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+pipe\.\.      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block-\>      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block\>       yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block\>\>     yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+block=\>      yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical--    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\+\+  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical==    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\.\.  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical-\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\>\>  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical\>    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+
 [+\-]?[0-9]+\.?[0-9]*                   yylval_param->str = strdup(yytext); return TOK_NUMBER;
 [A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* yylval_param->str = strdup(yytext); return TOK_STRING;
-\"[^\"\n]*\"                            yylval_param->str = strdup(yytext + !C_S_H); if (!C_S_H) yylval_param->str[strlen(yylval_param->str) - 1] = '\0'; return TOK_QSTRING;
-
-\.\.\.        yylval_param->arctype = MSC_ARC_DISCO;    return TOK_SPECIAL_ARC;        /* ... */
----           yylval_param->arctype = MSC_ARC_DIVIDER;  return TOK_SPECIAL_ARC;        /* --- */
--\>           yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_TO;         /* -> */
-\<-           yylval_param->arctype = MSC_ARC_SOLID;    return TOK_REL_SOLID_FROM;       /* <- */
-\<-\>         yylval_param->arctype = MSC_ARC_SOLID_BIDIR;    return TOK_REL_SOLID_BIDIR;      /* <-> */
-=\>           yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_TO;      /* => */
-\<=           yylval_param->arctype = MSC_ARC_DOUBLE;   return TOK_REL_DOUBLE_FROM;    /* <= */
-\<=\>         yylval_param->arctype = MSC_ARC_DOUBLE_BIDIR;   return TOK_REL_DOUBLE_BIDIR;   /* <=> */
-\>\>          yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_TO;      /* >> */
-\<\<          yylval_param->arctype = MSC_ARC_DASHED;   return TOK_REL_DASHED_FROM;    /* << */
-\<\<\>\>      yylval_param->arctype = MSC_ARC_DASHED_BIDIR;   return TOK_REL_DASHED_BIDIR;   /* <<>> */
-\>            yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_TO;    /* > */
-\<            yylval_param->arctype = MSC_ARC_DOTTED;   return TOK_REL_DOTTED_FROM;  /* < */
-\<\>          yylval_param->arctype = MSC_ARC_DOTTED_BIDIR;   return TOK_REL_DOTTED_BIDIR;  /* <> */
---            yylval_param->arctype = MSC_EMPH_SOLID;   return TOK_EMPH;
-\+\+          yylval_param->arctype = MSC_EMPH_DASHED;  return TOK_EMPH;
-\.\.          yylval_param->arctype = MSC_EMPH_DOTTED;  return TOK_EMPH;
-==            yylval_param->arctype = MSC_EMPH_DOUBLE;  return TOK_EMPH;
--             return TOK_DASH;
-=             return TOK_EQUAL;
-,             return TOK_COMMA;
-\;            return TOK_SEMICOLON;
-\{            return TOK_OCBRACKET;
-\}            return TOK_CCBRACKET;
-\[            return TOK_OSBRACKET;
-\]            return TOK_CSBRACKET;
-
-pipe--        yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-pipe\+\+      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-pipe==        yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-pipe\.\.      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block-\>      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block\>       yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block\>\>     yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-block=\>      yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical--    yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical\+\+  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical==    yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical\.\.  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical-\>   yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical\>\>  yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical\>    yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
-vertical=\>   yylval_param->str = strdup(yytext); return TOK_STYLE_NAME;
 
 [ \t]+    /* ignore whitespace */;
 %%
