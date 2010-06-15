@@ -24,12 +24,16 @@ class CCshRichEditCtrl : public CRichEditCtrl
 	bool m_bCshUpdateInProgress;
 	Csh  m_csh;
 public:
+	int m_tabsize;
 	CCshRichEditCtrl();
 	int  FindColonLabelIdent(long lStart);
 	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
+	int  LastNonWhitespaceIdent(const char *str, int Max=-1);
+	int  FindIdentDeltaForClosingBrace(int pos_to_be_inserted);
 	BOOL PreTranslateMessage(MSG* pMsg);
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateCsh(bool force = false);
+	void CancelPartialMatch();
 	long ConvertLineColToPos(unsigned line, unsigned col) {return LineIndex(line) + col;}
 	void ConvertPosToLineCol(long pos, int &line, int &col) {line=LineFromChar(pos); col=pos-LineIndex(line);}
 	void JumpToLine(int line, int col);

@@ -134,7 +134,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 280 "language.yy"
+#line 274 "language.yy"
 {
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;

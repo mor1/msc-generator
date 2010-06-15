@@ -1,7 +1,7 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
-	Distributed under GNU Affero General Public License.
+    Copyright 2008,2009,2010 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -41,6 +41,7 @@ void MscInitializeCshAppearanceList(void)
 
     //CSH_SCHEME ==0 is the Minimal one
     l[0][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[0][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
+    l[0][COLOR_KEYWORD_PARTIAL].   SetColor(  0,  0,  0); l[0][COLOR_KEYWORD_PARTIAL].effects = 0;
     l[0][COLOR_ATTRNAME].          SetColor(  0,  0,  0); l[0][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_ATTRNAME_PARTIAL].  SetColor(  0,  0,  0); l[0][COLOR_ATTRNAME_PARTIAL].effects = 0;
     l[0][COLOR_OPTIONNAME].        SetColor(  0,  0,  0); l[0][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
@@ -68,6 +69,7 @@ void MscInitializeCshAppearanceList(void)
 
     //CSH_SCHEME ==1 is the Standard one
     l[1][COLOR_KEYWORD].           SetColor(128,128,  0); l[1][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
+    l[1][COLOR_KEYWORD_PARTIAL].   SetColor(128,128,  0); l[1][COLOR_KEYWORD_PARTIAL].effects = 0;
     l[1][COLOR_ATTRNAME].          SetColor(128,128,  0); l[1][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
     l[1][COLOR_ATTRNAME_PARTIAL].  SetColor(128,128,  0); l[1][COLOR_ATTRNAME_PARTIAL].effects = 0;
     l[1][COLOR_OPTIONNAME].        SetColor(128,128,  0); l[1][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
@@ -95,6 +97,7 @@ void MscInitializeCshAppearanceList(void)
 
     //CSH_SCHEME ==2 is the Colorful one
     l[2][COLOR_KEYWORD].           SetColor(128,128,  0); l[2][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
+    l[2][COLOR_KEYWORD_PARTIAL].   SetColor(128,128,  0); l[2][COLOR_KEYWORD_PARTIAL].effects = 0;
     l[2][COLOR_ATTRNAME].          SetColor(128,128,  0); l[2][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
     l[2][COLOR_ATTRNAME_PARTIAL].  SetColor(128,128,  0); l[2][COLOR_ATTRNAME_PARTIAL].effects = 0;
     l[2][COLOR_OPTIONNAME].        SetColor(128,128,  0); l[2][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
@@ -122,6 +125,7 @@ void MscInitializeCshAppearanceList(void)
 
     //CSH_SCHEME ==3 is the Error oriented one
     l[3][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[3][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
+    l[3][COLOR_KEYWORD_PARTIAL].   SetColor(  0,  0,  0); l[1][COLOR_KEYWORD_PARTIAL].effects = 0;
     l[3][COLOR_ATTRNAME].          SetColor(  0,  0,  0); l[3][COLOR_ATTRNAME].effects = COLOR_FLAG_BOLD;
     l[3][COLOR_ATTRNAME_PARTIAL].  SetColor(  0,  0,  0); l[3][COLOR_ATTRNAME_PARTIAL].effects = 0;
     l[3][COLOR_OPTIONNAME].        SetColor(  0,  0,  0); l[3][COLOR_OPTIONNAME].effects = COLOR_FLAG_BOLD;
@@ -313,6 +317,10 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
     free(copy);
 }
 
+const char *const keyword_names[] = {"heading", "newpage", "nudge", "parallel",
+"block", "pipe", "defdesign", "defcolor", "defstyle",
+"vertical", "mark", ""};
+
 const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
 "pedantic", "background.color", "background.gradient", ""};
 
@@ -335,6 +343,37 @@ int find_opt_attr_name(const char *name, const char * const array[])
     return 0;
 }
 
+//This is called when a string is at the beginning of the line and is not part
+//of a valid option: it can either be a command or an entity definition
+// we give KEYWORD or KEYWORD_PARTIAL for full or partial keyword matches
+// and ENTITYNAME or ENTITYNAME_FIRST for no matches
+// optionnames are not searched
+//All-in-all partial matches are only given if the cursor is just after the
+//string in question. In this case we also store the partial match in
+// Csh::partial_at_cursor_pos
+void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
+{
+    int match_result = find_opt_attr_name(name, keyword_names);
+    if (pos.last_pos == cursor_pos && match_result == 1) {
+        AddCSH(pos, COLOR_KEYWORD_PARTIAL);
+        partial_at_cursor_pos.first_pos = pos.first_pos;
+        partial_at_cursor_pos.last_pos = pos.last_pos;
+        if (CshEntityNames.find(string(name)) == CshEntityNames.end())
+            partial_at_cursor_pos.color = COLOR_ENTITYNAME_FIRST;
+        else
+            partial_at_cursor_pos.color = COLOR_ENTITYNAME;
+        was_partial = true;
+        return;
+    }
+    if (match_result == 2) {
+        AddCSH(pos, COLOR_KEYWORD);
+        return;
+    }
+    //if no keyword match, we assume an entityname
+    AddCSH_EntityName(pos, name);
+    return;
+}
+
 void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color)
 {
     char const *const *array;
@@ -345,10 +384,43 @@ void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color
     if (pos.last_pos != cursor_pos && match_result == 1)
         match_result = 0;
     switch (match_result) {
-    case 0: AddCSH(pos, COLOR_ERROR); return;
-    case 1: AddCSH(pos, MscColorSyntaxType(color+1)); return;
     case 2: AddCSH(pos, color); return;
+    case 0: AddCSH(pos, COLOR_ERROR); return;
+    case 1:
+        AddCSH(pos, MscColorSyntaxType(color+1));
+        partial_at_cursor_pos.first_pos = pos.first_pos;
+        partial_at_cursor_pos.last_pos = pos.last_pos;
+        partial_at_cursor_pos.color = COLOR_NORMAL;
+        was_partial = true;
     }
+}
+
+//This is called when a string is at the beginning of where an attribute
+//is expected and there is no '=' following.
+//It can either be a to-be typed attribute or a style name
+// we give ATTRNAME or ATTRNAME_PARTIAL for full or partial attr name matches
+// and STYLE for no matched
+//All-in-all partial matches are only given if the cursor is just after the
+//string in question. In this case we also store the partial match in
+// Csh::partial_at_cursor_pos
+void Csh::AddCSH_StyleOrAttrName(CshPos&pos, const char *name)
+{
+    int match_result = find_opt_attr_name(name, attr_names);
+    if (pos.last_pos == cursor_pos && match_result == 1) {
+        AddCSH(pos, COLOR_ATTRNAME_PARTIAL);
+        partial_at_cursor_pos.first_pos = pos.first_pos;
+        partial_at_cursor_pos.last_pos = pos.last_pos;
+        partial_at_cursor_pos.color = COLOR_STYLENAME;
+        was_partial = true;
+        return;
+    }
+    if (match_result == 2) {
+        AddCSH(pos, COLOR_ATTRNAME);
+        return;
+    }
+    //if no keyword match, we assume an entityname
+    AddCSH(pos, COLOR_STYLENAME);
+    return;
 }
 
 void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
@@ -366,4 +438,13 @@ void Csh::ParseText(const char *input, unsigned len)
     CshEntityNames.clear();
     CshParse(*this, input, len);
 }
+
+MscColorSyntaxType Csh::GetCshAt(int pos)
+{
+    //Search labels backwards
+    for (MscCshListType::const_reverse_iterator i = CshList.rbegin(); i!=CshList.rend(); i++)
+        if (i->first_pos<=pos && i->last_pos>=pos) return i->color;
+    return COLOR_NORMAL;
+}
+
 

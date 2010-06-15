@@ -17,6 +17,7 @@ typedef enum
 {
     COLOR_NORMAL = 0,
     COLOR_KEYWORD,
+	COLOR_KEYWORD_PARTIAL,
     COLOR_EQUAL,
     COLOR_SEMICOLON,
     COLOR_COLON,
@@ -84,15 +85,22 @@ class Csh
 public:
     MscCshListType        CshList;
     std::set<std::string> CshEntityNames;
-    int                   cursor_pos;  //makes a difference for partial keyword names
+    int                   cursor_pos;             //makes a difference for partial keyword names
+    bool                  was_partial;
+    CshEntry              partial_at_cursor_pos;  //if the cursor is at a partially matching keyword
+                                                  //this contains that keyword (color==what we have to revert to
+                                                  //if cursor moves away)
 
-    Csh() : cursor_pos(-1) {}
+    Csh() : cursor_pos(-1), was_partial(false) {}
     void AddCSH(CshPos&, MscColorSyntaxType);
     void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
+    void AddCSH_KeywordOrEntity(CshPos&pos, const char *name);
     void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments);
     void AddCSH_AttrName(CshPos&, const char *name, MscColorSyntaxType);
+    void AddCSH_StyleOrAttrName(CshPos&pos, const char *name);
     void AddCSH_EntityName(CshPos&pos, const char *name);
     void ParseText(const char *input, unsigned len);
+    MscColorSyntaxType GetCshAt(int pos);
 };
 
 void CshParse(Csh &csh, const char *buff, unsigned len);

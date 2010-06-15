@@ -122,3 +122,4 @@ extern CMscGenApp theApp;
 #define REG_KEY_NOREMIND_VERSION_MAJOR "NoRemindVersionMajor"
 #define REG_KEY_NOREMIND_VERSION_MINOR "NoRemindVersionMinor"
 #define REG_KEY_NOREMIND_VERSION_SUPER_MINOR "NoRemindVersionSuperMinor"
+#define REG_KEY_TABSIZE "TabSize"

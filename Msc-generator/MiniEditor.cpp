@@ -26,6 +26,7 @@ END_MESSAGE_MAP()
 CCshRichEditCtrl::CCshRichEditCtrl()
 {
 	m_bCshUpdateInProgress = false;
+	m_tabsize = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABSIZE, 4);
 }
 
 int CCshRichEditCtrl::FindColonLabelIdent(long lStart) 
@@ -34,27 +35,26 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart)
 	ASSERT(pApp != NULL);
 	if (!pApp->m_bSmartIdent || !pApp->m_bCsh) return -1;
 	//Go through the list of color syntax highlight entries
-	for (MscCshListType::const_iterator i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) 
-		//if we fall into a label...
-		if (i->first_pos<lStart && i->last_pos>=lStart && i->color == COLOR_LABEL_TEXT) {
-			//...preceeded by a colon...
-			MscCshListType::const_iterator j = i;
-			j--;
-			if (j->color != COLOR_COLON) continue;
-			//then find the first non-space in the label
-			int nLine, nCol;
-			ConvertPosToLineCol(i->first_pos, nLine, nCol);
-			CString strLine;
-			int nLineLength = LineLength(nLine);
-			int nBuffLen = std::max<int>(sizeof(int), nLineLength);
-			nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
-			int pos = nCol-1;
-			while (pos>0 && pos<nLineLength && (strLine[pos]==' ' || strLine[pos]=='\t')) pos++;
-			//if there is such a non-space in the label on the same line as the colon
-			if (pos>0 && pos<nLineLength) {
-				return pos;
-			}
-		}
+	for (MscCshListType::const_iterator i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) {
+		//if we do not fall into a label skip
+		if (i->color != COLOR_LABEL_TEXT || i->first_pos>=lStart || i->last_pos<lStart ) continue;
+		//if yes and is preceeded by a colon...
+		MscCshListType::const_iterator j = i;
+		j--;
+		if (j->color != COLOR_COLON) continue;
+		//...then find the first non-space in the label
+		int nLine, nCol;
+		ConvertPosToLineCol(i->first_pos, nLine, nCol);
+		CString strLine;
+		int nLineLength = LineLength(nLine);
+		int nBuffLen = std::max<int>(sizeof(int), nLineLength);
+		nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+		int pos = nCol-1;
+		while (pos>0 && pos<nLineLength && (strLine[pos]==' ' || strLine[pos]=='\t')) pos++;
+		//if there is such a non-space in the label on the same line as the colon
+		if (pos>0 && pos<nLineLength) 
+			return pos;
+	}
 	return -1;
 }
 
@@ -68,10 +68,75 @@ int CCshRichEditCtrl::FirstNonWhitespaceIdent(const char *str, int Max)
 	return i;
 }
 
-#define TABSTOP 4
+int CCshRichEditCtrl::LastNonWhitespaceIdent(const char *str, int Max) 
+{
+	if (Max == -1) 
+		Max = strlen(str)-1;
+	while (Max>=0 && (str[Max]==' ' || str[Max]=='\t' || str[Max] == '\x0d' || str[Max] == '\x0a')) Max--;
+	return Max;
+}
+
+//returns <0 if we have to remove spaces, >0 if we need to add more spaces
+//for a closing brace to be at the right place
+int CCshRichEditCtrl::FindIdentDeltaForClosingBrace(int pos_to_be_inserted)
+{
+	MscColorSyntaxType csh_color = m_csh.GetCshAt(pos_to_be_inserted+1);
+	//Dont do anything in a label
+	if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) return 0;
+	//See that only whitespace is in the line before the cursor
+	int nLine, nCol;
+	ConvertPosToLineCol(pos_to_be_inserted, nLine, nCol);
+	int nLineLength = LineLength(nLine);
+	int nBuffLen = std::max<int>(sizeof(int), nLineLength);
+	CString strLine;
+	nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+	for (int i = 0; i<nCol; i++)
+		if (strLine[i]!= ' ' && strLine[i]!= '\t') return 0;
+	
+	//Find the matching brace before us
+	int num_braces = 0;
+	while (nLine>0 && num_braces>=0) {
+		//Get previous line
+		nLine--;
+		nLineLength = LineLength(nLine);
+		nBuffLen = std::max<int>(sizeof(int), nLineLength);
+		nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+		//search for opening brace from the back
+		while(nLineLength-->0) {
+			if (strLine[nLineLength] != '{' && strLine[nLineLength] != '}') continue;
+			//if a brace, but in a label, ignore
+			csh_color = m_csh.GetCshAt(ConvertLineColToPos(nLine, nLineLength)+1);
+			if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) continue;
+			if (strLine[nLineLength] == '}') num_braces++;
+			else num_braces--;
+			if (num_braces>=0) continue;
+			//OK our matching opening brace found
+			return FirstNonWhitespaceIdent(strLine, nLineLength)-nCol;
+		}
+	}
+	//We need to place the ident to the beginning of the line: minus nCol ident
+	return -nCol;
+}
+
+
+
 //We assume no TAB characters...
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
+	if (pMsg->message == WM_CHAR && pMsg->wParam == '}') {
+		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+		ASSERT(pApp != NULL);
+		//if color syntax highlighting is not enabled we cannot do this correctly, 
+		if (!pApp->m_bSmartIdent || !pApp->m_bCsh) return FALSE;
+		long lStart, lEnd;
+		GetSel(lStart, lEnd);
+		int ident_delta = FindIdentDeltaForClosingBrace(lStart);
+		if (ident_delta > 0) 
+			ReplaceSel(CString(' ', ident_delta));
+		 else 
+			SetSel(lStart+ident_delta, lEnd);
+		return FALSE; //let RicheditCtrl insert the }
+	}
 	if (pMsg->message != WM_KEYDOWN) return CRichEditCtrl::PreTranslateMessage(pMsg);
 	if (pMsg->wParam == VK_TAB) {
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
@@ -91,11 +156,11 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 				int del = 0;
 				//Caret not in leading whitespace
 				if (col>ident) 
-					while (del < TABSTOP && col > del && (strLine[col-del-1] == ' ' || strLine[col-del-1] == '\t')) del++;
+					while (del < m_tabsize && col > del && (strLine[col-del-1] == ' ' || strLine[col-del-1] == '\t')) del++;
 				else if (col>smartIdent && smartIdent>0)
 					del = col - smartIdent;
-				else if (col>TABSTOP)
-					del = TABSTOP;
+				else if (col>m_tabsize)
+					del = m_tabsize;
 				else 
 					del = col;
 				if (del>0) {
@@ -106,7 +171,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 				if (col<smartIdent) 
 					col = smartIdent-col;
 				else
-					col = TABSTOP - col%TABSTOP;
+					col = m_tabsize - col%m_tabsize;
 				string spaces(col, ' ');
 				ReplaceSel(spaces.c_str(), FALSE);
 			}
@@ -123,8 +188,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 			}
 			m_bCshUpdateInProgress = true;
 			SetRedraw(false);
-			char spaces[] = "                        ";
-			spaces[TABSTOP] = 0;
 			for (int line = startLine; line<=endLine; line++) {
 				int smartIdent = FindColonLabelIdent(lStart);
 				long index = LineIndex(line);
@@ -137,8 +200,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 					int del;
 					if (ident>smartIdent && smartIdent>0) 
 						del = ident - smartIdent;
-					else if (ident>=TABSTOP)
-						del = TABSTOP;
+					else if (ident>=m_tabsize)
+						del = m_tabsize;
 					else 
 						del = ident;
 					SetSel(index,index+del);
@@ -155,10 +218,10 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 					if (ident<smartIdent) 
 						insert = smartIdent-ident;
 					else 
-						insert = TABSTOP;
+						insert = m_tabsize;
 					SetSel(index,index);
-					string spaces(insert, ' ');
-					ReplaceSel(spaces.c_str());
+					CString spaces(' ', insert);
+					ReplaceSel(spaces);
 					lEnd += insert;
 					if (index < lStart)  //can happen only at the first line, if selection does not start at the beginning of line
 						lStart += insert;
@@ -186,7 +249,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		//If no smart ident, look for any ident above		
 		int nLine = LineFromChar(lStart);
 		//Find a line (current or above) with a non-whitespace char
-		//ident to that char
+		//ident to that char (or +TABSTOP if that line ends with a '{'
 		do {
 			int nLineLength = LineLength(nLine);
 			int nBuffLen = std::max<int>(sizeof(int), nLineLength);
@@ -195,7 +258,12 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 			int i=0;
 			while (i<nLineLength && (strLine[i]==' ' || strLine[i]=='\t')) i++;
 			if (i<nLineLength) {
-				strLine.Truncate(i);
+				// OK, we found a line with not only whitespace does it end in a '{'?
+				if (strLine[LastNonWhitespaceIdent(strLine)] == '{') {
+					strLine.Truncate(i);
+					strLine += CString(' ', m_tabsize);
+				} else 
+					strLine.Truncate(i);
 				strLine.Insert(0, '\n');
 				ReplaceSel(strLine, FALSE);
 				return TRUE;
@@ -219,7 +287,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		while (i<nLineLength && (strLine[i]==' ' || strLine[i]=='\t')) i++;
 		//If there are non-whitespace chars before current position in line, do regular stuff
 		if (i<nCol) return FALSE;
-		nCol = (nCol-1)%TABSTOP + 1; //number of chars to remove 1..TABSTOP
+		nCol = (nCol-1)%m_tabsize + 1; //number of chars to remove 1..m_tabsize
 		//Extend beginning of selection by this many char
 		SetSel(lStart-nCol, lEnd);
 		return FALSE;
@@ -291,6 +359,31 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 	SetRedraw(true);
 	Invalidate();
 	//SetEventMask(eventMask);
+}
+
+void CCshRichEditCtrl::CancelPartialMatch()
+{
+	if (!m_csh.was_partial) return;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	m_csh.was_partial = false;
+	if (!pApp->m_bCsh) return;
+
+	SetRedraw(false);
+	m_bCshUpdateInProgress = true;
+
+	CHARRANGE cr;
+	GetSel(cr);
+
+	//Set the partial match to the color previously proscribed in Csh
+	SetSel(m_csh.partial_at_cursor_pos.first_pos, m_csh.partial_at_cursor_pos.last_pos); //select all
+	SetSelectionCharFormat(pApp->m_csh_cf[pApp->m_nCshScheme][m_csh.partial_at_cursor_pos.color]); 
+
+	SetSel(cr);
+
+	m_bCshUpdateInProgress = false;
+	SetRedraw(true);
+	Invalidate();
 }
 
 void CCshRichEditCtrl::JumpToLine(int line, int col) {
@@ -487,6 +580,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 void CEditorBar::OnSelChange(NMHDR *pNotifyStruct, LRESULT *result) 
 {
 	if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) return;
+	m_ctrlEditor.CancelPartialMatch();
 	m_ctrlEditor.NotifyDocumentOfChange(true);
 	*result = 0;
 }
