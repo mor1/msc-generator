@@ -196,13 +196,11 @@ bool MscDrawer::SetOutput(OutputType ot, const string &fn, int page)
             return false;
         }
         /* We need a tweak in cairo.
-         ** In cairo_gstate.c when _cairo_gstate_show_text_glyphs calls
-         ** _cairo_gstate_transform_glyphs_to_backend, the one but last
-         ** parameter (num_transformed_glyphs) shall be set to NULL
-         ** to avoid dropping glyphs outside the DC's extent.
+		 ** I modified cairo_win32_printing_surface_create diretcly to use 
+		 ** an extent bigger than the one reported by GetClipBox(), if the 
+		 ** DC passed is an EMF DC.
+         ** This is to avoid dropping glyphs outside the DC's extent.
          ** I could not make a metafile DC to have larger extent that 1600x1200
-		 ** An alternate tweak is to modify cairo_win32_printing_surface_create
-		 ** diretcly to use an extent bigger than the one reported by GetClipBox().
          */
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;

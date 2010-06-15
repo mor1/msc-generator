@@ -335,11 +335,8 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         i = msc->StyleSets.top().find(parameter);
         if (i==msc->StyleSets.top().end()) {
-            maybe_s_msg="Unrecognized style '" + parameter + "'.";
-            if (sayIgnore)
-                maybe_s_msg.append(" Ignoring style.");
-            else
-                maybe_s_msg.append(" Treating style name as small text in parenthesis.");
+            maybe_s_msg="Unrecognized style '" + parameter +
+                "'. Treating style name as small text in parenthesis.";
             goto maybe_s;
         } else {
             if (i->second.f_text) {

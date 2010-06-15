@@ -285,8 +285,9 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
  ** : <string>
  ** terminated by any of: quot mark, backslash [ { or ;
  ** Honors escaping of the above via a backslash
+ ** Can contain quotation marks (escaped or unescaped), but can not start with it
  */
-\:([^\"\;\[\{\\]*(\\.)*)*  %{
+\:[ \t]*([^\"\;\[\{\\]|(\\.))([^\;\[\{\\]*(\\.)*)*  %{
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else
