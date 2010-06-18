@@ -1,3 +1,5 @@
+Add option to installer to display release notes
+
 Switch to cairo 1.10 and the new pixman after summer.
 design lib
 Re-add escape key to exit in-place editing...

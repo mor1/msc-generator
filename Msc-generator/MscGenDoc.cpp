@@ -322,7 +322,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 			return FALSE;
 		}
 		data.SetDesign(m_itrEditing->GetDesign());
-		InsertNewChart(data);
+		InsertNewChart(data); //all pages visible
 
 	}
 	//Copy text to the internal editor
@@ -576,7 +576,7 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		GlobalUnlock(hGlobal);
 		GlobalFree(hGlobal);
 		if (restartEditor) m_ExternalEditor.Stop(STOPEDITOR_FORCE);
-		InsertNewChart(CChartData(text, m_itrEditing->GetDesign()));
+		InsertNewChart(CChartData(text, m_itrEditing->GetDesign())); //all pages visible
 	}
 	ShowEditingChart(true);
 	CheckIfChanged();     
@@ -603,7 +603,7 @@ void CMscGenDoc::OnFileDropped(const char *file)
 	CChartData data;
 	data.Load(file, true);
 	data.SetDesign(m_itrEditing->GetDesign());
-	InsertNewChart(data);
+	InsertNewChart(data); //all pages visible
 	ShowEditingChart(true);
 	CheckIfChanged();     
 	//Copy text to the internal editor
@@ -739,7 +739,7 @@ void CMscGenDoc::OnDesignDesign()
 	if (index > 0)
 		new_forcedDesign = combo->GetItem(index);
 	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
-	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
+	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo, keep page shown
 	m_itrEditing->SetDesign(new_forcedDesign);
 	ShowEditingChart(true);
 	CheckIfChanged();     
@@ -762,7 +762,7 @@ void CMscGenDoc::OnDesignPage()
 	if (index == m_ChartShown.GetPage())
 		return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
-	m_itrEditing->SetPage(index);
+	m_itrEditing->SetPage(index);  //set new page
 	ShowEditingChart(true);
 	CheckIfChanged();     
 }
@@ -1067,7 +1067,9 @@ modified:
 void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 
 {
 	SetTrackMode(false);
+	int current_page = m_itrEditing->GetPage();
 	InsertNewChart(data);
+	m_itrEditing->SetPage(current_page);
 	ShowEditingChart(true);
 	CheckIfChanged();     
 
@@ -1097,7 +1099,8 @@ void CMscGenDoc::OnInternalEditorChange()
 	//Usually no notification of this sort arrives when only sel changes
 	//But when it does (e.g., at multi-line TAB identation) we store a new version just for the selection
 	if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
-		InsertNewChart(CChartData(text, cr, m_itrEditing->GetDesign()));
+		int page = m_itrEditing->GetPage();
+		InsertNewChart(CChartData(text, cr, m_itrEditing->GetDesign(), page));
 		CheckIfChanged();     
 	}
 }
@@ -1125,6 +1128,14 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	m_itrShown = m_itrEditing;
 	m_itrShown->m_wasDrawn = true;
 	m_ChartShown = *m_itrEditing;
+
+	int max_page = m_ChartShown.GetPages();
+	if (max_page = 1) max_page=0;
+
+	if (max_page<m_ChartShown.GetPage()) {
+		m_ChartShown.SetPage(max_page);
+		m_itrEditing->SetPage(max_page);
+	}
 	
 	//Display error messages
 	COutputViewBar *pOutputView = pApp->m_pWndOutputView;

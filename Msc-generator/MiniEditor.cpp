@@ -259,7 +259,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 			while (i<nLineLength && (strLine[i]==' ' || strLine[i]=='\t')) i++;
 			if (i<nLineLength) {
 				// OK, we found a line with not only whitespace does it end in a '{'?
-				if (strLine[LastNonWhitespaceIdent(strLine)] == '{') {
+				int lastPos = LastNonWhitespaceIdent(strLine);
+				if (lastPos>0 && strLine[lastPos] == '{') {
 					strLine.Truncate(i);
 					strLine += CString(' ', m_tabsize);
 				} else 
