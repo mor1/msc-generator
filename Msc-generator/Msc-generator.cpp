@@ -603,7 +603,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 			break;
 	}
 	m_DefaultText= GetProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, 
-		"#This is the Default signalling chart\r\n"
+		"#This is the default signalling chart\r\n"
 		"#Edit and press Ctrl+W to see the result\r\n"
 		"#You can change the default chart\r\n"
 		"#in the Edit|Preferences... menu.\r\n"
