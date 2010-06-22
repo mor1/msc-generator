@@ -1,4 +1,4 @@
-Add option to installer to display release notes
+Add more precise error reporting for text escapes via "\l(file,line,col)"
 
 Switch to cairo 1.10 and the new pixman after summer.
 design lib

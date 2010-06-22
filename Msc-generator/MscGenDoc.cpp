@@ -1130,7 +1130,7 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	m_ChartShown = *m_itrEditing;
 
 	int max_page = m_ChartShown.GetPages();
-	if (max_page = 1) max_page=0;
+	if (max_page == 1) max_page=0;
 
 	if (max_page<m_ChartShown.GetPage()) {
 		m_ChartShown.SetPage(max_page);

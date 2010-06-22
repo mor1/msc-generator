@@ -446,15 +446,16 @@ void CMscGenApp::FillDesignPageCombo(int no_pages, int page)
 
 void CMscGenApp::OnEditPreferences()
 {
+	//Get pDoc. I have no clue how to do it for in-place active state: then we have no main window.
+	//So in that case we skip external editor restart and recompilation
+	CMscGenDoc *pDoc = NULL;
 	CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
-	ASSERT(pMainWnd!=NULL);
-	ASSERT(pMainWnd->GetActiveView() != NULL);
-	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
-	ASSERT(pDoc != NULL);
+	if (pMainWnd!=NULL && pMainWnd->GetActiveView() != NULL) 
+		pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
 
 	COptionDlg optionDlg;
-	optionDlg.m_Pedantic = m_Pedantic;
-	optionDlg.m_Warnings = m_Warnings;
+	optionDlg.m_Pedantic     = m_Pedantic;
+	optionDlg.m_Warnings     = m_Warnings;
 	optionDlg.m_bPB_Editing  = m_bPB_Editing;
 	optionDlg.m_bPB_Embedded = m_bPB_Embedded;
 	optionDlg.m_bAlwaysOpen  = m_bAlwaysOpen;
@@ -507,7 +508,7 @@ void CMscGenApp::OnEditPreferences()
 		if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
 			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
 			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, m_sStartTextEditor);
-			if (temp==OTHER && pDoc->m_ExternalEditor.IsRunning()) 
+			if (temp==OTHER && pDoc && pDoc->m_ExternalEditor.IsRunning()) 
 				bRestartEditor=true;
 		}
 		if (m_sJumpToLine != optionDlg.m_TextEditorJumpToLineCommand) {
@@ -532,10 +533,10 @@ void CMscGenApp::OnEditPreferences()
 					break; //values already set by user
 			}
 		}
-		if (bRestartEditor) 
+		if (bRestartEditor && pDoc) 
 			pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 
-		if (recompile) 
+		if (recompile && pDoc) 
 			pDoc->ShowEditingChart(false);     //Do not change zoom, merely recompile & re-issue 
 		if (updateCSH && IsInternalEditorRunning())
 			m_pWndEditor->m_ctrlEditor.UpdateCsh(true);

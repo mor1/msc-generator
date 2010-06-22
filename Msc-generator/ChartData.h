@@ -53,7 +53,7 @@ public:
 	CString GetDesign () {return m_ForcedDesign;}
 	const CString &GetText() const {return m_text;}
 	BOOL IsEmpty() const {return m_text.GetLength()==0;}
-	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page;}
+	virtual void SetPage(unsigned page) {m_page=page;}
 	unsigned GetPage() const {return m_page;}
 };
 
