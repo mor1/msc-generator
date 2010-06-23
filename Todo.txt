@@ -23,3 +23,4 @@ Save/Restore the position of the Full screen toolbar (watch out that it is not o
 Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
 Add global text.format chart option to impact all text
 Add command bye so that file end can be used for comments
+ 
