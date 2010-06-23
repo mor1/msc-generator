@@ -230,6 +230,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
 			}
 		}
 		EnsureCRLF(text);
+		ReplaceTAB(text);
 		InsertNewChart(CChartData(text, design, page));
 	}
 }
@@ -1124,6 +1125,19 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	CWaitCursor wait;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+
+	m_itrEditing->RemoveSpacesAtLineEnds();
+	if (pApp->IsInternalEditorRunning()) {
+		//Adjust text in the internal editor
+		int lStartLine, lStartCol, lEndLine, lEndCol;
+		//Save selection in terms of line:column values
+		pApp->m_pWndEditor->m_ctrlEditor.GetSelLineCol(lStartLine, lStartCol, lEndLine, lEndCol);
+		//Apply selection in those terms
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), lStartLine, lStartCol, lEndLine, lEndCol, true);
+		//Save new selection in character index terms
+		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
+	}
+
 
 	m_itrShown = m_itrEditing;
 	m_itrShown->m_wasDrawn = true;

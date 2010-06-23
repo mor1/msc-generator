@@ -26,16 +26,20 @@ class CCshRichEditCtrl : public CRichEditCtrl
 public:
 	int m_tabsize;
 	CCshRichEditCtrl();
-	int  FindColonLabelIdent(long lStart);
+	void GetSelLineCol(int &lStartLine, int &lStartCol, int &lEndLine, int &lEndCol) const;
 	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
 	int  LastNonWhitespaceIdent(const char *str, int Max=-1);
+	int  FindColonLabelIdent(long lStart);
+	int  FindPreviousLineIdent(long lStart);
+	int  FindCurrentLineIdent(long lStart);
 	int  FindIdentDeltaForClosingBrace(int pos_to_be_inserted);
 	BOOL PreTranslateMessage(MSG* pMsg);
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
+	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
 	void UpdateCsh(bool force = false);
 	void CancelPartialMatch();
-	long ConvertLineColToPos(unsigned line, unsigned col) {return LineIndex(line) + col;}
-	void ConvertPosToLineCol(long pos, int &line, int &col) {line=LineFromChar(pos); col=pos-LineIndex(line);}
+	long ConvertLineColToPos(unsigned line, unsigned col) const {return LineIndex(line) + col;}
+	void ConvertPosToLineCol(long pos, int &line, int &col) const {line=LineFromChar(pos); col=pos-LineIndex(line);}
 	void JumpToLine(int line, int col);
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
 	bool NotifyDocumentOfChange(bool onlySelChange=false);

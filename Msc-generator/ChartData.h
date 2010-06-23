@@ -24,6 +24,7 @@
 #undef max
 #include "trackable.h"
 
+void ReplaceTAB(CString &str, unsigned tabsize=6); //6 seems to be default for RichEditCtrl
 void RemoveCRLF(CString &str);
 void EnsureCRLF(CString &str);
 
@@ -46,12 +47,13 @@ public:
 	CChartData(const CChartData&o) {operator=(o);}
 	virtual ~CChartData() {Delete();}
 	virtual void Delete(void) {m_text.Empty(); m_wasDrawn = false; m_page=0; m_ForcedDesign.Empty(); m_sel.cpMax = m_sel.cpMin = 0;}
-	BOOL Save(const CString &fileName) const;
+	BOOL Save(const CString &fileName);
 	BOOL Load(const CString &fileName,  BOOL reportError=TRUE);
 	void Set(const char *text) {Delete(); m_text=text?text:"";}
 	virtual void SetDesign (const char *design);
 	CString GetDesign () {return m_ForcedDesign;}
 	const CString &GetText() const {return m_text;}
+	void RemoveSpacesAtLineEnds();
 	BOOL IsEmpty() const {return m_text.GetLength()==0;}
 	virtual void SetPage(unsigned page) {m_page=page;}
 	unsigned GetPage() const {return m_page;}

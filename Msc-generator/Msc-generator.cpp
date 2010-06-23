@@ -464,6 +464,7 @@ void CMscGenApp::OnEditPreferences()
 	optionDlg.m_bSmartIdent  = m_bSmartIdent;
 
 	EnsureCRLF(m_DefaultText);
+	ReplaceTAB(m_DefaultText);
 	optionDlg.m_DefaultText = m_DefaultText;
 	optionDlg.m_TextEditStartCommand = m_sStartTextEditor;
 	optionDlg.m_TextEditorJumpToLineCommand = m_sJumpToLine;
@@ -479,6 +480,7 @@ void CMscGenApp::OnEditPreferences()
 		if (optionDlg.m_DefaultText != m_DefaultText) {
 			m_DefaultText = optionDlg.m_DefaultText;
 			EnsureCRLF(m_DefaultText);
+			ReplaceTAB(m_DefaultText);
 			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
 		}
 		if (optionDlg.m_bSmartIdent != m_bSmartIdent) 

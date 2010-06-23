@@ -741,7 +741,7 @@ entity:       entity_string full_arcattrlist_with_label
     free($1);
 };
 
-first_entity:  entity_string full_arcattrlist
+first_entity:  entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_KeywordOrEntity(@1, $1);

@@ -21,6 +21,17 @@
 #include "ChartData.h"
 #include "csh.h"
 
+void ReplaceTAB(CString &str, unsigned tabsize)
+{
+	CString spaces(' ', tabsize); 
+	int pos = str.Find("\t");
+	while (pos >= 0) {
+		str.Delete(pos);
+		str.Insert(pos, spaces);
+		pos = str.Find("\t", pos);
+	}
+}
+
 
 void RemoveCRLF(CString &str)
 {
@@ -52,8 +63,9 @@ void CChartData::SetDesign (const char *design)
 	m_ForcedDesign = design;
 }
 
-BOOL CChartData::Save(const CString &fileName) const
+BOOL CChartData::Save(const CString &fileName) 
 {
+	RemoveSpacesAtLineEnds();
 	TRY {
 		CStdioFile outfile(fileName, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);
 		TRY {
@@ -106,7 +118,24 @@ BOOL CChartData::Load(const CString &fileName, BOOL reportError)
 	Delete();
 	m_text = buff;
 	free(buff);
+	RemoveSpacesAtLineEnds();
+	EnsureCRLF(m_text);
+	ReplaceTAB(m_text);
 	return TRUE;
+}
+
+void CChartData::RemoveSpacesAtLineEnds()
+{
+	int pos = m_text.Find("\x0d");  //any \x0a comes *after* \x0d
+	while (pos >= 0) {
+		int spaces = 0;
+		while (pos>spaces+1  && (m_text[pos-spaces-1] == ' ' || m_text[pos-1-spaces] == '\t')) spaces++;
+		if (spaces) {
+			m_text.Delete(pos-spaces, spaces);
+			pos -= spaces;
+		}
+		pos = m_text.Find("\x0d", pos+1);
+	}
 }
 
 void CDrawingChartData::SetDesign (const char *design)
