@@ -1,4 +1,4 @@
-Add more precise error reporting for text escapes via "\l(file,line,col)"
+Update doc for colon style labels for entities
 
 Switch to cairo 1.10 and the new pixman after summer.
 design lib

@@ -314,6 +314,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\parse_tools.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\stringparse.cpp"
 				>
 			</File>
@@ -376,11 +380,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\language_misc.h"
+				>
+			</File>
+			<File
 				RelativePath=".\msc.h"
 				>
 			</File>
 			<File
 				RelativePath=".\mscdrawer.h"
+				>
+			</File>
+			<File
+				RelativePath=".\parse_tools.h"
 				>
 			</File>
 			<File

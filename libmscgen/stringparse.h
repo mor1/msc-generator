@@ -44,10 +44,10 @@ class StringFormat {
     void ApplyFontToContext(MscDrawer *) const;
     double spaceWidth(const string &, MscDrawer *, bool front) const;
 
-    typedef enum {FORMATTING_OK, FORMATTING_NOK, NON_FORMATTING, NON_ESCAPE, LINE_BREAK} EEscapeType;
-    EEscapeType ProcessEscape(const char *input, int pos, unsigned &length,
+    typedef enum {FORMATTING_OK, INVALID_ESCAPE, NON_FORMATTING, NON_ESCAPE, LINE_BREAK} EEscapeType;
+    EEscapeType ProcessEscape(const char *input, unsigned &length,
                               bool resolve=false, bool apply=false, string *replaceto=NULL, const StringFormat *basic=NULL,
-                              Msc *msc=NULL, file_line linenum=file_line(0,0), bool reportError=false, bool sayIgnore=true);
+                              Msc *msc=NULL, file_line *linenum=NULL, bool sayIgnore=true);
     friend class Label;
     friend class ParsedLine;
 
@@ -86,13 +86,14 @@ class StringFormat {
     static void ExtractCSH(int startpos, const char *text, Csh &csh);
     //This adds a number at the beginning of the string
     //Taking all potential escape sequence at the beginning of the string
-    //into account, exept \s and \c containing a style or color name 
+    //into account, exept \s and \c containing a style or color name
     static void AddNumbering(string &label, int num);
     //This converts color names to RGBA numbers, returns the list of
     //unrecognized color names separated by commas, empty string if all is OK.
     //unrecognized color escapes are left intact
     static void ExpandColorAndStyle(string &escape, Msc *msc, file_line linenum,
 									const StringFormat *basic, bool label);
+    static void RemovePosEscapes(string &text);
 };
 
 //An object that stores a line (no '\n' inside)

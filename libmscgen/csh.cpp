@@ -425,10 +425,23 @@ void Csh::AddCSH_StyleOrAttrName(CshPos&pos, const char *name)
 
 void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
 {
-    if (CshEntityNames.insert(string(name)).second)
-        AddCSH(pos, COLOR_ENTITYNAME_FIRST);
-    else
+    if (CshEntityNames.find(string(name)) != CshEntityNames.end()) {
         AddCSH(pos, COLOR_ENTITYNAME);
+        return;
+    }
+    //We know that there has been no such entity yet
+    //If we are currently typing it, use normal color, else
+    //the one designated for first use of entities
+    //In both cases insert to entity name database
+    CshEntityNames.insert(string(name));
+    if (pos.last_pos != cursor_pos) {
+        AddCSH(pos, COLOR_ENTITYNAME_FIRST);
+        return;
+    }
+    partial_at_cursor_pos.first_pos = pos.first_pos;
+    partial_at_cursor_pos.last_pos = pos.last_pos;
+    partial_at_cursor_pos.color = COLOR_ENTITYNAME_FIRST;
+    was_partial = true;
 }
 
 void Csh::ParseText(const char *input, unsigned len)

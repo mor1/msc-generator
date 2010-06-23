@@ -32,13 +32,6 @@
 #include <string.h>
 #include <iostream>
 
-#ifndef HAVE_UNISTD_H
-#define YY_NO_UNISTD_H
-extern int isatty(int);
-#endif
-
-
-
 #ifdef C_S_H_IS_COMPILED
 #include "csh.h"
 #define YYMSC_RESULT_TYPE Csh
@@ -51,7 +44,7 @@ extern int isatty(int);
 #define CHAR_IF_CSH(A) char
 
 #include "colorsyntax.h"
-#include "parserhelper.h"
+#include "language_misc.h"
 #include "arcs.h" //MSC_XXX defs
 #else
 #include "msc.h"
@@ -60,14 +53,7 @@ extern int isatty(int);
 
 #define CHAR_IF_CSH(A) A
 #include "language.h"
-#include "parserhelper.h"
-
-//define isatty - only once, so we put inside the #ifdef
-#ifndef HAVE_UNISTD_H
-int isatty (int) {return 0;}
-#endif
-
-
+#include "language_misc.h"
 #endif
 
 #define YY_INPUT(buffer, res, max_size)             \
@@ -106,8 +92,6 @@ do {                                                \
 	}							\
     while (YYID (0))
 
-#define JUMP_LINE
-
 #else
 
 #define YY_USER_ACTION do {                              \
@@ -116,112 +100,7 @@ do {                                                \
     yylloc->last_column = yylloc->first_column+yyleng-1; \
     } while(0);
 
-#define JUMP_LINE do {\
-    yylineno++;                                \
-    yylloc->last_line = yylloc->first_line+1;  \
-    yylloc->last_column=0;                     \
-    } while(0)
-
-/* in-place removal of whitespace. Returns new head */
-char *msc_remove_head_tail_whitespace(char *s)
-{
-    int a=0;
-    char *r;
-    while (s[a]==' ' || s[a]=='\t') a++;
-    r = s+a;
-    a=strlen(r);
-    while (a>0 && (r[a-1]==' ' || r[a-1]=='\t')) a--;
-    r[a] = '\0';
-    return r;
-}
-
-/* remove heading and trailing whitespace from a string
-** remove any internal CR or CRLF (and surrounding whitespaces) & replace to \n
-** Remove comments between # and lineend, except if # is preceeded by even number of \s
-** (copies to new memory) */
-char* msc_process_colon_string(const char *s, YYLTYPE *loc)
-{
-    char *ret = (char*)malloc(strlen(s)*2+2); //max characters needed
-    int old_pos = 0;
-    int new_pos = 0;
-    while (1) {
-        //the next line begins at old_pos
-        int end_line=old_pos;
-        //find the end of the line
-        while (s[end_line]!=0 && s[end_line]!=10 && s[end_line]!=13) end_line++;
-        //store the ending char to later see how to proceed
-        char ending = s[end_line];
-        //skip over the heading whitespace at the beginning of the line
-        int start_line = old_pos;
-        while (s[start_line]==' ' || s[start_line]=='\t') start_line++;
-        //find the last non-whitespace in the line
-        int a = end_line-1; //a can be smaller than start_line here if line is empty
-        while (a>=start_line && (s[a]==' ' || s[a]=='\t')) a--;
-        //now append the line (without the whitespaces)
-        //but remove anything after a potential #
-        bool wasComment = false;
-        bool emptyLine = true;
-        while (start_line<=a) {
-            //count number of consecutive \s
-            unsigned num_of_backsp = 0;
-            while(start_line<=a && s[start_line] != '#') {
-                if (s[start_line] == '\\') num_of_backsp++;
-                else num_of_backsp = 0;
-                ret[new_pos++] = s[start_line++];
-                emptyLine = false;
-            }
-            //if we hit a # leave rest of line only if not preceeded by even number of \s
-            if (s[start_line] == '#') {
-                if (num_of_backsp%2) {
-                    ret[new_pos++] = s[start_line++]; //step over escaped #
-                    emptyLine = false;
-                } else {
-                    wasComment = true;
-                    break;
-                }
-            }
-        }
-        //We may have copied spaces before the comment, we skip those
-        while (new_pos>0 && (ret[new_pos-1]==' ' || ret[new_pos-1]=='\t')) new_pos--;
-        //if ending was a null we are done with processing all lines
-        if (!ending) break;
-        //append "\n" escape for msc-generator, but only if not an empty first line
-        //append "\\n" if line ended with odd number of \s
-        if (new_pos) {
-            //add a space for empty lines, if line did not contain a comment
-            if (emptyLine && !wasComment )
-                ret[new_pos++] = ' ';
-            //test for how many \s we have
-            int pp = new_pos-1;
-            while (pp>=0 && ret[pp]=='\\') pp--;
-            //if odd, we insert an extra '\' to keep lines ending with \s
-            if ((new_pos-pp)%2==0) ret[new_pos++] = '\\';
-            ret[new_pos++] = '\\';
-            ret[new_pos++] = 'n';
-        }
-        //Check for a two character CRLF, skip over the LF, too
-        if (ending == 13 && s[end_line+1] == 10) end_line++;
-        old_pos = end_line+1;
-    }
-    ret[new_pos] = 0;
-
-    //OK, now adjust yylloc
-    old_pos = 0;
-    new_pos = 0; //start of line
-    while (1) {
-        while (s[old_pos]!=0 && s[old_pos]!=10 && s[old_pos]!=13) old_pos++;
-        if (s[old_pos]==0) {
-            if (loc->last_column==0) loc->last_column = old_pos-new_pos;
-            break;
-        }
-        if (s[old_pos] == 13 && s[old_pos+1] == 10) old_pos++;
-        old_pos++;
-        new_pos = old_pos;
-        loc->last_line++;
-        loc->last_column = 0;
-    }
-    return ret;
-}
+#include "parse_tools.h"
 
 #endif /* C_S_H_IS_COMPILED */
 
@@ -230,9 +109,23 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
 %%
 
  /* Newline characters in all forms accepted */
-\x0d\x0a     JUMP_LINE;
-\x0d         JUMP_LINE;
-\x0a         JUMP_LINE;
+\x0d\x0a     %{
+  #ifndef C_S_H_IS_COMPILED
+    msc_jump_line(yylloc);
+  #endif
+%}
+
+\x0a         %{
+  #ifndef C_S_H_IS_COMPILED
+    msc_jump_line(yylloc);
+  #endif
+%}
+
+\x0d         %{
+  #ifndef C_S_H_IS_COMPILED
+    msc_jump_line(yylloc);
+  #endif
+%}
 
  /* # starts a comment last until end of line */
 #[^\x0d\x0a]* %{
@@ -250,9 +143,18 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else
+    {
     /* after whitespaces we are guaranteed to have a tailing and heading quot */
-    yylval_param->str = strdup(msc_remove_head_tail_whitespace(yytext+1)+1);
-    yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
+    char *s = msc_remove_head_tail_whitespace(yytext+1);
+    /* s now points to the heading quotation marks.
+    ** Now get rid of both quotation marks */
+    std::string str(s+1);
+    str.erase(str.length()-1);
+    /* Calculate the position of the string and prepend a location escape */
+    file_line pos(yyget_extra(yyscanner)->msc->current_file,
+                 yylloc->first_line, yylloc->first_column + (s+1 - yytext));
+    yylval_param->str = strdup((pos.Print() + str).c_str());
+    }
   #endif
     return TOK_COLON_QUOTED_STRING;
 %}
@@ -269,13 +171,15 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
     /* after whitespaces we are guaranteed to have a heading quot */
     const char *s = msc_remove_head_tail_whitespace(yytext+1);
     // s now points to heading quotation mark
-    yylval_param->str = strdup(s+1);
     file_line pos(yyget_extra(yyscanner)->msc->current_file,
                  yylloc->first_line, yylloc->first_column + (s - yytext));
     yyget_extra(yyscanner)->msc->Error.Error(pos,
          "This opening quotation mark misses its closing pair. "
          "Assuming string termination at line-end.",
          "Quoted strings cannot have line breaks. Use \'\\n\' to insert a line break.");
+    /* Advance pos beyond the leading quotation mark */
+    pos.col++;
+    yylval_param->str = strdup((pos.Print() + (s+1)).c_str());
     }
   #endif
     return TOK_COLON_QUOTED_STRING;
@@ -291,7 +195,8 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc)
   #ifdef C_S_H_IS_COMPILED
     yylval_param->str = strdup(yytext);
   #else
-    yylval_param->str = msc_process_colon_string(yytext+1, yylloc);
+    yylval_param->str = msc_process_colon_string(yytext, yylloc,
+                        yyget_extra(yyscanner)->msc->current_file);
   #endif
     return TOK_COLON_STRING;
 %}

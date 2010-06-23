@@ -134,7 +134,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 274 "language.yy"
+#line 136 "language.yy"
 {
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;
@@ -149,7 +149,7 @@ typedef union YYSTYPE
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
-    std::list<std::string>*stringlist;
+    std::list<std::string>        *stringlist;
 }
 /* Line 1489 of yacc.c.  */
 #line 156 "colorsyntax.h"

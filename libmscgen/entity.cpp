@@ -21,9 +21,9 @@
 
 template class PtrList<Entity>;
 
-Entity::Entity(const string &n, const string &l, double p, Msc* msc) :
+Entity::Entity(const string &n, const string &l, const string &ol, double p, Msc* msc) :
     chart(msc), maxwidth(0), running_style(chart->StyleSets.top()["entity"]),
-    name(n), label(l), pos(p), index(0), status(chart->StyleSets.top()["entity"])
+    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->StyleSets.top()["entity"])
 {
 }
 
@@ -129,7 +129,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
                     s += "' in attribute 'relative'. Ignoring attriute.";
                     msc->Error.Error(rel.third, s);
                 } else {
-                    msc->Entities.Append(new Entity(rel.second, rel.second, msc->Entity_max_pos++, msc));
+                    msc->Entities.Append(new Entity(rel.second, rel.second, rel.second, msc->Entity_max_pos++, msc));
                     msc->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), msc));
                     //position remains at the old, not incremented Entity_max_pos
                 }
@@ -153,8 +153,15 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
         if (!show.first)
             show.second = show.first = true;
 
+        string orig_label = label.first?label.second:name;
+        string proc_label = orig_label;
+
+        StringFormat::ExpandColorAndStyle(proc_label, msc, linenum_label_value,
+                                          &style.text, true);
+
+
         //Allocate new entity with correct label
-        Entity *e = new Entity(name, label.first?label.second:name, position, msc);
+        Entity *e = new Entity(name, proc_label, orig_label, position, msc);
         //Add to entity list
         msc->Entities.Append(e);
         //Calculate potential pos for next entity
@@ -164,7 +171,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
         if (label.first && label.second != (*i)->label)
             msc->Error.Error(label.third,
                              "Cannot change the label of an entity after declaration. Keeping old label :'"
-                             + (*i)->label + "'.");
+                             + (*i)->orig_label + "'.");
         if (pos.first)
             msc->Error.Error(pos.third,
                                "Cannot change the position of an entity after declaration. Ignoring attribute 'pos'.");
@@ -192,6 +199,7 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
         label.first = true;
         label.second = a.value;
         label.third = a.linenum_attr.start;
+        linenum_label_value = a.linenum_value.start;
         return true;
     }
     if (a.Is("pos")) {

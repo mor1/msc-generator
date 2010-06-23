@@ -377,7 +377,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 	GetSel(cr);
 
 	//Set the partial match to the color previously proscribed in Csh
-	SetSel(m_csh.partial_at_cursor_pos.first_pos, m_csh.partial_at_cursor_pos.last_pos); //select all
+	SetSel(m_csh.partial_at_cursor_pos.first_pos-1, m_csh.partial_at_cursor_pos.last_pos); //select all
 	SetSelectionCharFormat(pApp->m_csh_cf[pApp->m_nCshScheme][m_csh.partial_at_cursor_pos.color]); 
 
 	SetSel(cr);

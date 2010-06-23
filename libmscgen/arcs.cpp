@@ -152,7 +152,7 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
 bool ArcLabelled::AddAttribute(const Attribute &a)
 {
     if (a.type == MSC_ATTR_STYLE) {
-		style.AddAttribute(a, chart);
+        style.AddAttribute(a, chart);
         if (style.numbering.first && numbering < 0)
             numbering = style.numbering.second?-999:-1000;
         return true;

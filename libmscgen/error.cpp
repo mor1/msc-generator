@@ -1,7 +1,7 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
-	Distributed under GNU Affero General Public License.
+    Copyright 2008,2009,2010 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -19,6 +19,13 @@
 
 #include <algorithm>
 #include "msc.h"
+
+std::string file_line::Print()
+{
+    std::string ret("\\\x01(");
+    ret << file << "," << line << "," << col << ")";
+    return ret;
+}
 
 unsigned MscError::AddFile(const string &filename)
 {

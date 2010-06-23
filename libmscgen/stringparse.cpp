@@ -1,7 +1,7 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
-	Distributed under GNU Affero General Public License.
+    Copyright 2008,2009,2010 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -100,10 +100,11 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 	return *this;
 }
 
-//Recognize and potentially process one escape sequence in the input at position pos
+//Recognize and potentially process one escape sequence in the beginning of input
 //Return what is at that location:
 //- a valid format-changing escape sequence (FORMATTING_OK)
-//- an invalid format-changing escape sequence (FORMATTING_NOK)
+//- an escape resulting in no formatting, but also no characters (FORMATTING_OK)
+//- an invalid escape sequence (INVALID_ESCAPE)
 //- a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
 //- just regular characters (NON_ESCAPE)
 //- a \n escape (LINE_BREAK)
@@ -114,20 +115,23 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 //  - empty parenthesis \c(), \s(), \f(), \mX() are filled in with the value in "basic" or if NULL, then ignored
 //for NON_FORMATTING in replaceto return the character represented by the escape
 //for NON_ESCAPE return the text verbatim
-//for FORMATTING_NOK return empty string
-//- if apply==true: Apply the string formatting escape to "this". (or do nothing for not valid formating escapes)
-//- if resolve==true we resolve strings in msc. If msc==NULL, or we do not find the stye/color we return NOK
+//for INVALID_ESCAPE return empty string
+//What do we do:
+//- if apply==true: Apply the string formatting escape to "this". (or do nothing for invalid escapes)
+//- if resolve==true we resolve strings in msc. If msc==NULL, or we do not find the stye/color we return INVALID_ESCAPE
 //  if apply==true, resolve parameter is ignored, we assume resolve==true.
-//  resolve has no impact on other than \s \c and only if msc==NULL, apply==false
-//- if reportError==true: any problem is generated an Error. if sayIgnore the we say we ignore the error,
-//                        otherwise we say we keep it as verbatim text.
+//  resolve has no impact on other than \s \c and has impact only if msc!=NULL && apply==false
+//- if linenum!=NULL: any problem generates an Error/Warning. if sayIgnore the we say we ignore the error,
+//                    otherwise we say we keep it as verbatim text.
+//  In general linenum carries the location of the first char of input. When we return, it contains the position
+//  of the character in input+length. (In the original input file this can e.g., be in a different line.)
 #define PER_S_DEPRECATED_MSG "The use of '\\s' control escape to indicate small text is deprecated. Use '\\-' instead."
 #define MAX_ESCAPE_M_VALUE 500
 #define TOO_LARGE_M_VALUE_MSG  "Use an integer between [0..500]."
 StringFormat::EEscapeType StringFormat::ProcessEscape(
-	const char * const input, const int pos, unsigned &length,
+	const char * const input, unsigned &length,
 	bool resolve, bool apply, string *replaceto, const StringFormat *basic,
-	Msc *msc, file_line linenum, bool reportError, bool sayIgnore)
+	Msc *msc, file_line *linenum, bool sayIgnore)
 {
     /*
      ** Recognize the following escape sequences
@@ -155,43 +159,44 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     bool was_m;
 
     //If this is not an escape, search for the next escape
-    if (input[pos]!='\\') {
+    if (input[0]!='\\') {
         length = 0;
-        while (input[pos+length] && input[pos+length]!='\\') length++;
-        if (replaceto) replaceto->assign(input+pos, length);
+        while (input[length] && input[length]!='\\') length++;
+        if (replaceto) replaceto->assign(input, length);
+		if (linenum) linenum->col += length;
         return NON_ESCAPE;
     }
 
-    const unsigned remaining = strlen(input+pos);
+    const unsigned remaining = strlen(input);
 
     //First check for two-or three character escapes not taking an argument
-    switch (input[pos+1]) {
+    switch (input[1]) {
     case '-':    // small font
     case '+':    // normal font
     case '^':    // superscript
     case '_':    // subscript
         if (apply) {
             fontType.first = true;
-            fontType.second = string("+-^_").find(input[pos+1]);
+            fontType.second = string("+-^_").find(input[1]);
         }
         goto ok2; //valid formatting character of length 2
 
     case 'b':    // bold font
     case 'B':
         if (apply)
-            AddTristate(bold, std::pair<bool,tristate>(true, input[pos+1]=='B'?yes:invert));
+            AddTristate(bold, std::pair<bool,tristate>(true, input[1]=='B'?yes:invert));
         goto ok2; //valid formatting character of length 2
 
     case 'i':    // bold font
     case 'I':
         if (apply)
-            AddTristate(italics, std::pair<bool,tristate>(true, input[pos+1]=='I'?yes:invert));
+            AddTristate(italics, std::pair<bool,tristate>(true, input[1]=='I'?yes:invert));
         goto ok2; //valid formatting character of length 2
 
     case 'u':    // bold font
     case 'U':
         if (apply)
-            AddTristate(underline, std::pair<bool,tristate>(true, input[pos+1]=='U'?yes:invert));
+            AddTristate(underline, std::pair<bool,tristate>(true, input[1]=='U'?yes:invert));
         goto ok2; //valid formatting character of length 2
 
     case '0': //Line spacing mark
@@ -206,21 +211,24 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case '9': //Line spacing mark
         if (apply) {
             spacingBelow.first = true;
-            spacingBelow.second = input[pos+1] - '0';
+            spacingBelow.second = input[1] - '0';
         }
         goto ok2; //valid formatting character of length 2
 
     case 'p':
         MscIdentType id;
-        switch (input[pos+2]) {
+        switch (input[2]) {
         case 'c': id = MSC_IDENT_CENTER; break;
         case 'l': id = MSC_IDENT_LEFT; break;
         case 'r': id = MSC_IDENT_RIGHT; break;
         default: id = MSC_IDENT_INVALID; break;
         }
         if (id == MSC_IDENT_INVALID) {
-            if (msc && reportError)
-                msc->Error.Warning(linenum, "Escape '\\p' shall be followed by one of 'lrc'." + errorAction);
+			if (msc && linenum) {
+				file_line l = *linenum;
+				l.col += 2;
+                msc->Error.Warning(l, "Escape '\\p' shall be followed by one of 'lrc'." + errorAction);
+			}
             length = 2;
             goto nok;
         }
@@ -234,6 +242,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case 'n':           // enter: should disappear after splitting a parsedline into fragments
         length = 2;
         if (replaceto) replaceto->erase();
+		if (linenum) linenum->col += length;
         return LINE_BREAK;
 
     case '\\':          // escaped "\"
@@ -245,53 +254,70 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case ';':           // escaped ";"
     case '\"':          // escaped quotation mark
         length = 2;
-        if (replaceto) replaceto->assign(input+pos+1, 1);
+        if (replaceto) replaceto->assign(input+1, 1);
+		if (linenum) linenum->col += length;
         return NON_FORMATTING;
     }
 
-    if (!strchr("csfm", input[pos+1])) {
+    if (!strchr("\x01lcsfm", input[1])) {
         //Unrecognized escape comes here
         length = 2;
-        if (msc && reportError)
-            msc->Error.Error(linenum, "Unrecognized escape: '" + string(input+pos, 2) + "'." + errorAction);
+        if (msc && linenum)
+            msc->Error.Error(*linenum, "Unrecognized escape: '" + string(input, 2) + "'." + errorAction);
         goto nok;
     }
 
     //All the following escapes take a parameter in parenthesis
-    was_m = (input[pos+1] == 'm');
+    was_m = (input[1] == 'm');
 
-    if (input[pos+was_m+2]!='(') {
+    if (input[was_m+2]!='(') {
         length = 2 + was_m;
-        if (input[pos+1] == 's') {
+        if (input[1] == 's') {
             maybe_s_msg = "Missing style name after \\s control escape. Assuming small text switch.";
             goto maybe_s;
         }
-        if (msc && reportError)
-            msc->Error.Error(linenum, "Missing parameter after " + string(input+pos, length) +
-                             " control escape." + errorAction);
+		if (msc && linenum) {
+			file_line l = *linenum;
+			l.col += 2+was_m;
+            msc->Error.Error(l, "Missing parameter after " + string(input, length) +
+                             " control escape." + errorAction,
+							 "This escape requires a parameter in parenthesis right after it.");
+		}
         goto nok;
     }
-    end = strchr(input+pos+was_m, ')');
+    end = strchr(input+was_m, ')');
     if (!end) {
-        if (input[pos+1] == 's') {
+        if (input[1] == 's') {
             maybe_s_msg = "Missing closing parenthesis after \\s control escape. Assuming small text switch.";
             goto maybe_s;
         }
-        if (msc && reportError)
-            msc->Error.Error(linenum, "Missing closing parenthesis after " + string(input+pos, length) +
+        if (msc && linenum)
+            msc->Error.Error(*linenum, "Missing closing parenthesis after " + string(input, length) +
                              " control escape." + errorAction);
         length = 3 + was_m;
         goto nok;
     }
-    length = end-input-pos+1; //since we have both ( and ) found, we have at least () after the escape
-    parameter.assign(input+pos+was_m+3, length-was_m-4); //stuff inside parenthesis
+    length = end-input+1; //since we have both ( and ) found, we have at least () after the escape
+    parameter.assign(input+was_m+3, length-was_m-4); //stuff inside parenthesis
 
     //start with escapes taking a string value as parameter
-    switch (input[pos+1]) {
+    switch (input[1]) {
+	case '\x01':
+		if (replaceto) replaceto->erase();
+		if (linenum) {
+			file_line l = *linenum;
+			if (3!=sscanf(parameter.c_str(), "%d,%d,%d", &l.file, &l.line, &l.col)) {
+				if (msc) msc->Error.Error(*linenum, "Internal error: could not parse position escape.");
+			} else {
+				*linenum = l;
+			}
+		}
+		return FORMATTING_OK;
     case 'c':
         if (length==4) { // this is a "\c()"
             if (basic == NULL) {
                 if (replaceto) replaceto->erase();
+				if (linenum) linenum->col += length;
                 return FORMATTING_OK;
             }
             //substitute parameter to the value from basic
@@ -310,19 +336,25 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 color.second = c;
             }
             if (replaceto) replaceto->assign("\\c" + c.Print());
+			if (linenum) linenum->col += length;
             return FORMATTING_OK;
         }
-        if (msc && reportError)
-            msc->Error.Error(linenum, "Unrecognized color name or definition: '" + parameter + "'." + errorAction);
+		if (msc && linenum) {
+			file_line l = *linenum;
+			l.col += 3;
+            msc->Error.Error(l, "Unrecognized color name or definition: '" + parameter + "'." + errorAction);
+		}
         goto nok;
 
     case 's':
         if (length==4) { // this is a "\s()"
             if (basic == NULL) {
                 if (replaceto) replaceto->erase();
+				if (linenum) linenum->col += length;
                 return FORMATTING_OK;
             }
             if (replaceto) replaceto->assign(basic->Print());
+			if (linenum) linenum->col += length;
             if (apply)
                 *this += *basic;
             return FORMATTING_OK;
@@ -345,6 +377,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 if (replaceto) replaceto->assign(i->second.text.Print());
             } else
                 if (replaceto) replaceto->erase();
+			if (linenum) linenum->col += length;
             return FORMATTING_OK;
         }
 
@@ -352,6 +385,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (length==4) { // this is a "\f()"
             if (basic == NULL) {
                 if (replaceto) replaceto->erase();
+				if (linenum) linenum->col += length;
                 return FORMATTING_OK;
             }
             //substitute parameter to the value from basic
@@ -362,12 +396,13 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             face.second = parameter;
         }
         if (replaceto) replaceto->assign("\\f(" + parameter + ")");
+		if (linenum) linenum->col += length;
         return FORMATTING_OK;
 
     case 'm':
         std::pair<bool, double> *p;
         int modifer = 0;
-        switch (input[pos+2]) {
+        switch (input[2]) {
         case 'u': p = &textVGapAbove; modifer = +2; break;
         case 'd': p = &textVGapBelow; modifer = +2; break;
         case 'l': p = &textHGapPre;   modifer = +4; break;
@@ -378,8 +413,11 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         default: p = NULL; break;
         }
         if (!p) {
-            if (msc && reportError)
-                msc->Error.Warning(linenum, "Escape '\\m' shall be followed by one of 'udlrins'." + errorAction);
+			if (msc && linenum) {
+				file_line l = *linenum;
+				l.col += 2;
+                msc->Error.Warning(l, "Escape '\\m' shall be followed by one of 'udlrins'." + errorAction);
+			}
             length = 2;
             goto nok;
         }
@@ -392,10 +430,12 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                     string num;
                     num << p2->second;
                     if (replaceto) replaceto->assign(num);
+					if (linenum) linenum->col += length;
                     return FORMATTING_OK;
                 }
             }
             if (replaceto) replaceto->erase();
+			if (linenum) linenum->col += length;
             return FORMATTING_OK;
         }
         //OK, now we know we have a valid escape with a non-empty parameter, digest number
@@ -407,7 +447,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         if (parameter.length()>local_pos) {
             string msg = "Invalid value to the '\\m";
-            msg += input[pos+2];
+            msg += input[2];
             msg.append("' control escape: '").append(parameter).append("'.");
             if (value>MAX_ESCAPE_M_VALUE) {
                 msg.append(" I could deduct '").append(parameter.substr(0, local_pos));
@@ -416,24 +456,33 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                     msg.append(" Ignoring control escape.");
                 else
                     msg.append(" Keeping escape as verbatim text.");
-                if (msc && reportError)
-                    msc->Error.Error(linenum, msg, TOO_LARGE_M_VALUE_MSG);
+				if (msc && linenum) {
+					file_line l = *linenum;
+					l.col += 4;
+                    msc->Error.Error(l, msg, TOO_LARGE_M_VALUE_MSG);
+				}
                 goto nok;
             }
             msg.append(" Using value '").append(parameter.substr(0, local_pos));
             msg.append("' instead.");
-            if (msc && reportError)
-                msc->Error.Error(linenum, msg, TOO_LARGE_M_VALUE_MSG);
+			if (msc && linenum) {
+				file_line l = *linenum;
+				l.col += 4;
+                msc->Error.Error(l, msg, TOO_LARGE_M_VALUE_MSG);
+			}
         } else if (value>MAX_ESCAPE_M_VALUE) { //Ok here we successfully parsed the number
             string msg = "Too large value after the '\\m";
-            msg += input[pos+2];
+            msg += input[2];
             msg.append("' control escape: '").append(parameter).append("'.");
             if (sayIgnore)
                 msg.append(" Ignoring control escape.");
             else
                 msg.append(" Keeping escape as verbatim text.");
-            if (msc && reportError)
-                msc->Error.Error(linenum, msg, TOO_LARGE_M_VALUE_MSG);
+			if (msc && linenum) {
+				file_line l = *linenum;
+				l.col += 4;
+                msc->Error.Error(*linenum, msg, TOO_LARGE_M_VALUE_MSG);
+			}
             goto nok;
         }
         //OK, here good value we have
@@ -442,21 +491,24 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             p->second = value + modifer;
         }
         //It is this complicated because it may be that we use just (the valid) part of parameter
-        if (replaceto) replaceto->assign(string(input+pos,3) + "(" + parameter.substr(0, local_pos) + ")");
+        if (replaceto) replaceto->assign(string(input, 3) + "(" + parameter.substr(0, local_pos) + ")");
+		if (linenum) linenum->col += length;
         return FORMATTING_OK;
     } /* big switch */
 
     //fallthrough, but we should not be here
     nok:
     if (replaceto) replaceto->erase();
-    return FORMATTING_NOK;
+	if (linenum) linenum->col += length;
+    return INVALID_ESCAPE;
 
 
     ok2:
         length = 2;
         //fallthrough
     ok:
-        if (replaceto) replaceto->assign(input+pos, length);
+        if (replaceto) replaceto->assign(input, length);
+		if (linenum) linenum->col += length;
         return FORMATTING_OK;
 
     maybe_s: //we get here when it is \s, but not a valid style or ()s after
@@ -466,8 +518,9 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             fontType.first = true;
             fontType.second = 1;
         }
-        if (msc && reportError)
-            msc->Error.Warning(linenum, maybe_s_msg, PER_S_DEPRECATED_MSG);
+        if (msc && linenum)
+            msc->Error.Warning(*linenum, maybe_s_msg, PER_S_DEPRECATED_MSG);
+		if (linenum) linenum->col += length;
         return FORMATTING_OK;
 }
 
@@ -479,12 +532,12 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     while (pos<strlen(text)) {
         MscColorSyntaxType color = COLOR_NORMAL;
         unsigned length;
-        switch (sf.ProcessEscape(text, pos, length)) {
+        switch (sf.ProcessEscape(text+pos, length)) {
         case LINE_BREAK:
         case FORMATTING_OK:
         case NON_FORMATTING:
             color = COLOR_LABEL_ESCAPE; break;
-        case FORMATTING_NOK:
+        case INVALID_ESCAPE:
             color = COLOR_ERROR; break;
         case NON_ESCAPE:
             color = COLOR_NORMAL; break;
@@ -507,15 +560,26 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 //basic contains the baseline style and color
 //(the one to return to at \s() and \c() and \f(), mX())
 void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum,
-									   const StringFormat *basic, bool ignore)
+                                       const StringFormat *basic, bool ignore)
 {
+    //We have three cases regarding linenum
+    //1. it is a colon-label, in which case msc_process_colon_string() inserted
+    //   a position escape to the beginning of the string, so the linenum we got
+    //   here will be overridden
+    //2. it is an unquoted string, which cannot contain escapes, hence neither
+    //   errors, so the linenum we got as parameter here will not be used
+    //3. it is a quoted string. In this case we do not start by a pos escape
+    //   and we may need the linenum parameter to report an error. In this case
+    //   we know that the linenum parameter points to the opening quotation mark
+    //   so we increment it at the beginning - for cases #1 and #2 it does not matter
+    linenum.col++;
     int pos=0;
     string replaceto;
     StringFormat sf;
     while(text.length()>pos) {
         unsigned length;
-        switch (sf.ProcessEscape(text.c_str(), pos, length, true, false, &replaceto, basic, msc, linenum, true, ignore)) {
-        case FORMATTING_NOK:
+        switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, basic, msc, &linenum, ignore)) {
+        case INVALID_ESCAPE:
             if (ignore) break;  //replaceto is empty here, we will remove the bad esc.
             //fallthrough
         case LINE_BREAK:        //keep \n as is
@@ -524,8 +588,30 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
         }
         text.replace(pos, length, replaceto);
         pos += replaceto.length();
+        //if we inserted or removed characters, we need to insert another position escape
+        if (replaceto.length() != length) {
+            const string pos_escape = linenum.Print();
+            text.insert(pos, pos_escape);
+            pos += pos_escape.length();
+        }
     }
 }
+
+void StringFormat::RemovePosEscapes(string &text)
+{
+    StringFormat sf;
+    unsigned pos = 0;
+    while (pos < text.length()) {
+        unsigned length;
+        if (FORMATTING_OK == sf.ProcessEscape(text.c_str()+pos, length))
+            if (text[pos]=='\\' && text[pos+1]=='\x01') {
+                text.erase(pos, length);
+                continue;
+            }
+        pos += length;
+    }
+}
+
 
 //Parse the string as long as valid escape sequences come and apply their meaning
 //If you hit something not a valid format changing escape char, stop & return
@@ -535,7 +621,7 @@ unsigned StringFormat::Apply(const char *text)
     unsigned pos = 0;
     unsigned length;
     while (pos < strlen(text)) {
-        if (FORMATTING_OK != ProcessEscape(text, pos, length, true, true)) break;
+        if (FORMATTING_OK != ProcessEscape(text+pos, length, true, true)) break;
         pos += length;
     }
     return pos;
@@ -543,9 +629,9 @@ unsigned StringFormat::Apply(const char *text)
 
 unsigned StringFormat::Apply(string &text)
 {
-    unsigned pos = Apply(text.c_str());
-    text.erase(0, pos);
-    return pos;
+    unsigned len = Apply(text.c_str());
+    text.erase(0, len);
+    return len;
 }
 
 
@@ -711,14 +797,15 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         string tmp = a.value;
         if (tmp.length()==0) return true;
 
-		StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, NULL, this);
+        StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, NULL, this);
 
         StringFormat sf(tmp);
+        RemovePosEscapes(tmp);
         if (tmp.length()) {
-            string s("Could not recognize these:'");
+            string s("Found some literal text: '");
             s.append(tmp).append("' in attribute '").append(a.name).append("'.");
-            s.append(" Applying only what I understood.");
-            msc->Error.Warning(a, true, s);
+            s.append(" Ignoring them.");
+            msc->Error.Warning(a, true, s, "Attriute 'text.format' can only contain formatting escapes.");
             return true;
         }
         operator += (sf);
@@ -735,7 +822,7 @@ void StringFormat::AddNumbering(string &label, int num)
 	unsigned pos = 0;
 	unsigned length;
 	while (pos < label.length()) {
-		if (FORMATTING_OK != sf.ProcessEscape(label.c_str(), pos, length)) break;
+		if (FORMATTING_OK != sf.ProcessEscape(label.c_str()+pos, length)) break;
 		pos += length;
 	}
     string ss;
@@ -897,7 +984,7 @@ ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) 
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
             //we avoid changing format!
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str(), pos, length, true, false, &replaceto, &startFormat)) break;
+            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
             fragment.append(replaceto);
             pos += length;
         }
@@ -931,7 +1018,7 @@ void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
         fragment.erase();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str(), pos, length, true, false, &replaceto, &startFormat)) break;
+            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
             fragment.append(replaceto);
             pos += length;
         }
@@ -957,7 +1044,7 @@ unsigned Label::AddText(const string &input, StringFormat format)
     while (pos < input.length()) {
         //find next new line
         while (pos < input.length()) {
-            if (StringFormat::LINE_BREAK == format.ProcessEscape(input.c_str(), pos, length)) break; //format not changed here!!!
+            if (StringFormat::LINE_BREAK == format.ProcessEscape(input.c_str()+pos, length)) break; //format not changed here!!!
             pos += length;
         }
         //Add a new line

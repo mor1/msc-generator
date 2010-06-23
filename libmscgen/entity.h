@@ -65,13 +65,14 @@ protected:
 public:
     const string     name;     // Name of Entity as referenced in src file
     const string     label;    // Label of the entity (==name if none)
+    const string     orig_label; //the text the user specified for label (for error msgs)
     double           pos;      // 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
     unsigned         index;    // counts entities left to right
     EntityStatusMap  status;   // contains vertical line status & type & color
     MscStyle         running_style;  //Used during PostParse process to make EntityDef::style's fully specified
     double           maxwidth;       //Used during PostParse process to collect the maximum width of the entity
 
-    Entity(const string &n, const string &l, double p, Msc *msc);
+    Entity(const string &n, const string &l, const string &ol, double p, Msc *msc);
     virtual ~Entity() {};
     string Print(int ident = 0) const;
     double DrawHeight(double yPos, Geometry &g, bool draw, bool final);
@@ -117,6 +118,7 @@ class EntityDef : public TrackableElement
         //Store attribute values added in an entity command subsequent to declaration
         const string                   name;
         triplet<bool,string,file_line> label;
+        file_line                      linenum_label_value; //pos of label text
         triplet<bool,double,file_line> pos;
         triplet<bool,string,file_line> rel;
         std::pair<bool,bool>           show;

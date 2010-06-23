@@ -23,7 +23,7 @@ public:
         }
         else return file < a.file;
     }
-	bool operator > (const file_line &a) const {
+    bool operator > (const file_line &a) const {
         if (file==a.file) {
             if (line==a.line)
                 return col>a.col;
@@ -32,12 +32,13 @@ public:
         }
         else return file>a.file;
     }
-	bool operator <= (const file_line &a) const {
-		return !operator>(a);
-	}
-	bool operator >= (const file_line &a) const {
-		return !operator<(a);
-	}
+    bool operator <= (const file_line &a) const {
+        return !operator>(a);
+    }
+    bool operator >= (const file_line &a) const {
+        return !operator<(a);
+    }
+    std::string Print();
 };
 
 struct file_line_range {

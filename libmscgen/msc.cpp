@@ -220,12 +220,12 @@ Msc::Msc() :
     SetDesign("plain", true);
 
     //Add virtual entities
-    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, -1001, this);
+    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, this);
     Entities.Append(entity);
     NoEntity = Entities.begin();
-    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, this);
+    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, this);
     Entities.Append(entity);
-    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, this);
+    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, this);
     Entities.Append(entity);
 }
 
@@ -266,7 +266,7 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
                         + "'. Assuming implicit definition.",
                         "This may be a mistyped entity name."
                         " Try turning 'pedantic' off to remove these messages.");
-        Entity *entity = new Entity(e, e, Entity_max_pos++, this);
+        Entity *entity = new Entity(e, e, e, Entity_max_pos++, this);
         Entities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
