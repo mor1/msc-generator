@@ -37,6 +37,17 @@ void CCshRichEditCtrl::GetSelLineCol(int &lStartLine, int &lStartCol, int &lEndL
 	ConvertPosToLineCol(cr.cpMax, lEndLine, lEndCol);
 }
 
+int CCshRichEditCtrl::GetLineString(int line, CString &str)
+{
+	int nLineLength = LineLength(LineIndex(line)) + sizeof(int) + 1;
+	nLineLength = GetLine(line, str.GetBufferSetLength(nLineLength), nLineLength);
+	str.Truncate(nLineLength); 
+	if (str[nLineLength-1] == '\x0d')
+		str.Truncate(--nLineLength); //kill terminating lineend
+	return nLineLength;
+}
+
+
 int CCshRichEditCtrl::FirstNonWhitespaceIdent(const char *str, int Max) 
 {
 	int i = 0;
@@ -52,7 +63,7 @@ int CCshRichEditCtrl::LastNonWhitespaceIdent(const char *str, int Max)
 {
 	if (Max == -1) 
 		Max = strlen(str)-1;
-	while (Max>=0 && (str[Max]==' ' || str[Max]=='\t' || str[Max] == '\x0d' || str[Max] == '\x0a')) Max--;
+	while (Max>=0 && (str[Max]==' ' || str[Max]=='\t')) Max--;
 	return Max;
 }
 
@@ -76,9 +87,7 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart)
 		int nLine, nCol;
 		ConvertPosToLineCol(i->first_pos, nLine, nCol);
 		CString strLine;
-		int nLineLength = LineLength(i->first_pos);
-		int nBuffLen = std::max<int>(sizeof(int), nLineLength);
-		nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+		int nLineLength = GetLineString(nLine, strLine);
 		int pos = nCol-1;
 		while (pos>0 && pos<nLineLength && (strLine[pos]==' ' || strLine[pos]=='\t')) pos++;
 		//if there is such a non-space in the label on the same line as the colon
@@ -87,284 +96,290 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart)
 	}
 	return -1;
 }
-//Find the line before us that has non spaces and return the column of the
+//Find the line including or before the char pos
+//that has non spaces and return the column of the
 //first non-space char in that line.
-//retun -1 if only spaces before us.
-int CCshRichEditCtrl::FindPreviousLineIdent(long lStart) 
+//Exception: if the first char before the charpos specified is a '{' we add m_tabsize
+//retun 0 if only spaces before us.
+int CCshRichEditCtrl::FindPreviousLineIdent(long lStart, long *lEnd) 
 {
-	int line = LineFromChar(lStart)-1;
-	while (line>0) {
+	if (lEnd) {
+		//Find the first non-whitespace character after lEnd.
+		//If it is a closing brace
+		// - extend the selection up to the space before it
+		// - return the ident of the line of the matching opening brace, 0 if none
+		int line, col;
+		ConvertPosToLineCol(*lEnd, line, col);
 		CString strLine;
-		int nLineLength = LineLength(LineIndex(line));
-		int nBuffLen = std::max<int>(sizeof(int), nLineLength);
-		nLineLength = GetLine(line, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
-		int ident = FirstNonWhitespaceIdent(strLine, nLineLength);
-		if (ident>=0) return ident;
-		line--;
+		GetLineString(line, strLine);
+		int index = FirstNonWhitespaceIdent((const char*)strLine + col);
+		if (index!=-1 && strLine[index+col] == '}') {
+			//If so, delete the spaces before it
+			*lEnd += index;
+			SetSel(lStart, *lEnd);
+			//and get the matching '{'
+			int ident = FindIdentForClosingBrace(lStart);
+			if (ident == -1) ident = 0;
+			return ident;
+		}
 	}
-	return -1;
+	//At this point we know no '}' is following us, find the ident of the previous line
+	int startline, startcol;
+	ConvertPosToLineCol(lStart, startline, startcol);
+	for (int line = startline; line>0; line--) {
+		CString strLine;
+		int nLineLength = GetLineString(line, strLine);
+		int ident = FirstNonWhitespaceIdent(strLine);
+		if (ident == -1) continue;
+		//if we are in the heading whitespace of the initial line jump to previous line
+		//if equal we are just in front of the leading non-whitespace char
+		if (line == startline && ident >= startcol) continue; 
+		int col = -1;
+		//if we are in the initial line check for { only from lStart
+		if (line==startline) 
+			col = startcol-1;
+		col = LastNonWhitespaceIdent(strLine, col);
+		if (col>0 && strLine[col] == '{') 
+			ident += m_tabsize;
+		return ident;
+	}
+	//reached the beginning of the file
+	return 0;
 }
 
 //Return the column of the first non space in the current line
-//retun 0 if current line has only spaces or is empty
+//retun -1 if current line has only spaces or is empty
 int CCshRichEditCtrl::FindCurrentLineIdent(long lStart) 
 {
 	int line = LineFromChar(lStart);
 	CString strLine;
-	int nLineLength = LineLength(lStart);
-	int nBuffLen = std::max<int>(sizeof(int), nLineLength);
-	nLineLength = GetLine(line, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
-	int ident = FirstNonWhitespaceIdent(strLine, nLineLength);
-	return ident>=0 ? ident : 0;
+	GetLineString(line, strLine);
+	return FirstNonWhitespaceIdent(strLine);
 }
 
 
 //finds the first unmatched opening brace before the pos (used when inserting a closing brace)
-//returns <0 if we have to remove spaces from current pos, >0 if we need to add more spaces
-//for a closing brace to be at the right place
-int CCshRichEditCtrl::FindIdentDeltaForClosingBrace(int pos_to_be_inserted)
+//returns the ident of the first character in its line
+//returns -1 if no opening brace before us or we are in a label and we know it
+int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 {
-	MscColorSyntaxType csh_color = m_csh.GetCshAt(pos_to_be_inserted+1);
-	//Dont do anything in a label
-	if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) return 0;
-	//See that only whitespace is in the line before the cursor
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//if color syntax highlighting is not enabled we cannot check for label
+	if (pApp->m_bSmartIdent && pApp->m_bCsh) {
+		MscColorSyntaxType csh_color = m_csh.GetCshAt(pos_to_be_inserted+1);
+		//Dont do anything in a label
+		if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) return -1;
+	}
 	int nLine, nCol;
 	ConvertPosToLineCol(pos_to_be_inserted, nLine, nCol);
-	int nLineLength = LineLength(pos_to_be_inserted);
-	int nBuffLen = std::max<int>(sizeof(int), nLineLength);
 	CString strLine;
-	nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
-	for (int i = 0; i<nCol; i++)
-		if (strLine[i]!= ' ' && strLine[i]!= '\t') return 0;
-	
+
 	//Find the matching brace before us
 	int num_braces = 0;
-	while (nLine>0 && num_braces>=0) {
-		//Get previous line
-		nLine--;
-		nLineLength = LineLength(LineIndex(nLine));
-		nBuffLen = std::max<int>(sizeof(int), nLineLength);
-		nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
+	for (int line = nLine; line>=0; line--) {
+		int nLineLength = GetLineString(nLine, strLine);
+		if (line == nLine) 
+			nLineLength = nCol;  //on the current line, start searching from insertion point
 		//search for opening brace from the back
-		while(nLineLength-->0) {
+		while(--nLineLength>=0) {
 			if (strLine[nLineLength] != '{' && strLine[nLineLength] != '}') continue;
-			//if a brace, but in a label, ignore
-			csh_color = m_csh.GetCshAt(ConvertLineColToPos(nLine, nLineLength)+1);
-			if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) continue;
+			//if color syntax highlighting is not enabled we cannot check for label
+			if (pApp->m_bSmartIdent && pApp->m_bCsh) {
+				//if a brace, but in a label, ignore
+				MscColorSyntaxType csh_color = m_csh.GetCshAt(ConvertLineColToPos(nLine, nLineLength)+1);
+				if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) continue;
+			}
 			if (strLine[nLineLength] == '}') num_braces++;
-			else num_braces--;
-			if (num_braces>=0) continue;
-			//OK our matching opening brace found
-			return FirstNonWhitespaceIdent(strLine, nLineLength)-nCol;
+			else if (--num_braces<0) //OK our matching opening brace found
+				return FirstNonWhitespaceIdent(strLine, nLineLength);
 		}
 	}
-	//We need to place the ident to the beginning of the line: minus nCol ident
-	return -nCol;
+	//We found no matching '{'
+	return -1;
 }
 
-//We assume no TAB characters...
+//Calculates the tab stop from the current one "col"
+//forward true if we look for a tabstop to the right, false if left
+//if smartIdent>=0 we jump to that (if in the right dir)
+//else we align to prevident (so end result differs from prev_ident in <int>*m_tabsize
+//if strict is true and the actual value of prevIdent lies in the right dir, we jump there
+//prevident and col must be nonnegative
+int CCshRichEditCtrl::CalcTabStop(int col, bool forward, int smartIdent, int prevIdent, bool strict)
+{
+	if (smartIdent>=0) {
+		if ( forward && col<smartIdent) return smartIdent;
+		if (!forward && col>smartIdent) return smartIdent;
+	}
+	if (strict) {
+		if ( forward && col<prevIdent) return prevIdent;
+		if (!forward && col>prevIdent) return prevIdent;
+	}
+	if (forward) 
+		return col + ((prevIdent%m_tabsize - col%m_tabsize + m_tabsize - 1)%m_tabsize + 1);
+	col -= (col%m_tabsize - prevIdent%m_tabsize + m_tabsize - 1)%m_tabsize + 1;
+	return col<0 ? 0 : col;
+}
+
+//Adds or removes spaces so that caret moves to right ident (from lStart) 
+//This assumes there is enough space in front of us if we need to remove 
+//to get to the right ident
+void CCshRichEditCtrl::SetCurrentIdentTo(int ident)
+{
+	long lStart, lEnd;
+	GetSel(lStart, lEnd);
+	int line, col;
+	ConvertPosToLineCol(lStart, line, col);
+	if (ident > col) 
+		ReplaceSel(CString(' ', ident-col));
+	else if (ident < col) {
+		SetRedraw(false);
+		SetSel(lStart - (col-ident), lEnd);
+		SetRedraw(true);
+		ReplaceSel("");
+	}
+}
+
+//This is to handle TAB, SHIFT+TAB, RETURN, BACKSPACE, and "}" chars
+//We assume no TAB characters in the file, we replace everything to spaces
+/* TAB rules
+**   SINGLE line: 
+**      In leading whitespace: Align to next/prev tab position
+**           (which is: if in a label: the first char of the label
+**            
+**            else: <int>*m_tabsize + ident of the first char on previous line)
+**      After leading whitespace: align to next <int>*m_tabsize
+**                                Shift+Tab: align to previous, if enough whitespace
+**   Multiple lines: align each line to next/prev tab position
+**           (which is: if line is in label, the first char of the label)
+**            else <int>*m_tabsize + ident of the first char on the line before the selected block)
+** ENTER rule
+**   if in label, align to label first char
+**   else if if the char just after the insertion point is a }, search matching {
+**   else align to previous first indent (potentially same line)
+**      except: add + m_tabsize if char just before enter is a {
+** BACKSPACE rule
+**   if in leading whitespace, do as shift+tab
+**   else: do as normally
+** "}" rule
+**   if in leading whitespace, find matching { and force ident to that
+**   else do as normal
+*/
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
-	if (pMsg->message == WM_CHAR && pMsg->wParam == '}') {
-		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-		ASSERT(pApp != NULL);
-		//if color syntax highlighting is not enabled we cannot do this correctly, 
-		if (!pApp->m_bSmartIdent || !pApp->m_bCsh) return FALSE;
-		long lStart, lEnd;
-		GetSel(lStart, lEnd);
-		int ident_delta = FindIdentDeltaForClosingBrace(lStart);
-		if (ident_delta > 0) 
-			ReplaceSel(CString(' ', ident_delta));
-		 else 
-			SetSel(lStart+ident_delta, lEnd);
+	if ((pMsg->message != WM_KEYDOWN || (pMsg->wParam != VK_TAB && pMsg->wParam != VK_RETURN && pMsg->wParam != VK_BACK)) &&
+		(pMsg->message != WM_CHAR || pMsg->wParam != '}'))
+		return CRichEditCtrl::PreTranslateMessage(pMsg);
+
+	//Do nothing for escape
+	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_ESCAPE) {
+		NotifyDocumentOfChange(); //This kills tracking mode and stores the selection onto the undo buffer
+		return TRUE;
+	}
+
+	long lStart, lEnd;
+	GetSel(lStart, lEnd);
+	int line, col;
+	ConvertPosToLineCol(lStart, line, col);
+	const int current_ident = FindCurrentLineIdent(lStart);
+
+	if (pMsg->wParam == '}') {
+		if (current_ident!=-1 && current_ident<col) return FALSE; //not in leading whitespace
+		int brace_ident = FindIdentForClosingBrace(lStart);
+		if (brace_ident == -1) brace_ident = 0; //beginning of line if no matching opening brace
+		SetCurrentIdentTo(brace_ident);
 		return FALSE; //let RicheditCtrl insert the }
 	}
-	if (pMsg->message != WM_KEYDOWN) return CRichEditCtrl::PreTranslateMessage(pMsg);
 	if (pMsg->wParam == VK_TAB) {
-		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
-		long lStart, lEnd;
-		GetSel(lStart, lEnd);
-		const int prev_ident = FindPreviousLineIdent(lStart);
+		const bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		//if no selection, just insert/remove spaces up to the next/prev tab stop
 		if (lStart == lEnd) {
-			const int smartIdent = FindColonLabelIdent(lStart);
-			int line, col;
-			ConvertPosToLineCol(lStart, line, col);
-			const int current_ident = FindCurrentLineIdent(lStart);
-			if (shift) { //Shift+TAB
-				int del = 0;
-				//Caret not in leading whitespace - do nothing
-				if (col>current_ident && current_ident>=0) 
-					return TRUE;
-				//Caret in leading whitespace and we can do smart ident to colon labels
-				if (col>smartIdent && smartIdent>0)
-					del = col - smartIdent;
-				//Caret in leading whitespace, no smart ident, right to ident of previous line: align to previous line
-				else if (prev_ident<col)
-					del = col - prev_ident;
-				//Caret in leading whitespace, no smart ident, left to ident of previous line: kill m_tabsize spaces
-				else {
-					del = (col+m_tabsize-1)%m_tabsize + 1 ;
-					if (del>col) del = col;
-				}
-				if (del>0) {
-					SetRedraw(false);
-					SetSel(lStart-del, lEnd);
-					SetRedraw(true);
-					ReplaceSel("", FALSE);
-				}
-			} else { //regular TAB - we do not care if we are in leading whitespace or not
-				//if we can do smart ident, do that
-				int ins;
-				if (col<smartIdent) 
-					ins = smartIdent-col;
-				//else try to align to previous line
-				else {
-					//if before, we jump there
-					if (col<prev_ident) 
-						ins = prev_ident-col;
-					//if after we jump to the next tab pos
-					else 
-						ins = m_tabsize - (col-prev_ident)%m_tabsize;
-				}
-				string spaces(ins, ' ');
-				ReplaceSel(spaces.c_str(), FALSE);
-			}
-		} else { //a full selection, do identation
-			if (m_bCshUpdateInProgress) return TRUE; //If this happens we cannot ident
-			NotifyDocumentOfChange(); //We indicate content change, yet there is none. This merely stores current selection into the undo buffer
-			//If there is a selection perform identation
-			int startLine = LineFromChar(lStart);
-			int endLine, endCol;
-			ConvertPosToLineCol(lEnd, endLine, endCol);
-			//If last line is not really selected, skip it
-			if (endCol==0) {
-				endLine--;
-			}
-			m_bCshUpdateInProgress = true;
-			SetRedraw(false);
-			//cycle backwards, so we do not destroy csh information for lines to be processed next
-			for (int line = endLine; line>=startLine; line--) {
-				const int current_ident = FindCurrentLineIdent(LineIndex(line));
-				//empty line - do nothing
-				if (current_ident==-1) continue;
-				const int smartIdent = FindColonLabelIdent(line==startLine ? lStart : LineIndex(line));
-				const long lLineBegin = LineIndex(line);
+			int ident;
+			//if not in leading whitespace
+			if (current_ident!=-1 && current_ident<col) {
+				ident = CalcTabStop(col, !shift);
+				//ensure we do not remove non-spaces
 				if (shift) {
-					int del;
-					if (current_ident>smartIdent && smartIdent>0) 
-						del = current_ident - smartIdent;
-					else {
-						del = m_tabsize - abs(prev_ident - current_ident)%m_tabsize;
-						if (current_ident<del)
-							del = current_ident;
-					}
-					SetSel(lLineBegin, lLineBegin+del);
-					ReplaceSel("", FALSE);
-					lEnd -= del;
-					if (lLineBegin < lStart) { //can happen only at the first line, if selection does not start at the beginning of line
-						if (lStart < lLineBegin+del) 
-							lStart = lLineBegin; //beginning of line
-						else 
-							lStart -= del;
-					}
-				} else { // Normal tab, no SHIFT
-					int ins;
-					if (current_ident<smartIdent) 
-						ins = smartIdent - current_ident;
-					else {
-						ins = m_tabsize - abs(current_ident - prev_ident)%m_tabsize;
-					}
-					SetSel(lLineBegin, lLineBegin);
-					CString spaces(' ', ins);
-					ReplaceSel(spaces);
-					lEnd += ins;
-					if (lLineBegin < lStart)  //can happen only at the first line, if selection does not start at the beginning of line
-						lStart += ins;
-				}
+					CString strLine;
+					GetLineString(line, strLine);
+					ident = std::max(ident, LastNonWhitespaceIdent(strLine, col-1)); //col>0 here
+				} 
+			} else {
+				//in leading whitespace, consider smart ident and/or previous line indent
+				const int smartIdent = FindColonLabelIdent(lStart);
+				const int prev_ident = FindPreviousLineIdent(lStart, &lEnd);
+				ident = CalcTabStop(col, !shift, smartIdent, prev_ident, true);
 			}
-			SetSel(lStart, lEnd);
-			m_bCshUpdateInProgress = false;
-			UpdateCsh(); //will set redraw back to true
-			NotifyDocumentOfChange();
+			SetCurrentIdentTo(ident);
+			return TRUE;
 		}
+		//a full selection, do identation
+		if (m_bCshUpdateInProgress) return TRUE; //If this happens we cannot ident
+		//We indicate content change, yet there is none. This merely stores current selection into the undo buffer
+		NotifyDocumentOfChange(); 
+		//This is the ident we will adhere to		
+		const int prev_ident = FindPreviousLineIdent(lStart);
+		int startLine = line;
+		int endLine, endCol;
+		ConvertPosToLineCol(lEnd, endLine, endCol);
+		//If last line is not really selected, skip it
+		if (endCol==0) {
+			endLine--;
+		}
+		m_bCshUpdateInProgress = true;
+		SetRedraw(false);
+		//cycle backwards, so we do not destroy csh information for lines to be processed next
+		for (int l = endLine; l>=startLine; l--) {
+			const long lLineBegin = LineIndex(l);
+			const int current_ident = FindCurrentLineIdent(lLineBegin);
+			//empty line - do nothing
+			if (current_ident==-1) continue;
+			const int smartIdent = FindColonLabelIdent(lLineBegin);
+			const int ident = CalcTabStop(current_ident, !shift, smartIdent, prev_ident);
+			//Set current line ident to ident
+			SetSel(lLineBegin+current_ident, lLineBegin+current_ident);
+			SetCurrentIdentTo(ident);
+			//Adjust lStart and lEnd
+			if (lLineBegin < lStart) { //can happen only at the first line, if selection does not start at the beginning of line
+				lStart += ident - current_ident;
+				//if Shift+tab moved us before line beginning
+				if (lStart < lLineBegin) 
+					lStart = lLineBegin; //beginning of line
+			}
+			lEnd += ident - current_ident;
+		}
+		SetSel(lStart, lEnd);
+		m_bCshUpdateInProgress = false;
+		UpdateCsh(); //will set redraw back to true
+		NotifyDocumentOfChange();
 		return TRUE;
 	}
 	if (pMsg->wParam == VK_RETURN) {
-		long lStart, lEnd;
-		GetSel(lStart, lEnd);
 		//See if we are in a label, preceeded by a colon
 		int ident = FindColonLabelIdent(lStart);
-		if (ident>0) {
-			//insert that many spaces as ident after the newline
-			string spaces(ident, ' ');
-			spaces.insert(0, "\n");
-			ReplaceSel(spaces.c_str(), FALSE);
-			return TRUE;
-		}
-		//If no smart ident, look for any ident above		
-		int nLine = LineFromChar(lStart);
-		//Find a line (current or above) with a non-whitespace char
-		//ident to that char (or +TABSTOP if that line ends with a '{'
-		do {
-			int nLineLength = LineLength(LineIndex(nLine));
-			int nBuffLen = std::max<int>(sizeof(int), nLineLength);
-			CString strLine;
-			nLineLength = GetLine(nLine, strLine.GetBufferSetLength(nBuffLen + 1), nBuffLen);
-			int i=0;
-			while (i<nLineLength && (strLine[i]==' ' || strLine[i]=='\t')) i++;
-			if (i<nLineLength) {
-				// OK, we found a line with not only whitespace does it end in a '{'?
-				int lastPos = LastNonWhitespaceIdent(strLine);
-				if (lastPos>0 && strLine[lastPos] == '{') {
-					strLine.Truncate(i);
-					strLine += CString(' ', m_tabsize);
-				} else 
-					strLine.Truncate(i);
-				strLine.Insert(0, '\n');
-				ReplaceSel(strLine, FALSE);
-				return TRUE;
-			}
-			nLine--;
-		} while (nLine>=0);
-		//There were only empty lines above, just insert a return
-		return FALSE;
-	}
-	if (pMsg->wParam == VK_BACK) {
-		long lStart, lEnd;
-		GetSel(lStart, lEnd);
-		int line, col;
-		ConvertPosToLineCol(lStart, line, col);
-		if (col==0) return FALSE;
-		const int current_ident = FindCurrentLineIdent(lStart);
-		//Caret not in leading whitespace - do regular backspace
-		if (col>current_ident && current_ident>=0) 
+		//if we are not in a label, find the ident of the previous line
+		//FindPreviousLineIdent() takes line-terminating { into account
+		//And also checks if a '}' follows us
+		if (ident==-1) 
+			ident = FindPreviousLineIdent(lStart, &lEnd);
+		//If the determined ident is zero, just let the system handle the RETURN
+		if (ident==0) 
 			return FALSE;
-		const int smartIdent = FindColonLabelIdent(lStart);
-		const int prev_ident = FindPreviousLineIdent(lStart);
-		int del = 0;
-		//Caret in leading whitespace and we can do smart ident to colon labels
-		if (col>smartIdent && smartIdent>0)
-			del = col - smartIdent;
-		//Caret in leading whitespace, no smart ident, right to ident of previous line: align to previous line
-		else if (prev_ident<col)
-			del = col - prev_ident;
-		//Caret in leading whitespace, no smart ident, left to ident of previous line: kill m_tabsize spaces
-		else {
-			del = (col+m_tabsize-1)%m_tabsize + 1 ;
-			if (del>col) del = col;
-		}
-		if (del>0) {
-			SetRedraw(false);
-			SetSel(lStart-del, lEnd);
-			SetRedraw(true);
-			ReplaceSel("", FALSE);
-		}
+		//insert that many spaces as ident after the newline
+		CString spaces(' ', ident);
+		spaces.Insert(0, "\n");
+		ReplaceSel(spaces, FALSE);
 		return TRUE;
 	}
-	//Do nothing for escape
-	if (pMsg->wParam == VK_ESCAPE) {
-		NotifyDocumentOfChange(); //This kills tracking mode and stores the selection onto the undo buffer
+	if (pMsg->wParam == VK_BACK) {
+		if (col==0) return FALSE;
+		//if not in leading whitespace
+		if (current_ident!=-1 && current_ident<col) return FALSE;
+		//in leading whitespace, consider smart ident and/or previous line indent
+		const int smartIdent = FindColonLabelIdent(lStart);
+		const int prev_ident = FindPreviousLineIdent(lStart, &lEnd);
+		int ident = CalcTabStop(col, false, smartIdent, prev_ident, true);
+		SetCurrentIdentTo(ident);
 		return TRUE;
 	}
 	return FALSE;

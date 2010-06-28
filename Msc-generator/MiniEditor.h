@@ -26,23 +26,34 @@ class CCshRichEditCtrl : public CRichEditCtrl
 public:
 	int m_tabsize;
 	CCshRichEditCtrl();
+
+	//Generic helpers
 	void GetSelLineCol(int &lStartLine, int &lStartCol, int &lEndLine, int &lEndCol) const;
+	int  GetLineString(int line, CString &str);
+	long ConvertLineColToPos(unsigned line, unsigned col) const {return LineIndex(line) + col;}
+	void ConvertPosToLineCol(long pos, int &line, int &col) const {line=LineFromChar(pos); col=pos-LineIndex(line);}
+	void JumpToLine(int line, int col);
+
+	//Functions for intelligent identation
 	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
 	int  LastNonWhitespaceIdent(const char *str, int Max=-1);
 	int  FindColonLabelIdent(long lStart);
-	int  FindPreviousLineIdent(long lStart);
+	int  FindPreviousLineIdent(long lStart, long *lEnd=NULL);
 	int  FindCurrentLineIdent(long lStart);
-	int  FindIdentDeltaForClosingBrace(int pos_to_be_inserted);
+	int  FindIdentForClosingBrace(int pos_to_be_inserted);
+	int  CalcTabStop(int col, bool forward, int smartIdent=-1, int prevIdent=0, bool strict=false);
+	void SetCurrentIdentTo(int ident);
 	BOOL PreTranslateMessage(MSG* pMsg);
+
+	//Color Syntax Highlighting functions
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
 	void UpdateCsh(bool force = false);
 	void CancelPartialMatch();
-	long ConvertLineColToPos(unsigned line, unsigned col) const {return LineIndex(line) + col;}
-	void ConvertPosToLineCol(long pos, int &line, int &col) const {line=LineFromChar(pos); col=pos-LineIndex(line);}
-	void JumpToLine(int line, int col);
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
 	bool NotifyDocumentOfChange(bool onlySelChange=false);
+
+	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 
