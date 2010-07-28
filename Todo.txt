@@ -1,3 +1,9 @@
+BUG: Applying a style kills numbering
+BUG: ... makes vlines dotted till end of chart
+ISSUE: missing ; at the end of last command creates an empty chart
+ADD: Add empty escape to allow number style to be different from beginning of text
+BUG: Change icons for file, program, etc.
+
 Switch to cairo 1.10 and the new pixman after summer.
 design lib
 Re-add escape key to exit in-place editing...
