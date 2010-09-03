@@ -235,8 +235,8 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
                     ins += ": '" + string(yyget_text(yyscanner)) + "'";
                 if (i==tokArrayLen-2) {
                     string hint(yyget_text(yyscanner));
-                    int pos = hint.find_first_not_of("abcdefghijklmnopqrstuvwxyz");
-                    hint.insert(pos," ");
+                    int pos2 = hint.find_first_not_of("abcdefghijklmnopqrstuvwxyz");
+                    hint.insert(pos2," ");
                     once_msg = "Try splitting it with a space: '"+hint+"'.";
                 }
             } else {

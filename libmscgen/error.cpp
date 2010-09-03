@@ -79,10 +79,10 @@ void MscError::Add(file_line linenum, const std::string &s, const std::string &o
     ErrorsAndWarnings.push_back(e1);
 
     if (once.length()>0) {
-        ErrorElement e1 = FormulateElement(linenum, is_err, true, once);
+        ErrorElement e2 = FormulateElement(linenum, is_err, true, once);
         if (is_err)
-            Errors.push_back(e1);
-        ErrorsAndWarnings.push_back(e1);
+            Errors.push_back(e2);
+        ErrorsAndWarnings.push_back(e2);
     }
 };
 

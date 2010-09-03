@@ -100,10 +100,11 @@ void ArcBase::PostHeightProcess(void)
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
-    ArcBase(t, msc), style(s), parsed_label(msc)
+    ArcBase(t, msc), style(s), parsed_label(msc), concrete_number(-1)
 {
-    numbering = msc->StyleSets.top().numbering?-999:-1000;
     style.type = STYLE_ARC;
+	style.numbering.first = true;
+    style.numbering.second = msc->StyleSets.top().numbering;
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
@@ -153,8 +154,6 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
 {
     if (a.type == MSC_ATTR_STYLE) {
         style.AddAttribute(a, chart);
-        if (style.numbering.first && numbering < 0)
-            numbering = style.numbering.second?-999:-1000;
         return true;
     }
     string s;
@@ -184,11 +183,17 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
     if (a.Is("number")) {
         //MSC_ATTR_CLEAR is well handled by faulting both tests below
         if (a.type == MSC_ATTR_NUMBER) {
-            numbering = int(a.number);
+			if (a.number >= 0) {
+				concrete_number = int(a.number);
+				style.numbering.first = true;
+				style.numbering.second = a.yes;
+			} else
+				chart->Error.Error(a, true, "Value for 'number' must not be negative. Ignoring attribute.");
             return true;
         }
         if (a.type == MSC_ATTR_BOOL) {
-            numbering = a.yes?-999:-1000;
+			style.numbering.first = true;
+			style.numbering.second = a.yes;
             return true;
         }
         chart->Error.Error(a, true, "Value for 'number' must be 'yes', 'no' or a number. Ignoring attribute.");
@@ -219,12 +224,10 @@ void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, int &numbe
 {
 	//At this point the label must be fully resolved!!
     at_top_level = top_level;
-    if (label.length()!=0 && numbering != -1000) {
-        if (numbering == -999)
-            numbering = number;
-        else
-            number = numbering;
-        StringFormat::AddNumbering(label, numbering);
+	if (label.length()!=0 && style.numbering.second) {
+        if (concrete_number >= 0)
+            number = concrete_number;
+        StringFormat::AddNumbering(label, number);
         number++;
     }
     parsed_label.Set(label, style.text);
@@ -732,6 +735,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
         case MSC_ARROW_HALF: /* Unfilled half */
             unsigned index;
             switch (style.text.GetIdent()) {
+			default:
             case MSC_IDENT_LEFT:   index = 0; break;
             case MSC_IDENT_CENTER: index = iterators.size()/2-1; break;
             case MSC_IDENT_RIGHT:  index = iterators.size()-2; break;
@@ -2145,13 +2149,13 @@ double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, d
 
             //Record status and style changes
             if (final) {
-                EIterator j = chart->Entities.Find_by_Name((*i)->name);
-                assert(j != chart->NoEntity);
+                EIterator k = chart->Entities.Find_by_Name((*i)->name);
+                assert(k != chart->NoEntity);
                 //Apply changes in style
-                (*j)->status.ApplyStyle(yPos, (*i)->style);
+                (*k)->status.ApplyStyle(yPos, (*i)->style);
                 //Apply changes in show status
                 if ((*i)->show.first)
-                    (*j)->status.SetStatus(yPos, (*i)->show.second);
+					(*k)->status.SetStatus(yPos, (*i)->show.second ? EntityStatusMap::SHOW_ON : EntityStatusMap::SHOW_OFF);
             }
             //Take entity height into account if it gets drawn
             //It can get drawn because we 1) said show=yes, or

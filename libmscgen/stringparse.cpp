@@ -113,7 +113,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 //  - color names are resolved to actual numbers
 //  - style names are resolved to actual formatting instructions
 //  - empty parenthesis \c(), \s(), \f(), \mX() are filled in with the value in "basic" or if NULL, then ignored
-//for NON_FORMATTING in replaceto return the character represented by the escape
+//for NON_FORMATTING in replaceto return the character represented by the escape (can be zero length for "\|")
 //for NON_ESCAPE return the text verbatim
 //for INVALID_ESCAPE return empty string
 //What do we do:
@@ -144,19 +144,19 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
      **             E.g. \mu(7) sets upper margin to 7.
      ** "\c(color) - set color, E.g., \c(0,0,0) is black
      ** "\pX"- set paragraph ident to _c_enter, _l_eft, _r_ight
+     ** "\0".."\9" - keep this much of line space after the line
      ** "\\" - an escaped "\"
      ** \#[]{}"; - an escaped chars
-     ** "\0".."\9" - keep this much of line space after the line
+	 ** "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
      */
 
-    unsigned value;
     MscColorType c;
     string parameter;
     string maybe_s_msg;
     StyleSet::const_iterator i;
     const string errorAction = sayIgnore ? " Ignoring it." : " Keeping it as verbatim text.";
     const char *end;
-    bool was_m;
+    int was_m;
 
     //If this is not an escape, search for the next escape
     if (input[0]!='\\') {
@@ -241,7 +241,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 
     case 'n':           // enter: should disappear after splitting a parsedline into fragments
         length = 2;
-        if (replaceto) replaceto->erase();
+        if (replaceto) replaceto->clear();
 		if (linenum) linenum->col += length;
         return LINE_BREAK;
 
@@ -255,6 +255,12 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case '\"':          // escaped quotation mark
         length = 2;
         if (replaceto) replaceto->assign(input+1, 1);
+		if (linenum) linenum->col += length;
+        return NON_FORMATTING;
+
+	case '|':          // zero-length non-formatting escape
+        length = 2;
+		if (replaceto) replaceto->clear();
 		if (linenum) linenum->col += length;
         return NON_FORMATTING;
     }
@@ -440,16 +446,16 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         //OK, now we know we have a valid escape with a non-empty parameter, digest number
         int local_pos = 0;
-        double value = 0;
+        double val = 0;
         while (parameter.length()>local_pos && parameter[local_pos]>='0' && parameter[local_pos]<='9') {
-            value = value*10 + parameter[local_pos]-'0';
+            val = val*10 + parameter[local_pos]-'0';
             local_pos++;
         }
         if (parameter.length()>local_pos) {
             string msg = "Invalid value to the '\\m";
             msg += input[2];
             msg.append("' control escape: '").append(parameter).append("'.");
-            if (value>MAX_ESCAPE_M_VALUE) {
+            if (val>MAX_ESCAPE_M_VALUE) {
                 msg.append(" I could deduct '").append(parameter.substr(0, local_pos));
                 msg.append("', but that seems too large.");
                 if (sayIgnore)
@@ -470,7 +476,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 				l.col += 4;
                 msc->Error.Error(l, msg, TOO_LARGE_M_VALUE_MSG);
 			}
-        } else if (value>MAX_ESCAPE_M_VALUE) { //Ok here we successfully parsed the number
+        } else if (val>MAX_ESCAPE_M_VALUE) { //Ok here we successfully parsed the number
             string msg = "Too large value after the '\\m";
             msg += input[2];
             msg.append("' control escape: '").append(parameter).append("'.");
@@ -488,7 +494,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         //OK, here good value we have
         if (apply) {
             p->first = true;
-            p->second = value + modifer;
+            p->second = val + modifer;
         }
         //It is this complicated because it may be that we use just (the valid) part of parameter
         if (replaceto) replaceto->assign(string(input, 3) + "(" + parameter.substr(0, local_pos) + ")");

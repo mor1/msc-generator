@@ -14,24 +14,32 @@ LINK := link
 
 ifeq ($(CFG),debug)
 MS_MDFLAGS := -MTd
-MS_LDFLAGS := -LTd
+MS_LDFLAGS :=  -LDd
 OPT := -Od -Zi
 else
 MS_MDFLAGS := -MT
-MS_LDFLAGS := -LT
+MS_LDFLAGS := -LDd
 OPT := -MT -O2 -Ob2 -Ot -Oi
 endif
 
 PIXMAN_CFLAGS := -I$(top_srcdir)/../pixman/pixman
 PIXMAN_LIBS := $(top_builddir)/../pixman/pixman/$(CFG)/pixman-1.lib
 
-CAIRO_LIBS =  gdi32.lib msimg32.lib user32.lib
+CAIRO_LIBS = gdi32.lib msimg32.lib user32.lib
 ifeq ($(CAIRO_HAS_PNG_FUNCTIONS),1)
+ifeq ($(CFG),debug)
+CAIRO_LIBS += libpngd.lib
+else
 CAIRO_LIBS += libpng.lib
+endif
 endif
 ifeq ($(CAIRO_HAS_PS_SURFACE)$(CAIRO_HAS_PDF_SURFACE),00)
 else
-CAIRO_LIBS += zdll.lib
+ifeq ($(CFG),debug)
+CAIRO_LIBS += zlibd.lib
+else
+CAIRO_LIBS += zlib.lib
+endif
 endif
 
 DEFAULT_CFLAGS = -nologo $(MS_MDFLAGS) $(OPT)

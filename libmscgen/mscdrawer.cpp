@@ -26,6 +26,11 @@
 #include <cairo-svg.h>
 #include "mscdrawer.h"
 
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #ifndef CAIRO_HAS_PNG_FUNCTIONS
 #warning Cairo misses PNG functions, this may be fatal.
 #endif
@@ -366,6 +371,10 @@ void PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTricks
     SetViewportExtEx(refDC, r.right, r.bottom, NULL);
     unsigned size = GetWinMetaFileBits(hemf, 0, NULL, MM_ANISOTROPIC, refDC);
     BYTE *buff = (BYTE*)malloc(size);
+	if (buff==NULL) {
+		ReleaseDC(NULL, refDC);
+		return;
+	}
     size = GetWinMetaFileBits(hemf, size, buff, MM_ANISOTROPIC, refDC);
     ReleaseDC(NULL, refDC);
     HMETAFILE hwmf = SetMetaFileBitsEx(size, buff);
@@ -540,7 +549,7 @@ void MscDrawer::_set_linear_gradient(MscColorType from, MscColorType to, XY s, X
     case GRADIENT_IN:
         //*Should not happen here*/
         assert(0);
-        break;
+        return;
     case GRADIENT_DOWN:
         pattern = cairo_pattern_create_linear(s.x, s.y, s.x, d.y);
         _add_color_stop(pattern, 0, from);
@@ -582,7 +591,7 @@ void MscDrawer::_set_radial_gradient(MscColorType from, MscColorType to, XY s, d
     switch(type) {
     default:
         assert(0);
-        break;
+        return;
     case GRADIENT_OUT:
         pattern = cairo_pattern_create_radial(s.x, s.y, inner_radius, s.x, s.y, outer_radius);
         _add_color_stop(pattern, 0, from);

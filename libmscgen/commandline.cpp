@@ -42,10 +42,12 @@ char *ReadFile(FILE *in)
     unsigned alloc = 16384;
     unsigned len = 0;
     char *buff = (char*)malloc(alloc);
+	if (buff == NULL) return NULL;
     while (!feof(in)) {
         len += fread(buff+len, 1, alloc-1-len, in);
         if (len == alloc-1)
             buff = (char*)realloc(buff, alloc+=16384);
+		if (buff == NULL) return NULL;
     }
     buff[len]=0;
     return buff;

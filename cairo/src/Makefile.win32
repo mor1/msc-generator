@@ -18,7 +18,7 @@ $(CFG)/cairo.dll: $(OBJECTS)
 $(CFG)/cairo-static.lib: $(OBJECTS_STATIC)
 	lib -NOLOGO -OUT:$@ $(PIXMAN_LIBS) $(OBJECTS_STATIC)
 
-all: inform $(CFG)/cairo-static.lib
+all: inform $(CFG)/cairo-static.lib $(CFG)/cairo.dll
 	@echo "Built successfully!"
 	@echo "You should copy the following files to a proper place now:"
 	@echo ""

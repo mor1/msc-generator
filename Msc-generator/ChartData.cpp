@@ -92,29 +92,29 @@ BOOL CChartData::Load(const CString &fileName, BOOL reportError)
 {
 	unsigned length = 0;
 	char *buff = NULL;
-	if (fileName.GetLength()>0) {
-		CStdioFile infile;
-		CFileException Ex;
-		if (!infile.Open(fileName, CFile::modeRead | CFile::typeText, &Ex)) {
-			if (reportError) Ex.ReportError();
+	if (fileName.GetLength() == 0) return FALSE;
+	CStdioFile infile;
+	CFileException Ex;
+	if (!infile.Open(fileName, CFile::modeRead | CFile::typeText, &Ex)) {
+		if (reportError) Ex.ReportError();
+		return FALSE;
+	}
+	length = infile.GetLength();
+	if (length>0) {
+		buff = (char*)malloc(length+1);
+		if (buff == NULL) return FALSE;
+		TRY {
+			length = infile.Read(buff, length);
+		} CATCH(CFileException, pEx) {
+			infile.Close();
+			free(buff);
+			if (reportError) pEx->ReportError();
 			return FALSE;
 		}
-		length = infile.GetLength();
-		if (length>0) {
-			buff = (char*)malloc(length+1);
-			TRY {
-				length = infile.Read(buff, length);
-			} CATCH(CFileException, pEx) {
-				infile.Close();
-				free(buff);
-				if (reportError) pEx->ReportError();
-				return FALSE;
-			}
-			END_CATCH
-		}
-		infile.Close();
+		END_CATCH
+		buff[length] = 0;
 	}
-	buff[length] = 0;
+	infile.Close();
 	Delete();
 	m_text = buff;
 	free(buff);

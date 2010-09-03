@@ -21,39 +21,41 @@ void SetMapRange(std::map<double, type> &Map, Range pos, type value)
 
 class EntityStatusMap
 {
+public:
+	typedef enum {SHOW_OFF, SHOW_ON, ACTIVE, ACTIVE_OFF} EStatus;
 protected:
-    std::map<double, MscStyle>      styleStatus;
-    std::map<double, bool>          hideStatus;
-    std::map<double, bool>          showStatus;
+    std::map<double, MscStyle>      styleStatus;   //style of the entity line at and beyond a position
+    std::map<double, EStatus> showStatus;    //tells if the entity is turned on or off or active
+    std::map<double, bool>          hideStatus;    //if true, the vline is hiden by e.g., a text
 public:
     explicit EntityStatusMap(const MscStyle &def) {
         styleStatus[-DBL_MAX] = styleStatus[DBL_MAX] = def;
         hideStatus[-DBL_MAX]  = hideStatus[DBL_MAX]  = true;
-        showStatus[-DBL_MAX]  = showStatus[DBL_MAX]  = false;
+        showStatus[-DBL_MAX]  = showStatus[DBL_MAX]  = SHOW_OFF;
     }
     void ApplyStyle(double pos, const MscStyle &style)
     {styleStatus[pos] = GetStyle(pos); styleStatus[pos] += style;}
     void ApplyStyleRange(Range pos, const MscStyle &style) {
         styleStatus[pos.from] = GetStyle(pos.from); styleStatus[pos.from] += style;
-        styleStatus[pos.till] = GetStyle(pos.till); styleStatus[pos.till] += style;
+        styleStatus[pos.till] = GetStyle(pos.till); 
         for (std::map<double, MscStyle>::iterator i = styleStatus.upper_bound(pos.from); i!=styleStatus.find(pos.till); i++)
             i->second += style;
     }
-    void SetStatus(double pos, bool status)
+    void SetStatus(double pos, EStatus status)
         {showStatus[pos] = status;}
     void HideRange(Range pos)
         {SetMapRange(hideStatus, pos, false);}
     const MscStyle &GetStyle(double pos) const
         {return (--styleStatus.upper_bound(pos))->second;}
-    bool GetStatus(double pos) const
+    EStatus GetStatus(double pos) const
         {return (--showStatus.upper_bound(pos))->second;}
     bool GetHideStatus(double pos) const
         {return (--hideStatus.upper_bound(pos))->second;}
 	double Till(double pos) const {
-            return std::min(std::min(hideStatus.upper_bound(pos)->first,
-                                     showStatus.upper_bound(pos)->first),
-                            styleStatus.upper_bound(pos)->first);
-        }
+        return std::min(std::min(hideStatus.upper_bound(pos)->first,
+                                 showStatus.upper_bound(pos)->first),
+                       styleStatus.upper_bound(pos)->first);
+    }
 };
 
 class Msc;

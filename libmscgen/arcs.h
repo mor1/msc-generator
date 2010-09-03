@@ -86,7 +86,7 @@ class ArcLabelled : public ArcBase
     protected:
         string          label;
         Label           parsed_label;
-        int             numbering; //-999:Yes, -1000: no, >=0 concrete num.
+        int             concrete_number; //if >=0 it shows what number the user wanted for this arc. if <0 automatic or no numerbing
         MscStyle        style; //numbering and compress fields of style are not used. The Arc member fields are used instead.
     public:
         ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);

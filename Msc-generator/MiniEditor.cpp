@@ -780,9 +780,9 @@ LRESULT CEditorBar::OnFindReplaceMessage(WPARAM wParam, LPARAM lParam)
 	if (findnext) {
 		if (FindText(pFindReplace->GetFindString(), pFindReplace->MatchCase(), pFindReplace->MatchWholeWord())) {
 			AdjustDialogPosition(pFindReplace);
-			CRect r;
-			pFindReplace->GetWindowRect(r);
-			m_ptLastFindPos = r.TopLeft();
+			CRect rect;
+			pFindReplace->GetWindowRect(rect);
+			m_ptLastFindPos = rect.TopLeft();
 		} else
 			TextNotFound(pFindReplace->GetFindString());
 	} 
