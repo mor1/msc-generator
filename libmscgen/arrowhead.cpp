@@ -64,11 +64,11 @@ ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
 bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->StyleSets.top()[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_arrow) operator +=(style.arrow);
         return true;
     }

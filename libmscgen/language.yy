@@ -151,7 +151,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 };
 
 %type <msc>        msc
-%type <arcbase>    arcrel arc arc_with_parallel complete_arc opt vertrel
+%type <arcbase>    arcrel arc arc_with_parallel complete_arc opt vertrel scope_close
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def pipe_def_list
 %type <arcparallel>parallel
@@ -177,9 +177,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT
 %type <stringlist> tok_stringlist
 
-%destructor {if (!C_S_H) delete $$;} vertrel
 %destructor {if (!C_S_H) delete $$;} vertxpos
-%destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel complete_arc opt
+%destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel complete_arc opt vertrel scope_close
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def pipe_def_list
 %destructor {if (!C_S_H) delete $$;} parallel
@@ -244,6 +243,7 @@ braced_arclist: scope_open arclist scope_close
         csh.AddCSH(@1, COLOR_BRACE);
         csh.AddCSH(@3, COLOR_BRACE);
   #else
+        if ($3) ($2)->Append($3); //Append any potential CommandNumbering
         $$ = $2;
   #endif
 }
@@ -254,6 +254,10 @@ braced_arclist: scope_open arclist scope_close
         csh.AddCSH(@2, COLOR_BRACE);
   #else
          $$ = new ArcList;
+         //scope_close should not return here with a CommandNumbering
+         //but just in case
+         if ($2)
+            delete($2);
   #endif
 }
             | scope_open arclist error scope_close
@@ -263,6 +267,7 @@ braced_arclist: scope_open arclist scope_close
         csh.AddCSH(@3, COLOR_ERROR);
         csh.AddCSH(@4, COLOR_BRACE);
   #else
+        if ($4) ($2)->Append($4); //Append any potential CommandNumbering
         $$ = $2;
   #endif
     yyerrok;
@@ -777,11 +782,11 @@ styledef : tok_stringlist full_arcattrlist
   #ifdef C_S_H_IS_COMPILED
   #else
     for (std::list<std::string>::iterator i = ($1)->begin(); i!=($1)->end(); i++) {
-        MscStyle style = msc.StyleSets.top().GetStyle(*i);
+        MscStyle style = msc.Contexts.top().styles.GetStyle(*i);
         AttributeList::iterator j=($2)->begin();
         while (j!=($2)->end())
            style.AddAttribute(**(j++), &msc);
-        msc.StyleSets.top()[*i] = style;
+        msc.Contexts.top().styles[*i] = style;
     }
     delete($1);
     delete($2);
@@ -825,7 +830,7 @@ colordef : TOK_STRING TOK_EQUAL string
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_COLORDEF);
   #else
-        msc.ColorSets.top().AddColor($1, $3, msc.Error, MSC_POS(@$));
+        msc.Contexts.top().colors.AddColor($1, $3, msc.Error, MSC_POS(@$));
   #endif
     free($1);
     free($3);
@@ -842,8 +847,7 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
     Design &design = msc.Designs[$1];
-    design.colors = msc.ColorSets.top();
-    design.styles = msc.StyleSets.top();
+    static_cast<Context&>(design) = msc.Contexts.top();
     design.hscale = msc.hscale;
     msc.hscale = msc.saved_hscale;
     msc.PopContext();
@@ -862,8 +866,7 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
     Design &design = msc.Designs[$1];
-    design.colors = msc.ColorSets.top();
-    design.styles = msc.StyleSets.top();
+    static_cast<Context&>(design) = msc.Contexts.top();
     design.hscale = msc.hscale;
     msc.hscale = msc.saved_hscale;
     msc.PopContext();
@@ -1755,8 +1758,9 @@ scope_open: TOK_OCBRACKET
 scope_close: TOK_CCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
+    $$ = NULL;
   #else
-    msc.PopContext();
+    $$ = msc.PopContext();
   #endif
 };
 

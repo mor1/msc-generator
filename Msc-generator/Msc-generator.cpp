@@ -709,7 +709,7 @@ BOOL CVersionDlg::OnInitDialog( )
  	CString text = "Currently installed version: ";
 	GetDlgItem(IDC_STATIC_CURRENT_VERSION)->SetWindowText(text + VersionText());
  	text = "Latest version available: ";
-	GetDlgItem(IDC_STATIC_LATEST_VERSION)->SetWindowText(text + VersionText());
+	GetDlgItem(IDC_STATIC_LATEST_VERSION)->SetWindowText(text + VersionText(a, b, c));
 	return a;
 }
 

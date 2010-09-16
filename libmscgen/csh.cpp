@@ -273,7 +273,11 @@ void Csh::AddCSH(CshPos&pos, MscColorSyntaxType i)
 void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
     if (!name || CaseInsensitiveEqual(name, "label") ||
-        CaseInsensitiveEqual(name, "text.format")) {
+        CaseInsensitiveEqual(name, "text.format") ||
+        CaseInsensitiveEqual(name, "numbering.format") ||
+        CaseInsensitiveEqual(name, "numbering.append") ||
+        CaseInsensitiveEqual(name, "numbering.pre") ||
+        CaseInsensitiveEqual(name, "numbering.post")) {
         //This is a label or text.format
         AddCSH(pos, COLOR_LABEL_TEXT);
         //Add escape symbols
@@ -322,6 +326,7 @@ const char *const keyword_names[] = {"heading", "newpage", "nudge", "parallel",
 "vertical", "mark", ""};
 
 const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
+"numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.gradient", ""};
 
 const char *const attr_names[] = {"compress", "color", "label", "number", "id",
@@ -353,9 +358,22 @@ int find_opt_attr_name(const char *name, const char * const array[])
 // Csh::partial_at_cursor_pos
 void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
 {
+    MscColorSyntaxType type = COLOR_KEYWORD;
     int match_result = find_opt_attr_name(name, keyword_names);
+    int match_result_options = find_opt_attr_name(name, opt_names);
+    //If options fit better, we switch to them
+    if (match_result_options > match_result) {
+        type = COLOR_OPTIONNAME;
+        match_result = match_result_options;
+    }
+    //Full match
+    if (match_result == 2) {
+        AddCSH(pos, type);
+        return;
+    }
+    //Partial match but currently typing...
     if (pos.last_pos == cursor_pos && match_result == 1) {
-        AddCSH(pos, COLOR_KEYWORD_PARTIAL);
+        AddCSH(pos, MscColorSyntaxType(type+1));
         partial_at_cursor_pos.first_pos = pos.first_pos;
         partial_at_cursor_pos.last_pos = pos.last_pos;
         if (CshEntityNames.find(string(name)) == CshEntityNames.end())
@@ -365,11 +383,7 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
         was_partial = true;
         return;
     }
-    if (match_result == 2) {
-        AddCSH(pos, COLOR_KEYWORD);
-        return;
-    }
-    //if no keyword match, we assume an entityname
+    //if no keyword or option match, we assume an entityname
     AddCSH_EntityName(pos, name);
     return;
 }

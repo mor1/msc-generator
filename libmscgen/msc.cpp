@@ -211,8 +211,7 @@ Msc::Msc() :
     ignore_designs = false;
 
     //Add topmost style and color sets (global context), all empty now
-    StyleSets.push(StyleSet());
-    ColorSets.push(ColorSet());
+    Contexts.push(Context());
 
     //Add "plain" style - the default constructor of Design sets that
     Designs["plain"];
@@ -236,13 +235,14 @@ bool Msc::SetDesign(const string&name, bool force)
         return false;
     if (ignore_designs &&!force)
         return true;
-    for (ColorSet::const_iterator j = i->second.colors.begin(); j!=i->second.colors.end(); j++)
-        ColorSets.top()[j->first] = j->second;
-    for (StyleSet::const_iterator j = i->second.styles.begin(); j!=i->second.styles.end(); j++)
-        StyleSets.top()[j->first] = j->second;
-    StyleSets.top().numbering = i->second.styles.numbering;
-    StyleSets.top().compress  = i->second.styles.compress;
+    Contexts.top().numbering = i->second.numbering;
+    Contexts.top().compress  = i->second.compress;
     hscale = i->second.hscale;
+    for (ColorSet::const_iterator j = i->second.colors.begin(); j!=i->second.colors.end(); j++)
+		Contexts.top().colors[j->first] = j->second;
+    for (StyleSet::const_iterator j = i->second.styles.begin(); j!=i->second.styles.end(); j++)
+        Contexts.top().styles[j->first] = j->second;
+	Contexts.top().numberingStyle = i->second.numberingStyle;
     return true;
 }
 
@@ -280,8 +280,8 @@ ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
                               const char*d, file_line_range dl)
 {
     if (strcmp(s,d))
-        return new ArcDirArrow(t, s, sl, d, dl, this, StyleSets.top()["arrow"]);
-    MscStyle style = StyleSets.top()["arrow"];
+        return new ArcDirArrow(t, s, sl, d, dl, this, Contexts.top().styles["arrow"]);
+    MscStyle style = Contexts.top().styles["arrow"];
     style.text.Apply("\\pr");
     return new ArcSelfArrow(t, s, sl, this, style, selfArrowYSize);
 }
@@ -294,7 +294,7 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
         Error.Error(arrow->file_pos.start, "Big arrows cannot point back to the same entity. Ignoring it.");
         return NULL;
     }
-    return new ArcBigArrow(*arrow, StyleSets.top()["blockarrow"]);
+    return new ArcBigArrow(*arrow, Contexts.top().styles["blockarrow"]);
 
 }
 
@@ -331,14 +331,48 @@ bool Msc::AddAttribute(const Attribute &a)
     }
     if (a.Is("compress")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
-        StyleSets.top().compress = a.yes;
+        Contexts.top().compress = a.yes;
         return true;
     }
     if (a.Is("numbering")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
-        StyleSets.top().numbering = a.yes;
+        Contexts.top().numbering = a.yes;
         return true;
     }
+    if (a.Is("numbering.pre")) {
+        Contexts.top().numberingStyle.pre = a.value;
+        StringFormat::ExpandColorAndStyle(Contexts.top().numberingStyle.pre, this,
+                                          a.linenum_value.start, NULL,
+                                          true, StringFormat::LABEL);
+        return true;
+    }
+    if (a.Is("numbering.post")) {
+        Contexts.top().numberingStyle.post = a.value;
+        StringFormat::ExpandColorAndStyle(Contexts.top().numberingStyle.post, this,
+                                          a.linenum_value.start, NULL,
+                                          true, StringFormat::LABEL);
+        return true;
+    }
+    if (a.Is("numbering.append")) {
+        std::vector<NumberingStyleFragment> nsfs;
+        if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs))
+            Contexts.top().numberingStyle.Push(nsfs);
+        return true;
+    }
+    if (a.Is("numbering.format")) {
+        std::vector<NumberingStyleFragment> nsfs;
+        if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs)) {
+            int off = Contexts.top().numberingStyle.Apply(nsfs);
+            if (off > 0) {
+                string msg = "Numbering here is ";
+                msg << off << " levels deep, and you specified more (" << nsfs.size();
+                msg << ") levels of formatting. Ignoring option.";
+                Error.Error(a, true, msg);
+            }
+        }
+        return true;
+    }
+
     if (a.Is("pedantic")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
         pedantic = a.yes;
@@ -365,19 +399,29 @@ bool Msc::AddDesignAttribute(const Attribute &a)
 void Msc::PushContext(bool empty)
 {
     if (empty) {
-        ColorSets.push(ColorSet());
-        StyleSets.push(StyleSet());
+        Contexts.push(Context());
         SetDesign("plain", true);
-    } else {
-        ColorSets.push(ColorSets.top());
-        StyleSets.push(StyleSets.top());
-    }
+    } else
+        Contexts.push(Contexts.top());
 }
 
-void Msc::PopContext()
+ArcBase *Msc::PopContext()
 {
-    ColorSets.pop();
-    StyleSets.pop();
+    if (Contexts.size()<2) return NULL;
+    int old_size = Contexts.top().numberingStyle.Size();
+    Contexts.pop();
+    //if numbering continues with the same amount of levels, no action will be needed
+    //in PostParseProcess, so we do not generate any Command arcs.
+    if (old_size == Contexts.top().numberingStyle.Size())
+        return NULL;
+    //if number of levels is less in the outer context, we will need to trim the Numbering list
+    //during PostParseProcess after processing all arcs in the inner context, so we insert
+    //a CommandNumbering, which first trims the Numbering list to the new size and then increments
+    //the last number, so after 1.2.2 comes 1.3
+    if (old_size > Contexts.top().numberingStyle.Size())
+        return new CommandNumbering(this, CommandNumbering::INCREMENT, Contexts.top().numberingStyle.Size());
+    //We should never get here, but if the length is increasing, we just expand the Numbering list
+    return new CommandNumbering(this, CommandNumbering::SIZE, Contexts.top().numberingStyle.Size());
 }
 
 string Msc::Print(int ident) const
@@ -389,7 +433,7 @@ string Msc::Print(int ident) const
 
 void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
-                                  int &number, bool top_level)
+                                  Numbering &number, bool top_level)
 {
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); i++) {
         if (resetiterators) {
@@ -442,11 +486,11 @@ void Msc::PostParseProcess(void)
             if (rightmost < (*i)->pos)
                 rightmost = (*i)->pos;
         }
-	} else {
-		//if there are no real entities, just noentity, lside & rside, set this wide
-		//so that copyright banner fits
-		rightmost = 3*MARGIN;
-	}
+    } else {
+        //if there are no real entities, just noentity, lside & rside, set this wide
+        //so that copyright banner fits
+        rightmost = 3*MARGIN;
+    }
     //Set the position of the virtual side entities & resort
     const_cast<double&>((*lside)->pos) = MARGIN;
     const_cast<double&>((*rside)->pos) = rightmost + MARGIN;
@@ -466,7 +510,7 @@ void Msc::PostParseProcess(void)
     //2. Calculate which entities to cover for auto-adjusting emphasis boxes
     //3. Print a few warning messages
     //4. Combine CommandEntities following one another into a signle one.
-    int number = 1; //start numbering from 1.
+    Numbering number; //starts at a single level from 1
     EIterator dummy1=NoEntity, dummy2=NoEntity;
     PostParseProcessArcList(Arcs, true, dummy1, dummy2, number, true);
 }

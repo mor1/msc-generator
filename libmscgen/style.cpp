@@ -70,14 +70,14 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         const char *newname = a.name == "emphasis"?"box":"emptybox";
         if (a.name == "emphasis" || a.name == "emptyemphasis") {
             msc->Error.Warning(a.linenum_attr.start, "Stylename '" + a.name + "' is deprecated, using " + newname + " instead.");
-            operator +=(msc->StyleSets.top()[newname]);
+            operator +=(msc->Contexts.top().styles[newname]);
             return true;
         }
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        operator +=(msc->StyleSets.top()[a.name]);
+        operator +=(msc->Contexts.top().styles[a.name]);
         return true;
     }
     if (a.Is("line.width")) {
@@ -110,7 +110,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         }
         a.InvalidValueError("0..1' or '0..255", msc->Error);
     }
-    if (a.Is("compress")) {
+    if (a.Is("compress") && f_compress) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
                 compress.first = false;
@@ -121,7 +121,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         compress.second = a.yes;
         return true;
     }
-    if (a.Is("number")) {
+    if (a.Is("number") && f_numbering) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
                 numbering.first = false;
@@ -161,6 +161,10 @@ const MscStyle &StyleSet::GetStyle(const string &s) const
 
 void Design::Reset()
 {
+    numbering=false;
+    compress=false;
+	numberingStyle.Reset();
+	numberingStyle.post = ": ";
     hscale = 1.0;
 
     colors.clear();
@@ -175,9 +179,6 @@ void Design::Reset()
     colors["lgray"] = MscColorType(200, 200, 200);
 
     styles.clear();
-    styles.numbering=false;
-    styles.compress=false;
-
     MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
     style.compress.first = false;
     style.line.radius.second = -1;

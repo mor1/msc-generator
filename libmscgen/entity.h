@@ -36,8 +36,8 @@ public:
     void ApplyStyle(double pos, const MscStyle &style)
     {styleStatus[pos] = GetStyle(pos); styleStatus[pos] += style;}
     void ApplyStyleRange(Range pos, const MscStyle &style) {
-        styleStatus[pos.from] = GetStyle(pos.from); styleStatus[pos.from] += style;
         styleStatus[pos.till] = GetStyle(pos.till); 
+        styleStatus[pos.from] = GetStyle(pos.from) + style;
         for (std::map<double, MscStyle>::iterator i = styleStatus.upper_bound(pos.from); i!=styleStatus.find(pos.till); i++)
             i->second += style;
     }

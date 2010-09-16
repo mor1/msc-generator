@@ -1,6 +1,7 @@
 #if !defined(STRINGPARSE_H)
 #define STRINGPARSE_H
 #include <set>
+#include "numbering.h"
 #include "mscdrawer.h"
 #include "csh.h"
 
@@ -44,7 +45,7 @@ class StringFormat {
     void ApplyFontToContext(MscDrawer *) const;
     double spaceWidth(const string &, MscDrawer *, bool front) const;
 
-    typedef enum {FORMATTING_OK, INVALID_ESCAPE, NON_FORMATTING, NON_ESCAPE, LINE_BREAK} EEscapeType;
+    typedef enum {FORMATTING_OK, INVALID_ESCAPE, NON_FORMATTING, NON_ESCAPE, LINE_BREAK, NUMBERING, NUMBERING_FORMAT, SOLO_ESCAPE} EEscapeType;
     EEscapeType ProcessEscape(const char *input, unsigned &length,
                               bool resolve=false, bool apply=false, string *replaceto=NULL, const StringFormat *basic=NULL,
                               Msc *msc=NULL, file_line *linenum=NULL, bool sayIgnore=true);
@@ -52,6 +53,7 @@ class StringFormat {
     friend class ParsedLine;
 
   public:
+	typedef enum {LABEL, TEXT_FORMAT, NUMBER_FORMAT} ETextType;
     // Generate the default formatting (all value set == all .second is true)
     StringFormat(void);
     StringFormat &operator =(const StringFormat &f);
@@ -86,13 +88,14 @@ class StringFormat {
     static void ExtractCSH(int startpos, const char *text, Csh &csh);
     //This adds a number at the beginning of the string
     //Taking all potential escape sequence at the beginning of the string
-    //into account, exept \s and \c containing a style or color name
-    static void AddNumbering(string &label, int num);
+    //into account
+    static void AddNumbering(string &label, const string &num, const string &pre_num_post);
     //This converts color names to RGBA numbers, returns the list of
-    //unrecognized color names separated by commas, empty string if all is OK.
     //unrecognized color escapes are left intact
     static void ExpandColorAndStyle(string &escape, Msc *msc, file_line linenum,
-									const StringFormat *basic, bool label);
+                                    const StringFormat *basic, bool ignore,  
+									ETextType textType);
+	static int FindNumberingFormatEscape(const char *text); 
     static void RemovePosEscapes(string &text);
 };
 

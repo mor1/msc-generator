@@ -22,8 +22,8 @@
 template class PtrList<Entity>;
 
 Entity::Entity(const string &n, const string &l, const string &ol, double p, Msc* msc) :
-    chart(msc), maxwidth(0), running_style(chart->StyleSets.top()["entity"]),
-    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->StyleSets.top()["entity"])
+    chart(msc), maxwidth(0), running_style(chart->Contexts.top().styles["entity"]),
+    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->Contexts.top().styles["entity"])
 {
 }
 
@@ -157,7 +157,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
         string proc_label = orig_label;
 
         StringFormat::ExpandColorAndStyle(proc_label, msc, linenum_label_value,
-                                          &style.text, true);
+                                          &style.text, true, StringFormat::LABEL);
 
 
         //Allocate new entity with correct label
@@ -185,11 +185,11 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
 bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        style += msc->StyleSets.top()[a.name];
+        style += msc->Contexts.top().styles[a.name];
         return true;
     }
     string s;

@@ -49,7 +49,7 @@ using std::string;
  */
 
 //Types for hscale=auto mechanism
-class IPair  {
+class IPair {
 public:
     //If both first>0 and second>0 then the ipair represents a pair of entities (via indexes)
     //first can be< in that case -1:to the left, -2:to the right of the entity represented by second
@@ -115,8 +115,7 @@ public:
     EntityDefList                 AutoGenEntities;
     double                        Entity_max_pos;
     ArcList                       Arcs;
-    std::stack<StyleSet>          StyleSets;
-    std::stack<ColorSet>          ColorSets;
+    std::stack<Context>           Contexts;
     std::map<string, Design>      Designs;
     std::map<string, MarkerType>  Markers;
     std::map<double, MscFillAttr> Background;
@@ -162,11 +161,11 @@ public:
                              const char*d, file_line_range dl);
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
     void PushContext(bool empty=false);
-    void PopContext();
+    ArcBase *PopContext();
 
     void PostParseProcessArcList(ArcList &arcs, bool resetiterators,
                                          EIterator &left, EIterator &right,
-                                         int &number, bool top_level);
+                                         Numbering &number, bool top_level);
     void PostParseProcess(void);
     virtual string Print(int ident=0) const;
 

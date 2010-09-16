@@ -4,6 +4,7 @@
 #include "attribute.h"
 #include "arrowhead.h"
 #include "stringparse.h"
+#include "numbering.h"
 
 struct MscStyle
 {
@@ -32,22 +33,27 @@ struct MscStyle
 
 class StyleSet : public std::map<std::string, MscStyle>
 {
-public:
-    bool numbering;
-    bool compress;
-
     MscStyle defaultStyle;
-    StyleSet() : numbering(false), compress(false) {} //def style is empty
-    StyleSet(const MscStyle &a, bool num, bool comp) :
-        defaultStyle(a), numbering(num), compress(comp) {};
+public:
+    StyleSet() {} //def style is empty
+    explicit StyleSet(const MscStyle &a) : defaultStyle(a) {}
     const MscStyle &GetStyle(const string&) const;
 };
 
-class Design
+class Context 
 {
 public:
-    StyleSet styles;
-    ColorSet colors;
+    bool           numbering;
+    bool           compress;
+    StyleSet       styles;
+    ColorSet       colors;
+	NumberingStyle numberingStyle;
+	Context() : numbering(false), compress(false) {}
+};
+
+class Design : public Context
+{
+public:
     double hscale;
     Design() {Reset();}
     void Reset();

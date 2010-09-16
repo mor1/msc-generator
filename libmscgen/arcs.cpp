@@ -30,7 +30,7 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     type(t), chart(msc), valid(true), compress(false), parallel(false), yPos(0)
 {
     if (msc)
-        compress = msc->StyleSets.top().compress;
+        compress = msc->Contexts.top().compress;
 }
 
 //Helper function. If the pos of *value is smaller (or larger) than i
@@ -99,39 +99,41 @@ void ArcBase::PostHeightProcess(void)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+//Take numbering style from the current context
 ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
-    ArcBase(t, msc), style(s), parsed_label(msc), concrete_number(-1)
+    ArcBase(t, msc), style(s), numberingStyle(msc->Contexts.top().numberingStyle),
+	parsed_label(msc), concrete_number(-1)
 {
     style.type = STYLE_ARC;
-	style.numbering.first = true;
-    style.numbering.second = msc->StyleSets.top().numbering;
+    style.numbering.first = true;
+    style.numbering.second = msc->Contexts.top().numbering;
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-        style += msc->StyleSets.top()["->"]; break;
+		style += msc->Contexts.top().styles["->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += msc->StyleSets.top()[">"]; break;
+        style += msc->Contexts.top().styles[">"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += msc->StyleSets.top()[">>"]; break;
+        style += msc->Contexts.top().styles[">>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += msc->StyleSets.top()["=>"]; break;
+        style += msc->Contexts.top().styles["=>"]; break;
     case MSC_EMPH_SOLID:
-        style += msc->StyleSets.top()["--"]; break;
+        style += msc->Contexts.top().styles["--"]; break;
     case MSC_EMPH_DASHED:
-        style += msc->StyleSets.top()["++"]; break;
+        style += msc->Contexts.top().styles["++"]; break;
     case MSC_EMPH_DOTTED:
-        style += msc->StyleSets.top()[".."]; break;
+        style += msc->Contexts.top().styles[".."]; break;
     case MSC_EMPH_DOUBLE:
-        style += msc->StyleSets.top()["=="]; break;
+        style += msc->Contexts.top().styles["=="]; break;
     case MSC_EMPH_UNDETERMINED_FOLLOW:
         break; /*do nothing*/
     case MSC_ARC_DIVIDER:
-        style += msc->StyleSets.top()["---"]; break;
+        style += msc->Contexts.top().styles["---"]; break;
     case MSC_ARC_DISCO:
-        style += msc->StyleSets.top()["..."]; break;
+        style += msc->Contexts.top().styles["..."]; break;
     };
 }
 
@@ -146,7 +148,8 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
     ArcBase::AddAttributeList(l);
     //Then convert color and style names in labels
     if (label.length()>0)
-        StringFormat::ExpandColorAndStyle(label, chart, linenum_label, &style.text, true);
+        StringFormat::ExpandColorAndStyle(label, chart, linenum_label, &style.text,
+                                          true, StringFormat::LABEL);
     return this;
 }
 
@@ -181,22 +184,40 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         return true;
     }
     if (a.Is("number")) {
-        //MSC_ATTR_CLEAR is well handled by faulting both tests below
         if (a.type == MSC_ATTR_NUMBER) {
-			if (a.number >= 0) {
-				concrete_number = int(a.number);
-				style.numbering.first = true;
-				style.numbering.second = a.yes;
-			} else
-				chart->Error.Error(a, true, "Value for 'number' must not be negative. Ignoring attribute.");
+            if (a.number >= 0) {
+                concrete_number = int(a.number);
+                style.numbering.first = true;
+                style.numbering.second = a.yes;
+            } else
+                chart->Error.Error(a, true, "Value for 'number' must not be negative. Ignoring attribute.");
             return true;
         }
         if (a.type == MSC_ATTR_BOOL) {
-			style.numbering.first = true;
-			style.numbering.second = a.yes;
+            style.numbering.first = true;
+            style.numbering.second = a.yes;
             return true;
         }
-        chart->Error.Error(a, true, "Value for 'number' must be 'yes', 'no' or a number. Ignoring attribute.");
+        if (a.type == MSC_ATTR_CLEAR) { //turn off numbering
+            style.numbering.first = true;
+            style.numbering.second = false;
+            return true;
+        }
+		//We have a string as number - it may be a roman number or abc
+        int num;
+        int off = chart->Contexts.top().numberingStyle.Last().Input(a.value, num);
+        if (off == a.value.length()) {
+            chart->Error.Error(a, true, "Value for 'number' must be 'yes', 'no' or a number. Ignoring attribute.");
+            return true;
+        }
+        if (off > 0) {
+            file_line l(a.linenum_value.start);
+            l.col += a.value.length() - off;
+            chart->Error.Warning(l, "I could not understand number from here. Applying what is before this point.");
+        }
+        concrete_number = num;
+        style.numbering.first = true;
+        style.numbering.second = a.yes;
         return true;
     }
     if (a.Is("id")) {
@@ -220,15 +241,32 @@ string ArcLabelled::Print(int ident) const
     return ss;
 };
 
-void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
+void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-	//At this point the label must be fully resolved!!
     at_top_level = top_level;
-	if (label.length()!=0 && style.numbering.second) {
-        if (concrete_number >= 0)
-            number = concrete_number;
-        StringFormat::AddNumbering(label, number);
-        number++;
+    string num;
+    string pre_num_post;
+    if (label.length()!=0) {
+        if (style.numbering.second) {
+            number.SetSize(numberingStyle.Size()); //append 1s if style has more levels
+            if (concrete_number >= 0)
+                number.Last() = concrete_number;
+            num = numberingStyle.Print(number);
+            pre_num_post = numberingStyle.pre + num + numberingStyle.post;
+            ++number;
+            //Recreate the text style at the point where the label will be inserted
+            StringFormat basic = style.text;
+            basic.Apply(label.c_str());
+            //At this point the number text must be processed using StringFormat::ExpandColorAndStyle
+            //to expand remaining empty \c(), \s(), etc escapes.
+            //We use a dummy linenum, as we should not get ANY errors here...
+            StringFormat::ExpandColorAndStyle(num, chart, file_line(), &basic,
+                                              true, StringFormat::LABEL);
+            StringFormat::ExpandColorAndStyle(pre_num_post, chart, file_line(), &basic,
+                                              true, StringFormat::LABEL);
+        }
+        //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
+        StringFormat::AddNumbering(label, num, pre_num_post);
     }
     parsed_label.Set(label, style.text);
     if (style.compress.first)
@@ -261,7 +299,7 @@ string ArcSelfArrow::Print(int ident) const
     return ss;
 };
 
-void ArcSelfArrow::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
+void ArcSelfArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
@@ -407,7 +445,7 @@ string ArcDirArrow::Print(int ident) const
 #define ARROW_TEXT_VSPACE_ABOVE 1
 #define ARROW_TEXT_VSPACE_BELOW 1
 
-void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
+void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
@@ -636,16 +674,16 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-        style += chart->StyleSets.top()["block->"]; break;
+        style += chart->Contexts.top().styles["block->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += chart->StyleSets.top()["block>"]; break;
+        style += chart->Contexts.top().styles["block>"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += chart->StyleSets.top()["block>>"]; break;
+        style += chart->Contexts.top().styles["block>>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += chart->StyleSets.top()["block=>"]; break;
+        style += chart->Contexts.top().styles["block=>"]; break;
     }
     modifyFirstLineSpacing = false;
 }
@@ -655,16 +693,22 @@ string ArcBigArrow::Print(int ident) const
     return ArcDirArrow::Print(ident);
 }
 
-void ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
+void ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
     ArcDirArrow::PostParseProcess(left, right, number, top_level);
     //Check if we still play
     if (!valid) return;
 
-    if (content)
+    if (content) {
+        //If we have attached a number to the label of a big arrow, set flag on number,
+        //so that if we add levels inside the content of the box (before displaying any number)
+        //we continue from present value
+        if (style.numbering.second && label.length()!=0)
+            number.decrementOnAddingLevels = true;
         chart->PostParseProcessArcList(*content, false, left, right, number, top_level);
-
+        number.decrementOnAddingLevels = false;
+    }
     //Finally copy the line attribute to the arrow, as well
     style.arrow.line = style.line;
 }
@@ -882,7 +926,7 @@ VertXPos::VertXPos(Msc&m, postype p)
 
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
                                    VertXPos *p, Msc *msc) :
-    ArcArrow(t, msc, msc->StyleSets.top()["vertical"]), pos(*p),
+    ArcArrow(t, msc, msc->Contexts.top().styles["vertical"]), pos(*p),
     ypos(2)
 {
     if (!p || !p->valid) {
@@ -902,28 +946,28 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
     offset = 0;
     aMarker = -1;
     //overwrite the sty;e set by ArcArrow
-    style = msc->StyleSets.top()["vertical"];
+    style = msc->Contexts.top().styles["vertical"];
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-        style += chart->StyleSets.top()["vertical->"]; break;
+        style += chart->Contexts.top().styles["vertical->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += chart->StyleSets.top()["vertical>"]; break;
+        style += chart->Contexts.top().styles["vertical>"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += chart->StyleSets.top()["vertical>>"]; break;
+        style += chart->Contexts.top().styles["vertical>>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += chart->StyleSets.top()["vertical=>"]; break;
+        style += chart->Contexts.top().styles["vertical=>"]; break;
     case MSC_EMPH_SOLID:
-        style += chart->StyleSets.top()["vertical--"]; break;
+        style += chart->Contexts.top().styles["vertical--"]; break;
     case MSC_EMPH_DASHED:
-        style += chart->StyleSets.top()["vertical++"]; break;
+        style += chart->Contexts.top().styles["vertical++"]; break;
     case MSC_EMPH_DOTTED:
-        style += chart->StyleSets.top()["vertical.."]; break;
+        style += chart->Contexts.top().styles["vertical.."]; break;
     case MSC_EMPH_DOUBLE:
-        style += chart->StyleSets.top()["vertical=="]; break;
+        style += chart->Contexts.top().styles["vertical=="]; break;
     }
 }
 
@@ -962,7 +1006,7 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 }
 
 void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
-                                        int &number, bool top_level)
+                                        Numbering &number, bool top_level)
 {
     if (!valid) return;
     if (src == MARKER_HERE_STR || src == MARKER_PREV_PARALLEL_STR)
@@ -1198,7 +1242,7 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
 
 ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
-    ArcLabelled(t, msc, msc->StyleSets.top()["emptybox"]),
+    ArcLabelled(t, msc, msc->Contexts.top().styles["emptybox"]),
     emphasis(NULL), follow(true), first(NULL), height(0), total_height(0),
     pipe(false), pipe_connect_left(false), pipe_connect_right(false)
 {
@@ -1217,16 +1261,16 @@ ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
 ArcEmphasis* ArcEmphasis::SetPipe()
 {
     pipe = true;
-    style = chart->StyleSets.top()["pipe"];
+    style = chart->Contexts.top().styles["pipe"];
     switch (type) {
     case MSC_EMPH_SOLID:
-        style += chart->StyleSets.top()["pipe--"]; break;
+        style += chart->Contexts.top().styles["pipe--"]; break;
     case MSC_EMPH_DASHED:
-        style += chart->StyleSets.top()["pipe++"]; break;
+        style += chart->Contexts.top().styles["pipe++"]; break;
     case MSC_EMPH_DOTTED:
-        style += chart->StyleSets.top()["pipe.."]; break;
+        style += chart->Contexts.top().styles["pipe.."]; break;
     case MSC_EMPH_DOUBLE:
-        style += chart->StyleSets.top()["pipe=="]; break;
+        style += chart->Contexts.top().styles["pipe=="]; break;
     }
     return this;
 }
@@ -1243,7 +1287,7 @@ ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
         }
     }
     if (!pipe)
-        style += chart->StyleSets.top()["box"];
+        style += chart->Contexts.top().styles["box"];
     return this;
 }
 
@@ -1293,7 +1337,7 @@ string ArcEmphasis::Print(int ident) const
 
 //will only be called for the first box of a multi-segment box series
 void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
-                                   int &number, bool top_level)
+                                   Numbering &number, bool top_level)
 {
     //Add ourselves as the first element in follow.
     follow.push_front(this);
@@ -1304,8 +1348,15 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
     for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
         //Add numbering, if needed
         (*i)->ArcLabelled::PostParseProcess(left, right, number, top_level);
-        if ((*i)->emphasis)
+        if ((*i)->emphasis) {
+            //If we have attached a number to the label of a box, set flag on number,
+            //so that if we add levels inside the content of the box (before displaying any number)
+            //we continue from present value
+            if ((*i)->style.numbering.second && (*i)->label.length()!=0)
+                number.decrementOnAddingLevels = true;
             chart->PostParseProcessArcList(*((*i)->emphasis), false, e1, e2, number, top_level);
+            number.decrementOnAddingLevels = false;
+        }
     }
 
     if (src==chart->NoEntity) src = e1;
@@ -1821,7 +1872,7 @@ void ArcEmphasis::PostHeightProcess(void)
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
-    ArcLabelled(t, msc, msc->StyleSets.top()["divider"]),
+    ArcLabelled(t, msc, msc->Contexts.top().styles["divider"]),
     nudge(t==MSC_COMMAND_NUDGE)
 {
 }
@@ -1836,7 +1887,7 @@ bool ArcDivider::AddAttribute(const Attribute &a)
     return ArcLabelled::AddAttribute(a);
 };
 
-void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
+void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
@@ -1965,7 +2016,7 @@ string ArcParallel::Print(int ident) const
     return ss;
 };
 
-void ArcParallel::PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level)
+void ArcParallel::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     at_top_level = top_level;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
@@ -2070,7 +2121,7 @@ void CommandEntity::Combine(CommandEntity *ce)
 }
 
 
-void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, int &number,
+void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numbering &number,
                                      bool top_level)
 {
     at_top_level = top_level;
@@ -2233,6 +2284,23 @@ double CommandNewBackground::DrawHeight(double y, Geometry &g,
     geometry += b;
     return 0;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////
+void CommandNumbering::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+{
+    if ((action & SIZE) && length)
+        number.SetSize(length);
+    if (action & INCREMENT)
+        ++number;
+    if (action & DECREMENT)
+        --number;
+}
+
+double CommandNumbering::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
+{
+    return 0;
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 

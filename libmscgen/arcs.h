@@ -5,6 +5,7 @@
 #include "color.h"
 #include "style.h"
 #include "entity.h"
+#include "numbering.h"
 
 typedef enum
 {
@@ -37,6 +38,7 @@ typedef enum
     MSC_COMMAND_ENTITY,
     MSC_COMMAND_NEWPAGE,
     MSC_COMMAND_NEWBACKGROUND,
+    MSC_COMMAND_NUMBERING,
     MSC_COMMAND_MARK,
     MSC_COMMAND_EMPTY
 } MscArcType;
@@ -66,7 +68,7 @@ class ArcBase : public TrackableElement
         virtual bool AddAttribute(const Attribute &);
         virtual string PrintType(void) const;
         virtual string Print(int ident = 0) const = 0;
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level) {}
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level) {}
 
         /* width fills in distances for hscale=auto mechanism */
         virtual void Width(EntityDistanceMap &distances) {}
@@ -88,12 +90,13 @@ class ArcLabelled : public ArcBase
         Label           parsed_label;
         int             concrete_number; //if >=0 it shows what number the user wanted for this arc. if <0 automatic or no numerbing
         MscStyle        style; //numbering and compress fields of style are not used. The Arc member fields are used instead.
+		NumberingStyle  numberingStyle; //This is not part of styles in general, but of contexts
     public:
         ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
         ArcBase* AddAttributeList(AttributeList *);
         bool AddAttribute(const Attribute &);
         string Print(int ident=0) const;
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
 };
 
 class ArcArrow : public ArcLabelled
@@ -117,7 +120,7 @@ class ArcSelfArrow : public ArcArrow
                      Msc *msc, const MscStyle &, double ys);
         virtual ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
         string Print(int ident=0) const;
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
         virtual void PostHeightProcess(void);
@@ -137,7 +140,7 @@ class ArcDirArrow : public ArcArrow
                     const char *d, file_line_range dl, Msc *msc, const MscStyle &);
         virtual ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
         string Print(int ident=0) const;
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
         void CheckSegmentOrder(double y);
@@ -155,7 +158,7 @@ class ArcBigArrow : public ArcDirArrow
     public:
         ArcBigArrow(const ArcDirArrow &, const MscStyle &);
         string Print(int ident=0) const;
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
         virtual void PostHeightProcess(void) {ArcBase::PostHeightProcess(); CheckSegmentOrder(yPos + height/2);}
@@ -191,7 +194,7 @@ class ArcVerticalArrow : public ArcArrow
                          VertXPos *p, Msc *msc);
         ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
         bool AddAttribute(const Attribute &);
-        void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         void Width(EntityDistanceMap &distances);
         void CalculateXandWidth(double &x, double &width) const;
         double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
@@ -221,7 +224,7 @@ class ArcEmphasis : public ArcLabelled
         ArcEmphasis* ChangeStyleForFollow(ArcEmphasis* =NULL);
         ArcEmphasis* AddFollow(ArcEmphasis*f);
         string Print(int ident=0) const;
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
                 void WidthPipe(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
@@ -240,7 +243,7 @@ class ArcParallel : public ArcBase
             {blocks.push_back(l); return this;}
         bool AddAttribute(const Attribute &) {return false;}
         string Print(int ident=0) const;
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
         virtual void PostHeightProcess(void);
@@ -256,7 +259,7 @@ class ArcDivider : public ArcLabelled
         ArcDivider(MscArcType t, Msc *msc);
         bool AddAttribute(const Attribute &);
         virtual void Width(EntityDistanceMap &distances);
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
 };
 
@@ -284,7 +287,7 @@ class CommandEntity : public ArcCommand
         void AppendToEntities(const EntityDefList &e);
         void Combine(CommandEntity *ce);
 
-        virtual void PostParseProcess(EIterator &left, EIterator &right, int &number, bool top_level);
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
         virtual void PostHeightProcess(void);
@@ -305,6 +308,19 @@ class CommandNewBackground : public ArcCommand
 
         CommandNewBackground(Msc *msc, MscFillAttr f)
             : ArcCommand(MSC_COMMAND_NEWBACKGROUND, msc), fill(f) {}
+        virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
+};
+
+class CommandNumbering : public ArcCommand
+{
+    public:
+        typedef enum {INCREMENT=1, DECREMENT=2, SIZE=4} EAction;
+        EAction action;
+        int     length;
+
+        CommandNumbering(Msc *msc, EAction a, int l=0)
+            : ArcCommand(MSC_COMMAND_NUMBERING, msc), action(a), length(l) {if (l) action = EAction(action | SIZE);}
+        virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
 };
 

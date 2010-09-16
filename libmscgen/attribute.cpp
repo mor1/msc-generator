@@ -205,11 +205,11 @@ bool MscLineAttr::operator == (const MscLineAttr &a)
 bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->StyleSets.top()[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_line) operator +=(style.line);
         return true;
     }
@@ -219,8 +219,8 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
                 color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->ColorSets.top(), msc->Error)) return true;
-        color.second = msc->ColorSets.top().GetColor(a.value);
+        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
+        color.second = msc->Contexts.top().colors.GetColor(a.value);
         color.first = true;
         return true;
     }
@@ -302,11 +302,11 @@ template<> const char EnumEncapsulator<MscGradientType>::names[][15] =
 bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->StyleSets.top()[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_fill) operator +=(style.fill);
         return true;
     }
@@ -316,8 +316,8 @@ bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
                 color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->ColorSets.top(), msc->Error)) return true;
-        color.second = msc->ColorSets.top().GetColor(a.value);
+        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
+        color.second = msc->Contexts.top().colors.GetColor(a.value);
         color.first = true;
         return true;
     }
@@ -372,11 +372,11 @@ bool MscShadowAttr::operator == (const MscShadowAttr &a)
 bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->StyleSets.top().find(a.name) == msc->StyleSets.top().end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->StyleSets.top()[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_shadow) operator +=(style.shadow);
         return true;
     }
@@ -386,8 +386,8 @@ bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
                 color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->ColorSets.top(), msc->Error)) return true;
-        color.second = msc->ColorSets.top().GetColor(a.value);
+        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
+        color.second = msc->Contexts.top().colors.GetColor(a.value);
         color.first = true;
         return true;
     }
