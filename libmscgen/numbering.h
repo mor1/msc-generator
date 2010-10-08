@@ -18,6 +18,7 @@ public:
     static bool Parse(Msc *, file_line linenum, const char *text, std::vector<NumberingStyleFragment> &result);
     std::string Print(int n) const;
     int Input(const std::string &number, int &value);
+    static bool FindReplaceNumberFormatToken(std::string &text, file_line l, int pos=0);
 };
 
 class Numbering {

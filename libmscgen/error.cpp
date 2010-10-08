@@ -22,7 +22,7 @@
 
 std::string file_line::Print()
 {
-    std::string ret("\\\x01(");
+    std::string ret("\\" ESCAPE_STRING_LOCATION "(");
     ret << file << "," << line << "," << col << ")";
     return ret;
 }

@@ -156,8 +156,9 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
      ** \#[]{}"; - an escaped chars
      ** "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
      ** \n - a line break
-     ** \NN - insert line number here - should not appear in a numbering format
-	 ** \N1 \Na \NA \Ni \NI - used to define numbering formats, should not appear in a label
+     ** \N - insert line number here - should not appear in a numbering format
+     ** \0x21 \0x2a \0x2A \0x2i \0x2I - used to define numbering formats, should not appear in a label
+     ** \0x1(file,line,col) - notes the position of the next char in the original file
      */
 
     MscColorType c;
@@ -181,13 +182,13 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 
     //First check for two-or three character escapes not taking an argument
     switch (input[1]) {
-	case 0:      //End of string (string ends with single '\'), replace to quoted version 
+	case 0:      //End of string (string ends with single '\'), replace to quoted version
         length = 1;
         if (replaceto) *replaceto = "\\";
         if (linenum) linenum->col += length;
         return SOLO_ESCAPE;
 
-	case '-':    // small font
+    case '-':    // small font
     case '+':    // normal font
     case '^':    // superscript
     case '_':    // subscript
@@ -261,15 +262,23 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (linenum) linenum->col += length;
         return LINE_BREAK;
 
-    case 'N':           // location of numbering
-		if (!strchr("N1aAiI", input[2])) break; //not one of NN, N1, Na, NA, Ni, NI
-        length = 3;
-        if (replaceto) {
-			*replaceto = "\\N ";
-			(*replaceto)[2] = input[2];
-		}
+    case 'N': // location of label numbering
+        length = 2;
+        if (replaceto)
+            *replaceto = "\\N";
         if (linenum) linenum->col += length;
-        return input[2]=='N'?NUMBERING:NUMBERING_FORMAT;
+        return NUMBERING;
+
+    case ESCAPE_CHAR_NUMBERFORMAT:
+        length = 3;
+        if (!strchr("1aAiI", input[2])) { //not one of 1, a, A, i, I
+            if (replaceto) replaceto->clear();
+            if (msc) msc->Error.Error(*linenum, "Internal error: bad number format escape.");
+            return FORMATTING_OK;
+        }
+        if (replaceto) replaceto->assign(input, length);
+        //No change to linenum, these should always be followed by position escapes
+        return NUMBERING_FORMAT;
 
     case '\\':          // escaped "\"
     case '#':           // escaped "#"
@@ -291,7 +300,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return NON_FORMATTING;
     }
 
-    if (!strchr("\x01lcsfm", input[1])) {
+    if (!strchr(ESCAPE_STRING_LOCATION "csfm", input[1])) {
         //Unrecognized escape comes here
         length = 2;
         if (msc && linenum)
@@ -308,6 +317,13 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             maybe_s_msg = "Missing style name after \\s control escape. Assuming small text switch.";
             goto maybe_s;
         }
+        //skip silently if a location escape: we have inserted a bad one???
+        if (input[1] == ESCAPE_CHAR_LOCATION) {
+            if (replaceto) replaceto->clear();
+            if (msc) msc->Error.Error(*linenum, "Internal error: no '(' after position escape.");
+            return FORMATTING_OK;
+        }
+
         if (msc && linenum) {
             file_line l = *linenum;
             l.col += 2+was_m;
@@ -323,6 +339,12 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             maybe_s_msg = "Missing closing parenthesis after \\s control escape. Assuming small text switch.";
             goto maybe_s;
         }
+        //skip silently if a location escape: we have inserted a bad one???
+        if (input[1] == ESCAPE_CHAR_LOCATION) {
+            if (replaceto) replaceto->clear();
+            if (msc) msc->Error.Error(*linenum, "Internal error: no matching ')' for position escape.");
+            return FORMATTING_OK;
+        }
         if (msc && linenum)
             msc->Error.Error(*linenum, "Missing closing parenthesis after " + string(input, length) +
                              " control escape." + errorAction);
@@ -334,15 +356,15 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 
     //start with escapes taking a string value as parameter
     switch (input[1]) {
-    case '\x01':
-        if (replaceto) replaceto->erase();
+    case ESCAPE_CHAR_LOCATION:
+        if (replaceto) replaceto->clear();
         if (linenum) {
             file_line l = *linenum;
             if (3!=sscanf(parameter.c_str(), "%d,%d,%d", &l.file, &l.line, &l.col)) {
                 if (msc) msc->Error.Error(*linenum, "Internal error: could not parse position escape.");
-            } else {
-                *linenum = l;
+                return FORMATTING_OK;
             }
+            *linenum = l;
         }
         return FORMATTING_OK;
     case 'c':
@@ -409,7 +431,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 if (replaceto) replaceto->assign(i->second.text.Print());
             } else
                 if (replaceto)
-                    replaceto->erase();
+                    replaceto->clear();
             if (linenum) linenum->col += length;
             return FORMATTING_OK;
         }
@@ -466,12 +488,12 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                     if (linenum) linenum->col += length;
                     return FORMATTING_OK;
                 }
-	            if (replaceto) replaceto->erase();
+	            if (replaceto) replaceto->clear();
             } else {
-				if (replaceto) *replaceto="\\mX()";
-				(*replaceto)[2] = input[2];
-			}
-			if (linenum) linenum->col += length;
+                if (replaceto) *replaceto="\\mX()";
+                (*replaceto)[2] = input[2];
+            }
+            if (linenum) linenum->col += length;
             return FORMATTING_OK;
         }
         //OK, now we know we have a valid escape with a non-empty parameter, digest number
@@ -534,7 +556,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 
     //fallthrough, but we should not be here
     nok:
-    if (replaceto) replaceto->erase();
+    if (replaceto) replaceto->clear();
     if (linenum) linenum->col += length;
     return INVALID_ESCAPE;
 
@@ -599,8 +621,8 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 //basic contains the baseline style and color
 //(the one to return to at \s() and \c() and \f(), mX())
 //if NULL, those escapes remain in unchanged
-//textType is NUMBER_FORMAT if this string is a number format (cannot contain /NN)
-//or it is LABEL or a TEXT_FORMAT (cannot contain /N{1aAiI}
+//textType is NUMBER_FORMAT if this string is a number format (cannot contain \N)
+//or it is LABEL or a TEXT_FORMAT (cannot contain \0x2{1aAiI}
 void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum,
                                        const StringFormat *basic, bool ignore, ETextType textType)
 {
@@ -618,46 +640,52 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
     int pos=0;
     string replaceto;
     StringFormat sf;
-	string ignoreText = ignore?" Ignoring it.":"";
+    string ignoreText = ignore?" Ignoring it.":"";
     while(text.length()>pos) {
         unsigned length;
-		file_line beginning_of_escape = linenum;
+        file_line beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, basic, msc, &linenum, ignore)) {
         case INVALID_ESCAPE:
             if (ignore) break;  //replaceto is empty here, we will remove the bad escape
             //fallthrough, if we do not ignore: this will set replaceto to the bad escape
         case LINE_BREAK:        //keep \n as is
         case NON_FORMATTING:
-            replaceto.assign(text.c_str()+pos, length); 
-			break; //do not (yet) resolve: keep what is in input
-		case SOLO_ESCAPE:
-			replaceto = "\\\\"; //replace to an escaped version: allows trouble-free string concatenation
-			break;
-		case NUMBERING_FORMAT:  //keep \N{1aAiI} as is
-			if (textType != NUMBER_FORMAT) {
-				msc->Error.Error(beginning_of_escape, "This escape can only be used to specify number format in numbering formatting options."+ignoreText);
-				if (ignore) replaceto.clear();
-			}
-			break;
-		case NUMBERING:         //keep \NN as is
-			if (textType == NUMBER_FORMAT) {
-				msc->Error.Error(beginning_of_escape, "The '\\NN' escape can not be used for numbering formatting options. Ignoring it.");
-				replaceto.clear();
-			}
-			break;
+            replaceto.assign(text.c_str()+pos, length);
+            break; //do not (yet) resolve: keep what is in input
+        case SOLO_ESCAPE:
+            replaceto = "\\\\"; //replace to an escaped version: allows trouble-free string concatenation
+            break;
+        case NUMBERING_FORMAT:  //keep \x02{1aAiI} as is, if
+            if (textType != NUMBER_FORMAT) {
+                msc->Error.Error(beginning_of_escape, "Internal error: Number format escape in a label or text format.");
+                replaceto.clear();
+            }
+            break;
+        case NUMBERING:         //keep \NN as is
+            if (textType == NUMBER_FORMAT) {
+                msc->Error.Error(beginning_of_escape, "The '\\N' escape can not be used for numbering formatting options. Ignoring it.");
+                replaceto.clear();
+            }
+            break;
+        case NON_ESCAPE:       //verbatim text. If numberformat search it
+            if (textType != NUMBER_FORMAT) break;
+            if (NumberingStyleFragment::FindReplaceNumberFormatToken(text, beginning_of_escape, pos))
+                //OK, a number descriptor found and has been replaced to
+                //a numberformat escape. Re-parse verbatim text again
+                continue;
         }
         text.replace(pos, length, replaceto);
         pos += replaceto.length();
         //if we inserted or removed characters, we need to insert another position escape
-        if (replaceto.length() != length) {
-            const string pos_escape = linenum.Print();
-            text.insert(pos, pos_escape);
-            pos += pos_escape.length();
-        }
+        //if (replaceto.length() != length) {
+        //    const string pos_escape = linenum.Print();
+        //    text.insert(pos, pos_escape);
+        //    pos += pos_escape.length();
+        //}
     }
 }
 
-int StringFormat::FindNumberingFormatEscape(const char *text) 
+int StringFormat::FindNumberingFormatEscape(const char *text)
 {
     StringFormat sf;
     unsigned pos = 0;
@@ -669,7 +697,7 @@ int StringFormat::FindNumberingFormatEscape(const char *text)
         pos += length;
     }
 	return -1;
-}	
+}
 
 void StringFormat::RemovePosEscapes(string &text)
 {
@@ -890,7 +918,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 
 }
 //This shall be called only after StringFormat::ExpandColorAndStyle on a label and both num strings
-//If we find a \NN escape in the label we replace that to num (for multiple \NNs, if needed)
+//If we find a \N escape in the label we replace that to num (for multiple \Ns, if needed)
 //If we find no such escape, we add it to the beginning, but after the initial formatting strings
 void StringFormat::AddNumbering(string &label, const string &num, const string &pre_num_post)
 {
@@ -902,19 +930,19 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
         if (FORMATTING_OK != sf.ProcessEscape(label.c_str()+pos, length)) break;
         pos += length;
     }
-	bool number_added = false;
-	unsigned beginning_pos = pos;
-	while (pos < label.length()) {
-		if (NUMBERING == sf.ProcessEscape(label.c_str()+pos, length)) {
-			label.replace(pos, length, num);
-			length = num.length();
-			number_added = true;
-		}
-		pos += length;
+    bool number_added = false;
+    unsigned beginning_pos = pos;
+    while (pos < label.length()) {
+        if (NUMBERING == sf.ProcessEscape(label.c_str()+pos, length)) {
+            label.replace(pos, length, num);
+            length = num.length();
+            number_added = true;
+        }
+        pos += length;
     }
-	//Add number at the beginning, if not yet added somewhere
-	if (!number_added)
-		label.insert(beginning_pos, pre_num_post);
+    //Add number at the beginning, if not yet added somewhere
+    if (!number_added)
+        label.insert(beginning_pos, pre_num_post);
 }
 
 void StringFormat::ApplyFontToContext(MscDrawer *mscd) const
@@ -1067,7 +1095,7 @@ ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) 
     string replaceto;
     string fragment;
     while (line.length()>pos) {
-        fragment.erase();
+        fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
             //we avoid changing format!
@@ -1102,7 +1130,7 @@ void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
     xy.y += heightAboveBaseLine;
 
     while (line.length()>pos) {
-        fragment.erase();
+        fragment.clear();
         //collect characters up until we hit a vaild formatting escape (or string end)
         while (line.length()>pos) {
             if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;

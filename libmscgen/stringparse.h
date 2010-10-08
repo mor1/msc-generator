@@ -18,6 +18,11 @@ MscIdentType;
 
 enum tristate {no=0, yes, invert};
 
+#define ESCAPE_CHAR_LOCATION ((char)1)
+#define ESCAPE_STRING_LOCATION "\x01"
+#define ESCAPE_CHAR_NUMBERFORMAT ((char)2)
+#define ESCAPE_STRING_NUMBERFORMAT "\x02"
+
 //This class stores string formatting (bold, color, fontsize, etc.)
 //It can do operations on a fragment (a string containing no escape sequences)
 // - It calculate height or width of a fragment using a drawing context
@@ -53,7 +58,7 @@ class StringFormat {
     friend class ParsedLine;
 
   public:
-	typedef enum {LABEL, TEXT_FORMAT, NUMBER_FORMAT} ETextType;
+      typedef enum {LABEL, TEXT_FORMAT, NUMBER_FORMAT} ETextType;
     // Generate the default formatting (all value set == all .second is true)
     StringFormat(void);
     StringFormat &operator =(const StringFormat &f);
@@ -93,9 +98,9 @@ class StringFormat {
     //This converts color names to RGBA numbers, returns the list of
     //unrecognized color escapes are left intact
     static void ExpandColorAndStyle(string &escape, Msc *msc, file_line linenum,
-                                    const StringFormat *basic, bool ignore,  
-									ETextType textType);
-	static int FindNumberingFormatEscape(const char *text); 
+                                    const StringFormat *basic, bool ignore,
+                                    ETextType textType);
+    static int FindNumberingFormatEscape(const char *text);
     static void RemovePosEscapes(string &text);
 };
 

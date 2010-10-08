@@ -163,8 +163,8 @@ void Design::Reset()
 {
     numbering=false;
     compress=false;
-	numberingStyle.Reset();
-	numberingStyle.post = ": ";
+    numberingStyle.Reset();
+    numberingStyle.post = ": ";
     hscale = 1.0;
 
     colors.clear();
@@ -181,12 +181,12 @@ void Design::Reset()
     styles.clear();
     MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
     style.compress.first = false;
+    style.numbering.first = false;
     style.line.radius.second = -1;
     styles["arrow"] = style;
 
     style.Empty();
     style.type = STYLE_STYLE;
-    style.compress.first = false;
     style.line.type.first = true;
     style.line.type.second = LINE_SOLID;
     styles["->"] = style;
@@ -199,6 +199,8 @@ void Design::Reset()
 
     style= MscStyle(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     style.compress.first = false;
+    style.numbering.first = false;
+    style.numbering.first = false;
     style.line.radius.second = -1;
     styles["blockarrow"] = style;
 
@@ -215,6 +217,8 @@ void Design::Reset()
     styles["block=>"] = style;
 
     style= MscStyle(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    style.compress.first = false;
+    style.numbering.first = false;
     style.line.radius.second = -1;
     styles["vertical"] = style;
 
@@ -246,6 +250,8 @@ void Design::Reset()
     styles["vertical=="] = style;
 
     style = MscStyle(STYLE_DEFAULT, false, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
+    style.compress.first = false;
+    style.numbering.first = false;
     style.vline.Empty();
     style.line.type.second = LINE_NONE;
     styles["divider"] = style;
@@ -263,6 +269,7 @@ void Design::Reset()
 
     style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, false, false, true, true); //no arrow, vline solid
     style.compress.first = false;
+    style.numbering.first = false;
     styles["emptybox"] = style;
     style.text.Apply("\\pl");
     style.line.type.first = false;
@@ -283,6 +290,7 @@ void Design::Reset()
 
     style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, false, true, true, true); //no arrow, vline
     style.compress.first = false;
+    style.numbering.first = false;
     style.line.radius.second = 5;
     styles["pipe"] = style;
 

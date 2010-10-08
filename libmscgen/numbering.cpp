@@ -38,7 +38,7 @@ std::string NumberingStyleFragment::Print(int n) const
     int num = abs(n);
     if (type == ABC_LOWER || type == ABC_UPPER) {
         do {
-			num--;
+            num--;
             ret.insert(ret.begin(), char(num%26 + ((type==ABC_UPPER) ? 'A' : 'a')));
             num /= 26;
         } while (num>0);
@@ -63,16 +63,17 @@ bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text
     string str(text);
     //We keep \s() \c() etc escapes, but remove the erroneous ones.
     StringFormat::ExpandColorAndStyle(str, msc, linenum, NULL, true, StringFormat::NUMBER_FORMAT);
-    //Now find \NX and separate pre and post
+    //Now find a numbering format escape and separate pre and post
     int pos_of_number = StringFormat::FindNumberingFormatEscape(str.c_str());
     if (pos_of_number == -1) {
-        msc->Error.Error(linenum, "You must include at least one of the \\N1 \\Na \\NA \\Ni \\NI escapes in a numbering format. Ignoring option.");
+        msc->Error.Error(linenum, "You must include at least one of the number format specifications in a numbering format. Ignoring option.",
+                         "Try one of '123', 'iii', 'III', 'abc' or 'ABC'. You can also prepend and append additional text.");
         return false;
     }
     int pos = 0;
     do {
         NumberingStyleFragment nsf;
-        switch (text[pos + pos_of_number + 2]) {
+        switch (str[pos + pos_of_number + 2]) {
         default:
         case '1': nsf.type = ARABIC; break;
         case 'a': nsf.type = ABC_LOWER; break;
@@ -98,14 +99,17 @@ int NumberingStyleFragment::Input(const std::string &number, int &value)
     int num=0;
     int pos=0;
     if (type==ARABIC) {
-        for(; number.length()>pos; pos++)
-            if (number[pos]<'0' || number[pos]>'9') goto out;
-            else num = num*10 + number[pos] - '0';
+        goto out;
     } else if (type == ABC_LOWER || type == ABC_UPPER) {
-        for(; number.length()>pos; pos++)
+        for(; number.length()>pos; pos++) {
             if (number[pos]<='Z' && number[pos]>='A') num = num*26 + number[pos] - 'A';
             else if (number[pos]<='z' && number[pos]>='a') num = num*26 + number[pos] - 'a';
-            else goto out;
+            else {
+                num++;
+                goto out;
+            }
+        }
+        num++;
     } else { //roman letters here
         for (int current = 0; romandata_value[current] > 0; ++current) {
             int repeat = 0;
@@ -122,8 +126,39 @@ int NumberingStyleFragment::Input(const std::string &number, int &value)
     return 0; //OK
 
 out:
+    //If we are arabic or completely failed to parse the roman or letter,
+    //we try as an arabic number
+    if (pos==0) {
+        num = 0;
+        for(; number.length()>pos; pos++)
+            if (number[pos]<'0' || number[pos]>'9') goto out;
+            else num = num*10 + number[pos] - '0';
+    }
     if (pos>0) value = num;
     return number.length()-pos;
+}
+
+bool NumberingStyleFragment::FindReplaceNumberFormatToken(string &text, file_line l,
+                                                          int pos)
+{
+    char const *formats[] = {"123", "arabic","ARABIC",
+                             "iii", "xxx", "roman", "III", "XXX", "ROMAN",
+                             "abc", "letters", "letter", "ABC", "LETTERS", "LETTER",
+                             NULL};
+    char const *codes[] = {"1", "1", "1",
+                           "i", "i", "i", "I", "I", "I",
+                           "a", "a", "a", "A", "A", "A"};
+
+    for (int i=0; formats[i]!=NULL; i++) {
+        int pos2 = text.find(formats[i], pos);
+        if (pos2 == string::npos) continue;
+        l.col += strlen(formats[i]);
+        string esc("\\" ESCAPE_STRING_NUMBERFORMAT);
+        esc += codes[i];
+        text.replace(pos2, strlen(formats[i]), esc + l.Print());
+        return true;
+    }
+    return false;
 }
 
 void Numbering::SetSize(int n)
@@ -150,9 +185,9 @@ void NumberingStyle::CopyShifted(const NumberingStyle &ns, int start)
 
 int NumberingStyle::Apply(const std::vector<NumberingStyleFragment> &nsfs)
 {
-    int off = elements.size() - nsfs.size();
-    if (off < 0) return elements.size();
-    startAt += off;
+    int off = startAt + elements.size() - nsfs.size();
+    if (off < 0) return startAt + elements.size();
+    startAt = off;
     elements = nsfs;
     return 0;
 }

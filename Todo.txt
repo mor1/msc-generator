@@ -8,15 +8,17 @@ Two helpers needed:
  Add a test for metafiles
  Allow new function only for metafiles
 
-CHANGE: Number format too cryptic, change escapes
 ISSUE: missing ; at the end of last command creates an empty chart
 BUG: Change icons for file, program, etc.
 BUG: after a many line-label terminated with a semicolon TAB works bad in next line
 BUG: Tabbing a multiline label (all of it) works bad
-UPDATE DOC: with empty escape and numbering updates
 
-beyond 2.5.3
+
+In 2.5.4
 FIXED: Notification of new version showed the old version in the dialog.
+FIXED: non-empty boxes were not numbered by default even if numbering=yes
+UPDATE DOC: with empty escape and numbering updates (formats & multi-level)
+CHANGED: Number format was too cryptic, changed to simpler escapes
 
 In 2.5.3
 CHANGED: Introduced Context into code

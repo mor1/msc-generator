@@ -216,7 +216,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         } else if (*i == "-Wno") {
             oWarning = false;
         } else if (*i == "--nocopyright") {
-            msc.copyrightText.erase();
+            msc.copyrightText.clear();
         } else if (*i == "--pedantic") {
             msc.pedantic = true;
         } else if (i->substr(0,13) == "--csh_format=") {

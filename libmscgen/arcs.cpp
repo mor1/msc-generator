@@ -1,7 +1,7 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
-	Distributed under GNU Affero General Public License.
+    Copyright 2008,2009,2010 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -105,8 +105,12 @@ ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
 	parsed_label(msc), concrete_number(-1)
 {
     style.type = STYLE_ARC;
-    style.numbering.first = true;
-    style.numbering.second = msc->Contexts.top().numbering;
+    //If style does not contain a numbering setting, apply the value of the
+    //current chart option.
+    if (!style.numbering.first) {
+        style.numbering.first = true;
+        style.numbering.second = msc->Contexts.top().numbering;
+    }
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
@@ -203,21 +207,24 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
             style.numbering.second = false;
             return true;
         }
-		//We have a string as number - it may be a roman number or abc
+        //We have a string as number - it may be a roman number or abc
         int num;
         int off = chart->Contexts.top().numberingStyle.Last().Input(a.value, num);
+        //off is how many characters we could not understand at the end of a.value
         if (off == a.value.length()) {
+            //No characters understood
             chart->Error.Error(a, true, "Value for 'number' must be 'yes', 'no' or a number. Ignoring attribute.");
             return true;
         }
         if (off > 0) {
             file_line l(a.linenum_value.start);
             l.col += a.value.length() - off;
-            chart->Error.Warning(l, "I could not understand number from here. Applying what is before this point.");
+            chart->Error.Warning(l, "I could not understand number from here. Applying only '" +
+                                 a.value.substr(0, a.value.length() - off) + "'.");
         }
         concrete_number = num;
         style.numbering.first = true;
-        style.numbering.second = a.yes;
+        style.numbering.second = true;
         return true;
     }
     if (a.Is("id")) {
