@@ -37,7 +37,7 @@ public:
 	//Functions for intelligent identation
 	int  FirstNonWhitespaceIdent(const char *str, int Max=-1);
 	int  LastNonWhitespaceIdent(const char *str, int Max=-1);
-	int  FindColonLabelIdent(long lStart);
+	int  FindColonLabelIdent(long lStart, int *line=NULL);
 	int  FindPreviousLineIdent(long lStart, long *lEnd=NULL);
 	int  FindCurrentLineIdent(long lStart);
 	int  FindIdentForClosingBrace(int pos_to_be_inserted);

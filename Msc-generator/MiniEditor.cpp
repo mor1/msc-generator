@@ -70,7 +70,8 @@ int CCshRichEditCtrl::LastNonWhitespaceIdent(const char *str, int Max)
 //Return -1 if we are 1) not in a label or 2) smart ident is off 3) no csh or
 // 4) the label is not preceeeded by a colon.
 //Else return the column of the first non whitespace character after the colon
-int CCshRichEditCtrl::FindColonLabelIdent(long lStart) 
+//in line return the line of the colon
+int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line) 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -91,16 +92,24 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart)
 		int pos = nCol-1;
 		while (pos>0 && pos<nLineLength && (strLine[pos]==' ' || strLine[pos]=='\t')) pos++;
 		//if there is such a non-space in the label on the same line as the colon
-		if (pos>0 && pos<nLineLength) 
+		if (pos>0 && pos<nLineLength) {
+			int dummy;
+			if (line) ConvertPosToLineCol(j->first_pos, *line, dummy); //the line of the colon
 			return pos;
+		}
 	}
 	return -1;
 }
-//Find the line including or before the char pos
-//that has non spaces and return the column of the
-//first non-space char in that line.
-//Exception: if the first char before the charpos specified is a '{' we add m_tabsize
-//retun 0 if only spaces before us.
+//In short: find the ident of the line above us. Take {s and }s into account.
+//if lEnd!=NULL and the firtst non-whitespace character after lEnd (on the same line) is a } then:
+//  find the matching { before lStart and return the ident of the line of the {
+//  in addition extend the selection and lEnd all the way up to the {
+//otherwise
+//  Find the line including or before lStart
+//  that has non space characters and return the column of the
+//  first non-space char in that line.
+//  Exception: if the first char before lStart is a '{' we add m_tabsize to the return value
+//  retun 0 if there are only spaces before lStart in the file.
 int CCshRichEditCtrl::FindPreviousLineIdent(long lStart, long *lEnd) 
 {
 	if (lEnd) {
@@ -134,6 +143,16 @@ int CCshRichEditCtrl::FindPreviousLineIdent(long lStart, long *lEnd)
 		//if we are in the heading whitespace of the initial line jump to previous line
 		//if equal we are just in front of the leading non-whitespace char
 		if (line == startline && ident >= startcol) continue; 
+		
+		//OK, we have found the line above lStart that has a non-whitespace
+		//if the beginning of that line is inside a label, we have to find the beginning of the label
+		//because we must ident to that line
+		int colon_line;
+		if (FindColonLabelIdent(ConvertLineColToPos(line, ident), &colon_line) >= 0) 
+			return FindCurrentLineIdent(LineIndex(colon_line));
+
+		//If no label is above us, check if the next non-whitespace after us is a { 
+		//if yes, add extra identation
 		int col = -1;
 		//if we are in the initial line check for { only from lStart
 		if (line==startline) 
@@ -143,7 +162,7 @@ int CCshRichEditCtrl::FindPreviousLineIdent(long lStart, long *lEnd)
 			ident += m_tabsize;
 		return ident;
 	}
-	//reached the beginning of the file
+	//reached the beginning of the file, no whitespace above us
 	return 0;
 }
 
@@ -317,8 +336,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		if (m_bCshUpdateInProgress) return TRUE; //If this happens we cannot ident
 		//We indicate content change, yet there is none. This merely stores current selection into the undo buffer
 		NotifyDocumentOfChange(); 
-		//This is the ident we will adhere to		
-		const int prev_ident = FindPreviousLineIdent(lStart);
 		int startLine = line;
 		int endLine, endCol;
 		ConvertPosToLineCol(lEnd, endLine, endCol);
@@ -326,27 +343,38 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		if (endCol==0) {
 			endLine--;
 		}
+		//Calculate the amount of space to add/remove based on the first non-empty line in the selection
+		int headLine; 
+		int headCol = -1;
+		for (headLine = startLine; headLine<endLine; headLine++) {
+			headCol = FindCurrentLineIdent(LineIndex(headLine));
+			if (headCol >= 0) break;
+		}
+		//if all lines empty, nothing to do 
+		if (headCol == -1) return TRUE;
+		const int smartIdent = FindColonLabelIdent(ConvertLineColToPos(headLine, headCol));
+		const int prev_ident = FindPreviousLineIdent(ConvertLineColToPos(headLine, headCol));
+		const int offset = CalcTabStop(headCol, !shift, smartIdent, prev_ident, true) - headCol;
+
+		//Insert/remove "offset" amount of space from the beginning of each line
 		m_bCshUpdateInProgress = true;
 		SetRedraw(false);
-		//cycle backwards, so we do not destroy csh information for lines to be processed next
-		for (int l = endLine; l>=startLine; l--) {
+		CString spaces(' ', std::max(0, offset)); //empty string if we remove, otherwise as many spaces as we insert
+		for (int l = startLine; l<=endLine; l++) {
 			const long lLineBegin = LineIndex(l);
 			const int current_ident = FindCurrentLineIdent(lLineBegin);
+			const int adjusted_offset = -std::min(current_ident, -offset);  //reduce potential remove if not so many spaces at the beginning
 			//empty line - do nothing
 			if (current_ident==-1) continue;
-			const int smartIdent = FindColonLabelIdent(lLineBegin);
-			const int ident = CalcTabStop(current_ident, !shift, smartIdent, prev_ident);
-			//Set current line ident to ident
-			SetSel(lLineBegin+current_ident, lLineBegin+current_ident);
-			SetCurrentIdentTo(ident);
+			SetSel(lLineBegin, lLineBegin + std::max(0, -adjusted_offset)); //empty selection if we insert, otherwise the spaces to remove
+			ReplaceSel(spaces);
+
 			//Adjust lStart and lEnd
-			if (lLineBegin < lStart) { //can happen only at the first line, if selection does not start at the beginning of line
-				lStart += ident - current_ident;
-				//if Shift+tab moved us before line beginning
-				if (lStart < lLineBegin) 
-					lStart = lLineBegin; //beginning of line
+			if (l == startLine && adjusted_offset<0) { //can happen only once: at the first line
+				lStart += adjusted_offset;
+				if (lStart < lLineBegin) lStart = lLineBegin;
 			}
-			lEnd += ident - current_ident;
+			lEnd += adjusted_offset;
 		}
 		SetSel(lStart, lEnd);
 		m_bCshUpdateInProgress = false;
