@@ -3,6 +3,7 @@
 
 #include <set>
 #include <climits>
+#include <cmath>
 #include "error.h" //for file_line
 
 class XY {
@@ -11,12 +12,14 @@ public:
     double y;
     XY() {}
     XY(double a, double b) : x(a), y(b) {}
-    XY operator +(XY wh) const
-        {return XY(x+wh.x, y+wh.y);}
-    XY operator -(XY wh) const
-        {return XY(x-wh.x, y-wh.y);}
-    XY operator *(double scale) const
-        {return XY(x*scale, y*scale);}
+    XY     operator +(XY wh) const        {return XY(x+wh.x, y+wh.y);}
+    XY     operator -(XY wh) const        {return XY(x-wh.x, y-wh.y);} 
+    double DotProduct(XY B) const         {return x*B.x+y*B.y;} 
+    XY     operator *(double scale) const {return XY(x*scale, y*scale);}
+	double PerpProduct(XY B) const        {return x*B.y - y*B.x;}        //This is this(T) * B
+	double length(void) const             {return sqrt(x*x+y*y);}
+	bool operator ==(const XY& p) const {return x==p.x && y==p.y;}
+	bool operator !=(const XY& p) const {return x!=p.x || y!=p.y;}
 };
 
 //Structs for compress mechanism
@@ -30,6 +33,8 @@ struct Range {
     bool IsInvalid() const {return from == MAINLINE_INF && till == -MAINLINE_INF;}
     bool Overlaps(const struct Range &r, double gap=0) const
         {return from<r.till+gap && r.from < till+gap;}
+    void Extend(double a)
+        {if (from>a) from=a; if (till<a) till=a;}
     void Extend(Range a)
         {if (from>a.from) from=a.from; if (till<a.till) till=a.till;}
     bool IsWithin(double p) const
@@ -38,6 +43,11 @@ struct Range {
     bool HasValidTill() const {return till != -MAINLINE_INF;}
     double Spans() const
         {return till-from;}
+	bool operator <(const Range &r) const {
+		if (till==r.till) return from<r.from;
+		return till<r.till;
+	}
+	bool operator ==(const Range &r) const {return from==r.from && till==r.till;}
 };
 
 class TrackableElement;
@@ -65,6 +75,7 @@ struct Block {
         if (x.till != b.x.till) return x.till < b.x.till;
         if (x.from != b.x.from) return x.from < b.x.from;
         return y.from < b.y.from;}
+	bool operator == (const struct Block &b) const {return x==b.x && y==b.y;}
     bool Overlaps(const struct Block &b, double gap=0) const
         {return x.Overlaps(b.x, gap) && y.Overlaps(b.y, gap);}
     XY UpperLeft(void) const
@@ -73,7 +84,9 @@ struct Block {
         {return XY(x.till, y.till);}
     bool IsWithin(XY p) const
         {return x.IsWithin(p.x) && y.IsWithin(p.y);}
-    Block & operator|=(const Block &b)
+    Block & operator +=(const XY &p)
+        {x.Extend(p.x); y.Extend(p.y); return *this;}
+    Block & operator +=(const Block &b)
         {x.Extend(b.x); y.Extend(b.y); return *this;}
 };
 

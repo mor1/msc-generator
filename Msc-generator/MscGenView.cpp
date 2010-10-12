@@ -75,6 +75,11 @@ CMscGenView::CMscGenView() : m_size(0,0)
 	m_FadingTimer = NULL;
 	SetScrollSizes(MM_TEXT, m_size);
 	m_nDropEffect = DROPEFFECT_NONE;
+	m_pl += Block(30,50,60,70);
+	m_pl += MscPolygon(XY(50,90), XY(100,60), XY(40,20));
+	m_pl += Block(130,150,60,70);
+	m_pl += Block(150,170,60,70);
+	m_pl += Block(150,170,70,80);
 }
 
 CMscGenView::~CMscGenView()
@@ -382,6 +387,11 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 				AddFrameToSurface(*j, i->alpha/255., cr_dest, xScale, yScale, 
 				                  pApp->m_trackLineColor, pApp->m_trackFillColor);
 	}
+
+	if (m_pl.IsWithin(XY(m_hoverPoint.x, m_hoverPoint.y)))
+		m_pl.Fill(cr_dest);
+	else
+		m_pl.Line(cr_dest); //XXX
 	//Cleanup
 	cairo_destroy(cr_dest);
 	cairo_surface_destroy(surface_dest);
@@ -720,6 +730,7 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);
+	m_hoverPoint = point;
 }
 
 void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
@@ -826,10 +837,7 @@ void CMscGenView::OnDropFiles(HDROP hDropInfo)
 			CString s;
 			LPTSTR pFileName = s.GetBufferSetLength(MAX_PATH);
 			::DragQueryFile(hDropInfo, 0, pFileName, MAX_PATH);
-			s.ReleaseBuffer();
-			CMscGenDoc *pDoc = GetDocument();
-			ASSERT(pDoc);
-			pDoc->OnFileDropped(s);
+			AfxGetApp()->OpenDocumentFile(s);
 			break;
 	}
 	::DragFinish(hDropInfo);

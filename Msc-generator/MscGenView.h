@@ -22,6 +22,7 @@
 #pragma once
 
 #include "MscGenDoc.h"
+#include "polygon.h"
 
 #define FADE_TIMER 30
 
@@ -48,6 +49,8 @@ public:
 	double m_stretch_y;
 	//Fading Timer
 	UINT_PTR m_FadingTimer;
+	CPoint m_hoverPoint; //XXX
+	Geometry2 m_pl;
 	//Drag and Drop 
 	COleDropTarget m_DropTarget;
 	DROPEFFECT m_nDropEffect;

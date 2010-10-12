@@ -107,7 +107,6 @@ public:
 	afx_msg void OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI);
 			void DoPasteData(COleDataObject &dataObject);
 	afx_msg void OnEditPasteEntireChart();
-	afx_msg void OnFileDropped(const char *);
 	afx_msg void OnUpdateButtonEdittext(CCmdUI *pCmdUI);
 	afx_msg void OnButtonEdittext();          //External editor button
 	afx_msg void OnUdpateEditUpdate(CCmdUI *pCmdUI);

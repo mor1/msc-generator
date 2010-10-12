@@ -595,26 +595,6 @@ void CMscGenDoc::OnEditPasteEntireChart()
 	DoPasteData(dataObject);
 }
 
-void CMscGenDoc::OnFileDropped(const char *file)
-{
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	bool restartEditor = m_ExternalEditor.IsRunning();
-	if (restartEditor) m_ExternalEditor.Stop(STOPEDITOR_FORCE);
-	CChartData data;
-	data.Load(file, true);
-	data.SetDesign(m_itrEditing->GetDesign());
-	InsertNewChart(data); //all pages visible
-	ShowEditingChart(true);
-	CheckIfChanged();     
-	//Copy text to the internal editor
-	if (pApp->IsInternalEditorRunning())
-		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
-	if (restartEditor) 
-		m_ExternalEditor.Start();
-}
-
-
 void CMscGenDoc::OnButtonEdittext()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -1201,7 +1181,7 @@ void CMscGenDoc::StartFadingTimer()
 
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 300; //millisecons
+	const double fade_completely = 3000; //millisecons
 	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
 	bool keep_coming_back = false;
 	Block bounding;
@@ -1219,7 +1199,7 @@ bool CMscGenDoc::DoFading()
 			i--;
 		}
 		if (!keep_coming_back) bounding = b;
-		else bounding |= b;
+		else bounding += b;
 		keep_coming_back = true;
 	}
 	POSITION pos = GetFirstViewPosition();

@@ -164,6 +164,7 @@
     </ClCompile>
     <ClCompile Include="numbering.cpp" />
     <ClCompile Include="parse_tools.cpp" />
+    <ClCompile Include="polygon.cpp" />
     <ClCompile Include="stringparse.cpp" />
     <ClCompile Include="style.cpp" />
   </ItemGroup>
@@ -185,6 +186,7 @@
     <ClInclude Include="mscdrawer.h" />
     <ClInclude Include="numbering.h" />
     <ClInclude Include="parse_tools.h" />
+    <ClInclude Include="polygon.h" />
     <ClInclude Include="stringparse.h" />
     <ClInclude Include="style.h" />
     <ClInclude Include="trackable.h" />

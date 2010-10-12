@@ -15,6 +15,7 @@ BUG: Change icons for file, program, etc.
 In 2.5.5
 FIXED: after a many line-label terminated with a semicolon TAB works bad in next line
 FIXED: Tabbing a multiline label (all of it) works bad
+FIXED: Now dropping a file will be equal to opening one (will ask for save and erase undo)
 
 In 2.5.4
 FIXED: Notification of new version showed the old version in the dialog.
