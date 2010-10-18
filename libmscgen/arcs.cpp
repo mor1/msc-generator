@@ -349,7 +349,7 @@ double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, do
         geometry += b;
         b.y.from = y - chart->nudgeSize/2;
         b.y.till = y + wh.y + chart->nudgeSize/2;
-        geometry.mainline.Extend(b.y);
+        geometry.mainline += b.y;
         geometry.SetArc(this);
         g += geometry;
     }
@@ -580,7 +580,7 @@ double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         geometry += b;
         b.y.from = y - chart->nudgeSize/2;
         b.y.till = y + chart->nudgeSize/2;
-        geometry.mainline.Extend(b.y);
+        geometry.mainline += b.y;
         geometry.SetArc(this);
         g += geometry;
     }
@@ -1717,7 +1717,7 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
                 g += box;
             }
             //y now contains the full bottom, including shadows and linewidths
-            g.mainline.Extend(Range(total_orig_y, y));
+            g.mainline += Range(total_orig_y, y);
         } /* if (!draw) */
     } else { /* if (pipe) */
         //For boxes we cycle through the segments, drawing/calculating labels and content alike
@@ -1832,7 +1832,7 @@ double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, dou
         if (!draw) {
             Block box(s.x-lw.x, d.x+lw.x+style.shadow.offset.second, total_orig_y, y);
             g += box;
-            g.mainline.Extend(box.y);
+            g.mainline += box.y;
         }
     } /* else if pipe */
 
@@ -1938,7 +1938,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
         if (!draw) {
             Block b(0, chart->totalWidth, y, y + chart->nudgeSize);
             geometry += b;
-            geometry.mainline.Extend(b.y);
+            geometry.mainline += b.y;
             geometry.SetArc(this);
             g += geometry;
         }
@@ -1968,7 +1968,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
         //geometry so far contains the cover of the text
         for (std::set<Block>::const_iterator i = text_cover.GetCover().begin(); i!=text_cover.GetCover().end(); i++)
             if (yRange.Overlaps(i->y, chart->compressYGap))
-                xRange.Extend(i->x);
+                xRange += i->x;
         chart->line(XY(line_margin, lineYPos),
                     XY(xRange.from-chart->compressXGap/2., lineYPos), style.line);
         if (xRange.from < xRange.till) // Text covers the line - two part drawing
@@ -1987,7 +1987,7 @@ double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, doub
             geometry += Block(line_margin, chart->totalWidth-line_margin,
                               lineYPos - style.line.LineWidth()*2, lineYPos + style.line.LineWidth()*2);
         Range r(lineYPos-charheight/2, lineYPos+charheight/2);
-        geometry.mainline.Extend(r);
+        geometry.mainline += r;
         geometry.SetArc(this);
         g+=geometry;
     }

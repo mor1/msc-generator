@@ -764,7 +764,7 @@ void ArrowHead::CoverBig(const std::vector<double> &xPos, double sy, double dy,
     cover += big_cover_block(xPos[xPos.size()-1], sy, dy, bidir, MSC_ARROW_END,   forward, msc);
     for (int i=1; i<xPos.size()-1; i++)
         cover += big_cover_block(xPos[i], sy, dy, bidir, MSC_ARROW_MIDDLE, forward, msc);
-	cover.mainline.Extend(Range(sy, dy));
+	cover.mainline += Range(sy, dy);
 }
 
 void ArrowHead::ClipBig(std::vector<double> xPos, double sy, double dy,

@@ -50,7 +50,7 @@ public:
 	//Fading Timer
 	UINT_PTR m_FadingTimer;
 	CPoint m_hoverPoint; //XXX
-	Geometry2 m_pl;
+	bool m_clicked; //XXX
 	//Drag and Drop 
 	COleDropTarget m_DropTarget;
 	DROPEFFECT m_nDropEffect;

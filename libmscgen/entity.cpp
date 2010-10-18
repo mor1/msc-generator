@@ -58,7 +58,7 @@ double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
     if (!draw) {
         const Block b(s,d+XY(0, style.shadow.offset.second));
         g += b;
-        g.mainline.Extend(b.y);
+        g.mainline += b.y;
     }
     s.y += chart->headingVGapAbove;
     d.y -= chart->headingVGapBelow;

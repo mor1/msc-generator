@@ -12,14 +12,18 @@ public:
     double y;
     XY() {}
     XY(double a, double b) : x(a), y(b) {}
+	XY &   operator +=(XY wh)             {x+=wh.x; y+=wh.y; return *this;}
+	XY &   operator -=(XY wh)             {x-=wh.x; y-=wh.y; return *this;}
     XY     operator +(XY wh) const        {return XY(x+wh.x, y+wh.y);}
     XY     operator -(XY wh) const        {return XY(x-wh.x, y-wh.y);} 
     double DotProduct(XY B) const         {return x*B.x+y*B.y;} 
     XY     operator *(double scale) const {return XY(x*scale, y*scale);}
+    XY     operator *=(double scale)      {x*=scale; y*=scale; return *this;}
 	double PerpProduct(XY B) const        {return x*B.y - y*B.x;}        //This is this(T) * B
 	double length(void) const             {return sqrt(x*x+y*y);}
 	bool operator ==(const XY& p) const {return x==p.x && y==p.y;}
 	bool operator !=(const XY& p) const {return x!=p.x || y!=p.y;}
+	XY operator -() {return XY(-x, -y);}
 };
 
 //Structs for compress mechanism
@@ -32,13 +36,16 @@ struct Range {
     void MakeInvalid() {from = MAINLINE_INF; till = -MAINLINE_INF;}
     bool IsInvalid() const {return from == MAINLINE_INF && till == -MAINLINE_INF;}
     bool Overlaps(const struct Range &r, double gap=0) const
-        {return from<r.till+gap && r.from < till+gap;}
-    void Extend(double a)
-        {if (from>a) from=a; if (till<a) till=a;}
-    void Extend(Range a)
-        {if (from>a.from) from=a.from; if (till<a.till) till=a.till;}
+        {return from<=r.till+gap && r.from <= till+gap;}
+    Range &operator+=(double a)
+        {if (from>a) from=a; if (till<a) till=a; return *this;}
+    Range &operator+=(const Range &a)
+        {if (from>a.from) from=a.from; if (till<a.till) till=a.till; return *this;}
+    Range &operator*=(const Range &a)
+        {if (from<a.from) from=a.from; if (till>a.till) till=a.till; return *this;}
     bool IsWithin(double p) const
         {return from<=p && p<=till;}
+	Range &Shift(double a) {from +=a; till+=a; return *this;}
     bool HasValidFrom() const {return from != MAINLINE_INF;}
     bool HasValidTill() const {return till != -MAINLINE_INF;}
     double Spans() const
@@ -82,12 +89,19 @@ struct Block {
         {return XY(x.from, y.from);}
     XY LowerRight(void) const
         {return XY(x.till, y.till);}
+    XY UpperRight(void) const
+        {return XY(x.from, y.till);}
+    XY LowerLeft(void) const
+        {return XY(x.from, y.till);}
     bool IsWithin(XY p) const
         {return x.IsWithin(p.x) && y.IsWithin(p.y);}
     Block & operator +=(const XY &p)
-        {x.Extend(p.x); y.Extend(p.y); return *this;}
+        {x += p.x; y += p.y; return *this;}
     Block & operator +=(const Block &b)
-        {x.Extend(b.x); y.Extend(b.y); return *this;}
+        {x += b.x; y += b.y; return *this;}
+	Block &Shift(XY a) 
+		{x.Shift(a.x); y.Shift(a.y); return *this;}
+	void Transpose() {std::swap(x,y);}
 };
 
 template <typename BlockContainer>
@@ -137,7 +151,7 @@ public:
     }
     Geometry &operator+=(const Geometry &g) {
         cover.insert(g.cover.begin(), g.cover.end());
-        mainline.Extend(g.mainline);
+        mainline += g.mainline;
 		boundingBoxCurrent=false;
         return *this;
     }

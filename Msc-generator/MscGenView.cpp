@@ -75,11 +75,7 @@ CMscGenView::CMscGenView() : m_size(0,0)
 	m_FadingTimer = NULL;
 	SetScrollSizes(MM_TEXT, m_size);
 	m_nDropEffect = DROPEFFECT_NONE;
-	m_pl += Block(30,50,60,70);
-	m_pl += MscPolygon(XY(50,90), XY(100,60), XY(40,20));
-	m_pl += Block(130,150,60,70);
-	m_pl += Block(150,170,60,70);
-	m_pl += Block(150,170,70,80);
+	m_clicked = false;
 }
 
 CMscGenView::~CMscGenView()
@@ -388,10 +384,35 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 				                  pApp->m_trackLineColor, pApp->m_trackFillColor);
 	}
 
-	if (m_pl.IsWithin(XY(m_hoverPoint.x, m_hoverPoint.y)))
-		m_pl.Fill(cr_dest);
+	//POLYGON TESTING XXX
+	MscArea pl, pl2, pl3;
+	pl += Block(30,50,60,70);
+	pl += MscArea(XY(50,90), XY(100,60), XY(40,20));
+	pl += Block(130,170,60,70);
+	pl += Block(160,170,60,120);
+	pl += Block(130,140,60,120);
+	pl += Block(130,170,110,120);
+	pl -= Block(10, 200, 75, 85);
+	pl3 = pl;
+	pl3.Shift(XY(15,15));
+
+	pl2 = pl + pl3;
+
+	cairo_set_source_rgb(cr_dest, 1, 0, 0);
+	if (pl.IsWithin(XY(m_hoverPoint.x, m_hoverPoint.y)))
+		pl.Fill(cr_dest);
 	else
-		m_pl.Line(cr_dest); //XXX
+		pl.Line(cr_dest); 
+	cairo_set_source_rgb(cr_dest, 0, 0, 1);
+	if (pl2.IsWithin(XY(m_hoverPoint.x, m_hoverPoint.y)))
+		pl2.Fill(cr_dest);
+	else
+		pl2.Line(cr_dest); 
+	cairo_set_source_rgba(cr_dest, 0, 1, 0, 0.8);
+	cairo_arc(cr_dest, m_hoverPoint.x, m_hoverPoint.y, 5, 0, 2*3.14);
+	cairo_close_path(cr_dest);
+	cairo_fill(cr_dest);
+
 	//Cleanup
 	cairo_destroy(cr_dest);
 	cairo_surface_destroy(surface_dest);
@@ -754,9 +775,10 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	//then take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
-	if (pDoc->m_bTrackMode) 
+	if (pDoc->m_bTrackMode) {
+		m_clicked=true;
 		pDoc->UpdateTrackRects(point);
-	else {
+	}else {
 		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
 			pDoc->StartFadingAll();
