@@ -26,6 +26,8 @@ public:
 	XY operator -() {return XY(-x, -y);}
 };
 
+typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
+
 //Structs for compress mechanism
 #define MAINLINE_INF INT_MAX
 struct Range {
@@ -35,16 +37,17 @@ struct Range {
     Range(double s, double d) : from(s), till(d) {}
     void MakeInvalid() {from = MAINLINE_INF; till = -MAINLINE_INF;}
     bool IsInvalid() const {return from == MAINLINE_INF && till == -MAINLINE_INF;}
-    bool Overlaps(const struct Range &r, double gap=0) const
-        {return from<=r.till+gap && r.from <= till+gap;}
+    bool Overlaps(const struct Range &r, double gap=0) const   //true if they at least touch
+        {return from<r.till+gap && r.from < till+gap;}
     Range &operator+=(double a)
         {if (from>a) from=a; if (till<a) till=a; return *this;}
     Range &operator+=(const Range &a)
         {if (from>a.from) from=a.from; if (till<a.till) till=a.till; return *this;}
     Range &operator*=(const Range &a)
         {if (from<a.from) from=a.from; if (till>a.till) till=a.till; return *this;}
-    bool IsWithin(double p) const
-        {return from<=p && p<=till;}
+    is_within_t IsWithin(double p) const {
+		if (p==from || p == till) return WI_ON_VERTEX; 
+		return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;}
 	Range &Shift(double a) {from +=a; till+=a; return *this;}
     bool HasValidFrom() const {return from != MAINLINE_INF;}
     bool HasValidTill() const {return till != -MAINLINE_INF;}
@@ -93,8 +96,11 @@ struct Block {
         {return XY(x.from, y.till);}
     XY LowerLeft(void) const
         {return XY(x.from, y.till);}
-    bool IsWithin(XY p) const
-        {return x.IsWithin(p.x) && y.IsWithin(p.y);}
+    is_within_t IsWithin(XY p) const {
+		if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
+		if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;
+		if (x.IsWithin(p.x) == WI_ON_VERTEX && y.IsWithin(p.y) == WI_ON_VERTEX) return WI_ON_VERTEX;
+		return WI_ON_EDGE;}
     Block & operator +=(const XY &p)
         {x += p.x; y += p.y; return *this;}
     Block & operator +=(const Block &b)

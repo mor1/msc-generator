@@ -389,25 +389,37 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 	pl += Block(30,50,60,70);
 	pl += MscArea(XY(50,90), XY(100,60), XY(40,20));
 	pl += Block(130,170,60,70);
-	pl += Block(160,170,60,120);
-	pl += Block(130,140,60,120);
-	pl += Block(130,170,110,120);
-	pl -= Block(10, 200, 75, 85);
-	pl3 = pl;
-	pl3.Shift(XY(15,15));
+	pl += Block(160,170,60,140);
+	pl += Block(130,140,60,140);
+	pl += Block(130,170,130,140);
+	//pl -= Block(10, 200, 75, 85);
+	//pl3 = pl;
+	//pl3.Shift(XY(15,15));
+	//pl2 = pl + pl3;
 
-	pl2 = pl + pl3;
+	pl3 = Block(110, 200, 80, 120);
+	pl3 -= Block(120, 190, 90, 110);
+
+	pl3 += pl;
+
+	pl2 = pl3;
+	pl = pl2;
+	pl3.Shift(XY(15,15));
+	pl += pl3;
+	MscArea pl4 = pl2 - pl3;
+	pl.Shift(XY(200,0));
 
 	cairo_set_source_rgb(cr_dest, 1, 0, 0);
 	if (pl.IsWithin(XY(m_hoverPoint.x, m_hoverPoint.y)))
 		pl.Fill(cr_dest);
 	else
 		pl.Line(cr_dest); 
+	pl2.Fill(cr_dest);
 	cairo_set_source_rgb(cr_dest, 0, 0, 1);
-	if (pl2.IsWithin(XY(m_hoverPoint.x, m_hoverPoint.y)))
-		pl2.Fill(cr_dest);
-	else
-		pl2.Line(cr_dest); 
+	pl3.Fill(cr_dest);
+	cairo_set_source_rgb(cr_dest, 0, 0, 0);
+	pl4.Fill(cr_dest);
+
 	cairo_set_source_rgba(cr_dest, 0, 1, 0, 0.8);
 	cairo_arc(cr_dest, m_hoverPoint.x, m_hoverPoint.y, 5, 0, 2*3.14);
 	cairo_close_path(cr_dest);

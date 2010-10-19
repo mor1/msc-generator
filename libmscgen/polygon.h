@@ -28,10 +28,10 @@ protected:
 	MscPolygon() {boundingBox.MakeInvalid(); clockwise=true;}
 	void Inverse() {for (int i=0; i<size()/2; i++) std::swap(at(i), at(size()-1-i)); clockwise ^= true;}
 public:
-	typedef enum {OUTSIDE=0, INSIDE, ON_EDGE, ON_VERTEX} is_within_t;
 	typedef enum {OK, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, COMPLEMENT, APART_OUTSIDE, APART_INSIDE} poly_result_t;
 	void append_to_surfaces_or_holes(PosMscPolygonList &surfaces, InvMscPolygonList &holes) const;
 	is_within_t   IsWithin(XY p, int*pEdge=NULL) const;
+	poly_result_t CheckContainmentHelper(const MscPolygon &b) const;
 	poly_result_t CheckContainment(const MscPolygon &b) const;
 	poly_result_t PolyProcess(const MscPolygon &b, PosMscPolygonList &surfaces, InvMscPolygonList &holes, bool do_union) const;
 	
@@ -49,8 +49,8 @@ public:
 
 class PosMscPolygon : public MscPolygon
 {
-	PosMscPolygon() {boundingBox.MakeInvalid(); clockwise=true;}
 public:
+	explicit PosMscPolygon(const MscPolygon &b) : MscPolygon(b) {if (!clockwise) Inverse();}
     PosMscPolygon(double sx, double dx, double sy, double dy) {operator = (Block(sx,dx,sy,dy));}
 	PosMscPolygon(const Block &b) {operator =(b);}
 	PosMscPolygon(XY a, XY b, XY c);
@@ -60,7 +60,8 @@ public:
 
 class InvMscPolygon : public MscPolygon
 {
-	InvMscPolygon() {boundingBox.MakeInvalid(); clockwise=false;}
+public:
+	explicit InvMscPolygon(const MscPolygon &b) : MscPolygon(b) {if (clockwise) Inverse();}
 };
 
 //this contains a list of non-overlapping polygons
@@ -78,6 +79,8 @@ protected:
 	MscPolygonList &append(const MscPolygonList &pl) {for (auto i=pl.begin(); i!=pl.end(); i++) append(*i); return *this;}
 	void splice_with_bb(iterator i, MscPolygonList &b, iterator from, iterator to)
 		{for (auto j=from; j!=to; j++) boundingBox += j->GetBoundingBox(); splice(i, b, from, to);}
+	void splice_with_bb(iterator i, MscPolygonList &pl) {splice_with_bb(i, pl, pl.begin(), pl.end());}
+	void splice_with_bb(MscPolygonList &pl) {splice_with_bb(end(), pl);}
 	const Block &GetBoundingBox(void) const {return boundingBox;}
 	void Path(cairo_t *cr) const {for (auto i=begin(); i!=end(); i++) i->Path(cr);}
 	void Shift(XY xy) {for (auto i = begin(); i!=end(); i++) i->Shift(xy); boundingBox.Shift(xy);}
@@ -95,8 +98,11 @@ protected:
 	PosMscPolygonList(const PosMscPolygon &p) {boundingBox.MakeInvalid(); if (p.IsClockWise()) append(p);}
 	void NormalizeWith(InvMscPolygonList &holes);
 	void Union(const PosMscPolygon &b, InvMscPolygonList &holes);
-	void Intersect(const MscPolygon &b);
-	void Substract(const MscPolygon &b) {MscPolygon neg_b(b); neg_b.Inverse(); Intersect(neg_b);}
+	void Intersect(const PosMscPolygon &b);
+	void Intersect(const InvMscPolygon &b, InvMscPolygonList &holes);
+	void Intersect(const PosMscPolygonList &b);
+	void Substract(const PosMscPolygon &b, InvMscPolygonList &holes) {InvMscPolygon neg_b(b); Intersect(neg_b, holes);}
+	void Substract(const InvMscPolygon &b) {PosMscPolygon neg_b(b); Intersect(neg_b);}
 };
 
 //counterclockwise
@@ -108,6 +114,7 @@ class InvMscPolygonList : public MscPolygonList<InvMscPolygon>
 protected:
 	InvMscPolygonList() {boundingBox.MakeInvalid();}
 	bool Union(const PosMscPolygon &b);
+	void Union(const InvMscPolygonList &b);   //pairwise intersection of holes
 	void Intersect(const InvMscPolygon &b, PosMscPolygonList &surfaces);
 };
 

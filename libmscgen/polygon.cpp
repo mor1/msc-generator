@@ -392,7 +392,7 @@ int MscCrossPointStore::RateCrosspoint(int one_i, int two_j, XY p, bool do_union
 		else                              
 			return 2;                        // ::::|1   
 	}                                        //2<---o---->1
-	contain = MscPolygon::APART_INSIDE;    //    2|::::
+	contain = MscPolygon::APART_INSIDE;      //    2|::::
 	return 0;     
 }
 
@@ -474,11 +474,11 @@ PosMscPolygon &PosMscPolygon::operator =(const Block &b)
 
 //honors the direction of the polygon (clockwise or counterclockwise)
 //in p* return the number of vertex or edge we have fallen on if result is such
-MscPolygon::is_within_t MscPolygon::IsWithin(XY p, int*pEdge) const
+is_within_t MscPolygon::IsWithin(XY p, int*pEdge) const
 {
-	if (size()<3) return OUTSIDE;
-	if (!boundingBox.IsWithin(p)) 
-		return clockwise ? OUTSIDE : INSIDE; //for clockwise, if a point is outside the BB it is not within
+	if (size()<3) return WI_OUTSIDE;
+	if (boundingBox.IsWithin(p)==WI_OUTSIDE) 
+		return clockwise ? WI_OUTSIDE : WI_INSIDE; //for clockwise, if a point is outside the BB it is not within
 
 	//Follow the polygon and see how much it crosses the horizontal line going through p
 	//count the crossings to our right
@@ -497,45 +497,73 @@ MscPolygon::is_within_t MscPolygon::IsWithin(XY p, int*pEdge) const
 			double x = (at(i).x - at(ipp).x)/(at(i).y - at(ipp).y)*(p.y - at(ipp).y) + at(ipp).x;
 			if (x == p.x) {  //on an edge
 				if (pEdge) *pEdge = i;
-				if (at(i).y == p.y) return ON_VERTEX; //on vertex
+				if (at(i).y == p.y) return WI_ON_VERTEX; //on vertex
 				else if (at(ipp).y == p.y) {
 					if (pEdge) ++*pEdge;
-					return ON_VERTEX;
-				} else return ON_EDGE; // on an edge, but not vertex
+					return WI_ON_VERTEX;
+				} else return WI_ON_EDGE; // on an edge, but not vertex
 			}
 			if (x > p.x) count ++;
 		} else if (at(i).y == p.y && at(ipp).y == p.y) { //horizontal edge level with p
 			if (pEdge) *pEdge = i;
-			if (at(i).x == p.x) return ON_VERTEX; //on vertex
+			if (at(ipp).x == p.x || at(i).x == p.x) return WI_ON_VERTEX; //on vertex
 			if ((at(i).x > p.x && at(ipp).x < p.x) ||
-				(at(i).x < p.x && at(ipp).x > p.x)) return ON_EDGE; //goes through p
+				(at(i).x < p.x && at(ipp).x > p.x)) return WI_ON_EDGE; //goes through p
 		}
 	}
 	if (clockwise) 
-		return count&1 ? INSIDE : OUTSIDE; //even is out 
+		return count&1 ? WI_INSIDE : WI_OUTSIDE; //even is out 
 	else
-		return count&1 ? OUTSIDE : INSIDE; //even is out, but counterclockwise means an inside-out
+		return count&1 ? WI_OUTSIDE : WI_INSIDE; //even is out, but counterclockwise means an inside-out
 }
 
-
-//Gives valid result only if the two polygons have no crosspoints
-//clockwiseness fully honored
-MscPolygon::poly_result_t MscPolygon::CheckContainment(const MscPolygon &b) const 
+//Can result SAME, COMPLEMENT, A_INSIDE_B or B_INSIDE_A
+MscPolygon::poly_result_t MscPolygon::CheckContainmentHelper(const MscPolygon &b) const 
 {
 	int edge = 0;
 	poly_result_t retval;
 	for (int i=0; i<size(); i++) 
 		switch (b.IsWithin(at(i), &edge)) {      //iswithin also honors clockwiseness
-		case INSIDE: return A_INSIDE_B;        //we are fully in b
-		case OUTSIDE: return B_INSIDE_A;       //b is within us
-		case ON_EDGE: 
-		case ON_VERTEX: 
+		case WI_INSIDE:  return A_INSIDE_B;
+		case WI_OUTSIDE: return B_INSIDE_A;
+		case WI_ON_EDGE: 
+		case WI_ON_VERTEX: 
 			cp_pointer_t dummy1, dummy2;
 			MscCrossPointStore::RateCrosspoint(i, edge, at(i), true, retval, *this, b, dummy1, dummy2);
-			if (retval!=SAME && retval!=COMPLEMENT) return retval;
-		}
+			switch (retval) {
+			case A_INSIDE_B:
+			case B_INSIDE_A: return retval;
+			case APART_INSIDE:
+			case APART_OUTSIDE: break;  //next vertext will not be the same, just wait
+			case SAME:
+			case COMPLEMENT: break; //if all vertices are like this, we are same or complement
+			}	
+	}
 	//we got only SAME or COMPLEMENT results for all our vertices (BTW should get either and not both)
 	return retval;
+}
+
+
+//Gives valid result only if the two polygons have no crosspoints
+//clockwiseness fully honored
+MscPolygon::poly_result_t MscPolygon::CheckContainment(const MscPolygon &other) const 
+{
+	poly_result_t this_in_other = CheckContainmentHelper(other);
+	if (this_in_other == SAME || this_in_other == COMPLEMENT) return this_in_other;
+	poly_result_t other_in_this = other.CheckContainmentHelper(*this);
+	if (other_in_this == SAME || other_in_this == COMPLEMENT) assert(0);
+	//values can only be A_INSIDE_B or B_INSIDE_A by now
+	if (this_in_other == A_INSIDE_B) {
+		if (other_in_this == A_INSIDE_B) 
+			return APART_INSIDE;              //both inside the other
+		else    
+			return A_INSIDE_B;                //both checks says this
+	} else {
+		if (other_in_this == A_INSIDE_B) 
+			return B_INSIDE_A;                //both inside the other
+		else    
+			return APART_OUTSIDE;             //both outside the other
+	}
 }
 
 inline void MscPolygon::append_to_surfaces_or_holes(PosMscPolygonList &surfaces, InvMscPolygonList &holes) const
@@ -749,7 +777,7 @@ void PosMscPolygonList::NormalizeWith(InvMscPolygonList &holes)
 				//a hole intersects with a polygon, result is the decreased size polygon
 				//replace the current polygon with the results
 				erase(surf_i++);
-				splice_with_bb(surf_i, s, s.begin(), s.end());
+				splice_with_bb(surf_i, s);
 				break;
 			case MscPolygon::A_IS_EMPTY:
 				erase(surf_i++);
@@ -802,7 +830,7 @@ void PosMscPolygonList::Union(const PosMscPolygon &b, InvMscPolygonList &holes)
 			current_blob.swap(*s.begin());   //update blob with a positive union 
 			//add holes. Holes formed this way cannot overlap with existing ones
 			//since they are fully outside of the original surfaces
-			holes.splice_with_bb(holes.end(), h, h.begin(), h.end());
+			holes.splice_with_bb(h);
 			//fallthrough: now delete i
 		case MscPolygon::A_IS_EMPTY:
 		case MscPolygon::A_INSIDE_B:     // i is fully covered by b, delete it
@@ -825,6 +853,156 @@ void PosMscPolygonList::Union(const PosMscPolygon &b, InvMscPolygonList &holes)
 	append(current_blob);
 }
 
+void PosMscPolygonList::Intersect(const PosMscPolygon &b)
+{
+	if (b.size()<3) return;
+	if (!boundingBox.Overlaps(b.boundingBox)) {
+		clear();
+		return;
+	}
+	PosMscPolygonList s;
+	InvMscPolygonList h;
+	for (auto i=begin(); i!=end(); /*none*/)
+		switch (i->PolyProcess(b, s, h, false)) {
+		case MscPolygon::B_INSIDE_A:     //b is fully in one of our members
+		case MscPolygon::SAME:     
+			swap(s);                     //keep the one (in s), erase all else
+			return;                      //we will hit no other element
+		case MscPolygon::A_IS_EMPTY:
+		case MscPolygon::APART_OUTSIDE:  //go to next in queue, remove current one
+			erase(i++);			
+			break;
+		case MscPolygon::A_INSIDE_B:     //this one is fully inside b=>keep it
+			i++;
+			break;                       
+		case MscPolygon::OK:             //real intersect with our polygon
+			erase(i++);  
+			//splice resuling fragments before current position -> not 
+			//to be processed again (works with both cw or countercw b)
+			splice_with_bb(i, s);
+			break;
+		case MscPolygon::B_IS_EMPTY:   //should have been caught above
+		case MscPolygon::BOTH_EMPTY:   //oh my
+		case MscPolygon::COMPLEMENT:   //cannot be for two positive surfaces
+		case MscPolygon::APART_INSIDE: //cannot be for two positive surfaces
+			assert(0);
+		}
+}
+
+//returns true of b as a hole is fully inside one polygon
+//and thus shall be added to holes
+void PosMscPolygonList::Intersect(const InvMscPolygon &b, InvMscPolygonList &holes)
+{
+	if (b.size()<3) return;
+	if (!boundingBox.Overlaps(b.boundingBox)) 
+		return;
+	PosMscPolygonList s;
+	InvMscPolygonList h;
+	for (auto i=begin(); i!=end(); /*none*/)
+		switch (i->PolyProcess(b, s, h, false)) {
+		case MscPolygon::COMPLEMENT:     //b is exactly our inverse
+			erase(i);                    //kill this, but keep all other polygons
+			return;
+		case MscPolygon::APART_OUTSIDE:  //i is inside the hole -> delete it
+		case MscPolygon::A_IS_EMPTY:     //go to next in queue, remove current one
+			erase(i++);			
+			break;
+		case MscPolygon::A_INSIDE_B:     //this one is fully inside b=>keep it
+			i++;
+			break;                       
+		case MscPolygon::APART_INSIDE:   //b (hole) is inside us
+			holes.append(b);
+			return;         
+		case MscPolygon::OK:             //real intersect with our polygon
+			erase(i++);  
+			//splice resuling fragments before current position -> not 
+			//to be processed again 
+			splice_with_bb(i, s);
+			break;
+		case MscPolygon::B_IS_EMPTY:   //should have been caught above
+		case MscPolygon::BOTH_EMPTY:   //oh my
+		case MscPolygon::SAME:         //cannot be for a pos and an inv polygon
+		case MscPolygon::B_INSIDE_A:   //can only happen if b is clockwise, as i is so
+			assert(0);
+		}
+}
+
+void PosMscPolygonList::Intersect(const PosMscPolygonList &b) 
+{
+	if (!boundingBox.Overlaps(b.boundingBox)) {
+		clear();
+		return;
+	}
+	PosMscPolygonList result;
+	PosMscPolygonList s;
+	InvMscPolygonList h;
+	for (auto i=begin(); i!=end(); i++)
+		for (auto j=b.begin(); j!=b.end(); j++)
+			switch (i->PolyProcess(*j, s, h, false)) {
+			case MscPolygon::A_INSIDE_B:     //this one is fully inside b=>keep it
+			case MscPolygon::SAME:     
+				j = b.end();                 //this i is handled permanently
+			case MscPolygon::B_INSIDE_A:     //b is fully in one of our members
+			case MscPolygon::OK:             //real intersect with our polygon
+				result.append(s);
+				break;                       //we will hit no other element
+			case MscPolygon::A_IS_EMPTY:
+			case MscPolygon::BOTH_EMPTY:   
+				j = b.end();
+			case MscPolygon::APART_OUTSIDE:  //go to next in queue, remove current one
+			case MscPolygon::B_IS_EMPTY:     //no action 
+				break;                       
+			case MscPolygon::COMPLEMENT:   //cannot be for two positive surfaces
+			case MscPolygon::APART_INSIDE: //cannot be for two positive surfaces
+			default:
+				assert(0);
+			}
+	swap(result);
+}
+
+
+//this is very much like a union of holes
+void InvMscPolygonList::Intersect(const InvMscPolygon &b, PosMscPolygonList &surfaces)
+{
+	if (b.size()<3) return;
+	if (!boundingBox.Overlaps(b.boundingBox)) {
+		append(b);
+		return;
+	}
+	PosMscPolygonList s;
+	InvMscPolygonList h;
+	InvMscPolygon current_blob(b);
+	for (auto i=begin(); i!=end();  /*none*/)
+		switch (i->PolyProcess(current_blob, s, h, false)) {
+		case MscPolygon::OK:             //real union with an existing surface 
+			assert(h.size()>0);
+			current_blob.swap(*h.begin());   //update blob with a bigger hole 
+			//add positive fragments. surfaces formed this way cannot overlap with existing ones
+			//since they are fully outside of the original holes
+			surfaces.splice_with_bb(s);
+			//fallthrough: now delete i
+		case MscPolygon::A_IS_EMPTY:
+		case MscPolygon::B_INSIDE_A:     // the blob is the bigger hole, delete the smaller one
+			erase(i++);
+			break;
+		case MscPolygon::APART_INSIDE:   //the two holes do not meet: keep them
+			i++;
+			break;
+		case MscPolygon::SAME:           //no change to us
+			return;
+		case MscPolygon::A_INSIDE_B:     //the blob hole is inside one of our holes
+			return;                      //here we need to check for nested holes XXX
+		case MscPolygon::B_IS_EMPTY:     //should have been caught above
+		case MscPolygon::BOTH_EMPTY:     //oh my
+		case MscPolygon::APART_OUTSIDE:  //this can only be for two holes
+		case MscPolygon::COMPLEMENT:     //well, b and us both are counterclockwise->this cannot be
+		default:
+			assert(0);
+		}
+	append(current_blob);
+	return;
+}
+
 //return true if b is not touching any hole edges and is inside one fully
 //this means b is fully inside one of the holes and will need to be added as an extra positive surface
 bool InvMscPolygonList::Union(const PosMscPolygon &b)
@@ -840,8 +1018,8 @@ bool InvMscPolygonList::Union(const PosMscPolygon &b)
 	for (auto i=begin(); i!=end(); /*none*/)
 		switch (i->PolyProcess(b, s, h, true)) {
 		case MscPolygon::OK:             //real union with an existing surface 
-			assert (s.size()==0);          //union should really be the universe minus some holes in h
-			splice_with_bb(i, h, h.begin(), h.end()); //insert them before i
+			assert (s.size()==0);        //union should really be the universe minus some holes in h
+			splice_with_bb(i, h);        //insert them before i
 			touched = true;
 			//fallthrough: now delete i
 		case MscPolygon::A_IS_EMPTY:
@@ -863,102 +1041,58 @@ bool InvMscPolygonList::Union(const PosMscPolygon &b)
 	return inside && !touched;
 }
 
-//but b can be either clockwise or counterclockwise
-void PosMscPolygonList::Intersect(const MscPolygon &b)
+void InvMscPolygonList::Union(const InvMscPolygonList &b) 
 {
-	if (b.size()<3) return;
 	if (!boundingBox.Overlaps(b.boundingBox)) {
-		if (b.clockwise) clear();
+		clear();
 		return;
 	}
+	//this is like intersect of the holes, i will use that wording in comments
+	InvMscPolygonList result;
 	PosMscPolygonList s;
 	InvMscPolygonList h;
-	for (auto i=begin(); i!=end(); /*none*/)
-		switch (i->PolyProcess(b, s, h, false)) {
-		case MscPolygon::SAME:     
-			swap(s);                     //keep the one (in s), erase all else
-			return;                      //we will hit no other element
-		case MscPolygon::COMPLEMENT:     
-			//b is exactly our inverse
-			//kill this, but keep all other polygons
-			erase(i);
-			return;
-		case MscPolygon::A_IS_EMPTY:
-		case MscPolygon::APART_OUTSIDE:  //go to next in queue, remove current one
-			erase(i++);			
-			break;
-		case MscPolygon::A_INSIDE_B:     //this one is fully inside b=>keep it
-			i++;
-			break;                       
-		case MscPolygon::B_INSIDE_A:     //can only happen if b is clockwise, as i is so
-			swap(s);                     //b is fully in one of our members
-			return;                      //XXX check with nested polygons
-		case MscPolygon::OK:             //real intersect with our polygon
-			erase(i++);  
-			//splice resuling fragments before current position -> not 
-			//to be processed again (works with both cw or countercw b)
-			splice_with_bb(i, s, s.begin(), s.end());
-			break;
-		case MscPolygon::B_IS_EMPTY:   //should have been caught above
-		case MscPolygon::BOTH_EMPTY:   //oh my
-			assert(0);
-		}
+	for (auto i=begin(); i!=end(); i++)
+		for (auto j=b.begin(); j!=b.end(); j++)
+			switch (i->PolyProcess(*j, s, h, true)) {
+			case MscPolygon::SAME:           //well, b is clockwise, we are not->this cannot be
+			case MscPolygon::B_INSIDE_A:     //hole in i is fully inside hole in j
+				j = b.end();
+			case MscPolygon::A_INSIDE_B:     //hole in j is fully inside hole in i
+			case MscPolygon::OK:             //real union with an existing surface 
+				assert (s.size()==0);        //union should really be the universe minus some holes in h
+				result.append(h);            //insert them before i
+				break;
+			case MscPolygon::A_IS_EMPTY:
+			case MscPolygon::BOTH_EMPTY:     //skip this hole in a
+				j = b.end();
+				break;
+			case MscPolygon::APART_INSIDE:   //holes do not touch: no intersect
+			case MscPolygon::B_IS_EMPTY:     //no action
+				break;
+			case MscPolygon::APART_OUTSIDE:  //b fully inside the hole->flag for return
+			case MscPolygon::COMPLEMENT:     //cannot be for two negative surfaces
+			default:
+				assert(0);
+			}
+	swap(result);
 }
 
-//this is very much like a union of holes
-void InvMscPolygonList::Intersect(const InvMscPolygon &b, PosMscPolygonList &surfaces)
-{
-	if (b.size()<3) return;
-	if (!boundingBox.Overlaps(b.boundingBox)) {
-		append(b);
-		return;
-	}
-	PosMscPolygonList s;
-	InvMscPolygonList h;
-	InvMscPolygon current_blob(b);
-	for (auto i=begin(); i!=end();  /*none*/)
-		switch (i->PolyProcess(current_blob, s, h, false)) {
-		case MscPolygon::OK:             //real union with an existing surface 
-			assert(h.size()>0);
-			current_blob.swap(*h.begin());   //update blob with a bigger hole 
-			//add positive fragments. surfaces formed this way cannot overlap with existing ones
-			//since they are fully outside of the original holes
-			surfaces.splice_with_bb(surfaces.end(), s, s.begin(), s.end());
-			//fallthrough: now delete i
-		case MscPolygon::A_IS_EMPTY:
-		case MscPolygon::B_INSIDE_A:     // the blob is the bigger hole, delete the smaller one
-			erase(i++);
-			break;
-		case MscPolygon::APART_INSIDE:   //the two holes do not meet: keep them
-			i++;
-			break;
-		case MscPolygon::SAME:           //no change to us
-			return;
-		case MscPolygon::A_INSIDE_B:     //the blob hole is inside one of our holes
-			return;                      //here we need to check for nested holes XXX
-		case MscPolygon::B_IS_EMPTY:     //should have been caught above
-		case MscPolygon::BOTH_EMPTY:     //oh my
-		case MscPolygon::APART_OUTSIDE:  //this can only be for two holes
-		case MscPolygon::COMPLEMENT:     //well, b and us both are counterclockwise->this cannot be
-		default:
-			assert(0);
-		}
-	append(current_blob);
-	//NormalizeWith(holes);  //What's this
-	return;
-}
+
 
 /////////////////////////////////////////  MscArea implementation
 
 
 bool MscArea::IsWithin(XY p) const 
 {
-	if (!surfaces.boundingBox.IsWithin(p)) return false;
+	if (surfaces.boundingBox.IsWithin(p) == WI_OUTSIDE) return WI_OUTSIDE;
+	is_within_t ret;
 	for (auto i = holes.begin(); i!= holes.end(); i++) 
-		if (i->IsWithin(p) == MscPolygon::OUTSIDE) return false;   //holes are outside-in
+		if (WI_INSIDE == (ret = i->IsWithin(p))) continue; //holes are outside-in, this means outside the hole
+		else return ret; //on edge, vertex or in a hole (marked by WI_OUTSIDE)
 	for (auto i = surfaces.begin(); i!= surfaces.end(); i++) 
-		if (i->IsWithin(p) != MscPolygon::OUTSIDE) return true;
-	return false;
+		if (WI_OUTSIDE == (ret = i->IsWithin(p))) continue; 
+		else return ret; //on edge, vertex or in a surface 
+	return WI_OUTSIDE;
 }
 
 
@@ -973,14 +1107,18 @@ MscArea &MscArea::operator += (const MscArea &b)
 	InvMscPolygonList new_b_holes = b.holes;
 	for (auto i=surfaces.begin(); i!=surfaces.end(); i++)
 		new_b_holes.Union(*i);
-	//Add all of b's surfaces to us (also limiting our holes)
-	for (auto i=b.surfaces.begin(); i!=b.surfaces.end(); i++) {
+	//and vice versa
+	InvMscPolygonList new_a_holes = holes;
+	for (auto i=b.surfaces.begin(); i!=b.surfaces.end(); i++) 
+		new_a_holes.Union(*i);
+	//create an intersection of holes
+	holes.Union(b.holes);
+	//splice all holes (they cannot intersect...)
+	holes.splice_with_bb(new_a_holes);
+	holes.splice_with_bb(new_b_holes);
+	//Add all of b's surfaces to us 
+	for (auto i=b.surfaces.begin(); i!=b.surfaces.end(); i++) 
 		surfaces.Union(*i, holes);  //extra holes appended to "holes" by Union
-		holes.Union(*i);
-	}
-	//Now combine the two holesets
-	for (auto i=new_b_holes.begin(); i!=new_b_holes.end(); i++)
-		holes.Intersect(*i, surfaces);  //extra surfaces appended to "surfaces" by Intersect
 
 	mainline += b.mainline;
 	return *this;
@@ -993,16 +1131,19 @@ MscArea &MscArea::operator *= (const MscArea &b)
 		holes.clear();
 		return *this;
 	}
+	PosMscPolygonList collect, tmp;
 	//create an intersect of the positive surfaces
-	for (auto i=b.surfaces.begin(); i!=b.surfaces.begin(); i++)
-		surfaces.Intersect(*i);  
+	surfaces.Intersect(b.surfaces);
+
 	//substract both holesets (dropping unnecessary holes in the process)
 	InvMscPolygonList new_b_holes = b.holes;
 	surfaces.NormalizeWith(holes);
 	surfaces.NormalizeWith(new_b_holes);
 	//Now combine the two holesets
+	PosMscPolygonList dummy;
 	for (auto i=new_b_holes.begin(); i!=new_b_holes.end(); i++)
-		holes.Intersect(*i, surfaces);  //extra surfaces appended to "surfaces" by Intersect
+		holes.Intersect(*i, dummy);  
+	surfaces.NormalizeWith(holes);
 
 	mainline *= b.mainline;
 	return *this;
@@ -1017,7 +1158,7 @@ MscArea &MscArea::operator -= (const MscArea &b)
 
 	//first substract the surfaces of b from us
 	for (auto i=b.surfaces.begin(); i!=b.surfaces.end(); i++)
-		surfaces.Substract(*i);  
+		surfaces.Substract(*i, holes);  
 	//calculate pieces of our surface that fell into holes of b
 	PosMscPolygonList surf_fragments(surfaces);
 	for (auto i=b.holes.begin(); i!=b.holes.end(); i++)
@@ -1037,8 +1178,12 @@ MscArea &MscArea::operator -= (const MscArea &b)
 }
 void MscArea::Line(cairo_t *cr) const
 {
-	surfaces.Path(cr);
+	double dash[] = {2, 2};
 	holes.Path(cr);
+	cairo_set_dash(cr, dash, 2, 0);
+	cairo_stroke(cr);
+	surfaces.Path(cr);
+	cairo_set_dash(cr, dash, 0, 0);
 	cairo_stroke(cr);
 }
 
