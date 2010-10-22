@@ -24,64 +24,157 @@
 #include "polygon.h"
 #include "mscdrawer.h"
 
-//cp means crosspoint from here
-//a struct that identifies a crosspoint at a polygon by giving the edge and the pos on the edge
-struct cp_pointer_t 
-{
-	int vertex;   //the number of the vertex staring the edge the crosspoint is on
-	double pos;   //-1 if it is a vertex and not a crosspoint, [0..1) the pos of the crosspoint on the edge
-	cp_pointer_t() {}
-	cp_pointer_t(int a, double b) : vertex(a), pos(b) {}
-	bool operator !=(const cp_pointer_t &o) {return vertex!=o.vertex || pos!=o.pos;}
-};
-
-//we store structs like this for each crosspoint
-struct cp_t 
-{
-	XY           xy;               //coordinates of the crosspoint 
-	cp_pointer_t other;            //the location of the crosspoint in the other polygon
-	bool         switch_to_other;  //true if we need to swicth to the other polygon (set by AddCrosspoint)
-	cp_t(XY a, const cp_pointer_t &b, bool sw) : xy(a), other(b), switch_to_other(sw) {}
-};
-
-typedef std::multimap<double, cp_t> cp_list_t;
-
-//an entire hidden class usable only by MscPolygon
-//we store the points where the other polygon crosses an edge
-//edges correspond to the elements in the vector and the crosspoints are sorted there
-//according to their distance from the starting vertex of the edge
-//we store a crosspoint even if it is equal to the starting vertex of an edge, but not if it is the end 
-//(that will be stored for the next edge).
-//at any given position on the edge there can be multiple crosspoints (hence a multimap)
-class MscCrossPointStore : protected std::vector<cp_list_t> 
-{
-	friend class MscPolygon;
-protected: 
-	MscCrossPointStore(int n) : std::vector<cp_list_t>(n) {}
-
-	cp_list_t::const_iterator Lookup(const cp_pointer_t &pCP) const {return at(pCP.vertex).find(pCP.pos);}
-	cp_list_t::iterator       Lookup(const cp_pointer_t &pCP)       {return at(pCP.vertex).find(pCP.pos);}
-	cp_list_t::iterator       Add(XY xy, const cp_pointer_t &us, const cp_pointer_t &other, bool sw);
-	void                      Remove(cp_pointer_t const &pCP) {at(pCP.vertex).erase(Lookup(pCP));}
-
-	cp_pointer_t First(void) const;  //returns vertex == -1 if we are empty
-	cp_pointer_t NextCP(cp_pointer_t const &pCP) const;       //Gives the next crosspoint
-	XY           GetXY (cp_pointer_t pCP, const MscPolygon &pl) const {return (pCP.pos == -1) ? pl[pCP.vertex] : Lookup(pCP)->second.xy;}
-
-	static int  RateCrosspoint(int one_i, int two_j, XY p, bool do_union, MscPolygon::poly_result_t &contain,
-		                       const MscPolygon &one, const MscPolygon &two,
-							   cp_pointer_t &one_pCP, cp_pointer_t &two_pCP);
-	static bool AddCrosspoint(int one_i, int two_j, XY p,bool do_union,
-		                      const MscPolygon &one, const MscPolygon &two, 
-		                      MscCrossPointStore &one_cp, MscCrossPointStore &two_cp);
-	//find crosspoints between one and two, deposint them in *_cp. return true if any
-	static bool FindCrosspoints(bool do_union, const MscPolygon &one, const MscPolygon &two, 
-		                        MscCrossPointStore &one_cp, MscCrossPointStore &two_cp);
-	
-}; 
 
 //////////////////Helper functions
 
+#define SMALL_NUM 1e-10 //avoid division overflow
+
+//safe cubic root
+inline double curt(double n)
+{
+	if (n<0) return -pow(-n, 1/3);
+	else return pow(n, 1/3);
+}
+
+int quadratic_solve(double A, double B, double C, double &r1, double &r2) 
+{
+	if (A==0) {
+		//linear case
+		if (B==0) return 0;
+		r1 = -C/B;
+		return 1;
+	}
+	double D = B*B - 4*A*C;
+	if (D<0) return 0;
+	r1 = -B/(2*A);
+	if (D==0) return 1;
+	D = sqrt(D)/(2*A);
+	r2 = r1 + D;
+	r1 -= D;
+	return 2;
+}
+
+int cubic_solve(double C1, double C2, double C3, double C4, double &r1, double &r2, double &r3) 
+{
+	if (C1==0) 
+		return quadratic_solve(C2, C3, C4, r1, r2);
+	
+	//using x = y-p/3 we get y^3 +Ay +B 
+	//see http://www.me.gatech.edu/energy/andy_phd/appA.htm
+	const double p = C2/C1, q = C3/C1, r = C4/C1;
+	const double A = (3*q - p*p)/3;
+	const double B = (2*p*p*p, 9*p*q + 27*r)/27;
+	const double D = A*A*A/27 + B*B/4;
+
+	if (D>=0) {
+		r1 = curt(-B/2 + sqrt(D)) + curt(-B/2 - sqrt(D)) - p/3;
+		if (D > 0) return 1;
+		if (A==0) return 1; //all three roots are the same
+		r2 = (p/3-r)/2;  //y == -(M+N)/2 and r1 is M+N - p/3 and x = y-p/3
+		return 2;
+	}
+
+	const double cosphi = sqrt((B*B/4) / -A*A*A/27);
+	const double phi = acos(B>0 ? -cosphi : cosphi);
+	const double t = 2*sqrt(-A/3);
+	r1 = t*cos(phi) - p/3;
+	r2 = t*cos(phi + 120/180*M_PI) - p/3;
+	r2 = t*cos(phi + 240/180*M_PI) - p/3;
+	return 3;
+}
+
+
+int quartic_solve(double A, double B, double C, double D, double E,
+	double &r1, double &r2, double &r3, double &r4)
+{
+	if (A==0) 
+		return cubic_solve(B, C, D, E, r1, r2, r3);
+
+	//rearrange for a depressed solution
+	//x = u - B/(4*A)
+	//u^4 + alpha*u^2 + beta*u + gamma, where beta!=0 && gamma!=0
+	//see http://en.wikipedia.org/wiki/Quartic_equation#The_general_case.2C_along_Ferrari.27s_lines
+
+	const double alpha = -3*B*B/(8*A*A) +C/A;
+	const double beta  = B*B*B/(8*A*A*A) -B*C/(2*A*A) +D/A;
+	const double gamma = -3*B*B*B*B/(256*A*A*A*A) + C*B*B/(16*A*A*A) - B*D/(4*A*A) +E/A;
+	const double B4A = B/(4*A);
+	
+	if (beta==0) {
+		//biquadratic case u^4 +alpha*u^2 + gamma
+		int num = quadratic_solve(1, alpha, gamma, r1, r2);
+		if (num==0) return 0;
+		if (num == 2) {
+			if (r2<0) {
+				num=1;
+				r1 = r2;
+			} else {
+				r3 = sqrt(r2);
+				r4 = -r2;
+			}
+		}
+		if (r1<0) {
+			if (num==1) return 0;
+			r1 = r3 - B4A;
+			r2 = r4 - B4A;
+			return 2;
+		}
+		r1 = sqrt(r1);
+		r2 = -r1;
+
+		r1 -= B4A;
+		r2 -= B4A;
+		r3 -= B4A;
+		r4 -= B4A;
+		return 4;
+	}
+
+	if (gamma==0) {
+		r1 = -B4A; //zero is solution for u
+		int num = cubic_solve(1, 0, alpha, beta, r2, r3, r4);
+		r2 -= B4A;
+		r3 -= B4A;
+		r4 -= B4A;
+		return num+1;
+	}
+
+	//now solve the depressed using Ferrari's method
+
+	const double P = -alpha*alpha/12 - gamma;
+	const double Q = -alpha*alpha*alpha/108 + alpha*gamma/3 - beta*beta/8;
+	const double R = -Q/2 + sqrt(Q*Q/4 +P*P*P/27);
+	const double U = curt(R);
+	const double y = -5*alpha/6 + (U==0 ? curt(Q) : U - P/(3*U));
+	const double W = sqrt(alpha +2*y);
+
+	int num=0;
+
+	const double dist1 = -(3*alpha + 2*y - 2*beta/W);
+	if (dist1 >= 0) {
+		r3 = -B4A + (-W + sqrt(dist1))/2;
+		if (dist1==0) 
+			num = 1;
+		else {
+			num = 2;
+			r4 = -B4A + (-W - sqrt(dist1))/2;
+		}
+	}
+	const double dist2 = -(3*alpha + 2*y + 2*beta/W);
+	if (dist2 >= 0) {
+		r1 = -B4A + (W + sqrt(dist2))/2;
+		if (dist2==0) {
+			if (num >= 1) r2 = r3;
+			if (num == 2) r3 = r4;
+			return num + 1;
+		} else {
+			r2 = -B4A + (W - sqrt(dist1))/2;
+			return num + 2;
+		}
+	}
+	if (num >= 1) r1 = r3;
+	if (num == 2) r2 = r4;
+	return num;
+}
 
 //returns -1 if a==b
 //returns -2 if a==c
@@ -148,15 +241,33 @@ inline double MM(XY A, XY B)
 	return (A.y-B.y)/(A.x-B.x);
 }
 
-//checks if two sections are crossing or not
+/////////////////PolyEdge implementation
+
+PolyEdge::PolyEdge(const XY &c, double radius_x, double radius_y, double t)
+{
+	center = c;
+	radius1 = radius_x;
+	radius2 = radius_y;
+	s = 0;
+	e = 2*M_PI;
+	tilt = t;
+	clockwise_arc = true;
+	start = RadianToPoint(0);
+}
+
+inline double PolyEdge::RadianSpan(double s, double e) 
+{
+	return e<s ? e-s+2*M_PI : e-s;
+}
+
+//checks if two straight sections are crossing or not
 //return the number of points:
 //0 - no crossing
 //1 - one crossing point (in r1)
 //2 - the two sections intersects from r1 to r2
 //if any of the two sections are degenerate we return 1 only if it lies on the other section, else 0
 //See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
-#define SMALL_NUM 0.00000001 //avoid division overflow
-int are_crossing(const XY A, const XY B, const XY M, const XY N, XY&r1, XY &r2) 
+int PolyEdge::straight_crossing(const XY A, const XY B, const XY M, const XY N, XY&r1, XY &r2) 
 {
 	if (fabs((B-A).PerpProduct(N-M)) >= SMALL_NUM) {
 		//They are not parallel (and none of them are degenerate, but that does not matter now)
@@ -215,22 +326,387 @@ int are_crossing(const XY A, const XY B, const XY M, const XY N, XY&r1, XY &r2)
 	return 2;
 }
 
-
-//Assuming P is between A and B, return where (0 if on A, 1 if on B and values in between)
-inline double relative_pos(XY A, XY B, XY P)
+int PolyEdge::curvy_crossing(const PolyEdge &A, const PolyEdge &B, XY *r)
 {
-	//See which coordinate spans more space
-	if (fabs(A.x - B.x) < fabs(A.y - B.y)) 
-		return (P.y-A.y)/(B.y-A.y);
-	else
-		return (P.x-A.x)/(B.x-A.x);
+	//Now this is scary shit. Above there is a suite to solve 4th degree equations, we use those
+	//we are interested only in real solutions
+	//for ellipses see http://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
+
+	//ignore tilt for just now
+	//then an equation for our ellypses is (x-Cx)^2/radius1^2 + (y-Cy)^2/radius2^2 = 1;
+
+	const double Aa00 = 1/(A.radius1*A.radius1);
+	const double Aa01 = 0;
+	const double Aa11 = 1/(A.radius2*A.radius2);
+	const double Ab0  = -2*A.center.x/(A.radius1*A.radius1);
+	const double Ab1  = -2*A.center.y/(A.radius2*A.radius2);
+	const double Ac   = A.center.x*A.center.x/(A.radius1*A.radius1) + 
+		                A.center.y*A.center.y/(A.radius2*A.radius2) - 1;
+
+	const double Ba00 = 1/(B.radius1*B.radius1);                          //*x^2
+	const double Ba01 = 0;                                                //*xy
+	const double Ba11 = 1/(B.radius2*B.radius2);                          //*y^2
+	const double Bb0  = -2*B.center.x/(B.radius1*B.radius1);              //*x
+	const double Bb1  = -2*B.center.y/(B.radius2*B.radius2);              //*y
+	const double Bc   = B.center.x*B.center.x/(B.radius1*B.radius1) +     //constant
+		                B.center.y*B.center.y/(B.radius2*B.radius2) - 1;
+
+	const double v0 = 2*(Aa00*Ba01 - Ba00*Aa01);
+	const double v1 = Aa00*Ba11 - Ba00*Aa11;
+	const double v2 = Aa11*Bb0  - Ba00*Ab0;
+	const double v3 = Aa00*Bb1  - Ba00*Ab1;
+	const double v4 = Aa00*Bc   - Ba00*Ac;
+	const double v5 = 2*(Aa01*Ba11 - Ba01*Aa11);
+	const double v6 = 2*(Aa01*Bb1  - Ba01*Ab1);
+	const double v7 = 2*(Aa01*Bc   - Ba01*Ac);
+	const double v8 = Aa11*Bb0  - Ba11*Ab0;
+	const double v9 = Ab0*Bb1 - Bb0*Ab1;
+	const double v10= Ab0*Bc - Bb0*Ac;
+
+	const double u0 = v1*v10-v4*v4;
+	const double u1 = v0*v10 + v2*(v7+v9) - 2*v3*v4;
+	const double u2 = v0*(v7+v9) + v2*(v6-v8) - v3*v3 - 2*v1*v4;
+	const double u3 = v0*(v6-v8) + v2*v5 - 2*v1*v3;
+	const double u4 = v0*v5 - v1*v1;
+
+	double y[4];
+	//The Bezout determinant is now a quartic polynomialwith u:s as coefficienst
+	int num = quartic_solve(u4, u3, u2, u1, u0, y[0], y[1], y[2], y[3]);
+	int num_found = 0;
+
+	for (int i=0; i<num; i++) {
+		double x[2];
+		//solve for x from curve A
+		int num2 = quadratic_solve(Aa00, Aa01*y[i] + Ab0, 
+			                       Aa11*y[i]*y[i] + Ab1*y[i] + Ac, 
+								   x[0], x[1]);
+		//eliminate the wrong x from curve B
+		for (int j = 0; j<2; j++)
+			if (Ba00*x[j]*x[j] + Ba01*y[i]*x[j] + Bb0*x[j] +
+				Ba11*y[i]*y[i] + Bb1*y[i] + Bc < SMALL_NUM) {
+				r[num_found].x = x[i];
+				r[num_found].y = y[j];
+				break;
+			}
+	}
+	//Now we need to check if all points fall between s and e
+	for (int i=0; i<num_found; i++)
+		if (!A.RadianBetween(A.PointToRadian(r[i])) ||
+			!B.RadianBetween(B.PointToRadian(r[i]))) {
+			for (int j=1; j<num_found-i; j++)
+				r[i+j-1] = r[i+j];
+			num_found--;
+		}
+	return num_found;
 }
 
-/////////////////MscPolygonHelper implementation
-
-inline cp_list_t::iterator MscCrossPointStore::Add(XY xy, const cp_pointer_t &us, const cp_pointer_t &other, bool sw) 
+int PolyEdge::curvy_segment_crossing(const XY &A, const XY &B, XY &R1, XY &R2) const
 {
-	return at(us.vertex).insert(cp_list_t::value_type(us.pos, cp_t(xy, other, sw)));
+	XY M = conv_to_circle_space(A);
+	XY N = conv_to_circle_space(B);
+
+	//See circle intersection with a line specificed by two points
+	//http://mathworld.wolfram.com/Circle-LineIntersection.html
+	double D = M.PerpProduct(N);
+	XY d = N-M;
+	double disc = d.length()*d.length() - D*D;
+	if (disc<0) return 0; //no intersection
+
+	XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
+	if (d.y<0) v.x = -v.x;
+	XY f(D*d.y, -D*d.x);
+
+	//the intersect coordinates in unit circle space
+	R1 = (f+v)/d.length()/d.length();
+	R2 = (f-v)/d.length()/d.length();
+
+	double a1 = asin(R1.y);    //calc angle 
+	if (R1.x < 0) a1 = M_PI-a1;//between 90 and 270 degrees
+	if (a1<0) a1+=2*M_PI;      //if between -90 and 0 degrees
+	double a2 = asin(R2.y);    //calc angle 
+	if (R2.x < 0) a2 = M_PI-a2;//etween 90 and 270 degrees
+	if (a2<0) a2+=2*M_PI;      //if between -90 and 0 degrees
+
+	R2 = conv_to_real_space(R2);
+	bool both = RadianBetween(a2) && straight_crossing(A, B, R2, R2, R2, R2)>0;
+	if (disc < SMALL_NUM) { //just touch, R1==R2
+		if (!both) return 0;   
+		R1 = R2;
+		return 1;
+	}
+
+	//now check r1
+	R1 = conv_to_real_space(R1);
+	if (!RadianBetween(a1) || straight_crossing(A, B, R1, R1, R1, R1)==0) {//we are out
+		if (!both) return 0; //none is in
+		R1 = R2;
+		return 1;
+	}
+	return both ? 2 : 1;
+}
+
+
+inline int PolyEdge::Crossing(const PolyEdge &A, const XY &B, const PolyEdge &M, const XY &N, XY *r) 
+{
+	if (A.IsStraight() && M.IsStraight()) return straight_crossing(A.start, B, M.start, N, r[0], r[1]);
+	if (!A.IsStraight() && !M.IsStraight()) return curvy_crossing(A, M, r);
+	if (A.IsStraight()) return M.curvy_segment_crossing(A.start, B, r[0], r[1]);
+	/* (B.IsStraight(*/ return A.curvy_segment_crossing(M.start, N, r[0], r[1]);
+}
+
+
+XY PolyEdge::conv_to_real_space(const XY &p) const
+{
+	const double sintilt = sin(tilt);
+	const double costilt = cos(tilt);
+	return center + 
+		XY(radius1 * p.x * costilt - radius2 * p.y * sintilt,
+		   radius1 * p.x * sintilt + radius2 * p.y * costilt);
+}
+
+XY PolyEdge::conv_to_circle_space(const XY &p) const
+{
+	const double sintilt = sin(tilt);
+	const double costilt = cos(tilt);
+	//rotate back with till and stretch
+	return XY(( (p.x-center.x)*costilt + (p.y-center.y)*sintilt)/radius1, 
+	          (-(p.x-center.x)*sintilt + (p.y-center.y)*costilt)/radius2);
+}
+
+
+inline XY PolyEdge::RadianToPoint(double r) const
+{
+	return conv_to_real_space(XY(cos(r), sin(r)));
+}
+
+//returns
+double PolyEdge::PointToRadian(XY p, is_within_t *inout) const
+{
+	XY q = conv_to_circle_space(p);
+	const double d = q.length();
+	double r = asin(q.y/d);     //calc angle normalized to 1
+	if (q.x<0) r = M_PI - r;    //between 90 and 270 degrees
+	if (r<0) r += 2*M_PI;       //if between -90 and 0 degrees
+	if (inout) {
+		if (d<1-SMALL_NUM) *inout = WI_INSIDE;
+		else if (d>1+SMALL_NUM) *inout = WI_OUTSIDE;
+		else if (fabs(r-s) < SMALL_NUM || fabs(r-e) < SMALL_NUM) *inout = WI_ON_VERTEX;
+		else *inout = WI_ON_EDGE;
+	}
+	return r;
+}
+
+double PolyEdge::RelativePos(const XY &P, const XY &end) const
+{
+	if (IsStraight()) {
+		//See which coordinate spans more space
+		if (fabs(start.x - end.x) < fabs(start.y - end.y)) 
+			return (P.y-start.y)/(end.y-start.y);
+		else
+			return (P.x-start.x)/(end.x-start.x);
+	}
+	double ret = PointToRadian(P) - s;
+	return ret<0 ? ret + 2*M_PI : ret;
+}
+
+
+
+//Where does an edge or arc corss a horizontal line? (for the purposes of Polygon::IsWithin)
+//1. an upward edge includes its starting endpoint, and excludes its final endpoint;
+//2. a downward edge excludes its starting endpoint, and includes its final endpoint;
+//returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a horizontal line
+//internally "downward" is understood in a coordinate system where y grows downwards
+int PolyEdge::CrossingHorizontal(double y, const XY &B, double &r1, double &r2) const
+{
+	if (IsStraight()) {
+		if ((start.y >= y && B.y < y) ||      //we cross upward 
+			(start.y < y && B.y >= y)) {      //we cross downward
+			//we cross p's line x
+			r1 = (start.x - B.x)/(start.y - B.y)*(y - B.y) + B.x;
+			return 1;
+		} 
+		if (start.y == y && B.y == y) return -1; //horizontal line
+		return 0;
+	}
+	const double sintilt = sin(tilt);
+	const double costilt = cos(tilt);
+	//transform the y line into the system of 
+	//we start with two points 0,y and y,y
+	XY M = conv_to_circle_space(XY(0, y));
+	XY N = conv_to_circle_space(XY(y, y));
+	//See circle intersection with a line specificed by two points
+	//http://mathworld.wolfram.com/Circle-LineIntersection.html
+	double D = M.PerpProduct(N);
+	XY d = N-M;
+	double disc = d.length()*d.length() - D*D;
+	if (disc<0) return 0; //no intersection
+
+	XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
+	if (d.y<0) v.x = -v.x;
+	XY f(D*d.y, -D*d.x);
+
+	//the intersect coordinates in unit circle space
+	XY R1 = (f+v)/d.length()/d.length();
+	XY R2 = (f-v)/d.length()/d.length();
+
+	double a1 = asin(R1.y);                //calc angle 
+	if (R1.y<=0  && R1.x < 0) a1 += M_PI;  //if more than 180 degrees
+	double a2 = asin(R2.y);                //calc angle 
+	if (R2.y<=0  && R2.x < 0) a2 += M_PI;  //if more than 180 degrees
+
+	bool both = true;
+
+	R2 = conv_to_real_space(R2);
+	if (a2==s || a2==e) { //if a1 is on one endpoint 
+		//curvy_prevnexttangentpoint is expensive, just call when needed
+		//going down XOR starting endpoint
+		if ((curvy_prevnexttangentpoint(a2, true).y > y) ^ (a2==s)) 
+			a2 = 10*M_PI; //to big, will mean we are out
+		else if (D < SMALL_NUM) {
+			//tangents are ignored except at the endpoints
+			r1 = R2.x; 
+			return 1;
+		}
+	}
+	if (disc < SMALL_NUM) return 0;   //just touch
+	if (RadianSpan(s, a2) > RadianSpan(s, e)) //we are out
+		both = false;
+
+	//now check r1
+	R1 = conv_to_real_space(R1);
+	if (a1==s || a1==e) { //if a1 is on one endpoint 
+		//curvy_prevnexttangentpoint is expensive, just call when needed
+		//going down XOR starting endpoint
+		if ((curvy_prevnexttangentpoint(a1, true).y > y) ^ (a1==s)) 
+			a1 = 10*M_PI; //to big, will mean we are out
+	}
+	if (RadianSpan(s, a1) > RadianSpan(s, e)) {//we are out
+		if (!both) return 0; //none is in
+		r1 = R2.x;
+		return 1;
+	}
+	r1 = R1.x;
+	if (!both) return 1;
+	r2 = R2.x;
+	return 2;
+}
+
+
+XY PolyEdge::curvy_prevnexttangentpoint(double pos, bool next) const
+{
+	const double x = cos(pos);
+	const double y = sin(pos);
+	//for a point xy on the unit circle to have a point on the
+	//forward tangent is: x+y, y-x
+	//backward tangent is: x-y, y+x
+	if (next ^ clockwise_arc) 
+		return conv_to_real_space(XY(x+y, y-x));
+	else
+		return conv_to_real_space(XY(x-y, y+x));
+}
+
+inline XY PolyEdge::PrevTangentPoint(double pos, const PolyEdge &prev_vertex) const
+{
+	//we are at a vertex, or at a crosspoint at a vertex
+	if (pos == -1 || pos == StartPos()) 
+		return prev_vertex.PrevTangentPoint(prev_vertex.EndPos(), prev_vertex); //second parameter will be ignored
+	if (IsStraight()) 
+		return start;
+	return curvy_prevnexttangentpoint(pos+s, false);
+}
+
+inline XY PolyEdge::NextTangentPoint(double pos, const PolyEdge &next_vertex) const
+{
+	if (IsStraight()) 
+		return next_vertex.start;
+	//calc tangent for curvy edges
+	return curvy_prevnexttangentpoint(pos+s, true);
+}
+
+inline bool PolyEdge::CheckAndCombine(const PolyEdge &next, const XY &after)
+{
+	if (IsStraight() && next.IsStraight()) {
+		double a = angle(start, next.start, after);
+		return a==0 || a==2;
+	}
+	if (IsStraight() || next.IsStraight())
+		return false;   //one is curve the other is straight
+	//calc tangent for curvy edges
+	if (center != next.center || radius1 != next.radius1 ||
+		radius2 != next.radius2 || tilt != next.tilt ||
+		clockwise_arc != next.clockwise_arc) return false;
+	//same center, same radiuses, same tilt, same dir
+	if (s<e) {
+		if (s<next.e) e = std::max(e, next.e);
+		else e = next.e;
+	} else 
+		if (s>=next.e) e = std::max(e, next.e);
+		else e = s; //round over, we crop to full circle
+	return true;
+}
+
+/////////////////MscCrossPointStore implementation
+
+//cp means crosspoint from here
+//a struct that identifies a crosspoint at a polygon by giving the edge and the pos on the edge
+struct cp_pointer_t 
+{
+	int vertex;   //the number of the vertex staring the edge the crosspoint is on
+	double pos;   //-1 if it is a vertex and not a crosspoint, [0..1) the pos of the crosspoint on the edge
+	cp_pointer_t() {}
+	cp_pointer_t(int a, double b) : vertex(a), pos(b) {}
+	bool operator !=(const cp_pointer_t &o) {return vertex!=o.vertex || pos!=o.pos;}
+};
+
+//we store structs like this for each crosspoint
+struct cp_t 
+{
+	PolyEdge     edge;               //coordinates of the crosspoint, plus remaining arc 
+	cp_pointer_t other;            //the location of the crosspoint in the other polygon
+	bool         switch_to_other;  //true if we need to swicth to the other polygon (set by AddCrosspoint)
+	cp_t(const PolyEdge &a, const cp_pointer_t &b, bool sw) : edge(a), other(b), switch_to_other(sw) {}
+};
+
+typedef std::multimap<double, cp_t> cp_list_t;
+
+//an entire hidden class usable only by MscPolygon
+//we store the points where the other polygon crosses an edge, plus remaining part of curving edges
+//edges correspond to the elements in the vector and the crosspoints are sorted there
+//according to their distance from the starting vertex of the edge
+//we store a crosspoint even if it is equal to the starting vertex of an edge, but not if it is the end 
+//(that will be stored for the next edge).
+//at any given position on the edge there can be multiple crosspoints (hence a multimap)
+class MscCrossPointStore : protected std::vector<cp_list_t> 
+{
+	friend class MscPolygon;
+protected: 
+	MscCrossPointStore(int n) : std::vector<cp_list_t>(n) {}
+
+	cp_list_t::const_iterator Lookup(const cp_pointer_t &pCP) const {return at(pCP.vertex).find(pCP.pos);}
+	cp_list_t::iterator       Lookup(const cp_pointer_t &pCP)       {return at(pCP.vertex).find(pCP.pos);}
+	cp_list_t::iterator       Add(const PolyEdge& edge, const cp_pointer_t &us, const cp_pointer_t &other, bool sw);
+	void                      Remove(cp_pointer_t const &pCP) {at(pCP.vertex).erase(Lookup(pCP));}
+
+	cp_pointer_t First(void) const;  //returns vertex == -1 if we are empty
+	cp_pointer_t NextCP(cp_pointer_t const &pCP) const;       //Gives the next crosspoint
+	PolyEdge     GetEdgeRemainder(cp_pointer_t pCP, const MscPolygon &pl) const 
+	    {return (pCP.pos == -1) ? pl[pCP.vertex] : Lookup(pCP)->second.edge;}
+
+	static int  RateCrosspoint(int one_i, int two_j, XY p, bool do_union, MscPolygon::poly_result_t &contain,
+		                       const MscPolygon &one, const MscPolygon &two,
+							   cp_pointer_t &one_pCP, cp_pointer_t &two_pCP);
+	static bool AddCrosspoint(int one_i, int two_j, XY p,bool do_union,
+		                      const MscPolygon &one, const MscPolygon &two, 
+		                      MscCrossPointStore &one_cp, MscCrossPointStore &two_cp);
+	//find crosspoints between one and two, deposint them in *_cp. return true if any
+	static bool FindCrosspoints(bool do_union, const MscPolygon &one, const MscPolygon &two, 
+		                        MscCrossPointStore &one_cp, MscCrossPointStore &two_cp);
+	
+}; 
+
+inline cp_list_t::iterator MscCrossPointStore::Add(const PolyEdge &edge, const cp_pointer_t &us, const cp_pointer_t &other, bool sw) 
+{
+	return at(us.vertex).insert(cp_list_t::value_type(us.pos, cp_t(edge, other, sw)));
 }
 
 cp_pointer_t MscCrossPointStore::First(void) const
@@ -255,18 +731,6 @@ cp_pointer_t MscCrossPointStore::NextCP(const cp_pointer_t &pCP) const
 		return cp_pointer_t(pCP.vertex, i->first); //there is a next crosspoint
 }
 
-inline int NextVertex(const cp_pointer_t &pCP, const MscPolygon &pl) 
-{
-	return (pCP.vertex+1) % pl.size();
-}
-
-inline int PrevVertex(const cp_pointer_t &pCP, const MscPolygon &pl) 
-{
-	if (pCP.pos > 0)          
-		return pCP.vertex;    //a cp at the middle of an edge: return preceeding vertex
-	return (pCP.vertex-1+pl.size()) % pl.size();  //we are at a vertex: return previous vertex
-}
-
 //returns 0 if a crosspoint is to be neglected (walk should not start there and no switch to be done there)
 //(if only two vertex touch, but no edges, also if edges touch but not right for union or intersection)
 //returns 1 or two if the selected method (union or intersect) should continue at one or two, resp.
@@ -286,31 +750,27 @@ int MscCrossPointStore::RateCrosspoint(int one_i, int two_j, XY p, bool do_union
 {
 	//if the crosspoint falls on any ending vertex, skip it, it will pop up for the next edge as the starting vertex
 	//contain is not set, when we need that value in containment, we sould not return here
-	one_pCP.pos = relative_pos(one[one_i], one[(one_i+1)%one.size()], p);
-	if (one_pCP.pos == 1) return 0;
-	two_pCP.pos = relative_pos(two[two_j], two[(two_j+1)%two.size()], p);
-	if (two_pCP.pos == 1) return 0;
+	one_pCP.pos = one[one_i].RelativePos(p, one.at_next(one_i).start);
+	if (one_pCP.pos == one[one_i].EndPos()) return 0;
+	two_pCP.pos = two[two_j].RelativePos(p, two.at_next(two_j).start);
+	if (two_pCP.pos == two[two_j].EndPos()) return 0;
 	one_pCP.vertex = one_i;
 	two_pCP.vertex = two_j;
 
 	//Determine the category of the crosspoint
 	//Obtain coordinates of the previous and next points in both polygons
-	XY prev_one_xy = one[PrevVertex(one_pCP, one)];
-	XY next_one_xy = one[NextVertex(one_pCP, one)];
-	XY prev_two_xy = two[PrevVertex(two_pCP, two)];
-	XY next_two_xy = two[NextVertex(two_pCP, two)];
+	const XY prev_one_xy = one[one_pCP.vertex].PrevTangentPoint(one_pCP.pos, one.at_prev(one_pCP.vertex));
+	const XY next_one_xy = one[one_pCP.vertex].NextTangentPoint(one_pCP.pos, one.at_next(one_pCP.vertex));
+	const XY prev_two_xy = two[two_pCP.vertex].PrevTangentPoint(two_pCP.pos, two.at_prev(two_pCP.vertex));
+	const XY next_two_xy = two[two_pCP.vertex].NextTangentPoint(two_pCP.pos, two.at_next(two_pCP.vertex));
 
 	//calculate angles (not real degrees) with the current point as the tip of
 	//the angle and the two previous points as one line of it and the two
 	//next points as the other line. Angles are clockwise and can be > 180 degrees
-	double one_one_angle = 2.; //180 degrees: straight line 
-	if (one_pCP.pos <= 0) //current point is a vertex on one polygon
-		one_one_angle = angle(p, prev_one_xy, next_one_xy);
-	double two_two_angle = 2.; //180 degrees: straight line 
-	if (two_pCP.pos <= 0) //current point is a vertex on the two polygon
-		two_two_angle = angle(p, prev_two_xy, next_two_xy);
-	double two_one_angle = angle(p, prev_two_xy, next_one_xy);
-	double one_two_angle = angle(p, prev_one_xy, next_two_xy);
+	const double one_one_angle = angle(p, prev_one_xy, next_one_xy);
+	const double two_two_angle = angle(p, prev_two_xy, next_two_xy);
+	const double two_one_angle = angle(p, prev_two_xy, next_one_xy);
+	const double one_two_angle = angle(p, prev_one_xy, next_two_xy);
 
 	//What do the angles tell us?
 	//1. if 0 < X_Y_angle < X_X_angle then the outgoing edge of polygon Y
@@ -405,8 +865,9 @@ inline bool MscCrossPointStore::AddCrosspoint(int one_i, int two_j, XY p,  bool 
 	MscPolygon::poly_result_t dummy;
 	int rating = RateCrosspoint(one_i, two_j, p, do_union, dummy, one, two, one_pCP, two_pCP);
 	if (rating == 0) return false;
-	one_cp.Add(p, one_pCP, two_pCP, rating==2);
-	two_cp.Add(p, two_pCP, one_pCP, rating==1);
+	//cut the part of the edge before the crosspoint, so that it starts at p
+	one_cp.Add(PolyEdge(one.at(one_i)).RemoveBeforePoint(p), one_pCP, two_pCP, rating==2);
+	two_cp.Add(PolyEdge(two.at(two_j)).RemoveBeforePoint(p), two_pCP, one_pCP, rating==1);
 	return true;
 }
 
@@ -418,13 +879,16 @@ inline bool MscCrossPointStore::AddCrosspoint(int one_i, int two_j, XY p,  bool 
 bool MscCrossPointStore::FindCrosspoints(bool do_union, const MscPolygon &one, const MscPolygon &two, 
 		                                 MscCrossPointStore &one_cp, MscCrossPointStore &two_cp)
 {
-	XY r1, r2;
+	XY r[4];
 	bool was = false;
 	for (int i = 0; i<one.size(); i++)
 		for (int j = 0; j<two.size(); j++) 
-			switch (are_crossing(one[i], one[(i+1)%one.size()], two[j], two[(j+1)%two.size()], r1, r2)) {
-			case 2: was |= AddCrosspoint(i, j, r2, do_union, one, two, one_cp, two_cp); //fallthrough!!
-			case 1: was |= AddCrosspoint(i, j, r1, do_union, one, two, one_cp, two_cp);
+			switch (PolyEdge::Crossing(one[i], one.at_next(i).start, 
+			                           two[j], two.at_next(j).start, r)) {
+			case 4: was |= AddCrosspoint(i, j, r[3], do_union, one, two, one_cp, two_cp); //fallthrough!!
+			case 3: was |= AddCrosspoint(i, j, r[2], do_union, one, two, one_cp, two_cp); //fallthrough!!
+			case 2: was |= AddCrosspoint(i, j, r[1], do_union, one, two, one_cp, two_cp); //fallthrough!!
+			case 1: was |= AddCrosspoint(i, j, r[0], do_union, one, two, one_cp, two_cp);
 			}
 	return was;
 }
@@ -458,6 +922,15 @@ PosMscPolygon::PosMscPolygon(XY a, XY b, XY c)
 	clockwise = true;
 }
 
+PosMscPolygon::PosMscPolygon(const XY &c, double radius_x, double radius_y, double tilt) 
+{
+	if (radius_y==0) radius_y = radius_x;
+	PolyEdge edge(c, radius_x, radius_y, tilt);
+	clockwise = true;
+	boundingBox.MakeInvalid();
+	edge.AddToBoundingBox(boundingBox);
+	push_back(edge);
+}
 
 PosMscPolygon &PosMscPolygon::operator =(const Block &b) 
 {
@@ -474,9 +947,9 @@ PosMscPolygon &PosMscPolygon::operator =(const Block &b)
 
 //honors the direction of the polygon (clockwise or counterclockwise)
 //in p* return the number of vertex or edge we have fallen on if result is such
-is_within_t MscPolygon::IsWithin(XY p, int*pEdge) const
+is_within_t MscPolygon::IsWithin(XY p, int &edge) const
 {
-	if (size()<3) return WI_OUTSIDE;
+	if (size()==0) return WI_OUTSIDE;
 	if (boundingBox.IsWithin(p)==WI_OUTSIDE) 
 		return clockwise ? WI_OUTSIDE : WI_INSIDE; //for clockwise, if a point is outside the BB it is not within
 
@@ -489,26 +962,40 @@ is_within_t MscPolygon::IsWithin(XY p, int*pEdge) const
 	//4. the edge-ray intersection point must be strictly right of the point P.
 	//4b: since we say containment also for edge points, if the egde goes through p, we stop
 	int count = 0;
-	for (int i = 0; i<size(); i++) {
-		const int ipp = (i+1)%size();  //wrap back at the end
-		if ((at(i).y >= p.y && at(ipp).y < p.y) ||      //we cross upward 
-			(at(i).y < p.y && at(ipp).y >= p.y)) {      //we cross downward
-			//we cross p's line x
-			double x = (at(i).x - at(ipp).x)/(at(i).y - at(ipp).y)*(p.y - at(ipp).y) + at(ipp).x;
-			if (x == p.x) {  //on an edge
-				if (pEdge) *pEdge = i;
-				if (at(i).y == p.y) return WI_ON_VERTEX; //on vertex
-				else if (at(ipp).y == p.y) {
-					if (pEdge) ++*pEdge;
+	for (edge = 0; edge<size(); edge++) {
+		const int epp = next(edge);  //wrap back at the end
+		double x1, x2;
+		switch (at(edge).CrossingHorizontal(p.y, at(epp).start, x1, x2)) {
+		case 2:
+			if (x2 == p.x) {  //on an edge
+				if (at(edge).start.y == p.y) return WI_ON_VERTEX; //on vertex
+				else if (at(epp).start.y == p.y) {
+					edge = epp;
 					return WI_ON_VERTEX;
 				} else return WI_ON_EDGE; // on an edge, but not vertex
 			}
-			if (x > p.x) count ++;
-		} else if (at(i).y == p.y && at(ipp).y == p.y) { //horizontal edge level with p
-			if (pEdge) *pEdge = i;
-			if (at(ipp).x == p.x || at(i).x == p.x) return WI_ON_VERTEX; //on vertex
-			if ((at(i).x > p.x && at(ipp).x < p.x) ||
-				(at(i).x < p.x && at(ipp).x > p.x)) return WI_ON_EDGE; //goes through p
+			if (x2 > p.x) count ++;
+			//fallthrough
+		case 1:
+			if (x1 == p.x) {  //on an edge
+				if (at(edge).start.y == p.y) return WI_ON_VERTEX; //on vertex
+				else if (at(epp).start.y == p.y) {
+					edge = epp;
+					return WI_ON_VERTEX;
+				} else return WI_ON_EDGE; // on an edge, but not vertex
+			}
+			if (x1 > p.x) count ++;
+			break;
+		case -1:
+			if ((at(edge).start.x > p.x && at(epp).start.x < p.x) ||
+				(at(edge).start.x < p.x && at(epp).start.x > p.x)) 
+					return WI_ON_EDGE; //goes through p
+			if (at(edge).start.x == p.x) return WI_ON_VERTEX; //on vertex
+			if (at(epp).start.x == p.x) {
+				edge = epp;
+				return WI_ON_VERTEX; //on vertex
+			}
+			break;
 		}
 	}
 	if (clockwise) 
@@ -520,16 +1007,16 @@ is_within_t MscPolygon::IsWithin(XY p, int*pEdge) const
 //Can result SAME, COMPLEMENT, A_INSIDE_B or B_INSIDE_A
 MscPolygon::poly_result_t MscPolygon::CheckContainmentHelper(const MscPolygon &b) const 
 {
-	int edge = 0;
+	int edge;
 	poly_result_t retval;
 	for (int i=0; i<size(); i++) 
-		switch (b.IsWithin(at(i), &edge)) {      //iswithin also honors clockwiseness
+		switch (b.IsWithin(at(i).start, edge)) {      //iswithin also honors clockwiseness
 		case WI_INSIDE:  return A_INSIDE_B;
 		case WI_OUTSIDE: return B_INSIDE_A;
 		case WI_ON_EDGE: 
 		case WI_ON_VERTEX: 
 			cp_pointer_t dummy1, dummy2;
-			MscCrossPointStore::RateCrosspoint(i, edge, at(i), true, retval, *this, b, dummy1, dummy2);
+			MscCrossPointStore::RateCrosspoint(i, edge, at(i).start, true, retval, *this, b, dummy1, dummy2);
 			switch (retval) {
 			case A_INSIDE_B:
 			case B_INSIDE_A: return retval;
@@ -578,47 +1065,28 @@ inline void MscPolygon::append_to_surfaces_or_holes(PosMscPolygonList &surfaces,
 //"surfaces"  and "holes" will contain counterclockwise output only if you call union with counterclockwise input
 //Return values
 //OK: the two polygons actually intersect (or at least touch for union) if b is counterclockwise it is honored (used for substracts)
-//A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY: they mean just that. "surfaces" or "holes" contains one or the other or none of b & this
-//A_INSIDE_B: *this is fully inside b. *this is placed for unions, b for intersects (into surfaces/holes depending on if clockwise)
-//B_INSIDE_A: b is fully inside *this. *this is placed for intersects, b for unions (into surfaces/holes depending on if clockwise)
-//A_SAME_B: The two polygons are actually the same (including clockwiseness). *this is put into "surfaces"/"holes"
-//A_COMPLEMENT_B: The two polygons have the same outline, but differ in direction. nothing is put into  "surfaces"/"holes"
+//surfaces and holes contain return values only if the result is OK. 
+//A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY: they mean just that. 
+//A_INSIDE_B: *this is fully inside b. 
+//B_INSIDE_A: b is fully inside *this. 
+//A_SAME_B: The two polygons are actually the same (including clockwiseness). 
+//A_COMPLEMENT_B: The two polygons have the same outline, but differ in direction. 
 //A_APART_B: The two polygons do not actually touch (for intersections this includes common edges, for union common vertices)
-//       both are returen for unions (in holes and/or surfaces) and nothing for intersects
 MscPolygon::poly_result_t MscPolygon::PolyProcess(const MscPolygon &b, PosMscPolygonList &surfaces, 
 													  InvMscPolygonList &holes, bool do_union) const
 {
 	surfaces.clear();
 	holes.clear();
-	if (size()<3 && b.size()<3) return BOTH_EMPTY;
-	if (size()<3) {
-		if (do_union) b.append_to_surfaces_or_holes(surfaces,holes);
-		return A_IS_EMPTY;
-	}
-	if (b.size()<3) {
-		if (do_union) append_to_surfaces_or_holes(surfaces,holes);
-		return B_IS_EMPTY;
-	}
+	if (size()==0 && b.size()==0) return BOTH_EMPTY;
+	if (size()==0) return A_IS_EMPTY;
+	if (b.size()==0) return B_IS_EMPTY;
 
 	if (!boundingBox.Overlaps(b.boundingBox)) {
-		if (clockwise && b.clockwise) {
-			if (do_union) 
-				surfaces.append(*static_cast<const PosMscPolygon*>(this)).append(*static_cast<const PosMscPolygon*>(&b));
-			return APART_OUTSIDE;
-		}
-		if (!clockwise && !b.clockwise) {
-			if (!do_union) 
-				holes.append(*static_cast<const InvMscPolygon*>(this)).append(*static_cast<const InvMscPolygon*>(&b));
-			return APART_INSIDE;
-		}
+		if (clockwise && b.clockwise) return APART_OUTSIDE;
+		if (!clockwise && !b.clockwise) return APART_INSIDE;
 		//now clockwise and !clockwise are different
-		if (clockwise && !b.clockwise) {
-			(do_union ? b : *this).append_to_surfaces_or_holes(surfaces, holes);
-			return A_INSIDE_B;
-		} else {  //if (!clockwise && b.clockwise) 
-			(do_union ? *this : b).append_to_surfaces_or_holes(surfaces, holes);
-			return B_INSIDE_A;
-		}
+		if (clockwise && !b.clockwise) return A_INSIDE_B;
+		return B_INSIDE_A;  //if (!clockwise && b.clockwise) 
 	}
 
 	//Set up some data structures
@@ -632,76 +1100,56 @@ MscPolygon::poly_result_t MscPolygon::PolyProcess(const MscPolygon &b, PosMscPol
 
 	//We will first find all the crossing points between the two polygons
 	if (!MscCrossPointStore::FindCrosspoints(do_union, *this, b, cp_one, cp_two)) 
-		//if no crosspoints fill surfaces and holes with what is needed and return correct value
-		switch (CheckContainment(b)) {
-		case A_INSIDE_B:
-			(do_union ? b : *this).append_to_surfaces_or_holes(surfaces, holes); return A_INSIDE_B;
-		case B_INSIDE_A:
-			(do_union ? *this : b).append_to_surfaces_or_holes(surfaces, holes); return B_INSIDE_A;
-		case SAME:
-			append_to_surfaces_or_holes(surfaces, holes); return SAME;
-		case COMPLEMENT:
-			return COMPLEMENT;
-		case APART_OUTSIDE:
-			if (do_union) {
-				append_to_surfaces_or_holes(surfaces, holes); 
-				b.append_to_surfaces_or_holes(surfaces, holes);
-			}
-			return APART_OUTSIDE;
-		case APART_INSIDE:             //two inside-out polygons not touching
-			if (!do_union) {
-				append_to_surfaces_or_holes(surfaces, holes); 
-				b.append_to_surfaces_or_holes(surfaces, holes);
-			}
-			return APART_INSIDE;
-		}
+		return CheckContainment(b);
 	
 	//OK, we have crosspoints relevant for the operation (union, intersection) we do
 	//Start the walks around the polygon, as long as there are crosspoints left
 	//The poly.cp->First on the next iteration will give a -1 vertex back if there is no more CPs
 	for (cp_pointer_t current = poly.cp->First(); current.vertex>=0; current = poly.cp->First()) {
 		XY do_not_insert(-1,-1); //to avoid inserting the same point multiple times
-		cp_pointer_t halt = current; //if we get back here this polygon is complete
 		MscPolygon result;
 		
 		//do a walk from the current
 		do {
-			//Add current point to results 
-			XY current_xy = poly.cp->GetXY(current, *poly.pl); 
-			if (current_xy != do_not_insert) {
-				//check if current_xy falls on the same line as the previous two
-				if (result.size()>=2 &&
-					0 == angle(current_xy, result[result.size()-2], result[result.size()-1]))
-					result[result.size()-1] = current_xy; //if so overwrite last
-				else 
-					result.push_back(current_xy);
-				result.boundingBox += current_xy;
-				do_not_insert = current_xy;
-			}
+			PolyEdge current_xy_edge;  
 
-			//this is a vertex not crossed by the other polygon, we keep walking this one
 			if (current.pos < 0) {
+				//this is a vertex not crossed by the other polygon, we keep walking this one
+				current_xy_edge = poly.cp->GetEdgeRemainder(current, *poly.pl); 
 				current = poly.cp->NextCP(current);
-				continue;
-			}
-
-			cp_pointer_t other = poly.cp->Lookup(current)->second.other;
-			if (poly.cp->Lookup(current)->second.switch_to_other) {
-				std::swap(current, other);
-				std::swap(poly, poly_o);
-			}
-
-			//remove crosspoints and advance to next point
-			cp_pointer_t next = poly.cp->NextCP(current);
-			if (result.size() == 1) { //mark exit condition
-				poly.cp->Lookup(current)->second.xy.x = -1;
-				poly_o.cp->Lookup(other)->second.xy.x = -1;
 			} else {
-				poly.cp->Remove(current);
-				poly_o.cp->Remove(other);
+				//this is a crosspoint let's see if we switch to the other polygon
+				cp_pointer_t other = poly.cp->Lookup(current)->second.other;
+				if (poly.cp->Lookup(current)->second.switch_to_other) {
+					std::swap(current, other);
+					std::swap(poly, poly_o);
+				}
+				//Ok, we will insert this edge
+				current_xy_edge = poly.cp->GetEdgeRemainder(current, *poly.pl); 
+
+				//remove crosspoints and advance to next point
+				cp_pointer_t next = poly.cp->NextCP(current);
+				if (result.size() == 0) { //mark exit condition
+					poly.cp->Lookup(current)->second.edge.start.x = -1;
+					poly_o.cp->Lookup(other)->second.edge.start.x = -1;
+				} else {
+					poly.cp->Remove(current);
+					poly_o.cp->Remove(other);
+				}
+				current = next;
 			}
-			current = next;
-		} while (current.pos ==-1 || poly.cp->Lookup(current)->second.xy.x != -1); 
+			//Add current point (plus edge out) to results 
+			if (current_xy_edge.start != do_not_insert) {
+				//check if current_xy falls on the same line as the previous two
+				if (result.size()>=2 && 
+					result[result.size()-2].CheckAndCombine(result[result.size()-1], current_xy_edge.start))
+					result[result.size()-1] = current_xy_edge; //if so overwrite last
+				else 
+					result.push_back(current_xy_edge);
+				current_xy_edge.AddToBoundingBox(result.boundingBox);
+				do_not_insert = current_xy_edge.start;
+			} 
+		} while (current.pos ==-1 || poly.cp->Lookup(current)->second.edge.start.x != -1); 
 		
 		//remove the crosspoint we started and halted at
 		poly_o.cp->Remove(poly.cp->Lookup(current)->second.other);
@@ -710,47 +1158,134 @@ MscPolygon::poly_result_t MscPolygon::PolyProcess(const MscPolygon &b, PosMscPol
 		//if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
 		if (result[0] == result[result.size()-1])
 			result.pop_back();
-		//Also, the beginning point can fall on an edge such as when two side-by-side rectangles are merged
-		if (angle(result[0], result[1], result[result.size()-1]) == 2) 
-			result.erase(result.begin());
-		//complete direction counting, adding angle for last inserted vertex and the first one
-		double angles = 0;
-		for (int i=1; i<result.size()-1; i++)
-			angles += angle_degrees(angle(result[i], result[i+1], result[i-1]));
-		angles += angle_degrees(angle(result[result.size()-1], result[0], result[result.size()-2]));
-		angles += angle_degrees(angle(result[0], result[1], result[result.size()-1]));
-		//angle is (n-2)*180 for clockwise, (n+2)*180 for counterclockwise, we draw the line at n*180
-		result.clockwise = (angles < result.size()*180); 
+		//Also, the beginning point (result[0]) can fall on an edge 
+		//if both the last and the first edge are straight and are in-line
+		//such as when two side-by-side rectangles are merged
+		if (result.size()>2) {
+			if (result[result.size()-2].CheckAndCombine(result[result.size()-1], result[0].start))
+				result.pop_back();
+			if (result[result.size()-1].CheckAndCombine(result[0], result[1].start))
+				result.erase(result.begin());
+		}
+		//also two semi-circles combined should give a single edge (a circle)
+		if (result.size()==2 && !result[0].IsStraight() && !result[1].IsStraight() &&
+			result[0].CheckAndCombine(result[1], do_not_insert))  //second param is a dummy
+			result.pop_back();
+
+		//go around and set "s" value for curvy edges. This was not known previously
+		for (int i=0; i<result.size(); i++)
+			if (!result[i].IsStraight())
+				result[i].RemoveAfterPoint(result.at_next(i).start);
+
+		result.clockwise = result.CalculateClockwise();
 
 		result.append_to_surfaces_or_holes(surfaces, holes);
 	}
 	return OK;
 }
 
+bool MscPolygon::CalculateClockwise() const
+{
+	//determine if this is clockwise. We can treat curving edges as straight
+	if (size()>2) {
+		double angles = 0;
+		for (int i=0; i<size(); i++) {
+			XY prev = at(i).PrevTangentPoint(at(i).StartPos(), at_prev(i).start);
+			XY next = at(i).NextTangentPoint(at(i).StartPos(), at_next(i).start);
+			angles += angle_degrees(angle(at(i).start, next, prev));
+			if (!at(i).IsStraight()) {
+				//for curvy edges add the degree which the curve turnes
+				XY end_prev = at(i).curvy_prevnexttangentpoint(at(i).e, false); //tangent on which edge i continues
+				end_prev -= (at_next(i).start - at(i).start); //shift it to vertex i
+				angles += angle_degrees(angle(at(i).start, end_prev, next));
+				//since we model this as an extra vertex, substract 180
+				angles -= 180;
+			}
+		}	                                 
+		//angle is (n-2)*180 for clockwise, (n+2)*180 for counterclockwise, we draw the line at n*180
+		return angles < size()*180; 
+	} 
+	if (size()==2) { 
+		//if a polygon is two edges, it should not be two straigth edges
+		if (at(0).IsStraight() && at(1).IsStraight())
+			assert(0);
+		if (!at(0).IsStraight() && !at(1).IsStraight()) {
+			//two curves
+			//if they are of same direction we get it
+			if (at(0).clockwise_arc == at(1).clockwise_arc)
+				return at(0).clockwise_arc;
+			//two curves with opposite dir, they do not touch only at the two ends
+			//the one contains the other decides
+			assert(0); //figure this out;
+		}
+		//one curve, one straight: dir is decided by curve
+		if (at(0).IsStraight()) 
+			return at(1).clockwise_arc;
+		else 
+			return at(0).clockwise_arc;
+	} 
+	//if (size()==1), a full ellipsis
+	return at(0).clockwise_arc;
+}
+
 
 //true if the intersection is not empty (quicker than the intersection)
 bool MscPolygon::Overlaps(const MscPolygon &b) const 
 {
-	if (size()<3 || b.size()<3) return false;
+	if (size()==0 || b.size()==0) return false;
 	if (!boundingBox.Overlaps(b.boundingBox)) return false;
-	XY r1, r2;
+	XY r[4];
 	poly_result_t dummy0;
 	cp_pointer_t dummy1, dummy2;
 	for (int i = 0; i<size(); i++)
 		for (int j = 0; j<b.size(); j++) 
-			switch (are_crossing(at(i), at((i+1)%size()), b[j], b[(j+1)%b.size()], r1, r2)) {
-			case 2: if (MscCrossPointStore::RateCrosspoint(i, j, r2, false, dummy0, *this, b, dummy1, dummy2)) return true; //fallthrough!!
-			case 1: if (MscCrossPointStore::RateCrosspoint(i, j, r1, false, dummy0, *this, b, dummy1, dummy2)) return true;
+			switch (PolyEdge::Crossing(at(i), at_next(i).start, 
+			                           b[j], b.at_next(j).start, r)) {
+			case 4: if (MscCrossPointStore::RateCrosspoint(i, j, r[3], false, dummy0, *this, b, dummy1, dummy2)) return true; //fallthrough!!
+			case 3: if (MscCrossPointStore::RateCrosspoint(i, j, r[2], false, dummy0, *this, b, dummy1, dummy2)) return true; //fallthrough!!
+			case 2: if (MscCrossPointStore::RateCrosspoint(i, j, r[1], false, dummy0, *this, b, dummy1, dummy2)) return true; //fallthrough!!
+			case 1: if (MscCrossPointStore::RateCrosspoint(i, j, r[0], false, dummy0, *this, b, dummy1, dummy2)) return true;
 			}
 	return false;
 }
 
+
+//current vertex is v in a->v->b order clockwise
+//expands v outwards by gap (or inwards if negative)
+//returns two points if angle of v is too shap so that one point would be too far out
+int expand_helper(double gap, const XY &v, const XY &a, const XY &b, XY& r1, XY &r2)
+{
+	XY D = (b-v).Rotate90CCW()*(gap/(b-v).length());
+	///... yet to come
+	return 0;
+}
+
+
+void MscPolygon::Expand(double gap) 
+{
+	if (gap==0) return;
+
+}
+
 void MscPolygon::Path(cairo_t *cr) const
 {
-	if (size()<3 || cr==NULL) return;
-	cairo_move_to(cr, at(0).x, at(0).y);
-	for (int i = 1; i<size(); i++) 
-		cairo_line_to(cr, at(i).x, at(i).y);
+	if (size()==0 || cr==NULL) return;
+	cairo_move_to(cr, at(0).start.x, at(0).start.y);
+	for (int i = 0; i<size(); i++) 
+		if (at(i).IsStraight()) {
+			if (i!=size()-1)
+				cairo_line_to(cr, at(i+1).start.x, at(i+1).start.y);
+		} else {
+			cairo_save(cr);
+			cairo_translate(cr, at(i).center.x, at(i).center.y);
+			cairo_rotate(cr, at(i).tilt);
+			cairo_scale(cr, at(i).radius1, at(i).radius2);
+			if (at(i).clockwise_arc)
+				cairo_arc(cr, 0, 0, 1, at(i).s, at(i).e);
+			else
+				cairo_arc_negative(cr, 0, 0, 1, at(i).s, at(i).e);
+			cairo_restore(cr);
+		}
 	cairo_close_path(cr);
 }
 
@@ -815,7 +1350,7 @@ void PosMscPolygonList::NormalizeWith(InvMscPolygonList &holes)
 
 void PosMscPolygonList::Union(const PosMscPolygon &b, InvMscPolygonList &holes)
 {
-	if (b.size()<3) return;
+	if (b.size()==0) return;
 	if (!boundingBox.Overlaps(b.boundingBox)) {
 		append(b);
 		return;
@@ -826,7 +1361,8 @@ void PosMscPolygonList::Union(const PosMscPolygon &b, InvMscPolygonList &holes)
 	for (auto i=begin(); i!=end(); /*none*/)
 		switch (i->PolyProcess(current_blob, s, h, true)) {
 		case MscPolygon::OK:             //real union with an existing surface 
-			assert(s.size()>0);
+			if (s.size()==0) 
+				assert(s.size()>0);
 			current_blob.swap(*s.begin());   //update blob with a positive union 
 			//add holes. Holes formed this way cannot overlap with existing ones
 			//since they are fully outside of the original surfaces
@@ -842,7 +1378,7 @@ void PosMscPolygonList::Union(const PosMscPolygon &b, InvMscPolygonList &holes)
 		case MscPolygon::SAME:           //no change
 			return;
 		case MscPolygon::B_INSIDE_A:     //b (and the blob) is fully contained in existing surface
-			return;                      //here we need to check for nested polygons XXX
+			return;                      //here we need to check for nested polygons 
 		case MscPolygon::B_IS_EMPTY:     //should have been caught above
 		case MscPolygon::BOTH_EMPTY:     //oh my
 		case MscPolygon::APART_INSIDE:   //this can only be us being inside-out (= a hole)
@@ -855,7 +1391,7 @@ void PosMscPolygonList::Union(const PosMscPolygon &b, InvMscPolygonList &holes)
 
 void PosMscPolygonList::Intersect(const PosMscPolygon &b)
 {
-	if (b.size()<3) return;
+	if (b.size()==0) return;
 	if (!boundingBox.Overlaps(b.boundingBox)) {
 		clear();
 		return;
@@ -866,7 +1402,8 @@ void PosMscPolygonList::Intersect(const PosMscPolygon &b)
 		switch (i->PolyProcess(b, s, h, false)) {
 		case MscPolygon::B_INSIDE_A:     //b is fully in one of our members
 		case MscPolygon::SAME:     
-			swap(s);                     //keep the one (in s), erase all else
+			clear();                     //return just b
+			append(b);
 			return;                      //we will hit no other element
 		case MscPolygon::A_IS_EMPTY:
 		case MscPolygon::APART_OUTSIDE:  //go to next in queue, remove current one
@@ -893,7 +1430,7 @@ void PosMscPolygonList::Intersect(const PosMscPolygon &b)
 //and thus shall be added to holes
 void PosMscPolygonList::Intersect(const InvMscPolygon &b, InvMscPolygonList &holes)
 {
-	if (b.size()<3) return;
+	if (b.size()==0) return;
 	if (!boundingBox.Overlaps(b.boundingBox)) 
 		return;
 	PosMscPolygonList s;
@@ -941,14 +1478,18 @@ void PosMscPolygonList::Intersect(const PosMscPolygonList &b)
 			switch (i->PolyProcess(*j, s, h, false)) {
 			case MscPolygon::A_INSIDE_B:     //this one is fully inside b=>keep it
 			case MscPolygon::SAME:     
-				j = b.end();                 //this i is handled permanently
+				j = --b.end();                 //this i is handled permanently
+				result.append(*i);           //append *i;
+				break;
 			case MscPolygon::B_INSIDE_A:     //b is fully in one of our members
+				result.append(b);
+				break;
 			case MscPolygon::OK:             //real intersect with our polygon
 				result.append(s);
 				break;                       //we will hit no other element
 			case MscPolygon::A_IS_EMPTY:
 			case MscPolygon::BOTH_EMPTY:   
-				j = b.end();
+				j = --b.end();
 			case MscPolygon::APART_OUTSIDE:  //go to next in queue, remove current one
 			case MscPolygon::B_IS_EMPTY:     //no action 
 				break;                       
@@ -964,7 +1505,7 @@ void PosMscPolygonList::Intersect(const PosMscPolygonList &b)
 //this is very much like a union of holes
 void InvMscPolygonList::Intersect(const InvMscPolygon &b, PosMscPolygonList &surfaces)
 {
-	if (b.size()<3) return;
+	if (b.size()==0) return;
 	if (!boundingBox.Overlaps(b.boundingBox)) {
 		append(b);
 		return;
@@ -991,7 +1532,7 @@ void InvMscPolygonList::Intersect(const InvMscPolygon &b, PosMscPolygonList &sur
 		case MscPolygon::SAME:           //no change to us
 			return;
 		case MscPolygon::A_INSIDE_B:     //the blob hole is inside one of our holes
-			return;                      //here we need to check for nested holes XXX
+			return;                      //here we need to check for nested holes 
 		case MscPolygon::B_IS_EMPTY:     //should have been caught above
 		case MscPolygon::BOTH_EMPTY:     //oh my
 		case MscPolygon::APART_OUTSIDE:  //this can only be for two holes
@@ -1007,7 +1548,7 @@ void InvMscPolygonList::Intersect(const InvMscPolygon &b, PosMscPolygonList &sur
 //this means b is fully inside one of the holes and will need to be added as an extra positive surface
 bool InvMscPolygonList::Union(const PosMscPolygon &b)
 {
-	if (b.size()<3) return false;
+	if (b.size()==0) return false;
 	if (!boundingBox.Overlaps(b.boundingBox)) {
 		return false;
 	}
@@ -1056,11 +1597,15 @@ void InvMscPolygonList::Union(const InvMscPolygonList &b)
 			switch (i->PolyProcess(*j, s, h, true)) {
 			case MscPolygon::SAME:           //well, b is clockwise, we are not->this cannot be
 			case MscPolygon::B_INSIDE_A:     //hole in i is fully inside hole in j
+				result.append(*i);
 				j = b.end();
+				break;
 			case MscPolygon::A_INSIDE_B:     //hole in j is fully inside hole in i
+				result.append(*j);
+				break;
 			case MscPolygon::OK:             //real union with an existing surface 
 				assert (s.size()==0);        //union should really be the universe minus some holes in h
-				result.append(h);            //insert them before i
+				result.splice_with_bb(h);            //insert 
 				break;
 			case MscPolygon::A_IS_EMPTY:
 			case MscPolygon::BOTH_EMPTY:     //skip this hole in a
@@ -1086,11 +1631,12 @@ bool MscArea::IsWithin(XY p) const
 {
 	if (surfaces.boundingBox.IsWithin(p) == WI_OUTSIDE) return WI_OUTSIDE;
 	is_within_t ret;
+	int dummy;
 	for (auto i = holes.begin(); i!= holes.end(); i++) 
-		if (WI_INSIDE == (ret = i->IsWithin(p))) continue; //holes are outside-in, this means outside the hole
+		if (WI_INSIDE == (ret = i->IsWithin(p, dummy))) continue; //holes are outside-in, this means outside the hole
 		else return ret; //on edge, vertex or in a hole (marked by WI_OUTSIDE)
 	for (auto i = surfaces.begin(); i!= surfaces.end(); i++) 
-		if (WI_OUTSIDE == (ret = i->IsWithin(p))) continue; 
+		if (WI_OUTSIDE == (ret = i->IsWithin(p, dummy))) continue; 
 		else return ret; //on edge, vertex or in a surface 
 	return WI_OUTSIDE;
 }

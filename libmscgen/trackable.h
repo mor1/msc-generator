@@ -4,7 +4,10 @@
 #include <set>
 #include <climits>
 #include <cmath>
+#include <utility>
 #include "error.h" //for file_line
+
+using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
 
 class XY {
 public:
@@ -19,11 +22,15 @@ public:
     double DotProduct(XY B) const         {return x*B.x+y*B.y;} 
     XY     operator *(double scale) const {return XY(x*scale, y*scale);}
     XY     operator *=(double scale)      {x*=scale; y*=scale; return *this;}
+    XY     operator /(double scale) const {return XY(x/scale, y/scale);}
+    XY     operator /=(double scale)      {x/=scale; y/=scale; return *this;}
 	double PerpProduct(XY B) const        {return x*B.y - y*B.x;}        //This is this(T) * B
 	double length(void) const             {return sqrt(x*x+y*y);}
-	bool operator ==(const XY& p) const {return x==p.x && y==p.y;}
-	bool operator !=(const XY& p) const {return x!=p.x || y!=p.y;}
-	XY operator -() {return XY(-x, -y);}
+	bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
+	XY	   operator -() const             {return XY(-x, -y);}
+	bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
+	XY     Rotate90CW() const             {return XY(-y, x);}
+	XY     Rotate90CCW() const            {return XY(y, -x);}
 };
 
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
@@ -72,7 +79,7 @@ struct Block {
     Block(double sx, double dx, double sy, double dy, TrackableElement *a=NULL) : arc(a),
         drawType(DRAW_NORMAL), findType(FIND_NORMAL),
         x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
-    Block(XY ul, XY dr, TrackableElement *a=NULL) : arc(a), drawType(DRAW_NORMAL), findType(FIND_NORMAL) {
+    Block(const XY &ul, const XY &dr, TrackableElement *a=NULL) : arc(a), drawType(DRAW_NORMAL), findType(FIND_NORMAL) {
         x.from = ul.x<dr.x?ul.x:dr.x; x.till = ul.x>dr.x?ul.x:dr.x;
         y.from = ul.y<dr.y?ul.y:dr.y; y.till = ul.y>dr.y?ul.y:dr.y;
     }
@@ -96,7 +103,7 @@ struct Block {
         {return XY(x.from, y.till);}
     XY LowerLeft(void) const
         {return XY(x.from, y.till);}
-    is_within_t IsWithin(XY p) const {
+    is_within_t IsWithin(const XY &p) const {
 		if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
 		if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;
 		if (x.IsWithin(p.x) == WI_ON_VERTEX && y.IsWithin(p.y) == WI_ON_VERTEX) return WI_ON_VERTEX;
@@ -105,7 +112,7 @@ struct Block {
         {x += p.x; y += p.y; return *this;}
     Block & operator +=(const Block &b)
         {x += b.x; y += b.y; return *this;}
-	Block &Shift(XY a) 
+	Block &Shift(const XY &a) 
 		{x.Shift(a.x); y.Shift(a.y); return *this;}
 	void Transpose() {std::swap(x,y);}
 };
@@ -115,7 +122,7 @@ bool BoundingBlock(const BlockContainer &container, Block &ret, bool reuse=false
 {
     if (container.size()==0) return false;
 	if (!reuse) ret.MakeInvalid();
-    for(typename BlockContainer::const_iterator i=container.begin(); i!=container.end(); i++) {
+    for(typename BlockContainer::const_iterator i=container.begin(); !(i==container.end()); i++) {
         if (ret.x.from > i->x.from) ret.x.from = i->x.from;
         if (ret.x.till < i->x.till) ret.x.till = i->x.till;
         if (ret.y.from > i->y.from) ret.y.from = i->y.from;
@@ -127,7 +134,7 @@ bool BoundingBlock(const BlockContainer &container, Block &ret, bool reuse=false
 template <typename BlockContainer>
 const Block *InWhich(const BlockContainer &container, XY p) //search backwards - as drawing z order decreases
 {
-    for (typename BlockContainer::const_reverse_iterator i=container.rbegin(); i!=container.rend(); i++)
+    for (auto i=container.rbegin(); !(i==container.rend()); i++)
         if (i->findType==Block::FIND_NORMAL && i->IsWithin(p)) return &(*i);
     return NULL;
 };
