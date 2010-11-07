@@ -31,9 +31,109 @@
 #include <string>
 #include <cmath>
 
+#include "geometry_xarea.h"
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+void test_geo(cairo_t *cr, int x, int y, bool clicked) 
+{
+	using geometry::GeoArea;
+	using geometry::GeoRectangle;
+	using geometry::GeoTriangle;
+	using geometry::GeoCircle;
+	using geometry::GeoEllipse;
+	using namespace geometry;
+
+	static GeoArea tri, boxhole, cooomplex, cooomplex2;
+	if (tri.IsEmpty()) {
+		tri = GeoRectangle(30,50,60,70);
+		tri += GeoTriangle(geometry::XY(50,90), geometry::XY(100,60), geometry::XY(40,20));
+		boxhole += GeoRectangle(130,170,60,70);
+		boxhole += GeoRectangle(160,170,60,140);
+		boxhole += GeoRectangle(130,140,60,140);
+		boxhole += GeoRectangle(130,170,130,140);
+
+		cooomplex = boxhole + tri;
+
+		cooomplex2 = GeoRectangle(110, 200, 80, 120);
+		cooomplex2 -= GeoRectangle(120, 190, 90, 110);
+
+		cooomplex2 += cooomplex;
+		cooomplex2 += GeoArea(cooomplex2).Shift(geometry::XY(15,15));
+		cooomplex2.Shift(geometry::XY(200,0));
+	}
+
+	//mscarea circle(xy(70,50), 30);
+
+	GeoEllipse circle(geometry::XY(200, 200), 60, 30, 30);
+	GeoEllipse circle2(geometry::XY(x, y), 60, 30, 150);
+	//GeoRectangle box(x-30, x+30, y-20, y+20);
+	circle += GeoRectangle(200,300, 170,190);
+	circle2 += GeoRectangle(x,x+100, y+15,y+30);
+
+	GeoArea boxhole2 = GeoRectangle(110, 200, 80, 120);
+	boxhole2 -= GeoRectangle(120, 190, 90, 110);
+	boxhole2.Shift(geometry::XY(x-110, y-80));
+
+	circle.Line(cr);
+	circle2.Line(cr);
+
+	cairo_set_source_rgb(cr, 1, 0, 0);
+	(circle * circle2).Fill(cr); 
+//	(pl2 + circle).Line(cr);
+	cairo_set_source_rgb(cr, 0, 0, 1);
+//	(pl3 * circle).Fill(cr);
+	cairo_set_source_rgb(cr, 0, 0, 0);
+//	(pl4 * circle).Fill(cr);
+
+	//double r[4];
+	//int a = quartic_solve(1, 0, 0, 0, 0, r);
+	//int b = cubic_solve(1, -6, 23, -6, r);
+	//for (int i = 0; i<b; i++) {
+	//	double k = cubic_substitute(1, -6, 23, -6, r[i]);
+	//	k = k;
+	//}
+	//int c = cubic_solve(1, -6, 11, -6, r);
+
+
+	//geometry::XY off(150, 30);
+	//PolyEdge e1(geometry::XY(x-75, y));
+	//PolyEdge e2(geometry::XY(200,200), 50, 100, 0);
+	//e2.s = 0 * (M_PI/180);
+	//e2.e = 360 * (M_PI/180);
+	//PolyEdge e3(geometry::XY(x, y), 100, 50, 0);
+	//e3.s = 0 * (M_PI/180);
+	//e3.e = 360 * (M_PI/180);
+
+	//cairo_move_to(cr, e3.start.x, e3.start.y);
+	//e3.Path(cr, e3.start+off.Rotate90CW());
+	//cairo_stroke(cr);
+	//cairo_move_to(cr, e2.start.x, e2.start.y);
+	//e2.Path(cr, e2.start+off);
+	//cairo_stroke(cr);
+	//
+	//(GeoEllipse(geometry::XY(200,200), 50, 100, 0) * GeoEllipse(geometry::XY(x, y), 100, 50, 0)).Fill(cr);
+
+	//geometry::XY xy[4];
+	//double pos1[4], pos2[4];
+	//int num = PolyEdge::Crossing(e3, e3.start+off.Rotate90CW(), e2, e2.start+off, xy, pos1, pos2);
+	//for (int i=0; i<num; i++) {
+	//	cairo_set_source_rgba(cr, 0, 1, 0, 0.8);
+	//	cairo_arc(cr, xy[i].x, xy[i].y, 5, 0, 2*3.14);
+	//	cairo_close_path(cr);
+	//	cairo_fill(cr);
+
+	//	char buff[200];
+	//	sprintf(buff, "%d: pos1:%f, pos2:%f", i, pos1[i], pos2[i]);
+	//	cairo_move_to(cr, xy[i].x+10, xy[i].y);
+	//	cairo_show_text(cr, buff);
+	//}
+}
+
+
 
 // CMscGenView
 
@@ -384,44 +484,8 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 				                  pApp->m_trackLineColor, pApp->m_trackFillColor);
 	}
 
-	//POLYGON TESTING XXX
-	MscArea pl, pl2, pl3, pl4;
-	pl += Block(30,50,60,70);
-	pl += MscArea(XY(50,90), XY(100,60), XY(40,20));
-	pl += Block(130,170,60,70);
-	pl += Block(160,170,60,140);
-	pl += Block(130,140,60,140);
-	pl += Block(130,170,130,140);
-
-	pl3 = Block(110, 200, 80, 120);
-	pl3 -= Block(120, 190, 90, 110);
-
-	pl3 += pl;
-
-	pl2 = pl3;
-	pl = pl2;
-	pl3.Shift(XY(15,15));
-	pl += pl3;
-	pl4 = pl2 - pl3;
-	pl.Shift(XY(200,0));
-
-	//pl = MscArea(20,50, 20,80) + MscArea(90, 120, 20, 80);
-
-	//MscArea circle(XY(70,50), 30);
-	MscArea circle(XY(m_hoverPoint.x, m_hoverPoint.y), 30);
-	
-	cairo_set_source_rgb(cr_dest, 1, 0, 0);
-	(pl + circle).Line(cr_dest); 
-	(pl2 * circle).Fill(cr_dest);
-	cairo_set_source_rgb(cr_dest, 0, 0, 1);
-	(pl3 * circle).Fill(cr_dest);
-	cairo_set_source_rgb(cr_dest, 0, 0, 0);
-	(pl4 * circle).Fill(cr_dest);
-
-	cairo_set_source_rgba(cr_dest, 0, 1, 0, 0.8);
-	cairo_arc(cr_dest, m_hoverPoint.x, m_hoverPoint.y, 5, 0, 2*3.14);
-	cairo_close_path(cr_dest);
-	cairo_fill(cr_dest);
+	//ToDo: POLYGON TESTING XXX
+	test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
 
 	//Cleanup
 	cairo_destroy(cr_dest);

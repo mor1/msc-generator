@@ -1181,7 +1181,7 @@ void CMscGenDoc::StartFadingTimer()
 
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 3000; //millisecons
+	const double fade_completely = 30000; //millisecons XXX, shoud be 300
 	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
 	bool keep_coming_back = false;
 	Block bounding;

@@ -210,12 +210,12 @@ int MscCrossPointStore::RateCrosspoint(int one_i, int two_j, XY p, double one_po
 	//whch would mean a degenerate polynom, since we assume we get good polynoms)
 	if (one_two_angle < one_one_angle) {  //case #1 for two: two goes outside polygon one
 		if (two_one_angle < two_two_angle){          //..\1 2->     //the two polygons merely touch at a vertex
-			contain =  MscPolygon::APART_OUTSIDE;  //...\ /,,,    //(from the outside)                   
+			contain =  MscPolygon::APART_OUTSIDE;    //...\ /,,,    //(from the outside)                   
 		    return 0;                                //1<--o---2                         
 		}                                            //                                   
 		contain = MscPolygon::A_INSIDE_B;  //not entirealy fair as they can be true intersects
-		                                       //but this value will be used only if the two polygons
-		                                       //touch only at vertices or edges, in which case a is in b
+		                                   //but this value will be used only if the two polygons
+		                                   //touch only at vertices or edges, in which case a is in b
 		if (do_union)        //::::|....         //::\1,,/2         //  2^,,,,
 		    return 2;        //::::|....    OR   //:::\,/      OR   //   |,,,,
 		else                 //<---o---1         //1<--o-->2        //---o--->1
@@ -305,8 +305,7 @@ PosMscPolygon::PosMscPolygon(const XY &c, double radius_x, double radius_y, doub
 	if (radius_y==0) radius_y = radius_x;
 	PolyEdge edge(c, radius_x, radius_y, tilt_degree);
 	clockwise = true;
-	boundingBox.MakeInvalid();
-	edge.AddToBoundingBox(boundingBox);
+	boundingBox = edge.CalculateBoundingBox();
 	push_back(edge);
 }
 
@@ -402,8 +401,9 @@ MscPolygon::poly_result_t MscPolygon::CheckContainmentHelper(const MscPolygon &b
 {
 	int edge;
 	poly_result_t retval;
-	for (int i=0; i<size(); i++) 
-		switch (b.IsWithin(at(i).start, edge)) {      //iswithin also honors clockwiseness
+	for (int i=0; i<size(); i++)
+		//if we are a single ellipsis, use our center point, else use a vertex
+		switch (b.IsWithin(size()==1 ? at(i).center : at(i).start, edge)) {      //iswithin also honors clockwiseness
 		case WI_INSIDE:  return A_INSIDE_B;
 		case WI_OUTSIDE: return B_INSIDE_A;
 		case WI_ON_EDGE: 
@@ -538,7 +538,6 @@ MscPolygon::poly_result_t MscPolygon::PolyProcess(const MscPolygon &b, PosMscPol
 					result[result.size()-1] = current_xy_edge; //if so overwrite last
 				else 
 					result.push_back(current_xy_edge);
-				current_xy_edge.AddToBoundingBox(result.boundingBox);
 				do_not_insert = current_xy_edge.start;
 			} 
 		} while (current.pos ==-1 || poly->Lookup(current)->second.edge.start.x != -1); 
@@ -548,7 +547,7 @@ MscPolygon::poly_result_t MscPolygon::PolyProcess(const MscPolygon &b, PosMscPol
 		poly->Remove(current);
 
 		//if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
-		if (result[0] == result[result.size()-1])
+		if (result[0].start == result[result.size()-1].start)
 			result.pop_back();
 		//Also, the beginning point (result[0]) can fall on an edge 
 		//if both the last and the first edge are straight and are in-line
@@ -565,12 +564,13 @@ MscPolygon::poly_result_t MscPolygon::PolyProcess(const MscPolygon &b, PosMscPol
 			result.pop_back();
 
 		//go around and set "s" value for curvy edges. This was not known previously
-		for (int i=0; i<result.size(); i++)
+		//after that compute the bounding box
+		for (int i=0; i<result.size(); i++) {
 			if (result[i].type != PolyEdge::STRAIGHT)
 				result[i].RemoveAfterPoint(result.at_next(i).start);
-
+			result.boundingBox += result[i].CalculateBoundingBox();
+		}
 		result.clockwise = result.CalculateClockwise();
-
 		result.append_to_surfaces_or_holes(surfaces, holes);
 	}
 	return OK;
@@ -578,24 +578,24 @@ MscPolygon::poly_result_t MscPolygon::PolyProcess(const MscPolygon &b, PosMscPol
 
 bool MscPolygon::CalculateClockwise() const
 {
-	//determine if this is clockwise. We can treat curving edges as straight
+	//determine if this is clockwise. 
 	if (size()>2) {
 		double angles = 0;
-		XY prev = at_prev(0).type==PolyEdge::STRAIGHT ? at_prev(0).start : at_prev(0).center;
+		XY prev = at(0).PrevTangentPoint(0, at_prev(0));
 		for (int i=0; i<size(); i++) 
 			if (at(i).type==PolyEdge::STRAIGHT) {
 				angles += angle_degrees(angle(at(i).start, at_next(i).start, prev));
 				prev = at(i).start;
 			} else {
-				//we calculate as an extra vertex in the center
-				//if counterclockwise, it is really the "outer degree"
-				angles += angle_degrees(angle(at(i).start, at(i).center, prev));
-				if (at(i).clockwise_arc)
-					angles += angle_degrees(angle(at(i).center, at_next(i).start, at(i).start));
-				else
-					angles += 360 - angle_degrees(angle(at(i).center, at_next(i).start, at(i).start));
-				angles -= 180; //substract since we added a vertex not accounted at the final check
-				prev = at(i).center;
+				angles += angle_degrees(angle(at(i).start, at(i).prevnexttangent_curvy(0, true), prev));
+				prev = at(i).prevnexttangent_curvy(1, false);
+				if (at(i).clockwise_arc) {
+					if (at(i).s<at(i).e) angles -= (at(i).e-at(i).s)*(180./M_PI);
+					else                 angles -= 360 - (at(i).s-at(i).e)*(180./M_PI);
+				} else {
+					if (at(i).e<at(i).s) angles += (at(i).s-at(i).e)*(180./M_PI);
+					else                 angles += 360 - (at(i).e-at(i).s)*(180./M_PI);
+				}
 			}
 		//angle is (n-2)*180 for clockwise, (n+2)*180 for counterclockwise, we draw the line at n*180
 		if (angles/180. - floor(angles/180.)*180. >= 1)

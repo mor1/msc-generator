@@ -65,6 +65,8 @@ protected:
 	void removebeforepoint_curvy(const XY &p);
 	void removeafterpoint_curvy(const XY &p);
 
+	void transpose_curvy_non_tilted();
+
 public:
 	typedef enum {STRAIGHT, CURVY_NON_TILTED, CURVY_TILTED} edge_t;
 	edge_t type;
@@ -75,6 +77,7 @@ public:
 	double radius1, radius2;
 	double tilt;   //supposedly between [0..pi/2)
 	double sintilt, costilt; //pre-computed values
+	Block  boundingBox;      //used only for curvy edge
 
 	PolyEdge() : type(STRAIGHT) {}
 	explicit PolyEdge(const XY &xy) : start(xy), type(STRAIGHT) {}
@@ -95,7 +98,7 @@ public:
 	//Removes the part of the edge or curve after point p. Assumes p lies on us.
 	PolyEdge&  RemoveAfterPoint(const XY &p);
 	//Adds this point (for straight) or full curve to a bounding box
-	Block&     AddToBoundingBox(Block &b) const;
+	Block&     CalculateBoundingBox();
 	//returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
 	XY         PrevTangentPoint(double pos, const PolyEdge &prev_vertex) const;
 	//returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.

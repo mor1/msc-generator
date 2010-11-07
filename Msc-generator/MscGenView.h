@@ -22,7 +22,6 @@
 #pragma once
 
 #include "MscGenDoc.h"
-#include "polygon.h"
 
 #define FADE_TIMER 30
 
