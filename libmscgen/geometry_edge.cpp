@@ -46,6 +46,7 @@
 */
 
 #include <cassert>
+#include <vector>
 #include <algorithm>
 #include "geometry_edge.h"
 
@@ -88,10 +89,8 @@ inline double sqr(double n)
 	return n*n;
 }
 
-typedef long double Double;
-
 //Solve quadratic equation m_afCoeff[0] is the constant, m_afCoeff[2] is the coeff of x^2 
-unsigned solve_degree2 (const Double m_afCoeff[3], Double afRoot[2]) 
+unsigned solve_degree2 (const double m_afCoeff[3], double afRoot[2]) 
 {
     // compute real roots to c[2]x^2+c[1]*x+c[0] = 0
 	if (m_afCoeff[2] == 0) {
@@ -103,14 +102,14 @@ unsigned solve_degree2 (const Double m_afCoeff[3], Double afRoot[2])
 	}
 	
 	// make polynomial monic
-    Double afCoeff[2] = { m_afCoeff[0], m_afCoeff[1] };
+    double afCoeff[2] = { m_afCoeff[0], m_afCoeff[1] };
     if ( m_afCoeff[2] != 1.0f ) {
-        Double fInv = 1.0f/m_afCoeff[2];
+        double fInv = 1.0f/m_afCoeff[2];
         afCoeff[0] *= fInv;
         afCoeff[1] *= fInv;
     }
 
-    Double fDiscr = afCoeff[1]*afCoeff[1]-4.0f*afCoeff[0];
+    double fDiscr = afCoeff[1]*afCoeff[1]-4.0f*afCoeff[0];
     if ( test_zero(fDiscr) ) {
         afRoot[0] = 0.5f*(-afCoeff[1]);
 		return 1;
@@ -126,35 +125,35 @@ unsigned solve_degree2 (const Double m_afCoeff[3], Double afRoot[2])
 }
 
 //Solve cubic equation m_afCoeff[0] is the constant, m_afCoeff[3] is the coeff of x^3 
-unsigned solve_degree3 (const Double m_afCoeff[4], Double afRoot[3])
+unsigned solve_degree3 (const double m_afCoeff[4], double afRoot[3])
 {
     // compute real roots to c[3]*x^3+c[2]*x^2+c[1]*x+c[0] = 0
 	if (m_afCoeff[3] == 0)
 		return solve_degree2(m_afCoeff, afRoot);
 
     // make polynomial monic
-    Double afCoeff[3] = { m_afCoeff[0], m_afCoeff[1], m_afCoeff[2] };
+    double afCoeff[3] = { m_afCoeff[0], m_afCoeff[1], m_afCoeff[2] };
     if ( m_afCoeff[3] != 1.0f ) {
-        Double fInv = 1.0f/m_afCoeff[3];
+        double fInv = 1.0f/m_afCoeff[3];
         afCoeff[0] *= fInv;
         afCoeff[1] *= fInv;
         afCoeff[2] *= fInv;
     }
 
     // convert to y^3+a*y+b = 0 by x = y-c[2]/3 and
-    Double fA = (1.0f/3.0f)*(3.0f*afCoeff[1]-afCoeff[2]*afCoeff[2]);
-    Double fB = (1.0f/27.0f)*(2.0f*afCoeff[2]*afCoeff[2]*afCoeff[2] -
+    double fA = (1.0f/3.0f)*(3.0f*afCoeff[1]-afCoeff[2]*afCoeff[2]);
+    double fB = (1.0f/27.0f)*(2.0f*afCoeff[2]*afCoeff[2]*afCoeff[2] -
         9.0f*afCoeff[1]*afCoeff[2]+27.0f*afCoeff[0]);
-    Double fOffset = (1.0f/3.0f)*afCoeff[2];
+    double fOffset = (1.0f/3.0f)*afCoeff[2];
 
-    Double fDiscr = 0.25f*fB*fB + (1.0f/27.0f)*fA*fA*fA;
-    Double fHalfB = 0.5f*fB;
+    double fDiscr = 0.25f*fB*fB + (1.0f/27.0f)*fA*fA*fA;
+    double fHalfB = 0.5f*fB;
     if ( test_zero(fDiscr) ) {    //3 real roots, but at least two are equal
-        Double fTemp;
+        double fTemp;
         if ( fHalfB >= 0.0f )
-            fTemp = -pow(fHalfB, Double(1.0/3.0));
+            fTemp = -pow(fHalfB, double(1.0/3.0));
 		else
-            fTemp = pow(-fHalfB, Double(1.0/3.0));
+            fTemp = pow(-fHalfB, double(1.0/3.0));
 		if (test_zero(fTemp)) {
 			afRoot[0] = -fOffset;
 			return 1;
@@ -167,26 +166,26 @@ unsigned solve_degree3 (const Double m_afCoeff[4], Double afRoot[3])
     if ( fDiscr > 0.0f )  // 1 real, 2 complex roots
     {
         fDiscr = sqrt(fDiscr);
-        Double fTemp = -fHalfB + fDiscr;
+        double fTemp = -fHalfB + fDiscr;
         if ( fTemp >= 0.0f )
-            afRoot[0] = pow(fTemp, Double(1.0/3.0));
+            afRoot[0] = pow(fTemp, double(1.0/3.0));
         else
-            afRoot[0] = -pow(-fTemp, Double(1.0/3.0));
+            afRoot[0] = -pow(-fTemp, double(1.0/3.0));
         fTemp = -fHalfB - fDiscr;
         if ( fTemp >= 0.0f )
-            afRoot[0] += pow(fTemp, Double(1.0/3.0));
+            afRoot[0] += pow(fTemp, double(1.0/3.0));
         else
-            afRoot[0] -= pow(-fTemp, Double(1.0/3.0));
+            afRoot[0] -= pow(-fTemp, double(1.0/3.0));
         afRoot[0] -= fOffset;
         return 1;
     }
     else if ( fDiscr < 0.0f ) 
     {
-        Double fDist = sqrt(-1.0/3.0*fA);
-        Double fAngle = (1.0/3.0)*atan2(sqrt(-fDiscr),-fHalfB);
-        Double fCos = cos(fAngle);
-        Double fSin = sin(fAngle);
-		static const Double sqrt3 = sqrt(3.0);
+        double fDist = sqrt(-1.0/3.0*fA);
+        double fAngle = (1.0/3.0)*atan2(sqrt(-fDiscr),-fHalfB);
+        double fCos = cos(fAngle);
+        double fSin = sin(fAngle);
+		static const double sqrt3 = sqrt(3.0);
         afRoot[0] = 2.0f*fDist*fCos-fOffset;
         afRoot[1] = -fDist*(fCos+sqrt3*fSin)-fOffset;
         afRoot[2] = -fDist*(fCos-sqrt3*fSin)-fOffset;
@@ -199,16 +198,16 @@ unsigned solve_degree3 (const Double m_afCoeff[4], Double afRoot[3])
 //Solve 4th degree equation m_afCoeff[0] is the constant, m_afCoeff[4] is the coeff of x^4 
 //Based on David Eberly's code at
 //http://svn.berlios.de/wsvn/lwpp/incubator/deeppurple/math/FreeMagic/Source/Core/MgcPolynomial.cpp
-unsigned solve_degree4(const Double m_afCoeff[5], Double afRoot[4]) 
+unsigned solve_degree4(const double m_afCoeff[5], double afRoot[4]) 
 {
     // compute real roots to c[4]*x^4+c[3]*x^3+c[2]*x^2+c[1]*x+c[0] = 0
 	if (m_afCoeff[4] == 0)
 		return solve_degree3(m_afCoeff, afRoot);
 
 	// make polynomial monic
-    Double afCoeff[4] = { m_afCoeff[0], m_afCoeff[1], m_afCoeff[2], m_afCoeff[3] };
+    double afCoeff[4] = { m_afCoeff[0], m_afCoeff[1], m_afCoeff[2], m_afCoeff[3] };
     if ( m_afCoeff[4] != 1.0f ) {
-        Double fInv = 1.0f/m_afCoeff[4];
+        double fInv = 1.0f/m_afCoeff[4];
         afCoeff[0] *= fInv;
         afCoeff[1] *= fInv;
         afCoeff[2] *= fInv;
@@ -216,33 +215,33 @@ unsigned solve_degree4(const Double m_afCoeff[5], Double afRoot[4])
     }
 
     // reduction to resolvent cubic polynomial
-    Double kResolve[4];
+    double kResolve[4];
     kResolve[3] = 1.0f;
     kResolve[2] = -afCoeff[2];
     kResolve[1] = afCoeff[3]*afCoeff[1]-4.0f*afCoeff[0];
     kResolve[0] = -afCoeff[3]*afCoeff[3]*afCoeff[0] +
         4.0f*afCoeff[2]*afCoeff[0]-afCoeff[1]*afCoeff[1];
-    Double afResolveRoot[3];
+    double afResolveRoot[3];
 	int iResolveCount = solve_degree3(kResolve, afResolveRoot);
-    Double fY = afResolveRoot[0];
+    double fY = afResolveRoot[0];
 
 	unsigned num = 0;
-    Double fDiscr = 0.25f*afCoeff[3]*afCoeff[3]-afCoeff[2]+fY;
+    double fDiscr = 0.25f*afCoeff[3]*afCoeff[3]-afCoeff[2]+fY;
     if ( test_zero(fDiscr) ) {
-        Double fT2 = fY*fY-4.0f*afCoeff[0];
+        double fT2 = fY*fY-4.0f*afCoeff[0];
         if ( test_positive(fT2) ) {
             if ( fT2 < 0.0f ) // round to zero
                 fT2 = 0.0f;
             fT2 = 2.0f*sqrt(fT2);
-            Double fT1 = 0.75f*afCoeff[3]*afCoeff[3]-2.0f*afCoeff[2];
+            double fT1 = 0.75f*afCoeff[3]*afCoeff[3]-2.0f*afCoeff[2];
             if ( test_positive(fT1+fT2) ) {
-                Double fD = sqrt(fT1+fT2);
+                double fD = sqrt(fT1+fT2);
                 afRoot[0] = -0.25f*afCoeff[3]+0.5f*fD;
                 afRoot[1] = -0.25f*afCoeff[3]-0.5f*fD;
                 num = 2;
             }
             if ( test_positive(fT1-fT2) ) {
-                Double fE = sqrt(fT1-fT2);
+                double fE = sqrt(fT1-fT2);
                 afRoot[num++] = -0.25f*afCoeff[3]+0.5f*fE;
                 afRoot[num++] = -0.25f*afCoeff[3]-0.5f*fE;
             }
@@ -251,26 +250,26 @@ unsigned solve_degree4(const Double m_afCoeff[5], Double afRoot[4])
     }
 
     if ( fDiscr > 0.0f ) {
-        Double fR = sqrt(fDiscr);
-        Double fT1 = 0.75f*afCoeff[3]*afCoeff[3]-fR*fR-2.0f*afCoeff[2];
-        Double fT2 = (4.0f*afCoeff[3]*afCoeff[2]-8.0f*afCoeff[1]-
+        double fR = sqrt(fDiscr);
+        double fT1 = 0.75f*afCoeff[3]*afCoeff[3]-fR*fR-2.0f*afCoeff[2];
+        double fT2 = (4.0f*afCoeff[3]*afCoeff[2]-8.0f*afCoeff[1]-
             afCoeff[3]*afCoeff[3]*afCoeff[3])/(4.0f*fR);
 
-        Double fTplus = fT1+fT2;
+        double fTplus = fT1+fT2;
         if ( test_zero(fTplus) ) {
 			afRoot[0] = -0.25f*afCoeff[3]+0.5f*fR;
 			num = 1;
 		} else if ( fTplus >= 0.0f ) {
-            Double fD = sqrt(fTplus);
+            double fD = sqrt(fTplus);
             afRoot[0] = -0.25f*afCoeff[3]+0.5f*(fR+fD);
             afRoot[1] = -0.25f*afCoeff[3]+0.5f*(fR-fD);
             num = 2;
         }
-        Double fTminus = fT1-fT2;
+        double fTminus = fT1-fT2;
         if ( test_zero(fTminus) ) 
             fTminus = 0.0f;
         if ( fTminus >= 0.0f ) {
-            Double fE = sqrt(fTminus);
+            double fE = sqrt(fTminus);
             afRoot[num++] = -0.25f*afCoeff[3]+0.5f*(fE-fR);
             afRoot[num++] = -0.25f*afCoeff[3]-0.5f*(fE+fR);
         }
@@ -280,6 +279,375 @@ unsigned solve_degree4(const Double m_afCoeff[5], Double afRoot[4])
     //if ( fDiscr < 0.0f )
     return 0;
 }
+
+//ensures r is between [0..2pi]
+inline double radiannormalize(double r)
+{
+	if (r>=0 && r<2*M_PI) return r;
+	return r - floor(r/(2*M_PI))*(2*M_PI);
+}
+
+//arc-length in the clockwise dir (msc space!) from s to e
+inline double radianspan(double s, double e)
+{
+	s = radiannormalize(s);
+	e = radiannormalize(e);
+	if (s<=e) return e-s;
+	return 2*M_PI - (s-e);
+}
+
+inline bool between01(double r)
+{
+	return r>=0 && r<=1;
+}
+
+inline XY Ellipse::conv_to_real_space(const XY &p) const
+{
+	if (!tilted) 
+		return center + XY(radius1 * p.x, radius2 * p.y);
+	return center + 
+		XY(radius1 * p.x * costilt - radius2 * p.y * sintilt,
+			radius1 * p.x * sintilt + radius2 * p.y * costilt);
+}
+
+inline XY Ellipse::conv_to_circle_space(const XY &p) const
+{
+	if (!tilted) 
+		return XY((p.x-center.x)/radius1, (p.y-center.y)/radius2);
+	return XY(( (p.x-center.x)*costilt + (p.y-center.y)*sintilt)/radius1, 
+	          (-(p.x-center.x)*sintilt + (p.y-center.y)*costilt)/radius2);
+}
+
+//helper class for ellipsis intersection calculation
+// The quadratic equation representing the ellipse is
+//   Q(x,y) = a*x^2 + b*x*y + c*y^2 + d*x + e*y + f = 0
+// where b*b < 4*a*c is required for this to represent an ellipse.
+struct quadratic_xy_t 
+{
+	double A;
+	double B;
+	double C;
+	double D;
+	double E;
+	double F;
+	quadratic_xy_t() {}
+	quadratic_xy_t(const Ellipse &arc);
+};
+
+quadratic_xy_t::quadratic_xy_t(const Ellipse &arc)
+{
+	if (!arc.tilted) {
+		//equation for non-tilt ellypses is (x-Cx)^2/radius1^2 + (y-Cy)^2/radius2^2 = 1;
+		A = 1/sqr(arc.radius1);                                 //*x^2
+		B = 0;                                                  //*xy
+		C = 1/sqr(arc.radius2);                                 //*y^2
+		D = -2*arc.center.x/sqr(arc.radius1);                   //*x
+		E = -2*arc.center.y/sqr(arc.radius2);                   //*y
+		F = sqr(arc.center.x/arc.radius1) + sqr(arc.center.y/arc.radius2) - 1;
+	} else {
+		A = sqr(arc.costilt/arc.radius1) + sqr(arc.sintilt/arc.radius2);
+		B = 2*arc.costilt*arc.sintilt*(1/sqr(arc.radius1) -  1/sqr(arc.radius2));
+		C = sqr(arc.sintilt/arc.radius1) + sqr(arc.costilt/arc.radius2);
+		D = -2*arc.costilt/sqr(arc.radius1)*(arc.sintilt*arc.center.y + arc.costilt*arc.center.x) +
+			 2*arc.sintilt/sqr(arc.radius2)*(arc.costilt*arc.center.y - arc.sintilt*arc.center.x);
+		E = -2*arc.sintilt/sqr(arc.radius1)*(arc.sintilt*arc.center.y + arc.costilt*arc.center.x) -
+			 2*arc.costilt/sqr(arc.radius2)*(arc.costilt*arc.center.y - arc.sintilt*arc.center.x);
+		F = (sqr(arc.costilt*arc.center.x) + 2*arc.costilt*arc.sintilt*arc.center.x*arc.center.y + sqr(arc.sintilt*arc.center.y)) / sqr(arc.radius1) +
+			(sqr(arc.sintilt*arc.center.x) - 2*arc.costilt*arc.sintilt*arc.center.x*arc.center.y + sqr(arc.costilt*arc.center.y)) / sqr(arc.radius2) -
+			1;
+	}
+}
+
+void get_bezout_determinant (const quadratic_xy_t &one, const quadratic_xy_t & two, double res[5])
+{
+    // polynomial is constructed as a Bezout determinant
+    double fAB = one.A*two.B-two.A*one.B;
+    double fAC = one.A*two.C-two.A*one.C;
+    double fAD = one.A*two.D-two.A*one.D;
+    double fAE = one.A*two.E-two.A*one.E;
+    double fAF = one.A*two.F-two.A*one.F;
+    double fBC = one.B*two.C-two.B*one.C;
+    double fBE = one.B*two.E-two.B*one.E;
+    double fBF = one.B*two.F-two.B*one.F;
+    double fCD = one.C*two.D-two.C*one.D;
+    double fDE = one.D*two.E-two.D*one.E;
+    double fDF = one.D*two.F-two.D*one.F;
+    double fBFpDE = fBF+fDE;
+    double fBEmCD = fBE-fCD;
+
+    res[0] = fAD*fDF-fAF*fAF;
+    res[1] = fAB*fDF+fAD*fBFpDE-2.0f*fAE*fAF;
+    res[2] = fAB*fBFpDE+fAD*fBEmCD-fAE*fAE-2.0f*fAC*fAF;
+    res[3] = fAB*fBEmCD+fAD*fBC-2.0f*fAC*fAE;
+    res[4] = fAB*fBC-fAC*fAC;
+}
+
+//finds a crosspoint of two infinite lines defined by AB and MN
+bool crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r)
+{
+	if (test_zero((B-A).PerpProduct(N-M))) return false;
+	//They are not parallel (and none of them are degenerate)
+	const double t = (B-A).PerpProduct(A-M) / (B-A).PerpProduct(N-M);
+	r = M + (N-M)*t;
+	return true;
+}
+
+//refines the location of a point using crosspoints of tangents
+bool Ellipse::refine_point1(const Ellipse &B, XY &p) const
+{
+	int max_itr = 32;
+	XY p_orig = p;
+	while (--max_itr>=0) {
+		XY c1 =   conv_to_circle_space(p);
+		XY c2 = B.conv_to_circle_space(p);
+		const double closeness = sqr(c1.length()-1) + sqr(c2.length()-1);
+		if (test_zero(closeness)) 
+			return true;
+		const double r1 = circle_space_point2radian_curvy(c1);
+		const double r2 = circle_space_point2radian_curvy(c2);
+		const XY A1 =   conv_to_real_space(XY(cos(r1)        , sin(r1)        ));
+		const XY B1 = B.conv_to_real_space(XY(cos(r2)        , sin(r2)        ));
+		//A1 and B1 are points on the ellipses closest to p
+		//get rid of p, if it is very far from one of the ellipses
+		if ((A1-p_orig).length() > 4 || (B1-p_orig).length() > 4) 
+			return false;
+		const XY A2 =   conv_to_real_space(XY(cos(r1)+sin(r1), sin(r1)-cos(r1)));
+		const XY B2 = B.conv_to_real_space(XY(cos(r2)+sin(r2), sin(r2)-cos(r2)));
+		//Now A1-A2 and B1-B2 are tangents of the two ellipses
+		//We operate on the assumption that the intersection of two tangents is closer to the 
+		//intersection of the ellipses
+		XY p_new; 
+		if (crossing_line_line(A1, A2, B1, B2, p_new) == 0) 
+			return false; //no intersection. Lines are parallel two ellipses, we drop this
+		if (test_zero((p-p_new).length())) 
+			return true; //no improvement, exit
+		p = p_new;
+	}
+	return true;
+}
+
+//take the (at most)
+int Ellipse::refine_crosspoints(int num_y, double y[], const Ellipse &B, 
+	                         const quadratic_xy_t &one, const quadratic_xy_t &two, XY p[]) const
+{
+    // Adjustment for quadratics to allow for relative error testing.
+    //const double fNorm_one = one.A*one.A + 2.0f*one.B*one.B + one.C*one.C;
+    const double fNorm_two = two.A*two.A + 2.0f*two.B*two.B + two.C*two.C;
+
+	//go through all solutions of y, find corresponding x 
+	XY points[8];
+	int num_tmp=0;
+    for (int i = 0; i < num_y; i++) {
+        double ellipse[3], x[2];
+        ellipse[0] = one.F+y[i]*(one.E+y[i]*one.C);
+        ellipse[1] = one.D+y[i]*one.B;
+        ellipse[2] = one.A;
+		const int num_x = solve_degree2(ellipse, x);
+		//find the two closest point pairs between x_one and x_two 
+        for (int j = 0; j < num_x; j++) {
+			points[num_tmp].x = x[j];
+			points[num_tmp].y = y[i];
+			if (refine_point1(B, points[num_tmp]))
+				num_tmp++;
+		}
+    }
+	// now we have max 8 points, where at most 4 are distinct
+	int num = 1;
+	p[0] = points[0];
+	for (int i=1; i<num_tmp; i++) {
+		int j;
+		for (j=0; j<num; j++) 
+			if ((p[j]-points[i]).length()<0.1) 
+				break;  
+		if (j==num) 
+			p[num++] = points[i];
+	}
+	return num;
+}
+
+void Ellipse::transpose_curvy_non_tilted() 
+{
+	_ASSERT(!tilted);
+	std::swap(center.x, center.y);
+	std::swap(radius1, radius2);
+}
+
+
+Ellipse::Ellipse(const XY &c, double radius_x, double radius_y, double tilt_degree) :
+	center(c), radius1(radius_x), radius2(radius_y), tilted(false)
+{
+	if (radius2 == 0) radius2 = radius1; //circle
+	if (radius1 != radius2 && tilt_degree!=0) {
+		tilt_degree -= floor(tilt_degree/180)*180;
+		if (tilt_degree>=90) {
+			tilt_degree -= 90;
+			std::swap(radius1, radius2);
+		}
+		if (tilt_degree) {
+			tilt = tilt_degree * M_PI/180.;
+			sintilt = sin(tilt);
+			costilt = cos(tilt);
+			tilted = true;
+		}
+	}
+}
+
+//returns the radian
+inline double Ellipse::Point2Radian(const XY &p) const
+{
+	XY q = conv_to_circle_space(p);
+	const double d = q.length();
+	const double r = circle_space_point2radian_curvy(q/d);
+	return r;
+	//if (inout) {
+	//	if (test_smaller(d,1)) *inout = WI_INSIDE;
+	//	else if (test_smaller(1,d)) *inout = WI_OUTSIDE;
+	//	else if (test_equal(r,s) || test_equal(r,e)) *inout = WI_ON_VERTEX;
+	//	else *inout = WI_ON_EDGE;
+	//}
+}
+
+
+
+int Ellipse::CrossingEllipse(const Ellipse &B, XY r[], double radian_us[], double radian_b[]) const
+{
+	//Now this is scary shit. Above there is a suite to solve 4th degree equations, we use those
+	//we are interested only in real solutions
+	//for ellipses see http://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
+
+	double y[4];
+	int num_y;
+	const quadratic_xy_t one(*this), two(B);
+	const double TRSHOLD = 1;
+	//if two non-tilted ellipses are aliged by an axis bezout determinant becomes
+	//numerically instable and gives no roots -> we handle this case separately
+	if (!tilted && !B.tilted &&
+		(fabs(center.x - B.center.x) < TRSHOLD || fabs(center.y - B.center.y) < TRSHOLD)) {
+		if (fabs(center.y - B.center.y) < TRSHOLD && fabs(center.x - B.center.x) >= TRSHOLD ) {
+			//In this case we transpose the ellipses call ourself and re-transpose the results
+			Ellipse p1(*this), p2(B);
+			p1.transpose_curvy_non_tilted();
+			p2.transpose_curvy_non_tilted();
+			int num = p1.CrossingEllipse(p2, r, radian_us, radian_b);
+			for (int i=0; i<num; i++) {
+				std::swap(r[i].x, r[i].y);
+				radian_us[i] = radian_us[i]<0.5*M_PI ? 0.5*M_PI-radian_us[i] : 2.5*M_PI-radian_us[i];
+				radian_b [i] = radian_b [i]<0.5*M_PI ? 0.5*M_PI-radian_b [i] : 2.5*M_PI-radian_b [i];
+			}
+			return num;
+		}
+		//in this case multiplying the two ellipse equations by radian1^2 and substracting one from the other
+		//we get a simple quadratic equation in y
+		double quadratic[3];
+		quadratic[2] =                 sqr(radius1/radius2) -              sqr(B.radius1/B.radius2);
+		quadratic[1] =     -2*center.y*sqr(radius1/radius2) + 2*B.center.y*sqr(B.radius1/B.radius2);
+		quadratic[0] = sqr(  center.y)*sqr(  radius1/  radius2) - sqr(  radius1) +
+					  -sqr(B.center.y)*sqr(B.radius1/B.radius2) + sqr(B.radius1);
+		num_y = solve_degree2(quadratic, y);
+		//there are sure to have 2 x values for each y (situation is symmetric to y axis of ellipses)
+	} else {
+		//This code is based on MgcIntr2DElpElp.cpp written by David Eberly.  
+		//http://svn.berlios.de/wsvn/lwpp/incubator/deeppurple/math/FreeMagic/Source/Intersection2D/MgcIntr2DElpElp.cpp
+		//or http://www.geometrictools.com/LibMathematics/Intersection/Wm5IntrEllipse2Ellipse2.cpp
+		//we determine the bezout determinant, which is zero only at y coordinate of intersection points
+		double bezout[5];
+		get_bezout_determinant(one, two, bezout);
+		//Solve the Bezout determinant 
+		num_y = solve_degree4(bezout, y);
+	}
+
+	int num = refine_crosspoints(num_y, y, B, one, two, r);
+
+	_ASSERT(num<=4);
+	//determine radians
+	for (int i=0; i<num; i++) {
+		radian_us[i] =   Point2Radian(r[i]);
+		radian_b [i] = B.Point2Radian(r[i]);
+	}
+	return num;
+}
+
+//returns [0..1] if p is on MN, other value if not
+double point2pos_straight(const XY &M, const XY&N, const XY &p)
+{
+	if (M==N) return p==M ? 0 : -1;
+	if (fabs(M.x-N.x) > fabs(M.y-N.y)) {
+		double t = (p.x-M.x)/(N.x-M.x);
+		if (test_equal(p.y, M.y + (N.y-M.y)*t)) return t;
+	} else {
+		double t = (p.y-M.y)/(N.y-M.y);
+		if (test_equal(p.x, M.x + (N.x-M.x)*t)) return t;
+	}
+	return -1; 
+}
+
+int Ellipse::CrossingStraight(const XY &A, const XY &B, 
+  	                          XY *r, double *radian_us, double *pos_b) const
+{
+	XY M = conv_to_circle_space(A);
+	XY N = conv_to_circle_space(B);
+
+	//See circle intersection with a line specificed by two points
+	//http://mathworld.wolfram.com/Circle-LineIntersection.html
+	double D = M.PerpProduct(N);
+	XY d = N-M;
+	double disc = d.length()*d.length() - D*D;
+	if (disc<0) return 0; //no intersection
+
+	XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
+	if (test_zero(fabs(v.x)+fabs(v.y))) return 0; //only touch
+	if (d.y<0) v.x = -v.x;
+	XY f(D*d.y, -D*d.x);
+
+	//the intersect coordinates in unit circle space
+	r[0] = (f+v)/d.length()/d.length();
+	r[1] = (f-v)/d.length()/d.length();
+
+	for (int i=0; i<2; i++) {
+		radian_us[i] = circle_space_point2radian_curvy(r[i]);
+		r[i] = conv_to_real_space(r[i]);
+		pos_b[i]  = point2pos_straight(A, B, r[i]);
+	}
+	return 2;
+}
+
+//return the number of crosspoints. 1 means a touch
+int Ellipse::CrossingHorizontal(double y, double x[], double radian[]) const
+{
+	if (tilted) {
+		XY xy[2];
+		double dummy[2];
+		int num = CrossingStraight(XY(0,y), XY(100,y), xy, radian, dummy);
+		for (int i = 0; i<num; i++)
+			x[i] = xy[i].x;
+		return num;
+	}
+	if (y < center.y-radius2 || y > center.y+radius2) return 0;
+	x[0] = center.x + radius1*sqrt(1 - sqr((y-center.y)/radius2));
+	radian[0] = circle_space_point2radian_curvy(conv_to_circle_space(XY(x[0],y)));
+	if (test_equal(x[0], center.x))   //just touch
+		return 1;
+	x[1] = 2*center.x - x[0];
+	radian[1] = (radian[0]<=M_PI) ? M_PI - radian[0] : 3*M_PI - radian[0];
+	return 2;
+}
+
+
+XY Ellipse::Tangent(double radian, bool next) const
+{
+	const double x = cos(radian);
+	const double y = sin(radian);
+	//for a point xy on the unit circle to have a point on the
+	//forward tangent is: x+y, y-x
+	//backward tangent is: x-y, y+x
+	if (next) 
+		return conv_to_real_space(XY(x-y, y+x));
+	else
+		return conv_to_real_space(XY(x+y, y-x));
+}
+
+//////////////////////////////////////////Edge and straight helpers
+
 
 //returns -1 if a==b
 //returns -2 if a==c
@@ -337,147 +705,6 @@ inline double MM(XY A, XY B)
 	return (A.y-B.y)/(A.x-B.x);
 }
 
-//ensures r is between [0..2pi]
-inline double radiannormalize(double r)
-{
-	if (r>=0 && r<2*M_PI) return r;
-	return r - floor(r/(2*M_PI))*(2*M_PI);
-}
-
-//arc-length in the clockwise dir (msc space!) from s to e
-inline double radianspan(double s, double e)
-{
-	s = radiannormalize(s);
-	e = radiannormalize(e);
-	if (s<=e) return e-s;
-	return 2*M_PI - (s-e);
-}
-
-inline bool between01(double r)
-{
-	return r>=0 && r<=1;
-}
-
-/////////////////PolyEdge implementation
-
-inline XY PolyEdge::conv_to_real_space(const XY &p) const
-{
-	_ASSERT(type!=STRAIGHT);
-	if (type==CURVY_NON_TILTED) 
-		return center + XY(radius1 * p.x, radius2 * p.y);
-	return center + 
-		XY(radius1 * p.x * costilt - radius2 * p.y * sintilt,
-			radius1 * p.x * sintilt + radius2 * p.y * costilt);
-}
-
-inline XY PolyEdge::conv_to_circle_space(const XY &p) const
-{
-	_ASSERT(type!=STRAIGHT);
-	if (type==CURVY_NON_TILTED) 
-		return XY((p.x-center.x)/radius1, (p.y-center.y)/radius2);
-	return XY(( (p.x-center.x)*costilt + (p.y-center.y)*sintilt)/radius1, 
-	          (-(p.x-center.x)*sintilt + (p.y-center.y)*costilt)/radius2);
-}
-
-
-//Convert between pos (0..1) and coordinates
-inline XY PolyEdge::pos2point_straight(double r, const XY &B) const
-{
-	_ASSERT(type==STRAIGHT);
-	return XY(start.x+(B.x-start.x)*r, start.y+(B.y-start.y)*r);
-}
-
-//convert from pos [0..1] to actual radian. Guaranteed between [0..2pi)
-inline double PolyEdge::pos2radian(double r) const
-{
-	_ASSERT(type!=STRAIGHT);
-	if (clockwise_arc) {
-		if (s<e) return s + (e-s)*r;
-		else     return s + (e-s+2*M_PI)*r;
-	} else {
-		if (s<e) return e + (s-e+2*M_PI)*(1-r);
-		else     return e + (s-e)*(1-r);
-	} 
-}
-
-inline XY PolyEdge::pos2point_curvy(double r) const
-{
-	r=pos2radian(r);
-	return conv_to_real_space(XY(cos(r), sin(r)));
-}
-
-
-//returns [0..1] if p is on MN, other value if not
-inline double point2pos_straight(const XY &M, const XY&N, const XY &p)
-{
-	if (M==N) return p==M ? 0 : -1;
-	if (fabs(M.x-N.x) > fabs(M.y-N.y)) {
-		double t = (p.x-M.x)/(N.x-M.x);
-		if (test_equal(p.y, M.y + (N.y-M.y)*t)) return t;
-	} else {
-		double t = (p.y-M.y)/(N.y-M.y);
-		if (test_equal(p.x, M.x + (N.x-M.x)*t)) return t;
-	}
-	return -1; 
-}
-
-//can return outside [0..1] if point is not between s and e
-inline double PolyEdge::radian2pos(double r) const
-{
-	r = radiannormalize(r);
-	_ASSERT(type!=STRAIGHT);
-	if (test_equal(s,e)) return 0;
-	if (clockwise_arc) {
-		//here r-s can be <0 or bigger than span, 
-		//so returned pos can be outside [0..1]
-		if (s<e) return (r-s)/(e-s);
-		//ok, e<s
-		if (r>=s) return (r-s)/(e-s+2*M_PI);
-		return (r-s+2*M_PI)/(e-s+2*M_PI);
-	}
-	if (s>e) return (r-s)/(e-s);
-	if (r>=e) return (s-r+2*M_PI)/(s-e+2*M_PI);
-	return (s-r)/(s-e+2*M_PI);
-}
-
-inline double circle_space_point2radian_curvy(XY p) 
-{
-	double r = asin(p.y/p.length());     //calc angle normalized to 1
-	if (p.x<0) r = M_PI - r;    //between 90 and 270 degrees
-	if (r<0) r += 2*M_PI;       //if between -90 and 0 degrees
-	return r;
-}
-
-//returns
-inline double PolyEdge::point2pos_curvy(XY p, is_within_t *inout) const
-{
-	_ASSERT(type!=STRAIGHT);
-	XY q = conv_to_circle_space(p);
-	const double d = q.length();
-	const double r = circle_space_point2radian_curvy(q/d);
-	if (inout) {
-		if (test_smaller(d,1)) *inout = WI_INSIDE;
-		else if (test_smaller(1,d)) *inout = WI_OUTSIDE;
-		else if (test_equal(r,s) || test_equal(r,e)) *inout = WI_ON_VERTEX;
-		else *inout = WI_ON_EDGE;
-	}
-	return radian2pos(r);
-}
-
-//helper for curvy or tilted
-inline bool PolyEdge::radianbetween(double r) const
-{
-	_ASSERT(type!=STRAIGHT);
-	r = radiannormalize(r);
-	if (clockwise_arc) {
-		if (s<e) return s<=r && r<=e;
-		else return r>=s || r<=e;
-	} else {
-		if (s<e) return s>=r || r<=e;
-		else return s>=r && r<=e;
-	}
-}
-
 //checks if two straight sections are crossing or not
 //return the number of points:
 //0 - no crossing
@@ -486,7 +713,7 @@ inline bool PolyEdge::radianbetween(double r) const
 //if any of the two sections are degenerate we return 1 only if it lies on the other section, else 0
 //in pos_in_ab we return the relative pos of the crosspoint(s) in AB, in pos_in_mn for MN
 //See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
-int PolyEdge::crossing_straight_straight(const XY A, const XY B, const XY M, const XY N, 
+int Edge::crossing_straight_straight(const XY A, const XY B, const XY M, const XY N, 
 		                                 XY *r, double *pos_in_ab, double *pos_in_mn)
 {
 	if (!test_zero((B-A).PerpProduct(N-M))) {
@@ -562,309 +789,114 @@ int PolyEdge::crossing_straight_straight(const XY A, const XY B, const XY M, con
 	return 2;
 }
 
-// The quadratic equation representing the ellipse is
-//   Q(x,y) = a*x^2 + b*x*y + c*y^2 + d*x + e*y + f = 0
-// where b*b < 4*a*c is required for this to represent an ellipse.
-struct quadratic_xy_t 
-{
-    Double A;
-	Double B;
-	Double C;
-	Double D;
-	Double E;
-	Double F;
-	quadratic_xy_t() {}
-	quadratic_xy_t(const PolyEdge &arc);
-};
 
-quadratic_xy_t::quadratic_xy_t(const PolyEdge &arc)
+//helper for curvy or tilted
+bool Edge::radianbetween(double r) const
 {
-	_ASSERT(arc.type!=PolyEdge::STRAIGHT);
-	if (arc.type == PolyEdge::CURVY_NON_TILTED) {
-		//equation for non-tilt ellypses is (x-Cx)^2/radius1^2 + (y-Cy)^2/radius2^2 = 1;
-		A = 1/sqr(arc.radius1);                                 //*x^2
-		B = 0;                                                  //*xy
-		C = 1/sqr(arc.radius2);                                 //*y^2
-		D = -2*arc.center.x/sqr(arc.radius1);                   //*x
-		E = -2*arc.center.y/sqr(arc.radius2);                   //*y
-		F = sqr(arc.center.x/arc.radius1) + sqr(arc.center.y/arc.radius2) - 1;
+	_ASSERT(!straight);
+	r = radiannormalize(r);
+	if (clockwise_arc) {
+		if (s<e) return s<=r && r<=e;
+		else return r>=s || r<=e;
 	} else {
-		A = sqr(arc.costilt/arc.radius1) + sqr(arc.sintilt/arc.radius2);
-		B = 2*arc.costilt*arc.sintilt*(1/sqr(arc.radius1) -  1/sqr(arc.radius2));
-		C = sqr(arc.sintilt/arc.radius1) + sqr(arc.costilt/arc.radius2);
-		D = -2*arc.costilt/sqr(arc.radius1)*(arc.sintilt*arc.center.y + arc.costilt*arc.center.x) +
-			 2*arc.sintilt/sqr(arc.radius2)*(arc.costilt*arc.center.y - arc.sintilt*arc.center.x);
-		E = -2*arc.sintilt/sqr(arc.radius1)*(arc.sintilt*arc.center.y + arc.costilt*arc.center.x) -
-			 2*arc.costilt/sqr(arc.radius2)*(arc.costilt*arc.center.y - arc.sintilt*arc.center.x);
-		F = (sqr(arc.costilt*arc.center.x) + 2*arc.costilt*arc.sintilt*arc.center.x*arc.center.y + sqr(arc.sintilt*arc.center.y)) / sqr(arc.radius1) +
-			(sqr(arc.sintilt*arc.center.x) - 2*arc.costilt*arc.sintilt*arc.center.x*arc.center.y + sqr(arc.costilt*arc.center.y)) / sqr(arc.radius2) -
-			1;
+		if (s<e) return s>=r || r<=e;
+		else return s>=r && r<=e;
 	}
 }
 
-void get_bezout_determinant (const quadratic_xy_t &one, const quadratic_xy_t & two, Double res[5])
+//convert from pos [0..1] to actual radian. Guaranteed between [0..2pi)
+double Edge::pos2radian(double r) const
 {
-    // polynomial is constructed as a Bezout determinant
-    Double fAB = one.A*two.B-two.A*one.B;
-    Double fAC = one.A*two.C-two.A*one.C;
-    Double fAD = one.A*two.D-two.A*one.D;
-    Double fAE = one.A*two.E-two.A*one.E;
-    Double fAF = one.A*two.F-two.A*one.F;
-    Double fBC = one.B*two.C-two.B*one.C;
-    Double fBE = one.B*two.E-two.B*one.E;
-    Double fBF = one.B*two.F-two.B*one.F;
-    Double fCD = one.C*two.D-two.C*one.D;
-    Double fDE = one.D*two.E-two.D*one.E;
-    Double fDF = one.D*two.F-two.D*one.F;
-    Double fBFpDE = fBF+fDE;
-    Double fBEmCD = fBE-fCD;
-
-    res[0] = fAD*fDF-fAF*fAF;
-    res[1] = fAB*fDF+fAD*fBFpDE-2.0f*fAE*fAF;
-    res[2] = fAB*fBFpDE+fAD*fBEmCD-fAE*fAE-2.0f*fAC*fAF;
-    res[3] = fAB*fBEmCD+fAD*fBC-2.0f*fAC*fAE;
-    res[4] = fAB*fBC-fAC*fAC;
-}
-
-
-int PolyEdge::crossing_curvy_curvy(const PolyEdge &B, XY *r, double *pos_us, double *pos_b) const
-{
-	//First check bounding boxes
-	if (!boundingBox.Overlaps(B.boundingBox)) 
-		return 0;
-
-	//Now this is scary shit. Above there is a suite to solve 4th degree equations, we use those
-	//we are interested only in real solutions
-	//for ellipses see http://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
-
-	Double y[4];
-	int num_y;
-	const quadratic_xy_t one(*this), two(B);
-	const double TRSHOLD = 1;
-	bool multiple_x_for_all_y = false;
-	//if two non-tilted ellipses are aliged by an axis bezout determinant becomes
-	//numerically instable and gives no roots -> we handle this case separately
-	if (type == CURVY_NON_TILTED && B.type == CURVY_NON_TILTED && 
-		(fabs(center.x - B.center.x) < TRSHOLD || fabs(center.y - B.center.y) < TRSHOLD)) {
-		if (fabs(center.y - B.center.y) < TRSHOLD) {
-			//In this case we transpose the ellipses call ourself and re-transpose the results
-			PolyEdge p1(*this), p2(B);
-			p1.transpose_curvy_non_tilted();
-			p2.transpose_curvy_non_tilted();
-			int num = p1.crossing_curvy_curvy(p2, r, pos_us, pos_b);
-			const bool full1 =   s==0 &&   e==2*M_PI;
-			const bool full2 = B.s==0 && B.e==2*M_PI;
-			for (int i=0; i<num; i++) {
-				std::swap(r[i].x, r[i].y);
-				if (full1) pos_us[i] = pos_us[i]<0.75 ? 0.25+pos_us[i] : pos_us[i]-0.75;
-				if (full2) pos_b [i] = pos_b [i]<0.75 ? 0.25+pos_b [i] : pos_b [i]-0.75;
-			}
-			return num;
-		}
-		//in this case multiplying the two ellipse equations by radian1^2 and substracting one from the other
-		//we get a simple quadratic equation in y
-		Double quadratic[3];
-		quadratic[2] =                 sqr(radius1/radius2) -              sqr(B.radius1/B.radius2);
-		quadratic[1] =     -2*center.y*sqr(radius1/radius2) + 2*B.center.y*sqr(B.radius1/B.radius2);
-		quadratic[0] = sqr(  center.y)*sqr(  radius1/  radius2) - sqr(  radius1) +
-					  -sqr(B.center.y)*sqr(B.radius1/B.radius2) + sqr(B.radius1);
-		num_y = solve_degree2(quadratic, y);
-		//there are sure to have 2 x values for each y (situation is symmetric to y axis of ellipses)
-		multiple_x_for_all_y = true; 
+	_ASSERT(!straight);
+	if (clockwise_arc) {
+		if (s<e) return s + (e-s)*r;
+		else     return s + (e-s+2*M_PI)*r;
 	} else {
-		//This code is based on MgcIntr2DElpElp.cpp written by David Eberly.  
-		//http://svn.berlios.de/wsvn/lwpp/incubator/deeppurple/math/FreeMagic/Source/Intersection2D/MgcIntr2DElpElp.cpp
-		//or http://www.geometrictools.com/LibMathematics/Intersection/Wm5IntrEllipse2Ellipse2.cpp
-		//we determine the bezout determinant, which is zero only at y coordinate of intersection points
-		Double bezout[5];
-		get_bezout_determinant(one, two, bezout);
-		//Solve the Bezout determinant 
-		num_y = solve_degree4(bezout, y);
+		if (s<e) return e + (s-e+2*M_PI)*(1-r);
+		else     return e + (s-e)*(1-r);
+	} 
+}
+
+//can return outside [0..1] if point is not between s and e
+double Edge::radian2pos(double r) const
+{
+	_ASSERT(!straight);
+	r = radiannormalize(r);
+	if (test_equal(s,e)) return 0;
+	if (clockwise_arc) {
+		//here r-s can be <0 or bigger than span, 
+		//so returned pos can be outside [0..1]
+		if (s<e) return (r-s)/(e-s);
+		//ok, e<s
+		if (r>=s) return (r-s)/(e-s+2*M_PI);
+		return (r-s+2*M_PI)/(e-s+2*M_PI);
 	}
-
-    // Adjustment for quadratics to allow for relative error testing.
-    //const Double fNorm_one = one.A*one.A + 2.0f*one.B*one.B + one.C*one.C;
-    const Double fNorm_two = two.A*two.A + 2.0f*two.B*two.B + two.C*two.C;
-
-	//go through all solutions of y, find corresponding x 
-	XY points[4];
-	int num = 0;
-    for (int i = 0; i < num_y; i++) {
-        Double ellipse_one[3], ellipse_two[3];
-        ellipse_one[0] = one.F+y[i]*(one.E+y[i]*one.C);
-        ellipse_one[1] = one.D+y[i]*one.B;
-        ellipse_one[2] = one.A;
-        ellipse_two[0] = two.F+y[i]*(two.E+y[i]*two.C);
-        ellipse_two[1] = two.D+y[i]*two.B;
-        ellipse_two[2] = two.A;
-	    Double x_one[2], x_two[2];
-		const int num_x_one = solve_degree2(ellipse_one, x_one);
-		const int num_x_two = solve_degree2(ellipse_two, x_two);
-		if (num_x_one==0 || num_x_two==0) continue;
-		//find the two closest point pairs between x_one and x_two 
-		double x_final[2] = {0,0};
-		double x_diff[2] = {100,100}; //big value
-        for (int j = 0; j < num_x_one; j++) 
-	        for (int k = 0; k < num_x_two; k++) {
-				double diff = fabs(x_one[j] - x_two[k]);
-				if (diff < x_diff[0]) {
-					x_diff[1] = x_diff[0];
-					x_diff[0] = diff;
-					x_final[1] = x_final[0];
-					x_final[0] = (x_one[j]+x_two[k])*0.5f;
-				} else if (diff < x_diff[1]) {
-					x_diff[1] = diff;
-					x_final[1] = (x_one[j]+x_two[k])*0.5f;
-				}
-			}
-        points[num].x = x_final[0];
-        points[num].y = y[i];
-        num++;
-		//now add two points if beziout determinant had 1 or 3 solutions and this is the first one
-		//solve_degree4 returns 1 or 3 roots, the first one is a double one
-		//or if multiple_x_for_all_y is true, we can also have 
-		if (multiple_x_for_all_y || (i==0 && num_y%2==1)) 
-			if (x_diff[1] < 2) {
-				points[num].x = x_final[1];
-				points[num].y = y[i];
-				num++;
-			}
-    }
-
-test_points:
-	_ASSERT(num<=4);
-	int num2 = 0;
-	//Now we need to check if all points fall between s and e
-	for (int i=0; i<num; i++) {
-		pos_us[num2] =   point2pos_curvy(points[i]);
-		pos_b[num2]  = B.point2pos_curvy(points[i]);
-		if (between01(pos_us[num2]) && between01(pos_b[num2])) 
-			r[num2++] = points[i];
-	}
-	return num2;
+	if (s>e) return (r-s)/(e-s);
+	if (r>=e) return (s-r+2*M_PI)/(s-e+2*M_PI);
+	return (s-r)/(s-e+2*M_PI);
 }
 
-int PolyEdge::crossing_curvy_straight(const XY &A, const XY &B, 
-			                         XY *r, double *pos_us, double *pos_b) const
-{
-	_ASSERT(type != STRAIGHT);
-	XY M = conv_to_circle_space(A);
-	XY N = conv_to_circle_space(B);
-
-	//See circle intersection with a line specificed by two points
-	//http://mathworld.wolfram.com/Circle-LineIntersection.html
-	double D = M.PerpProduct(N);
-	XY d = N-M;
-	double disc = d.length()*d.length() - D*D;
-	if (disc<0) return 0; //no intersection
-
-	XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
-	if (d.y<0) v.x = -v.x;
-	XY f(D*d.y, -D*d.x);
-
-	//the intersect coordinates in unit circle space
-	r[0] = (f+v)/d.length()/d.length();
-	r[1] = (f-v)/d.length()/d.length();
-
-	pos_us[1] = radian2pos(circle_space_point2radian_curvy(r[1]));
-	r[1] = conv_to_real_space(r[1]);
-	pos_b[1]  = point2pos_straight(A, B, r[1]);
-	bool both = between01(pos_us[1]) && between01(pos_b[1]);
-	if (test_smaller(disc, 0)) { //just touch, r[0] == r[2]
-		only_second_is_good:
-		if (!both) return 0;   
-		r[0]      = r[1];
-		pos_us[0] = pos_us[1];
-		pos_b[0]  = pos_b[1];
-		return 1;
-	}
-
-	//now check r1
-	pos_us[0] = radian2pos(circle_space_point2radian_curvy(r[0]));
-	r[0] = conv_to_real_space(r[0]);
-	pos_b[0]  = point2pos_straight(A, B, r[0]);
-	if (!between01(pos_us[0]) || !between01(pos_b[0])) //we are out
-		goto only_second_is_good;
-	return both ? 2 : 1;
-}
-
-inline XY PolyEdge::prevnexttangent_curvy(double pos, bool next) const
-{
-	const double r = pos2radian(pos);
-	const double x = cos(r);
-	const double y = sin(r);
-	//for a point xy on the unit circle to have a point on the
-	//forward tangent is: x+y, y-x
-	//backward tangent is: x-y, y+x
-	if (next ^ clockwise_arc) 
-		return conv_to_real_space(XY(x+y, y-x));
-	else
-		return conv_to_real_space(XY(x-y, y+x));
-}
-
-void PolyEdge::removebeforepoint_curvy(const XY &p) 
-{
-	const double r = circle_space_point2radian_curvy(conv_to_circle_space(p));
-	_ASSERT(radianbetween(r));
-	s = r;
-}
-
-void PolyEdge::removeafterpoint_curvy(const XY &p) 
-{
-	e = circle_space_point2radian_curvy(conv_to_circle_space(p));
-}
-
-void PolyEdge::transpose_curvy_non_tilted() 
-{
-	_ASSERT(type == CURVY_NON_TILTED);
-	std::swap(center.x, center.y);
-	std::swap(radius1, radius2);
-	clockwise_arc ^= true;
-	if (s!=0 || e!=2*M_PI) {
-		s = radiannormalize(M_PI/2 - s);
-		e = radiannormalize(M_PI/2 - e);
-	} else
-		std::swap(s, e);
-}
-
-PolyEdge::PolyEdge(const XY &c, double radius_x, double radius_y, double tilt_degree) :
-	center(c), radius1(radius_x), radius2(radius_y),
+Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_degree) :
+	ell(c, radius_x, radius_y, tilt_degree),
 	s(0), e(2*M_PI), clockwise_arc(true)
 {
-	type = CURVY_NON_TILTED;
-	if (radius2 == 0) radius2 = radius1; //circle
-	if (radius1 != radius2 && tilt_degree!=0) {
-		tilt_degree -= floor(tilt_degree/180)*180;
-		if (tilt_degree>=90) {
-			tilt_degree -= 90;
-			std::swap(radius1, radius2);
-		}
-		if (tilt_degree) {
-			tilt = tilt_degree * M_PI/180.;
-			sintilt = sin(tilt);
-			costilt = cos(tilt);
-			type = CURVY_TILTED;
-			start = pos2point_curvy(0);
-			return;
-		}
-	}
-	//type is curvy here
-	start = pos2point_curvy(0);
+	straight = false;
+	start = ell.Radian2Point(0);
 	CalculateBoundingBox();
 }
 
+void Edge::CopyInverseToMe(const Edge &B, const XY &next) 
+{
+	if (!B.straight) {
+		ell = B.ell;
+		s = B.e;
+		e = B.s;
+		clockwise_arc = !B.clockwise_arc;
+		boundingBox = B.boundingBox;
+	}
+	start = next;
+	straight = B.straight;
+}
+
+int Edge::Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N, 
+	                          XY *r, double *pos_ab, double *pos_mn) 
+{
+	if (A.straight && M.straight) 
+		return crossing_straight_straight(A.start, B, M.start, N, r, pos_ab, pos_mn);
+	int num;
+	XY loc_r[8];
+	double loc_ab[8], loc_mn[8];
+	if (!A.straight && !M.straight) {
+		//First check bounding boxes
+		if (!A.boundingBox.Overlaps(M.boundingBox)) 
+			return 0;
+		num = A.ell.CrossingEllipse(M.ell, loc_r, loc_ab, loc_mn);
+	} else if (A.straight) 
+		num = M.ell.CrossingStraight(A.start, B, loc_r, loc_mn, loc_ab);
+	/* (M.type == STRAIGHT*/ 
+	else num = A.ell.CrossingStraight(M.start, N, loc_r, loc_ab, loc_mn);
+	int ret = 0;
+	for (num--; num>=0; num--) {
+		if (!A.straight) loc_ab[num] = A.radian2pos(loc_ab[num]);
+		if (!M.straight) loc_mn[num] = M.radian2pos(loc_mn[num]);
+		if (loc_ab[num]>=0 && loc_ab[num]<=1 && loc_mn[num]>=0 && loc_mn[num]<=1) {
+			r[ret] = loc_r[num];
+			pos_ab[ret] = loc_ab[num];
+			pos_mn[ret] = loc_mn[num];
+			ret++;
+		}
+	}
+	return ret;
+}
 
 //Where does an edge or arc corss a horizontal line? (for the purposes of Polygon::IsWithin)
 //1. an upward edge includes its starting endpoint, and excludes its final endpoint;
 //2. a downward edge excludes its starting endpoint, and includes its final endpoint;
 //returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a horizontal line
 //internally "downward" is understood in a coordinate system where y grows downwards
-int PolyEdge::CrossingHorizontal(double y, const XY &B, double *x) const
+int Edge::CrossingHorizontal(double y, const XY &B, double *x) const
 {
-	double a1, a2;
-	int num;
-	switch (type) {
-	case STRAIGHT:
+	if (straight) {
 		if ((start.y >= y && B.y < y) ||      //we cross upward 
 			(start.y < y && B.y >= y)) {      //we cross downward
 			//we cross p's line x
@@ -873,147 +905,70 @@ int PolyEdge::CrossingHorizontal(double y, const XY &B, double *x) const
 		} 
 		if (start.y == y && B.y == y) return -1; //horizontal line
 		return 0;
-	case CURVY_NON_TILTED:
-		if (y < center.y-radius2 || y > center.y+radius2) return 0;
-		double xx;
-		xx = center.x + radius1*sqrt(1 - sqr((y-center.y)/radius2));
-		a1 = circle_space_point2radian_curvy(conv_to_circle_space(XY(xx,y)));
-		if (test_equal(xx, center.x)) {  //just touch
-			if (!test_equal(a1, s) && !test_equal(a1, e)) 
-				return 0; //touch is ignored except in endpoints
-			x[0] = xx;
-			num = -1;
-			break;
-		}
-		a2 = (a1<=M_PI) ? M_PI - a1 : 3*M_PI - a1;
-		if (radianbetween(a1)) {
-			x[0] = xx;
-			if (radianbetween(a2)) {
-				x[1] = 2*center.x - xx;
-				num = 2;
-			} else
-				num = 1;
-		} else if (radianbetween(a2)) {
-			x[0] = 2*center.x - xx;
-			a1 = a2;
-			num = 1;
-		} else
-			return 0;
-		break;
-	case CURVY_TILTED:
-		//transform the y line into the system of 
-		//we start with two points 0,y and y,y
-		XY M = conv_to_circle_space(XY(0, y));
-		XY N = conv_to_circle_space(XY(y, y));
-		//See circle intersection with a line specificed by two points
-		//http://mathworld.wolfram.com/Circle-LineIntersection.html
-		double D = M.PerpProduct(N);
-		XY d = N-M;
-		double disc = d.length()*d.length() - D*D;
-		if (disc<0) return 0; //no intersection
-
-		XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
-		if (d.y<0) v.x = -v.x;
-		XY f(D*d.y, -D*d.x);
-
-		//M, N: the intersect coordinates in unit circle space
-		M = (f+v)/sqr(d.length());
-		a1 = circle_space_point2radian_curvy(M);
-
-		if (test_zero(disc)) { //just touch
-			if (!test_equal(a1, s) && !test_equal(a1, e)) 
-				return 0; //touch is ignored except in endpoints
-			x[0] = conv_to_real_space(M).x;
-			num = -1;
-			break;
-		}
-		N = (f-v)/sqr(d.length());
-		a2 = circle_space_point2radian_curvy(N);
-		if (radianbetween(a1)) {
-			x[0] = conv_to_real_space(M).x;
-			if (radianbetween(a2)) {
-				x[1] = conv_to_real_space(N).x;
-				num = 2;
-			} else 
-				num = 1;
-		} else if (radianbetween(a2)) {
-			x[0] = conv_to_real_space(N).x;
-			num = 1;
-		} else 
-			return 0;
-		break;
 	}
-	//now num contains how many crossings we have (-1 if it is a touch in an endpoint)
-	//x[0], x[1] contains the points, a1 and a2 contains the resp radians
+	double radian[2], loc_x[2];
+	int loc_num = ell.CrossingHorizontal(y, loc_x, radian);
 	//if the crosspoints are at the end of the segments, we check for up or downward crossing.
-
-	if (num==-1) 
-		//here we know either a1==s or ==e and we touch the horizontal line at y
-		//if the centerpoint is above y and a1==s it is the beginning of an upward edge  => include
-		//if the centerpoint is above y and a1==e it is the end of a downward edge       => include
-		//if the centerpoint is below y and a1==s it is the beginning of a downward edge => exclude
-		//if the centerpoint is below y and a1==e it is the end of an upward edge        => exclude
-		return center.y < y ? 1 : 0;
-
-	if (num==2 && (a2==s || a2==e))  //if a2 is on one endpoint 
-		//if a2 == s and forward tangent is above y, it is the beginning of an upward edge => include
-		//if a2 == d and backwardtangent is above y, it is the end of an downward edge     => include
-		//else exclude
-		if (prevnexttangent_curvy(a2, a2==s).y > y)  //exclude
-			num = 1;
-	if (a1==s || a1==e)  //if a1 is on one endpoint 
-		if (prevnexttangent_curvy(a1, a1==s).y > y)  {//exclude
-			if (num == 1) return 0;
-			x[0] = x[1];
-			return 1;
+	if (loc_num==1) { //just touch
+		if (radian[0] == s || radian[0] == e) {
+			//here we know either a1==s or ==e and we touch the horizontal line at y
+			//if the centerpoint is above y and a1==s it is the beginning of an upward edge  => include
+			//if the centerpoint is above y and a1==e it is the end of a downward edge       => include
+			//if the centerpoint is below y and a1==s it is the beginning of a downward edge => exclude
+			//if the centerpoint is below y and a1==e it is the end of an upward edge        => exclude
+			return ell.GetCenter().y < y ? 1 : 0;
 		}
+		return 0; //we tocuh, but not at an endpoint: we ignore these 
+	}
+	int num = 0;
+	for (int i=0; i<loc_num; i++) {
+		if (radian[i] == s || radian[i] == e) {
+			//if r == s and forward tangent is above y, it is the beginning of an upward edge => include
+			//if r == d and backwardtangent is above y, it is the end of an downward edge     => include
+			//else exclude
+			if (ell.Tangent(radian[i], (radian[i]==s) ^ clockwise_arc).y <= y)  //include
+				x[num++] = loc_x[i];
+		} else
+			x[num++] = loc_x[i]; //include also, if it is not an endpoint
+	}
 	return num; 
 }
 
-
 //Adds this point (for straight) or full curve to a bounding box
-Block& PolyEdge::CalculateBoundingBox() 
+Block& Edge::CalculateBoundingBox() 
 {
 	boundingBox.MakeInvalid();
-	switch (type) {
-	default:
-		_ASSERT(0);
-	case CURVY_NON_TILTED:
-		//if any extreme point is included in the arc add them
-		if (radianbetween(       0)) boundingBox += (center+XY(radius1,       0));
-		if (radianbetween(0.5*M_PI)) boundingBox += (center+XY(      0, radius2));
-		if (radianbetween(    M_PI)) boundingBox += (center-XY(radius1,       0));
-		if (radianbetween(1.5*M_PI)) boundingBox += (center-XY(      0, radius2));
-		//add endpoint
-		boundingBox += conv_to_real_space(XY(cos(e), sin(e)));
-		//fallthrough
-	case STRAIGHT: 
+	if (straight)
 		//add startpoint
 		return boundingBox += start;
-	case CURVY_TILTED:
+	if (ell.IsTilted()) {
 		//Add the biggest rectangle a tilted ellipse can fit
-		const double r = std::max(radius1, radius2);
-		boundingBox += (center-XY(r,r));
-		boundingBox += (center+XY(r,r));
-		return boundingBox;
+		const double r = std::max(ell.GetRadius1(), ell.GetRadius2());
+		boundingBox += (ell.GetCenter()-XY(r,r));
+		boundingBox += (ell.GetCenter()+XY(r,r));
+	} else {
+		//if any extreme point is included in the arc add them
+		if (radianbetween(       0)) boundingBox += (ell.GetCenter()+XY(ell.GetRadius1(),0));
+		if (radianbetween(0.5*M_PI)) boundingBox += (ell.GetCenter()+XY(0, ell.GetRadius2()));
+		if (radianbetween(    M_PI)) boundingBox += (ell.GetCenter()-XY(ell.GetRadius1(),0));
+		if (radianbetween(1.5*M_PI)) boundingBox += (ell.GetCenter()-XY(0, ell.GetRadius2()));
+		//add endpoint
+		boundingBox += ell.Radian2Point(e);
 	}
+	return boundingBox;
 }
 
 //Checks if this->next edge and next->after can be combined into a single edge
 //if so, also update this such that this->after will be the combined edge
-bool PolyEdge::CheckAndCombine(const PolyEdge &next, const XY &after)
+bool Edge::CheckAndCombine(const Edge &next, const XY &after)
 {
-	if (type != next.type) return false;
-	if (type==STRAIGHT && next.type==STRAIGHT) {
+	if (straight != next.straight) return false;
+	if (straight) {
 		const double a = angle(start, next.start, after);
-		return a==0 || a==2;
+		return test_zero(a) || test_equal(a,2);
 	}
 	//calc tangent for curvy edges
-	if (center != next.center || radius1 != next.radius1 ||
-		radius2 != next.radius2 || 
-		clockwise_arc != next.clockwise_arc) return false;
-	if (type == CURVY_TILTED && tilt != next.tilt) 
-		return false;
+	if (ell != next.ell || clockwise_arc != next.clockwise_arc) return false;
 	//same center, same radiuses, same tilt, same dir
 	//keep our s and pick the bigger of the two e:s
 	//but not accidentally pick an e smaller than s
@@ -1026,250 +981,19 @@ bool PolyEdge::CheckAndCombine(const PolyEdge &next, const XY &after)
 	return true;
 }
 
+void Edge::Path(cairo_t *cr, const XY &next) const
+{
+	if (straight) {
+		cairo_line_to(cr, next.x, next.y);
+		return;
+	}
+	cairo_save(cr);
+	ell.TransformForDrawing(cr);
+	if (clockwise_arc)
+		cairo_arc(cr, 0, 0, 1, s, e);
+	else
+		cairo_arc_negative(cr, 0, 0, 1, s, e);
+	cairo_restore(cr);
+}
+
 }; //namespace
-
-
-
-
-
-
-//
-////solve Ax^2 + Bx + C = 0 for real roots. 
-////Place them in r[0] and r[1] and return the number of real roots
-//int quadratic_solve(double A, double B, double C, double *R) 
-//{
-//	if (A==0) {
-//		//linear case
-//		if (B==0) return 0;
-//		R[0] = -C/B;
-//		return 1;
-//	}
-//	double D = B*B - 4*A*C;
-//	if (D<0) return 0;
-//	R[0] = -B/(2*A);
-//	if (D==0) return 1;
-//	D = sqrt(D)/(2*A);
-//	R[1] = R[0] + D;
-//	R[0] -= D;
-//	return 2;
-//}
-//
-////Solve C1x^3 + C2x^2 + C3x + C4 = 0 
-//int cubic_solve(double C1, double C2, double C3, double C4, double *R) 
-//{
-//	if (C1==0) 
-//		return quadratic_solve(C2, C3, C4, R);
-//	
-//	//using x = y-p/3 we get y^3 +Ay +B 
-//	//see http://www.me.gatech.edu/energy/andy_phd/appA.htm
-//	const double p = C2/C1, q = C3/C1, r = C4/C1;
-//	const double A = (3*q - p*p)/3;
-//	const double B = (2*p*p*p - 9*p*q + 27*r)/27;
-//	const double D = A*A*A/27 + B*B/4;
-//
-//	if (D<0) {
-//		const double cosphi = sqrt((B*B/4) / (-A*A*A/27));
-//		const double phi = acos(B>0 ? -cosphi : cosphi);
-//		const double t = 2*sqrt(-A/3);
-//		R[0] = t*cos(phi) - p/3;
-//		R[1] = t*cos(phi + 120./180.*M_PI) - p/3;
-//		R[2] = t*cos(phi + 240./180.*M_PI) - p/3;
-//		return 3;
-//	}
-//	if (D>0) {
-//		const double M = curt(-B/2 + sqrt(D));
-//		const double N = curt(-B/2 - sqrt(D));
-//		R[0] =  M + N - p/3;
-//		if (A==0) return 1; //all three roots are the same
-//		R[1] = -(M+N)/2 - p/3;  
-//		return 2;
-//	}
-//	R[0] = 2*curt(-B/2) - p/3;
-//	return 1;
-//}
-//
-////Solve C1x^3 + C2x^2 + C3x + C4 = 0 
-//double cubic_substitute(double C1, double C2, double C3, double C4, double R)
-//{
-//	return C1*R*R*R + C2*R*R + C3*R + C4;
-//}
-//
-//
-////Solves Ax^4 + Bx^3 + Cx^2 + Dx + E = 0
-//int quartic_solve(double A, double B, double C, double D, double E, double *r)
-//{
-//	if (A==0) 
-//		return cubic_solve(B, C, D, E, r);
-//
-//	//rearrange for a depressed solution
-//	//x = u - B/(4*A)
-//	//u^4 + alpha*u^2 + beta*u + gamma, where beta!=0 && gamma!=0
-//	//see http://en.wikipedia.org/wiki/Quartic_equation#The_general_case.2C_along_Ferrari.27s_lines
-//
-//	const double alpha = -3*B*B/(8*A*A) +C/A;
-//	const double beta  = B*B*B/(8*A*A*A) -B*C/(2*A*A) +D/A;
-//	const double gamma = -3*B*B*B*B/(256*A*A*A*A) + C*B*B/(16*A*A*A) - B*D/(4*A*A) +E/A;
-//	const double B4A = B/(4*A);
-//	
-//	if (beta==0) {
-//		//biquadratic case u^4 +alpha*u^2 + gamma
-//		int num = quadratic_solve(1, alpha, gamma, r);
-//		if (num==0) return 0;
-//		if (num == 2) {
-//			if (r[1]<0) {
-//				num=1;
-//				r[0] = r[1];
-//			} else {
-//				r[2] = sqrt(r[1]);
-//				r[3] = -r[1];
-//			}
-//		}
-//		if (r[0]<0) {
-//			if (num==1) return 0;
-//			r[0] = r[2] - B4A;
-//			r[1] = r[3] - B4A;
-//			return 2;
-//		}
-//		r[0] = sqrt(r[0]);
-//		r[1] = -r[0];
-//
-//		r[0] -= B4A;
-//		r[1] -= B4A;
-//		r[2] -= B4A;
-//		r[3] -= B4A;
-//		return 4;
-//	}
-//
-//	if (gamma==0) {
-//		r[0] = -B4A; //zero is solution for u
-//		int num = cubic_solve(1, 0, alpha, beta, r+1);
-//		r[1] -= B4A;
-//		r[2] -= B4A;
-//		r[3] -= B4A;
-//		return num+1;
-//	}
-//
-//	//now solve the depressed using Ferrari's method
-//
-//	double ys[3];
-//	//use eqn #4 from the wiki page
-//	//y^3 + (5*alpha/2)y^2 + (2alpha^2-gamma)y +(alpha^3/2 - alpha*gamma/2 - beta^2/2) = 0
-//	int nn = cubic_solve(1, 5*alpha/2, 2*sqr(alpha)-gamma, sqr(alpha)*alpha/2 - alpha*gamma/2 - sqr(beta)/2, ys);
-//	//we need only one root.
-//
-//	const double P = -alpha*alpha/12 - gamma;
-//	const double Q = -alpha*alpha*alpha/108 + alpha*gamma/3 - beta*beta/8;
-//	const double R = -Q/2 + sqrt(Q*Q/4 +P*P*P/27);
-//	const double U = curt(R);
-//	const double y = -5*alpha/6 + (U==0 ? curt(Q) : U - P/(3*U));
-//	const double W = sqrt(alpha +2*y);
-//
-//	int num=0;
-//
-//	const double dist1 = -(3*alpha + 2*y - 2*beta/W);
-//	if (dist1 >= 0) {
-//		r[2] = -B4A + (-W + sqrt(dist1))/2;
-//		if (dist1==0) 
-//			num = 1;
-//		else {
-//			num = 2;
-//			r[3] = -B4A + (-W - sqrt(dist1))/2;
-//		}
-//	}
-//	const double dist2 = -(3*alpha + 2*y + 2*beta/W);
-//	if (dist2 >= 0) {
-//		r[0] = -B4A + (W + sqrt(dist2))/2;
-//		if (dist2==0) {
-//			if (num >= 1) r[1] = r[2];
-//			if (num == 2) r[2] = r[3];
-//			return num + 1;
-//		} else {
-//			r[1] = -B4A + (W - sqrt(dist1))/2;
-//			return num + 2;
-//		}
-//	}
-//	if (num >= 1) r[0] = r[2];
-//	if (num == 2) r[1] = r[3];
-//	return num;
-//}
-
-
-//int PolyEdge::crossing_curvy_curvy(const PolyEdge &B, XY *r, double *pos_us, double *pos_b) const
-//{
-//	//Now this is scary shit. Above there is a suite to solve 4th degree equations, we use those
-//	//we are interested only in real solutions
-//	//for ellipses see http://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
-//
-//	//XXX ignore tilt for just now
-//	//then an equation for our ellypses is (x-Cx)^2/radius1^2 + (y-Cy)^2/radius2^2 = 1;
-//	_ASSERT(type == CURVY_NON_TILTED && B.type == CURVY_NON_TILTED);
-//
-//	const double Aa00 = 1/sqr(radius1);
-//	const double Aa01 = 0;
-//	const double Aa11 = 1/sqr(radius2);
-//	const double Ab0  = -2*center.x/sqr(radius1);
-//	const double Ab1  = -2*center.y/sqr(radius2);
-//	const double Ac   = sqr(center.x/radius1) + 
-//		                sqr(center.y/radius2) - 1;
-//
-//	const double Ba00 = 1/sqr(B.radius1);                                 //*x^2
-//	const double Ba01 = 0;                                                //*xy
-//	const double Ba11 = 1/sqr(B.radius2);                                 //*y^2
-//	const double Bb0  = -2*B.center.x/sqr(B.radius1);                     //*x
-//	const double Bb1  = -2*B.center.y/sqr(B.radius2);                     //*y
-//	const double Bc   = sqr(B.center.x/B.radius1) +                       //constant
-//		                sqr(B.center.y/B.radius2) - 1;
-//
-//	const double v0 = 2*(Aa00*Ba01 - Ba00*Aa01);
-//	const double v1 = Aa00*Ba11 - Ba00*Aa11;
-//	const double v2 = Aa11*Bb0  - Ba00*Ab0;
-//	const double v3 = Aa00*Bb1  - Ba00*Ab1;
-//	const double v4 = Aa00*Bc   - Ba00*Ac;
-//	const double v5 = 2*(Aa01*Ba11 - Ba01*Aa11);
-//	const double v6 = 2*(Aa01*Bb1  - Ba01*Ab1);
-//	const double v7 = 2*(Aa01*Bc   - Ba01*Ac);
-//	const double v8 = Aa11*Bb0  - Ba11*Ab0;
-//	const double v9 = Ab0*Bb1 - Bb0*Ab1;
-//	const double v10= Ab0*Bc - Bb0*Ac;
-//
-//	const double u0 = v1*v10-v4*v4;
-//	const double u1 = v0*v10 + v2*(v7+v9) - 2*v3*v4;
-//	const double u2 = v0*(v7+v9) + v2*(v6-v8) - v3*v3 - 2*v1*v4;
-//	const double u3 = v0*(v6-v8) + v2*v5 - 2*v1*v3;
-//	const double u4 = v0*v5 - v1*v1;
-//
-//	double y[4];
-//	//The Bezout determinant is now a quartic polynomialwith u:s as coefficienst
-//	int num = quartic_solve(u4, u3, u2, u1, u0, y);
-//	int num_found = 0;
-//
-//	for (int i=0; i<num; i++) {
-//		double x[2];
-//		//solve for x from curve A
-//		int num2 = quadratic_solve(Aa00, Aa01*y[i] + Ab0, 
-//			                       Aa11*y[i]*y[i] + Ab1*y[i] + Ac, 
-//								   x);
-//		//eliminate the wrong x from curve B
-//		for (int j = 0; j<2; j++)
-//			if (test_smaller(Ba00*x[j]*x[j] + Ba01*y[i]*x[j] + Bb0*x[j] +
-//					         Ba11*y[i]*y[i] + Bb1*y[i] + Bc, 0)) {
-//				r[num_found].x = x[i];
-//				r[num_found].y = y[j];
-//				break;
-//			}
-//	}
-//	//Now we need to check if all points fall between s and e
-//	for (int i=0; i<num_found; i++) {
-//		pos_us[i] =   point2pos_curvy(r[i]);
-//		pos_b[i]  = B.point2pos_curvy(r[i]);
-//		if (pos_us[i]<0 || pos_us[i]>1 || pos_b[i]<0 || pos_b[i]>1) {
-//			for (int j=1; j<num_found-i; j++) {
-//				r[i+j-1]      = r[i+j];
-//				pos_us[i+j-1] = pos_us[i+j];
-//				pos_b[i+j-1]  = pos_b[i+j];
-//			}
-//			num_found--;
-//		}
-//	}
-//	return num_found;
-//}
