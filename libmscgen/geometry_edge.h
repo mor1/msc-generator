@@ -133,8 +133,8 @@ public:
 		                XY r[], double pos_ab[], double pos_mn[]);
 	//Tells at what x pos this->B crosses the horizontal line at y, rets the number of crosses
 	int        CrossingHorizontal(double y, const XY &B, double r[]) const;
-	//Removes the part of the edge or curve before point p. Assumes p lies on us.
-	Edge&  SetStart(const XY &p);
+	//Removes the part of the edge or curve before point p. Assumes p lies on us. pos must match p
+	Edge&  SetStart(const XY &p, double pos);
 	//Removes the part of the edge or curve after point p. Assumes p lies on us.
 	Edge&  SetEnd(const XY &p);
 	//Adds this point (for straight) or full curve to a bounding box
@@ -146,7 +146,7 @@ public:
 	//check if next->after is a direct continuation of this->next and (if a curve) combine it into this, if yes
 	bool       CheckAndCombine(const Edge &next, const XY &after);
 	//assumes cairo position is at start
-	void       Path(cairo_t *cr, const XY &next) const;
+	void       Path(cairo_t *cr, const XY &next, bool reverse=false) const;
 };
 
 
@@ -219,11 +219,11 @@ inline double circle_space_point2radian_curvy(XY p)
 
 
 //Removes the part of the edge or curve before point p. Assumes p lies on us.
-inline Edge& Edge::SetStart(const XY &p)
+inline Edge& Edge::SetStart(const XY &p, double pos)
 {
 	start = p;
 	if (straight) return *this;
-	const double r = ell.Point2Radian(p);
+	const double r = pos2radian(pos);
 	_ASSERT(radianbetween(r));
 	s = r;
 	return *this;

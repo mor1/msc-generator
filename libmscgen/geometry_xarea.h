@@ -6,172 +6,234 @@
 
 namespace geometry {
 
-class GeoArea;
+class PolygonWithHoles;
 
-//this contains a list of non-overlapping polygons
-template <class polygon_type>
-class PolygonList : protected std::list<polygon_type>
+//This can contain multiple positive polygons and holes
+//holes are always within one of the polygons
+class PolygonList : protected std::list<PolygonWithHoles>
 {
-protected:
+	friend class PolygonWithHoles;
 	friend class Polygon;
-	friend class GeoArea;
-	Block         boundingBox;
-	PolygonList() {boundingBox.MakeInvalid();}
-
-	void swap(PolygonList &b) {std::list<polygon_type>::swap(b); std::swap(boundingBox, b.boundingBox);}
-	PolygonList &append(const polygon_type &p) {push_back(p); boundingBox += p.GetBoundingBox(); return *this;}
-	PolygonList &append(const PolygonList &pl) {for (auto i=pl.begin(); i!=pl.end(); i++) append(*i); return *this;}
-	void splice_with_bb(iterator i, PolygonList &b, iterator from, iterator to)
-		{for (auto j=from; j!=to; j++) boundingBox += j->GetBoundingBox(); splice(i, b, from, to);}
-	void splice_with_bb(iterator i, PolygonList &pl) {splice_with_bb(i, pl, pl.begin(), pl.end());}
-	void splice_with_bb(PolygonList &pl) {splice_with_bb(end(), pl);}
-	const Block &GetBoundingBox(void) const {return boundingBox;}
-	void Path(cairo_t *cr) const {for (auto i=begin(); i!=end(); i++) i->Path(cr);}
-	void Shift(XY xy) {for (auto i = begin(); i!=end(); i++) i->Shift(xy); boundingBox.Shift(xy);}
-	void Rotate90(XY xy) {for (auto i = begin(); i!=end(); i++) i->Rotate90(xy); boundingBox.Transpose();}
-	void Expand(double gap);
-
+protected:
+	Block boundingBox;
 public:
-	bool operator < (const PolygonList &pl) const;
-	bool operator ==(const PolygonList &pl) const;
+	PolygonList();
+	PolygonList(const PolygonWithHoles &p);
+	PolygonList(PolygonList &&p) {swap(p);}
 
+	void append(PolygonWithHoles &&p);
+	void append(const PolygonWithHoles &p);
+	void append(PolygonList &&p) {boundingBox += p.GetBoundingBox(); 
+	    std::list<PolygonWithHoles>::splice(std::list<PolygonWithHoles>::end(), p, p.begin(), p.end());}
+	void append(const PolygonList &p) {boundingBox += p.GetBoundingBox(); 
+	    std::list<PolygonWithHoles>::insert(std::list<PolygonWithHoles>::end(), p.begin(), p.end());}
+	void swap(PolygonList &a) {std::list<PolygonWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
+	void clear() {std::list<PolygonWithHoles>::clear(); boundingBox.MakeInvalid();}
+	bool operator <(const PolygonList &b) const;
+	bool operator ==(const PolygonList &b) const;
+	PolygonList &operator = (PolygonList &&a) {swap(a); return *this;}
+    bool IsEmpty() const {return size()==0;}
+	const Block &GetBoundingBox(void) const {return boundingBox;}
+    is_within_t IsWithin(XY p) const;
+	PolygonList &Shift(XY xy);
+
+	PolygonList &operator += (const PolygonWithHoles &p);
+	PolygonList &operator *= (const PolygonWithHoles &p);
+	PolygonList &operator -= (const PolygonWithHoles &p);
+	PolygonList &operator += (const PolygonList &a);
+	PolygonList &operator *= (const PolygonList &a);
+	PolygonList &operator -= (const PolygonList &a);
+	PolygonList operator + (const PolygonWithHoles &p) const {return std::move(PolygonList(*this)+=p);}
+	PolygonList operator * (const PolygonWithHoles &p) const {return std::move(PolygonList(*this)*=p);}
+	PolygonList operator - (const PolygonWithHoles &p) const {return std::move(PolygonList(*this)-=p);}
+	PolygonList operator + (const PolygonList &p) const {return std::move(PolygonList(*this)+=p);}
+	PolygonList operator * (const PolygonList &p) const {return std::move(PolygonList(*this)*=p);}
+	PolygonList operator - (const PolygonList &p) const {return std::move(PolygonList(*this)-=p);}
+
+	void Expand(PolygonList &polygon, double gap) const;
+
+	void Path(cairo_t *cr, bool hole=false) const;
+	void Line(cairo_t *cr, bool hole=false) const;
+	void Fill(cairo_t *cr) const;
 };
 
-template <class polygon_type>
-inline bool PolygonList<polygon_type>::operator <(const PolygonList &pl) const 
+//this contains a list of non-overlapping polygons as holes
+class PolygonWithHoles : public Polygon
 {
-	if (boundingBox != pl.boundingBox) return boundingBox < pl.boundingBox;
-	if (size() != pl.size()) return size()<pl.size();
-	for (auto i = begin(), j=pl.begin(); i!=end(); i++, j++)
+	friend class Polygon;
+	friend class PolygonList;
+protected:
+	PolygonList holes;
+	PolygonWithHoles() {};
+public:
+	PolygonWithHoles(const Polygon &p) : Polygon(p) {}
+	PolygonWithHoles(PolygonWithHoles &&p) {swap(p);}
+	void swap(PolygonWithHoles &b) {holes.swap(b.holes); Polygon::swap(b);}
+	bool operator < (const PolygonWithHoles &p) const;
+	bool operator ==(const PolygonWithHoles &p) const;
+	PolygonWithHoles &operator = (PolygonWithHoles &&a) {swap(a); return *this;}
+	const Block &GetBoundingBox(void) const {return Polygon::GetBoundingBox();}
+	is_within_t IsWithin(XY p) const;
+	void Shift(XY xy) {Polygon::Shift(xy); holes.Shift(xy);}
+	Polygon::poly_result_t Add(const PolygonWithHoles &p, PolygonList &res) const;
+	Polygon::poly_result_t Mul(const PolygonWithHoles &p, PolygonList &res) const;
+	Polygon::poly_result_t Sub(const PolygonWithHoles &p, PolygonList &res) const;
+
+	void Path(cairo_t *cr, bool hole=false) const {Polygon::Path(cr, hole); holes.Path(cr, !hole);}
+	void Line(cairo_t *cr, bool hole=false) const;
+};
+
+class TrackableElement;
+
+//plus it has additional stuff, such as arc, drawtype, findtype and mainline
+class Area : protected PolygonList 
+{
+	friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
+public:
+    mutable TrackableElement *arc;
+    mutable enum DrawType {NONE=0, FRAME=1, FULL=2} 
+	                          draw;
+    mutable bool              find;
+            Range             mainline;
+
+	explicit Area(TrackableElement *a=NULL) : arc(a), draw(FULL), find(true) {mainline.MakeInvalid();}
+	Area(const Polygon &p, TrackableElement *a=NULL, DrawType d=FULL, bool f=true) : 
+	    PolygonList(p), arc(a), draw(d), find(f)  {mainline.MakeInvalid();}
+
+	void clear() {PolygonList::clear(); mainline.MakeInvalid();}
+	void swap(Area &a);
+	bool operator <(const Area &b) const; 
+	bool operator ==(const Area &b) const; 
+	Area &operator += (const Area &b);
+	Area &operator *= (const Area &b);
+	Area &operator -= (const Area &b);
+	Area &operator += (const Polygon &b) {PolygonList::operator+=(PolygonWithHoles(b)); return *this;}
+	Area &operator *= (const Polygon &b) {PolygonList::operator*=(PolygonWithHoles(b)); return *this;}
+	Area &operator -= (const Polygon &b) {PolygonList::operator-=(PolygonWithHoles(b)); return *this;}
+	Area operator + (const Area &b) const {return std::move(Area(*this)+=b);}
+	Area operator * (const Area &b) const {return std::move(Area(*this)*=b);}
+	Area operator - (const Area &b) const {return std::move(Area(*this)-=b);}
+	Area operator + (const Polygon &b) const {return std::move(Area(*this)+=b);}
+	Area operator * (const Polygon &b) const {return std::move(Area(*this)*=b);}
+	Area operator - (const Polygon &b) const {return std::move(Area(*this)-=b);}
+	
+	Area & Shift(XY xy) {PolygonList::Shift(xy); mainline.Shift(xy.y); return *this;}
+	bool IsEmpty() const {return size()==0;}
+	void Path(cairo_t *cr) const {PolygonList::Path(cr);}
+	void Line(cairo_t *cr) const {PolygonList::Line(cr);}
+	void Fill(cairo_t *cr) const {PolygonList::Fill(cr);}
+};
+
+
+inline PolygonList::PolygonList() {boundingBox.MakeInvalid();}
+inline PolygonList::PolygonList(const PolygonWithHoles &p) : 
+	  std::list<PolygonWithHoles>(1, p), boundingBox(p.GetBoundingBox()) {}
+
+
+inline void PolygonList::append(PolygonWithHoles &&p) 
+{
+	boundingBox += p.GetBoundingBox(); 
+	push_back(p);
+}
+
+inline void PolygonList::append(const PolygonWithHoles &p) 
+{
+	boundingBox += p.GetBoundingBox(); 
+	push_back(p);
+}
+
+
+inline bool PolygonList::operator <(const PolygonList &b) const 
+{
+	if (boundingBox != b.boundingBox) return boundingBox<b.boundingBox;
+	if (size() != b.size()) return size()<b.size();
+	for (auto i = begin(), j=b.begin(); i!=end(); i++, j++)
 		if (!(*i==*j)) return *i<*j;
 	return false;
 }
 
-template <class polygon_type>
-inline bool PolygonList<polygon_type>::operator ==(const PolygonList &pl) const 
+inline bool PolygonList::operator ==(const PolygonList &b) const 
 {
-	if (boundingBox == pl.boundingBox || size() != pl.size()) return false;
-	for (auto i = begin(), j=pl.begin(); i!=end(); i++, j++)
+	if (boundingBox != b.boundingBox || size() != b.size()) return false;
+	for (auto i = begin(), j=b.begin(); i!=end(); i++, j++)
 		if (!(*i==*j)) return false;
 	return true;
 }
 
-
-
-//clockwise 
-class PosPolygonList : public PolygonList<PosPolygon> 
+inline is_within_t PolygonList::IsWithin(XY p) const 
 {
-	friend class Polygon;
-	friend class InvPolygonList;
-	friend class GeoArea;
-protected:
-	PosPolygonList() {boundingBox.MakeInvalid();}
-	PosPolygonList(const PosPolygon &p) {boundingBox.MakeInvalid(); if (p.IsClockWise()) append(p);}
-	void NormalizeWith(InvPolygonList &holes);
-	void Union(const PosPolygon &b, InvPolygonList &holes);
-	void Intersect(const PosPolygon &b);
-	void Intersect(const InvPolygon &b, InvPolygonList &holes);
-	void Intersect(const PosPolygonList &b);
-	void Substract(const PosPolygon &b, InvPolygonList &holes) {InvPolygon neg_b(b); Intersect(neg_b, holes);}
-	void Substract(const InvPolygon &b) {PosPolygon neg_b(b); Intersect(neg_b);}
-};
+	is_within_t ret = boundingBox.IsWithin(p);
+	if (ret==WI_OUTSIDE) return WI_OUTSIDE;
+	for (auto i = begin(); i!=end(); i++)
+		if (WI_OUTSIDE != (ret=i->IsWithin(p))) return ret;
+	return WI_OUTSIDE;
+}
 
-//counterclockwise
-class InvPolygonList : public PolygonList<InvPolygon>  
+inline PolygonList &PolygonList::Shift(XY xy) 
 {
-	friend class Polygon;
-	friend class PosPolygonList;
-	friend class GeoArea;
-protected:
-	InvPolygonList() {boundingBox.MakeInvalid();}
-	bool Union(const PosPolygon &b);
-	void Union(const InvPolygonList &b);   //pairwise intersection of holes
-	void Intersect(const InvPolygon &b, PosPolygonList &surfaces);
-};
+	for (auto i = begin(); i!=end(); i++)
+		i->Shift(xy);
+	boundingBox.Shift(xy);
+	return *this;
+}
 
-//This can contain multiple positive polygons and holes
-//holes are always within one of the polygons
-//plus it has additional stuff, such as arc, drawtype, findtype and mainline
-class GeoArea {
-	friend class GeoRectangle;
-	friend class GeoTriangle;
-	friend class GeoCircle;
-	friend class GeoEllipse;
-	friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
 
-protected:
-	PosPolygonList surfaces;
-	InvPolygonList holes;
-	
-	void add_to_surfaces(const geometry::PosPolygon &p) {surfaces.append(p);}
-public:
-    Range           mainline;
+inline bool PolygonWithHoles::operator <(const PolygonWithHoles &p) const 
+{
+	if (!(Polygon::operator==(p))) return Polygon::operator<(p);
+	if (holes.size() != p.holes.size()) return size()<p.holes.size();
+	for (auto i = holes.begin(), j=p.holes.begin(); i!=holes.end(); i++, j++)
+		if (!(*i==*j)) return *i<*j;
+	return false;
+}
 
-	GeoArea() {mainline.MakeInvalid();}
+inline bool PolygonWithHoles::operator ==(const PolygonWithHoles &p) const 
+{
+	if (holes.size() != p.holes.size() || !(Polygon::operator==(p))) return false;
+	for (auto i = holes.begin(), j=p.holes.begin(); i!=holes.end(); i++, j++)
+		if (!(*i==*j)) return false;
+	return true;
+}
 
-	void clear() {holes.clear(); surfaces.clear(); mainline.MakeInvalid();}
-	void swap(GeoArea &a);
-	bool operator <(const GeoArea &b) const {
-		if (surfaces != b.surfaces) return surfaces<b.surfaces;
-		if (holes != b.holes) return holes<b.holes;
-		if (mainline!=b.mainline) return mainline<b.mainline; 
-		return false;
+inline is_within_t PolygonWithHoles::IsWithin(XY p) const 
+{
+	is_within_t ret = Polygon::IsWithin(p);
+	if (ret!=WI_INSIDE) return ret;
+	for (auto i = holes.begin(); i!=holes.end(); i++) {
+		ret = i->IsWithin(p); 
+		if (ret!=WI_OUTSIDE) 
+			return ret == WI_INSIDE ? WI_OUTSIDE : ret;
 	}
-    bool IsEmpty() const {return surfaces.size()==0;}
-	const Block &GetBoundingBox(void) const {return surfaces.GetBoundingBox();}
+	return WI_INSIDE;
+}
 
-	void Expand(GeoArea &polygon, double gap) const;
-    bool Overlaps(const GeoArea &b, double gap=0) const;
-    bool IsWithin(XY p) const;
-	GeoArea &operator += (const GeoArea &b);
-	GeoArea &operator *= (const GeoArea &b);
-	GeoArea &operator -= (const GeoArea &b);
-	GeoArea operator + (const GeoArea &b) const {GeoArea tmp(*this); tmp+=b; return tmp;}
-	GeoArea operator * (const GeoArea &b) const {GeoArea tmp(*this); tmp*=b; return tmp;}
-	GeoArea operator - (const GeoArea &b) const {GeoArea tmp(*this); tmp-=b; return tmp;}
-	//clockwise: give the lower left corner of the encompassing box
-	//counterclockwise: give the upper right of the *oroginal, non rotated* block (we assume y increases downward, as on screen)
-	void Rotate90Clockwise(const Block &b) {surfaces.Rotate90(b.LowerRight()); holes.Rotate90(b.LowerRight()); mainline.MakeInvalid();}
-	void Rotate90Back(const Block &b) {surfaces.Rotate90(b.UpperRight()); holes.Rotate90(b.UpperRight()); mainline.MakeInvalid();}
-	GeoArea & Shift(XY xy) {surfaces.Shift(xy); holes.Shift(xy); mainline.Shift(xy.y); return *this;}
-
-	void Path(cairo_t *cr) const;
-	void Line(cairo_t *cr) const;
-	void Fill(cairo_t *cr) const;
-};
-
-
-class GeoRectangle : public GeoArea  
+inline bool Area::operator <(const Area &b) const
 {
-public:
-    GeoRectangle(double sx, double dx, double sy, double dy) 
-		{add_to_surfaces(geometry::PosPolygon(Block(sx, dx, sy, dy)));}
-	GeoRectangle(const XY &ul, const XY &dr)
-		{add_to_surfaces(geometry::PosPolygon(Block(ul, dr)));}
-	GeoRectangle(const Block &b)
-		{add_to_surfaces(geometry::PosPolygon(b));}
-};
+	if (mainline!=b.mainline) return mainline<b.mainline;
+	return PolygonList::operator<(b);
+}
 
-class GeoTriangle : public GeoArea  
+inline bool Area::operator ==(const Area &b) const
 {
-public:
-    GeoTriangle(XY a, XY b, XY c)
-		{add_to_surfaces(geometry::PosPolygon(a,b,c));}
-};
+	if (mainline!=b.mainline) return false;
+	return PolygonList::operator==(b);
+}
 
-class GeoCircle : public GeoArea  
+inline Area operator + (const Polygon &p, Polygon &q) 
 {
-public:
-	GeoCircle(const XY &c, double radius_x)
-		{add_to_surfaces(geometry::PosPolygon(c, radius_x));}
-};
+	return std::move(Area(p)+=q);
+}
 
-class GeoEllipse : public GeoArea  
+inline Area operator * (const Polygon &p, Polygon &q)
 {
-public:
-	GeoEllipse(const XY &c, double radius_x, double radius_y, double tilt_degree=0)
-		{add_to_surfaces(geometry::PosPolygon(c, radius_x, radius_y, tilt_degree));}
-};
+	return std::move(Area(p)*=q);
+}
+
+inline Area operator - (const Polygon &p, Polygon &q)
+{
+	return std::move(Area(p)-=q);
+}
+
 
 }; //namespace
 

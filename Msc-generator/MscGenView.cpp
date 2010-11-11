@@ -40,54 +40,54 @@
 
 void test_geo(cairo_t *cr, int x, int y, bool clicked) 
 {
-	using geometry::GeoArea;
-	using geometry::GeoRectangle;
-	using geometry::GeoTriangle;
-	using geometry::GeoCircle;
-	using geometry::GeoEllipse;
+	using geometry::Area;
+	using geometry::Polygon;
 	using namespace geometry;
 
-	static GeoArea tri, boxhole, cooomplex, cooomplex2;
-	if (tri.IsEmpty()) {
-		tri = GeoRectangle(30,50,60,70);
-		tri += GeoTriangle(geometry::XY(50,90), geometry::XY(100,60), geometry::XY(40,20));
-		boxhole += GeoRectangle(130,170,60,70);
-		boxhole += GeoRectangle(160,170,60,140);
-		boxhole += GeoRectangle(130,140,60,140);
-		boxhole += GeoRectangle(130,170,130,140);
+	static Area tri, boxhole, cooomplex, cooomplex2;
+	if (boxhole.IsEmpty()) {
+		//tri = Polygon(30,50,60,70);
+		//tri += Polygon(geometry::XY(50,90), geometry::XY(100,60), geometry::XY(40,20));
+		boxhole += Polygon(130,170,60,70);
+		boxhole += Polygon(160,170,60,140);
+		boxhole += Polygon(130,140,60,140);
+		boxhole += Polygon(130,170,130,140);
+
+		boxhole += Polygon(148,153, 85, 115);
 
 		cooomplex = boxhole + tri;
 
-		cooomplex2 = GeoRectangle(110, 200, 80, 120);
-		cooomplex2 -= GeoRectangle(120, 190, 90, 110);
+		cooomplex2 = Polygon(110, 200, 80, 120);
+		cooomplex2 -= Polygon(120, 190, 90, 110);
 
 		cooomplex2 += cooomplex;
-		cooomplex2 += GeoArea(cooomplex2).Shift(geometry::XY(15,15));
+		cooomplex2 += Area(cooomplex2).Shift(geometry::XY(15,15));
 		cooomplex2.Shift(geometry::XY(200,0));
 	}
 
 	//mscarea circle(xy(70,50), 30);
 
-	GeoEllipse circle(geometry::XY(200, 200), 60, 30, 30);
-	GeoEllipse circle2(geometry::XY(x, y), 60, 30, 150);
-	//GeoRectangle box(x-30, x+30, y-20, y+20);
-	circle += GeoRectangle(200,300, 170,190);
-	circle2 += GeoRectangle(x,x+100, y+15,y+30);
+	Area circle = Polygon(geometry::XY(200, 200), 60, 30, 30);
+	Area circle2= Polygon(geometry::XY(x, y), 60, 30, 150);
+	//Polygon circle2(geometry::XY(200,200), 60, 30, 150);
+	//Polygon box(x-30, x+30, y-20, y+20);
+	//circle += Polygon(200,300, 170,190);
+	//circle2 += Polygon(x,x+100, y+15,y+30);
 
-	GeoArea boxhole2 = GeoRectangle(110, 200, 80, 120);
-	boxhole2 -= GeoRectangle(120, 190, 90, 110);
+	Area boxhole2 = Polygon(110, 200, 80, 120);
+	boxhole2 -= Polygon(120, 190, 90, 110);
 	boxhole2.Shift(geometry::XY(x-110, y-80));
 
-	circle.Line(cr);
-	circle2.Line(cr);
+	//boxhole.Line(cr);
+	//boxhole2.Line(cr);
 
 	cairo_set_source_rgb(cr, 1, 0, 0);
-	(circle * circle2).Fill(cr); 
-//	(pl2 + circle).Line(cr);
+	(boxhole - circle2).Line(cr); 
+	(cooomplex2 * circle2).Fill(cr);
 	cairo_set_source_rgb(cr, 0, 0, 1);
-//	(pl3 * circle).Fill(cr);
+	(cooomplex * circle2).Fill(cr);
 	cairo_set_source_rgb(cr, 0, 0, 0);
-//	(pl4 * circle).Fill(cr);
+//	(pl4 * circle2).Fill(cr);
 
 	//double r[4];
 	//int a = quartic_solve(1, 0, 0, 0, 0, r);
@@ -100,26 +100,22 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 
 
 	//geometry::XY off(150, 30);
-	//PolyEdge e1(geometry::XY(x-75, y));
-	//PolyEdge e2(geometry::XY(200,200), 50, 100, 0);
-	//e2.s = 0 * (M_PI/180);
-	//e2.e = 360 * (M_PI/180);
-	//PolyEdge e3(geometry::XY(x, y), 100, 50, 0);
-	//e3.s = 0 * (M_PI/180);
-	//e3.e = 360 * (M_PI/180);
+	//Edge e1(geometry::XY(x-75, y));
+	//Edge e2(geometry::XY(200,200), 50, 100, 30);
+	//Edge e3(geometry::XY(x, y), 100, 50, 60);
 
-	//cairo_move_to(cr, e3.start.x, e3.start.y);
-	//e3.Path(cr, e3.start+off.Rotate90CW());
+	//cairo_move_to(cr, e3.GetStart().x, e3.GetStart().y);
+	//e3.Path(cr, e3.GetStart()+off.Rotate90CW());
 	//cairo_stroke(cr);
-	//cairo_move_to(cr, e2.start.x, e2.start.y);
-	//e2.Path(cr, e2.start+off);
+	//cairo_move_to(cr, e2.GetStart().x, e2.GetStart().y);
+	//e2.Path(cr, e2.GetStart()+off);
 	//cairo_stroke(cr);
 	//
-	//(GeoEllipse(geometry::XY(200,200), 50, 100, 0) * GeoEllipse(geometry::XY(x, y), 100, 50, 0)).Fill(cr);
+	//(Polygon(geometry::XY(200,200), 50, 100, 30) * Polygon(geometry::XY(x, y), 100, 50, 60)).Fill(cr);
 
 	//geometry::XY xy[4];
 	//double pos1[4], pos2[4];
-	//int num = PolyEdge::Crossing(e3, e3.start+off.Rotate90CW(), e2, e2.start+off, xy, pos1, pos2);
+	//int num = Edge::Crossing(e3, e3.GetStart()+off.Rotate90CW(), e2, e2.GetStart()+off, xy, pos1, pos2);
 	//for (int i=0; i<num; i++) {
 	//	cairo_set_source_rgba(cr, 0, 1, 0, 0.8);
 	//	cairo_arc(cr, xy[i].x, xy[i].y, 5, 0, 2*3.14);

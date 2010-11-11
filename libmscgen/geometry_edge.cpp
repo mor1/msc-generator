@@ -799,8 +799,8 @@ bool Edge::radianbetween(double r) const
 		if (s<e) return s<=r && r<=e;
 		else return r>=s || r<=e;
 	} else {
-		if (s<e) return s>=r || r<=e;
-		else return s>=r && r<=e;
+		if (s<e) return s>=r || r>=e;
+		else return s>=r && r>=e;
 	}
 }
 
@@ -981,18 +981,28 @@ bool Edge::CheckAndCombine(const Edge &next, const XY &after)
 	return true;
 }
 
-void Edge::Path(cairo_t *cr, const XY &next) const
+void Edge::Path(cairo_t *cr, const XY &next, bool reverse) const
 {
 	if (straight) {
-		cairo_line_to(cr, next.x, next.y);
+		if (reverse)
+			cairo_line_to(cr, start.x, start.y);
+		else
+			cairo_line_to(cr, next.x, next.y);
 		return;
 	}
 	cairo_save(cr);
 	ell.TransformForDrawing(cr);
-	if (clockwise_arc)
-		cairo_arc(cr, 0, 0, 1, s, e);
-	else
-		cairo_arc_negative(cr, 0, 0, 1, s, e);
+	if (reverse) {
+		if (clockwise_arc)
+			cairo_arc_negative(cr, 0, 0, 1, e, s);
+		else
+			cairo_arc(cr, 0, 0, 1, e, s);
+	} else {
+		if (clockwise_arc)
+			cairo_arc(cr, 0, 0, 1, s, e);
+		else
+			cairo_arc_negative(cr, 0, 0, 1, s, e);
+	}
 	cairo_restore(cr);
 }
 
