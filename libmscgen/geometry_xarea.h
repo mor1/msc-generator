@@ -43,12 +43,6 @@ public:
 	PolygonList &operator += (const PolygonList &a);
 	PolygonList &operator *= (const PolygonList &a);
 	PolygonList &operator -= (const PolygonList &a);
-	PolygonList operator + (const PolygonWithHoles &p) const {return std::move(PolygonList(*this)+=p);}
-	PolygonList operator * (const PolygonWithHoles &p) const {return std::move(PolygonList(*this)*=p);}
-	PolygonList operator - (const PolygonWithHoles &p) const {return std::move(PolygonList(*this)-=p);}
-	PolygonList operator + (const PolygonList &p) const {return std::move(PolygonList(*this)+=p);}
-	PolygonList operator * (const PolygonList &p) const {return std::move(PolygonList(*this)*=p);}
-	PolygonList operator - (const PolygonList &p) const {return std::move(PolygonList(*this)-=p);}
 
 	void Expand(PolygonList &polygon, double gap) const;
 
@@ -110,12 +104,6 @@ public:
 	Area &operator += (const Polygon &b) {PolygonList::operator+=(PolygonWithHoles(b)); return *this;}
 	Area &operator *= (const Polygon &b) {PolygonList::operator*=(PolygonWithHoles(b)); return *this;}
 	Area &operator -= (const Polygon &b) {PolygonList::operator-=(PolygonWithHoles(b)); return *this;}
-	Area operator + (const Area &b) const {return std::move(Area(*this)+=b);}
-	Area operator * (const Area &b) const {return std::move(Area(*this)*=b);}
-	Area operator - (const Area &b) const {return std::move(Area(*this)-=b);}
-	Area operator + (const Polygon &b) const {return std::move(Area(*this)+=b);}
-	Area operator * (const Polygon &b) const {return std::move(Area(*this)*=b);}
-	Area operator - (const Polygon &b) const {return std::move(Area(*this)-=b);}
 	
 	Area & Shift(XY xy) {PolygonList::Shift(xy); mainline.Shift(xy.y); return *this;}
 	bool IsEmpty() const {return size()==0;}
@@ -219,21 +207,45 @@ inline bool Area::operator ==(const Area &b) const
 	return PolygonList::operator==(b);
 }
 
-inline Area operator + (const Polygon &p, Polygon &q) 
-{
-	return std::move(Area(p)+=q);
-}
+inline PolygonList operator + (const PolygonList &p1, const PolygonWithHoles &p2) {return std::move(PolygonList(p1)+=p2);}
+inline PolygonList operator * (const PolygonList &p1, const PolygonWithHoles &p2) {return std::move(PolygonList(p1)*=p2);}
+inline PolygonList operator - (const PolygonList &p1, const PolygonWithHoles &p2) {return std::move(PolygonList(p1)-=p2);}
+inline PolygonList operator + (PolygonList &&p1, const PolygonWithHoles &p2) {return std::move(p1+=p2);}
+inline PolygonList operator * (PolygonList &&p1, const PolygonWithHoles &p2) {return std::move(p1*=p2);}
+inline PolygonList operator - (PolygonList &&p1, const PolygonWithHoles &p2) {return std::move(p1-=p2);}
 
-inline Area operator * (const Polygon &p, Polygon &q)
-{
-	return std::move(Area(p)*=q);
-}
+inline PolygonList operator + (const PolygonList &p1, const PolygonList &p2) {return std::move(PolygonList(p1)+=p2);}
+inline PolygonList operator * (const PolygonList &p1, const PolygonList &p2) {return std::move(PolygonList(p1)*=p2);}
+inline PolygonList operator - (const PolygonList &p1, const PolygonList &p2) {return std::move(PolygonList(p1)-=p2);}
+inline PolygonList operator + (PolygonList &&p1, const PolygonList &p2) {return std::move(p1+=p2);}
+inline PolygonList operator * (PolygonList &&p1, const PolygonList &p2) {return std::move(p1*=p2);}
+inline PolygonList operator - (PolygonList &&p1, const PolygonList &p2) {return std::move(p1-=p2);}
+inline PolygonList operator + (const PolygonList &p1, PolygonList &&p2) {return std::move(p2+=p1);}
+inline PolygonList operator * (const PolygonList &p1, PolygonList &&p2) {return std::move(p2*=p1);}
+inline PolygonList operator + (PolygonList &&p1, PolygonList &&p2) {return std::move(p2+=p1);}
+inline PolygonList operator * (PolygonList &&p1, PolygonList &&p2) {return std::move(p2*=p1);}
 
-inline Area operator - (const Polygon &p, Polygon &q)
-{
-	return std::move(Area(p)-=q);
-}
+inline PolygonList operator + (const Polygon &p1, Polygon &p2) {return std::move(PolygonList(p1)+=p2);}
+inline PolygonList operator * (const Polygon &p1, Polygon &p2) {return std::move(PolygonList(p1)*=p2);}
+inline PolygonList operator - (const Polygon &p1, Polygon &p2) {return std::move(PolygonList(p1)-=p2);}
 
+inline Area operator + (const Area &a, const Polygon &p)  {return std::move(Area(a)+=p);}
+inline Area operator * (const Area &a, const Polygon &p)  {return std::move(Area(a)*=p);}
+inline Area operator - (const Area &a, const Polygon &p)  {return std::move(Area(a)-=p);}
+inline Area operator + (Area &&a, const Polygon &p)  {return std::move(a+=p);}
+inline Area operator * (Area &&a, const Polygon &p)  {return std::move(a*=p);}
+inline Area operator - (Area &&a, const Polygon &p)  {return std::move(a-=p);}
+
+inline Area operator + (const Area &a1, const Area &a2)  {return std::move(Area(a1)+=a2);}
+inline Area operator * (const Area &a1, const Area &a2)  {return std::move(Area(a1)*=a2);}
+inline Area operator - (const Area &a1, const Area &a2)  {return std::move(Area(a1)-=a2);}
+inline Area operator + (Area &&a1, const Area &a2)  {return std::move(a1+=a2);}
+inline Area operator * (Area &&a1, const Area &a2)  {return std::move(a1*=a2);}
+inline Area operator - (Area &&a1, const Area &a2)  {return std::move(a1-=a2);}
+inline Area operator + (const Area &a1, Area &&a2)  {return std::move(a2+=a1);}
+inline Area operator * (const Area &a1, Area &&a2)  {return std::move(a2*=a1);}
+inline Area operator + (Area &&a1, Area &&a2)  {return std::move(a2+=a1);}
+inline Area operator * (Area &&a1, Area &&a2)  {return std::move(a2*=a1);}
 
 }; //namespace
 

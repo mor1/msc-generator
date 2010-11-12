@@ -45,9 +45,14 @@ char *ReadFile(FILE *in)
 	if (buff == NULL) return NULL;
     while (!feof(in)) {
         len += fread(buff+len, 1, alloc-1-len, in);
+		char *buff2;
         if (len == alloc-1)
-            buff = (char*)realloc(buff, alloc+=16384);
-		if (buff == NULL) return NULL;
+            buff2 = (char*)realloc(buff, alloc+=16384);
+		if (buff2 == NULL) {
+			free(buff);
+			return NULL;
+		}
+		buff = buff2;
     }
     buff[len]=0;
     return buff;

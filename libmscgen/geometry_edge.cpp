@@ -665,12 +665,12 @@ triangle_dir_t triangle_dir(XY a, XY b, XY c)
 		const double m = (a.x - b.x)/(a.y - b.y);
 		double cx =  m*(c.y-a.y) + a.x; //(cx, c.y) is a point on the a-b line
 		if (cx == c.x) return IN_LINE;
-		return (c.x < cx ^ a.y < b.y) ? COUNTERCLOCKWISE : CLOCKWISE;
+		return ((c.x < cx) ^ (a.y < b.y)) ? COUNTERCLOCKWISE : CLOCKWISE;
 	} else {
 		const double m = (a.y - b.y)/(a.x - b.x);
 		double cy =  m*(c.x-a.x) + a.y; //(c.x, cy) is a point on the a-b line
 		if (cy == c.y) return IN_LINE;
-		return (c.y < cy ^ a.x < b.x) ? CLOCKWISE : COUNTERCLOCKWISE;
+		return ((c.y < cy) ^ (a.x < b.x)) ? CLOCKWISE : COUNTERCLOCKWISE;
 	}
 }
 
@@ -808,13 +808,18 @@ bool Edge::radianbetween(double r) const
 double Edge::pos2radian(double r) const
 {
 	_ASSERT(!straight);
+	_ASSERT(0<=r && r<=1);
+	double ret;
 	if (clockwise_arc) {
-		if (s<e) return s + (e-s)*r;
-		else     return s + (e-s+2*M_PI)*r;
+		if (s<e) ret = s + (e-s)*r;
+		else     ret = s + (e-s+2*M_PI)*r;
 	} else {
-		if (s<e) return e + (s-e+2*M_PI)*(1-r);
-		else     return e + (s-e)*(1-r);
+		if (s<e) ret = e + (s-e+2*M_PI)*(1-r);
+		else     ret = e + (s-e)*(1-r);
 	} 
+	if (ret-2*M_PI>0) ret = ret-2*M_PI;
+	_ASSERT(0<=ret && ret<=2*M_PI);
+	return ret;
 }
 
 //can return outside [0..1] if point is not between s and e
@@ -889,6 +894,13 @@ int Edge::Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
 	return ret;
 }
 
+//test if the end of an arc equals to a point or not
+//y coordinate must match exactly, x can be approximate
+inline bool test_arc_end(const XY &endp, double y, double x)
+{
+	return endp.y==y && test_equal(endp.x, x);
+}
+
 //Where does an edge or arc corss a horizontal line? (for the purposes of Polygon::IsWithin)
 //1. an upward edge includes its starting endpoint, and excludes its final endpoint;
 //2. a downward edge excludes its starting endpoint, and includes its final endpoint;
@@ -910,7 +922,7 @@ int Edge::CrossingHorizontal(double y, const XY &B, double *x) const
 	int loc_num = ell.CrossingHorizontal(y, loc_x, radian);
 	//if the crosspoints are at the end of the segments, we check for up or downward crossing.
 	if (loc_num==1) { //just touch
-		if (radian[0] == s || radian[0] == e) {
+		if (test_arc_end(start,y,loc_x[0]) || test_arc_end(B,y,loc_x[0])) {
 			//here we know either a1==s or ==e and we touch the horizontal line at y
 			//if the centerpoint is above y and a1==s it is the beginning of an upward edge  => include
 			//if the centerpoint is above y and a1==e it is the end of a downward edge       => include
@@ -918,18 +930,18 @@ int Edge::CrossingHorizontal(double y, const XY &B, double *x) const
 			//if the centerpoint is below y and a1==e it is the end of an upward edge        => exclude
 			return ell.GetCenter().y < y ? 1 : 0;
 		}
-		return 0; //we tocuh, but not at an endpoint: we ignore these 
+		return 0; //we tocuh, but not at an endpoint: we ignore these (even if between s and e)
 	}
 	int num = 0;
 	for (int i=0; i<loc_num; i++) {
-		if (radian[i] == s || radian[i] == e) {
+		if (test_arc_end(start,y,loc_x[i]) || test_arc_end(B,y,loc_x[i])) {
 			//if r == s and forward tangent is above y, it is the beginning of an upward edge => include
 			//if r == d and backwardtangent is above y, it is the end of an downward edge     => include
 			//else exclude
-			if (ell.Tangent(radian[i], (radian[i]==s) ^ clockwise_arc).y <= y)  //include
+			if (ell.Tangent(radian[i], test_arc_end(B,y,loc_x[i]) ^ clockwise_arc).y <= y)  //include
 				x[num++] = loc_x[i];
-		} else
-			x[num++] = loc_x[i]; //include also, if it is not an endpoint
+		} else if (radianbetween(radian[i]))
+			x[num++] = loc_x[i]; //include also, if it is not an endpoint, but between s and e
 	}
 	return num; 
 }

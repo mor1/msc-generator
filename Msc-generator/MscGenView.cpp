@@ -63,6 +63,14 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 		cooomplex2 += cooomplex;
 		cooomplex2 += Area(cooomplex2).Shift(geometry::XY(15,15));
 		cooomplex2.Shift(geometry::XY(200,0));
+
+		cooomplex.clear();
+		const int num_x = 30;
+		const int num_y = 30;
+		for (int i=0; i<num_x; i++)
+			cooomplex += Polygon(200+i*20, 210+i*20, 200, 190+num_y*20);
+		for (int j=0; j<num_y; j++)
+			cooomplex += Polygon(200, 190+num_x*20, 200+j*20, 210+j*20);
 	}
 
 	//mscarea circle(xy(70,50), 30);
@@ -74,15 +82,15 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	//circle += Polygon(200,300, 170,190);
 	//circle2 += Polygon(x,x+100, y+15,y+30);
 
-	Area boxhole2 = Polygon(110, 200, 80, 120);
-	boxhole2 -= Polygon(120, 190, 90, 110);
-	boxhole2.Shift(geometry::XY(x-110, y-80));
+	//Area boxhole2 = Polygon(110, 200, 80, 120);
+	//boxhole2 -= Polygon(120, 190, 90, 110);
+	//boxhole2.Shift(geometry::XY(x-110, y-80));
 
-	//boxhole.Line(cr);
-	//boxhole2.Line(cr);
+	//circle2.Line(cr);
+	//cooomplex.Line(cr);
 
 	cairo_set_source_rgb(cr, 1, 0, 0);
-	(boxhole - circle2).Line(cr); 
+//	(boxhole - circle2).Line(cr); 
 	(cooomplex2 * circle2).Fill(cr);
 	cairo_set_source_rgb(cr, 0, 0, 1);
 	(cooomplex * circle2).Fill(cr);

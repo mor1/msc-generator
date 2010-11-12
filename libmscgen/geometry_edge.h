@@ -127,26 +127,27 @@ public:
 	const XY & GetStart() const {return start;}
 	const XY & GetCenter() const {_ASSERT(!straight); return ell.GetCenter();}
 	void CopyInverseToMe(const Edge &B, const XY &next);
+	void SetEllipseToFull() {_ASSERT(!straight); s=0; e=2*M_PI; start=ell.Radian2Point(0);}
 
 	//Gives the intersecting points of AB and MN
 	static int Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N, 
 		                XY r[], double pos_ab[], double pos_mn[]);
 	//Tells at what x pos this->B crosses the horizontal line at y, rets the number of crosses
-	int        CrossingHorizontal(double y, const XY &B, double r[]) const;
+	int    CrossingHorizontal(double y, const XY &B, double r[]) const;
 	//Removes the part of the edge or curve before point p. Assumes p lies on us. pos must match p
 	Edge&  SetStart(const XY &p, double pos);
 	//Removes the part of the edge or curve after point p. Assumes p lies on us.
 	Edge&  SetEnd(const XY &p);
 	//Adds this point (for straight) or full curve to a bounding box
-	Block&     CalculateBoundingBox();
+	Block& CalculateBoundingBox();
 	//returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
-	XY         PrevTangentPoint(double pos, const Edge &prev_vertex) const;
+	XY     PrevTangentPoint(double pos, const Edge &prev_vertex) const;
 	//returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
-	XY         NextTangentPoint(double pos, const Edge &next_vertex) const;
+	XY     NextTangentPoint(double pos, const Edge &next_vertex) const;
 	//check if next->after is a direct continuation of this->next and (if a curve) combine it into this, if yes
-	bool       CheckAndCombine(const Edge &next, const XY &after);
+	bool   CheckAndCombine(const Edge &next, const XY &after);
 	//assumes cairo position is at start
-	void       Path(cairo_t *cr, const XY &next, bool reverse=false) const;
+	void   Path(cairo_t *cr, const XY &next, bool reverse=false) const;
 };
 
 
