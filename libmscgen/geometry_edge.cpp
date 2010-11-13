@@ -66,9 +66,16 @@ inline bool test_equal(double n, double m)
 	return test_zero(n-m);
 }
 
+//true if *really* smaller, not just by epsilon
 inline bool test_smaller(double n, double m)
 {
 	return n<m-SMALL_NUM;
+}
+
+//true if *really* greater, not just by epsilon
+inline bool test_greater(double n, double m)
+{
+	return n-SMALL_NUM>m;
 }
 
 inline bool test_positive(double n)
@@ -606,6 +613,9 @@ int Ellipse::CrossingStraight(const XY &A, const XY &B,
 	for (int i=0; i<2; i++) {
 		radian_us[i] = circle_space_point2radian_curvy(r[i]);
 		r[i] = conv_to_real_space(r[i]);
+		//special case: horizontal line
+		if (A.y==B.y) r[i].y = A.y;
+		if (A.x==B.x) r[i].x = A.x;
 		pos_b[i]  = point2pos_straight(A, B, r[i]);
 	}
 	return 2;
@@ -876,10 +886,16 @@ int Edge::Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
 		if (!A.boundingBox.Overlaps(M.boundingBox)) 
 			return 0;
 		num = A.ell.CrossingEllipse(M.ell, loc_r, loc_ab, loc_mn);
-	} else if (A.straight) 
+	} else if (A.straight) {
+		if (!Block(A.start, B).Overlaps(M.boundingBox))
+			return 0;
 		num = M.ell.CrossingStraight(A.start, B, loc_r, loc_mn, loc_ab);
 	/* (M.type == STRAIGHT*/ 
-	else num = A.ell.CrossingStraight(M.start, N, loc_r, loc_ab, loc_mn);
+	} else {
+		if (!Block(M.start, N).Overlaps(A.boundingBox))
+			return 0;
+		num = A.ell.CrossingStraight(M.start, N, loc_r, loc_ab, loc_mn);
+	}
 	int ret = 0;
 	for (num--; num>=0; num--) {
 		if (!A.straight) loc_ab[num] = A.radian2pos(loc_ab[num]);
@@ -896,16 +912,22 @@ int Edge::Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
 
 //test if the end of an arc equals to a point or not
 //y coordinate must match exactly, x can be approximate
-inline bool test_arc_end(const XY &endp, double y, double x)
+inline bool test_arc_end(const XY &a, double y, double x)
 {
-	return endp.y==y && test_equal(endp.x, x);
+	return a.y==y && test_equal(a.x, x);
+}
+
+inline bool test_equal(const XY &a, const XY &b)
+{
+	return test_equal(a.y, b.y) && test_equal(a.x, b.x);
 }
 
 //Where does an edge or arc corss a horizontal line? (for the purposes of Polygon::IsWithin)
 //1. an upward edge includes its starting endpoint, and excludes its final endpoint;
 //2. a downward edge excludes its starting endpoint, and includes its final endpoint;
-//returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a horizontal line
-//internally "downward" is understood in a coordinate system where y grows downwards
+//SUM: we include the endpoint with the smaller y coordinate
+//returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a horizontal line.
+//Internally "downward" is understood in a coordinate system where y grows downwards
 int Edge::CrossingHorizontal(double y, const XY &B, double *x) const
 {
 	if (straight) {
@@ -934,18 +956,29 @@ int Edge::CrossingHorizontal(double y, const XY &B, double *x) const
 	}
 	int num = 0;
 	for (int i=0; i<loc_num; i++) {
-		if (test_arc_end(start,y,loc_x[i]) || test_arc_end(B,y,loc_x[i])) {
-			//if r == s and forward tangent is above y, it is the beginning of an upward edge => include
-			//if r == d and backwardtangent is above y, it is the end of an downward edge     => include
-			//else exclude
-			if (ell.Tangent(radian[i], test_arc_end(B,y,loc_x[i]) ^ clockwise_arc).y <= y)  //include
-				x[num++] = loc_x[i];
-		} else if (radianbetween(radian[i]))
-			x[num++] = loc_x[i]; //include also, if it is not an endpoint, but between s and e
+		//if r == s (start) and forward tangent is above y, it is the beginning of an upward edge => include
+		//if r == e (B)     and backwardtangent is above y, it is the end of an downward edge     => include
+		//else exclude
+		//This is a numerically sensitive place especially close to the endpoints.
+		//With straight lines we use simple < > == operators to see if the endpoint is on y or not
+		//Here we have numerical imprecision.
+		//So first we see if we are close to the endpoints in an approximate manner
+		//and then if yes, then we further refine the decision on endpoint using > < operators
+		//and then we see if this is an upward or downward edge
+		if (test_equal(radian[i], s)) {                       //OK we treat this as a crosspoint
+			if (test_arc_end(start,y,loc_x[i]) &&             //but if *exactly* on the startpoint...
+				ell.Tangent(radian[i], clockwise_arc).y > y)  //...and fw tangent below: exclude
+				continue;
+		} else if (test_equal(radian[i], e)) {                //OK we treat this as a crosspoint
+			if (test_arc_end(B,y,loc_x[i]) &&                 //but if *exactly* on the endpoint...
+				ell.Tangent(radian[i], !clockwise_arc).y > y)//...and bw tangent below: exclude
+				continue;
+		} else if (!radianbetween(radian[i]))  //exclude also, if not close to end and not between s&e
+			continue;
+		x[num++] = loc_x[i]; //include 
 	}
 	return num; 
 }
-
 //Adds this point (for straight) or full curve to a bounding box
 Block& Edge::CalculateBoundingBox() 
 {
@@ -1019,3 +1052,63 @@ void Edge::Path(cairo_t *cr, const XY &next, bool reverse) const
 }
 
 }; //namespace
+
+
+//int Edge::CrossingHorizontal2(double y, const XY &B, double *x) const
+//{
+//	if (straight) {
+//		if (test_smaller(start.y, B.y)) {      //downward edge: include startpoint
+//			if (test_smaller(y, start.y) || !test_smaller(B.y, y)) 
+//				//y<start.y-epsilon || B.y-epsilon <= y
+//				//either not enough outside on start side or too outside on B side
+//				return 0; 
+//			if (test_equal(start.y, y)) {  //preserve exact x coordinate
+//				x[0] = start.x;
+//				return 1;
+//			}
+//		} else if (test_smaller(B.y, start.y)) {      //upward edge
+//			if (test_smaller(y, B.y) || !test_smaller(start.y, y)) 
+//				//y<B.y-epsilon || start.y-epsilon <= y
+//				//either not enough outside on start side or too outside on B side
+//				return 0; 
+//			if (test_equal(B.y, y)) {  //preserve exact x coordinate
+//				x[0] = B.x;
+//				return 1;
+//			}
+//		} else //start and endpoint are almost the same
+//			return test_equal(start.y, y) ? -1 : 0;
+//		//we have a point inside the section
+//		x[0] = (start.x - B.x)/(start.y - B.y)*(y - B.y) + B.x;
+//		return 1;
+//	}
+//	double radian[2], loc_x[2];
+//	int loc_num = ell.CrossingHorizontal(y, loc_x, radian);
+//	//if the crosspoints are at the end of the segments, we check for up or downward crossing.
+//	if (loc_num==1) { //just touch
+//		if (test_equal(start,XY(y,loc_x[0])) || test_equal(B,XY(y,loc_x[0]))) {
+//			//here we know either a1==s or ==e and we touch the horizontal line at y
+//			//if the centerpoint is above y and a1==s it is the beginning of an upward edge  => include
+//			//if the centerpoint is above y and a1==e it is the end of a downward edge       => include
+//			//if the centerpoint is below y and a1==s it is the beginning of a downward edge => exclude
+//			//if the centerpoint is below y and a1==e it is the end of an upward edge        => exclude
+//			return ell.GetCenter().y < y ? 1 : 0;
+//		}
+//		return 0; //we tocuh, but not at an endpoint: we ignore these (even if between s and e)
+//	}
+//	int num = 0;
+//	for (int i=0; i<loc_num; i++) {
+//		//if r == s (start) and forward tangent is above y, it is the beginning of an upward edge => include
+//		//if r == e (B)     and backwardtangent is above y, it is the end of an downward edge     => include
+//		//else exclude
+//		if (test_equal(start, XY(loc_x[i], y))) {              //if on the startpoint...
+//			if (ell.Tangent(radian[i], clockwise_arc).y <= y)   //...and fw tangent above: include
+//				x[num++] = start.x;                            //preserve crosspoint coordinates
+//		} else if (test_equal(B, XY(loc_x[i], y))) {           //if on the startpoint...
+//			if (ell.Tangent(radian[i], !clockwise_arc).y <= y)  //...and bw tangent below: include
+//				x[num++] = B.x;                                //preserve crosspoint coordinates
+//		} else if (radianbetween(radian[i]))                   //inlcude also, if not close to ends but between s&e
+//			x[num++] = loc_x[i]; 
+//	}
+//	return num; 
+//}
+//

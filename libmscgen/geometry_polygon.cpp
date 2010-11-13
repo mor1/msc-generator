@@ -48,8 +48,10 @@ struct cp_t
 	cp_t(double p, const XY &a, const cp_pointer_t &b, bool sw) : 
 		pos(p), xy(a), other(b), switch_to_other(sw), stop_here(false), valid(true) {}
 	bool operator <(const cp_t &o) const {return pos<o.pos;}
-	bool operator <(double p) const {return pos<p;}
 };
+
+inline bool operator <(const cp_t &cp, double p) {return cp.pos < p;}
+inline bool operator <(double p, const cp_t &cp) {return p < cp.pos;}
 
 struct cp_list_t : public std::vector<cp_t> 
 {
@@ -111,7 +113,7 @@ void MscCrossPointStore::Set(const Polygon &p)
 {
 	_ASSERT(_polygon==NULL);
 	_polygon = &p;
-	if (capacity() < p.size()) resize(p.size());
+	if (size() < p.size()) resize(p.size());
 }
 
 void MscCrossPointStore::Sort()
@@ -132,12 +134,13 @@ void MscCrossPointStore::Finish()
 
 inline void MscCrossPointStore::Add(const XY &xy, const cp_pointer_t &us, const cp_pointer_t &other, bool sw) 
 {
+	_ASSERT(size() >= _polygon->size());
 	at(us.vertex).push_back(cp_t(us.pos, xy, other, sw));
 }
 
 cp_pointer_t MscCrossPointStore::First(void) const
 {
-	for (int i=0; i<size(); i++)
+	for (int i=0; i<_polygon->size(); i++)
 		for (int j=0; j<at(i).size(); j++)
 			if (at(i)[j].valid) 
 				return cp_pointer_t(i, at(i)[j].pos);
@@ -148,13 +151,13 @@ cp_pointer_t MscCrossPointStore::NextCP(const cp_pointer_t &pCP) const
 {
 	if (pCP.pos < 0) {                                                      //in a vertex    
 		if (at(pCP.vertex).size() == 0)                                
-			return cp_pointer_t((pCP.vertex+1) % size(), -1);               //no CPs: next vertex
+			return cp_pointer_t((pCP.vertex+1) % _polygon->size(), -1);               //no CPs: next vertex
 		else 
 			return cp_pointer_t(pCP.vertex, at(pCP.vertex).next_valid(-1)); //first CP on this edge
 	}
 	double pos = at(pCP.vertex).next_valid(pCP.pos);
 	if (pos == -1) 
-		return cp_pointer_t((pCP.vertex+1) % size(), -1);  //no next crosspoint
+		return cp_pointer_t((pCP.vertex+1) % _polygon->size(), -1);  //no next crosspoint
 	else
 		return cp_pointer_t(pCP.vertex, pos); //there is a next crosspoint
 }
@@ -514,6 +517,8 @@ Polygon::poly_result_t Polygon::PolyProcess(const Polygon &b, PolygonList &surfa
 	cp_two.Set(action==SUBSTRACT ? b_inv = b.GetInverse() : b);
 	MscCrossPointStore *poly   = &cp_one;  //poly will point to the current polygon we are at
 	MscCrossPointStore *poly_o = &cp_two; //this will hold data for the other, we will swap these
+	_ASSERT(cp_one.size() >= size());
+	_ASSERT(cp_two.size() >= b.size());
 
 	//We will first find all the crossing points between the two polygons
 	const int crosspoint_num = MscCrossPointStore::FindCrosspoints(action==UNION, cp_one, cp_two);
@@ -525,6 +530,8 @@ Polygon::poly_result_t Polygon::PolyProcess(const Polygon &b, PolygonList &surfa
 	cp_one.Sort();
 	cp_two.Sort();
 	
+	_ASSERT(cp_one.size() >= size());
+	_ASSERT(cp_two.size() >= b.size());
 	//OK, we have crosspoints relevant for the operation (union, intersection) we do
 	//Start the walks around the polygon, as long as there are crosspoints left
 	//The poly.cp->First on the next iteration will give a -1 vertex back if there is no more CPs
