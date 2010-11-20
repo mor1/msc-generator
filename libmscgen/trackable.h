@@ -15,22 +15,22 @@ public:
     double y;
     XY() {}
     XY(double a, double b) : x(a), y(b) {}
-	XY &   operator +=(XY wh)             {x+=wh.x; y+=wh.y; return *this;}
-	XY &   operator -=(XY wh)             {x-=wh.x; y-=wh.y; return *this;}
+    XY &   operator +=(XY wh)             {x+=wh.x; y+=wh.y; return *this;}
+    XY &   operator -=(XY wh)             {x-=wh.x; y-=wh.y; return *this;}
     XY     operator +(XY wh) const        {return XY(x+wh.x, y+wh.y);}
-    XY     operator -(XY wh) const        {return XY(x-wh.x, y-wh.y);} 
-    double DotProduct(XY B) const         {return x*B.x+y*B.y;} 
+    XY     operator -(XY wh) const        {return XY(x-wh.x, y-wh.y);}
+    double DotProduct(XY B) const         {return x*B.x+y*B.y;}
     XY     operator *(double scale) const {return XY(x*scale, y*scale);}
     XY     operator *=(double scale)      {x*=scale; y*=scale; return *this;}
     XY     operator /(double scale) const {return XY(x/scale, y/scale);}
     XY     operator /=(double scale)      {x/=scale; y/=scale; return *this;}
-	double PerpProduct(XY B) const        {return x*B.y - y*B.x;}        //This is this(T) * B
-	double length(void) const             {return sqrt(x*x+y*y);}
-	bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
-	XY	   operator -() const             {return XY(-x, -y);}
-	bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
-	XY     Rotate90CW() const             {return XY(-y, x);}
-	XY     Rotate90CCW() const            {return XY(y, -x);}
+    double PerpProduct(XY B) const        {return x*B.y - y*B.x;}        //This is this(T) * B
+    double length(void) const             {return sqrt(x*x+y*y);}
+    bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
+    XY	   operator -() const             {return XY(-x, -y);}
+    bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
+    XY     Rotate90CW() const             {return XY(-y, x);}
+    XY     Rotate90CCW() const            {return XY(y, -x);}
 };
 
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
@@ -53,18 +53,19 @@ struct Range {
     Range &operator*=(const Range &a)
         {if (from<a.from) from=a.from; if (till>a.till) till=a.till; return *this;}
     is_within_t IsWithin(double p) const {
-		if (p==from || p == till) return WI_ON_VERTEX; 
-		return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;}
-	Range &Shift(double a) {from +=a; till+=a; return *this;}
+        if (p==from || p == till) return WI_ON_VERTEX;
+        return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;}
+        Range &Shift(double a) {from +=a; till+=a; return *this;
+    }
     bool HasValidFrom() const {return from != MAINLINE_INF;}
     bool HasValidTill() const {return till != -MAINLINE_INF;}
     double Spans() const
         {return till-from;}
-	bool operator <(const Range &r) const {
-		if (till==r.till) return from<r.from;
-		return till<r.till;
-	}
-	bool operator ==(const Range &r) const {return from==r.from && till==r.till;}
+    bool operator <(const Range &r) const {
+        if (till==r.till) return from<r.from;
+        return till<r.till;
+    }
+    bool operator ==(const Range &r) const {return from==r.from && till==r.till;}
 };
 
 class TrackableElement;
@@ -91,8 +92,9 @@ struct Block {
         if (y.till != b.y.till) return y.till < b.y.till;
         if (x.till != b.x.till) return x.till < b.x.till;
         if (x.from != b.x.from) return x.from < b.x.from;
-        return y.from < b.y.from;}
-	bool operator == (const struct Block &b) const {return x==b.x && y==b.y;}
+        return y.from < b.y.from;
+    }
+    bool operator == (const struct Block &b) const {return x==b.x && y==b.y;}
     bool Overlaps(const struct Block &b, double gap=0) const
         {return x.Overlaps(b.x, gap) && y.Overlaps(b.y, gap);}
     XY UpperLeft(void) const
@@ -104,17 +106,18 @@ struct Block {
     XY LowerLeft(void) const
         {return XY(x.from, y.till);}
     is_within_t IsWithin(const XY &p) const {
-		if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
-		if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;
-		if (x.IsWithin(p.x) == WI_ON_VERTEX && y.IsWithin(p.y) == WI_ON_VERTEX) return WI_ON_VERTEX;
-		return WI_ON_EDGE;}
+        if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
+        if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;
+        if (x.IsWithin(p.x) == WI_ON_VERTEX && y.IsWithin(p.y) == WI_ON_VERTEX) return WI_ON_VERTEX;
+        return WI_ON_EDGE;
+    }
     Block & operator +=(const XY &p)
         {x += p.x; y += p.y; return *this;}
     Block & operator +=(const Block &b)
         {x += b.x; y += b.y; return *this;}
-	Block &Shift(const XY &a) 
-		{x.Shift(a.x); y.Shift(a.y); return *this;}
-	void Transpose() {std::swap(x,y);}
+    Block &Shift(const XY &a)
+        {x.Shift(a.x); y.Shift(a.y); return *this;}
+    void Transpose() {std::swap(x,y);}
 };
 
 template <typename BlockContainer>
@@ -142,8 +145,8 @@ const Block *InWhich(const BlockContainer &container, XY p) //search backwards -
 class Geometry
 {
     std::set<Block> cover;
-	mutable Block boundingBox;
-	mutable bool  boundingBoxCurrent, boundingBoxEmpty;
+    mutable Block   boundingBox;
+    mutable bool    boundingBoxCurrent, boundingBoxEmpty;
 public:
     Range           mainline;
 

@@ -46,7 +46,6 @@ class MscDrawer
     void _set_linear_gradient(MscColorType from, MscColorType to, XY s, XY d, MscGradientType type);
     void _set_radial_gradient(MscColorType from, MscColorType to, XY s,
 		                      double outer_radius, double inner_radius, MscGradientType type);
-	friend class MscPointList;
   public:
     MscError     Error;
     unsigned     current_file;  /* The number of the file under parsing, plus the error location */

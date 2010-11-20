@@ -200,6 +200,7 @@
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="error.cpp" />
     <ClCompile Include="geometry_edge.cpp" />
+    <ClCompile Include="geometry_ellipse.cpp" />
     <ClCompile Include="geometry_polygon.cpp" />
     <ClCompile Include="geometry_xarea.cpp" />
     <ClCompile Include="language.cc" />
@@ -227,6 +228,7 @@
     <ClInclude Include="error.h" />
     <ClInclude Include="geometry_basics.h" />
     <ClInclude Include="geometry_edge.h" />
+    <ClInclude Include="geometry_ellipse.h" />
     <ClInclude Include="geometry_polygon.h" />
     <ClInclude Include="geometry_xarea.h" />
     <ClInclude Include="language.h" />

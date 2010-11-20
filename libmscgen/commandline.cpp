@@ -38,21 +38,21 @@ const char *VersionText(char a, char b, char c)
 
 char *ReadFile(FILE *in)
 {
-	if (!in) return NULL;
+    if (!in) return NULL;
     unsigned alloc = 16384;
     unsigned len = 0;
     char *buff = (char*)malloc(alloc);
-	if (buff == NULL) return NULL;
+    if (buff == NULL) return NULL;
     while (!feof(in)) {
         len += fread(buff+len, 1, alloc-1-len, in);
-		char *buff2;
+        char *buff2;
         if (len == alloc-1)
             buff2 = (char*)realloc(buff, alloc+=16384);
-		if (buff2 == NULL) {
-			free(buff);
-			return NULL;
-		}
-		buff = buff2;
+        if (buff2 == NULL) {
+            free(buff);
+            return NULL;
+        }
+        buff = buff2;
     }
     buff[len]=0;
     return buff;
