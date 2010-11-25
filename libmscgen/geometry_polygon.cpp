@@ -959,118 +959,175 @@ bool Polygon::Overlaps(const Polygon &b) const
         }
     return false;
 }
-//return if assuming AB is parallel to MN, A->B is same direction as M->N
-//return false, if A~~B
-inline bool same_dir(const XY &A, const XY &B, const XY &M, const XY &N)
+
+typedef struct {
+	bool valid;
+	Edge s;        //two endpoint of original edge expanded by gap
+	XY   e;
+	int  substitue;//if orig_s->e needs to be removed, try this
+	bool separate; //true if it is a circle that became detached (used only if valid==false)
+	Edge res;    
+	int  next;     //holds the index of edge with which res is a crosspoint (for optimization)
+} EdgeXY;
+
+int next_edgexy(const std::vector<EdgeXY> &edges, int i) 
 {
-	if (test_equal(A.x, B.x) && test_equal(A.y, B.y))
-		return false;
-	if (fabs(A.x-B.x) > fabs(A.y-B.y)) 
-		return (A.x<B.x) ^ (M.x>=N.x);
-	else 
-		return (A.y<B.y) ^ (M.y>=N.y);
+	int j = i;
+	do {
+		j = (j+1)%edges.size();
+	} while (!edges[j].valid && j!=i);
+	return edges[j].valid ? j : -1;
 }
+
+int prev_edgexy(const std::vector<EdgeXY> &edges, int i) 
+{
+	int j = i;
+	do {
+		j = (j-1+edges.size())%edges.size();
+	} while (!edges[j].valid && j!=i);
+	return edges[j].valid ? j : -1;
+}
+
 
 void Polygon::Expand(double gap, PolygonList &res) const
 {
     if (gap==0 || size()==0) return;
 	if (boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap) return;
 
-	typedef struct {
-		Edge s;
-		XY   e;
-		bool substitue_exists;
-		Edge subst_s;
-		XY   subst_e;
-	} EdgeXY;
+	static std::vector<EdgeXY> edges;
+	edges.resize(size());
 
-	static std::vector<EdgeXY> edges1, edges2;
-	static Polygon result;  
-	static std::vector<Ellipse> extra_ellipses;
-	edges1.resize(size());
-	edges2.reserve(size());
-	result.reserve(size());
 	//calculate 2 points for each angle (expand the vertices)
-	int orig_size = 0;
-	for (int i=0; i<size(); i++) 
-		if (at(i).ExpandEdge(gap, at_next(i).start, edges1[orig_size].s, edges1[orig_size].e))
-			orig_size++;
-	extra_ellipses.clear();
-	//Now remove edges that got reversed as long as there are none such
-	do {
-		orig_size = edges1.size();
-		edges2.clear();
-		result.clear();
-		//calculate the new vertices
-		for (int i=0; i<edges1.size(); i++) {
-			std::vector<EdgeXY>::reverse_iterator iPrev = edges2.size() ? edges2.rbegin() : edges1.rbegin();
-			//the following call modifies *iPrev if it is a curve ("e" the ending radian.
-			//it is Ok to modify it even if it belongs to edges1
-			switch (iPrev->s.CombineExpandedEdges(iPrev->e, edges1[i].s, edges1[i].e, result)) {
-			case 2:
-				//we add two edges: the one added by the two points and edges[i]
-				edges2.resize(edges2.size()+1);
-				edges2.rbegin()->s = result[result.size()-2];      
-				edges2.rbegin()->e = result[result.size()-1].start;
-				edges2.rbegin()->substitue_exists = false;
-				//fallthrough
-			case 1:
-				edges2.push_back(edges1[i]);
-				edges2.rbegin()->substitue_exists = false;
-				break;
-			case 0:
-				//the last added edge and this one is parallel. We need to add only one of them.
-				//we do not know which. So we add both (one as a substitute), if the direction of points
-				//(calculated below) is wrong for one, we use the other. 
-				//if the previous was not already added, we add it now (and remove duplicates at the end)
-				if (edges2.size()==0) 
-					edges2.push_back(*iPrev); 
-				edges2.rbegin()->substitue_exists = true;
-				edges2.rbegin()->subst_s = edges1[i].s;
-				edges2.rbegin()->subst_e = edges1[i].e;
-				break;
-			case -1: //A circle not matching
-				//add it to extras otherwise drop it
-				if (!edges1[i].s.IsStraight())
-					extra_ellipses.push_back(edges1[i].s.GetEllipse());
-				else {
-					//we are line: remove previous ellipse
-					extra_ellipses.push_back(iPrev->s.GetEllipse());
-					if (edges2.size()) 
-						edges2.pop_back();
-					//add current edge (line);
-					edges2.push_back(edges1[i]);
-					edges2.rbegin()->substitue_exists = false;
-				}
-			}
-		}
-		//Check if last one equals to first one and remove
-		if (edges2.rbegin()->s == edges2.begin()->s && edges2.rbegin()->e == edges2.begin()->e)
-			edges2.pop_back();
-
-		//remove edges that changed direction
-		edges1.clear();
-		for (int i=0; i<edges2.size(); i++) 
-			if (same_dir(result[i].start, result.at_next(i).start, edges2[i].s.start, edges2[i].e)) 
-				edges1.push_back(edges2[i]);
-			else if (edges2[i].substitue_exists) { //use substitute if exists
-				edges2[i].s = edges2[i].subst_s;
-				edges2[i].e = edges2[i].subst_e;
-				//force one more cycle immediately
-				edges2.swap(edges1);
-				orig_size++;
-				break;
-			}
-		//if no edges have been removed during this cycle then the polygon in result is OK
-	} while(edges1.size() < orig_size && 0 < edges1.size());
-	//result1 contains the final polygon
-	if (edges1.size()==0) {
-		res.clear();
-		return;
+	int current_size = 0, num_separate = 0;
+	for (int i=0; i<size(); i++) {
+		edges[i].valid = at(i).ExpandEdge(gap, at_next(i).start, edges[i].s, edges[i].e);
+		edges[i].substitue = -1;
+		edges[i].next = -1;
+		if (edges[i].valid) current_size++;
 	}
-	result.CalculateBoundingBox();  //also calculates bounding boxes of edges
-	if (SAME==result.PolyProcessSelf(res, false, false)) 
-		res.append(result);        //expanded polygon is not tangled, just add it
+	if (current_size==0) 
+		return; //empty - all edges were removed by expand (e.g., circles with too small radius and gap<0)
+
+	bool once_more;
+	//Now remove edges that got reversed as long as there are none such
+	//From now on edges[].s and edges[].e will not change. The new crosspoints will be in edges[].res
+	do {
+		once_more = false;
+		//calculate the new vertices
+		int prev = prev_edgexy(edges, 0);
+		for (int i=0; i<size(); i++) {
+			if (!edges[i].valid) continue;
+			if (edges[prev].next == i) {
+				prev = i;
+				continue; //no need to re-calculate again
+			}
+			switch (edges[prev].s.CombineExpandedEdges(edges[prev].e, edges[i].s, edges[i].e, edges[i].res, edges[prev].res)) {
+			case 1:
+				edges[prev].next = i;
+				edges[i].substitue = -1;  //no substitute, that is only if edges[prev] and edges[i] are parallel
+				prev = i;
+				continue;
+			case -2:
+				//We combine two segments of the same ellipse
+				//Drop the second and modify the endpoint of the first
+				edges[i].valid = false;
+				edges[i].separate = false;
+				edges[prev].substitue = -1;  
+				edges[prev].s.e = edges[i].s.e;  
+				//keep prev as is 
+				current_size--;
+				once_more = true;
+				continue;
+			case -1:
+				//the last added edge and this one is parallel. We need to add only one of them, but
+				//we do not know which. Since edges[prev] is already there, we skip adding edges[i], but
+				//mark edges[prev] with i as a potential substitute.
+				edges[prev].substitue = i;  
+				edges[i].valid = false;
+				edges[i].separate = false;
+				//keep prev as is 
+				current_size--;
+				once_more = true;
+				continue;
+			case 0: //A circle not matching: either edges[prev] and/or edges[i] are curvy and they do not cross
+				//if edges[i] is curvy, mark it, keep prev unchanged and continue
+				int n;
+				if (!edges[i].s.IsStraight()) 
+					n = i;
+				else { //edges[i] is line: remove edges[prev] and re-do it from there
+					n = prev;
+					prev = prev_edgexy(edges, prev); //what was the last valid node before that
+				}
+				edges[n].valid = false;
+				if (edges[n].separate = edges[n].s.GetSpan()>M_PI)
+					num_separate++; 
+				current_size--;
+				once_more = true;
+				continue;
+			}
+			_ASSERT(0); //should not flow here
+		}
+		if (current_size<=1) break; //all edges gone (but there may be separate)
+		//remove edges that changed direction compared to original
+		int i = next_edgexy(edges,size()-1); 
+		_ASSERT(i>=0);
+		while(1) {
+			int after = next_edgexy(edges, i);
+			//detect if there have been any changes here
+			const int situ = edges[i].res.IsOppositeDir(edges[after].res.start, edges[i].s, edges[i].e);
+			if (situ>0) {
+				//edge changed direction: we shall skip it
+				if (edges[i].substitue == -1) { //no substitute exists: remove this edge
+					edges[i].valid = false;
+					edges[i].separate = situ==2;  //original edge spanned > 180, keep it as separate
+					current_size--;
+				} else {
+					//there is a substitute, leave these
+					edges[edges[i].substitue].valid = true;
+					edges[i].valid = false;
+					edges[i].separate = situ==2;  //original edge spanned > 180, keep it as separate
+					//There were no valid edges between i and edges[i].substitute
+					//the problem now is that the next valid edge after i (hence after substitute)
+					//has its .res set to the crosspoint with i and not with substitute, so we need to
+					//skip that edge for now
+					if (after <= i) break;  //we are done
+					after = next_edgexy(edges, after);
+					//Even so the crosspoint with the edge previous to i is still not OK, so we need
+					//to do another pass
+				}
+				once_more = true;
+			}
+			if (after <= i) break;
+			i = after;
+		}
+	} while (once_more && current_size>1);
+
+	//copy resulting polygon to res
+	if (current_size) {
+		Polygon result;
+		int i = next_edgexy(edges,size()-1); 
+		while(1) {
+			result.push_back(edges[i].res);
+			int next = next_edgexy(edges, i);
+			if (next <= i) break;
+			i = next;
+		} 
+		if (result.size()>1 || !result[0].IsStraight()) {
+			if (result.size()==1) 
+				result[0].SetEllipseToFull();
+			result.CalculateBoundingBox();  //also calculates bounding boxes of edges
+			if (SAME==result.PolyProcessSelf(res, false, false)) 
+				res.append(result);        //expanded polygon is not tangled, just add it
+		}
+	}
+	if (num_separate) 
+		for (int i=0; i<size(); i++) {
+			if (edges[i].valid || !edges[i].separate) continue;
+			Polygon b;
+			b.push_back(edges[i].s);
+			b.begin()->SetEllipseToFull();
+			res += b;
+		}
 }
 
 void Polygon::Path(cairo_t *cr, bool inverse) const
@@ -1089,85 +1146,105 @@ void Polygon::Path(cairo_t *cr, bool inverse) const
 
 }; //namespace
 
-//MscCrossPointStore::cp_category_t
-//MscCrossPointStore::CategorizeCrosspoint(int one_i, int two_j, XY p, double one_pos, double two_pos,
-//                                         const Polygon &one, const Polygon &two,
-//                                         cp_pointer_t &one_pCP, cp_pointer_t &two_pCP)
+
+//void Polygon::Expand(double gap, PolygonList &res) const
 //{
-//    //if the crosspoint falls on any ending vertex, skip it, it will pop up for the next edge as the starting vertex
-//    //contain is not set, when we need that value in containment, we sould not return here
-//    if (test_equal(one_pos, 1) || test_equal(two_pos, 1)) return WRONG_END;
-//    one_pCP.pos = one_pos;   one_pCP.vertex = one_i;
-//    two_pCP.pos = two_pos;   two_pCP.vertex = two_j;
+//    if (gap==0 || size()==0) return;
+//	if (boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap) return;
 //
-//    //Determine the category of the crosspoint
-//    //Obtain coordinates of the previous and next points in both polygons
-//    const XY prev_one_xy = one[one_pCP.vertex].PrevTangentPoint(one_pCP.pos, one.at_prev(one_pCP.vertex));
-//    const XY next_one_xy = one[one_pCP.vertex].NextTangentPoint(one_pCP.pos, one.at_next(one_pCP.vertex));
-//    const XY prev_two_xy = two[two_pCP.vertex].PrevTangentPoint(two_pCP.pos, two.at_prev(two_pCP.vertex));
-//    const XY next_two_xy = two[two_pCP.vertex].NextTangentPoint(two_pCP.pos, two.at_next(two_pCP.vertex));
+//	typedef struct {
+//		Edge s;
+//		XY   e;
+//		bool substitue_exists;
+//		Edge subst_s;
+//		XY   subst_e;
+//	} EdgeXY;
 //
-//    //calculate angles (not real degrees) with the current point as the tip of
-//    //the angle and the two previous points as one line of it and the two
-//    //next points as the other line. Angles are clockwise and can be > 180 degrees
-//    const double one_one_angle = angle(p, prev_one_xy, next_one_xy);
-//    const double two_two_angle = angle(p, prev_two_xy, next_two_xy);
-//    const double two_one_angle = angle(p, prev_two_xy, next_one_xy);
-//    const double one_two_angle = angle(p, prev_one_xy, next_two_xy);
+//	static std::vector<EdgeXY> edges1, edges2;
+//	static Polygon result;  
+//	static std::vector<Ellipse> extra_ellipses;
+//	edges1.resize(size());
+//	edges2.reserve(size());
+//	result.reserve(size());
+//	//calculate 2 points for each angle (expand the vertices)
+//	int orig_size = 0;
+//	for (int i=0; i<size(); i++) 
+//		if (at(i).ExpandEdge(gap, at_next(i).start, edges1[orig_size].s, edges1[orig_size].e))
+//			orig_size++;
+//	extra_ellipses.clear();
+//	//Now remove edges that got reversed as long as there are none such
+//	do {
+//		orig_size = edges1.size();
+//		edges2.clear();
+//		result.clear();
+//		//calculate the new vertices
+//		for (int i=0; i<edges1.size(); i++) {
+//			std::vector<EdgeXY>::reverse_iterator iPrev = edges2.size() ? edges2.rbegin() : edges1.rbegin();
+//			//the following call modifies *iPrev if it is a curve ("e" the ending radian.
+//			//it is Ok to modify it even if it belongs to edges1
+//			switch (iPrev->s.CombineExpandedEdges(iPrev->e, edges1[i].s, edges1[i].e, result)) {
+//			case 2:
+//				//we add two edges: the one added by the two points and edges[i]
+//				edges2.resize(edges2.size()+1);
+//				edges2.rbegin()->s = result[result.size()-2];      
+//				edges2.rbegin()->e = result[result.size()-1].start;
+//				edges2.rbegin()->substitue_exists = false;
+//				//fallthrough
+//			case 1:
+//				edges2.push_back(edges1[i]);
+//				edges2.rbegin()->substitue_exists = false;
+//				break;
+//			case 0:
+//				//the last added edge and this one is parallel. We need to add only one of them.
+//				//we do not know which. So we add both (one as a substitute), if the direction of points
+//				//(calculated below) is wrong for one, we use the other. 
+//				//if the previous was not already added, we add it now (and remove duplicates at the end)
+//				if (edges2.size()==0) 
+//					edges2.push_back(*iPrev); 
+//				edges2.rbegin()->substitue_exists = true;
+//				edges2.rbegin()->subst_s = edges1[i].s;
+//				edges2.rbegin()->subst_e = edges1[i].e;
+//				break;
+//			case -1: //A circle not matching
+//				//add it to extras otherwise drop it
+//				if (!edges1[i].s.IsStraight())
+//					extra_ellipses.push_back(edges1[i].s.GetEllipse());
+//				else {
+//					//we are line: remove previous ellipse
+//					extra_ellipses.push_back(iPrev->s.GetEllipse());
+//					if (edges2.size()) 
+//						edges2.pop_back();
+//					//add current edge (line);
+//					edges2.push_back(edges1[i]);
+//					edges2.rbegin()->substitue_exists = false;
+//				}
+//			}
+//		}
+//		//Check if last one equals to first one and remove
+//		if (edges2.rbegin()->s == edges2.begin()->s && edges2.rbegin()->e == edges2.begin()->e)
+//			edges2.pop_back();
 //
-//    //What do the angles tell us?
-//    //1. if 0 < X_Y_angle < X_X_angle then the outgoing edge of polygon Y
-//    //   goes fully outside the area of polygon X
-//    //2. if X_Y_angle == X_X_angle, the outgoing edges of the two polygons lie on
-//    //   the same line, meaning they occupy the same area (will be true for both X and Y)
-//    //3. if 0 == X_Y_angle the incoming edge of X lies in the same area as the outgoing
-//    //   edge of Y meaning the two polygons touch by an edge
-//
-//    //check for case #2
-//    if (one_two_angle == one_one_angle)
-//        return GOES_SAME;
-//
-//    if (0 == one_two_angle) {  //case #3 for two:
-//        if (0 == two_one_angle)  //case #3 for one, too
-//            //both incoming and outgoing edges are the same here, but opposite dir
-//            //for unions we should not be here (middle of the union, not the edge)
-//            //for intersects we can continue along any edge
-//            return OPPOSITE_COMPLEMENT;
-//
-//        if (two_one_angle < two_two_angle)  //case #1 for one: it goes free
-//            return OPPOSITE_ONE_GOES_AWAY;
-//        else
-//            return OPPOSITE_ONE_GOES_IN;
-//    }
-//    if (0 == two_one_angle) {  //case #3 for one. From above we know case#3 does not hold for two
-//        if (one_two_angle < one_one_angle)  //case #1 for two: it goes free
-//            return OPPOSITE_TWO_GOES_AWAY;
-//        else
-//            return OPPOSITE_TWO_GOES_IN;//two goes inside polygon one
-//    }
-//
-//    //here we know none of the incoming edges are the same ad the outgoing of the other
-//    //(well, we did not check for one_one_angle or two_two_angle for zero
-//    //whch would mean a degenerate polynom, since we assume we get good polynoms)
-//    if (one_two_angle < one_one_angle) {  //case #1 for two: two goes outside polygon one
-//        if (two_one_angle < two_two_angle)
-//			return TOUCH_POINT_OUTSIDE;
-//
-//        if (one_two_angle < two_two_angle) //the two polygons simply cross
-//			return SIMPLE_CROSS_TWO_OUT;
-//        if (one_two_angle > two_two_angle) //inside touch
-//            return TOUCH_POINT_INSIDE_TWO_OUT;
-//        //if (one_two_angle == two_two_angle) //the two incoming edges are the same
-//        return COMES_SAME_TWO_OUT;
-//    }
-//
-//    if (two_one_angle < two_two_angle) {  //same a above three cases but 1 and 2 reversed
-//        if (two_one_angle < one_one_angle) //the two polygons simply cross
-//			return SIMPLE_CROSS_ONE_OUT;
-//        if (two_one_angle > one_one_angle) //inside touch
-//            return TOUCH_POINT_INSIDE_ONE_OUT;
-//        //if (two_one_angle == one_one_angle) //the two incoming edges are the same
-//        return COMES_SAME_ONE_OUT;
-//    }
-//    return TOUCH_POINT_INSIDE;
+//		//remove edges that changed direction
+//		edges1.clear();
+//		for (int i=0; i<edges2.size(); i++) 
+//			if (same_dir(result[i].start, result.at_next(i).start, edges2[i].s.start, edges2[i].e)) 
+//				edges1.push_back(edges2[i]);
+//			else if (edges2[i].substitue_exists) { //use substitute if exists
+//				edges2[i].s = edges2[i].subst_s;
+//				edges2[i].e = edges2[i].subst_e;
+//				//force one more cycle immediately
+//				edges2.swap(edges1);
+//				orig_size++;
+//				break;
+//			}
+//		//if no edges have been removed during this cycle then the polygon in result is OK
+//	} while(edges1.size() < orig_size && 0 < edges1.size());
+//	//result1 contains the final polygon
+//	if (edges1.size()==0) {
+//		res.clear();
+//		return;
+//	}
+//	result.CalculateBoundingBox();  //also calculates bounding boxes of edges
+//	if (SAME==result.PolyProcessSelf(res, false, false)) 
+//		res.append(result);        //expanded polygon is not tangled, just add it
 //}

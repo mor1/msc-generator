@@ -448,6 +448,7 @@ void Ellipse::calculate_extremes()
 
 void Ellipse::add_to_tilt(double cos, double sin, double radian)
 {
+	if (radius1==radius2) return;
 	if (tilted)
 		tilt += radian;
 	else 
@@ -650,11 +651,11 @@ XY Ellipse::Tangent(double radian, bool next) const
         return conv_to_real_space(XY(x+y, y-x));
 }
 
-bool Ellipse::Exppand(double gap) 
+bool Ellipse::Expand(double gap) 
 {
-	radius1-=gap;
+	radius1+=gap;
 	if (!test_smaller(0,radius1)) return false;
-	radius2-=gap;
+	radius2+=gap;
 	if (!test_smaller(0,radius2)) return false;
 	return true;
 }

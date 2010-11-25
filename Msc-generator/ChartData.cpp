@@ -146,8 +146,9 @@ void CDrawingChartData::SetDesign (const char *design)
 	m_ForcedDesign = design;
 }
 
-void CDrawingChartData::CompileIfNeeded() const 
+void CDrawingChartData::CompileIfNeeded(bool doEMF) const 
 {
+	if (doEMF != m_hemf_is_true_emf) FreeMsc();
 	//To force a recompilation, call ReCompile()
 	if (m_msc) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -165,11 +166,12 @@ void CDrawingChartData::CompileIfNeeded() const
 	if (pApp) 
 		m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	//Do postparse, compile, calculate sizes and sort errors by line    
-	m_msc->CompleteParse(MscDrawer::WMF, true);
+	m_msc->CompleteParse(doEMF ? MscDrawer::WMF : MscDrawer::WMF, true);
 
 	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-	Draw(hdc, true, pApp->m_bPB_Editing);
+	Draw(hdc, doEMF, pApp->m_bPB_Editing);
 	m_hemf = CloseEnhMetaFile(hdc);
+	m_hemf_is_true_emf = doEMF;
 }
 
 unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {
@@ -226,7 +228,7 @@ double CDrawingChartData::GetBottomWithoutCopyright() const
 
 void CDrawingChartData::Draw(HDC hdc, bool doEMF, bool pageBreaks) const
 {
-	CompileIfNeeded();
+	CompileIfNeeded(doEMF);
 	MscDrawer::OutputType ot = doEMF ? MscDrawer::EMF : MscDrawer::WMF;
     if (!m_msc->SetOutputWin32(ot, hdc, int(m_page)-1)) return;
 	//draw page breaks only if requested and not drawing a single page only

@@ -113,9 +113,16 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	
 	cooomplex2.Line2(cr);
 	//custom.Line2(cr);
-	//Area bexp = cooomplex2.RotateAround(geometry::XY(300,100), 30).Expand((x-y)/10).Shift(geometry::XY(0,100));
-	Area bexp = cooomplex2.RotateAround(geometry::XY(300,100), 30).Shift(geometry::XY(0,100));
+	//boxhole2.Line(cr);
+	//Area(Polygon(geometry::XY(130,201), 30, 20)).Line2(cr);
+	Area huhu = boxhole2;
+	//huhu.ClearHoles();
+	huhu *= Polygon(geometry::XY(130,201), 30,20);
+	//huhu.Line2(cr);
+	//Area bexp = huhu.RotateAround(geometry::XY(300,100), 30).Expand((x-y)/10).Shift(geometry::XY(0,100));
+	Area bexp = cooomplex2./*RotateAround(geometry::XY(300,100), 30).*/Expand(-5).Shift(geometry::XY(0,100));
 	//Area bexp = (Polygon(200, 300, 200, 250) - Polygon(220, 280, 210, 230)).RotateAround(geometry::XY(250,250), 30).Expand(-5);
+	//Area bexp = huhu.Expand((x-y)/10).Shift(geometry::XY(0,100));
 	bexp.Line2(cr);
 
 	cairo_set_source_rgb(cr, 1, 0, 0);
@@ -316,7 +323,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	double fzoom = double(pInfo->m_rectDraw.Width())/orig_size.cx;
 	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
-	HENHMETAFILE hemf = data.GetEMF();
+	HENHMETAFILE hemf = data.GetEMF(true);
 	ENHMETAHEADER header;
 	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
 	r.SetRect(header.rclBounds.left*fzoom, header.rclBounds.top*fzoom,
@@ -518,7 +525,7 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 	}
 
 	//ToDo: POLYGON TESTING XXX
-	test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
+//	test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
 
 	//Cleanup
 	cairo_destroy(cr_dest);
@@ -542,7 +549,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 		bitmap.CreateCompatibleBitmap(pDC, viewPort.Width(), viewPort.Height());
 		CBitmap *oldBitmap = memDC.SelectObject(&bitmap);
 		memDC.FillSolidRect(viewPort, pDC->GetBkColor());
-		PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(), viewPort);
+		PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(false), viewPort);
 		DrawTrackRects(&memDC, viewPort, viewPort.Width()/double(m_size.cx), viewPort.Height()/double(m_size.cy));
 		pDC->BitBlt(0, 0, viewPort.Width(), viewPort.Height(), &memDC, 0, 0, SRCCOPY);   
 		memDC.SelectObject(oldBitmap);
@@ -566,7 +573,7 @@ void CMscGenView::OnDraw(CDC* pDC)
 			oldBitmap = memDC.SelectObject(&m_cachedBitmap);
 			memDC.SetWindowOrg(clip.left, clip.top);
 			memDC.FillSolidRect(clip, pDC->GetBkColor());
-			PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(), r);
+			PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(true), r);
 			m_cachedBitmapClip = clip;
 			m_cachedBitmapZoom = pDoc->m_zoom;
 		}

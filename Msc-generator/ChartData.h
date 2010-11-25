@@ -63,10 +63,11 @@ class CDrawingChartData : public CChartData {
 protected:
 	mutable Msc *m_msc;
 	mutable HENHMETAFILE m_hemf;
-	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
+	mutable bool m_hemf_is_true_emf;
+	Msc *GetMsc() const {CompileIfNeeded(m_hemf_is_true_emf); return m_msc;}
 public:
-	CDrawingChartData() : m_msc(NULL), m_hemf(NULL) {}
-	CDrawingChartData(const CChartData&o) : m_msc(NULL), m_hemf(NULL) {operator=(o);}
+	CDrawingChartData() : m_msc(NULL), m_hemf(NULL), m_hemf_is_true_emf(true) {}
+	CDrawingChartData(const CChartData&o) : m_msc(NULL), m_hemf(NULL), m_hemf_is_true_emf(true) {operator=(o);}
 	CDrawingChartData & operator = (const CChartData& o) {FreeMsc(); CChartData::operator =(o); return *this;}
 	virtual void Delete(void) {CChartData::Delete(); FreeMsc();}
 	virtual void SetDesign (const char *design);
@@ -74,10 +75,11 @@ public:
 	unsigned GetPage() const {return m_page;}
 //Compilation related
 	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL; DeleteEnhMetaFile(m_hemf); m_hemf=NULL;}}
-	void CompileIfNeeded() const;
+	void CompileIfNeeded(bool doEMF) const;
+	void CompileIfNeeded() const {CompileIfNeeded(m_hemf_is_true_emf);}
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
 	BOOL IsCompiled() const {return m_msc!=NULL;}
-	HENHMETAFILE GetEMF() const {CompileIfNeeded(); return m_hemf;}
+	HENHMETAFILE GetEMF(bool trueEMF) const {CompileIfNeeded(trueEMF); return m_hemf;}
 //Error related
 	unsigned GetErrorNum(bool oWarnings) const;
 	unsigned GetErrorLine(unsigned num, bool oWarnings) const;

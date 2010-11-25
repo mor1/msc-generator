@@ -72,7 +72,7 @@ public:
                          XY r[], double radian_us[], double pos_b[]) const;
     int CrossingHorizontal(double y, double x[], double radian[]) const;
 
-    bool Exppand(double gap);
+    bool Expand(double gap);
 	void TransformForDrawing(cairo_t *cr) const;
 };
 

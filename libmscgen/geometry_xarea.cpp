@@ -176,9 +176,12 @@ Polygon::poly_result_t PolygonWithHoles::Add(const PolygonWithHoles &p, PolygonL
         res.rbegin()->holes -= p;
         break;
     case OK:
-        res.rbegin()->holes += (holes - p);
-        res.rbegin()->holes += (p.holes - *this);
-        res.rbegin()->holes += (holes * p.holes);
+		if (holes.size()) 
+			res.rbegin()->holes += (holes - p);
+        if (p.holes.size()) 
+			res.rbegin()->holes += (p.holes - *this);
+		if (holes.size() && p.holes.size()) 
+			res.rbegin()->holes += (holes * p.holes);
         break;
     }
     return ret;
@@ -197,18 +200,19 @@ Polygon::poly_result_t PolygonWithHoles::Mul(const PolygonWithHoles &p, PolygonL
         break; //empty
     case A_INSIDE_B:
         res.append((Polygon)(*this)); //append only surface, no holes
-        res -= (holes + p.holes);
+		if (holes.size() || p.holes.size())
+			res -= (holes + p.holes);
         break;
     case B_INSIDE_A:
         res.append((Polygon)p); //append only surface, no holes
-        res -= (holes + p.holes);
+		//fallthrough
+    case OK:
+		if (holes.size() || p.holes.size())
+	        res -= (holes + p.holes);
         break;
     case SAME:
         res.append(*this);
         res.rbegin()->holes += p.holes;
-        break;
-    case OK:
-        res -= (holes + p.holes);
         break;
     }
     return ret;

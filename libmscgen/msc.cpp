@@ -910,9 +910,14 @@ void Msc::DrawPageBreaks()
 void Msc::Draw(bool pageBreaks)
 {
     if (totalHeight == 0 || !cr) return;
+	//Draw small marks in corners, so EMF an WMF spans correctly
+	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, 0);
+	line(XY(0,0), XY(1,0), marker);
+	line(XY(totalWidth,totalHeight), XY(totalWidth-1,totalHeight), marker);
+	//draw background
     MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
     double y = 0;
-    map<double, MscFillAttr>::iterator i = Background.begin();
+	map<double, MscFillAttr>::iterator i = Background.begin();
     while (i!=Background.end()) {
         if (i->first != y) {
             if (y!=0 || white_background)
@@ -928,10 +933,12 @@ void Msc::Draw(bool pageBreaks)
         if (y!=0 || white_background)
             filledRectangle(XY(0,y), XY(totalWidth,totalHeight), fill_bkg);
     }
+	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks();
+	//Draw initial set of entity lines (boxes will cover these and redraw)
     DrawEntityLines(0, totalHeight);
-    //draw and not final (both true would be confusing)
+    //draw==true and final==false (both true would be confusing)
     Geometry g;
     DrawHeightArcList(Arcs.begin(), Arcs.end(), 0, g, true, false);
 }

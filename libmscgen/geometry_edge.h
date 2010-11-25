@@ -79,6 +79,7 @@ public:
     const Ellipse &GetEllipse() const {_ASSERT(!straight); return ell;}
     void CopyInverseToMe(const Edge &B, const XY &next);
     void SetEllipseToFull() {_ASSERT(!straight); s=0; e=2*M_PI; start=ell.Radian2Point(0);}
+	double GetSpan() const;
 
     //Gives the intersecting points of AB and MN
     static int Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
@@ -101,7 +102,8 @@ public:
     void   Path(cairo_t *cr, const XY &next, bool reverse=false) const;
 
 	bool   ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const;
-	int    CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, std::vector<Edge> &res);
+	int    CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, Edge &res_prev) const;
+	int    IsOppositeDir(const XY &B, const Edge &M, const XY &N) const;
 };
 
 
@@ -123,6 +125,19 @@ inline bool Edge::operator < (const Edge& p) const
     if (clockwise_arc!=p.clockwise_arc) return clockwise_arc;
     return ell < p.ell;
 }
+
+inline double Edge::GetSpan() const
+{
+	_ASSERT(!straight);
+	if (clockwise_arc) {
+		if (s<e) return e-s;
+		else return e-s+2*M_PI;
+	} else {
+		if (s>e) return s-e;
+		else return s-e+2*M_PI;
+	}
+}
+
 
 inline XY Edge::PrevTangentPoint(double pos, const Edge &prev_vertex) const
 {

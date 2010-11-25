@@ -450,7 +450,7 @@ bool Edge::ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const
 		r2 = next+wh;
 	} else {
 		r1.ell = ell;
-		if (!r1.ell.Exppand(gap))
+		if (!r1.ell.Expand(gap))
 			return false;
 		r1.s = s;
 		r1.e = e;
@@ -465,38 +465,44 @@ int find_closest(int num, const double r[], double p)
 {
 	int pos = -1;
 	double diff=200;
-	for (int i=0; i<num; i++)
+	for (int i=0; i<num; i++) {
 		if (fabs(r[i]-p) < diff) {
 			diff = fabs(r[i]-p);
 			pos = i;
+		} 
+		if (2*M_PI-fabs(r[i]-p) < diff) {
+			diff = 2*M_PI-fabs(r[i]-p);
+			pos = i;
 		}
+	}
 	return pos;
 }
 
 //this->B and M->N are two expanded edges
 //Calculate the crosspoint and place it into res.
 //Any possible second point is placed adfter, if needed.
-//can also return 0 if this->B is parallel with M->N
-//cal also return -1 if this or M is an ellipse and they do not touch the other (which can be line, too)
-int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, std::vector<Edge> &res)  
+//cal also return 0 if this or M is an ellipse and they do not touch the other (which can be line, too)
+//can also return -1 if this->B is parallel with M->N
+//can also return -2 if this is the same curve as M
+//Returned edge has no valid boundingBox
+//if *this is curvy, the crosspoints radian for *this is stored in res_prev.e
+int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, Edge &res_prev) const
 {
-	res.push_back(M);
 	if (M.straight) {
 		if (straight) {
-			if (1==crossing_line_line(start, B, M.start, N, res.rbegin()->start))
-				return 1;
-			res.pop_back();
-			return 0;
+			if (0==crossing_line_line(start, B, M.start, N, res.start))
+				return -1;
+			res.straight = true;
+			return 1;
 		}
 		XY r[8];
 		double radian_us[8], pos_M[8];
 		int num = ell.CrossingStraight(M.start, N, r, radian_us, pos_M);
 		int pos = find_closest(num, radian_us, e);
-		if (pos = -1) {
-			res.pop_back();
-			return -1;
-		}
-		res.rbegin()->start = r[pos];
+		if (pos == -1) return 0;
+		res.start = r[pos];
+		res.straight = true;
+		res_prev.e = radian_us[pos];
 		return 1;
 	} else {
 		XY r[8];
@@ -504,20 +510,53 @@ int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, std::vector
 		int num;
 		if (straight) 
 			num = M.ell.CrossingStraight(start, B, r, radian_M, radian_us);
-		else
+		else {
+			if (ell == M.ell) return -2; //we combine two segments of the same ellipse
 			num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
-		int pos = find_closest(num, radian_M, M.s);
-		if (pos = -1) {
-			res.pop_back();
-			return -1;
 		}
-		res.rbegin()->start = r[pos];
-		res.rbegin()->s = radian_M[pos];
+		int pos = find_closest(num, radian_M, M.s);
+		if (pos == -1) return 0;
+		res.start = r[pos];
+		res.straight = false;
+		res.ell = M.ell;
+		res.s = radian_M[pos];
+		//do not modify res.r, it may have been set
+		res.clockwise_arc = M.clockwise_arc;
 		if (!straight)
-			e = radian_us[pos];
+			res_prev.e = radian_us[pos];
 		return 1;
 	}
 }
 
+inline bool radbw(double r, double s, double e)
+{
+	if (s<e) return s<=r && r<=e;
+    else return r>=s || r<=e;
+}
 
-}; //namespace
+//M is the same edge as *this (straight & ell) with different start and endpoints
+//(B is the endpoint for *this, N is for M)
+//(so if *this is straight this->B is parallel to M->N)
+//return 0 if start->B lies in the same direction on as M.start->N
+//return 1, if they lie in the opposite dir or if start~~B
+//return 2, if *this is a circle, the direction has changed,
+//   but the M curve span more than 180 degrees
+int Edge::IsOppositeDir(const XY &B, const Edge &M, const XY &N) const
+{
+	if (test_equal(start.x, B.x) && test_equal(start.y, B.y))
+		return 1;
+	if (straight) {
+		if (fabs(start.x-B.x) > fabs(start.y-B.y)) 
+			return (start.x<B.x) != (M.start.x<N.x);
+		else 
+			return (start.y<B.y) != (M.start.y<N.y);
+	}
+	const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
+	const bool dir_M = (M.e>M.s && (M.e-M.s)<M_PI) || (M.s>M.e && (M.s-M.e)>=M_PI);
+    if (dir_us == dir_M) return 0;
+	//OK, dir has changed on a curyv edge
+	//Now see, if the original s->e was more than 180 degrees
+	return M.GetSpan()>M_PI ? 2 : 1;
+}
+	
+} //namespace
