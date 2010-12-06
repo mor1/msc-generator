@@ -179,7 +179,10 @@ inline bool between01_adjust(double &n)
 	return true;
 }
 
-
+inline double deg2rad(double degree) 
+{
+	return (degree-floor(degree/360)*360)*M_PI/180;
+}
 
 bool crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
 double point2pos_straight(const XY &M, const XY&N, const XY &p);

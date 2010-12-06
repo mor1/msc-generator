@@ -84,9 +84,8 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	v.push_back(geometry::Edge(geometry::XY(x, y)));
 	v.push_back(geometry::Edge(geometry::XY( 50, 300)));
 	v.push_back(geometry::Edge(geometry::XY(100, 300)));
-	//custom = v;
-
-	//mscarea circle(xy(70,50), 30);
+	custom = v;
+	custom.Line2(cr);
 
 	Area circle = Polygon(geometry::XY(200, 200), 60, 30, 30);
 	Area circle2= Polygon(geometry::XY(x, y), 60, 30, abs(x-y));
@@ -110,20 +109,19 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	//custom.Line2(cr);
 	//boxhole.Line2(cr);
 
-	
-	cooomplex2.Line2(cr);
+	//cooomplex.Line2(cr);
 	//custom.Line2(cr);
 	//boxhole2.Line(cr);
 	//Area(Polygon(geometry::XY(130,201), 30, 20)).Line2(cr);
 	Area huhu = boxhole2;
 	//huhu.ClearHoles();
-	huhu *= Polygon(geometry::XY(130,201), 30,20);
+	//huhu *= Polygon(geometry::XY(130,201), 30,20);
 	//huhu.Line2(cr);
 	//Area bexp = huhu.RotateAround(geometry::XY(300,100), 30).Expand((x-y)/10).Shift(geometry::XY(0,100));
-	Area bexp = cooomplex2./*RotateAround(geometry::XY(300,100), 30).*/Expand(-5).Shift(geometry::XY(0,100));
+	//Area bexp = cooomplex2.RotateAround(geometry::XY(300,100), x-y).Expand((x-y)/10).Shift(geometry::XY(0,100));
 	//Area bexp = (Polygon(200, 300, 200, 250) - Polygon(220, 280, 210, 230)).RotateAround(geometry::XY(250,250), 30).Expand(-5);
 	//Area bexp = huhu.Expand((x-y)/10).Shift(geometry::XY(0,100));
-	bexp.Line2(cr);
+	//bexp.Line2(cr);
 
 	cairo_set_source_rgb(cr, 1, 0, 0);
 	//(boxhole + boxhole2).Line2(cr); 
@@ -525,7 +523,7 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 	}
 
 	//ToDo: POLYGON TESTING XXX
-//	test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
+	test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
 
 	//Cleanup
 	cairo_destroy(cr_dest);

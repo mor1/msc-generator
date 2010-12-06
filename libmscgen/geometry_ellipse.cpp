@@ -453,20 +453,19 @@ void Ellipse::add_to_tilt(double cos, double sin, double radian)
 		tilt += radian;
 	else 
 		tilt = radian;
-	while (tilt<0) tilt+=M_PI;
-	while (tilt>=M_PI) tilt-=M_PI;
-    if (tilt) {
-        if (tilted) { //already tilted and remains so
-            double c = costilt;
-            costilt = c*cos + sintilt*sin;
-            sintilt = -c*sin + sintilt*cos;
-        } else {
-            tilted=true;
-            costilt = cos;
-            sintilt = sin;
-        }
-    } else
-        tilted = false;
+	if (tilt>=2*M_PI) tilt-=2*M_PI;
+    if (test_equal(tilt,0)) {
+		tilted = false;
+	} else if (tilted) { //already tilted and remains so
+        double c = costilt;
+        costilt = c*cos + sintilt*sin;
+        sintilt = -c*sin + sintilt*cos;
+    } else {
+        tilted=true;
+        costilt = cos;
+        sintilt = sin;
+    }
+	_ASSERT((tilt>=0 && tilt<2*M_PI) || !tilted);
 }
 
 Ellipse::Ellipse(const XY &c, double radius_x, double radius_y, double tilt_degree) :

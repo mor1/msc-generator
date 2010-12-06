@@ -29,14 +29,12 @@ public:
 
     void append(PolygonWithHoles &&p);
     void append(const PolygonWithHoles &p);
-    void append(PolygonList &&p) {boundingBox += p.GetBoundingBox();
-        std::list<PolygonWithHoles>::splice(std::list<PolygonWithHoles>::end(), p, p.begin(), p.end());}
-    void append(const PolygonList &p) {boundingBox += p.GetBoundingBox();
-        std::list<PolygonWithHoles>::insert(std::list<PolygonWithHoles>::end(), p.begin(), p.end());}
+    void append(PolygonList &&p) {boundingBox += p.GetBoundingBox(); splice(end(), p);}
+    void append(const PolygonList &p) {boundingBox += p.GetBoundingBox(); insert(end(), p.begin(), p.end());}
     void swap(PolygonList &a) {std::list<PolygonWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
     void clear() {std::list<PolygonWithHoles>::clear(); boundingBox.MakeInvalid();}
-    void assign(std::vector<Edge> &&v);
-    void assign(const std::vector<Edge> &v);
+    void assign(std::vector<Edge> &&v, bool winding=true);
+    void assign(const std::vector<Edge> &v, bool winding=true);
     bool operator <(const PolygonList &b) const;
     bool operator ==(const PolygonList &b) const;
     PolygonList &operator =(std::vector<Edge> &&v) {assign(std::move(v)); return *this;}
@@ -49,8 +47,8 @@ public:
     PolygonList &Shift(XY xy);
     PolygonList &Rotate(double cos, double sin, double radian);
     PolygonList &RotateAround(const XY&c, double cos, double sin, double radian);
-    PolygonList &Rotate(double degrees) {Rotate(cos(degrees*M_PI/180.), sin(degrees*M_PI/180.), degrees*M_PI/180.); return *this;}
-    PolygonList &RotateAround(const XY&c, double degrees) {RotateAround(c, cos(degrees*M_PI/180.), sin(degrees*M_PI/180.), degrees*M_PI/180.); return *this;}
+	PolygonList &Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r); return *this;}
+    PolygonList &RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r); return *this;}
 
     PolygonList &operator += (const PolygonWithHoles &p);
     PolygonList &operator *= (const PolygonWithHoles &p);
@@ -71,6 +69,7 @@ class PolygonWithHoles : public Polygon
 {
     friend class Polygon;
     friend class PolygonList;
+	friend class node_list;   //to access holes
 	friend void test_geo(cairo_t *cr, int x, int y, bool clicked); //XXX
 
 	void Rotate(double radian) {} //hide these - do not
@@ -119,11 +118,12 @@ public:
     mutable bool              find;
     Range                     mainline;
 
-    explicit Area(TrackableElement *a=NULL) : arc(a), draw(FULL), find(true) {mainline.MakeInvalid();}
+    explicit Area(TrackableElement *a=NULL, DrawType d=FULL, bool f=true) : 
+	   arc(a), draw(d), find(f) {mainline.MakeInvalid();}
     Area(const Polygon &p, TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
        PolygonList(p), arc(a), draw(d), find(f)  {mainline.MakeInvalid();}
 
-    void clear() {PolygonList::clear(); mainline.MakeInvalid(); arc=NULL; draw=FULL; find=true;}
+    void clear() {PolygonList::clear(); mainline.MakeInvalid();}
     void swap(Area &a);
     void assign(std::vector<Edge> &&v) {PolygonList::assign(std::move(v));}
     void assign(const std::vector<Edge> &v) {PolygonList::assign(v);}

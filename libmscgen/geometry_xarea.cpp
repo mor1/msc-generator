@@ -23,27 +23,31 @@ namespace geometry {
 
 /////////////////////////////////////////  PolygonList implementation
 
-void PolygonList::assign(std::vector<Edge> &&v)
+void PolygonList::assign(std::vector<Edge> &&v, bool winding)
 {
+	clear();
     Polygon tmp(std::move(v));
     tmp.CalculateBoundingBox();
-    switch (tmp.PolyProcessSelf(*this)) {
+    switch (tmp.Untangle(*this, winding ? Polygon::WINDING_RULE : Polygon::EVENODD_RULE)) {
     case Polygon::SAME:       //just insert tmp
-        append(PolygonWithHoles(std::move(tmp)));
+        append(std::move(tmp));
     case Polygon::A_IS_EMPTY: //empty result okay
-    case Polygon::OK: ;       //result is already in *this
+    case Polygon::OVERLAP:    //result is already in *this
+		break;  
     }
 }
 
-void PolygonList::assign(const std::vector<Edge> &v)
+void PolygonList::assign(const std::vector<Edge> &v, bool winding)
 {
+	clear();
     Polygon tmp(v);
     tmp.CalculateBoundingBox();
-    switch (tmp.PolyProcessSelf(*this)) {
+    switch (tmp.Untangle(*this, winding ? Polygon::WINDING_RULE : Polygon::EVENODD_RULE)) {
     case Polygon::SAME:       //just insert tmp
-        append(Polygon(std::move(tmp)));
+        append(std::move(tmp));
     case Polygon::A_IS_EMPTY: //empty result okay
-    case Polygon::OK:  ;      //result is already in *this
+    case Polygon::OVERLAP:    //result is already in *this
+		break;  
     }
 }
 
@@ -88,7 +92,7 @@ PolygonList &PolygonList::operator += (const PolygonWithHoles &p)
         switch (ret) {
         default:
             _ASSERT(0);
-        case Polygon::OK:                      //real union with an existing surface
+        case Polygon::OVERLAP:                      //real union with an existing surface
         case Polygon::B_INSIDE_A:              //blob is inside i
         case Polygon::A_INSIDE_B:              //i is fully covered by blob, delete it
         case Polygon::SAME:                    //outer hull is same, holes may be modified
@@ -150,10 +154,9 @@ void PolygonList::Expand(double gap, PolygonList &result) const
 }
 
 
-
 Polygon::poly_result_t PolygonWithHoles::Add(const PolygonWithHoles &p, PolygonList &res) const
 {
-    const Polygon::poly_result_t ret = PolyProcess(p, res, UNION);
+    const Polygon::poly_result_t ret = Combine(p, res, UNION);
     switch (ret) {
     default:
         _ASSERT(0);
@@ -175,7 +178,7 @@ Polygon::poly_result_t PolygonWithHoles::Add(const PolygonWithHoles &p, PolygonL
         res.append(*this);
         res.rbegin()->holes -= p;
         break;
-    case OK:
+	case OVERLAP:
 		if (holes.size()) 
 			res.rbegin()->holes += (holes - p);
         if (p.holes.size()) 
@@ -189,7 +192,7 @@ Polygon::poly_result_t PolygonWithHoles::Add(const PolygonWithHoles &p, PolygonL
 
 Polygon::poly_result_t PolygonWithHoles::Mul(const PolygonWithHoles &p, PolygonList &res) const
 {
-    const Polygon::poly_result_t ret = PolyProcess(p, res, INTERSECT);
+    const Polygon::poly_result_t ret = Combine(p, res, INTERSECT);
     switch (ret) {
     default:
         _ASSERT(0);
@@ -206,7 +209,7 @@ Polygon::poly_result_t PolygonWithHoles::Mul(const PolygonWithHoles &p, PolygonL
     case B_INSIDE_A:
         res.append((Polygon)p); //append only surface, no holes
 		//fallthrough
-    case OK:
+    case OVERLAP:
 		if (holes.size() || p.holes.size())
 	        res -= (holes + p.holes);
         break;
@@ -220,7 +223,7 @@ Polygon::poly_result_t PolygonWithHoles::Mul(const PolygonWithHoles &p, PolygonL
 
 Polygon::poly_result_t PolygonWithHoles::Sub(const PolygonWithHoles &p, PolygonList &res) const
 {
-    const Polygon::poly_result_t ret = PolyProcess(p, res, SUBSTRACT);
+    const Polygon::poly_result_t ret = Combine(p, res, SUBSTRACT);
     switch (ret) {
     default:
         _ASSERT(0);
@@ -243,7 +246,7 @@ Polygon::poly_result_t PolygonWithHoles::Sub(const PolygonWithHoles &p, PolygonL
         res = p.holes;
         res -= holes;
         break;
-    case OK:
+    case OVERLAP:
         res.append(p.holes * Polygon(*this)); //add parts of our surface in p's holes
         res -= holes;
         break;

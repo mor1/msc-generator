@@ -8,7 +8,7 @@
 namespace geometry {
 
 class PolygonList;
-class MscCrossPointStore;
+struct cp_id_t;
 
 //inside of polygon is to the right as we go through: counterclockwise pointlists contain the "outside"
 //never degenerate - always has actual area
@@ -19,7 +19,9 @@ class Polygon : protected std::vector<Edge>
 {
     friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
     friend class MscCrossPointStore;
+	friend class MscCrossPointSet;
     friend class PolygonList; //to access the (std::vector<Edge> &&) constructor & GetInverse
+	friend class node_list;   //to access CheckContainment
     explicit Polygon(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
     explicit Polygon(const std::vector<Edge> &v) : std::vector<Edge>(v) {} //leave boundingBox!!
 protected:
@@ -29,16 +31,18 @@ protected:
     Polygon GetInverse() const;
 
 public:
-    typedef enum {OK, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART} poly_result_t;
-    typedef enum {UNION, INTERSECT, SUBSTRACT} poly_action_t;
+    typedef enum {OVERLAP, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART} poly_result_t;
+    typedef enum {UNION, INTERSECT, SUBSTRACT, XOR} poly_action_t;
+	typedef enum {WINDING_RULE, EVENODD_RULE, EXPAND_RULE} untangle_t;
 protected:
     is_within_t   IsWithin(XY p, int *edge=NULL, double *pos=NULL) const;
     poly_result_t CheckContainmentHelper(const Polygon &b) const;
     poly_result_t CheckContainment(const Polygon &b) const;
     bool CalculateClockwise() const;
-    static void PolyProcessWalk(MscCrossPointStore *poly, MscCrossPointStore *poly_o, PolygonList &surfaces, PolygonList &holes);
-    poly_result_t PolyProcess(const Polygon &b, PolygonList &result, poly_action_t action) const;
-    poly_result_t PolyProcessSelf(PolygonList &surfaces, bool add_separate_holes=true, bool check_clockwise=true) const;
+	static void Walk(const std::vector<cp_id_t> &startpoints, PolygonList &surfaces, PolygonList &holes);
+    poly_result_t Combine(const Polygon &b, PolygonList &result, poly_action_t action) const;
+    poly_result_t UntangleOnePolygon(PolygonList &surfaces, PolygonList &holes) const;
+	poly_result_t Untangle(PolygonList &result, untangle_t rule) const;
 
     int next(int vertex) const {return (vertex+1)%size();}
     int prev(int vertex) const {return (vertex-1+size())%size();}
@@ -46,8 +50,11 @@ protected:
     const Edge &at_next(int i) const {return at(next(i));}
     Edge       &at_prev(int i)       {return at(prev(i));}
     const Edge &at_prev(int i) const {return at(prev(i));}
+
+	void Path(cairo_t *cr, bool inverse=false) const;
 public:
     Polygon(Polygon &&p) {swap(p);}
+	Polygon(const Polygon &p) : std::vector<Edge>(p), boundingBox(p.boundingBox) {}
     Polygon(double sx, double dx, double sy, double dy) {operator = (Block(sx,dx,sy,dy));}
     Polygon(const Block &b) {operator =(b);}
     Polygon(XY a, XY b, XY c);
@@ -58,21 +65,27 @@ public:
     bool operator < (const Polygon &b) const;
     bool operator ==(const Polygon &b) const;
     Polygon &operator=(Polygon &&p) {swap(p);  return *this;}
+	Polygon &operator=(const Polygon &p) {std::vector<Edge>::operator=(p); boundingBox=p.boundingBox;}
+
+    //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
+	XY PrevTangentPoint(int edge, double pos) const {return at(edge).PrevTangentPoint(pos, at_prev(edge));}
+    //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
+    XY NextTangentPoint(int edge, double pos) const {return at(edge).NextTangentPoint(pos, at_next(edge));}
 
     const Block &GetBoundingBox() const {return boundingBox;}
     const Block &CalculateBoundingBox();
     void swap(Polygon &b) {std::vector<Edge>::swap(b); std::swap(boundingBox, b.boundingBox);}
     void clear() {std::vector<Edge>::clear(); boundingBox.MakeInvalid();}
+	int  size() const {return std::vector<Edge>::size();}
+	const Edge &GetEdge(int edge) const {return at(edge);}
 
     void Shift(XY xy) {boundingBox.Shift(xy); for (int i=0; i<size(); i++) at(i).Shift(xy);}
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
-    void Rotate(double degrees) {Rotate(cos(degrees*M_PI/180.), sin(degrees*M_PI/180.), degrees*M_PI/180.);}
-    void RotateAround(const XY&c, double degrees) {RotateAround(c, cos(degrees*M_PI/180.), sin(degrees*M_PI/180.), degrees*M_PI/180.);}
+    void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
+    void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
 
-    bool Overlaps(const Polygon &b) const;
     void Expand(double gap, PolygonList &res) const;
-    void Path(cairo_t *cr, bool inverse=false) const;
 };
 
 inline bool Polygon::operator <(const Polygon &b) const
