@@ -661,15 +661,17 @@ bool Ellipse::Expand(double gap)
 
 double Ellipse::OffsetBelow(const Ellipse&) const
 {
-
+	return 0;
 }
 
 double Ellipse::OffsetBelow(const XY&A, const XY&B) const
 {
+	return 0;
 }
 
 double Ellipse::OffsetAbove(const XY&A, const XY&B) const
 {
+	return 0;
 }
 
 
