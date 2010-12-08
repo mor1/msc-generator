@@ -149,7 +149,7 @@ should add to or customize.
 If your application uses MFC in a shared DLL, you will need
 to redistribute the MFC DLLs. If your application is in a language
 other than the operating system's locale, you will also have to
-redistribute the corresponding localized resources MFC90XXX.DLL.
+redistribute the corresponding localized resources MFC90xxxx.DLL.
 For more information on both of these topics, please see the section on
 redistributing Visual C++ applications in MSDN documentation.
 
