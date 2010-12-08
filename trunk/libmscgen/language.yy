@@ -55,7 +55,7 @@
 #include "colorsyntax.h"
 #include "language_misc.h"
 #include "colorsyntax2.h"
-#include "arcs.h" //Needed for MSC_XXX declarations
+#include "arcs.h" //Needed for MSC_* declarations
 
 //redefine default loc action for CSH
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
