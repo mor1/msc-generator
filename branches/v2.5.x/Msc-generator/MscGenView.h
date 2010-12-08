@@ -48,8 +48,6 @@ public:
 	double m_stretch_y;
 	//Fading Timer
 	UINT_PTR m_FadingTimer;
-	CPoint m_hoverPoint; //XXX
-	bool m_clicked; //XXX
 	//Drag and Drop 
 	COleDropTarget m_DropTarget;
 	DROPEFFECT m_nDropEffect;
