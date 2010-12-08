@@ -1,24 +1,23 @@
-/* A Bison parser, made by GNU Bison 2.3.  */
+
+/* A Bison parser, made by GNU Bison 2.4.1.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
-
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-
-   This program is free software; you can redistribute it and/or modify
+   
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -29,7 +28,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-
+   
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -47,7 +46,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.3"
+#define YYBISON_VERSION "2.4.1"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -55,18 +54,164 @@
 /* Pure parsers.  */
 #define YYPURE 1
 
+/* Push parsers.  */
+#define YYPUSH 0
+
+/* Pull parsers.  */
+#define YYPULL 1
+
 /* Using locations.  */
 #define YYLSP_NEEDED 1
 
 /* Substitute the variable and function names.  */
-#define yyparse csh_parse
-#define yylex   csh_lex
-#define yyerror csh_error
-#define yylval  csh_lval
-#define yychar  csh_char
-#define yydebug csh_debug
-#define yynerrs csh_nerrs
-#define yylloc csh_lloc
+#define yyparse         csh_parse
+#define yylex           csh_lex
+#define yyerror         csh_error
+#define yylval          csh_lval
+#define yychar          csh_char
+#define yydebug         csh_debug
+#define yynerrs         csh_nerrs
+#define yylloc          csh_lloc
+
+/* Copy the first part of user declarations.  */
+
+/* Line 189 of yacc.c  */
+#line 7 "language.yy"
+
+/*
+    This file is part of Msc-generator.
+    Copyright 2008,2009,2010 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+//if yyerror is defined, we compile with a prefix other than yy (csh_error)
+//thus we compile the colorsyntax highlighting version
+#ifdef yyerror
+#define C_S_H (1)
+#define C_S_H_IS_COMPILED
+#else
+#define C_S_H (0)
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <list>
+#include <iostream>
+
+#ifdef C_S_H_IS_COMPILED
+
+#define YYMSC_RESULT_TYPE Csh
+#define RESULT csh
+
+#include "csh.h"
+
+//If we scan for color syntax highlight use this location
+//yyerror is defined by bison, the other is defined for flex
+#define YYLTYPE_IS_DECLARED
+#define YYLTYPE CshPos
+#define CHAR_IF_CSH(A) char
+
+#include "colorsyntax.h"
+#include "language_misc.h"
+#include "colorsyntax2.h"
+#include "arcs.h" //Needed for MSC_* declarations
+
+//redefine default loc action for CSH
+#define YYRHSLOC(Rhs, K) ((Rhs)[K])
+#define YYLLOC_DEFAULT(Current, Rhs, N)				\
+    do								\
+      if (YYID (N))                                             \
+	{							\
+        (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos;	\
+	  (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;	\
+	}						        \
+      else							\
+	{							\
+	  (Current).first_pos = (Current).last_pos   =		\
+	    YYRHSLOC (Rhs, 0).last_pos;				\
+	}							\
+    while (YYID (0))
+
+/* yyerror
+ *  Error handling function.  Do nothing for CSH
+ */
+void yyerror(YYLTYPE*loc, Csh &csh, void *yyscanner, const char *str)
+{}
+
+#else
+
+#define YYMSC_RESULT_TYPE Msc
+#define RESULT msc
+
+#include "msc.h"
+#define YYMSC_RESULT_TYPE Msc
+#define RESULT msc
+
+#define CHAR_IF_CSH(A) A
+#include "language.h"
+#include "language_misc.h"
+#include "language2.h"
+
+/* Use verbose error reporting such that the expected token names are dumped */
+#define YYERROR_VERBOSE
+
+#include "parse_tools.h"
+#endif
+
+#ifdef C_S_H_IS_COMPILED
+void CshParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
+#else
+void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
+#endif
+{
+    parse_parm  pp;
+    pp.buf = const_cast<char*>(buff);
+    pp.length = len;
+    pp.pos = 0;
+    pp.RESULT = &RESULT;
+    yylex_init(&pp.yyscanner);
+    yyset_extra(&pp, pp.yyscanner);
+    yyparse(RESULT, pp.yyscanner);
+    yylex_destroy(pp.yyscanner);
+}
+
+
+
+/* Line 189 of yacc.c  */
+#line 196 "colorsyntax.cc"
+
+/* Enabling traces.  */
+#ifndef YYDEBUG
+# define YYDEBUG 0
+#endif
+
+/* Enabling verbose error messages.  */
+#ifdef YYERROR_VERBOSE
+# undef YYERROR_VERBOSE
+# define YYERROR_VERBOSE 1
+#else
+# define YYERROR_VERBOSE 0
+#endif
+
+/* Enabling the token table.  */
+#ifndef YYTOKEN_TABLE
+# define YYTOKEN_TABLE 0
+#endif
+
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -167,144 +312,13 @@
 
 
 
-/* Copy the first part of user declarations.  */
-#line 7 "language.yy"
-
-/*
-    This file is part of Msc-generator.
-    Copyright 2008,2009,2010 Zoltan Turanyi
-    Distributed under GNU Affero General Public License.
-
-    Msc-generator is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    Msc-generator is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-//if yyerror is defined, we compile with a prefix other than yy (csh_error)
-//thus we compile the colorsyntax highlighting version
-#ifdef yyerror
-#define C_S_H (1)
-#define C_S_H_IS_COMPILED
-#else
-#define C_S_H (0)
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <list>
-#include <iostream>
-
-#ifdef C_S_H_IS_COMPILED
-
-#define YYMSC_RESULT_TYPE Csh
-#define RESULT csh
-
-#include "csh.h"
-
-//If we scan for color syntax highlight use this location
-//yyerror is defined by bison, the other is defined for flex
-#define YYLTYPE_IS_DECLARED
-#define YYLTYPE CshPos
-#define CHAR_IF_CSH(A) char
-
-#include "colorsyntax.h"
-#include "language_misc.h"
-#include "colorsyntax2.h"
-#include "arcs.h" //Needed for MSC_XXX declarations
-
-//redefine default loc action for CSH
-#define YYRHSLOC(Rhs, K) ((Rhs)[K])
-#define YYLLOC_DEFAULT(Current, Rhs, N)				\
-    do								\
-      if (YYID (N))                                             \
-	{							\
-        (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos;	\
-	  (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;	\
-	}						        \
-      else							\
-	{							\
-	  (Current).first_pos = (Current).last_pos   =		\
-	    YYRHSLOC (Rhs, 0).last_pos;				\
-	}							\
-    while (YYID (0))
-
-/* yyerror
- *  Error handling function.  Do nothing for CSH
- */
-void yyerror(YYLTYPE*loc, Csh &csh, void *yyscanner, const char *str)
-{}
-
-#else
-
-#define YYMSC_RESULT_TYPE Msc
-#define RESULT msc
-
-#include "msc.h"
-#define YYMSC_RESULT_TYPE Msc
-#define RESULT msc
-
-#define CHAR_IF_CSH(A) A
-#include "language.h"
-#include "language_misc.h"
-#include "language2.h"
-
-/* Use verbose error reporting such that the expected token names are dumped */
-#define YYERROR_VERBOSE
-
-#include "parse_tools.h"
-#endif
-
-#ifdef C_S_H_IS_COMPILED
-void CshParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
-#else
-void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
-#endif
-{
-    parse_parm  pp;
-    pp.buf = const_cast<char*>(buff);
-    pp.length = len;
-    pp.pos = 0;
-    pp.RESULT = &RESULT;
-    yylex_init(&pp.yyscanner);
-    yyset_extra(&pp, pp.yyscanner);
-    yyparse(RESULT, pp.yyscanner);
-    yylex_destroy(pp.yyscanner);
-}
-
-
-
-/* Enabling traces.  */
-#ifndef YYDEBUG
-# define YYDEBUG 0
-#endif
-
-/* Enabling verbose error messages.  */
-#ifdef YYERROR_VERBOSE
-# undef YYERROR_VERBOSE
-# define YYERROR_VERBOSE 1
-#else
-# define YYERROR_VERBOSE 0
-#endif
-
-/* Enabling the token table.  */
-#ifndef YYTOKEN_TABLE
-# define YYTOKEN_TABLE 0
-#endif
-
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 136 "language.yy"
 {
+
+/* Line 214 of yacc.c  */
+#line 136 "language.yy"
+
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;
     CHAR_IF_CSH(ArcBase)          *arcbase;
@@ -319,13 +333,15 @@ typedef union YYSTYPE
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
     std::list<std::string>        *stringlist;
-}
-/* Line 187 of yacc.c.  */
-#line 325 "colorsyntax.cc"
-	YYSTYPE;
+
+
+
+/* Line 214 of yacc.c  */
+#line 341 "colorsyntax.cc"
+} YYSTYPE;
+# define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
-# define YYSTYPE_IS_TRIVIAL 1
 #endif
 
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
@@ -345,8 +361,8 @@ typedef struct YYLTYPE
 /* Copy the second part of user declarations.  */
 
 
-/* Line 216 of yacc.c.  */
-#line 350 "colorsyntax.cc"
+/* Line 264 of yacc.c  */
+#line 366 "colorsyntax.cc"
 
 #ifdef short
 # undef short
@@ -421,14 +437,14 @@ typedef short int yytype_int16;
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static int
-YYID (int i)
+YYID (int yyi)
 #else
 static int
-YYID (i)
-    int i;
+YYID (yyi)
+    int yyi;
 #endif
 {
-  return i;
+  return yyi;
 }
 #endif
 
@@ -510,9 +526,9 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
 {
-  yytype_int16 yyss;
-  YYSTYPE yyvs;
-    YYLTYPE yyls;
+  yytype_int16 yyss_alloc;
+  YYSTYPE yyvs_alloc;
+  YYLTYPE yyls_alloc;
 };
 
 /* The size of the maximum gap between one aligned stack and the next.  */
@@ -547,12 +563,12 @@ union yyalloc
    elements in the stack, and YYPTR gives the new location of the
    stack.  Advance YYPTR to a properly aligned location for the next
    stack.  */
-# define YYSTACK_RELOCATE(Stack)					\
+# define YYSTACK_RELOCATE(Stack_alloc, Stack)				\
     do									\
       {									\
 	YYSIZE_T yynewbytes;						\
-	YYCOPY (&yyptr->Stack, Stack, yysize);				\
-	Stack = &yyptr->Stack;						\
+	YYCOPY (&yyptr->Stack_alloc, Stack, yysize);			\
+	Stack = &yyptr->Stack_alloc;					\
 	yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
 	yyptr += yynewbytes / sizeof (*yyptr);				\
       }									\
@@ -1361,17 +1377,20 @@ yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp, RESULT, yyscanner)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_stack_print (yytype_int16 *bottom, yytype_int16 *top)
+yy_stack_print (yytype_int16 *yybottom, yytype_int16 *yytop)
 #else
 static void
-yy_stack_print (bottom, top)
-    yytype_int16 *bottom;
-    yytype_int16 *top;
+yy_stack_print (yybottom, yytop)
+    yytype_int16 *yybottom;
+    yytype_int16 *yytop;
 #endif
 {
   YYFPRINTF (stderr, "Stack now");
-  for (; bottom <= top; ++bottom)
-    YYFPRINTF (stderr, " %d", *bottom);
+  for (; yybottom <= yytop; yybottom++)
+    {
+      int yybot = *yybottom;
+      YYFPRINTF (stderr, " %d", yybot);
+    }
   YYFPRINTF (stderr, "\n");
 }
 
@@ -1408,11 +1427,11 @@ yy_reduce_print (yyvsp, yylsp, yyrule, RESULT, yyscanner)
   /* The symbols being reduced.  */
   for (yyi = 0; yyi < yynrhs; yyi++)
     {
-      fprintf (stderr, "   $%d = ", yyi + 1);
+      YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
 		       &(yyvsp[(yyi + 1) - (yynrhs)])
 		       , &(yylsp[(yyi + 1) - (yynrhs)])		       , RESULT, yyscanner);
-      fprintf (stderr, "\n");
+      YYFPRINTF (stderr, "\n");
     }
 }
 
@@ -1694,279 +1713,489 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, RESULT, yyscanner)
   switch (yytype)
     {
       case 3: /* "TOK_STRING" */
+
+/* Line 1000 of yacc.c  */
 #line 189 "language.yy"
 	{free((yyvaluep->str));};
-#line 1700 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1723 "colorsyntax.cc"
 	break;
       case 4: /* "TOK_QSTRING" */
+
+/* Line 1000 of yacc.c  */
 #line 189 "language.yy"
 	{free((yyvaluep->str));};
-#line 1705 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1732 "colorsyntax.cc"
 	break;
       case 5: /* "TOK_NUMBER" */
+
+/* Line 1000 of yacc.c  */
 #line 193 "language.yy"
 	{free((yyvaluep->str));};
-#line 1710 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1741 "colorsyntax.cc"
 	break;
       case 15: /* "TOK_MSC" */
+
+/* Line 1000 of yacc.c  */
 #line 190 "language.yy"
 	{free((yyvaluep->str));};
-#line 1715 "colorsyntax.cc"
-	break;
-      case 16: /* "TOK_COLON_STRING" */
-#line 189 "language.yy"
-	{free((yyvaluep->str));};
-#line 1720 "colorsyntax.cc"
-	break;
-      case 17: /* "TOK_COLON_QUOTED_STRING" */
-#line 189 "language.yy"
-	{free((yyvaluep->str));};
-#line 1725 "colorsyntax.cc"
-	break;
-      case 18: /* "TOK_STYLE_NAME" */
-#line 189 "language.yy"
-	{free((yyvaluep->str));};
-#line 1730 "colorsyntax.cc"
-	break;
-      case 19: /* "TOK_BOOLEAN" */
-#line 193 "language.yy"
-	{free((yyvaluep->str));};
-#line 1735 "colorsyntax.cc"
-	break;
-      case 34: /* "TOK_COMMAND_HEADING" */
-#line 192 "language.yy"
-	{free((yyvaluep->str));};
-#line 1740 "colorsyntax.cc"
-	break;
-      case 35: /* "TOK_COMMAND_NUDGE" */
-#line 192 "language.yy"
-	{free((yyvaluep->str));};
-#line 1745 "colorsyntax.cc"
-	break;
-      case 36: /* "TOK_COMMAND_NEWPAGE" */
-#line 192 "language.yy"
-	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
 #line 1750 "colorsyntax.cc"
 	break;
-      case 37: /* "TOK_COMMAND_DEFCOLOR" */
-#line 191 "language.yy"
+      case 16: /* "TOK_COLON_STRING" */
+
+/* Line 1000 of yacc.c  */
+#line 189 "language.yy"
 	{free((yyvaluep->str));};
-#line 1755 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1759 "colorsyntax.cc"
 	break;
-      case 38: /* "TOK_COMMAND_DEFSTYLE" */
-#line 191 "language.yy"
+      case 17: /* "TOK_COLON_QUOTED_STRING" */
+
+/* Line 1000 of yacc.c  */
+#line 189 "language.yy"
 	{free((yyvaluep->str));};
-#line 1760 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1768 "colorsyntax.cc"
 	break;
-      case 39: /* "TOK_COMMAND_DEFDESIGN" */
-#line 191 "language.yy"
+      case 18: /* "TOK_STYLE_NAME" */
+
+/* Line 1000 of yacc.c  */
+#line 189 "language.yy"
 	{free((yyvaluep->str));};
-#line 1765 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1777 "colorsyntax.cc"
 	break;
-      case 40: /* "TOK_COMMAND_BIG" */
-#line 190 "language.yy"
-	{free((yyvaluep->str));};
-#line 1770 "colorsyntax.cc"
-	break;
-      case 41: /* "TOK_COMMAND_PIPE" */
-#line 190 "language.yy"
-	{free((yyvaluep->str));};
-#line 1775 "colorsyntax.cc"
-	break;
-      case 42: /* "TOK_COMMAND_MARK" */
+      case 19: /* "TOK_BOOLEAN" */
+
+/* Line 1000 of yacc.c  */
 #line 193 "language.yy"
 	{free((yyvaluep->str));};
-#line 1780 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1786 "colorsyntax.cc"
 	break;
-      case 43: /* "TOK_COMMAND_PARALLEL" */
-#line 190 "language.yy"
+      case 34: /* "TOK_COMMAND_HEADING" */
+
+/* Line 1000 of yacc.c  */
+#line 192 "language.yy"
 	{free((yyvaluep->str));};
-#line 1785 "colorsyntax.cc"
-	break;
-      case 48: /* "top_level_arclist" */
-#line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1790 "colorsyntax.cc"
-	break;
-      case 49: /* "braced_arclist" */
-#line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arclist);};
+
+/* Line 1000 of yacc.c  */
 #line 1795 "colorsyntax.cc"
 	break;
-      case 50: /* "arclist" */
-#line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1800 "colorsyntax.cc"
+      case 35: /* "TOK_COMMAND_NUDGE" */
+
+/* Line 1000 of yacc.c  */
+#line 192 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1804 "colorsyntax.cc"
 	break;
-      case 51: /* "mscenclosed" */
-#line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1805 "colorsyntax.cc"
+      case 36: /* "TOK_COMMAND_NEWPAGE" */
+
+/* Line 1000 of yacc.c  */
+#line 192 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1813 "colorsyntax.cc"
 	break;
-      case 53: /* "complete_arc" */
-#line 181 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1810 "colorsyntax.cc"
+      case 37: /* "TOK_COMMAND_DEFCOLOR" */
+
+/* Line 1000 of yacc.c  */
+#line 191 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1822 "colorsyntax.cc"
 	break;
-      case 54: /* "arc_with_parallel" */
-#line 181 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1815 "colorsyntax.cc"
+      case 38: /* "TOK_COMMAND_DEFSTYLE" */
+
+/* Line 1000 of yacc.c  */
+#line 191 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1831 "colorsyntax.cc"
 	break;
-      case 55: /* "arc" */
-#line 181 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1820 "colorsyntax.cc"
-	break;
-      case 56: /* "optlist" */
-#line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arclist);};
-#line 1825 "colorsyntax.cc"
-	break;
-      case 57: /* "opt" */
-#line 181 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1830 "colorsyntax.cc"
-	break;
-      case 58: /* "entitylist" */
-#line 186 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->entitylist);};
-#line 1835 "colorsyntax.cc"
-	break;
-      case 59: /* "entity" */
-#line 186 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->entity);};
+      case 39: /* "TOK_COMMAND_DEFDESIGN" */
+
+/* Line 1000 of yacc.c  */
+#line 191 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
 #line 1840 "colorsyntax.cc"
 	break;
-      case 60: /* "first_entity" */
-#line 186 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->entity);};
-#line 1845 "colorsyntax.cc"
+      case 40: /* "TOK_COMMAND_BIG" */
+
+/* Line 1000 of yacc.c  */
+#line 190 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1849 "colorsyntax.cc"
 	break;
-      case 63: /* "tok_stringlist" */
-#line 187 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->stringlist);};
-#line 1850 "colorsyntax.cc"
+      case 41: /* "TOK_COMMAND_PIPE" */
+
+/* Line 1000 of yacc.c  */
+#line 190 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1858 "colorsyntax.cc"
 	break;
-      case 72: /* "parallel" */
-#line 184 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcparallel);};
-#line 1855 "colorsyntax.cc"
+      case 42: /* "TOK_COMMAND_MARK" */
+
+/* Line 1000 of yacc.c  */
+#line 193 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1867 "colorsyntax.cc"
 	break;
-      case 73: /* "emphasis_list" */
-#line 183 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1860 "colorsyntax.cc"
+      case 43: /* "TOK_COMMAND_PARALLEL" */
+
+/* Line 1000 of yacc.c  */
+#line 190 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1876 "colorsyntax.cc"
 	break;
-      case 74: /* "first_emphasis" */
-#line 183 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1865 "colorsyntax.cc"
-	break;
-      case 75: /* "pipe_def" */
-#line 183 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1870 "colorsyntax.cc"
-	break;
-      case 76: /* "pipe_def_list" */
-#line 183 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1875 "colorsyntax.cc"
-	break;
-      case 77: /* "pipe_emphasis" */
-#line 183 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
-#line 1880 "colorsyntax.cc"
-	break;
-      case 78: /* "emphrel" */
-#line 183 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
+      case 48: /* "top_level_arclist" */
+
+/* Line 1000 of yacc.c  */
+#line 185 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arclist);};
+
+/* Line 1000 of yacc.c  */
 #line 1885 "colorsyntax.cc"
 	break;
-      case 79: /* "vertxpos" */
-#line 180 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->vertxpos);};
-#line 1890 "colorsyntax.cc"
+      case 49: /* "braced_arclist" */
+
+/* Line 1000 of yacc.c  */
+#line 185 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arclist);};
+
+/* Line 1000 of yacc.c  */
+#line 1894 "colorsyntax.cc"
 	break;
-      case 81: /* "vertrel" */
+      case 50: /* "arclist" */
+
+/* Line 1000 of yacc.c  */
+#line 185 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arclist);};
+
+/* Line 1000 of yacc.c  */
+#line 1903 "colorsyntax.cc"
+	break;
+      case 51: /* "mscenclosed" */
+
+/* Line 1000 of yacc.c  */
+#line 185 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arclist);};
+
+/* Line 1000 of yacc.c  */
+#line 1912 "colorsyntax.cc"
+	break;
+      case 53: /* "complete_arc" */
+
+/* Line 1000 of yacc.c  */
 #line 181 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1895 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1921 "colorsyntax.cc"
 	break;
-      case 82: /* "arcrel" */
+      case 54: /* "arc_with_parallel" */
+
+/* Line 1000 of yacc.c  */
 #line 181 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1900 "colorsyntax.cc"
-	break;
-      case 83: /* "arcrel_to" */
-#line 182 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcarrow);};
-#line 1905 "colorsyntax.cc"
-	break;
-      case 84: /* "arcrel_from" */
-#line 182 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcarrow);};
-#line 1910 "colorsyntax.cc"
-	break;
-      case 85: /* "arcrel_bidir" */
-#line 182 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcarrow);};
-#line 1915 "colorsyntax.cc"
-	break;
-      case 93: /* "full_arcattrlist_with_label" */
-#line 187 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->attriblist);};
-#line 1920 "colorsyntax.cc"
-	break;
-      case 94: /* "full_arcattrlist" */
-#line 187 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->attriblist);};
-#line 1925 "colorsyntax.cc"
-	break;
-      case 95: /* "arcattrlist" */
-#line 187 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->attriblist);};
+
+/* Line 1000 of yacc.c  */
 #line 1930 "colorsyntax.cc"
 	break;
-      case 96: /* "arcattr" */
-#line 187 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->attrib);};
-#line 1935 "colorsyntax.cc"
-	break;
-      case 97: /* "entity_string" */
-#line 188 "language.yy"
-	{free((yyvaluep->str));};
-#line 1940 "colorsyntax.cc"
-	break;
-      case 98: /* "reserved_word_string" */
-#line 188 "language.yy"
-	{free((yyvaluep->str));};
-#line 1945 "colorsyntax.cc"
-	break;
-      case 99: /* "symbol_string" */
-#line 188 "language.yy"
-	{free((yyvaluep->str));};
-#line 1950 "colorsyntax.cc"
-	break;
-      case 100: /* "string" */
-#line 188 "language.yy"
-	{free((yyvaluep->str));};
-#line 1955 "colorsyntax.cc"
-	break;
-      case 102: /* "scope_close" */
+      case 55: /* "arc" */
+
+/* Line 1000 of yacc.c  */
 #line 181 "language.yy"
 	{if (!C_S_H) delete (yyvaluep->arcbase);};
-#line 1960 "colorsyntax.cc"
+
+/* Line 1000 of yacc.c  */
+#line 1939 "colorsyntax.cc"
+	break;
+      case 56: /* "optlist" */
+
+/* Line 1000 of yacc.c  */
+#line 185 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arclist);};
+
+/* Line 1000 of yacc.c  */
+#line 1948 "colorsyntax.cc"
+	break;
+      case 57: /* "opt" */
+
+/* Line 1000 of yacc.c  */
+#line 181 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcbase);};
+
+/* Line 1000 of yacc.c  */
+#line 1957 "colorsyntax.cc"
+	break;
+      case 58: /* "entitylist" */
+
+/* Line 1000 of yacc.c  */
+#line 186 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->entitylist);};
+
+/* Line 1000 of yacc.c  */
+#line 1966 "colorsyntax.cc"
+	break;
+      case 59: /* "entity" */
+
+/* Line 1000 of yacc.c  */
+#line 186 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->entity);};
+
+/* Line 1000 of yacc.c  */
+#line 1975 "colorsyntax.cc"
+	break;
+      case 60: /* "first_entity" */
+
+/* Line 1000 of yacc.c  */
+#line 186 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->entity);};
+
+/* Line 1000 of yacc.c  */
+#line 1984 "colorsyntax.cc"
+	break;
+      case 63: /* "tok_stringlist" */
+
+/* Line 1000 of yacc.c  */
+#line 187 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->stringlist);};
+
+/* Line 1000 of yacc.c  */
+#line 1993 "colorsyntax.cc"
+	break;
+      case 72: /* "parallel" */
+
+/* Line 1000 of yacc.c  */
+#line 184 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcparallel);};
+
+/* Line 1000 of yacc.c  */
+#line 2002 "colorsyntax.cc"
+	break;
+      case 73: /* "emphasis_list" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcemph);};
+
+/* Line 1000 of yacc.c  */
+#line 2011 "colorsyntax.cc"
+	break;
+      case 74: /* "first_emphasis" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcemph);};
+
+/* Line 1000 of yacc.c  */
+#line 2020 "colorsyntax.cc"
+	break;
+      case 75: /* "pipe_def" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcemph);};
+
+/* Line 1000 of yacc.c  */
+#line 2029 "colorsyntax.cc"
+	break;
+      case 76: /* "pipe_def_list" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcemph);};
+
+/* Line 1000 of yacc.c  */
+#line 2038 "colorsyntax.cc"
+	break;
+      case 77: /* "pipe_emphasis" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcemph);};
+
+/* Line 1000 of yacc.c  */
+#line 2047 "colorsyntax.cc"
+	break;
+      case 78: /* "emphrel" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcemph);};
+
+/* Line 1000 of yacc.c  */
+#line 2056 "colorsyntax.cc"
+	break;
+      case 79: /* "vertxpos" */
+
+/* Line 1000 of yacc.c  */
+#line 180 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->vertxpos);};
+
+/* Line 1000 of yacc.c  */
+#line 2065 "colorsyntax.cc"
+	break;
+      case 81: /* "vertrel" */
+
+/* Line 1000 of yacc.c  */
+#line 181 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcbase);};
+
+/* Line 1000 of yacc.c  */
+#line 2074 "colorsyntax.cc"
+	break;
+      case 82: /* "arcrel" */
+
+/* Line 1000 of yacc.c  */
+#line 181 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcbase);};
+
+/* Line 1000 of yacc.c  */
+#line 2083 "colorsyntax.cc"
+	break;
+      case 83: /* "arcrel_to" */
+
+/* Line 1000 of yacc.c  */
+#line 182 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcarrow);};
+
+/* Line 1000 of yacc.c  */
+#line 2092 "colorsyntax.cc"
+	break;
+      case 84: /* "arcrel_from" */
+
+/* Line 1000 of yacc.c  */
+#line 182 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcarrow);};
+
+/* Line 1000 of yacc.c  */
+#line 2101 "colorsyntax.cc"
+	break;
+      case 85: /* "arcrel_bidir" */
+
+/* Line 1000 of yacc.c  */
+#line 182 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcarrow);};
+
+/* Line 1000 of yacc.c  */
+#line 2110 "colorsyntax.cc"
+	break;
+      case 93: /* "full_arcattrlist_with_label" */
+
+/* Line 1000 of yacc.c  */
+#line 187 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->attriblist);};
+
+/* Line 1000 of yacc.c  */
+#line 2119 "colorsyntax.cc"
+	break;
+      case 94: /* "full_arcattrlist" */
+
+/* Line 1000 of yacc.c  */
+#line 187 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->attriblist);};
+
+/* Line 1000 of yacc.c  */
+#line 2128 "colorsyntax.cc"
+	break;
+      case 95: /* "arcattrlist" */
+
+/* Line 1000 of yacc.c  */
+#line 187 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->attriblist);};
+
+/* Line 1000 of yacc.c  */
+#line 2137 "colorsyntax.cc"
+	break;
+      case 96: /* "arcattr" */
+
+/* Line 1000 of yacc.c  */
+#line 187 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->attrib);};
+
+/* Line 1000 of yacc.c  */
+#line 2146 "colorsyntax.cc"
+	break;
+      case 97: /* "entity_string" */
+
+/* Line 1000 of yacc.c  */
+#line 188 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 2155 "colorsyntax.cc"
+	break;
+      case 98: /* "reserved_word_string" */
+
+/* Line 1000 of yacc.c  */
+#line 188 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 2164 "colorsyntax.cc"
+	break;
+      case 99: /* "symbol_string" */
+
+/* Line 1000 of yacc.c  */
+#line 188 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 2173 "colorsyntax.cc"
+	break;
+      case 100: /* "string" */
+
+/* Line 1000 of yacc.c  */
+#line 188 "language.yy"
+	{free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 2182 "colorsyntax.cc"
+	break;
+      case 102: /* "scope_close" */
+
+/* Line 1000 of yacc.c  */
+#line 181 "language.yy"
+	{if (!C_S_H) delete (yyvaluep->arcbase);};
+
+/* Line 1000 of yacc.c  */
+#line 2191 "colorsyntax.cc"
 	break;
 
       default:
 	break;
     }
 }
-
 
 /* Prevent warnings from -Wmissing-prototypes.  */
-
 #ifdef YYPARSE_PARAM
 #if defined __STDC__ || defined __cplusplus
 int yyparse (void *YYPARSE_PARAM);
@@ -1985,10 +2214,9 @@ int yyparse ();
 
 
 
-
-/*----------.
-| yyparse.  |
-`----------*/
+/*-------------------------.
+| yyparse or yypush_parse.  |
+`-------------------------*/
 
 #ifdef YYPARSE_PARAM
 #if (defined __STDC__ || defined __C99__FUNC__ \
@@ -2013,24 +2241,59 @@ yyparse (RESULT, yyscanner)
 #endif
 #endif
 {
-  /* The look-ahead symbol.  */
+/* The lookahead symbol.  */
 int yychar;
 
-/* The semantic value of the look-ahead symbol.  */
+/* The semantic value of the lookahead symbol.  */
 YYSTYPE yylval;
 
-/* Number of syntax errors so far.  */
-int yynerrs;
-/* Location data for the look-ahead symbol.  */
+/* Location data for the lookahead symbol.  */
 YYLTYPE yylloc;
 
-  int yystate;
+    /* Number of syntax errors so far.  */
+    int yynerrs;
+
+    int yystate;
+    /* Number of tokens to shift before error messages enabled.  */
+    int yyerrstatus;
+
+    /* The stacks and their tools:
+       `yyss': related to states.
+       `yyvs': related to semantic values.
+       `yyls': related to locations.
+
+       Refer to the stacks thru separate pointers, to allow yyoverflow
+       to reallocate them elsewhere.  */
+
+    /* The state stack.  */
+    yytype_int16 yyssa[YYINITDEPTH];
+    yytype_int16 *yyss;
+    yytype_int16 *yyssp;
+
+    /* The semantic value stack.  */
+    YYSTYPE yyvsa[YYINITDEPTH];
+    YYSTYPE *yyvs;
+    YYSTYPE *yyvsp;
+
+    /* The location stack.  */
+    YYLTYPE yylsa[YYINITDEPTH];
+    YYLTYPE *yyls;
+    YYLTYPE *yylsp;
+
+    /* The locations where the error started and ended.  */
+    YYLTYPE yyerror_range[2];
+
+    YYSIZE_T yystacksize;
+
   int yyn;
   int yyresult;
-  /* Number of tokens to shift before error messages enabled.  */
-  int yyerrstatus;
-  /* Look-ahead token as an internal (translated) token number.  */
-  int yytoken = 0;
+  /* Lookahead token as an internal (translated) token number.  */
+  int yytoken;
+  /* The variables used to return semantic value and location from the
+     action routines.  */
+  YYSTYPE yyval;
+  YYLTYPE yyloc;
+
 #if YYERROR_VERBOSE
   /* Buffer for error messages, and its allocated size.  */
   char yymsgbuf[128];
@@ -2038,63 +2301,37 @@ YYLTYPE yylloc;
   YYSIZE_T yymsg_alloc = sizeof yymsgbuf;
 #endif
 
-  /* Three stacks and their tools:
-     `yyss': related to states,
-     `yyvs': related to semantic values,
-     `yyls': related to locations.
-
-     Refer to the stacks thru separate pointers, to allow yyoverflow
-     to reallocate them elsewhere.  */
-
-  /* The state stack.  */
-  yytype_int16 yyssa[YYINITDEPTH];
-  yytype_int16 *yyss = yyssa;
-  yytype_int16 *yyssp;
-
-  /* The semantic value stack.  */
-  YYSTYPE yyvsa[YYINITDEPTH];
-  YYSTYPE *yyvs = yyvsa;
-  YYSTYPE *yyvsp;
-
-  /* The location stack.  */
-  YYLTYPE yylsa[YYINITDEPTH];
-  YYLTYPE *yyls = yylsa;
-  YYLTYPE *yylsp;
-  /* The locations where the error started and ended.  */
-  YYLTYPE yyerror_range[2];
-
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N), yylsp -= (N))
-
-  YYSIZE_T yystacksize = YYINITDEPTH;
-
-  /* The variables used to return semantic value and location from the
-     action routines.  */
-  YYSTYPE yyval;
-  YYLTYPE yyloc;
 
   /* The number of symbols on the RHS of the reduced rule.
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
+
+  yytoken = 0;
+  yyss = yyssa;
+  yyvs = yyvsa;
+  yyls = yylsa;
+  yystacksize = YYINITDEPTH;
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yystate = 0;
   yyerrstatus = 0;
   yynerrs = 0;
-  yychar = YYEMPTY;		/* Cause a token to be read.  */
+  yychar = YYEMPTY; /* Cause a token to be read.  */
 
   /* Initialize stack pointers.
      Waste one element of value and location stack
      so that they stay on the same level as the state stack.
      The wasted elements are never initialized.  */
-
   yyssp = yyss;
   yyvsp = yyvs;
   yylsp = yyls;
+
 #if YYLTYPE_IS_TRIVIAL
   /* Initialize the default location before parsing starts.  */
   yylloc.first_line   = yylloc.last_line   = 1;
-  yylloc.first_column = yylloc.last_column = 0;
+  yylloc.first_column = yylloc.last_column = 1;
 #endif
 
   goto yysetstate;
@@ -2133,6 +2370,7 @@ YYLTYPE yylloc;
 		    &yyvs1, yysize * sizeof (*yyvsp),
 		    &yyls1, yysize * sizeof (*yylsp),
 		    &yystacksize);
+
 	yyls = yyls1;
 	yyss = yyss1;
 	yyvs = yyvs1;
@@ -2154,9 +2392,9 @@ YYLTYPE yylloc;
 	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
 	if (! yyptr)
 	  goto yyexhaustedlab;
-	YYSTACK_RELOCATE (yyss);
-	YYSTACK_RELOCATE (yyvs);
-	YYSTACK_RELOCATE (yyls);
+	YYSTACK_RELOCATE (yyss_alloc, yyss);
+	YYSTACK_RELOCATE (yyvs_alloc, yyvs);
+	YYSTACK_RELOCATE (yyls_alloc, yyls);
 #  undef YYSTACK_RELOCATE
 	if (yyss1 != yyssa)
 	  YYSTACK_FREE (yyss1);
@@ -2177,6 +2415,9 @@ YYLTYPE yylloc;
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
+  if (yystate == YYFINAL)
+    YYACCEPT;
+
   goto yybackup;
 
 /*-----------.
@@ -2185,16 +2426,16 @@ YYLTYPE yylloc;
 yybackup:
 
   /* Do appropriate processing given the current state.  Read a
-     look-ahead token if we need one and don't already have one.  */
+     lookahead token if we need one and don't already have one.  */
 
-  /* First try to decide what to do without reference to look-ahead token.  */
+  /* First try to decide what to do without reference to lookahead token.  */
   yyn = yypact[yystate];
   if (yyn == YYPACT_NINF)
     goto yydefault;
 
-  /* Not known => get a look-ahead token if don't already have one.  */
+  /* Not known => get a lookahead token if don't already have one.  */
 
-  /* YYCHAR is either YYEMPTY or YYEOF or a valid look-ahead symbol.  */
+  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
   if (yychar == YYEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token: "));
@@ -2226,20 +2467,16 @@ yybackup:
       goto yyreduce;
     }
 
-  if (yyn == YYFINAL)
-    YYACCEPT;
-
   /* Count tokens shifted since error; after three, turn off error
      status.  */
   if (yyerrstatus)
     yyerrstatus--;
 
-  /* Shift the look-ahead token.  */
+  /* Shift the lookahead token.  */
   YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);
 
-  /* Discard the shifted token unless it is eof.  */
-  if (yychar != YYEOF)
-    yychar = YYEMPTY;
+  /* Discard the shifted token.  */
+  yychar = YYEMPTY;
 
   yystate = yyn;
   *++yyvsp = yylval;
@@ -2280,6 +2517,8 @@ yyreduce:
   switch (yyn)
     {
         case 2:
+
+/* Line 1455 of yacc.c  */
 #line 198 "language.yy"
     {
     //no action for empty file
@@ -2287,6 +2526,8 @@ yyreduce:
     break;
 
   case 3:
+
+/* Line 1455 of yacc.c  */
 #line 202 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2297,6 +2538,8 @@ yyreduce:
     break;
 
   case 5:
+
+/* Line 1455 of yacc.c  */
 #line 211 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2308,6 +2551,8 @@ yyreduce:
     break;
 
   case 6:
+
+/* Line 1455 of yacc.c  */
 #line 219 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2319,6 +2564,8 @@ yyreduce:
     break;
 
   case 7:
+
+/* Line 1455 of yacc.c  */
 #line 227 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2334,6 +2581,8 @@ yyreduce:
     break;
 
   case 8:
+
+/* Line 1455 of yacc.c  */
 #line 241 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2347,6 +2596,8 @@ yyreduce:
     break;
 
   case 9:
+
+/* Line 1455 of yacc.c  */
 #line 251 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2363,6 +2614,8 @@ yyreduce:
     break;
 
   case 10:
+
+/* Line 1455 of yacc.c  */
 #line 264 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2378,6 +2631,8 @@ yyreduce:
     break;
 
   case 11:
+
+/* Line 1455 of yacc.c  */
 #line 276 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2391,6 +2646,8 @@ yyreduce:
     break;
 
   case 12:
+
+/* Line 1455 of yacc.c  */
 #line 288 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2403,6 +2660,8 @@ yyreduce:
     break;
 
   case 13:
+
+/* Line 1455 of yacc.c  */
 #line 297 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2414,6 +2673,8 @@ yyreduce:
     break;
 
   case 14:
+
+/* Line 1455 of yacc.c  */
 #line 305 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2423,6 +2684,8 @@ yyreduce:
     break;
 
   case 15:
+
+/* Line 1455 of yacc.c  */
 #line 311 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2435,6 +2698,8 @@ yyreduce:
     break;
 
   case 16:
+
+/* Line 1455 of yacc.c  */
 #line 324 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2447,6 +2712,8 @@ yyreduce:
     break;
 
   case 17:
+
+/* Line 1455 of yacc.c  */
 #line 333 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2459,6 +2726,8 @@ yyreduce:
     break;
 
   case 18:
+
+/* Line 1455 of yacc.c  */
 #line 342 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2473,6 +2742,8 @@ yyreduce:
     break;
 
   case 19:
+
+/* Line 1455 of yacc.c  */
 #line 353 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2485,6 +2756,8 @@ yyreduce:
     break;
 
   case 20:
+
+/* Line 1455 of yacc.c  */
 #line 363 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2496,6 +2769,8 @@ yyreduce:
     break;
 
   case 21:
+
+/* Line 1455 of yacc.c  */
 #line 371 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2511,6 +2786,8 @@ yyreduce:
     break;
 
   case 22:
+
+/* Line 1455 of yacc.c  */
 #line 384 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2522,6 +2799,8 @@ yyreduce:
     break;
 
   case 23:
+
+/* Line 1455 of yacc.c  */
 #line 392 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2534,6 +2813,8 @@ yyreduce:
     break;
 
   case 24:
+
+/* Line 1455 of yacc.c  */
 #line 401 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2546,6 +2827,8 @@ yyreduce:
     break;
 
   case 25:
+
+/* Line 1455 of yacc.c  */
 #line 410 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2560,6 +2843,8 @@ yyreduce:
     break;
 
   case 27:
+
+/* Line 1455 of yacc.c  */
 #line 423 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2573,6 +2858,8 @@ yyreduce:
     break;
 
   case 29:
+
+/* Line 1455 of yacc.c  */
 #line 435 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2582,6 +2869,8 @@ yyreduce:
     break;
 
   case 30:
+
+/* Line 1455 of yacc.c  */
 #line 441 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2596,6 +2885,8 @@ yyreduce:
     break;
 
   case 31:
+
+/* Line 1455 of yacc.c  */
 #line 452 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2612,6 +2903,8 @@ yyreduce:
     break;
 
   case 32:
+
+/* Line 1455 of yacc.c  */
 #line 465 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2624,6 +2917,8 @@ yyreduce:
     break;
 
   case 33:
+
+/* Line 1455 of yacc.c  */
 #line 474 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2636,6 +2931,8 @@ yyreduce:
     break;
 
   case 34:
+
+/* Line 1455 of yacc.c  */
 #line 483 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2645,6 +2942,8 @@ yyreduce:
     break;
 
   case 35:
+
+/* Line 1455 of yacc.c  */
 #line 489 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2654,6 +2953,8 @@ yyreduce:
     break;
 
   case 36:
+
+/* Line 1455 of yacc.c  */
 #line 495 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2665,6 +2966,8 @@ yyreduce:
     break;
 
   case 37:
+
+/* Line 1455 of yacc.c  */
 #line 503 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2679,6 +2982,8 @@ yyreduce:
     break;
 
   case 38:
+
+/* Line 1455 of yacc.c  */
 #line 514 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2688,6 +2993,8 @@ yyreduce:
     break;
 
   case 39:
+
+/* Line 1455 of yacc.c  */
 #line 520 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2697,6 +3004,8 @@ yyreduce:
     break;
 
   case 40:
+
+/* Line 1455 of yacc.c  */
 #line 526 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2709,6 +3018,8 @@ yyreduce:
     break;
 
   case 41:
+
+/* Line 1455 of yacc.c  */
 #line 535 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2721,6 +3032,8 @@ yyreduce:
     break;
 
   case 42:
+
+/* Line 1455 of yacc.c  */
 #line 544 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2733,6 +3046,8 @@ yyreduce:
     break;
 
   case 43:
+
+/* Line 1455 of yacc.c  */
 #line 553 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2745,6 +3060,8 @@ yyreduce:
     break;
 
   case 44:
+
+/* Line 1455 of yacc.c  */
 #line 562 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2757,6 +3074,8 @@ yyreduce:
     break;
 
   case 45:
+
+/* Line 1455 of yacc.c  */
 #line 571 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2769,6 +3088,8 @@ yyreduce:
     break;
 
   case 46:
+
+/* Line 1455 of yacc.c  */
 #line 580 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2781,6 +3102,8 @@ yyreduce:
     break;
 
   case 47:
+
+/* Line 1455 of yacc.c  */
 #line 589 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2795,6 +3118,8 @@ yyreduce:
     break;
 
   case 48:
+
+/* Line 1455 of yacc.c  */
 #line 600 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2809,6 +3134,8 @@ yyreduce:
     break;
 
   case 49:
+
+/* Line 1455 of yacc.c  */
 #line 611 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2821,6 +3148,8 @@ yyreduce:
     break;
 
   case 50:
+
+/* Line 1455 of yacc.c  */
 #line 620 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2833,6 +3162,8 @@ yyreduce:
     break;
 
   case 51:
+
+/* Line 1455 of yacc.c  */
 #line 630 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2845,6 +3176,8 @@ yyreduce:
     break;
 
   case 52:
+
+/* Line 1455 of yacc.c  */
 #line 639 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2862,6 +3195,8 @@ yyreduce:
     break;
 
   case 53:
+
+/* Line 1455 of yacc.c  */
 #line 654 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2878,6 +3213,8 @@ yyreduce:
     break;
 
   case 54:
+
+/* Line 1455 of yacc.c  */
 #line 667 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2894,6 +3231,8 @@ yyreduce:
     break;
 
   case 55:
+
+/* Line 1455 of yacc.c  */
 #line 680 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2917,6 +3256,8 @@ yyreduce:
     break;
 
   case 56:
+
+/* Line 1455 of yacc.c  */
 #line 700 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2933,6 +3274,8 @@ yyreduce:
     break;
 
   case 57:
+
+/* Line 1455 of yacc.c  */
 #line 714 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -2942,6 +3285,8 @@ yyreduce:
     break;
 
   case 58:
+
+/* Line 1455 of yacc.c  */
 #line 720 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2953,6 +3298,8 @@ yyreduce:
     break;
 
   case 59:
+
+/* Line 1455 of yacc.c  */
 #line 729 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2966,6 +3313,8 @@ yyreduce:
     break;
 
   case 60:
+
+/* Line 1455 of yacc.c  */
 #line 739 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2979,6 +3328,8 @@ yyreduce:
     break;
 
   case 61:
+
+/* Line 1455 of yacc.c  */
 #line 750 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -2992,6 +3343,8 @@ yyreduce:
     break;
 
   case 62:
+
+/* Line 1455 of yacc.c  */
 #line 760 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3005,6 +3358,8 @@ yyreduce:
     break;
 
   case 64:
+
+/* Line 1455 of yacc.c  */
 #line 774 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3014,6 +3369,8 @@ yyreduce:
     break;
 
   case 65:
+
+/* Line 1455 of yacc.c  */
 #line 781 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3032,6 +3389,8 @@ yyreduce:
     break;
 
   case 66:
+
+/* Line 1455 of yacc.c  */
 #line 797 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3045,6 +3404,8 @@ yyreduce:
     break;
 
   case 67:
+
+/* Line 1455 of yacc.c  */
 #line 807 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3059,6 +3420,8 @@ yyreduce:
     break;
 
   case 69:
+
+/* Line 1455 of yacc.c  */
 #line 820 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3068,6 +3431,8 @@ yyreduce:
     break;
 
   case 70:
+
+/* Line 1455 of yacc.c  */
 #line 827 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3083,6 +3448,8 @@ yyreduce:
     break;
 
   case 71:
+
+/* Line 1455 of yacc.c  */
 #line 840 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3103,6 +3470,8 @@ yyreduce:
     break;
 
   case 72:
+
+/* Line 1455 of yacc.c  */
 #line 857 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3125,6 +3494,8 @@ yyreduce:
     break;
 
   case 73:
+
+/* Line 1455 of yacc.c  */
 #line 878 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3137,6 +3508,8 @@ yyreduce:
     break;
 
   case 75:
+
+/* Line 1455 of yacc.c  */
 #line 889 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3146,6 +3519,8 @@ yyreduce:
     break;
 
   case 76:
+
+/* Line 1455 of yacc.c  */
 #line 896 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3156,6 +3531,8 @@ yyreduce:
     break;
 
   case 77:
+
+/* Line 1455 of yacc.c  */
 #line 903 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3166,6 +3543,8 @@ yyreduce:
     break;
 
   case 80:
+
+/* Line 1455 of yacc.c  */
 #line 913 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3175,6 +3554,8 @@ yyreduce:
     break;
 
   case 81:
+
+/* Line 1455 of yacc.c  */
 #line 919 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3184,6 +3565,8 @@ yyreduce:
     break;
 
   case 82:
+
+/* Line 1455 of yacc.c  */
 #line 926 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3199,6 +3582,8 @@ yyreduce:
     break;
 
   case 83:
+
+/* Line 1455 of yacc.c  */
 #line 938 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3214,6 +3599,8 @@ yyreduce:
     break;
 
   case 84:
+
+/* Line 1455 of yacc.c  */
 #line 950 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3229,6 +3616,8 @@ yyreduce:
     break;
 
   case 85:
+
+/* Line 1455 of yacc.c  */
 #line 962 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3244,6 +3633,8 @@ yyreduce:
     break;
 
   case 86:
+
+/* Line 1455 of yacc.c  */
 #line 976 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3256,6 +3647,8 @@ yyreduce:
     break;
 
   case 87:
+
+/* Line 1455 of yacc.c  */
 #line 985 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3270,6 +3663,8 @@ yyreduce:
     break;
 
   case 88:
+
+/* Line 1455 of yacc.c  */
 #line 997 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3279,6 +3674,8 @@ yyreduce:
     break;
 
   case 89:
+
+/* Line 1455 of yacc.c  */
 #line 1003 "language.yy"
     {
     (yyval.arcemph) = (yyvsp[(1) - (1)].arcemph);
@@ -3286,6 +3683,8 @@ yyreduce:
     break;
 
   case 90:
+
+/* Line 1455 of yacc.c  */
 #line 1008 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3296,6 +3695,8 @@ yyreduce:
     break;
 
   case 91:
+
+/* Line 1455 of yacc.c  */
 #line 1015 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3307,6 +3708,8 @@ yyreduce:
     break;
 
   case 92:
+
+/* Line 1455 of yacc.c  */
 #line 1023 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3317,6 +3720,8 @@ yyreduce:
     break;
 
   case 93:
+
+/* Line 1455 of yacc.c  */
 #line 1030 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3328,6 +3733,8 @@ yyreduce:
     break;
 
   case 94:
+
+/* Line 1455 of yacc.c  */
 #line 1038 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3339,6 +3746,8 @@ yyreduce:
     break;
 
   case 95:
+
+/* Line 1455 of yacc.c  */
 #line 1046 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3351,6 +3760,8 @@ yyreduce:
     break;
 
   case 96:
+
+/* Line 1455 of yacc.c  */
 #line 1057 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3361,6 +3772,8 @@ yyreduce:
     break;
 
   case 97:
+
+/* Line 1455 of yacc.c  */
 #line 1064 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3372,6 +3785,8 @@ yyreduce:
     break;
 
   case 98:
+
+/* Line 1455 of yacc.c  */
 #line 1072 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3382,6 +3797,8 @@ yyreduce:
     break;
 
   case 99:
+
+/* Line 1455 of yacc.c  */
 #line 1079 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3393,6 +3810,8 @@ yyreduce:
     break;
 
   case 100:
+
+/* Line 1455 of yacc.c  */
 #line 1088 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3402,6 +3821,8 @@ yyreduce:
     break;
 
   case 101:
+
+/* Line 1455 of yacc.c  */
 #line 1094 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3412,6 +3833,8 @@ yyreduce:
     break;
 
   case 102:
+
+/* Line 1455 of yacc.c  */
 #line 1102 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3425,6 +3848,8 @@ yyreduce:
     break;
 
   case 103:
+
+/* Line 1455 of yacc.c  */
 #line 1112 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3435,6 +3860,8 @@ yyreduce:
     break;
 
   case 104:
+
+/* Line 1455 of yacc.c  */
 #line 1119 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3448,6 +3875,8 @@ yyreduce:
     break;
 
   case 106:
+
+/* Line 1455 of yacc.c  */
 #line 1132 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -3457,6 +3886,8 @@ yyreduce:
     break;
 
   case 107:
+
+/* Line 1455 of yacc.c  */
 #line 1139 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3472,6 +3903,8 @@ yyreduce:
     break;
 
   case 108:
+
+/* Line 1455 of yacc.c  */
 #line 1151 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3485,6 +3918,8 @@ yyreduce:
     break;
 
   case 109:
+
+/* Line 1455 of yacc.c  */
 #line 1161 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3498,6 +3933,8 @@ yyreduce:
     break;
 
   case 110:
+
+/* Line 1455 of yacc.c  */
 #line 1171 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3509,6 +3946,8 @@ yyreduce:
     break;
 
   case 111:
+
+/* Line 1455 of yacc.c  */
 #line 1180 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3523,6 +3962,8 @@ yyreduce:
     break;
 
   case 112:
+
+/* Line 1455 of yacc.c  */
 #line 1191 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3538,6 +3979,8 @@ yyreduce:
     break;
 
   case 113:
+
+/* Line 1455 of yacc.c  */
 #line 1203 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3553,6 +3996,8 @@ yyreduce:
     break;
 
   case 114:
+
+/* Line 1455 of yacc.c  */
 #line 1215 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3587,6 +4032,8 @@ yyreduce:
     break;
 
   case 115:
+
+/* Line 1455 of yacc.c  */
 #line 1246 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3604,6 +4051,8 @@ yyreduce:
     break;
 
   case 119:
+
+/* Line 1455 of yacc.c  */
 #line 1263 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3620,6 +4069,8 @@ yyreduce:
     break;
 
   case 120:
+
+/* Line 1455 of yacc.c  */
 #line 1276 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3634,6 +4085,8 @@ yyreduce:
     break;
 
   case 121:
+
+/* Line 1455 of yacc.c  */
 #line 1287 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3648,6 +4101,8 @@ yyreduce:
     break;
 
   case 122:
+
+/* Line 1455 of yacc.c  */
 #line 1298 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3660,6 +4115,8 @@ yyreduce:
     break;
 
   case 123:
+
+/* Line 1455 of yacc.c  */
 #line 1307 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3676,6 +4133,8 @@ yyreduce:
     break;
 
   case 124:
+
+/* Line 1455 of yacc.c  */
 #line 1320 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3690,6 +4149,8 @@ yyreduce:
     break;
 
   case 125:
+
+/* Line 1455 of yacc.c  */
 #line 1331 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3704,6 +4165,8 @@ yyreduce:
     break;
 
   case 126:
+
+/* Line 1455 of yacc.c  */
 #line 1342 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3716,6 +4179,8 @@ yyreduce:
     break;
 
   case 127:
+
+/* Line 1455 of yacc.c  */
 #line 1353 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3727,6 +4192,8 @@ yyreduce:
     break;
 
   case 128:
+
+/* Line 1455 of yacc.c  */
 #line 1361 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
@@ -3734,6 +4201,8 @@ yyreduce:
     break;
 
   case 129:
+
+/* Line 1455 of yacc.c  */
 #line 1365 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
@@ -3741,6 +4210,8 @@ yyreduce:
     break;
 
   case 130:
+
+/* Line 1455 of yacc.c  */
 #line 1369 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
@@ -3748,6 +4219,8 @@ yyreduce:
     break;
 
   case 131:
+
+/* Line 1455 of yacc.c  */
 #line 1374 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3763,6 +4236,8 @@ yyreduce:
     break;
 
   case 132:
+
+/* Line 1455 of yacc.c  */
 #line 1386 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3776,6 +4251,8 @@ yyreduce:
     break;
 
   case 133:
+
+/* Line 1455 of yacc.c  */
 #line 1396 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3789,6 +4266,8 @@ yyreduce:
     break;
 
   case 134:
+
+/* Line 1455 of yacc.c  */
 #line 1406 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3802,6 +4281,8 @@ yyreduce:
     break;
 
   case 135:
+
+/* Line 1455 of yacc.c  */
 #line 1416 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3813,6 +4294,8 @@ yyreduce:
     break;
 
   case 136:
+
+/* Line 1455 of yacc.c  */
 #line 1426 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3828,6 +4311,8 @@ yyreduce:
     break;
 
   case 137:
+
+/* Line 1455 of yacc.c  */
 #line 1438 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3841,6 +4326,8 @@ yyreduce:
     break;
 
   case 138:
+
+/* Line 1455 of yacc.c  */
 #line 1448 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3854,6 +4341,8 @@ yyreduce:
     break;
 
   case 139:
+
+/* Line 1455 of yacc.c  */
 #line 1458 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3867,6 +4356,8 @@ yyreduce:
     break;
 
   case 140:
+
+/* Line 1455 of yacc.c  */
 #line 1468 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3878,6 +4369,8 @@ yyreduce:
     break;
 
   case 141:
+
+/* Line 1455 of yacc.c  */
 #line 1477 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3893,6 +4386,8 @@ yyreduce:
     break;
 
   case 142:
+
+/* Line 1455 of yacc.c  */
 #line 1489 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3906,6 +4401,8 @@ yyreduce:
     break;
 
   case 143:
+
+/* Line 1455 of yacc.c  */
 #line 1499 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3919,6 +4416,8 @@ yyreduce:
     break;
 
   case 144:
+
+/* Line 1455 of yacc.c  */
 #line 1509 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3932,6 +4431,8 @@ yyreduce:
     break;
 
   case 145:
+
+/* Line 1455 of yacc.c  */
 #line 1519 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3943,6 +4444,8 @@ yyreduce:
     break;
 
   case 164:
+
+/* Line 1455 of yacc.c  */
 #line 1537 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3953,6 +4456,8 @@ yyreduce:
     break;
 
   case 165:
+
+/* Line 1455 of yacc.c  */
 #line 1544 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3963,6 +4468,8 @@ yyreduce:
     break;
 
   case 166:
+
+/* Line 1455 of yacc.c  */
 #line 1552 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3974,6 +4481,8 @@ yyreduce:
     break;
 
   case 167:
+
+/* Line 1455 of yacc.c  */
 #line 1560 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3985,6 +4494,8 @@ yyreduce:
     break;
 
   case 168:
+
+/* Line 1455 of yacc.c  */
 #line 1568 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -3996,6 +4507,8 @@ yyreduce:
     break;
 
   case 169:
+
+/* Line 1455 of yacc.c  */
 #line 1576 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4011,6 +4524,8 @@ yyreduce:
     break;
 
   case 171:
+
+/* Line 1455 of yacc.c  */
 #line 1591 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4023,6 +4538,8 @@ yyreduce:
     break;
 
   case 172:
+
+/* Line 1455 of yacc.c  */
 #line 1600 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4035,6 +4552,8 @@ yyreduce:
     break;
 
   case 173:
+
+/* Line 1455 of yacc.c  */
 #line 1609 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4048,6 +4567,8 @@ yyreduce:
     break;
 
   case 174:
+
+/* Line 1455 of yacc.c  */
 #line 1619 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4061,6 +4582,8 @@ yyreduce:
     break;
 
   case 175:
+
+/* Line 1455 of yacc.c  */
 #line 1629 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4073,6 +4596,8 @@ yyreduce:
     break;
 
   case 176:
+
+/* Line 1455 of yacc.c  */
 #line 1639 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
@@ -4082,6 +4607,8 @@ yyreduce:
     break;
 
   case 177:
+
+/* Line 1455 of yacc.c  */
 #line 1645 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4093,6 +4620,8 @@ yyreduce:
     break;
 
   case 178:
+
+/* Line 1455 of yacc.c  */
 #line 1654 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4108,6 +4637,8 @@ yyreduce:
     break;
 
   case 179:
+
+/* Line 1455 of yacc.c  */
 #line 1666 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4123,6 +4654,8 @@ yyreduce:
     break;
 
   case 180:
+
+/* Line 1455 of yacc.c  */
 #line 1678 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4138,6 +4671,8 @@ yyreduce:
     break;
 
   case 181:
+
+/* Line 1455 of yacc.c  */
 #line 1690 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4151,6 +4686,8 @@ yyreduce:
     break;
 
   case 182:
+
+/* Line 1455 of yacc.c  */
 #line 1700 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4163,66 +4700,92 @@ yyreduce:
     break;
 
   case 198:
+
+/* Line 1455 of yacc.c  */
 #line 1719 "language.yy"
     {(yyval.str) = strdup("->");}
     break;
 
   case 199:
+
+/* Line 1455 of yacc.c  */
 #line 1720 "language.yy"
     {(yyval.str) = strdup("<-");}
     break;
 
   case 200:
+
+/* Line 1455 of yacc.c  */
 #line 1721 "language.yy"
     {(yyval.str) = strdup("<->");}
     break;
 
   case 201:
+
+/* Line 1455 of yacc.c  */
 #line 1722 "language.yy"
     {(yyval.str) = strdup("=>");}
     break;
 
   case 202:
+
+/* Line 1455 of yacc.c  */
 #line 1723 "language.yy"
     {(yyval.str) = strdup("<=");}
     break;
 
   case 203:
+
+/* Line 1455 of yacc.c  */
 #line 1724 "language.yy"
     {(yyval.str) = strdup("<=>");}
     break;
 
   case 204:
+
+/* Line 1455 of yacc.c  */
 #line 1725 "language.yy"
     {(yyval.str) = strdup(">>");}
     break;
 
   case 205:
+
+/* Line 1455 of yacc.c  */
 #line 1726 "language.yy"
     {(yyval.str) = strdup("<<");}
     break;
 
   case 206:
+
+/* Line 1455 of yacc.c  */
 #line 1727 "language.yy"
     {(yyval.str) = strdup("<<>>");}
     break;
 
   case 207:
+
+/* Line 1455 of yacc.c  */
 #line 1728 "language.yy"
     {(yyval.str) = strdup(">");}
     break;
 
   case 208:
+
+/* Line 1455 of yacc.c  */
 #line 1729 "language.yy"
     {(yyval.str) = strdup("<");}
     break;
 
   case 209:
+
+/* Line 1455 of yacc.c  */
 #line 1730 "language.yy"
     {(yyval.str) = strdup("<>");}
     break;
 
   case 210:
+
+/* Line 1455 of yacc.c  */
 #line 1732 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
@@ -4233,6 +4796,8 @@ yyreduce:
     break;
 
   case 211:
+
+/* Line 1455 of yacc.c  */
 #line 1739 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
@@ -4245,6 +4810,8 @@ yyreduce:
     break;
 
   case 216:
+
+/* Line 1455 of yacc.c  */
 #line 1751 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4255,6 +4822,8 @@ yyreduce:
     break;
 
   case 217:
+
+/* Line 1455 of yacc.c  */
 #line 1759 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
@@ -4266,8 +4835,9 @@ yyreduce:
     break;
 
 
-/* Line 1267 of yacc.c.  */
-#line 4271 "colorsyntax.cc"
+
+/* Line 1455 of yacc.c  */
+#line 4841 "colorsyntax.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -4343,7 +4913,7 @@ yyerrlab:
 
   if (yyerrstatus == 3)
     {
-      /* If just tried and failed to reuse look-ahead token after an
+      /* If just tried and failed to reuse lookahead token after an
 	 error, discard it.  */
 
       if (yychar <= YYEOF)
@@ -4360,7 +4930,7 @@ yyerrlab:
 	}
     }
 
-  /* Else will try to reuse look-ahead token after shifting the error
+  /* Else will try to reuse lookahead token after shifting the error
      token.  */
   goto yyerrlab1;
 
@@ -4418,14 +4988,11 @@ yyerrlab1:
       YY_STACK_PRINT (yyss, yyssp);
     }
 
-  if (yyn == YYFINAL)
-    YYACCEPT;
-
   *++yyvsp = yylval;
 
   yyerror_range[1] = yylloc;
   /* Using YYLLOC is tempting, but would change the location of
-     the look-ahead.  YYLOC is available though.  */
+     the lookahead.  YYLOC is available though.  */
   YYLLOC_DEFAULT (yyloc, (yyerror_range - 1), 2);
   *++yylsp = yyloc;
 
@@ -4450,7 +5017,7 @@ yyabortlab:
   yyresult = 1;
   goto yyreturn;
 
-#ifndef yyoverflow
+#if !defined(yyoverflow) || YYERROR_VERBOSE
 /*-------------------------------------------------.
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
@@ -4461,7 +5028,7 @@ yyexhaustedlab:
 #endif
 
 yyreturn:
-  if (yychar != YYEOF && yychar != YYEMPTY)
+  if (yychar != YYEMPTY)
      yydestruct ("Cleanup: discarding lookahead",
 		 yytoken, &yylval, &yylloc, RESULT, yyscanner);
   /* Do not reclaim the symbols of the rule which action triggered
@@ -4487,6 +5054,8 @@ yyreturn:
 }
 
 
+
+/* Line 1675 of yacc.c  */
 #line 1768 "language.yy"
 
 
