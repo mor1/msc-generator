@@ -659,4 +659,19 @@ bool Ellipse::Expand(double gap)
 	return true;
 }
 
+double Ellipse::OffsetBelow(const Ellipse&) const
+{
+
+}
+
+double Ellipse::OffsetBelow(const XY&A, const XY&B) const
+{
+}
+
+double Ellipse::OffsetAbove(const XY&A, const XY&B) const
+{
+}
+
+
+
 }; //namespace

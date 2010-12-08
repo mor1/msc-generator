@@ -5,12 +5,14 @@
 #define  _ASSERT(A)
 #endif
 
-#include <climits>
+#include <cfloat>
 #include <utility>
 
 using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
 
 namespace geometry {
+
+inline double Infinity() {return DBL_MAX;}
 
 class XY {
 public:
@@ -42,14 +44,13 @@ public:
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
 
 //Structs for compress mechanism
-#define MAINLINE_INF INT_MAX
 struct Range {
     double from;
     double till;
     Range() {}
     Range(double s, double d) : from(s), till(d) {}
-    void MakeInvalid() {from = MAINLINE_INF; till = -MAINLINE_INF;}
-    bool IsInvalid() const {return from == MAINLINE_INF && till == -MAINLINE_INF;}
+    void MakeInvalid() {from = DBL_MAX; till = -DBL_MAX;}
+    bool IsInvalid() const {return from == Infinity() && till == -Infinity();}
     bool Overlaps(const struct Range &r, double gap=0) const   //true if they at least touch
         {return from<=r.till+gap && r.from <= till+gap;}
     Range &operator+=(double a)
@@ -63,8 +64,8 @@ struct Range {
                 return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;
     }
     Range &Shift(double a) {from +=a; till+=a; return *this;}
-    bool HasValidFrom() const {return from != MAINLINE_INF;}
-    bool HasValidTill() const {return till != -MAINLINE_INF;}
+    bool HasValidFrom() const {return from != Infinity();}
+    bool HasValidTill() const {return till != -Infinity();}
     double Spans() const
         {return till-from;}
     bool operator <(const Range &r) const {

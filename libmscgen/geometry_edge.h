@@ -104,6 +104,8 @@ public:
 	bool   ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const;
 	int    CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, Edge &res_prev) const;
 	int    IsOppositeDir(const XY &B, const Edge &M, const XY &N) const;
+
+	double OffsetBelow(const Edge&) const;
 };
 
 
@@ -177,12 +179,8 @@ inline Edge& Edge::SetEnd(const XY &p)
     return *this;
 }
 
-inline void Ellipse::TransformForDrawing(cairo_t *cr) const
+inline double Edge::OffsetBelow(const Edge&) const
 {
-    cairo_translate(cr, center.x, center.y);
-    if (tilted)
-        cairo_rotate(cr, tilt);
-    cairo_scale(cr, radius1, radius2);
 }
 
 typedef enum {ALL_EQUAL, A_EQUAL_B, A_EQUAL_C, B_EQUAL_C, IN_LINE, CLOCKWISE, COUNTERCLOCKWISE} triangle_dir_t;

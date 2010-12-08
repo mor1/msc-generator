@@ -74,6 +74,12 @@ public:
 
     bool Expand(double gap);
 	void TransformForDrawing(cairo_t *cr) const;
+
+	//return a positive number if the two can be moved closer together
+	//return Infinity() if the two do not overlap in x coordinates
+	double OffsetBelow(const Ellipse&) const;
+	double OffsetBelow(const XY&A, const XY&B) const;
+	double OffsetAbove(const XY&A, const XY&B) const;
 };
 
 
@@ -135,6 +141,13 @@ inline double Ellipse::Point2Radian(const XY &p) const
     //}
 }
 
+inline void Ellipse::TransformForDrawing(cairo_t *cr) const
+{
+    cairo_translate(cr, center.x, center.y);
+    if (tilted)
+        cairo_rotate(cr, tilt);
+    cairo_scale(cr, radius1, radius2);
+}
 
 //other helpers
 static const double SMALL_NUM = 1e-10; //avoid division overflow
