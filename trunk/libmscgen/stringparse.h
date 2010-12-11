@@ -75,6 +75,8 @@ class StringFormat {
     StringFormat &operator +=(const StringFormat& toadd);
     void SetColor(MscColorType c);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
 
     MscIdentType GetIdent() const
         {return ident.first?ident.second:MSC_IDENT_CENTER;}
@@ -117,13 +119,14 @@ class ParsedLine {
 
   public:
     ParsedLine(const string&, MscDrawer *, StringFormat &sf);
+    operator std::string() const;
     void Draw(XY xy, MscDrawer *, bool isRotated) const;
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}
 };
 
 //A class holding a list of parsed lines
-class Label :  public std::vector<ParsedLine>
+class Label : public std::vector<ParsedLine>
 {
     using std::vector<ParsedLine>::size;
     using std::vector<ParsedLine>::at;
@@ -136,6 +139,7 @@ public:
     explicit Label(MscDrawer *m) : msc(m) {}
     void Set(const string &s, const StringFormat &f) {clear(); AddText(s,f);}
     void AddSpacing(unsigned line, double spacing);
+    operator std::string() const;
 
     XY getTextWidthHeight(int line=-1) const;
     void DrawCovers(double sx, double dx, double y,

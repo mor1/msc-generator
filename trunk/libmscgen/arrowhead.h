@@ -67,6 +67,8 @@ public:
     void Empty();
     ArrowHead & operator += (const ArrowHead &);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
 
     MscArrowType GetType(bool bidir, MscArrowEnd which) const;
     XY getWidthHeight(bool bidir, MscArrowEnd which, MscDrawer *) const;

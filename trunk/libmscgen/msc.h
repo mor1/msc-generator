@@ -115,7 +115,7 @@ public:
     EntityDefList                 AutoGenEntities;
     double                        Entity_max_pos;
     ArcList                       Arcs;
-    std::stack<Context>           Contexts;
+    std::list<Context>            Contexts;
     std::map<string, Design>      Designs;
     std::map<string, MarkerType>  Markers;
     std::map<double, MscFillAttr> Background;

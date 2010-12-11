@@ -70,14 +70,14 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         const char *newname = a.name == "emphasis"?"box":"emptybox";
         if (a.name == "emphasis" || a.name == "emptyemphasis") {
             msc->Error.Warning(a.linenum_attr.start, "Stylename '" + a.name + "' is deprecated, using " + newname + " instead.");
-            operator +=(msc->Contexts.top().styles[newname]);
+            operator +=(msc->Contexts.back().styles[newname]);
             return true;
         }
-        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
+        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        operator +=(msc->Contexts.top().styles[a.name]);
+        operator +=(msc->Contexts.back().styles[a.name]);
         return true;
     }
     if (a.Is("line.width")) {
@@ -136,6 +136,64 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         return true;
     }
     return false;
+}
+
+void MscStyle::AttributeNames(const_char_vector_t &v, const Csh &csh) const
+{
+    static const char names[][ENUM_STRING_LEN] =
+    {"vline.color", "vline.type", "vline.width", /*"vline.radius",*/ ""};
+
+    if (f_line) MscLineAttr::AttributeNames(v, csh);
+    if (f_fill) MscFillAttr::AttributeNames(v, csh);
+    if (f_arrow) ArrowHead::AttributeNames(v, csh);
+    if (f_shadow) MscShadowAttr::AttributeNames(v, csh);
+    if (f_text) StringFormat::AttributeNames(v, csh);
+    if (f_solid) v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"solid");
+    if (f_numbering) v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"number");
+    if (f_compress) v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"compress");
+    if (f_vline) v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+    for (auto i=csh.Contexts.back().StyleNames.begin(); i!=csh.Contexts.back().StyleNames.end(); i++)
+        if (csh.ForbiddenStyles.find(*i) == csh.ForbiddenStyles.end())
+            v.Add(csh.HintPrefix(COLOR_STYLENAME) + *i);
+}
+
+bool MscStyle::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh) const
+{
+    if (CaseInsensitiveEqual(attr, "line.width")) {
+        if (f_arrow) return arrow.AttributeValues(attr, v, csh);
+        if (f_line) return line.AttributeValues(attr, v, csh);
+        return false;
+    }
+    if ((CaseInsensitiveBeginsWidth(attr, "text") || CaseInsensitiveEqual(attr, "ident")) && f_text)
+        return text.AttributeValues(attr, v, csh);
+    if (CaseInsensitiveBeginsWidth(attr, "line") && f_line)
+        return line.AttributeValues(attr, v, csh);
+    if (CaseInsensitiveBeginsWidth(attr, "vline") && f_vline)
+        return vline.AttributeValues(attr, v, csh);
+    if (CaseInsensitiveBeginsWidth(attr, "fill") && f_fill)
+        return fill.AttributeValues(attr, v, csh);
+    if (CaseInsensitiveBeginsWidth(attr, "shadow") && f_shadow)
+        return shadow.AttributeValues(attr, v, csh);
+    if ((CaseInsensitiveBeginsWidth(attr, "arrow") || CaseInsensitiveEqual(attr, "arrowsize")) && f_arrow)
+        return arrow.AttributeValues(attr, v, csh);
+    if (CaseInsensitiveEqual(attr, "solid") && f_solid) {
+        v.Add(csh.HintPrefixNonSelectable() + "<number: \b0.0..1.0\b>");
+        v.Add(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "compress") && f_compress) {
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "number") && f_numbering) {
+        v.Add(csh.HintPrefixNonSelectable() + "<number>");
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        return true;
+    }
+    return false;
+
 }
 
 string MscStyle::Print(int ident) const

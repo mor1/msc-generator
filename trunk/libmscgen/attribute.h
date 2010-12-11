@@ -5,6 +5,7 @@
 #include <sstream>
 #include <list>
 #include "color.h"
+#include "csh.h"
 
 using std::string;
 
@@ -18,6 +19,8 @@ template <class T>
     };
 
 int CaseInsensitiveBeginsWidth(const char *a, const char *b);
+inline int CaseInsensitiveBeginsWidth(const string &a, const char *b)
+{return CaseInsensitiveBeginsWidth(a.c_str(), b);}
 inline bool CaseInsensitiveEqual(const char *a, const char *b)
     {return CaseInsensitiveBeginsWidth(a,b)==2;}
 inline bool CaseInsensitiveEqual(const string &a, const char *b)
@@ -26,6 +29,11 @@ inline bool CaseInsensitiveEqual(const char *a, const string &b)
     {return CaseInsensitiveEqual(a, b.c_str());}
 inline bool CaseInsensitiveEqual(const string &a, const string &b)
     {return CaseInsensitiveEqual(a.c_str(), b.c_str());}
+
+//this one returns true if ending is terminated at a dot "."
+bool CaseInsensitiveEndsWith(const char *base, const char *a);
+inline bool CaseInsensitiveEndsWith(const string &base, const char *a)
+{return CaseInsensitiveEndsWith(base.c_str(), a);}
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -59,11 +67,12 @@ class PtrList : public std::list<Object*>
 
 //Enum helper functions////////////////////////////////////////////
 
+#define ENUM_STRING_LEN 20
 template <typename Enum>
 class EnumEncapsulator {
 public:
     Enum value;
-    const static char names[][15];
+    const static char names[][ENUM_STRING_LEN];
     EnumEncapsulator(Enum a) : value(a) {}
 };
 
@@ -97,6 +106,13 @@ string CandidatesFor(Enum dummy1)
         s.append(EnumEncapsulator<Enum>::names[i]);
     }
     return s;
+};
+
+class const_char_vector_t : public std::set<string>
+{
+public:
+    void Add(const string &a) {insert(a);}
+    void Add(const char names[][ENUM_STRING_LEN], const string &prefix);
 };
 
 ////////////////////////////////////////////////////////////
@@ -189,6 +205,8 @@ public:
         {switch(type.second) {case LINE_NONE: return 0;
         case LINE_DOUBLE: return width.second*3; default: return width.second;}}
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
     string Print(int ident = 0) const;
 };
 
@@ -216,6 +234,8 @@ public:
     MscFillAttr &operator +=(const MscFillAttr&a);
     bool operator == (const MscFillAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
     string Print(int ident = 0) const;
 };
 
@@ -230,6 +250,8 @@ public:
     MscShadowAttr &operator +=(const MscShadowAttr&a);
     bool operator == (const MscShadowAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
     string Print(int ident = 0) const;
 };
 

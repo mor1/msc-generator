@@ -22,8 +22,8 @@
 template class PtrList<Entity>;
 
 Entity::Entity(const string &n, const string &l, const string &ol, double p, Msc* msc) :
-    chart(msc), maxwidth(0), running_style(chart->Contexts.top().styles["entity"]),
-    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->Contexts.top().styles["entity"])
+    chart(msc), maxwidth(0), running_style(chart->Contexts.back().styles["entity"]),
+    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->Contexts.back().styles["entity"])
 {
 }
 
@@ -185,11 +185,11 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
 bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
+        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        style += msc->Contexts.top().styles[a.name];
+        style += msc->Contexts.back().styles[a.name];
         return true;
     }
     string s;

@@ -55,7 +55,7 @@
 #include "colorsyntax.h"
 #include "language_misc.h"
 #include "colorsyntax2.h"
-#include "arcs.h" //Needed for MSC_* declarations
+#include "arcs.h"
 
 //redefine default loc action for CSH
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
@@ -221,6 +221,7 @@ top_level_arclist: arclist
         csh.AddCSH(@2, COLOR_ERROR);
   #else
         $$ = $1;
+        msc.Error.Error(MSC_POS(@2).start, "Unexpected '}'.");
   #endif
 }
                  | arclist TOK_CCBRACKET top_level_arclist
@@ -325,6 +326,14 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@2, COLOR_BRACE);
         csh.AddCSH(@4, COLOR_BRACE);
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
+                csh.hintStatus = HINT_READY;
+                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
+                    csh.Hints.insert(i->first);
+            } else
+                csh.hintStatus = HINT_NONE;
+        }
   #else
         $$ = $3;
   #endif
@@ -334,6 +343,14 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@2, COLOR_BRACE);
         csh.AddCSH(@3, COLOR_BRACE);
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
+                csh.hintStatus = HINT_READY;
+                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
+                    csh.Hints.insert(i->first);
+            } else
+                csh.hintStatus = HINT_NONE;
+        }
   #else
         $$ = new ArcList;
   #endif
@@ -344,6 +361,14 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
         csh.AddCSH(@2, COLOR_BRACE);
         csh.AddCSH(@4, COLOR_ERROR);
         csh.AddCSH(@5, COLOR_BRACE);
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
+                csh.hintStatus = HINT_READY;
+                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
+                    csh.Hints.insert(i->first);
+            } else
+                csh.hintStatus = HINT_NONE;
+        }
   #else
         $$ = $3;
   #endif
@@ -354,6 +379,14 @@ mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@2, COLOR_BRACE);
         csh.AddCSH(@4, COLOR_ERROR);
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
+                csh.hintStatus = HINT_READY;
+                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
+                    csh.Hints.insert(i->first);
+            } else
+                csh.hintStatus = HINT_NONE;
+        }
   #else
         $$ = $3;
   #endif
@@ -367,14 +400,32 @@ msckey:       TOK_MSC
   #endif
     free($1);
 }
+              | TOK_MSC TOK_EQUAL
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.hintStatus = HINT_ATTR_VALUE_CAN_COME;
+
+  #else
+        msc.Error.Error(MSC_POS(@2).end, "Missing design name.");
+  #endif
+    free($1);
+}
               | TOK_MSC TOK_EQUAL string
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_DESIGNNAME);
+        if (csh.CursorIn((@2).last_pos,(@3).last_pos)) {
+            csh.hintStatus = HINT_READY;
+            csh.hintedStringPos = @3;
+            for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
+                csh.Hints.insert(i->first);
+        }
   #else
-        msc.AddDesignAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
+        msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
   #endif
     free($1);
     free($3);
@@ -433,7 +484,17 @@ arc_with_parallel: arc
 arc:            arcrel
               | arcrel full_arcattrlist_with_label
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+        if (csh.hintStatus==HINT_ATTR_NAME) {
+            const_char_vector_t v;
+            ArcArrow::AttributeNames(v, csh);
+            csh.SetHintsReady(std::move(v));
+        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
+            const_char_vector_t v;
+            ArcArrow::AttributeValues(csh.hintAttrName, v, csh);
+            csh.SetHintsReady(std::move(v));
+        }
+  #else
     $$ = ($1)->AddAttributeList($2);
   #endif
 }
@@ -452,6 +513,15 @@ arc:            arcrel
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        if (csh.hintStatus==HINT_ATTR_NAME) {
+            const_char_vector_t v;
+            ArcBigArrow::AttributeNames(v, csh);
+            csh.SetHintsReady(std::move(v));
+        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
+            const_char_vector_t v;
+            ArcBigArrow::AttributeValues(csh.hintAttrName, v, csh);
+            csh.SetHintsReady(std::move(v));
+        }
   #else
         //Returns NULL, if BIG is before a self-pointing arrow
         ArcBigArrow *arrow = msc.CreateArcBigArrow($2);
@@ -474,6 +544,15 @@ arc:            arcrel
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        if (csh.hintStatus==HINT_ATTR_NAME) {
+            const_char_vector_t v;
+            ArcVerticalArrow::AttributeNames(v, csh);
+            csh.SetHintsReady(std::move(v));
+        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
+            const_char_vector_t v;
+            ArcVerticalArrow::AttributeValues(csh.hintAttrName, v, csh);
+            csh.SetHintsReady(std::move(v));
+        }
   #else
         $$ = ($2)->AddAttributeList($3);
   #endif
@@ -481,7 +560,17 @@ arc:            arcrel
 }
               | full_arcattrlist_with_label
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+        if (csh.hintStatus==HINT_ATTR_NAME) {
+            const_char_vector_t v;
+            ArcDivider::AttributeNames(v, csh);
+            csh.SetHintsReady(std::move(v));
+        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
+            const_char_vector_t v;
+            ArcDivider::AttributeValues(csh.hintAttrName, v, csh);
+            csh.SetHintsReady(std::move(v));
+        }
+  #else
     $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc))->AddAttributeList($1);
   #endif
 }
@@ -702,6 +791,9 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_ATTRVALUE);
+        if (csh.Designs.find($1) != csh.Designs.end())
+            for (auto i = csh.Contexts.begin(); i!=csh.Contexts.end(); i++)
+                *i += csh.Designs[$1];
   #else
         msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
         $$ = NULL;
@@ -780,13 +872,16 @@ styledeflist: styledef
 styledef : tok_stringlist full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
+    for (std::list<std::string>::iterator i = ($1)->begin(); i!=($1)->end(); i++)
+        if (csh.ForbiddenStyles.find(*i) != csh.ForbiddenStyles.end())
+            csh.Contexts.back().StyleNames.insert(string(*i));
   #else
     for (std::list<std::string>::iterator i = ($1)->begin(); i!=($1)->end(); i++) {
-        MscStyle style = msc.Contexts.top().styles.GetStyle(*i);
+        MscStyle style = msc.Contexts.back().styles.GetStyle(*i);
         AttributeList::iterator j=($2)->begin();
         while (j!=($2)->end())
            style.AddAttribute(**(j++), &msc);
-        msc.Contexts.top().styles[*i] = style;
+        msc.Contexts.back().styles[*i] = style;
     }
     delete($1);
     delete($2);
@@ -797,6 +892,12 @@ tok_stringlist : string
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_STYLENAME);
+        $$ = new std::list<string>;
+        if (($1) == "emphasis")
+            ($$)->push_back("box");
+        else if (($1) == "emptyemphasis")
+            ($$)->push_back("emptybox");
+        else ($$)->push_back($1);
   #else
         $$ = new std::list<string>;
         ($$)->push_back(ConvertEmphasisToBox($1, &@1, msc));
@@ -808,9 +909,15 @@ tok_stringlist : string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@2, COLOR_COMMA);
         csh.AddCSH(@3, COLOR_STYLENAME);
+        $$ = $1;
+        if (($3) == "emphasis")
+            ($$)->push_back("box");
+        else if (($3) == "emptyemphasis")
+            ($$)->push_back("emptybox");
+        else ($$)->push_back($3);
   #else
-       ($1)->push_back(ConvertEmphasisToBox($3, &@3, msc));
-       $$ = $1;
+        ($1)->push_back(ConvertEmphasisToBox($3, &@3, msc));
+        $$ = $1;
   #endif
     free($3);
 };
@@ -829,8 +936,9 @@ colordef : TOK_STRING TOK_EQUAL string
         csh.AddCSH(@1, COLOR_COLORNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_COLORDEF);
+        csh.Contexts.back().ColorNames.insert($1);
   #else
-        msc.Contexts.top().colors.AddColor($1, $3, msc.Error, MSC_POS(@$));
+        msc.Contexts.back().colors.AddColor($1, $3, msc.Error, MSC_POS(@$));
   #endif
     free($1);
     free($3);
@@ -843,15 +951,18 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
         csh.AddCSH(@2, COLOR_BRACE);
         csh.AddCSH(@4, COLOR_SEMICOLON);
         csh.AddCSH(@5, COLOR_BRACE);
+        csh.Designs[$1] = csh.Contexts.back();
+        csh.PopContext();
   #else
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
     Design &design = msc.Designs[$1];
-    static_cast<Context&>(design) = msc.Contexts.top();
+    static_cast<Context&>(design) = msc.Contexts.back();
     design.hscale = msc.hscale;
     msc.hscale = msc.saved_hscale;
     msc.PopContext();
   #endif
+    free($1);
 }
            |TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON error TOK_CCBRACKET
 {
@@ -861,12 +972,14 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
         csh.AddCSH(@4, COLOR_SEMICOLON);
         csh.AddCSH(@5, COLOR_ERROR);
         csh.AddCSH(@6, COLOR_BRACE);
+        csh.Designs[$1] = csh.Contexts.back();
+        csh.PopContext();
   #else
     //if closing brace missing, still do the design definition
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
     Design &design = msc.Designs[$1];
-    static_cast<Context&>(design) = msc.Contexts.top();
+    static_cast<Context&>(design) = msc.Contexts.back();
     design.hscale = msc.hscale;
     msc.hscale = msc.saved_hscale;
     msc.PopContext();
@@ -877,6 +990,7 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
 scope_open_empty: TOK_OCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
+    csh.PushContext(true);
   #else
     //push empty color & style sets for design definition
     msc.PushContext(true);
@@ -1592,6 +1706,8 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@2, COLOR_BRACKET);
+        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
+            csh.hintStatus = HINT_ATTR_NAME;
   #else
     $$ = new AttributeList;
   #endif
@@ -1601,6 +1717,16 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@3, COLOR_BRACKET);
+        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
+            csh.hintStatus = HINT_ATTR_NAME;
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@2).last_pos,(@3).first_pos))
+                csh.hintStatus = HINT_ATTR_VALUE;
+            else {
+                csh.hintStatus = HINT_NONE;
+                csh.hintAttrName.clear();
+            }
+        }
   #else
     $$ = $2;
   #endif
@@ -1611,6 +1737,16 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@3, COLOR_ERROR);
         csh.AddCSH(@4, COLOR_BRACKET);
+        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
+            csh.hintStatus = HINT_ATTR_NAME;
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@2).last_pos,(@4).first_pos))
+                csh.hintStatus = HINT_ATTR_VALUE;
+            else {
+                csh.hintStatus = HINT_NONE;
+                csh.hintAttrName.clear();
+            }
+        }
   #else
     $$ = $2;
   #endif
@@ -1621,6 +1757,8 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@2, COLOR_ERROR);
         csh.AddCSH(@3, COLOR_BRACKET);
+        if (csh.CursorIn((@1).last_pos,(@3).first_pos))
+            csh.hintStatus = HINT_ATTR_NAME;
   #else
     $$ = new AttributeList;
   #endif
@@ -1630,14 +1768,36 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@3, COLOR_ERROR);
+        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
+            csh.hintStatus = HINT_ATTR_NAME;
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@2).last_pos,(@3).last_pos))
+                csh.hintStatus = HINT_ATTR_VALUE;
+            else {
+                csh.hintStatus = HINT_NONE;
+                csh.hintAttrName.clear();
+            }
+        }
   #else
     $$ = $2;
+  #endif
+}
+                   | TOK_OSBRACKET error
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@1, COLOR_BRACKET);
+        csh.AddCSH(@2, COLOR_ERROR);
+        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
+            csh.hintStatus = HINT_ATTR_NAME;
+  #else
+    $$ = new AttributeList;
   #endif
 }
 
 arcattrlist:    arcattr
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+  #else
     $$ = (new AttributeList)->Append($1);
   #endif
 }
@@ -1645,6 +1805,16 @@ arcattrlist:    arcattr
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@2, COLOR_COMMA);
+        if (csh.CursorIn((@2).last_pos,(@3).first_pos))
+            csh.hintStatus = HINT_ATTR_NAME;
+        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
+            if (csh.CursorIn((@1).last_pos,(@2).first_pos))
+                csh.hintStatus = HINT_ATTR_VALUE;
+            else {
+                csh.hintStatus = HINT_ATTR_VALUE;
+                csh.hintAttrName.clear();
+            }
+        }
   #else
     $$ = ($1)->Append($3);
   #endif
@@ -1656,6 +1826,15 @@ arcattr:         string TOK_EQUAL string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_AttrValue(@3, $3, $1);
+        if (csh.CursorIn(@1)) {
+            csh.hintStatus = HINT_ATTR_NAME;
+            csh.hintedStringPos = @1;
+        }
+        if (csh.CursorIn((@2).last_pos, (@3).last_pos)) {
+            csh.hintStatus = HINT_ATTR_VALUE;
+            csh.hintedStringPos = @3;
+            csh.hintAttrName = $1;
+        }
   #else
         $$ = new Attribute($1, $3, MSC_POS(@1), MSC_POS(@3));
   #endif
@@ -1668,6 +1847,15 @@ arcattr:         string TOK_EQUAL string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_ATTRVALUE);
+        if (csh.CursorIn(@1)) {
+            csh.hintStatus = HINT_ATTR_NAME;
+            csh.hintedStringPos = @1;
+        }
+        if (csh.CursorIn((@2).last_pos, (@3).last_pos)) {
+            csh.hintStatus = HINT_ATTR_VALUE;
+            csh.hintedStringPos = @3;
+            csh.hintAttrName = $1;
+        }
   #else
         $$ = new Attribute($1, atof($3), MSC_POS(@$), MSC_POS(@3), $3);
   #endif
@@ -1680,6 +1868,15 @@ arcattr:         string TOK_EQUAL string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_ATTRVALUE);
+        if (csh.CursorIn(@1)) {
+            csh.hintStatus = HINT_ATTR_NAME;
+            csh.hintedStringPos = @1;
+        }
+        if (csh.CursorIn((@2).last_pos, (@3).last_pos)) {
+            csh.hintStatus = HINT_ATTR_VALUE;
+            csh.hintedStringPos = @3;
+            csh.hintAttrName = $1;
+        }
   #else
         $$ = new Attribute($1, str2bool($3), MSC_POS(@$), MSC_POS(@3), $3);
   #endif
@@ -1691,6 +1888,13 @@ arcattr:         string TOK_EQUAL string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
+        if (csh.CursorIn(@1)) {
+            csh.hintStatus = HINT_ATTR_NAME;
+            csh.hintedStringPos = @1;
+        } else {
+            csh.hintStatus = HINT_ATTR_VALUE_CAN_COME;
+            csh.hintAttrName = $1;
+        }
   #else
         $$ = new Attribute($1, (char*)NULL, MSC_POS(@$), MSC_POS(@$));
   #endif
@@ -1700,6 +1904,10 @@ arcattr:         string TOK_EQUAL string
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_StyleOrAttrName(@1, $1);
+        if (csh.CursorIn(@1)) {
+            csh.hintStatus = HINT_ATTR_NAME;
+            csh.hintedStringPos = @1;
+        }
   #else
         $$ = new Attribute($1, MSC_POS(@$));
   #endif
@@ -1750,6 +1958,7 @@ string: entity_string | reserved_word_string | symbol_string | TOK_STYLE_NAME;
 scope_open: TOK_OCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
+    csh.PushContext();
   #else
     msc.PushContext();
   #endif
@@ -1759,6 +1968,7 @@ scope_close: TOK_CCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
     $$ = NULL;
+    csh.PopContext();
   #else
     $$ = msc.PopContext();
   #endif
