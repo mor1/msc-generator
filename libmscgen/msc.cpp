@@ -211,7 +211,7 @@ Msc::Msc() :
     ignore_designs = false;
 
     //Add topmost style and color sets (global context), all empty now
-    Contexts.push(Context());
+    Contexts.push_back(Context());
 
     //Add "plain" style - the default constructor of Design sets that
     Designs["plain"];
@@ -235,14 +235,14 @@ bool Msc::SetDesign(const string&name, bool force)
         return false;
     if (ignore_designs &&!force)
         return true;
-    Contexts.top().numbering = i->second.numbering;
-    Contexts.top().compress  = i->second.compress;
+    Contexts.back().numbering = i->second.numbering;
+    Contexts.back().compress  = i->second.compress;
     hscale = i->second.hscale;
     for (ColorSet::const_iterator j = i->second.colors.begin(); j!=i->second.colors.end(); j++)
-		Contexts.top().colors[j->first] = j->second;
+		Contexts.back().colors[j->first] = j->second;
     for (StyleSet::const_iterator j = i->second.styles.begin(); j!=i->second.styles.end(); j++)
-        Contexts.top().styles[j->first] = j->second;
-	Contexts.top().numberingStyle = i->second.numberingStyle;
+        Contexts.back().styles[j->first] = j->second;
+	Contexts.back().numberingStyle = i->second.numberingStyle;
     return true;
 }
 
@@ -280,8 +280,8 @@ ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
                               const char*d, file_line_range dl)
 {
     if (strcmp(s,d))
-        return new ArcDirArrow(t, s, sl, d, dl, this, Contexts.top().styles["arrow"]);
-    MscStyle style = Contexts.top().styles["arrow"];
+        return new ArcDirArrow(t, s, sl, d, dl, this, Contexts.back().styles["arrow"]);
+    MscStyle style = Contexts.back().styles["arrow"];
     style.text.Apply("\\pr");
     return new ArcSelfArrow(t, s, sl, this, style, selfArrowYSize);
 }
@@ -294,7 +294,7 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
         Error.Error(base->file_pos.start, "Big arrows cannot point back to the same entity. Ignoring it.");
         return NULL;
     }
-    return new ArcBigArrow(*arrow, Contexts.top().styles["blockarrow"]);
+    return new ArcBigArrow(*arrow, Contexts.back().styles["blockarrow"]);
 
 }
 
@@ -331,24 +331,24 @@ bool Msc::AddAttribute(const Attribute &a)
     }
     if (a.Is("compress")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
-        Contexts.top().compress = a.yes;
+        Contexts.back().compress = a.yes;
         return true;
     }
     if (a.Is("numbering")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
-        Contexts.top().numbering = a.yes;
+        Contexts.back().numbering = a.yes;
         return true;
     }
     if (a.Is("numbering.pre")) {
-        Contexts.top().numberingStyle.pre = a.value;
-        StringFormat::ExpandColorAndStyle(Contexts.top().numberingStyle.pre, this,
+        Contexts.back().numberingStyle.pre = a.value;
+        StringFormat::ExpandColorAndStyle(Contexts.back().numberingStyle.pre, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return true;
     }
     if (a.Is("numbering.post")) {
-        Contexts.top().numberingStyle.post = a.value;
-        StringFormat::ExpandColorAndStyle(Contexts.top().numberingStyle.post, this,
+        Contexts.back().numberingStyle.post = a.value;
+        StringFormat::ExpandColorAndStyle(Contexts.back().numberingStyle.post, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return true;
@@ -356,13 +356,13 @@ bool Msc::AddAttribute(const Attribute &a)
     if (a.Is("numbering.append")) {
         std::vector<NumberingStyleFragment> nsfs;
         if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs))
-            Contexts.top().numberingStyle.Push(nsfs);
+            Contexts.back().numberingStyle.Push(nsfs);
         return true;
     }
     if (a.Is("numbering.format")) {
         std::vector<NumberingStyleFragment> nsfs;
         if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs)) {
-            int off = Contexts.top().numberingStyle.Apply(nsfs);
+            int off = Contexts.back().numberingStyle.Apply(nsfs);
             if (off > 0) {
                 string msg = "Numbering here is ";
                 msg << off << " levels deep, and you specified more (" << nsfs.size();
@@ -399,29 +399,29 @@ bool Msc::AddDesignAttribute(const Attribute &a)
 void Msc::PushContext(bool empty)
 {
     if (empty) {
-        Contexts.push(Context());
+        Contexts.push_back(Context());
         SetDesign("plain", true);
     } else
-        Contexts.push(Contexts.top());
+        Contexts.push_back(Contexts.back());
 }
 
 ArcBase *Msc::PopContext()
 {
     if (Contexts.size()<2) return NULL;
-    int old_size = Contexts.top().numberingStyle.Size();
-    Contexts.pop();
+    int old_size = Contexts.back().numberingStyle.Size();
+    Contexts.pop_back();
     //if numbering continues with the same amount of levels, no action will be needed
     //in PostParseProcess, so we do not generate any Command arcs.
-    if (old_size == Contexts.top().numberingStyle.Size())
+    if (old_size == Contexts.back().numberingStyle.Size())
         return NULL;
     //if number of levels is less in the outer context, we will need to trim the Numbering list
     //during PostParseProcess after processing all arcs in the inner context, so we insert
     //a CommandNumbering, which first trims the Numbering list to the new size and then increments
     //the last number, so after 1.2.2 comes 1.3
-    if (old_size > Contexts.top().numberingStyle.Size())
-        return new CommandNumbering(this, CommandNumbering::INCREMENT, Contexts.top().numberingStyle.Size());
+    if (old_size > Contexts.back().numberingStyle.Size())
+        return new CommandNumbering(this, CommandNumbering::INCREMENT, Contexts.back().numberingStyle.Size());
     //We should never get here, but if the length is increasing, we just expand the Numbering list
-    return new CommandNumbering(this, CommandNumbering::SIZE, Contexts.top().numberingStyle.Size());
+    return new CommandNumbering(this, CommandNumbering::SIZE, Contexts.back().numberingStyle.Size());
 }
 
 string Msc::Print(int ident) const

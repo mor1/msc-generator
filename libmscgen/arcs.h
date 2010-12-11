@@ -6,6 +6,7 @@
 #include "style.h"
 #include "entity.h"
 #include "numbering.h"
+#include "csh.h"
 
 typedef enum
 {
@@ -66,6 +67,8 @@ class ArcBase : public TrackableElement
                 const Geometry &GetGeometry() const {return geometry;};
         virtual ArcBase* AddAttributeList(AttributeList *);
         virtual bool AddAttribute(const Attribute &);
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh);
         virtual string PrintType(void) const;
         virtual string Print(int ident = 0) const = 0;
         virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level) {}
@@ -95,6 +98,8 @@ class ArcLabelled : public ArcBase
         ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
         ArcBase* AddAttributeList(AttributeList *);
         bool AddAttribute(const Attribute &);
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh);
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
 };
@@ -105,6 +110,8 @@ class ArcArrow : public ArcLabelled
         ArcArrow(MscArcType t, Msc *msc, const MscStyle &s) :
             ArcLabelled(t, msc, s) {}
         virtual ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l) = 0;
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh);
         bool isBidir(void) const
             {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
                     type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR;}
@@ -157,6 +164,8 @@ class ArcBigArrow : public ArcDirArrow
         mutable double sm, dm;
     public:
         ArcBigArrow(const ArcDirArrow &, const MscStyle &);
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh);
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
@@ -194,6 +203,8 @@ class ArcVerticalArrow : public ArcArrow
                          VertXPos *p, Msc *msc);
         ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
         bool AddAttribute(const Attribute &);
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh);
         void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         void Width(EntityDistanceMap &distances);
         void CalculateXandWidth(double &x, double &width) const;
@@ -221,6 +232,8 @@ class ArcEmphasis : public ArcLabelled
         ArcEmphasis* SetPipe();
         ArcEmphasis* AddArcList(ArcList*l);
         bool AddAttribute(const Attribute &);
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh, bool pipe);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh, bool pipe);
         ArcEmphasis* ChangeStyleForFollow(ArcEmphasis* =NULL);
         ArcEmphasis* AddFollow(ArcEmphasis*f);
         string Print(int ident=0) const;
@@ -241,7 +254,6 @@ class ArcParallel : public ArcBase
             ArcBase(MSC_ARC_PARALLEL, msc) {}
         ArcParallel* AddArcList(ArcList*l)
             {blocks.push_back(l); return this;}
-        bool AddAttribute(const Attribute &) {return false;}
         string Print(int ident=0) const;
         virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual void Width(EntityDistanceMap &distances);
@@ -258,6 +270,8 @@ class ArcDivider : public ArcLabelled
     public:
         ArcDivider(MscArcType t, Msc *msc);
         bool AddAttribute(const Attribute &);
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh);
         virtual void Width(EntityDistanceMap &distances);
         virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
         virtual double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
@@ -331,6 +345,8 @@ class CommandMark : public ArcCommand
         double offset;
         CommandMark(const char *m, file_line_range ml, Msc *msc);
         bool AddAttribute(const Attribute &);
+        static void AttributeNames(const_char_vector_t &v, const Csh &csh);
+        static bool AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh);
         double DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker);
 };
 

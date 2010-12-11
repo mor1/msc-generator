@@ -1,7 +1,7 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
-	Distributed under GNU Affero General Public License.
+    Copyright 2008,2009,2010 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -21,10 +21,10 @@
 #include <algorithm>
 #include "msc.h"
 
-template<> const char EnumEncapsulator<MscArrowType>::names[][15] =
+template<> const char EnumEncapsulator<MscArrowType>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "solid", "empty", "line", "half", "diamond", "empty_diamond",
      "dot", "empty_dot", ""};
-template<> const char EnumEncapsulator<MscArrowSize>::names[][15] =
+template<> const char EnumEncapsulator<MscArrowSize>::names[][ENUM_STRING_LEN] =
     {"invalid", "tiny", "small", "normal", "big", "huge", ""};
 
 double ArrowHead::arrowSizePercentage[6] = {
@@ -64,11 +64,11 @@ ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
 bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
+        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.top().styles[a.name];
+        const MscStyle &style = msc->Contexts.back().styles[a.name];
         if (style.f_arrow) operator +=(style.arrow);
         return true;
     }
@@ -153,6 +153,37 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         return line.AddAttribute(a, msc, t);
     }
     return false;
+}
+
+void ArrowHead::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    static const char names[][ENUM_STRING_LEN] =
+    {"arrow.type", "arrow.size", "arrow.color", "arrow.starttype", "arrow.midtype",
+     "arrow.endtype", "line.width", ""};
+    v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+}
+
+bool ArrowHead::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr, "arrow") ||
+        CaseInsensitiveEndsWith(attr, "type") ||
+        CaseInsensitiveEndsWith(attr, "starttype") ||
+        CaseInsensitiveEndsWith(attr, "midtype") ||
+        CaseInsensitiveEndsWith(attr, "endtype")) {
+        v.Add(EnumEncapsulator<MscArrowType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr, "arrowsize") ||
+        CaseInsensitiveEndsWith(attr, "size")) {
+        v.Add(EnumEncapsulator<MscArrowSize>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "color") ||
+        CaseInsensitiveEndsWith(attr, "line.width")) {
+        return MscLineAttr::AttributeValues(attr, v, csh);
+    }
+    return false;
+
 }
 
 MscArrowType ArrowHead::GetType(bool bidir, MscArrowEnd which) const
@@ -245,7 +276,7 @@ std::pair<double, double> ArrowHead::getWidthForLine(bool bidir, MscArrowEnd whi
 void triangle(cairo_t *cr,
                          double x1, double y1,
                          double x2, double y2,
-                         double x3, double y3) 
+                         double x3, double y3)
 {
     cairo_move_to(cr, x1+CAIRO_OFF, y1+CAIRO_OFF);
     cairo_line_to(cr, x2+CAIRO_OFF, y2+CAIRO_OFF);
@@ -253,7 +284,7 @@ void triangle(cairo_t *cr,
     cairo_close_path(cr);
 }
 
-void diamond(cairo_t *cr, XY xy, XY wh) 
+void diamond(cairo_t *cr, XY xy, XY wh)
 {
     cairo_move_to(cr, xy.x-wh.x+CAIRO_OFF, xy.y+CAIRO_OFF);
     cairo_line_to(cr, xy.x+CAIRO_OFF, xy.y+wh.y+CAIRO_OFF);
@@ -770,6 +801,6 @@ void ArrowHead::CoverBig(const std::vector<double> &xPos, double sy, double dy,
 void ArrowHead::ClipBig(std::vector<double> xPos, double sy, double dy,
                  bool bidir, MscDrawer *m) const
 {
-	big_path(xPos, sy, dy, m, LINE_SOLID, bidir, 0); 
+	big_path(xPos, sy, dy, m, LINE_SOLID, bidir, 0);
 	m->Clip();
 }

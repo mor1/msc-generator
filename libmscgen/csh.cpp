@@ -23,6 +23,7 @@
 #include "color.h"
 #include "stringparse.h" //for extracting csh out of strings
 #include "attribute.h"  //for CaseInsensitive compares
+#include "style.h"  //for Design::Reset() to obtain forbidden style names
 
 
 using namespace std;
@@ -156,7 +157,7 @@ struct CurrentState {
     MscColorType color;
     CurrentState() : effects(0) {}
     void Apply(const MscColorSyntaxAppearance &appearance);
-    string Print() const;
+    string Print(bool fakeDash=true) const;
     bool operator == (const CurrentState &other) const
     {return effects == other.effects && color == other.color;}
 };
@@ -174,14 +175,14 @@ void CurrentState::Apply(const MscColorSyntaxAppearance &appearance)
     }
 }
 
-string CurrentState::Print() const
+string CurrentState::Print(bool fakeDash) const
 {
     //Insert \377 (octal 255) instead of a \ to distinguish between \s already there
-    string ret = "\377B\377I\377U";
-    if (!(effects & COLOR_FLAG_BOLD)) ret += "\377b";
-    if (!(effects & COLOR_FLAG_ITALICS)) ret += "\377i";
-    if (!(effects & COLOR_FLAG_UNDERLINE)) ret += "\377u";
-    if (color.valid) ret += "\377c" + color.Print();
+    string ret = fakeDash?"\377B\377I\377U":"\\B\\I\\U";
+    if (!(effects & COLOR_FLAG_BOLD)) ret += fakeDash?"\377b":"\\b";
+    if (!(effects & COLOR_FLAG_ITALICS)) ret += fakeDash?"\377i":"\\i";
+    if (!(effects & COLOR_FLAG_UNDERLINE)) ret += fakeDash?"\377u":"\\u";
+    if (color.valid) ret += fakeDash?"\377c":"\\c" + color.Print();
     return ret;
 }
 
@@ -376,7 +377,7 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
         AddCSH(pos, MscColorSyntaxType(type+1));
         partial_at_cursor_pos.first_pos = pos.first_pos;
         partial_at_cursor_pos.last_pos = pos.last_pos;
-        if (CshEntityNames.find(string(name)) == CshEntityNames.end())
+        if (EntityNames.find(string(name)) == EntityNames.end())
             partial_at_cursor_pos.color = COLOR_ENTITYNAME_FIRST;
         else
             partial_at_cursor_pos.color = COLOR_ENTITYNAME;
@@ -439,7 +440,7 @@ void Csh::AddCSH_StyleOrAttrName(CshPos&pos, const char *name)
 
 void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
 {
-    if (CshEntityNames.find(string(name)) != CshEntityNames.end()) {
+    if (EntityNames.find(string(name)) != EntityNames.end()) {
         AddCSH(pos, COLOR_ENTITYNAME);
         return;
     }
@@ -447,7 +448,7 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     //If we are currently typing it, use normal color, else
     //the one designated for first use of entities
     //In both cases insert to entity name database
-    CshEntityNames.insert(string(name));
+    EntityNames.insert(string(name));
     if (pos.last_pos != cursor_pos) {
         AddCSH(pos, COLOR_ENTITYNAME_FIRST);
         return;
@@ -458,12 +459,34 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     was_partial = true;
 }
 
-void Csh::ParseText(const char *input, unsigned len)
+void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
 {
     //initialize data struct
+    cursor_pos = cursor_p;
+    cshScheme = scheme;
     CshList.clear();
-    CshEntityNames.clear();
+    EntityNames.clear();
+    Contexts.clear();
+    if (!ForcedDesign.empty() && Designs.find(ForcedDesign) != Designs.end())
+        Contexts.push_back(Designs[ForcedDesign]);
+    else
+        PushContext(true);
+    hintStatus = HINT_NONE;
+    //Positions returned by yacc contain the first and last char of range
+    //so for a 1 char long selection first_pos=last_pos
+    //Also for yacc the first character has index of 1.
+    //To express a 0 long selection we set last = first -1
+    hintedStringPos.first_pos = cursor_p+1;
+    hintedStringPos.last_pos  = cursor_p;
+    hintAttrName.clear();
+    Hints.clear();
+
     CshParse(*this, input, len);
+    if (hintStatus!=HINT_READY || Hints.size()==0)
+        return;
+
+    //Take one from first, since RichEditCtrel works that way
+    --hintedStringPos.first_pos;
 }
 
 MscColorSyntaxType Csh::GetCshAt(int pos)
@@ -474,4 +497,66 @@ MscColorSyntaxType Csh::GetCshAt(int pos)
     return COLOR_NORMAL;
 }
 
+void CshContext::SetPlain()
+{
+    Design plain;
+    plain.Reset();
+    for (auto i=plain.colors.begin(); i!=plain.colors.end(); i++)
+        ColorNames.insert(i->first);
+    StyleNames.insert("weak");
+    StyleNames.insert("strong");
+}
+
+Csh::Csh() : hintStatus(HINT_NONE), cursor_pos(-1), was_partial(false)
+{
+    Design plain;
+    plain.Reset();
+    for (auto i=plain.styles.begin(); i!=plain.styles.end(); i++)
+        ForbiddenStyles.insert(i->first);
+    ForbiddenStyles.erase("weak");
+    ForbiddenStyles.erase("strong");
+    PushContext(true);
+}
+
+void Csh::PushContext(bool empty)
+{
+    if (empty){
+        Contexts.push_back(CshContext());
+        Contexts.back().SetPlain();
+    } else {
+        Contexts.push_back(Contexts.back());
+    }
+}
+
+bool Csh::SetDesignTo(const std::string&design)
+{
+    auto i = Designs.find(design);
+    if (i==Designs.end()) return false;
+    Contexts.pop_back();
+    Contexts.push_back(i->second);
+    return true;
+}
+
+void Csh::SetHintsReady(std::set<std::string> &&v)
+{
+    Hints.swap(v);
+    hintStatus = HINT_READY;
+}
+
+std::string Csh::HintPrefix(MscColorSyntaxType t) const
+{
+    CurrentState state;
+    state.Apply(MscCshAppearanceList[cshScheme][t]);
+    return state.Print(false);
+}
+
+void Csh::AddColorValues(std::set<std::string> &v) const
+{
+    v.insert(HintPrefixNonSelectable()+"<\"red,green,blue\">");
+    v.insert(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">");
+    v.insert(HintPrefixNonSelectable()+"<\"color name,opacity\">");
+    v.insert(HintPrefixNonSelectable()+"<\"color name+-brightness%\">");
+    for (auto i=Contexts.back().ColorNames.begin(); i!=Contexts.back().ColorNames.end(); i++)
+        v.insert(HintPrefix(COLOR_ATTRVALUE) + *i);
+}
 

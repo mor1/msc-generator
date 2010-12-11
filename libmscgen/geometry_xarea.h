@@ -118,7 +118,7 @@ public:
     mutable bool              find;
     Range                     mainline;
 
-    explicit Area(TrackableElement *a=NULL, DrawType d=FULL, bool f=true) : 
+    explicit Area(TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
 	   arc(a), draw(d), find(f) {mainline.MakeInvalid();}
     Area(const Polygon &p, TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
        PolygonList(p), arc(a), draw(d), find(f)  {mainline.MakeInvalid();}
@@ -171,6 +171,33 @@ inline void PolygonList::append(PolygonWithHoles &&p)
 inline void PolygonList::append(const PolygonWithHoles &p)
         {boundingBox += p.GetBoundingBox(); push_back(p);}
 
+inline PolygonList &PolygonList::operator += (const PolygonList &a)
+{
+    if (boundingBox.Overlaps(a.GetBoundingBox()))
+        for (auto i = a.begin(); i!=a.end(); i++)
+            operator += (*i);
+    else
+        append(a);
+    return *this;
+}
+
+inline PolygonList &PolygonList::operator *= (const PolygonList &a)
+{
+    if (boundingBox.Overlaps(a.boundingBox))
+        for (auto i = a.begin(); i!=a.end(); i++)
+            operator *= (*i);
+    else
+        clear();
+    return *this;
+}
+
+inline PolygonList &PolygonList::operator -= (const PolygonList &a)
+{
+    if (boundingBox.Overlaps(a.boundingBox))
+        for (auto i = a.begin(); i!=a.end(); i++)
+            operator -= (*i);
+    return *this;
+}
 
 inline bool PolygonList::operator <(const PolygonList &b) const
 {
@@ -227,9 +254,9 @@ inline PolygonList &PolygonList::RotateAround(const XY&c, double cos, double sin
     return *this;
 }
 
-inline void PolygonList::ClearHoles() 
+inline void PolygonList::ClearHoles()
 {
-	for (auto i=begin(); i!=end(); i++) 
+	for (auto i=begin(); i!=end(); i++)
 		i->ClearHoles();
 }
 

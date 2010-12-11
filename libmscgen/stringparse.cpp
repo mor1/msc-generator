@@ -23,7 +23,7 @@
 
 //////////////////////////////////////////////////////////////////////////////////
 
-template<> const char EnumEncapsulator<MscIdentType>::names[][15] =
+template<> const char EnumEncapsulator<MscIdentType>::names[][ENUM_STRING_LEN] =
     {"invalid", "left", "center", "right", ""};
 
 
@@ -379,7 +379,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             parameter.substr(0, parameter.length()-1);
         }
         if (msc)
-            c = msc->Contexts.top().colors.GetColor(parameter); //consider color names and defs
+            c = msc->Contexts.back().colors.GetColor(parameter); //consider color names and defs
         else if (apply || resolve) //try to resolve this if we are applying
             c = MscColorType(parameter);  //just consider defs
         else	   //if we are just parsing (probably for csh) keep as is.
@@ -419,8 +419,8 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             else	   //if we are just parsing (probably for csh) keep as is.
                 goto ok;
         }
-        i = msc->Contexts.top().styles.find(parameter);
-        if (i==msc->Contexts.top().styles.end()) {
+        i = msc->Contexts.back().styles.find(parameter);
+        if (i==msc->Contexts.back().styles.end()) {
             maybe_s_msg="Unrecognized style '" + parameter +
                 "'. Treating style name as small text in parenthesis.";
             goto maybe_s;
@@ -613,7 +613,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     }
 }
 
-//Replaces style and color references to actual definitions found in msc->Contexts.top()
+//Replaces style and color references to actual definitions found in msc->Contexts.back()
 //Also performs syntax error checking and generates errors/warnings
 //escape contais the string to parse (and change)
 //if ignore then in errors we say we ignore the erroneous escape and also remove it from the str
@@ -859,8 +859,8 @@ string StringFormat::Print() const
 bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        StyleSet::const_iterator i = msc->Contexts.top().styles.find(a.name);
-        if (i == msc->Contexts.top().styles.end()) {
+        StyleSet::const_iterator i = msc->Contexts.back().styles.find(a.name);
+        if (i == msc->Contexts.back().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
@@ -873,9 +873,9 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
                 color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
+        if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
         color.first = true;
-        color.second = msc->Contexts.top().colors.GetColor(a.value);
+        color.second = msc->Contexts.back().colors.GetColor(a.value);
         return true;
     }
     if (a.EndsWith("ident")) {
@@ -917,6 +917,32 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 
 }
+
+void StringFormat::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    static const char names[][ENUM_STRING_LEN] =
+    {"text.color", "text.ident", "text.format", ""};
+    v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+}
+
+bool StringFormat::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh)
+{
+    if (CaseInsensitiveEndsWith(attr, "color")) {
+        csh.AddColorValues(v);
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "ident")) {
+        v.Add(EnumEncapsulator<MscIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "format")) {
+        v.Add(csh.HintPrefixNonSelectable()+"<\format string\">");
+        return true;
+    }
+    return false;
+}
+
+
 //This shall be called only after StringFormat::ExpandColorAndStyle on a label and both num strings
 //If we find a \N escape in the label we replace that to num (for multiple \Ns, if needed)
 //If we find no such escape, we add it to the beginning, but after the initial formatting strings
@@ -1119,6 +1145,28 @@ ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) 
         heightAboveBaseLine = format.getFragmentHeightAboveBaseLine("M", mscd);
 };
 
+ParsedLine::operator std::string() const
+{
+    StringFormat format(startFormat);
+    size_t pos = 0;
+    unsigned length;
+    string replaceto;
+    string ret;
+
+    while (line.length()>pos) {
+        //collect characters up until we hit a vaild formatting escape (or string end)
+        while (line.length()>pos) {
+            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
+            ret.append(replaceto);
+            pos += length;
+        }
+        //Apply the formatting escapes as they come
+        if (line.length()>pos)
+            pos += format.Apply(line.c_str()+pos);
+    }
+    return ret;
+}
+
 void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
 {
     StringFormat format(startFormat);
@@ -1180,6 +1228,16 @@ void Label::AddSpacing(unsigned line, double spacing)
         at(line).startFormat.spacingBelow.second = spacing;
     }
 }
+
+Label::operator std::string() const
+{
+    string ret;
+    if (size()>0)
+        for (unsigned i = 0; i<size(); i++)
+            ret += at(i);
+    return ret;
+}
+
 
 /* Get the width of a (potentially multi-line) text or one of its lines
  *  If text is empty return 0

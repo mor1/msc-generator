@@ -30,7 +30,7 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     type(t), chart(msc), valid(true), compress(false), parallel(false), yPos(0)
 {
     if (msc)
-        compress = msc->Contexts.top().compress;
+        compress = msc->Contexts.back().compress;
 }
 
 //Helper function. If the pos of *value is smaller (or larger) than i
@@ -77,6 +77,23 @@ bool ArcBase::AddAttribute(const Attribute &a)
     return false;
 }
 
+void ArcBase::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME) + "compress");
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME) + "parallel");
+}
+
+bool ArcBase::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"compress")||
+        CaseInsensitiveEqual(attr,"parallel")) {
+        v.Add("yes");
+        v.Add("no");
+        return true;
+    }
+    return false;
+}
+
 string ArcBase::PrintType(void) const
 {
     static const char arcnames[][25] = {
@@ -101,7 +118,7 @@ void ArcBase::PostHeightProcess(void)
 
 //Take numbering style from the current context
 ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
-    ArcBase(t, msc), style(s), numberingStyle(msc->Contexts.top().numberingStyle),
+    ArcBase(t, msc), style(s), numberingStyle(msc->Contexts.back().numberingStyle),
 	parsed_label(msc), concrete_number(-1)
 {
     style.type = STYLE_ARC;
@@ -109,35 +126,35 @@ ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
     //current chart option.
     if (!style.numbering.first) {
         style.numbering.first = true;
-        style.numbering.second = msc->Contexts.top().numbering;
+        style.numbering.second = msc->Contexts.back().numbering;
     }
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-		style += msc->Contexts.top().styles["->"]; break;
+		style += msc->Contexts.back().styles["->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += msc->Contexts.top().styles[">"]; break;
+        style += msc->Contexts.back().styles[">"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += msc->Contexts.top().styles[">>"]; break;
+        style += msc->Contexts.back().styles[">>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += msc->Contexts.top().styles["=>"]; break;
+        style += msc->Contexts.back().styles["=>"]; break;
     case MSC_EMPH_SOLID:
-        style += msc->Contexts.top().styles["--"]; break;
+        style += msc->Contexts.back().styles["--"]; break;
     case MSC_EMPH_DASHED:
-        style += msc->Contexts.top().styles["++"]; break;
+        style += msc->Contexts.back().styles["++"]; break;
     case MSC_EMPH_DOTTED:
-        style += msc->Contexts.top().styles[".."]; break;
+        style += msc->Contexts.back().styles[".."]; break;
     case MSC_EMPH_DOUBLE:
-        style += msc->Contexts.top().styles["=="]; break;
+        style += msc->Contexts.back().styles["=="]; break;
     case MSC_EMPH_UNDETERMINED_FOLLOW:
         break; /*do nothing*/
     case MSC_ARC_DIVIDER:
-        style += msc->Contexts.top().styles["---"]; break;
+        style += msc->Contexts.back().styles["---"]; break;
     case MSC_ARC_DISCO:
-        style += msc->Contexts.top().styles["..."]; break;
+        style += msc->Contexts.back().styles["..."]; break;
     };
 }
 
@@ -209,7 +226,7 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         }
         //We have a string as number - it may be a roman number or abc
         int num;
-        int off = chart->Contexts.top().numberingStyle.Last().Input(a.value, num);
+        int off = chart->Contexts.back().numberingStyle.Last().Input(a.value, num);
         //off is how many characters we could not understand at the end of a.value
         if (off == a.value.length()) {
             //No characters understood
@@ -238,7 +255,34 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
     if (ArcBase::AddAttribute(a)) return true;
     a.InvalidAttrError(chart->Error);
     return false;
-};
+}
+
+void ArcLabelled::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    ArcBase::AttributeNames(v, csh);
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME) + "color");
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME) + "label");
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME) + "number");
+}
+
+bool ArcLabelled::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"color")) {
+        csh.AddColorValues(v);
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"label")) {
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"number")) {
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE) + "yes");
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE) + "no");
+        v.Add(csh.HintPrefixNonSelectable() + "<number>");
+        return true;
+    }
+    if (ArcBase::AttributeValues(attr, v, csh)) return true;
+    return false;
+}
 
 string ArcLabelled::Print(int ident) const
 {
@@ -246,7 +290,7 @@ string ArcLabelled::Print(int ident) const
     ss << string(ident*2, ' ');
     ss << PrintType().append(":").append(label);
     return ss;
-};
+}
 
 void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
@@ -280,6 +324,20 @@ void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering 
         compress = style.compress.second;
 }
 
+void ArcArrow::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    ArcLabelled::AttributeNames(v, csh);
+    MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
+    style.AttributeNames(v, csh);
+}
+
+bool ArcArrow::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh)
+{
+    MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
+    if (style.AttributeValues(attr, v, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, v, csh)) return true;
+    return false;
+}
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
@@ -681,18 +739,33 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-        style += chart->Contexts.top().styles["block->"]; break;
+        style += chart->Contexts.back().styles["block->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += chart->Contexts.top().styles["block>"]; break;
+        style += chart->Contexts.back().styles["block>"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += chart->Contexts.top().styles["block>>"]; break;
+        style += chart->Contexts.back().styles["block>>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += chart->Contexts.top().styles["block=>"]; break;
+        style += chart->Contexts.back().styles["block=>"]; break;
     }
     modifyFirstLineSpacing = false;
+}
+
+void ArcBigArrow::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    ArcLabelled::AttributeNames(v, csh);
+    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    style.AttributeNames(v, csh);
+}
+
+bool ArcBigArrow::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh)
+{
+    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    if (style.AttributeValues(attr, v, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, v, csh)) return true;
+    return false;
 }
 
 string ArcBigArrow::Print(int ident) const
@@ -933,7 +1006,7 @@ VertXPos::VertXPos(Msc&m, postype p)
 
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
                                    VertXPos *p, Msc *msc) :
-    ArcArrow(t, msc, msc->Contexts.top().styles["vertical"]), pos(*p),
+    ArcArrow(t, msc, msc->Contexts.back().styles["vertical"]), pos(*p),
     ypos(2)
 {
     if (!p || !p->valid) {
@@ -953,28 +1026,28 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
     offset = 0;
     aMarker = -1;
     //overwrite the sty;e set by ArcArrow
-    style = msc->Contexts.top().styles["vertical"];
+    style = msc->Contexts.back().styles["vertical"];
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-        style += chart->Contexts.top().styles["vertical->"]; break;
+        style += chart->Contexts.back().styles["vertical->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += chart->Contexts.top().styles["vertical>"]; break;
+        style += chart->Contexts.back().styles["vertical>"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += chart->Contexts.top().styles["vertical>>"]; break;
+        style += chart->Contexts.back().styles["vertical>>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += chart->Contexts.top().styles["vertical=>"]; break;
+        style += chart->Contexts.back().styles["vertical=>"]; break;
     case MSC_EMPH_SOLID:
-        style += chart->Contexts.top().styles["vertical--"]; break;
+        style += chart->Contexts.back().styles["vertical--"]; break;
     case MSC_EMPH_DASHED:
-        style += chart->Contexts.top().styles["vertical++"]; break;
+        style += chart->Contexts.back().styles["vertical++"]; break;
     case MSC_EMPH_DOTTED:
-        style += chart->Contexts.top().styles["vertical.."]; break;
+        style += chart->Contexts.back().styles["vertical.."]; break;
     case MSC_EMPH_DOUBLE:
-        style += chart->Contexts.top().styles["vertical=="]; break;
+        style += chart->Contexts.back().styles["vertical=="]; break;
     }
 }
 
@@ -1011,6 +1084,39 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
     }
     return ArcArrow::AddAttribute(a);
 }
+
+void ArcVerticalArrow::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    ArcLabelled::AttributeNames(v, csh);
+    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    style.AttributeNames(v, csh);
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"pos");
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom");
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"readfrom");
+}
+
+bool ArcVerticalArrow::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"pos")) {
+        v.Add(csh.HintPrefixNonSelectable()+"<number>");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"number")) {
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"number")) {
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"left");
+        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"right");
+        return true;
+    }
+    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    if (style.AttributeValues(attr, v, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, v, csh)) return true;
+    return false;
+}
+
 
 void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level)
@@ -1249,7 +1355,7 @@ double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final
 
 ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.top().styles["emptybox"]),
+    ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
     emphasis(NULL), follow(true), first(NULL), height(0), total_height(0),
     pipe(false), pipe_connect_left(false), pipe_connect_right(false)
 {
@@ -1268,16 +1374,16 @@ ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
 ArcEmphasis* ArcEmphasis::SetPipe()
 {
     pipe = true;
-    style = chart->Contexts.top().styles["pipe"];
+    style = chart->Contexts.back().styles["pipe"];
     switch (type) {
     case MSC_EMPH_SOLID:
-        style += chart->Contexts.top().styles["pipe--"]; break;
+        style += chart->Contexts.back().styles["pipe--"]; break;
     case MSC_EMPH_DASHED:
-        style += chart->Contexts.top().styles["pipe++"]; break;
+        style += chart->Contexts.back().styles["pipe++"]; break;
     case MSC_EMPH_DOTTED:
-        style += chart->Contexts.top().styles["pipe.."]; break;
+        style += chart->Contexts.back().styles["pipe.."]; break;
     case MSC_EMPH_DOUBLE:
-        style += chart->Contexts.top().styles["pipe=="]; break;
+        style += chart->Contexts.back().styles["pipe=="]; break;
     }
     return this;
 }
@@ -1294,7 +1400,7 @@ ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
         }
     }
     if (!pipe)
-        style += chart->Contexts.top().styles["box"];
+        style += chart->Contexts.back().styles["box"];
     return this;
 }
 
@@ -1306,7 +1412,26 @@ bool ArcEmphasis::AddAttribute(const Attribute &a)
         return style.fill.AddAttribute(a, chart, style.type);
     }
     return ArcLabelled::AddAttribute(a);
-};
+}
+
+void ArcEmphasis::AttributeNames(const_char_vector_t &v, const Csh &csh, bool pipe)
+{
+    ArcLabelled::AttributeNames(v, csh);
+    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
+    style.AttributeNames(v, csh);
+}
+
+bool ArcEmphasis::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh, bool pipe)
+{
+    if (CaseInsensitiveEqual(attr,"color")) {
+        csh.AddColorValues(v);
+        return true;
+    }
+    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
+    if (style.AttributeValues(attr, v, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, v, csh)) return true;
+    return false;
+}
 
 ArcEmphasis* ArcEmphasis::ChangeStyleForFollow(ArcEmphasis* other)
 {
@@ -1879,7 +2004,7 @@ void ArcEmphasis::PostHeightProcess(void)
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.top().styles["divider"]),
+    ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
     nudge(t==MSC_COMMAND_NUDGE)
 {
 }
@@ -1893,6 +2018,21 @@ bool ArcDivider::AddAttribute(const Attribute &a)
     }
     return ArcLabelled::AddAttribute(a);
 };
+
+void ArcDivider::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    ArcLabelled::AttributeNames(v, csh);
+    MscStyle style(STYLE_DEFAULT, false, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
+    style.AttributeNames(v, csh);
+}
+
+bool ArcDivider::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh)
+{
+    MscStyle style(STYLE_DEFAULT, false, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
+    if (style.AttributeValues(attr, v, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, v, csh)) return true;
+    return false;
+}
 
 void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
@@ -2339,6 +2479,22 @@ bool CommandMark::AddAttribute(const Attribute &a)
         return true;
     }
     return ArcBase::AddAttribute(a);
+}
+
+void CommandMark::AttributeNames(const_char_vector_t &v, const Csh &csh)
+{
+    ArcBase::AttributeNames(v, csh);
+    v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"offset");
+}
+
+bool CommandMark::AttributeValues(const std::string attr, const_char_vector_t &v, const Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"offset")) {
+        v.Add(csh.HintPrefixNonSelectable()+"<number>");
+        return true;
+    }
+    if (ArcBase::AttributeValues(attr, v, csh)) return true;
+    return false;
 }
 
 double CommandMark::DrawHeight(double y, Geometry &g,

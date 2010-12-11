@@ -1,12 +1,21 @@
-// This is a part of the Microsoft Foundation Classes C++ library.
-// Copyright (c) Microsoft Corporation.  All rights reserved.
-//
-// This source code is only intended as a supplement to the
-// Microsoft Foundation Classes Reference and related
-// electronic documentation provided with the library.
-// See these sources for detailed information regarding the
-// Microsoft Foundation Classes product.
+/*
+    This file is part of Msc-generator.
+	Copyright 2008,2009,2010 Zoltan Turanyi
+	Distributed under GNU Affero General Public License.
 
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "stdafx.h"
 #include "Msc-generator.h"
 #include "MscGenDoc.h"
@@ -23,10 +32,22 @@ BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 END_MESSAGE_MAP()
 
 
-CCshRichEditCtrl::CCshRichEditCtrl()
+CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : m_hintsPopup(parent, this)
 {
-	m_bCshUpdateInProgress = false;
+	m_bCshUpdateInProgress = false;  
 	m_tabsize = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABSIZE, 4);
+}
+
+BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
+{
+    if (!CRichEditCtrl::Create(dwStyle, rect, pParentWnd, nID))
+        return false;
+    if (!m_hintsPopup.Create(IDD_POPUPLIST, this))
+        return false;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    m_designlib_csh.ParseText(pApp->m_ChartSourcePreamble, pApp->m_ChartSourcePreamble.GetLength(), -1, 1);
+    return true;
 }
 
 void CCshRichEditCtrl::GetSelLineCol(int &lStartLine, int &lStartCol, int &lEndLine, int &lEndCol) const
@@ -286,17 +307,75 @@ void CCshRichEditCtrl::SetCurrentIdentTo(int ident)
 */
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
-	if ((pMsg->message != WM_KEYDOWN || (pMsg->wParam != VK_TAB && pMsg->wParam != VK_RETURN && pMsg->wParam != VK_BACK)) &&
+    if (m_hintsPopup.m_shown) {
+        if (pMsg->message == WM_KEYDOWN) { 
+            if (pMsg->wParam == VK_ESCAPE) {
+                m_hintsPopup.Hide();
+                return TRUE;
+            }
+            if (pMsg->wParam == VK_UP) {
+                m_hintsPopup.m_listBox.UpDownKey(-1);
+                return TRUE;
+            }
+            if (pMsg->wParam == VK_DOWN) {
+                m_hintsPopup.m_listBox.UpDownKey(+1);
+                return TRUE;
+            }
+            if (pMsg->wParam == VK_RETURN) {
+                int index = m_hintsPopup.m_listBox.GetCurSel();
+                if (index!=LB_ERR) {
+                    string hint;
+                    if (HINT_ITEM_SELECTED != m_hintsPopup.m_listBox.GetSelectionText(hint)) 
+                        return FALSE;
+                    ReplaceHintedString(hint.c_str(), true);
+                    return TRUE;
+                }
+                //if nothing selected let it run further
+            }
+        } else if (pMsg->message == WM_CHAR) {
+            if (strchr(",;= []{}()-+<>.#", pMsg->wParam)==NULL)
+                //Other characters we let being handled regularly - we re-calc hints after in OnCommand
+                return FALSE;
+
+            //Expand hint under cursor, if it is full match or prefix
+            string hint;
+            if (HINT_ITEM_SELECTED != m_hintsPopup.m_listBox.GetSelectionText(hint)) 
+                return FALSE;
+            bool endHintMode = true;
+            if (pMsg->wParam == '.') {
+                //expand only till the next dot in the hint
+                int pos = m_csh.hintedStringPos.last_pos - m_csh.hintedStringPos.last_pos;
+                pos = hint.find_first_of('.', pos);
+                if (pos != string::npos) {
+                    hint.erase(pos);
+                    endHintMode = false;
+                }
+            }
+            ReplaceHintedString(hint.c_str(), endHintMode);
+            return FALSE;
+        }
+    }
+
+    //show hints for ctrl+space
+    if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_SPACE 
+        && GetKeyState(VK_CONTROL) & 0x8000) {
+            UpdateCsh();
+            StartHintMode();
+            return TRUE;
+    }
+
+    //Do nothing for escape
+	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_ESCAPE) {
+        NotifyDocumentOfChange(); //This kills tracking mode and stores the selection onto the undo buffer
+		return TRUE;
+	}
+    //call parent if not keys relevant for smart identing
+    if ((pMsg->message != WM_KEYDOWN || (pMsg->wParam != VK_TAB && pMsg->wParam != VK_RETURN && 
+                                         pMsg->wParam != VK_BACK)) &&
 		(pMsg->message != WM_CHAR || pMsg->wParam != '}'))
 		return CRichEditCtrl::PreTranslateMessage(pMsg);
 
-	//Do nothing for escape
-	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_ESCAPE) {
-		NotifyDocumentOfChange(); //This kills tracking mode and stores the selection onto the undo buffer
-		return TRUE;
-	}
-
-	long lStart, lEnd;
+    long lStart, lEnd;
 	GetSel(lStart, lEnd);
 	int line, col;
 	ConvertPosToLineCol(lStart, line, col);
@@ -468,11 +547,8 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 		CString text;
 		GetWindowText(text);
 		RemoveCRLF(text);
-		if (cr.cpMax == cr.cpMin) 
-			m_csh.cursor_pos = cr.cpMin;
-		else
-			m_csh.cursor_pos = -1;
-		m_csh.ParseText(text, text.GetLength());
+        m_csh = m_designlib_csh;
+		m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
 		for (MscCshListType::const_iterator i=m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) 
 			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
 				SetSel(i->first_pos-1, i->last_pos);
@@ -490,7 +566,14 @@ void CCshRichEditCtrl::UpdateCsh(bool force)
 
 void CCshRichEditCtrl::CancelPartialMatch()
 {
-	if (!m_csh.was_partial) return;
+	CHARRANGE cr;
+	GetSel(cr);
+
+    //First check if hint is on and we have left the hinted word
+    if (m_hintsPopup.m_shown && !m_csh.hintedStringPos.IsWithin(cr.cpMin))
+        m_hintsPopup.Hide();
+
+    if (!m_csh.was_partial) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	m_csh.was_partial = false;
@@ -499,10 +582,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 	SetRedraw(false);
 	m_bCshUpdateInProgress = true;
 
-	CHARRANGE cr;
-	GetSel(cr);
-
-	//Set the partial match to the color previously proscribed in Csh
+    //Set the partial match to the color previously proscribed in Csh
 	SetSel(m_csh.partial_at_cursor_pos.first_pos-1, m_csh.partial_at_cursor_pos.last_pos); //select all
 	SetSelectionCharFormat(pApp->m_csh_cf[pApp->m_nCshScheme][m_csh.partial_at_cursor_pos.color]); 
 
@@ -510,6 +590,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 
 	m_bCshUpdateInProgress = false;
 	SetRedraw(true);
+
 	Invalidate();
 }
 
@@ -535,6 +616,7 @@ bool CCshRichEditCtrl::NotifyDocumentOfChange(bool onlySelChange)
 	return true;
 }
 
+
 BOOL CCshRichEditCtrl::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -557,7 +639,40 @@ BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	//Process message only if within our view
 	if (!view.PtInRect(pt)) return FALSE;
 	CWnd::OnMouseWheel(nFlags, zDelta, pt);
+    if (m_hintsPopup.m_shown)
+        StartHintMode();
 	return TRUE;
+}
+
+//Assumes we have called UpdateCsh just before and m_csh is up-to-date
+void CCshRichEditCtrl::StartHintMode()
+{
+    if (m_csh.Hints.size()==0) {
+        CancelHintMode();
+        return;
+    }
+    CPoint pt;
+    pt.x = PosFromChar(m_csh.hintedStringPos.first_pos).x;
+    pt.y = PosFromChar(LineIndex(LineFromChar(m_csh.hintedStringPos.first_pos)+1)).y;
+    ClientToScreen(&pt);
+    CString text;
+    if (m_csh.hintedStringPos.first_pos>=0) 
+        GetTextRange(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos, text);
+    m_hintsPopup.Show(m_csh.Hints, text, pt.x, pt.y);
+    SetFocus();
+}
+
+void CCshRichEditCtrl::CancelHintMode()
+{
+    m_hintsPopup.Hide();
+}
+
+void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintMode)
+{
+    SetSel(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos);
+    ReplaceSel(substitute);
+    if (endHintMode) 
+        CancelHintMode();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -574,7 +689,7 @@ BEGIN_MESSAGE_MAP(CEditorBar, CDockablePane)
 	ON_REGISTERED_MESSAGE(nFindReplaceDialogMessage, OnFindReplaceMessage)
 END_MESSAGE_MAP()
 
-CEditorBar::CEditorBar() : m_pFindReplaceDialog( NULL )
+CEditorBar::CEditorBar() : m_pFindReplaceDialog(NULL), m_ctrlEditor(this)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -590,6 +705,8 @@ CEditorBar::CEditorBar() : m_pFindReplaceDialog( NULL )
 	r.bottom -= 20;
 	r.right -=20;
 	if (!r.PtInRect(m_ptLastFindPos)) m_ptLastFindPos.x = m_ptLastFindPos.y = 0;
+    m_totalLenAtPreviousSelChange = 0;
+    m_totalLenAtPreviousTextChange = 0;
 }
 
 CEditorBar::~CEditorBar()
@@ -694,21 +811,41 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	UINT nID = LOWORD(wParam);
 	HWND hWndCtrl = (HWND)lParam;
 	int nCode = HIWORD(wParam);
-
 	if (hWndCtrl != m_ctrlEditor) return CDockablePane::OnCommand(wParam, lParam);
 	if (nCode != EN_CHANGE) return CDockablePane::OnCommand(wParam, lParam);
 	if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) return TRUE;
 
 	m_ctrlEditor.UpdateCsh();
+    int len = m_ctrlEditor.GetTextLength();
+    //Update hints if we are in hint mode
+    if (m_ctrlEditor.InHintMode())
+        m_ctrlEditor.StartHintMode();
+    else {
+        long s, e;
+        m_ctrlEditor.GetSel(s,e);
+        //Enter hint mode only if we typed a character
+        if (m_totalLenAtPreviousTextChange < len && s==e)
+            m_ctrlEditor.StartHintMode();
+    }        
+    m_totalLenAtPreviousTextChange = len;
 	m_ctrlEditor.NotifyDocumentOfChange();
 	return TRUE;
 }
 
 void CEditorBar::OnSelChange(NMHDR *pNotifyStruct, LRESULT *result) 
 {
-	if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) return;
-	m_ctrlEditor.CancelPartialMatch();
-	m_ctrlEditor.NotifyDocumentOfChange(true);
+    if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) {
+        m_totalLenAtPreviousSelChange = m_ctrlEditor.GetTextLength();
+        return;
+    }
+    //if we have just moved, not inserted or deleted cancel partial match and hints
+    //(otherwise we will get an EN_CHANGE right after this and we redo
+    //csh and hints all the same. This is to prevent hint window flicker.)
+    if (m_totalLenAtPreviousSelChange == m_ctrlEditor.GetTextLength()) {
+        m_ctrlEditor.CancelPartialMatch();
+        m_ctrlEditor.NotifyDocumentOfChange(true);
+    } else 
+        m_totalLenAtPreviousSelChange = m_ctrlEditor.GetTextLength();
 	*result = 0;
 }
 
@@ -938,4 +1075,3 @@ void CEditorBar::TextNotFound(LPCTSTR lpszFind)
 	m_bFirstSearch = TRUE;
 	MessageBeep(MB_ICONHAND);
 }
-

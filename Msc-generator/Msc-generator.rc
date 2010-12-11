@@ -16,13 +16,166 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (U.S.) resources
+// Hungarian (Hungary) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_HUN)
+LANGUAGE LANG_HUNGARIAN, SUBLANG_DEFAULT
+#pragma code_page(1250)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_POPUPLIST DIALOGEX 0, 0, 320, 201
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CLIPCHILDREN | WS_BORDER
+FONT 8, "MS Shell Dlg", 0, 0, 0x0
+BEGIN
+    LISTBOX         IDC_LIST2,0,0,306,187,LBS_SORT | LBS_OWNERDRAWVARIABLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_POPUPLIST, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 312
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 193
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Hungarian (Hungary) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
-#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_PROGRESSDIALOG DIALOGEX 0, 0, 93, 0
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_THICKFRAME
+EXSTYLE WS_EX_TOPMOST
+CAPTION "Drawing in progress..."
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+END
+
+IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 300
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Msc-generator Preferences"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,137,279,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,200,279,50,14
+    LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
+    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
+    GROUPBOX        "External Text Editor",IDC_STATIC,7,160,243,93
+    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,171,74,10
+    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,184,54,10
+    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,195,87,10
+    CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,127,96,10
+    COMBOBOX        IDC_COMBO_CSH,179,126,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Use scheme:",IDC_STATIC,133,128,42,8
+    LTEXT           "&Start Command",IDC_STATIC,27,209,50,8
+    LTEXT           "Jump to &Line",IDC_STATIC,27,225,41,8
+    EDITTEXT        IDC_EDIT1,81,208,161,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,81,224,161,14,ES_AUTOHSCROLL
+    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,240,140,8
+    GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
+    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
+    CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
+    GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
+    CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
+    CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
+    CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,259,213,10
+    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,40
+    CONTROL         "&Smart &ident for labels",IDC_CHECK_SMART_IDENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,43,140,84,10
+END
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About Msc-gnerator"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
+    PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
+END
+
+IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "A new version of Msc-generator  is available"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,61,75,14
+    PUSHBUTTON      "Do not remind me",IDOK,103,61,84,14
+    PUSHBUTTON      "https://sourceforge.net/projects/msc-generator/",IDC_BUTTON_URL2,14,39,169,14
+    LTEXT           "Currently installed version:",IDC_STATIC_CURRENT_VERSION,26,9,133,8
+    LTEXT           "Latest version available:",IDC_STATIC_LATEST_VERSION,34,24,134,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_PROGRESSDIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 86
+    END
+
+    IDD_DIALOG_OPTIONS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 250
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 293
+    END
+
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_DIALOG_VERSION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 187
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 75
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -91,7 +244,7 @@ IDR_DESIGNBAR           BITMAP                  "res\\toolbar1.bmp"
 // Toolbar
 //
 
-IDR_TOOLBAR_MAINFRAME_256 TOOLBAR  16, 16
+IDR_TOOLBAR_MAINFRAME_256 TOOLBAR 16, 16
 BEGIN
     BUTTON      ID_FILE_NEW
     BUTTON      ID_FILE_OPEN
@@ -108,7 +261,7 @@ BEGIN
     BUTTON      ID_BUTTON_TRACK
 END
 
-IDR_TOOLBAR_MAINFRAME TOOLBAR  16, 15
+IDR_TOOLBAR_MAINFRAME TOOLBAR 16, 15
 BEGIN
     BUTTON      ID_FILE_NEW
     BUTTON      ID_FILE_OPEN
@@ -125,7 +278,7 @@ BEGIN
     BUTTON      ID_BUTTON_TRACK
 END
 
-IDR_TOOLBAR_SRVR_INPLACE TOOLBAR  16, 15
+IDR_TOOLBAR_SRVR_INPLACE TOOLBAR 16, 15
 BEGIN
     BUTTON      ID_EDIT_COPYENTIRECHART
     BUTTON      ID_EDIT_PASETENTIRECHART
@@ -137,7 +290,7 @@ BEGIN
     BUTTON      ID_BUTTON_TRACK
 END
 
-IDR_DESIGNBAR TOOLBAR  16, 15
+IDR_DESIGNBAR TOOLBAR 16, 15
 BEGIN
     BUTTON      ID_DESIGN_PAGE
     BUTTON      ID_DESIGN_ZOOM
@@ -150,7 +303,7 @@ END
 // Menu
 //
 
-IDR_MAINFRAME MENU 
+IDR_MAINFRAME MENU
 BEGIN
     POPUP "&File"
     BEGIN
@@ -236,7 +389,7 @@ BEGIN
     END
 END
 
-IDR_SRVR_INPLACE MENU 
+IDR_SRVR_INPLACE MENU
 BEGIN
     POPUP "&Edit"
     BEGIN
@@ -275,7 +428,7 @@ BEGIN
     END
 END
 
-IDR_SRVR_EMBEDDED MENU 
+IDR_SRVR_EMBEDDED MENU
 BEGIN
     POPUP "&File"
     BEGIN
@@ -351,7 +504,7 @@ BEGIN
     END
 END
 
-IDR_POPUP_EDIT MENU 
+IDR_POPUP_EDIT MENU
 BEGIN
     POPUP "Edit"
     BEGIN
@@ -361,7 +514,7 @@ BEGIN
     END
 END
 
-IDR_THEME_MENU MENU 
+IDR_THEME_MENU MENU
 BEGIN
     MENUITEM "Office 2007 (&Blue Style)",   ID_VIEW_APPLOOK_OFF_2007_BLUE
     MENUITEM "Office 2007 (B&lack Style)",  ID_VIEW_APPLOOK_OFF_2007_BLACK
@@ -375,7 +528,7 @@ END
 // Accelerator
 //
 
-IDR_MAINFRAME ACCELERATORS 
+IDR_MAINFRAME ACCELERATORS
 BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
     "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
@@ -413,7 +566,7 @@ BEGIN
     VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
 END
 
-IDR_SRVR_INPLACE ACCELERATORS 
+IDR_SRVR_INPLACE ACCELERATORS
 BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
     "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
@@ -438,7 +591,7 @@ BEGIN
     VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
 END
 
-IDR_SRVR_EMBEDDED ACCELERATORS 
+IDR_SRVR_EMBEDDED ACCELERATORS
 BEGIN
     "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
     "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
@@ -470,78 +623,6 @@ BEGIN
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
     VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
-END
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Dialog
-//
-
-IDD_PROGRESSDIALOG DIALOGEX 0, 0, 93, 0
-STYLE DS_SETFONT | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_THICKFRAME
-EXSTYLE WS_EX_TOPMOST
-CAPTION "Drawing in progress..."
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-END
-
-IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 300
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Msc-generator Preferences"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,137,279,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,200,279,50,14
-    LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
-    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
-    GROUPBOX        "External Text Editor",IDC_STATIC,7,160,243,93
-    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,171,74,10
-    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,184,54,10
-    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,195,87,10
-    CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,127,96,10
-    COMBOBOX        IDC_COMBO_CSH,179,126,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Use scheme:",IDC_STATIC,133,128,42,8
-    LTEXT           "&Start Command",IDC_STATIC,27,209,50,8
-    LTEXT           "Jump to &Line",IDC_STATIC,27,225,41,8
-    EDITTEXT        IDC_EDIT1,81,208,161,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT2,81,224,161,14,ES_AUTOHSCROLL
-    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,240,140,8
-    GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
-    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
-    CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
-    GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
-    CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
-    CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
-    CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,259,213,10
-    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,40
-    CONTROL         "&Smart &ident for labels",IDC_CHECK_SMART_IDENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,43,140,84,10
-END
-
-IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About Msc-gnerator"
-FONT 8, "MS Shell Dlg", 0, 0, 0x1
-BEGIN
-    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
-    LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
-    DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
-    PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
-END
-
-IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "A new version of Msc-generator  is available"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,61,75,14
-    PUSHBUTTON      "Do not remind me",IDOK,103,61,84,14
-    PUSHBUTTON      "https://sourceforge.net/projects/msc-generator/",IDC_BUTTON_URL2,14,39,169,14
-    LTEXT           "Currently installed version:",IDC_STATIC_CURRENT_VERSION,26,9,133,8
-    LTEXT           "Latest version available:",IDC_STATIC_LATEST_VERSION,34,24,134,8
 END
 
 
@@ -586,47 +667,6 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// DESIGNINFO
-//
-
-#ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
-BEGIN
-    IDD_PROGRESSDIALOG, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 86
-    END
-
-    IDD_DIALOG_OPTIONS, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 250
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 293
-    END
-
-    IDD_ABOUTBOX, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 228
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 48
-    END
-
-    IDD_DIALOG_VERSION, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 187
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 75
-    END
-END
-#endif    // APSTUDIO_INVOKED
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
 // Dialog Info
 //
 
@@ -646,32 +686,26 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// HTML
-//
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
 // String Table
 //
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDP_OLE_INIT_FAILED     "OLE initialization failed.  Make sure that the OLE libraries are the correct version."
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDR_MAINFRAME           "Msc-generator\n\nSignalling Chart\nMsc-generator Signalling Charts (*.signalling)\n.signalling\nMscgen.Chart\nMsc-generator Signalling Chart"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     AFX_IDS_APP_TITLE       "Msc-generator"
     AFX_IDS_IDLEMESSAGE     "Ready"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_INDICATOR_EXT        "EXT"
     ID_INDICATOR_CAPS       "CAP"
@@ -681,7 +715,7 @@ BEGIN
     ID_INDICATOR_REC        "REC"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_FILE_NEW             "Create a new document\nNew"
     ID_FILE_OPEN            "Open an existing document\nOpen"
@@ -697,13 +731,13 @@ BEGIN
     ID_FILE_SAVE_COPY_AS    "Save a copy of the active document with a new name\nSave Copy"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
     ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_FILE_MRU_FILE1       "Open this document"
     ID_FILE_MRU_FILE2       "Open this document"
@@ -723,18 +757,18 @@ BEGIN
     ID_FILE_MRU_FILE16      "Open this document"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
     ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_EDIT_CLEAR           "Erase the selection\nErase"
     ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
@@ -749,14 +783,14 @@ BEGIN
     ID_EDIT_REDO            "Redo the previously undone action\nRedo"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_VIEW_TOOLBAR         "Show/Hide the Toolbar"
     ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle Status Bar"
     ID_VIEW_OUTPUT          "Show/Hide the Error Window\nToggle Error Window"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     AFX_IDS_SCSIZE          "Change the window size"
     AFX_IDS_SCMOVE          "Change the window position"
@@ -767,18 +801,18 @@ BEGIN
     AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     AFX_IDS_SCRESTORE       "Restore the window to normal size"
     AFX_IDS_SCTASKLIST      "Activate Task List"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     AFX_IDS_PREVIEW_CLOSE   "Close print preview mode\nCancel Preview"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_STATUS_PANE1        "Pane 1"
     IDS_STATUS_PANE2        "Pane 2"
@@ -787,12 +821,12 @@ BEGIN
     IDS_TOOLBAR_DESIGN      "Design"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_EDIT_MENU           "Edit"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_FILE_EXPORT          "Export to graphics or text file\nExport"
     ID_BUTTON_EDITTEXT      "Edit Chart in External Text Editor\nExternal Editor"
@@ -811,7 +845,7 @@ BEGIN
     ID_VIEW_ZOOMNORMALIZE   "Adjust window size to fit all the chart\nOverview"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_DESIGN_PAGE          "Select Page\nPage"
     ID_DESIGN_ZOOM          "Set Zoom\nZoom"
@@ -820,20 +854,20 @@ BEGIN
                             "Reset the aspect ratio to 1:1\nReset Aspect Ratio"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDC_OUTPUT_LIST         "Output"
     IDC_INTERNAL_EDITOR     "Internal Editor"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_VIEW_EDITOR          "Show/Hide the Error Window\nToggle Editor Window"
     ID_EDIT_UPDATE          "Update & redraw chart with the description currently in the Chart Text panel\nUpdate & redraw"
     ID_VIEW_NEXTERROR       "Go to the next error\nNext error"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats\nCopy entire chart"
     ID_EDIT_PASETENTIRECHART 
@@ -841,23 +875,23 @@ BEGIN
     ID_BUTTON_TRACK         "Turn element tracking on or off\nToggle Tracking"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_VIEW_FULL_SCREEN     "Toggles full screen mode\nFull Screen"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_HELP_HELP            "Opens help"
     ID_VIEW_PREVERROR       "Go to the previous error\nPrevious error"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     ID_INDICATOR_TRK        "Track"
 END
 
-#endif    // English (U.S.) resources
+#endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

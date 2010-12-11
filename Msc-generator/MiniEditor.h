@@ -11,6 +11,8 @@
 #undef min
 #undef max
 #include <msc.h>
+#include "PopupList.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // CMiniEditor window
 
@@ -23,9 +25,12 @@ class CCshRichEditCtrl : public CRichEditCtrl
 {
 	bool m_bCshUpdateInProgress;
 	Csh  m_csh;
+	Csh  m_designlib_csh;
+    CPopupList m_hintsPopup;
 public:
 	int m_tabsize;
-	CCshRichEditCtrl();
+	CCshRichEditCtrl(CWnd *parent);
+    virtual BOOL Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID);
 
 	//Generic helpers
 	void GetSelLineCol(int &lStartLine, int &lStartCol, int &lEndLine, int &lEndCol) const;
@@ -46,6 +51,7 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
 
 	//Color Syntax Highlighting functions
+    void SetForcedDesign(const CString &fd) {m_designlib_csh.ForcedDesign = fd;}
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
 	void UpdateCsh(bool force = false);
@@ -56,6 +62,12 @@ public:
 	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
+
+    //Hint window related
+    void StartHintMode(); //also used to update hints
+    bool InHintMode() const {return m_hintsPopup.m_shown;}
+    void CancelHintMode();
+    void ReplaceHintedString(const char *substitute, bool endHintMode);
 
 	DECLARE_MESSAGE_MAP()
 };
@@ -79,6 +91,8 @@ public:
 	UINT m_nPasteType;
 	BOOL m_bFirstSearch;
 	bool m_bSuspendNotifications;
+    long m_totalLenAtPreviousSelChange;
+    long m_totalLenAtPreviousTextChange;
 
 // Implementation
 public:

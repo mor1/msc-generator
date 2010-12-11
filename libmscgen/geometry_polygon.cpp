@@ -26,17 +26,19 @@ namespace geometry {
 
 /////////////////MscCrossPointStore implementation
 
+class MscCrossPointStore;
+
 //cp means crosspoint from here
 //a struct that identifies a crosspoint at a polygon by giving the edge and the pos on the edge
 struct cp_id_t
 {
-	MscCrossPointStore *store;
+    MscCrossPointStore *store;
     int vertex;   //the number of the vertex staring the edge the crosspoint is on
     double pos;   //-1 if it is a vertex and not a crosspoint, [0..1) the pos of the crosspoint on the edge
     cp_id_t() {}
     cp_id_t(MscCrossPointStore *s, int a, double b) : store(s), vertex(a), pos(b) {}
 
-	XY PrevTangentPoint() const;
+    XY PrevTangentPoint() const;
     XY NextTangentPoint() const;
 };
 
@@ -47,8 +49,8 @@ struct cp_t
     XY           xy;               //coordinates of the crosspoint
     cp_id_t      switch_to;        //the location of the crosspoint in the other polygon
     bool         can_start_here;   //true if this is a cp we can start a walk at
-	int          seq_num;          //used to identify equivalent cps on different edges (for stopping condition of walking)
-	mutable bool valid;            //after processing, this is no longer valid
+    int          seq_num;          //used to identify equivalent cps on different edges (for stopping condition of walking)
+    mutable bool valid;            //after processing, this is no longer valid
 
     bool operator <(const cp_t &o) const {return pos<o.pos;}
 };
@@ -59,35 +61,35 @@ inline bool operator <(double p, const cp_t &cp) {return p < cp.pos;}
 //for each edge we will have this list: list of crosspoints (eventually) ordered by increasing pos
 struct cp_list_t : public std::vector<cp_t>
 {
-	const cp_t *find_at(double pos) const;
-	const cp_t *find_after(double pos, int sn) const;
+    const cp_t *find_at(double pos) const;
+    const cp_t *find_after(double pos, int sn) const;
 };
 
 inline const cp_t *cp_list_t::find_at(double pos) const
 {
-	const_iterator i = lower_bound(begin(), end(), pos); 
+	const_iterator i = lower_bound(begin(), end(), pos);
 	return i==end() ? NULL : &*i;
 }
 
 inline const cp_t *cp_list_t::find_after(double pos, int sn) const
 {
-	for (auto i = upper_bound(begin(), end(), pos); i!=end(); i++)
-		if (i->seq_num == sn)
-			return &*i;
-		else if (i->valid && i->switch_to.vertex != -2) 
-			return &*i;
-	return NULL;
+    for (auto i = upper_bound(begin(), end(), pos); i!=end(); i++)
+        if (i->seq_num == sn)
+            return &*i;
+        else if (i->valid && i->switch_to.vertex != -2)
+            return &*i;
+    return NULL;
 }
 
 //A "pointer" to a crosspoint. We also store which store it is at and which vertes, s owe can
 //easily calculate the next pone
-struct p_cp_t 
+struct p_cp_t
 {
-	MscCrossPointStore *store;
-	int vertex;
-	const cp_t *cp;
-	p_cp_t(MscCrossPointStore *s, int v, const cp_t *c) : store(s), vertex(v), cp(c) {}
-	Edge GetOutGoingEdgeRemainder() const;  //formulate an edge starting in pCP (and open-ended)         
+    MscCrossPointStore *store;
+    int vertex;
+    const cp_t *cp;
+    p_cp_t(MscCrossPointStore *s, int v, const cp_t *c) : store(s), vertex(v), cp(c) {}
+    Edge GetOutGoingEdgeRemainder() const;  //formulate an edge starting in pCP (and open-ended)
 };
 
 //we store the points where the other polygon crosses an edge in a fashion that we need to switch to that edge
@@ -102,37 +104,37 @@ protected:
     const Polygon *_polygon;
 public:
     MscCrossPointStore() : _polygon(NULL) {}
-	const Polygon &GetPolygon() const {_ASSERT(_polygon); return *_polygon;}
-	void Set(const Polygon &p);
+    const Polygon &GetPolygon() const {_ASSERT(_polygon); return *_polygon;}
+    void Set(const Polygon &p);
     void Sort();
     void Finish();
 
     const cp_t* Add(const XY& xy, int vertex, double pos, const cp_id_t &switch_to, int sn);
-	const cp_t* Find(int vertex, double pos) const {return at(vertex).find_at(pos);}
-	p_cp_t  After(int vertex, double pos, const int sn); //next crosspoint strictly after the pos designated here
+    const cp_t* Find(int vertex, double pos) const {return at(vertex).find_at(pos);}
+    p_cp_t  After(int vertex, double pos, const int sn); //next crosspoint strictly after the pos designated here
 };
 
-inline XY cp_id_t::PrevTangentPoint() const 
+inline XY cp_id_t::PrevTangentPoint() const
 {
-	return store->GetPolygon().PrevTangentPoint(vertex, pos);
+    return store->GetPolygon().PrevTangentPoint(vertex, pos);
 }
 
-inline XY cp_id_t::NextTangentPoint() const 
+inline XY cp_id_t::NextTangentPoint() const
 {
-	return store->GetPolygon().NextTangentPoint(vertex, pos);
+    return store->GetPolygon().NextTangentPoint(vertex, pos);
 }
 
-inline Edge p_cp_t::GetOutGoingEdgeRemainder() const 
+inline Edge p_cp_t::GetOutGoingEdgeRemainder() const
 {
-	//if we are pointing at a vertex, use the corresponding edge
-	if (cp==NULL) return store->GetPolygon().GetEdge(vertex);
-	//if cp!=NULL, we return the edge from the other polygon
-	_ASSERT(cp->switch_to.vertex!=-2);
-	//if we will stop anyway, just return a dummy value 
-	if (cp->switch_to.vertex<0) return Edge();
-	//if the other edge's pos is zero, we return all of the edge
-	if (cp->switch_to.pos==0) return cp->switch_to.store->GetPolygon().GetEdge(cp->switch_to.vertex);
-	return Edge(cp->switch_to.store->GetPolygon().GetEdge(cp->switch_to.vertex)).SetStart(cp->xy, cp->switch_to.pos);
+    //if we are pointing at a vertex, use the corresponding edge
+    if (cp==NULL) return store->GetPolygon().GetEdge(vertex);
+    //if cp!=NULL, we return the edge from the other polygon
+    _ASSERT(cp->switch_to.vertex!=-2);
+    //if we will stop anyway, just return a dummy value
+    if (cp->switch_to.vertex<0) return Edge();
+    //if the other edge's pos is zero, we return all of the edge
+    if (cp->switch_to.pos==0) return cp->switch_to.store->GetPolygon().GetEdge(cp->switch_to.vertex);
+    return Edge(cp->switch_to.store->GetPolygon().GetEdge(cp->switch_to.vertex)).SetStart(cp->xy, cp->switch_to.pos);
 }
 
 void MscCrossPointStore::Set(const Polygon &p)
@@ -163,35 +165,35 @@ inline void MscCrossPointStore::Finish()
 const cp_t* MscCrossPointStore::Add(const XY& xy, int vertex, double pos, const cp_id_t &switch_to, int sn)
 {
     _ASSERT(size() >= _polygon->size());
-    at(vertex).resize(at(vertex).size()+1); 
-	cp_t *cp = &*at(vertex).rbegin();
-	cp->pos = pos;
-	cp->xy = xy;
-	cp->switch_to = switch_to;
-	cp->seq_num = sn;
-	cp->valid = switch_to.vertex != -2;
-	return cp;
+    at(vertex).resize(at(vertex).size()+1);
+    cp_t *cp = &*at(vertex).rbegin();
+    cp->pos = pos;
+    cp->xy = xy;
+    cp->switch_to = switch_to;
+    cp->seq_num = sn;
+    cp->valid = switch_to.vertex != -2;
+    return cp;
 }
 
 //Gets the next relevant point (cp or vertex) strictly after <vertex,pos>
 //In the meanwhile it checks if any cp between (including) <vertex,pos> and the returned value has sn as seq_num
 //if so, it returns a -1 vertex and NULL cp_t
-p_cp_t MscCrossPointStore::After(int vertex, double pos, const int sn) 
+p_cp_t MscCrossPointStore::After(int vertex, double pos, const int sn)
 {
-	const cp_t *cp = at(vertex).find_after(pos, sn);
-	if (cp) {
-		if (cp->seq_num == sn) return p_cp_t(this, -1, NULL);
-		return p_cp_t(this, vertex, cp);
-	}
-	vertex = GetPolygon().next(vertex);
-	if (at(vertex).size() && at(vertex).begin()->pos == 0) {
-		//the vertex is a crosspoint: return the crosspoint
-		if (at(vertex).begin()->seq_num == sn) return p_cp_t(this, -1, NULL);
-		if (at(vertex).begin()->switch_to.vertex==-2) return p_cp_t(this, vertex, NULL);
-		return p_cp_t(this, vertex, &*at(vertex).begin());
-	}
-	//a vertex, which is not a crosspoint
-	return p_cp_t(this, vertex, NULL);
+    const cp_t *cp = at(vertex).find_after(pos, sn);
+    if (cp) {
+        if (cp->seq_num == sn) return p_cp_t(this, -1, NULL);
+        return p_cp_t(this, vertex, cp);
+    }
+    vertex = GetPolygon().next(vertex);
+    if (at(vertex).size() && at(vertex).begin()->pos == 0) {
+        //the vertex is a crosspoint: return the crosspoint
+        if (at(vertex).begin()->seq_num == sn) return p_cp_t(this, -1, NULL);
+        if (at(vertex).begin()->switch_to.vertex==-2) return p_cp_t(this, vertex, NULL);
+        return p_cp_t(this, vertex, &*at(vertex).begin());
+    }
+    //a vertex, which is not a crosspoint
+    return p_cp_t(this, vertex, NULL);
 }
 
 /////////////////MscCrossPointSet implementation
@@ -199,81 +201,81 @@ p_cp_t MscCrossPointStore::After(int vertex, double pos, const int sn)
 //This class contains crosspoints, too, as the first step in processing.
 //After collecting all crosspoints here, we can use Process() to go through them
 //and decide when to switch between which edges. Then we copy them to the respective MscCrossPointStore objects
-class MscCrossPointSet : protected std::map<XY, std::vector<cp_id_t>> 
+class MscCrossPointSet : protected std::map<XY, std::vector<cp_id_t>>
 {
 protected:
-	int num_of_polygons;
-	MscCrossPointStore *stores;
-	void Add(const XY &xy, MscCrossPointStore *p1, int a1, double b1, MscCrossPointStore *p2, int a2, double b2);
+    int num_of_polygons;
+    MscCrossPointStore *stores;
+    void Add(const XY &xy, MscCrossPointStore *p1, int a1, double b1, MscCrossPointStore *p2, int a2, double b2);
 public:
-	MscCrossPointSet() : stores(NULL) {}
+    MscCrossPointSet() : stores(NULL) {}
     int FindCrosspoints(MscCrossPointStore store[], int num);
-	void Process(Polygon::poly_action_t action, std::vector<cp_id_t> &startpoints) const;
+    void Process(Polygon::poly_action_t action, std::vector<cp_id_t> &startpoints) const;
 };
 
 void MscCrossPointSet::Add(const XY &xy, MscCrossPointStore *p1, int a1, double b1, MscCrossPointStore *p2, int a2, double b2)
 {
-	auto i = find(xy);
-	if (i==end()) {
-		mapped_type a;
-		a.push_back(cp_id_t(p1, a1, b1));
-		a.push_back(cp_id_t(p2, a2, b2));
-		operator[](xy) = std::move(a);
-	} else {
-		i->second.push_back(cp_id_t(p1, a1, b1));
-		i->second.push_back(cp_id_t(p2, a2, b2));
-	}
+    auto i = find(xy);
+    if (i==end()) {
+        mapped_type a;
+        a.push_back(cp_id_t(p1, a1, b1));
+        a.push_back(cp_id_t(p2, a2, b2));
+        operator[](xy) = std::move(a);
+    } else {
+        i->second.push_back(cp_id_t(p1, a1, b1));
+        i->second.push_back(cp_id_t(p2, a2, b2));
+    }
 }
 
 //We assume all elements of store are dimensioned equal to its polygon
-//Here we find all points where the two or more polygons touch 
+//Here we find all points where the two or more polygons touch
 //Eventually we shall be able to develop something more efficient than the O(N^2) we have here
 //like Bentley-Ottoman
 //if num == 1, we search for the crosspoints of the polygon which are not vertices
 //returns the number of crosspoints found
-int MscCrossPointSet::FindCrosspoints(MscCrossPointStore store[], int num) 
+int MscCrossPointSet::FindCrosspoints(MscCrossPointStore store[], int num)
 {
-	clear();
-	if (num<1) return num_of_polygons = 0;
-	num_of_polygons = num;
-	stores = store;
+    clear();
+    if (num<1) return num_of_polygons = 0;
+    num_of_polygons = num;
+    stores = store;
     XY r[4];
     double one_pos[4], two_pos[4];
     int ret=0;
-	if (num==1) {
-		const Polygon &poly = store[0].GetPolygon();
-		for (int i = 1; i<poly.size(); i++)
-			for (int j = 0; j<i; j++) {
-				int n=Edge::Crossing(poly[i], poly.at_next(i).GetStart(),
-									 poly[j], poly.at_next(j).GetStart(), r, one_pos, two_pos);
-				for (int k=0; k<n;k++)
-					Add(r[k], store, i, one_pos[k], store, j, two_pos[k]);
-				ret += n;
-			}
-	} else {
-		for (int g = 0; g<num-1; g++)
-			for (int h = g+1; h<num; h++) 
-				for (int i = 0; i<store[g].GetPolygon().size(); i++)
-					for (int j = 0; j<store[h].GetPolygon().size(); j++) {
-						int n=Edge::Crossing(store[g].GetPolygon()[i], store[g].GetPolygon().at_next(i).GetStart(),
-											 store[h].GetPolygon()[j], store[h].GetPolygon().at_next(j).GetStart(), r, one_pos, two_pos);
-						for (int k=0; k<n;k++)
-							Add(r[k], store+g, i, one_pos[k], store+h, j, two_pos[k]);
-						ret += n;
-					}
-	}
+    if (num==1) {
+        const Polygon &poly = store[0].GetPolygon();
+        for (int i = 1; i<poly.size(); i++)
+            for (int j = 0; j<i; j++) {
+                int n=Edge::Crossing(poly[i], poly.at_next(i).GetStart(),
+                                     poly[j], poly.at_next(j).GetStart(), r, one_pos, two_pos);
+                for (int k=0; k<n;k++)
+                    Add(r[k], store, i, one_pos[k], store, j, two_pos[k]);
+                ret += n;
+            }
+    } else {
+        for (int g = 0; g<num-1; g++)
+            for (int h = g+1; h<num; h++)
+                for (int i = 0; i<store[g].GetPolygon().size(); i++)
+                    for (int j = 0; j<store[h].GetPolygon().size(); j++) {
+                        int n=Edge::Crossing(store[g].GetPolygon()[i], store[g].GetPolygon().at_next(i).GetStart(),
+                                             store[h].GetPolygon()[j], store[h].GetPolygon().at_next(j).GetStart(), r, one_pos, two_pos);
+                        for (int k=0; k<n;k++)
+                            Add(r[k], store+g, i, one_pos[k], store+h, j, two_pos[k]);
+                        ret += n;
+                    }
+    }
     return ret;
 }
 
 struct ray_t {
-	int index;
-	bool incoming;
-	double angle;
-	int switch_to;
-	int can_start_here;
-	int seq_num;
-	ray_t(int i, bool in, double a) : index(i), incoming(in), angle(a), switch_to(-1), can_start_here(0) {}
-	bool operator < (const ray_t &o) const {return angle<o.angle;}
+    int index;
+    bool incoming;
+    double angle;
+    int switch_to;
+    int can_start_here;
+    int seq_num;
+    ray_t(int i, bool in, double a) : index(i), incoming(in), angle(a), switch_to(-1), can_start_here(0) {}
+    bool operator < (const ray_t &o) const {return angle<o.angle;}
 };
 inline bool ray_less_by_index(const ray_t &a, const ray_t &o) {return a.index<o.index;}
 
@@ -282,14 +284,14 @@ class rays_t : public std::vector<ray_t>
 public:
     int inc(int &cp) const {return cp = (cp+1)%size();}
 
-	int next_diff(int i, int &counted, int &coverage) const;
-	bool search_min_coverage(int &from, int &to, int &counted, int &coverage, const int min_coverage, bool goes_below) const;
-	bool search_coverage_change(int &from, int &to, int &counted, int &coverage) const;
-	int search_lowest_coverage(int loc, int &coverage) const;
+    int next_diff(int i, int &counted, int &coverage) const;
+    bool search_min_coverage(int &from, int &to, int &counted, int &coverage, const int min_coverage, bool goes_below) const;
+    bool search_coverage_change(int &from, int &to, int &counted, int &coverage) const;
+    int search_lowest_coverage(int loc, int &coverage) const;
 
-	//Process a crosspoint for various operations
-	void ProcessForUntangle(int &seq_num, int coverage);
-	void ProcessForCombine(int &seq_num, int coverage, int min_coverage);
+    //Process a crosspoint for various operations
+    void ProcessForUntangle(int &seq_num, int coverage);
+    void ProcessForCombine(int &seq_num, int coverage, int min_coverage);
 };
 
 //Returns the index of the next ray which has a substantially different angle
@@ -297,15 +299,15 @@ public:
 //and sets "coverage" to the coverage just before the returned index when returns
 int rays_t::next_diff(int i, int &counted, int &coverage) const
 {
-	int j = i;
-	if (counted>=size()) return -1;
-	do {
-		if (at(i).incoming) --coverage;
-		else ++coverage;
-		counted++;
-		inc(i);
-	} while (counted<size() && test_equal(at(j).angle, at(i).angle));
-	return counted<=size() ? i : -1;
+    int j = i;
+    if (counted>=size()) return -1;
+    do {
+        if (at(i).incoming) --coverage;
+        else ++coverage;
+        counted++;
+        inc(i);
+    } while (counted<size() && test_equal(at(j).angle, at(i).angle));
+    return counted<=size() ? i : -1;
 }
 
 //searches for a set of rays where angles are virtually equal and their collective actions
@@ -314,16 +316,16 @@ int rays_t::next_diff(int i, int &counted, int &coverage) const
 //the set of rays is returned in [from,to), "coverage" is set to coverage just before "to"
 //from->to means in the circular sense: from may actually be > than to
 //if from==to returned than at "from" coverage is already below/above min_coverage
-//if false is returned we did not find any place 
+//if false is returned we did not find any place
 bool rays_t::search_min_coverage(int &from, int &to, int &counted, int &coverage, const int min_coverage, bool goes_below) const
 {
-	to = from;
-	while (goes_below == (coverage>=min_coverage)) {
-		from = to;
-		to = next_diff(from, counted, coverage);
-		if (to==-1) return  false;
-	}
-	return true;
+    to = from;
+    while (goes_below == (coverage>=min_coverage)) {
+        from = to;
+        to = next_diff(from, counted, coverage);
+        if (to==-1) return  false;
+    }
+    return true;
 }
 
 //searches for a set of rays where angles are virtually equal and their collective actions
@@ -331,80 +333,80 @@ bool rays_t::search_min_coverage(int &from, int &to, int &counted, int &coverage
 //rays == number of outgoing we go on.
 bool rays_t::search_coverage_change(int &from, int &to, int &counted, int &coverage) const
 {
-	const int intial_coverage = coverage;
-	to = from;
-	do {
-		from = to;
-		to = next_diff(from, counted, coverage);
-		if (to==-1) return false;
-	} while (intial_coverage == coverage);
-	return true;
+    const int intial_coverage = coverage;
+    to = from;
+    do {
+        from = to;
+        to = next_diff(from, counted, coverage);
+        if (to==-1) return false;
+    } while (intial_coverage == coverage);
+    return true;
 }
 
 //searches for a set of rays where angles are virtually equal and their collective actions
 //change coverage to the lowest among after these groups
 //returns the index just before which coverage is changed to the lowest
-int rays_t::search_lowest_coverage(int loc, int &coverage) const 
+int rays_t::search_lowest_coverage(int loc, int &coverage) const
 {
-	int counted = 0;
-	int min_loc = 0;
-	int min_coverage = coverage;
-	do {
-		loc = next_diff(loc, counted, coverage);
-		if (loc==-1) break;
-		if (min_coverage>coverage) {
-			min_loc = loc;
-			min_coverage = coverage;
-		}
-	} while (1);
-	coverage = min_coverage;
-	return min_loc;
+    int counted = 0;
+    int min_loc = 0;
+    int min_coverage = coverage;
+    do {
+        loc = next_diff(loc, counted, coverage);
+        if (loc==-1) break;
+        if (min_coverage>coverage) {
+            min_loc = loc;
+            min_coverage = coverage;
+        }
+    } while (1);
+    coverage = min_coverage;
+    return min_loc;
 }
 
 void rays_t::ProcessForUntangle(int &seq_num, int coverage)
 {
-	//Here the rule is that we always pair an incoming edge to the outgoing right after it
-	//Example: 1\  |2                
-	//           \ |              Here incoming(2) will be switched to outgoing(3)
-	//            \|                   incoming(1) will be switched to outgoing(1)
-	//         3---o---->3             incoming(3) will be switched to outgoing(2) 
-	//             |\
-	//             | \            The problem is if multiple edges come in/out overlapped.
-	//            2V  -->1        Then we force them to be startpoints processed first: this will
-	//                            chop off some of the tangled polygon (and we will call untangle)
-	//                            until all parts come off.
-	// All cps will get the same sequence number, so if we start here, we will stop here no matter
-	// what edge do we come in.
+    //Here the rule is that we always pair an incoming edge to the outgoing right after it
+    //Example: 1\  |2
+    //           \ |              Here incoming(2) will be switched to outgoing(3)
+    //            \|                   incoming(1) will be switched to outgoing(1)
+    //         3---o---->3             incoming(3) will be switched to outgoing(2)
+    //             |\
+    //             | \            The problem is if multiple edges come in/out overlapped.
+    //            2V  -->1        Then we force them to be startpoints processed first: this will
+    //                            chop off some of the tangled polygon (and we will call untangle)
+    //                            until all parts come off.
+    // All cps will get the same sequence number, so if we start here, we will stop here no matter
+    // what edge do we come in.
 
-	//Walk to the first ray group after the lowest coverage
-	int from = search_lowest_coverage(0, coverage);
-	std::stack<int> stack;
+    //Walk to the first ray group after the lowest coverage
+    int from = search_lowest_coverage(0, coverage);
+    std::stack<int> stack;
 
-	//Now cycle around 
-	//Every time we find a ray group that increases coverage, we push some outgoing rays to the stack
-	//(as many as we have increased coverage, arbitrarily selected)
-	//Every time we find a ray group that decreases coverage, we pick elements from the stack
-	int counted = 0;
-	do {
-		int orig_coverage = coverage;
-		const int to = next_diff(from, counted, coverage);
-		if (to==-1) break;
-		if (orig_coverage == coverage) {
-			from = to;
-			continue;
-		}
-		if (coverage>orig_coverage) {
-			for (int i = from, c = orig_coverage; c<coverage; inc(i))
-				if (!at(i).incoming) {
-					c++;
-					stack.push(i);
+    //Now cycle around
+    //Every time we find a ray group that increases coverage, we push some outgoing rays to the stack
+    //(as many as we have increased coverage, arbitrarily selected)
+    //Every time we find a ray group that decreases coverage, we pick elements from the stack
+    int counted = 0;
+    do {
+        int orig_coverage = coverage;
+        const int to = next_diff(from, counted, coverage);
+        if (to==-1) break;
+        if (orig_coverage == coverage) {
+            from = to;
+            continue;
+        }
+        if (coverage>orig_coverage) {
+            for (int i = from, c = orig_coverage; c<coverage; inc(i))
+                if (!at(i).incoming) {
+                    c++;
+                    stack.push(i);
 				}
 			from = to;
 			continue;
 		}
 		//from->to now decreases coverage-> has more incoming rays than outgoing
 		//Associate incoming rays with the ones on with the top of the stack
-		//and add them to the beginning of the startpoint list. This guarantees 
+		//and add them to the beginning of the startpoint list. This guarantees
 		//that at least some of the polygons get apart in one UntangleOnePolygon phase.
 		//We only process (orig_coverage-coverage) incoming edge in the batch,
 		//the rest have matching outgoing edges in this batch.
@@ -438,7 +440,7 @@ void rays_t::ProcessForCombine(int &seq_num, int coverage, int min_coverage)
 	//              ../ |,\::::       and another is from 1(out)->1(in). The two ranges get different seq_nums.
 	//             1<- 2|,,\3::       (So if we started on 2(in) (immeditately switching to 2(out)), we will not
 	//                                 stop when coming through 1(in), but will continue on 1(out) until we get
-	//                                 back here again on 2(in)). Note that (incoming(3) will have switch_to==-1 
+	//                                 back here again on 2(in)). Note that (incoming(3) will have switch_to==-1
 	//                                indicating that if we come this way, we shall drop points we collected so far.
 	//                              For intersects only 3(out)->3(in) range will be had.
 	// An x(out)->y(in) range selected will result in y(in) be designated a cp switching to edge x.
@@ -467,7 +469,7 @@ void rays_t::ProcessForCombine(int &seq_num, int coverage, int min_coverage)
 		//to go from below the minimum up to at least the minimum.
 		//Another set of rays (B) [B_from, B_to) coming after (A) will take the coverage below minimum again.
 		//Basically we can say the result polygon will have a vertex here with (B) as incoming edge and (A) as outgoing.
-				
+
 		//First We set all incoming cp's sequence number to the same seq number. So that if the Walk started at this cp
 		//if we hit this cp again, we could stop the walk, based on equal sequence numbers
 		//we need to do it as a do-while since A_from can be == B_to, in which case we need to mark all rays
@@ -483,7 +485,7 @@ void rays_t::ProcessForCombine(int &seq_num, int coverage, int min_coverage)
 		//If the same edge can be found among the outgoing ones, then mark switch_to with -2
 		//-2 will result in an invalid cp, meaning it will not be added to any polyline (but will be checked for stop condition)
 		//We mark only one of the incoming edges as a crosspoint we can start at
-		//Find an outgoing 
+		//Find an outgoing
 		int an_outgoing;
 		for (an_outgoing = A_from; an_outgoing!=A_to; inc(an_outgoing))
 			if (!at(an_outgoing).incoming) break;
@@ -509,9 +511,9 @@ void rays_t::ProcessForCombine(int &seq_num, int coverage, int min_coverage)
 		//if we did not insert a cp that we can start at, change all -2 values to -3, so they get dropped entirely
 		if (!did_start)
 			for (int i=B_from; i!=B_to; inc(i))
-				if (at(i).incoming && at(i).switch_to == -2) 
+				if (at(i).incoming && at(i).switch_to == -2)
 					at(i).switch_to = -3;
-				
+
 		//start a new cycle after (B)
 		A_from = B_to;
 	} while(1);
@@ -550,9 +552,9 @@ void MscCrossPointSet::Process(Polygon::poly_action_t action, std::vector<cp_id_
 
 		//Now fill in switch_to, can_start_here and seq_num in elements of rays
 		//We do it differently for untangle and for union/intersect
-		if (num_of_polygons == 1) 
+		if (num_of_polygons == 1)
 			rays.ProcessForUntangle(seq_num, coverage_at_0);
-		else 
+		else
 			//If union, pick the angle ranges covered by at least one polygon
 			//If intersect, pick angle ranges covered by all of the polygons
 			rays.ProcessForCombine(seq_num, coverage_at_0, action==Polygon::UNION ? 1 : num_of_polygons);
@@ -571,16 +573,16 @@ void MscCrossPointSet::Process(Polygon::poly_action_t action, std::vector<cp_id_
 					break;
 				default: //add cp and fill in the edge&pos to switch to
 					const cp_t *p = cp.store->Add(iCP->first, cp.vertex, cp.pos, iCP->second[rays[rays[i].switch_to].index], rays[i].seq_num);
-					if (rays[i].can_start_here==1) 
+					if (rays[i].can_start_here==1)
 						startpoints.push_back(cp_id_t(cp.store, cp.vertex, cp.pos));
-					if (rays[i].can_start_here==-1) 
+					if (rays[i].can_start_here==-1)
 						startpoints.insert(startpoints.begin(), cp_id_t(cp.store, cp.vertex, cp.pos));
 					break;
 				}
 			}
 	}
 	//Sort the crosspoints on edges according to their pos in all of the stores
-	for (int i=0; i<num_of_polygons; i++) 
+	for (int i=0; i<num_of_polygons; i++)
 		stores[i].Sort();
 }
 
@@ -858,7 +860,7 @@ void Polygon::Walk(const std::vector<cp_id_t> &startpoints, PolygonList &surface
             if (current.cp == NULL) { //this is a vertex not crossed by the other polygon, we keep walking on next edge
 				current = current.store->After(current.vertex, 0, sn_finish);
             } else { //this is a crosspoint let's see if we switch to the other polygon
-				//invalidate cp 
+				//invalidate cp
 				current.cp->valid = false;
 				if (current.cp->switch_to.vertex == -1) {
 					//We have working from an invalid crosspoint (e.g., in the interior of a union)
@@ -930,42 +932,42 @@ Polygon::poly_result_t Polygon::Combine(const Polygon &b, PolygonList &result, p
     if (b.size()==0) return B_IS_EMPTY;
     if (!boundingBox.Overlaps(b.boundingBox)) return APART;
 
-	if (action==XOR) {
-		poly_result_t ret = Combine(b, result, UNION);
-		if (ret!=OVERLAP) return ret;
-		PolygonList holes;
-		if (OVERLAP == Combine(b, holes, INTERSECT))
-			result -= holes;
-		return OVERLAP;
-	}
+    if (action==XOR) {
+        poly_result_t ret = Combine(b, result, UNION);
+        if (ret!=OVERLAP) return ret;
+        PolygonList holes;
+        if (OVERLAP == Combine(b, holes, INTERSECT))
+            result -= holes;
+        return OVERLAP;
+    }
 
-	//Now action can only be UNION, INTERSECT or SUBSTRACT and none of the polygons is empty
-	//Set up some data structures
+    //Now action can only be UNION, INTERSECT or SUBSTRACT and none of the polygons is empty
+    //Set up some data structures
     static Polygon b_inv;
     /*static*/ MscCrossPointStore cp[2];
     cp[0].Set(*this);
     cp[1].Set(action==SUBSTRACT ? b_inv = b.GetInverse() : b); //invert b if action is SUBSTRACT
-	/*static*/ MscCrossPointSet cp_set;
+    /*static*/ MscCrossPointSet cp_set;
 
     //We will first find all the crossing points between the two polygons
     Polygon::poly_result_t ret = BOTH_EMPTY;
     if (cp_set.FindCrosspoints(cp, 2)) {
-		/*static*/ std::vector<cp_id_t> startpoints;
-		// Process each cp and determine if it is relevant to us or not
-		cp_set.Process(action==SUBSTRACT ? INTERSECT : action, startpoints);
-		if (startpoints.size()) {
-			//relevant cps found
-			static PolygonList holes;
-			Walk(startpoints, result, holes); //they touch, walk the pieces
-			//With union we may have holes, but only one surface
-			//With intersect (and substract), we can have multiple surfaces, but no holes
-			_ASSERT(result.size()==1 || holes.size()==0);
-			if (holes.size())
-				result.begin()->holes.swap(holes);
-			ret = OVERLAP;
-		}
-    } 
-	if (ret != OVERLAP)
+        /*static*/ std::vector<cp_id_t> startpoints;
+        // Process each cp and determine if it is relevant to us or not
+        cp_set.Process(action==SUBSTRACT ? INTERSECT : action, startpoints);
+        if (startpoints.size()) {
+            //relevant cps found
+            static PolygonList holes;
+            Walk(startpoints, result, holes); //they touch, walk the pieces
+            //With union we may have holes, but only one surface
+            //With intersect (and substract), we can have multiple surfaces, but no holes
+            _ASSERT(result.size()==1 || holes.size()==0);
+            if (holes.size())
+                result.begin()->holes.swap(holes);
+            ret = OVERLAP;
+        }
+    }
+    if (ret != OVERLAP)
         ret = CheckContainment(b); //two polygons do not touch, determine their relative position
     cp[0].Finish();
     cp[1].Finish(); //keep memory allocated, but erase pointers to input polygons
@@ -974,8 +976,8 @@ Polygon::poly_result_t Polygon::Combine(const Polygon &b, PolygonList &result, p
 
 //Checks if the polygon touches itself and splits it into multiple pieces, using the winding rule
 //Any point on the plane is part of the result, if a ray from it to infinity statisfies this rule:
-//"If the polygon crosses the ray from left-to-right, counts +1; if from right to left, counts -1. 
-//(Left and right are determined from the perspective of looking along the ray from the starting point.) 
+//"If the polygon crosses the ray from left-to-right, counts +1; if from right to left, counts -1.
+//(Left and right are determined from the perspective of looking along the ray from the starting point.)
 //If the total count is non-zero, the point will be inside the result."
 //Can return
 //- A_IS_EMPTY, if we are empty
@@ -987,7 +989,7 @@ Polygon::poly_result_t Polygon::UntangleOnePolygon(PolygonList &surfaces, Polygo
 
     //Set up some data structures,
     static MscCrossPointStore cp;
-    cp.Set(*this); 
+    cp.Set(*this);
 	MscCrossPointSet cp_set;
 
     //We will first find all the crossing points between our edges
@@ -1000,9 +1002,9 @@ Polygon::poly_result_t Polygon::UntangleOnePolygon(PolygonList &surfaces, Polygo
 			Walk(startpoints, surfaces, holes); //they touch, walk the pieces
 			ret = OVERLAP;
 		}
-    } 
+    }
 	if (ret == SAME && !CalculateClockwise()) {//no crosspoints, but counterclockwise
-		holes.append(GetInverse());  
+		holes.append(GetInverse());
 		ret = OVERLAP;
     }
     cp.Finish(); //keep memory allocated, but erase pointers to input polygons
@@ -1034,7 +1036,7 @@ void node_list::insert_tree(Polygon &&p, bool hole)
 	for (auto i = begin(); i!=end(); /*none*/)
 		switch (n.polygon.CheckContainment(i->polygon)) {
 		case Polygon::SAME: _ASSERT(0);
-		case Polygon::A_INSIDE_B: 
+		case Polygon::A_INSIDE_B:
 			_ASSERT(!was);
 			in_what = i;
 			//i=end(); //skip the rest: nothing can be in us, if we are in someone
@@ -1062,7 +1064,7 @@ void node_list::insert_tree(Polygon &&p, bool hole)
 //for evenodd rules, any path increments it, if odd, we include
 //for expand, positive surfaces increment it, negative surfaces decrement it, if one, we include
 //We also do a technical trick. Hole contains if we are inside a surface and we shall list holes.
-//if so, we simply surfaces we need to include based on the criterion above (but process their children). 
+//if so, we simply surfaces we need to include based on the criterion above (but process their children).
 //And vice versa for holes=false
 void node_list::Convert(bool hole, int counter, Polygon::untangle_t rule, PolygonList &result)
 {
@@ -1103,17 +1105,17 @@ Polygon::poly_result_t Polygon::Untangle(PolygonList &result, untangle_t rule) c
 	}
 	//Call untangle as long as we have fragments not untangled
 	node_list nl, nl2, nl_ok;
-	for (auto i = s.begin(); i!=s.end(); i++) 
+	for (auto i = s.begin(); i!=s.end(); i++)
 		nl.push_back(node(std::move(*i), false));
-	for (auto i = h.begin(); i!=h.end(); i++) 
+	for (auto i = h.begin(); i!=h.end(); i++)
 		nl.push_back(node(std::move(*i), true));
 	while (nl.size()) {
-		for (auto i = nl.begin(); i!=nl.end(); /*none*/) 
+		for (auto i = nl.begin(); i!=nl.end(); /*none*/)
 			switch(i->polygon.UntangleOnePolygon(s, h)) {
 			case OVERLAP:
-				for (auto j = s.begin(); j!=s.end(); j++) 
+				for (auto j = s.begin(); j!=s.end(); j++)
 					nl2.push_back(node(std::move(*j), i->ishole));
-				for (auto j = h.begin(); j!=h.end(); j++) 
+				for (auto j = h.begin(); j!=h.end(); j++)
 					nl2.push_back(node(std::move(*j), !i->ishole));
 			case A_IS_EMPTY:
 				i++;
@@ -1182,11 +1184,11 @@ typedef struct {
 	XY   e;
 	int  substitue;//if orig_s->e needs to be removed, try this
 	bool separate; //true if it is a circle that became detached (used only if valid==false)
-	Edge res;    
+	Edge res;
 	int  next;     //holds the index of edge with which res is a crosspoint (for optimization)
 } EdgeXY;
 
-int next_edgexy(const std::vector<EdgeXY> &edges, int i) 
+int next_edgexy(const std::vector<EdgeXY> &edges, int i)
 {
 	int j = i;
 	do {
@@ -1195,7 +1197,7 @@ int next_edgexy(const std::vector<EdgeXY> &edges, int i)
 	return edges[j].valid ? j : -1;
 }
 
-int prev_edgexy(const std::vector<EdgeXY> &edges, int i) 
+int prev_edgexy(const std::vector<EdgeXY> &edges, int i)
 {
 	int j = i;
 	do {
@@ -1221,7 +1223,7 @@ void Polygon::Expand(double gap, PolygonList &res) const
 		edges[i].next = -1;
 		if (edges[i].valid) current_size++;
 	}
-	if (current_size==0) 
+	if (current_size==0)
 		return; //empty - all edges were removed by expand (e.g., circles with too small radius and gap<0)
 
 	bool once_more;
@@ -1248,9 +1250,9 @@ void Polygon::Expand(double gap, PolygonList &res) const
 				//Drop the second and modify the endpoint of the first
 				edges[i].valid = false;
 				edges[i].separate = false;
-				edges[prev].substitue = -1;  
-				edges[prev].s.e = edges[i].s.e;  
-				//keep prev as is 
+				edges[prev].substitue = -1;
+				edges[prev].s.e = edges[i].s.e;
+				//keep prev as is
 				current_size--;
 				once_more = true;
 				continue;
@@ -1258,17 +1260,17 @@ void Polygon::Expand(double gap, PolygonList &res) const
 				//the last added edge and this one is parallel. We need to add only one of them, but
 				//we do not know which. Since edges[prev] is already there, we skip adding edges[i], but
 				//mark edges[prev] with i as a potential substitute.
-				edges[prev].substitue = i;  
+				edges[prev].substitue = i;
 				edges[i].valid = false;
 				edges[i].separate = false;
-				//keep prev as is 
+				//keep prev as is
 				current_size--;
 				once_more = true;
 				continue;
 			case 0: //A circle not matching: either edges[prev] and/or edges[i] are curvy and they do not cross
 				//if edges[i] is curvy, mark it, keep prev unchanged and continue
 				int n;
-				if (!edges[i].s.IsStraight()) 
+				if (!edges[i].s.IsStraight())
 					n = i;
 				else { //edges[i] is line: remove edges[prev] and re-do it from there
 					n = prev;
@@ -1276,7 +1278,7 @@ void Polygon::Expand(double gap, PolygonList &res) const
 				}
 				edges[n].valid = false;
 				if (edges[n].separate = edges[n].s.GetSpan()>M_PI)
-					num_separate++; 
+					num_separate++;
 				current_size--;
 				once_more = true;
 				continue;
@@ -1285,7 +1287,7 @@ void Polygon::Expand(double gap, PolygonList &res) const
 		}
 		if (current_size<=1) break; //all edges gone (but there may be separate)
 		//remove edges that changed direction compared to original
-		int i = next_edgexy(edges,size()-1); 
+		int i = next_edgexy(edges,size()-1);
 		_ASSERT(i>=0);
 		while(1) {
 			int after = next_edgexy(edges, i);
@@ -1321,22 +1323,22 @@ void Polygon::Expand(double gap, PolygonList &res) const
 	//copy resulting polygon to res
 	if (current_size) {
 		PolygonWithHoles result;
-		int i = next_edgexy(edges,size()-1); 
+		int i = next_edgexy(edges,size()-1);
 		while(1) {
 			result.push_back(edges[i].res);
 			int next = next_edgexy(edges, i);
 			if (next <= i) break;
 			i = next;
-		} 
+		}
 		if (result.size()>1 || !result[0].IsStraight()) {
-			if (result.size()==1) 
+			if (result.size()==1)
 				result[0].SetEllipseToFull();
 			result.CalculateBoundingBox();  //also calculates bounding boxes of edges
-			//if (SAME==result.Untangle(res, EXPAND_RULE)) 
+			//if (SAME==result.Untangle(res, EXPAND_RULE))
 				res.append(result);        //expanded polygon is not tangled, just add it
 		}
 	}
-	if (num_separate) 
+	if (num_separate)
 		for (int i=0; i<size(); i++) {
 			if (edges[i].valid || !edges[i].separate) continue;
 			Polygon b;

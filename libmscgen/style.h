@@ -5,6 +5,7 @@
 #include "arrowhead.h"
 #include "stringparse.h"
 #include "numbering.h"
+#include "csh.h"
 
 struct MscStyle
 {
@@ -28,6 +29,8 @@ struct MscStyle
     MscStyle operator +(const MscStyle &toadd) const
         {return MscStyle(*this) += toadd;}
     bool AddAttribute(const Attribute &a, Msc *m);
+    void AttributeNames(const_char_vector_t &v, const Csh &csh) const;
+    bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh) const;
     std::string Print(int ident = 0) const;
 };
 
@@ -40,15 +43,15 @@ public:
     const MscStyle &GetStyle(const string&) const;
 };
 
-class Context 
+class Context
 {
 public:
     bool           numbering;
     bool           compress;
     StyleSet       styles;
     ColorSet       colors;
-	NumberingStyle numberingStyle;
-	Context() : numbering(false), compress(false) {}
+    NumberingStyle numberingStyle;
+    Context() : numbering(false), compress(false) {}
 };
 
 class Design : public Context

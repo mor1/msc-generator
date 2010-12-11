@@ -33,7 +33,7 @@ void PolygonList::assign(std::vector<Edge> &&v, bool winding)
         append(std::move(tmp));
     case Polygon::A_IS_EMPTY: //empty result okay
     case Polygon::OVERLAP:    //result is already in *this
-		break;  
+		break;
     }
 }
 
@@ -47,36 +47,8 @@ void PolygonList::assign(const std::vector<Edge> &v, bool winding)
         append(std::move(tmp));
     case Polygon::A_IS_EMPTY: //empty result okay
     case Polygon::OVERLAP:    //result is already in *this
-		break;  
+		break;
     }
-}
-
-inline PolygonList &PolygonList::operator += (const PolygonList &a)
-{
-    if (boundingBox.Overlaps(a.GetBoundingBox()))
-        for (auto i = a.begin(); i!=a.end(); i++)
-            operator += (*i);
-    else
-        append(a);
-    return *this;
-}
-
-inline PolygonList &PolygonList::operator *= (const PolygonList &a)
-{
-    if (boundingBox.Overlaps(a.boundingBox))
-        for (auto i = a.begin(); i!=a.end(); i++)
-            operator *= (*i);
-    else
-        clear();
-    return *this;
-}
-
-inline PolygonList &PolygonList::operator -= (const PolygonList &a)
-{
-    if (boundingBox.Overlaps(a.boundingBox))
-        for (auto i = a.begin(); i!=a.end(); i++)
-            operator -= (*i);
-    return *this;
 }
 
 PolygonList &PolygonList::operator += (const PolygonWithHoles &p)
@@ -179,11 +151,11 @@ Polygon::poly_result_t PolygonWithHoles::Add(const PolygonWithHoles &p, PolygonL
         res.rbegin()->holes -= p;
         break;
 	case OVERLAP:
-		if (holes.size()) 
+		if (holes.size())
 			res.rbegin()->holes += (holes - p);
-        if (p.holes.size()) 
+        if (p.holes.size())
 			res.rbegin()->holes += (p.holes - *this);
-		if (holes.size() && p.holes.size()) 
+		if (holes.size() && p.holes.size())
 			res.rbegin()->holes += (holes * p.holes);
         break;
     }
@@ -257,7 +229,7 @@ Polygon::poly_result_t PolygonWithHoles::Sub(const PolygonWithHoles &p, PolygonL
 void PolygonWithHoles::Expand(double gap, PolygonList &res) const
 {
 	Polygon::Expand(gap, res);
-	PolygonList tmp; 
+	PolygonList tmp;
 	holes.Expand(-gap, tmp);
 	res -= tmp;
 }
