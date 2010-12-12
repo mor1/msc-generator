@@ -75,8 +75,8 @@ class StringFormat {
     StringFormat &operator +=(const StringFormat& toadd);
     void SetColor(MscColorType c);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
-    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string &attr, Csh &csh);
 
     MscIdentType GetIdent() const
         {return ident.first?ident.second:MSC_IDENT_CENTER;}

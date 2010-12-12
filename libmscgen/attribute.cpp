@@ -52,13 +52,6 @@ bool CaseInsensitiveEndsWith(const char *base, const char *a)
     return i2<0 || base[i2]=='.';
 }
 
-void const_char_vector_t::Add(const char names[][ENUM_STRING_LEN], const string &prefix)
-{
-    //index==0 is usually "invalid"
-    for (int i=1; names[i][0]; i++)
-        Add(prefix+names[i]);
-}
-
 string Attribute::Print(int ident) const
 {
     string s(ident*2,' ');
@@ -278,29 +271,29 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-void MscLineAttr::AttributeNames(const_char_vector_t &v, const Csh &csh)
+void MscLineAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"line.color", "line.type", "line.width", "line.radius", ""};
-    v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
 }
 
-bool MscLineAttr::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh)
+bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValues(v);
+        csh.AddColorValuesToHints();
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "type")) {
-        v.Add(EnumEncapsulator<MscLineType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        csh.AddToHints(EnumEncapsulator<MscLineType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "width")) {
-        v.Add(csh.HintPrefixNonSelectable()+"<number in pixels>");
+        csh.AddToHints(csh.HintPrefixNonSelectable()+"<number in pixels>");
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "radius")) {
-        v.Add(csh.HintPrefixNonSelectable()+"<number in pixels>");
+        csh.AddToHints(csh.HintPrefixNonSelectable()+"<number in pixels>");
         return true;
     }
     return false;
@@ -376,21 +369,21 @@ bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-void MscFillAttr::AttributeNames(const_char_vector_t &v, const Csh &csh)
+void MscFillAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"fill.color", "fill.gradient", ""};
-    v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
 }
 
-bool MscFillAttr::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh)
+bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValues(v);
+        csh.AddColorValuesToHints();
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "gradient")) {
-        v.Add(EnumEncapsulator<MscGradientType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        csh.AddToHints(EnumEncapsulator<MscGradientType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
         return true;
     }
     return false;
@@ -481,22 +474,22 @@ bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-void MscShadowAttr::AttributeNames(const_char_vector_t &v, const Csh &csh)
+void MscShadowAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"shadow.color", "shadow.offset", "shadow.blur", ""};
-    v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
 }
 
-bool MscShadowAttr::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh)
+bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValues(v);
+        csh.AddColorValuesToHints();
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "offset") ||
         CaseInsensitiveEndsWith(attr, "offset")) {
-        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>");
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>");
         return true;
     }
     return false;

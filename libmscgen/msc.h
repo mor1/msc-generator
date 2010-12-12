@@ -154,6 +154,8 @@ public:
 
     bool AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
 
     EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
     void AddArcs(ArcList *a);

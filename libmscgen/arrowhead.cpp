@@ -155,32 +155,32 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-void ArrowHead::AttributeNames(const_char_vector_t &v, const Csh &csh)
+void ArrowHead::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"arrow.type", "arrow.size", "arrow.color", "arrow.starttype", "arrow.midtype",
      "arrow.endtype", "line.width", ""};
-    v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
 }
 
-bool ArrowHead::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh)
+bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr, "arrow") ||
         CaseInsensitiveEndsWith(attr, "type") ||
         CaseInsensitiveEndsWith(attr, "starttype") ||
         CaseInsensitiveEndsWith(attr, "midtype") ||
         CaseInsensitiveEndsWith(attr, "endtype")) {
-        v.Add(EnumEncapsulator<MscArrowType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        csh.AddToHints(EnumEncapsulator<MscArrowType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "arrowsize") ||
         CaseInsensitiveEndsWith(attr, "size")) {
-        v.Add(EnumEncapsulator<MscArrowSize>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        csh.AddToHints(EnumEncapsulator<MscArrowSize>::names, csh.HintPrefix(COLOR_ATTRVALUE));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "color") ||
         CaseInsensitiveEndsWith(attr, "line.width")) {
-        return MscLineAttr::AttributeValues(attr, v, csh);
+        return MscLineAttr::AttributeValues(attr, csh);
     }
     return false;
 

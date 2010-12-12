@@ -138,58 +138,58 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
     return false;
 }
 
-void MscStyle::AttributeNames(const_char_vector_t &v, const Csh &csh) const
+void MscStyle::AttributeNames(Csh &csh) const
 {
     static const char names[][ENUM_STRING_LEN] =
     {"vline.color", "vline.type", "vline.width", /*"vline.radius",*/ ""};
 
-    if (f_line) MscLineAttr::AttributeNames(v, csh);
-    if (f_fill) MscFillAttr::AttributeNames(v, csh);
-    if (f_arrow) ArrowHead::AttributeNames(v, csh);
-    if (f_shadow) MscShadowAttr::AttributeNames(v, csh);
-    if (f_text) StringFormat::AttributeNames(v, csh);
-    if (f_solid) v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"solid");
-    if (f_numbering) v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"number");
-    if (f_compress) v.Add(csh.HintPrefix(COLOR_ATTRNAME)+"compress");
-    if (f_vline) v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+    if (f_line) MscLineAttr::AttributeNames(csh);
+    if (f_fill) MscFillAttr::AttributeNames(csh);
+    if (f_arrow) ArrowHead::AttributeNames(csh);
+    if (f_shadow) MscShadowAttr::AttributeNames(csh);
+    if (f_text) StringFormat::AttributeNames(csh);
+    if (f_solid) csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"solid");
+    if (f_numbering) csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"number");
+    if (f_compress) csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"compress");
+    if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
     for (auto i=csh.Contexts.back().StyleNames.begin(); i!=csh.Contexts.back().StyleNames.end(); i++)
         if (csh.ForbiddenStyles.find(*i) == csh.ForbiddenStyles.end())
-            v.Add(csh.HintPrefix(COLOR_STYLENAME) + *i);
+            csh.AddToHints(csh.HintPrefix(COLOR_STYLENAME) + *i);
 }
 
-bool MscStyle::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh) const
+bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
 {
     if (CaseInsensitiveEqual(attr, "line.width")) {
-        if (f_arrow) return arrow.AttributeValues(attr, v, csh);
-        if (f_line) return line.AttributeValues(attr, v, csh);
+        if (f_arrow) return arrow.AttributeValues(attr, csh);
+        if (f_line) return line.AttributeValues(attr, csh);
         return false;
     }
     if ((CaseInsensitiveBeginsWidth(attr, "text") || CaseInsensitiveEqual(attr, "ident")) && f_text)
-        return text.AttributeValues(attr, v, csh);
+        return text.AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWidth(attr, "line") && f_line)
-        return line.AttributeValues(attr, v, csh);
+        return line.AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWidth(attr, "vline") && f_vline)
-        return vline.AttributeValues(attr, v, csh);
+        return vline.AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWidth(attr, "fill") && f_fill)
-        return fill.AttributeValues(attr, v, csh);
+        return fill.AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWidth(attr, "shadow") && f_shadow)
-        return shadow.AttributeValues(attr, v, csh);
+        return shadow.AttributeValues(attr, csh);
     if ((CaseInsensitiveBeginsWidth(attr, "arrow") || CaseInsensitiveEqual(attr, "arrowsize")) && f_arrow)
-        return arrow.AttributeValues(attr, v, csh);
+        return arrow.AttributeValues(attr, csh);
     if (CaseInsensitiveEqual(attr, "solid") && f_solid) {
-        v.Add(csh.HintPrefixNonSelectable() + "<number: \b0.0..1.0\b>");
-        v.Add(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>");
+        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number: \b0.0..1.0\b>");
+        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>");
         return true;
     }
     if (CaseInsensitiveEqual(attr, "compress") && f_compress) {
-        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
-        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
         return true;
     }
     if (CaseInsensitiveEqual(attr, "number") && f_numbering) {
-        v.Add(csh.HintPrefixNonSelectable() + "<number>");
-        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
-        v.Add(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number>");
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
         return true;
     }
     return false;
