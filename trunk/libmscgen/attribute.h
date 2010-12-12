@@ -67,7 +67,6 @@ class PtrList : public std::list<Object*>
 
 //Enum helper functions////////////////////////////////////////////
 
-#define ENUM_STRING_LEN 20
 template <typename Enum>
 class EnumEncapsulator {
 public:
@@ -205,8 +204,8 @@ public:
         {switch(type.second) {case LINE_NONE: return 0;
         case LINE_DOUBLE: return width.second*3; default: return width.second;}}
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
-    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
@@ -234,8 +233,8 @@ public:
     MscFillAttr &operator +=(const MscFillAttr&a);
     bool operator == (const MscFillAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
-    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
@@ -250,8 +249,8 @@ public:
     MscShadowAttr &operator +=(const MscShadowAttr&a);
     bool operator == (const MscShadowAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(const_char_vector_t &v, const Csh &csh);
-    static bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 

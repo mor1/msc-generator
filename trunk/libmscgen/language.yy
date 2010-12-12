@@ -61,16 +61,17 @@
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
 #define YYLLOC_DEFAULT(Current, Rhs, N)				\
     do								\
-      if (YYID (N))                                             \
-	{							\
-        (Current).first_pos = YYRHSLOC (Rhs, 1).first_pos;	\
-	  (Current).last_pos  = YYRHSLOC (Rhs, N).last_pos;	\
-	}						        \
-      else							\
-	{							\
+      if (YYID (N)) {					        \
+        (Current).first_pos =     YYRHSLOC(Rhs,1).first_pos;	\
+	(Current).last_pos  =     YYRHSLOC(Rhs,N).last_pos;	\
+        (Current).hint_can_come = YYRHSLOC(Rhs,N).hint_can_come;\
+        (Current).hint_type =     YYRHSLOC(Rhs,N).hint_type;    \
+        (Current).hint_attr_name =YYRHSLOC(Rhs,N).hint_attr_name;\
+      } else {							\
 	  (Current).first_pos = (Current).last_pos   =		\
 	    YYRHSLOC (Rhs, 0).last_pos;				\
-	}							\
+          (Current).hint_can_come = false;                      \
+      }							        \
     while (YYID (0))
 
 /* yyerror
@@ -151,11 +152,11 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 };
 
 %type <msc>        msc
-%type <arcbase>    arcrel arc arc_with_parallel complete_arc opt vertrel scope_close
+%type <arcbase>    arcrel arc arc_with_parallel opt vertrel scope_close
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def pipe_def_list
 %type <arcparallel>parallel
-%type <arclist>    top_level_arclist arclist braced_arclist mscenclosed optlist
+%type <arclist>    top_level_arclist arclist braced_arclist optlist
 %type <entity>     entity first_entity
 %type <entitylist> entitylist
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
@@ -178,11 +179,11 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
-%destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel complete_arc opt vertrel scope_close
+%destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel opt vertrel scope_close
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def pipe_def_list
 %destructor {if (!C_S_H) delete $$;} parallel
-%destructor {if (!C_S_H) delete $$;} top_level_arclist arclist braced_arclist mscenclosed optlist
+%destructor {if (!C_S_H) delete $$;} top_level_arclist arclist braced_arclist optlist
 %destructor {if (!C_S_H) delete $$;} entity first_entity entitylist
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
@@ -198,7 +199,18 @@ msc:
 {
     //no action for empty file
 }
-             | top_level_arclist
+           | msckey braced_arclist
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintCanComeBetween(@1, @2)) {
+        csh.AddDesignsToHints();
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+        msc.AddArcs($2);
+  #endif
+}
+           | top_level_arclist
 {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -237,6 +249,44 @@ top_level_arclist: arclist
   #endif
 };
 
+
+msckey:       TOK_MSC
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+  #endif
+    free($1);
+}
+              | TOK_MSC TOK_EQUAL
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        (@$).hint_can_come = true;
+        (@$).hint_type = HINT_DESIGNS;
+  #else
+        msc.Error.Error(MSC_POS(@2).end, "Missing design name.");
+  #endif
+    free($1);
+}
+              | TOK_MSC TOK_EQUAL string
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH(@3, COLOR_DESIGNNAME);
+        if (csh.CheckHintAtAndBefore(@2, @3, HINT_DESIGNS)) {
+            csh.AddDesignsToHints();
+            csh.hintStatus = HINT_READY;
+        }
+        csh.SetDesignTo($1);
+  #else
+        msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
+  #endif
+    free($1);
+    free($3);
+};
 
 braced_arclist: scope_open arclist scope_close
 {
@@ -285,7 +335,7 @@ braced_arclist: scope_open arclist scope_close
 };
 
 
-arclist:    complete_arc
+arclist:    arc_with_parallel
 {
   #ifndef C_S_H_IS_COMPILED
     if ($1)
@@ -294,7 +344,7 @@ arclist:    complete_arc
         $$ = new ArcList;
   #endif
 }
-            | arclist complete_arc
+            | arclist arc_with_parallel
 {
   #ifndef C_S_H_IS_COMPILED
     if ($2)
@@ -302,136 +352,30 @@ arclist:    complete_arc
     $$ = ($1);
   #endif
 }
-            | mscenclosed
-{
-  #ifndef C_S_H_IS_COMPILED
-    $$ = $1;
-  #endif
-}
-            | arclist mscenclosed
-{
-  #ifndef C_S_H_IS_COMPILED
-    //Merge $2 into $1
-    ($1)->splice(($1)->end(), *($2));
-    delete ($2);
-    $$ = $1;
-  #endif
-};
 
-//here we do not use open_scope, but only TOK_OCBRACKET, because no new
-//scope is opened for an msc {...} arclist: anything you do there spills over
-//to later sections
-mscenclosed: msckey TOK_OCBRACKET arclist TOK_CCBRACKET
+arc_with_parallel: arc
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_BRACE);
-        csh.AddCSH(@4, COLOR_BRACE);
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
-                csh.hintStatus = HINT_READY;
-                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
-                    csh.Hints.insert(i->first);
-            } else
-                csh.hintStatus = HINT_NONE;
-        }
   #else
-        $$ = $3;
+        if ($1) ($1)->SetLineEnd(MSC_POS(@$));
+        $$=$1;
   #endif
 }
-              |msckey TOK_OCBRACKET TOK_CCBRACKET
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_BRACE);
-        csh.AddCSH(@3, COLOR_BRACE);
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
-                csh.hintStatus = HINT_READY;
-                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
-                    csh.Hints.insert(i->first);
-            } else
-                csh.hintStatus = HINT_NONE;
-        }
-  #else
-        $$ = new ArcList;
-  #endif
-};
-              |msckey TOK_OCBRACKET arclist error TOK_CCBRACKET
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_BRACE);
-        csh.AddCSH(@4, COLOR_ERROR);
-        csh.AddCSH(@5, COLOR_BRACE);
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
-                csh.hintStatus = HINT_READY;
-                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
-                    csh.Hints.insert(i->first);
-            } else
-                csh.hintStatus = HINT_NONE;
-        }
-  #else
-        $$ = $3;
-  #endif
-    yyerrok;
-}
-              |msckey TOK_OCBRACKET arclist error
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_BRACE);
-        csh.AddCSH(@4, COLOR_ERROR);
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@1).last_pos,(@2).first_pos)) {
-                csh.hintStatus = HINT_READY;
-                for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
-                    csh.Hints.insert(i->first);
-            } else
-                csh.hintStatus = HINT_NONE;
-        }
-  #else
-        $$ = $3;
-  #endif
-};
-
-msckey:       TOK_MSC
+                  | TOK_COMMAND_PARALLEL arc
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-  #endif
-    free($1);
-}
-              | TOK_MSC TOK_EQUAL
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.hintStatus = HINT_ATTR_VALUE_CAN_COME;
-
-  #else
-        msc.Error.Error(MSC_POS(@2).end, "Missing design name.");
-  #endif
-    free($1);
-}
-              | TOK_MSC TOK_EQUAL string
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-        csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH(@3, COLOR_DESIGNNAME);
-        if (csh.CursorIn((@2).last_pos,(@3).last_pos)) {
-            csh.hintStatus = HINT_READY;
-            csh.hintedStringPos = @3;
-            for (auto i = csh.Designs.begin(); i!=csh.Designs.end(); i++)
-                csh.Hints.insert(i->first);
+        if ($2) {
+            ($2)->SetLineEnd(MSC_POS(@$));
+            ($2)->SetParallel();
         }
-  #else
-        msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
+        $$ = $2;
   #endif
     free($1);
-    free($3);
-};
+}
 
-complete_arc: TOK_SEMICOLON
+arc:          TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_SEMICOLON);
@@ -439,69 +383,36 @@ complete_arc: TOK_SEMICOLON
         $$=NULL;
   #endif
 }
-              | error TOK_SEMICOLON
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_ERROR);
-        csh.AddCSH(@2, COLOR_SEMICOLON);
-  #else
-        $$=NULL;
-  #endif
-}
-              |arc_with_parallel TOK_SEMICOLON
+              | arcrel TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@2, COLOR_SEMICOLON);
   #else
-        if ($1) ($1)->SetLineEnd(MSC_POS(@$));
         $$=$1;
   #endif
 }
-              |arc_with_parallel error TOK_SEMICOLON
+              | arcrel full_arcattrlist_with_label TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_ERROR);
         csh.AddCSH(@3, COLOR_SEMICOLON);
-  #else
-        if ($1) ($1)->SetLineEnd(MSC_POS(@$));
-        $$=$1;
-  #endif
-    yyerrok;
-};
-
-arc_with_parallel: arc
-                  | TOK_COMMAND_PARALLEL arc
-{
-  #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
-        ($2)->SetParallel();
-        $$ = $2;
-  #endif
-    free($1);
-}
-
-arc:            arcrel
-              | arcrel full_arcattrlist_with_label
-{
-  #ifdef C_S_H_IS_COMPILED
-        if (csh.hintStatus==HINT_ATTR_NAME) {
-            const_char_vector_t v;
-            ArcArrow::AttributeNames(v, csh);
-            csh.SetHintsReady(std::move(v));
-        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
-            const_char_vector_t v;
-            ArcArrow::AttributeValues(csh.hintAttrName, v, csh);
-            csh.SetHintsReady(std::move(v));
+        csh.CheckHintCanComeBetween(@2, @3);
+        if (csh.CursorIn(@$) && csh.hintStatus == HINT_LOCATED) {
+            switch (csh.hintType) {
+            case HINT_ATTR_NAME:  ArcArrow::AttributeNames(csh); break;
+            case HINT_ATTR_VALUE: ArcArrow::AttributeValues(csh.hintAttrName, csh); break;
+            default: _ASSERT(0);
+            }
+            csh.hintStatus = HINT_READY;
         }
   #else
     $$ = ($1)->AddAttributeList($2);
   #endif
 }
-              |TOK_COMMAND_BIG arcrel
+              |TOK_COMMAND_BIG arcrel TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         //Returns NULL, if BIG is before a self-pointing arrow
         $$ = msc.CreateArcBigArrow($2);
@@ -509,18 +420,19 @@ arc:            arcrel
   #endif
     free($1);
 }
-              | TOK_COMMAND_BIG arcrel full_arcattrlist_with_label
+              | TOK_COMMAND_BIG arcrel full_arcattrlist_with_label TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
-        if (csh.hintStatus==HINT_ATTR_NAME) {
-            const_char_vector_t v;
-            ArcBigArrow::AttributeNames(v, csh);
-            csh.SetHintsReady(std::move(v));
-        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
-            const_char_vector_t v;
-            ArcBigArrow::AttributeValues(csh.hintAttrName, v, csh);
-            csh.SetHintsReady(std::move(v));
+        csh.AddCSH(@4, COLOR_SEMICOLON);
+        csh.CheckHintCanComeBetween(@3, @4);
+        if (csh.CursorIn(@$) && csh.hintStatus == HINT_LOCATED) {
+            switch (csh.hintType) {
+            case HINT_ATTR_NAME:  ArcBigArrow::AttributeNames(csh); break;
+            case HINT_ATTR_VALUE: ArcBigArrow::AttributeValues(csh.hintAttrName, csh); break;
+            default: _ASSERT(0);
+            }
+            csh.hintStatus = HINT_READY;
         }
   #else
         //Returns NULL, if BIG is before a self-pointing arrow
@@ -531,66 +443,75 @@ arc:            arcrel
   #endif
     free($1);
 }
-              |TOK_VERTICAL vertrel
+              |TOK_VERTICAL vertrel TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = $2;
   #endif
     free($1);
 }
-              | TOK_VERTICAL vertrel full_arcattrlist_with_label
+              | TOK_VERTICAL vertrel full_arcattrlist_with_label TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
-        if (csh.hintStatus==HINT_ATTR_NAME) {
-            const_char_vector_t v;
-            ArcVerticalArrow::AttributeNames(v, csh);
-            csh.SetHintsReady(std::move(v));
-        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
-            const_char_vector_t v;
-            ArcVerticalArrow::AttributeValues(csh.hintAttrName, v, csh);
-            csh.SetHintsReady(std::move(v));
+        csh.AddCSH(@4, COLOR_SEMICOLON);
+        csh.CheckHintCanComeBetween(@3, @4);
+        if (csh.CursorIn(@$) && csh.hintStatus == HINT_LOCATED) {
+            switch (csh.hintType) {
+            case HINT_ATTR_NAME:  ArcVerticalArrow::AttributeNames(csh); break;
+            case HINT_ATTR_VALUE: ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh); break;
+            default: _ASSERT(0);
+            }
+            csh.hintStatus = HINT_READY;
         }
   #else
         $$ = ($2)->AddAttributeList($3);
   #endif
     free($1);
 }
-              | full_arcattrlist_with_label
+              | full_arcattrlist_with_label TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
-        if (csh.hintStatus==HINT_ATTR_NAME) {
-            const_char_vector_t v;
-            ArcDivider::AttributeNames(v, csh);
-            csh.SetHintsReady(std::move(v));
-        } else if (csh.hintStatus==HINT_ATTR_VALUE) {
-            const_char_vector_t v;
-            ArcDivider::AttributeValues(csh.hintAttrName, v, csh);
-            csh.SetHintsReady(std::move(v));
+        csh.AddCSH(@2, COLOR_SEMICOLON);
+        csh.CheckHintCanComeBetween(@1, @2);
+        if (csh.CursorIn(@$) && csh.hintStatus == HINT_LOCATED) {
+            switch (csh.hintType) {
+            case HINT_ATTR_NAME:  ArcDivider::AttributeNames(csh); break;
+            case HINT_ATTR_VALUE: ArcDivider::AttributeValues(csh.hintAttrName, csh); break;
+            default: _ASSERT(0);
+            }
+            csh.hintStatus = HINT_READY;
         }
   #else
     $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc))->AddAttributeList($1);
   #endif
 }
-              | first_entity
+              | first_entity TOK_SEMICOLON
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@2, COLOR_SEMICOLON);
+  #else
     $$ = new CommandEntity((new EntityDefList)->Append($1), &msc);
   #endif
 }
-            |  first_entity TOK_COMMA entitylist
+            |  first_entity TOK_COMMA entitylist TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
+    csh.AddCSH(@4, COLOR_SEMICOLON);
+    csh.CheckHintCanComeBetween(@1,@2);
   #else
     $$ = new CommandEntity(($3)->Prepend($1), &msc);
   #endif
 }
-              | optlist
+              | optlist TOK_SEMICOLON
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_SEMICOLON);
+  #else
     /* If there were arcs defined by the options (e.g., background)
      * enclose them in a single item parallel element. */
     if ($1) {
@@ -599,116 +520,131 @@ arc:            arcrel
         $$ = NULL;
   #endif
 }
-              | emphasis_list
+              | emphasis_list TOK_SEMICOLON
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_SEMICOLON);
+  #else
     $$ = $1; //to remove warning for downcast
   #endif
 }
-              | parallel
+              | parallel TOK_SEMICOLON
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_SEMICOLON);
+  #else
     $$ = $1;
   #endif
 }
-              | TOK_COMMAND_DEFCOLOR colordeflist
+              | TOK_COMMAND_DEFCOLOR colordeflist TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = NULL;
   #endif
     free($1);
 }
-              | TOK_COMMAND_DEFSTYLE styledeflist
+              | TOK_COMMAND_DEFSTYLE styledeflist TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = NULL;
   #endif
     free($1);
 }
-              | TOK_COMMAND_DEFDESIGN designdef
+              | TOK_COMMAND_DEFDESIGN designdef TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = NULL;
   #endif
     free($1);
 }
-              | TOK_COMMAND_HEADING
+              | TOK_COMMAND_HEADING TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_SEMICOLON);
   #else
         $$ = new CommandEntity(NULL, &msc);
   #endif
     free($1);
 }
-              | TOK_COMMAND_HEADING full_arcattrlist
+              | TOK_COMMAND_HEADING full_arcattrlist TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = (new CommandEntity(NULL, &msc))->AddAttributeList($2);
   #endif
     free($1);
 }
-	      | TOK_COMMAND_NUDGE
+	      | TOK_COMMAND_NUDGE TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_SEMICOLON);
   #else
         $$ = new ArcDivider(MSC_COMMAND_NUDGE, &msc);
   #endif
     free($1);
 }
-	      | TOK_COMMAND_NUDGE  full_arcattrlist
+	      | TOK_COMMAND_NUDGE  full_arcattrlist TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList($2);
   #endif
     free($1);
 }
-              | TOK_COMMAND_MARK string
+              | TOK_COMMAND_MARK string TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_MARKERNAME);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = new CommandMark($2, MSC_POS(@$), &msc);
   #endif
     free($1);
     free($2);
 }
-              | TOK_COMMAND_MARK string full_arcattrlist
+              | TOK_COMMAND_MARK string full_arcattrlist TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
-        csh.AddCSH(@1, COLOR_MARKERNAME);
+        csh.AddCSH(@2, COLOR_MARKERNAME);
+        csh.AddCSH(@4, COLOR_SEMICOLON);
   #else
         $$ = (new CommandMark($2, MSC_POS(@$), &msc))->AddAttributeList($3);
   #endif
     free($1);
     free($2);
 }
-              | TOK_COMMAND_NEWPAGE
+              | TOK_COMMAND_NEWPAGE TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_SEMICOLON);
   #else
         $$ = new CommandNewpage(&msc);
   #endif
     free($1);
 }
-              | TOK_COMMAND_NEWPAGE full_arcattrlist
+              | TOK_COMMAND_NEWPAGE full_arcattrlist TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@3, COLOR_SEMICOLON);
   #else
         $$ = (new CommandNewpage(&msc))->AddAttributeList($2);
   #endif
@@ -790,10 +726,13 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH(@3, COLOR_ATTRVALUE);
-        if (csh.Designs.find($1) != csh.Designs.end())
-            for (auto i = csh.Contexts.begin(); i!=csh.Contexts.end(); i++)
-                *i += csh.Designs[$1];
+        csh.AddCSH(@3, COLOR_DESIGNNAME);
+        if (csh.CheckHintAtAndBefore(@2, @3, HINT_DESIGNS)) {
+            csh.AddDesignsToHints();
+            csh.hintStatus = HINT_READY;
+        } else
+            csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.SetDesignTo($1);
   #else
         msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
         $$ = NULL;
@@ -802,6 +741,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
     free($3);
 };
 
+//Can return HINT_CAN_COME
 entitylist:   entity
 {
   #ifndef C_S_H_IS_COMPILED
@@ -811,16 +751,27 @@ entitylist:   entity
             | entitylist TOK_COMMA entity
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@2, COLOR_COMMA);
+        csh.AddCSH(@2, COLOR_COMMA);
+        csh.CheckHintBetween(@2, @3, HINT_ENTITY);
+        csh.CheckHintCanComeBetween(@1, @2);
   #else
     $$ = (EntityDefList*)(($1)->Append($3));
   #endif
 };
 
+//Can return HINT_CAN_COME
 entity:       entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_EntityName(@1, $1);
+        if (csh.CursorIn(@$) && csh.hintStatus == HINT_LOCATED) {
+            switch (csh.hintType) {
+            case HINT_ATTR_NAME:  EntityDef::AttributeNames(csh); break;
+            case HINT_ATTR_VALUE: EntityDef::AttributeValues(csh.hintAttrName, csh); break;
+            default: _ASSERT(0);
+            }
+            csh.hintStatus = HINT_READY;
+        }
   #else
         $$ = (new EntityDef($1, &msc))->AddAttributeList($2, &msc);
         ($$)->SetLineEnd(MSC_POS(@$));
@@ -838,6 +789,7 @@ entity:       entity_string full_arcattrlist_with_label
     free($1);
 };
 
+//Can return HINT_CAN_COME
 first_entity:  entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1077,7 +1029,7 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH(@3, COLOR_ATTRVALUE);
+        csh.AddCSH(@3, COLOR_DESIGNNAME);
   #else
         msc.AddDesignAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
@@ -1662,6 +1614,7 @@ colon_string: TOK_COLON_QUOTED_STRING
     $$ = $1;
 };
 
+//Can return with HINT_CAN_COME
 full_arcattrlist_with_label: colon_string
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1678,19 +1631,12 @@ full_arcattrlist_with_label: colon_string
   #endif
     free($1);
 }
-              | full_arcattrlist colon_string
-{
-  #ifdef C_S_H_IS_COMPILED
-  #else
-        $$ = ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol()));
-  #endif
-    free($2);
-}
               | full_arcattrlist colon_string full_arcattrlist
 {
   #ifdef C_S_H_IS_COMPILED
+        csh.CheckHintCanComeBetween(@1, @2);
   #else
-        ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol()));
+        $$ = ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol()));
         //Merge $3 at the end of $1
         ($1)->splice(($1)->end(), *($3));
         delete ($3); //empty list now
@@ -1698,16 +1644,25 @@ full_arcattrlist_with_label: colon_string
   #endif
     free($2);
 }
+              | full_arcattrlist colon_string
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.CheckHintCanComeBetween(@1, @2);
+  #else
+        $$ = ($1)->Append(new Attribute("label", $2, MSC_POS(@2), MSC_POS(@2).IncStartCol()));
+  #endif
+    free($2);
+}
               | full_arcattrlist;
 
 
+//Can return with HINT_CAN_COME
 full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@2, COLOR_BRACKET);
-        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
-            csh.hintStatus = HINT_ATTR_NAME;
+        csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
   #else
     $$ = new AttributeList;
   #endif
@@ -1717,16 +1672,8 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@3, COLOR_BRACKET);
-        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
-            csh.hintStatus = HINT_ATTR_NAME;
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@2).last_pos,(@3).first_pos))
-                csh.hintStatus = HINT_ATTR_VALUE;
-            else {
-                csh.hintStatus = HINT_NONE;
-                csh.hintAttrName.clear();
-            }
-        }
+        csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
+        csh.CheckHintCanComeBetween(@2, @3);
   #else
     $$ = $2;
   #endif
@@ -1737,16 +1684,8 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@3, COLOR_ERROR);
         csh.AddCSH(@4, COLOR_BRACKET);
-        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
-            csh.hintStatus = HINT_ATTR_NAME;
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@2).last_pos,(@4).first_pos))
-                csh.hintStatus = HINT_ATTR_VALUE;
-            else {
-                csh.hintStatus = HINT_NONE;
-                csh.hintAttrName.clear();
-            }
-        }
+        csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
+        csh.CheckHintCanComeBetween(@2, @3);
   #else
     $$ = $2;
   #endif
@@ -1757,8 +1696,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@2, COLOR_ERROR);
         csh.AddCSH(@3, COLOR_BRACKET);
-        if (csh.CursorIn((@1).last_pos,(@3).first_pos))
-            csh.hintStatus = HINT_ATTR_NAME;
+        csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
   #else
     $$ = new AttributeList;
   #endif
@@ -1768,16 +1706,8 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@3, COLOR_ERROR);
-        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
-            csh.hintStatus = HINT_ATTR_NAME;
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@2).last_pos,(@3).last_pos))
-                csh.hintStatus = HINT_ATTR_VALUE;
-            else {
-                csh.hintStatus = HINT_NONE;
-                csh.hintAttrName.clear();
-            }
-        }
+        csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
+        csh.CheckHintCanComeBetween(@2, @3);
   #else
     $$ = $2;
   #endif
@@ -1787,13 +1717,16 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
         csh.AddCSH(@2, COLOR_ERROR);
-        if (csh.CursorIn((@1).last_pos,(@2).first_pos))
-            csh.hintStatus = HINT_ATTR_NAME;
+        if (csh.CursorIn((@1).last_pos+1,(@2).last_pos)) {
+            (@$).hint_can_come = true;
+            (@$).hint_type = HINT_ATTR_NAME;
+        }
   #else
     $$ = new AttributeList;
   #endif
 }
 
+//Can return with HINT_CAN_COME
 arcattrlist:    arcattr
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1805,36 +1738,22 @@ arcattrlist:    arcattr
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@2, COLOR_COMMA);
-        if (csh.CursorIn((@2).last_pos,(@3).first_pos))
-            csh.hintStatus = HINT_ATTR_NAME;
-        if (csh.hintStatus == HINT_ATTR_VALUE_CAN_COME) {
-            if (csh.CursorIn((@1).last_pos,(@2).first_pos))
-                csh.hintStatus = HINT_ATTR_VALUE;
-            else {
-                csh.hintStatus = HINT_ATTR_VALUE;
-                csh.hintAttrName.clear();
-            }
-        }
+        csh.CheckHintBetween(@2, @3, HINT_ATTR_NAME);
+        csh.CheckHintCanComeBetween(@1, @2);
   #else
     $$ = ($1)->Append($3);
   #endif
 };
 
+//Can return with HINT_CAN_COME
 arcattr:         string TOK_EQUAL string
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_AttrValue(@3, $3, $1);
-        if (csh.CursorIn(@1)) {
-            csh.hintStatus = HINT_ATTR_NAME;
-            csh.hintedStringPos = @1;
-        }
-        if (csh.CursorIn((@2).last_pos, (@3).last_pos)) {
-            csh.hintStatus = HINT_ATTR_VALUE;
-            csh.hintedStringPos = @3;
-            csh.hintAttrName = $1;
-        }
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, $3, MSC_POS(@1), MSC_POS(@3));
   #endif
@@ -1847,15 +1766,8 @@ arcattr:         string TOK_EQUAL string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_ATTRVALUE);
-        if (csh.CursorIn(@1)) {
-            csh.hintStatus = HINT_ATTR_NAME;
-            csh.hintedStringPos = @1;
-        }
-        if (csh.CursorIn((@2).last_pos, (@3).last_pos)) {
-            csh.hintStatus = HINT_ATTR_VALUE;
-            csh.hintedStringPos = @3;
-            csh.hintAttrName = $1;
-        }
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, atof($3), MSC_POS(@$), MSC_POS(@3), $3);
   #endif
@@ -1868,15 +1780,8 @@ arcattr:         string TOK_EQUAL string
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_ATTRVALUE);
-        if (csh.CursorIn(@1)) {
-            csh.hintStatus = HINT_ATTR_NAME;
-            csh.hintedStringPos = @1;
-        }
-        if (csh.CursorIn((@2).last_pos, (@3).last_pos)) {
-            csh.hintStatus = HINT_ATTR_VALUE;
-            csh.hintedStringPos = @3;
-            csh.hintAttrName = $1;
-        }
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
+        csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1);
   #else
         $$ = new Attribute($1, str2bool($3), MSC_POS(@$), MSC_POS(@3), $3);
   #endif
@@ -1888,12 +1793,10 @@ arcattr:         string TOK_EQUAL string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_ATTRNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        if (csh.CursorIn(@1)) {
-            csh.hintStatus = HINT_ATTR_NAME;
-            csh.hintedStringPos = @1;
-        } else {
-            csh.hintStatus = HINT_ATTR_VALUE_CAN_COME;
-            csh.hintAttrName = $1;
+        if (!csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
+            (@$).hint_can_come = true;
+            (@$).hint_type = HINT_ATTR_VALUE;
+            (@$).hint_attr_name = $1;
         }
   #else
         $$ = new Attribute($1, (char*)NULL, MSC_POS(@$), MSC_POS(@$));
@@ -1904,10 +1807,7 @@ arcattr:         string TOK_EQUAL string
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_StyleOrAttrName(@1, $1);
-        if (csh.CursorIn(@1)) {
-            csh.hintStatus = HINT_ATTR_NAME;
-            csh.hintedStringPos = @1;
-        }
+        csh.CheckHintAt(@1, HINT_ATTR_NAME);
   #else
         $$ = new Attribute($1, MSC_POS(@$));
   #endif

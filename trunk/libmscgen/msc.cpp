@@ -239,7 +239,7 @@ bool Msc::SetDesign(const string&name, bool force)
     Contexts.back().compress  = i->second.compress;
     hscale = i->second.hscale;
     for (ColorSet::const_iterator j = i->second.colors.begin(); j!=i->second.colors.end(); j++)
-		Contexts.back().colors[j->first] = j->second;
+        Contexts.back().colors[j->first] = j->second;
     for (StyleSet::const_iterator j = i->second.styles.begin(); j!=i->second.styles.end(); j++)
         Contexts.back().styles[j->first] = j->second;
 	Contexts.back().numberingStyle = i->second.numberingStyle;
@@ -392,6 +392,48 @@ bool Msc::AddDesignAttribute(const Attribute &a)
         return AddAttribute(a);
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
                   "' as part of a design definition. Ignoring it.");
+    return false;
+}
+
+void Msc::AttributeNames(Csh &csh)
+{
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "msc");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "compress");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "background.fill");
+    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient");
+}
+
+bool Msc::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"color")) {
+        csh.AddColorValuesToHints();
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"label")) {
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"show")) {
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "yes");
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "no");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"pos")) {
+        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number>");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"relative")) {
+        csh.AddEntitiesToHints();
+        return true;
+    }
+    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    if (style.AttributeValues(attr, csh)) return true;
     return false;
 }
 

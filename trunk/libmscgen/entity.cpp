@@ -257,6 +257,47 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
     return false;
 };
 
+void EntityDef::AttributeNames(Csh &csh)
+{
+    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "color");
+    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "label");
+    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "show");
+    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "pos");
+    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "relative");
+    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    style.AttributeNames(csh);
+
+}
+
+bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"color")) {
+        csh.AddColorValuesToHints();
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"label")) {
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"show")) {
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "yes");
+        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "no");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"pos")) {
+        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number>");
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"relative")) {
+        csh.AddEntitiesToHints();
+        return true;
+    }
+    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    if (style.AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+
+
 string EntityDef::Print(int ident) const
 {
     string ss;

@@ -24,7 +24,7 @@
 #include "stringparse.h" //for extracting csh out of strings
 #include "attribute.h"  //for CaseInsensitive compares
 #include "style.h"  //for Design::Reset() to obtain forbidden style names
-
+#include "msc.h"
 
 using namespace std;
 
@@ -532,15 +532,90 @@ bool Csh::SetDesignTo(const std::string&design)
 {
     auto i = Designs.find(design);
     if (i==Designs.end()) return false;
-    Contexts.pop_back();
-    Contexts.push_back(i->second);
+    Contexts.back() += i->second;
     return true;
 }
 
-void Csh::SetHintsReady(std::set<std::string> &&v)
+CshCursorRelPosType Csh::CursorIn(int a, int b) const
 {
-    Hints.swap(v);
-    hintStatus = HINT_READY;
+    //cursor_pos is in CRichEdit context and is zero based
+    //a and b are yacc contex based, are one-based
+    //and a==b means a one long selection (whereas the cursor is zero length)
+    if (cursor_pos+1<a) return CURSOR_BEFORE;
+    if (cursor_pos+1<a) return CURSOR_AT_BEGINNING;
+    if (cursor_pos<b) return CURSOR_IN;
+    if (cursor_pos==b) return CURSOR_AT_END;
+    return CURSOR_AFTER;
+}
+
+//Checks if the cursor is between the two ranges and if so, it applies
+//the hinttype with LOCATED. It sets hintsForcedOnly to false
+//If the cursor is immediately at the beginning of the second range we do nothing
+bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+{
+    switch (CursorIn(one.last_pos+1, two.first_pos-1)) {
+    case CURSOR_AT_BEGINNING:
+    case CURSOR_IN:
+        hintStatus = HINT_LOCATED;
+        hintsForcedOnly = false;
+        hintType = ht;
+        hintAttrName = a_name?a_name:"";
+        return true;
+    }
+    return false;
+}
+
+//Checks if the cursor is between the two ranges and the first range
+//indicated hint_can_come. If so, it copies the type and other data
+//It sets hintsForcedOnly to false
+//If the cursor is immediately at the beginning of the second range we do nothing
+bool Csh::CheckHintCanComeBetween(const CshPos &one, const CshPos &two)
+{
+    if (!one.hint_can_come) return false;
+    switch (CursorIn(one.last_pos+1, two.first_pos-1)) {
+    case CURSOR_AT_BEGINNING:
+    case CURSOR_IN:
+        hintStatus = HINT_LOCATED;
+        hintsForcedOnly = false;
+        hintType = one.hint_type;
+        hintAttrName = one.hint_attr_name;
+        return true;
+    }
+    return false;
+}
+
+//Checks if the cursor is between one and two or inside two
+//If so, it sets status to HINT_LOCATED. If cursor is inside two, hintedStringPos
+//is set to two. hintsForcedOnly is set to true if the cursor is truely before two
+//or is at the end of two
+bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+{
+    if (CursorIn(one.last_pos+1, two.last_pos)<=CURSOR_AFTER) return false;
+    hintStatus = HINT_LOCATED;
+    hintsForcedOnly = false;
+    hintType = ht;
+    hintAttrName = a_name?a_name:"";
+    CshCursorRelPosType in_two = CursorIn(two);
+    if (in_two==CURSOR_AT_END || in_two==CURSOR_BEFORE)
+        hintsForcedOnly = true;
+    if (in_two>=CURSOR_AT_BEGINNING)
+        hintedStringPos = two;
+    return true;
+}
+
+//Checks if the cursor is between one and two or inside two
+//If so, it sets status to HINT_LOCATED. If cursor is inside two, hintedStringPos
+//is set to two. hintsForcedOnly is set to true if the cursor is truely before two
+//or is at the end of two
+bool Csh::CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name)
+{
+    if (CursorIn(one)<=CURSOR_AFTER) return false;
+    hintStatus = HINT_LOCATED;
+    hintsForcedOnly = false;
+    hintType = ht;
+    hintAttrName = a_name?a_name:"";
+    hintedStringPos = one;
+    return true;
 }
 
 std::string Csh::HintPrefix(MscColorSyntaxType t) const
@@ -550,13 +625,51 @@ std::string Csh::HintPrefix(MscColorSyntaxType t) const
     return state.Print(false);
 }
 
-void Csh::AddColorValues(std::set<std::string> &v) const
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix)
 {
-    v.insert(HintPrefixNonSelectable()+"<\"red,green,blue\">");
-    v.insert(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">");
-    v.insert(HintPrefixNonSelectable()+"<\"color name,opacity\">");
-    v.insert(HintPrefixNonSelectable()+"<\"color name+-brightness%\">");
+    //index==0 is usually "invalid"
+    for (int i=1; names[i][0]; i++)
+        AddToHints(prefix+names[i]);
+}
+
+void Csh::AddColorValuesToHints()
+{
+    AddToHints(HintPrefixNonSelectable()+"<\"red,green,blue\">");
+    AddToHints(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">");
+    AddToHints(HintPrefixNonSelectable()+"<\"color name,opacity\">");
+    AddToHints(HintPrefixNonSelectable()+"<\"color name+-brightness%\">");
     for (auto i=Contexts.back().ColorNames.begin(); i!=Contexts.back().ColorNames.end(); i++)
-        v.insert(HintPrefix(COLOR_ATTRVALUE) + *i);
+        AddToHints(HintPrefix(COLOR_ATTRVALUE) + *i);
+}
+
+void Csh::AddDesignsToHints()
+{
+    for (auto i= Designs.begin(); i!=Designs.end(); i++)
+        Hints.insert(HintPrefix(COLOR_ATTRVALUE) + i->first);
+}
+
+void Csh::AddStylesToHints()
+{
+    for (auto i=Contexts.back().StyleNames.begin(); i!=Contexts.back().StyleNames.end(); i++)
+        AddToHints(HintPrefix(COLOR_STYLENAME) + *i);
+}
+
+void Csh::AddOptionsToHints()
+{
+    Msc::AttributeNames(*this);
+}
+
+void Csh::AddKeywordsToHints()
+{
+    static const char names[][ENUM_STRING_LEN] =
+    {"parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
+    "defcolor", "defdesign", "vertical", "mark", ""};
+    AddToHints(names, HintPrefix(COLOR_KEYWORD));
+}
+
+void Csh::AddEntitiesToHints()
+{
+    for (auto i=EntityNames.begin(); i!=EntityNames.end(); i++)
+        AddToHints(HintPrefix(COLOR_ENTITYNAME) + *i);
 }
 

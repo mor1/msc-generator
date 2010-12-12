@@ -918,25 +918,25 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 
 }
 
-void StringFormat::AttributeNames(const_char_vector_t &v, const Csh &csh)
+void StringFormat::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"text.color", "text.ident", "text.format", ""};
-    v.Add(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
 }
 
-bool StringFormat::AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh)
+bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValues(v);
+        csh.AddColorValuesToHints();
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "ident")) {
-        v.Add(EnumEncapsulator<MscIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        csh.AddToHints(EnumEncapsulator<MscIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "format")) {
-        v.Add(csh.HintPrefixNonSelectable()+"<\format string\">");
+        csh.AddToHints(csh.HintPrefixNonSelectable()+"<\format string\">");
         return true;
     }
     return false;

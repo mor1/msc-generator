@@ -29,8 +29,8 @@ struct MscStyle
     MscStyle operator +(const MscStyle &toadd) const
         {return MscStyle(*this) += toadd;}
     bool AddAttribute(const Attribute &a, Msc *m);
-    void AttributeNames(const_char_vector_t &v, const Csh &csh) const;
-    bool AttributeValues(const std::string &attr, const_char_vector_t &v, const Csh &csh) const;
+    void AttributeNames(Csh &csh) const;
+    bool AttributeValues(const std::string &attr, Csh &csh) const;
     std::string Print(int ident = 0) const;
 };
 
