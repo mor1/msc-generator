@@ -20,21 +20,29 @@
 #include <cstring>
 #include "msc.h"
 
+
+int CaseInsensitiveCommonPrefixLen(const char *a, const char *b)
+{
+    if (a==NULL || b==NULL) return 0;
+    unsigned i=0;
+    while(a[i] && b[i]) {
+        if (tolower(a[i]) != tolower(b[i]))
+            return i;
+        i++;
+    }
+    return i;
+}
+
 //0 if a does not begin with b
 //1 if a begins with b
 //2 if a == b
 //Rule 1: "" begins with a NULL, but is not equal to it
 //Rule 2: every string begins with a "" or a NULL
-int CaseInsensitiveBeginsWidth(const char *a, const char *b)
+int CaseInsensitiveBeginsWith(const char *a, const char *b)
 {
     if (b==NULL) return a==NULL?2:1;
     if (a==NULL) return 0;
-    unsigned i=0;
-    while(a[i] && b[i]) {
-        if (tolower(a[i]) != tolower(b[i]))
-            return 0;
-        i++;
-    }
+    unsigned i=CaseInsensitiveCommonPrefixLen(a, b);
     if (b[i]==0) return a[i]==0?2:1;
     return 0;
 }
@@ -275,8 +283,18 @@ void MscLineAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"line.color", "line.type", "line.width", "line.radius", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
+
+bool CshHintGraphicCallbackForLineType(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 2, 0);
+    msc->line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y/2), 
+              XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y/2), line);
+    return true;
+}
+
 
 bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
@@ -285,15 +303,16 @@ bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "type")) {
-        csh.AddToHints(EnumEncapsulator<MscLineType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        csh.AddToHints(EnumEncapsulator<MscLineType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE, CshHintGraphicCallbackForLineType);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "width")) {
-        csh.AddToHints(csh.HintPrefixNonSelectable()+"<number in pixels>");
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "radius")) {
-        csh.AddToHints(csh.HintPrefixNonSelectable()+"<number in pixels>");
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
         return true;
     }
     return false;
@@ -369,11 +388,24 @@ bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
+bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    const int size = HINT_GRAPHIC_SIZE_Y-2;
+    const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
+    const int off_y = 1;
+    MscColorType black(0,0,0);
+    msc->filledRectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), MscFillAttr(black, MscGradientType(int(p))));
+    msc->rectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), black);
+    return true;
+}
+
+
 void MscFillAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"fill.color", "fill.gradient", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
 bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
@@ -383,7 +415,8 @@ bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "gradient")) {
-        csh.AddToHints(EnumEncapsulator<MscGradientType>::names, csh.HintPrefix(COLOR_ATTRVALUE));
+        csh.AddToHints(EnumEncapsulator<MscGradientType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE, CshHintGraphicCallbackForGradient);
         return true;
     }
     return false;
@@ -478,7 +511,7 @@ void MscShadowAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"shadow.color", "shadow.offset", "shadow.blur", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
 bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
@@ -489,7 +522,7 @@ bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
     }
     if (CaseInsensitiveEndsWith(attr, "offset") ||
         CaseInsensitiveEndsWith(attr, "offset")) {
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>");
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>", HINT_ATTR_VALUE));
         return true;
     }
     return false;
@@ -503,4 +536,32 @@ string MscShadowAttr::Print(int ident) const
     if (offset.first) ss << " offset:" << offset.second;
     if (blur.first) ss << " blur:" << blur.second;
     return ss + ")";
+}
+
+
+bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    msc->ClipRectangle(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
+    cairo_t *cr = msc->GetContext();
+    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+    cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);  //UnClip will remove these
+    cairo_set_line_width(cr, 3);
+    if (int(p)) {
+        cairo_set_source_rgb(cr, 0, 0.8, 0); //green
+        cairo_move_to(cr, HINT_GRAPHIC_SIZE_X*0.3, HINT_GRAPHIC_SIZE_Y*0.6);
+        cairo_line_to(cr, HINT_GRAPHIC_SIZE_X*0.4, HINT_GRAPHIC_SIZE_Y*0.9);
+        cairo_line_to(cr, HINT_GRAPHIC_SIZE_X*0.7, HINT_GRAPHIC_SIZE_Y*0.2);
+    } else {
+        cairo_set_source_rgb(cr, 1, 0, 0); //red
+        const XY xy(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2);
+        const double off = HINT_GRAPHIC_SIZE_Y*0.3;
+        cairo_move_to(cr, xy.x-off, xy.y-off);
+        cairo_line_to(cr, xy.x+off, xy.y+off);
+        cairo_move_to(cr, xy.x-off, xy.y+off);
+        cairo_line_to(cr, xy.x+off, xy.y-off);
+    }
+    cairo_stroke(cr);
+    msc->UnClip();
+    return true;
 }

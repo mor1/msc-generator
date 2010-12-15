@@ -38,6 +38,7 @@ public:
     bool operator >= (const file_line &a) const {
         return !operator<(a);
     }
+    file_line NextChar() const {return file_line(file, line, col+1);}
     std::string Print();
 };
 

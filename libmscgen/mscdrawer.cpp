@@ -485,6 +485,14 @@ void MscDrawer::CloseOutput()
     fileName.clear();
 }
 
+void MscDrawer::ClipAndMap(const Block &before, const Block &after)
+{
+    cairo_save(cr);
+    cairo_translate(cr, before.UpperLeft().x, before.UpperLeft().y);
+    cairo_scale(cr, before.x.Spans()/after.x.Spans(), before.y.Spans()/after.y.Spans());
+    cairo_translate(cr, -after.UpperLeft().x, -after.UpperLeft().y);
+}
+
 void MscDrawer::Rotate90(double s, double d, bool clockwise)
 {
     cairo_matrix_t matrix;

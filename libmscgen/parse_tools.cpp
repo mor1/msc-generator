@@ -156,6 +156,7 @@ string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc &msc)
 void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
 {
     static const std::pair<string, string> tokens[] = {
+    std::pair<string,string>("unexpected", "Unexpected"),
     std::pair<string,string>("TOK_REL_SOLID_TO", "'->'"),
     std::pair<string,string>("TOK_REL_SOLID_FROM", "'<-'"),
     std::pair<string,string>("TOK_REL_SOLID_BIDIR", "'<->'"),

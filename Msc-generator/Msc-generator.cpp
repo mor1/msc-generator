@@ -578,6 +578,13 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_bSmartIdent  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
 	m_trackLineColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKLINERGBA, RGBA(128, 0, 0, 255));
 	m_trackFillColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKFILLRGBA, RGBA(255, 0, 0, 128));
+    m_bHintLineStart = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_LINESTART, TRUE);
+    m_bHintEntity    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, TRUE);
+    m_bHintAttrName  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, TRUE);
+    m_bHintAttrValue = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, TRUE);
+    m_bHintFilter    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, TRUE);
+    m_bHintCompact   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_COMPACT, TRUE);
+
 
 	m_NppPath = "C:\\Program Files\\Notepad++\\notepad++.exe";
 	CFileFind finder;

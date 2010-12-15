@@ -8,14 +8,17 @@ typedef enum {
     MSC_ARROW_INVALID = 0,
     MSC_ARROW_NONE,
     MSC_ARROW_SOLID,
+    MSC_ARROW_DIAMOND,
+    MSC_ARROW_DOT,
     MSC_ARROW_EMPTY,
     MSC_ARROW_LINE,
     MSC_ARROW_HALF,
-    MSC_ARROW_DIAMOND,
     MSC_ARROW_DIAMOND_EMPTY,
-    MSC_ARROW_DOT,
     MSC_ARROW_DOT_EMPTY
 } MscArrowType;
+
+inline bool MSC_ARROW_OK_FOR_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_DOT_EMPTY;}
+inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_DOT;}
 
 typedef enum {
     MSC_ARROWS_INVALID = 0,
@@ -60,15 +63,16 @@ public:
     std::pair<bool, MscArrowType> endType;
     std::pair<bool, MscArrowType> midType;
     std::pair<bool, MscArrowType> startType;
+    enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
 
-    ArrowHead() :
+    explicit ArrowHead(ArcType t=ANY) : type(t),
         size(true, MSC_ARROW_SMALL), endType(true, MSC_ARROW_SOLID),
         midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
     void Empty();
     ArrowHead & operator += (const ArrowHead &);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
+    static bool AttributeValues(const std::string &attr, Csh &csh, ArcType t);
 
     MscArrowType GetType(bool bidir, MscArrowEnd which) const;
     XY getWidthHeight(bool bidir, MscArrowEnd which, MscDrawer *) const;
