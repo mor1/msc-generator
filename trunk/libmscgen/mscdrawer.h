@@ -81,6 +81,7 @@ class MscDrawer
 
     cairo_t *GetContext() const {return cr;}
     void Clip() {cairo_save(cr); cairo_clip(cr);}
+    void ClipAndMap(const Block &before, const Block &after);
     void ClipRectangle(XY s, XY d, int radius=0)
        {rectangle_path(s, d+XY(1,1), 0, 0, radius); Clip();}
     void UnClip() {cairo_restore(cr);}

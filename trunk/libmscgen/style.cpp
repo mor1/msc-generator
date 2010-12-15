@@ -21,11 +21,12 @@
 
 MscStyle::MscStyle(StyleType tt) : type(tt)
 {
-    f_line=f_vline=f_fill=f_shadow=f_text=f_arrow=f_solid=f_numbering=f_compress=true;
+    f_line=f_vline=f_fill=f_shadow=f_text=f_solid=f_numbering=f_compress=true;
+    f_arrow=ArrowHead::ANY;
     Empty();
 }
 
-MscStyle::MscStyle(StyleType tt, bool a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co) :
+MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co) :
     type(tt), f_arrow(a), f_text(t), f_line(l), f_vline(vl), f_fill(f),
     f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co)
 {
@@ -57,7 +58,7 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     if (toadd.f_fill && f_fill) fill += toadd.fill;
     if (toadd.f_shadow &&f_shadow) shadow += toadd.shadow;
     if (toadd.f_text && f_text) text += toadd.text;
-    if (toadd.f_arrow && f_arrow) arrow += toadd.arrow;
+    if (toadd.f_arrow!=ArrowHead::NONE && f_arrow!=ArrowHead::NONE) arrow += toadd.arrow;
     if (toadd.f_solid && f_solid && toadd.solid.first) solid = toadd.solid;
     if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
     if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
@@ -81,9 +82,9 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         return true;
     }
     if (a.Is("line.width")) {
-        if (f_arrow) arrow.AddAttribute(a, msc, type);
+        if (f_arrow!=ArrowHead::NONE) arrow.AddAttribute(a, msc, type);
         if (f_line) line.AddAttribute(a, msc, type);
-        return f_arrow || f_line;
+        return f_arrow!=ArrowHead::NONE || f_line;
     }
     if ((a.StartsWith("text") || a.Is("ident")) && f_text)
         return text.AddAttribute(a, msc, type);
@@ -95,7 +96,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         return fill.AddAttribute(a, msc, type);
     if (a.StartsWith("shadow") && f_shadow)
         return shadow.AddAttribute(a, msc, type);
-    if ((a.StartsWith("arrow") || a.Is("arrowsize")) && f_arrow)
+    if ((a.StartsWith("arrow") || a.Is("arrowsize")) && f_arrow!=ArrowHead::NONE)
         return arrow.AddAttribute(a, msc, type);
     if (a.Is("solid") && f_solid) {
         if (a.type == MSC_ATTR_CLEAR) {
@@ -145,51 +146,49 @@ void MscStyle::AttributeNames(Csh &csh) const
 
     if (f_line) MscLineAttr::AttributeNames(csh);
     if (f_fill) MscFillAttr::AttributeNames(csh);
-    if (f_arrow) ArrowHead::AttributeNames(csh);
+    if (f_arrow!=ArrowHead::NONE) ArrowHead::AttributeNames(csh);
     if (f_shadow) MscShadowAttr::AttributeNames(csh);
     if (f_text) StringFormat::AttributeNames(csh);
-    if (f_solid) csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"solid");
-    if (f_numbering) csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"number");
-    if (f_compress) csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"compress");
-    if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME));
-    for (auto i=csh.Contexts.back().StyleNames.begin(); i!=csh.Contexts.back().StyleNames.end(); i++)
-        if (csh.ForbiddenStyles.find(*i) == csh.ForbiddenStyles.end())
-            csh.AddToHints(csh.HintPrefix(COLOR_STYLENAME) + *i);
+    if (f_solid) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid", HINT_ATTR_NAME));
+    if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
+    if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
+    if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    csh.AddStylesToHints();
 }
 
 bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
 {
     if (CaseInsensitiveEqual(attr, "line.width")) {
-        if (f_arrow) return arrow.AttributeValues(attr, csh);
+        if (f_arrow!=ArrowHead::NONE) return arrow.AttributeValues(attr, csh, f_arrow);
         if (f_line) return line.AttributeValues(attr, csh);
         return false;
     }
-    if ((CaseInsensitiveBeginsWidth(attr, "text") || CaseInsensitiveEqual(attr, "ident")) && f_text)
+    if ((CaseInsensitiveBeginsWith(attr, "text") || CaseInsensitiveEqual(attr, "ident")) && f_text)
         return text.AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWidth(attr, "line") && f_line)
+    if (CaseInsensitiveBeginsWith(attr, "line") && f_line)
         return line.AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWidth(attr, "vline") && f_vline)
+    if (CaseInsensitiveBeginsWith(attr, "vline") && f_vline)
         return vline.AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWidth(attr, "fill") && f_fill)
+    if (CaseInsensitiveBeginsWith(attr, "fill") && f_fill)
         return fill.AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWidth(attr, "shadow") && f_shadow)
+    if (CaseInsensitiveBeginsWith(attr, "shadow") && f_shadow)
         return shadow.AttributeValues(attr, csh);
-    if ((CaseInsensitiveBeginsWidth(attr, "arrow") || CaseInsensitiveEqual(attr, "arrowsize")) && f_arrow)
-        return arrow.AttributeValues(attr, csh);
+    if ((CaseInsensitiveBeginsWith(attr, "arrow") || CaseInsensitiveEqual(attr, "arrowsize")) && f_arrow!=ArrowHead::NONE)
+        return arrow.AttributeValues(attr, csh, f_arrow);
     if (CaseInsensitiveEqual(attr, "solid") && f_solid) {
-        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number: \b0.0..1.0\b>");
-        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>");
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0.0..1.0\b>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "compress") && f_compress) {
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "number") && f_numbering) {
-        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number>");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     return false;
@@ -204,7 +203,7 @@ string MscStyle::Print(int ident) const
     if (f_fill) s.append(fill.Print());
     if (f_shadow) s.append(shadow.Print());
     if (f_solid) s.append("solid:").append(solid.second?"yes":"no").append("\n");
-//    if (f_arrow) s.append(arrow.Print());
+//    if (f_arrow!=ArrowHead::NONE) s.append(arrow.Print());
 //    if (f_text) s.append(text.Print());
     s.append(")");
     return s;
@@ -237,7 +236,7 @@ void Design::Reset()
     colors["lgray"] = MscColorType(200, 200, 200);
 
     styles.clear();
-    MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -255,7 +254,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.numbering.first = false;
@@ -274,7 +273,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["block=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -307,7 +306,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["vertical=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, false, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
     style.compress.first = false;
     style.numbering.first = false;
     style.vline.Empty();
@@ -325,7 +324,7 @@ void Design::Reset()
     style.text.Apply("\\mu(10)\\md(10)");
     styles["..."] = style;
 
-    style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, false, false, true, true); //no arrow, vline solid
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true); //no arrow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
     styles["emptybox"] = style;
@@ -346,7 +345,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, false, true, true, true); //no arrow, vline
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true); //no arrow, vline
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = 5;
@@ -366,7 +365,7 @@ void Design::Reset()
     styles["pipe=="] = style;
 
 
-    style = MscStyle(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
     styles["entity"] = style;
 
     style = MscStyle(STYLE_STYLE); //has everything, but is empty

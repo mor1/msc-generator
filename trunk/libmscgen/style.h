@@ -20,10 +20,11 @@ struct MscStyle
 
     StyleType type;
 
-    bool f_line, f_vline, f_fill, f_shadow, f_text, f_arrow, f_solid, f_numbering, f_compress;
+    bool f_line, f_vline, f_fill, f_shadow, f_text, f_solid, f_numbering, f_compress;
+    ArrowHead::ArcType f_arrow;
 
     MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
-    MscStyle(StyleType tt, bool a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co);
+    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co);
     void Empty();
     MscStyle &operator +=(const MscStyle &toadd);
     MscStyle operator +(const MscStyle &toadd) const

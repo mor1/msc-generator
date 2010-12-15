@@ -23,9 +23,11 @@ struct CEditorUndoRecord {
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-	bool m_bCshUpdateInProgress;
+	bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
 	Csh  m_csh;
 	Csh  m_designlib_csh;
+    bool m_bWasReturnKey;        //if the return key was pressed
+    bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     CPopupList m_hintsPopup;
 public:
 	int m_tabsize;
@@ -54,7 +56,7 @@ public:
     void SetForcedDesign(const CString &fd) {m_designlib_csh.ForcedDesign = fd;}
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
-	void UpdateCsh(bool force = false);
+	bool UpdateCsh(bool force = false); //retuns true if the past and new m_csh.hintedStringPos overlap
 	void CancelPartialMatch();
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
 	bool NotifyDocumentOfChange(bool onlySelChange=false);
@@ -67,6 +69,7 @@ public:
     void StartHintMode(); //also used to update hints
     bool InHintMode() const {return m_hintsPopup.m_shown;}
     void CancelHintMode();
+    void CancelUserSelected() {m_bUserRequested = false;}
     void ReplaceHintedString(const char *substitute, bool endHintMode);
 
 	DECLARE_MESSAGE_MAP()

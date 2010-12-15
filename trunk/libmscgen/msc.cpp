@@ -397,43 +397,52 @@ bool Msc::AddDesignAttribute(const Attribute &a)
 
 void Msc::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "msc");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "compress");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "background.fill");
-    csh.AddToHints(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient");
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "compress", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
 }
 
 bool Msc::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
+    if (CaseInsensitiveEqual(attr,"msc")) {
+        csh.AddDesignsToHints();
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"label")) {
+    if (CaseInsensitiveEqual(attr,"hscale")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "auto", HINT_ATTR_VALUE));
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"show")) {
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "yes");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "no");
+    if (CaseInsensitiveEqual(attr,"compress") ||
+        CaseInsensitiveEqual(attr,"numbering") ||
+        CaseInsensitiveEqual(attr,"pednatic")) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"pos")) {
-        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number>");
+
+    if (CaseInsensitiveBeginsWith(attr,"background")) {
+        MscFillAttr::AttributeValues(attr, csh);
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"relative")) {
-        csh.AddEntitiesToHints();
+    if (CaseInsensitiveEqual(attr,"numbering.pre")||
+        CaseInsensitiveEqual(attr,"numbering.post")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"text\">", HINT_ATTR_VALUE, false));
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
-    if (style.AttributeValues(attr, csh)) return true;
+    if (CaseInsensitiveEqual(attr,"numbering.format")||
+        CaseInsensitiveEqual(attr,"numbering.append")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"numbering format\">", HINT_ATTR_VALUE, false));
+        return true;
+    }
     return false;
 }
 

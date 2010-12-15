@@ -18,11 +18,12 @@ template <class T>
         return s;
     };
 
-int CaseInsensitiveBeginsWidth(const char *a, const char *b);
-inline int CaseInsensitiveBeginsWidth(const string &a, const char *b)
-{return CaseInsensitiveBeginsWidth(a.c_str(), b);}
+int CaseInsensitiveCommonPrefixLen(const char *a, const char *b);
+int CaseInsensitiveBeginsWith(const char *a, const char *b);
+inline int CaseInsensitiveBeginsWith(const string &a, const char *b)
+    {return CaseInsensitiveBeginsWith(a.c_str(), b);}
 inline bool CaseInsensitiveEqual(const char *a, const char *b)
-    {return CaseInsensitiveBeginsWidth(a,b)==2;}
+    {return CaseInsensitiveBeginsWith(a,b)==2;}
 inline bool CaseInsensitiveEqual(const string &a, const char *b)
     {return CaseInsensitiveEqual(a.c_str(), b);}
 inline bool CaseInsensitiveEqual(const char *a, const string &b)
@@ -253,6 +254,8 @@ public:
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
+
+bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p);
 
 
 #endif

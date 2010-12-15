@@ -17,6 +17,8 @@
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include <map>
 #include <cstring>   //strdup, free
 #include "csh.h"
@@ -260,16 +262,40 @@ string Cshize(const char *input, unsigned len, const MscCshListType &cshList, in
     return ret;
 }
 
+void CshHint::swap(CshHint &o) 
+{
+    decorated.swap(o.decorated); 
+    std::swap(type, o.type);
+    std::swap(selectable, o.selectable);
+    std::swap(param, o.param);
+    std::swap(callback, o.callback);
+}
+
 
 ////////////////////////////////////////////////////////////////////
 void Csh::AddCSH(CshPos&pos, MscColorSyntaxType i)
 {
+    if (pos.first_pos>pos.last_pos) return;
     CshEntry e;
     e.first_pos = pos.first_pos;
     e.last_pos = pos.last_pos;
     e.color = i;
-    CshList.push_back(e);
+    if (i==COLOR_ERROR)
+        CshList.AddToFront(e);
+    else
+        CshList.AddToBack(e);
 }
+
+//Add an error just after this range
+void Csh::AddCSH_ErrorAfter(CshPos&pos)
+{
+    CshEntry e;
+    e.first_pos = pos.last_pos;
+    e.last_pos = pos.last_pos;
+    e.color = COLOR_ACTIVE_ERROR;
+    CshList.AddToFront(e);
+}
+
 
 void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
@@ -342,7 +368,7 @@ const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 int find_opt_attr_name(const char *name, const char * const array[])
 {
     for (int i=0; array[i][0]; i++)
-        switch (CaseInsensitiveBeginsWidth(array[i], name)) {
+        switch (CaseInsensitiveBeginsWith(array[i], name)) {
         case 1: return 1;
         case 2: return 2;
         }
@@ -484,9 +510,10 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
     CshParse(*this, input, len);
     if (hintStatus!=HINT_READY || Hints.size()==0)
         return;
-
     //Take one from first, since RichEditCtrel works that way
     --hintedStringPos.first_pos;
+    //Find the plain text for all hints
+    MscDrawer msc;
 }
 
 MscColorSyntaxType Csh::GetCshAt(int pos)
@@ -502,7 +529,7 @@ void CshContext::SetPlain()
     Design plain;
     plain.Reset();
     for (auto i=plain.colors.begin(); i!=plain.colors.end(); i++)
-        ColorNames.insert(i->first);
+        Colors[i->first] = i->second;
     StyleNames.insert("weak");
     StyleNames.insert("strong");
 }
@@ -542,7 +569,7 @@ CshCursorRelPosType Csh::CursorIn(int a, int b) const
     //a and b are yacc contex based, are one-based
     //and a==b means a one long selection (whereas the cursor is zero length)
     if (cursor_pos+1<a) return CURSOR_BEFORE;
-    if (cursor_pos+1<a) return CURSOR_AT_BEGINNING;
+    if (cursor_pos+1==a) return CURSOR_AT_BEGINNING;
     if (cursor_pos<b) return CURSOR_IN;
     if (cursor_pos==b) return CURSOR_AT_END;
     return CURSOR_AFTER;
@@ -565,24 +592,56 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht,
     return false;
 }
 
-//Checks if the cursor is between the two ranges and the first range
-//indicated hint_can_come. If so, it copies the type and other data
-//It sets hintsForcedOnly to false
+//Checks if the cursor is between one and lookahead or if atEnd==true then right after one
+//if so then set the hinttype with LOCATED. It sets hintsForcedOnly to false
 //If the cursor is immediately at the beginning of the second range we do nothing
-bool Csh::CheckHintCanComeBetween(const CshPos &one, const CshPos &two)
+bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name)
 {
-    if (!one.hint_can_come) return false;
-    switch (CursorIn(one.last_pos+1, two.first_pos-1)) {
-    case CURSOR_AT_BEGINNING:
-    case CURSOR_IN:
-        hintStatus = HINT_LOCATED;
-        hintsForcedOnly = false;
-        hintType = one.hint_type;
-        hintAttrName = one.hint_attr_name;
-        return true;
-    }
-    return false;
+    if (atEnd) {
+        switch (CursorIn(one)) {
+        case CURSOR_BEFORE:
+        case CURSOR_AT_BEGINNING:
+        case CURSOR_IN:
+            return false;
+        }
+    } else switch (CursorIn(one.last_pos+1, lookahead.first_pos-1)) {
+        case CURSOR_AFTER:
+        case CURSOR_BEFORE:
+        case CURSOR_AT_END:
+            return false;
+        }
+    hintStatus = HINT_LOCATED;
+    hintsForcedOnly = false;
+    hintType = ht;
+    hintAttrName = a_name?a_name:"";
+    return true;
 }
+
+//Check specifically for entity hints and if true, add entities to hints & set to HINT_READY
+bool Csh::CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two)
+{
+    if (!CheckHintAtAndBefore(one, two, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
+bool Csh::CheckEntityHintAt(const CshPos &one)
+{
+    if (!CheckHintAt(one, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
+bool Csh::CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd)
+{
+    if (!CheckHintAfter(one, lookahead, atEnd, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
 
 //Checks if the cursor is between one and two or inside two
 //If so, it sets status to HINT_LOCATED. If cursor is inside two, hintedStringPos
@@ -618,6 +677,15 @@ bool Csh::CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name)
     return true;
 }
 
+//If the hint had been located and equals to this, we set it ready
+bool Csh::CheckHintLocated(CshHintType ht)
+{
+    if (hintStatus!=HINT_LOCATED || hintType!=ht)
+        return false;
+    hintStatus = HINT_READY;
+    return true;
+}
+
 std::string Csh::HintPrefix(MscColorSyntaxType t) const
 {
     CurrentState state;
@@ -625,33 +693,162 @@ std::string Csh::HintPrefix(MscColorSyntaxType t) const
     return state.Print(false);
 }
 
-void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix)
+
+bool CshHintGraphicCallbackForAttributeNames(MscDrawer *msc, CshHintGraphicParam /*p*/)
+{
+    if (!msc) return false;
+    const double w = 0.4*HINT_GRAPHIC_SIZE_X;
+    const double h = 0.08*HINT_GRAPHIC_SIZE_Y;
+    const double off = 0.35*HINT_GRAPHIC_SIZE_Y;
+    MscColorType color(0, 0, 0);
+    msc->filledRectangle(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h),
+                         MscFillAttr(color), 3);
+    msc->filledRectangle(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off),
+                         MscFillAttr(color), 3);
+    return true;
+}
+
+void Csh::AddToHints(CshHint &&h) 
+{
+    if (h.callback==NULL && h.type == HINT_ATTR_NAME) {
+        h.callback = CshHintGraphicCallbackForAttributeNames;
+        h.param = NULL; 
+    }
+    Hints.insert(std::move(h));
+}
+
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, CshHintType t, 
+                     CshHintGraphicCallback c)
 {
     //index==0 is usually "invalid"
     for (int i=1; names[i][0]; i++)
-        AddToHints(prefix+names[i]);
+        AddToHints(CshHint(prefix+names[i], t, true, c, CshHintGraphicParam(i)));
+}
+
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, CshHintType t, 
+                     CshHintGraphicCallback c, CshHintGraphicParam p)
+{
+    //index==0 is usually "invalid"
+    for (int i=1; names[i][0]; i++)
+        AddToHints(CshHint(prefix+names[i], t, true, c, p));
+}
+
+bool CshHintGraphicCallbackForColors(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    const int size = HINT_GRAPHIC_SIZE_Y-2;
+    const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
+    const int off_y = 1;
+    MscColorType color(p);
+    msc->filledRectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), color);
+    msc->rectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), MscColorType(0,0,0));
+    return true;
 }
 
 void Csh::AddColorValuesToHints()
 {
-    AddToHints(HintPrefixNonSelectable()+"<\"red,green,blue\">");
-    AddToHints(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">");
-    AddToHints(HintPrefixNonSelectable()+"<\"color name,opacity\">");
-    AddToHints(HintPrefixNonSelectable()+"<\"color name+-brightness%\">");
-    for (auto i=Contexts.back().ColorNames.begin(); i!=Contexts.back().ColorNames.end(); i++)
-        AddToHints(HintPrefix(COLOR_ATTRVALUE) + *i);
+    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue\">", HINT_ATTR_VALUE, false));
+    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue,opacity\">", HINT_ATTR_VALUE, false));
+    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name,opacity\">", HINT_ATTR_VALUE, false));
+    AddToHints(CshHint(HintPrefixNonSelectable()+"<\"color name+-brightness%\">", HINT_ATTR_VALUE, false));
+    CshHint hint("", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForColors, 0);
+    for (auto i=Contexts.back().Colors.begin(); i!=Contexts.back().Colors.end(); i++) {
+        hint.decorated = HintPrefix(COLOR_ATTRVALUE) + i->first;
+        hint.param = i->second;
+        AddToHints(hint);
+    }
+}
+
+bool CshHintGraphicCallbackForDesigns(MscDrawer *msc, CshHintGraphicParam /*p*/)
+{
+    if (!msc) return false;
+    const XY ul(0.2*HINT_GRAPHIC_SIZE_X, 0.2*HINT_GRAPHIC_SIZE_Y);
+    const XY br(0.8*HINT_GRAPHIC_SIZE_X, 0.8*HINT_GRAPHIC_SIZE_Y);
+    MscColorType color(0, 0, 0);
+    msc->ClipRectangle(ul, br, 2);
+    cairo_pattern_t *pattern = cairo_pattern_create_linear(ul.x, ul.y, br.x, br.y);
+    cairo_pattern_add_color_stop_rgb(pattern, 0.0, 255/255., 255/255., 255/255.);  //white
+    cairo_pattern_add_color_stop_rgb(pattern, 0.1, 128/255., 128/255.,   0/255.);  //brown
+    cairo_pattern_add_color_stop_rgb(pattern, 0.2, 255/255.,   0/255.,   0/255.);  //red
+    cairo_pattern_add_color_stop_rgb(pattern, 0.3, 255/255., 255/255.,   0/255.);  //yellow
+    cairo_pattern_add_color_stop_rgb(pattern, 0.4,   0/255., 255/255.,   0/255.);  //green
+    cairo_pattern_add_color_stop_rgb(pattern, 0.5,   0/255., 255/255., 255/255.);  //cyan
+    cairo_pattern_add_color_stop_rgb(pattern, 0.6,   0/255.,   0/255., 255/255.);  //blue
+    cairo_pattern_add_color_stop_rgb(pattern, 0.7, 255/255.,   0/255., 255/255.);  //magenta
+    cairo_pattern_add_color_stop_rgb(pattern, 0.8, 255/255.,   0/255.,   0/255.);  //red
+    cairo_pattern_add_color_stop_rgb(pattern, 0.9, 255/255., 255/255.,   0/255.);  //yellow
+    cairo_pattern_add_color_stop_rgb(pattern, 1.0, 255/255., 255/255., 255/255.);  //white
+    cairo_set_source(msc->GetContext(), pattern);
+    cairo_rectangle(msc->GetContext(), ul.x, ul.y, br.x, br.y);
+    cairo_fill(msc->GetContext());
+    //Over a white rectange to lower saturation
+    cairo_set_source_rgba(msc->GetContext(), 1, 1, 1, 0.5);
+    cairo_rectangle(msc->GetContext(), ul.x, ul.y, br.x, br.y);
+    cairo_fill(msc->GetContext());
+    msc->UnClip();
+    msc->rectangle(ul, br, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, 2));
+    cairo_pattern_destroy(pattern);
+    return true;
 }
 
 void Csh::AddDesignsToHints()
 {
     for (auto i= Designs.begin(); i!=Designs.end(); i++)
-        Hints.insert(HintPrefix(COLOR_ATTRVALUE) + i->first);
+        Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
 }
+
+bool CshHintGraphicCallbackForStyles(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 1);
+    MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
+    MscShadowAttr shadow(MscColorType(0,0,0));
+    shadow.offset.first=true;
+    shadow.offset.second=2;
+    shadow.blur.first=true;
+    shadow.blur.second=0;
+
+    Block b(HINT_GRAPHIC_SIZE_X*0.1, HINT_GRAPHIC_SIZE_X*0.5, HINT_GRAPHIC_SIZE_Y*0.1, HINT_GRAPHIC_SIZE_Y*0.5);
+    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
+    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+
+    b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
+    fill.color.second = MscColorType(255,0,0);
+    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
+    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+
+    b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
+    fill.color.second = MscColorType(0,0,255);
+    msc->shadow(b.UpperLeft(), b.LowerRight(), shadow, line.radius.second, false);
+    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
+    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+    return true;
+}
+
+bool CshHintGraphicCallbackForStyles2(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    const double xx = 0.7;
+    std::vector<double> xPos(2); 
+    xPos[0] = HINT_GRAPHIC_SIZE_X*0.2;
+    xPos[1] = HINT_GRAPHIC_SIZE_X*0.8;
+    msc->ClipRectangle(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
+    ArrowHead ah(ArrowHead::BIGARROW);
+    ah.line += MscColorType(0,0,0); //black
+    ah.endType.second = MSC_ARROW_SOLID;
+    ah.size.second = MSC_ARROWS_INVALID;
+    MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
+    ah.FillBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc, fill);
+    ah.DrawBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc);
+    msc->UnClip();
+    return true;
+}
+
 
 void Csh::AddStylesToHints()
 {
     for (auto i=Contexts.back().StyleNames.begin(); i!=Contexts.back().StyleNames.end(); i++)
-        AddToHints(HintPrefix(COLOR_STYLENAME) + *i);
+        AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
 }
 
 void Csh::AddOptionsToHints()
@@ -659,17 +856,114 @@ void Csh::AddOptionsToHints()
     Msc::AttributeNames(*this);
 }
 
+bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    const int size = HINT_GRAPHIC_SIZE_Y-2;
+    const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
+    const int off_y = 1;
+    MscColorType color(128, 64, 64);
+    msc->_arc_path(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), 
+                   XY(HINT_GRAPHIC_SIZE_Y*0.6, HINT_GRAPHIC_SIZE_Y*0.6), 
+                   0, 360, 0, LINE_SOLID);
+    msc->Clip();
+    msc->filledRectangle(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
+    msc->UnClip();
+    return true;
+}
+
 void Csh::AddKeywordsToHints()
 {
     static const char names[][ENUM_STRING_LEN] =
     {"parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
-    "defcolor", "defdesign", "vertical", "mark", ""};
-    AddToHints(names, HintPrefix(COLOR_KEYWORD));
+    "defcolor", "defdesign", "vertical", "mark", "parallel", ""};
+    AddToHints(names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
 }
 
 void Csh::AddEntitiesToHints()
 {
     for (auto i=EntityNames.begin(); i!=EntityNames.end(); i++)
-        AddToHints(HintPrefix(COLOR_ENTITYNAME) + *i);
+        AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE));
 }
 
+void Csh::ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)
+{
+    if (!msc) return;
+    StringFormat f;
+    if (format==NULL) format = &f;
+    Label label(msc);
+    CshHint start("", HINT_ENTITY); //empty start
+    int start_len=0;
+    int start_counter;
+    for (auto i=Hints.begin(); i!=Hints.end(); /*none*/) {
+        label.Set(i->decorated, *format);
+        i->plain = label;
+        //if we filter and label does not begin with uc, we drop it
+        if (filter_by_uc && uc.length() && !CaseInsensitiveBeginsWith(i->plain, uc.c_str())) {
+            Hints.erase(i++);
+            continue;
+        }
+        int dot_pos;
+        if (compact_same) {
+            int len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), uc.c_str());
+            dot_pos = i->plain.find('.', len);
+            if (start_len) {
+                if (dot_pos != string::npos) {
+                    len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), start.plain.c_str());
+                    if (len>=dot_pos && i->callback==start.callback && 
+                        i->param == start.param && i->selectable == start.selectable) {
+                        //OK, we need to be merged with start
+                        //just erase us
+                        start_counter++;
+                        Hints.erase(i++);
+                        continue;
+                    }
+                }
+                //Here we need to close combining, put start back to Hints
+                if (start_counter) {
+                    int pos_in_dec = start.decorated.find(start.plain.substr(start_len));
+                    start.decorated.replace(pos_in_dec, start.plain.length()-start_len, ".*");
+                    start.plain.erase(start_len+1);
+                    start.keep = true;
+                }
+                Label label2(start.decorated, msc, *format);
+                XY xy = label2.getTextWidthHeight();
+                start.x_size = xy.x;
+                start.y_size = xy.y;
+                start.state = HINT_ITEM_NOT_SELECTED;
+                Hints.insert(start);
+                start_len = 0;
+            }
+            //OK, now start is empty, see if i can start a new compacting run
+            //it must have a dot and we shall be able to tweak the decorated string, too
+            if (dot_pos != string::npos && i->decorated.find(i->plain.substr(dot_pos)) != string::npos) {
+                start = *i;
+                start_len = dot_pos;
+                start_counter = 0;
+                Hints.erase(i++);
+                continue;
+            }
+        }
+        //OK, either we do no compacting or this one is not even a candidate for compacting
+        XY xy = label.getTextWidthHeight();
+        i->x_size = xy.x;
+        i->y_size = xy.y;
+        i->state = HINT_ITEM_NOT_SELECTED;
+        i++;
+    }
+    //If we have unfinished compact, flush it
+    if (start_len) {
+        if (start_counter) {
+            int pos_in_dec = start.decorated.find(start.plain.substr(start_len));
+            start.decorated.replace(pos_in_dec, start.plain.length()-start_len, ".*");
+            start.plain.erase(start_len+1);
+            start.keep = true;
+        }
+        Label label2(start.decorated, msc, *format);
+        XY xy = label2.getTextWidthHeight();
+        start.x_size = xy.x;
+        start.y_size = xy.y;
+        start.state = HINT_ITEM_NOT_SELECTED;
+        Hints.insert(start);
+    }
+}

@@ -92,7 +92,7 @@ void EntityList::SortByPos(void)
 }
 
 EntityDef::EntityDef(const char *s, Msc* chart) : name(s),
-    style(STYLE_ARC, false/*arrow*/, true, true, true, true, true,
+    style(STYLE_ARC, ArrowHead::NONE/*arrow*/, true, true, true, true, true,
 	  false /*solid*/, false /*numbering*/, false /*compress*/)
 {
     label.first = false;
@@ -259,12 +259,12 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
 
 void EntityDef::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "color");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "label");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "show");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "pos");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "relative");
-    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "show", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
     style.AttributeNames(csh);
 
 }
@@ -279,19 +279,19 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEqual(attr,"show")) {
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "yes");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "no");
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"pos")) {
-        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number>");
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"relative")) {
         csh.AddEntitiesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
     if (style.AttributeValues(attr, csh)) return true;
     return false;
 }

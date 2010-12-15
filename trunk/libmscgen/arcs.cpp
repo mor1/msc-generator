@@ -79,16 +79,16 @@ bool ArcBase::AddAttribute(const Attribute &a)
 
 void ArcBase::AttributeNames(Csh &csh)
 {
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "compress");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "parallel");
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
 }
 
 bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"compress")||
         CaseInsensitiveEqual(attr,"parallel")) {
-        csh.AddToHints("yes");
-        csh.AddToHints("no");
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "yes", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "no", HINT_ATTR_VALUE));
         return true;
     }
     return false;
@@ -260,9 +260,9 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
 void ArcLabelled::AttributeNames(Csh &csh)
 {
     ArcBase::AttributeNames(csh);
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "color");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "label");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME) + "number");
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", HINT_ATTR_NAME));
     csh.AddStylesToHints();
 }
 
@@ -276,9 +276,9 @@ bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "yes");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE) + "no");
-        csh.AddToHints(csh.HintPrefixNonSelectable() + "<number>");
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (ArcBase::AttributeValues(attr, csh)) return true;
@@ -328,13 +328,13 @@ void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering 
 void ArcArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
     style.AttributeNames(csh);
 }
 
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    MscStyle style(STYLE_DEFAULT, true, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
     if (style.AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -757,13 +757,13 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
 void ArcBigArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     style.AttributeNames(csh);
 }
 
 bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     if (style.AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -1089,30 +1089,30 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     style.AttributeNames(csh);
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"pos");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom");
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"readfrom");
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"pos", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"readfrom", HINT_ATTR_NAME));
 }
 
 bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"pos")) {
-        csh.AddToHints(csh.HintPrefixNonSelectable()+"<number>");
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"yes");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"no");
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"left");
-        csh.AddToHints(csh.HintPrefix(COLOR_ATTRVALUE)+"right");
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"left", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"right", HINT_ATTR_VALUE));
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, true, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     if (style.AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -1418,7 +1418,7 @@ bool ArcEmphasis::AddAttribute(const Attribute &a)
 void ArcEmphasis::AttributeNames(Csh &csh, bool pipe)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
     style.AttributeNames(csh);
 }
 
@@ -1428,7 +1428,7 @@ bool ArcEmphasis::AttributeValues(const std::string attr, Csh &csh, bool pipe)
         csh.AddColorValuesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, false, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
     if (style.AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -2023,13 +2023,13 @@ bool ArcDivider::AddAttribute(const Attribute &a)
 void ArcDivider::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, false, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
     style.AttributeNames(csh);
 }
 
 bool ArcDivider::AttributeValues(const std::string attr, Csh &csh)
 {
-    MscStyle style(STYLE_DEFAULT, false, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
     if (style.AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -2485,13 +2485,13 @@ bool CommandMark::AddAttribute(const Attribute &a)
 void CommandMark::AttributeNames(Csh &csh)
 {
     ArcBase::AttributeNames(csh);
-    csh.AddToHints(csh.HintPrefix(COLOR_ATTRNAME)+"offset");
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
 }
 
 bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"offset")) {
-        csh.AddToHints(csh.HintPrefixNonSelectable()+"<number>");
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (ArcBase::AttributeValues(attr, csh)) return true;
