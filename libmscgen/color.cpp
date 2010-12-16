@@ -47,20 +47,6 @@ MscColorType::MscColorType(const string&text)
     valid = true;
 }
 
-MscColorType::MscColorType(void*p)
-{
-    r = (unsigned(p)>>24)&255;
-    g = (unsigned(p)>>16)&255;
-    b = (unsigned(p)>>8)&255;
-    a = unsigned(p)&255;
-}
-
-MscColorType::operator void*() const
-{
-    unsigned i = (unsigned(r)<<24) + (unsigned(g)<<16) + (unsigned(b)<<8) + unsigned(a);
-    return (void *)i;
-}
-
 string MscColorType::Print(void) const
 {
     if (!valid) return "-invalid-";

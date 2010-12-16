@@ -36,7 +36,7 @@ public:
     void ApplyStyle(double pos, const MscStyle &style)
     {styleStatus[pos] = GetStyle(pos); styleStatus[pos] += style;}
     void ApplyStyleRange(Range pos, const MscStyle &style) {
-        styleStatus[pos.till] = GetStyle(pos.till);
+        styleStatus[pos.till] = GetStyle(pos.till); 
         styleStatus[pos.from] = GetStyle(pos.from) + style;
         for (std::map<double, MscStyle>::iterator i = styleStatus.upper_bound(pos.from); i!=styleStatus.find(pos.till); i++)
             i->second += style;
@@ -130,8 +130,6 @@ class EntityDef : public TrackableElement
 
         virtual EntityDef* AddAttributeList(AttributeList *, Msc *msc);
         virtual bool AddAttribute(const Attribute&, Msc *msc);
-        static void AttributeNames(Csh &csh);
-        static bool AttributeValues(const std::string attr, Csh &csh);
         virtual string Print(int ident=0) const;
 };
 

@@ -1,7 +1,7 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010 Zoltan Turanyi
-    Distributed under GNU Affero General Public License.
+	Copyright 2008,2009,2010 Zoltan Turanyi
+	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -21,14 +21,14 @@
 #include <algorithm>
 #include "msc.h"
 
-template<> const char EnumEncapsulator<MscArrowType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", "solid", "diamond", "dot", "empty", "line", "half", 
-     "empty_diamond", "empty_dot", ""};
-template<> const char EnumEncapsulator<MscArrowSize>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<MscArrowType>::names[][15] =
+    {"invalid", "none", "solid", "empty", "line", "half", "diamond", "empty_diamond",
+     "dot", "empty_dot", ""};
+template<> const char EnumEncapsulator<MscArrowSize>::names[][15] =
     {"invalid", "tiny", "small", "normal", "big", "huge", ""};
 
 double ArrowHead::arrowSizePercentage[6] = {
-    20,  /* INVALID, value is set for big arrow hint pictograms */
+    0,  /* INVALID */
     30,  /* MSC_ARROW_TINY */
     50,  /* MSC_ARROW_SMALL */
     75,  /* MSC_ARROW_NORMAL */
@@ -64,46 +64,72 @@ ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
 bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_arrow) operator +=(style.arrow);
         return true;
     }
-    std::pair<bool, MscArrowType> *pType = NULL, *pType2 = NULL;
-    if (a.Is("arrow") || a.EndsWith("type") || a.EndsWith("endtype")) {pType = &endType; pType2=&midType;}
-    else if (a.EndsWith("starttype")) pType = &startType;
-    else if (a.EndsWith("midtype")) pType = &midType;
-    if (pType) {
-        if (a.Is("arrow"))
-            msc->Error.Warning(a, "Option/Attribute 'arrow' is deprecated, but understood.",
-                                "Use 'arrow.type'.");
+    if (a.Is("arrow") || a.EndsWith("type")) {
         if (a.type == MSC_ATTR_CLEAR) {
-            if (a.EnsureNotClear(msc->Error, t)) {
-                pType->first = false;
-                if (pType2) pType2->first = false;
-            }
+            if (a.EnsureNotClear(msc->Error, t))
+                endType.first = midType.first = false;
             return true;
         }
-        MscArrowType at;
         if (a.type == MSC_ATTR_STRING &&
-            Convert(a.value, at)) {
-            if (type == ARROW && MSC_ARROW_OK_FOR_ARROWS(at)) {
-                msc->Error.Error(a, true, "Value '"+a.value+"' is applicable only to block arrows.");
-                return true;
-            }
-            if (type == BIGARROW && MSC_ARROW_OK_FOR_BIG_ARROWS(at)) {
-                msc->Error.Error(a, true, "Value '"+a.value+"' is not applicable to block arrows.");
-                return true;
-            }
-            pType->first = true;
-            pType->second = at;
-            if (pType2) *pType2 = *pType;
+            Convert(a.value, endType.second)) {
+            endType.first = true;
+            midType = endType;
+            if (a.Is("arrow"))
+                msc->Error.Warning(a, "Option/Attribute 'arrow' is deprecated, but understood.",
+                                   "Use 'arrow.type'.");
             return true;
         }
-        a.InvalidValueError(CandidatesFor(pType->second), msc->Error);
+        a.InvalidValueError(CandidatesFor(endType.second), msc->Error);
+        return true;
+    }
+    if (a.EndsWith("starttype")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                startType.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING &&
+            Convert(a.value, startType.second)) {
+            startType.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(startType.second), msc->Error);
+        return true;
+    }
+    if (a.EndsWith("midtype")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                midType.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING &&
+            Convert(a.value, midType.second)) {
+            midType.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(midType.second), msc->Error);
+        return true;
+    }
+    if (a.EndsWith("endtype")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                endType.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING &&
+            Convert(a.value, endType.second)) {
+            endType.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(endType.second), msc->Error);
         return true;
     }
     if (a.Is("arrowsize") || a.EndsWith("size")) {
@@ -127,99 +153,6 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         return line.AddAttribute(a, msc, t);
     }
     return false;
-}
-
-void ArrowHead::AttributeNames(Csh &csh)
-{
-    static const char names[][ENUM_STRING_LEN] =
-    {"invalid", "arrow.type", "arrow.size", "arrow.color", "arrow.starttype", "arrow.midtype",
-     "arrow.endtype", "line.width", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
-}
-
-bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
-{
-    if (!msc) return false;
-    const double xx = 0.7;
-    std::vector<double> xPos(2); 
-    xPos[0] = 0;
-    xPos[1] = HINT_GRAPHIC_SIZE_X*0.7;
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, 0);
-    msc->ClipRectangle(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
-    msc->line(XY(xPos[1], 1), XY(xPos[1], HINT_GRAPHIC_SIZE_Y-1), eLine);
-    ArrowHead ah(ArrowHead::BIGARROW);
-    ah.line += MscColorType(128,128,0); //brown
-    ah.endType.second = (MscArrowType)(int)p;
-    ah.size.second = MSC_ARROWS_INVALID;
-    MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
-    ah.FillBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc, fill);
-    ah.DrawBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc);
-    msc->UnClip();
-    return true;
-}
-
-bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrowSize size, bool left)
-{
-    if (!msc) return false;
-    const double xx = left ? 0.9 : 0.7;
-    XY xy(HINT_GRAPHIC_SIZE_X*xx, HINT_GRAPHIC_SIZE_Y/2);
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, 0);
-    ArrowHead ah;
-    ah.line += MscColorType(128,128,0); //brown
-    ah.endType.second = type;
-    ah.size.second = size;
-    Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END, msc);
-    msc->ClipRectangle(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
-    if (cover.from>1)
-        msc->line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
-    if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
-        msc->line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    double stop = ah.getWidthForLine(false, MSC_ARROW_END, msc).first;
-    if (stop<HINT_GRAPHIC_SIZE_X*(xx-0.1))
-        msc->line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), XY(xy.x-stop, xy.y), ah.line);
-    ah.Draw(xy, true, false, MSC_ARROW_END, msc);
-    msc->UnClip();
-    return true;
-}
-
-bool CshHintGraphicCallbackForArrowTypes(MscDrawer *msc, CshHintGraphicParam p)
-{
-    return CshHintGraphicCallbackForArrows(msc, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
-}
-
-bool CshHintGraphicCallbackForArrowSizes(MscDrawer *msc, CshHintGraphicParam p)
-{
-    return CshHintGraphicCallbackForArrows(msc, MSC_ARROW_SOLID, (MscArrowSize)(int)p, true);
-}
-
-bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, ArcType t)
-{
-    if (CaseInsensitiveEqual(attr, "arrow") ||
-        CaseInsensitiveEndsWith(attr, "type") ||
-        CaseInsensitiveEndsWith(attr, "starttype") ||
-        CaseInsensitiveEndsWith(attr, "midtype") ||
-        CaseInsensitiveEndsWith(attr, "endtype")) {
-        for (int i=1; EnumEncapsulator<MscArrowType>::names[i][0]; i++)
-            if (t==ANY || (t==BIGARROW && MSC_ARROW_OK_FOR_BIG_ARROWS(MscArrowType(i))) || 
-                          (t==ARROW && MSC_ARROW_OK_FOR_ARROWS(MscArrowType(i))))
-                csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + EnumEncapsulator<MscArrowType>::names[i],
-                               HINT_ATTR_VALUE, true, 
-                               t==BIGARROW ? CshHintGraphicCallbackForBigArrows : CshHintGraphicCallbackForArrowTypes,
-                               CshHintGraphicParam(i)));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr, "arrowsize") ||
-        CaseInsensitiveEndsWith(attr, "size")) {
-        csh.AddToHints(EnumEncapsulator<MscArrowSize>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForArrowSizes);
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "color") ||
-        CaseInsensitiveEndsWith(attr, "line.width")) {
-        return MscLineAttr::AttributeValues(attr, csh);
-    }
-    return false;
-
 }
 
 MscArrowType ArrowHead::GetType(bool bidir, MscArrowEnd which) const
@@ -312,7 +245,7 @@ std::pair<double, double> ArrowHead::getWidthForLine(bool bidir, MscArrowEnd whi
 void triangle(cairo_t *cr,
                          double x1, double y1,
                          double x2, double y2,
-                         double x3, double y3)
+                         double x3, double y3) 
 {
     cairo_move_to(cr, x1+CAIRO_OFF, y1+CAIRO_OFF);
     cairo_line_to(cr, x2+CAIRO_OFF, y2+CAIRO_OFF);
@@ -320,7 +253,7 @@ void triangle(cairo_t *cr,
     cairo_close_path(cr);
 }
 
-void diamond(cairo_t *cr, XY xy, XY wh)
+void diamond(cairo_t *cr, XY xy, XY wh) 
 {
     cairo_move_to(cr, xy.x-wh.x+CAIRO_OFF, xy.y+CAIRO_OFF);
     cairo_line_to(cr, xy.x+CAIRO_OFF, xy.y+wh.y+CAIRO_OFF);
@@ -438,7 +371,7 @@ void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which,
 //For largely internal use - characteristic size of the big arrowheads
 XY ArrowHead::getBigWidthHeight(MscArrowType type, MscDrawer *) const
 {
-    static double sizes[] = {3, 5, 10, 15, 25, 35};
+    static double sizes[] = {0, 5, 10, 15, 25, 35};
     switch(type)
     {
     case MSC_ARROW_NONE:
@@ -837,6 +770,6 @@ void ArrowHead::CoverBig(const std::vector<double> &xPos, double sy, double dy,
 void ArrowHead::ClipBig(std::vector<double> xPos, double sy, double dy,
                  bool bidir, MscDrawer *m) const
 {
-	big_path(xPos, sy, dy, m, LINE_SOLID, bidir, 0);
+	big_path(xPos, sy, dy, m, LINE_SOLID, bidir, 0); 
 	m->Clip();
 }

@@ -1,7 +1,7 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010 Zoltan Turanyi
-    Distributed under GNU Affero General Public License.
+	Copyright 2008,2009,2010 Zoltan Turanyi
+	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -20,45 +20,25 @@
 #include <cstring>
 #include "msc.h"
 
-
-int CaseInsensitiveCommonPrefixLen(const char *a, const char *b)
-{
-    if (a==NULL || b==NULL) return 0;
-    unsigned i=0;
-    while(a[i] && b[i]) {
-        if (tolower(a[i]) != tolower(b[i]))
-            return i;
-        i++;
-    }
-    return i;
-}
-
 //0 if a does not begin with b
 //1 if a begins with b
 //2 if a == b
 //Rule 1: "" begins with a NULL, but is not equal to it
 //Rule 2: every string begins with a "" or a NULL
-int CaseInsensitiveBeginsWith(const char *a, const char *b)
+int CaseInsensitiveBeginsWidth(const char *a, const char *b)
 {
     if (b==NULL) return a==NULL?2:1;
     if (a==NULL) return 0;
-    unsigned i=CaseInsensitiveCommonPrefixLen(a, b);
+    unsigned i=0;
+    while(a[i] && b[i]) {
+        if (tolower(a[i]) != tolower(b[i]))
+            return 0;
+        i++;
+    }
     if (b[i]==0) return a[i]==0?2:1;
     return 0;
 }
 
-bool CaseInsensitiveEndsWith(const char *base, const char *a)
-{
-    int i1 = strlen(a)-1;
-    int i2 = strlen(base)-1;
-    if (i1>i2 || i1<0 || i2<0) return false;
-    while(i1>=0 && i2>=0) {
-        if (toupper(a[i1]) != toupper(base[i2]))
-            return false;
-        i1--; i2--;
-    }
-    return i2<0 || base[i2]=='.';
-}
 
 string Attribute::Print(int ident) const
 {
@@ -83,7 +63,15 @@ string Attribute::Print(int ident) const
 //Case insensitive comparison with name
 bool Attribute::EndsWith(const char *a) const
 {
-    return CaseInsensitiveEndsWith(name.c_str(), a);
+    int i1 = strlen(a)-1;
+    int i2 = name.length()-1;
+    if (i1>i2 || i1<0 || i2<0) return false;
+    while(i1>=0 && i2>=0) {
+        if (toupper(a[i1]) != toupper(name[i2]))
+            return false;
+        i1--; i2--;
+    }
+    return i2<0 || name[i2]=='.';
 }
 
 bool Attribute::StartsWith(const char *a) const
@@ -184,7 +172,7 @@ bool Attribute::EnsureNotClear(MscError &error, StyleType t) const
 
 /////////////////////////////////////////////////////////////////////////////
 
-template<> const char EnumEncapsulator<MscLineType>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<MscLineType>::names[][15] =
     {"invalid", "none", "solid", "dotted", "dashed", "double", ""};
 
 MscLineAttr::MscLineAttr() :
@@ -217,11 +205,11 @@ bool MscLineAttr::operator == (const MscLineAttr &a)
 bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_line) operator +=(style.line);
         return true;
     }
@@ -231,8 +219,8 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
                 color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        color.second = msc->Contexts.back().colors.GetColor(a.value);
+        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
+        color.second = msc->Contexts.top().colors.GetColor(a.value);
         color.first = true;
         return true;
     }
@@ -279,45 +267,6 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-void MscLineAttr::AttributeNames(Csh &csh)
-{
-    static const char names[][ENUM_STRING_LEN] =
-    {"line.color", "line.type", "line.width", "line.radius", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
-}
-
-bool CshHintGraphicCallbackForLineType(MscDrawer *msc, CshHintGraphicParam p)
-{
-    if (!msc) return false;
-    MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 2, 0);
-    msc->line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y/2), 
-              XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y/2), line);
-    return true;
-}
-
-
-bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
-{
-    if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "type")) {
-        csh.AddToHints(EnumEncapsulator<MscLineType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForLineType);
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "width")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "radius")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    return false;
-}
-
 string MscLineAttr::Print(int ident) const
 {
     string ss = "line(";
@@ -328,14 +277,12 @@ string MscLineAttr::Print(int ident) const
 }
 
 MscFillAttr::MscFillAttr() :
-    color(true, MscColorType(255,255,255)), color2(false, MscColorType(255,255,255)), 
-    gradient(true, GRADIENT_NONE)
+    color(true, MscColorType(255,255,255)), gradient(true, GRADIENT_NONE)
 {}
 
 MscFillAttr &MscFillAttr::operator +=(const MscFillAttr&a)
 {
     if (a.color.first) color = a.color;
-    if (a.color2.first) color2 = a.color2;
     if (a.gradient.first) gradient = a.gradient;
     return *this;
 };
@@ -344,37 +291,34 @@ bool MscFillAttr::operator == (const MscFillAttr &a)
 {
     if (a.color.first != color.first) return false;
     if (color.first && !(a.color.second == color.second)) return false;
-    if (a.color2.first != color2.first) return false;
-    if (color2.first && !(a.color2.second == color2.second)) return false;
     if (a.gradient.first != gradient.first) return false;
     if (gradient.first && !(a.gradient.second == gradient.second)) return false;
     return true;
 }
 
-template<> const char EnumEncapsulator<MscGradientType>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<MscGradientType>::names[][15] =
     {"invalid", "none", "out", "in", "down", "up", "left", "right", "button", ""};
 
 bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_fill) operator +=(style.fill);
         return true;
     }
-    if (a.EndsWith("color") || a.EndsWith("color2")) {
-        std::pair<bool, MscColorType> &c = (a.name[a.name.length()-1]=='2') ? color2 : color;
+    if (a.EndsWith("color")) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
-                c.first = false;
+                color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        c.second = msc->Contexts.back().colors.GetColor(a.value);
-        c.first = true;
+        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
+        color.second = msc->Contexts.top().colors.GetColor(a.value);
+        color.first = true;
         return true;
     }
     if (a.EndsWith("gradient")) {
@@ -393,46 +337,10 @@ bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
-{
-    if (!msc) return false;
-    const int size = HINT_GRAPHIC_SIZE_Y-2;
-    const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
-    const int off_y = 1;
-    MscColorType black(0,0,0);
-    MscFillAttr fill(black, MscColorType(255,255,255), MscGradientType(int(p)));
-    msc->filledRectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), fill);
-    msc->rectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), black);
-    return true;
-}
-
-
-void MscFillAttr::AttributeNames(Csh &csh)
-{
-    static const char names[][ENUM_STRING_LEN] =
-    {"fill.color", "fill.color2", "fill.gradient", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
-}
-
-bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
-{
-    if (CaseInsensitiveEndsWith(attr, "color") || CaseInsensitiveEndsWith(attr, "color2")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "gradient")) {
-        csh.AddToHints(EnumEncapsulator<MscGradientType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForGradient);
-        return true;
-    }
-    return false;
-}
-
 string MscFillAttr::Print(int ident) const
 {
     string ss = "fill(";
     if (color.first) ss << " color:" << color.second.Print();
-    if (color2.first) ss << " color2:" << color2.second.Print();
     if (gradient.first) ss << " gradient:" << PrintEnum(gradient.second);
     return ss + ")";
 }
@@ -464,11 +372,11 @@ bool MscShadowAttr::operator == (const MscShadowAttr &a)
 bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.top().styles[a.name];
         if (style.f_shadow) operator +=(style.shadow);
         return true;
     }
@@ -478,8 +386,8 @@ bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
                 color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        color.second = msc->Contexts.back().colors.GetColor(a.value);
+        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
+        color.second = msc->Contexts.top().colors.GetColor(a.value);
         color.first = true;
         return true;
     }
@@ -514,28 +422,6 @@ bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-void MscShadowAttr::AttributeNames(Csh &csh)
-{
-    static const char names[][ENUM_STRING_LEN] =
-    {"shadow.color", "shadow.offset", "shadow.blur", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
-}
-
-bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
-{
-    if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "offset") ||
-        CaseInsensitiveEndsWith(attr, "offset")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>", HINT_ATTR_VALUE));
-        return true;
-    }
-    return false;
-}
-
-
 string MscShadowAttr::Print(int ident) const
 {
     string ss = "shadow(";
@@ -543,32 +429,4 @@ string MscShadowAttr::Print(int ident) const
     if (offset.first) ss << " offset:" << offset.second;
     if (blur.first) ss << " blur:" << blur.second;
     return ss + ")";
-}
-
-
-bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p)
-{
-    if (!msc) return false;
-    msc->ClipRectangle(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
-    cairo_t *cr = msc->GetContext();
-    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-    cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);  //UnClip will remove these
-    cairo_set_line_width(cr, 3);
-    if (int(p)) {
-        cairo_set_source_rgb(cr, 0, 0.8, 0); //green
-        cairo_move_to(cr, HINT_GRAPHIC_SIZE_X*0.3, HINT_GRAPHIC_SIZE_Y*0.6);
-        cairo_line_to(cr, HINT_GRAPHIC_SIZE_X*0.4, HINT_GRAPHIC_SIZE_Y*0.9);
-        cairo_line_to(cr, HINT_GRAPHIC_SIZE_X*0.7, HINT_GRAPHIC_SIZE_Y*0.2);
-    } else {
-        cairo_set_source_rgb(cr, 1, 0, 0); //red
-        const XY xy(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2);
-        const double off = HINT_GRAPHIC_SIZE_Y*0.3;
-        cairo_move_to(cr, xy.x-off, xy.y-off);
-        cairo_line_to(cr, xy.x+off, xy.y+off);
-        cairo_move_to(cr, xy.x-off, xy.y+off);
-        cairo_line_to(cr, xy.x+off, xy.y-off);
-    }
-    cairo_stroke(cr);
-    msc->UnClip();
-    return true;
 }

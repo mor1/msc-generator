@@ -705,8 +705,6 @@ void CMscGenDoc::OnSelChange()
 
 void CMscGenDoc::OnDesignDesign() 
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
 	CObList list;
 	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
 	POSITION p = list.GetHeadPosition();
@@ -724,7 +722,6 @@ void CMscGenDoc::OnDesignDesign()
 	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo, keep page shown
 	m_itrEditing->SetDesign(new_forcedDesign);
-    pApp->m_pWndEditor->m_ctrlEditor.SetForcedDesign(new_forcedDesign);
 	ShowEditingChart(true);
 	CheckIfChanged();     
 }
@@ -1184,7 +1181,7 @@ void CMscGenDoc::StartFadingTimer()
 
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 30000; //millisecons XXX, shoud be 300
+	const double fade_completely = 300;
 	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
 	bool keep_coming_back = false;
 	Block bounding;

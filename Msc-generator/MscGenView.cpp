@@ -31,147 +31,10 @@
 #include <string>
 #include <cmath>
 
-#include "geometry_xarea.h"
-
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
-void test_geo(cairo_t *cr, int x, int y, bool clicked) 
-{
-	using geometry::Area;
-	using geometry::Polygon;
-	using namespace geometry;
-
-	static Area tri, boxhole, cooomplex, cooomplex2, cooomplex3, custom;
-	if (boxhole.IsEmpty()) {
-		tri = Polygon(30,50,60,70);
-		tri += Polygon(geometry::XY(50,90), geometry::XY(100,60), geometry::XY(40,20));
-		boxhole += Polygon(130,170,60,70);
-		boxhole += Polygon(160,170,60,140);
-		boxhole += Polygon(130,140,60,140);
-		boxhole += Polygon(130,170,130,140);
-
-		boxhole += Polygon(148,153, 85, 115);
-
-		cooomplex = boxhole + tri;
-
-		cooomplex2 = Polygon(110, 200, 80, 120);
-		cooomplex2 -= Polygon(120, 190, 90, 110);
-
-		cooomplex2 += cooomplex;
-		custom = cooomplex2;
-		cooomplex2 += Area(cooomplex2).Shift(geometry::XY(15,15));
-		cooomplex2.Shift(geometry::XY(200,0));
-		custom. Shift(geometry::XY(200,0));
-
-		cooomplex.clear();
-		const int num_x = 10;
-		const int num_y = 10;
-		for (int i=0; i<num_x; i++)
-			cooomplex += Polygon(200+i*20, 215+i*20, 200, 190+num_y*20);
-		for (int j=0; j<num_y; j++)
-			cooomplex += Polygon(200, 190+num_x*20, 200+j*20, 215+j*20);
-	
-		//cooomplex2.ClearHoles();
-		cooomplex2 *= Polygon(geometry::XY(300,101), 100, 50);
-		cooomplex3 = cooomplex2;
-	}
-
-	std::vector<geometry::Edge> v;
-	v.push_back(geometry::Edge(geometry::XY( 50, 200)));
-	v.push_back(geometry::Edge(geometry::XY(x, y)));
-	v.push_back(geometry::Edge(geometry::XY( 50, 300)));
-	v.push_back(geometry::Edge(geometry::XY(100, 300)));
-	custom = v;
-	custom.Line2(cr);
-
-	Area circle = Polygon(geometry::XY(200, 200), 60, 30, 30);
-	Area circle2= Polygon(geometry::XY(x, y), 60, 30, abs(x-y));
-	//Area circle2= Polygon(geometry::XY(339, 103), 60, 30, 150);
-	//Area circle2= Polygon(geometry::XY(337, 103), 60, 30, 150);
-	//Polygon circle2(geometry::XY(200,200), 60, 30, 150);
-	//Polygon box(x-30, x+30, y-20, y+20);
-	//circle += Polygon(200,300, 170,190);
-	//circle2 += Polygon(x,x+100, y+15,y+30);
-
-	Area boxhole2 = Polygon(110, 200, 80, 120);
-	boxhole2 -= Polygon(120, 190, 90, 110);
-	//boxhole2.Shift(geometry::XY(x-110, y-80));
-	boxhole2.Shift(geometry::XY(0, 100));
-
-	//circle2.Line(cr);
-	cooomplex2 = cooomplex3;
-	//cooomplex2.RotateAround(geometry::XY(350,100), (x-y)/(M_PI*180));
-	//cooomplex2.Line2(cr);
-
-	//custom.Line2(cr);
-	//boxhole.Line2(cr);
-
-	//cooomplex.Line2(cr);
-	//custom.Line2(cr);
-	//boxhole2.Line(cr);
-	//Area(Polygon(geometry::XY(130,201), 30, 20)).Line2(cr);
-	Area huhu = boxhole2;
-	//huhu.ClearHoles();
-	//huhu *= Polygon(geometry::XY(130,201), 30,20);
-	//huhu.Line2(cr);
-	//Area bexp = huhu.RotateAround(geometry::XY(300,100), 30).Expand((x-y)/10).Shift(geometry::XY(0,100));
-	//Area bexp = cooomplex2.RotateAround(geometry::XY(300,100), x-y).Expand((x-y)/10).Shift(geometry::XY(0,100));
-	//Area bexp = (Polygon(200, 300, 200, 250) - Polygon(220, 280, 210, 230)).RotateAround(geometry::XY(250,250), 30).Expand(-5);
-	//Area bexp = huhu.Expand((x-y)/10).Shift(geometry::XY(0,100));
-	//bexp.Line2(cr);
-
-	cairo_set_source_rgb(cr, 1, 0, 0);
-	//(boxhole + boxhole2).Line2(cr); 
-	//(cooomplex2 * circle2).Line2(cr);
-	cairo_set_source_rgb(cr, 0, 0, 1);
-	//(cooomplex * circle2).Fill(cr);
-	cairo_set_source_rgb(cr, 0, 0, 0);
-//	(pl4 * circle2).Fill(cr);
-
-	//double r[4];
-	//int a = quartic_solve(1, 0, 0, 0, 0, r);
-	//int b = cubic_solve(1, -6, 23, -6, r);
-	//for (int i = 0; i<b; i++) {
-	//	double k = cubic_substitute(1, -6, 23, -6, r[i]);
-	//	k = k;
-	//}
-	//int c = cubic_solve(1, -6, 11, -6, r);
-
-
-	//geometry::XY off(150, 30);
-	//Edge e1(geometry::XY(x-75, y));
-	//Edge e2(geometry::XY(200,200), 50, 100, 30);
-	//Edge e3(geometry::XY(x, y), 100, 50, 60);
-
-	//cairo_move_to(cr, e3.GetStart().x, e3.GetStart().y);
-	//e3.Path(cr, e3.GetStart()+off.Rotate90CW());
-	//cairo_stroke(cr);
-	//cairo_move_to(cr, e2.GetStart().x, e2.GetStart().y);
-	//e2.Path(cr, e2.GetStart()+off);
-	//cairo_stroke(cr);
-	//
-	//(Polygon(geometry::XY(200,200), 50, 100, 30) * Polygon(geometry::XY(x, y), 100, 50, 60)).Fill(cr);
-
-	//geometry::XY xy[4];
-	//double pos1[4], pos2[4];
-	//int num = Edge::Crossing(e3, e3.GetStart()+off.Rotate90CW(), e2, e2.GetStart()+off, xy, pos1, pos2);
-	//for (int i=0; i<num; i++) {
-	//	cairo_set_source_rgba(cr, 0, 1, 0, 0.8);
-	//	cairo_arc(cr, xy[i].x, xy[i].y, 5, 0, 2*3.14);
-	//	cairo_close_path(cr);
-	//	cairo_fill(cr);
-
-	//	char buff[200];
-	//	sprintf(buff, "%d: pos1:%f, pos2:%f", i, pos1[i], pos2[i]);
-	//	cairo_move_to(cr, xy[i].x+10, xy[i].y);
-	//	cairo_show_text(cr, buff);
-	//}
-}
-
-
 
 // CMscGenView
 
@@ -213,7 +76,6 @@ CMscGenView::CMscGenView() : m_size(0,0)
 	m_FadingTimer = NULL;
 	SetScrollSizes(MM_TEXT, m_size);
 	m_nDropEffect = DROPEFFECT_NONE;
-	m_clicked = false;
 }
 
 CMscGenView::~CMscGenView()
@@ -521,9 +383,6 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 				AddFrameToSurface(*j, i->alpha/255., cr_dest, xScale, yScale, 
 				                  pApp->m_trackLineColor, pApp->m_trackFillColor);
 	}
-
-	//ToDo: POLYGON TESTING XXX
-	test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
 
 	//Cleanup
 	cairo_destroy(cr_dest);
@@ -863,7 +722,6 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	pDoc->UpdateTrackRects(point);
-	m_hoverPoint = point;
 }
 
 void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
@@ -888,9 +746,8 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
 	if (pDoc->m_bTrackMode) {
-		m_clicked=true;
 		pDoc->UpdateTrackRects(point);
-	}else {
+	} else {
 		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
 			pDoc->StartFadingAll();
