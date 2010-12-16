@@ -72,6 +72,18 @@ cairo_status_t write_func(void * closure, const unsigned char *data, unsigned le
         return CAIRO_STATUS_WRITE_ERROR;
 }
 
+//return true if we are running anything before Vista
+bool IsWindowsVersionOld()
+{
+    OSVERSIONINFOEX osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+
+    if(!GetVersionEx ((OSVERSIONINFO *) &osvi))
+        return true;
+    return  osvi.dwMajorVersion<=5; //5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
+}
+
 void MscDrawer::SetLowLevelParams(OutputType ot)
 {
     /* Set low-level parameters for default */
@@ -99,6 +111,10 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     case EMF:
         fake_gradients = 30;
         fake_shadows = true;
+        if (IsWindowsVersionOld()) {
+            use_text_path = true; 
+            use_text_path_rotated = true;
+        }
     }
 }
 
