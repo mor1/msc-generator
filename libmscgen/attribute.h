@@ -225,12 +225,17 @@ typedef enum {
 struct MscFillAttr {
 public:
     std::pair<bool, MscColorType> color;
+    std::pair<bool, MscColorType> color2;
     std::pair<bool, MscGradientType> gradient;
     MscFillAttr();
     MscFillAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
     MscFillAttr(MscColorType c, MscGradientType g) :
         color(true, c), gradient(true,g) {}
-    void Empty() {color.first = gradient.first = false;}
+    MscFillAttr(MscColorType c, MscColorType c2) : 
+        color(true, c), color2(true, c2), gradient(false, GRADIENT_INVALID) {}
+    MscFillAttr(MscColorType c, MscColorType c2, MscGradientType g) :
+        color(true, c), color2(true, c2), gradient(true,g) {}
+    void Empty() {color.first = color2.first = gradient.first = false;}
     MscFillAttr &operator +=(const MscFillAttr&a);
     bool operator == (const MscFillAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);

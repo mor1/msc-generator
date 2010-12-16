@@ -417,7 +417,7 @@ arc_with_parallel_semicolon: arc_with_parallel TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@3, COLOR_SEMICOLON);
-    csh.AddCSH_ErrorAfter(@1);
+    csh.AddCSH(@1, COLOR_ERROR);
     if (csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, HINT_LINE_START)) {
        csh.AddLineBeginToHints();
        csh.hintStatus = HINT_READY;
@@ -717,7 +717,17 @@ optlist:     opt
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Expecting an option here.");
   #endif
 }
-           | optlist TOK_COMMA TOK__NEVER__HAPPENS;
+           | optlist TOK_COMMA TOK__NEVER__HAPPENS
+           | optlist TOK_COMMA error
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_COMMA);
+    csh.AddCSH(@3, COLOR_ERROR);
+  #else
+    $$ = $1;
+  #endif
+}
+
 
 opt:         entity_string TOK_EQUAL TOK_BOOLEAN
 {
