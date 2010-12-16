@@ -10,9 +10,14 @@ Two helpers needed:
 
 ISSUE: missing ; at the end of last command creates an empty chart
 BUG: Change icons for file, program, etc.
+UPDATE DOC: With hints
 
+In 2.6
+FIXED: Many improvements to parsing, but missing the ; still result in empty chart
+ADDED: IntelliSense-like suggestions and auto-completion
 
 In 2.5.5
+FIXED: Under XP now we use cairo_text_path, so it works.
 FIXED: after a many line-label terminated with a semicolon TAB works bad in next line
 FIXED: Tabbing a multiline label (all of it) works bad
 FIXED: Now dropping a file will be equal to opening one (will ask for save and erase undo)
