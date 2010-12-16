@@ -328,12 +328,14 @@ string MscLineAttr::Print(int ident) const
 }
 
 MscFillAttr::MscFillAttr() :
-    color(true, MscColorType(255,255,255)), gradient(true, GRADIENT_NONE)
+    color(true, MscColorType(255,255,255)), color2(false, MscColorType(255,255,255)), 
+    gradient(true, GRADIENT_NONE)
 {}
 
 MscFillAttr &MscFillAttr::operator +=(const MscFillAttr&a)
 {
     if (a.color.first) color = a.color;
+    if (a.color2.first) color2 = a.color2;
     if (a.gradient.first) gradient = a.gradient;
     return *this;
 };
@@ -342,6 +344,8 @@ bool MscFillAttr::operator == (const MscFillAttr &a)
 {
     if (a.color.first != color.first) return false;
     if (color.first && !(a.color.second == color.second)) return false;
+    if (a.color2.first != color2.first) return false;
+    if (color2.first && !(a.color2.second == color2.second)) return false;
     if (a.gradient.first != gradient.first) return false;
     if (gradient.first && !(a.gradient.second == gradient.second)) return false;
     return true;
@@ -361,15 +365,16 @@ bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         if (style.f_fill) operator +=(style.fill);
         return true;
     }
-    if (a.EndsWith("color")) {
+    if (a.EndsWith("color") || a.EndsWith("color2")) {
+        std::pair<bool, MscColorType> &c = (a.name[a.name.length()-1]=='2') ? color2 : color;
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
-                color.first = false;
+                c.first = false;
             return true;
         }
         if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
-        color.second = msc->Contexts.back().colors.GetColor(a.value);
-        color.first = true;
+        c.second = msc->Contexts.back().colors.GetColor(a.value);
+        c.first = true;
         return true;
     }
     if (a.EndsWith("gradient")) {
@@ -395,7 +400,8 @@ bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
     MscColorType black(0,0,0);
-    msc->filledRectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), MscFillAttr(black, MscGradientType(int(p))));
+    MscFillAttr fill(black, MscColorType(255,255,255), MscGradientType(int(p)));
+    msc->filledRectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), fill);
     msc->rectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), black);
     return true;
 }
@@ -404,13 +410,13 @@ bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
 void MscFillAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"fill.color", "fill.gradient", ""};
+    {"fill.color", "fill.color2", "fill.gradient", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
 bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
-    if (CaseInsensitiveEndsWith(attr, "color")) {
+    if (CaseInsensitiveEndsWith(attr, "color") || CaseInsensitiveEndsWith(attr, "color2")) {
         csh.AddColorValuesToHints();
         return true;
     }
@@ -426,6 +432,7 @@ string MscFillAttr::Print(int ident) const
 {
     string ss = "fill(";
     if (color.first) ss << " color:" << color.second.Print();
+    if (color2.first) ss << " color2:" << color2.second.Print();
     if (gradient.first) ss << " gradient:" << PrintEnum(gradient.second);
     return ss + ")";
 }
