@@ -48,7 +48,6 @@ typedef enum
     COLOR_LABEL_TEXT,
     COLOR_LABEL_ESCAPE,
     COLOR_ERROR,
-    COLOR_ACTIVE_ERROR,
     COLOR_COMMENT,
     COLOR_MAX
 } MscColorSyntaxType;

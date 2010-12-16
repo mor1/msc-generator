@@ -494,6 +494,14 @@ void MscDrawer::CloseOutput()
     fileName.clear();
 }
 
+void MscDrawer::ClipAndMap(const Block &before, const Block &after)
+{
+    cairo_save(cr);
+    cairo_translate(cr, before.UpperLeft().x, before.UpperLeft().y);
+    cairo_scale(cr, before.x.Spans()/after.x.Spans(), before.y.Spans()/after.y.Spans());
+    cairo_translate(cr, -after.UpperLeft().x, -after.UpperLeft().y);
+}
+
 void MscDrawer::Rotate90(double s, double d, bool clockwise)
 {
     cairo_matrix_t matrix;
@@ -580,10 +588,10 @@ void MscDrawer::_set_linear_gradient(MscColorType from, MscColorType to, XY s, X
         break;
     case GRADIENT_BUTTON:
         pattern = cairo_pattern_create_linear(s.x, s.y, s.x, d.y);
-        _add_color_stop(pattern, 0,    from.Lighter(0.8));
-        _add_color_stop(pattern, 0.43, from);
-        _add_color_stop(pattern, 0.5,  from.Darker(0.1));
-        _add_color_stop(pattern, 1,    from);
+        _add_color_stop(pattern, 0,    to.Lighter(0.8));
+        _add_color_stop(pattern, 0.43, to);
+        _add_color_stop(pattern, 0.5,  to.Darker(0.1));
+        _add_color_stop(pattern, 1,    to);
         break;
     case GRADIENT_NONE:
     default:
@@ -1010,28 +1018,29 @@ void MscDrawer::filledRectangle(XY s, XY d, MscFillAttr fill, int radius)
     if (fill.gradient.second!=GRADIENT_NONE && fake_gradients && fill.color.second.a==255) {
         ClipRectangle(s, d-XY(1,1), radius);
         MscColorType color = fill.color.second;
+        MscColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
         switch(fill.gradient.second) {
         case GRADIENT_OUT:
             _fakeradial(cr, XY((s.x+d.x)/2, (s.y+d.y)/2),
-                        color, color.Lighter(0.8),
+                        color, color2,
                         max_extent, 0, fake_gradients, true);
             break;
         case GRADIENT_IN:
             _fakeradial(cr, XY((s.x+d.x)/2, (s.y+d.y)/2),
-                        color.Lighter(0.8), color,
+                        color2, color,
                         max_extent, 0, fake_gradients, true);
             break;
         case GRADIENT_DOWN:
-            _fakelinear(cr, s, d, color.Lighter(0.8), color, false, fake_gradients);
+            _fakelinear(cr, s, d, color2, color, false, fake_gradients);
             break;
         case GRADIENT_UP:
-            _fakelinear(cr, s, d, color, color.Lighter(0.8), false, fake_gradients);
+            _fakelinear(cr, s, d, color, color2, false, fake_gradients);
             break;
         case GRADIENT_RIGHT:
-            _fakelinear(cr, s, d, color.Lighter(0.8), color, true, fake_gradients);
+            _fakelinear(cr, s, d, color2, color, true, fake_gradients);
             break;
         case GRADIENT_LEFT:
-            _fakelinear(cr, s, d, color, color.Lighter(0.8), true, fake_gradients);
+            _fakelinear(cr, s, d, color, color2, true, fake_gradients);
             break;
         case GRADIENT_BUTTON:
             double step = (d.y-s.y)/100;
@@ -1042,20 +1051,23 @@ void MscDrawer::filledRectangle(XY s, XY d, MscFillAttr fill, int radius)
         UnClip();
     } else {
         MscColorType to = fill.color.second, from;
-        switch(fill.gradient.second) {
-        case GRADIENT_OUT:
-        case GRADIENT_IN:
-            from = to.Lighter(0.6);
-            break;
-        case GRADIENT_DOWN:
-        case GRADIENT_UP:
-        case GRADIENT_LEFT:
-        case GRADIENT_RIGHT:
-            from = to.Lighter(0.8);
-            break;
-        default:
-            from = to; //to is not used for BUTTON and NONE
-        }
+        if (!fill.color2.first) 
+            switch(fill.gradient.second) {
+            case GRADIENT_OUT:
+            case GRADIENT_IN:
+                from = to.Lighter(0.6);
+                break;
+            case GRADIENT_DOWN:
+            case GRADIENT_UP:
+            case GRADIENT_LEFT:
+            case GRADIENT_RIGHT:
+                from = to.Lighter(0.8);
+                break;
+            default:
+                from = to; //to is not used for BUTTON and NONE
+            }
+        else 
+            from = fill.color2.second;
         if (fill.gradient.second ==GRADIENT_IN || fill.gradient.second == GRADIENT_OUT) {
             XY c((s.x+d.x)/2, (s.y+d.y)/2);
             _set_radial_gradient(from, to, c, max_extent, 0, fill.gradient.second);

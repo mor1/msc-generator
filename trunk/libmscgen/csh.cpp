@@ -65,10 +65,9 @@ void MscInitializeCshAppearanceList(void)
     l[0][COLOR_COLORDEF].          SetColor(  0,  0,  0); l[0][COLOR_COLORDEF].effects = 0;
     l[0][COLOR_LABEL_TEXT].        SetColor(  0,  0,  0); l[0][COLOR_LABEL_TEXT].effects = 0;
     l[0][COLOR_LABEL_ESCAPE].      SetColor(  0,  0,  0); l[0][COLOR_LABEL_ESCAPE].effects = COLOR_FLAG_BOLD;
-    l[0][COLOR_ERROR].             SetColor( 50, 50, 50); l[0][COLOR_ERROR].effects = 0;
     l[0][COLOR_COMMENT].           SetColor(100,100,100); l[0][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
     //For errors we keep bold, italics and color settings, just underline
-    l[0][COLOR_ACTIVE_ERROR].mask = COLOR_FLAG_UNDERLINE; l[0][COLOR_ACTIVE_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[0][COLOR_ERROR].mask = COLOR_FLAG_UNDERLINE;        l[0][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
 
     //CSH_SCHEME ==1 is the Standard one
     l[1][COLOR_KEYWORD].           SetColor(128,128,  0); l[1][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
@@ -93,10 +92,9 @@ void MscInitializeCshAppearanceList(void)
     l[1][COLOR_COLORDEF].          SetColor(  0,  0,200); l[1][COLOR_COLORDEF].effects = 0;
     l[1][COLOR_LABEL_TEXT].        SetColor(  0,  0,  0); l[1][COLOR_LABEL_TEXT].effects = 0;
     l[1][COLOR_LABEL_ESCAPE].      SetColor(  0,150,  0); l[1][COLOR_LABEL_ESCAPE].effects = COLOR_FLAG_BOLD;
-    l[1][COLOR_ERROR].             SetColor( 50, 50, 50); l[1][COLOR_ERROR].effects = 0;
     l[1][COLOR_COMMENT].           SetColor(100,100,100); l[1][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
     //For errors we keep bold, italics and color settings, just underline
-    l[1][COLOR_ACTIVE_ERROR].mask = COLOR_FLAG_UNDERLINE; l[1][COLOR_ACTIVE_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[1][COLOR_ERROR].mask = COLOR_FLAG_UNDERLINE;        l[1][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
 
     //CSH_SCHEME ==2 is the Colorful one
     l[2][COLOR_KEYWORD].           SetColor(128,128,  0); l[2][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
@@ -121,10 +119,9 @@ void MscInitializeCshAppearanceList(void)
     l[2][COLOR_COLORDEF].          SetColor(  0,  0,255); l[2][COLOR_COLORDEF].effects = 0;
     l[2][COLOR_LABEL_TEXT].        SetColor(  0,200,  0); l[2][COLOR_LABEL_TEXT].effects = 0;
     l[2][COLOR_LABEL_ESCAPE].      SetColor(255,  0,  0); l[2][COLOR_LABEL_ESCAPE].effects = COLOR_FLAG_BOLD;
-    l[2][COLOR_ERROR].             SetColor( 50, 50, 50); l[2][COLOR_ERROR].effects = 0;
     l[2][COLOR_COMMENT].           SetColor(100,100,100); l[2][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
     //For errors we keep bold, italics and color settings, just underline
-    l[2][COLOR_ACTIVE_ERROR].mask = COLOR_FLAG_UNDERLINE; l[2][COLOR_ACTIVE_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[2][COLOR_ERROR].mask = COLOR_FLAG_UNDERLINE;        l[2][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
 
     //CSH_SCHEME ==3 is the Error oriented one
     l[3][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[3][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
@@ -149,9 +146,8 @@ void MscInitializeCshAppearanceList(void)
     l[3][COLOR_COLORDEF].          SetColor(  0,  0,  0); l[3][COLOR_COLORDEF].effects = 0;
     l[3][COLOR_LABEL_TEXT].        SetColor(  0,  0,  0); l[3][COLOR_LABEL_TEXT].effects = 0;
     l[3][COLOR_LABEL_ESCAPE].      SetColor(  0,  0,  0); l[3][COLOR_LABEL_ESCAPE].effects = COLOR_FLAG_BOLD;
-    l[3][COLOR_ERROR].             SetColor(255,  0,  0); l[3][COLOR_ERROR].effects = COLOR_FLAG_ITALICS;
     l[3][COLOR_COMMENT].           SetColor(100,100,100); l[3][COLOR_COMMENT].effects = COLOR_FLAG_ITALICS;
-    l[3][COLOR_ACTIVE_ERROR].      SetColor(255,  0,  0); l[3][COLOR_ACTIVE_ERROR].effects = COLOR_FLAG_UNDERLINE;
+    l[3][COLOR_ERROR].      SetColor(255,  0,  0);        l[3][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
 }
 
 struct CurrentState {
@@ -292,7 +288,7 @@ void Csh::AddCSH_ErrorAfter(CshPos&pos)
     CshEntry e;
     e.first_pos = pos.last_pos;
     e.last_pos = pos.last_pos;
-    e.color = COLOR_ACTIVE_ERROR;
+    e.color = COLOR_ERROR;
     CshList.AddToFront(e);
 }
 
@@ -354,7 +350,7 @@ const char *const keyword_names[] = {"heading", "newpage", "nudge", "parallel",
 
 const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
-"pedantic", "background.color", "background.gradient", ""};
+"pedantic", "background.color", "background.color2", "background.gradient", ""};
 
 const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 "pos", "relative", "show", "makeroom", "readfrom", "offset",
@@ -363,7 +359,7 @@ const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 "arrow.endtype", "arrow.color",
 "line.color", "line.type", "line.width", "line.radius",
 "vline.color", "vline.type", "vline.width",
-"fill.color", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
+"fill.color", "fill.color2", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
 
 int find_opt_attr_name(const char *name, const char * const array[])
 {
@@ -880,10 +876,30 @@ void Csh::AddKeywordsToHints()
     AddToHints(names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
 }
 
+bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/)
+{
+    if (!msc) return false;
+    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 0);
+    MscLineAttr vline(LINE_SOLID, MscColorType(0,0,0), 2, 0);
+    MscFillAttr fill(MscColorType(192,192,192), GRADIENT_UP);
+    MscShadowAttr shadow(MscColorType(0,0,0));
+    shadow.offset.first=true;
+    shadow.offset.second=2;
+    shadow.blur.first=true;
+    shadow.blur.second=0;
+
+    Block b(HINT_GRAPHIC_SIZE_X*0.25, HINT_GRAPHIC_SIZE_X*0.75, HINT_GRAPHIC_SIZE_Y*0.1, HINT_GRAPHIC_SIZE_Y*0.5);
+    msc->line(XY(HINT_GRAPHIC_SIZE_X/2, b.y.till), XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.9), vline);
+    msc->shadow(b.UpperLeft(), b.LowerRight(), shadow, line.radius.second, false);
+    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
+    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+    return true;
+}
+
 void Csh::AddEntitiesToHints()
 {
     for (auto i=EntityNames.begin(); i!=EntityNames.end(); i++)
-        AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE));
+        AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForEntities));
 }
 
 void Csh::ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)
