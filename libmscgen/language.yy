@@ -224,9 +224,11 @@ top_level_arclist: arclist
                  | arclist error
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_ERROR);
+    if ((@1).last_pos >= (@2).first_pos)
+        (@2).first_pos = (@1).last_pos;
+    csh.AddCSH(@2, COLOR_ERROR);
   #else
-        $$ = $1;
+    $$ = $1;
   #endif
 }
                  | arclist TOK_CCBRACKET
@@ -417,7 +419,7 @@ arc_with_parallel_semicolon: arc_with_parallel TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@3, COLOR_SEMICOLON);
-    csh.AddCSH(@1, COLOR_ERROR);
+    csh.AddCSH(@2, COLOR_ERROR);
     if (csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, HINT_LINE_START)) {
        csh.AddLineBeginToHints();
        csh.hintStatus = HINT_READY;

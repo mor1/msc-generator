@@ -100,7 +100,7 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	if (!pApp->m_bSmartIdent || !pApp->m_bCsh) return -1;
+    if (!pApp->m_bSmartIdent || !pApp->m_bDoCshProcessing) return -1;
 	//Go through the list of color syntax highlight entries
 	for (MscCshListType::const_iterator i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) {
 		//if we do not fall into a label skip
@@ -210,7 +210,7 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	//if color syntax highlighting is not enabled we cannot check for label
-	if (pApp->m_bSmartIdent && pApp->m_bCsh) {
+	if (pApp->m_bSmartIdent && pApp->m_bDoCshProcessing) {
 		MscColorSyntaxType csh_color = m_csh.GetCshAt(pos_to_be_inserted+1);
 		//Dont do anything in a label
 		if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) return -1;
@@ -229,7 +229,7 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 		while(--nLineLength>=0) {
 			if (strLine[nLineLength] != '{' && strLine[nLineLength] != '}') continue;
 			//if color syntax highlighting is not enabled we cannot check for label
-			if (pApp->m_bSmartIdent && pApp->m_bCsh) {
+			if (pApp->m_bSmartIdent && pApp->m_bDoCshProcessing) {
 				//if a brace, but in a label, ignore
 				MscColorSyntaxType csh_color = m_csh.GetCshAt(ConvertLineColToPos(nLine, nLineLength)+1);
 				if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) continue;
@@ -332,9 +332,10 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             if (strchr(",;= []{}()-+<>.#", pMsg->wParam)==NULL)
                 //Other characters we let being handled regularly - we re-calc hints after in OnCommand
                 return FALSE;
-
-            //Expand hint under cursor, if it is full match or prefix
+            //do nothing if no item is selected
             const CshHint *item = m_hintsPopup.m_listBox.GetSelectedHint();
+            if (!item) return false;
+            //Expand hint under cursor, if it is full match or prefix
             if (item->state != HINT_ITEM_SELECTED) return FALSE;
             if (pMsg->wParam == '.') {
                 //expand only till the next dot in the hint
@@ -523,7 +524,7 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	//Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
-	if (!pApp->m_bCsh && !force) return false;
+	if (!pApp->m_bDoCshProcessing && !force) return false;
 	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
     bool ret;
 
@@ -539,7 +540,7 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
 
 	SetSel(0,-1); //select all
 	SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
-	if (pApp->m_bCsh) {
+	if (pApp->m_bDoCshProcessing) {
 		const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
 		const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
 		CString text;
@@ -549,12 +550,14 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
         CshPos old_uc = m_csh.hintedStringPos;
 		m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
         ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
-        //Go backwards, since errors are at the beginning and are more important: should show
-		for (auto i=m_csh.CshList.rbegin(); !(i==m_csh.CshList.rend()); i++) 
-			if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
-				SetSel(i->first_pos-1, i->last_pos);
-				SetSelectionCharFormat(scheme[i->color]);
-			}
+        //Apply the color syntax to the text in the editor
+        if (pApp->m_bShowCsh)
+            //Go backwards, since errors are at the beginning and are more important: should show
+		    for (auto i=m_csh.CshList.rbegin(); !(i==m_csh.CshList.rend()); i++) 
+			    if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
+				    SetSel(i->first_pos-1, i->last_pos);
+				    SetSelectionCharFormat(scheme[i->color]);
+			    }
 	}
 	SetSel(cr);
 	::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
@@ -579,7 +582,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	m_csh.was_partial = false;
-	if (!pApp->m_bCsh) return;
+    if (!pApp->m_bShowCsh) return;
 
 	SetRedraw(false);
 	m_bCshUpdateInProgress = true;
