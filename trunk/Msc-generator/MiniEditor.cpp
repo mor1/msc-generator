@@ -541,23 +541,27 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
 	SetSel(0,-1); //select all
 	SetSelectionCharFormat(scheme[COLOR_NORMAL]); //set formatting to neutral
 	if (pApp->m_bDoCshProcessing) {
-		const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
-		const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
+        //Take text we display and remove CRLF
 		CString text;
 		GetWindowText(text);
 		RemoveCRLF(text);
-        m_csh = m_designlib_csh;
+        //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
         CshPos old_uc = m_csh.hintedStringPos;
+        //Take the design, color and style definitions from the designlib
+        m_csh = m_designlib_csh;
 		m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
         ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
         //Apply the color syntax to the text in the editor
-        if (pApp->m_bShowCsh)
+        if (pApp->m_bShowCsh) {
+            const DWORD effects = scheme[COLOR_NORMAL].dwEffects;
+            const COLORREF color = scheme[COLOR_NORMAL].crTextColor;
             //Go backwards, since errors are at the beginning and are more important: should show
 		    for (auto i=m_csh.CshList.rbegin(); !(i==m_csh.CshList.rend()); i++) 
 			    if (scheme[i->color].dwEffects != effects || scheme[i->color].crTextColor != color) {
 				    SetSel(i->first_pos-1, i->last_pos);
 				    SetSelectionCharFormat(scheme[i->color]);
 			    }
+        }
 	}
 	SetSel(cr);
 	::SendMessage(m_hWnd, EM_SETSCROLLPOS, 0, (LPARAM)&scroll_pos);
