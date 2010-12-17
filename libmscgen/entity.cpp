@@ -22,8 +22,8 @@
 template class PtrList<Entity>;
 
 Entity::Entity(const string &n, const string &l, const string &ol, double p, Msc* msc) :
-    chart(msc), maxwidth(0), running_style(chart->Contexts.back().styles["entity"]),
-    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->Contexts.back().styles["entity"])
+    chart(msc), maxwidth(0), running_style(chart->Contexts.top().styles["entity"]),
+    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->Contexts.top().styles["entity"])
 {
 }
 
@@ -92,7 +92,7 @@ void EntityList::SortByPos(void)
 }
 
 EntityDef::EntityDef(const char *s, Msc* chart) : name(s),
-    style(STYLE_ARC, ArrowHead::NONE/*arrow*/, true, true, true, true, true,
+    style(STYLE_ARC, false/*arrow*/, true, true, true, true, true,
 	  false /*solid*/, false /*numbering*/, false /*compress*/)
 {
     label.first = false;
@@ -185,11 +185,11 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
 bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
+        if (msc->Contexts.top().styles.find(a.name) == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        style += msc->Contexts.back().styles[a.name];
+        style += msc->Contexts.top().styles[a.name];
         return true;
     }
     string s;
@@ -256,47 +256,6 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
     a.InvalidAttrError(msc->Error);
     return false;
 };
-
-void EntityDef::AttributeNames(Csh &csh)
-{
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "show", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
-    style.AttributeNames(csh);
-
-}
-
-bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"label")) {
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"show")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"pos")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"relative")) {
-        csh.AddEntitiesToHints();
-        return true;
-    }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
-    if (style.AttributeValues(attr, csh)) return true;
-    return false;
-}
-
-
 
 string EntityDef::Print(int ident) const
 {

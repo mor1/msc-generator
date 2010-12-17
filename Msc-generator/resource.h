@@ -37,7 +37,6 @@
 #define ID_VIEW_APPLOOK_OFF_2007_AQUA   218
 #define IDS_EDIT_MENU                   306
 #define IDR_DESIGNBAR                   310
-#define IDD_POPUPLIST                   311
 #define IDD_DIALOG_VERSION              313
 #define IDR_HTML1                       314
 #define IDC_RADIO1                      1000
@@ -62,19 +61,9 @@
 #define IDC_CHECK_SMART_IDENT           1012
 #define IDC_COMBO_CSH                   1013
 #define IDC_BUTTON_URL2                 1014
-#define IDC_CHECK_HINTS                 1014
 #define IDC_STATIC_VERSION              1015
-#define IDC_CHECK_SMART_HINT_ENTITY     1015
 #define IDC_STATIC_CURRENT_VERSION      1016
-#define IDC_CHECK_SMART_HINT_ATTR_NAME  1016
 #define IDC_STATIC_LATEST_VERSION       1017
-#define IDC_CHECK_SMART_HINT_ATTR_VALUE 1017
-#define IDC_CHECK_SMART_HINT_LINE_START 1018
-#define IDC_LIST1                       1019
-#define IDC_CHECK_SMART_HINT_COMPACT    1019
-#define IDC_LIST2                       1020
-#define IDC_CHECK_SMART_HINT_COMPACT2   1020
-#define IDC_CHECK_SMART_HINT_FILTER     1020
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
@@ -114,7 +103,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        315
 #define _APS_NEXT_COMMAND_VALUE         32860
-#define _APS_NEXT_CONTROL_VALUE         1021
-#define _APS_NEXT_SYMED_VALUE           312
+#define _APS_NEXT_CONTROL_VALUE         1018
+#define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif

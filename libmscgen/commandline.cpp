@@ -330,7 +330,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     if (oCshize) {
         MscInitializeCshAppearanceList();
         Csh csh;
-        csh.ParseText(input, strlen(input), -1, 1);
+        csh.ParseText(input, strlen(input));
         string tmp = Cshize(input, strlen(input), csh.CshList, 1, csh_textformat.c_str());
         FILE *out = fopen(oOutputFile.c_str(), "w");
         if (!out) {

@@ -115,7 +115,7 @@ public:
     EntityDefList                 AutoGenEntities;
     double                        Entity_max_pos;
     ArcList                       Arcs;
-    std::list<Context>            Contexts;
+    std::stack<Context>           Contexts;
     std::map<string, Design>      Designs;
     std::map<string, MarkerType>  Markers;
     std::map<double, MscFillAttr> Background;
@@ -154,8 +154,6 @@ public:
 
     bool AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string attr, Csh &csh);
 
     EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
     void AddArcs(ArcList *a);

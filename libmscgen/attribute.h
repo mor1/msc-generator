@@ -5,7 +5,6 @@
 #include <sstream>
 #include <list>
 #include "color.h"
-#include "csh.h"
 
 using std::string;
 
@@ -18,23 +17,15 @@ template <class T>
         return s;
     };
 
-int CaseInsensitiveCommonPrefixLen(const char *a, const char *b);
-int CaseInsensitiveBeginsWith(const char *a, const char *b);
-inline int CaseInsensitiveBeginsWith(const string &a, const char *b)
-    {return CaseInsensitiveBeginsWith(a.c_str(), b);}
+int CaseInsensitiveBeginsWidth(const char *a, const char *b);
 inline bool CaseInsensitiveEqual(const char *a, const char *b)
-    {return CaseInsensitiveBeginsWith(a,b)==2;}
+    {return CaseInsensitiveBeginsWidth(a,b)==2;}
 inline bool CaseInsensitiveEqual(const string &a, const char *b)
     {return CaseInsensitiveEqual(a.c_str(), b);}
 inline bool CaseInsensitiveEqual(const char *a, const string &b)
     {return CaseInsensitiveEqual(a, b.c_str());}
 inline bool CaseInsensitiveEqual(const string &a, const string &b)
     {return CaseInsensitiveEqual(a.c_str(), b.c_str());}
-
-//this one returns true if ending is terminated at a dot "."
-bool CaseInsensitiveEndsWith(const char *base, const char *a);
-inline bool CaseInsensitiveEndsWith(const string &base, const char *a)
-{return CaseInsensitiveEndsWith(base.c_str(), a);}
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -72,7 +63,7 @@ template <typename Enum>
 class EnumEncapsulator {
 public:
     Enum value;
-    const static char names[][ENUM_STRING_LEN];
+    const static char names[][15];
     EnumEncapsulator(Enum a) : value(a) {}
 };
 
@@ -106,13 +97,6 @@ string CandidatesFor(Enum dummy1)
         s.append(EnumEncapsulator<Enum>::names[i]);
     }
     return s;
-};
-
-class const_char_vector_t : public std::set<string>
-{
-public:
-    void Add(const string &a) {insert(a);}
-    void Add(const char names[][ENUM_STRING_LEN], const string &prefix);
 };
 
 ////////////////////////////////////////////////////////////
@@ -205,8 +189,6 @@ public:
         {switch(type.second) {case LINE_NONE: return 0;
         case LINE_DOUBLE: return width.second*3; default: return width.second;}}
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
@@ -225,22 +207,15 @@ typedef enum {
 struct MscFillAttr {
 public:
     std::pair<bool, MscColorType> color;
-    std::pair<bool, MscColorType> color2;
     std::pair<bool, MscGradientType> gradient;
     MscFillAttr();
     MscFillAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
     MscFillAttr(MscColorType c, MscGradientType g) :
         color(true, c), gradient(true,g) {}
-    MscFillAttr(MscColorType c, MscColorType c2) : 
-        color(true, c), color2(true, c2), gradient(false, GRADIENT_INVALID) {}
-    MscFillAttr(MscColorType c, MscColorType c2, MscGradientType g) :
-        color(true, c), color2(true, c2), gradient(true,g) {}
-    void Empty() {color.first = color2.first = gradient.first = false;}
+    void Empty() {color.first = gradient.first = false;}
     MscFillAttr &operator +=(const MscFillAttr&a);
     bool operator == (const MscFillAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
@@ -255,12 +230,8 @@ public:
     MscShadowAttr &operator +=(const MscShadowAttr&a);
     bool operator == (const MscShadowAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
-
-bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p);
 
 
 #endif

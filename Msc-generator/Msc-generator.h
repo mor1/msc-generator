@@ -67,20 +67,12 @@ public:
 	CString m_SetOfDesigns;
 	CString m_CopyrightText;
 	BOOL m_bAlwaysOpen;
-    BOOL m_bDoCshProcessing;
-	BOOL m_bShowCsh;
+	BOOL m_bCsh;
 	int m_nCshScheme;
 	BOOL m_bSmartIdent;
 	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
 	COLORREF m_trackFillColor;
 	COLORREF m_trackLineColor;
-    bool m_bHints;
-    bool m_bHintLineStart;
-    bool m_bHintEntity;
-    bool m_bHintAttrName;
-    bool m_bHintAttrValue;
-    bool m_bHintFilter;
-    bool m_bHintCompact;
 
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
@@ -131,11 +123,3 @@ extern CMscGenApp theApp;
 #define REG_KEY_NOREMIND_VERSION_MINOR "NoRemindVersionMinor"
 #define REG_KEY_NOREMIND_VERSION_SUPER_MINOR "NoRemindVersionSuperMinor"
 #define REG_KEY_TABSIZE "TabSize"
-#define REG_KEY_HINT "DoHints"
-#define REG_KEY_HINT_LINESTART "HintLineStart"
-#define REG_KEY_HINT_ENTITY "HintEntity"
-#define REG_KEY_HINT_ATTRNAME "HintAttrName"
-#define REG_KEY_HINT_ATTRVALUE "HintAttrValue"
-#define REG_KEY_HINT_COMPACT "HintCompact"
-#define REG_KEY_HINT_FILTER "HintFilter"
-
