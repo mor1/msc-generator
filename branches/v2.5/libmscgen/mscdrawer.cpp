@@ -106,7 +106,10 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
         osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
         //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
         if(!GetVersionEx ((OSVERSIONINFO *) &osvi) || osvi.dwMajorVersion<=5) 
+        {
             use_text_path = use_text_path_rotated = true;
+            scale=100;
+        }
 #endif
     }
 }
