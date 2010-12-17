@@ -1,0 +1,61 @@
+In cairo
+Alt #1: Add win32_printing_surface_create_with_size
+Alt #2: Add a cairo_pdf_surface_set_size like function to the win32_printing backend
+Two helpers needed:
+  - _extract_pdf_surface - like
+  - _cairo_pdf_surface_set_size_internal - like
+
+ Add a test for metafiles
+ Allow new function only for metafiles
+
+ISSUE: missing ; at the end of last command creates an empty chart
+BUG: Change icons for file, program, etc.
+
+
+In 2.5.5
+FIXED: after a many line-label terminated with a semicolon TAB works bad in next line
+FIXED: Tabbing a multiline label (all of it) works bad
+FIXED: Now dropping a file will be equal to opening one (will ask for save and erase undo)
+
+In 2.5.4
+FIXED: Notification of new version showed the old version in the dialog.
+FIXED: non-empty boxes were not numbered by default even if numbering=yes
+UPDATE DOC: with empty escape and numbering updates (formats & multi-level)
+CHANGED: Number format was too cryptic, changed to simpler escapes
+
+In 2.5.3
+CHANGED: Introduced Context into code
+CHANGED: if adding levels just at the beginning of a numbered box, block arrow, etc., decrement that.
+ADDED: Multi-level numbering
+ADDED: Number formats
+ADDED: Possibility to place the number anywhere you want inside a label
+
+In 2.5.2
+FIXED again: ... makes vlines dotted till end of chart
+
+In 2.5.1
+FIXED: Applying a style kills numbering
+ADDED: Add empty escape to allow number style to be different from beginning of text
+FIXED: ... makes vlines dotted till end of chart
+
+
+Switch to cairo 1.10 and the new pixman after summer.
+design lib
+Re-add escape key to exit in-place editing...
+Add a<->b<<>>c
+Make divider only within a box
+Allow divider to have entities
+Add entity create/destroy
+Expand parallel behaviour
+- add valign={top, center, bottom} attribute
+- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
+   should return one)
+- add overlap=no attribute to use compress, but downward...
+- add these attributes to the style under parallel.valign and parallel.overlaps
+Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
+make that read-only. 
+Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
+Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
+Add global text.format chart option to impact all text
+Add command bye so that file end can be used for comments
+ 
