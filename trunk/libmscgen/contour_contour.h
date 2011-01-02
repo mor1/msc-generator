@@ -57,6 +57,8 @@ protected:
     Edge       &at_prev(int i)       {return at(prev(i));}
     const Edge &at_prev(int i) const {return at(prev(i));}
 
+    void RotateAround(const XY&c, double cos, double sin, double radian);
+    void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
 	void Path(cairo_t *cr, bool inverse=false) const;
 public:
     Contour(Contour &&p) {swap(p);}
@@ -87,9 +89,7 @@ public:
 
     void Shift(XY xy) {boundingBox.Shift(xy); for (int i=0; i<size(); i++) at(i).Shift(xy);}
     void Rotate(double cos, double sin, double radian);
-    void RotateAround(const XY&c, double cos, double sin, double radian);
     void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
-    void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
 
     void Expand(double gap, ContourList &res) const;
 

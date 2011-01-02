@@ -14,7 +14,6 @@ class ContourList : protected std::list<ContourWithHoles>
 {
     friend class ContourWithHoles;
     friend class Contour;
-    friend void test_geo(cairo_t *cr, int x, int y, bool clicked); //XXX
 protected:
     Block boundingBox;
 public:
@@ -71,11 +70,11 @@ class ContourWithHoles : public Contour
 {
     friend class Contour;
     friend class ContourList;
-	friend class node_list;   //to access holes
-	friend void test_geo(cairo_t *cr, int x, int y, bool clicked); //XXX
-
-	void Rotate(double radian) {} //hide these - do not
-	void RotateAround(const XY&c, double radian) {} //hide these - do not
+    friend class Area;
+    friend class node_list;
+	//hide these - do not implement the one with degrees 
+    void Rotate(double degrees) {} 
+	void RotateAround(const XY&c, double degrees) {}
 protected:
     ContourList holes;
     ContourWithHoles() {};
