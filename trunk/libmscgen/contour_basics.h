@@ -1,5 +1,5 @@
-#if !defined(GEOMETRY_BASICS_H)
-#define GEOMETRY_BASICS_H
+#if !defined(CONTOUR_BASICS_H)
+#define CONTOUR_BASICS_H
 
 #ifndef _ASSERT
 #define  _ASSERT(A)
@@ -10,7 +10,7 @@
 
 using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
 
-namespace geometry {
+namespace contour {
 
 inline double Infinity() {return DBL_MAX;}
 //other helpers
@@ -40,8 +40,8 @@ public:
     bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
     XY	   operator -() const             {return XY(-x, -y);}
     bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
-    bool   test_equal(const XY& p) const  {return geometry::test_equal(x, p.x) && geometry::test_equal(y, p.y);}
-    bool   test_smaller(const XY& p) const{return geometry::test_equal(x, p.x) ? geometry::test_smaller(y, p.y) : geometry::test_smaller(x, p.x);}
+    bool   test_equal(const XY& p) const  {return contour::test_equal(x, p.x) && contour::test_equal(y, p.y);}
+    bool   test_smaller(const XY& p) const{return contour::test_equal(x, p.x) ? contour::test_smaller(y, p.y) : contour::test_smaller(x, p.x);}
     XY     Rotate90CW() const             {return XY(-y, x);}
     XY     Rotate90CCW() const            {return XY(y, -x);}
 	void   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos;}
@@ -129,4 +129,4 @@ struct Block {
 
 }; //namespace
 
-#endif //GEOMETRY_BASICS_H
+#endif //CONTOUR_BASICS_H
