@@ -19,295 +19,227 @@
 #include <cassert>
 #include <algorithm>
 #include <map>
+#include <set>
 #include <stack>
 #include "geometry_xarea.h"
 
 namespace geometry {
+//"cp" means crosspoint from here
 
-/////////////////MscCrossPointStore implementation
+class CPsByContour;
+struct CPOnEdge;
 
-class MscCrossPointStore;
-
-//cp means crosspoint from here
-//a struct that identifies a crosspoint at a polygon by giving the edge and the pos on the edge
-struct cp_id_t
+//A "ray" is an edge segment incoming or outgoing from a crosspoint
+//This struct identifies a ray
+//by giving the edge and the pos on the edge and wether it is incoming or outgoing
+struct Ray
 {
-    MscCrossPointStore *store;
-    int vertex;   //the number of the vertex staring the edge the crosspoint is on
-    double pos;   //-1 if it is a vertex and not a crosspoint, [0..1) the pos of the crosspoint on the edge
-    cp_id_t() {}
-    cp_id_t(MscCrossPointStore *s, int a, double b) : store(s), vertex(a), pos(b) {}
-
-    XY PrevTangentPoint() const;
-    XY NextTangentPoint() const;
+    CPsByContour &bycont;
+    int vertex;     //the number of the vertex staring the edge the crosspoint is on
+    double pos;     //-1 if it is a vertex and not a crosspoint, [0..1) the pos of the crosspoint on the edge
+    bool incoming;  //true if it is incoming
+    double fangle;  //the "fake angle" value compared to a ray pointing up (assuming y grows down)
+    double cangle;  //0 if a straight edge, -1 or +1 if a curve with this tangent but curving in pos or neg dir.
+    //values used during any walk (both untangle and combine)
+    mutable bool valid;
+    //playground below for combine
+    mutable int seq_num; //same seq num as where we started a walk indicates a stopping criteria
+    mutable std::multiset<Ray>::iterator switch_to;
+    mutable enum switch_action_t {IGNORE, DROP, ERROR, SWITCH} switch_action;
+    mutable bool can_start_here;
+    //CPXY() {}
+    Ray(const XY &point, CPsByContour &st, int v, double p, bool i); 
+    bool operator <(const Ray &o) const {return test_equal(fangle, o.fangle) ? test_smaller(cangle, o.cangle) : test_smaller(fangle, o.fangle);}
+    bool operator==(const Ray &o) const {return test_equal(fangle, o.fangle) && test_equal(cangle, o.cangle);}
 };
 
-//we store structs like this for each crosspoint for walking
-struct cp_t
+class CPRays : public std::multiset<Ray> 
 {
-    double       pos;
-    XY           xy;               //coordinates of the crosspoint
-    cp_id_t      switch_to;        //the location of the crosspoint in the other polygon
-    bool         can_start_here;   //true if this is a cp we can start a walk at
-    int          seq_num;          //used to identify equivalent cps on different edges (for stopping condition of walking)
-    mutable bool valid;            //after processing, this is no longer valid
-
-    bool operator <(const cp_t &o) const {return pos<o.pos;}
-};
-
-inline bool operator <(const cp_t &cp, double p) {return cp.pos < p;}
-inline bool operator <(double p, const cp_t &cp) {return p < cp.pos;}
-
-//for each edge we will have this list: list of crosspoints (eventually) ordered by increasing pos
-struct cp_list_t : public std::vector<cp_t>
-{
-    const cp_t *find_at(double pos) const;
-    const cp_t *find_after(double pos, int sn) const;
-};
-
-inline const cp_t *cp_list_t::find_at(double pos) const
-{
-	const_iterator i = lower_bound(begin(), end(), pos);
-	return i==end() ? NULL : &*i;
-}
-
-inline const cp_t *cp_list_t::find_after(double pos, int sn) const
-{
-    for (auto i = upper_bound(begin(), end(), pos); i!=end(); i++)
-        if (i->seq_num == sn)
-            return &*i;
-        else if (i->valid && i->switch_to.vertex != -2)
-            return &*i;
-    return NULL;
-}
-
-//A "pointer" to a crosspoint. We also store which store it is at and which vertes, s owe can
-//easily calculate the next pone
-struct p_cp_t
-{
-    MscCrossPointStore *store;
-    int vertex;
-    const cp_t *cp;
-    p_cp_t(MscCrossPointStore *s, int v, const cp_t *c) : store(s), vertex(v), cp(c) {}
-    Edge GetOutGoingEdgeRemainder() const;  //formulate an edge starting in pCP (and open-ended)
-};
-
-//we store the points where the other polygon crosses an edge in a fashion that we need to switch to that edge
-//edges correspond to the elements in the vector and the crosspoints are sorted there
-//according to their distance from the starting vertex of the edge
-//we store a crosspoint even if it is equal to the starting vertex of an edge, if we need to switch there to another polygon
-//but not if it is the end => then it is stored at the beginning of the next edge
-//at any given position on the edge there can be only ine crosspoint here. This list where we have to switch to.
-class MscCrossPointStore : protected std::vector<cp_list_t>
-{
-protected:
-    const Polygon *_polygon;
 public:
-    MscCrossPointStore() : _polygon(NULL) {}
-    const Polygon &GetPolygon() const {_ASSERT(_polygon); return *_polygon;}
-    void Set(const Polygon &p);
-    void Sort();
-    void Finish();
+    bool Add(const XY &point, CPsByContour &st, int v, double p);
+    void inc(iterator &i) const {if (++i == end()) i = begin();}
+    void dec(iterator &i) const {if (i == begin()) i = end(); --i;}
+    iterator get_prev(iterator i) const {if (i == begin()) i = end(); return --i;}
 
-    const cp_t* Add(const XY& xy, int vertex, double pos, const cp_id_t &switch_to, int sn);
-    const cp_t* Find(int vertex, double pos) const {return at(vertex).find_at(pos);}
-    p_cp_t  After(int vertex, double pos, const int sn); //next crosspoint strictly after the pos designated here
+    iterator next_diff(iterator i, int &counted, int &coverage) const;
+    bool     search_min_coverage(iterator  &from, iterator  &to, int &counted, int &coverage, const int min_coverage, bool goes_below) const;
+    bool     search_coverage_change(iterator  &from, iterator  &to, int &counted, int &coverage) const;
+    iterator search_lowest_coverage(iterator loc, int &coverage) const;
+
+    //Process a crosspoint for various operations
+    void Process4Combine(int &seq_num, int coverage, int min_coverage) const;
 };
 
-inline XY cp_id_t::PrevTangentPoint() const
+struct CPXY 
 {
-    return store->GetPolygon().PrevTangentPoint(vertex, pos);
-}
+    XY xy;
+    mutable int coverage_at_0_angle;
+    CPXY(const XY&p) : xy(p), coverage_at_0_angle(0) {}
+    bool operator < (const CPXY &o) const {return xy.test_smaller(o.xy);}
+};
 
-inline XY cp_id_t::NextTangentPoint() const
-{
-    return store->GetPolygon().NextTangentPoint(vertex, pos);
-}
-
-inline Edge p_cp_t::GetOutGoingEdgeRemainder() const
-{
-    //if we are pointing at a vertex, use the corresponding edge
-    if (cp==NULL) return store->GetPolygon().GetEdge(vertex);
-    //if cp!=NULL, we return the edge from the other polygon
-    _ASSERT(cp->switch_to.vertex!=-2);
-    //if we will stop anyway, just return a dummy value
-    if (cp->switch_to.vertex<0) return Edge();
-    //if the other edge's pos is zero, we return all of the edge
-    if (cp->switch_to.pos==0) return cp->switch_to.store->GetPolygon().GetEdge(cp->switch_to.vertex);
-    return Edge(cp->switch_to.store->GetPolygon().GetEdge(cp->switch_to.vertex)).SetStart(cp->xy, cp->switch_to.pos);
-}
-
-void MscCrossPointStore::Set(const Polygon &p)
-{
-    _ASSERT(_polygon==NULL);
-    _polygon = &p;
-    if (size() < p.size()) resize(p.size());
-    for(int i=0; i<_polygon->size(); i++)
-        at(i).clear();
-}
-
-void MscCrossPointStore::Sort()
-{
-    if (_polygon == NULL) return;
-    for(int i=0; i<_polygon->size(); i++)
-        if (at(i).size())
-            std::sort(at(i).begin(), at(i).end());
-}
-
-inline void MscCrossPointStore::Finish()
-{
-    _polygon = NULL;
-}
-
-//if switch_to.vertex == -2 a not valid cp should be added, just for being able to terminate based on sequence number
-//if switch_to.vertex == -1 it means we should not arrive on this vertex to this CP: Walk() will drop all points gathered so far
-//other values indicate which other polygon+edge to switch to
-const cp_t* MscCrossPointStore::Add(const XY& xy, int vertex, double pos, const cp_id_t &switch_to, int sn)
-{
-    _ASSERT(size() >= _polygon->size());
-    at(vertex).resize(at(vertex).size()+1);
-    cp_t *cp = &*at(vertex).rbegin();
-    cp->pos = pos;
-    cp->xy = xy;
-    cp->switch_to = switch_to;
-    cp->seq_num = sn;
-    cp->valid = switch_to.vertex != -2;
-    return cp;
-}
-
-//Gets the next relevant point (cp or vertex) strictly after <vertex,pos>
-//In the meanwhile it checks if any cp between (including) <vertex,pos> and the returned value has sn as seq_num
-//if so, it returns a -1 vertex and NULL cp_t
-p_cp_t MscCrossPointStore::After(int vertex, double pos, const int sn)
-{
-    const cp_t *cp = at(vertex).find_after(pos, sn);
-    if (cp) {
-        if (cp->seq_num == sn) return p_cp_t(this, -1, NULL);
-        return p_cp_t(this, vertex, cp);
-    }
-    vertex = GetPolygon().next(vertex);
-    if (at(vertex).size() && at(vertex).begin()->pos == 0) {
-        //the vertex is a crosspoint: return the crosspoint
-        if (at(vertex).begin()->seq_num == sn) return p_cp_t(this, -1, NULL);
-        if (at(vertex).begin()->switch_to.vertex==-2) return p_cp_t(this, vertex, NULL);
-        return p_cp_t(this, vertex, &*at(vertex).begin());
-    }
-    //a vertex, which is not a crosspoint
-    return p_cp_t(this, vertex, NULL);
-}
-
-/////////////////MscCrossPointSet implementation
-
-//This class contains crosspoints, too, as the first step in processing.
-//After collecting all crosspoints here, we can use Process() to go through them
-//and decide when to switch between which edges. Then we copy them to the respective MscCrossPointStore objects
-class MscCrossPointSet : protected std::map<XY, std::vector<cp_id_t>>
+//This class contains crosspoints sorted by their coordinates
+//First we will find all crosspoints between the contours and bycont them here
+//Then we use Sort() to sort their rays based on angle
+class CPSet : public std::map<CPXY, CPRays>
 {
 protected:
     int num_of_polygons;
-    MscCrossPointStore *stores;
-    void Add(const XY &xy, MscCrossPointStore *p1, int a1, double b1, MscCrossPointStore *p2, int a2, double b2);
+    CPsByContour *byconts;
+    void Add(const XY &xy, CPsByContour &bycont1, int v1, double p1, 
+                           CPsByContour &bycont2, int v2, double p2);
 public:
-    MscCrossPointSet() : stores(NULL) {}
-    int FindCrosspoints(MscCrossPointStore store[], int num);
-    void Process(Polygon::poly_action_t action, std::vector<cp_id_t> &startpoints) const;
+    CPSet() : byconts(NULL), num_of_polygons(0) {}
+    int FindCrosspoints(CPsByContour bycont[], int num);
+    void Process4Combine(bool doUnion, std::vector<CPOnEdge> &startpoints) const;
+    void Process4Untangle() const;
+    void clear() {std::map<CPXY, CPRays>::clear(); byconts=NULL; num_of_polygons=0;}
 };
 
-void MscCrossPointSet::Add(const XY &xy, MscCrossPointStore *p1, int a1, double b1, MscCrossPointStore *p2, int a2, double b2)
+
+//This points to the incoming ray associated with the edge this cp is on
+struct CPOnEdge
 {
-    auto i = find(xy);
-    if (i==end()) {
-        mapped_type a;
-        a.push_back(cp_id_t(p1, a1, b1));
-        a.push_back(cp_id_t(p2, a2, b2));
-        operator[](xy) = std::move(a);
-    } else {
-        i->second.push_back(cp_id_t(p1, a1, b1));
-        i->second.push_back(cp_id_t(p2, a2, b2));
+    CPSet::const_iterator  iRays;
+    CPRays::const_iterator iRay;
+    CPOnEdge(CPSet::const_iterator i1, CPRays::const_iterator i2) : iRays(i1), iRay(i2) {};
+    Edge CPOnEdge::GetOutGoingEdgeRemainder() const;
+};
+
+struct CPPos
+{
+    int vertex;
+    double pos;
+    CPPos(int v, double p) : vertex(v), pos(p) {}
+    bool operator<(const CPPos &o) const {return vertex==o.vertex ? pos<o.pos : vertex<o.vertex;}
+};
+
+//For each contour we store crosspoint pointers to outgoing rays
+class CPsByContour : public std::map<CPPos, CPOnEdge>
+{
+public:
+    const Contour *contour;
+
+    CPsByContour() : contour(NULL) {}
+    void Set(const Contour *p) {clear(); contour=p;}
+    void Finish() {clear(); contour=NULL;}
+    void Add(const CPOnEdge &cp) {_ASSERT(contour); _ASSERT(&cp.iRay->bycont == this); insert(std::pair<const CPPos, CPOnEdge>(CPPos(cp.iRay->vertex, cp.iRay->pos), cp));}
+};
+
+
+/////////////////CPSet implementation
+
+Ray::Ray(const XY &point, CPsByContour &st, int v, double p, bool i) :
+    valid(true), bycont(st), vertex(v), pos(p), incoming(i), switch_action(ERROR), can_start_here(false)
+{
+    XY xy = incoming ? bycont.contour->PrevTangentPoint(vertex, pos) : bycont.contour->NextTangentPoint(vertex, pos);
+    fangle = angle(point, XY(point.x, -100), xy);
+    if (test_equal(fangle, 4)) fangle = 0;
+    const Edge &e = (incoming && pos == 0) ? bycont.contour->at_prev(vertex) : bycont.contour->at(vertex);
+    if (e.IsStraight()) 
+        cangle = 0;
+    else switch (triangle_dir(point, xy, e.GetEllipse().GetCenter())) {
+        case CLOCKWISE:
+            cangle = +1; break;   //XXX do it right: smaller circles should get larger value!!!
+        case COUNTERCLOCKWISE:
+            cangle = -1; break;
+        default:
+            _ASSERT(0);
     }
 }
 
-//We assume all elements of store are dimensioned equal to its polygon
-//Here we find all points where the two or more polygons touch
+//returns if this contour covers a hypothetical ray with angle 0
+//it happens if the incoming angle is smaller than the outgoing
+bool CPRays::Add(const XY &point, CPsByContour &st, int v, double p)
+{
+    iterator i = insert(Ray(point, st, v, p, true));
+    iterator o = insert(Ray(point, st, v, p, false));
+    return *i < *o;
+}
+
+    
+void CPSet::Add(const XY &xy, CPsByContour &bycont1, int v1, double p1, 
+                                         CPsByContour &bycont2, int v2, double p2)
+{
+    //We add 4 eays for each crosspoint, unless these rays are already added
+    CPXY cp_ray(xy);
+    auto i = find(cp_ray);
+    if (i==end()) {
+        CPRays a;
+        if (a.Add(xy, bycont1, v1, p1)) cp_ray.coverage_at_0_angle++;
+        if (a.Add(xy, bycont2, v2, p2)) cp_ray.coverage_at_0_angle++;
+        operator[](cp_ray) = std::move(a);
+    } else {
+        //insert the two rays for the edge only if that edge has not yet been inserted
+        bool one = false, two = false;
+        for (auto j = i->second.begin(); j != i->second.end(); j++)
+            if (j->vertex == v1 && j->pos == p1 && &j->bycont == &bycont1) one = true;
+            else if (j->vertex == v2 && j->pos == p2 && &j->bycont == &bycont2) two = true;
+        if (!one) 
+            if (i->second.Add(xy, bycont1, v1, p1))
+                i->first.coverage_at_0_angle++;
+        if (!two) 
+            if (i->second.Add(xy, bycont2, v2, p2))
+                i->first.coverage_at_0_angle++;
+    }
+}
+
+//We assume all elements of bycont are dimensioned equal to its contour
+//Here we find all points where the two or more contours touch
 //Eventually we shall be able to develop something more efficient than the O(N^2) we have here
 //like Bentley-Ottoman
-//if num == 1, we search for the crosspoints of the polygon which are not vertices
+//if num == 1, we search for the crosspoints of the contour which are not vertices
 //returns the number of crosspoints found
-int MscCrossPointSet::FindCrosspoints(MscCrossPointStore store[], int num)
+int CPSet::FindCrosspoints(CPsByContour bycont[], int num)
 {
     clear();
     if (num<1) return num_of_polygons = 0;
     num_of_polygons = num;
-    stores = store;
+    byconts = bycont;
     XY r[4];
     double one_pos[4], two_pos[4];
     int ret=0;
     if (num==1) {
-        const Polygon &poly = store[0].GetPolygon();
-        for (int i = 1; i<poly.size(); i++)
+        const Contour &poly = *bycont[0].contour;
+        for (int i = 1; i<bycont[0].size(); i++)
             for (int j = 0; j<i; j++) {
                 int n=Edge::Crossing(poly[i], poly.at_next(i).GetStart(),
                                      poly[j], poly.at_next(j).GetStart(), r, one_pos, two_pos);
                 for (int k=0; k<n;k++)
-                    Add(r[k], store, i, one_pos[k], store, j, two_pos[k]);
+                    Add(r[k], bycont[0], i, one_pos[k], bycont[0], j, two_pos[k]);
                 ret += n;
             }
     } else {
         for (int g = 0; g<num-1; g++)
             for (int h = g+1; h<num; h++)
-                for (int i = 0; i<store[g].GetPolygon().size(); i++)
-                    for (int j = 0; j<store[h].GetPolygon().size(); j++) {
-                        int n=Edge::Crossing(store[g].GetPolygon()[i], store[g].GetPolygon().at_next(i).GetStart(),
-                                             store[h].GetPolygon()[j], store[h].GetPolygon().at_next(j).GetStart(), r, one_pos, two_pos);
+                for (int i = 0; i<bycont[g].contour->size(); i++)
+                    for (int j = 0; j<bycont[h].contour->size(); j++) {
+                        int n=Edge::Crossing(bycont[g].contour->at(i), bycont[g].contour->at_next(i).GetStart(),
+                                             bycont[h].contour->at(j), bycont[h].contour->at_next(j).GetStart(), r, one_pos, two_pos);
                         for (int k=0; k<n;k++)
-                            Add(r[k], store+g, i, one_pos[k], store+h, j, two_pos[k]);
+                            Add(r[k], bycont[g], i, one_pos[k], bycont[h], j, two_pos[k]);
                         ret += n;
                     }
     }
     return ret;
 }
 
-struct ray_t {
-    int index;
-    bool incoming;
-    double angle;
-    int switch_to;
-    int can_start_here;
-    int seq_num;
-    ray_t(int i, bool in, double a) : index(i), incoming(in), angle(a), switch_to(-1), can_start_here(0) {}
-    bool operator < (const ray_t &o) const {return angle<o.angle;}
-};
-inline bool ray_less_by_index(const ray_t &a, const ray_t &o) {return a.index<o.index;}
 
-class rays_t : public std::vector<ray_t>
-{
-public:
-    int inc(int &cp) const {return cp = (cp+1)%size();}
-
-    int next_diff(int i, int &counted, int &coverage) const;
-    bool search_min_coverage(int &from, int &to, int &counted, int &coverage, const int min_coverage, bool goes_below) const;
-    bool search_coverage_change(int &from, int &to, int &counted, int &coverage) const;
-    int search_lowest_coverage(int loc, int &coverage) const;
-
-    //Process a crosspoint for various operations
-    void ProcessForUntangle(int &seq_num, int coverage);
-    void ProcessForCombine(int &seq_num, int coverage, int min_coverage);
-};
-
-//Returns the index of the next ray which has a substantially different angle
+//Returns the iterator of the next ray which has a substantially different angle
 //assumes coverage is set to the value just before i when called
 //and sets "coverage" to the coverage just before the returned index when returns
-int rays_t::next_diff(int i, int &counted, int &coverage) const
+//if counted reaches size() we exit
+CPRays::iterator CPRays::next_diff(iterator i, int &counted, int &coverage) const
 {
-    int j = i;
-    if (counted>=size()) return -1;
+    iterator j = i;
+    if (counted>=size()) return end();
     do {
-        if (at(i).incoming) --coverage;
+        if (i->incoming) --coverage;
         else ++coverage;
         counted++;
         inc(i);
-    } while (counted<size() && test_equal(at(j).angle, at(i).angle));
-    return counted<=size() ? i : -1;
+    } while (counted<size() && *i == *j);
+    return counted<=size() ? i : end();
 }
 
 //searches for a set of rays where angles are virtually equal and their collective actions
@@ -317,13 +249,13 @@ int rays_t::next_diff(int i, int &counted, int &coverage) const
 //from->to means in the circular sense: from may actually be > than to
 //if from==to returned than at "from" coverage is already below/above min_coverage
 //if false is returned we did not find any place
-bool rays_t::search_min_coverage(int &from, int &to, int &counted, int &coverage, const int min_coverage, bool goes_below) const
+bool CPRays::search_min_coverage(iterator &from, iterator &to, int &counted, int &coverage, const int min_coverage, bool goes_below) const
 {
     to = from;
     while (goes_below == (coverage>=min_coverage)) {
         from = to;
         to = next_diff(from, counted, coverage);
-        if (to==-1) return  false;
+        if (to==end()) return  false;
     }
     return true;
 }
@@ -331,29 +263,29 @@ bool rays_t::search_min_coverage(int &from, int &to, int &counted, int &coverage
 //searches for a set of rays where angles are virtually equal and their collective actions
 //change coverage. So if we find a set of rays in the same dir, but the number of incoming
 //rays == number of outgoing we go on.
-bool rays_t::search_coverage_change(int &from, int &to, int &counted, int &coverage) const
+bool CPRays::search_coverage_change(iterator &from, iterator &to, int &counted, int &coverage) const
 {
     const int intial_coverage = coverage;
     to = from;
     do {
         from = to;
         to = next_diff(from, counted, coverage);
-        if (to==-1) return false;
+        if (to==end()) return false;
     } while (intial_coverage == coverage);
     return true;
 }
 
 //searches for a set of rays where angles are virtually equal and their collective actions
 //change coverage to the lowest among after these groups
-//returns the index just before which coverage is changed to the lowest
-int rays_t::search_lowest_coverage(int loc, int &coverage) const
+//returns the iterator just before which coverage is changed to the lowest
+CPRays::iterator CPRays::search_lowest_coverage(iterator loc, int &coverage) const
 {
     int counted = 0;
-    int min_loc = 0;
+    iterator min_loc = begin();
     int min_coverage = coverage;
     do {
         loc = next_diff(loc, counted, coverage);
-        if (loc==-1) break;
+        if (loc==end()) break;
         if (min_coverage>coverage) {
             min_loc = loc;
             min_coverage = coverage;
@@ -363,78 +295,23 @@ int rays_t::search_lowest_coverage(int loc, int &coverage) const
     return min_loc;
 }
 
-void rays_t::ProcessForUntangle(int &seq_num, int coverage)
-{
-    //Here the rule is that we always pair an incoming edge to the outgoing right after it
-    //Example: 1\  |2
-    //           \ |              Here incoming(2) will be switched to outgoing(3)
-    //            \|                   incoming(1) will be switched to outgoing(1)
-    //         3---o---->3             incoming(3) will be switched to outgoing(2)
-    //             |\
-    //             | \            The problem is if multiple edges come in/out overlapped.
-    //            2V  -->1        Then we force them to be startpoints processed first: this will
-    //                            chop off some of the tangled polygon (and we will call untangle)
-    //                            until all parts come off.
-    // All cps will get the same sequence number, so if we start here, we will stop here no matter
-    // what edge do we come in.
-
-    //Walk to the first ray group after the lowest coverage
-    int from = search_lowest_coverage(0, coverage);
-    std::stack<int> stack;
-
-    //Now cycle around
-    //Every time we find a ray group that increases coverage, we push some outgoing rays to the stack
-    //(as many as we have increased coverage, arbitrarily selected)
-    //Every time we find a ray group that decreases coverage, we pick elements from the stack
-    int counted = 0;
-    do {
-        int orig_coverage = coverage;
-        const int to = next_diff(from, counted, coverage);
-        if (to==-1) break;
-        if (orig_coverage == coverage) {
-            from = to;
-            continue;
-        }
-        if (coverage>orig_coverage) {
-            for (int i = from, c = orig_coverage; c<coverage; inc(i))
-                if (!at(i).incoming) {
-                    c++;
-                    stack.push(i);
-				}
-			from = to;
-			continue;
-		}
-		//from->to now decreases coverage-> has more incoming rays than outgoing
-		//Associate incoming rays with the ones on with the top of the stack
-		//and add them to the beginning of the startpoint list. This guarantees
-		//that at least some of the polygons get apart in one UntangleOnePolygon phase.
-		//We only process (orig_coverage-coverage) incoming edge in the batch,
-		//the rest have matching outgoing edges in this batch.
-		for (; from!=to; inc(from))
-			if (at(from).incoming) {
-				at(from).switch_to = stack.top();
-				at(from).can_start_here = -1;
-				stack.pop();
-				if (++coverage == orig_coverage)
-					break;
-			}
-		from = to;
-	} while(1);
-	//Now mark all cps here with the same seq num. If for any reason we come back here, we stop.
-	for (auto i = begin(); i!=end(); i++)
-		i->seq_num = seq_num;
-	++seq_num;
-}
-
-void rays_t::ProcessForCombine(int &seq_num, int coverage, int min_coverage)
+//Here we completely mark all rays: what to do during walk.
+//During walk we do not make any further decisions, we merely follow
+//instructions here
+//if switch_action is IGNORE we compare seq_num to see if we need to stop
+//if switch_action is ERROR we drop the collected path and start another one
+//if swicth_action is SWITCH we change to the outgoing ray pointed by switch_to
+//In addition we set can_start_here, which will be ignored during walk, but such rays will
+//be collected by CorssPointStore::Process4Combine as startpoints for walks
+void CPRays::Process4Combine(int &seq_num, int coverage, int min_coverage) const
 {
 	//For regular unions or intersects we split the radian to ranges of coverage
-	//for union coverage is sufficient if any one polygon covers an area.
+	//for union coverage is sufficient if any one contour covers an area.
 	//for intersects all of them have to cover it.
 	//
-	//Example:      1\    ->2,,     .=area covered by polygon 1
-	//              ..\  /,,,,,     ,=area covered by polygon 2
-	//              ...\|,,,,,,     :=area covered by polygon 3 and 2
+	//Example:      1\    ->2,,     .=area covered by contour 1
+	//              ..\  /,,,,,     ,=area covered by contour 2
+	//              ...\|,,,,,,     :=area covered by contour 3 and 2
 	//              ....o----->3
 	//              .../|\:::::     For unions one (clockwise) range will be 2(outgoing)->2(incoming)
 	//              ../ |,\::::       and another is from 1(out)->1(in). The two ranges get different seq_nums.
@@ -445,22 +322,22 @@ void rays_t::ProcessForCombine(int &seq_num, int coverage, int min_coverage)
 	//                              For intersects only 3(out)->3(in) range will be had.
 	// An x(out)->y(in) range selected will result in y(in) be designated a cp switching to edge x.
 
-	int start_from = 0;
-	int A_from;
+	iterator start_from = begin();
+	iterator A_from;
 	int counted = 0;
 	//Walk to first ray establishing below minimum coverage after angle 0
 	if (!search_min_coverage(start_from, A_from, counted, coverage, min_coverage, true))
-		return; //never happens -> this is a crosspoint not needed, all switch_to will remain -1
+		return; //never happens -> this is a crosspoint not needed, all switch_action will remain ERROR
 
 	//Cylce through sections of good coverage
 	counted = 0;
 	do {
 		//First find, the beginning of the range with sufficient coverage
-		int A_to;
+		iterator A_to;
 		if (!search_min_coverage(A_from, A_to, counted, coverage, min_coverage, false))
 			break; //no more ranges above minimum coverage
-		int B_from = A_to;
-		int B_to;
+		iterator B_from = A_to;
+		iterator B_to;
 		//Now find the end of the range
 		if (!search_min_coverage(B_from, B_to, counted, coverage, min_coverage, true))
 			_ASSERT(0); //we must find one
@@ -468,130 +345,221 @@ void rays_t::ProcessForCombine(int &seq_num, int coverage, int min_coverage)
 		//Now we have a set of rays (A) [A_from, A_to) pointing to the same direction collectively making coverage
 		//to go from below the minimum up to at least the minimum.
 		//Another set of rays (B) [B_from, B_to) coming after (A) will take the coverage below minimum again.
-		//Basically we can say the result polygon will have a vertex here with (B) as incoming edge and (A) as outgoing.
+		//Basically we can say the result contour will have a vertex here with (B) as incoming edge and (A) as outgoing.
 
 		//First We set all incoming cp's sequence number to the same seq number. So that if the Walk started at this cp
 		//if we hit this cp again, we could stop the walk, based on equal sequence numbers
 		//we need to do it as a do-while since A_from can be == B_to, in which case we need to mark all rays
 		//also, they may wrap, so incrementing shall be modulo rays.size()
-		int ii=A_from;
+		iterator ii=A_from;
 		do {
-			at(ii).seq_num = seq_num;
+            ii->seq_num = seq_num;
 			inc(ii);
 		} while (ii!=B_to);
 		++seq_num;
 
 		//Now set the "switch_to" in all the incoming edges in (B) to one of the outgoing edges in (A)
-		//If the same edge can be found among the outgoing ones, then mark switch_to with -2
-		//-2 will result in an invalid cp, meaning it will not be added to any polyline (but will be checked for stop condition)
+		//If the same edge can be found among the outgoing ones, then mark switch_action with IGNORE
+		//IGNORE will result in an invalid cp, meaning it will not be added to any polyline (but will be checked for stop condition)
 		//We mark only one of the incoming edges as a crosspoint we can start at
 		//Find an outgoing
-		int an_outgoing;
+		iterator an_outgoing;
 		for (an_outgoing = A_from; an_outgoing!=A_to; inc(an_outgoing))
-			if (!at(an_outgoing).incoming) break;
+			if (!an_outgoing->incoming) break;
 		_ASSERT(an_outgoing!=A_to);
 
 		bool did_start = false;
-		for (int i=B_from; i!=B_to; inc(i))
-			if (at(i).incoming) {
+		for (iterator i=B_from; i!=B_to; inc(i))
+			if (i->incoming) {
 				//search for this incoming edge among the outgoing ones
-				int j=A_from;
+				iterator j=A_from;
 				for (j=A_from; j!=A_to; inc(j))
-					if (at(j).index==at(i).index && !at(j).incoming) break;
+                    if (&j->bycont==&i->bycont && j->vertex==i->vertex && !j->incoming) break;
 				if (j!=A_to)         //the outgoing ray corresponding to this incoming ray is in (A)
-					at(i).switch_to = -2;
+					i->switch_action = Ray::IGNORE;
 				else {               //not found, just pick an arbitrary outgoing edge
-					at(i).switch_to = an_outgoing;
+					i->switch_to = an_outgoing;
+                    i->switch_action = Ray::SWITCH;
 					if (!did_start) {
-						at(i).can_start_here = 1;
+						i->can_start_here = true;
 						did_start = true;
 					}
 				}
 			}
-		//if we did not insert a cp that we can start at, change all -2 values to -3, so they get dropped entirely
+		//if we did not insert a cp that we can start at, change all IGNORE values to DROP, 
+        //so they get dropped entirely and not even inserted into CrosspointStore
 		if (!did_start)
-			for (int i=B_from; i!=B_to; inc(i))
-				if (at(i).incoming && at(i).switch_to == -2)
-					at(i).switch_to = -3;
+			for (iterator i=B_from; i!=B_to; inc(i))
+                if (i->incoming && i->switch_action == Ray::IGNORE)
+					i->switch_action = Ray::DROP;
 
 		//start a new cycle after (B)
 		A_from = B_to;
 	} while(1);
 }
 
-
-void MscCrossPointSet::Process(Polygon::poly_action_t action, std::vector<cp_id_t> &startpoints) const
+//Copy the processed crosspoints from the set to the bycont, where they are sorted by <contour,edge,pos>.
+//(each contour has its own bycont). 
+//Fill in startpoints with incoming rays marked as can_start_here
+void CPSet::Process4Combine(bool doUnion, std::vector<CPOnEdge> &startpoints) const
 {
-	//Action is ignored if we have only one polygon
-	//Either we do intersect (but then on multiple polygions) or union
-	//Union can be done on a single or multiple ones. ona single polygon it equals a winding rule untangle
-	_ASSERT((num_of_polygons==1 || action == Polygon::UNION || action == Polygon::INTERSECT));
-	_ASSERT(stores);
+	_ASSERT(byconts);
 	startpoints.clear();
 	int seq_num = 0;
 
+    //Cylce through the crosspoints
 	for (auto iCP = begin(); iCP!=end(); iCP++) {
-		static rays_t rays;
-		rays.clear();
-
-		//Sort the incoming and outgoing edges (rays) in clockwise order
-		int coverage_at_0 = 0;  //how many polygons cover the ray at angle==0
-		for (int i = 0; i<iCP->second.size(); i++) {
-			//these angles are not real radians, but they can be sorted properly
-			double angle_prev = angle(iCP->first, XY(iCP->first.x, -100), iCP->second[i].PrevTangentPoint());
-			double angle_next = angle(iCP->first, XY(iCP->first.x, -100), iCP->second[i].NextTangentPoint());
-			if (test_equal(angle_prev, 4)) angle_prev = 0;
-			if (test_equal(angle_next, 4)) angle_next = 0;
-			if (test_smaller(angle_prev, angle_next))
-				coverage_at_0++;
-			rays.push_back(ray_t(i, true,  angle_prev));
-			rays.push_back(ray_t(i, false, angle_next));
-		}
-		std::sort(rays.begin(), rays.end());
-
-
-		//Now fill in switch_to, can_start_here and seq_num in elements of rays
-		//We do it differently for untangle and for union/intersect
-		if (num_of_polygons == 1)
-			rays.ProcessForUntangle(seq_num, coverage_at_0);
-		else
-			//If union, pick the angle ranges covered by at least one polygon
-			//If intersect, pick angle ranges covered by all of the polygons
-			rays.ProcessForCombine(seq_num, coverage_at_0, action==Polygon::UNION ? 1 : num_of_polygons);
+        //If union, pick the angle ranges covered by at least one contour
+        //If intersect, pick angle ranges covered by all of the contours
+        iCP->second.Process4Combine(seq_num, iCP->first.coverage_at_0_angle, 
+                                    doUnion ? 1 : num_of_polygons);
 
 		//Now we have all the rays in the current cp marked as to which one to switch to
-		//Add elements to crosspointstores and to the startpoints array
-		for (int i=0; i<rays.size(); i++)
-			if (rays[i].incoming && rays[i].switch_to!=-3) {
-				const cp_id_t &cp = iCP->second[rays[i].index];
-				switch (rays[i].switch_to) {
-				case -2: //ignore this cp on a walk: we continue on the edge we came. But check if walk has to stop here
-					cp.store->Add(iCP->first, cp.vertex, cp.pos, cp_id_t(cp.store, -2, -2), rays[i].seq_num);
-					break;
-				case -1: //Indicate that this edge was a dead end
-					cp.store->Add(iCP->first, cp.vertex, cp.pos, cp_id_t(cp.store, -1, -1), rays[i].seq_num);
-					break;
-				default: //add cp and fill in the edge&pos to switch to
-					const cp_t *p = cp.store->Add(iCP->first, cp.vertex, cp.pos, iCP->second[rays[rays[i].switch_to].index], rays[i].seq_num);
-					if (rays[i].can_start_here==1)
-						startpoints.push_back(cp_id_t(cp.store, cp.vertex, cp.pos));
-					if (rays[i].can_start_here==-1)
-						startpoints.insert(startpoints.begin(), cp_id_t(cp.store, cp.vertex, cp.pos));
+		//Add elements to crosspointbyconts and to the startpoints array
+        for (auto i=iCP->second.begin(); i!=iCP->second.end(); i++)
+            if (i->incoming) {
+				switch (i->switch_action) {
+				case Ray::SWITCH: //add cp and fill in the edge&pos to switch to
+					if (i->can_start_here)
+                        startpoints.push_back(CPOnEdge(iCP, i));
+                    /*fallthrough*/
+				case Ray::IGNORE: //ignore this cp on a walk: we continue on the edge we came. But check if walk has to stop here
+				case Ray::ERROR: //Indicate that this edge was a dead end
+                    i->bycont.Add(CPOnEdge(iCP, i));
+                case Ray::DROP: 
 					break;
 				}
 			}
 	}
-	//Sort the crosspoints on edges according to their pos in all of the stores
-	for (int i=0; i<num_of_polygons; i++)
-		stores[i].Sort();
 }
 
 
-///////////////////////////// Polygon
+//Copy the processed crosspoints from the set to the bycont, where they are sorted by <contour,edge,pos>.
+//(each contour has its own bycont). 
+//Fill in startpoints with incoming rays marked as can_start_here
+void CPSet::Process4Untangle() const
+{
+	_ASSERT(byconts);
+	int seq_num = 0;
+
+    //Cylce through the crosspoints
+	for (auto iCP = begin(); iCP!=end(); iCP++) {
+        //Mark each ray in the cp with the same seq_num
+	    for (auto i = iCP->second.begin(); i!=iCP->second.end(); i++)  {
+            if (i->incoming) 
+                i->bycont.Add(CPOnEdge(iCP, i));
+        }
+	}
+}
+
+
+
+/////////////////CPPointer implementation
+
+//This is a pointer type, pointing to a crosspoint. It has all the attributes to look up
+//a next entry on the same contour or to look up the cp in a CPSet for picking
+//another outgong ray (to switch to another contour)
+//if iCP == end(), it really means that we are at the startpoint of an edge (a vertex) which is 
+//really before begin(), but this is the only way to express it
+struct CPPointer 
+{
+    CPsByContour                *bycont;
+    int                          vertex;
+    CPsByContour::const_iterator iCP;
+    CPPointer(const CPOnEdge &cp);   //construct from an incoming edge
+    CPPointer(const Ray &ray); //construct from an outgoing ray
+    bool IsAtVertex() const {return iCP==bycont->end();}
+    void StepToNext();
+    void SwitchTo(CPRays::iterator i);
+    Ray::switch_action_t DoSwitchAction();
+    Edge GetOutGoingEdgeRemainder() const;
+};
+
+CPPointer::CPPointer(const CPOnEdge &cp) : bycont(&cp.iRay->bycont), vertex(cp.iRay->vertex)
+{
+    iCP = bycont->find(CPPos(cp.iRay->vertex, cp.iRay->pos));
+    //if a cp at pos is not found, jump to next vertex
+    if (iCP == bycont->end()) {
+        _ASSERT(0); //XXX
+        vertex = (vertex+1)%bycont->contour->size();
+        //if there is a crosspoint right at the vertex, (pos==0) use that 
+        //if not, find() will return end(), which will mean the vertex
+        iCP = bycont->find(CPPos(vertex,0));
+    }
+}
+
+CPPointer::CPPointer(const Ray &ray) : bycont(&ray.bycont), vertex(ray.vertex)
+{
+    iCP = bycont->find(CPPos(ray.vertex, ray.pos));
+    //if a cp at pos is not found, jump to next vertex
+    if (iCP == bycont->end()) {
+        _ASSERT(0); //XXX
+        vertex = (vertex+1)%bycont->contour->size();
+        //if there is a crosspoint right at the vertex, (pos==0) use that 
+        //if not, find() will return end(), which will mean the vertex
+        iCP = bycont->find(CPPos(vertex,0));
+    }
+}
+
+void CPPointer::StepToNext() 
+{
+    if (IsAtVertex()) 
+        iCP = bycont->lower_bound(CPPos(vertex, 0));
+    else 
+        ++iCP;
+    if (iCP->second.iRay->vertex != vertex) {
+        vertex = (vertex+1)%bycont->contour->size();
+        //if there is a crosspoint right at the vertex, (pos==0) use that 
+        //if not, find() will return end(), which will mean the vertex
+        iCP = bycont->find(CPPos(vertex,0));
+    }
+}
+
+//Switch to a ray
+void CPPointer::SwitchTo(CPRays::iterator i)
+{
+    bycont = &i->bycont;
+    vertex = i->vertex;
+    iCP = bycont->lower_bound(CPPos(i->vertex, i->pos));
+    //if a cp at pos is not found, jump to next vertex
+    if (IsAtVertex()) {
+        _ASSERT(0); //XXX
+        vertex = (vertex+1)%bycont->contour->size();
+        //if there is a crosspoint right at the vertex, (pos==0) use that 
+        //if not, find() will return end(), which will mean the vertex
+        iCP = bycont->find(CPPos(vertex,0));
+    }
+}
+
+
+//switches to an outgoing edge, if an action is proscribed in pointed (incoming) ray
+//if at vertex, pretend OK, do nothing
+//return SWITCH if OK, else the switch action of the pointed ray
+Ray::switch_action_t CPPointer::DoSwitchAction()
+{
+    if (IsAtVertex()) return Ray::SWITCH;
+    const Ray &ray = *iCP->second.iRay;
+    if (ray.switch_action != Ray::SWITCH) return ray.switch_action;
+    SwitchTo(ray.switch_to);
+    return Ray::SWITCH;
+}
+
+
+inline Edge CPPointer::GetOutGoingEdgeRemainder() const
+{
+    //if we are pointing at a vertex, use the corresponding edge
+    if (IsAtVertex()) return bycont->contour->GetEdge(vertex);
+    //if at a real crosspoint, we return the edge
+    const Ray &ray = *iCP->second.iRay;
+    if (ray.pos==0) return ray.bycont.contour->GetEdge(ray.vertex);
+    return Edge(ray.bycont.contour->GetEdge(ray.vertex)).SetStart(iCP->second.iRays->first.xy, ray.pos);
+}
+
+///////////////////////////// Contour
 
 //Do not create degenerate triangles.
 //Always create clockwise.
-Polygon::Polygon(XY a, XY b, XY c)
+Contour::Contour(XY a, XY b, XY c)
 {
     switch (triangle_dir(a,b,c)) {
     default: //create empty if degenerate triangle
@@ -612,12 +580,12 @@ Polygon::Polygon(XY a, XY b, XY c)
 		boundingBox += at(i).CalculateBoundingBox(at_next(i).start);
 }
 
-Polygon::Polygon(double ax, double ay, double bx, double by, double cx, double cy)
+Contour::Contour(double ax, double ay, double bx, double by, double cx, double cy)
 {
-    *this = Polygon(XY(ax,ay), XY(bx,by), XY(cx,cy));
+    *this = Contour(XY(ax,ay), XY(bx,by), XY(cx,cy));
 }
 
-Polygon::Polygon(const XY &c, double radius_x, double radius_y, double tilt_degree)
+Contour::Contour(const XY &c, double radius_x, double radius_y, double tilt_degree)
 {
     if (radius_y==0) radius_y = radius_x;
     Edge edge(c, radius_x, radius_y, tilt_degree);
@@ -625,7 +593,7 @@ Polygon::Polygon(const XY &c, double radius_x, double radius_y, double tilt_degr
     push_back(edge);
 }
 
-Polygon &Polygon::operator =(const Block &b)
+Contour &Contour::operator =(const Block &b)
 {
     clear();
     boundingBox = b;
@@ -639,9 +607,9 @@ Polygon &Polygon::operator =(const Block &b)
     return *this;
 }
 
-Polygon Polygon::GetInverse() const
+Contour Contour::CreateInverse() const
 {
-    Polygon result;
+    Contour result;
     result.resize(size());
     for (int i=0; i<size(); i++)
         result[size()-1-i].CopyInverseToMe(at(i), at_next(i).GetStart());
@@ -650,11 +618,11 @@ Polygon Polygon::GetInverse() const
 }
 
 //in p* return the number of vertex or edge we have fallen on if result is such
-is_within_t Polygon::IsWithin(XY p, int *edge, double *pos) const
+is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
 {
     if (size()==0 || boundingBox.IsWithin(p)==WI_OUTSIDE) return WI_OUTSIDE;
 
-    //Follow the polygon and see how much it crosses the horizontal line going through p
+    //Follow the contour and see how much it crosses the horizontal line going through p
     //count the crossings to our right
     //http://softsurfer.com/Archive/algorithm_0103/algorithm_0103.htm
     //1. an upward edge includes its starting endpoint, and excludes its final endpoint;
@@ -715,6 +683,10 @@ is_within_t Polygon::IsWithin(XY p, int *edge, double *pos) const
     return count&1 ? WI_INSIDE : WI_OUTSIDE; //even is out
 }
 
+
+//////////////////////////////////Contour::Combine (Union, intersection, subsrtaction) implementation
+
+
 //true if q is between (a and b) modulo 4
 //if q is almost equal to a or b, we return false;
 inline bool really_between04_warp (double q, double a, double b)
@@ -725,10 +697,10 @@ inline bool really_between04_warp (double q, double a, double b)
 
 //Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A
 //It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
-Polygon::poly_result_t Polygon::CheckContainmentHelper(const Polygon &b) const
+Contour::result_t Contour::CheckContainmentHelper(const Contour &b) const
 {
     int edge;
-    poly_result_t retval = A_INSIDE_B;
+    result_t retval = A_INSIDE_B;
     for (int i=0; i<size(); i++) {
 		double pos;
 		const XY p = at(i).GetStart();
@@ -759,14 +731,14 @@ Polygon::poly_result_t Polygon::CheckContainmentHelper(const Polygon &b) const
 }
 
 
-//Gives valid result only if the two polygons have no crosspoints
+//Gives valid result only if the two contours have no crosspoints
 //clockwiseness fully honored
-Polygon::poly_result_t Polygon::CheckContainment(const Polygon &other) const
+Contour::result_t Contour::CheckContainment(const Contour &other) const
 {
     //special case of two full ellipses beging the same - not caught otherwise
     if (size()==1 && other.size()==1 && at(0).ell == other.at(0).ell)
         return SAME;
-    poly_result_t this_in_other = CheckContainmentHelper(other);
+    result_t this_in_other = CheckContainmentHelper(other);
     if (this_in_other != OVERLAP) return this_in_other;
     switch (other.CheckContainmentHelper(*this)) {
     default:
@@ -778,7 +750,7 @@ Polygon::poly_result_t Polygon::CheckContainment(const Polygon &other) const
     }
 }
 
-bool Polygon::CalculateClockwise() const
+bool Contour::CalculateClockwise() const
 {
     //determine if this is clockwise.
     if (size()>2) {
@@ -806,7 +778,7 @@ bool Polygon::CalculateClockwise() const
         return angles < size()*180;
     }
     if (size()==2) {
-        //if a polygon is two edges, it should not be two straigth edges
+        //if a contour is two edges, it should not be two straigth edges
         if (at(0).IsStraight() && at(1).IsStraight())
             _ASSERT(0);
         if (!at(0).IsStraight() && !at(1).IsStraight()) {
@@ -828,223 +800,258 @@ bool Polygon::CalculateClockwise() const
     return at(0).clockwise_arc;
 }
 
-//the two crosspointstores shall be ordered here. They can be equal if we process a single polygon.
-void Polygon::Walk(const std::vector<cp_id_t> &startpoints, PolygonList &surfaces, PolygonList &holes)
+//Appends an edge.
+//Checks that we do not append a zero long edge
+//Checks if the edge to append is a direct continuation of the last edge
+void Contour::AppendDuringWalk(const Edge &edge) 
 {
-	surfaces.clear();
-	holes.clear();
-    //Start the walks around the polygon, as long as there are crosspoints left marked with "can_start_here"
-	for (auto iStart = startpoints.begin(); iStart != startpoints.end(); iStart++) {
-		//find the next still valid crosspoint
-		p_cp_t current(iStart->store, iStart->vertex, iStart->store->Find(iStart->vertex, iStart->pos));
-		if (!current.cp->valid) //we have already passed over this startpoint
-			continue;
-        static PolygonWithHoles result; //static: we keep allocated memory between calls for performance
-        result.clear();
+    //if the last point equals to the startpoint of edge, skip the last edge added
+    if (size()>0 && edge.GetStart() == rbegin()->GetStart())
+        pop_back();
+    //check if current_xy falls on the same line as the previous two
+    if (size()>=2 &&
+        at(size()-2).CheckAndCombine(at(size()-1), edge.GetStart()))
+        at(size()-1) = edge; //if so overwrite last
+    else
+        push_back(edge);
+};
 
-        //do a walk from the current crosspoint, until we get back here
-		const int sn_finish = current.cp->seq_num;
-        do {
-            //Add current point (plus edge out) to results, but not if we added that last
-			Edge out_edge = current.GetOutGoingEdgeRemainder();
-			if (result.size()>0 && out_edge.GetStart() == result.rbegin()->GetStart())
-                result.pop_back();
-            //check if current_xy falls on the same line as the previous two
-            if (result.size()>=2 &&
-                result[result.size()-2].CheckAndCombine(result[result.size()-1], out_edge.GetStart()))
-                result[result.size()-1] = out_edge; //if so overwrite last
-            else
-                result.push_back(out_edge);
 
-			//Now go to next point
-            if (current.cp == NULL) { //this is a vertex not crossed by the other polygon, we keep walking on next edge
-				current = current.store->After(current.vertex, 0, sn_finish);
-            } else { //this is a crosspoint let's see if we switch to the other polygon
-				//invalidate cp
-				current.cp->valid = false;
-				if (current.cp->switch_to.vertex == -1) {
-					//We have working from an invalid crosspoint (e.g., in the interior of a union)
-					result.clear();
-					break;
-				}
-				current = current.cp->switch_to.store->After(current.cp->switch_to.vertex, current.cp->switch_to.pos, sn_finish);
-			}
-        } while (current.vertex>=0);  //After() returns vertex==-1 if we pass over a cp with seq num == "finish_sn"
-
-		//If we have abandoned this polyline, do not perform the processing below: start with another polyline
-		if (result.size()==0) continue;
-
-        //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
-        if (result.size()>1 && result[0].GetStart() == result[result.size()-1].GetStart())
-            result.pop_back();
-        //Also, the beginning point (result[0]) can fall on an edge
-        //if both the last and the first edge are straight and are in-line
-        //such as when two side-by-side rectangles are merged
-        if (result.size()>2) {
-            if (result[result.size()-2].CheckAndCombine(result[result.size()-1], result[0].GetStart()))
-                result.pop_back();
-            if (result[result.size()-1].CheckAndCombine(result[0], result[1].GetStart()))
-                result.erase(result.begin());
+//Walk around the contours starting from startpoint and follow the 
+//switch_action bycontd for each incoming ray. This is used for union and intersect (and substract)
+void Contour::Walk4Combine(const CPOnEdge &startpoint)
+{
+    clear();
+	//current will point to an incoming ray at a crosspoint
+	CPPointer current(startpoint);
+    if (!current.iCP->second.iRay->valid) //we have already passed over this startpoint
+		return;
+    //do a walk from the current crosspoint, until we get back here
+	const int sn_finish = current.iCP->second.iRay->seq_num;
+    do {
+        //Mark the incoming ray as DONE
+        if (!current.IsAtVertex())
+            current.iCP->second.iRay->valid = false;
+        //Switch to the other contour, to get an outgoing ray
+        Ray::switch_action_t a = current.DoSwitchAction();
+        if (a==Ray::SWITCH)  
+            AppendDuringWalk(current.GetOutGoingEdgeRemainder()); //Add current point (plus edge out)
+        else if (a==Ray::ERROR) {
+            //We have working from an invalid crosspoint (e.g., in the interior of a union)
+            clear();
+            return;
         }
-        //also two semi-circles combined should give a single edge (a circle)
-        if (result.size()==2 && !result[0].IsStraight() && !result[1].IsStraight() &&
-            result[0].CheckAndCombine(result[1], result[1].GetStart()))  //second param is a dummy
-            result.pop_back();
-
-        //go around and set "e" value for curvy edges. This was not known previously
-        //after that compute the bounding box
-        if (result.size()==1) {
-            result[0].SetEllipseToFull();  //asserts that this is a full circle
-			result.boundingBox = result[0].CalculateBoundingBox(result[0].GetStart());
-        } else {
-            for (int i=0; i<result.size(); i++) {
-                if (result[i].IsStraight()) {
-                    result[i].CalculateBoundingBox(result.at_next(i).GetStart());
-                    result.boundingBox += result[i].start;
-                } else {
-                    result[i].SetEnd(result.at_next(i).GetStart());
-                    result[i].CalculateBoundingBox(result.at_next(i).GetStart());
-                    result.boundingBox += result[i].GetBoundingBox();
-                }
-            }
-        }
-        if (result.CalculateClockwise())
-            surfaces.append(result);
-        else
-            holes.append(result.GetInverse());
-    }//for thru startpoints
+		//a can be IGNORE, then we do nothing
+        current.StepToNext(); //now current points either to a vertex or to an incoming ray again
+    } while (current.IsAtVertex() || current.iCP->second.iRay->seq_num != sn_finish);  
 }
 
-//Does a union or intersection of two poligons, stores the result in "surfaces"
-//- For union "surfaces" will be one bounding polygon, its "holes" may have zero or more elements
-//- For intersection "surfaces" may have more elements, their "holes" are guaranteed to be empty
+//Clean up the contour after a walk
+//-Check repeated points at the end
+//-Set "e" values for curvy edges
+//-Calculate edge and contour bounding boxes
+//Also, do a lot of sanity checks: 
+//-a contour with one edge must be a full ellipse. If it is straight, we clear()
+//-a contour with two edges must have at least one curvy edge, if not, we clear()
+//returns true if contour is OK
+bool Contour::PostWalk() 
+{
+    //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
+    if (size()>1 && at(0).GetStart() == at(size()-1).GetStart())
+        pop_back();
+    //Also, the beginning point (at(0]) can fall on an edge
+    //if both the last and the first edge are straight and are in-line
+    //such as when two side-by-side rectangles are merged
+    if (size()>2) {
+        if (at(size()-2).CheckAndCombine(at(size()-1), at(0).GetStart()))
+            pop_back();
+        if (at(size()-1).CheckAndCombine(at(0), at(1).GetStart()))
+            erase(begin());
+    }
+    //also two semi-circles combined should give a single edge (a circle)
+    if (size()==2 && !at(0).IsStraight() && !at(1).IsStraight() &&
+        at(0).CheckAndCombine(at(1), at(1).GetStart()))  //second param is a dummy
+        pop_back();
+
+    //Sanity checks
+    if (size()>0 && at(0).IsStraight()) 
+        if (size()==1 || (size()==2 && at(1).IsStraight())) 
+            clear();
+    if (size()==0) return false;
+
+    //go around and set "e" value for curvy edges. This was not known previously
+    //after that compute the bounding box
+    if (size()==1) {
+        at(0).SetEllipseToFull();  //we checked above it is curvy. We assert that this is a full circle
+		boundingBox = at(0).CalculateBoundingBox(at(0).GetStart());
+    } else {
+        for (int i=0; i<size(); i++) {
+            if (at(i).IsStraight()) {
+                at(i).CalculateBoundingBox(at_next(i).GetStart());
+                boundingBox += at(i).start;
+            } else {
+                at(i).SetEnd(at_next(i).GetStart());
+                at(i).CalculateBoundingBox(at_next(i).GetStart());
+                boundingBox += at(i).GetBoundingBox();
+            }
+        }
+    }
+    return true;
+}
+
+//Does a union or intersection of two poligons, byconts the result in "result"
+//- For union "result" will be one bounding contour, its "holes" may have zero or more elements
+//- For intersection "result" may have more elements, their "holes" are guaranteed to be empty
 //Return values
-//OVERLAP: the two polygons actually intersect (or at least touch for union)
+//OVERLAP: the two contours actually intersect (or at least touch for union)
 //surfaces contains return values only if the result is OVERLAP.
 //A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY: they mean just that.
 //A_INSIDE_B: *this is fully inside b. (ignoring clockwiseness).
 //B_INSIDE_A: b is fully inside *this. (ignoring clockwiseness).
-//SAME: The two polygons are actually the same (ignoring clockwiseness).
-//APART: The two polygons are apart. (ignoring clockwiseness).
-Polygon::poly_result_t Polygon::Combine(const Polygon &b, PolygonList &result, poly_action_t action) const
+//SAME: The two contours are actually the same (ignoring clockwiseness).
+//APART: The two contours are apart. (ignoring clockwiseness).
+Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result, bool doUnion) const
 {
     if (size()==0) return b.size() ? A_IS_EMPTY : BOTH_EMPTY;
     if (b.size()==0) return B_IS_EMPTY;
     if (!boundingBox.Overlaps(b.boundingBox)) return APART;
 
-    if (action==XOR) {
-        poly_result_t ret = Combine(b, result, UNION);
-        if (ret!=OVERLAP) return ret;
-        PolygonList holes;
-        if (OVERLAP == Combine(b, holes, INTERSECT))
-            result -= holes;
-        return OVERLAP;
-    }
-
-    //Now action can only be UNION, INTERSECT or SUBSTRACT and none of the polygons is empty
     //Set up some data structures
-    static Polygon b_inv;
-    /*static*/ MscCrossPointStore cp[2];
-    cp[0].Set(*this);
-    cp[1].Set(action==SUBSTRACT ? b_inv = b.GetInverse() : b); //invert b if action is SUBSTRACT
-    /*static*/ MscCrossPointSet cp_set;
+    CPsByContour cp[2];
+    CPSet cp_set;
+    std::vector<CPOnEdge> startpoints;
+    cp[0].Set(this);
+    cp[1].Set(&b); 
 
-    //We will first find all the crossing points between the two polygons
-    Polygon::poly_result_t ret = BOTH_EMPTY;
-    if (cp_set.FindCrosspoints(cp, 2)) {
-        /*static*/ std::vector<cp_id_t> startpoints;
-        // Process each cp and determine if it is relevant to us or not
-        cp_set.Process(action==SUBSTRACT ? INTERSECT : action, startpoints);
-        if (startpoints.size()) {
-            //relevant cps found
-            static PolygonList holes;
-            Walk(startpoints, result, holes); //they touch, walk the pieces
-            //With union we may have holes, but only one surface
-            //With intersect (and substract), we can have multiple surfaces, but no holes
-            _ASSERT(result.size()==1 || holes.size()==0);
-            if (holes.size())
-                result.begin()->holes.swap(holes);
-            ret = OVERLAP;
-        }
+    //We will first find all the crossing points between the two contours
+    cp_set.FindCrosspoints(cp, 2);
+    if (cp_set.size())         
+        cp_set.Process4Combine(doUnion, startpoints); // Process each cp and determine if it is relevant to us or not
+    if (startpoints.size()==0) {
+        cp[0].Finish();
+        cp[1].Finish(); //keep memory allocated, but erase pointers to input contours
+        return CheckContainment(b); //two contours do not touch, determine their relative position
     }
-    if (ret != OVERLAP)
-        ret = CheckContainment(b); //two polygons do not touch, determine their relative position
+    ContourList holes;
+    for (auto iStart = startpoints.begin(); iStart != startpoints.end(); iStart++) {
+        static ContourWithHoles walk; //static: we keep allocated memory between calls for performance
+        walk.Walk4Combine(*iStart);
+		//If we have abandoned this polyline, do not perform the processing below: start with another polyline
+        if (!walk.PostWalk()) continue;
+        if (walk.CalculateClockwise())
+            result.append(walk);
+        else
+            holes.append(walk.CreateInverse());
+    }
+    //With union we may have holes, but only one surface
+    //With intersect (and substract), we can have multiple surfaces, but no holes
+    _ASSERT(result.size()==1 || holes.size()==0);
+    if (holes.size())
+        result.begin()->holes.swap(holes);
     cp[0].Finish();
-    cp[1].Finish(); //keep memory allocated, but erase pointers to input polygons
-    return ret;
+    cp[1].Finish(); 
+    return OVERLAP;
 }
 
-//Checks if the polygon touches itself and splits it into multiple pieces, using the winding rule
-//Any point on the plane is part of the result, if a ray from it to infinity statisfies this rule:
-//"If the polygon crosses the ray from left-to-right, counts +1; if from right to left, counts -1.
-//(Left and right are determined from the perspective of looking along the ray from the starting point.)
-//If the total count is non-zero, the point will be inside the result."
-//Can return
-//- A_IS_EMPTY, if we are empty
-//- SAME, if we are already untangled (nothing is in result)
-//- OVERLAP if there were intersections (or is counterclockwise) and they are placed in result
-Polygon::poly_result_t Polygon::UntangleOnePolygon(PolygonList &surfaces, PolygonList &holes) const
+
+//////////////////////////////////Contour::Untangle (and Xor) implementation
+
+//Walk around the contours starting from startpoint, which is an incoming ray
+//At each incoming ray we see if the (clockwise) previous ray (which is not yet done) is outgoing. 
+//if so go there, if not, start a walk there recursively. Collect the results in surfaces and holes.
+//In this walk, we ignore the switch_action and seq_num stored in rays (no such are actually set, when this is called
+//Used for XOR and Untangle
+void Contour::Walk4Untangle(const CPOnEdge &startpoint, ContourList &surfaces, ContourList &holes)
 {
-    if (size()==0) return A_IS_EMPTY;
-
-    //Set up some data structures,
-    static MscCrossPointStore cp;
-    cp.Set(*this);
-	MscCrossPointSet cp_set;
-
-    //We will first find all the crossing points between our edges
-    //neighbouring edges will not be stored since one of them will have pos==1
-    Polygon::poly_result_t ret = SAME;
-    if (cp_set.FindCrosspoints(&cp, 1)) {
-		static std::vector<cp_id_t> startpoints;
-		cp_set.Process(UNION, startpoints);  //action==UNION will be ignored
-		if (startpoints.size()) {
-			Walk(startpoints, surfaces, holes); //they touch, walk the pieces
-			ret = OVERLAP;
-		}
-    }
-	if (ret == SAME && !CalculateClockwise()) {//no crosspoints, but counterclockwise
-		holes.append(GetInverse());
-		ret = OVERLAP;
-    }
-    cp.Finish(); //keep memory allocated, but erase pointers to input polygons
-    return ret;
+	//current will point to an incoming ray at a crosspoint
+	CPPointer current(startpoint);
+    if (!current.iCP->second.iRay->valid) //we have already passed over this startpoint
+		return;
+    //do a walk from the current crosspoint, until we get back here
+    const CPSet::const_iterator finish = current.iCP->second.iRays;
+    ContourWithHoles walk;
+    do {
+        if (current.IsAtVertex()) {
+            walk.AppendDuringWalk(current.GetOutGoingEdgeRemainder()); //Add current point (plus edge out)
+            current.StepToNext();
+            continue;
+        }
+        CPRays::iterator i = current.iCP->second.iRay;
+        _ASSERT(i->valid);
+        do {
+            //search previous ray, which is still valid
+            do {
+                current.iCP->second.iRays->second.dec(i);
+            } while (!i->valid);
+            _ASSERT(i!=current.iCP->second.iRay); //found a ray different from the one we arrived on.
+            if (!i->incoming) break;
+            //incoming ray: start a new walk recursively
+            Walk4Untangle(CPOnEdge(current.iCP->second.iRays, i), surfaces, holes);
+            //if our initial incoming ray is still valid, try it again
+            if (current.iCP->second.iRay->valid) 
+                continue;
+            //If the walk above also touched the current incoming ray,
+            //we give up and generate no contour from this walk (apart from the
+            //ones geenrated by the walk above). THis can only happen when
+            //we have not yet collected any vertices and walk.size()==0.
+            //(Since any outgoing ray leading to our incoming one in "current"
+            //would be invalidated if we had colleced any vertices and no other
+            //walk could then reach "current" to invalidate it)
+            _ASSERT(walk.size()==0);
+            return;
+        } while (1);
+        //Mark the incoming and outgoing ray as DONE
+        current.iCP->second.iRay->valid = false;
+        i->valid = false;
+        //Switch to outgoing ray;
+        current.SwitchTo(i);
+        //Append point
+        walk.AppendDuringWalk(current.GetOutGoingEdgeRemainder()); //Add current point (plus edge out)
+        //Go to next cp or vertex on the edge
+        current.StepToNext(); //now current points either to a vertex or to an incoming ray again
+    } while (current.IsAtVertex() || current.iCP->second.iRays != finish);  
+    if (!walk.PostWalk()) return;
+    if (walk.CalculateClockwise())
+        surfaces.append(std::move(walk));
+    else
+        holes.append(walk.CreateInverse());
 }
 
-//This is a tree of polygons (holes or srufaces) that do not intersect, but may contain each other
+//This is a tree of contours (holes or srufaces) that do not intersect, but may contain each other
 struct node;
 class node_list : public std::list<node>
 {
 public:
-	void insert_tree(Polygon &&p, bool hole);
-	void Convert(bool hole, int counter, Polygon::untangle_t rule, PolygonList &result);
+	void insert_tree(Contour &&p, bool hole);
+	void Convert(bool hole, int counter, Contour::untangle_t rule, ContourList &result);
 };
 
 struct node {
 	bool ishole;
-	Polygon polygon;
+	Contour contour;
 	node_list inside_me;
-	node(Polygon &&p, bool hole) : polygon(p), ishole(hole) {}
-	node(node &&n) : polygon(std::move(n.polygon)), ishole(n.ishole), inside_me(std::move(n.inside_me)) {}
+	node(Contour &&p, bool hole) : contour(p), ishole(hole) {}
+	node(node &&n) : contour(std::move(n.contour)), ishole(n.ishole), inside_me(std::move(n.inside_me)) {}
 };
 
-void node_list::insert_tree(Polygon &&p, bool hole)
+void node_list::insert_tree(Contour &&p, bool hole)
 {
 	node n(std::move(p), hole);
 	iterator in_what;
 	bool was = false;
 	for (auto i = begin(); i!=end(); /*none*/)
-		switch (n.polygon.CheckContainment(i->polygon)) {
-		case Polygon::SAME: _ASSERT(0);
-		case Polygon::A_INSIDE_B:
+		switch (n.contour.CheckContainment(i->contour)) {
+		case Contour::SAME: _ASSERT(0);
+		case Contour::A_INSIDE_B:
 			_ASSERT(!was);
 			in_what = i;
-			//i=end(); //skip the rest: nothing can be in us, if we are in someone
+            was = true;
+			i=end(); //skip the rest: nothing can be in us, if we are in someone
 			break;
-		case Polygon::APART:
+		case Contour::APART:
 			i++;
 			break;
-		case Polygon::B_INSIDE_A:
+		case Contour::B_INSIDE_A:
 			if (i==begin()) {
 				n.inside_me.splice(n.inside_me.end(), *this, i);
 				i = begin();
@@ -1054,9 +1061,10 @@ void node_list::insert_tree(Polygon &&p, bool hole)
 			}
 	}
 	node_list *to_be_added_to;
-	if (was) in_what->inside_me.insert_tree(std::move(n.polygon), hole);
+	if (was) in_what->inside_me.insert_tree(std::move(n.contour), hole);
 	else push_back(std::move(n));
 }
+
 
 //This is a set of surfaces with surfaces contaied within
 //counter counts the paths around us.
@@ -1066,23 +1074,24 @@ void node_list::insert_tree(Polygon &&p, bool hole)
 //We also do a technical trick. Hole contains if we are inside a surface and we shall list holes.
 //if so, we simply surfaces we need to include based on the criterion above (but process their children).
 //And vice versa for holes=false
-void node_list::Convert(bool hole, int counter, Polygon::untangle_t rule, PolygonList &result)
+void node_list::Convert(bool hole, int counter, Contour::untangle_t rule, ContourList &result)
 {
 	for (auto i=begin(); i!=end(); i++) {
 		int new_counter;
 		bool include;
 		//for winding and expand we decrease if it is a hole
-		if (rule != Polygon::EVENODD_RULE && i->ishole) new_counter = counter-1;
+		if (rule != Contour::EVENODD_RULE && i->ishole) new_counter = counter-1;
 		else new_counter = counter+1;
 		switch (rule) {
-		case Polygon::WINDING_RULE: include = new_counter!=0; break;
-		case Polygon::EVENODD_RULE: include = new_counter%2==1; break;
-		case Polygon::EXPAND_RULE:  include = new_counter>=1; break;
+		case Contour::WINDING_RULE: include = new_counter!=0; break;
+        case Contour::XOR_RULE: 
+		case Contour::EVENODD_RULE: include = new_counter%2==1; break;
+		case Contour::EXPAND_RULE:  include = new_counter>=1; break;
 		}
 		if (hole != include) {
 			//Either we collect holes and shall not include this part->we shall include a hole
 			//or we collect surfaces and we shall include this part->we shall include a surface
-			PolygonWithHoles p(std::move(i->polygon));
+			ContourWithHoles p(std::move(i->contour));
 			i->inside_me.Convert(!hole, new_counter, rule, p.holes);
 			result.append(std::move(p));
 		} else {
@@ -1093,53 +1102,114 @@ void node_list::Convert(bool hole, int counter, Polygon::untangle_t rule, Polygo
 	}
 }
 
-Polygon::poly_result_t Polygon::Untangle(PolygonList &result, untangle_t rule) const
+
+
+//Return values
+//OVERLAP: the two contours actually intersect or contain one another
+//surfaces contains return values only if the result is OVERLAP.
+//A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY: they mean just that.
+//A_INSIDE_B: *this is fully inside b. (ignoring clockwiseness).
+//B_INSIDE_A: b is fully inside *this. (ignoring clockwiseness).
+//SAME: The two contours are actually the same (ignoring clockwiseness).
+//APART: The two contours are apart. (ignoring clockwiseness).
+Contour::result_t Contour::DoXor(const Contour &b, ContourList &result) const
 {
-	PolygonList s, h;
-	//Untangle polygon
-	switch (Polygon::UntangleOnePolygon(s, h)) {
-	case A_IS_EMPTY:
-		return A_IS_EMPTY;
-	case SAME:
-		return SAME;
-	}
-	//Call untangle as long as we have fragments not untangled
-	node_list nl, nl2, nl_ok;
-	for (auto i = s.begin(); i!=s.end(); i++)
-		nl.push_back(node(std::move(*i), false));
-	for (auto i = h.begin(); i!=h.end(); i++)
-		nl.push_back(node(std::move(*i), true));
-	while (nl.size()) {
-		for (auto i = nl.begin(); i!=nl.end(); /*none*/)
-			switch(i->polygon.UntangleOnePolygon(s, h)) {
-			case OVERLAP:
-				for (auto j = s.begin(); j!=s.end(); j++)
-					nl2.push_back(node(std::move(*j), i->ishole));
-				for (auto j = h.begin(); j!=h.end(); j++)
-					nl2.push_back(node(std::move(*j), !i->ishole));
-			case A_IS_EMPTY:
-				i++;
-				break;
-			case SAME:
-				if (i==nl.begin()) {
-					nl_ok.insert_tree(std::move(i->polygon), i->ishole);
-					nl.pop_front();
-					i = nl.begin();
-				} else {
-					nl_ok.insert_tree(std::move(i->polygon), i->ishole);
-					nl.erase(i--);
-					i++;
-				}
-			}
-		nl.swap(nl2);
-	}
-	//Now nl_ok contains a lot of untangled surfaces and holes neatly arranged
-	nl_ok.Convert(false, 0, rule, result);
-	return OVERLAP;
+    if (size()==0) return b.size() ? A_IS_EMPTY : BOTH_EMPTY;
+    if (b.size()==0) return B_IS_EMPTY;
+    if (!boundingBox.Overlaps(b.boundingBox)) return APART;
+
+
+    //Set up some data structures
+    /*static*/ CPsByContour cp[2];
+    /*static*/ CPSet cp_set;
+    /*static*/ std::vector<CPOnEdge> startpoints;
+    cp[0].Set(this);
+    cp[1].Set(&b); 
+
+    //We will first find all the crossing points between the two contours
+    cp_set.FindCrosspoints(cp, 2);
+    if (!cp_set.size()) {
+        cp[0].Finish();
+        cp[1].Finish();
+        return CheckContainment(b);
+    }
+    cp_set.Process4Untangle(); // copy cps to edges in bycont
+    /*static*/ ContourList holes;
+    //Cycle through all crosspoints and start a walk at each ray not yet touched
+    for (auto ii = cp_set.begin(); ii!=cp_set.end(); ii++)
+        for (auto i = ii->second.begin(); i!=ii->second.end(); i++)
+            if (i->incoming && i->valid)
+                Walk4Untangle(CPOnEdge(ii,i), result, holes);
+
+    node_list nl;
+	for (auto i = result.begin(); i!=result.end(); i++)
+        nl.insert_tree(std::move(*i), false);
+	for (auto i = holes.begin(); i!=holes.end(); i++)
+        nl.insert_tree(std::move(*i), true);
+    result.clear();
+	nl.Convert(false, 0, XOR_RULE, result);
+    return OVERLAP;
 }
 
 
-const Block &Polygon::CalculateBoundingBox()
+
+//Checks if the contour touches itself and splits it into multiple pieces, using the winding rule
+//Any point on the plane is part of the result, if a ray from it to infinity statisfies this rule:
+//"If the contour crosses the ray from left-to-right, counts +1; if from right to left, counts -1.
+//(Left and right are determined from the perspective of looking along the ray from the starting point.)
+//If the total count is non-zero, the point will be inside the result."
+//Can return
+//- A_IS_EMPTY, if we are empty  (nothing is added to surfaces or holes)
+//- SAME, if we are already untangled (nothing is added to surfaces or holes)
+//- OVERLAP if there were intersections (or is counterclockwise) and they are placed in result
+Contour::result_t Contour::Untangle(ContourList &result, untangle_t rule) const
+{
+    if (size()==0) return A_IS_EMPTY;
+
+    //Set up some data structures,
+    static CPsByContour cp;
+	CPSet cp_set;
+    std::vector<CPOnEdge> startpoints;
+
+    cp.Set(this);
+
+    //We will first find all the crossing points between our edges
+    //neighbouring edges will not be bycontd since one of them will have pos==1
+    cp_set.FindCrosspoints(&cp, 1);
+    if (!cp_set.size()) {
+        cp.Finish();
+        if (CalculateClockwise()) 
+            return SAME;
+        //no crosspoints, but counterclockwise
+        if (rule != EXPAND_RULE)
+            result.append(CreateInverse());
+		return OVERLAP;
+    }
+    cp_set.Process4Untangle();  //action==UNION will be ignored
+    /*static*/ ContourList holes;
+    //Cycle through all crosspoints and start a walk at each ray not yet touched
+    for (auto ii = cp_set.begin(); ii!=cp_set.end(); ii++)
+        for (auto i = ii->second.begin(); i!=ii->second.end(); i++)
+            if (i->incoming && i->valid)
+                Walk4Untangle(CPOnEdge(ii,i), result, holes);
+    cp.Finish(); //keep memory allocated, but erase pointers to input contours
+
+    node_list nl;
+	for (auto i = result.begin(); i!=result.end(); i++)
+        nl.insert_tree(std::move(*i), false);
+	for (auto i = holes.begin(); i!=holes.end(); i++)
+        nl.insert_tree(std::move(*i), true);
+    result.clear();
+	//Now nl_ok contains a lot of untangled surfaces and holes neatly arranged
+	nl.Convert(false, 0, rule, result);
+    return OVERLAP;
+}
+
+
+//////////////////////////////////Contour::Rotate implementation
+
+
+const Block &Contour::CalculateBoundingBox()
 {
     boundingBox.MakeInvalid();
     for(int i=0; i<size(); i++)
@@ -1148,7 +1218,9 @@ const Block &Polygon::CalculateBoundingBox()
 }
 
 
-void Polygon::Rotate(double cos, double sin, double radian)
+//
+
+void Contour::Rotate(double cos, double sin, double radian)
 {
     boundingBox.MakeInvalid();
     XY next = at(0).start;
@@ -1163,7 +1235,7 @@ void Polygon::Rotate(double cos, double sin, double radian)
     }
 }
 
-void Polygon::RotateAround(const XY&c, double cos, double sin, double radian)
+void Contour::RotateAround(const XY&c, double cos, double sin, double radian)
 {
     boundingBox.MakeInvalid();
     XY next = at(0).start;
@@ -1177,6 +1249,8 @@ void Polygon::RotateAround(const XY&c, double cos, double sin, double radian)
         next = at(i).start;
     }
 }
+
+//////////////////////////////////Contour::Expand implementation
 
 typedef struct {
 	bool valid;
@@ -1207,7 +1281,7 @@ int prev_edgexy(const std::vector<EdgeXY> &edges, int i)
 }
 
 
-void Polygon::Expand(double gap, PolygonList &res) const
+void Contour::Expand(double gap, ContourList &res) const
 {
     if (gap==0 || size()==0) return;
 	if (boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap) return;
@@ -1320,9 +1394,9 @@ void Polygon::Expand(double gap, PolygonList &res) const
 		}
 	} while (once_more && current_size>1);
 
-	//copy resulting polygon to res
+	//copy resulting contour to res
 	if (current_size) {
-		PolygonWithHoles result;
+		ContourWithHoles result;
 		int i = next_edgexy(edges,size()-1);
 		while(1) {
 			result.push_back(edges[i].res);
@@ -1335,20 +1409,20 @@ void Polygon::Expand(double gap, PolygonList &res) const
 				result[0].SetEllipseToFull();
 			result.CalculateBoundingBox();  //also calculates bounding boxes of edges
 			//if (SAME==result.Untangle(res, EXPAND_RULE))
-				res.append(result);        //expanded polygon is not tangled, just add it
+				res.append(result);        //expanded contour is not tangled, just add it
 		}
 	}
 	if (num_separate)
 		for (int i=0; i<size(); i++) {
 			if (edges[i].valid || !edges[i].separate) continue;
-			Polygon b;
+			Contour b;
 			b.push_back(edges[i].s);
 			b.begin()->SetEllipseToFull();
 			res += b;
 		}
 }
 
-void Polygon::Path(cairo_t *cr, bool inverse) const
+void Contour::Path(cairo_t *cr, bool inverse) const
 {
     if (size()==0 || cr==NULL) return;
     cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
@@ -1359,6 +1433,31 @@ void Polygon::Path(cairo_t *cr, bool inverse) const
         for (int i = 0; i<size(); i++)
             at(i).Path(cr, at_next(i).GetStart());
     cairo_close_path(cr);
+}
+
+double Contour::OffsetBelow(const Contour &below) const
+{
+    double ret = Infinity();
+    if (boundingBox.x.Overlaps(below.boundingBox.x)) 
+        for (int i = 0; i<size(); i++)
+            for (int j = 0; j<size(); j++)
+                if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
+                    double r;
+                    if (at(i).IsStraight()) {
+                        if (below.at(j).IsStraight())
+                            r = Edge::offsetbelow_straight_straight(at(i).start, at_next(i).start, 
+                                                 below.at(j).start, below.at_next(j).start);
+                        else
+                            r = below.at(j).offsetbelow_curvy_straight(at(i).start,at_next(i).start, true);
+                    } else {
+                        if (below.at(j).IsStraight()) 
+                            r = at(i).offsetbelow_curvy_straight(below.at(j).start, below.at_next(j).start, false);
+                        else
+                            r = at(i).offsetbelow_curvy_curvy(below.at(j));
+                    }
+                    if (ret>r) ret = r;
+                }
+    return ret;
 }
 
 

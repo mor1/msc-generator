@@ -23,6 +23,7 @@ struct quadratic_xy_t;
 class Ellipse
 {
     friend struct quadratic_xy_t;
+    friend class Edge;
 	friend void test_geo(cairo_t *cr, int x, int y, bool clicked); //XXX
 protected:
     XY     center;
@@ -147,29 +148,6 @@ inline void Ellipse::TransformForDrawing(cairo_t *cr) const
     if (tilted)
         cairo_rotate(cr, tilt);
     cairo_scale(cr, radius1, radius2);
-}
-
-//other helpers
-static const double SMALL_NUM = 1e-10; //avoid division overflow
-inline bool test_zero(double n)
-{
-    return n<SMALL_NUM && n>-SMALL_NUM;
-}
-
-inline bool test_equal(double n, double m)
-{
-    return test_zero(n-m);
-}
-
-//true if *really* smaller, not just by epsilon
-inline bool test_smaller(double n, double m)
-{
-    return n<m-SMALL_NUM;
-}
-
-inline bool test_positive(double n)
-{
-    return n >= SMALL_NUM;
 }
 
 //ensures r is between [0..2pi]

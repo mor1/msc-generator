@@ -299,7 +299,7 @@ inline bool test_equal(const XY &a, const XY &b)
     return test_equal(a.y, b.y) && test_equal(a.x, b.x);
 }
 
-//Where does an edge or arc corss a horizontal line? (for the purposes of Polygon::IsWithin)
+//Where does an edge or arc corss a horizontal line? (for the purposes of Contour::IsWithin)
 //1. an upward edge includes its starting endpoint, and excludes its final endpoint;
 //2. a downward edge excludes its starting endpoint, and includes its final endpoint;
 //SUM: we include the endpoint with the smaller y coordinate
@@ -558,5 +558,69 @@ int Edge::IsOppositeDir(const XY &B, const Edge &M, const XY &N) const
 	//Now see, if the original s->e was more than 180 degrees
 	return M.GetSpan()>M_PI ? 2 : 1;
 }
-	
+
+
+//Returns how much MN can be shifted up to bump into AB
+double Edge::offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M, const XY &N)
+{
+    const double minAB = std::min(A.x, B.x);
+    const double maxAB = std::max(A.x, B.x);
+    const double minMN = std::min(M.x, N.x);
+    const double maxMN = std::max(M.x, N.x);
+    if (minAB > maxMN || minMN > maxAB) return Infinity();
+    const double x1 = std::max(minAB, minMN);
+    const double x2 = std::min(maxAB, maxMN);
+    if (A.x == B.x) {
+        if (M.x == N.x) return std::min(M.y, N.y) - std::max(A.y, B.y); //here all x coordinates must be the same
+        return (N.y-M.y)/(N.x-M.x)*(A.x-M.x) + M.y - std::max(A.y, B.y);
+    } 
+    if (M.x == N.x) return std::min(M.y,N.y) - ((A.y-B.y)/(A.x-B.x)*(M.x-A.x) + A.y);
+
+    const double diff1 = (N.y-M.y)/(N.x-M.x)*(x1-M.x) + M.y - ((A.y-B.y)/(A.x-B.x)*(x1-A.x) + A.y);
+    const double diff2 = (N.y-M.y)/(N.x-M.x)*(x2-M.x) + M.y - ((A.y-B.y)/(A.x-B.x)*(x2-A.x) + A.y);
+    return std::min(diff1, diff2);
+}
+
+#define CURVY_OFFSET_BELOW_GRANULARIRY 5
+
+//"this" must be a curvy edge
+double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_is_up) const
+{
+    _ASSERT(!IsStraight());
+    const double rad = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
+    XY prev = start;
+    double ret = Infinity();
+    for (double r = s+rad; r<e; r+=rad) {
+        const XY xy = ell.Radian2Point(r);
+        if (straight_is_up)
+            ret = std::min(ret, offsetbelow_straight_straight(A, B, prev, xy));
+        else
+            ret = std::min(ret, offsetbelow_straight_straight(prev, xy, A, B));
+        prev = xy;
+    }
+    return ret;
+}
+
+//both must be curvy edges
+//"this" is higher than o
+double Edge::offsetbelow_curvy_curvy(const Edge &o) const
+{
+    _ASSERT(!IsStraight() && o.IsStraight());
+    const double rad1 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
+    const double rad2 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(o.ell.radius1 + o.ell.radius2);
+    double ret = Infinity();
+    XY prev1 = start;
+    for (double r1 = s+rad1; r1<e; r1+=rad1) {
+        const XY xy1 = ell.Radian2Point(r1);
+        XY prev2 = o.start;
+        for (double r2 = o.s+rad2; r2<o.e; r2+=rad2) {
+            const XY xy2 = o.ell.Radian2Point(r2);
+            ret = std::min(ret, offsetbelow_straight_straight(prev1, xy1, prev2, xy2));
+            prev2 = xy2;
+        }
+        prev1 = xy1;
+    }
+    return ret;
+}
+
 } //namespace

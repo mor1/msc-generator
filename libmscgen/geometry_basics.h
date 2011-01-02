@@ -13,6 +13,12 @@ using namespace std::rel_ops;  //so that we have != and <= and >= etc from only 
 namespace geometry {
 
 inline double Infinity() {return DBL_MAX;}
+//other helpers
+static const double SMALL_NUM = 1e-10; //avoid division overflow
+inline bool test_zero(double n) {return n<SMALL_NUM && n>-SMALL_NUM;}
+inline bool test_equal(double n, double m) {return test_zero(n-m);}
+inline bool test_smaller(double n, double m) {return n<m-SMALL_NUM;} //true if *really* smaller, not just by epsilon
+inline bool test_positive(double n) {return n >= SMALL_NUM;}
 
 class XY {
 public:
@@ -34,6 +40,8 @@ public:
     bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
     XY	   operator -() const             {return XY(-x, -y);}
     bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
+    bool   test_equal(const XY& p) const  {return geometry::test_equal(x, p.x) && geometry::test_equal(y, p.y);}
+    bool   test_smaller(const XY& p) const{return geometry::test_equal(x, p.x) ? geometry::test_smaller(y, p.y) : geometry::test_smaller(x, p.x);}
     XY     Rotate90CW() const             {return XY(-y, x);}
     XY     Rotate90CCW() const            {return XY(y, -x);}
 	void   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos;}
