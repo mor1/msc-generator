@@ -1210,9 +1210,6 @@ const Block &Contour::CalculateBoundingBox()
     return boundingBox;
 }
 
-
-//
-
 void Contour::Rotate(double cos, double sin, double radian)
 {
     boundingBox.MakeInvalid();
