@@ -12,7 +12,7 @@ using namespace std::rel_ops;  //so that we have != and <= and >= etc from only 
 
 namespace contour {
 
-inline double Infinity() {return DBL_MAX;}
+#define CONTOUR_INFINITY DBL_MAX
 //other helpers
 static const double SMALL_NUM = 1e-10; //avoid division overflow
 inline bool test_zero(double n) {return n<SMALL_NUM && n>-SMALL_NUM;}
@@ -58,7 +58,7 @@ struct Range {
     Range() {}
     Range(double s, double d) : from(s), till(d) {}
     void MakeInvalid() {from = DBL_MAX; till = -DBL_MAX;}
-    bool IsInvalid() const {return from == Infinity() && till == -Infinity();}
+    bool IsInvalid() const {return from == CONTOUR_INFINITY && till == -CONTOUR_INFINITY;}
     bool Overlaps(const struct Range &r, double gap=0) const   //true if they at least touch
         {return from<=r.till+gap && r.from <= till+gap;}
     Range &operator+=(double a)
@@ -72,8 +72,8 @@ struct Range {
                 return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;
     }
     Range &Shift(double a) {from +=a; till+=a; return *this;}
-    bool HasValidFrom() const {return from != Infinity();}
-    bool HasValidTill() const {return till != -Infinity();}
+    bool HasValidFrom() const {return from != CONTOUR_INFINITY;}
+    bool HasValidTill() const {return till != -CONTOUR_INFINITY;}
     double Spans() const
         {return till-from;}
     bool operator <(const Range &r) const {

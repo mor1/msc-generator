@@ -154,8 +154,8 @@ public:
 	Area CreateExpand(double gap) const;
 	void ClearHoles() {ContourList::ClearHoles();}
 
-    double OffsetBelow(const Contour &below) const;
-    double OffsetBelow(const Area &below) const;
+    double OffsetBelow(const Contour &below, double offset=CONTOUR_INFINITY) const;
+    double OffsetBelow(const Area &below, double offset=CONTOUR_INFINITY) const;
 
     bool IsEmpty() const {return size()==0;}
     void Path(cairo_t *cr) const {ContourList::Path(cr, true);}
@@ -331,6 +331,25 @@ inline bool Area::operator ==(const Area &b) const
 {
     if (mainline!=b.mainline) return false;
     return ContourList::operator==(b);
+}
+
+inline double Area::OffsetBelow(const Contour &below, double offset) const
+{
+    if (offset < below.GetBoundingBox().y.from - boundingBox.y.till) return offset;
+    if (!boundingBox.x.Overlaps(below.GetBoundingBox().x)) return offset;
+    for (auto i = begin(); i!=end(); i++)
+        offset = std::min(offset, i->OffsetBelow(below, offset));
+    return offset;
+}
+
+inline double Area::OffsetBelow(const Area &below, double offset) const
+{
+    if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
+    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
+    for (auto i = begin(); i!=end(); i++)
+        for (auto j = below.begin(); j!=below.end(); j++)
+            offset = std::min(offset, i->OffsetBelow(*j, offset));
+    return offset;
 }
 
 inline ContourList operator + (const ContourList &p1, const ContourWithHoles &p2) {return std::move(ContourList(p1)+=p2);}

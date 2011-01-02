@@ -25,6 +25,7 @@ class Contour : protected std::vector<Edge>
 	friend class node_list;   //to access CheckContainment
     explicit Contour(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
     explicit Contour(const std::vector<Edge> &v) : std::vector<Edge>(v) {} //leave boundingBox!!
+    double do_offsetbelow(const Contour &below) const;
 protected:
     Block  boundingBox;
 
@@ -93,7 +94,7 @@ public:
 
     void Expand(double gap, ContourList &res) const;
 
-    double OffsetBelow(const Contour &below) const;
+    double OffsetBelow(const Contour &below, double offset=CONTOUR_INFINITY) const;
 };
 
 inline bool Contour::operator <(const Contour &b) const
@@ -109,6 +110,13 @@ inline bool Contour::operator ==(const Contour &b) const
     if (boundingBox != b.boundingBox || size() != b.size()) return false;
     for (int i=0; i<size(); i++) if (at(i) != b[i]) false;
     return true; //equal
+}
+
+inline double Contour::OffsetBelow(const Contour &below, double offset=CONTOUR_INFINITY) const
+{
+    if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
+    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
+    return do_offsetbelow(below);
 }
 
 }; //namespace
