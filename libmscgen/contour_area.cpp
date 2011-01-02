@@ -268,7 +268,7 @@ Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, ContourList &
     case OVERLAP:
         res -= holes+p.holes;
         break;
-    }
+}
     return ret;
 }
 

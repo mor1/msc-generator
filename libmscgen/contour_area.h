@@ -101,6 +101,7 @@ public:
 
 	void Expand(double gap, ContourList &res) const;
 	void ClearHoles() {holes.clear();}
+    const ContourList &GetHoles() const {return holes;}
 
     void Path(cairo_t *cr, bool inv) const
         {Contour::Path(cr, inv); if (holes.size()) holes.Path(cr, !inv);}
@@ -125,9 +126,13 @@ public:
 	   arc(a), draw(d), find(f) {mainline.MakeInvalid();}
     Area(const Contour &p, TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
        ContourList(p), arc(a), draw(d), find(f)  {mainline.MakeInvalid();}
+    explicit Area(const ContourList &cl, TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
+       ContourList(cl), arc(a), draw(d), find(f)  {mainline.MakeInvalid();}
 
     void clear() {ContourList::clear(); mainline.MakeInvalid();}
     void swap(Area &a);
+    const_iterator begin() const {return std::list<ContourWithHoles>::begin();}
+    const_iterator end() const {return std::list<ContourWithHoles>::end();}
     void assign(std::vector<Edge> &&v) {ContourList::assign(std::move(v));}
     void assign(const std::vector<Edge> &v) {ContourList::assign(v);}
     bool operator <(const Area &b) const;

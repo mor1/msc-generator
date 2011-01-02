@@ -30,7 +30,16 @@
 
 using namespace std;
 
-
+void CshErrorList::Add(CshPos &pos, const char *t)
+{
+    resize(size()+1);
+    CshError &e = at(size()-1);
+    e.first_pos=pos.first_pos;
+    e.last_pos=pos.last_pos;
+    e.color = COLOR_ERROR;
+    if (t) e.text=t;
+}
+    
 MscColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 void MscInitializeCshAppearanceList(void)
 {
@@ -185,7 +194,7 @@ string CurrentState::Print(bool fakeDash) const
 }
 
 //Takes a chart description and makes it into a color syntax highlighted label
-string Cshize(const char *input, unsigned len, const MscCshListType &cshList, int cshStyle,
+string Cshize(const char *input, unsigned len, const CshListType &cshList, int cshStyle,
               const char *textformat)
 {
     map<int, CurrentState> textState;
@@ -193,14 +202,14 @@ string Cshize(const char *input, unsigned len, const MscCshListType &cshList, in
     //Set default to COLOR_NORMAL (we know this is fully specified, mask contails all COLOR_FLAG_*s)
     textState[-1].Apply(MscCshAppearanceList[cshStyle][COLOR_NORMAL]);
 
-    for (MscCshListType::const_iterator i = cshList.begin(); i!=cshList.end(); i++) {
-        map<int, CurrentState>::iterator j = textState.upper_bound(i->last_pos); //j points strictly *after* last_pos
+    for (auto i = cshList.begin(); i!=cshList.end(); i++) {
+        auto j = textState.upper_bound(i->last_pos); //j points strictly *after* last_pos
         j--; //now j is either before or at last_pos
         CurrentState state2revert2 = j->second;
         // if there are state changes between (first_pos and j], apply appearance to them
         if (i->first_pos-1 < j->first) {
             j++;
-            for (map<int, CurrentState>::iterator jj = textState.upper_bound(i->first_pos-1); jj!=j; jj++)
+            for (auto jj = textState.upper_bound(i->first_pos-1); jj!=j; jj++)
                 jj->second.Apply(MscCshAppearanceList[cshStyle][i->color]);
         }
         //Apply the new appearance from first pos. First copy any previous state to a new state at first pos...
@@ -222,7 +231,7 @@ string Cshize(const char *input, unsigned len, const MscCshListType &cshList, in
     ret.append(input, len);
     CurrentState lastState;
     string format;
-    for (map<int, CurrentState>::const_iterator i = textState.begin(); i!=textState.end(); i++) {
+    for (auto i = textState.begin(); i!=textState.end(); i++) {
         if (lastState == i->second) continue;
         if (i->first + offset > ret.length()) break; // color codes past the end of the string
         format = i->second.Print();
@@ -276,22 +285,8 @@ void Csh::AddCSH(CshPos&pos, MscColorSyntaxType i)
     e.first_pos = pos.first_pos;
     e.last_pos = pos.last_pos;
     e.color = i;
-    if (i==COLOR_ERROR)
-        CshList.AddToFront(e);
-    else
-        CshList.AddToBack(e);
+    CshList.AddToBack(e);
 }
-
-//Add an error just after this range
-void Csh::AddCSH_ErrorAfter(CshPos&pos)
-{
-    CshEntry e;
-    e.first_pos = pos.last_pos;
-    e.last_pos = pos.last_pos;
-    e.color = COLOR_ERROR;
-    CshList.AddToFront(e);
-}
-
 
 void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
@@ -515,7 +510,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
 MscColorSyntaxType Csh::GetCshAt(int pos)
 {
     //Search labels backwards
-    for (MscCshListType::const_reverse_iterator i = CshList.rbegin(); i!=CshList.rend(); i++)
+    for (auto i = CshList.rbegin(); !(i==CshList.rend()); i++)
         if (i->first_pos<=pos && i->last_pos>=pos) return i->color;
     return COLOR_NORMAL;
 }

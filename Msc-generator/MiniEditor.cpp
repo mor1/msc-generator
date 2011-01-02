@@ -102,11 +102,11 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
 	ASSERT(pApp != NULL);
     if (!pApp->m_bSmartIdent || !pApp->m_bDoCshProcessing) return -1;
 	//Go through the list of color syntax highlight entries
-	for (MscCshListType::const_iterator i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) {
+	for (auto  i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) {
 		//if we do not fall into a label skip
 		if (i->color != COLOR_LABEL_TEXT || i->first_pos>=lStart || i->last_pos<lStart ) continue;
 		//if yes and is preceeded by a colon...
-		MscCshListType::const_iterator j = i;
+		auto j = i;
 		j--;
 		if (j->color != COLOR_COLON) continue;
 		//...then find the first non-space in the label
@@ -561,6 +561,22 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
 				    SetSel(i->first_pos-1, i->last_pos);
 				    SetSelectionCharFormat(scheme[i->color]);
 			    }
+            if (pApp->m_bShowCshErrors)
+                for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
+                    SetSel(i->first_pos-1, i->last_pos);
+                    SetSelectionCharFormat(scheme[COLOR_ERROR]);
+                }
+            if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
+                MscError Error;
+                Error.AddFile("CSH");
+                std::list<CString> errors;
+                for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
+                    int line, col;
+                    ConvertPosToLineCol(i->first_pos, line, col);
+                    errors.push_back(Error.FormulateElement(file_line(0, line, col), true, false, i->text).text.c_str());
+                }
+                pApp->m_pWndOutputView->ShowCshErrors(errors);
+            }
         }
 	}
 	SetSel(cr);

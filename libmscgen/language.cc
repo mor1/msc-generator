@@ -2575,7 +2575,7 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
     if (((yylsp[(1) - (2)])).last_pos >= ((yylsp[(2) - (2)])).first_pos)
         ((yylsp[(2) - (2)])).first_pos = ((yylsp[(1) - (2)])).last_pos;
-    csh.AddCSH((yylsp[(2) - (2)]), COLOR_ERROR);
+    csh.AddCSH_Error((yylsp[(2) - (2)]), "Could not recognize this as a valid line.");
   #else
     (yyval.arclist) = (yyvsp[(1) - (2)].arclist);
   #endif
@@ -2588,7 +2588,7 @@ yyreduce:
 #line 235 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH((yylsp[(2) - (2)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(2) - (2)]), "Closing brace missing its opening pair.");
   #else
         (yyval.arclist) = (yyvsp[(1) - (2)].arclist);
         msc.Error.Error(MSC_POS((yylsp[(2) - (2)])).start, "Unexpected '}'.");
@@ -2602,7 +2602,7 @@ yyreduce:
 #line 244 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH((yylsp[(2) - (3)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(2) - (3)]), "Closing brace missing its opening pair.");
   #else
         //Merge $3 into $1
         ((yyvsp[(1) - (3)].arclist))->splice(((yyvsp[(1) - (3)].arclist))->end(), *((yyvsp[(3) - (3)].arclist)));
@@ -2634,7 +2634,7 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
         csh.AddCSH((yylsp[(2) - (2)]), COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]));
+        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing a design name.");
         csh.CheckHintAfter((yylsp[(2) - (2)]), yylloc, yychar==YYEOF, HINT_ATTR_VALUE, "msc");
   #else
         msc.Error.Error(MSC_POS((yylsp[(2) - (2)])).end.NextChar(), "Missing design name.");
@@ -2702,7 +2702,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (4)]), COLOR_BRACE);
-        csh.AddCSH((yylsp[(3) - (4)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(3) - (4)]), "Could not recognize this as a valid line.");
         csh.AddCSH((yylsp[(4) - (4)]), COLOR_BRACE);
   #else
         if ((yyvsp[(4) - (4)].arcbase)) ((yyvsp[(2) - (4)].arclist))->Append((yyvsp[(4) - (4)].arcbase)); //Append any potential CommandNumbering
@@ -2719,7 +2719,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACE);
-        csh.AddCSH((yylsp[(3) - (3)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(3) - (3)]), "Could not recognize this as a valid line.");
   #else
         (yyval.arclist) = (yyvsp[(2) - (3)].arclist);
         //Do not pop context, as the missing scope_close would have done
@@ -2735,7 +2735,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACE);
-        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]));
+        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing a semicolon (';').");
   #else
         (yyval.arclist) = (yyvsp[(2) - (2)].arclist);
         //Do not pop context, as the missing scope_close would have done
@@ -2750,7 +2750,7 @@ yyreduce:
 #line 352 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]));
+        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing a semicolon (';').");
   #else
         if ((yyvsp[(2) - (2)].arcbase)) ((yyvsp[(1) - (2)].arclist))->Append((yyvsp[(2) - (2)].arcbase));
         (yyval.arclist) = (yyvsp[(1) - (2)].arclist);
@@ -2765,7 +2765,7 @@ yyreduce:
 #line 362 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_ErrorAfter((yylsp[(1) - (1)]));
+        csh.AddCSH_ErrorAfter((yylsp[(1) - (1)]), "Missing a semicolon (';').");
   #else
         (yyval.arclist) = (new ArcList)->Append((yyvsp[(1) - (1)].arcbase)); /* New list */
         msc.Error.Error(MSC_POS((yylsp[(1) - (1)])).end.NextChar(), "Missing ';'.");
@@ -2841,7 +2841,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(3) - (3)]), COLOR_SEMICOLON);
-    csh.AddCSH((yylsp[(2) - (3)]), COLOR_ERROR);
+    csh.AddCSH_Error((yylsp[(2) - (3)]), "I am not sure what is coming here.");
     if (csh.CheckHintAfter((yylsp[(3) - (3)]), yylloc, yychar==YYEOF, HINT_LINE_START)) {
        csh.AddLineBeginToHints();
        csh.hintStatus = HINT_READY;
@@ -3284,7 +3284,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
-    csh.AddCSH((yylsp[(3) - (3)]), COLOR_ERROR);
+    csh.AddCSH_Error((yylsp[(3) - (3)]), "An option expected here.");
   #else
     (yyval.arclist) = (yyvsp[(1) - (3)].arclist);
   #endif
@@ -3381,7 +3381,7 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str), COLOR_OPTIONNAME);
         csh.AddCSH((yylsp[(2) - (2)]), COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]));
+        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing option value.");
         if (csh.CheckHintAfter((yylsp[(2) - (2)]), yylloc, yychar==YYEOF, HINT_ATTR_VALUE, (yyvsp[(1) - (2)].str))) {
             Msc::AttributeValues((yyvsp[(1) - (2)].str), csh);
             csh.hintStatus = HINT_READY;
@@ -3430,7 +3430,7 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
         csh.AddCSH((yylsp[(2) - (2)]), COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]));
+        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing option value.");
         if (csh.CheckHintAfter((yylsp[(2) - (2)]), yylloc, yychar==YYEOF, HINT_ATTR_VALUE, "msc")) {
             csh.AddDesignsToHints();
             csh.hintStatus = HINT_READY;
@@ -3706,7 +3706,7 @@ yyreduce:
         csh.AddCSH((yylsp[(1) - (6)]), COLOR_DESIGNNAME);
         csh.AddCSH((yylsp[(2) - (6)]), COLOR_BRACE);
         csh.AddCSH((yylsp[(4) - (6)]), COLOR_SEMICOLON);
-        csh.AddCSH((yylsp[(5) - (6)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(5) - (6)]), "Could not recognize this as part of a design definition.");
         csh.AddCSH((yylsp[(6) - (6)]), COLOR_BRACE);
         csh.Designs[(yyvsp[(1) - (6)].str)] = csh.Contexts.back();
         csh.PopContext();
@@ -3790,7 +3790,7 @@ yyreduce:
 #line 1123 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH((yylsp[(2) - (2)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(2) - (2)]), "Extra stuff after design options. Maybe missing a comma?");
   #endif
 }
     break;
@@ -4826,7 +4826,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (4)]), COLOR_BRACKET);
-        csh.AddCSH((yylsp[(3) - (4)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(3) - (4)]), "Extra stuff after an attribute list. Maybe missing a comma?");
         csh.AddCSH((yylsp[(4) - (4)]), COLOR_BRACKET);
         csh.CheckHintBetween((yylsp[(1) - (4)]), (yylsp[(2) - (4)]), HINT_ATTR_NAME);
   #else
@@ -4842,7 +4842,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
-        csh.AddCSH((yylsp[(2) - (3)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(2) - (3)]), "Could not recognize this as an attribute.");
         csh.AddCSH((yylsp[(3) - (3)]), COLOR_BRACKET);
         csh.CheckHintBetween((yylsp[(1) - (3)]), (yylsp[(2) - (3)]), HINT_ATTR_NAME);
   #else
@@ -4858,7 +4858,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACKET);
-        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]));
+        csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing a square bracket (']').");
         csh.CheckHintBetween((yylsp[(1) - (2)]), (yylsp[(2) - (2)]), HINT_ATTR_NAME);
   #else
     (yyval.attriblist) = (yyvsp[(2) - (2)].attriblist);
@@ -4874,7 +4874,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
-        csh.AddCSH((yylsp[(3) - (3)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(3) - (3)]), "Missing a ']'.");
         csh.CheckHintBetween((yylsp[(1) - (3)]), (yylsp[(2) - (3)]), HINT_ATTR_NAME);
   #else
     (yyval.attriblist) = (yyvsp[(2) - (3)].attriblist);
@@ -4890,7 +4890,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (1)]), COLOR_BRACKET);
-        csh.AddCSH_ErrorAfter((yylsp[(1) - (1)]));
+        csh.AddCSH_ErrorAfter((yylsp[(1) - (1)]), "Missing a square bracket (']').");
         csh.CheckHintAfter((yylsp[(1) - (1)]), yylloc, yychar==YYEOF, HINT_ATTR_NAME);
   #else
     (yyval.attriblist) = new AttributeList;
@@ -4915,7 +4915,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACKET);
-        csh.AddCSH((yylsp[(2) - (2)]), COLOR_ERROR);
+        csh.AddCSH_Error((yylsp[(2) - (2)]), "Missing a ']'.");
         csh.CheckHintBetween((yylsp[(1) - (2)]), (yylsp[(2) - (2)]), HINT_ATTR_NAME);
   #else
     (yyval.attriblist) = new AttributeList;

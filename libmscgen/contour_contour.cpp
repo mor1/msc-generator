@@ -325,7 +325,7 @@ void CPRays::Process4Combine(int &seq_num, int coverage, int min_coverage) const
 	iterator start_from = begin();
 	iterator A_from;
 	int counted = 0;
-	//Walk to first ray establishing below minimum coverage after angle 0
+	//Walk to first ray after the one establishing below minimum coverage after angle 0
 	if (!search_min_coverage(start_from, A_from, counted, coverage, min_coverage, true))
 		return; //never happens -> this is a crosspoint not needed, all switch_action will remain ERROR
 
@@ -482,9 +482,7 @@ CPPointer::CPPointer(const CPOnEdge &cp) : bycont(&cp.iRay->bycont), vertex(cp.i
     if (iCP == bycont->end()) {
         _ASSERT(0); //XXX
         vertex = (vertex+1)%bycont->contour->size();
-        //if there is a crosspoint right at the vertex, (pos==0) use that 
-        //if not, find() will return end(), which will mean the vertex
-        iCP = bycont->find(CPPos(vertex,0));
+        iCP = bycont->end();
     }
 }
 
@@ -495,9 +493,7 @@ CPPointer::CPPointer(const Ray &ray) : bycont(&ray.bycont), vertex(ray.vertex)
     if (iCP == bycont->end()) {
         _ASSERT(0); //XXX
         vertex = (vertex+1)%bycont->contour->size();
-        //if there is a crosspoint right at the vertex, (pos==0) use that 
-        //if not, find() will return end(), which will mean the vertex
-        iCP = bycont->find(CPPos(vertex,0));
+        iCP = bycont->end();
     }
 }
 
@@ -509,9 +505,7 @@ void CPPointer::StepToNext()
         ++iCP;
     if (iCP==bycont->end() || iCP->second.iRay->vertex != vertex) {
         vertex = (vertex+1)%bycont->contour->size();
-        //if there is a crosspoint right at the vertex, (pos==0) use that 
-        //if not, find() will return end(), which will mean the vertex
-        iCP = bycont->find(CPPos(vertex,0));
+        iCP = bycont->end();
     }
 }
 
@@ -525,9 +519,7 @@ void CPPointer::SwitchTo(CPRays::iterator i)
     if (IsAtVertex()) {
         _ASSERT(0); //XXX
         vertex = (vertex+1)%bycont->contour->size();
-        //if there is a crosspoint right at the vertex, (pos==0) use that 
-        //if not, find() will return end(), which will mean the vertex
-        iCP = bycont->find(CPPos(vertex,0));
+        iCP = bycont->end();
     }
 }
 
@@ -634,13 +626,14 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
     int e;
     for (e = 0; e<size(); e++) {
         if (edge) *edge = e;      //return value
+        if (at(e).GetStart().test_equal(p)) return WI_ON_VERTEX;
         const int epp = next(e);  //wrap back at the end
         double x[2], po[2];
         switch (at(e).CrossingHorizontal(p.y, at(epp).GetStart(), x, po)) {
         case 2:
             if (x[1] == p.x) {  //on an edge, we are _not_ approximate here
-                if (test_equal(at(e).GetStart().y, p.y)) return WI_ON_VERTEX; //on vertex
-                else if (test_equal(at(epp).GetStart().y, p.y)) {
+                //we have tested that at(e) is not equal to p, so no need to test for that here
+                if (test_equal(at(epp).GetStart().y, p.y)) {
                     if (edge) *edge = epp;
                     return WI_ON_VERTEX;
                 } else {
@@ -652,8 +645,8 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
             //fallthrough
         case 1:
             if (x[0] == p.x) {  //on an e
-                if (test_equal(at(e).GetStart().y, p.y)) return WI_ON_VERTEX; //on vertex
-                else if (test_equal(at(epp).GetStart().y, p.y)) {
+                //we have tested that at(e) is not equal to p, so no need to test for that here
+                if (test_equal(at(epp).GetStart().y, p.y)) {
                     if (edge) *edge = epp;
                     return WI_ON_VERTEX;
                 } else {
@@ -669,7 +662,7 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
 				if (pos) *pos = (p.x-at(e).GetStart().x)/(at(epp).GetStart().x-at(e).GetStart().x);
 				return WI_ON_EDGE; //goes through p
 			}
-            if (test_equal(at(e).GetStart().x, p.x)) return WI_ON_VERTEX; //on vertex
+            //we have tested that at(e) is not equal to p, so no need to test for that here
             if (test_equal(at(epp).GetStart().x, p.x)) {
                 if (edge) *edge = epp;
                 return WI_ON_VERTEX; //on vertex
@@ -1408,7 +1401,7 @@ void Contour::Expand(double gap, ContourList &res) const
 			if (result.size()==1)
 				result[0].SetEllipseToFull();
 			result.CalculateBoundingBox();  //also calculates bounding boxes of edges
-			//if (SAME==result.Untangle(res, EXPAND_RULE))
+			if (SAME==result.Untangle(res, EXPAND_RULE))
 				res.append(result);        //expanded contour is not tangled, just add it
 		}
 	}

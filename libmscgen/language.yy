@@ -226,7 +226,7 @@ top_level_arclist: arclist
   #ifdef C_S_H_IS_COMPILED
     if ((@1).last_pos >= (@2).first_pos)
         (@2).first_pos = (@1).last_pos;
-    csh.AddCSH(@2, COLOR_ERROR);
+    csh.AddCSH_Error(@2, "Could not recognize this as a valid line.");
   #else
     $$ = $1;
   #endif
@@ -234,7 +234,7 @@ top_level_arclist: arclist
                  | arclist TOK_CCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_ERROR);
+        csh.AddCSH_Error(@2, "Closing brace missing its opening pair.");
   #else
         $$ = $1;
         msc.Error.Error(MSC_POS(@2).start, "Unexpected '}'.");
@@ -243,7 +243,7 @@ top_level_arclist: arclist
                  | arclist TOK_CCBRACKET top_level_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_ERROR);
+        csh.AddCSH_Error(@2, "Closing brace missing its opening pair.");
   #else
         //Merge $3 into $1
         ($1)->splice(($1)->end(), *($3));
@@ -267,7 +267,7 @@ msckey:       TOK_MSC
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter(@2);
+        csh.AddCSH_ErrorAfter(@2, "Missing a design name.");
         csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE, "msc");
   #else
         msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing design name.");
@@ -316,7 +316,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACE);
-        csh.AddCSH(@3, COLOR_ERROR);
+        csh.AddCSH_Error(@3, "Could not recognize this as a valid line.");
         csh.AddCSH(@4, COLOR_BRACE);
   #else
         if ($4) ($2)->Append($4); //Append any potential CommandNumbering
@@ -328,7 +328,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACE);
-        csh.AddCSH(@3, COLOR_ERROR);
+        csh.AddCSH_Error(@3, "Could not recognize this as a valid line.");
   #else
         $$ = $2;
         //Do not pop context, as the missing scope_close would have done
@@ -339,7 +339,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACE);
-        csh.AddCSH_ErrorAfter(@2);
+        csh.AddCSH_ErrorAfter(@2, "Missing a semicolon (';').");
   #else
         $$ = $2;
         //Do not pop context, as the missing scope_close would have done
@@ -351,7 +351,7 @@ arclist_maybe_no_semicolon : arclist
             | arclist arc_with_parallel
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_ErrorAfter(@2);
+        csh.AddCSH_ErrorAfter(@2, "Missing a semicolon (';').");
   #else
         if ($2) ($1)->Append($2);
         $$ = $1;
@@ -361,7 +361,7 @@ arclist_maybe_no_semicolon : arclist
             | arc_with_parallel
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH_ErrorAfter(@1);
+        csh.AddCSH_ErrorAfter(@1, "Missing a semicolon (';').");
   #else
         $$ = (new ArcList)->Append($1); /* New list */
         msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing ';'.");
@@ -419,7 +419,7 @@ arc_with_parallel_semicolon: arc_with_parallel TOK_SEMICOLON
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@3, COLOR_SEMICOLON);
-    csh.AddCSH(@2, COLOR_ERROR);
+    csh.AddCSH_Error(@2, "I am not sure what is coming here.");
     if (csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, HINT_LINE_START)) {
        csh.AddLineBeginToHints();
        csh.hintStatus = HINT_READY;
@@ -724,7 +724,7 @@ optlist:     opt
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
-    csh.AddCSH(@3, COLOR_ERROR);
+    csh.AddCSH_Error(@3, "An option expected here.");
   #else
     $$ = $1;
   #endif
@@ -803,7 +803,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName(@1, $1, COLOR_OPTIONNAME);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter(@2);
+        csh.AddCSH_ErrorAfter(@2, "Missing option value.");
         if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE, $1)) {
             Msc::AttributeValues($1, csh);
             csh.hintStatus = HINT_READY;
@@ -842,7 +842,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_EQUAL);
-        csh.AddCSH_ErrorAfter(@2);
+        csh.AddCSH_ErrorAfter(@2, "Missing option value.");
         if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE, "msc")) {
             csh.AddDesignsToHints();
             csh.hintStatus = HINT_READY;
@@ -1060,7 +1060,7 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
         csh.AddCSH(@1, COLOR_DESIGNNAME);
         csh.AddCSH(@2, COLOR_BRACE);
         csh.AddCSH(@4, COLOR_SEMICOLON);
-        csh.AddCSH(@5, COLOR_ERROR);
+        csh.AddCSH_Error(@5, "Could not recognize this as part of a design definition.");
         csh.AddCSH(@6, COLOR_BRACE);
         csh.Designs[$1] = csh.Contexts.back();
         csh.PopContext();
@@ -1122,7 +1122,7 @@ designoptlist: designopt
                | designoptlist error
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@2, COLOR_ERROR);
+        csh.AddCSH_Error(@2, "Extra stuff after design options. Maybe missing a comma?");
   #endif
 };
 
@@ -1851,7 +1851,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
-        csh.AddCSH(@3, COLOR_ERROR);
+        csh.AddCSH_Error(@3, "Extra stuff after an attribute list. Maybe missing a comma?");
         csh.AddCSH(@4, COLOR_BRACKET);
         csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
   #else
@@ -1862,7 +1862,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
-        csh.AddCSH(@2, COLOR_ERROR);
+        csh.AddCSH_Error(@2, "Could not recognize this as an attribute.");
         csh.AddCSH(@3, COLOR_BRACKET);
         csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
   #else
@@ -1873,7 +1873,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
-        csh.AddCSH_ErrorAfter(@2);
+        csh.AddCSH_ErrorAfter(@2, "Missing a square bracket (']').");
         csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
   #else
     $$ = $2;
@@ -1884,7 +1884,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
-        csh.AddCSH(@3, COLOR_ERROR);
+        csh.AddCSH_Error(@3, "Missing a ']'.");
         csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
   #else
     $$ = $2;
@@ -1895,7 +1895,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
-        csh.AddCSH_ErrorAfter(@1);
+        csh.AddCSH_ErrorAfter(@1, "Missing a square bracket (']').");
         csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_ATTR_NAME);
   #else
     $$ = new AttributeList;
@@ -1912,7 +1912,7 @@ full_arcattrlist: TOK_OSBRACKET TOK_CSBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_BRACKET);
-        csh.AddCSH(@2, COLOR_ERROR);
+        csh.AddCSH_Error(@2, "Missing a ']'.");
         csh.CheckHintBetween(@1, @2, HINT_ATTR_NAME);
   #else
     $$ = new AttributeList;

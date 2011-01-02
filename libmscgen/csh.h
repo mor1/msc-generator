@@ -59,12 +59,24 @@ struct CshEntry
     MscColorSyntaxType color;
 };
 
-class MscCshListType : public std::vector<CshEntry>
+class CshListType : public std::vector<CshEntry>
 {
 public:
     void AddToFront(const CshEntry &e) {insert(begin(), e);}
     void AddToBack(const CshEntry &e) {push_back(e);}
 };
+
+struct CshError : public CshEntry
+{
+    std::string text;
+};
+
+class CshErrorList : public std::vector<CshError> 
+{
+public:
+    void Add(CshPos &pos, const char *t);
+};
+
 
 typedef enum
 {
@@ -89,7 +101,7 @@ struct MscColorSyntaxAppearance {
 extern MscColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 void MscInitializeCshAppearanceList(void);
 
-std::string Cshize(const char *input, unsigned len, const MscCshListType &cshList, int cshStyle,
+std::string Cshize(const char *input, unsigned len, const CshListType &cshList, int cshStyle,
                    const char *command=NULL);
 
 
@@ -167,9 +179,10 @@ class Csh
 {
 public:
     //The collected color syntax info
-    MscCshListType CshList;
-    bool           was_partial;            //indicates if the cursor is at the end of a partial keyword
-    CshEntry       partial_at_cursor_pos;  //if the cursor is at a partially matching keyword
+    CshListType  CshList;
+    CshErrorList CshErrors;              
+    bool         was_partial;            //indicates if the cursor is at the end of a partial keyword
+    CshEntry     partial_at_cursor_pos;  //if the cursor is at a partially matching keyword
                                            //this contains that keyword (color==what we have to revert to
                                            //if cursor moves away)
     //The collected hints
@@ -191,7 +204,8 @@ public:
 
     Csh();
     void AddCSH(CshPos&, MscColorSyntaxType);
-    void AddCSH_ErrorAfter(CshPos&);
+    void AddCSH_Error(CshPos&pos, const char *text) {CshErrors.Add(pos, text);}
+    void AddCSH_ErrorAfter(CshPos&pos, const char *text) {CshErrors.Add(pos, text);} //Add an error just after this range
     void AddCSH_AttrValue(CshPos&, const char *value, const char *name);
     void AddCSH_KeywordOrEntity(CshPos&pos, const char *name);
     void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments);
@@ -199,6 +213,7 @@ public:
     void AddCSH_StyleOrAttrName(CshPos&pos, const char *name);
     void AddCSH_EntityName(CshPos&pos, const char *name);
     void ParseText(const char *input, unsigned len, int cursor_p, int scheme);
+    void AddErrorsToCsh() {for (int i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);}
     MscColorSyntaxType GetCshAt(int pos);
 
     void PushContext(bool empty=false);
