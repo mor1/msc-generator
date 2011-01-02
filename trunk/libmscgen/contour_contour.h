@@ -112,7 +112,7 @@ inline bool Contour::operator ==(const Contour &b) const
     return true; //equal
 }
 
-inline double Contour::OffsetBelow(const Contour &below, double offset=CONTOUR_INFINITY) const
+inline double Contour::OffsetBelow(const Contour &below, double offset) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
