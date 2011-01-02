@@ -10,8 +10,8 @@
 
 #include "geometry_ellipse.h"
 
-//An edge of a polygon. (edges are directed)
-//We distinguish three types: straight or curvy and tilted curvy.
+//An edge of a contour. (edges are directed)
+//We distinguish two types: straight or curvy.
 //Curvy edge is a part of an ellipse, we call it tilted if the axes of the ellipse
 //is not parallel with the x and y axises. We make a distinction between tilted and
 //non-tilted curvy edges, because you need more calculation for curvy ones.
@@ -32,10 +32,10 @@ namespace geometry {
 
 //A straight edge, or a section of an ellipse
 //For straight edges, we do not store the endpoint, just the start
-//(the endpoint is given by the next edge in the polygon)
+//(the endpoint is given by the next edge in the contour)
 class Edge
 {
-    friend class Polygon;
+    friend class Contour;
     friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
 protected:
     bool    straight;
@@ -90,7 +90,7 @@ public:
     Edge&  SetStart(const XY &p, double pos);
     //Removes the part of the edge or curve after point p. Assumes p lies on us.
     Edge&  SetEnd(const XY &p);
-    //calculates bb without the endpoint (Polygon will add that).
+    //calculates bb without the endpoint (Contour will add that).
     const Block& CalculateBoundingBox(const XY &next);
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
     XY     PrevTangentPoint(double pos, const Edge &prev_vertex) const;
@@ -101,11 +101,15 @@ public:
     //assumes cairo position is at start
     void   Path(cairo_t *cr, const XY &next, bool reverse=false) const;
 
+    //Helpers for expand
 	bool   ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const;
 	int    CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, Edge &res_prev) const;
 	int    IsOppositeDir(const XY &B, const Edge &M, const XY &N) const;
 
-	double OffsetBelow(const Edge&) const;
+    //helpers for offsetbelow
+    static double offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M, const XY &N);
+    double offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_is_up) const;
+    double offsetbelow_curvy_curvy(const Edge &o) const;
 };
 
 
@@ -177,10 +181,6 @@ inline Edge& Edge::SetEnd(const XY &p)
     if (straight) return *this;
     e = ell.Point2Radian(p);
     return *this;
-}
-
-inline double Edge::OffsetBelow(const Edge&) const
-{
 }
 
 typedef enum {ALL_EQUAL, A_EQUAL_B, A_EQUAL_C, B_EQUAL_C, IN_LINE, CLOCKWISE, COUNTERCLOCKWISE} triangle_dir_t;
