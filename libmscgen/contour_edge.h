@@ -1,5 +1,5 @@
-#if !defined(GEOMETRY_EDGE_H)
-#define GEOMETRY_EDGE_H
+#if !defined(CONTOUR_EDGE_H)
+#define CONTOUR_EDGE_H
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -8,7 +8,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include "geometry_ellipse.h"
+#include "contour_ellipse.h"
 
 //An edge of a contour. (edges are directed)
 //We distinguish two types: straight or curvy.
@@ -28,7 +28,7 @@
 //For tilted curvy edges we also store the tilt in radians around the centerpoint.
 //  We also store the sin and cos of tilt for increased efficiency
 
-namespace geometry {
+namespace contour {
 
 //A straight edge, or a section of an ellipse
 //For straight edges, we do not store the endpoint, just the start
@@ -192,4 +192,4 @@ inline double angle_degrees(double angle) {
 
 }; //namespace
 
-#endif //GEOMETRY_EDGE_H
+#endif //CONTOUR_EDGE_H

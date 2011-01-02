@@ -17,9 +17,9 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <cassert>
-#include "geometry_xarea.h"
+#include "contour_area.h"
 
-namespace geometry {
+namespace contour {
 
 /////////////////////////////////////////  ContourList implementation
 
@@ -139,23 +139,6 @@ void ContourList::Expand(double gap, ContourList &result) const
 		i->Expand(gap, res);
 		result += res;
 	}
-}
-
-double ContourList::OffsetBelow(const Contour &below) const
-{
-    double ret = Infinity();
-    for (auto i = begin(); i!=end(); i++)
-        ret = std::min(ret, i->OffsetBelow(below));
-    return ret;
-}
-
-double ContourList::OffsetBelow(const ContourList &below) const
-{
-    double ret = Infinity();
-    for (auto i = begin(); i!=end(); i++)
-        for (auto j = below.begin(); i!=below.end(); i++)
-        ret = std::min(ret, i->OffsetBelow(*j));
-    return ret;
 }
 
 Contour::result_t ContourWithHoles::Add(const ContourWithHoles &p, ContourList &res) const
@@ -310,6 +293,23 @@ Area Area::CreateExpand(double gap) const
 	result.mainline.from += gap;
 	ContourList::Expand(gap, result);
 	return result;
+}
+
+double Area::OffsetBelow(const Contour &below) const
+{
+    double ret = Infinity();
+    for (auto i = begin(); i!=end(); i++)
+        ret = std::min(ret, i->OffsetBelow(below));
+    return ret;
+}
+
+double Area::OffsetBelow(const Area &below) const
+{
+    double ret = Infinity();
+    for (auto i = begin(); i!=end(); i++)
+        for (auto j = below.begin(); j!=below.end(); j++)
+        ret = std::min(ret, i->OffsetBelow(*j));
+    return ret;
 }
 
 void Area::Line2(cairo_t *cr) const

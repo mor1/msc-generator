@@ -1,10 +1,10 @@
-#if !defined(GEOMETRY_XAREA_H)
-#define GEOMETRY_XAREA_H
+#if !defined(CONTOUR_XAREA_H)
+#define CONTOUR_XAREA_H
 
 #include <list>
-#include "geometry_polygon.h"
+#include "contour_contour.h"
 
-namespace geometry {
+namespace contour {
 
 class ContourWithHoles;
 
@@ -61,9 +61,6 @@ public:
 
     void Expand(double gap, ContourList &result) const;
 	void ClearHoles();
-
-    double OffsetBelow(const Contour &below) const;
-    double OffsetBelow(const ContourList &below) const;
 
     void Path(cairo_t *cr, bool inv) const;
     void Path(cairo_t *cr, bool inv, bool do_this) const;
@@ -152,6 +149,9 @@ public:
 
 	Area CreateExpand(double gap) const;
 	void ClearHoles() {ContourList::ClearHoles();}
+
+    double OffsetBelow(const Contour &below) const;
+    double OffsetBelow(const Area &below) const;
 
     bool IsEmpty() const {return size()==0;}
     void Path(cairo_t *cr) const {ContourList::Path(cr, true);}
@@ -371,4 +371,4 @@ inline Area operator * (Area &&a1, Area &&a2)  {return std::move(a2*=a1);}
 
 }; //namespace
 
-#endif //GEOMETRY_XAREA_H
+#endif //CONTOUR_XAREA_H

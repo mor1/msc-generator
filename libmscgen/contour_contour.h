@@ -1,11 +1,11 @@
-#if !defined(GEOMETRY_POLYGON_H)
-#define GEOMETRY_POLYGON_H
+#if !defined(CONTOUR_CONTOUR_H)
+#define CONTOUR_CONTOUR_H
 
 #include <vector>
 #include <list>
-#include "geometry_edge.h"
+#include "contour_edge.h"
 
-namespace geometry {
+namespace contour {
 
 class ContourList;
 struct CPOnEdge;
@@ -112,4 +112,4 @@ inline bool Contour::operator ==(const Contour &b) const
 }
 
 }; //namespace
-#endif //GEOMETRY_POLYGON_H
+#endif //CONTOUR_CONTOUR_H

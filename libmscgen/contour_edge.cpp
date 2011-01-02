@@ -20,12 +20,12 @@
 #include <cassert>
 #include <vector>
 #include <algorithm>
-#include "geometry_edge.h"
+#include "contour_edge.h"
 
 
 //////////////////Helper functions
 
-namespace geometry {
+namespace contour {
 
 //returns -1 if a==b
 //returns -2 if a==c
@@ -588,9 +588,10 @@ double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_
 {
     _ASSERT(!IsStraight());
     const double rad = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
+    const double end = s<e ? e : e+2*M_PI;
     XY prev = start;
     double ret = Infinity();
-    for (double r = s+rad; r<e; r+=rad) {
+    for (double r = s+rad; r<end; r+=rad) {
         const XY xy = ell.Radian2Point(r);
         if (straight_is_up)
             ret = std::min(ret, offsetbelow_straight_straight(A, B, prev, xy));
@@ -605,15 +606,17 @@ double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_
 //"this" is higher than o
 double Edge::offsetbelow_curvy_curvy(const Edge &o) const
 {
-    _ASSERT(!IsStraight() && o.IsStraight());
+    _ASSERT(!IsStraight() && !o.IsStraight());
     const double rad1 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
     const double rad2 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(o.ell.radius1 + o.ell.radius2);
+    const double end1 = s<e ? e : e+2*M_PI;
+    const double end2 = o.s<o.e ? o.e : o.e+2*M_PI;
     double ret = Infinity();
     XY prev1 = start;
-    for (double r1 = s+rad1; r1<e; r1+=rad1) {
+    for (double r1 = s+rad1; r1<end1; r1+=rad1) {
         const XY xy1 = ell.Radian2Point(r1);
         XY prev2 = o.start;
-        for (double r2 = o.s+rad2; r2<o.e; r2+=rad2) {
+        for (double r2 = o.s+rad2; r2<end2; r2+=rad2) {
             const XY xy2 = o.ell.Radian2Point(r2);
             ret = std::min(ret, offsetbelow_straight_straight(prev1, xy1, prev2, xy2));
             prev2 = xy2;

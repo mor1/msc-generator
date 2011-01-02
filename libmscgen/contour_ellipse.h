@@ -1,5 +1,5 @@
-#if !defined(GEOMETRY_ELLIPSE_H)
-#define GEOMETRY_ELLIPSE_H
+#if !defined(CONTOUR_ELLIPSE_H)
+#define CONTOUR_ELLIPSE_H
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -9,13 +9,13 @@
 #endif
 
 #include "cairo.h"
-#include "geometry_basics.h"
+#include "contour_basics.h"
 
 //A helper class implementing an ellipse, its crosspoints with ellipses and lines
 //it always represents a full ellipse, not just a section of it
 
 
-namespace geometry {
+namespace contour {
 
 //helper class for ellipsis intersection calculation
 struct quadratic_xy_t;
@@ -180,4 +180,4 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p);
 
 }; //namespace
 
-#endif //GEOMETRY_ELLIPSE_H
+#endif //CONTOUR_ELLIPSE_H

@@ -21,9 +21,9 @@
 #include <map>
 #include <set>
 #include <stack>
-#include "geometry_xarea.h"
+#include "contour_area.h"
 
-namespace geometry {
+namespace contour {
 //"cp" means crosspoint from here
 
 class CPsByContour;
@@ -507,7 +507,7 @@ void CPPointer::StepToNext()
         iCP = bycont->lower_bound(CPPos(vertex, 0));
     else 
         ++iCP;
-    if (iCP->second.iRay->vertex != vertex) {
+    if (iCP==bycont->end() || iCP->second.iRay->vertex != vertex) {
         vertex = (vertex+1)%bycont->contour->size();
         //if there is a crosspoint right at the vertex, (pos==0) use that 
         //if not, find() will return end(), which will mean the vertex
@@ -1440,7 +1440,7 @@ double Contour::OffsetBelow(const Contour &below) const
     double ret = Infinity();
     if (boundingBox.x.Overlaps(below.boundingBox.x)) 
         for (int i = 0; i<size(); i++)
-            for (int j = 0; j<size(); j++)
+            for (int j = 0; j<below.size(); j++)
                 if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
                     double r;
                     if (at(i).IsStraight()) {

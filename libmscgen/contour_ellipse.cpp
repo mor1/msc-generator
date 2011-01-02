@@ -48,12 +48,12 @@
 #include <cassert>
 #include <vector>
 #include <algorithm>
-#include "geometry_ellipse.h"
+#include "contour_ellipse.h"
 
 
 //////////////////Helper functions
 
-namespace geometry {
+namespace contour {
 
 //safe cubic root
 inline double curt(double n)
