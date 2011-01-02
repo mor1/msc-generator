@@ -280,6 +280,13 @@ void ContourWithHoles::Expand(double gap, ContourList &res) const
 	res -= tmp;
 }
 
+is_within_t Area::IsWithin(const XY & p) const
+{
+    for (auto i=begin(); i!=end(); i++) {
+        is_within_t ret = i->IsWithin(p);
+        if (ret != WI_OUTSIDE) return ret;
+    return WI_OUTSIDE;
+}
 
 Area Area::CreateExpand(double gap) const
 {
