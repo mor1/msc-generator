@@ -295,23 +295,6 @@ Area Area::CreateExpand(double gap) const
 	return result;
 }
 
-double Area::OffsetBelow(const Contour &below) const
-{
-    double ret = Infinity();
-    for (auto i = begin(); i!=end(); i++)
-        ret = std::min(ret, i->OffsetBelow(below));
-    return ret;
-}
-
-double Area::OffsetBelow(const Area &below) const
-{
-    double ret = Infinity();
-    for (auto i = begin(); i!=end(); i++)
-        for (auto j = below.begin(); j!=below.end(); j++)
-        ret = std::min(ret, i->OffsetBelow(*j));
-    return ret;
-}
-
 void Area::Line2(cairo_t *cr) const
 {
     //surface boundaries with existing pen - solid line hopefully

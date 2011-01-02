@@ -1425,29 +1425,28 @@ void Contour::Path(cairo_t *cr, bool inverse) const
     cairo_close_path(cr);
 }
 
-double Contour::OffsetBelow(const Contour &below) const
+double Contour::do_offsetbelow(const Contour &below) const
 {
-    double ret = Infinity();
-    if (boundingBox.x.Overlaps(below.boundingBox.x)) 
-        for (int i = 0; i<size(); i++)
-            for (int j = 0; j<below.size(); j++)
-                if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
-                    double r;
-                    if (at(i).IsStraight()) {
-                        if (below.at(j).IsStraight())
-                            r = Edge::offsetbelow_straight_straight(at(i).start, at_next(i).start, 
-                                                 below.at(j).start, below.at_next(j).start);
-                        else
-                            r = below.at(j).offsetbelow_curvy_straight(at(i).start,at_next(i).start, true);
-                    } else {
-                        if (below.at(j).IsStraight()) 
-                            r = at(i).offsetbelow_curvy_straight(below.at(j).start, below.at_next(j).start, false);
-                        else
-                            r = at(i).offsetbelow_curvy_curvy(below.at(j));
-                    }
-                    if (ret>r) ret = r;
+    double offset = CONTOUR_INFINITY;
+    for (int i = 0; i<size(); i++)
+        for (int j = 0; j<below.size(); j++)
+            if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
+                double r;
+                if (at(i).IsStraight()) {
+                    if (below.at(j).IsStraight())
+                        r = Edge::offsetbelow_straight_straight(at(i).start, at_next(i).start, 
+                                                below.at(j).start, below.at_next(j).start);
+                    else
+                        r = below.at(j).offsetbelow_curvy_straight(at(i).start,at_next(i).start, true);
+                } else {
+                    if (below.at(j).IsStraight()) 
+                        r = at(i).offsetbelow_curvy_straight(below.at(j).start, below.at_next(j).start, false);
+                    else
+                        r = at(i).offsetbelow_curvy_curvy(below.at(j));
                 }
-    return ret;
+                if (offset>r) offset = r;
+            }
+    return offset;
 }
 
 
