@@ -121,6 +121,8 @@ public:
 	BOOL m_bCsh;
 	int m_nCshScheme;
 	BOOL m_bSmartIdent;
+    BOOL m_bCshErrors;
+    BOOL m_bCshErrorsInWindow;
     BOOL m_bHints;
     BOOL m_bHintsLineStart;
     BOOL m_bHintsEntity;
@@ -152,6 +154,8 @@ COptionDlg::COptionDlg(CWnd* pParent /*=NULL*/)
     , m_bHintsAttrValue(FALSE)
     , m_bHintsCompact(FALSE)
     , m_bHintsFilter(FALSE)
+    , m_bCshErrors(FALSE)
+    , m_bCshErrorsInWindow(FALSE)
 {
 }
 
@@ -182,6 +186,8 @@ void COptionDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Check(pDX, IDC_CHECK_SMART_HINT_ATTR_VALUE, m_bHintsAttrValue);
     DDX_Check(pDX, IDC_CHECK_SMART_HINT_COMPACT, m_bHintsCompact);
     DDX_Check(pDX, IDC_CHECK_SMART_HINT_FILTER, m_bHintsFilter);
+    DDX_Check(pDX, IDC_CHECK_CSH_ERRORS, m_bCshErrors);
+    DDX_Check(pDX, IDC_CHECK_CSH_ERROR_IN_WINDOW, m_bCshErrorsInWindow);
 }
 
 BOOL COptionDlg::OnInitDialog()
@@ -192,6 +198,8 @@ BOOL COptionDlg::OnInitDialog()
 	GetDlgItem(IDC_RADIO2)->EnableWindow(m_bNppExists);
 	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_bCsh);
 	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(m_bCsh);
+    GetDlgItem(IDC_CHECK_CSH_ERROR)->EnableWindow(m_bCsh);
+    GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW)->EnableWindow(m_bCshErrors && m_bCsh);
     GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_NAME)->EnableWindow(m_bHints);
     GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_VALUE)->EnableWindow(m_bHints);
     GetDlgItem(IDC_CHECK_SMART_HINT_ENTITY)->EnableWindow(m_bHints);
@@ -209,6 +217,11 @@ void COptionDlg::OnBnClicked()
 	bool cshSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH))->GetCheck();
 	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(cshSet);
 	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(cshSet);
+    GetDlgItem(IDC_CHECK_CSH_ERROR)->EnableWindow(cshSet);
+    bool cshErrorSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH_ERROR))->GetCheck();
+    GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW)->EnableWindow(cshSet && cshErrorSet);
+    if (!cshErrorSet)
+        ((CButton*)GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW))->SetCheck(false);
     bool hintSet = ((CButton*)this->GetDlgItem(IDC_CHECK_HINTS))->GetCheck();
     GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_NAME)->EnableWindow(hintSet);
     GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_VALUE)->EnableWindow(hintSet);
@@ -224,6 +237,7 @@ BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
 	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_CHECK_HINTS, &COptionDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_CHECK_CSH_ERROR, &COptionDlg::OnBnClicked)
 END_MESSAGE_MAP()
 
 // CMscGenApp
@@ -489,21 +503,23 @@ void CMscGenApp::OnEditPreferences()
 		pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
 
 	COptionDlg optionDlg;
-	optionDlg.m_Pedantic        = m_Pedantic;
-	optionDlg.m_Warnings        = m_Warnings;
-	optionDlg.m_bPB_Editing     = m_bPB_Editing;
-	optionDlg.m_bPB_Embedded    = m_bPB_Embedded;
-	optionDlg.m_bAlwaysOpen     = m_bAlwaysOpen;
-	optionDlg.m_bCsh		    = m_bShowCsh;
-	optionDlg.m_nCshScheme      = m_nCshScheme;
-	optionDlg.m_bSmartIdent     = m_bSmartIdent;
-    optionDlg.m_bHints          = m_bHints;
-    optionDlg.m_bHintsLineStart = m_bHintLineStart;
-    optionDlg.m_bHintsEntity    = m_bHintEntity;
-    optionDlg.m_bHintsAttrName  = m_bHintAttrName;
-    optionDlg.m_bHintsAttrValue = m_bHintAttrValue;
-    optionDlg.m_bHintsCompact   = m_bHintCompact;
-    optionDlg.m_bHintsFilter    = m_bHintFilter;
+	optionDlg.m_Pedantic           = m_Pedantic;
+	optionDlg.m_Warnings           = m_Warnings;
+	optionDlg.m_bPB_Editing        = m_bPB_Editing;
+	optionDlg.m_bPB_Embedded       = m_bPB_Embedded;
+	optionDlg.m_bAlwaysOpen        = m_bAlwaysOpen;
+	optionDlg.m_bCsh	           = m_bShowCsh;
+	optionDlg.m_nCshScheme         = m_nCshScheme;
+	optionDlg.m_bSmartIdent        = m_bSmartIdent;
+    optionDlg.m_bCshErrors         = m_bShowCshErrors;
+    optionDlg.m_bCshErrorsInWindow = m_bShowCshErrorsInWindow;
+    optionDlg.m_bHints             = m_bHints;
+    optionDlg.m_bHintsLineStart    = m_bHintLineStart;
+    optionDlg.m_bHintsEntity       = m_bHintEntity;
+    optionDlg.m_bHintsAttrName     = m_bHintAttrName;
+    optionDlg.m_bHintsAttrValue    = m_bHintAttrValue;
+    optionDlg.m_bHintsCompact      = m_bHintCompact;
+    optionDlg.m_bHintsFilter       = m_bHintFilter;
 
 	EnsureCRLF(m_DefaultText);
 	ReplaceTAB(m_DefaultText);
@@ -538,7 +554,10 @@ void CMscGenApp::OnEditPreferences()
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded = optionDlg.m_bPB_Embedded);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, m_bAlwaysOpen = optionDlg.m_bAlwaysOpen);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh = optionDlg.m_bCsh);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_nCshScheme = optionDlg.m_nCshScheme);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_bSmartIdent = optionDlg.m_bSmartIdent);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_nCshScheme = optionDlg.m_nCshScheme);
+        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, m_bShowCshErrors = optionDlg.m_bCshErrors);
+        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, m_bShowCshErrorsInWindow = optionDlg.m_bCshErrorsInWindow);
         WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, m_bHints = optionDlg.m_bHints);
         WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_LINESTART, m_bHintLineStart = optionDlg.m_bHintsLineStart);
         WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, m_bHintEntity = optionDlg.m_bHintsEntity);
@@ -623,7 +642,9 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_bShowCsh        = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
 	m_nCshScheme      = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
-	m_bSmartIdent  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
+	m_bSmartIdent    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
+	m_bShowCshErrors = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, TRUE);
+	m_bShowCshErrorsInWindow = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, FALSE);
 	m_trackLineColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKLINERGBA, RGBA(128, 0, 0, 255));
 	m_trackFillColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKFILLRGBA, RGBA(255, 0, 0, 128));
     m_bHints         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, TRUE);

@@ -69,6 +69,8 @@ public:
 	BOOL m_bAlwaysOpen;
     BOOL m_bDoCshProcessing;
 	BOOL m_bShowCsh;
+    BOOL m_bShowCshErrors;
+    BOOL m_bShowCshErrorsInWindow;
 	int m_nCshScheme;
 	BOOL m_bSmartIdent;
 	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
@@ -122,6 +124,8 @@ extern CMscGenApp theApp;
 #define REG_KEY_CSHENABLED "CshEnabled"
 #define REG_KEY_CSHSCHEME "CshScheme"
 #define REG_KEY_SMARTIDENT "SmartIdent"
+#define REG_KEY_CSHERRORS "CshErrorsEnabled"
+#define REG_KEY_CSHERRORSINWINDOW "CshErrorsInWindow"
 #define REG_KEY_FINDWINPOS_X "FindReplaceWindowXPos"
 #define REG_KEY_FINDWINPOS_Y "FindReplaceWindowYPos"
 #define REG_KEY_FINDMATCHCASE "FindReplaceMatchCase"

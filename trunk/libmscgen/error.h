@@ -68,7 +68,6 @@ protected:
     const std::vector<ErrorElement> &get_store(bool oWarnings) const {return oWarnings?ErrorsAndWarnings:Errors;}
     void _sort(std::vector<ErrorElement> &store);
 
-    ErrorElement FormulateElement(file_line linenum, bool is_err, bool is_once, const std::string &msg) const ;
 
     void Add(file_line linenum, const std::string &s, const std::string &once, bool is_err);
     void Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once, bool is_err);
@@ -91,6 +90,7 @@ public:
     unsigned GetErrorNum(bool oWarnings) const {return get_store(oWarnings).size();}
     file_line GetErrorLoc(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].relevant_line;}
     const char *GetErrorText(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].text.c_str();}
+    ErrorElement FormulateElement(file_line linenum, bool is_err, bool is_once, const std::string &msg) const ;
 };
 
 #endif

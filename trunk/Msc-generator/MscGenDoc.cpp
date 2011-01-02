@@ -1121,7 +1121,6 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
 	}
 
-
 	m_itrShown = m_itrEditing;
 	m_itrShown->m_wasDrawn = true;
 	m_ChartShown = *m_itrEditing;
@@ -1135,14 +1134,8 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	}
 	
 	//Display error messages
-	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
-	if (pOutputView && ::IsWindow(pOutputView->m_wndOutput)) {
-		pOutputView->m_wndOutput.ResetContent();
-		unsigned num = m_ChartShown.GetErrorNum(pApp->m_Warnings);
-		for (int i=0; i<num; i++) 
-			pOutputView->m_wndOutput.AddString(m_ChartShown.GetErrorText(i, pApp->m_Warnings));
-		if (!m_bAttemptingToClose) pOutputView->ShowPane(num>0, false, true);
-	}
+	if (pApp->m_pWndOutputView && !m_bAttemptingToClose) 
+        pApp->m_pWndOutputView->ShowCompilationErrors(m_ChartShown);
 
 	if (!m_bAttemptingToClose) {
 		//Update page controls and variables

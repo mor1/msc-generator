@@ -75,6 +75,9 @@
 #define IDC_LIST2                       1020
 #define IDC_CHECK_SMART_HINT_COMPACT2   1020
 #define IDC_CHECK_SMART_HINT_FILTER     1020
+#define IDC_CHECK_CSH_ERRORS            1021
+#define IDC_CHECK_CSH_ERROR             1021
+#define IDC_CHECK_CSH_ERROR_IN_WINDOW   1022
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
