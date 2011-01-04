@@ -24,7 +24,6 @@ class Ellipse
 {
     friend struct quadratic_xy_t;
     friend class Edge;
-	friend void test_geo(cairo_t *cr, int x, int y, bool clicked); //XXX
 protected:
     XY     center;
     double radius1, radius2;
@@ -47,17 +46,19 @@ protected:
 
 public:
     Ellipse() {};
-    Ellipse(const XY &c, double radius1, double radius2, double tilt_degree);
+    Ellipse(const XY &c, double radius1, double radius2=0, double tilt_degree=0);
     bool operator ==(const Ellipse& p) const;
     bool operator <(const Ellipse& p) const;
     bool IsTilted() const {return tilted;}
     const XY & GetCenter() const {return center;}
     double GetRadius1() const {return radius1;}
     double GetRadius2() const {return radius2;}
+    double GetTilt() const {return tilted ? tilt : 0;}
 	double GetExtreme(int n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
     void Shift(const XY &xy);
 	void Rotate(double cos, double sin, double radian);
 	void RotateAround(const XY&c, double cos, double sin, double radian);
+    void SwapXY();
 
     //calculate one point on the tangent at pos (between 0..1) either in the
     //  forward direction (next==true) or in the backward direction
@@ -71,7 +72,7 @@ public:
                         XY r[], double radian_us[], double radian_b[]) const;
     int CrossingStraight(const XY &A, const XY &B,
                          XY r[], double radian_us[], double pos_b[]) const;
-    int CrossingHorizontal(double y, double x[], double radian[]) const;
+    int CrossingVertical(double x, double y[], double radian[]) const;
 
     bool Expand(double gap);
 	void TransformForDrawing(cairo_t *cr) const;

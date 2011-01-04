@@ -21,9 +21,9 @@
 
 template class PtrList<Entity>;
 
-Entity::Entity(const string &n, const string &l, const string &ol, double p, Msc* msc) :
-    chart(msc), maxwidth(0), running_style(chart->Contexts.back().styles["entity"]),
-    name(n), orig_label(ol), label(l), pos(p), index(0), status(chart->Contexts.back().styles["entity"])
+Entity::Entity(const string &n, const string &l, const string &ol, double p, const MscStyle &entity_style) :
+    maxwidth(0), running_style(entity_style),
+    name(n), orig_label(ol), label(l), pos(p), index(0), status(entity_style)
 {
 }
 
@@ -33,51 +33,6 @@ string Entity::Print(int ident) const
     ss << string(ident*2, ' ') << name << " pos:" << pos;
     return ss;
 }
-
-//returns how wide the entity is drawn with a certain style
-double Entity::Width(const MscStyle &style)
-{
-    const Label parsed_label(label, chart, style.text);
-    const XY wh = parsed_label.getTextWidthHeight();
-    return style.line.LineWidth()*2 + wh.x + style.shadow.offset.second;
-}
-
-//This can be called multiple times with final=true.
-//Once for each time we draw this entity heading
-double Entity::DrawHeight(double y, Geometry &g, bool draw, bool final)
-{
-    const MscStyle &style = status.GetStyle(y);
-    const double xcoord = chart->XCoord(pos);
-    const Label parsed_label(label, chart, style.text);
-    const XY wh = parsed_label.getTextWidthHeight();
-    const double lw = style.line.LineWidth();
-    const double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow +
-        2*lw + style.shadow.offset.second;
-    XY s(xcoord - wh.x/2 - lw, y);
-    XY d(xcoord + wh.x/2 + lw, y + height - style.shadow.offset.second);
-    if (!draw) {
-        const Block b(s,d+XY(0, style.shadow.offset.second));
-        g += b;
-        g.mainline += b.y;
-    }
-    s.y += chart->headingVGapAbove;
-    d.y -= chart->headingVGapBelow;
-    if (final)
-        status.HideRange(Range(s.y, d.y));
-    if (!draw) return height;
-    //Fill color
-    if (draw && style.fill.color.first && style.fill.color.second.valid) {
-        chart->filledRectangle(s, d, style.fill, style.line.radius.second);
-        chart->shadow(s, d, style.shadow, style.line.radius.second, true);
-    }
-    //Draw line around
-    chart->rectangle(s, d, style.line);
-    //Draw text
-    Geometry dummy;
-    parsed_label.DrawCovers(xcoord, xcoord, s.y + lw, dummy, true);
-    return height;
-}
-
 
 inline bool SmallerByPos(Entity *e1, Entity *e2)
 {
@@ -91,9 +46,10 @@ void EntityList::SortByPos(void)
     PtrList<Entity>::sort(SmallerByPos);
 }
 
-EntityDef::EntityDef(const char *s, Msc* chart) : name(s),
-    style(STYLE_ARC, ArrowHead::NONE/*arrow*/, true, true, true, true, true,
-	  false /*solid*/, false /*numbering*/, false /*compress*/)
+EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
+    chart(msc), style(STYLE_ARC, ArrowHead::NONE/*arrow*/, true, true, true, true, true,
+	  false /*solid*/, false /*numbering*/, false /*compress*/),
+    parsed_label(msc), implicit(false)
 {
     label.first = false;
     pos.first = false;
@@ -103,10 +59,12 @@ EntityDef::EntityDef(const char *s, Msc* chart) : name(s),
     style.Empty();
 }
 
-EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
+//This function is always called, even if there are no attributes specified (l will be NULL in that case)
+//Except for automatically generated entities
+EntityDef* EntityDef::AddAttributeList(AttributeList *l)
 {
-    EIterator i = msc->Entities.Find_by_Name(name);
-    if (i != msc->NoEntity) {
+    EIterator i = chart->Entities.Find_by_Name(name);
+    if (i != chart->NoEntity) {
         // Existing entity: kill auto-assumed "show=on"
         show.first = false;
     }
@@ -114,24 +72,26 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
     // Process attribute list
     if (l) {
         for (AttributeList::iterator j=l->begin(); j!=l->end(); j++)
-            AddAttribute(**j, msc);
+            AddAttribute(**j);
         delete l;
     }
 
-    if (i == msc->NoEntity) {
-        double position = msc->Entity_max_pos;
+    if (i == chart->NoEntity) {
+        double position = chart->Entity_max_pos;
         if (rel.first) {
             //Look up the entity in a potential 'relative' attribute
-            EntityList::iterator j = msc->Entities.Find_by_Name(rel.second);
-            if (j == msc->NoEntity) {
-                if (msc->pedantic) {
+            EntityList::iterator j = chart->Entities.Find_by_Name(rel.second);
+            if (j == chart->NoEntity) {
+                if (chart->pedantic) {
                     string s = "Cound not find entity '" + rel.second;
                     s += "' in attribute 'relative'. Ignoring attriute.";
-                    msc->Error.Error(rel.third, s);
+                    chart->Error.Error(rel.third, s);
                 } else {
-                    msc->Entities.Append(new Entity(rel.second, rel.second, rel.second, msc->Entity_max_pos++, msc));
-                    msc->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), msc));
+                    chart->Entities.Append(new Entity(rel.second, rel.second, rel.second, chart->Entity_max_pos++, 
+                                                      chart->Contexts.back().styles["entity"]));
+                    chart->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), chart));
                     //position remains at the old, not incremented Entity_max_pos
+                    //the definedHere of the entityDef above will be set to true in chart->PostParseProcees
                 }
             } else {
                 position = (*j)->pos;
@@ -143,7 +103,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
             if (pos.second<-10 || pos.second>10) {
                 string msg = "Exterme value for 'pos' attribute: '";
                 msg << pos.second << "'. Ignoring it.";
-                msc->Error.Error(pos.third, msg, "Use a value between [-10..10].");
+                chart->Error.Error(pos.third, msg, "Use a value between [-10..10].");
             } else {
                 position += pos.second;
             }
@@ -156,45 +116,45 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l, Msc *msc)
         string orig_label = label.first?label.second:name;
         string proc_label = orig_label;
 
-        StringFormat::ExpandColorAndStyle(proc_label, msc, linenum_label_value,
+        StringFormat::ExpandColorAndStyle(proc_label, chart, linenum_label_value,
                                           &style.text, true, StringFormat::LABEL);
 
 
         //Allocate new entity with correct label
-        Entity *e = new Entity(name, proc_label, orig_label, position, msc);
+        Entity *e = new Entity(name, proc_label, orig_label, position, chart->Contexts.back().styles["entity"]);
         //Add to entity list
-        msc->Entities.Append(e);
+        chart->Entities.Append(e);
         //Calculate potential pos for next entity
-        msc->Entity_max_pos = std::max(msc->Entity_max_pos, position+1);
+        chart->Entity_max_pos = std::max(chart->Entity_max_pos, position+1);
     } else {
         // An existing entity. Disallow attributes that change drawing positions
         if (label.first && label.second != (*i)->label)
-            msc->Error.Error(label.third,
+            chart->Error.Error(label.third,
                              "Cannot change the label of an entity after declaration. Keeping old label :'"
                              + (*i)->orig_label + "'.");
         if (pos.first)
-            msc->Error.Error(pos.third,
+            chart->Error.Error(pos.third,
                                "Cannot change the position of an entity after declaration. Ignoring attribute 'pos'.");
         if (rel.first)
-            msc->Error.Error(rel.third,
+            chart->Error.Error(rel.third,
                                "Cannot change the position of an entity after declaration. Ignoring attribute 'relative'.");
     }
     return this;
 }
 
-bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
+bool EntityDef::AddAttribute(const Attribute& a)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
-            a.InvalidStyleError(msc->Error);
+        if (chart->Contexts.back().styles.find(a.name) == chart->Contexts.back().styles.end()) {
+            a.InvalidStyleError(chart->Error);
             return true;
         }
-        style += msc->Contexts.back().styles[a.name];
+        style += chart->Contexts.back().styles[a.name];
         return true;
     }
     string s;
     if (a.Is("label")) {
-        if (!a.CheckType(MSC_ATTR_STRING, msc->Error)) return true;
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //if MSC_ATTR_CLEAR, we are OK above and a.value is ""
         label.first = true;
         label.second = a.value;
@@ -209,14 +169,14 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
             pos.third = a.linenum_attr.start;
             return true;
         }
-        if (!a.CheckType(MSC_ATTR_NUMBER, msc->Error)) return true;
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
         pos.first = true;
         pos.second = a.number;
         pos.third = a.linenum_attr.start;
         return true;
     }
     if (a.Is("relative")) {
-        if (!a.CheckType(MSC_ATTR_STRING, msc->Error)) return true;
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //if MSC_ATTR_CLEAR, we are OK above and a.value is ""
         rel.second = a.value;
         rel.first = true;
@@ -224,7 +184,7 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
         return true;
     }
     if (a.Is("show")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
         // MSC_ATTR_CLEAR is handled above
         show.second = a.yes;
         show.first = true;
@@ -234,26 +194,26 @@ bool EntityDef::AddAttribute(const Attribute& a, Msc *msc)
         bool was = false;
         // MSC_ATTR_CLEAR is handled by individual attributes below
         if (style.f_line) {
-            style.line.AddAttribute(a, msc, style.type);
+            style.line.AddAttribute(a, chart, style.type);
             was = true;
         }
         if (style.f_vline) {
-            style.vline.AddAttribute(a, msc, style.type);
+            style.vline.AddAttribute(a, chart, style.type);
             was = true;
         }
         if (style.f_text) {
-            style.text.AddAttribute(a, msc, style.type);
+            style.text.AddAttribute(a, chart, style.type);
             was = true;
         }
         return was;
     }
-    if (style.AddAttribute(a, msc)) return true;
+    if (style.AddAttribute(a, chart)) return true;
     if (a.Is("id")) {
         s << "Attribute '"<< a.name <<"' is no longer supported. Ignoring it.";
-        msc->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
+        chart->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
         return false;
     }
-    a.InvalidAttrError(msc->Error);
+    a.InvalidAttrError(chart->Error);
     return false;
 };
 
@@ -296,8 +256,6 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-
-
 string EntityDef::Print(int ident) const
 {
     string ss;
@@ -311,4 +269,62 @@ string EntityDef::Print(int ident) const
     return ss;
 };
 
+//returns how wide the entity is 
+double EntityDef::Width() const
+{
+    const Label parsed_label((*itr)->label, chart, style.text);
+    const XY wh = parsed_label.getTextWidthHeight();
+    return style.line.LineWidth()*2 + wh.x + style.shadow.offset.second;
+}
+
+double EntityDef::Height(AreaList &cover) 
+{
+    const double x = chart->XCoord((*itr)->pos);
+    const XY wh = parsed_label.getTextWidthHeight();
+    const double lw = style.line.LineWidth();
+    const double width = lw*2 + wh.x;
+    const double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow + 2*lw;
+
+    area = outer_edge = Block(x-width/2, x+width/2, 0, height);
+    cover += Contour((x-width)/2 + style.shadow.offset.second, (x+width)/2, 0, height + style.shadow.offset.second);
+    cover.mainline += outer_edge.y;
+    return height + style.shadow.offset.second;
+}
+
+void EntityDef::PostPosProcess()
+{
+    (*itr)->status.HideRange(outer_edge.y);
+    if (show.first)
+        (*itr)->status.SetStatus(yPos, show.second ? EntityStatusMap::SHOW_ON : EntityStatusMap::SHOW_OFF);
+    //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {
+    //    if (shown)
+    //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is shown due to this line, but is later turned "
+    //                             "off in a parallel block above this position.", "May not be what intended.");
+    //    else 
+    //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
+    //                             "on in a parallel block above this position.", "May not be what intended.");
+    //}
+    if (implicit) return;
+    chart->AllCovers += area;
+    chart->AllArcs[file_pos] = this;
+}
+
+
+void EntityDef::Draw() 
+{
+    const double lw = style.line.LineWidth();
+    Block b(outer_edge); 
+
+    if (style.fill.color.first && style.fill.color.second.valid) {
+        chart->Shadow(b, style.line, style.shadow, true);
+        b.Expand(-lw);
+        chart->Fill(b, style.line, style.fill);
+        b.Expand(lw/2);
+    } else
+        b.Expand(-lw/2);
+    chart->Line(b, style.line);
+
+    //Draw text
+    parsed_label.Draw(b.x.from, b.x.till, b.y.from + lw/2);
+}
 

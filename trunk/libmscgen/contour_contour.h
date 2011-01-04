@@ -17,7 +17,6 @@ struct CPOnEdge;
 //always goes in clockwise direction - except internally
 class Contour : protected std::vector<Edge>
 {
-    friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
     friend class Ray;
     friend class CPsByContour;
 	friend class CPSet;
@@ -25,11 +24,10 @@ class Contour : protected std::vector<Edge>
 	friend class node_list;   //to access CheckContainment
     explicit Contour(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
     explicit Contour(const std::vector<Edge> &v) : std::vector<Edge>(v) {} //leave boundingBox!!
-    double do_offsetbelow(const Contour &below) const;
+    double do_offsetbelow(const Contour &below, double &touchpoint) const;
 protected:
     Block  boundingBox;
 
-    Contour() {boundingBox.MakeInvalid();}
     Contour CreateInverse() const;
 
 public:
@@ -60,15 +58,17 @@ protected:
 
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
-	void Path(cairo_t *cr, bool inverse=false) const;
+
+    void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
 public:
+    Contour() {boundingBox.MakeInvalid();}
     Contour(Contour &&p) {swap(p);}
 	Contour(const Contour &p) : std::vector<Edge>(p), boundingBox(p.boundingBox) {}
     Contour(double sx, double dx, double sy, double dy) {operator = (Block(sx,dx,sy,dy));}
     Contour(const Block &b) {operator =(b);}
     Contour(XY a, XY b, XY c);
     Contour(double ax, double ay, double bx, double by, double cx, double cy);
-    Contour(const XY &c, double radius_x, double radius_y=0, double tilt_degree=0);
+    Contour(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
     Contour &operator =(const Block &b);
 
     bool operator < (const Contour &b) const;
@@ -86,15 +86,22 @@ public:
     void swap(Contour &b) {std::vector<Edge>::swap(b); std::swap(boundingBox, b.boundingBox);}
     void clear() {std::vector<Edge>::clear(); boundingBox.MakeInvalid();}
 	int  size() const {return std::vector<Edge>::size();}
+	bool IsEmpty() const {return std::vector<Edge>::size()==0;}
 	const Edge &GetEdge(int edge) const {return at(edge);}
+    bool AddAnEdge(const Edge &edge);
+    bool OpenHere(const XY &xy);
 
     void Shift(XY xy) {boundingBox.Shift(xy); for (int i=0; i<size(); i++) at(i).Shift(xy);}
     void Rotate(double cos, double sin, double radian);
     void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
+    Contour& SwapXY() {boundingBox.SwapXY(); for (int i=0; i<size(); i++) at(i).SwapXY(); return *this;}
+    void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
 
     void Expand(double gap, ContourList &res) const;
-
-    double OffsetBelow(const Contour &below, double offset=CONTOUR_INFINITY) const;
+    ContourList CreateExpand(double gap) const;
+    void Path(cairo_t *cr, bool inverse=false) const;
+    void PathOpen(cairo_t *cr) const;
+    double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 };
 
 inline bool Contour::operator <(const Contour &b) const
@@ -112,11 +119,11 @@ inline bool Contour::operator ==(const Contour &b) const
     return true; //equal
 }
 
-inline double Contour::OffsetBelow(const Contour &below, double offset) const
+inline double Contour::OffsetBelow(const Contour &below, double &touchpoint, double offset) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
-    return do_offsetbelow(below);
+    return do_offsetbelow(below, touchpoint);
 }
 
 }; //namespace

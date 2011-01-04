@@ -6,6 +6,7 @@
 #include <list>
 #include "color.h"
 #include "csh.h"
+#include "contour_area.h"
 
 using std::string;
 
@@ -187,6 +188,8 @@ typedef enum {
     LINE_DOUBLE
 } MscLineType;
 
+inline bool IsLineTypeContinuous(MscLineType t) {return t!=LINE_DOTTED && t!=LINE_DASHED;}
+
 class MscLineAttr {
 public:
     std::pair<bool, MscLineType>  type;
@@ -199,6 +202,11 @@ public:
     MscLineAttr(MscLineType t, MscColorType c, double w, int r) :
         type(true, t), color(true, c), width(true, w), radius(true, r) {}
     void Empty() {type.first = color.first = width.first = radius.first = false;}
+    bool IsComplete() const {return type.first && color.first && width.first && radius.first;}
+    void MakeComplete();
+    bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);}
+    bool DoubleSpacing() const {_ASSERT(type.first && width.first); return type.second==LINE_DOUBLE?width.second:0;}
+    const double * DashPattern(int &num) const;
     MscLineAttr &operator +=(const MscLineAttr&a);
     bool operator == (const MscLineAttr &a);
     double LineWidth() const
@@ -236,6 +244,8 @@ public:
     MscFillAttr(MscColorType c, MscColorType c2, MscGradientType g) :
         color(true, c), color2(true, c2), gradient(true,g) {}
     void Empty() {color.first = color2.first = gradient.first = false;}
+    void MakeComplete();
+    bool IsComplete() const {return color.first && gradient.first;} //color2 is not needed
     MscFillAttr &operator +=(const MscFillAttr&a);
     bool operator == (const MscFillAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
@@ -252,6 +262,8 @@ public:
     MscShadowAttr();
     MscShadowAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
     void Empty() {color.first = offset.first = blur.first=false;}
+    void MakeComplete();
+    bool IsComplete() const {return color.first && offset.first && blur.first;}
     MscShadowAttr &operator +=(const MscShadowAttr&a);
     bool operator == (const MscShadowAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
@@ -261,6 +273,10 @@ public:
 };
 
 bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p);
+
+Contour MscRectangle(double x1, double x2, double y1, double y2, MscLineAttr line=MscLineAttr());
+inline Contour MscRectangle(const XY &s, const XY &d, MscLineAttr line=MscLineAttr()) {return MscRectangle(s.x, d.x, s.y, d.y, line);}
+inline Contour MscRectangle(const Block &b, MscLineAttr line=MscLineAttr()) {return MscRectangle(b.x.from, b.x.till, b.y.from, b.y.till, line);}
 
 
 #endif

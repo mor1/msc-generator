@@ -214,12 +214,22 @@ double Edge::radian2pos(double r) const
     return (s-r)/(s-e+2*M_PI);
 }
 
-Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_degree) :
-    ell(c, radius_x, radius_y, tilt_degree),
-    s(0), e(2*M_PI), clockwise_arc(true)
+Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg,double s_deg, double d_deg) :
+    ell(c, radius_x, radius_y, tilt_deg), s(s_deg*2*M_PI/180.), e(d_deg*2*M_PI/180.), clockwise_arc(true)
 {
     straight = false;
-    start = ell.Radian2Point(0);
+    start = ell.Radian2Point(s);
+}
+
+void Edge::SwapXY()
+{
+    start.SwapXY();
+    if (IsStraight()) return;
+    ell.SwapXY();
+    s = s==0 ? s : 2*M_PI - s;
+    e = e==0 ? e : 2*M_PI - e;
+    clockwise_arc = !clockwise_arc;
+    boundingBox.SwapXY();
 }
 
 void Edge::CopyInverseToMe(const Edge &B, const XY &next)
@@ -288,93 +298,97 @@ int Edge::Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
 }
 
 //test if the end of an arc equals to a point or not
-//y coordinate must match exactly, x can be approximate
-inline bool test_arc_end(const XY &a, double y, double x)
+//x coordinate must match exactly, x can be approximate
+inline bool test_arc_end(const XY &a, double x, double y)
 {
-    return a.y==y && test_equal(a.x, x);
+    return a.x==x && test_equal(a.y, y);
 }
 
-inline bool test_equal(const XY &a, const XY &b)
-{
-    return test_equal(a.y, b.y) && test_equal(a.x, b.x);
-}
 
-//Where does an edge or arc corss a horizontal line? (for the purposes of Contour::IsWithin)
-//1. an upward edge includes its starting endpoint, and excludes its final endpoint;
-//2. a downward edge excludes its starting endpoint, and includes its final endpoint;
-//SUM: we include the endpoint with the smaller y coordinate
-//returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a horizontal line.
-//Internally "downward" is understood in a coordinate system where y grows downwards
-int Edge::CrossingHorizontal(double y, const XY &B, double x[], double pos[]) const
+//Where does an edge or arc corss a vertical line? (for the purposes of Contour::IsWithin)
+//1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
+//2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
+//in short: we include the endpoint with the smaller x coordinate
+//returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a vertical line.
+//in forward we return true if the line at x is crossed from left to right (so inside of contour
+//is below y).
+int Edge::CrossingVertical(double x, const XY &B, double y[], double pos[], bool forward[]) const
 {
     if (straight) {
-        if ((start.y >= y && B.y < y) ||      //we cross upward
-            (start.y < y && B.y >= y)) {      //we cross downward
-            //we cross p's line x
-			pos[0] = (y - start.y)/(B.y - start.y);
-            x[0] = (B.x - start.x)*pos[0]+ start.x;
+        if ((start.x >= x && B.x < x) ||      //we cross leftward
+            (start.x < x && B.x >= x)) {      //we cross rightward
+            //we cross p's line y
+			pos[0] = (x - start.x)/(B.x - start.x);
+            y[0] = (B.y - start.y)*pos[0]+ start.y;
+            forward[0] = start.x < x; //we cross rightward
             return 1;
         }
-        if (start.y == y && B.y == y) return -1; //horizontal line
+        if (start.x == x && B.x == x) return -1; //vertical line
         return 0;
     }
-	if (test_smaller(y, boundingBox.y.from) || test_smaller(boundingBox.y.till, y))
+	if (test_smaller(x, boundingBox.x.from) || test_smaller(boundingBox.x.till, x))
 		return 0;
-    double radian[2], loc_x[2];
-    int loc_num = ell.CrossingHorizontal(y, loc_x, radian);
-    //if the crosspoints are at the end of the segments, we check for up or downward crossing.
+    double radian[2], loc_y[2];
+    int loc_num = ell.CrossingVertical(x, loc_y, radian);
+    //if the crosspoints are at the end of the segments, we check for left and rightward crossing.
     if (loc_num==1) { //just touch
 		//we return a cp only if the cp is one of the endpoints, in which case the rules below apply
-        //if the centerpoint is above y and a1==s it is the beginning of an upward edge  => include
-        //if the centerpoint is above y and a1==e it is the end of a downward edge       => include
-        //if the centerpoint is below y and a1==s it is the beginning of a downward edge => exclude
-        //if the centerpoint is below y and a1==e it is the end of an upward edge        => exclude
-		if (ell.GetCenter().y >= y)
+        //if the centerpoint is left of x and a1==s it is the beginning of a leftward edge  => include
+        //if the centerpoint is left of x and a1==e it is the end of a rightward edge       => include
+        //if the centerpoint is left of x and a1==s it is the beginning of a rightward edge => exclude
+        //if the centerpoint is left of x and a1==e it is the end of a leftward edge        => exclude
+		if (ell.GetCenter().x >= x)
 			return 0;
-        if (test_arc_end(start,y,loc_x[0])) {
-			x[0] = start.x;
+        if (test_arc_end(start, x, loc_y[0])) {
+			y[0] = start.y;
 			pos[0] = 0;
+            forward[0] = false;
 			return 1;
 		}
-		if (test_arc_end(B,y,loc_x[0])) {
-			x[0] = B.x;
+		if (test_arc_end(B, x, loc_y[0])) {
+			y[0] = B.y;
 			pos[0] = 1;
+            forward[0] = true;
 			return 1;
 		}
 		return 0;
 	}
     int num = 0;
     for (int i=0; i<loc_num; i++) {
-        //if r == s (start) and forward tangent is above y, it is the beginning of an upward edge => include
-        //if r == e (B)     and backwardtangent is above y, it is the end of an downward edge     => include
+        //if r == s (start) and forward tangent is left of x, it is the beginning of a leftward edge => include
+        //if r == e (B)     and backwardtangent is left of x, it is the end of a rightward edge      => include
         //else exclude
         //This is a numerically sensitive place especially close to the endpoints.
-        //With straight lines we use simple < > == operators to see if the endpoint is on y or not
+        //With straight lines we use simple < > == operators to see if the endpoint is on x or not
         //Here we have numerical imprecision.
         //So first we see if we are close to the endpoints in an approximate manner
         //and then if yes, then we further refine the decision on endpoint using > < operators
-        //and then we see if this is an upward or downward edge
+        //and then we see if this is a leftward or rightward edge
         if (test_equal(radian[i], s)) {                       //OK we treat this as a crosspoint
-            if (test_arc_end(start,y,loc_x[i]) &&             //but if *exactly* on the startpoint...
-                ell.Tangent(radian[i], clockwise_arc).y > y)  //...and fw tangent below: exclude
+            if (test_arc_end(start, x, loc_y[i]) &&           //but if *exactly* on the startpoint...
+                ell.Tangent(radian[i], clockwise_arc).x > x)  //...and fw tangent to the left: exclude
                 continue;
-			x[num] = start.x;
-			pos[num++] = 0;
+			y[num] = start.y;
+			pos[num] = 0;
+            forward[num++] = false;
 			continue;
         } else if (test_equal(radian[i], e)) {                //OK we treat this as a crosspoint
-            if (test_arc_end(B,y,loc_x[i]) &&                 //but if *exactly* on the endpoint...
-                ell.Tangent(radian[i], !clockwise_arc).y > y)//...and bw tangent below: exclude
+            if (test_arc_end(B, x, loc_y[i]) &&               //but if *exactly* on the endpoint...
+                ell.Tangent(radian[i], !clockwise_arc).x > x)//...and bw tangent to the left: exclude
                 continue;
-			x[num] = B.x;
-			pos[num++] = 1;
+			y[num] = B.y;
+			pos[num] = 1;
+            forward[num++] = true;
 			continue;
         } else if (!radianbetween(radian[i]))  //exclude also, if not close to end and not between s&e
             continue;
-        x[num] = loc_x[i]; //include
-		pos[num++] = radian2pos(radian[i]);
+        y[num] = loc_y[i]; //include
+		pos[num] = radian2pos(radian[i]);
+        forward[num++] = loc_y[i] == std::min(loc_y[0], loc_y[1]);
     }
     return num;
 }
+
 //Calculates the bounding box _without adding the endpoint_, !!!
 const Block& Edge::CalculateBoundingBox(const XY &next)
 {
@@ -561,42 +575,57 @@ int Edge::IsOppositeDir(const XY &B, const Edge &M, const XY &N) const
 
 
 //Returns how much MN can be shifted up to bump into AB
-double Edge::offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M, const XY &N)
+double Edge::offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M, const XY &N, double &touchpoint)
 {
     const double minAB = std::min(A.x, B.x);
     const double maxAB = std::max(A.x, B.x);
     const double minMN = std::min(M.x, N.x);
     const double maxMN = std::max(M.x, N.x);
-    if (minAB > maxMN || minMN > maxAB) return Infinity();
+    if (minAB > maxMN || minMN > maxAB) return CONTOUR_INFINITY;
     const double x1 = std::max(minAB, minMN);
     const double x2 = std::min(maxAB, maxMN);
     if (A.x == B.x) {
+        touchpoint = std::max(A.y, B.y);
         if (M.x == N.x) return std::min(M.y, N.y) - std::max(A.y, B.y); //here all x coordinates must be the same
         return (N.y-M.y)/(N.x-M.x)*(A.x-M.x) + M.y - std::max(A.y, B.y);
     } 
-    if (M.x == N.x) return std::min(M.y,N.y) - ((A.y-B.y)/(A.x-B.x)*(M.x-A.x) + A.y);
-
-    const double diff1 = (N.y-M.y)/(N.x-M.x)*(x1-M.x) + M.y - ((A.y-B.y)/(A.x-B.x)*(x1-A.x) + A.y);
-    const double diff2 = (N.y-M.y)/(N.x-M.x)*(x2-M.x) + M.y - ((A.y-B.y)/(A.x-B.x)*(x2-A.x) + A.y);
-    return std::min(diff1, diff2);
+    if (M.x == N.x) {
+        touchpoint = std::max(M.y, N.y);
+        return std::min(M.y,N.y) - ((A.y-B.y)/(A.x-B.x)*(M.x-A.x) + A.y);
+    }
+    const double y1 = ((A.y-B.y)/(A.x-B.x)*(x1-A.x) + A.y);
+    const double y2 = ((A.y-B.y)/(A.x-B.x)*(x2-A.x) + A.y);
+    const double diff1 = (N.y-M.y)/(N.x-M.x)*(x1-M.x) + M.y - y1;
+    const double diff2 = (N.y-M.y)/(N.x-M.x)*(x2-M.x) + M.y - y2;
+    if (diff1<diff2) {
+        touchpoint = y1;
+        return diff1;
+    }
+    touchpoint = y2;
+    return diff2;
 }
 
 #define CURVY_OFFSET_BELOW_GRANULARIRY 5
 
 //"this" must be a curvy edge
-double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_is_up) const
+double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_is_up, double &touchpoint) const
 {
     _ASSERT(!IsStraight());
     const double rad = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
     const double end = s<e ? e : e+2*M_PI;
     XY prev = start;
-    double ret = Infinity();
+    double ret = CONTOUR_INFINITY;
     for (double r = s+rad; r<end; r+=rad) {
         const XY xy = ell.Radian2Point(r);
+        double tp, off;
         if (straight_is_up)
-            ret = std::min(ret, offsetbelow_straight_straight(A, B, prev, xy));
+            off = offsetbelow_straight_straight(A, B, prev, xy, tp);
         else
-            ret = std::min(ret, offsetbelow_straight_straight(prev, xy, A, B));
+            off = ret, offsetbelow_straight_straight(prev, xy, A, B, tp);
+        if (off < ret) {
+            ret = off;
+            touchpoint = tp;
+        }
         prev = xy;
     }
     return ret;
@@ -604,21 +633,26 @@ double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_
 
 //both must be curvy edges
 //"this" is higher than o
-double Edge::offsetbelow_curvy_curvy(const Edge &o) const
+double Edge::offsetbelow_curvy_curvy(const Edge &o, double &touchpoint) const
 {
     _ASSERT(!IsStraight() && !o.IsStraight());
     const double rad1 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
     const double rad2 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(o.ell.radius1 + o.ell.radius2);
     const double end1 = s<e ? e : e+2*M_PI;
     const double end2 = o.s<o.e ? o.e : o.e+2*M_PI;
-    double ret = Infinity();
+    double ret = CONTOUR_INFINITY;
     XY prev1 = start;
     for (double r1 = s+rad1; r1<end1; r1+=rad1) {
         const XY xy1 = ell.Radian2Point(r1);
         XY prev2 = o.start;
         for (double r2 = o.s+rad2; r2<end2; r2+=rad2) {
             const XY xy2 = o.ell.Radian2Point(r2);
-            ret = std::min(ret, offsetbelow_straight_straight(prev1, xy1, prev2, xy2));
+            double tp, off;
+            off = offsetbelow_straight_straight(prev1, xy1, prev2, xy2, tp);
+            if (off < ret) {
+                ret = off;
+                touchpoint = tp;
+            }
             prev2 = xy2;
         }
         prev1 = xy1;

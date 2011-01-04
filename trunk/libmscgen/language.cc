@@ -3503,7 +3503,7 @@ yyreduce:
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
   #else
-        (yyval.entity) = (new EntityDef((yyvsp[(1) - (2)].str), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist), &msc);
+        (yyval.entity) = (new EntityDef((yyvsp[(1) - (2)].str), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
         ((yyval.entity))->SetLineEnd(MSC_POS((yyloc)));
   #endif
     free((yyvsp[(1) - (2)].str));
@@ -3519,7 +3519,7 @@ yyreduce:
     csh.CheckEntityHintAt((yylsp[(1) - (1)]));
     csh.AddCSH_EntityName((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
   #else
-    (yyval.entity) = (new EntityDef((yyvsp[(1) - (1)].str), &msc))->AddAttributeList(NULL, &msc);
+    (yyval.entity) = (new EntityDef((yyvsp[(1) - (1)].str), &msc))->AddAttributeList(NULL);
     ((yyval.entity))->SetLineEnd(MSC_POS((yyloc)));
   #endif
     free((yyvsp[(1) - (1)].str));
@@ -3538,7 +3538,7 @@ yyreduce:
 	}
         csh.AddCSH_KeywordOrEntity((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
   #else
-        (yyval.entity) = (new EntityDef((yyvsp[(1) - (2)].str), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist), &msc);
+        (yyval.entity) = (new EntityDef((yyvsp[(1) - (2)].str), &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
         ((yyval.entity))->SetLineEnd(MSC_POS((yyloc)));
   #endif
     free((yyvsp[(1) - (2)].str));
@@ -3557,7 +3557,7 @@ yyreduce:
 	}
         csh.AddCSH_KeywordOrEntity((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
   #else
-        (yyval.entity) = (new EntityDef((yyvsp[(1) - (1)].str), &msc))->AddAttributeList(NULL, &msc);
+        (yyval.entity) = (new EntityDef((yyvsp[(1) - (1)].str), &msc))->AddAttributeList(NULL);
         ((yyval.entity))->SetLineEnd(MSC_POS((yyloc)));
   #endif
     free((yyvsp[(1) - (1)].str));

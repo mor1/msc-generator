@@ -3,7 +3,7 @@
 
 #define _USE_MATH_DEFINES
 #include <cmath>
-
+#include <map>
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -61,7 +61,7 @@ public:
 	//No constructor sets the bounding Box!!!
     Edge() : straight(true) {}
     explicit Edge(const XY &xy) : start(xy), straight(true) {}
-    Edge(const XY &c, double radius_x, double radius_y=0, double tilt_degree=0);
+    Edge(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
 
     //But all methods assume bounding Box is OK!!!
     void Shift(XY wh) {start+=wh; boundingBox.Shift(wh); if (!straight) ell.Shift(wh);}
@@ -69,6 +69,7 @@ public:
         if (!straight) ell.Rotate(cos, sin, radian); CalculateBoundingBox(B);}
     void RotateAround(const XY&c, double cos, double sin, double radian, const XY&B) {start.RotateAround(c, cos, sin);
         if (!straight) ell.RotateAround(c, cos, sin, radian); CalculateBoundingBox(B);}
+    void SwapXY();
 
     bool   operator ==(const Edge& p) const;
     bool   operator < (const Edge& p) const;
@@ -80,12 +81,15 @@ public:
     void CopyInverseToMe(const Edge &B, const XY &next);
     void SetEllipseToFull() {_ASSERT(!straight); s=0; e=2*M_PI; start=ell.Radian2Point(0);}
 	double GetSpan() const;
+    double GetRadianS() const {_ASSERT(!straight); return s;}
+    double GetRadianE() const {_ASSERT(!straight); return e;}
+    bool GetClockWise() const {_ASSERT(!straight); return clockwise_arc;}
 
     //Gives the intersecting points of AB and MN
     static int Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
                         XY r[], double pos_ab[], double pos_mn[]);
     //Tells at what x pos this->B crosses the horizontal line at y, rets the number of crosses
-    int    CrossingHorizontal(double y, const XY &B, double r[], double pos[]) const;
+    int    CrossingVertical(double x, const XY &B, double y[], double pos[], bool forward[]) const;
     //Removes the part of the edge or curve before point p. Assumes p lies on us. pos must match p
     Edge&  SetStart(const XY &p, double pos);
     //Removes the part of the edge or curve after point p. Assumes p lies on us.
@@ -107,9 +111,9 @@ public:
 	int    IsOppositeDir(const XY &B, const Edge &M, const XY &N) const;
 
     //helpers for offsetbelow
-    static double offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M, const XY &N);
-    double offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_is_up) const;
-    double offsetbelow_curvy_curvy(const Edge &o) const;
+    static double offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M, const XY &N, double &touchpoint);
+    double offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_is_up, double &touchpoint) const;
+    double offsetbelow_curvy_curvy(const Edge &o, double &touchpoint) const;
 };
 
 
@@ -144,7 +148,6 @@ inline double Edge::GetSpan() const
 	}
 }
 
-
 inline XY Edge::PrevTangentPoint(double pos, const Edge &prev_vertex) const
 {
     //we are at a vertex, or at a crosspoint at a vertex
@@ -162,8 +165,6 @@ inline XY Edge::NextTangentPoint(double pos, const Edge &next_vertex) const
     //calc tangent for curvy edges
     return ell.Tangent(pos2radian(pos), clockwise_arc);
 }
-
-
 
 //Removes the part of the edge or curve before point p. Assumes p lies on us.
 inline Edge& Edge::SetStart(const XY &p, double pos)
@@ -188,6 +189,68 @@ triangle_dir_t triangle_dir(XY a, XY b, XY c);
 double angle(XY base, XY A, XY B);
 inline double angle_degrees(double angle) {
     return (angle>=2) ? 360 - acos(angle-3)*(180./M_PI) : acos(1-angle)*(180./M_PI);
+}
+
+template <class element>
+class DoubleMap : public std::map<double, element>
+{
+public:
+    DoubleMap() {};
+    DoubleMap(const element &e) {insert(value_type(-CONTOUR_INFINITY, e)); insert(value_type(CONTOUR_INFINITY, e));}
+    void Set(double pos, const element&e) {operator[](pos) = e;}
+    void Set(const Range &r, const element &e);
+    void Add(double pos, const element&e);     //assumes element has operator +=
+    void Add(const Range &r, const element&e); //assumes element has operator +=
+    const element* Get(double pos) const {auto i=upper_bound(pos); return i==begin()?NULL:&(--i)->second;}
+    double Till(double pos) const {auto i=upper_bound(pos); return i==end()?CONTOUR_INFINITY:i->first;}
+};
+
+template <class element>
+void DoubleMap<element>::Add(double pos, const element&e)
+{
+    auto i = --upper_bound(pos);
+    if (i==begin()) Set(pos, e);
+    else if (i->first == pos)
+        i->second += e;
+    else insert(i, value_type(pos, i->second))->second += e;
+}
+
+template <class element>
+void DoubleMap<element>::Set(const Range &r, const element& e)
+{
+    if (r.till <= r.from) return;
+    auto i = --upper_bound(r.till);
+    if (i!=end()) {//avoid the case when whole range is before first element
+        if (i->first == r.till) {
+            erase(upper_bound(r.from), i);
+        } else {
+            operator[](r.till) = i->second;
+            erase(upper_bound(r.from), ++i);
+        }
+    }
+    operator[](r.from) = e;
+}
+
+template <class element>
+void DoubleMap<element>::Add(const Range &r, const element& e)
+{
+    if (r.till <= r.from) return;
+    auto i = --upper_bound(r.till);
+    if (i==end()) 
+        operator[](r.from) = e; //if the whole range is before the first element
+    else {
+        if (i->first != r.till) //i points to a place before r.till
+            i = insert(i, value_type(r.till, i->second)); 
+        //now i points to the element at r.till
+        auto h = --upper_bound(r.from);
+        if (h==end())
+            h = insert(begin(), value_type(r.from, e))++;
+        else if (h->first != r.from) //j points to an element before r.from
+            h = insert(h, value_type(r.from, h->second));
+        //now h points to the first element to add e to
+        for (; h!=i; h++)
+            h->second += e;
+    }
 }
 
 }; //namespace

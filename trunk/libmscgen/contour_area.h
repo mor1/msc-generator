@@ -19,6 +19,9 @@ class ContourList : protected std::list<ContourWithHoles>
     friend class Contour;
 protected:
     Block boundingBox;
+    void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
+    iterator begin() {return std::list<ContourWithHoles>::begin();}
+    iterator end() {return std::list<ContourWithHoles>::end();}
 public:
     ContourList();
     explicit ContourList(const ContourWithHoles &p);
@@ -29,6 +32,8 @@ public:
     explicit ContourList(const std::vector<Edge> &v) {assign(v);}
     ContourList(ContourList &&p) {swap(p);}
 
+    const_iterator begin() const {return std::list<ContourWithHoles>::begin();}
+    const_iterator end() const {return std::list<ContourWithHoles>::end();}
     void append(ContourWithHoles &&p);
     void append(const ContourWithHoles &p);
     void append(ContourList &&p) {boundingBox += p.GetBoundingBox(); splice(end(), p);}
@@ -51,6 +56,7 @@ public:
     ContourList &RotateAround(const XY&c, double cos, double sin, double radian);
 	ContourList &Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r); return *this;}
     ContourList &RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r); return *this;}
+    void SwapXY();
 
     ContourList &operator += (const ContourWithHoles &p);
     ContourList &operator *= (const ContourWithHoles &p);
@@ -81,6 +87,7 @@ class ContourWithHoles : public Contour
 protected:
     ContourList holes;
     ContourWithHoles() {};
+    void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const {Contour::DoVerticalCrossSection(x, section, add); holes.DoVerticalCrossSection(x, section, !add);}
 public:
     ContourWithHoles(const Contour &p) : Contour(p) {}
     ContourWithHoles(ContourWithHoles &&p) {swap(p);}
@@ -95,6 +102,7 @@ public:
         {Contour::Rotate(cos, sin, radian); if (holes.size()) holes.Rotate(cos, sin, radian);}
     void RotateAround(const XY&c, double cos, double sin, double radian)
         {Contour::RotateAround(c, cos, sin, radian); if (holes.size()) holes.RotateAround(c, cos, sin, radian);}
+    void SwapXY() {Contour::SwapXY(); holes.SwapXY();}
 
     Contour::result_t Add(const ContourWithHoles &p, ContourList &res) const;
     Contour::result_t Mul(const ContourWithHoles &p, ContourList &res) const;
@@ -116,23 +124,17 @@ class Area : protected ContourList
 {
     friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
 public:
-    typedef enum {NONE=0, FRAME=1, FULL=2} DrawType;
     mutable TrackableElement *arc;
-    mutable DrawType          draw;
-    mutable bool              find;
     Range                     mainline;
 
-    explicit Area(TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
-	   arc(a), draw(d), find(f) {mainline.MakeInvalid();}
-    Area(const Contour &p, TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
-       ContourList(p), arc(a), draw(d), find(f)  {mainline.MakeInvalid();}
-    explicit Area(const ContourList &cl, TrackableElement *a=NULL, DrawType d=FULL, bool f=true) :
-       ContourList(cl), arc(a), draw(d), find(f)  {mainline.MakeInvalid();}
+    explicit Area(TrackableElement *a=NULL) : arc(a) {mainline.MakeInvalid();}
+    Area(const Contour &p, TrackableElement *a=NULL) : ContourList(p), arc(a) {mainline.MakeInvalid();}
+    explicit Area(const ContourList &cl, TrackableElement *a=NULL) : ContourList(cl), arc(a) {mainline.MakeInvalid();}
 
-    void clear() {ContourList::clear(); mainline.MakeInvalid();}
-    void swap(Area &a);
     const_iterator begin() const {return std::list<ContourWithHoles>::begin();}
     const_iterator end() const {return std::list<ContourWithHoles>::end();}
+    void clear() {ContourList::clear(); mainline.MakeInvalid();}
+    void swap(Area &a);
     void assign(std::vector<Edge> &&v) {ContourList::assign(std::move(v));}
     void assign(const std::vector<Edge> &v) {ContourList::assign(v);}
     bool operator <(const Area &b) const;
@@ -154,18 +156,21 @@ public:
     Area & Shift(XY xy) {ContourList::Shift(xy); mainline.Shift(xy.y); return *this;}
     Area & Rotate(double degrees) {ContourList::Rotate(degrees); return *this;}
     Area & RotateAround(const XY&c, double degrees) {ContourList::RotateAround(c, degrees); return *this;}
+    Area & SwapXY() {ContourList::SwapXY(); mainline.MakeInvalid(); return *this;}
+    void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
 
-	Area CreateExpand(double gap) const;
+    Area CreateExpand(double gap) const;
 	void ClearHoles() {ContourList::ClearHoles();}
 
-    double OffsetBelow(const Contour &below, double offset=CONTOUR_INFINITY) const;
-    double OffsetBelow(const Area &below, double offset=CONTOUR_INFINITY) const;
+    double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
+    double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline = true) const;
 
     void Path(cairo_t *cr) const {ContourList::Path(cr, true);}
     void Line(cairo_t *cr) const {ContourList::Path(cr, true); cairo_stroke(cr);}
     void Line2(cairo_t *cr) const;
     void Fill(cairo_t *cr) const {ContourList::Path(cr, true); cairo_fill(cr);}
     void Fill2(cairo_t *cr, int r=255, int g=255, int b=255) const;
+    
 };
 
 class AreaList
@@ -173,23 +178,26 @@ class AreaList
     std::list<Area> cover;
     Block           boundingBox;
 public:
-    AreaList() {boundingBox.MakeInvalid();}
+    Range           mainline;
+    AreaList() {boundingBox.MakeInvalid(); mainline.MakeInvalid();}
+    AreaList(const Area &area) {boundingBox.MakeInvalid(); mainline.MakeInvalid(); operator+=(area);}
+    AreaList(Area &&area) {boundingBox.MakeInvalid(); mainline.MakeInvalid(); operator+=(std::move(area));}
+    AreaList(AreaList &&al) : boundingBox(al.boundingBox), mainline(al.mainline), cover(std::move(al.cover)) {}
     const std::list<Area> &GetCover() const {return cover;}
-    void clear() {boundingBox.MakeInvalid(); cover.clear();}
+    void clear() {boundingBox.MakeInvalid(); mainline.MakeInvalid(); cover.clear();}
     void SetArc(TrackableElement *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
-    void SetDraw(Area::DrawType t) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->draw = t;}
-    void SetFind(bool f) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->find = f;}
-    AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); return *this;}
-    AreaList &operator+=(Area &&b) {cover.push_back(std::move(b)); boundingBox+=b.GetBoundingBox(); return *this;}
-    AreaList &operator+=(const AreaList &g) {cover.insert(g.cover.begin(), g.cover.end()); boundingBox+=g.boundingBox; return *this;}
-    AreaList &operator+=(AreaList &&g) {cover.splice(cover.end(), g.cover); boundingBox+=g.boundingBox; return *this;}
+    AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
+    AreaList &operator+=(Area &&b) {cover.push_back(std::move(b)); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
+    AreaList &operator+=(const AreaList &g) {cover.insert(cover.end(), g.cover.begin(), g.cover.end()); boundingBox+=g.boundingBox; mainline+=g.mainline; return *this;}
+    AreaList &operator+=(AreaList &&g) {cover.splice(cover.end(), g.cover); boundingBox+=g.boundingBox; mainline+=g.mainline; return *this;}
     bool IsEmpty() const {return cover.size()==0;}
+    AreaList &Shift(XY xy) {for (auto i=cover.begin(); i!=cover.end(); i++) i->Shift(xy); mainline.Shift(xy.y); boundingBox.Shift(xy); return *this;}
     const Block& GetBoundingBox() const {return boundingBox;}
 
-    double OffsetBelow(const Area &below, double offset=CONTOUR_INFINITY) const;
-    double OffsetBelow(const AreaList &below, double offset=CONTOUR_INFINITY) const;
+    double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
+    double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
 
-    const Area *InWhich(const XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (i->IsWithin(p)) return &*i; return NULL;}
+    const Area *InWhich(const XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (i->IsWithin(p)!=WI_OUTSIDE) return &*i; return NULL;}
 };
 
 
@@ -308,6 +316,12 @@ inline void ContourList::ClearHoles()
 		i->ClearHoles();
 }
 
+inline void ContourList::DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const
+{
+    for (auto i=begin(); i!=end(); i++)
+        i->DoVerticalCrossSection(x, section, add);
+}
+
 
 inline bool ContourWithHoles::operator <(const ContourWithHoles &p) const
 {
@@ -362,41 +376,69 @@ inline bool Area::operator ==(const Area &b) const
     return ContourList::operator==(b);
 }
 
-inline double Area::OffsetBelow(const Contour &below, double offset) const
+//these are inline to quickly
+inline double Area::OffsetBelow(const Contour &below, double &touchpoint, double offset) const
 {
     if (offset < below.GetBoundingBox().y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.GetBoundingBox().x)) return offset;
-    for (auto i = begin(); i!=end(); i++)
-        offset = std::min(offset, i->OffsetBelow(below, offset));
+    for (auto i = begin(); i!=end(); i++) {
+        double off, tp;
+        off = i->OffsetBelow(below, tp, offset);
+        if (off < offset) {
+            offset = off;
+            touchpoint = tp;
+        }
+    }
     return offset;
 }
 
-inline double Area::OffsetBelow(const Area &below, double offset) const
+inline double Area::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
+    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
+        if (below.mainline.from - mainline.till < offset) {
+            offset = below.mainline.from - mainline.till;
+            touchpoint = mainline.till;
+        }
     for (auto i = begin(); i!=end(); i++)
-        for (auto j = below.begin(); j!=below.end(); j++)
-            offset = std::min(offset, i->OffsetBelow(*j, offset));
+        for (auto j = below.begin(); j!=below.end(); j++) {
+            double off, tp;
+            off = i->OffsetBelow(*j, tp, offset);
+            if (off < offset) {
+                offset = off;
+                touchpoint = tp;
+            }
+        }
     return offset;
 }
 
-inline double AreaList::OffsetBelow(const Area &below, double offset) const
+inline double AreaList::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.GetBoundingBox().y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.GetBoundingBox().x)) return offset;
+    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
+        if (below.mainline.from - mainline.till < offset) {
+            offset = below.mainline.from - mainline.till;
+            touchpoint = mainline.till;
+        }
     for (auto i = cover.begin(); i!=cover.end(); i++)
-        offset = std::min(offset, i->OffsetBelow(below, offset));
+        offset = std::min(offset, i->OffsetBelow(below, touchpoint, offset, bMainline));
     return offset;
 }
 
-inline double AreaList::OffsetBelow(const AreaList &below, double offset) const
+inline double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
+    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
+        if (below.mainline.from - mainline.till < offset) {
+            offset = below.mainline.from - mainline.till;
+            touchpoint = mainline.till;
+        }
     for (auto i = cover.begin(); i!=cover.end(); i++)
         for (auto j = below.cover.begin(); j!=below.cover.end(); j++)
-            offset = std::min(offset, i->OffsetBelow(*j, offset));
+            offset = std::min(offset, i->OffsetBelow(*j, touchpoint, offset, bMainline));
     return offset;
 }
 
@@ -418,9 +460,9 @@ inline ContourList operator * (const ContourList &p1, ContourList &&p2) {return 
 inline ContourList operator + (ContourList &&p1, ContourList &&p2) {return std::move(p2+=p1);}
 inline ContourList operator * (ContourList &&p1, ContourList &&p2) {return std::move(p2*=p1);}
 
-inline ContourList operator + (const Contour &p1, Contour &p2) {return std::move(ContourList(p1)+=p2);}
-inline ContourList operator * (const Contour &p1, Contour &p2) {return std::move(ContourList(p1)*=p2);}
-inline ContourList operator - (const Contour &p1, Contour &p2) {return std::move(ContourList(p1)-=p2);}
+inline Area operator + (const Contour &p1, Contour &p2) {return std::move(Area(p1)+=p2);}
+inline Area operator * (const Contour &p1, Contour &p2) {return std::move(Area(p1)*=p2);}
+inline Area operator - (const Contour &p1, Contour &p2) {return std::move(Area(p1)-=p2);}
 
 inline Area operator + (const Area &a, const Contour &p)  {return std::move(Area(a)+=p);}
 inline Area operator * (const Area &a, const Contour &p)  {return std::move(Area(a)*=p);}

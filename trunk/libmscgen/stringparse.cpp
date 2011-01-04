@@ -62,6 +62,26 @@ void StringFormat::Empty()
     smallFontSize.first = false;
 }
 
+bool StringFormat::IsComplete() const
+{
+    return 
+        color.first &&
+        fontType.first &&
+        spacingBelow.first &&
+        bold.first && bold.second!=invert &&
+        italics.first && italics.second!=invert &&
+        underline.first && underline.second!=invert &&
+        face.first &&
+        textHGapPre.first &&
+        textHGapPost.first &&
+        textVGapAbove.first &&
+        textVGapBelow.first &&
+        textVGapLineSpacing.first &&
+        ident.first &&
+        normalFontSize.first &&
+        smallFontSize.first;
+}
+
 StringFormat::StringFormat(void) :
     normalFontSize(true,16), smallFontSize(true, 10),
     textHGapPre(true, 4), textHGapPost(true, 2),
@@ -1016,6 +1036,7 @@ double StringFormat::spaceWidth(const string &text, MscDrawer *mscd, bool front)
 double StringFormat::getFragmentWidth(const string &s, MscDrawer *mscd) const
 {
     if (s.length()==0 || mscd==NULL) return 0;
+    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1039,6 +1060,7 @@ double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
                                                       MscDrawer *mscd) const
 {
     if (s.length()==0 || mscd==NULL) return 0;
+    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1059,6 +1081,7 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
                                                       MscDrawer *mscd) const
 {
     if (s.length()==0 || mscd==NULL) return 0;
+    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1079,6 +1102,7 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool 
 {
     if (s.length()==0 || mscd==NULL) return 0;
     //Mybe we have not all fields set
+    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1097,14 +1121,14 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool 
     cairo_text_extents_t te;
     cairo_text_extents (mscd->GetContext(), s.c_str(), &te);
 	xy.x += spaceWidth(s, mscd, true);
-	mscd->text(xy, s, isRotated);
+	mscd->Text(xy, s, isRotated);
 
     double advance = spaceWidth(s, mscd, true) + te.x_advance + spaceWidth(s, mscd, false);
 
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        mscd->line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, 0));
+        mscd->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, 0));
     }
     return advance;
 }
@@ -1276,8 +1300,7 @@ XY Label::getTextWidthHeight(int line) const
     return xy;
 };
 
-void Label::DrawCovers(double sx, double dx, double y,
-                       Geometry &cover, bool draw, bool isRotated) const
+void Label::CoverOrDraw(double sx, double dx, double y, bool isRotated, Area *area) const
 {
     if (size()==0) return;
     XY xy;
@@ -1295,10 +1318,10 @@ void Label::DrawCovers(double sx, double dx, double y,
             xy.x = dx - wh.x - at(i).startFormat.textHGapPost.second; break;
         }
         //Draw line of text
-        if (draw)
-            at(i).Draw(xy, msc, isRotated);
+        if (area)
+            *area += Block(xy, xy+wh); //TODO: Make this finer if there are smaller text or italics...
         else
-            cover += Block(xy, xy+wh);
+            at(i).Draw(xy, msc, isRotated);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;
     }

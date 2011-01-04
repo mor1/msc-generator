@@ -25,13 +25,6 @@
 
 using namespace std;
 
-void TrackableElement::SetLineEnd(file_line_range l, bool f)
-{
-    if (linenum_final) return;
-    linenum_final = f;
-    file_pos = l;
-}
-
 ///////////////////////////////////////////////////////////////////////
 
 //Inserts a horizontal space requirement.
@@ -219,12 +212,12 @@ Msc::Msc() :
     SetDesign("plain", true);
 
     //Add virtual entities
-    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, this);
+    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, Contexts.back().styles["entity"]);
     Entities.Append(entity);
     NoEntity = Entities.begin();
-    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, this);
+    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, Contexts.back().styles["entity"]);
     Entities.Append(entity);
-    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, this);
+    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, Contexts.back().styles["entity"]);
     Entities.Append(entity);
 }
 
@@ -266,7 +259,7 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
                         + "'. Assuming implicit definition.",
                         "This may be a mistyped entity name."
                         " Try turning 'pedantic' off to remove these messages.");
-        Entity *entity = new Entity(e, e, e, Entity_max_pos++, this);
+        Entity *entity = new Entity(e, e, e, Entity_max_pos++, Contexts.back().styles["entity"]);
         Entities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
@@ -476,6 +469,12 @@ ArcBase *Msc::PopContext()
     return new CommandNumbering(this, CommandNumbering::SIZE, Contexts.back().numberingStyle.Size());
 }
 
+void Msc::ParseText(const char *input, const char *filename)
+{
+    current_file = Error.AddFile(filename);
+    MscParse(*this, input, strlen(input));
+}
+
 string Msc::Print(int ident) const
 {
     string s = Entities.Print(ident).append("\n");
@@ -557,11 +556,16 @@ void Msc::PostParseProcess(void)
         i = Arcs.insert(i, new CommandEntity(new EntityDefList, this));
     dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
 
+    //Set all entity's shown to false, to avoid accidentally showing them via (heading;) before definition
+    for (auto i = Entities.begin(); i!=Entities.end(); i++)
+        (*i)->shown = false;
+
     //Traverse Arc tree and perform post-parse processing
     //1. Add line numbers to labels
     //2. Calculate which entities to cover for auto-adjusting emphasis boxes
     //3. Print a few warning messages
     //4. Combine CommandEntities following one another into a signle one.
+    //5. Setup of variables for CommandEntities & EntityDefs
     Numbering number; //starts at a single level from 1
     EIterator dummy1=NoEntity, dummy2=NoEntity;
     PostParseProcessArcList(Arcs, true, dummy1, dummy2, number, true);
@@ -569,16 +573,24 @@ void Msc::PostParseProcess(void)
 
 
 
-void Msc::HideEntityLines(const Geometry &geom)
+void Msc::HideEntityLines(const Area &area)
 {
     for (EIterator i = Entities.begin(); i!=Entities.end(); i++) {
         if ((*i)->name == NONE_ENT_STR) continue;
         if ((*i)->name == LSIDE_ENT_STR) continue;
         if ((*i)->name == RSIDE_ENT_STR) continue;
         double xpos = XCoord((*i)->pos);
-        for (set<Block>::const_iterator b = geom.GetCover().begin(); b!=geom.GetCover().end(); b++)
-            if (b->x.from <= xpos && xpos <= b->x.till)
-                (*i)->status.HideRange(b->y);
+        DoubleMap<bool> hide;
+        area.VerticalCrossSection(xpos, hide);  //sections of hide are true, where we need to hide
+        auto j = hide.begin();
+        while (j!=hide.end()) {
+            while (j!=hide.end() && !j->second) j++;  //go to first where we turn on
+            if (j==hide.end()) break;
+            auto k = j;
+            while (j!=hide.end() && j->second) j++;  //go to first where we turn off
+            if (j==hide.end()) break;
+            (*i)->status.HideRange(Range(k->first, j->first));
+        }
     }
 }
 
@@ -595,32 +607,11 @@ void Msc::DrawEntityLines(double y, double height,
             down.y = min((*from)->status.Till(up.y), till);
             if ((*from)->status.GetHideStatus(up.y) &&
                 (*from)->status.GetStatus(up.y))
-                line(up, down, (*from)->status.GetStyle(up.y).vline);
+                Line(up, down, (*from)->status.GetStyle(up.y).vline);
             up.y = down.y;
         }
         from++;
     }
-}
-
-//This is not symmetric. We have the 'a' blocks established
-//and want to see if the 'b' blocks (supposedly below the 'a' ones)
-//can be shifted up, and by how much
-double Msc::FindCollision(const Geometry &a, const Geometry &b,
-                          double &CollisionYPos) const
-{
-    double up = MAINLINE_INF;
-	if (a.mainline.HasValidTill() && b.mainline.HasValidFrom()) {
-            up = b.mainline.from - a.mainline.till - compressYGap;
-            CollisionYPos = a.mainline.till + compressYGap/2;
-        }
-    for (set<Block>::const_iterator i=a.GetCover().begin(); i!=a.GetCover().end(); i++)
-        for (set<Block>::const_iterator j=b.GetCover().begin(); j!=b.GetCover().end(); j++)
-            if (i->x.Overlaps(j->x, compressXGap))
-                if (up > j->y.from - i->y.till - compressYGap) {
-                    up = j->y.from - i->y.till - compressYGap;
-                    CollisionYPos = i->y.till + compressYGap/2;
-                }
-    return up;
 }
 
 void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
@@ -629,59 +620,12 @@ void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
         (*i)->Width(distances);
 }
 
-//This one places a list at low_y, then compresses up taking g into account,
-//but no higher than top_y (low_y is supposed to be the bottom of g).
-//Compression is done if the first element in the list has compress=true
-//or if forceCompress=true
-//After placement covers are added to g_result, g is unchanged
-//returns how much to advance y from low_y
-//The whole reason for this function is to prevent a big empty space
-//between the first and second arrow, when the first arrow can be
-//compressed a lot, but the second not. Here we move all the arrows
-//as one block only up till none of them collides with something.
-double Msc::PlaceDrawListUnder(ArcList::iterator from, ArcList::iterator to,
-                               double top_y, double low_y,
-                               Geometry &g, Geometry &g_result,
-                               bool draw, bool final, bool forceCompress)
+
+void Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover)
 {
-    if (from == to) return 0;
-    if (draw)
-        return DrawHeightArcList(from, to, low_y, g_result, draw, final);
-    double original_low_y = low_y;
-    if ((*from)->IsCompressed() || forceCompress) {
-        Geometry geom_content;
-        //set an upper limit for the list - just to make them start fully below low_y
-        Block limiter_low(0, totalWidth, low_y, low_y);
-        geom_content += limiter_low;
-        DrawHeightArcList(from, to, low_y, geom_content, false, false);
-        geom_content -= limiter_low;
-        //Now see how much we can shift the content upwards as one block
-        if (geom_content.GetCover().size()>0) {
-            Block limiter_top(0, totalWidth, top_y, top_y);
-            g += limiter_top;
-            low_y -= FindCollision(g, geom_content);
-            g -= limiter_top;
-        }
-    }
-
-    Block limiter_at_exact_position(0, totalWidth, low_y, low_y);
-    g_result += limiter_at_exact_position;
-    low_y += DrawHeightArcList(from, to, low_y, g_result, false, final);
-    g_result -= limiter_at_exact_position;
-    return low_y - original_low_y;
-}
-
-double Msc::DrawHeightArcList(ArcList::iterator from, ArcList::iterator to,
-                              double y, Geometry &g,
-                              bool draw, bool final, double autoMarker)
-{
-    double original_y = y;
-
-    //largest_y is maintained so that the full bottom of the list is seen
-    //for the cases when the last elements are compressed so that their
-    //bottom is _higher_ then one of the previous ones.
-    double largest_y = y;
-
+    cover.clear();
+    AreaList arc_cover;
+    double y = 0;
     //Zero-height arcs shall be positioned to the same place
     //as the first non-zero height arc below them (so that
     //if that arc is compressed up, they are not _below_
@@ -689,92 +633,69 @@ double Msc::DrawHeightArcList(ArcList::iterator from, ArcList::iterator to,
     //height arc so we can go back and adjust the zero height ones
     ArcList::iterator first_zero_height = to;
 
-    //if one arc is set "parallel" the next one should be compressed,
-    //even if not set so
-    bool previousWasParallel = false;
-    //the one coming after a parallel should not be compressed higher than this
-    double lastNonParallelBottom = y;
-
     for (ArcList::iterator i = from; i!=to; i++) {
-        double orig_mainline_till = g.mainline.till;
-        double size;
-        //if we draw y will be ignored by arcs' DrawHeight
-        //so we need not calculate compress again
-        if (!draw && (*i)->IsCompressed()) {
-            Geometry geom;
-            //Drawheight for non final locations can be called at fractional y
-            size = (*i)->DrawHeight(y, geom, false, false, autoMarker);
-            //if it is of zero height, just collect it, its pos may depend on
-            //the next arc if that is compressed
-            //Note that we do this here where we are only if we do not draw.
-            if (size == 0) {
-                if (first_zero_height == to)
-                    first_zero_height = i;
+        double h = (*i)->Height(arc_cover);
+        double touchpoint = y;
+        if ((*i)->IsCompressed()) {
+            //if arc is of zero height, just collect it. 
+            //Its position may depend on the next arc if that is compressed.
+            if (h==0) {
+                if (first_zero_height == to) first_zero_height = i;
                 continue;
             }
-            double up = 0, CollisionYPos = -1;
-            if (geom.mainline.HasValidFrom() || geom.GetCover().size()>0)
-                up = FindCollision(g, geom, CollisionYPos);
-            //Now we know how much be can compess it up
-            //position known, re-invoke any previous zero-height at this pos
-            //so that they can store correct y pos if final==true
-            // use the median of the two mainlines, if both exists
-            // and the returned collision position is outside
-            if (g.mainline.HasValidTill() && geom.mainline.HasValidFrom())
-                if (CollisionYPos < g.mainline.till ||
-                    CollisionYPos > geom.mainline.from-up)
-                    CollisionYPos = (g.mainline.till + geom.mainline.from-up)/2;
-            CollisionYPos = ceil(CollisionYPos);
-            while (first_zero_height != i && first_zero_height != to)
-                (*first_zero_height++)->DrawHeight(CollisionYPos, g, false, final,
-                                                   autoMarker);
-            first_zero_height = to;
-            //recalculate cover again for current arc and add it's cover to g
-            //We ensure DrawHeight is always called on integer y position for bitmaps
-            double draw_y = ceil(y-up);
-            draw_y += (*i)->DrawHeight(draw_y, g, false, final, autoMarker);
-            size = draw_y - y;
-        } else {
-            //Ensure drawheight is only called at integer positions
-            y = ceil(y);
-            //if we do not yet draw and last arcs before a non-compressed one
-            //were of zero height re-invoke them at the current pos
-            if (!draw) {
-                while (first_zero_height != i && first_zero_height != to)
-                    (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
-                first_zero_height = to;
-            }
-            size = (*i)->DrawHeight(y, g, draw, final, autoMarker);
+            const double new_y = cover.OffsetBelow(arc_cover, touchpoint);
+            _ASSERT(new_y<=y);
+            y = new_y;
         }
-        y += size;
-        if (largest_y < y)
-            largest_y = y;
+        //We got a non-zero height or a non-compressed one, flush zero_height ones (if any)
+        while (first_zero_height != to && first_zero_height != i)
+            (*first_zero_height++)->ShiftBy(touchpoint);
+        first_zero_height = to;
+        //Shift the arc in question to its place
+        (*i)->ShiftBy(y);
+        arc_cover.Shift(XY(0,y));
+        Range save_mainline = cover.mainline;
+        cover += arc_cover;
+        y += h;
+
         //If we are parallel draw the rest of the block in one go
         if ((*i)->IsParallel()) {
-            //First place the collected zero heights here (unlikely to have any)
-            if (!draw) {
-                while (first_zero_height != i && first_zero_height != to)
-                    (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
-                first_zero_height = to;
-            }
-            //reset mainline to original one
-            g.mainline.till = orig_mainline_till;
+            //restore mainline to the one before we added the arc marked as parallel
+            cover.mainline = save_mainline;
             //Place blocks, always compress the first
-            y += PlaceDrawListUnder(++i, to, y - size, y, g, g, draw, final, true);
-            break; //we have drawn all
+            PlaceListUnder(++i, to, y, y-h, cover, true);
+            return;
         }
+    }
+}
 
+//This one places a list (arcs) at start_y (which is supposed to be
+//well below area_top), and calls Height for all of them and ShifyBy.
+//Then, if the first element has compress==yes or forcecompress==true, it
+//compresses the list up taking area_top into account, but no higher than top_y
+//Returns the bottommost coordinate touched by the list after completion.
+//The whole reason for this function is to prevent a big empty space
+//between the first and second arrow, when the first arrow can be
+//compressed a lot, but the second not. Here we move all the arrows
+//as one block only up till none of them collides with something.
+double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
+                           double top_y, const AreaList &area_top, bool forceCompress)
+{
+    if (from==to) return 0;
+    AreaList cover;
+    HeightArcList(from, to, cover);
+    if (forceCompress || (*from)->IsCompressed()) {
+        double touchpoint;
+        top_y = std::max(top_y, area_top.OffsetBelow(cover, touchpoint));
     }
-    //if we do not yet draw and last arcs were of zero height
-    //re-invoke them at final pos
-    if (!draw) {
-        y = ceil(y);
-        if (largest_y < y)
-            largest_y = y;
-        while (first_zero_height != to)
-            (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
-    }
-    return largest_y - original_y;
+    ShiftByArcList(from, to, top_y);
+    return cover.GetBoundingBox().y.till + top_y;
+}
+
+void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)
+{
+    while (from!=to)
+        (*from++)->ShiftBy(y);  //XXX ensure we call this with ceil(y)
 }
 
 //Find the smallest elements between indexes [i, j) and bring them up to the
@@ -819,7 +740,7 @@ void Msc::CalculateWidthHeight(void)
     yPageStart.clear();
     yPageStart.push_back(0);
 
-    if (totalHeight == 0) {
+    if (total.y == 0) {
         //start with width calculation, that is used by many elements
         EntityDistanceMap distances;
         //Add distance for arcs,
@@ -859,36 +780,24 @@ void Msc::CalculateWidthHeight(void)
                 (*j)->pos = curr_pos;
                 curr_pos += dist[index++]/unit;
             }
-            totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO);
+            total.x = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO);
         } else {
-            totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN);
+            total.x = XCoord((*--(Entities.end()))->pos+MARGIN);
         }
         XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight();
-        if (totalWidth<crTexSize.x) totalWidth = crTexSize.x;
+        if (total.x<crTexSize.x) total.x = crTexSize.x;
 
         copyrightTextHeight = crTexSize.y;
-        Geometry g;
-		g += Block(0, totalWidth, 0, 0); //limiter
-        //not draw but final
-        double height = DrawHeightArcList(Arcs.begin(), Arcs.end(), 0, g, false, true);
-        totalHeight = height + chartTailGap;
+        AreaList cover;
+        HeightArcList(Arcs.begin(), Arcs.end(), cover);
+        total.y = cover.GetBoundingBox().y.till + chartTailGap;
     }
 }
 
-void Msc::PostHeightProcess(void)
+void Msc::PostPosProcessArcList(ArcList &arcs, double autoMarker)
 {
-    if (totalHeight == 0) return;
-    for (ArcList::iterator j = Arcs.begin(); j != Arcs.end(); j++)
-        (*j)->PostHeightProcess();
-//    for (EntityList::iterator i = Entities.begin(); i!=Entities.end(); i++)
-//        cerr << (*i)->name << std::endl << (*i)->status.Print(1);
-}
-
-
-void Msc::ParseText(const char *input, const char *filename)
-{
-    current_file = Error.AddFile(filename);
-    MscParse(*this, input, strlen(input));
+    for (auto j = Arcs.begin(); j != Arcs.end(); j++)
+        (*j)->PostPosProcess(autoMarker);
 }
 
 void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
@@ -906,66 +815,71 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
     CalculateWidthHeight();
 
     //If the chart ended up empty we may want to display something
-    if (totalHeight <= chartTailGap && avoidEmpty) {
+    if (total.y <= chartTailGap && avoidEmpty) {
         //Add the Empty command
         Arcs.push_front(new CommandEmpty(this));
         hscale = -1;
         //Redo calculations
-        totalWidth = totalHeight = 0;
+        total.x = total.y = 0;
         CalculateWidthHeight();
         //Luckily Width and DrawCover calls do not generate error messages,
         //So Errors collected so far are OK even after redoing this
     }
 
     //A final step of prcessing, checking for additional drawing warnings
-    PostHeightProcess();
+    PostPosProcessArcList(Arcs, -1);
     CloseOutput();
 
     Error.Sort();
 }
 
+void Msc::DrawArcList(ArcList &arcs)
+{
+    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
+        (*i)->Draw();
+}
+
+
 void Msc::DrawCopyrightText(int page)
 {
-    if (totalWidth==0 || !cr) return;
+    if (total.x==0 || !cr) return;
     XY size, dummy;
     GetPagePosition(page, dummy, size);
     Label label(copyrightText, this, StringFormat());
     if (white_background) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
-        filledRectangle(XY(0,size.y), XY(totalWidth,size.y+label.getTextWidthHeight().y), fill_bkg);
+        Fill(Block(XY(0,size.y), XY(total.x,size.y+label.getTextWidthHeight().y)), fill_bkg);
     }
-    Geometry dummy2;
-    label.DrawCovers(0, totalWidth, size.y, dummy2, true);
+    label.Draw(0, total.x, size.y);
 }
 
 void Msc::DrawPageBreaks()
 {
     if (yPageStart.size()<=1) return;
-    if (totalHeight==0 || !cr) return;
+    if (total.y==0 || !cr) return;
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
     format.Apply("\\pr\\-");
     Label label(this);
-    Geometry dummy;
     for (unsigned page=1; page<yPageStart.size(); page++) {
         char text[20];
         const double y = yPageStart[page];
         XY d;
-        MscDrawer::line(XY(0, y), XY(totalWidth, y), line);
+        Line(XY(0, y), XY(total.x, y), line);
         sprintf(text, "page %d", page);
         label.Set(text, format);
-        label.DrawCovers(0, totalWidth, y-label.getTextWidthHeight().y, dummy, true);
+        label.Draw(0, total.x, y-label.getTextWidthHeight().y);
     }
 }
 
 void Msc::Draw(bool pageBreaks)
 {
-    if (totalHeight == 0 || !cr) return;
+    if (total.y == 0 || !cr) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
 	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, 0);
-	line(XY(0,0), XY(1,0), marker);
-	line(XY(totalWidth,totalHeight), XY(totalWidth-1,totalHeight), marker);
+	Line(XY(0,0), XY(1,0), marker);
+	Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
 	//draw background
     MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
     double y = 0;
@@ -973,7 +887,7 @@ void Msc::Draw(bool pageBreaks)
     while (i!=Background.end()) {
         if (i->first != y) {
             if (y!=0 || white_background)
-                filledRectangle(XY(0,y), XY(totalWidth,i->first), fill_bkg);
+                Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
             y = i->first;
         }
         fill_bkg += i->second;
@@ -981,18 +895,16 @@ void Msc::Draw(bool pageBreaks)
             fill_bkg.color.second = MscColorType(255,255,255);
         i++;
     }
-    if (y < totalHeight) {
+    if (y < total.y) {
         if (y!=0 || white_background)
-            filledRectangle(XY(0,y), XY(totalWidth,totalHeight), fill_bkg);
+            Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
     }
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks();
 	//Draw initial set of entity lines (boxes will cover these and redraw)
-    DrawEntityLines(0, totalHeight);
-    //draw==true and final==false (both true would be confusing)
-    Geometry g;
-    DrawHeightArcList(Arcs.begin(), Arcs.end(), 0, g, true, false);
+    DrawEntityLines(0, total.y);
+    DrawArcList(Arcs);
 }
 
 void Msc::DrawToOutput(OutputType ot, const string &fn)

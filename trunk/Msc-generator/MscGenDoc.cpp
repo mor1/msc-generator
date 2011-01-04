@@ -1177,15 +1177,14 @@ void CMscGenDoc::StartFadingTimer()
 
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 30000; //millisecons XXX, shoud be 300
+	const double fade_completely = 300; //XXX millisecons XXX, shoud be 300
 	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
 	bool keep_coming_back = false;
 	Block bounding;
 	for (int i = 0; i<m_trackArcs.size(); i++) {
 		if (m_trackArcs[i].delay_fade < 0)
 			continue;
-		Block b;
-		m_trackArcs[i].arc->geometry.GetBoundingBox(b);
+		Block b = m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
 		if (m_trackArcs[i].delay_fade > 0) 
 			m_trackArcs[i].delay_fade--;
 		else if (m_trackArcs[i].alpha > alpha_reduct) 
@@ -1213,7 +1212,7 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
 	if (arc==NULL) return false;
 	Block b;
 	//Do not add if it has no visual element
-	if (!arc->geometry.GetBoundingBox(b)) 
+    if (arc->GetAreaToDraw().IsEmpty()) 
 		return false;
 	bool found = false;
 	//Look for this arc. If already on list and still fully visible return false - no need to update
