@@ -47,6 +47,7 @@ public:
 	void   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos;}
 	void   RotateAround(const XY&c, double cos, double sin) 
 	    {double X=x-c.x, Y=y-c.y; x=X*cos-Y*sin+c.x; y=X*sin+Y*cos+c.y;}
+    XY &   SwapXY()                       {std::swap(x,y); return *this;}
 };
 
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
@@ -72,10 +73,11 @@ struct Range {
                 return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;
     }
     Range &Shift(double a) {from +=a; till+=a; return *this;}
+    Range &Expand(double a) {from -=a; till+=a; return *this;}
     bool HasValidFrom() const {return from != CONTOUR_INFINITY;}
     bool HasValidTill() const {return till != -CONTOUR_INFINITY;}
-    double Spans() const
-        {return till-from;}
+    double Spans() const {return till-from;}
+    double MidPoint() const {return (from+till)/2;}
     bool operator <(const Range &r) const {
         if (till==r.till) return from<r.from;
         return till<r.till;
@@ -112,6 +114,8 @@ struct Block {
         {return XY(x.from, y.till);}
     XY LowerLeft(void) const
         {return XY(x.from, y.till);}
+    XY CenterPoint(void) const
+        {return XY(x.MidPoint(), y.MidPoint());}
     is_within_t IsWithin(const XY &p) const {
         if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
         if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;
@@ -124,7 +128,8 @@ struct Block {
         {x += b.x; y += b.y; return *this;}
     Block &Shift(const XY &a)
         {x.Shift(a.x); y.Shift(a.y); return *this;}
-    void Transpose() {std::swap(x,y);}
+    Block &Expand(double a) {x.Expand(a); y.Expand(a); return *this;}
+    Block &SwapXY() {std::swap(x,y); return *this;}
 };
 
 }; //namespace

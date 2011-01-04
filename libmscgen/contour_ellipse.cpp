@@ -413,7 +413,7 @@ int Ellipse::refine_crosspoints(int num_y, double y[], const Ellipse &B,
     return num;
 }
 
-void Ellipse::transpose_curvy_non_tilted()
+inline void Ellipse::transpose_curvy_non_tilted()
 {
     _ASSERT(!tilted);
     std::swap(center.x, center.y);
@@ -507,6 +507,15 @@ void Ellipse::RotateAround(const XY&c, double cos, double sin, double radian)
     center.RotateAround(c, cos, sin);
     add_to_tilt(cos, sin, radian);
     calculate_extremes();
+}
+
+void Ellipse::SwapXY() 
+{
+    center.SwapXY();
+    if (tilt==0) 
+        std::swap(radius1, radius2);
+    else
+        tilt = M_PI/2 - tilt; //mirror on 45 degrees
 }
 
 
@@ -616,22 +625,22 @@ int Ellipse::CrossingStraight(const XY &A, const XY &B,
 }
 
 //return the number of crosspoints. 1 means a touch
-int Ellipse::CrossingHorizontal(double y, double x[], double radian[]) const
+int Ellipse::CrossingVertical(double x, double y[], double radian[]) const
 {
     if (tilted) {
         XY xy[2];
         double dummy[2];
-        int num = CrossingStraight(XY(0,y), XY(100,y), xy, radian, dummy);
+        int num = CrossingStraight(XY(x,0), XY(x, 100), xy, radian, dummy);
         for (int i = 0; i<num; i++)
-            x[i] = xy[i].x;
+            y[i] = xy[i].y;
         return num;
     }
-    if (y < center.y-radius2 || y > center.y+radius2) return 0;
-    x[0] = center.x + radius1*sqrt(1 - sqr((y-center.y)/radius2));
-    radian[0] = circle_space_point2radian_curvy(conv_to_circle_space(XY(x[0],y)));
-    if (test_equal(x[0], center.x))   //just touch
+    if (x < center.x-radius1 || x > center.x+radius1) return 0;
+    y[0] = center.y + radius2*sqrt(1 - sqr((x-center.x)/radius1));
+    radian[0] = circle_space_point2radian_curvy(conv_to_circle_space(XY(x,y[0])));
+    if (test_equal(y[0], center.y))   //just touch
         return 1;
-    x[1] = 2*center.x - x[0];
+    y[1] = 2*center.y - y[0];
     radian[1] = (radian[0]<=M_PI) ? M_PI - radian[0] : 3*M_PI - radian[0];
     return 2;
 }

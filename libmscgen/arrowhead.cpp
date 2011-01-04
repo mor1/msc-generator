@@ -145,15 +145,14 @@ bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
     xPos[0] = 0;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.7;
     MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, 0);
-    msc->ClipRectangle(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
-    msc->line(XY(xPos[1], 1), XY(xPos[1], HINT_GRAPHIC_SIZE_Y-1), eLine);
+    msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
+    msc->Line(XY(xPos[1], 1), XY(xPos[1], HINT_GRAPHIC_SIZE_Y-1), eLine);
     ArrowHead ah(ArrowHead::BIGARROW);
     ah.line += MscColorType(128,128,0); //brown
     ah.endType.second = (MscArrowType)(int)p;
     ah.size.second = MSC_ARROWS_INVALID;
     MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
-    ah.FillBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc, fill);
-    ah.DrawBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc);
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, fill, msc);
     msc->UnClip();
     return true;
 }
@@ -168,15 +167,15 @@ bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrow
     ah.line += MscColorType(128,128,0); //brown
     ah.endType.second = type;
     ah.size.second = size;
-    Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END, msc);
-    msc->ClipRectangle(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
+    Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END);
+    msc->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     if (cover.from>1)
-        msc->line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
+        msc->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
     if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
-        msc->line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    double stop = ah.getWidthForLine(false, MSC_ARROW_END, msc).first;
+        msc->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
+    double stop = ah.getWidths(true, false, MSC_ARROW_END, true, eLine.LineWidth()).first;
     if (stop<HINT_GRAPHIC_SIZE_X*(xx-0.1))
-        msc->line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), XY(xy.x-stop, xy.y), ah.line);
+        msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), XY(xy.x-stop, xy.y), ah.line);
     ah.Draw(xy, true, false, MSC_ARROW_END, msc);
     msc->UnClip();
     return true;
@@ -240,7 +239,7 @@ MscArrowType ArrowHead::GetType(bool bidir, MscArrowEnd which) const
     return MSC_ARROW_NONE;
 }
 
-XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which, MscDrawer *) const
+XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
 {
     XY xy;
     double sizePercentage;
@@ -275,73 +274,63 @@ XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which, MscDrawer *) const
 }
 
 /* return value:
- * - first is the forward direction of the arrowhead
- * - second is the reverse
- * E.g., the ->- arrow has >0 forward direction, but 0 at the reverse
- * E.g., the -><- arrow or the -O- symbol has both >0
+ * - first is the extent on the left side of the entity line
+ * - second is the extent on the right side of the entity line
+ * formard is true if the start entiry of the arrow is left from its destination (like -> and not like <-)
+ * if which is start, we swap the two values (as we should, to get the above)
+ * If forLine is true, we return how much of the arrow line the arrowhead covers
+ * If false, we return how much the text margin should be from the entity line
  */
-std::pair<double, double> ArrowHead::getWidthForLine(bool bidir, MscArrowEnd which, MscDrawer *_dummy) const
+DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, double mainlinewidth) const
 {
-    std::pair<double, double> ret(0,0);
-    switch (GetType(bidir, which))
-    {
+    DoublePair ret(0,0);
+    switch (GetType(bidir, which)) {
     case MSC_ARROW_NONE: /* No end */
-    case MSC_ARROW_LINE: /* Two lines */
-    case MSC_ARROW_HALF: /* Unfilled half */
-        return ret;
-
+        break;
     case MSC_ARROW_SOLID: /* Filled */
     case MSC_ARROW_EMPTY: /* Non-Filled */
-        ret.first = getWidthHeight(bidir, which, _dummy).x;
-        if (bidir)
+        ret.first = getWidthHeight(bidir, which).x;
+        /* Fallthrough */
+    case MSC_ARROW_HALF: /* Unfilled half */
+    case MSC_ARROW_LINE: /* Two lines */
+        if (forLine) 
+            ret.first = mainlinewidth; //these do not cover the line that much
+        //Now see if we put the value to the right of first/second
+        if (bidir && (which==MSC_ARROW_MIDDLE))
             ret.second = ret.first;
-        return ret;
+        else if (forward ^ which==MSC_ARROW_START) //if reverse or start, but not if both
+            ret.swap();
+        break;
 
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DIAMOND_EMPTY:
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
     default:
-        ret.first = getWidthHeight(bidir, which, _dummy).x;
-        ret.second = ret.first;
-        return ret;
+        ret.second = ret.first = getWidthHeight(bidir, which).x;
     }
+    return ret;
 }
 
-
-void triangle(cairo_t *cr,
-                         double x1, double y1,
-                         double x2, double y2,
-                         double x3, double y3)
+Contour diamond(XY xy, XY wh)
 {
-    cairo_move_to(cr, x1+CAIRO_OFF, y1+CAIRO_OFF);
-    cairo_line_to(cr, x2+CAIRO_OFF, y2+CAIRO_OFF);
-    cairo_line_to(cr, x3+CAIRO_OFF, y3+CAIRO_OFF);
-    cairo_close_path(cr);
-}
-
-void diamond(cairo_t *cr, XY xy, XY wh)
-{
-    cairo_move_to(cr, xy.x-wh.x+CAIRO_OFF, xy.y+CAIRO_OFF);
-    cairo_line_to(cr, xy.x+CAIRO_OFF, xy.y+wh.y+CAIRO_OFF);
-    cairo_line_to(cr, xy.x+wh.x+CAIRO_OFF, xy.y+CAIRO_OFF);
-    cairo_line_to(cr, xy.x+CAIRO_OFF, xy.y-wh.y+CAIRO_OFF);
-    cairo_close_path(cr);
+    Contour poly(xy.x-wh.x+CAIRO_OFF, xy.y+CAIRO_OFF, xy.x+CAIRO_OFF, xy.y+wh.y+CAIRO_OFF, xy.x+wh.x+CAIRO_OFF, xy.y+CAIRO_OFF);
+    if (!poly.AddAnEdge(Edge(XY(xy.x+CAIRO_OFF, xy.y-wh.y+CAIRO_OFF))))
+        _ASSERT(0);
+    return poly;
 }
 
 /** Return the Y range for which the entity line shall not be drawn
  */
-Range  ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which,
-                                  MscDrawer *msc) const
+Range ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const
 {
-    XY wh = getWidthHeight(bidir, which, msc);
+    XY wh = getWidthHeight(bidir, which);
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
 
     Range ret(0,0);
 
-    switch(GetType(bidir, which))
-    {
+    switch(GetType(bidir, which)) {
     case MSC_ARROW_DIAMOND_EMPTY:
         ret.from = xy.y-wh.y;
         ret.till = xy.y+wh.y;
@@ -355,92 +344,114 @@ Range  ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd w
     return ret;
 }
 
+Area ArrowHead::Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, double mainlinewidth) const
+{
+    XY wh = getWidthHeight(bidir, which);
+    if (bidir && which == MSC_ARROW_START)
+        forward = !forward;
+    if (forward) wh.x *= -1;
+
+    MscFillAttr fill(line.color.second);
+    Contour tri1(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
+    Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+
+    Area area;
+
+    switch(GetType(bidir, which)) {
+    case MSC_ARROW_NONE:
+        break;
+    case MSC_ARROW_SOLID: /* Filled */
+    case MSC_ARROW_EMPTY: /* Non-Filled */
+    case MSC_ARROW_LINE: /* Two lines */
+        area = tri1;
+        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2;
+        break;
+    case MSC_ARROW_HALF: /* Unfilled half */
+        area = Contour(xy+wh, xy, xy + XY(wh.x, 0));
+        if (bidir && (which==MSC_ARROW_MIDDLE))
+            area += Contour(xy + XY(-wh.x, wh.y), xy, xy - XY(wh.x, 0));
+        break;
+
+    case MSC_ARROW_DIAMOND:
+    case MSC_ARROW_DIAMOND_EMPTY:
+        area = diamond(xy, wh);
+        break;
+
+    case MSC_ARROW_DOT:
+    case MSC_ARROW_DOT_EMPTY:
+        area = Contour(xy, wh.x, wh.y);
+        break;
+    }
+    if (line.LineWidth()>1)
+        area = area.CreateExpand(line.LineWidth()/2);
+    if (GetType(bidir, which)==MSC_ARROW_HALF) {
+        if (line.LineWidth() > mainlinewidth)
+            area -= Block(-1e6, +1e6, xy.y+mainlinewidth, 1e6);
+        else
+            area += Block(xy.x+wh.x, xy.x, xy.y, xy.y+mainlinewidth);
+    }
+    return area;
+}
+
 
 /** Draw an arrowhead pointing to the right or to the left.
  * x,y is the tip of the arrow
  * which is 0 for destination, 1 for middle, 2 for source end of arrow
  */
-void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which,
-                     MscDrawer *msc) const
+void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const
 {
-    XY wh = getWidthHeight(bidir, which, msc);
+    XY wh = getWidthHeight(bidir, which);
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
-    const double xOffset = forward ? -wh.x : wh.x;
+    if (forward) wh.x *= -1;
+
+    MscFillAttr fill(line.color.second, GRADIENT_NONE);
+    Contour tri1(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
+    Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
 
     switch(GetType(bidir, which))
     {
     case MSC_ARROW_NONE:
         break;
     case MSC_ARROW_SOLID: /* Filled */
-        triangle(msc->GetContext(), xy.x, xy.y,
-                 xy.x + xOffset, xy.y + wh.y,
-                 xy.x + xOffset, xy.y - wh.y);
-        if (bidir && (which==MSC_ARROW_MIDDLE))
-            triangle(msc->GetContext(), xy.x, xy.y,
-                     xy.x - xOffset, xy.y + wh.y,
-                     xy.x - xOffset, xy.y - wh.y);
-        msc->SetColor(line.color.second);
-        cairo_fill(msc->GetContext());
+        msc->Fill(tri1, fill);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->Fill(tri2, fill);
         break;
-
     case MSC_ARROW_EMPTY: /* Non-Filled */
-        cairo_move_to(msc->GetContext(), xy.x + xOffset+CAIRO_OFF, xy.y + wh.y+CAIRO_OFF);
-        cairo_line_to(msc->GetContext(), xy.x + xOffset+CAIRO_OFF, xy.y - wh.y+CAIRO_OFF);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) {
-            cairo_move_to(msc->GetContext(), xy.x - xOffset+CAIRO_OFF, xy.y + wh.y+CAIRO_OFF);
-            cairo_line_to(msc->GetContext(), xy.x - xOffset+CAIRO_OFF, xy.y - wh.y+CAIRO_OFF);
-        }
-        //fallthrough
+        msc->Line(tri1, line);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->Line(tri2, line);
+        break;
     case MSC_ARROW_LINE: /* Two lines */
-        cairo_move_to(msc->GetContext(), xy.x + xOffset+CAIRO_OFF, xy.y - wh.y+CAIRO_OFF);
-        cairo_line_to(msc->GetContext(), xy.x+CAIRO_OFF, xy.y+CAIRO_OFF);
-        if (bidir && (which==MSC_ARROW_MIDDLE))
-            cairo_line_to(msc->GetContext(), xy.x - xOffset+CAIRO_OFF, xy.y - wh.y+CAIRO_OFF);
-        //fallthrough
+        msc->LineOpen(tri1, line);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->LineOpen(tri2, line);
+        break;
     case MSC_ARROW_HALF: /* Unfilled half */
-        cairo_move_to(msc->GetContext(), xy.x + xOffset+CAIRO_OFF, xy.y + wh.y+CAIRO_OFF);
-        cairo_line_to(msc->GetContext(), xy.x+CAIRO_OFF, xy.y+CAIRO_OFF);
+        msc->Line(tri1.GetEdge(0).GetStart(), tri1.GetEdge(1).GetStart(), line);
         if (bidir && (which==MSC_ARROW_MIDDLE))
-            cairo_line_to(msc->GetContext(), xy.x - xOffset+CAIRO_OFF, xy.y + wh.y+CAIRO_OFF);
-        msc->SetLineAttr(line);
-        cairo_stroke(msc->GetContext());
+            msc->Line(tri2.GetEdge(0).GetStart(), tri2.GetEdge(1).GetStart(), line);
         break;
 
     case MSC_ARROW_DIAMOND:
-        diamond(msc->GetContext(), xy, wh);
-        msc->SetColor(line.color.second);
-        cairo_fill(msc->GetContext());
+        msc->Fill(diamond(xy, wh), fill);
         break;
-
     case MSC_ARROW_DIAMOND_EMPTY:
-        msc->SetLineAttr(line);
-        diamond(msc->GetContext(), xy, wh);
-        cairo_stroke(msc->GetContext());
+        msc->Line(diamond(xy, wh), line);
         break;
 
     case MSC_ARROW_DOT:
-        cairo_new_sub_path(msc->GetContext());
-        cairo_arc (msc->GetContext(), xy.x, xy.y, wh.x, 0, 2*M_PI);
-        msc->SetColor(line.color.second);
-        cairo_fill(msc->GetContext());
+        msc->Fill(Contour(xy, wh.x, wh.y), fill);
         break;
-
     case MSC_ARROW_DOT_EMPTY:
-        msc->SetLineAttr(line);
-        cairo_new_sub_path(msc->GetContext());
-        cairo_arc (msc->GetContext(), xy.x, xy.y, wh.x, 0, 2*M_PI);
-        cairo_stroke(msc->GetContext());
+        msc->Line(Contour(xy, wh.x, wh.y), line);
         break;
     }
 }
 
 //For largely internal use - characteristic size of the big arrowheads
-XY ArrowHead::getBigWidthHeight(MscArrowType type, MscDrawer *) const
+XY ArrowHead::getBigWidthHeight(bool bidir, MscArrowEnd which) const
 {
     static double sizes[] = {3, 5, 10, 15, 25, 35};
-    switch(type)
-    {
+    switch(GetType(bidir, which)) {
     case MSC_ARROW_NONE:
     default:
         return XY(0,0);
@@ -452,391 +463,174 @@ XY ArrowHead::getBigWidthHeight(MscArrowType type, MscDrawer *) const
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DIAMOND_EMPTY:
         return XY(2*sizes[size.second], sizes[size.second]);
-
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
         return XY(2*sizes[size.second], sizes[size.second]);
     }
 }
 
-//How much the arrowhead extends outwards from the entity line
-double ArrowHead::getBigEndWidthExt(bool bidir, MscArrowEnd which, MscDrawer *msc) const
+/* return value:
+ * - first is the extent on the left side of the entity line
+ * - second is the extent on the right side of the entity line
+ * formard is true if the start entiry of the arrow is left from its destination (like -> and not like <-)
+ * if which is start, we swap the two values (as we should, to get the above)
+ * body_height contains the height of the text within
+ */
+DoublePair ArrowHead::getBigWidths(bool forward, bool bidir, MscArrowEnd which, double body_height) const
 {
-    switch(GetType(bidir, which))
-    {
+    XY wh = getWidthHeight(bidir, which);
+    DoublePair ret(0,0);
+    switch(GetType(bidir, which)) {
     default:
     case MSC_ARROW_NONE:
-    case MSC_ARROW_SOLID: /* Filled */
-    case MSC_ARROW_EMPTY: /* Non-Filled */
-    case MSC_ARROW_LINE: /* Two lines */
-    case MSC_ARROW_HALF: /* Unfilled half */
-        return 0;
-    case MSC_ARROW_DIAMOND:
-    case MSC_ARROW_DIAMOND_EMPTY:
-    case MSC_ARROW_DOT:
-    case MSC_ARROW_DOT_EMPTY:
-        return getBigWidthHeight(GetType(bidir, which), msc).x;
-    }
-}
-
-Block ArrowHead::big_cover_block(double x, double sy, double dy,
-                                 bool bidir, MscArrowEnd which, bool forward, MscDrawer *msc) const
-{
-    double y2 = getBigWidthHeight(GetType(bidir, which), msc).y;
-    double x2, x3;
-    switch(GetType(bidir, which))
-    {
-    default:
-    case MSC_ARROW_NONE:
-        x2 = x3 = 0;
         break;
     case MSC_ARROW_SOLID: /* Filled */
     case MSC_ARROW_EMPTY: /* Non-Filled */
     case MSC_ARROW_LINE: /* Two lines */
     case MSC_ARROW_HALF: /* Unfilled half */
-        x2 = getBigWidthHeight(bidir, which, msc).x; //inner
-        x3 = 0; //outer
+        ret.first = wh.x;
+        if (bidir && which == MSC_ARROW_MIDDLE)
+            ret.second = ret.first;
         break;
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DIAMOND_EMPTY:
+        ret.first = wh.x*wh.y/(body_height/2+wh.y); //visible part towards the body
+        ret.second = which==MSC_ARROW_MIDDLE ? ret.first : wh.x;
+        break;
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
-        x2 = getBigWidthHeight(GetType(bidir, which), msc).x/2; //inner
-        x3 = x2 *2; //outer
+        //The same ellipse as will be drawn, but 90 degree rotated, so we can use CrossingVertical
+        const contour::Ellipse e(XY(0, 0), body_height/2 + wh.y, wh.x, 0);    
+        double x[2], r[2];
+        e.CrossingVertical(body_height/2, x, r);
+        ret.first = fabs(x[0]); //visible part towards the body, any cp would do x[0]==-x[1]
+        ret.second = which==MSC_ARROW_MIDDLE ? ret.first : wh.x;
         break;
     }
-    if (which == MSC_ARROW_MIDDLE) //x3 not used - symmetric
-        return Block(x-x2, x+x2, sy-y2, dy+y2);
-    //END or START
-    if (forward ^ (which==MSC_ARROW_START))
-        return Block(x-x2, x+x3, sy-y2, dy+y2);
-    else
-        return Block(x-x3, x+x2, sy-y2, dy+y2);
+    if (forward ^ which==MSC_ARROW_START) //if reverse or start, but not if both
+        ret.swap();
+    return ret;
 }
 
-//How much margin we need for this arrowhead
-double ArrowHead::getBigEndWidthMargin(bool bidir, MscArrowEnd which, MscDrawer *msc) const
+inline bool ArrowHead::bigDoesSegment(bool bidir, MscArrowEnd which) const
 {
-    switch(GetType(bidir, which))
-    {
+    switch(GetType(bidir, which)) {
     default:
-        case MSC_ARROW_NONE:
         case MSC_ARROW_SOLID: /* Filled */
         case MSC_ARROW_EMPTY: /* Non-Filled */
         case MSC_ARROW_LINE: /* Two lines */
         case MSC_ARROW_HALF: /* Unfilled half */
-            return getBigWidthHeight(GetType(bidir, which), msc).x;
+            return true;
+        case MSC_ARROW_NONE:
         case MSC_ARROW_DIAMOND:
         case MSC_ARROW_DIAMOND_EMPTY:
         case MSC_ARROW_DOT:
         case MSC_ARROW_DOT_EMPTY:
-            return -getBigWidthHeight(GetType(bidir, which), msc).x/2;
+            return false;
     }
 }
 
-double ArrowHead::Big_yExtent(bool bidir, bool segmented, MscDrawer *msc) const
+//Determines the margin of the text (from the entity line). Can be negative
+//left tells us if we need the left or right margin for the text
+//forward tells us if the arrow is like -> or like <-
+//bidir and which further specifies which arrowhead to use
+//sy and dy tells us where is the text drawn (should be equal to the y aspect of the bounding box of text_cover)
+double ArrowHead::getBigMargin(Area text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const
 {
-    double ret = getBigWidthHeight(bidir, MSC_ARROW_START, msc).x;
-    ret = std::max(ret, getBigWidthHeight(bidir, MSC_ARROW_END, msc).x);
-    if (segmented)
-        ret = std::max(ret, getBigWidthHeight(bidir, MSC_ARROW_MIDDLE, msc).x);
+    DoublePair tmp = getBigWidths(forward, bidir, which, dy-sy);
+    const double asize = left ? tmp.second : -tmp.first;
+    Area arrow_head = Contour(asize, 0, -1e6, +1e6) - BigCoverOne(0, sy, dy, forward, bidir, which);
+
+    text_cover.Rotate(90);
+    arrow_head.Rotate(90);
+    double off, tp;
+    if (forward) {
+        off = text_cover.OffsetBelow(arrow_head, tp, CONTOUR_INFINITY, false);
+        //now off is negative and smaller than tp, which is probably negative, too
+        return tp-off;
+    } else {
+        off = arrow_head.OffsetBelow(text_cover, tp, CONTOUR_INFINITY, false);
+        //now tp is negative and shows the margin
+        return -tp;
+    }
+}
+
+double ArrowHead::bigYExtent(bool bidir, bool multisegment) const
+{
+    double ret = getBigWidthHeight(bidir, MSC_ARROW_START).y;
+    ret = std::max(ret, getBigWidthHeight(bidir, MSC_ARROW_END).y);
+    if (multisegment)
+        ret = std::max(ret, getBigWidthHeight(bidir, MSC_ARROW_MIDDLE).y);
     return ret;
 }
 
-//type cannot be DOUBLE
-//dir is true if we draw to the right side of x
-//up is true if we need to draw the upper part
-//We start from visual left to right on the top side, then from right to left on
-//the bottom side, so if dir and up is true we start the path and pos is unset
-//X: pos shows the x pos we stopped drawing the last segment
-//Y: if up is true current ypos is sy-lw, if false, it is dy+lw
-//x is the xpos of the entity line
-//sy dy are the top and bottom of the arrow
-//lw is the "wider" value for double lines
-void ArrowHead::big_end_path(double &xpos, double x, double sy, double dy, bool dir,
-                             bool up, MscDrawer *msc, MscArrowType atype,
-                             MscLineType type, double lw) const
+//Draw one arrowhead. If bidir and solid, we draw both
+Area ArrowHead::BigCoverOne(double x, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const
 {
-    cairo_t *cr = msc->GetContext();
-    //helper values
-    const double ypos = up ? sy+lw : dy-lw; //just a helper
-    const XY a = getBigWidthHeight(atype, msc);
-    switch (atype) {
-    case MSC_ARROW_NONE:
-        if (up) {
-            if (dir) {
-                xpos = x+lw;
-            } else {
-                msc->_line_path(xpos, ypos, x-lw, ypos, 0, type);
-                xpos = x-lw;
-            }
-        } else {
-            if (dir) {
-                msc->_line_path(xpos, ypos, x+lw, ypos, 0, type);
-                msc->_line_path(x+lw, ypos, x+lw, sy+lw, 0, type);
-                //last piece, no need for xpos any more
-            } else {
-                msc->_line_path(xpos, sy+lw, xpos, ypos, 0, type);
-                //no change to xpos
-            }
-        }
-        break;
+    if (which == MSC_ARROW_END) forward = !forward;
+    const XY wh = getBigWidthHeight(bidir, which);
+    const double x_off = forward ? - wh.x : wh.x;
+    const double mid_y = (sy+dy)/2;
+    Area area;
+    switch(GetType(bidir, which)) {
+    default:
+    case MSC_ARROW_NONE: break;
+        //all these below draw a triangle
     case MSC_ARROW_SOLID: /* Filled */
     case MSC_ARROW_EMPTY: /* Non-Filled */
     case MSC_ARROW_LINE: /* Two lines */
     case MSC_ARROW_HALF: /* Unfilled half */
-	{
-            //lwx and lwy are x and y projections of a slanted lw distance
-            const double Y = (dy-sy)/2 + a.y;
-            const double A = sqrt(a.x*a.x + Y*Y);
-            const double lwx = A/Y*lw;
-            const double lwy = (A+Y)/a.x*lw;
-            if (up) {
-                if (dir) {
-                    xpos = x+a.x-lw;
-                    msc->_line_path(x+lwx, (sy+dy)/2, xpos, sy-a.y+lwy, 0, type);
-                    msc->_line_path(xpos, sy-a.y+lwy, xpos, ypos, 0, type);
-                } else {
-                    msc->_line_path(xpos, ypos, x-a.x+lw, ypos, 0, type);
-                    xpos = x-a.x+lw;
-                    msc->_line_path(xpos, ypos, xpos, sy-a.y+lwy, 0, type);
-                    msc->_line_path(xpos, sy-a.y+lwy, x-lwx, (sy+dy)/2, 0, type);
-                    msc->_line_path(x-lwx, (sy+dy)/2, xpos, dy+a.y-lwy, 0, type);
-                    msc->_line_path(xpos, dy+a.y-lwy, xpos, dy-lw, 0, type);
-                }
-            } else {
-                if (dir) {
-                    msc->_line_path(xpos, ypos, x+a.x-lw, ypos, 0, type);
-                    xpos = x+a.x-lw;
-                    msc->_line_path(xpos, ypos, xpos, dy+a.y-lwy, 0, type);
-                    msc->_line_path(xpos, dy+a.y-lwy, x+lwx, (sy+dy)/2, 0, type);
-                    //last piece, no need for xpos any more
-                } else {
-                    //We have drawn all the arrow in the up phase
-                    //no change to xpos
-                }
-            }
-            break;
-        }
-    case MSC_ARROW_DOT:
-    case MSC_ARROW_DOT_EMPTY:
-        {
-            const XY c(x, (sy+dy)/2);
-            const XY wh(a.x-lw, (dy-sy)/2 + a.y-lw); //radius
-            const double angle = asin(1-a.y/wh.y)*180./M_PI;
-            const double dx = wh.x*cos(angle*M_PI/180.);
-            if (up) {
-                if (dir) {
-                    msc->_arc_path(c, wh+wh, angle, 360-angle, lw, type, false);
-                    xpos = x + dx;
-                    if (type == LINE_SOLID || !msc->fake_dash) msc->_line_path_to(xpos, ypos, 0, type);
-                } else {
-                    msc->_line_path(xpos, ypos, x-dx, ypos, 0, type);
-                    msc->_arc_path(c, wh+wh, 180+angle, 180-angle, lw, type, false);
-                    xpos = x - dx;
-                    if (type == LINE_SOLID || !msc->fake_dash)msc->_line_path_to(xpos, dy-lw, 0, type);
-                }
-            } else {
-                if (dir) {
-                    msc->_line_path(xpos, ypos, x+dx, ypos, 0, type);
-                } else {
-                    //nothing to do
-                }
-            }
-            break;
-        }
+        area += Contour(x, mid_y, x+x_off, sy-wh.y, x+x_off, dy+wh.y);
+        if (bidir && which == MSC_ARROW_MIDDLE)
+            area += Contour(x, mid_y, x-x_off, sy-wh.y, x-x_off, dy+wh.y);
+        break;
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DIAMOND_EMPTY:
-        {
-            //lwx and lwy are x and y projections of a slanted lw distance
-            const double Y = (dy-sy)/2 + a.y;
-            const double A = sqrt(double(a.x*a.x + Y*Y));
-            const double lwx = A/Y*lw;
-            const double lwy = A/a.x*lw;
-            const double lwx2 = a.x/a.y*lw - lwx;
-            if (up) {
-                if (dir) {
-                    xpos = x+a.x/2-lwx2;
-                    msc->_line_path(x-a.x+lwx, (sy+dy)/2, x, sy-a.y+lwy, 0, type);
-                    msc->_line_path(x, sy-a.y+lwy, xpos, ypos, 0, type);
-                } else {
-                    msc->_line_path(xpos, ypos, x-a.x/2+lwx2, ypos, 0, type);
-                    xpos = x-a.x/2+lwx2;
-                    msc->_line_path(xpos, ypos, x, sy-a.y+lwy, 0, type);
-                    msc->_line_path(x, sy-a.y+lwy, x+a.x-lwx, (sy+dy)/2, 0, type);
-                    msc->_line_path(x+a.x-lwx, (sy+dy)/2, x, dy+a.y-lwy, 0, type);
-                    msc->_line_path(x, dy+a.y-lwy, xpos, dy-lw, 0, type);
-                }
-            } else {
-                if (dir) {
-                    msc->_line_path(xpos, ypos, x+a.x/2-lwx2, ypos, 0, type);
-                    msc->_line_path(x+a.x/2-lwx2, ypos, x, dy+a.y-lwy, 0, type);
-                    msc->_line_path(x, dy+a.y-lwy, x-a.x+lwx, (sy+dy)/2, 0, type);
-                    //last piece - xpos is not needed
-                } else {
-                    //We have drawn all the arrow in the up phase
-                    //no change to xpos
-                }
-            }
-            break;
-        }
-    }
-}
-
-void ArrowHead::big_mid_path(double &xpos, double x, double sy, double dy,
-                             bool up, MscDrawer *msc, MscArrowType atype, MscLineType type, double lw) const
-{
-    cairo_t *cr = msc->GetContext();
-    const double ypos = up ? sy+lw : dy-lw; //just a helper
-    const XY a = getBigWidthHeight(atype, msc);
-    switch (atype) {
-    case MSC_ARROW_NONE:
-        //Nothing to do
-        break;
-    case MSC_ARROW_SOLID: /* Filled */
-    case MSC_ARROW_EMPTY: /* Non-Filled */
-    case MSC_ARROW_LINE: /* Two lines */
-    case MSC_ARROW_HALF: /* Unfilled half */
-        assert(0); //should not happen
+        area += Contour(x-wh.x, mid_y, x, sy-wh.y, x, dy+wh.y) + Contour(x+wh.x, mid_y, x, sy-wh.y, x, dy+wh.y);
         break;
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
-        {
-            const XY c(x, (sy+dy)/2);
-            const XY wh(a.x-lw, (dy-sy)/2 + a.y-lw); //radius
-            const double angle = asin(1-a.y/wh.y)*180./M_PI;
-            const double dx = wh.x*cos(angle*M_PI/180.);
-            if (up) {
-                msc->_line_path(xpos, ypos, x-dx, ypos, 0, type);
-                msc->_arc_path(c, wh+wh, 180+angle, 360-angle, lw, type, false);
-                xpos = x + dx;
-				if (type == LINE_SOLID || !msc->fake_dash) msc->_line_path_to(xpos, ypos, 0, type);
-            } else {
-                msc->_line_path(xpos, ypos, x+dx, ypos, 0, type);
-                msc->_arc_path(c, wh+wh, angle, 180-angle, lw, type, false);
-                xpos = x - dx;
-                if (type == LINE_SOLID || !msc->fake_dash)msc->_line_path_to(xpos, ypos, 0, type);
-            }
-            break;
-        }
-    case MSC_ARROW_DIAMOND:
-    case MSC_ARROW_DIAMOND_EMPTY:
-        //lwx and lwy are x and y projections of a slanted lw distance
-        const double Y = (dy-sy)/2 + a.y;
-        const double A = sqrt(double(a.x*a.x + Y*Y));
-        const double lwx = A/Y*lw;
-        const double lwy = A/a.x*lw;
-        const double lwx2 = a.x/a.y*lw - lwx;
-        if (up) {
-            msc->_line_path(xpos, ypos, x-a.x/2+lwx2, ypos, 0, type);
-            msc->_line_path(x-a.x/2+lwx2, ypos, x, sy-a.y+lwy, 0, type);
-            xpos = x+a.x/2-lwx2;
-            msc->_line_path(x, sy-a.y+lwy, xpos, ypos, 0, type);
-        } else {
-            msc->_line_path(xpos, ypos, x+a.x/2-lwx2, ypos, 0, type);
-            msc->_line_path(x+a.x/2-lwx2, ypos, x, dy+a.y-lwy, 0, type);
-            xpos = x-a.x/2+lwx2;
-            msc->_line_path(x, dy+a.y-lwy, xpos, ypos, 0, type);
-        }
+        area += Contour(XY(x, mid_y), wh.x, (dy-sy)/2 + wh.y);    
         break;
     }
+    return area;
 }
 
-//type cannot be DOUBLE
-void ArrowHead::big_path(std::vector<double> xPos, double sy, double dy,
-                        MscDrawer * msc, MscLineType type, bool bidir, double lw) const
+Area ArrowHead::BigCover(std::vector<double> xPos, double sy, double dy, bool bidir) const
 {
-    unsigned drawn_till = 0;
-    double xpos;
-    const MscArrowEnd i_begin = xPos[0] < xPos[1] ? MSC_ARROW_START : MSC_ARROW_END;
-    const MscArrowEnd i_end   = xPos[0] < xPos[1] ? MSC_ARROW_END : MSC_ARROW_START;
-
+    Area area;
+    const bool forward = xPos[0] < xPos[1];
+    const MscArrowEnd i_begin = forward ? MSC_ARROW_START : MSC_ARROW_END;
+    const MscArrowEnd i_end   = forward ? MSC_ARROW_END : MSC_ARROW_START;
     std::sort(xPos.begin(), xPos.end()); //from left to right
 
-    if (type == LINE_DOUBLE) type = LINE_SOLID;
+    //draw leftmost arrowhead
+    area += BigCoverOne(xPos[0], sy, dy, forward, bidir, i_begin);
+    double from_x = xPos[0] + getBigWidths(forward, bidir, i_begin, dy-sy).second;
 
-    //Draw the block arrow.
-    //Stop at each SOLID arrowhead, we do a separate sub_path for those
-    while (drawn_till < xPos.size()-1) {
-        //Initially assume we draw all the way to the end
-        unsigned draw_upto = xPos.size()-1;
-        msc->_new_path();
-        //Draw upper part of the leftmost arrowhead
-        big_end_path(xpos, xPos[drawn_till], sy, dy, true, true, msc, GetType(bidir, i_begin), type, lw);
-        //Draw the top parts of mid-arrows
-        for (int i=drawn_till+1; i<xPos.size()-1; i++) {
-            //If in the middle there is a SOLID arrowhead, stop and turn back
-            const MscArrowType atype = GetType(bidir, MSC_ARROW_MIDDLE);
-            if (atype == MSC_ARROW_SOLID || atype == MSC_ARROW_EMPTY ||
-                atype == MSC_ARROW_LINE || atype == MSC_ARROW_HALF) {
-                draw_upto = i;
-                break;
-            }
-            big_mid_path(xpos, xPos[i], sy, dy, true, msc, GetType(bidir, MSC_ARROW_MIDDLE), type, lw);
+    //set up variables for mid-points
+    DoublePair mid_xx = getBigWidths(forward, bidir, MSC_ARROW_MIDDLE, dy-sy);
+    const bool segment = bigDoesSegment(bidir, MSC_ARROW_MIDDLE);
+    for (int i=1; i<xPos.size()-1; i++) {
+        area += BigCoverOne(xPos[i], sy, dy, forward, bidir, MSC_ARROW_MIDDLE);
+        if (segment) {
+            double to_x = xPos[i] - mid_xx.first;
+            area += Block(from_x, to_x, sy, dy);
+            from_x = mid_xx.second;
         }
-        //Draw top and bottom part of the right arrowhead
-        big_end_path(xpos, xPos[draw_upto], sy, dy, false,  true, msc, GetType(bidir, i_end), type, lw);
-        big_end_path(xpos, xPos[draw_upto], sy, dy, false, false, msc, GetType(bidir, i_end), type, lw);
-        //Drow bottom part of mid-arrows
-        for (int i=draw_upto-1; i>drawn_till; i--)
-            big_mid_path(xpos, xPos[i], sy, dy, false, msc, GetType(bidir, MSC_ARROW_MIDDLE), type, lw);
-        //Finally the bottom part of the leftmost arrowhead
-        big_end_path(xpos, xPos[drawn_till], sy, dy, true, false, msc, GetType(bidir, i_begin), type, lw);
-
-        //If there are more segments to go open a new sub-path
-        if (draw_upto<xPos.size()-1)
-            msc->_new_path();
-        cairo_close_path(msc->GetContext());
-        drawn_till = draw_upto;
     }
+    //draw rightmost arrowhead
+    area += BigCoverOne(xPos[xPos.size()-1], sy, dy, forward, bidir, i_end);
+    double to_x = xPos[xPos.size()-1] - mid_xx.first;
+    area += Block(from_x, to_x, sy, dy);
+
+    return area;
 }
 
-void ArrowHead::DrawBig(const std::vector<double> &xPos, double sy, double dy,
-                        bool bidir, MscDrawer * msc)
+void ArrowHead::BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir, const MscFillAttr &fill, MscDrawer *msc) const
 {
-    if (line.type.second == LINE_NONE || !line.color.second.valid) return;
-    big_path(xPos, sy, dy, msc, line.type.second, bidir, 0);
-    if (line.type.second == LINE_DOUBLE)
-        big_path(xPos, sy, dy, msc, LINE_SOLID, bidir, 2*line.width.second);
-    msc->SetLineAttr(line);
-    cairo_stroke(msc->GetContext());
+    Area area = BigCover(xPos, sy, dy, bidir);
+    msc->Fill(area, fill);
+    msc->Line(area, line);
 }
 
-void ArrowHead::FillBig(const std::vector<double> &xPos, double sy, double dy,
-                        bool bidir, MscDrawer *msc, MscFillAttr fill)
-{
-    ClipBig(xPos, sy, dy, bidir, msc);
-    const double extent = Big_yExtent(bidir, xPos.size()>2, msc);
-    const double sext = getBigEndWidthExt(bidir, MSC_ARROW_START, msc);
-    const double dext = getBigEndWidthExt(bidir, MSC_ARROW_END, msc);
-    double sx = std::min(xPos[0], xPos[xPos.size()-1]);
-    double dx = std::max(xPos[0], xPos[xPos.size()-1]);
-    if (xPos[0] < xPos[1]) {
-        sx = xPos[0] - sext;
-        dx = xPos[xPos.size()-1] + dext;
-    } else {
-        sx = xPos[xPos.size()-1] - dext;
-        dx = xPos[0] + sext;
-    }
-    msc->filledRectangle(XY(sx, sy-extent), XY(dx,dy+extent), fill);
-    msc->UnClip();
-}
-
-//Also extends mainline
-void ArrowHead::CoverBig(const std::vector<double> &xPos, double sy, double dy,
-                         bool bidir, MscDrawer * msc, Geometry &cover) const
-{
-    const bool forward = xPos[0] < xPos[1];
-    cover += big_cover_block(xPos[0],             sy, dy, bidir, MSC_ARROW_START, forward, msc);
-    cover += big_cover_block(xPos[xPos.size()-1], sy, dy, bidir, MSC_ARROW_END,   forward, msc);
-    for (int i=1; i<xPos.size()-1; i++)
-        cover += big_cover_block(xPos[i], sy, dy, bidir, MSC_ARROW_MIDDLE, forward, msc);
-	cover.mainline += Range(sy, dy);
-}
-
-void ArrowHead::ClipBig(std::vector<double> xPos, double sy, double dy,
-                 bool bidir, MscDrawer *m) const
-{
-	big_path(xPos, sy, dy, m, LINE_SOLID, bidir, 0);
-	m->Clip();
-}

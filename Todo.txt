@@ -8,9 +8,20 @@ Two helpers needed:
  Add a test for metafiles
  Allow new function only for metafiles
 
+TODO: Check consequently that area and cover never includes vgaps
 ISSUE: missing ; at the end of last command creates an empty chart
 BUG: Change icons for file, program, etc.
 UPDATE DOC: With hints
+ADD: precise double-line joints
+ADD: More dash-dot styles
+ADD: Triple thick lines, with precise joints
+ADD: More arrowheads
+ADD: More BIG arrowheads
+ADD: More arrow types --> ==> >>> ..> 
+ADD: More space to ... dividers
+
+In 3.0
+ADDED: More precise tracking mode
 
 In 2.6
 FIXED: Many improvements to parsing, but missing the ; still result in empty chart

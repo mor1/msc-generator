@@ -190,7 +190,30 @@ template<> const char EnumEncapsulator<MscLineType>::names[][ENUM_STRING_LEN] =
 MscLineAttr::MscLineAttr() :
     type(true, LINE_SOLID), color(true, MscColorType(0,0,0)), width(true, 1.),
     radius(true, 0)
-{}
+{
+}
+
+void MscLineAttr::MakeComplete()
+{
+    if (!type.first) {type.first = true; type.second = LINE_SOLID;}
+    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255;}
+    if (!width.first) {width.first = true; width.second = 1;}
+    if (!radius.first) {radius.first = true; radius.second = 0;}
+}
+
+
+const double * MscLineAttr::DashPattern(int &num) const
+{
+    static const double dash_dotted[]={2, 2, 0};
+    static const double dash_dashed[]={6, 6, 0};
+    static const double dash_solid[] ={0};
+    _ASSERT(type.first && type.second!=LINE_INVALID);
+    switch (type.second) {
+    case LINE_DOTTED: num = 2; return dash_dotted;
+    case LINE_DASHED: num = 2; return dash_dashed;
+    }
+    num = 0; return dash_solid;
+}
 
 MscLineAttr &MscLineAttr::operator +=(const MscLineAttr&a)
 {
@@ -290,7 +313,7 @@ bool CshHintGraphicCallbackForLineType(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
     MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 2, 0);
-    msc->line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y/2), 
+    msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y/2), 
               XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y/2), line);
     return true;
 }
@@ -330,7 +353,16 @@ string MscLineAttr::Print(int ident) const
 MscFillAttr::MscFillAttr() :
     color(true, MscColorType(255,255,255)), color2(false, MscColorType(255,255,255)), 
     gradient(true, GRADIENT_NONE)
-{}
+{
+}
+
+void MscFillAttr::MakeComplete()
+{
+    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = color.second.a = 255;}
+    //color2 is not needed for completeness
+    if (!gradient.first) {gradient.first = true; gradient.second = GRADIENT_NONE;}
+}
+
 
 MscFillAttr &MscFillAttr::operator +=(const MscFillAttr&a)
 {
@@ -401,8 +433,9 @@ bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
     const int off_y = 1;
     MscColorType black(0,0,0);
     MscFillAttr fill(black, MscColorType(255,255,255), MscGradientType(int(p)));
-    msc->filledRectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), fill);
-    msc->rectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), black);
+    Block rect(XY(off_x, off_y), XY(off_x+size, off_y+size));
+    msc->Fill(rect, fill);
+    msc->Line(rect, black);
     return true;
 }
 
@@ -441,6 +474,13 @@ string MscFillAttr::Print(int ident) const
 MscShadowAttr::MscShadowAttr() :
     color(true, MscColorType(0,0,0)), offset(true, 0), blur(true, 0)
 {}
+
+void MscShadowAttr::MakeComplete()
+{
+    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = color.second.a = 255;}
+    if (!offset.first) {offset.first = true; offset.second = 0;}
+    if (!blur.first) {blur.first = true; blur.second = 0;}
+}
 
 MscShadowAttr &MscShadowAttr::operator +=(const MscShadowAttr&a)
 {
@@ -549,7 +589,7 @@ string MscShadowAttr::Print(int ident) const
 bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    msc->ClipRectangle(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
+    msc->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     cairo_t *cr = msc->GetContext();
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
     cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);  //UnClip will remove these
@@ -571,4 +611,21 @@ bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p)
     cairo_stroke(cr);
     msc->UnClip();
     return true;
+}
+
+//XXX Add chopped edges
+Contour MscRectangle(double x1, double x2, double y1, double y2, MscLineAttr line)
+{
+    Contour ret;
+    if (!line.radius.first || line.radius.second<=0) return Contour(x1, x2, y1, y2);
+    const double r = line.radius.second;
+    ret.AddAnEdge(Edge(XY(x1, y1+r)));
+    ret.AddAnEdge(Edge(XY(x2-r, y1+r), r, r, 0, 270, 360));
+    ret.AddAnEdge(Edge(XY(x2-r, y2)));
+    ret.AddAnEdge(Edge(XY(x2-r, y2-r), r, r, 0,   0,  90));
+    ret.AddAnEdge(Edge(XY(x1+r, y2)));
+    ret.AddAnEdge(Edge(XY(x1+r, y2-r), r, r, 0,  90, 180));
+    ret.AddAnEdge(Edge(XY(x1, y1+r)));
+    ret.AddAnEdge(Edge(XY(x1+r, y1+r), r, r, 0, 180, 270));
+    return ret;
 }

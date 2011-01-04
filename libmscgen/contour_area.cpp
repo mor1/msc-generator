@@ -51,6 +51,13 @@ void ContourList::assign(const std::vector<Edge> &v, bool winding)
     }
 }
 
+void ContourList::SwapXY() 
+{
+    for (auto i=begin(); i!=end(); i++)
+        i->SwapXY();
+    boundingBox.SwapXY();
+}
+
 ContourList &ContourList::operator += (const ContourWithHoles &p)
 {
     if (!boundingBox.Overlaps(p.GetBoundingBox())) {
@@ -285,6 +292,7 @@ is_within_t Area::IsWithin(const XY & p) const
     for (auto i=begin(); i!=end(); i++) {
         is_within_t ret = i->IsWithin(p);
         if (ret != WI_OUTSIDE) return ret;
+    }
     return WI_OUTSIDE;
 }
 
@@ -293,8 +301,6 @@ Area Area::CreateExpand(double gap) const
 	Area result;
 	if (gap == 0) return (result = *this);  //always return result->compiler optimizes
 	result.arc = arc;
-	result.draw = draw;
-	result.find = find;
 	result.mainline = mainline;
 	result.mainline.from -= gap;
 	result.mainline.from += gap;
@@ -319,8 +325,6 @@ void Area::Line2(cairo_t *cr) const
 void Area::swap(Area &a)
 {
     std::swap(arc, a.arc);
-    std::swap(draw, a.draw);
-    std::swap(find, a.find);
     std::swap(mainline, a.mainline);
     ContourList::swap(a);
 }
@@ -329,8 +333,6 @@ Area &Area::operator += (const Area &b)
 {
     ContourList::operator+=(b);
     mainline += b.mainline;
-    if (b.find) find = true;
-    if (int(b.draw)>int(draw)) draw = b.draw;
     if (arc==NULL) arc = b.arc;
     return *this;
 }
@@ -339,8 +341,6 @@ Area &Area::operator *= (const Area &b)
 {
     ContourList::operator*=(b);
     mainline *= b.mainline;
-    if (b.find) find = true;
-    if (int(b.draw)>int(draw)) draw = b.draw;
     if (arc==NULL) arc = b.arc;
     return *this;
 }
@@ -352,8 +352,6 @@ Area &Area::operator -= (const Area &b)
     if (b.mainline.IsWithin(mainline.from)) mainline.from=b.mainline.till;
     if (b.mainline.IsWithin(mainline.till)) mainline.till=b.mainline.from;
     //we may end up being invalid (=empty) (=till<from);
-    if (b.find) find = true;
-    if (int(b.draw)>int(draw)) draw = b.draw;
     if (arc==NULL) arc = b.arc;
     return *this;
 }

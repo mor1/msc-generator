@@ -147,7 +147,7 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
     //bexpp += bexpp2;
 	bexp.Line2(cr);
 
-    double offset = cooomplex3.OffsetBelow(bexp);
+    //double offset = cooomplex3.OffsetBelow(bexp);
     //bexp.Shift(contour::XY(0,-offset));
     //cooomplex3.Line2(cr);
 	//bexp.Line2(cr);
@@ -440,87 +440,101 @@ void CMscGenView::InvalidateBlock(const Block &b)
 }
 
 //Draw covers to the dest surface
-//only draw normal ones, skip frames
-void AddTrackRectsToSurface(const Geometry &contour, double alpha, cairo_t *cr_dest, 
-							double xScale, double yScale, COLORREF lineColor, COLORREF fillColor)
+void AddTrackRectsToSurface(const AreaList &al, double alpha, cairo_t *cr,
+							double xScale, double yScale, 
+                            COLORREF lineColor, COLORREF fillColor)
 {
-	//Calculate line width
-	int lwx = floor(xScale+0.5);
-	if (lwx<1) lwx = 1;
-	int lwy = floor(yScale+0.5);
-	if (lwy<1) lwy = 1;
-	Block b;
-	contour.GetBoundingBox(b);
-	b.x.from = (b.x.from-2) * xScale;
-	b.x.till = (b.x.till+4) * xScale;
-	b.y.from = (b.y.from-2) * yScale;
-	b.y.till = (b.y.till+4) * yScale;
-	//create fill surface
-	//We make it lwx, lwy larger at top and left, so xor operations are not truncated there
-	cairo_surface_t *surface_fill = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
-	cairo_t *cr_fill = cairo_create(surface_fill);
-	cairo_set_source_rgba(cr_fill, 1, 1, 1, 1);
-	
-	for (std::set<Block>::const_iterator j = contour.GetCover().begin(); j!=contour.GetCover().end(); j++) {
-		CRect rr;
-		rr.left   = j->x.from * xScale - 2*lwx;
-		rr.right  = j->x.till * xScale + 2*lwx;
-		rr.top    = j->y.from * yScale - 2*lwy;
-		rr.bottom = j->y.till * yScale + 2*lwy;
-		cairo_rectangle(cr_fill, rr.left - b.x.from + lwx, rr.top - b.y.from + lwy, rr.Width(), rr.Height());
-		//Here j->drawType can only be NORMAL. FFRAMEs are handled in CMscGenView::DrawTrackRects
-		cairo_fill(cr_fill);
-	}	
-	cairo_destroy(cr_fill);
+    cairo_save(cr);
+    cairo_scale(cr, xScale, yScale);
+    cairo_set_line_width(cr, 1);
 
-	//create outline surface  (we make it lwx, lwy larger...)
-	cairo_surface_t *surface_line = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
-	cairo_t *cr_line = cairo_create(surface_line);
-	cairo_set_operator(cr_line, CAIRO_OPERATOR_XOR);
-	cairo_set_source_rgba(cr_line, 1, 1, 1, 1);
-	cairo_mask_surface(cr_line, surface_fill, 0, 0);
-	cairo_mask_surface(cr_line, surface_fill, lwx, lwy);
-	cairo_destroy(cr_line);
+    for (auto i = al.GetCover().begin(); i!=al.GetCover().end(); i++) {
+	    cairo_set_source_rgba(cr, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+		                          GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+        i->Fill(cr);
+	    cairo_set_source_rgba(cr, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+		                          GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+        i->Line(cr);
+    }
+    cairo_restore(cr);
+    
+    ////Calculate line width
+	//int lwx = floor(xScale+0.5);
+	//if (lwx<1) lwx = 1;
+	//int lwy = floor(yScale+0.5);
+	//if (lwy<1) lwy = 1;
+	//Block b;
+	//contour.GetBoundingBox(b);
+	//b.x.from = (b.x.from-2) * xScale;
+	//b.x.till = (b.x.till+4) * xScale;
+	//b.y.from = (b.y.from-2) * yScale;
+	//b.y.till = (b.y.till+4) * yScale;
+	////create fill surface
+	////We make it lwx, lwy larger at top and left, so xor operations are not truncated there
+	//cairo_surface_t *surface_fill = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
+	//cairo_t *cr_fill = cairo_create(surface_fill);
+	//cairo_set_source_rgba(cr_fill, 1, 1, 1, 1);
+	//
+	//for (std::set<Block>::const_iterator j = contour.GetCover().begin(); j!=contour.GetCover().end(); j++) {
+	//	CRect rr;
+	//	rr.left   = j->x.from * xScale - 2*lwx;
+	//	rr.right  = j->x.till * xScale + 2*lwx;
+	//	rr.top    = j->y.from * yScale - 2*lwy;
+	//	rr.bottom = j->y.till * yScale + 2*lwy;
+	//	cairo_rectangle(cr_fill, rr.left - b.x.from + lwx, rr.top - b.y.from + lwy, rr.Width(), rr.Height());
+	//	//Here j->drawType can only be NORMAL. FFRAMEs are handled in CMscGenView::DrawTrackRects
+	//	cairo_fill(cr_fill);
+	//}	
+	//cairo_destroy(cr_fill);
 
-	//Copy stuff to the destination surface
-	cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
-		                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
-	cairo_mask_surface(cr_dest, surface_fill, b.x.from, b.y.from);
-	cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
-		                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
-	cairo_mask_surface(cr_dest, surface_line, b.x.from-lwx, b.y.from-lwy);
-	cairo_surface_destroy(surface_line);
-	cairo_surface_destroy(surface_fill);
+	////create outline surface  (we make it lwx, lwy larger...)
+	//cairo_surface_t *surface_line = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
+	//cairo_t *cr_line = cairo_create(surface_line);
+	//cairo_set_operator(cr_line, CAIRO_OPERATOR_XOR);
+	//cairo_set_source_rgba(cr_line, 1, 1, 1, 1);
+	//cairo_mask_surface(cr_line, surface_fill, 0, 0);
+	//cairo_mask_surface(cr_line, surface_fill, lwx, lwy);
+	//cairo_destroy(cr_line);
+
+	////Copy stuff to the destination surface
+	//cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+	//	                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+	//cairo_mask_surface(cr_dest, surface_fill, b.x.from, b.y.from);
+	//cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+	//	                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+	//cairo_mask_surface(cr_dest, surface_line, b.x.from-lwx, b.y.from-lwy);
+	//cairo_surface_destroy(surface_line);
+	//cairo_surface_destroy(surface_fill);
 }
 
 //Draw a frame to the dest surface, assume b is a frame
-void AddFrameToSurface(const Block &block, double alpha, cairo_t *cr_dest, 
-					   double xScale, double yScale, COLORREF lineColor, COLORREF fillColor)
-{
-	//Calculate line width
-	int lwx = floor(xScale+0.5);
-	if (lwx<1) lwx = 1;
-	int lwy = floor(yScale+0.5);
-	if (lwy<1) lwy = 1;
-	Block b;
-	b.x.from = (block.x.from) * xScale;
-	b.x.till = (block.x.till) * xScale;
-	b.y.from = (block.y.from) * yScale;
-	b.y.till = (block.y.till) * yScale;
-	cairo_rectangle(cr_dest, b.x.from,         b.y.from,         b.x.Spans(),         b.y.Spans());
-	cairo_rectangle(cr_dest, b.x.from - 3*lwx, b.y.from - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
-	cairo_set_fill_rule(cr_dest, CAIRO_FILL_RULE_EVEN_ODD);
-	cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
-		                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
-	cairo_fill(cr_dest);
-
-	cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
-		                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
-	cairo_rectangle(cr_dest, b.x.from+0.5,         b.y.from+0.5,         b.x.Spans(),         b.y.Spans());
-	cairo_rectangle(cr_dest, b.x.from+0.5 - 3*lwx, b.y.from+0.5 - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
-	cairo_set_line_width(cr_dest, (lwx+lwy)/2);
-	cairo_stroke(cr_dest);
-}
+//void AddFrameToSurface(const Block &block, double alpha, cairo_t *cr_dest, 
+//					   double xScale, double yScale, COLORREF lineColor, COLORREF fillColor)
+//{
+//	//Calculate line width
+//	int lwx = floor(xScale+0.5);
+//	if (lwx<1) lwx = 1;
+//	int lwy = floor(yScale+0.5);
+//	if (lwy<1) lwy = 1;
+//	Block b;
+//	b.x.from = (block.x.from) * xScale;
+//	b.x.till = (block.x.till) * xScale;
+//	b.y.from = (block.y.from) * yScale;
+//	b.y.till = (block.y.till) * yScale;
+//	cairo_rectangle(cr_dest, b.x.from,         b.y.from,         b.x.Spans(),         b.y.Spans());
+//	cairo_rectangle(cr_dest, b.x.from - 3*lwx, b.y.from - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
+//	cairo_set_fill_rule(cr_dest, CAIRO_FILL_RULE_EVEN_ODD);
+//	cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+//		                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+//	cairo_fill(cr_dest);
+//
+//	cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+//		                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+//	cairo_rectangle(cr_dest, b.x.from+0.5,         b.y.from+0.5,         b.x.Spans(),         b.y.Spans());
+//	cairo_rectangle(cr_dest, b.x.from+0.5 - 3*lwx, b.y.from+0.5 - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
+//	cairo_set_line_width(cr_dest, (lwx+lwy)/2);
+//	cairo_stroke(cr_dest);
+//}
 
 
 //clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
@@ -537,23 +551,25 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double ySc
 	//This is the destination surface
 	cairo_surface_t *surface_dest = cairo_win32_surface_create(*pDC);
 	cairo_t *cr_dest = cairo_create(surface_dest);
-	for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
-		//Draw normal covers, leave out FRAME
-		Geometry contour;
-		for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
-			if (j->drawType == Block::DRAW_NORMAL)
-				contour += *j;
-		AddTrackRectsToSurface(contour, i->alpha/255., cr_dest, xScale, yScale, 
+	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
+        AddTrackRectsToSurface(i->arc->GetAreaToDraw(), i->alpha/255., cr_dest, xScale, yScale, 
 			                   pApp->m_trackLineColor, pApp->m_trackFillColor);
-		//Do the frames
-		for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
-			if (j->drawType == Block::DRAW_FRAME) 
-				AddFrameToSurface(*j, i->alpha/255., cr_dest, xScale, yScale, 
-				                  pApp->m_trackLineColor, pApp->m_trackFillColor);
+		////Draw normal covers, leave out FRAME
+		//Geometry contour;
+		//for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
+		//	if (j->drawType == Block::DRAW_NORMAL)
+		//		contour += *j;
+		//AddTrackRectsToSurface(contour, i->alpha/255., cr_dest, xScale, yScale, 
+		//	                   pApp->m_trackLineColor, pApp->m_trackFillColor);
+		////Do the frames
+		//for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
+		//	if (j->drawType == Block::DRAW_FRAME) 
+		//		AddFrameToSurface(*j, i->alpha/255., cr_dest, xScale, yScale, 
+		//		                  pApp->m_trackLineColor, pApp->m_trackFillColor);
 	}
 
 	//ToDo: POLYGON TESTING XXX
-	test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
+	//test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
 
 	//Cleanup
 	cairo_destroy(cr_dest);

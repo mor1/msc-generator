@@ -121,7 +121,7 @@ public:
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
     LineToArcMapType              AllArcs;
-    std::list<Block>              AllCovers;
+    AreaList                      AllCovers;
 
     /** Gap at the bottom of the page for lengthening entity lines */
     double chartTailGap;
@@ -165,41 +165,33 @@ public:
     void PushContext(bool empty=false);
     ArcBase *PopContext();
 
-    void PostParseProcessArcList(ArcList &arcs, bool resetiterators,
-                                         EIterator &left, EIterator &right,
-                                         Numbering &number, bool top_level);
+    void ParseText(const char *input, const char *filename);
+
+    void PostParseProcessArcList(ArcList &arcs, bool resetiterators, EIterator &left, 
+                                 EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(void);
     virtual string Print(int ident=0) const;
+    double XCoord(double pos) const {return pos*130*(hscale>0?hscale:1);}
 
-    double XCoord(double pos) const
-        {return pos*130*(hscale>0?hscale:1);}
-    double FindCollision(const Geometry &a, const Geometry &b, double &CollisionYPos) const;
-    double FindCollision(const Geometry &a, const Geometry &b) const
-	    {double dummy; return FindCollision(a,b,dummy);}
-
-    void HideEntityLines(const Geometry &geom);
+    void HideEntityLines(const Area &area);
 
     void DrawEntityLines(double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(double y, double height)
          {DrawEntityLines(y, height, Entities.begin(), Entities.end());}
 
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
-    double PlaceDrawListUnder(ArcList::iterator from, ArcList::iterator to,
-                              double top_y, double low_y,
-                              Geometry &g, Geometry &g_result,
-                              bool draw, bool final, bool forceCompress=false);
-    double DrawHeightArcList(ArcList::iterator from, ArcList::iterator to,
-                             double y, Geometry &g,
-                             bool draw, bool final, double autoMarker=-1);
-
+    void HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
+    double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
+                          double top_y, const AreaList &area_top, bool forceCompress=false);
+    void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(void);
-    void PostHeightProcess(void);
+    void PostPosProcessArcList(ArcList &arcs, double autoMarker);
+
+    void CompleteParse(OutputType, bool avoidEmpty);
+    void DrawArcList(ArcList &arcs);
     void Draw(bool pageBreaks);
     void DrawCopyrightText(int page=-1);
     void DrawPageBreaks();
-
-    void ParseText(const char *input, const char *filename);
-    void CompleteParse(OutputType, bool avoidEmpty);
     void DrawToOutput(OutputType, const string &);
 };
 

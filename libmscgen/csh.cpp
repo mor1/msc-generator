@@ -503,8 +503,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
         return;
     //Take one from first, since RichEditCtrel works that way
     --hintedStringPos.first_pos;
-    //Find the plain text for all hints
-    MscDrawer msc;
+    //Find the plain text for all hints <-- What was this??
 }
 
 MscColorSyntaxType Csh::GetCshAt(int pos)
@@ -692,10 +691,11 @@ bool CshHintGraphicCallbackForAttributeNames(MscDrawer *msc, CshHintGraphicParam
     const double h = 0.08*HINT_GRAPHIC_SIZE_Y;
     const double off = 0.35*HINT_GRAPHIC_SIZE_Y;
     MscColorType color(0, 0, 0);
-    msc->filledRectangle(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h),
-                         MscFillAttr(color), 3);
-    msc->filledRectangle(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off),
-                         MscFillAttr(color), 3);
+    MscLineAttr line;
+    line.radius.second = 3;
+    MscFillAttr fill(color);
+    msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h), line, fill);
+    msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off), line, fill);
     return true;
 }
 
@@ -731,8 +731,8 @@ bool CshHintGraphicCallbackForColors(MscDrawer *msc, CshHintGraphicParam p)
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
     MscColorType color(p);
-    msc->filledRectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), color);
-    msc->rectangle(XY(off_x, off_y), XY(off_x+size, off_y+size), MscColorType(0,0,0));
+    msc->Fill(XY(off_x, off_y), XY(off_x+size, off_y+size), color);
+    msc->Line(XY(off_x, off_y), XY(off_x+size, off_y+size), MscColorType(0,0,0));
     return true;
 }
 
@@ -756,7 +756,9 @@ bool CshHintGraphicCallbackForDesigns(MscDrawer *msc, CshHintGraphicParam /*p*/)
     const XY ul(0.2*HINT_GRAPHIC_SIZE_X, 0.2*HINT_GRAPHIC_SIZE_Y);
     const XY br(0.8*HINT_GRAPHIC_SIZE_X, 0.8*HINT_GRAPHIC_SIZE_Y);
     MscColorType color(0, 0, 0);
-    msc->ClipRectangle(ul, br, 2);
+    MscLineAttr line;
+    line.radius.second = 2;
+    msc->Clip(ul, br, line);
     cairo_pattern_t *pattern = cairo_pattern_create_linear(ul.x, ul.y, br.x, br.y);
     cairo_pattern_add_color_stop_rgb(pattern, 0.0, 255/255., 255/255., 255/255.);  //white
     cairo_pattern_add_color_stop_rgb(pattern, 0.1, 128/255., 128/255.,   0/255.);  //brown
@@ -777,7 +779,7 @@ bool CshHintGraphicCallbackForDesigns(MscDrawer *msc, CshHintGraphicParam /*p*/)
     cairo_rectangle(msc->GetContext(), ul.x, ul.y, br.x, br.y);
     cairo_fill(msc->GetContext());
     msc->UnClip();
-    msc->rectangle(ul, br, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, 2));
+    msc->Line(ul, br, line);
     cairo_pattern_destroy(pattern);
     return true;
 }
@@ -800,19 +802,19 @@ bool CshHintGraphicCallbackForStyles(MscDrawer *msc, CshHintGraphicParam p)
     shadow.blur.second=0;
 
     Block b(HINT_GRAPHIC_SIZE_X*0.1, HINT_GRAPHIC_SIZE_X*0.5, HINT_GRAPHIC_SIZE_Y*0.1, HINT_GRAPHIC_SIZE_Y*0.5);
-    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
-    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+    msc->Fill(b, line, fill);
+    msc->Line(b, line);
 
     b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
     fill.color.second = MscColorType(255,0,0);
-    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
-    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+    msc->Fill(b, fill);
+    msc->Line(b, line);
 
     b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
     fill.color.second = MscColorType(0,0,255);
-    msc->shadow(b.UpperLeft(), b.LowerRight(), shadow, line.radius.second, false);
-    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
-    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+    msc->Shadow(b, shadow, false);
+    msc->Fill(b, fill);
+    msc->Line(b, line);
     return true;
 }
 
@@ -823,14 +825,13 @@ bool CshHintGraphicCallbackForStyles2(MscDrawer *msc, CshHintGraphicParam p)
     std::vector<double> xPos(2); 
     xPos[0] = HINT_GRAPHIC_SIZE_X*0.2;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.8;
-    msc->ClipRectangle(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1), 0);
+    msc->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     ArrowHead ah(ArrowHead::BIGARROW);
     ah.line += MscColorType(0,0,0); //black
     ah.endType.second = MSC_ARROW_SOLID;
     ah.size.second = MSC_ARROWS_INVALID;
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
-    ah.FillBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc, fill);
-    ah.DrawBig(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, msc);
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, fill, msc);
     msc->UnClip();
     return true;
 }
@@ -854,11 +855,8 @@ bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
     MscColorType color(128, 64, 64);
-    msc->_arc_path(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), 
-                   XY(HINT_GRAPHIC_SIZE_Y*0.6, HINT_GRAPHIC_SIZE_Y*0.6), 
-                   0, 360, 0, LINE_SOLID);
-    msc->Clip();
-    msc->filledRectangle(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
+    msc->Clip(contour::Ellipse(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.6));
+    msc->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
     msc->UnClip();
     return true;
 }
@@ -884,10 +882,10 @@ bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/
     shadow.blur.second=0;
 
     Block b(HINT_GRAPHIC_SIZE_X*0.25, HINT_GRAPHIC_SIZE_X*0.75, HINT_GRAPHIC_SIZE_Y*0.1, HINT_GRAPHIC_SIZE_Y*0.5);
-    msc->line(XY(HINT_GRAPHIC_SIZE_X/2, b.y.till), XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.9), vline);
-    msc->shadow(b.UpperLeft(), b.LowerRight(), shadow, line.radius.second, false);
-    msc->filledRectangle(b.UpperLeft(), b.LowerRight(), fill, line.radius.second);
-    msc->rectangle(b.UpperLeft(), b.LowerRight(), line);
+    msc->Line(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.5), XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.9), vline);
+    msc->Shadow(b, line, shadow, false);
+    msc->Fill(b, line, fill);
+    msc->Line(b, line);
     return true;
 }
 

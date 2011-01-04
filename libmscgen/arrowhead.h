@@ -2,7 +2,7 @@
 #define ARROWHEAD_H
 #include <vector>
 #include "attribute.h"
-#include "trackable.h" //for Block
+#include "contour_area.h" 
 
 typedef enum {
     MSC_ARROW_INVALID = 0,
@@ -38,6 +38,14 @@ typedef enum {
 
 class MscDrawer;
 
+class DoublePair : public std::pair<double, double> 
+{
+public:
+    DoublePair() {};
+    DoublePair(double a, double b) : std::pair<double, double>(a,b) {}
+    void swap() {std::swap(first, second);}
+};
+
 class ArrowHead
 {
 protected:
@@ -46,17 +54,6 @@ protected:
     static double baseDiamondSize;
     static double baseDotSize;
     static double arrowSizePercentage[6];
-
-
-    void big_end_path(double &xpos, double x, double sy, double dy, bool dir,
-                      bool up, MscDrawer *, MscArrowType, MscLineType, double lw) const;
-    void big_mid_path(double &xpos, double x, double sy, double dy,
-                      bool up, MscDrawer *, MscArrowType, MscLineType, double lw) const;
-    void big_path(std::vector<double> xPos, double sy, double dy,
-                  MscDrawer *, MscLineType type, bool bidir, double lw) const;
-    Block big_cover_block(double x, double sx, double dy,
-                          bool bidir, MscArrowEnd which, bool forward, MscDrawer *msc) const;
-
 public:
     MscLineAttr                   line;
     std::pair<bool, MscArrowSize> size;
@@ -69,33 +66,40 @@ public:
         size(true, MSC_ARROW_SMALL), endType(true, MSC_ARROW_SOLID),
         midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
     void Empty();
+    bool IsComplete() const {return line.IsComplete() && size.first && endType.first && midType.first && startType.first;}
     ArrowHead & operator += (const ArrowHead &);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh, ArcType t);
-
+    //tells what sort of MscArrowType should be drawn 
     MscArrowType GetType(bool bidir, MscArrowEnd which) const;
-    XY getWidthHeight(bool bidir, MscArrowEnd which, MscDrawer *) const;
-    std::pair<double, double> getWidthForLine(bool bidir, MscArrowEnd which, MscDrawer *) const;
-    Range EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which,
-                          MscDrawer *msc) const;
+
+//functions for normal (small) arrowheads
+    //tells how wide and high a specific arrowhead
+    XY getWidthHeight(bool bidir, MscArrowEnd which) const;
+    //tells how much of the arrow line is covered by the arrowhead (on both sides of the entity line)
+    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, double mainlinewidth) const;
+    //tells what range of the entity line is covered by the arrowhead
+    Range EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
+    //Returns a contour covering the arrowhead
+    Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, double mainlinewidth) const;
+    //This actually draws an arrowhead
     void Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *) const;
 
-    XY getBigWidthHeight(MscArrowType type, MscDrawer *msc) const;
-    XY getBigWidthHeight(bool bidir, MscArrowEnd which, MscDrawer *msc) const
-        {return getBigWidthHeight(GetType(bidir, which), msc);}
-    double getBigEndWidthExt(bool bidir, MscArrowEnd which, MscDrawer *msc) const;
-    double getBigEndWidthMargin(bool bidir, MscArrowEnd which, MscDrawer *msc) const;
-
-    double Big_yExtent(bool bidir, bool segmented, MscDrawer *) const;
-    void DrawBig(const std::vector<double> &xPos, double sy, double dy,
-                 bool bidir, MscDrawer *);
-    void FillBig(const std::vector<double> &xPos, double sy, double dy,
-                 bool bidir, MscDrawer *, MscFillAttr);
-    void CoverBig(const std::vector<double> &xPos, double sy, double dy,
-                  bool bidir, MscDrawer * msc, Geometry &cover) const;
-    void ClipBig(std::vector<double> xPos, double sy, double dy,
-                 bool bidir, MscDrawer *m) const;
+//functions for block arrow heads
+    //The characteristic size of arrowhead
+    XY getBigWidthHeight(bool bidir, MscArrowEnd which) const;
+    //Returns true if this type of arrow will segment a big arrow as midtype
+    bool bigDoesSegment(bool bidir, MscArrowEnd which) const;
+    //tells how much of the arrow line is covered by the arrowhead (on both sides of the entity line)
+    DoublePair getBigWidths(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
+    //Determines how much margin is needed for a text with this cover
+    double getBigMargin(Area text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const;
+    //tells how much the arrow (overall) extends above or below sy and dy
+    double bigYExtent(bool bidir, bool multisegment) const;
+    Area BigCoverOne(double x, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const; 
+    Area BigCover(std::vector<double> xPos, double sy, double dy, bool bidir) const;
+    void BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir, const MscFillAttr &fill, MscDrawer *msc) const;
 };
 
 #endif //ARROWHEAD_H

@@ -901,7 +901,7 @@ entity:       entity_string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
   #else
-        $$ = (new EntityDef($1, &msc))->AddAttributeList($2, &msc);
+        $$ = (new EntityDef($1, &msc))->AddAttributeList($2);
         ($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
@@ -912,7 +912,7 @@ entity:       entity_string full_arcattrlist_with_label
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
   #else
-    $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL, &msc);
+    $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL);
     ($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
@@ -927,7 +927,7 @@ first_entity:  entity_string full_arcattrlist_with_label
 	}
         csh.AddCSH_KeywordOrEntity(@1, $1);
   #else
-        $$ = (new EntityDef($1, &msc))->AddAttributeList($2, &msc);
+        $$ = (new EntityDef($1, &msc))->AddAttributeList($2);
         ($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
@@ -941,7 +941,7 @@ first_entity:  entity_string full_arcattrlist_with_label
 	}
         csh.AddCSH_KeywordOrEntity(@1, $1);
   #else
-        $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL, &msc);
+        $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL);
         ($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);

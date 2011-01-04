@@ -480,7 +480,7 @@ CPPointer::CPPointer(const CPOnEdge &cp) : bycont(&cp.iRay->bycont), vertex(cp.i
     iCP = bycont->find(CPPos(cp.iRay->vertex, cp.iRay->pos));
     //if a cp at pos is not found, jump to next vertex
     if (iCP == bycont->end()) {
-        _ASSERT(0); //XXX
+        _ASSERT(0); //XXX remove this assert
         vertex = (vertex+1)%bycont->contour->size();
         iCP = bycont->end();
     }
@@ -491,7 +491,7 @@ CPPointer::CPPointer(const Ray &ray) : bycont(&ray.bycont), vertex(ray.vertex)
     iCP = bycont->find(CPPos(ray.vertex, ray.pos));
     //if a cp at pos is not found, jump to next vertex
     if (iCP == bycont->end()) {
-        _ASSERT(0); //XXX
+        _ASSERT(0); //XXX remove this assert
         vertex = (vertex+1)%bycont->contour->size();
         iCP = bycont->end();
     }
@@ -517,7 +517,7 @@ void CPPointer::SwitchTo(CPRays::iterator i)
     iCP = bycont->lower_bound(CPPos(i->vertex, i->pos));
     //if a cp at pos is not found, jump to next vertex
     if (IsAtVertex()) {
-        _ASSERT(0); //XXX
+        _ASSERT(0); //XXX remove this assert
         vertex = (vertex+1)%bycont->contour->size();
         iCP = bycont->end();
     }
@@ -577,12 +577,17 @@ Contour::Contour(double ax, double ay, double bx, double by, double cx, double c
     *this = Contour(XY(ax,ay), XY(bx,by), XY(cx,cy));
 }
 
-Contour::Contour(const XY &c, double radius_x, double radius_y, double tilt_degree)
+Contour::Contour(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg)
 {
     if (radius_y==0) radius_y = radius_x;
-    Edge edge(c, radius_x, radius_y, tilt_degree);
-	boundingBox = edge.CalculateBoundingBox(edge.GetStart());
+    Edge edge(c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
+    XY end = edge.GetEllipse().Radian2Point(d_deg*2*M_PI/180.);
+	boundingBox = edge.CalculateBoundingBox(end);
     push_back(edge);
+    if (edge.GetStart().test_equal(end)) return; //full circle
+    Edge edge2(end);
+    edge2.CalculateBoundingBox(edge.GetStart());
+    push_back(edge2);
 }
 
 Contour &Contour::operator =(const Block &b)
@@ -614,13 +619,13 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
 {
     if (size()==0 || boundingBox.IsWithin(p)==WI_OUTSIDE) return WI_OUTSIDE;
 
-    //Follow the contour and see how much it crosses the horizontal line going through p
-    //count the crossings to our right
+    //Follow the contour and see how much it crosses the vertical line going through p
+    //count the crossings below us (with larger y)
     //http://softsurfer.com/Archive/algorithm_0103/algorithm_0103.htm
-    //1. an upward edge includes its starting endpoint, and excludes its final endpoint;
-    //2. a downward edge excludes its starting endpoint, and includes its final endpoint;
-    //3. horizontal edges are excluded; and
-    //4. the edge-ray intersection point must be strictly right of the point P.
+    //1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
+    //2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
+    //3. vertical edges are excluded; and
+    //4. the edge-ray intersection point must be strictly below of the point P.
     //4b: since we say containment also for edge points, if the egde goes through p, we stop
     int count = 0;
     int e;
@@ -628,12 +633,13 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
         if (edge) *edge = e;      //return value
         if (at(e).GetStart().test_equal(p)) return WI_ON_VERTEX;
         const int epp = next(e);  //wrap back at the end
-        double x[2], po[2];
-        switch (at(e).CrossingHorizontal(p.y, at(epp).GetStart(), x, po)) {
+        double y[2], po[2];
+        bool forward[2];
+        switch (at(e).CrossingVertical(p.x, at(epp).GetStart(), y, po, forward)) {
         case 2:
-            if (x[1] == p.x) {  //on an edge, we are _not_ approximate here
+            if (y[1] == p.y) {  //on an edge, we are _not_ approximate here
                 //we have tested that at(e) is not equal to p, so no need to test for that here
-                if (test_equal(at(epp).GetStart().y, p.y)) {
+                if (test_equal(at(epp).GetStart().x, p.x)) {
                     if (edge) *edge = epp;
                     return WI_ON_VERTEX;
                 } else {
@@ -641,12 +647,12 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
 					return WI_ON_EDGE; // on an edge, but not vertex
 				}
             }
-            if (x[1] > p.x) count ++;
+            if (y[1] > p.y) count ++;
             //fallthrough
         case 1:
-            if (x[0] == p.x) {  //on an e
+            if (y[0] == p.y) {  //on an e
                 //we have tested that at(e) is not equal to p, so no need to test for that here
-                if (test_equal(at(epp).GetStart().y, p.y)) {
+                if (test_equal(at(epp).GetStart().x, p.x)) {
                     if (edge) *edge = epp;
                     return WI_ON_VERTEX;
                 } else {
@@ -654,16 +660,16 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
 					return WI_ON_EDGE; // on an edge, but not vertex
 				}
             }
-            if (x[0] > p.x) count ++;
+            if (y[0] > p.y) count ++;
             break;
         case -1:
-            if ((test_smaller(p.x, at(e).GetStart().x) && test_smaller(at(epp).GetStart().x, p.x)) ||
-                (test_smaller(at(e).GetStart().x, p.x) && test_smaller(p.x, at(epp).GetStart().x))) {
-				if (pos) *pos = (p.x-at(e).GetStart().x)/(at(epp).GetStart().x-at(e).GetStart().x);
+            if ((test_smaller(p.y, at(e).GetStart().y) && test_smaller(at(epp).GetStart().y, p.y)) ||
+                (test_smaller(at(e).GetStart().y, p.y) && test_smaller(p.y, at(epp).GetStart().y))) {
+				if (pos) *pos = (p.y-at(e).GetStart().y)/(at(epp).GetStart().y-at(e).GetStart().y);
 				return WI_ON_EDGE; //goes through p
 			}
             //we have tested that at(e) is not equal to p, so no need to test for that here
-            if (test_equal(at(epp).GetStart().x, p.x)) {
+            if (test_equal(at(epp).GetStart().y, p.y)) {
                 if (edge) *edge = epp;
                 return WI_ON_VERTEX; //on vertex
             }
@@ -1210,6 +1216,59 @@ const Block &Contour::CalculateBoundingBox()
     return boundingBox;
 }
 
+bool Contour::AddAnEdge(const Edge &edge)
+{
+    if (size() == 0) {
+        push_back(edge);
+        boundingBox = at(0).CalculateBoundingBox(at(0).start);
+        return true;
+    }
+    //see if we need to replace the last edge
+    bool replace = edge.GetStart().test_equal(at(size()-1).GetStart());
+    if (size() == 0 && replace) {
+        pop_back();
+        push_back(edge);
+        boundingBox = at(0).CalculateBoundingBox(at(0).start);
+        return true;
+    }
+    XY end = edge.IsStraight() ? at(0).start : edge.GetEllipse().Radian2Point(edge.e);
+    XY dum1[8];
+    double dum2[8];
+    //check if edge is crossing any existing edges
+    for (int i = 1; i<size()-replace?1:0; i++) 
+        if (Edge::Crossing(at(i), at_next(i).GetStart(), edge, end, dum1, dum2, dum2))
+            return false;
+    //if edge is an arc not ending exactly in at(0)...
+    if (!at(0).start.test_equal(end)) {
+        //check if existing edges cross end->at(0).start
+        for (int i = 1; i<size()-replace?1:0; i++) 
+            if (Edge::Crossing(at(i), at_next(i).GetStart(), Edge(end), at(0).start, dum1, dum2, dum2))
+                return false;
+        //check if edge crosses end->at(0)
+        if (Edge::Crossing(edge, end, Edge(end), at(0).start, dum1, dum2, dum2))
+                return false;
+    }
+    //OK, we can insert
+    if (replace)
+        pop_back();
+    push_back(edge);
+    boundingBox += at(size()-1).CalculateBoundingBox(at(0).start);
+    if (!at(0).start.test_equal(end))
+        push_back(Edge(end));
+    //if we removed an edge, we might recalculate the entire bounding box 
+    //(since that could have been a big one)
+    if (replace)
+        CalculateBoundingBox();
+    return true;
+}
+
+bool OpenHere(const XY &xy)
+{
+    _ASSERT(0); //Add Openhere to Contour
+    return false;
+}
+
+
 void Contour::Rotate(double cos, double sin, double radian)
 {
     boundingBox.MakeInvalid();
@@ -1412,6 +1471,13 @@ void Contour::Expand(double gap, ContourList &res) const
 		}
 }
 
+ContourList Contour::CreateExpand(double gap) const
+{
+    ContourList cl;
+    Expand(gap, cl);
+    return cl;
+}
+
 void Contour::Path(cairo_t *cr, bool inverse) const
 {
     if (size()==0 || cr==NULL) return;
@@ -1425,28 +1491,51 @@ void Contour::Path(cairo_t *cr, bool inverse) const
     cairo_close_path(cr);
 }
 
-double Contour::do_offsetbelow(const Contour &below) const
+//Do not close the path or include the last edge (even if curvy)
+void Contour::PathOpen(cairo_t *cr) const
+{
+    if (size()==0 || cr==NULL) return;
+    cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
+    for (int i = 0; i<size()-1; i++)
+        at(i).Path(cr, at_next(i).GetStart());
+}
+
+double Contour::do_offsetbelow(const Contour &below, double &touchpoint) const
 {
     double offset = CONTOUR_INFINITY;
     for (int i = 0; i<size(); i++)
         for (int j = 0; j<below.size(); j++)
             if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
-                double r;
+                double off, tp;
                 if (at(i).IsStraight()) {
                     if (below.at(j).IsStraight())
-                        r = Edge::offsetbelow_straight_straight(at(i).start, at_next(i).start, 
-                                                below.at(j).start, below.at_next(j).start);
+                        off = Edge::offsetbelow_straight_straight(at(i).start, at_next(i).start, 
+                                                below.at(j).start, below.at_next(j).start, tp);
                     else
-                        r = below.at(j).offsetbelow_curvy_straight(at(i).start,at_next(i).start, true);
+                        off = below.at(j).offsetbelow_curvy_straight(at(i).start,at_next(i).start, true, tp);
                 } else {
                     if (below.at(j).IsStraight()) 
-                        r = at(i).offsetbelow_curvy_straight(below.at(j).start, below.at_next(j).start, false);
+                        off = at(i).offsetbelow_curvy_straight(below.at(j).start, below.at_next(j).start, false, tp);
                     else
-                        r = at(i).offsetbelow_curvy_curvy(below.at(j));
+                        off = at(i).offsetbelow_curvy_curvy(below.at(j), tp);
                 }
-                if (offset>r) offset = r;
+                if (off < offset) {
+                    touchpoint = tp;
+                    offset = off;
+                }
             }
     return offset;
+}
+
+void Contour::DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const
+{
+    double y[2], pos[2];
+    bool forward[2];
+    for (int i=0; i<size(); i++) {
+        const int num = at(i).CrossingVertical(x, at_next(i).GetStart(), y, pos, forward);
+        for (int j = 0; j<num; j++)
+            section.Set(y[j], forward[j] == add);
+    }
 }
 
 
