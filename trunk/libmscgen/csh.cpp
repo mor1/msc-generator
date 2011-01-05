@@ -693,7 +693,7 @@ bool CshHintGraphicCallbackForAttributeNames(MscDrawer *msc, CshHintGraphicParam
     MscColorType color(0, 0, 0);
     MscLineAttr line;
     line.radius.second = 3;
-    MscFillAttr fill(color);
+    MscFillAttr fill(color, GRADIENT_NONE);
     msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h), line, fill);
     msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off), line, fill);
     return true;
@@ -727,12 +727,15 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
 bool CshHintGraphicCallbackForColors(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    const int size = HINT_GRAPHIC_SIZE_Y-2;
+    const int size = HINT_GRAPHIC_SIZE_Y-3;
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
     MscColorType color(p);
-    msc->Fill(XY(off_x, off_y), XY(off_x+size, off_y+size), color);
-    msc->Line(XY(off_x, off_y), XY(off_x+size, off_y+size), MscColorType(0,0,0));
+    Block b(XY(off_x, off_y), XY(off_x+size, off_y+size));
+    b.Round();
+    msc->Fill(b, MscFillAttr(color, GRADIENT_NONE));
+    b.Expand(0.5);
+    msc->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, 0));
     return true;
 }
 

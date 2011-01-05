@@ -75,7 +75,7 @@ unsigned solve_degree2 (const double m_afCoeff[3], double afRoot[2])
     if (m_afCoeff[2] == 0) {
         //linear
         if (m_afCoeff[1] == 0)
-            return 0;
+            return -1;
         afRoot[0] = -m_afCoeff[0]/m_afCoeff[1];
         return 1;
     }
@@ -479,7 +479,7 @@ Ellipse::Ellipse(const XY &c, double radius_x, double radius_y, double tilt_degr
             std::swap(radius1, radius2);
         }
         if (tilt_degree) {
-            tilt = tilt_degree * M_PI/180.;
+            tilt = deg2rad(tilt_degree);
             sintilt = sin(tilt);
             costilt = cos(tilt);
             tilted = true;
@@ -518,13 +518,15 @@ void Ellipse::SwapXY()
         tilt = M_PI/2 - tilt; //mirror on 45 degrees
 }
 
-
+//Return -1 if the two ellipses are equal
 int Ellipse::CrossingEllipse(const Ellipse &B, XY r[], double radian_us[], double radian_b[]) const
 {
     //Now this is scary shit. Above there is a suite to solve 4th degree equations, we use those
     //we are interested only in real solutions
     //for ellipses see http://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
 
+    //First check if the two ellipses are the same
+    if (B==*this) return -1;
     double y[4];
     int num_y;
     const quadratic_xy_t one(*this), two(B);
@@ -605,13 +607,18 @@ int Ellipse::CrossingStraight(const XY &A, const XY &B,
     if (disc<0) return 0; //no intersection
 
     XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
-    if (test_zero(fabs(v.x)+fabs(v.y))) return 0; //only touch
     if (d.y<0) v.x = -v.x;
     XY f(D*d.y, -D*d.x);
-
-    //the intersect coordinates in unit circle space
-    r[0] = (f+v)/d.length()/d.length();
-    r[1] = (f-v)/d.length()/d.length();
+    int num;
+    if (test_zero(fabs(v.x)+fabs(v.y))) { //only touch
+        r[0] = f/d.length()/d.length();
+        num = 1;
+    } else {
+        //the intersect coordinates in unit circle space
+        r[0] = (f+v)/d.length()/d.length();
+        r[1] = (f-v)/d.length()/d.length();
+        num = 2;
+    }
 
     for (int i=0; i<2; i++) {
         radian_us[i] = circle_space_point2radian_curvy(r[i]);

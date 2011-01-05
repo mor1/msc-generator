@@ -92,6 +92,8 @@ inline double MM(XY A, XY B)
 //in pos_in_ab we return the relative pos of the crosspoint(s) in AB, in pos_in_mn for MN
 //See http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm
 //crossing points that result in a pos value close to 1 are ignored
+//In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
+//sections are returned (if they overlap or touch)
 int Edge::crossing_straight_straight(const XY A, const XY B, const XY M, const XY N,
 		                                 XY *r, double *pos_in_ab, double *pos_in_mn)
 {
@@ -215,7 +217,7 @@ double Edge::radian2pos(double r) const
 }
 
 Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg,double s_deg, double d_deg) :
-    ell(c, radius_x, radius_y, tilt_deg), s(s_deg*2*M_PI/180.), e(d_deg*2*M_PI/180.), clockwise_arc(true)
+    ell(c, radius_x, radius_y, tilt_deg), s(deg2rad(s_deg)), e(deg2rad(d_deg)), clockwise_arc(true)
 {
     straight = false;
     start = ell.Radian2Point(s);
@@ -260,9 +262,57 @@ int Edge::Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
     int num;
     XY loc_r[8];
     double loc_ab[8], loc_mn[8];
-    if (!A.straight && !M.straight) 
+    if (!A.straight && !M.straight) {
         num = A.ell.CrossingEllipse(M.ell, loc_r, loc_ab, loc_mn);
-    else if (A.straight) 
+        if (num == -1) { //two equal ellipses, determine joint section (if any)
+            if (A.radianbetween(M.s)) {
+                loc_ab[0] = M.s;
+                if (A.radianbetween(M.e))
+                    loc_ab[1] = M.e;
+                else 
+                    if (M.radianbetween(A.s))
+                        loc_ab[1] = A.s;
+                    else 
+                        if (M.radianbetween(A.e))
+                            loc_ab[1] = A.e;
+                        else 
+                            num = 1;
+            } else if (A.radianbetween(M.e)) {
+                loc_ab[0] = M.e;
+                if (M.radianbetween(A.s))
+                    loc_ab[1] = A.s;
+                else 
+                    if (M.radianbetween(A.e))
+                        loc_ab[1] = A.e;
+                    else 
+                        num = 1;
+            } else if (M.radianbetween(A.s)) {
+                loc_ab[0] = A.s;
+                if (M.radianbetween(A.e))
+                    loc_ab[1] = A.e;
+                else 
+                        num = 1;
+            } else if (M.radianbetween(A.e)) {
+                loc_ab[0] = A.e;
+                num = 1;
+            } else
+                return 0;
+            if (num == -1) 
+                num = (loc_ab[0] == loc_ab[1]) ? 1 : 2;
+            //Now we have the radian(s) in loc_ab. Convert to xy and pos & return
+            for (int i=0; i<num; i++) {
+                r[i] = A.ell.Radian2Point(loc_ab[i]);
+                pos_ab[i] = A.radian2pos(loc_ab[i]);
+                pos_mn[i] = M.radian2pos(loc_ab[i]);
+                if (!test_smaller(pos_ab[i],1) || !test_smaller(pos_mn[i], 1)) {
+                    if (i==num-1) return num-1;
+                    loc_ab[0] = loc_ab[1]; //can only be if num==2, i==1
+                    i=-1; num=1;
+                }
+            }
+            return num;
+        }
+    } else if (A.straight) 
         num = M.ell.CrossingStraight(A.start, B, loc_r, loc_mn, loc_ab);
     else /* (M.straight)*/ 
         num = A.ell.CrossingStraight(M.start, N, loc_r, loc_ab, loc_mn);

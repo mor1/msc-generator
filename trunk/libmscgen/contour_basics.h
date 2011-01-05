@@ -48,6 +48,9 @@ public:
 	void   RotateAround(const XY&c, double cos, double sin) 
 	    {double X=x-c.x, Y=y-c.y; x=X*cos-Y*sin+c.x; y=X*sin+Y*cos+c.y;}
     XY &   SwapXY()                       {std::swap(x,y); return *this;}
+    XY &   Round()                        {x = floor(x+.5); y=floor(y+.5); return *this;}
+    XY &   RoundUp()                      {x = ceil(x); y=ceil(y); return *this;}
+    XY &   RoundDown()                    {x = floor(x); y=floor(y); return *this;}
 };
 
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
@@ -83,6 +86,11 @@ struct Range {
         return till<r.till;
     }
     bool operator ==(const Range &r) const {return from==r.from && till==r.till;}
+    Range & Round()       {from = floor(from+.5); till=floor(till+.5); return *this;}
+    Range & RoundUp()     {from = ceil(from); till=ceil(till); return *this;}
+    Range & RoundDown()   {from = floor(from); till=floor(till); return *this;}
+    Range & RoundWider()  {from = floor(from); till=ceil(till); return *this;}
+    Range & RoundCloser() {from = ceil(from); till=floor(till); return *this;}
 };
 
 struct Block {
@@ -130,6 +138,11 @@ struct Block {
         {x.Shift(a.x); y.Shift(a.y); return *this;}
     Block &Expand(double a) {x.Expand(a); y.Expand(a); return *this;}
     Block &SwapXY() {std::swap(x,y); return *this;}
+    Block & Round()       {x.Round(); y.Round(); return *this;}
+    Block & RoundUp()     {x.RoundUp(); y.RoundUp(); return *this;}
+    Block & RoundDown()   {x.RoundDown(); y.RoundDown(); return *this;}
+    Block & RoundWider()  {x.RoundWider(); y.RoundWider(); return *this;}
+    Block & RoundCloser() {x.RoundCloser(); y.RoundCloser(); return *this;}
 };
 
 }; //namespace

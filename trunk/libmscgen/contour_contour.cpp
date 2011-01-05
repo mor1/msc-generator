@@ -581,7 +581,7 @@ Contour::Contour(const XY &c, double radius_x, double radius_y, double tilt_deg,
 {
     if (radius_y==0) radius_y = radius_x;
     Edge edge(c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
-    XY end = edge.GetEllipse().Radian2Point(d_deg*2*M_PI/180.);
+    XY end = edge.GetEllipse().Radian2Point(deg2rad(d_deg));
 	boundingBox = edge.CalculateBoundingBox(end);
     push_back(edge);
     if (edge.GetStart().test_equal(end)) return; //full circle

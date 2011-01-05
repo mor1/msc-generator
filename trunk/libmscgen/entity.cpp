@@ -17,6 +17,7 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <cmath>
 #include "msc.h"
 
 template class PtrList<Entity>;
@@ -269,26 +270,26 @@ string EntityDef::Print(int ident) const
     return ss;
 };
 
-//returns how wide the entity is 
+//returns how wide the entity is, not including its shadow
 double EntityDef::Width() const
 {
-    const Label parsed_label((*itr)->label, chart, style.text);
-    const XY wh = parsed_label.getTextWidthHeight();
-    return style.line.LineWidth()*2 + wh.x + style.shadow.offset.second;
+    const double width = ceil(style.line.LineWidth()*2 + parsed_label.getTextWidthHeight().x);
+    return width + fmod(width, 2); //always return an even number
 }
 
 double EntityDef::Height(AreaList &cover) 
 {
-    const double x = chart->XCoord((*itr)->pos);
+    const double x = chart->XCoord((*itr)->pos); //integer
     const XY wh = parsed_label.getTextWidthHeight();
     const double lw = style.line.LineWidth();
     const double width = lw*2 + wh.x;
-    const double height = chart->headingVGapAbove + wh.y + chart->headingVGapBelow + 2*lw;
+    const double height = ceil(chart->headingVGapAbove + wh.y + chart->headingVGapBelow + 2*lw);
 
-    area = outer_edge = Block(x-width/2, x+width/2, 0, height);
-    cover += Contour((x-width)/2 + style.shadow.offset.second, (x+width)/2, 0, height + style.shadow.offset.second);
+    //do not include shadow in anything... but the returned height (uses for non-compressed placement)
+    area = outer_edge = Block(x-ceil(width/2), x+ceil(width/2), 0, height);
+    cover += area;
     cover.mainline += outer_edge.y;
-    return height + style.shadow.offset.second;
+    return height + style.shadow.offset.second; 
 }
 
 void EntityDef::PostPosProcess()

@@ -195,7 +195,7 @@ public:
     std::pair<bool, MscLineType>  type;
     std::pair<bool, MscColorType> color;
     std::pair<bool, double>       width;
-    std::pair<bool, int>          radius;
+    std::pair<bool, double>       radius;
     MscLineAttr();
     MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}
     MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}

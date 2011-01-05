@@ -124,21 +124,21 @@ public:
     AreaList                      AllCovers;
 
     /** Gap at the bottom of the page for lengthening entity lines */
-    double chartTailGap;
+    int chartTailGap;
     /** Self Pointing arc Y size. */
-    double selfArrowYSize;
+    int selfArrowYSize;
     /** Vertical gap above and below headings */
-    double headingVGapAbove, headingVGapBelow;
+    int headingVGapAbove, headingVGapBelow;
     /** Vertical gap above and below emph boxes */
-    double emphVGapOutside, emphVGapInside;
+    int emphVGapOutside, emphVGapInside;
     /** Vertical gap above and below arcs */
-    double arcVGapAbove, arcVGapBelow;
+    int arcVGapAbove, arcVGapBelow;
     /** Nudge size */
-    double nudgeSize;
+    int nudgeSize;
     /** Size of gap at compress */
-    double compressXGap, compressYGap;
+    int compressXGap, compressYGap;
     /** Size of gap at hscale=auto */
-    double hscaleAutoXGap;
+    int hscaleAutoXGap;
 
     /* Parse Options */
     double       hscale;     /** Relative xsize, -1 is auto **/
@@ -171,7 +171,7 @@ public:
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(void);
     virtual string Print(int ident=0) const;
-    double XCoord(double pos) const {return pos*130*(hscale>0?hscale:1);}
+    double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
 
     void HideEntityLines(const Area &area);
 
@@ -180,7 +180,7 @@ public:
          {DrawEntityLines(y, height, Entities.begin(), Entities.end());}
 
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
-    void HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
+    double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
     double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
                           double top_y, const AreaList &area_top, bool forceCompress=false);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
