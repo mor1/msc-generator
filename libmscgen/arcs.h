@@ -83,6 +83,7 @@ public:
     /* This fills in distances for hscale=auto mechanism */
     virtual void Width(EntityDistanceMap &distances) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
+    /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
     virtual double Height(AreaList &cover) = 0;
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {TrackableElement::ShiftBy(y);}
@@ -179,9 +180,9 @@ class ArcBigArrow : public ArcDirArrow
 protected:
     XY getArrowWidthHeight(MscArrowSize) const;
 
+    mutable double sy, dy;    //The middle of the contour of the body: set in Width already
     mutable int stext, dtext; //filled by Width: index the two entity in xPos between which the text spans (sorted)
     mutable double sm, dm;    //filled by Width: margin (left and right) for text
-    mutable double sy, dy;    //The middle of the contour of the body.
 public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);
     static void AttributeNames(Csh &csh);
@@ -307,6 +308,7 @@ class ArcParallel : public ArcBase
 {
 protected:
     PtrList<ArcList> blocks;
+    std::vector<double> heights;  //max height of previous blocks
 public:
     ArcParallel(Msc *msc) : ArcBase(MSC_ARC_PARALLEL, msc) {}
     ArcParallel* AddArcList(ArcList*l) {blocks.push_back(l); return this;}
@@ -402,6 +404,5 @@ public:
     virtual double Height(AreaList &cover);
     virtual void Draw();
 };
-
 
 #endif //ARCS_H

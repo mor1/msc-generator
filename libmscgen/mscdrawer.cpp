@@ -52,6 +52,17 @@
 #endif
 
 
+/* This is a class implementing a lot of useful helpers for drawing on top of cairo.
+ * These include opening and closing various files or destination contexts depending on target,
+ * faking some effects for some targets (such as gradient or dash lines for WMF) and
+ * drawing/filling complete contours plus shadowing them.
+ *
+ * Comments on drawing.
+ * Cairo draws lines on integer coordinates halfway to both adoining pixels.
+ * This should be avoided, especially for thin lines.
+ * However, we do not do it here - call each Fill/Line etc function with the appropriate coordinates.
+ */
+
 MscDrawer::MscDrawer() :
     total(0,0), copyrightTextHeight(0),
     outFile(NULL), surface(NULL), cr(NULL)
@@ -80,7 +91,7 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     use_text_path_rotated = false;
     individual_chars = false;
     fake_gradients = 0;
-    fake_dash = false;
+    fake_dash = true; //XXX fake_dash
     fake_shadows = false;
     fake_spaces = false;
     scale = 1.0;
@@ -499,6 +510,110 @@ void MscDrawer::CloseOutput()
     fileName.clear();
 }
 
+void MscDrawer::Clip(const contour::Ellipse &ellipse)
+{
+    cairo_save(cr);
+    cairo_save(cr);
+    ellipse.TransformForDrawing(cr);
+    cairo_arc(cr, 0, 0, 1, 0, 2*M_PI);
+    cairo_restore(cr);
+    cairo_clip(cr);
+}
+
+//rotates such that a 
+void MscDrawer::Transform_Rotate90(double s, double d, bool clockwise)
+{
+    cairo_save(cr);
+    cairo_matrix_t matrix;
+    matrix.xx = 0;
+    matrix.yy = 0;
+    if (clockwise) {
+        matrix.xy = 1;
+        matrix.x0 = 0;
+        matrix.yx = -1;
+        matrix.y0 = s+d;
+    } else {
+        matrix.yx = 1;
+        matrix.y0 = 0;
+        matrix.xy = -1;
+        matrix.x0 = s+d;
+    }
+    cairo_transform(cr, &matrix);
+}
+
+void MscDrawer::Transform_SwapXY()
+{
+    cairo_save(cr);
+    cairo_matrix_t matrix;
+    matrix.xy = 1;
+    matrix.yx = 1;
+    matrix.xx = 0;
+    matrix.yy = 0;
+    matrix.x0 = 0;
+    matrix.y0 = 0;
+    cairo_transform(cr, &matrix);
+}
+
+void MscDrawer::Transform_FlipHorizontal(double y)
+{
+    cairo_save(cr);
+    cairo_matrix_t matrix;
+    matrix.xx = 1;
+    matrix.xy = 0;
+    matrix.x0 = 0;
+    matrix.yy = -1;
+    matrix.yx = 0;
+    matrix.y0 = 2*y;
+    cairo_transform(cr, &matrix);
+}
+
+void MscDrawer::SetColor(MscColorType pen)
+{
+	if (pen.valid)
+		cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
+}
+
+void MscDrawer::SetLineAttr(MscLineAttr line)
+{
+    if (fake_dash)
+        cairo_set_dash(cr, NULL, 0, 0); 
+    else if (line.type.first) {
+        int num;
+        const double * const pattern = line.DashPattern(num);
+        cairo_set_dash(cr, pattern, num ,0); 
+    }
+	if (line.color.first && line.color.second.valid)
+        SetColor(line.color.second);
+    if (line.width.first)
+        cairo_set_line_width(cr, line.width.second);
+}
+
+void MscDrawer::SetFontFace(const char*face, bool italics, bool bold)
+{
+    cairo_select_font_face (cr, face,
+                            italics?CAIRO_FONT_SLANT_ITALIC:CAIRO_FONT_SLANT_NORMAL,
+                            bold?CAIRO_FONT_WEIGHT_BOLD:CAIRO_FONT_WEIGHT_NORMAL);
+}
+
+void MscDrawer::Text(XY xy, const string &s, bool isRotated)
+{
+    cairo_move_to (cr, xy.x, xy.y);
+    if (use_text_path || (isRotated && use_text_path_rotated)) {
+        cairo_text_path(cr, s.c_str());
+        cairo_fill(cr);
+        return;
+    }
+    if (individual_chars) {
+        char tmp_stirng[2] = "a";
+        for (int i=0; i<s.length(); i++) {
+            tmp_stirng[0] = s[i];
+            cairo_show_text(cr, tmp_stirng);
+        }
+    } else {
+        cairo_show_text (cr, s.c_str());
+    }
+}
+
 void MscDrawer::ArcPath(const contour::Ellipse &ell, double s_rad, double e_rad, bool reverse)
 {
     cairo_save (cr);
@@ -524,6 +639,7 @@ void MscDrawer::ArcPath(const XY &c, double r1, double r2, double s_rad, double 
 
 void MscDrawer::RectanglePath(double sx, double dx, double sy, double dy)
 {
+    cairo_new_path(cr);
     cairo_move_to(cr, sx, sy);
     cairo_line_to(cr, dx, sy);
     cairo_line_to(cr, dx, dy);
@@ -532,6 +648,7 @@ void MscDrawer::RectanglePath(double sx, double dx, double sy, double dy)
 }
 void MscDrawer::RectanglePath(double sx, double dx, double sy, double dy, const MscLineAttr &line)
 {
+    cairo_new_path(cr);
     //XXX: Add chopped corners
     if (line.radius.first && line.radius.second>0) {
         ArcPath(XY(sx+line.radius.second, sy+line.radius.second), line.radius.second, line.radius.second, 2.*M_PI/2., 3.*M_PI/2.);
@@ -543,6 +660,9 @@ void MscDrawer::RectanglePath(double sx, double dx, double sy, double dy, const 
         RectanglePath(sx, dx, sy, dy);
 }
 
+////////////////////// Line routines
+
+
 //Draw dashed/dotted line
 //assume color and linewidth are set correctly. We also assume cairo dash is set to continuous: we fake dash here
 //The pattern contains lengths of alternating on/off segments, num contains the number of elements in pattern
@@ -551,17 +671,14 @@ void MscDrawer::fakeDashedLine(const XY &s, const XY &d, const double pattern[],
 {
     _ASSERT(num);
     _ASSERT(offset<pattern[pos]);
-    double pattern_len = 0;
-    for (int i=0; i<num; i++)
-        pattern_len += pattern[i];
-
     const double len = sqrt((d.x-s.x)*(d.x-s.x) + (d.y-s.y)*(d.y-s.y));
     const double ddx = (d.x-s.x)/len;
     const double ddy = (d.y-s.y)/len;
     double processed = 0;
-    double x = s.x+CAIRO_OFF, y = s.y+CAIRO_OFF;  //XXX CAIRO_OFF?
+    double x = s.x, y = s.y;  
+    cairo_new_path(cr);
     if (offset) {
-        if (pattern[pos]-offset < len) { //remaining segment is shorter than the entire length
+        if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
             if (pos%2==0) {//start with drawn
                 cairo_move_to(cr, s.x, s.y);
                 cairo_line_to(cr, d.x, d.y);
@@ -588,9 +705,11 @@ void MscDrawer::fakeDashedLine(const XY &s, const XY &d, const double pattern[],
     }
 
     offset = len - processed;
-    if (pos%2 || test_zero(offset)) return;
-    cairo_move_to(cr, x, y);
-    cairo_line_to(cr, d.x+CAIRO_OFF, d.y+CAIRO_OFF); //XXX CAIRO_OFF?
+    if (pos%2==0 && !test_zero(offset)) {
+        cairo_move_to(cr, x, y);
+        cairo_line_to(cr, d.x, d.y); 
+    }
+    cairo_stroke(cr);
 }
 
 //Draw dashed/dotted line
@@ -602,10 +721,9 @@ void MscDrawer::fakeDashedLine(const XY &c, double r1, double r2, double tilt, d
 {
     _ASSERT(num);
     _ASSERT(offset<pattern[pos]);
-    double pattern_len = 0;
-    for (int i=0; i<num; i++)
-        pattern_len += pattern[i];
-
+    if (r2<=0 || r1<=0) return;
+    
+    cairo_new_path(cr);
     cairo_save(cr);
     cairo_translate(cr, c.x, c.y);
     if (tilt)
@@ -621,18 +739,21 @@ void MscDrawer::fakeDashedLine(const XY &c, double r1, double r2, double tilt, d
     const double inc_s = s<e ? 1/avg_r : -1/avg_r;
     double processed = 0;
     if (offset) {
-        if (pattern[pos]-offset < len) { //remaining segment is shorter than the entire length
+        if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
+            offset += len;
             if (pos%2==0) {//start with drawn
+                cairo_new_sub_path(cr);
                 if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, e);
                 else cairo_arc(cr, 0, 0, 1., s, e);
+                cairo_restore(cr);
                 cairo_stroke(cr);
-            }
-            offset += len;
-            cairo_restore(cr);
+            } else
+                cairo_restore(cr);
             return;
         }
         const double new_s = s + inc_s*(pattern[pos]-offset);
         if (pos%2==0) {
+            cairo_new_sub_path(cr);
             if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, new_s);
             else cairo_arc(cr, 0, 0, 1., s, new_s);
         }
@@ -644,6 +765,7 @@ void MscDrawer::fakeDashedLine(const XY &c, double r1, double r2, double tilt, d
     while (processed+pattern[pos] <= len) {
         const double new_s = s + inc_s*pattern[pos];
         if (pos%2==0) {
+            cairo_new_sub_path(cr);
             if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, new_s);
             else cairo_arc(cr, 0, 0, 1., s, new_s);
         }
@@ -654,20 +776,23 @@ void MscDrawer::fakeDashedLine(const XY &c, double r1, double r2, double tilt, d
 
     offset = len - processed;
     if (pos%2==0 && !test_zero(offset)) {
+        cairo_new_sub_path(cr);
         if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, e);
         else cairo_arc(cr, 0, 0, 1., s, e);
     }
     cairo_restore(cr);
+    cairo_stroke(cr);
 }
 
 //Draw a line, but ignore if a double line is proscribed by line.
 //However, if the surface requires faking dashes, do them. 
-//Assume Color and Width are already set in cairo context
+//Assume Color and Width (and Dash if we do not fake it) are already set in cairo context
 void MscDrawer::singleLine(const XY &s, const XY &d, const MscLineAttr &line)
 {
-    if (line.IsContinuous()) {
-        cairo_move_to(cr, s.x+CAIRO_OFF, s.y+CAIRO_OFF); //XXX CAIRO_OFF
-        cairo_line_to(cr, d.x+CAIRO_OFF, d.y+CAIRO_OFF);
+    if (line.IsContinuous() || !fake_dash) {
+        cairo_new_path(cr);
+        cairo_move_to(cr, s.x, s.y); 
+        cairo_line_to(cr, d.x, d.y);
         cairo_stroke(cr);
     } else {
         int num, pos = 0;
@@ -681,9 +806,10 @@ void MscDrawer::singleLine(const XY &s, const XY &d, const MscLineAttr &line)
 void MscDrawer::singleLine(const XY &c, double r1, double r2, double tilt, 
                            double s, double e, const MscLineAttr &line, bool reverse)
 {
-    if (line.IsContinuous()) {
+    if (line.IsContinuous() || !fake_dash) {
+        cairo_new_path(cr);
         cairo_save (cr);
-        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
+        cairo_translate (cr, c.x, c.y);
         if (tilt)
             cairo_rotate(cr, tilt);
         cairo_scale (cr, r1, r2);
@@ -704,7 +830,7 @@ void MscDrawer::singleLine(const XY &c, double r1, double r2, double tilt,
 
 void MscDrawer::singleLine(const Block &b, const MscLineAttr &line)
 {
-    if (line.IsContinuous()) {
+    if (line.IsContinuous() || !fake_dash) {
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
         cairo_stroke(cr);
     } else {
@@ -712,20 +838,20 @@ void MscDrawer::singleLine(const Block &b, const MscLineAttr &line)
         const double *pattern;
         double offset = 0;
         pattern = line.DashPattern(num);
-        const double radius = line.radius.second > 0 ? line.radius.second : 0;
-        if (radius)
+        const double radius = line.radius.second;
+        if (radius>0)
             fakeDashedLine(XY(b.x.from+radius, b.y.from+radius), radius, 
                 radius, 0, 2.*M_PI/2., 3.*M_PI/2., pattern, num, pos, offset, false);
         fakeDashedLine(XY(b.x.from+radius, b.y.from), XY(b.x.till-radius, b.y.from), pattern, num, pos, offset);
-        if (radius)
+        if (radius>0)
             fakeDashedLine(XY(b.x.till-radius, b.y.from+radius), radius, 
                 radius, 0, 3.*M_PI/2., 4.*M_PI/2., pattern, num, pos, offset, false);
         fakeDashedLine(XY(b.x.till, b.y.from+radius), XY(b.x.till, b.y.till-radius), pattern, num, pos, offset);
-        if (radius)
+        if (radius>0)
             fakeDashedLine(XY(b.x.till-radius, b.y.till-radius), radius, 
                 radius, 0, 0.*M_PI/2., 1.*M_PI/2., pattern, num, pos, offset, false);
         fakeDashedLine(XY(b.x.till-radius, b.y.till), XY(b.x.from+radius, b.y.till), pattern, num, pos, offset);
-        if (radius)
+        if (radius>0)
             fakeDashedLine(XY(b.x.from+radius, b.y.till-radius), radius, 
                 radius, 0, 1.*M_PI/2., 2.*M_PI/2., pattern, num, pos, offset, false);
         fakeDashedLine(XY(b.x.from, b.y.till-radius), XY(b.x.from, b.y.from+radius), pattern, num, pos, offset);
@@ -734,7 +860,7 @@ void MscDrawer::singleLine(const Block &b, const MscLineAttr &line)
 
 void MscDrawer::singleLine(const Contour &c, const MscLineAttr &line, bool open)
 {
-    if (line.IsContinuous()) {
+    if (line.IsContinuous() || !fake_dash) {
         if (open)
             c.PathOpen(cr);
         else
@@ -772,103 +898,113 @@ void MscDrawer::singleLine(const Area&cl, const MscLineAttr &line)
     }
 }
 
-//void MscDrawer::_line_path(double sx, double sy, double dx, double dy, double wider, MscLineType type)
-//{
-//    const double len = sqrt((dx-sx)*(dx-sx) + (dy-sy)*(dy-sy));
-//    if ((type == LINE_DASHED || type == LINE_DOTTED) && fake_dash) {
-//        cairo_set_dash(cr, NULL,0,0);
-//        const double dash = (type == LINE_DOTTED) ? MSC_DASH_DOTTED : MSC_DASH_DASHED;
-//        const double ddx = dash*(dx-sx)/len;
-//        const double ddy = dash*(dy-sy)/len;
-//        unsigned count = unsigned(len/2/dash);
-//        double x = sx+CAIRO_OFF, y = sy+CAIRO_OFF;
-//        const double to_x = dx+CAIRO_OFF-2*ddx, to_y = dy+CAIRO_OFF-2*ddy;
-//        while(count>0) {
-//            cairo_move_to(cr, x, y);
-//            cairo_line_to(cr, x+ddx, y+ddy);
-//            x += 2*ddx;
-//            y += 2*ddy;
-//            count--;
-//        }
-//        cairo_move_to(cr, x, y);
-//        cairo_line_to(cr, dx+CAIRO_OFF, dy+CAIRO_OFF);
-//    } else if (type == LINE_DOUBLE) {
-//        const double DX = (sy-dy)/len*wider;
-//        const double DY = (sx-dx)/len*wider;
-//        cairo_move_to(cr, sx+DX+CAIRO_OFF, sy-DY+CAIRO_OFF);
-//        cairo_line_to(cr, dx+DX+CAIRO_OFF, dy-DY+CAIRO_OFF);
-//        cairo_move_to(cr, sx-DX+CAIRO_OFF, sy+DY+CAIRO_OFF);
-//        cairo_line_to(cr, dx-DX+CAIRO_OFF, dy+DY+CAIRO_OFF);
-//    } else {
-//        if (fabs(sx - save_x)>1e-4 || fabs(sy - save_y)>1e-4)
-//            cairo_move_to(cr, sx+CAIRO_OFF, sy+CAIRO_OFF);
-//        cairo_line_to(cr, dx+CAIRO_OFF, dy+CAIRO_OFF);
-//        save_x = dx;
-//        save_y = dy;
-//    }
-//}
-//
-//void MscDrawer::_arc_path(XY c, XY wh, double s, double e, double wider, MscLineType type, bool reverse)
-//{
-//    //Handle degenerate case - draw line
-//    if (wh.x == 0 || wh.y == 0) {
-//        if ((s-e)/360 == floor((s-e)/360)) {
-//            s=0;
-//            e=180;
-//        }
-//        //We do not handle complex cases just what is needed for pipe drawing
-//        XY src = XY(cos(s*(M_PI/180.))*wh.x/2, sin(s*(M_PI/180.))*wh.y/2) + c;
-//        XY dst = XY(cos(e*(M_PI/180.))*wh.x/2, sin(e*(M_PI/180.))*wh.y/2) + c;
-//        if (save_x!=-1)
-//            _line_path(save_x, save_y, src.x, src.y, 0, type);
-//        _line_path(src.x, src.y, dst.x, dst.y, 0, type);
-//        save_x = dst.x;
-//        save_y = dst.y;
-//        return;
-//    }
-//    if ((type == LINE_DASHED || type == LINE_DOTTED) && fake_dash) {
-//        cairo_set_dash(cr, NULL,0,0);
-//        double dash = MSC_DASH_DASHED;
-//        if (type == LINE_DOTTED)
-//            dash = MSC_DASH_DOTTED;
-//        cairo_save (cr);
-//        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
-//        cairo_scale (cr, wh.x / 2., wh.y / 2.);
-//        double rot = dash/(wh.x+wh.y)*2*2;  //dash/radius
-//        double ss = s*(M_PI/180.);
-//        double ee = e*(M_PI/180.);
-//        if (ee<ss) ee += 2*M_PI;
-//        while(ss<ee-2*rot) {
-//            cairo_new_sub_path(cr);
-//            cairo_arc (cr, 0., 0., 1., ss, ss+rot);
-//            ss += 2*rot;
-//        }
-//        cairo_new_sub_path(cr);
-//        cairo_arc (cr, 0., 0., 1., ss, ee);
-//        cairo_restore (cr);
-//    } else if (type == LINE_DOUBLE) {
-//        cairo_new_sub_path(cr);
-//		_arc_path(c, wh+XY(0, 2*wider), s, e, 0, LINE_SOLID, reverse);
-//        cairo_new_sub_path(cr);
-//		//ensure that radius adjusted by wider is always nonzero
-//		XY w(2*wider, 2*wider);
-//		if (wh.x<wider) w.x = wh.x;
-//		if (wh.y<wider) w.y = wh.y;
-//		_arc_path(c, wh-w, s, e, 0, LINE_SOLID, reverse);
-//    } else {
-//        cairo_save (cr);
-//        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
-//        cairo_scale (cr, wh.x / 2., wh.y / 2.);
-//        if (reverse)
-//            cairo_arc_negative(cr, 0., 0., 1., s*(M_PI/180.), e*(M_PI/180.));
-//        else
-//            cairo_arc(cr, 0., 0., 1., s*(M_PI/180.), e*(M_PI/180.));
-//        cairo_restore (cr);
-//    }
-//    save_x = c.x + wh.x*cos(M_PI/180.*e);
-//    save_y = c.y + wh.y*sin(M_PI/180.*e);
-//}
-//
+void MscDrawer::Line(const Edge& edge, const MscLineAttr &line)
+{
+    _ASSERT(line.IsComplete());
+    if (edge.IsStraight()) return;
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    SetLineAttr(line);
+    const contour::Ellipse &ell = edge.GetEllipse();
+    const double spacing = line.DoubleSpacing();
+    if (spacing) {
+        singleLine(ell.GetCenter(), ell.GetRadius1()-spacing, ell.GetRadius2()-spacing, 
+            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
+        singleLine(ell.GetCenter(), ell.GetRadius1()+spacing, ell.GetRadius2()+spacing, 
+            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
+    } else 
+        singleLine(ell.GetCenter(), ell.GetRadius1(), ell.GetRadius2(), 
+            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
+}
+
+void MscDrawer::Line(const XY &s, const XY &d, const MscLineAttr &line)
+{
+    _ASSERT(line.IsComplete());
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    SetLineAttr(line);
+    const double spacing = line.DoubleSpacing();
+    if (spacing) {
+        const double len = sqrt((d.x-s.x)*(d.x-s.x) + (d.y-s.y)*(d.y-s.y));
+        const double DX = (s.y-d.y)/len*spacing;
+        const double DY = (s.x-d.x)/len*spacing;
+        singleLine(s+XY(DX, -DY), d+XY(DX, -DY), line);
+        singleLine(s-XY(DX, -DY), d-XY(DX, -DY), line);
+    } else 
+        singleLine(s, d, line);
+}
+
+void MscDrawer::Line(const Block &b, const MscLineAttr &line)
+{
+    //XXX Add chopped corners
+    _ASSERT(line.IsComplete());
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    if (b.IsInvalid()) return;
+    SetLineAttr(line);
+    const double spacing = line.DoubleSpacing();
+    if (spacing) {
+        Block bb(b);
+        MscLineAttr line2(line);
+        bb.Expand(spacing);
+        if (line2.radius.second>0) line2.radius.second += spacing;
+        singleLine(bb, line2);
+        bb.Expand(-2*spacing);
+        line2.radius.second -= 2*spacing; //negative radius is handled as 0 by singleLine
+        singleLine(bb, line2);
+    } else 
+        singleLine(b, line);
+}
+
+void MscDrawer::Line(const Contour &c, const MscLineAttr &line)
+{
+    _ASSERT(line.IsComplete());
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    if (c.IsEmpty()) return;
+    SetLineAttr(line);
+    const double spacing = line.DoubleSpacing();
+    if (spacing) {
+        singleLine(c.CreateExpand(spacing), line);
+        singleLine(c.CreateExpand(-spacing), line);
+    } else 
+        singleLine(c, line, true);
+}
+
+void MscDrawer::Line(const Area &area, const MscLineAttr &line) 
+{
+    _ASSERT(line.IsComplete());
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    if (area.IsEmpty()) return;
+    SetLineAttr(line);
+    const double spacing = line.DoubleSpacing();
+    if (spacing) {
+        singleLine(area.CreateExpand(spacing), line);
+        singleLine(area.CreateExpand(-spacing), line);
+    } else 
+        singleLine(area, line);
+}
+
+void MscDrawer::LineOpen(const Contour &c, const MscLineAttr &line)
+{
+    _ASSERT(line.IsComplete());
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    if (c.IsEmpty()) return;
+    SetLineAttr(line);
+    const double spacing = line.DoubleSpacing();
+    if (spacing) {
+        ContourList cl;
+        c.Expand(spacing, cl);
+        if (!cl.IsEmpty())
+            singleLine(*const_cast<const ContourList*>(&cl)->begin(), line, true);
+        cl.clear();
+        c.Expand(-spacing, cl);
+        if (!cl.IsEmpty())
+            singleLine(*const_cast<const ContourList*>(&cl)->begin(), line, true);
+    } else 
+        singleLine(c, line);
+}
+
+
+////////////////////// Fill routines
+
+
 void _add_color_stop(cairo_pattern_t *pattern, double offset, MscColorType color)
 {
     cairo_pattern_add_color_stop_rgba(pattern, offset,
@@ -1011,225 +1147,6 @@ void MscDrawer::fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, 
     }
 }
 
-void MscDrawer::SetColor(MscColorType pen)
-{
-	if (pen.valid)
-		cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
-}
-
-void MscDrawer::SetLineAttr(MscLineAttr line)
-{
-    if (fake_dash)
-        cairo_set_dash(cr, NULL, 0, 0); 
-    else if (line.type.first) {
-        int num;
-        const double * const pattern = line.DashPattern(num);
-        cairo_set_dash(cr, pattern, num ,0); 
-    }
-	if (line.color.first && line.color.second.valid)
-        SetColor(line.color.second);
-    if (line.width.first)
-        cairo_set_line_width(cr, line.width.second);
-}
-
-void MscDrawer::SetFontFace(const char*face, bool italics, bool bold)
-{
-    cairo_select_font_face (cr, face,
-                            italics?CAIRO_FONT_SLANT_ITALIC:CAIRO_FONT_SLANT_NORMAL,
-                            bold?CAIRO_FONT_WEIGHT_BOLD:CAIRO_FONT_WEIGHT_NORMAL);
-}
-
-void MscDrawer::Text(XY xy, const string &s, bool isRotated)
-{
-    cairo_move_to (cr, xy.x, xy.y);
-    if (use_text_path || (isRotated && use_text_path_rotated)) {
-        cairo_text_path(cr, s.c_str());
-        cairo_fill(cr);
-        return;
-    }
-    if (individual_chars) {
-        char tmp_stirng[2] = "a";
-        for (int i=0; i<s.length(); i++) {
-            tmp_stirng[0] = s[i];
-            cairo_show_text(cr, tmp_stirng);
-        }
-    } else {
-        cairo_show_text (cr, s.c_str());
-    }
-}
-
-
-////////////////////////////////// Public functios
-
-void MscDrawer::Clip(const contour::Ellipse &ellipse)
-{
-    cairo_save(cr);
-    cairo_save(cr);
-    ellipse.TransformForDrawing(cr);
-    cairo_arc(cr, 0, 0, 1, 0, 2*M_PI);
-    cairo_restore(cr);
-    cairo_clip(cr);
-}
-
-//void MscDrawer::ClipAndMap(const Block &before, const Block &after)
-//{
-//    cairo_save(cr);
-//    cairo_translate(cr, before.UpperLeft().x, before.UpperLeft().y);
-//    cairo_scale(cr, before.x.Spans()/after.x.Spans(), before.y.Spans()/after.y.Spans());
-//    cairo_translate(cr, -after.UpperLeft().x, -after.UpperLeft().y);
-//}
-
-//rotates such that a 
-void MscDrawer::Transform_Rotate90(double s, double d, bool clockwise)
-{
-    cairo_save(cr);
-    cairo_matrix_t matrix;
-    matrix.xx = 0;
-    matrix.yy = 0;
-    if (clockwise) {
-        matrix.xy = 1;
-        matrix.x0 = 0;
-        matrix.yx = -1;
-        matrix.y0 = s+d;
-    } else {
-        matrix.yx = 1;
-        matrix.y0 = 0;
-        matrix.xy = -1;
-        matrix.x0 = s+d;
-    }
-    cairo_transform(cr, &matrix);
-}
-
-void MscDrawer::Transform_SwapXY()
-{
-    cairo_save(cr);
-    cairo_matrix_t matrix;
-    matrix.xy = 1;
-    matrix.yx = 1;
-    matrix.xx = 0;
-    matrix.yy = 0;
-    matrix.x0 = 0;
-    matrix.y0 = 0;
-    cairo_transform(cr, &matrix);
-}
-
-void MscDrawer::Transform_FlipHorizontal(double y)
-{
-    cairo_save(cr);
-    cairo_matrix_t matrix;
-    matrix.xx = 1;
-    matrix.xy = 0;
-    matrix.x0 = 0;
-    matrix.yy = -1;
-    matrix.yx = 0;
-    matrix.y0 = 2*y;
-    cairo_transform(cr, &matrix);
-}
-
-void MscDrawer::Line(const Edge& edge, const MscLineAttr &line)
-{
-    _ASSERT(line.IsComplete());
-    if (edge.IsStraight()) return;
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    SetLineAttr(line);
-    const contour::Ellipse &ell = edge.GetEllipse();
-    const double spacing = line.DoubleSpacing();
-    if (spacing) {
-        singleLine(ell.GetCenter(), ell.GetRadius1()-spacing, ell.GetRadius2()-spacing, 
-            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
-        singleLine(ell.GetCenter(), ell.GetRadius1()+spacing, ell.GetRadius2()+spacing, 
-            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
-    } else 
-        singleLine(ell.GetCenter(), ell.GetRadius1(), ell.GetRadius2(), 
-            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
-}
-
-void MscDrawer::Line(const XY &s, const XY &d, const MscLineAttr &line)
-{
-    _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    SetLineAttr(line);
-    const double spacing = line.DoubleSpacing();
-    if (spacing) {
-        const double len = sqrt((d.x-s.x)*(d.x-s.x) + (d.y-s.y)*(d.y-s.y));
-        const double DX = (s.y-d.y)/len*spacing;
-        const double DY = (s.x-d.x)/len*spacing;
-        singleLine(s+XY(DX, -DY), d+XY(DX, -DY), line);
-        singleLine(s-XY(DX, -DY), d-XY(DX, -DY), line);
-    } else 
-        singleLine(s, d, line);
-}
-
-void MscDrawer::Line(const Block &b, const MscLineAttr &line)
-{
-    //XXX Add chopped corners
-    _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    if (b.IsInvalid()) return;
-    SetLineAttr(line);
-    const double spacing = line.DoubleSpacing();
-    if (spacing) {
-        Block bb(b);
-        MscLineAttr line2(line);
-        bb.Expand(spacing);
-        if (line2.radius.second>0) line2.radius.second += spacing;
-        singleLine(bb, line2);
-        bb.Expand(-2*spacing);
-        line2.radius.second -= 2*spacing; //negative radius is handled as 0 by singleLine
-        singleLine(bb, line2);
-    } else 
-        singleLine(b, line);
-}
-
-void MscDrawer::Line(const Contour &c, const MscLineAttr &line)
-{
-    _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    if (c.IsEmpty()) return;
-    SetLineAttr(line);
-    const double spacing = line.DoubleSpacing();
-    if (spacing) {
-        singleLine(c.CreateExpand(spacing), line);
-        singleLine(c.CreateExpand(-spacing), line);
-    } else 
-        singleLine(c, line, true);
-}
-
-void MscDrawer::Line(const Area &area, const MscLineAttr &line) 
-{
-    _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    if (area.IsEmpty()) return;
-    SetLineAttr(line);
-    const double spacing = line.DoubleSpacing();
-    if (spacing) {
-        singleLine(area.CreateExpand(spacing), line);
-        singleLine(area.CreateExpand(-spacing), line);
-    } else 
-        singleLine(area, line);
-}
-
-void MscDrawer::LineOpen(const Contour &c, const MscLineAttr &line)
-{
-    _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    if (c.IsEmpty()) return;
-    SetLineAttr(line);
-    const double spacing = line.DoubleSpacing();
-    if (spacing) {
-        ContourList cl;
-        c.Expand(spacing, cl);
-        if (!cl.IsEmpty())
-            singleLine(*const_cast<const ContourList*>(&cl)->begin(), line, true);
-        cl.clear();
-        c.Expand(-spacing, cl);
-        if (!cl.IsEmpty())
-            singleLine(*const_cast<const ContourList*>(&cl)->begin(), line, true);
-    } else 
-        singleLine(c, line);
-}
-
-
 void MscDrawer::Fill(const Block &b, const MscFillAttr &fill)
 {
     _ASSERT(fill.IsComplete());
@@ -1308,6 +1225,8 @@ void MscDrawer::Fill(const contour::Ellipse &ellipse, const MscFillAttr &fill)
     Fill(b, fill);
     UnClip();
 }
+
+////////////////////// Shadow routines
 
 void MscDrawer::Shadow(const Area &area, const MscShadowAttr &shadow, bool clip)
 {
@@ -1415,22 +1334,22 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
             c = XY(ss.x+blur_radius, ss.y+blur_radius);
             radialGradient(inner, outer, c, blur_radius, blur_radius-blur, GRADIENT_OUT);
             cairo_move_to(cr, c.x, c.y);
-            cairo_arc(cr, c.x, c.y, blur_radius, 180*(M_PI/180.), 270*(M_PI/180.));
+            cairo_arc(cr, c.x, c.y, blur_radius, deg2rad(180), deg2rad(270));
             cairo_fill(cr);
             c = XY(dd.x-blur_radius, ss.y+blur_radius);
             radialGradient(inner, outer, c, blur_radius, blur_radius-blur, GRADIENT_OUT);
             cairo_move_to(cr, c.x, c.y);
-            cairo_arc(cr, c.x, c.y, blur_radius, 270*(M_PI/180.), 0*(M_PI/180.));
+            cairo_arc(cr, c.x, c.y, blur_radius, deg2rad(270), 0);
             cairo_fill(cr);
             c = XY(dd.x-blur_radius, dd.y-blur_radius);
             radialGradient(inner, outer, c, blur_radius, blur_radius-blur, GRADIENT_OUT);
             cairo_move_to(cr, c.x, c.y);
-            cairo_arc(cr, c.x, c.y, blur_radius, 0*(M_PI/180.), 90*(M_PI/180.));
+            cairo_arc(cr, c.x, c.y, blur_radius, 0, deg2rad(90));
             cairo_fill(cr);
             c = XY(ss.x+blur_radius, dd.y-blur_radius);
             radialGradient(inner, outer, c, blur_radius, blur_radius-blur, GRADIENT_OUT);
             cairo_move_to(cr, c.x, c.y);
-            cairo_arc(cr, c.x, c.y, blur_radius, 90*(M_PI/180.), 180*(M_PI/180.));
+            cairo_arc(cr, c.x, c.y, blur_radius, deg2rad(90), deg2rad(180));
             cairo_fill(cr);
         }
     }
@@ -1446,6 +1365,103 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
         UnClip();
 }
 
+//void MscDrawer::_line_path(double sx, double sy, double dx, double dy, double wider, MscLineType type)
+//{
+//    const double len = sqrt((dx-sx)*(dx-sx) + (dy-sy)*(dy-sy));
+//    if ((type == LINE_DASHED || type == LINE_DOTTED) && fake_dash) {
+//        cairo_set_dash(cr, NULL,0,0);
+//        const double dash = (type == LINE_DOTTED) ? MSC_DASH_DOTTED : MSC_DASH_DASHED;
+//        const double ddx = dash*(dx-sx)/len;
+//        const double ddy = dash*(dy-sy)/len;
+//        unsigned count = unsigned(len/2/dash);
+//        double x = sx+CAIRO_OFF, y = sy+CAIRO_OFF;
+//        const double to_x = dx+CAIRO_OFF-2*ddx, to_y = dy+CAIRO_OFF-2*ddy;
+//        while(count>0) {
+//            cairo_move_to(cr, x, y);
+//            cairo_line_to(cr, x+ddx, y+ddy);
+//            x += 2*ddx;
+//            y += 2*ddy;
+//            count--;
+//        }
+//        cairo_move_to(cr, x, y);
+//        cairo_line_to(cr, dx+CAIRO_OFF, dy+CAIRO_OFF);
+//    } else if (type == LINE_DOUBLE) {
+//        const double DX = (sy-dy)/len*wider;
+//        const double DY = (sx-dx)/len*wider;
+//        cairo_move_to(cr, sx+DX+CAIRO_OFF, sy-DY+CAIRO_OFF);
+//        cairo_line_to(cr, dx+DX+CAIRO_OFF, dy-DY+CAIRO_OFF);
+//        cairo_move_to(cr, sx-DX+CAIRO_OFF, sy+DY+CAIRO_OFF);
+//        cairo_line_to(cr, dx-DX+CAIRO_OFF, dy+DY+CAIRO_OFF);
+//    } else {
+//        if (fabs(sx - save_x)>1e-4 || fabs(sy - save_y)>1e-4)
+//            cairo_move_to(cr, sx+CAIRO_OFF, sy+CAIRO_OFF);
+//        cairo_line_to(cr, dx+CAIRO_OFF, dy+CAIRO_OFF);
+//        save_x = dx;
+//        save_y = dy;
+//    }
+//}
+//
+//void MscDrawer::_arc_path(XY c, XY wh, double s, double e, double wider, MscLineType type, bool reverse)
+//{
+//    //Handle degenerate case - draw line
+//    if (wh.x == 0 || wh.y == 0) {
+//        if ((s-e)/360 == floor((s-e)/360)) {
+//            s=0;
+//            e=180;
+//        }
+//        //We do not handle complex cases just what is needed for pipe drawing
+//        XY src = XY(cos(s*(M_PI/180.))*wh.x/2, sin(s*(M_PI/180.))*wh.y/2) + c;
+//        XY dst = XY(cos(e*(M_PI/180.))*wh.x/2, sin(e*(M_PI/180.))*wh.y/2) + c;
+//        if (save_x!=-1)
+//            _line_path(save_x, save_y, src.x, src.y, 0, type);
+//        _line_path(src.x, src.y, dst.x, dst.y, 0, type);
+//        save_x = dst.x;
+//        save_y = dst.y;
+//        return;
+//    }
+//    if ((type == LINE_DASHED || type == LINE_DOTTED) && fake_dash) {
+//        cairo_set_dash(cr, NULL,0,0);
+//        double dash = MSC_DASH_DASHED;
+//        if (type == LINE_DOTTED)
+//            dash = MSC_DASH_DOTTED;
+//        cairo_save (cr);
+//        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
+//        cairo_scale (cr, wh.x / 2., wh.y / 2.);
+//        double rot = dash/(wh.x+wh.y)*2*2;  //dash/radius
+//        double ss = s*(M_PI/180.);
+//        double ee = e*(M_PI/180.);
+//        if (ee<ss) ee += 2*M_PI;
+//        while(ss<ee-2*rot) {
+//            cairo_new_sub_path(cr);
+//            cairo_arc (cr, 0., 0., 1., ss, ss+rot);
+//            ss += 2*rot;
+//        }
+//        cairo_new_sub_path(cr);
+//        cairo_arc (cr, 0., 0., 1., ss, ee);
+//        cairo_restore (cr);
+//    } else if (type == LINE_DOUBLE) {
+//        cairo_new_sub_path(cr);
+//		_arc_path(c, wh+XY(0, 2*wider), s, e, 0, LINE_SOLID, reverse);
+//        cairo_new_sub_path(cr);
+//		//ensure that radius adjusted by wider is always nonzero
+//		XY w(2*wider, 2*wider);
+//		if (wh.x<wider) w.x = wh.x;
+//		if (wh.y<wider) w.y = wh.y;
+//		_arc_path(c, wh-w, s, e, 0, LINE_SOLID, reverse);
+//    } else {
+//        cairo_save (cr);
+//        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
+//        cairo_scale (cr, wh.x / 2., wh.y / 2.);
+//        if (reverse)
+//            cairo_arc_negative(cr, 0., 0., 1., s*(M_PI/180.), e*(M_PI/180.));
+//        else
+//            cairo_arc(cr, 0., 0., 1., s*(M_PI/180.), e*(M_PI/180.));
+//        cairo_restore (cr);
+//    }
+//    save_x = c.x + wh.x*cos(M_PI/180.*e);
+//    save_y = c.y + wh.y*sin(M_PI/180.*e);
+//}
+//
 ////wider is only used if type is DOUBLE
 //void MscDrawer::_rectangle_line_path(XY s, XY d, double offset, double wider,
 //                                     double radius, MscLineType type)
@@ -1690,4 +1706,15 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //    _new_path();
 //}
 //
-///* END OF FILE */
+
+//void MscDrawer::ClipAndMap(const Block &before, const Block &after)
+//{
+//    cairo_save(cr);
+//    cairo_translate(cr, before.UpperLeft().x, before.UpperLeft().y);
+//    cairo_scale(cr, before.x.Spans()/after.x.Spans(), before.y.Spans()/after.y.Spans());
+//    cairo_translate(cr, -after.UpperLeft().x, -after.UpperLeft().y);
+//}
+
+
+
+/* END OF FILE */

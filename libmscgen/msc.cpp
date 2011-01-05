@@ -620,11 +620,11 @@ void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
         (*i)->Width(distances);
 }
 
-
-void Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover)
+//Draws a full list starting at position==0
+//We always place each element on an integer coordinates
+double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover)
 {
     cover.clear();
-    AreaList arc_cover;
     double y = 0;
     //Zero-height arcs shall be positioned to the same place
     //as the first non-zero height arc below them (so that
@@ -634,7 +634,9 @@ void Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &
     ArcList::iterator first_zero_height = to;
 
     for (ArcList::iterator i = from; i!=to; i++) {
+        AreaList arc_cover;
         double h = (*i)->Height(arc_cover);
+        _ASSERT(h>=arc_cover.GetBoundingBox().y.till);
         double touchpoint = y;
         if ((*i)->IsCompressed()) {
             //if arc is of zero height, just collect it. 
@@ -643,10 +645,12 @@ void Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &
                 if (first_zero_height == to) first_zero_height = i;
                 continue;
             }
-            const double new_y = cover.OffsetBelow(arc_cover, touchpoint);
+            const double new_y = std::max(0.0, -cover.OffsetBelow(arc_cover, touchpoint));
             _ASSERT(new_y<=y);
             y = new_y;
         }
+        touchpoint = floor(touchpoint+0.5);
+        y = ceil(y);
         //We got a non-zero height or a non-compressed one, flush zero_height ones (if any)
         while (first_zero_height != to && first_zero_height != i)
             (*first_zero_height++)->ShiftBy(touchpoint);
@@ -663,10 +667,10 @@ void Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &
             //restore mainline to the one before we added the arc marked as parallel
             cover.mainline = save_mainline;
             //Place blocks, always compress the first
-            PlaceListUnder(++i, to, y, y-h, cover, true);
-            return;
+            return PlaceListUnder(++i, to, y, y-h, cover, true);
         }
     }
+    return y;
 }
 
 //This one places a list (arcs) at start_y (which is supposed to be
@@ -678,18 +682,21 @@ void Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &
 //between the first and second arrow, when the first arrow can be
 //compressed a lot, but the second not. Here we move all the arrows
 //as one block only up till none of them collides with something.
+//No matter what input parameters we get we always place the list at an integer
+//y coordinate
 double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
                            double top_y, const AreaList &area_top, bool forceCompress)
 {
     if (from==to) return 0;
     AreaList cover;
-    HeightArcList(from, to, cover);
+    double h = HeightArcList(from, to, cover);
     if (forceCompress || (*from)->IsCompressed()) {
         double touchpoint;
-        top_y = std::max(top_y, area_top.OffsetBelow(cover, touchpoint));
+        top_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     }
+    top_y = ceil(top_y);
     ShiftByArcList(from, to, top_y);
-    return cover.GetBoundingBox().y.till + top_y;
+    return top_y + h;
 }
 
 void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)
@@ -735,6 +742,7 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 }
 
 
+//Calculate total.x and y. Ensure they are integers
 void Msc::CalculateWidthHeight(void)
 {
     yPageStart.clear();
@@ -759,8 +767,7 @@ void Msc::CalculateWidthHeight(void)
             //distances.pairs starts with requiremenst between neighbouring entities
             //and continues with requirements between second neighbours, ... etc.
             //we process these sequentially
-            for (map<IPair, double, IPairComp>::iterator i = distances.pairs.begin();
-                 i!=distances.pairs.end(); i++) {
+            for (auto i = distances.pairs.begin(); i!=distances.pairs.end(); i++) {
                 //Get the requirement
                 double toadd = i->second;
                 //Substract the distance already there
@@ -778,25 +785,25 @@ void Msc::CalculateWidthHeight(void)
             unsigned index = 0;
             for (EntityList::iterator j = Entities.begin(); j!=Entities.end(); j++) {
                 (*j)->pos = curr_pos;
-                curr_pos += dist[index++]/unit;
+                curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
             }
-            total.x = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO);
+            total.x = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO)+1; 
         } else {
-            total.x = XCoord((*--(Entities.end()))->pos+MARGIN);
+            total.x = XCoord((*--(Entities.end()))->pos+MARGIN)+1; //XCoord is always integer
         }
-        XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight();
+        XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight().RoundUp();
         if (total.x<crTexSize.x) total.x = crTexSize.x;
 
         copyrightTextHeight = crTexSize.y;
         AreaList cover;
         HeightArcList(Arcs.begin(), Arcs.end(), cover);
-        total.y = cover.GetBoundingBox().y.till + chartTailGap;
+        total.y = ceil(cover.GetBoundingBox().y.till + chartTailGap);
     }
 }
 
 void Msc::PostPosProcessArcList(ArcList &arcs, double autoMarker)
 {
-    for (auto j = Arcs.begin(); j != Arcs.end(); j++)
+    for (auto j = arcs.begin(); j != arcs.end(); j++)
         (*j)->PostPosProcess(autoMarker);
 }
 

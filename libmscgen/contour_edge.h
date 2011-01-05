@@ -181,6 +181,7 @@ inline Edge& Edge::SetEnd(const XY &p)
 {
     if (straight) return *this;
     e = ell.Point2Radian(p);
+    _ASSERT(radianbetween(e));
     return *this;
 }
 
