@@ -510,6 +510,20 @@ void MscDrawer::CloseOutput()
     fileName.clear();
 }
 
+cairo_line_join_t MscDrawer::SetLineJoin(cairo_line_join_t t)
+{
+    cairo_line_join_t tt = cairo_get_line_join(cr);
+    cairo_set_line_join(cr, t);
+    return tt;
+}
+cairo_line_cap_t MscDrawer::SetLineCap(cairo_line_cap_t t)
+{
+    cairo_line_cap_t tt = cairo_get_line_cap(cr);
+    cairo_set_line_cap(cr, t);
+    return tt;
+}
+
+
 void MscDrawer::Clip(const contour::Ellipse &ellipse)
 {
     cairo_save(cr);
@@ -730,9 +744,11 @@ void MscDrawer::fakeDashedLine(const XY &c, double r1, double r2, double tilt, d
         cairo_rotate(cr, tilt);
     cairo_scale(cr, r1, r2);
 
-    if (e<s) e += 2*M_PI;  //We assume e and s between [0, 2PI]
-    if (reverse) std::swap(e, s); //now we always go s->e
-
+    if (reverse) {
+        if (s<e) s += 2*M_PI; //ensure s is larger than e (assume e and s between [0, 2PI])
+    } else {
+        if (e<s) e += 2*M_PI; //ensure e is larger than s
+    }
     //XXX Do proper ellipse arc length calculations
     const double avg_r = (r1+r2)/2;
     const double len = fabs(s-e)*avg_r; 
@@ -964,7 +980,7 @@ void MscDrawer::Line(const Contour &c, const MscLineAttr &line)
         singleLine(c.CreateExpand(spacing), line);
         singleLine(c.CreateExpand(-spacing), line);
     } else 
-        singleLine(c, line, true);
+        singleLine(c, line);
 }
 
 void MscDrawer::Line(const Area &area, const MscLineAttr &line) 
@@ -998,9 +1014,32 @@ void MscDrawer::LineOpen(const Contour &c, const MscLineAttr &line)
         if (!cl.IsEmpty())
             singleLine(*const_cast<const ContourList*>(&cl)->begin(), line, true);
     } else 
-        singleLine(c, line);
+        singleLine(c, line, true);
 }
 
+//The first element in the list is the overall contour, the remaining ones are disjoint ones
+//that collectively cover the same area as the first one.
+//This is especially useful for double/triple lines
+void MscDrawer::LineWithJoints(const std::list<Contour> &clist, const MscLineAttr &line)
+{
+    if (clist.size()==0) return;
+    if (clist.size()==1) {
+        Line(*clist.begin(), line);
+        return;
+    }
+    _ASSERT(line.IsComplete());
+	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
+    SetLineAttr(line);
+    const double spacing = line.DoubleSpacing();
+    if (spacing) {
+        singleLine(clist.begin()->CreateExpand(spacing), line);
+        for (auto i = ++clist.begin(); i !=clist.end(); i++) 
+            singleLine(i->CreateExpand(-spacing), line);
+    } else 
+        for (auto i=clist.begin(); i!=clist.end(); i++)
+            singleLine(*i, line);
+
+}
 
 ////////////////////// Fill routines
 

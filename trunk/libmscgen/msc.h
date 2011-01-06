@@ -139,6 +139,8 @@ public:
     int compressXGap, compressYGap;
     /** Size of gap at hscale=auto */
     int hscaleAutoXGap;
+    /* Width of the frames used for tracking boxes on screen */
+    int trackFrameWidth;
 
     /* Parse Options */
     double       hscale;     /** Relative xsize, -1 is auto **/

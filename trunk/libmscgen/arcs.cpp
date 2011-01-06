@@ -1628,36 +1628,41 @@ double ArcEmphasis::Height(AreaList &cover)
         total_height = y = ceil(y);
         //Now bottom contains the bottom of the pipes (outer edge of line)
         for (auto i = follow.begin(); i!=follow.end(); i++) {
+            const double ilw = (*i)->style.line.LineWidth();
             total_height = std::max(total_height, y + (*i)->style.shadow.offset.second);
 
             //fill in pipe_block.y (both are integer if lw is even and .5 if lw is odd: OK)
-            (*i)->pipe_block.y.from = chart->emphVGapOutside + (*i)->style.line.LineWidth()/2;
-            (*i)->pipe_block.y.till = y - (*i)->style.line.LineWidth()/2;
+            (*i)->pipe_block.y.from = chart->emphVGapOutside + ilw/2;
+            (*i)->pipe_block.y.till = y - ilw/2;
 
-            const XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
-            const XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
+            XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
+            XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
             const XY rad(style.line.radius.second, pipe_block.y.Spans()/2); //we use the first pipe's line.radius
-            //                                                    ____              __
+            //                                                    ____               __
             //pipe body is the skewed rectangle with curvy edges (___( , hole is the _() at the end
             (*i)->pipe_body.clear();
             (*i)->pipe_hole.clear();
-            Contour es(cs, rad.x, rad.y);
-            Contour ed(cd, rad.x, rad.y);
+            if (!fromright) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
+            //now cd is the one with the hole
+            Contour nohole(cs, rad.x, rad.y);
+            Contour hole(cd, rad.x, rad.y);
 
-            if (fromright) {    //use the first pipe's fromright, not (*i)->fromright
-                (*i)->pipe_body = Contour(*(pipe_block + es - ed).begin());
-                (*i)->pipe_hole = ed;
-            } else {
-                (*i)->pipe_body = Contour(*(pipe_block + ed - es).begin());
-                (*i)->pipe_hole = es;
-            }
+            (*i)->pipe_body = Contour(*(pipe_block + nohole - hole).begin());
+            (*i)->pipe_hole = hole;
+            (*i)->pipe_hole_curve = Edge(cd, rad.x, rad.y, 0, fromright?270:90, fromright?90:270);
+
+            const double gap_for_fill = (*i)->style.line.width.second/2 - ilw/2; //negative or zero
+            (*i)->pipe_whole_shadow = ((*i)->pipe_body + hole).CreateExpand(ilw/2).GetFirst();
+            (*i)->pipe_body_fill = (*i)->pipe_body.CreateExpand(gap_for_fill).GetFirst();
+            (*i)->pipe_hole_fill = (*i)->pipe_hole.CreateExpand(gap_for_fill).GetFirst();
+
             //Add covers
             const bool use_body_only = ((*i)->pipe_connect_left && !fromright) || ((*i)->pipe_connect_right && fromright);
             Area pipe_area = use_body_only ? (*i)->pipe_body : (*i)->pipe_body + (*i)->pipe_hole; 
             (*i)->area = pipe_area;
             if (emphasis && (*i)->style.solid.second < 255) {
                 //Make a frame, add it to the already added label
-                (*i)->area_draw += pipe_area.CreateExpand(4) - pipe_area;
+                (*i)->area_draw += pipe_area.CreateExpand(chart->trackFrameWidth) - pipe_area;
             }
             //now determine the cover to be used for placement
             if (style.shadow.offset.second) 
@@ -1722,7 +1727,7 @@ double ArcEmphasis::Height(AreaList &cover)
         } /* for cycle through segments */
         //Final advance of linewidth
         total_height = y + lw + style.shadow.offset.second - yPos;
-
+        //XXX fix track frame chart->trackFrameWidth
         Block b(sx-lw, dx+lw+style.shadow.offset.second, yPos, yPos+total_height);
         Area whole(b);
         whole.mainline = b.y;
@@ -1739,6 +1744,10 @@ void ArcEmphasis::ShiftBy(double y)
             (*i)->pipe_block.Shift(XY(0,y));
             (*i)->pipe_body.Shift(XY(0,y));
             (*i)->pipe_hole.Shift(XY(0,y));
+            (*i)->pipe_hole_curve.Shift(XY(0,y));
+            (*i)->pipe_body_fill.Shift(XY(0,y));
+            (*i)->pipe_hole_fill.Shift(XY(0,y));
+            (*i)->pipe_whole_shadow.Shift(XY(0,y));
         } 
         (*i)->y_text += y;
         (*i)->text_cover.Shift(XY(0,y));
@@ -1764,7 +1773,9 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
         for (auto i = follow.begin(); i!=follow.end(); i++) 
             if ((*i)->valid && (*i)->style.solid.second == 255) 
                 (*i)->ArcLabelled::PostPosProcess(autoMarker);
-    } else
+        for (auto i = follow.begin(); i!=follow.end(); i++)
+            chart->HideEntityLines((*i)->pipe_whole_shadow);
+    } else {
         //For boxes we always add the background first then the content
         //And we do this for each segment sequentially
         for (auto i = follow.begin(); i!=follow.end(); i++)
@@ -1773,8 +1784,9 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
                 if ((*i)->emphasis)
                     chart->PostPosProcessArcList(*emphasis, autoMarker);
             }
-    for (auto i = follow.begin(); i!=follow.end(); i++)
-        chart->HideEntityLines((*i)->text_cover);
+        for (auto i = follow.begin(); i!=follow.end(); i++)
+            chart->HideEntityLines((*i)->text_cover);
+    }
 }
 
 
@@ -1786,31 +1798,42 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
 //this->left_space and right_space includes linewidth
 void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool text)
 {
+    const double gap_for_fill = style.line.width.second-style.line.LineWidth()/2;
     if (backSide) {
         //Shadow under the whole pipe
-        chart->Shadow(pipe_body+pipe_hole, style.shadow, true);
+        chart->Shadow(pipe_whole_shadow, style.shadow, true);
         //The back of the main pipe
-        chart->Fill(pipe_body, style.fill);
+        chart->Fill(pipe_body_fill, style.fill);
         //the back of the small ellipsis visible from the side
         MscFillAttr fill = style.fill;
         if (fill.gradient.second == GRADIENT_UP)
             fill.gradient.second = GRADIENT_DOWN;
         else if (fill.gradient.second == GRADIENT_DOWN)
             fill.gradient.second = GRADIENT_UP;
-    //    chart->Fill(pipe_hole, fill);
+        chart->Fill(pipe_hole_fill, fill);
         //Draw the backside line
-    //    chart->Line(pipe_hole, style.line);
+        chart->Line(pipe_hole_curve, style.line);
     }
     if (topSideFill) {
         //apply the transparency of the solid attribute
         MscFillAttr fill = style.fill;
         fill.color.second.a = unsigned(style.solid.second) * unsigned(fill.color.second.a) / 255;
-        chart->Fill(pipe_body, fill);
+        chart->Fill(pipe_body_fill, fill);
     }
     if (topSideLine) {
-        chart->Line(pipe_body, style.line);
-        //XXX double lines: fix it
-        //XXX: We draw a pipe arc twice, check if OK
+        cairo_line_join_t t = chart->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
+        chart->Clip(-1e6, pipe_block.x.till, -1e6, 1e6);
+        if (style.line.DoubleSpacing()) {
+            std::list<Contour> ss;
+            ss.push_back((pipe_body+pipe_hole).GetFirst());
+            ss.push_back(pipe_body);
+            ss.push_back(pipe_hole);
+            chart->LineWithJoints(ss, style.line);
+        } else {
+            chart->Line(pipe_body, style.line);
+        }
+        chart->UnClip();
+        chart->SetLineJoin(t);
     }
     if (text) {
         double curve_gap_left = 0, curve_gap_right = 0;

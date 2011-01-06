@@ -253,7 +253,9 @@ protected:
     //for pipes
     mutable bool pipe_connect_left, pipe_connect_right; //true if connects to neighbour pipe in pipe series
     mutable Block pipe_block;   //The body of the pipe
-    mutable Contour pipe_body, pipe_hole;  
+    mutable Contour pipe_body, pipe_hole; 
+    mutable Contour pipe_whole_shadow, pipe_body_fill, pipe_hole_fill;
+    mutable Edge pipe_hole_curve;
     //for both
     mutable double total_height;
     mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow

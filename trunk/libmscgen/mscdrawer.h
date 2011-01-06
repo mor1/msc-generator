@@ -105,6 +105,9 @@ friend class StringFormat;
 	/** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
     std::vector<double> yPageStart;
 
+    cairo_line_join_t SetLineJoin(cairo_line_join_t t);
+    cairo_line_cap_t SetLineCap(cairo_line_cap_t t);
+
     cairo_t *GetContext() const {return cr;}
     void Clip(double sx, double dx, double sy, double dy);
     void Clip(double sx, double dx, double sy, double dy, const MscLineAttr &line);
@@ -126,6 +129,7 @@ friend class StringFormat;
     void Line(const Contour &contour, const MscLineAttr &line);    
     void Line(const Area &area, const MscLineAttr &line);          
     void LineOpen(const Contour &contour, const MscLineAttr &line);  //an arbitrary contour, but not its last edge
+    void LineWithJoints(const std::list<Contour> &c, const MscLineAttr &line); 
     void Fill(const XY &s, const XY &d, const MscFillAttr &fill);
     void Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill);
     void Fill(const Block &b, const MscFillAttr &fill);

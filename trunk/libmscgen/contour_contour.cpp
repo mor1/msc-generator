@@ -1332,8 +1332,19 @@ int prev_edgexy(const std::vector<EdgeXY> &edges, int i)
 
 void Contour::Expand(double gap, ContourList &res) const
 {
-    if (gap==0 || size()==0) return;
-	if (boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap) return;
+    if (gap==0) {
+        res.append(*this);
+        return;
+    }
+    if (size()==0 || boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap) return;
+
+    if (size()==1) {
+        _ASSERT(!at(0).IsStraight());
+        Contour r = *this;
+        if (r[0].ell.Expand(gap))
+            res.append(std::move(r));
+        return;
+    }
 
 	static std::vector<EdgeXY> edges;
 	edges.resize(size());
