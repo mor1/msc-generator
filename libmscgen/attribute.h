@@ -205,7 +205,7 @@ public:
     bool IsComplete() const {return type.first && color.first && width.first && radius.first;}
     void MakeComplete();
     bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);}
-    bool DoubleSpacing() const {_ASSERT(type.first && width.first); return type.second==LINE_DOUBLE?width.second:0;}
+    double DoubleSpacing() const {_ASSERT(type.first && width.first); return type.second==LINE_DOUBLE?width.second:0;}
     const double * DashPattern(int &num) const;
     MscLineAttr &operator +=(const MscLineAttr&a);
     bool operator == (const MscLineAttr &a);

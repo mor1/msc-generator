@@ -50,6 +50,8 @@ public:
     ContourList &operator = (ContourList &&a) {swap(a); return *this;}
     bool IsEmpty() const {return size()==0;}
     const Block &GetBoundingBox(void) const {return boundingBox;}
+    const ContourWithHoles &GetFirst() const {return *begin();}
+    ContourWithHoles &&GetFirst() {return std::move(*begin());}
     is_within_t IsWithin(XY p) const;
     ContourList &Shift(XY xy);
     ContourList &Rotate(double cos, double sin, double radian);
@@ -62,6 +64,10 @@ public:
     ContourList &operator *= (const ContourWithHoles &p);
     ContourList &operator -= (const ContourWithHoles &p);
     ContourList &operator ^= (const ContourWithHoles &p);
+    ContourList &operator += (const Contour &p);
+    ContourList &operator *= (const Contour &p);
+    ContourList &operator -= (const Contour &p);
+    ContourList &operator ^= (const Contour &p);
     ContourList &operator += (const ContourList &a);
     ContourList &operator *= (const ContourList &a);
     ContourList &operator -= (const ContourList &a);
@@ -120,7 +126,7 @@ public:
 };
 
 //plus it has additional stuff, such as arc, drawtype, findtype and mainline
-class Area : protected ContourList
+class Area : public ContourList
 {
     friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
 public:
@@ -128,8 +134,10 @@ public:
     Range                     mainline;
 
     explicit Area(TrackableElement *a=NULL) : arc(a) {mainline.MakeInvalid();}
-    Area(const Contour &p, TrackableElement *a=NULL) : ContourList(p), arc(a) {mainline.MakeInvalid();}
-    explicit Area(const ContourList &cl, TrackableElement *a=NULL) : ContourList(cl), arc(a) {mainline.MakeInvalid();}
+    Area(const Contour &p, TrackableElement *a=NULL) : ContourList(std::move(p)), arc(a) {mainline.MakeInvalid();}
+    Area(Contour &&p, TrackableElement *a=NULL) : ContourList(p), arc(a) {mainline.MakeInvalid();}
+    Area(const ContourList &cl, TrackableElement *a=NULL) : ContourList(cl), arc(a) {mainline.MakeInvalid();}
+    Area(ContourList &&cl, TrackableElement *a=NULL) : ContourList(std::move(cl)), arc(a) {mainline.MakeInvalid();}
 
     const_iterator begin() const {return std::list<ContourWithHoles>::begin();}
     const_iterator end() const {return std::list<ContourWithHoles>::end();}
@@ -146,9 +154,11 @@ public:
     Area &operator += (const Area &b);
     Area &operator *= (const Area &b);
     Area &operator -= (const Area &b);
-    Area &operator += (const Contour &b) {ContourList::operator+=(ContourWithHoles(b)); return *this;}
-    Area &operator *= (const Contour &b) {ContourList::operator*=(ContourWithHoles(b)); return *this;}
-    Area &operator -= (const Contour &b) {ContourList::operator-=(ContourWithHoles(b)); return *this;}
+    Area &operator ^= (const Area &b);
+    Area &operator += (const Contour &b) {ContourList::operator+=(b); return *this;}
+    Area &operator *= (const Contour &b) {ContourList::operator*=(b); return *this;}
+    Area &operator -= (const Contour &b) {ContourList::operator-=(b); return *this;}
+    Area &operator ^= (const Contour &b) {ContourList::operator-=(b); return *this;}
 
     bool IsEmpty() const {return size()==0;}
     const Block &GetBoundingBox(void) const {return boundingBox;}
@@ -218,6 +228,11 @@ inline void ContourList::append(ContourWithHoles &&p)
         {boundingBox += p.GetBoundingBox(); push_back(p);}
 inline void ContourList::append(const ContourWithHoles &p)
         {boundingBox += p.GetBoundingBox(); push_back(p);}
+
+inline ContourList &ContourList::operator += (const Contour &p) {return *this+=ContourWithHoles(p);}
+inline ContourList &ContourList::operator *= (const Contour &p) {return *this*=ContourWithHoles(p);}
+inline ContourList &ContourList::operator -= (const Contour &p) {return *this-=ContourWithHoles(p);}
+inline ContourList &ContourList::operator ^= (const Contour &p) {return *this^=ContourWithHoles(p);}
 
 inline ContourList &ContourList::operator += (const ContourList &a)
 {
@@ -442,45 +457,58 @@ inline double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, d
     return offset;
 }
 
-inline ContourList operator + (const ContourList &p1, const ContourWithHoles &p2) {return std::move(ContourList(p1)+=p2);}
-inline ContourList operator * (const ContourList &p1, const ContourWithHoles &p2) {return std::move(ContourList(p1)*=p2);}
-inline ContourList operator - (const ContourList &p1, const ContourWithHoles &p2) {return std::move(ContourList(p1)-=p2);}
-inline ContourList operator + (ContourList &&p1, const ContourWithHoles &p2) {return std::move(p1+=p2);}
-inline ContourList operator * (ContourList &&p1, const ContourWithHoles &p2) {return std::move(p1*=p2);}
-inline ContourList operator - (ContourList &&p1, const ContourWithHoles &p2) {return std::move(p1-=p2);}
+inline ContourList operator + (const ContourList &p1, const Contour &p2) {return ContourList(p1)+=p2;}
+inline ContourList operator * (const ContourList &p1, const Contour &p2) {return ContourList(p1)*=p2;}
+inline ContourList operator - (const ContourList &p1, const Contour &p2) {return ContourList(p1)-=p2;}
+inline ContourList operator ^ (const ContourList &p1, const Contour &p2) {return ContourList(p1)^=p2;}
+inline ContourList operator + (const ContourList &p1, const ContourWithHoles &p2) {return ContourList(p1)+=p2;}
+inline ContourList operator * (const ContourList &p1, const ContourWithHoles &p2) {return ContourList(p1)*=p2;}
+inline ContourList operator - (const ContourList &p1, const ContourWithHoles &p2) {return ContourList(p1)-=p2;}
+inline ContourList operator ^ (const ContourList &p1, const ContourWithHoles &p2) {return ContourList(p1)^=p2;}
+inline ContourList operator + (ContourList &&p1, const ContourWithHoles &p2) {return p1+=p2;}
+inline ContourList operator * (ContourList &&p1, const ContourWithHoles &p2) {return p1*=p2;}
+inline ContourList operator - (ContourList &&p1, const ContourWithHoles &p2) {return p1-=p2;}
+inline ContourList operator ^ (ContourList &&p1, const ContourWithHoles &p2) {return p1^=p2;}
 
-inline ContourList operator + (const ContourList &p1, const ContourList &p2) {return std::move(ContourList(p1)+=p2);}
-inline ContourList operator * (const ContourList &p1, const ContourList &p2) {return std::move(ContourList(p1)*=p2);}
-inline ContourList operator - (const ContourList &p1, const ContourList &p2) {return std::move(ContourList(p1)-=p2);}
-inline ContourList operator + (ContourList &&p1, const ContourList &p2) {return std::move(p1+=p2);}
-inline ContourList operator * (ContourList &&p1, const ContourList &p2) {return std::move(p1*=p2);}
-inline ContourList operator - (ContourList &&p1, const ContourList &p2) {return std::move(p1-=p2);}
-inline ContourList operator + (const ContourList &p1, ContourList &&p2) {return std::move(p2+=p1);}
-inline ContourList operator * (const ContourList &p1, ContourList &&p2) {return std::move(p2*=p1);}
-inline ContourList operator + (ContourList &&p1, ContourList &&p2) {return std::move(p2+=p1);}
-inline ContourList operator * (ContourList &&p1, ContourList &&p2) {return std::move(p2*=p1);}
+inline ContourList operator + (const ContourList &p1, const ContourList &p2) {return ContourList(p1)+=p2;}
+inline ContourList operator * (const ContourList &p1, const ContourList &p2) {return ContourList(p1)*=p2;}
+inline ContourList operator - (const ContourList &p1, const ContourList &p2) {return ContourList(p1)-=p2;}
+inline ContourList operator ^ (const ContourList &p1, const ContourList &p2) {return ContourList(p1)^=p2;}
+inline ContourList operator + (ContourList &&p1, const ContourList &p2) {return p1+=p2;}
+inline ContourList operator * (ContourList &&p1, const ContourList &p2) {return p1*=p2;}
+inline ContourList operator - (ContourList &&p1, const ContourList &p2) {return p1-=p2;}
+inline ContourList operator ^ (ContourList &&p1, const ContourList &p2) {return p1^=p2;}
+inline ContourList operator + (const ContourList &p1, ContourList &&p2) {return p2+=p1;}
+inline ContourList operator * (const ContourList &p1, ContourList &&p2) {return p2*=p1;}
+//inline ContourList operator - (const ContourList &p1, ContourList &&p2) {return p2-=p1;} NONE!
+inline ContourList operator ^ (const ContourList &p1, ContourList &&p2) {return p2^=p1;}
 
-inline Area operator + (const Contour &p1, Contour &p2) {return std::move(Area(p1)+=p2);}
-inline Area operator * (const Contour &p1, Contour &p2) {return std::move(Area(p1)*=p2);}
-inline Area operator - (const Contour &p1, Contour &p2) {return std::move(Area(p1)-=p2);}
+inline Area operator + (const Contour &p1, Contour &p2) {return Area(p1)+=p2;}
+inline Area operator * (const Contour &p1, Contour &p2) {return Area(p1)*=p2;}
+inline Area operator - (const Contour &p1, Contour &p2) {return Area(p1)-=p2;}
+inline Area operator ^ (const Contour &p1, Contour &p2) {return Area(p1)^=p2;}
 
-inline Area operator + (const Area &a, const Contour &p)  {return std::move(Area(a)+=p);}
-inline Area operator * (const Area &a, const Contour &p)  {return std::move(Area(a)*=p);}
-inline Area operator - (const Area &a, const Contour &p)  {return std::move(Area(a)-=p);}
-inline Area operator + (Area &&a, const Contour &p)  {return std::move(a+=p);}
-inline Area operator * (Area &&a, const Contour &p)  {return std::move(a*=p);}
-inline Area operator - (Area &&a, const Contour &p)  {return std::move(a-=p);}
+inline Area operator + (const Area &a, const Contour &p)  {return Area(a)+=p;}
+inline Area operator * (const Area &a, const Contour &p)  {return Area(a)*=p;}
+inline Area operator - (const Area &a, const Contour &p)  {return Area(a)-=p;}
+inline Area operator ^ (const Area &a, const Contour &p)  {return Area(a)^=p;}
+inline Area operator + (Area &&a, const Contour &p)  {return a+=p;}
+inline Area operator * (Area &&a, const Contour &p)  {return a*=p;}
+inline Area operator - (Area &&a, const Contour &p)  {return a-=p;}
+inline Area operator ^ (Area &&a, const Contour &p)  {return a^=p;}
 
-inline Area operator + (const Area &a1, const Area &a2)  {return std::move(Area(a1)+=a2);}
-inline Area operator * (const Area &a1, const Area &a2)  {return std::move(Area(a1)*=a2);}
-inline Area operator - (const Area &a1, const Area &a2)  {return std::move(Area(a1)-=a2);}
-inline Area operator + (Area &&a1, const Area &a2)  {return std::move(a1+=a2);}
-inline Area operator * (Area &&a1, const Area &a2)  {return std::move(a1*=a2);}
-inline Area operator - (Area &&a1, const Area &a2)  {return std::move(a1-=a2);}
-inline Area operator + (const Area &a1, Area &&a2)  {return std::move(a2+=a1);}
-inline Area operator * (const Area &a1, Area &&a2)  {return std::move(a2*=a1);}
-inline Area operator + (Area &&a1, Area &&a2)  {return std::move(a2+=a1);}
-inline Area operator * (Area &&a1, Area &&a2)  {return std::move(a2*=a1);}
+inline Area operator + (const Area &a1, const Area &a2)  {return Area(a1)+=a2;}
+inline Area operator * (const Area &a1, const Area &a2)  {return Area(a1)*=a2;}
+inline Area operator - (const Area &a1, const Area &a2)  {return Area(a1)-=a2;}
+inline Area operator ^ (const Area &a1, const Area &a2)  {return Area(a1)^=a2;}
+inline Area operator + (Area &&a1, const Area &a2)  {return a1+=a2;}
+inline Area operator * (Area &&a1, const Area &a2)  {return a1*=a2;}
+inline Area operator - (Area &&a1, const Area &a2)  {return a1-=a2;}
+inline Area operator ^ (Area &&a1, const Area &a2)  {return a1^=a2;}
+inline Area operator + (const Area &a1, Area &&a2)  {return a2+=a1;}
+inline Area operator * (const Area &a1, Area &&a2)  {return a2*=a1;}
+//inline Area operator - (const Area &a1, Area &&a2)  {return std::move(a2-=a1);} NONE!
+inline Area operator ^ (const Area &a1, Area &&a2)  {return a2^=a1;}
 
 }; //namespace
 

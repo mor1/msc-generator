@@ -199,6 +199,7 @@ Msc::Msc() :
     compressXGap = 2;
     compressYGap = 2;
     hscaleAutoXGap = 5;
+    trackFrameWidth = 4;
 
     pedantic=false;
     ignore_designs = false;
@@ -692,11 +693,11 @@ double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double 
     double h = HeightArcList(from, to, cover);
     if (forceCompress || (*from)->IsCompressed()) {
         double touchpoint;
-        top_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
+        start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     }
-    top_y = ceil(top_y);
-    ShiftByArcList(from, to, top_y);
-    return top_y + h;
+    start_y = ceil(start_y);
+    ShiftByArcList(from, to, start_y);
+    return start_y + h;
 }
 
 void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)

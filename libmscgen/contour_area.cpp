@@ -71,7 +71,7 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
         switch (ret) {
         default:
             _ASSERT(0);
-        case Contour::OVERLAP:                      //real union with an existing surface
+        case Contour::OVERLAP:                 //real union with an existing surface
         case Contour::B_INSIDE_A:              //blob is inside i
         case Contour::A_INSIDE_B:              //i is fully covered by blob, delete it
         case Contour::SAME:                    //outer hull is same, holes may be modified
@@ -241,7 +241,7 @@ Contour::result_t ContourWithHoles::Sub(const ContourWithHoles &p, ContourList &
         res -= holes;
         break;
     case OVERLAP:
-        res.append(p.holes * Contour(*this)); //add parts of our surface in p's holes
+        res.append(p.holes * Contour(*this)); //no holes of ours: add parts of our surface in p's holes
         res -= holes;
         break;
     }
