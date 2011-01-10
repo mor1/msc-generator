@@ -37,7 +37,6 @@ TODO: variant #1 double and triple-line joints for emphasis
 ADD: More arrowheads
 ADD: More BIG arrowheads
 ADD: More arrow types --> ==> >>> ..> 
-ADD: More space to ... dividers
 FIX: shodw should extend by half of blur
 TRY: shadow to arrows and labels
 FIX: If we select a hint, use the hinted text, not the one in the editor (casedness)
@@ -48,6 +47,8 @@ In 3.0
 ADDED: More precise tracking mode
 ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
 ADDED: shadow attribute to block arrows
+ADDED: More space to ... dividers
+ADDED: line.corner attribute with bevel, note and round (also cornersize)
 
 In 2.6
 FIXED: Many improvements to parsing, but missing the ; still result in empty chart

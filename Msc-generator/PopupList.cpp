@@ -203,7 +203,7 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     Block b(lpItem->rcItem.left+1, lpItem->rcItem.right-1, lpItem->rcItem.top, lpItem->rcItem.bottom-1);
     MscColorType black(0,0,0);
     MscFillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
-    MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, 3);
+    MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
     switch (item->state) {
     case HINT_ITEM_SELECTED:
         mscdrawer.Fill(b, line, fill);

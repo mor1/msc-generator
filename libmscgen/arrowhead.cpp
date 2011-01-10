@@ -39,7 +39,7 @@ double ArrowHead::arrowSizePercentage[6] = {
 double ArrowHead::baseArrowWidth = 17;    /* Arrow size for BIG */
 double ArrowHead::baseArrowHeight = 10;    /* Half Arrow size for BIG */
 double ArrowHead::baseDiamondSize = 10;    /* Half Diamond size for BIG */
-double ArrowHead::baseDotSize = 9;    /* Dot radius for BIG */
+double ArrowHead::baseDotSize = 9;    /* Dot cornersize for BIG */
 
 void ArrowHead::Empty() {
     line.Empty();
@@ -144,7 +144,7 @@ bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
     std::vector<double> xPos(2); 
     xPos[0] = 0;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.7;
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, 0);
+    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     msc->Line(XY(xPos[1], 1), XY(xPos[1], HINT_GRAPHIC_SIZE_Y-1), eLine);
     ArrowHead ah(ArrowHead::BIGARROW);
@@ -162,7 +162,7 @@ bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrow
     if (!msc) return false;
     const double xx = left ? 0.9 : 0.7;
     XY xy(HINT_GRAPHIC_SIZE_X*xx, HINT_GRAPHIC_SIZE_Y/2);
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, 0);
+    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     ArrowHead ah;
     ah.line += MscColorType(0,192,32); //green-blue
     ah.endType.second = type;

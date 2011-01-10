@@ -324,12 +324,12 @@ void EntityDef::Draw()
     const double lw = style.line.LineWidth();
 
     Block b(outer_edge); 
-    MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
-    if (line2.radius.second>0) line2.radius.second += lw;  //expand to outer edge
+    MscLineAttr line2 = style.line;   //style.line.cornersize corresponds to midpoint of line
+    if (line2.cornersize.second>0) line2.cornersize.second += lw;  //expand to outer edge
     chart->Shadow(b, style.line, style.shadow);
     if (style.fill.color.first && style.fill.color.second.valid) {
         b.Expand(-lw+style.line.width.second/2.);
-        line2.radius.second += -lw+style.line.width.second/2.; //only decreases radius
+        line2.cornersize.second += -lw+style.line.width.second/2.; //only decreases cornersize
         chart->Fill(b, style.line, style.fill);
     }
     Block b2(outer_edge);

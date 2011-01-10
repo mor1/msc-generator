@@ -352,7 +352,7 @@ const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color",
-"line.color", "line.type", "line.width", "line.radius",
+"line.color", "line.type", "line.width", "line.corner", "line.cornersize", "line.radius",
 "vline.color", "vline.type", "vline.width",
 "fill.color", "fill.color2", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
 
@@ -692,7 +692,7 @@ bool CshHintGraphicCallbackForAttributeNames(MscDrawer *msc, CshHintGraphicParam
     const double off = 0.35*HINT_GRAPHIC_SIZE_Y;
     MscColorType color(0, 0, 0);
     MscLineAttr line;
-    line.radius.second = 3;
+    line.cornersize.second = 3;
     MscFillAttr fill(color, GRADIENT_NONE);
     msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h), line, fill);
     msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off), line, fill);
@@ -735,7 +735,7 @@ bool CshHintGraphicCallbackForColors(MscDrawer *msc, CshHintGraphicParam p)
     b.Round();
     msc->Fill(b, MscFillAttr(color, GRADIENT_NONE));
     b.Expand(0.5);
-    msc->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, 0));
+    msc->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0));
     return true;
 }
 
@@ -760,7 +760,7 @@ bool CshHintGraphicCallbackForDesigns(MscDrawer *msc, CshHintGraphicParam /*p*/)
     const XY br(0.8*HINT_GRAPHIC_SIZE_X, 0.8*HINT_GRAPHIC_SIZE_Y);
     MscColorType color(0, 0, 0);
     MscLineAttr line;
-    line.radius.second = 2;
+    line.cornersize.second = 2;
     msc->Clip(ul, br, line);
     cairo_pattern_t *pattern = cairo_pattern_create_linear(ul.x, ul.y, br.x, br.y);
     cairo_pattern_add_color_stop_rgb(pattern, 0.0, 255/255., 255/255., 255/255.);  //white
@@ -796,7 +796,7 @@ void Csh::AddDesignsToHints()
 bool CshHintGraphicCallbackForStyles(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 1);
+    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_ROUND, 1);
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
     MscShadowAttr shadow(MscColorType(0,0,0));
     shadow.offset.first=true;
@@ -867,7 +867,7 @@ bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
 void Csh::AddKeywordsToHints()
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
+    {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
     "defcolor", "defdesign", "vertical", "mark", "parallel", ""};
     AddToHints(names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
 }
@@ -875,8 +875,8 @@ void Csh::AddKeywordsToHints()
 bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/)
 {
     if (!msc) return false;
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 0);
-    MscLineAttr vline(LINE_SOLID, MscColorType(0,0,0), 2, 0);
+    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
+    MscLineAttr vline(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_NONE, 0);
     MscFillAttr fill(MscColorType(192,192,192), GRADIENT_UP);
     MscShadowAttr shadow(MscColorType(0,0,0));
     shadow.offset.first=true;
