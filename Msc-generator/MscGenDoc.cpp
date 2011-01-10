@@ -109,8 +109,7 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
 	m_ZoomMode = (EZoomMode)AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_DEFAULTZOOMMODE, 0);
 	m_zoom = 100;
 	m_bTrackMode = false;
-	m_saved_charrange.cpMax = 0;
-	m_saved_charrange.cpMin = 0;
+	m_saved_charrange.cpMin = -1;
 	m_last_arc = NULL;
 	m_pViewFadingTimer = NULL;
 
@@ -1089,10 +1088,13 @@ void CMscGenDoc::OnInternalEditorChange()
 	}
 }
 
+//User changes selection in internal editor
+//This is not called if a mouse move changes the selection during tack mode
 void CMscGenDoc::OnInternalEditorSelChange()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+    m_saved_charrange.cpMin = -1;
 	if (!m_bTrackMode || !pApp->IsInternalEditorRunning()) return;
 	long start, end;
 	pApp->m_pWndEditor->m_ctrlEditor.GetSel(start, end);
@@ -1260,8 +1262,16 @@ void CMscGenDoc::SetTrackMode(bool on)
 	StartFadingAll(); //Delete trackrects from screen (even if turned on)
 	if (on) {
 		SyncShownWithEditing("turn tracking on");
-		if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_saved_charrange);
-	}
+		//We have already saved the internal editor selection state into m_saved_charrange in MscGenView::OnLButtonUp
+	} else if (pApp->IsInternalEditorRunning()) {
+        //Disable selection change events - we are causing selection change
+        //and we do not want to be notified (and add more track rects)
+        DWORD eventmask = pApp->m_pWndEditor->m_ctrlEditor.GetEventMask();
+        pApp->m_pWndEditor->m_ctrlEditor.SetEventMask(eventmask & ~ENM_SELCHANGE);
+        pApp->m_pWndEditor->m_ctrlEditor.SetSel(m_saved_charrange);
+        pApp->m_pWndEditor->m_ctrlEditor.SetEventMask(eventmask);
+        m_saved_charrange.cpMin = -1;
+    }
 }
 
 //Expects the coordinates in MscDrawer space (MscDrawer::totalWidth & Height, except local to the current page)
@@ -1272,7 +1282,6 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
 		return;
-	bool wasArc = m_last_arc!=NULL;
 	m_last_arc = arc;
 	StartFadingAll();
 	AddTrackArc(arc);
@@ -1287,12 +1296,13 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	//and we do not want to be notified (and add more track rects)
 	editor.SetEventMask(eventmask & ~ENM_SELCHANGE);
 	if (arc) {
-		//Store selection if there was no previous highlight
-		if (!wasArc) editor.GetSel(m_saved_charrange);
+		//Store selection if there was no previous saved selection
+        if (m_saved_charrange.cpMin==-1) editor.GetSel(m_saved_charrange);
 		HighLightArc(arc);
 	} else {
 		//restore selection to the one before tracking was initiated
 		editor.SetSel(m_saved_charrange);
+        m_saved_charrange.cpMin=-1;
 	}
 	editor.SetEventMask(eventmask);
 }

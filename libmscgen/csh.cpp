@@ -348,7 +348,7 @@ const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
 "pedantic", "background.color", "background.color2", "background.gradient", ""};
 
 const char *const attr_names[] = {"compress", "color", "label", "number", "id",
-"pos", "relative", "show", "makeroom", "readfrom", "offset",
+"pos", "relative", "show", "makeroom", "readfrom", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color",
@@ -815,7 +815,7 @@ bool CshHintGraphicCallbackForStyles(MscDrawer *msc, CshHintGraphicParam p)
 
     b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
     fill.color.second = MscColorType(0,0,255);
-    msc->Shadow(b, shadow, false);
+    msc->Shadow(b, shadow);
     msc->Fill(b, fill);
     msc->Line(b, line);
     return true;
@@ -858,7 +858,7 @@ bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
     MscColorType color(128, 64, 64);
-    msc->Clip(contour::Ellipse(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.6));
+    msc->Clip(EllipseData(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.6));
     msc->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
     msc->UnClip();
     return true;
@@ -886,7 +886,7 @@ bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/
 
     Block b(HINT_GRAPHIC_SIZE_X*0.25, HINT_GRAPHIC_SIZE_X*0.75, HINT_GRAPHIC_SIZE_Y*0.1, HINT_GRAPHIC_SIZE_Y*0.5);
     msc->Line(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.5), XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.9), vline);
-    msc->Shadow(b, line, shadow, false);
+    msc->Shadow(b, line, shadow);
     msc->Fill(b, line, fill);
     msc->Line(b, line);
     return true;

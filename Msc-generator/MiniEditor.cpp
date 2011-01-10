@@ -315,11 +315,13 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
     if (m_hintsPopup.m_shown) {
         if (pMsg->message == WM_KEYDOWN) { 
             if (pMsg->wParam == VK_ESCAPE) {CancelHintMode(); return TRUE;}
+            if (pMsg->wParam == VK_DELETE || 
+                pMsg->wParam == VK_BACK) {return FALSE;} //keep hinted mode, but no special processing
             if (pMsg->wParam == VK_UP)     {m_hintsPopup.m_listBox.UpDownKey(-1); return TRUE;}
             if (pMsg->wParam == VK_DOWN)   {m_hintsPopup.m_listBox.UpDownKey(+1); return TRUE;}
             if (pMsg->wParam == VK_PRIOR)  {m_hintsPopup.m_listBox.UpDownKey(-2); return TRUE;}
             if (pMsg->wParam == VK_NEXT)   {m_hintsPopup.m_listBox.UpDownKey(+2); return TRUE;}
-            if (pMsg->wParam == VK_RETURN) {
+            if (pMsg->wParam == VK_RETURN || pMsg->wParam == VK_TAB) {
                 const CshHint *item = m_hintsPopup.m_listBox.GetSelectedHint();
                 if (item) {
                     if (item->state != HINT_ITEM_SELECTED) return FALSE;
@@ -329,8 +331,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 //if nothing selected let it run further
             }
         } else if (pMsg->message == WM_CHAR) {
-            if (strchr(",;= []{}()-+<>.#", pMsg->wParam)==NULL)
-                //Other characters we let being handled regularly - we re-calc hints after in OnCommand
+            if (isalnum(pMsg->wParam) || pMsg->wParam == '_')
+                //characters that can make up a hinted keyword - we insert them and re-calc hints afterwards in OnCommand
                 return FALSE;
             //do nothing if no item is selected
             const CshHint *item = m_hintsPopup.m_listBox.GetSelectedHint();

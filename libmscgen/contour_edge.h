@@ -28,8 +28,6 @@
 //For tilted curvy edges we also store the tilt in radians around the centerpoint.
 //  We also store the sin and cos of tilt for increased efficiency
 
-namespace contour {
-
 //A straight edge, or a section of an ellipse
 //For straight edges, we do not store the endpoint, just the start
 //(the endpoint is given by the next edge in the contour)
@@ -40,7 +38,7 @@ class Edge
 protected:
     bool    straight;
     XY      start;
-    Ellipse ell;
+    EllipseData ell;
     double  s, e;   //supposedly between [0..2pi]
     bool    clockwise_arc;  //this is clocwise if y is downwards
     Block   boundingBox;
@@ -65,10 +63,8 @@ public:
 
     //But all methods assume bounding Box is OK!!!
     void Shift(XY wh) {start+=wh; boundingBox.Shift(wh); if (!straight) ell.Shift(wh);}
-    void Rotate(double cos, double sin, double radian, const XY&B) {start.Rotate(cos, sin);
-        if (!straight) ell.Rotate(cos, sin, radian); CalculateBoundingBox(B);}
-    void RotateAround(const XY&c, double cos, double sin, double radian, const XY&B) {start.RotateAround(c, cos, sin);
-        if (!straight) ell.RotateAround(c, cos, sin, radian); CalculateBoundingBox(B);}
+    void Rotate(double cos, double sin, double radian, const XY&B);
+    void RotateAround(const XY&c, double cos, double sin, double radian, const XY&B);
     void SwapXY();
 
     bool   operator ==(const Edge& p) const;
@@ -77,7 +73,7 @@ public:
     bool IsStraight() const {return straight;}
     const XY & GetStart() const {return start;}
     const Block &GetBoundingBox() const {return boundingBox;}
-    const Ellipse &GetEllipse() const {_ASSERT(!straight); return ell;}
+    const EllipseData &GetEllipseData() const {_ASSERT(!straight); return ell;}
     void CopyInverseToMe(const Edge &B, const XY &next);
     void SetEllipseToFull() {_ASSERT(!straight); s=0; e=2*M_PI; start=ell.Radian2Point(0);}
 	double GetSpan() const;
@@ -181,7 +177,7 @@ inline Edge& Edge::SetEnd(const XY &p)
 {
     if (straight) return *this;
     e = ell.Point2Radian(p);
-    _ASSERT(radianbetween(e));
+    //_ASSERT(radianbetween(e));
     return *this;
 }
 
@@ -196,8 +192,14 @@ template <class element>
 class DoubleMap : public std::map<double, element>
 {
 public:
+    using std::map<double, element>::operator[];   //indicate to two-stage (dependent) name lookup
+    using std::map<double, element>::upper_bound;  //that we want these names (not dependent on "element")
+    using std::map<double, element>::begin;        //looked up only at instantiation time (from base class)
+    using std::map<double, element>::end;          //and not during template compilation (searched in global scope).
+
     DoubleMap() {};
-    DoubleMap(const element &e) {insert(value_type(-CONTOUR_INFINITY, e)); insert(value_type(CONTOUR_INFINITY, e));}
+    DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
+                                 insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
     void Set(double pos, const element&e) {operator[](pos) = e;}
     void Set(const Range &r, const element &e);
     void Add(double pos, const element&e);     //assumes element has operator +=
@@ -213,7 +215,7 @@ void DoubleMap<element>::Add(double pos, const element&e)
     if (i==begin()) Set(pos, e);
     else if (i->first == pos)
         i->second += e;
-    else insert(i, value_type(pos, i->second))->second += e;
+    else insert(i, typename std::map<double, element>::value_type(pos, i->second))->second += e;
 }
 
 template <class element>
@@ -237,23 +239,21 @@ void DoubleMap<element>::Add(const Range &r, const element& e)
 {
     if (r.till <= r.from) return;
     auto i = --upper_bound(r.till);
-    if (i==end()) 
+    if (i==end())
         operator[](r.from) = e; //if the whole range is before the first element
     else {
         if (i->first != r.till) //i points to a place before r.till
-            i = insert(i, value_type(r.till, i->second)); 
+            i = insert(i, typename std::map<double, element>::value_type(r.till, i->second));
         //now i points to the element at r.till
         auto h = --upper_bound(r.from);
         if (h==end())
-            h = insert(begin(), value_type(r.from, e))++;
+            h = insert(begin(), typename std::map<double, element>::value_type(r.from, e))++;
         else if (h->first != r.from) //j points to an element before r.from
-            h = insert(h, value_type(r.from, h->second));
+            h = insert(h, typename std::map<double, element>::value_type(r.from, h->second));
         //now h points to the first element to add e to
         for (; h!=i; h++)
             h->second += e;
     }
 }
-
-}; //namespace
 
 #endif //CONTOUR_EDGE_H

@@ -38,14 +38,6 @@ typedef enum {
 
 class MscDrawer;
 
-class DoublePair : public std::pair<double, double> 
-{
-public:
-    DoublePair() {};
-    DoublePair(double a, double b) : std::pair<double, double>(a,b) {}
-    void swap() {std::swap(first, second);}
-};
-
 class ArrowHead
 {
 protected:
@@ -78,11 +70,11 @@ public:
     //tells how wide and high a specific arrowhead
     XY getWidthHeight(bool bidir, MscArrowEnd which) const;
     //tells how much of the arrow line is covered by the arrowhead (on both sides of the entity line)
-    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, double mainlinewidth) const;
+    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, const MscLineAttr &mainline) const;
     //tells what range of the entity line is covered by the arrowhead
     Range EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //Returns a contour covering the arrowhead
-    Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, double mainlinewidth) const;
+    Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const;
     //This actually draws an arrowhead
     void Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *) const;
 

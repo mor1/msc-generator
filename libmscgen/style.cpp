@@ -32,6 +32,8 @@ MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, b
 {
     solid.first=so;
     solid.second = 128;
+    fromright.first=so;  //f_solid also governs fromright, as it is also only for pipes
+    fromright.second=true;
     compress.first = co;
     compress.second = false;
     numbering.first = nu;
@@ -47,6 +49,7 @@ void MscStyle::Empty()
     arrow.Empty();
     shadow.Empty();
     solid.first = false;
+    fromright.first = false;
     compress.first = false;
     numbering.first = false;
 }
@@ -60,6 +63,7 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     if (toadd.f_text && f_text) text += toadd.text;
     if (toadd.f_arrow!=ArrowHead::NONE && f_arrow!=ArrowHead::NONE) arrow += toadd.arrow;
     if (toadd.f_solid && f_solid && toadd.solid.first) solid = toadd.solid;
+    if (toadd.f_solid && f_solid && toadd.fromright.first) fromright = toadd.fromright;
     if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
     if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
     return *this;
@@ -111,6 +115,16 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         }
         a.InvalidValueError("0..1' or '0..255", msc->Error);
     }
+    if (a.Is("fromright") && f_solid) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, type))
+                fromright.first = false;
+            return true;
+        }
+        if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
+        fromright.first = true;
+        fromright.second = a.yes;
+    }
     if (a.Is("compress") && f_compress) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
@@ -149,7 +163,10 @@ void MscStyle::AttributeNames(Csh &csh) const
     if (f_arrow!=ArrowHead::NONE) ArrowHead::AttributeNames(csh);
     if (f_shadow) MscShadowAttr::AttributeNames(csh);
     if (f_text) StringFormat::AttributeNames(csh);
-    if (f_solid) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid", HINT_ATTR_NAME));
+    if (f_solid) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid", HINT_ATTR_NAME));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"fromright", HINT_ATTR_NAME));
+    }
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
     if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
     if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
@@ -180,7 +197,8 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (CaseInsensitiveEqual(attr, "compress") && f_compress) {
+    if ((CaseInsensitiveEqual(attr, "compress") && f_compress) ||
+        (CaseInsensitiveEqual(attr, "fromright") && f_solid)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
@@ -203,6 +221,7 @@ string MscStyle::Print(int ident) const
     if (f_fill) s.append(fill.Print());
     if (f_shadow) s.append(shadow.Print());
     if (f_solid) s.append("solid:").append(solid.second?"yes":"no").append("\n");
+    if (f_solid) s.append("fromright:").append(fromright.second?"yes":"no").append("\n");
 //    if (f_arrow!=ArrowHead::NONE) s.append(arrow.Print());
 //    if (f_text) s.append(text.Print());
     s.append(")");
@@ -254,7 +273,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true);  //no vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.numbering.first = false;

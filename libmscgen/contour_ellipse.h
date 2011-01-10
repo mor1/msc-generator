@@ -11,16 +11,13 @@
 #include "cairo.h"
 #include "contour_basics.h"
 
-//A helper class implementing an ellipse, its crosspoints with ellipses and lines
-//it always represents a full ellipse, not just a section of it
-
-
-namespace contour {
 
 //helper class for ellipsis intersection calculation
 struct quadratic_xy_t;
 
-class Ellipse
+//A helper class implementing an ellipse, its crosspoints with ellipses and lines
+//it always represents a full ellipse, not just a section of it
+class EllipseData
 {
     friend struct quadratic_xy_t;
     friend class Edge;
@@ -37,18 +34,18 @@ protected:
     //  the ellipse is a non-tilted unit circle
     XY   conv_to_circle_space(const XY &p) const;
     XY   conv_to_real_space(const XY &p) const;
-    int  refine_crosspoints(int num_y, double y[], const Ellipse &b,
+    int  refine_crosspoints(int num_y, double y[], const EllipseData &b,
                             const quadratic_xy_t &one, const quadratic_xy_t &two, XY p[]) const;
-    bool refine_point(const Ellipse &B, XY &p) const;
+    bool refine_point(const EllipseData &B, XY &p) const;
     void transpose_curvy_non_tilted();
 	void calculate_extremes();
-	void add_to_tilt(double cos, double sin, double radian);
+	double add_to_tilt(double cos, double sin, double radian);
 
 public:
-    Ellipse() {};
-    Ellipse(const XY &c, double radius1, double radius2=0, double tilt_degree=0);
-    bool operator ==(const Ellipse& p) const;
-    bool operator <(const Ellipse& p) const;
+    EllipseData() {};
+    EllipseData(const XY &c, double radius1, double radius2=0, double tilt_degree=0);
+    bool operator ==(const EllipseData& p) const;
+    bool operator <(const EllipseData& p) const;
     bool IsTilted() const {return tilted;}
     const XY & GetCenter() const {return center;}
     double GetRadius1() const {return radius1;}
@@ -56,8 +53,8 @@ public:
     double GetTilt() const {return tilted ? tilt : 0;}
 	double GetExtreme(int n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
     void Shift(const XY &xy);
-	void Rotate(double cos, double sin, double radian);
-	void RotateAround(const XY&c, double cos, double sin, double radian);
+	double Rotate(double cos, double sin, double radian);
+	double RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY();
 
     //calculate one point on the tangent at pos (between 0..1) either in the
@@ -68,7 +65,7 @@ public:
 
     //return the number of common points, coordinates in "r"
     //also the radian or relative position inside the straight edge
-    int CrossingEllipse(const Ellipse &B,
+    int CrossingEllipse(const EllipseData &B,
                         XY r[], double radian_us[], double radian_b[]) const;
     int CrossingStraight(const XY &A, const XY &B,
                          XY r[], double radian_us[], double pos_b[]) const;
@@ -79,13 +76,13 @@ public:
 
 	//return a positive number if the two can be moved closer together
 	//return Infinity() if the two do not overlap in x coordinates
-	double OffsetBelow(const Ellipse&) const;
+	double OffsetBelow(const EllipseData&) const;
 	double OffsetBelow(const XY&A, const XY&B) const;
 	double OffsetAbove(const XY&A, const XY&B) const;
 };
 
 
-inline bool Ellipse::operator ==(const Ellipse& p) const
+inline bool EllipseData::operator ==(const EllipseData& p) const
 {
     if (center!=p.center || tilted!=p.tilted ||
         radius1!=p.radius1 || radius2!=p.radius2 ) return false;
@@ -93,7 +90,7 @@ inline bool Ellipse::operator ==(const Ellipse& p) const
     return true;
 }
 
-inline bool Ellipse::operator < (const Ellipse& p) const
+inline bool EllipseData::operator < (const EllipseData& p) const
 {
     if (center!=p.center) return center<p.center;
     if (tilted != p.tilted) return tilted;
@@ -103,7 +100,7 @@ inline bool Ellipse::operator < (const Ellipse& p) const
     return false; //they are equal
 }
 
-inline XY Ellipse::conv_to_real_space(const XY &p) const
+inline XY EllipseData::conv_to_real_space(const XY &p) const
 {
     if (!tilted)
         return center + XY(radius1 * p.x, radius2 * p.y);
@@ -112,7 +109,7 @@ inline XY Ellipse::conv_to_real_space(const XY &p) const
            radius1 * p.x * sintilt + radius2 * p.y * costilt);
 }
 
-inline XY Ellipse::conv_to_circle_space(const XY &p) const
+inline XY EllipseData::conv_to_circle_space(const XY &p) const
 {
     if (!tilted)
         return XY((p.x-center.x)/radius1, (p.y-center.y)/radius2);
@@ -129,7 +126,7 @@ inline double circle_space_point2radian_curvy(XY p)
 }
 
 //returns the radian
-inline double Ellipse::Point2Radian(const XY &p) const
+inline double EllipseData::Point2Radian(const XY &p) const
 {
     XY q = conv_to_circle_space(p);
     const double d = q.length();
@@ -143,7 +140,7 @@ inline double Ellipse::Point2Radian(const XY &p) const
     //}
 }
 
-inline void Ellipse::TransformForDrawing(cairo_t *cr) const
+inline void EllipseData::TransformForDrawing(cairo_t *cr) const
 {
     cairo_translate(cr, center.x, center.y);
     if (tilted)
@@ -179,6 +176,5 @@ inline double deg2rad(double degree)
 bool crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
 double point2pos_straight(const XY &M, const XY&N, const XY &p);
 
-}; //namespace
 
 #endif //CONTOUR_ELLIPSE_H

@@ -53,8 +53,6 @@
 
 //////////////////Helper functions
 
-namespace contour {
-
 //safe cubic root
 inline double curt(double n)
 {
@@ -278,10 +276,10 @@ struct quadratic_xy_t
     double E;
     double F;
     quadratic_xy_t() {}
-    quadratic_xy_t(const Ellipse &arc);
+    quadratic_xy_t(const EllipseData &arc);
 };
 
-quadratic_xy_t::quadratic_xy_t(const Ellipse &arc)
+quadratic_xy_t::quadratic_xy_t(const EllipseData &arc)
 {
     if (!arc.tilted) {
         //equation for non-tilt ellypses is (x-Cx)^2/radius1^2 + (y-Cy)^2/radius2^2 = 1;
@@ -341,7 +339,7 @@ bool crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY 
 }
 
 //refines the location of a point using crosspoints of tangents
-bool Ellipse::refine_point(const Ellipse &B, XY &p) const
+bool EllipseData::refine_point(const EllipseData &B, XY &p) const
 {
     int max_itr = 32;
     XY p_orig = p;
@@ -375,7 +373,7 @@ bool Ellipse::refine_point(const Ellipse &B, XY &p) const
 }
 
 //take the (at most)
-int Ellipse::refine_crosspoints(int num_y, double y[], const Ellipse &B,
+int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
                                 const quadratic_xy_t &one, const quadratic_xy_t &two, XY p[]) const
 {
     // Adjustment for quadratics to allow for relative error testing.
@@ -413,14 +411,14 @@ int Ellipse::refine_crosspoints(int num_y, double y[], const Ellipse &B,
     return num;
 }
 
-inline void Ellipse::transpose_curvy_non_tilted()
+inline void EllipseData::transpose_curvy_non_tilted()
 {
     _ASSERT(!tilted);
     std::swap(center.x, center.y);
     std::swap(radius1, radius2);
 }
 
-void Ellipse::calculate_extremes()
+void EllipseData::calculate_extremes()
 {
     if (tilted) {
         //this is the radian at which the x coordinate is
@@ -446,17 +444,23 @@ void Ellipse::calculate_extremes()
     }
 }
 
-void Ellipse::add_to_tilt(double cos, double sin, double radian)
+double EllipseData::add_to_tilt(double cos, double sin, double radian)
 {
-	if (radius1==radius2) return;
+    _ASSERT(radian>=0 && radian<=2*M_PI);
+	if (radius1==radius2) return radian;
+    const double old_tilt = tilted ? tilt : 0;
 	if (tilted)
 		tilt += radian;
-	else 
+	else
 		tilt = radian;
 	if (tilt>=2*M_PI) tilt-=2*M_PI;
-    if (test_equal(tilt,0)) {
+    if (test_equal(fmod(tilt, M_PI) ,0)) {
 		tilted = false;
-	} else if (tilted) { //already tilted and remains so
+	} else 
+        if (test_equal(fmod(tilt, M_PI), M_PI/2)) {
+        tilted = false;
+        std::swap(radius1, radius2);
+    } else if (tilted) { //already tilted and remains so
         double c = costilt;
         costilt = c*cos + sintilt*sin;
         sintilt = -c*sin + sintilt*cos;
@@ -465,10 +469,12 @@ void Ellipse::add_to_tilt(double cos, double sin, double radian)
         costilt = cos;
         sintilt = sin;
     }
+    const double new_tilt = tilted ? tilt : 0;
+    return radiannormalize(radian-(new_tilt-old_tilt));
 	_ASSERT((tilt>=0 && tilt<2*M_PI) || !tilted);
 }
 
-Ellipse::Ellipse(const XY &c, double radius_x, double radius_y, double tilt_degree) :
+EllipseData::EllipseData(const XY &c, double radius_x, double radius_y, double tilt_degree) :
     center(c), radius1(radius_x), radius2(radius_y), tilted(false)
 {
     if (radius2 == 0) radius2 = radius1; //circle
@@ -488,45 +494,61 @@ Ellipse::Ellipse(const XY &c, double radius_x, double radius_y, double tilt_degr
 	calculate_extremes();
 }
 
-void Ellipse::Shift(const XY &xy)
+void EllipseData::Shift(const XY &xy)
 {
     center += xy;
     for (int i=0; i<4; i++)
         extreme[i] += xy;
 }
 
-void Ellipse::Rotate(double cos, double sin, double radian)
+//returns how much radians modify
+double EllipseData::Rotate(double cos, double sin, double radian)
 {
     center.Rotate(cos, sin);
-    add_to_tilt(cos, sin, radian);
+    double ret = add_to_tilt(cos, sin, radian);
     calculate_extremes();
+    return ret;
 }
 
-void Ellipse::RotateAround(const XY&c, double cos, double sin, double radian)
+//returns how much radians modify
+double EllipseData::RotateAround(const XY&c, double cos, double sin, double radian)
 {
     center.RotateAround(c, cos, sin);
-    add_to_tilt(cos, sin, radian);
+    double ret = add_to_tilt(cos, sin, radian);
     calculate_extremes();
+    return ret;
 }
 
-void Ellipse::SwapXY() 
+void EllipseData::SwapXY()
 {
     center.SwapXY();
-    if (tilt==0) 
+    if (tilt==0)
         std::swap(radius1, radius2);
     else
         tilt = M_PI/2 - tilt; //mirror on 45 degrees
 }
 
 //Return -1 if the two ellipses are equal
-int Ellipse::CrossingEllipse(const Ellipse &B, XY r[], double radian_us[], double radian_b[]) const
+int EllipseData::CrossingEllipse(const EllipseData &B, XY r[], double radian_us[], double radian_b[]) const
 {
     //Now this is scary shit. Above there is a suite to solve 4th degree equations, we use those
     //we are interested only in real solutions
     //for ellipses see http://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
 
-    //First check if the two ellipses are the same
-    if (B==*this) return -1;
+    //First check if the two ellipses are the same or fully contain one another
+    if (center == B.center) { //same center
+        if (std::min(radius1, radius2) > std::max(B.radius1, B.radius2) ||
+            std::max(radius1, radius2) < std::min(B.radius1, B.radius2))
+            return 0; //one is fully in the other (both radiuses smaller than any of the other)
+        if (tilted == B.tilted && (!tilted || tilt == B.tilt)) //same tilt
+            if ((radius1 == B.radius1 && radius2 == B.radius2) ||
+                (radius1 == B.radius2 && radius2 == B.radius1))
+                return -1; //equal radiuses - the two ellipses are the same
+            if ((radius1<B.radius1 && radius2<B.radius2) ||
+                (radius1>B.radius1 && radius2>B.radius2))
+                return 0; //one fully in the other
+    }
+
     double y[4];
     int num_y;
     const quadratic_xy_t one(*this), two(B);
@@ -537,7 +559,7 @@ int Ellipse::CrossingEllipse(const Ellipse &B, XY r[], double radian_us[], doubl
         (fabs(center.x - B.center.x) < TRSHOLD || fabs(center.y - B.center.y) < TRSHOLD)) {
         if (fabs(center.y - B.center.y) < TRSHOLD && fabs(center.x - B.center.x) >= TRSHOLD ) {
             //In this case we transpose the ellipses call ourself and re-transpose the results
-            Ellipse p1(*this), p2(B);
+            EllipseData p1(*this), p2(B);
             p1.transpose_curvy_non_tilted();
             p2.transpose_curvy_non_tilted();
             int num = p1.CrossingEllipse(p2, r, radian_us, radian_b);
@@ -593,7 +615,7 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p)
     return -1;
 }
 
-int Ellipse::CrossingStraight(const XY &A, const XY &B,
+int EllipseData::CrossingStraight(const XY &A, const XY &B,
   	                          XY *r, double *radian_us, double *pos_b) const
 {
     XY M = conv_to_circle_space(A);
@@ -620,7 +642,7 @@ int Ellipse::CrossingStraight(const XY &A, const XY &B,
         num = 2;
     }
 
-    for (int i=0; i<2; i++) {
+    for (int i=0; i<num; i++) {
         radian_us[i] = circle_space_point2radian_curvy(r[i]);
         r[i] = conv_to_real_space(r[i]);
         //special case: horizontal line
@@ -628,11 +650,11 @@ int Ellipse::CrossingStraight(const XY &A, const XY &B,
         if (A.x==B.x) r[i].x = A.x;
         pos_b[i]  = point2pos_straight(A, B, r[i]);
     }
-    return 2;
+    return num;
 }
 
 //return the number of crosspoints. 1 means a touch
-int Ellipse::CrossingVertical(double x, double y[], double radian[]) const
+int EllipseData::CrossingVertical(double x, double y[], double radian[]) const
 {
     if (tilted) {
         XY xy[2];
@@ -642,18 +664,18 @@ int Ellipse::CrossingVertical(double x, double y[], double radian[]) const
             y[i] = xy[i].y;
         return num;
     }
-    if (x < center.x-radius1 || x > center.x+radius1) return 0;
-    y[0] = center.y + radius2*sqrt(1 - sqr((x-center.x)/radius1));
+    if (x < center.x-radius1 || x > center.x+radius1) return 0; //outside
+    y[0] = center.y + radius2*sqrt(1 - sqr((x-center.x)/radius1)); //y coord of one cp
     radian[0] = circle_space_point2radian_curvy(conv_to_circle_space(XY(x,y[0])));
     if (test_equal(y[0], center.y))   //just touch
         return 1;
-    y[1] = 2*center.y - y[0];
-    radian[1] = (radian[0]<=M_PI) ? M_PI - radian[0] : 3*M_PI - radian[0];
+    y[1] = 2*center.y - y[0];  //the other cp is mirrored (we are !tilted)
+    radian[1] = 2*M_PI - radian[0];
     return 2;
 }
 
 
-XY Ellipse::Tangent(double radian, bool next) const
+XY EllipseData::Tangent(double radian, bool next) const
 {
     const double x = cos(radian);
     const double y = sin(radian);
@@ -666,7 +688,7 @@ XY Ellipse::Tangent(double radian, bool next) const
         return conv_to_real_space(XY(x+y, y-x));
 }
 
-bool Ellipse::Expand(double gap) 
+bool EllipseData::Expand(double gap)
 {
 	radius1+=gap;
 	if (!test_smaller(0,radius1)) return false;
@@ -675,21 +697,18 @@ bool Ellipse::Expand(double gap)
 	return true;
 }
 
-double Ellipse::OffsetBelow(const Ellipse&) const
+double EllipseData::OffsetBelow(const EllipseData&) const
 {
 	return 0;
 }
 
-double Ellipse::OffsetBelow(const XY&A, const XY&B) const
+double EllipseData::OffsetBelow(const XY&A, const XY&B) const
 {
 	return 0;
 }
 
-double Ellipse::OffsetAbove(const XY&A, const XY&B) const
+double EllipseData::OffsetAbove(const XY&A, const XY&B) const
 {
 	return 0;
 }
 
-
-
-}; //namespace

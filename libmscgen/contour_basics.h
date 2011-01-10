@@ -10,8 +10,6 @@
 
 using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
 
-namespace contour {
-
 #define CONTOUR_INFINITY DBL_MAX
 //other helpers
 static const double SMALL_NUM = 1e-10; //avoid division overflow
@@ -40,8 +38,8 @@ public:
     bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
     XY	   operator -() const             {return XY(-x, -y);}
     bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
-    bool   test_equal(const XY& p) const  {return contour::test_equal(x, p.x) && contour::test_equal(y, p.y);}
-    bool   test_smaller(const XY& p) const{return contour::test_equal(x, p.x) ? contour::test_smaller(y, p.y) : contour::test_smaller(x, p.x);}
+    bool   test_equal(const XY& p) const  {return ::test_equal(x, p.x) && ::test_equal(y, p.y);}
+    bool   test_smaller(const XY& p) const{return ::test_equal(x, p.x) ? ::test_smaller(y, p.y) : ::test_smaller(x, p.x);}
     XY     Rotate90CW() const             {return XY(-y, x);}
     XY     Rotate90CCW() const            {return XY(y, -x);}
 	void   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos;}
@@ -101,6 +99,7 @@ struct Block {
         x(std::min(sx, dx),std::max(sx,dx)), y(std::min(sy, dy),std::max(sy,dy)) {}
     Block(const XY &ul, const XY &dr) :
         x(std::min(ul.x, dr.x),std::max(ul.x, dr.x)), y(std::min(ul.y, dr.y),std::max(ul.y, dr.y)) {}
+    Block(const Range &X, const Range &Y) : x(X), y(Y) {}
     void MakeInvalid() {x.MakeInvalid(); y.MakeInvalid();}
     bool IsInvalid() const {return x.IsInvalid() && y.IsInvalid();}
     //operator required for set ordering
@@ -144,7 +143,5 @@ struct Block {
     Block & RoundWider()  {x.RoundWider(); y.RoundWider(); return *this;}
     Block & RoundCloser() {x.RoundCloser(); y.RoundCloser(); return *this;}
 };
-
-}; //namespace
 
 #endif //CONTOUR_BASICS_H

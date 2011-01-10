@@ -268,7 +268,7 @@ TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 	CompileIfNeeded();
 	if (m_page>0)
 		point.y += m_msc->yPageStart[m_page];
-    const Area *area = m_msc->AllCovers.InWhich(XY(point.x, point.y));
+    const Area *area = m_msc->AllCovers.InWhichFromBack(XY(point.x, point.y));
 	if (area==NULL) return NULL;
 	return area->arc;
 }

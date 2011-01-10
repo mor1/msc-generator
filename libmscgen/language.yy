@@ -59,15 +59,15 @@
 #include "msc.h" //For AttrNames and AttrValues
 //redefine default loc action for CSH
 #define YYRHSLOC(Rhs, K) ((Rhs)[K])
-#define YYLLOC_DEFAULT(Current, Rhs, N)				\
-    do								\
-      if (YYID (N)) {					        \
-        (Current).first_pos =     YYRHSLOC(Rhs,1).first_pos;	\
-	(Current).last_pos  =     YYRHSLOC(Rhs,N).last_pos;	\
-      } else {							\
-	  (Current).first_pos = (Current).last_pos   =		\
-	    YYRHSLOC (Rhs, 0).last_pos;				\
-      }							        \
+#define YYLLOC_DEFAULT(Current, Rhs, N)                       \
+    do                                                        \
+        if (YYID (N)) {                                       \
+            (Current).first_pos = YYRHSLOC(Rhs,1).first_pos;  \
+	        (Current).last_pos  = YYRHSLOC(Rhs,N).last_pos;	  \
+        } else {                                              \
+	        (Current).first_pos = (Current).last_pos =        \
+	            YYRHSLOC (Rhs, 0).last_pos;                   \
+        }                                                     \
     while (YYID (0))
 
 /* yyerror
@@ -151,7 +151,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <msc>        msc
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
-%type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def pipe_def_list
+%type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def_list
 %type <arcparallel>parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %type <entity>     entity first_entity
@@ -178,7 +178,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {if (!C_S_H) delete $$;} vertxpos
 %destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
-%destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def pipe_def_list
+%destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def_list
 %destructor {if (!C_S_H) delete $$;} parallel
 %destructor {if (!C_S_H) delete $$;} top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %destructor {if (!C_S_H) delete $$;} entity first_entity entitylist
@@ -615,6 +615,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        if (csh.CheckHintLocated(HINT_ATTR_NAME))
+            CommandEntity::AttributeNames(csh);
+        else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+            CommandEntity::AttributeValues(csh.hintAttrName, csh);
   #else
         $$ = (new CommandEntity(NULL, &msc))->AddAttributeList($2);
   #endif
@@ -633,6 +637,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        if (csh.CheckHintLocated(HINT_ATTR_NAME))
+            ArcDivider::AttributeNames(csh, true);
+        else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+            ArcDivider::AttributeValues(csh.hintAttrName, csh, true);
   #else
         $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList($2);
   #endif
@@ -654,6 +662,10 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_MARKERNAME);
+        if (csh.CheckHintLocated(HINT_ATTR_NAME))
+            CommandMark::AttributeNames(csh);
+        else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+            CommandMark::AttributeValues(csh.hintAttrName, csh);
   #else
         $$ = (new CommandMark($2, MSC_POS(@$), &msc))->AddAttributeList($3);
   #endif
@@ -673,6 +685,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
+        if (csh.CheckHintLocated(HINT_ATTR_NAME))
+            CommandNewpage::AttributeNames(csh);
+        else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+            CommandNewpage::AttributeValues(csh.hintAttrName, csh);
   #else
         $$ = (new CommandNewpage(&msc))->AddAttributeList($2);
   #endif
@@ -1217,7 +1233,12 @@ emphasis_list: first_emphasis
 }
            | emphasis_list emphrel full_arcattrlist_with_label
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcEmphasis::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+  #else
     ($2)->ChangeStyleForFollow()->AddAttributeList($3);
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
@@ -1240,7 +1261,12 @@ emphasis_list: first_emphasis
 }
            | emphasis_list emphrel full_arcattrlist_with_label braced_arclist
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcEmphasis::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+  #else
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
     ($2)->AddArcList($4)->ChangeStyleForFollow()->AddAttributeList($3);
     $$ = ($1)->AddFollow($2);
@@ -1248,7 +1274,12 @@ emphasis_list: first_emphasis
 }
            | emphasis_list full_arcattrlist_with_label braced_arclist
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcEmphasis::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+  #else
     ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
     temp->SetLineEnd(MSC_POS(@2));
     temp->AddArcList($3)->ChangeStyleForFollow($1)->AddAttributeList($2);
@@ -1266,7 +1297,12 @@ first_emphasis:   emphrel
 }
            | emphrel full_arcattrlist_with_label
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcEmphasis::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+  #else
     ($1)->AddAttributeList($2);
     ($1)->SetLineEnd(MSC_POS(@$));
     $$ = ($1);
@@ -1281,41 +1317,58 @@ first_emphasis:   emphrel
 }
            | emphrel full_arcattrlist_with_label braced_arclist
 {
-  #ifndef C_S_H_IS_COMPILED
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcEmphasis::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+  #else
     ($1)->SetLineEnd(MSC_POS2(@1, @2));
     ($1)->AddArcList($3)->AddAttributeList($2);
     $$ = ($1);
   #endif
 };
 
-pipe_def:    emphrel
-{
-  #ifndef C_S_H_IS_COMPILED
-    $$ = ($1)->SetPipe();
-  #endif
-}
-           | emphrel full_arcattrlist_with_label
-{
-  #ifndef C_S_H_IS_COMPILED
-    ($1)->SetPipe()->AddAttributeList($2);
-    $$ = ($1);
-  #endif
-};
-
-pipe_def_list: TOK_COMMAND_PIPE pipe_def
+pipe_def_list: TOK_COMMAND_PIPE emphrel
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        ($2)->SetLineEnd(MSC_POS(@$));
+        ($2)->SetPipe()->SetLineEnd(MSC_POS(@$));
         $$ = $2;
   #endif
     free($1);
 }
-             | pipe_def_list pipe_def
+             | TOK_COMMAND_PIPE emphrel full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcEmphasis::AttributeNames(csh, true);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcEmphasis::AttributeValues(csh.hintAttrName, csh, true);
+  #else
+    ($2)->SetPipe()->AddAttributeList($3)->SetLineEnd(MSC_POS(@$));
+    $$ = $2;
+  #endif
+    free($1);
+}
+             | pipe_def_list emphrel
 {
   #ifndef C_S_H_IS_COMPILED
-    ($2)->SetLineEnd(MSC_POS(@2));
+    ($2)->SetPipe()->SetLineEnd(MSC_POS(@2));
+    $$ = ($1)->AddFollow(($2)->ChangeStyleForFollow());
+  #endif
+}
+             | pipe_def_list emphrel full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcEmphasis::AttributeNames(csh, true);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcEmphasis::AttributeValues(csh.hintAttrName, csh, true);
+  #else
+    ($2)->SetPipe()->ChangeStyleForFollow()->AddAttributeList($3)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
   #endif
 }

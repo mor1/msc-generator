@@ -196,10 +196,10 @@ Msc::Msc() :
     arcVGapAbove = 0;
     arcVGapBelow = 3;
     nudgeSize = 4;
-    compressXGap = 2;
-    compressYGap = 2;
+    compressGap = 0;
     hscaleAutoXGap = 5;
     trackFrameWidth = 4;
+    trackExpandBy = 2;
 
     pedantic=false;
     ignore_designs = false;
@@ -248,6 +248,20 @@ string Msc::GetDesigns() const
         retval.append(" ").append(i->first);
     return retval;
 }
+
+//Helper function. If the pos of *value is smaller (or larger) than i
+//if one of the elements is .end() always the other is returned, different
+//from operator < above (where .end() is smaller)
+EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const 
+{
+    if (j==NoEntity) return i;
+    if (i==NoEntity) return j;
+    if (min ^ ((*i)->pos < (*j)->pos))
+        return j;
+    else
+        return i;
+};
+
 
 EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
 {
@@ -595,6 +609,18 @@ void Msc::HideEntityLines(const Area &area)
     }
 }
 
+void Msc::HideEntityLines(const Block &area)
+{
+    for (EIterator i = Entities.begin(); i!=Entities.end(); i++) {
+        if ((*i)->name == NONE_ENT_STR) continue;
+        if ((*i)->name == LSIDE_ENT_STR) continue;
+        if ((*i)->name == RSIDE_ENT_STR) continue;
+        if (area.x.IsWithin(XCoord((*i)->pos)))
+            (*i)->status.HideRange(area.y);
+    }
+}
+
+
 void Msc::DrawEntityLines(double y, double height,
                           EIterator from, EIterator to)
 {
@@ -607,8 +633,13 @@ void Msc::DrawEntityLines(double y, double height,
         while (up.y < till) {
             down.y = min((*from)->status.Till(up.y), till);
             if ((*from)->status.GetHideStatus(up.y) &&
-                (*from)->status.GetStatus(up.y))
-                Line(up, down, (*from)->status.GetStyle(up.y).vline);
+                (*from)->status.GetStatus(up.y)) {
+                const MscLineAttr &vline = (*from)->status.GetStyle(up.y).vline;
+                const XY offset(fmod(vline.width.second/2,1),0);
+                const XY magic(0,1);  //XXX needed in windows
+                const XY start = up+offset-magic;
+                Line(start, down+offset, vline, start.y); //last param is dash_offset  
+            }
             up.y = down.y;
         }
         from++;
@@ -638,6 +669,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
         AreaList arc_cover;
         double h = (*i)->Height(arc_cover);
         _ASSERT(h>=arc_cover.GetBoundingBox().y.till);
+        arc_cover = arc_cover.CreateExpand(compressGap/2);
         double touchpoint = y;
         if ((*i)->IsCompressed()) {
             //if arc is of zero height, just collect it. 
@@ -647,8 +679,10 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
                 continue;
             }
             const double new_y = std::max(0.0, -cover.OffsetBelow(arc_cover, touchpoint));
-            _ASSERT(new_y<=y);
-            y = new_y;
+            //Here new_y can be larger than y, if the copressGap requirement pushed the current arc (in "i")
+            //further below than the original height of the arcs above would have dictated.
+            //Since we do compression, we pick the smallest of the two values.
+            y = std::min(y, new_y);
         }
         touchpoint = floor(touchpoint+0.5);
         y = ceil(y);
@@ -748,7 +782,7 @@ void Msc::CalculateWidthHeight(void)
 {
     yPageStart.clear();
     yPageStart.push_back(0);
-
+    if (Arcs.size()==0) return;
     if (total.y == 0) {
         //start with width calculation, that is used by many elements
         EntityDistanceMap distances;
@@ -797,8 +831,8 @@ void Msc::CalculateWidthHeight(void)
 
         copyrightTextHeight = crTexSize.y;
         AreaList cover;
-        HeightArcList(Arcs.begin(), Arcs.end(), cover);
-        total.y = ceil(cover.GetBoundingBox().y.till + chartTailGap);
+        total.y = HeightArcList(Arcs.begin(), Arcs.end(), cover) + chartTailGap;
+        total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
     }
 }
 

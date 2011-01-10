@@ -19,6 +19,7 @@ protected:
 public:
     file_line_range file_pos;
     TrackableElement() : linenum_final(false), draw_is_different(false), yPos(0) {area_draw.arc = area.arc = this;}
+    TrackableElement(const TrackableElement&);
     void SetLineEnd(file_line_range l, bool f=true);
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const {return area;};

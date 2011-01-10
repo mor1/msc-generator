@@ -23,7 +23,6 @@
 #include <stack>
 #include "contour_area.h"
 
-namespace contour {
 //"cp" means crosspoint from here
 
 class CPsByContour;
@@ -48,12 +47,12 @@ struct Ray
     mutable enum switch_action_t {IGNORE, DROP, ERROR, SWITCH} switch_action;
     mutable bool can_start_here;
     //CPXY() {}
-    Ray(const XY &point, CPsByContour &st, int v, double p, bool i); 
+    Ray(const XY &point, CPsByContour &st, int v, double p, bool i);
     bool operator <(const Ray &o) const {return test_equal(fangle, o.fangle) ? test_smaller(cangle, o.cangle) : test_smaller(fangle, o.fangle);}
     bool operator==(const Ray &o) const {return test_equal(fangle, o.fangle) && test_equal(cangle, o.cangle);}
 };
 
-class CPRays : public std::multiset<Ray> 
+class CPRays : public std::multiset<Ray>
 {
 public:
     bool Add(const XY &point, CPsByContour &st, int v, double p);
@@ -70,7 +69,7 @@ public:
     void Process4Combine(int &seq_num, int coverage, int min_coverage) const;
 };
 
-struct CPXY 
+struct CPXY
 {
     XY xy;
     mutable int coverage_at_0_angle;
@@ -86,7 +85,7 @@ class CPSet : public std::map<CPXY, CPRays>
 protected:
     int num_of_polygons;
     CPsByContour *byconts;
-    void Add(const XY &xy, CPsByContour &bycont1, int v1, double p1, 
+    void Add(const XY &xy, CPsByContour &bycont1, int v1, double p1,
                            CPsByContour &bycont2, int v2, double p2);
 public:
     CPSet() : byconts(NULL), num_of_polygons(0) {}
@@ -103,7 +102,7 @@ struct CPOnEdge
     CPSet::const_iterator  iRays;
     CPRays::const_iterator iRay;
     CPOnEdge(CPSet::const_iterator i1, CPRays::const_iterator i2) : iRays(i1), iRay(i2) {};
-    Edge CPOnEdge::GetOutGoingEdgeRemainder() const;
+    Edge GetOutGoingEdgeRemainder() const;
 };
 
 struct CPPos
@@ -136,9 +135,9 @@ Ray::Ray(const XY &point, CPsByContour &st, int v, double p, bool i) :
     fangle = angle(point, XY(point.x, -100), xy);
     if (test_equal(fangle, 4)) fangle = 0;
     const Edge &e = (incoming && pos == 0) ? bycont.contour->at_prev(vertex) : bycont.contour->at(vertex);
-    if (e.IsStraight()) 
+    if (e.IsStraight())
         cangle = 0;
-    else switch (triangle_dir(point, xy, e.GetEllipse().GetCenter())) {
+    else switch (triangle_dir(point, xy, e.GetEllipseData().GetCenter())) {
         case CLOCKWISE:
             cangle = +1; break;   //XXX do it right: smaller circles should get larger value!!!
         case COUNTERCLOCKWISE:
@@ -157,8 +156,8 @@ bool CPRays::Add(const XY &point, CPsByContour &st, int v, double p)
     return *i < *o;
 }
 
-    
-void CPSet::Add(const XY &xy, CPsByContour &bycont1, int v1, double p1, 
+
+void CPSet::Add(const XY &xy, CPsByContour &bycont1, int v1, double p1,
                                          CPsByContour &bycont2, int v2, double p2)
 {
     //We add 4 eays for each crosspoint, unless these rays are already added
@@ -175,10 +174,10 @@ void CPSet::Add(const XY &xy, CPsByContour &bycont1, int v1, double p1,
         for (auto j = i->second.begin(); j != i->second.end(); j++)
             if (j->vertex == v1 && j->pos == p1 && &j->bycont == &bycont1) one = true;
             else if (j->vertex == v2 && j->pos == p2 && &j->bycont == &bycont2) two = true;
-        if (!one) 
+        if (!one)
             if (i->second.Add(xy, bycont1, v1, p1))
                 i->first.coverage_at_0_angle++;
-        if (!two) 
+        if (!two)
             if (i->second.Add(xy, bycont2, v2, p2))
                 i->first.coverage_at_0_angle++;
     }
@@ -386,7 +385,7 @@ void CPRays::Process4Combine(int &seq_num, int coverage, int min_coverage) const
 					}
 				}
 			}
-		//if we did not insert a cp that we can start at, change all IGNORE values to DROP, 
+		//if we did not insert a cp that we can start at, change all IGNORE values to DROP,
         //so they get dropped entirely and not even inserted into CrosspointStore
 		if (!did_start)
 			for (iterator i=B_from; i!=B_to; inc(i))
@@ -399,7 +398,7 @@ void CPRays::Process4Combine(int &seq_num, int coverage, int min_coverage) const
 }
 
 //Copy the processed crosspoints from the set to the bycont, where they are sorted by <contour,edge,pos>.
-//(each contour has its own bycont). 
+//(each contour has its own bycont).
 //Fill in startpoints with incoming rays marked as can_start_here
 void CPSet::Process4Combine(bool doUnion, std::vector<CPOnEdge> &startpoints) const
 {
@@ -411,7 +410,7 @@ void CPSet::Process4Combine(bool doUnion, std::vector<CPOnEdge> &startpoints) co
 	for (auto iCP = begin(); iCP!=end(); iCP++) {
         //If union, pick the angle ranges covered by at least one contour
         //If intersect, pick angle ranges covered by all of the contours
-        iCP->second.Process4Combine(seq_num, iCP->first.coverage_at_0_angle, 
+        iCP->second.Process4Combine(seq_num, iCP->first.coverage_at_0_angle,
                                     doUnion ? 1 : num_of_polygons);
 
 		//Now we have all the rays in the current cp marked as to which one to switch to
@@ -426,7 +425,7 @@ void CPSet::Process4Combine(bool doUnion, std::vector<CPOnEdge> &startpoints) co
 				case Ray::IGNORE: //ignore this cp on a walk: we continue on the edge we came. But check if walk has to stop here
 				case Ray::ERROR: //Indicate that this edge was a dead end
                     i->bycont.Add(CPOnEdge(iCP, i));
-                case Ray::DROP: 
+                case Ray::DROP:
 					break;
 				}
 			}
@@ -435,7 +434,7 @@ void CPSet::Process4Combine(bool doUnion, std::vector<CPOnEdge> &startpoints) co
 
 
 //Copy the processed crosspoints from the set to the bycont, where they are sorted by <contour,edge,pos>.
-//(each contour has its own bycont). 
+//(each contour has its own bycont).
 //Fill in startpoints with incoming rays marked as can_start_here
 void CPSet::Process4Untangle() const
 {
@@ -446,7 +445,7 @@ void CPSet::Process4Untangle() const
 	for (auto iCP = begin(); iCP!=end(); iCP++) {
         //Mark each ray in the cp with the same seq_num
 	    for (auto i = iCP->second.begin(); i!=iCP->second.end(); i++)  {
-            if (i->incoming) 
+            if (i->incoming)
                 i->bycont.Add(CPOnEdge(iCP, i));
         }
 	}
@@ -459,9 +458,9 @@ void CPSet::Process4Untangle() const
 //This is a pointer type, pointing to a crosspoint. It has all the attributes to look up
 //a next entry on the same contour or to look up the cp in a CPSet for picking
 //another outgong ray (to switch to another contour)
-//if iCP == end(), it really means that we are at the startpoint of an edge (a vertex) which is 
+//if iCP == end(), it really means that we are at the startpoint of an edge (a vertex) which is
 //really before begin(), but this is the only way to express it
-struct CPPointer 
+struct CPPointer
 {
     CPsByContour                *bycont;
     int                          vertex;
@@ -497,11 +496,11 @@ CPPointer::CPPointer(const Ray &ray) : bycont(&ray.bycont), vertex(ray.vertex)
     }
 }
 
-void CPPointer::StepToNext() 
+void CPPointer::StepToNext()
 {
-    if (IsAtVertex()) 
+    if (IsAtVertex())
         iCP = bycont->lower_bound(CPPos(vertex, 0));
-    else 
+    else
         ++iCP;
     if (iCP==bycont->end() || iCP->second.iRay->vertex != vertex) {
         vertex = (vertex+1)%bycont->contour->size();
@@ -581,7 +580,7 @@ Contour::Contour(const XY &c, double radius_x, double radius_y, double tilt_deg,
 {
     if (radius_y==0) radius_y = radius_x;
     Edge edge(c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
-    XY end = edge.GetEllipse().Radian2Point(deg2rad(d_deg));
+    XY end = edge.GetEllipseData().Radian2Point(deg2rad(d_deg));
 	boundingBox = edge.CalculateBoundingBox(end);
     push_back(edge);
     if (edge.GetStart().test_equal(end)) return; //full circle
@@ -757,7 +756,7 @@ bool Contour::CalculateClockwise() const
         XY prev = at(0).PrevTangentPoint(0, at_prev(0));
         for (int i=0; i<size(); i++)
             if (at(i).IsStraight()) {
-				_ASSERT(!(test_equal(at(i).GetStart().x, at_next(i).GetStart().x) && test_equal(at(i).GetStart().y, at_next(i).GetStart().y)));
+				_ASSERT(!at(i).GetStart().test_equal(at_next(i).GetStart()));
                 angles += angle_degrees(angle(at(i).GetStart(), at_next(i).GetStart(), prev));
                 prev = at(i).GetStart();
             } else {
@@ -802,10 +801,10 @@ bool Contour::CalculateClockwise() const
 //Appends an edge.
 //Checks that we do not append a zero long edge
 //Checks if the edge to append is a direct continuation of the last edge
-void Contour::AppendDuringWalk(const Edge &edge) 
+void Contour::AppendDuringWalk(const Edge &edge)
 {
     //if the last point equals to the startpoint of edge, skip the last edge added
-    if (size()>0 && edge.GetStart() == rbegin()->GetStart())
+    if (size()>0 && edge.GetStart().test_equal(rbegin()->GetStart()))
         pop_back();
     //check if current_xy falls on the same line as the previous two
     if (size()>=2 &&
@@ -816,7 +815,7 @@ void Contour::AppendDuringWalk(const Edge &edge)
 };
 
 
-//Walk around the contours starting from startpoint and follow the 
+//Walk around the contours starting from startpoint and follow the
 //switch_action bycontd for each incoming ray. This is used for union and intersect (and substract)
 void Contour::Walk4Combine(const CPOnEdge &startpoint)
 {
@@ -833,7 +832,7 @@ void Contour::Walk4Combine(const CPOnEdge &startpoint)
             current.iCP->second.iRay->valid = false;
         //Switch to the other contour, to get an outgoing ray
         Ray::switch_action_t a = current.DoSwitchAction();
-        if (a==Ray::SWITCH)  
+        if (a==Ray::SWITCH)
             AppendDuringWalk(current.GetOutGoingEdgeRemainder()); //Add current point (plus edge out)
         else if (a==Ray::ERROR) {
             //We have working from an invalid crosspoint (e.g., in the interior of a union)
@@ -842,21 +841,21 @@ void Contour::Walk4Combine(const CPOnEdge &startpoint)
         }
 		//a can be IGNORE, then we do nothing
         current.StepToNext(); //now current points either to a vertex or to an incoming ray again
-    } while (current.IsAtVertex() || current.iCP->second.iRay->seq_num != sn_finish);  
+    } while (current.IsAtVertex() || current.iCP->second.iRay->seq_num != sn_finish);
 }
 
 //Clean up the contour after a walk
 //-Check repeated points at the end
 //-Set "e" values for curvy edges
 //-Calculate edge and contour bounding boxes
-//Also, do a lot of sanity checks: 
+//Also, do a lot of sanity checks:
 //-a contour with one edge must be a full ellipse. If it is straight, we clear()
 //-a contour with two edges must have at least one curvy edge, if not, we clear()
 //returns true if contour is OK
-bool Contour::PostWalk() 
+bool Contour::PostWalk()
 {
     //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
-    if (size()>1 && at(0).GetStart() == at(size()-1).GetStart())
+    if (size()>1 && at(0).GetStart().test_equal(at(size()-1).GetStart()))
         pop_back();
     //Also, the beginning point (at(0]) can fall on an edge
     //if both the last and the first edge are straight and are in-line
@@ -873,8 +872,8 @@ bool Contour::PostWalk()
         pop_back();
 
     //Sanity checks
-    if (size()>0 && at(0).IsStraight()) 
-        if (size()==1 || (size()==2 && at(1).IsStraight())) 
+    if (size()>0 && at(0).IsStraight())
+        if (size()==1 || (size()==2 && at(1).IsStraight()))
             clear();
     if (size()==0) return false;
 
@@ -920,11 +919,11 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
     CPSet cp_set;
     std::vector<CPOnEdge> startpoints;
     cp[0].Set(this);
-    cp[1].Set(&b); 
+    cp[1].Set(&b);
 
     //We will first find all the crossing points between the two contours
     cp_set.FindCrosspoints(cp, 2);
-    if (cp_set.size())         
+    if (cp_set.size())
         cp_set.Process4Combine(doUnion, startpoints); // Process each cp and determine if it is relevant to us or not
     if (startpoints.size()==0) {
         cp[0].Finish();
@@ -933,6 +932,7 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
     }
     ContourList holes;
     for (auto iStart = startpoints.begin(); iStart != startpoints.end(); iStart++) {
+        if (!iStart->iRay->valid) continue;
         static ContourWithHoles walk; //static: we keep allocated memory between calls for performance
         walk.Walk4Combine(*iStart);
 		//If we have abandoned this polyline, do not perform the processing below: start with another polyline
@@ -948,7 +948,7 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
     if (holes.size())
         result.begin()->holes.swap(holes);
     cp[0].Finish();
-    cp[1].Finish(); 
+    cp[1].Finish();
     return OVERLAP;
 }
 
@@ -956,7 +956,7 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
 //////////////////////////////////Contour::Untangle (and Xor) implementation
 
 //Walk around the contours starting from startpoint, which is an incoming ray
-//At each incoming ray we see if the (clockwise) previous ray (which is not yet done) is outgoing. 
+//At each incoming ray we see if the (clockwise) previous ray (which is not yet done) is outgoing.
 //if so go there, if not, start a walk there recursively. Collect the results in surfaces and holes.
 //In this walk, we ignore the switch_action and seq_num stored in rays (no such are actually set, when this is called
 //Used for XOR and Untangle
@@ -987,7 +987,7 @@ void Contour::Walk4Untangle(const CPOnEdge &startpoint, ContourList &surfaces, C
             //incoming ray: start a new walk recursively
             Walk4Untangle(CPOnEdge(current.iCP->second.iRays, i), surfaces, holes);
             //if our initial incoming ray is still valid, try it again
-            if (current.iCP->second.iRay->valid) 
+            if (current.iCP->second.iRay->valid)
                 continue;
             //If the walk above also touched the current incoming ray,
             //we give up and generate no contour from this walk (apart from the
@@ -1008,7 +1008,7 @@ void Contour::Walk4Untangle(const CPOnEdge &startpoint, ContourList &surfaces, C
         walk.AppendDuringWalk(current.GetOutGoingEdgeRemainder()); //Add current point (plus edge out)
         //Go to next cp or vertex on the edge
         current.StepToNext(); //now current points either to a vertex or to an incoming ray again
-    } while (current.IsAtVertex() || current.iCP->second.iRays != finish);  
+    } while (current.IsAtVertex() || current.iCP->second.iRays != finish);
     if (!walk.PostWalk()) return;
     if (walk.CalculateClockwise())
         surfaces.append(std::move(walk));
@@ -1083,7 +1083,7 @@ void node_list::Convert(bool hole, int counter, Contour::untangle_t rule, Contou
 		else new_counter = counter+1;
 		switch (rule) {
 		case Contour::WINDING_RULE: include = new_counter!=0; break;
-        case Contour::XOR_RULE: 
+        case Contour::XOR_RULE:
 		case Contour::EVENODD_RULE: include = new_counter%2==1; break;
 		case Contour::EXPAND_RULE:  include = new_counter>=1; break;
 		}
@@ -1123,7 +1123,7 @@ Contour::result_t Contour::DoXor(const Contour &b, ContourList &result) const
     /*static*/ CPSet cp_set;
     /*static*/ std::vector<CPOnEdge> startpoints;
     cp[0].Set(this);
-    cp[1].Set(&b); 
+    cp[1].Set(&b);
 
     //We will first find all the crossing points between the two contours
     cp_set.FindCrosspoints(cp, 2);
@@ -1177,7 +1177,7 @@ Contour::result_t Contour::Untangle(ContourList &result, untangle_t rule) const
     cp_set.FindCrosspoints(&cp, 1);
     if (!cp_set.size()) {
         cp.Finish();
-        if (CalculateClockwise()) 
+        if (CalculateClockwise())
             return SAME;
         //no crosspoints, but counterclockwise
         if (rule != EXPAND_RULE)
@@ -1216,49 +1216,45 @@ const Block &Contour::CalculateBoundingBox()
     return boundingBox;
 }
 
+//If the edge to insert starts at the last point, we replace the last edge to it.
+//(makes sense if we replace a straight edge to a curve or vice versa)
+//If the last edge is a curve, we anyway replace the edge to be inserted.
+//If we insert a curve, which does not 
 bool Contour::AddAnEdge(const Edge &edge)
 {
-    if (size() == 0) {
-        push_back(edge);
-        boundingBox = at(0).CalculateBoundingBox(at(0).start);
-        return true;
-    }
-    //see if we need to replace the last edge
-    bool replace = edge.GetStart().test_equal(at(size()-1).GetStart());
-    if (size() == 0 && replace) {
-        pop_back();
-        push_back(edge);
-        boundingBox = at(0).CalculateBoundingBox(at(0).start);
-        return true;
-    }
-    XY end = edge.IsStraight() ? at(0).start : edge.GetEllipse().Radian2Point(edge.e);
     XY dum1[8];
     double dum2[8];
-    //check if edge is crossing any existing edges
-    for (int i = 1; i<size()-replace?1:0; i++) 
-        if (Edge::Crossing(at(i), at_next(i).GetStart(), edge, end, dum1, dum2, dum2))
-            return false;
-    //if edge is an arc not ending exactly in at(0)...
-    if (!at(0).start.test_equal(end)) {
-        //check if existing edges cross end->at(0).start
-        for (int i = 1; i<size()-replace?1:0; i++) 
-            if (Edge::Crossing(at(i), at_next(i).GetStart(), Edge(end), at(0).start, dum1, dum2, dum2))
-                return false;
-        //check if edge crosses end->at(0)
-        if (Edge::Crossing(edge, end, Edge(end), at(0).start, dum1, dum2, dum2))
-                return false;
+    Contour ret(*this);
+    if (size()) {
+        //set the last edge to straight
+        ret[size()-1] = Edge(ret[size()-1].GetStart());
+        //see if we need to replace the last edge, drop it
+        if (edge.GetStart().test_equal(ret[size()-1].GetStart()))
+            ret.pop_back();
     }
-    //OK, we can insert
-    if (replace)
-        pop_back();
-    push_back(edge);
-    boundingBox += at(size()-1).CalculateBoundingBox(at(0).start);
-    if (!at(0).start.test_equal(end))
-        push_back(Edge(end));
-    //if we removed an edge, we might recalculate the entire bounding box 
-    //(since that could have been a big one)
-    if (replace)
-        CalculateBoundingBox();
+    //insert edge
+    ret.push_back(edge);
+    int num_to_check = 1;
+    //if edge is curvy and does not end in at(0).start, insert a straight edge afterwards
+    if (!edge.IsStraight()) {
+        XY end = edge.GetEllipseData().Radian2Point(edge.e);
+        if (!end.test_equal(ret[0].GetStart())) {
+            ret.push_back(Edge(end));
+            //check if this edge to insert do not cross the previously inserted edge
+            if (Edge::Crossing(ret[ret.size()-2], ret[ret.size()-1].GetStart(), ret[ret.size()-1], ret[0].GetStart(), dum1, dum2, dum2))
+                return false;
+            num_to_check = 2;
+        }
+    }
+    //now check if inserted edges cross any of the ones before
+    //check if edge->end is crossing any existing edges
+    ret.CalculateBoundingBox(); //needed by crossing
+    for (int i = 0; i<ret.size()-num_to_check-1; i++)
+        for (int j = ret.size()-num_to_check-1; j<ret.size(); j++) 
+            if (Edge::Crossing(ret[i], ret.at_next(i).GetStart(), ret[j], ret.at_next(j).GetStart(), dum1, dum2, dum2))
+                return false;
+    //OK, we can have these edges inserted
+    swap(ret);
     return true;
 }
 
@@ -1329,7 +1325,7 @@ int prev_edgexy(const std::vector<EdgeXY> &edges, int i)
 	return edges[j].valid ? j : -1;
 }
 
-
+//XXX Fix Expand to deal with expanding counterclockwise curvy edges
 void Contour::Expand(double gap, ContourList &res) const
 {
     if (gap==0) {
@@ -1374,13 +1370,12 @@ void Contour::Expand(double gap, ContourList &res) const
 				continue; //no need to re-calculate again
 			}
 			switch (edges[prev].s.CombineExpandedEdges(edges[prev].e, edges[i].s, edges[i].e, edges[i].res, edges[prev].res)) {
-			case 1:
+			case 1:  //Expanded edges cross at a single point: the normal case
 				edges[prev].next = i;
 				edges[i].substitue = -1;  //no substitute, that is only if edges[prev] and edges[i] are parallel
 				prev = i;
 				continue;
-			case -2:
-				//We combine two segments of the same ellipse
+			case -2: //We combine two segments of the same ellipse
 				//Drop the second and modify the endpoint of the first
 				edges[i].valid = false;
 				edges[i].separate = false;
@@ -1390,9 +1385,10 @@ void Contour::Expand(double gap, ContourList &res) const
 				current_size--;
 				once_more = true;
 				continue;
-			case -1:
-				//the last added edge and this one is parallel. We need to add only one of them, but
-				//we do not know which. Since edges[prev] is already there, we skip adding edges[i], but
+			case -1: //We combine two parallel edges.
+				//This can be if we removed an edge from between them. 
+                //We need to keep only one of them, but yet we do not know which. 
+                //Since edges[prev] is already there, we skip adding edges[i], but
 				//mark edges[prev] with i as a potential substitute.
 				edges[prev].substitue = i;
 				edges[i].valid = false;
@@ -1489,6 +1485,19 @@ ContourList Contour::CreateExpand(double gap) const
     return cl;
 }
 
+Contour Contour::CreateWithLastEdge(int i) const
+{
+    //if i is degenerate or already the last edge, return a copy of us
+    if (i<0 || i>=size()-1) return *this;
+    Contour ret;
+    ret.reserve(size());
+    for (int j = 0; j<size(); j++)
+        ret.push_back(at((i+1+j)%size()));
+    ret.boundingBox = boundingBox;
+    return ret;
+}
+
+
 void Contour::Path(cairo_t *cr, bool inverse) const
 {
     if (size()==0 || cr==NULL) return;
@@ -1520,12 +1529,12 @@ double Contour::do_offsetbelow(const Contour &below, double &touchpoint) const
                 double off, tp;
                 if (at(i).IsStraight()) {
                     if (below.at(j).IsStraight())
-                        off = Edge::offsetbelow_straight_straight(at(i).start, at_next(i).start, 
+                        off = Edge::offsetbelow_straight_straight(at(i).start, at_next(i).start,
                                                 below.at(j).start, below.at_next(j).start, tp);
                     else
                         off = below.at(j).offsetbelow_curvy_straight(at(i).start,at_next(i).start, true, tp);
                 } else {
-                    if (below.at(j).IsStraight()) 
+                    if (below.at(j).IsStraight())
                         off = at(i).offsetbelow_curvy_straight(below.at(j).start, below.at_next(j).start, false, tp);
                     else
                         off = at(i).offsetbelow_curvy_curvy(below.at(j), tp);
@@ -1550,6 +1559,5 @@ void Contour::DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool ad
 }
 
 
-}; //namespace
 
 

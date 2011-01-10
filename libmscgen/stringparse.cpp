@@ -941,8 +941,30 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void StringFormat::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"text.color", "text.ident", "text.format", ""};
+    {"", "text.color", "text.ident", "text.format", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+}
+
+bool CshHintGraphicCallbackForTextIdent(MscDrawer *msc, CshHintGraphicParam p)
+{
+    if (!msc) return false;
+    const MscArrowType t = (MscArrowType)(int)p;
+    const static double sizePercentage[] = {50, 30, 60};
+    const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 0);
+    double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
+    double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
+    for (int i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
+        double x1 = floor(HINT_GRAPHIC_SIZE_X*sizePercentage[i]/100.+0.5);
+        double x2 = floor(HINT_GRAPHIC_SIZE_X*0.2);
+        switch (t) {
+        case MSC_IDENT_LEFT: x1 = x2+x1; break;
+        case MSC_IDENT_CENTER: x2 = floor(HINT_GRAPHIC_SIZE_X*0.5)-x1/2; x1 = x1+x2; break;
+        case MSC_IDENT_RIGHT: x2 = floor(HINT_GRAPHIC_SIZE_X*0.8); x1 = x2-x1; break;
+        }
+        msc->Line(XY(x1, y+y_inc), XY(x2, y+y_inc), line);
+        y+=y_inc;
+    }
+    return true;
 }
 
 bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
@@ -952,7 +974,8 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "ident")) {
-        csh.AddToHints(EnumEncapsulator<MscIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE), HINT_ATTR_VALUE);
+        csh.AddToHints(EnumEncapsulator<MscIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE), HINT_ATTR_VALUE,
+            CshHintGraphicCallbackForTextIdent);
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "format")) {

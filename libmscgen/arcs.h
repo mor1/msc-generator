@@ -8,8 +8,6 @@
 #include "csh.h"
 #include "contour_area.h"
 
-using namespace contour;
-
 typedef enum
 {
     MSC_ARC_INVALID = 0,
@@ -51,12 +49,12 @@ class EntityDistanceMap;
 class ArcBase : public TrackableElement
 {
 protected:
-    Msc   *chart;
-    bool   valid;        /* If false, then construction failed, arc does not exist */
-    bool   at_top_level; /* if at top level by PostParseProcess() */
-    bool   compress;     /* if compress mechanism is on for this arc */
-    bool   parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
-    EIterator MinMaxByPos(EIterator i, EIterator value, bool min);
+    Msc *chart;
+    bool valid;        /* If false, then construction failed, arc does not exist */
+    bool at_top_level; /* if at top level by PostParseProcess() */
+    bool compress;     /* if compress mechanism is on for this arc */
+    bool parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
+    bool area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
 public:
     const MscArcType type;
 
@@ -66,13 +64,13 @@ public:
     bool IsParallel() const {return parallel;}
     bool IsCompressed() const {return compress;}
     double GetPos() const {return yPos;}
-    
+
     //Adding attributes and helpers for color syntax highlighting and hinting
     virtual ArcBase* AddAttributeList(AttributeList *);
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    
+
     //Converting to text for debugging
     virtual string PrintType(void) const;
     virtual string Print(int ident = 0) const = 0;
@@ -86,7 +84,7 @@ public:
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
     virtual double Height(AreaList &cover) = 0;
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
-    virtual void ShiftBy(double y) {TrackableElement::ShiftBy(y);}
+    virtual void ShiftBy(double y) {if (valid) TrackableElement::ShiftBy(y);}
     /* This goes through the tree once more for drawing warnings that need height. */
     virtual void PostPosProcess(double autoMarker);
     /* This will actually draw the arc */
@@ -129,7 +127,7 @@ class ArcSelfArrow : public ArcArrow
 protected:
     EIterator src;
     double    YSize;
-    
+
     mutable XY xy_s, xy_e, wh; //arrow parameters
     mutable double sx, dx;     //text parameters
 public:
@@ -239,28 +237,30 @@ public:
 
 class ArcEmphasis : public ArcLabelled
 {
+    friend struct pipe_compare;
 protected:
     EIterator       src, dst;
     bool            pipe;       //True if we display as a pipe
-    bool            fromright;  //true if we can see into the pipe's hole from right
     bool            drawEntityLines; //true if we draw the entity lines (only if there is content)
+    int             drawing_variant; //how to draw double or triple lines
     ArcList        *emphasis;
     ArcEmphasis    *first;      //If null, we are the first
     PtrList<ArcEmphasis> follow;
 
     //for boxes
-    mutable double height;
+    mutable double height, height_w_lower_line;
     //for pipes
-    mutable bool pipe_connect_left, pipe_connect_right; //true if connects to neighbour pipe in pipe series
-    mutable Block pipe_block;   //The body of the pipe
-    mutable Contour pipe_body, pipe_hole; 
-    mutable Contour pipe_whole_shadow, pipe_body_fill, pipe_hole_fill;
-    mutable Edge pipe_hole_curve;
+    mutable bool pipe_connect_back, pipe_connect_forw; //true if connects to neighbour pipe in pipe series
+    mutable Block pipe_block;   //representative rectangle of pipe                    ____
+    //These below correspond to the body of the pipe (skewed rectangle with curves): (____(
+    mutable Area pipe_shadow, pipe_body_line, pipe_whole_line, pipe_body_fill;
+    mutable Area pipe_hole_fill, pipe_hole_line;    //These refer to the hole __
+    mutable Edge pipe_hole_curve;                   //                        _()
     //for both
     mutable double total_height;
     mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow
     mutable double sx_text, dx_text, y_text;  //label placement
-    mutable Area text_cover;
+    mutable Area text_cover; 
 public:
     //Constructor to construct the first emphasis in a series
     ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
@@ -270,8 +270,8 @@ public:
     ArcEmphasis* SetPipe();
     ArcEmphasis* AddArcList(ArcList*l);
     bool AddAttribute(const Attribute &);
-    static void AttributeNames(Csh &csh, bool pipe);
-    static bool AttributeValues(const std::string attr, Csh &csh, bool pipe);
+    static void AttributeNames(Csh &csh, bool pipe=false);
+    static bool AttributeValues(const std::string attr, Csh &csh, bool pipe=false);
     ArcEmphasis* ChangeStyleForFollow(ArcEmphasis* =NULL);
     ArcEmphasis* AddFollow(ArcEmphasis*f);
     string Print(int ident=0) const;
@@ -280,7 +280,7 @@ public:
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(double autoMarker);
-    void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool text);
+    void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text, double next_lw);
     virtual void Draw();
 };
 
@@ -296,8 +296,8 @@ protected:
 public:
     ArcDivider(MscArcType t, Msc *msc);
     bool AddAttribute(const Attribute &);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string attr, Csh &csh);
+    static void AttributeNames(Csh &csh, bool nudge=false);
+    static bool AttributeValues(const std::string attr, Csh &csh, bool nudge=false);
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
@@ -343,7 +343,9 @@ public:
     string Print(int ident=0) const;
     void AppendToEntities(const EntityDefList &e);
     void Combine(CommandEntity *ce);
-
+    bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
@@ -357,6 +359,9 @@ class CommandNewpage : public ArcCommand
 public:
     CommandNewpage(Msc *msc)
         : ArcCommand(MSC_COMMAND_NEWPAGE, msc) {compress=false;}
+    bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
     virtual double Height(AreaList &cover);
     virtual void PostPosProcess(double autoMarker);
 };

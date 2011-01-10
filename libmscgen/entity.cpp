@@ -286,10 +286,13 @@ double EntityDef::Height(AreaList &cover)
     const double height = ceil(chart->headingVGapAbove + wh.y + chart->headingVGapBelow + 2*lw);
 
     //do not include shadow in anything... but the returned height (uses for non-compressed placement)
-    area = outer_edge = Block(x-ceil(width/2), x+ceil(width/2), 0, height);
-    cover += area;
+    outer_edge = Block(x-ceil(width/2), x+ceil(width/2), chart->headingVGapAbove, height - chart->headingVGapBelow);
+    area = style.line.CreateRectangle(outer_edge);
+    area.arc = this;
+    //Add shadow to outer_edge and place that to cover
+    cover += Contour(Block(outer_edge) += Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)));
     cover.mainline += outer_edge.y;
-    return height + style.shadow.offset.second; 
+    return chart->headingVGapAbove + height + chart->headingVGapBelow + style.shadow.offset.second; 
 }
 
 void EntityDef::PostPosProcess()
@@ -306,7 +309,12 @@ void EntityDef::PostPosProcess()
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
     if (implicit) return;
-    chart->AllCovers += area;
+    if (!area.IsEmpty()) {
+        area = area.CreateExpand(chart->trackExpandBy);
+        chart->AllCovers += area;
+    }
+    if (draw_is_different && !area_draw.IsEmpty())
+        area_draw = area_draw.CreateExpand(chart->trackExpandBy);
     chart->AllArcs[file_pos] = this;
 }
 
@@ -314,18 +322,21 @@ void EntityDef::PostPosProcess()
 void EntityDef::Draw() 
 {
     const double lw = style.line.LineWidth();
-    Block b(outer_edge); 
 
+    Block b(outer_edge); 
+    MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
+    if (line2.radius.second>0) line2.radius.second += lw;  //expand to outer edge
+    chart->Shadow(b, style.line, style.shadow);
     if (style.fill.color.first && style.fill.color.second.valid) {
-        chart->Shadow(b, style.line, style.shadow, true);
-        b.Expand(-lw);
+        b.Expand(-lw+style.line.width.second/2.);
+        line2.radius.second += -lw+style.line.width.second/2.; //only decreases radius
         chart->Fill(b, style.line, style.fill);
-        b.Expand(lw/2);
-    } else
-        b.Expand(-lw/2);
-    chart->Line(b, style.line);
+    }
+    Block b2(outer_edge);
+    b2.Expand(-lw/2);
+    chart->Line(b2, style.line);
 
     //Draw text
-    parsed_label.Draw(b.x.from, b.x.till, b.y.from + lw/2);
+    parsed_label.Draw(b2.x.from, b2.x.till, b2.y.from + lw/2);
 }
 
