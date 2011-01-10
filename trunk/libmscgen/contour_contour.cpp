@@ -139,7 +139,7 @@ Ray::Ray(const XY &point, CPsByContour &st, int v, double p, bool i) :
         cangle = 0;
     else switch (triangle_dir(point, xy, e.GetEllipseData().GetCenter())) {
         case CLOCKWISE:
-            cangle = +1; break;   //XXX do it right: smaller circles should get larger value!!!
+            cangle = +1; break;   //TODO do it right: smaller circles should get larger value!!!
         case COUNTERCLOCKWISE:
             cangle = -1; break;
         default:
@@ -479,7 +479,7 @@ CPPointer::CPPointer(const CPOnEdge &cp) : bycont(&cp.iRay->bycont), vertex(cp.i
     iCP = bycont->find(CPPos(cp.iRay->vertex, cp.iRay->pos));
     //if a cp at pos is not found, jump to next vertex
     if (iCP == bycont->end()) {
-        _ASSERT(0); //XXX remove this assert
+        _ASSERT(0); // remove this assert
         vertex = (vertex+1)%bycont->contour->size();
         iCP = bycont->end();
     }
@@ -1325,7 +1325,7 @@ int prev_edgexy(const std::vector<EdgeXY> &edges, int i)
 	return edges[j].valid ? j : -1;
 }
 
-//XXX Fix Expand to deal with expanding counterclockwise curvy edges
+//TODO Fix Expand to deal with expanding counterclockwise curvy edges
 void Contour::Expand(double gap, ContourList &res) const
 {
     if (gap==0) {
@@ -1354,7 +1354,7 @@ void Contour::Expand(double gap, ContourList &res) const
 		if (edges[i].valid) current_size++;
 	}
 	if (current_size==0)
-		return; //empty - all edges were removed by expand (e.g., circles with too small radius and gap<0)
+		return; //empty - all edges were removed by expand (e.g., circles with too small cornersize and gap<0)
 
 	bool once_more;
 	//Now remove edges that got reversed as long as there are none such

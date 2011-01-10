@@ -205,19 +205,28 @@ inline bool IsLineTypeDouble(MscLineType t) {return t==LINE_DOUBLE;}
 inline bool IsLineTypeTriple(MscLineType t) {return t==LINE_TRIPLE || t==LINE_TRIPLE_THICK;}
 inline bool IsLineTypeDoubleOrTriple(MscLineType t) {return IsLineTypeDouble(t) || IsLineTypeTriple(t);}
 
+typedef enum {
+    CORNER_INVALID = 0,
+    CORNER_NONE,
+    CORNER_ROUND,
+    CORNER_BEVEL,
+    CORNER_NOTE
+} MscCornerType;
+
 class MscLineAttr {
 public:
-    std::pair<bool, MscLineType>  type;
-    std::pair<bool, MscColorType> color;
-    std::pair<bool, double>       width;
-    std::pair<bool, double>       radius;
+    std::pair<bool, MscLineType>   type;
+    std::pair<bool, MscColorType>  color;
+    std::pair<bool, double>        width;
+    std::pair<bool, double>        cornersize;
+    std::pair<bool, MscCornerType> corner;
     MscLineAttr();
     MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}
     MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
-    MscLineAttr(MscLineType t, MscColorType c, double w, int r) :
-        type(true, t), color(true, c), width(true, w), radius(true, r) {}
-    void Empty() {type.first = color.first = width.first = radius.first = false;}
-    bool IsComplete() const {return type.first && color.first && width.first && radius.first;}
+    MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, int r) :
+        type(true, t), color(true, c), width(true, w), corner(true, ct), cornersize(true, r) {}
+    void Empty() {type.first = color.first = width.first = corner.first = cornersize.first = false;}
+    bool IsComplete() const {return type.first && color.first && width.first && corner.first && cornersize.first;}
     void MakeComplete();
     bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);}
     bool IsDouble() const {_ASSERT(type.first); return IsLineTypeDouble(type.second);}

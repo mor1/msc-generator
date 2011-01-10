@@ -950,7 +950,7 @@ bool CshHintGraphicCallbackForTextIdent(MscDrawer *msc, CshHintGraphicParam p)
     if (!msc) return false;
     const MscArrowType t = (MscArrowType)(int)p;
     const static double sizePercentage[] = {50, 30, 60};
-    const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 0);
+    const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
     double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
     for (int i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
@@ -1151,7 +1151,7 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool 
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        mscd->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, 0));
+        mscd->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, CORNER_NONE, 0));
     }
     return advance;
 }

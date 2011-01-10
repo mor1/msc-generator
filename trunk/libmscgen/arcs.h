@@ -288,7 +288,8 @@ class ArcDivider : public ArcLabelled
 {
 protected:
     const bool nudge;
-    bool wide;
+    bool wide;  //if true, we keep no margin and add no arcvgapabove & below (for copyright text)
+    const double extra_space; 
 
     mutable double centerline, height;
     mutable double text_margin, line_margin;

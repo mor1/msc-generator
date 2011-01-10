@@ -195,6 +195,7 @@ Msc::Msc() :
     emphVGapInside = 2;
     arcVGapAbove = 0;
     arcVGapBelow = 3;
+    discoVgap = 5;
     nudgeSize = 4;
     compressGap = 0;
     hscaleAutoXGap = 5;
@@ -636,7 +637,7 @@ void Msc::DrawEntityLines(double y, double height,
                 (*from)->status.GetStatus(up.y)) {
                 const MscLineAttr &vline = (*from)->status.GetStyle(up.y).vline;
                 const XY offset(fmod(vline.width.second/2,1),0);
-                const XY magic(0,1);  //XXX needed in windows
+                const XY magic(0,1);  //HACK needed in windows
                 const XY start = up+offset-magic;
                 Line(start, down+offset, vline, start.y); //last param is dash_offset  
             }
@@ -737,7 +738,7 @@ double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double 
 void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)
 {
     while (from!=to)
-        (*from++)->ShiftBy(y);  //XXX ensure we call this with ceil(y)
+        (*from++)->ShiftBy(y);  
 }
 
 //Find the smallest elements between indexes [i, j) and bring them up to the
@@ -919,7 +920,7 @@ void Msc::Draw(bool pageBreaks)
 {
     if (total.y == 0 || !cr) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
-	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, 0);
+	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
 	Line(XY(0,0), XY(1,0), marker);
 	Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
 	//draw background

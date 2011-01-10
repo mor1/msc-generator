@@ -133,6 +133,8 @@ public:
     int emphVGapOutside, emphVGapInside;
     /** Vertical gap above and below arcs */
     int arcVGapAbove, arcVGapBelow;
+    /* How much extra space above and below a discontinuity line (...) */
+    int discoVgap;
     /** Nudge size */
     int nudgeSize;
     /** Size of gap at compress. We expand by half of it */

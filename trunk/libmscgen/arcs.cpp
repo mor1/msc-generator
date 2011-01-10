@@ -442,7 +442,7 @@ void ArcSelfArrow::Draw()
     parsed_label.Draw(sx, dx, y);
     y += xy_s.y;
 
-    if (style.line.radius.second < 0) {
+    if (style.line.cornersize.second < 0) {
         //draw an arc
         wh.x *=2;
         chart->Line(Edge(XY(dx, y+YSize), wh.x, wh.y, 270, 90), style.line);
@@ -1411,10 +1411,10 @@ ArcEmphasis* ArcEmphasis::AddFollow(ArcEmphasis*f)
                                "Attribute 'fromright' can only be specified in the first "
                                "element in a pipe series. Ignoring it in subsequent ones.");
         }
-        if (f->style.line.radius.first) {
-            f->style.line.radius.first = false;
+        if (f->style.line.cornersize.first) {
+            f->style.line.cornersize.first = false;
             chart->Error.Error(f->file_pos.start, 
-                               "Attribute 'line.radius' can only be specified in the first "
+                               "Attribute 'line.cornersize' can only be specified in the first "
                                "element in a pipe series. Ignoring it in subsequent ones.");
         }
     }
@@ -1516,10 +1516,10 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
             lw_max = std::max(lw_max, (*i)->style.line.LineWidth());
         }
 
-        //increase the radius everywhere by the thickest lw (if it is not zero)
-        if (style.line.radius.second>0)
+        //increase the cornersize everywhere by the thickest lw (if it is not zero)
+        if (style.line.cornersize.second>0)
             for (auto i = follow.begin(); i!=follow.end(); i++) 
-                (*i)->style.line.radius.second += lw_max;
+                (*i)->style.line.cornersize.second += lw_max;
 
         //set e1 and e2 to real leftmost and rightmost entity affected
         e1 = chart->EntityMinByPos(e1, (*follow.begin())->src);
@@ -1605,7 +1605,7 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
             (*i)->right_space = d.Query((*(*i)->dst)->index, DISTANCE_RIGHT) + chart->emphVGapInside;
 
-            //The style.line.radius.second is understood to be the radius of the hole of the _outer edge_
+            //The style.line.cornersize.second is understood to be the cornersize of the hole of the _outer edge_
             if ((*i)->src==(*i)->dst) {
                 (*i)->left_space  = std::max(width/2, (*i)->left_space);
                 (*i)->right_space = std::max(width/2, (*i)->right_space);
@@ -1715,9 +1715,9 @@ double ArcEmphasis::Height(AreaList &cover)
             (*i)->sx_text = (*i)->pipe_block.x.from + (*i)->style.line.LineWidth() + chart->emphVGapInside; //not rounded
             (*i)->dx_text = (*i)->pipe_block.x.till - (*i)->style.line.LineWidth() - chart->emphVGapInside;
             if (style.fromright.second)
-                (*i)->dx_text -= style.line.radius.second;
+                (*i)->dx_text -= style.line.cornersize.second;
             else
-                (*i)->sx_text += style.line.radius.second;
+                (*i)->sx_text += style.line.cornersize.second;
             (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text); 
             // omit text cover for pipes if the pipe is fully opaque,
             // in that case content can be drawn at same position as label - opaque pipe will cover anyway
@@ -1756,7 +1756,7 @@ double ArcEmphasis::Height(AreaList &cover)
 
             XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
             XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
-            const XY rad(style.line.radius.second, (*i)->pipe_block.y.Spans()/2); //we use the first pipe's line.radius
+            const XY rad(style.line.cornersize.second, (*i)->pipe_block.y.Spans()/2); //we use the first pipe's line.cornersize
             if (!style.fromright.second) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
             //now cd is the one with the hole
             Contour back_end(cs, rad.x, rad.y);
@@ -1888,12 +1888,12 @@ double ArcEmphasis::Height(AreaList &cover)
 
             y += chart->emphVGapInside;
             //Make segment as tall as needed to accomodate curvature
-            if (style.line.radius.second>0) {
+            if (style.line.cornersize.second>0) {
                 double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
                 if (i==follow.begin())
-                    we_need_this_much_for_radius += style.line.radius.second;
+                    we_need_this_much_for_radius += style.line.cornersize.second;
                 if (i==--follow.end())
-                    we_need_this_much_for_radius += style.line.radius.second;
+                    we_need_this_much_for_radius += style.line.cornersize.second;
                 y = std::max(y, (*i)->yPos + we_need_this_much_for_radius);
             }
             y = ceil(y);
@@ -2042,10 +2042,10 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
     if (topSideLine) {
         cairo_line_join_t t = chart->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
         Contour clip(0, pipe_block.x.till, 0, chart->total.y);  
-        if (style.line.radius.second>0 && pipe_connect_forw) {
+        if (style.line.cornersize.second>0 && pipe_connect_forw) {
             const double x = style.fromright.second ? pipe_block.x.till : pipe_block.x.from;
             const XY c(x, pipe_block.y.MidPoint());
-            clip = (clip-Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2)).GetFirst();
+            clip = (clip-Contour(c, style.line.cornersize.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2)).GetFirst();
         }
         chart->Clip(clip);
         if (!style.line.IsDoubleOrTriple() || drawing_variant==0)
@@ -2111,17 +2111,17 @@ void ArcEmphasis::Draw()
     } else {
         //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
         const double lw = style.line.LineWidth();
-        MscLineAttr line = style.line;  //We will vary the radius, so we need a copy
-        //The radius specified in style.line will be that of the inner edge of the line
-        if (line.radius.second > 0)
-            line.radius.second += lw; //now it is appropriate for the outer edge
+        MscLineAttr line = style.line;  //We will vary the cornersize, so we need a copy
+        //The cornersize specified in style.line will be that of the inner edge of the line
+        if (line.cornersize.second > 0)
+            line.cornersize.second += lw; //now it is appropriate for the outer edge
         Block r(chart->XCoord((*src)->pos) - left_space, chart->XCoord((*dst)->pos) + right_space, 
                 yPos, yPos+total_height); //The outer edge of the lines
         //First draw the shadow. 
         chart->Shadow(r, line, style.shadow);
         //Do a clip region for the overall box (for round corners) 
         //at half a linewidth from the inner edge (use the width of a single line!)
-        line.radius.second -= lw-style.line.width.second/2.;
+        line.cornersize.second -= lw-style.line.width.second/2.;
         r.Expand(-lw+style.line.width.second/2.);
         chart->Clip(r, line);
         for (auto i = follow.begin(); i!=follow.end(); i++) {
@@ -2147,7 +2147,7 @@ void ArcEmphasis::Draw()
         chart->UnClip();
         //shring to the inner edge
         r.Expand(-style.line.width.second/2.);
-        line.radius.second -= style.line.width.second/2.;
+        line.cornersize.second -= style.line.width.second/2.;
         //Draw box lines - Cycle only for subsequent boxes
         for (auto i = ++(follow.begin()); i!=follow.end(); i++) {
             const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
@@ -2156,7 +2156,7 @@ void ArcEmphasis::Draw()
         }
         //Finally draw the overall line around the box, expand to midpoint of line
         r.Expand(lw/2);
-        line.radius.second += lw/2;
+        line.cornersize.second += lw/2;
         chart->Line(r, line);
         //XXX double line joints: fix it
         for (auto i = follow.begin(); i!=follow.end(); i++) {
@@ -2175,7 +2175,7 @@ void ArcEmphasis::Draw()
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
-    nudge(t==MSC_COMMAND_NUDGE)
+        nudge(t==MSC_COMMAND_NUDGE), extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0)
 {
 }
 
@@ -2251,6 +2251,7 @@ double ArcDivider::Height(AreaList &cover)
         return chart->nudgeSize;
     }
     double y = wide ? 0 : chart->arcVGapAbove;
+    y += extra_space;
     const double charheight = Label("M", chart, style.text).getTextWidthHeight().y;
 
     XY wh = parsed_label.getTextWidthHeight();
@@ -2266,11 +2267,16 @@ double ArcDivider::Height(AreaList &cover)
     if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
         area += Block(line_margin, chart->total.x-line_margin,
                       centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
-    area.mainline += Range(centerline-charheight/2, centerline+charheight/2);
-    cover += area;
     if (!wide)
         wh.y += chart->arcVGapAbove + chart->arcVGapBelow;
-    return height = wh.y;
+    height = wh.y + extra_space;
+    //Discontinuity lines cannot be compressed much
+    if (type==MSC_ARC_DISCO)
+        area.mainline += Range(wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
+    else
+        area.mainline += Range(centerline-charheight/2, centerline+charheight/2);
+    cover += area;
+    return height;
 }
 
 void ArcDivider::ShiftBy(double y)
@@ -2749,7 +2755,8 @@ void CommandEmpty::Draw()
     const double height = parsed_label.getTextWidthHeight().y;
     MscLineAttr line;
     line.width.second = 3;
-    line.radius.second = 10;
+    line.corner.second = CORNER_ROUND;
+    line.cornersize.second = 10;
 
     MscFillAttr fill;
     fill.color.second = MscColorType(0,0,128);

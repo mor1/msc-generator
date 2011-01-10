@@ -156,7 +156,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
 void MscStyle::AttributeNames(Csh &csh) const
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"vline.color", "vline.type", "vline.width", /*"vline.radius",*/ ""};
+    {"vline.color", "vline.type", "vline.width", /*"vline.cornersize",*/ ""};
 
     if (f_line) MscLineAttr::AttributeNames(csh);
     if (f_fill) MscFillAttr::AttributeNames(csh);
@@ -258,7 +258,7 @@ void Design::Reset()
     MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
-    style.line.radius.second = -1;
+    style.line.cornersize.second = -1;
     styles["arrow"] = style;
 
     style.Empty();
@@ -277,7 +277,7 @@ void Design::Reset()
     style.compress.first = false;
     style.numbering.first = false;
     style.numbering.first = false;
-    style.line.radius.second = -1;
+    style.line.cornersize.second = -1;
     styles["blockarrow"] = style;
 
     style.Empty();
@@ -295,7 +295,7 @@ void Design::Reset()
     style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
-    style.line.radius.second = -1;
+    style.line.cornersize.second = -1;
     styles["vertical"] = style;
 
     style.Empty();
@@ -367,7 +367,7 @@ void Design::Reset()
     style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true); //no arrow, vline
     style.compress.first = false;
     style.numbering.first = false;
-    style.line.radius.second = 5;
+    style.line.cornersize.second = 5;
     styles["pipe"] = style;
 
     style.Empty();

@@ -91,7 +91,7 @@ void MscDrawer::SetLowLevelParams(OutputType ot)
     use_text_path_rotated = false;
     individual_chars = false;
     fake_gradients = 0;
-    fake_dash = true; //XXX fake_dash
+    fake_dash = false; 
     fake_shadows = false;
     fake_spaces = false;
     scale = 1.0;
@@ -665,19 +665,50 @@ void MscDrawer::RectanglePath(double sx, double dx, double sy, double dy)
     cairo_line_to(cr, sx, dy);
     cairo_close_path(cr);
 }
+
+//for CORNER_NOTE it draws the outer edge
 void MscDrawer::RectanglePath(double sx, double dx, double sy, double dy, const MscLineAttr &line)
 {
     cairo_new_path(cr);
-    //XXX: Add chopped corners
-    if (line.radius.first && line.radius.second>0) {
-        const double r = std::min(std::min(fabs(sx-dx)/2, fabs(sy-dy)/2), line.radius.second);
+    if (!line.cornersize.first || line.cornersize.second==0 || 
+        !line.corner.first) {
+        RectanglePath(sx, dx, sy, dy);
+        return;
+    }
+    const double r = std::min(std::min(fabs(sx-dx)/2, fabs(sy-dy)/2), line.cornersize.second);
+    switch (line.corner.second) {
+    default:
+        RectanglePath(sx, dx, sy, dy); 
+        return;
+    case CORNER_ROUND:
         ArcPath(XY(sx + r, sy + r), r, r, 2.*M_PI/2., 3.*M_PI/2.);
         ArcPath(XY(dx - r, sy + r), r, r, 3.*M_PI/2., 4.*M_PI/2.);
         ArcPath(XY(dx - r, dy - r), r, r, 0.*M_PI/2., 1.*M_PI/2.);
         ArcPath(XY(sx + r, dy - r), r, r, 1.*M_PI/2., 2.*M_PI/2.);
         cairo_close_path(cr);
-    } else 
-        RectanglePath(sx, dx, sy, dy);
+        break;
+    case CORNER_BEVEL:
+        cairo_new_path(cr);
+        cairo_move_to(cr, sx+r, sy);
+        cairo_line_to(cr, dx-r, sy);
+        cairo_line_to(cr, dx, sy+r);
+        cairo_line_to(cr, dx, dy-r);
+        cairo_line_to(cr, dx-r, dy);
+        cairo_line_to(cr, sx+r, dy);
+        cairo_line_to(cr, sx, dy-r);
+        cairo_line_to(cr, sx, sy+r);
+        cairo_close_path(cr);
+        break;
+    case CORNER_NOTE:
+        cairo_new_path(cr);
+        cairo_move_to(cr, sx, sy);
+        cairo_line_to(cr, dx-r, sy);
+        cairo_line_to(cr, dx, dy-r);
+        cairo_line_to(cr, dx, dy);
+        cairo_line_to(cr, sx, dy);
+        cairo_close_path(cr);
+        break;
+    }
 }
 
 ////////////////////// Line routines
@@ -755,7 +786,7 @@ void MscDrawer::fakeDashedLine(const XY &c, double r1, double r2, double tilt, d
     } else {
         if (e<s) e += 2*M_PI; //ensure e is larger than s
     }
-    //XXX Do proper ellipse arc length calculations
+    //TODO Do proper ellipse arc length calculations
     const double avg_r = (r1+r2)/2;
     const double len = fabs(s-e)*avg_r; 
     const double inc_s = s<e ? 1/avg_r : -1/avg_r;
@@ -870,23 +901,45 @@ void MscDrawer::singleLine(const Block &b, const MscLineAttr &line)
         const double *pattern;
         double offset = 0;
         pattern = line.DashPattern(num);
-        const double radius = std::min(std::min(fabs(b.x.Spans())/2, fabs(b.y.Spans())/2), line.radius.second);
-        if (radius>0)
-            fakeDashedLine(XY(b.x.from+radius, b.y.from+radius), radius, 
-                radius, 0, 2.*M_PI/2., 3.*M_PI/2., pattern, num, pos, offset, false);
-        fakeDashedLine(XY(b.x.from+radius, b.y.from), XY(b.x.till-radius, b.y.from), pattern, num, pos, offset);
-        if (radius>0)
-            fakeDashedLine(XY(b.x.till-radius, b.y.from+radius), radius, 
-                radius, 0, 3.*M_PI/2., 4.*M_PI/2., pattern, num, pos, offset, false);
-        fakeDashedLine(XY(b.x.till, b.y.from+radius), XY(b.x.till, b.y.till-radius), pattern, num, pos, offset);
-        if (radius>0)
-            fakeDashedLine(XY(b.x.till-radius, b.y.till-radius), radius, 
-                radius, 0, 0.*M_PI/2., 1.*M_PI/2., pattern, num, pos, offset, false);
-        fakeDashedLine(XY(b.x.till-radius, b.y.till), XY(b.x.from+radius, b.y.till), pattern, num, pos, offset);
-        if (radius>0)
-            fakeDashedLine(XY(b.x.from+radius, b.y.till-radius), radius, 
-                radius, 0, 1.*M_PI/2., 2.*M_PI/2., pattern, num, pos, offset, false);
-        fakeDashedLine(XY(b.x.from, b.y.till-radius), XY(b.x.from, b.y.from+radius), pattern, num, pos, offset);
+        //r1 is used for the upper left corner, r2 for the other three
+        const double r1 = (line.corner.second == CORNER_ROUND || 
+                           line.corner.second == CORNER_BEVEL || 
+                           line.corner.second == CORNER_NOTE) ? 
+                           std::min(std::min(fabs(b.x.Spans())/2, fabs(b.y.Spans())/2), line.cornersize.second) : 0;
+        const double r2 = line.corner.second == CORNER_NOTE ? 0 : r1; 
+        //upper left corner
+        if (r2>0) switch (line.corner.second) {
+        case CORNER_ROUND: fakeDashedLine(XY(b.x.from+r2, b.y.from+r2), r2, r2, 0, 2.*M_PI/2., 3.*M_PI/2., 
+                               pattern, num, pos, offset, false); break;
+        case CORNER_BEVEL: fakeDashedLine(XY(b.x.from, b.y.from-r2), XY(b.x.from+r2, b.y.from), 
+                               pattern, num, pos, offset); break;
+        }
+        fakeDashedLine(XY(b.x.from+r2, b.y.from), XY(b.x.till-r1, b.y.from), pattern, num, pos, offset);
+        //upper right corner
+        if (r1>0) switch (line.corner.second) {
+        case CORNER_ROUND: fakeDashedLine(XY(b.x.till-r1, b.y.from+r1), r1, r1, 0, 3.*M_PI/2., 4.*M_PI/2., 
+                               pattern, num, pos, offset, false); break;
+        case CORNER_NOTE: 
+        case CORNER_BEVEL: fakeDashedLine(XY(b.x.till-r1, b.y.from), XY(b.x.till, b.y.from+r1), 
+                               pattern, num, pos, offset); break;
+        }
+        fakeDashedLine(XY(b.x.till, b.y.from+r1), XY(b.x.till, b.y.till-r2), pattern, num, pos, offset);
+        //lower right corner
+        if (r2>0) switch (line.corner.second) {
+        case CORNER_ROUND: fakeDashedLine(XY(b.x.till-r2, b.y.till-r2), r2, r2, 0, 0.*M_PI/2., 1.*M_PI/2., 
+                               pattern, num, pos, offset, false); break;
+        case CORNER_BEVEL: fakeDashedLine(XY(b.x.till, b.y.till-r2), XY(b.x.till-r2, b.y.till), 
+                               pattern, num, pos, offset); break;
+        }
+        fakeDashedLine(XY(b.x.till-r2, b.y.till), XY(b.x.from+r2, b.y.till), pattern, num, pos, offset);
+        //lower left corner
+        if (r2>0) switch (line.corner.second) {
+        case CORNER_ROUND: fakeDashedLine(XY(b.x.from+r2, b.y.till-r2), r2, r2, 0, 1.*M_PI/2., 2.*M_PI/2., 
+                               pattern, num, pos, offset, false);
+        case CORNER_BEVEL: fakeDashedLine(XY(b.x.from-r2, b.y.till), XY(b.x.from, b.y.till-r2), 
+                               pattern, num, pos, offset); break;
+        }
+        fakeDashedLine(XY(b.x.from, b.y.till-r2), XY(b.x.from, b.y.from+r2), pattern, num, pos, offset);
     }
 }
 
@@ -902,9 +955,6 @@ void MscDrawer::singleLine(const Contour &c, const MscLineAttr &line, bool open)
         int num, pos = 0;
         const double *pattern;
         double offset;
-
-
-
         pattern = line.DashPattern(num);
         for (int i=0; i<c.size()-(open?1:0); i++) 
             if (c.GetEdge(i).IsStraight())
@@ -977,25 +1027,52 @@ void MscDrawer::Line(const XY &s, const XY &d, const MscLineAttr &line, double p
 
 void MscDrawer::Line(const Block &b, const MscLineAttr &line)
 {
-    //XXX Add chopped corners
     _ASSERT(line.IsComplete());
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     if (b.IsInvalid()) return;
     SetLineAttr(line);
     const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
-    if (line.IsDoubleOrTriple()) {
-        Block bb(b);
-        MscLineAttr line2(line);
-        bb.Expand(spacing);
-        if (line2.radius.second>0) line2.radius.second += spacing;
-        singleLine(bb, line2);
-        bb.Expand(-2*spacing);
-        line2.radius.second -= 2*spacing; //negative radius is handled as 0 by singleLine
-        singleLine(bb, line2);
-    } 
-    if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
-    if (!line.IsDouble()) 
-        singleLine(b, line);
+    if (line.corner.second!=CORNER_NOTE || line.cornersize.second==0) {
+        if (line.IsDoubleOrTriple()) {
+            Block bb(b);
+            MscLineAttr line2(line);
+            bb.Expand(spacing);
+            if (line2.cornersize.second>0) line2.cornersize.second += spacing;
+            singleLine(bb, line2);
+            bb.Expand(-2*spacing);
+            line2.cornersize.second -= 2*spacing; //negative cornersize is handled as 0 by singleLine
+            singleLine(bb, line2);
+        } 
+        if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        if (!line.IsDouble()) 
+            singleLine(b, line);
+    } else {
+        //Draw note
+        if (line.IsDoubleOrTriple()) {
+            Block bb(b);
+            MscLineAttr line2(line);
+            bb.Expand(spacing);
+            line2.cornersize.second += spacing;
+            singleLine(bb, line2);
+            bb.Expand(-2*spacing);
+            const double r = line2.cornersize.second - 2*spacing; 
+            Area inner = bb - Contour(bb.x.till-r, bb.x.till, bb.y.from, bb.y.from+r);
+            singleLine(inner, line);
+        } else {
+            const double r = line.cornersize.second;
+            singleLine(b, line);
+            singleLine(XY(b.x.till-r, b.y.from), XY(b.x.till-r, b.y.till+r), line);
+            singleLine(XY(b.x.till-r, b.y.till+r), XY(b.x.till, b.y.till-r), line);
+        }
+        if (line.IsDouble()) {
+            const double r = line.cornersize.second;
+            singleLine(Contour(XY(b.x.till-r, b.y.from),XY(b.x.till-r, b.y.till+r), XY(b.x.till, b.y.till-r)), line);
+        } else if (line.IsTriple()) {
+            MscLineAttr line2(line);
+            line2.type.second = LINE_SOLID;
+            singleLine(b, line2);
+        }
+    }
 }
 
 void MscDrawer::Line(const Contour &c, const MscLineAttr &line)
@@ -1227,7 +1304,6 @@ void MscDrawer::Fill(const Block &b, const MscFillAttr &fill)
 {
     _ASSERT(fill.IsComplete());
     if (!fill.color.second.valid || fill.color.second.a==0) return;
-    // XXX WTF b.x.till++; b.y.till++;  
 	const double max_extent = std::max(fabs(b.x.till-b.x.from), fabs(b.y.till-b.y.from));
 	//If gradients are to be drawn, we fake them only if no alpha is present
 	//If we draw somewhat transparent, we will fall back to images anyway,
@@ -1337,7 +1413,7 @@ void MscDrawer::Shadow(const Area &area, const MscShadowAttr &shadow)
             color.a += transp_step;
         }
     }
-    if (shadow.blur.second>shadow.offset.second) { //we still use a blurred shadow color
+    if (shadow.blur.second > shadow.offset.second) { //we still use a blurred shadow color
         if (fake_shadows)
             SetColor(color.FlattenAlpha());
         else
@@ -1352,14 +1428,21 @@ void MscDrawer::Shadow(const Area &area, const MscShadowAttr &shadow)
 /* Set clip, if the rectangle of which this is the shadow of is not opaque */
 void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow)
 {
-    _ASSERT(shadow.IsComplete() && line.radius.first);
+    _ASSERT(shadow.IsComplete() && line.cornersize.first);
     if (shadow.offset.second==0) return;
 	if (!shadow.color.second.valid || shadow.color.second.a==0) return;
     //For now just call the other Shadow Routine
-    Shadow(line.CreateRectangle(b), shadow);
+    //But add half the blur to the cornersize if we are no corner or rounded
+    MscLineAttr line_blur(line);
+    if (line_blur.cornersize.second<0) line_blur.cornersize.second = 0;
+    if (shadow.blur.second==0 || line.corner.second==CORNER_ROUND) {
+        line_blur.cornersize.second += shadow.blur.second/2.;
+        line_blur.corner.second = CORNER_ROUND;
+    }
+    Shadow(line_blur.CreateRectangle(b), shadow);
     return;
 
-    //XXX chopped corners
+    // chopped corners needed to be added here
     MscColorType inner = shadow.color.second;
 
     //Clip out the actual rectange we are the shadow of
@@ -1372,12 +1455,12 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
     //    cairo_clip(cr);
     //}
 
-    //Normalize radius
-    double radius = line.radius.second < 0 ? 0 : line.radius.second;
+    //Normalize cornersize
+    double cornersize = line.cornersize.second < 0 ? 0 : line.cornersize.second;
     const double max_radius = std::min(b.x.Spans(), b.y.Spans())/2-1;
-    if (radius > max_radius) radius = max_radius;
+    if (cornersize > max_radius) cornersize = max_radius;
     const double blur = std::min(max_radius, shadow.blur.second);
-    const double blur_radius = std::max((double)radius, blur);
+    const double blur_radius = std::max((double)cornersize, blur);
     const XY xy_off(shadow.offset.second, shadow.offset.second);
     const XY xy_blur(blur, blur);
     const XY ss = b.UpperLeft()+xy_off;
@@ -1444,10 +1527,10 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
         }
     }
     //Draw the inner of the shadow, if any of this is visible
-    radius -= blur;
-    if (radius<0) radius = 0;
+    cornersize -= blur;
+    if (cornersize<0) cornersize = 0;
     MscLineAttr line2;
-    line2.radius.second = radius;
+    line2.cornersize.second = cornersize;
     RectanglePath(ss.x+blur, dd.x-blur, ss.y+blur, dd.y-blur, line);
     SetColor(inner);
     cairo_fill(cr);
@@ -1517,7 +1600,7 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //        cairo_save (cr);
 //        cairo_translate (cr, c.x+CAIRO_OFF, c.y+CAIRO_OFF);
 //        cairo_scale (cr, wh.x / 2., wh.y / 2.);
-//        double rot = dash/(wh.x+wh.y)*2*2;  //dash/radius
+//        double rot = dash/(wh.x+wh.y)*2*2;  //dash/cornersize
 //        double ss = s*(M_PI/180.);
 //        double ee = e*(M_PI/180.);
 //        if (ee<ss) ee += 2*M_PI;
@@ -1533,7 +1616,7 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //        cairo_new_sub_path(cr);
 //		_arc_path(c, wh+XY(0, 2*wider), s, e, 0, LINE_SOLID, reverse);
 //        cairo_new_sub_path(cr);
-//		//ensure that radius adjusted by wider is always nonzero
+//		//ensure that cornersize adjusted by wider is always nonzero
 //		XY w(2*wider, 2*wider);
 //		if (wh.x<wider) w.x = wh.x;
 //		if (wh.y<wider) w.y = wh.y;
@@ -1554,41 +1637,41 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //
 ////wider is only used if type is DOUBLE
 //void MscDrawer::_rectangle_line_path(XY s, XY d, double offset, double wider,
-//                                     double radius, MscLineType type)
+//                                     double cornersize, MscLineType type)
 //{
 //    if ((type == LINE_DASHED || type == LINE_DOTTED) && fake_dash) {
-//        _line_path(XY(s.x+radius, s.y), XY(d.x-radius, s.y), wider, type);
-//        _line_path(XY(d.x, s.y+radius), XY(d.x, d.y-radius), wider, type);
-//        _line_path(XY(s.x+radius, d.y), XY(d.x-radius, d.y), wider, type);
-//        _line_path(XY(s.x, s.y+radius), XY(s.x, d.y-radius), wider, type);
-//        if (radius>0) {
-//            XY rr(2*radius, 2*radius);
-//            _arc_path(XY(s.x+radius, s.y+radius), rr, 180, 270, wider, type);
-//            _arc_path(XY(d.x-radius, s.y+radius), rr, 270, 360, wider, type);
-//            _arc_path(XY(d.x-radius, d.y-radius), rr,   0,  90, wider, type);
-//            _arc_path(XY(s.x+radius, d.y-radius), rr,  90, 180, wider, type);
+//        _line_path(XY(s.x+cornersize, s.y), XY(d.x-cornersize, s.y), wider, type);
+//        _line_path(XY(d.x, s.y+cornersize), XY(d.x, d.y-cornersize), wider, type);
+//        _line_path(XY(s.x+cornersize, d.y), XY(d.x-cornersize, d.y), wider, type);
+//        _line_path(XY(s.x, s.y+cornersize), XY(s.x, d.y-cornersize), wider, type);
+//        if (cornersize>0) {
+//            XY rr(2*cornersize, 2*cornersize);
+//            _arc_path(XY(s.x+cornersize, s.y+cornersize), rr, 180, 270, wider, type);
+//            _arc_path(XY(d.x-cornersize, s.y+cornersize), rr, 270, 360, wider, type);
+//            _arc_path(XY(d.x-cornersize, d.y-cornersize), rr,   0,  90, wider, type);
+//            _arc_path(XY(s.x+cornersize, d.y-cornersize), rr,  90, 180, wider, type);
 //        }
 //    } else if (type == LINE_DOUBLE) {
-//        rectangle_path(s, d, CAIRO_OFF, wider, radius);
-//        rectangle_path(s, d, CAIRO_OFF, -wider, radius);
+//        rectangle_path(s, d, CAIRO_OFF, wider, cornersize);
+//        rectangle_path(s, d, CAIRO_OFF, -wider, cornersize);
 //    } else {
-//        rectangle_path(s, d, CAIRO_OFF, 0, radius);
+//        rectangle_path(s, d, CAIRO_OFF, 0, cornersize);
 //    }
 //}
 //
 //void MscDrawer::rectangle_path(XY s, XY d,
-//                               double offset, double wider, double radius)
+//                               double offset, double wider, double cornersize)
 //{
-//    //Normalize radius
-//    if (radius<0) radius=0;
+//    //Normalize cornersize
+//    if (cornersize<0) cornersize=0;
 //    const double max_radius = std::min(fabs(s.x-d.x), fabs(s.y-d.y))/2-1;
-//    if (radius > max_radius) radius = max_radius;
+//    if (cornersize > max_radius) cornersize = max_radius;
 //
-//	if (radius==0) {
+//	if (cornersize==0) {
 //        cairo_rectangle(cr, s.x-wider+offset, s.y-wider+offset,
 //                        d.x-s.x + 2*wider, d.y-s.y + 2*wider);
 //    } else {
-//        double r = radius+wider;
+//        double r = cornersize+wider;
 //        cairo_move_to(cr, s.x-wider+r+offset, s.y-wider+offset);
 //        cairo_arc(cr, d.x+wider-r+offset, s.y-wider+r+offset,
 //                  r, 270*(M_PI/180.), 0*(M_PI/180.));
@@ -1608,12 +1691,12 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
 //    SetLineAttr(line);
 //    _rectangle_line_path(s, d, CAIRO_OFF, line.width.second,
-//		                 line.radius.second, line.type.second);
+//		                 line.cornersize.second, line.type.second);
 //    cairo_stroke(cr);
 //    _new_path();
 //}
 //
-//void MscDrawer::filledRectangle(XY s, XY d, MscFillAttr fill, int radius)
+//void MscDrawer::filledRectangle(XY s, XY d, MscFillAttr fill, int cornersize)
 //{
 //    fill = (MscFillAttr() += fill);
 //    if (!fill.color.second.valid || fill.color.second.a==0) return;
@@ -1623,7 +1706,7 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //	//If we draw somewhat transparent, we will fall back to images anyway,
 //	//so let us not fake gradients either
 //    if (fill.gradient.second!=GRADIENT_NONE && fake_gradients && fill.color.second.a==255) {
-//        ClipRectangle(s, d-XY(1,1), radius);
+//        ClipRectangle(s, d-XY(1,1), cornersize);
 //        MscColorType color = fill.color.second;
 //        MscColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
 //        switch(fill.gradient.second) {
@@ -1681,7 +1764,7 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //        } else {
 //            _set_linear_gradient(from, to, s, d, fill.gradient.second);
 //        }
-//        rectangle_path(s, d, 0, 0, radius);
+//        rectangle_path(s, d, 0, 0, cornersize);
 //        cairo_fill(cr);
 //    }
 //    _new_path();
@@ -1689,7 +1772,7 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //
 //
 ///* Set clip, if the rectangle of which this is the shadow of is not opaque */
-//void MscDrawer::shadow(XY s, XY d, MscShadowAttr shadow, int radius, bool clip)
+//void MscDrawer::shadow(XY s, XY d, MscShadowAttr shadow, int cornersize, bool clip)
 //{
 //    shadow = (MscShadowAttr() += shadow);
 //    if (shadow.offset.second==0) return;
@@ -1699,19 +1782,19 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //
 //    //Clip out the actual rectange we are the shadow of
 //    if (clip) {
-//        rectangle_path(s, d, -CAIRO_OFF, 0, radius);
+//        rectangle_path(s, d, -CAIRO_OFF, 0, cornersize);
 //        cairo_new_sub_path(cr);
 //        cairo_rectangle(cr, 0, 0, total.x, total.y);
 //        cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
 //        Clip();
 //    }
 //
-//    //Normalize radius
-//    if (radius<0) radius=0;
+//    //Normalize cornersize
+//    if (cornersize<0) cornersize=0;
 //    const double max_radius = std::min(fabs(s.x-d.x), fabs(s.y-d.y))/2-1;
-//    if (radius > max_radius) radius = max_radius;
+//    if (cornersize > max_radius) cornersize = max_radius;
 //    const double blur = std::min(max_radius, shadow.blur.second);
-//    const double blur_radius = std::max((double)radius, blur);
+//    const double blur_radius = std::max((double)cornersize, blur);
 //    const XY xy_off(shadow.offset.second, shadow.offset.second);
 //    const XY xy_blur(blur, blur);
 //    const XY ss = s+xy_off;
@@ -1786,9 +1869,9 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
 //        }
 //    }
 //    //Draw the inner of the shadow, if any of this is visible
-//    radius -= blur;
-//    if (radius<0) radius = 0;
-//    rectangle_path(ss+xy_blur, dd-xy_blur, 0, 0, radius);
+//    cornersize -= blur;
+//    if (cornersize<0) cornersize = 0;
+//    rectangle_path(ss+xy_blur, dd-xy_blur, 0, 0, cornersize);
 //    SetColor(inner);
 //    cairo_fill(cr);
 //    if (clip)
