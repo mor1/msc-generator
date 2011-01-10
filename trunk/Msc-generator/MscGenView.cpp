@@ -40,14 +40,10 @@
 
 void test_geo(cairo_t *cr, int x, int y, bool clicked) 
 {
-	using contour::Area;
-	using contour::Contour;
-	using namespace contour;
-
 	static Area tri, boxhole, cooomplex, cooomplex2, cooomplex3, custom;
 	if (boxhole.IsEmpty()) {
 		tri = Contour(30,50,60,70);
-		tri += Contour(contour::XY(50,90), contour::XY(100,60), contour::XY(40,20));
+		tri += Contour(XY(50,90), XY(100,60), XY(40,20));
 		boxhole += Contour(130,170,60,70);
 		boxhole += Contour(160,170,60,140);
 		boxhole += Contour(130,140,60,140);
@@ -62,9 +58,9 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 
 		cooomplex2 += cooomplex;
 		custom = cooomplex2;
-		cooomplex2 += Area(cooomplex2).Shift(contour::XY(15,15));
-		cooomplex2.Shift(contour::XY(200,0));
-		custom. Shift(contour::XY(200,0));
+		cooomplex2 += Area(cooomplex2).Shift(XY(15,15));
+		cooomplex2.Shift(XY(200,0));
+		custom. Shift(XY(200,0));
 
 		cooomplex.clear();
 		const int num_x = 10;
@@ -75,38 +71,38 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 			cooomplex += Contour(200, 190+num_x*20, 200+j*20, 215+j*20);
 	
 		//cooomplex2.ClearHoles();
-		cooomplex2 *= Contour(contour::XY(300,101), 100, 50);
+		cooomplex2 *= Contour(XY(300,101), 100, 50);
 		cooomplex3 = cooomplex2;
 	}
     //x=214; y=610;
-	std::vector<contour::Edge> v;
-	v.push_back(contour::Edge(contour::XY( 50, 200)));
-	v.push_back(contour::Edge(contour::XY(x, y)));
-	v.push_back(contour::Edge(contour::XY( 50, 300)));
-	v.push_back(contour::Edge(contour::XY(x+30, y+40)));
-	v.push_back(contour::Edge(contour::XY(100, 300)));
-	v.push_back(contour::Edge(contour::XY(x, y)));
-	v.push_back(contour::Edge(contour::XY( 90, 300)));
+	std::vector<Edge> v;
+	v.push_back(Edge(XY( 50, 200)));
+	v.push_back(Edge(XY(x, y)));
+	v.push_back(Edge(XY( 50, 300)));
+	v.push_back(Edge(XY(x+30, y+40)));
+	v.push_back(Edge(XY(100, 300)));
+	v.push_back(Edge(XY(x, y)));
+	v.push_back(Edge(XY( 90, 300)));
 	//custom = v;
 	//custom.Fill2(cr, 255, 0, 0);
 
-	Area circle = Contour(contour::XY(200, 200), 60, 30, 30);
-	Area circle2= Contour(contour::XY(x, y), 60, 30, abs(x-y));
-	//Area circle2= Contour(contour::XY(339, 103), 60, 30, 150);
-	//Area circle2= Contour(contour::XY(337, 103), 60, 30, 150);
-	//Contour circle2(contour::XY(200,200), 60, 30, 150);
+	Area circle = Contour(XY(200, 200), 60, 30, 30);
+	Area circle2= Contour(XY(x, y), 60, 30, abs(x-y));
+	//Area circle2= Contour(XY(339, 103), 60, 30, 150);
+	//Area circle2= Contour(XY(337, 103), 60, 30, 150);
+	//Contour circle2(XY(200,200), 60, 30, 150);
 	//Contour box(x-30, x+30, y-20, y+20);
 	//circle += Contour(200,300, 170,190);
 	//circle2 += Contour(x,x+100, y+15,y+30);
 
 	Area boxhole2 = Contour(110, 200, 80, 120);
 	boxhole2 -= Contour(120, 190, 90, 110);
-	//boxhole2.Shift(contour::XY(x-110, y-80));
-	boxhole2.Shift(contour::XY(0, 100));
+	//boxhole2.Shift(XY(x-110, y-80));
+	boxhole2.Shift(XY(0, 100));
 
 	//circle2.Line(cr);
 	cooomplex2 = cooomplex3;
-	//cooomplex2.RotateAround(contour::XY(350,100), (x-y)/(M_PI*180));
+	//cooomplex2.RotateAround(XY(350,100), (x-y)/(M_PI*180));
 	//cooomplex2.Line2(cr);
 
 	//custom.Line2(cr);
@@ -115,13 +111,13 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	//cooomplex.Line2(cr);
 	//custom.Line2(cr);
 	//boxhole2.Line(cr);
-	//Area(Contour(contour::XY(130,201), 30, 20)).Line2(cr);
+	//Area(Contour(XY(130,201), 30, 20)).Line2(cr);
 	Area huhu = boxhole2;
 	//huhu.ClearHoles();
-	//huhu *= Contour(contour::XY(130,201), 30,20);
+	//huhu *= Contour(XY(130,201), 30,20);
 	//huhu.Line2(cr);
     //x=363; y=188;
-	Area bexp = cooomplex2.RotateAround(contour::XY(300,100), x-y).CreateExpand((x-y)/10).Shift(contour::XY(0,100));
+	Area bexp = cooomplex2.RotateAround(XY(300,100), x-y).CreateExpand((x-y)/10).Shift(XY(0,100));
     //Area aaa(cooomplex2.begin()->GetHoles());
     //Area bexp=aaa, bexp2;
     //auto i = aaa.begin();
@@ -136,19 +132,19 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
     //bexp += *++i;
     //bexp += *++i;
     //bexp2 += *++i;
-    //bexp.RotateAround(contour::XY(300,100), x-y);
-    //bexp2.RotateAround(contour::XY(300,100), x-y);
-    //Area bexpp = bexp.CreateExpand((x-y)/10.).Shift(contour::XY(0,100));
-    //Area bexpp2 = bexp2.CreateExpand((x-y)/10.).Shift(contour::XY(0,100));
+    //bexp.RotateAround(XY(300,100), x-y);
+    //bexp2.RotateAround(XY(300,100), x-y);
+    //Area bexpp = bexp.CreateExpand((x-y)/10.).Shift(XY(0,100));
+    //Area bexpp2 = bexp2.CreateExpand((x-y)/10.).Shift(XY(0,100));
     //bexp += bexp2;
-    //bexp.Shift(contour::XY(0,100));
+    //bexp.Shift(XY(0,100));
 	//bexpp.Line2(cr);
 	//bexpp2.Line2(cr);
     //bexpp += bexpp2;
 	bexp.Line2(cr);
 
     //double offset = cooomplex3.OffsetBelow(bexp);
-    //bexp.Shift(contour::XY(0,-offset));
+    //bexp.Shift(XY(0,-offset));
     //cooomplex3.Line2(cr);
 	//bexp.Line2(cr);
 	//bexpp.Line2(cr);
@@ -171,10 +167,10 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	//int c = cubic_solve(1, -6, 11, -6, r);
 
 
-	//contour::XY off(150, 30);
-	//Edge e1(contour::XY(x-75, y));
-	//Edge e2(contour::XY(200,200), 50, 100, 30);
-	//Edge e3(contour::XY(x, y), 100, 50, 60);
+	//XY off(150, 30);
+	//Edge e1(XY(x-75, y));
+	//Edge e2(XY(200,200), 50, 100, 30);
+	//Edge e3(XY(x, y), 100, 50, 60);
 
 	//cairo_move_to(cr, e3.GetStart().x, e3.GetStart().y);
 	//e3.Path(cr, e3.GetStart()+off.Rotate90CW());
@@ -183,9 +179,9 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	//e2.Path(cr, e2.GetStart()+off);
 	//cairo_stroke(cr);
 	//
-	//(Contour(contour::XY(200,200), 50, 100, 30) * Contour(contour::XY(x, y), 100, 50, 60)).Fill(cr);
+	//(Contour(XY(200,200), 50, 100, 30) * Contour(XY(x, y), 100, 50, 60)).Fill(cr);
 
-	//contour::XY xy[4];
+	//XY xy[4];
 	//double pos1[4], pos2[4];
 	//int num = Edge::Crossing(e3, e3.GetStart()+off.Rotate90CW(), e2, e2.GetStart()+off, xy, pos1, pos2);
 	//for (int i=0; i<num; i++) {
@@ -936,7 +932,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	if (pDoc->m_bTrackMode) {
 		m_clicked=true;
 		pDoc->UpdateTrackRects(point);
-	}else {
+	} else {
 		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
 			pDoc->StartFadingAll();
@@ -944,8 +940,11 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 			pDoc->HighLightArc(arc);
 			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 			ASSERT(pApp != NULL);
-			if (pApp->IsInternalEditorRunning()) 
+			if (pApp->IsInternalEditorRunning()) {
 				pApp->m_pWndEditor->SetFocus();
+                if (pDoc->m_saved_charrange.cpMin==-1)
+                    pApp->m_pWndEditor->m_ctrlEditor.GetSel(pDoc->m_saved_charrange);
+            }
 		} else
 			CScrollView::OnLButtonUp(nFlags, point);  //This sets focus to view
 	}

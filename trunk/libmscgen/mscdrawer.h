@@ -50,10 +50,11 @@ class MscDrawer
 
     cairo_surface_t *surface;
     cairo_t *cr;
+    double fake_dash_offset;
 
     void SetLowLevelParams(OutputType ot=PNG);
 
-    void ArcPath(const contour::Ellipse &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
+    void ArcPath(const EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void RectanglePath(double sx, double dx, double sy, double dy);
     void RectanglePath(double sx, double dx, double sy, double dy, const MscLineAttr &line);
@@ -62,13 +63,6 @@ class MscDrawer
                         const double pattern[], int num, int &pos, double &offset);
     void fakeDashedLine(const XY &c, double r1, double r2, double tilt, double s, double e, 
                         const double pattern[], int num, int &pos, double &offset, bool reverse);
-    void singleLine(const XY &s, const XY &d, const MscLineAttr &line);
-    void singleLine(const XY &c, double r1, double r2, double tilt, double s, double e, const MscLineAttr &line, bool reverse=false);
-    void singleLine(const Block &, const MscLineAttr &line);
-    void singleLine(const Contour &, const MscLineAttr &line, bool open);
-    void singleLine(const ContourList&, const MscLineAttr &line);
-    void singleLine(const Area&, const MscLineAttr &line);
-
 
     void linearGradient(MscColorType from, MscColorType to, const XY &s, const XY &d, MscGradientType type);
     void fakeLinearGrad(MscColorType from, MscColorType to, const XY &s, const XY &d, bool dir_is_x, unsigned steps);
@@ -77,9 +71,19 @@ class MscDrawer
     void fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, double outer_radius, double inner_radius,
                         unsigned steps, bool rectangle, double rad_from=0, double rad_to=2*M_PI);
 
-friend class StringFormat;
+    void singleLine(const XY &s, const XY &d, const MscLineAttr &line);
+    void singleLine(const XY &c, double r1, double r2, double tilt, double s, double e, const MscLineAttr &line, bool reverse=false);
+    void singleLine(const Block &, const MscLineAttr &line);
+    void singleLine(const Contour &, const MscLineAttr &line, bool open);
+    void singleLine(const ContourList&, const MscLineAttr &line);
+    void singleLine(const Area&, const MscLineAttr &line);
+
+
+friend class StringFormat; //for all sorts of text manipulation
+friend class ArcEmphasis;  //for exotic line joints
     void SetColor(MscColorType);
     void SetLineAttr(MscLineAttr);
+    void SetDash(MscLineAttr, double pattern_offset=0);
     void SetFontFace(const char*face, bool italics, bool bold);
     void SetFontSize(double size) {cairo_set_font_size (cr, size);}
     double textWidth(const string &s);
@@ -115,7 +119,7 @@ friend class StringFormat;
     void Clip(const XY &s, const XY &d, const MscLineAttr &line);
     void Clip(const Block &b);
     void Clip(const Block &b, const MscLineAttr &line);
-    void Clip(const contour::Ellipse &ellipse);
+    void Clip(const EllipseData &ellipse);
     void Clip(const Area &area);
     void UnClip() {cairo_restore(cr);}
     void Transform_Rotate90(double s, double d, bool clockwise);
@@ -124,25 +128,25 @@ friend class StringFormat;
     void UnTransform() {cairo_restore(cr);}
 
     void Line(const Edge& edge, const MscLineAttr &line);          
-    void Line(const XY &s, const XY &d, const MscLineAttr &line);                
+    void Line(const XY &s, const XY &d, const MscLineAttr &line, double pattern_offset=0);                
     void Line(const Block &b, const MscLineAttr &line);
     void Line(const Contour &contour, const MscLineAttr &line);    
     void Line(const Area &area, const MscLineAttr &line);          
     void LineOpen(const Contour &contour, const MscLineAttr &line);  //an arbitrary contour, but not its last edge
-    void LineWithJoints(const std::list<Contour> &c, const MscLineAttr &line); 
     void Fill(const XY &s, const XY &d, const MscFillAttr &fill);
     void Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill);
     void Fill(const Block &b, const MscFillAttr &fill);
     void Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill);
-    void Fill(const contour::Ellipse &ellipse, const MscFillAttr &fill);
+    void Fill(const EllipseData &ellipse, const MscFillAttr &fill);
     void Fill(const Contour &contour, const MscFillAttr &fill);
     void Fill(const Area &area, const MscFillAttr &fill);
-    void Shadow(const Block &b, const MscShadowAttr &shadow, bool clip=false) {Shadow(b, MscLineAttr(), shadow, clip);}
-    void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool clip=false);
-    void Shadow(const Area &area, const MscShadowAttr &shadow, bool clip=false);
+    void Shadow(const Block &b, const MscShadowAttr &shadow) {Shadow(b, MscLineAttr(), shadow);}
+    void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow);
+    void Shadow(const Area &area, const MscShadowAttr &shadow);
 };
 
-
+//A number, which is larger than any chart, but small enough for contour to make no mistakes
+#define MSC_BIG_COORD 1e5
 
 inline void MscDrawer::Clip(double sx, double dx, double sy, double dy) {cairo_save(cr); RectanglePath(sx, dx, sy, dy); cairo_clip(cr);}
 inline void MscDrawer::Clip(double sx, double dx, double sy, double dy, const MscLineAttr &line) {cairo_save(cr); RectanglePath(sx, dx, sy, dy, line); cairo_clip(cr);}
@@ -150,7 +154,7 @@ inline void MscDrawer::Clip(const XY &s, const XY &d) {cairo_save(cr); Rectangle
 inline void MscDrawer::Clip(const XY &s, const XY &d, const MscLineAttr &line) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y, line); cairo_clip(cr);}
 inline void MscDrawer::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till); cairo_clip(cr);}
 inline void MscDrawer::Clip(const Block &b, const MscLineAttr &line) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line); cairo_clip(cr);}
-//void Clip(const contour::Ellipse &ellipse); not inline
+//void Clip(const EllipseData &ellipse); not inline
 inline void MscDrawer::Clip(const Area &area) {cairo_save(cr); area.Path(cr); cairo_clip(cr);}
 
 
@@ -158,7 +162,7 @@ inline void MscDrawer::Fill(const XY &s, const XY &d, const MscFillAttr &fill) {
 inline void MscDrawer::Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
 //void MscDrawer:: Fill(const Block &b, const MscFillAttr &fill); //Not inline
 inline void MscDrawer::Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill) {Clip(b, line); Fill(b, fill); UnClip();}
-//void MscDrawer::Fill(const contour::Ellipse &ellipse, const MscFillAttr &fill); //Not inline
+//void MscDrawer::Fill(const EllipseData &ellipse, const MscFillAttr &fill); //Not inline
 inline void MscDrawer::Fill(const Contour &c, const MscFillAttr &fill) {Clip(c); Fill(c.GetBoundingBox(), fill); UnClip();}
 inline void MscDrawer::Fill(const Area &area, const MscFillAttr &fill) {Clip(area); Fill(area.GetBoundingBox(), fill); UnClip();}
 

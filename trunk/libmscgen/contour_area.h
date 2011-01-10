@@ -4,11 +4,7 @@
 #include <list>
 #include "contour_contour.h"
 
-
 class TrackableElement;
-
-namespace contour {
-
 class ContourWithHoles;
 
 //This can contain multiple positive contours and holes
@@ -50,8 +46,7 @@ public:
     ContourList &operator = (ContourList &&a) {swap(a); return *this;}
     bool IsEmpty() const {return size()==0;}
     const Block &GetBoundingBox(void) const {return boundingBox;}
-    const ContourWithHoles &GetFirst() const {return *begin();}
-    ContourWithHoles &&GetFirst() {return std::move(*begin());}
+    const ContourWithHoles GetFirst() const;
     is_within_t IsWithin(XY p) const;
     ContourList &Shift(XY xy);
     ContourList &Rotate(double cos, double sin, double radian);
@@ -117,6 +112,7 @@ public:
 
 	void Expand(double gap, ContourList &res) const;
 	void ClearHoles() {holes.clear();}
+    bool HasHoles() const {return holes.size()>0;}
     const ContourList &GetHoles() const {return holes;}
 
     void Path(cairo_t *cr, bool inv) const
@@ -204,10 +200,13 @@ public:
     AreaList &Shift(XY xy) {for (auto i=cover.begin(); i!=cover.end(); i++) i->Shift(xy); mainline.Shift(xy.y); boundingBox.Shift(xy); return *this;}
     const Block& GetBoundingBox() const {return boundingBox;}
 
+    AreaList CreateExpand(double gap) const;
+
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
 
     const Area *InWhich(const XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (i->IsWithin(p)!=WI_OUTSIDE) return &*i; return NULL;}
+    const Area *InWhichFromBack(const XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (i->IsWithin(p)!=WI_OUTSIDE) return &*i; return NULL;}
 };
 
 
@@ -222,12 +221,11 @@ inline ContourList::ContourList(ContourWithHoles &&p) :
 	std::list<ContourWithHoles>(1, p), boundingBox(p.GetBoundingBox()) {}
 inline ContourList::ContourList(Contour &&p) :
 	std::list<ContourWithHoles>(1, p), boundingBox(p.GetBoundingBox()) {}
-
-
 inline void ContourList::append(ContourWithHoles &&p)
         {boundingBox += p.GetBoundingBox(); push_back(p);}
 inline void ContourList::append(const ContourWithHoles &p)
         {boundingBox += p.GetBoundingBox(); push_back(p);}
+inline const ContourWithHoles ContourList::GetFirst() const {return size()?*begin():ContourWithHoles();}
 
 inline ContourList &ContourList::operator += (const Contour &p) {return *this+=ContourWithHoles(p);}
 inline ContourList &ContourList::operator *= (const Contour &p) {return *this*=ContourWithHoles(p);}
@@ -509,9 +507,5 @@ inline Area operator + (const Area &a1, Area &&a2)  {return a2+=a1;}
 inline Area operator * (const Area &a1, Area &&a2)  {return a2*=a1;}
 //inline Area operator - (const Area &a1, Area &&a2)  {return std::move(a2-=a1);} NONE!
 inline Area operator ^ (const Area &a1, Area &&a2)  {return a2^=a1;}
-
-}; //namespace
-
-using namespace contour;
 
 #endif //CONTOUR_XAREA_H

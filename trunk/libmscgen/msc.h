@@ -135,12 +135,14 @@ public:
     int arcVGapAbove, arcVGapBelow;
     /** Nudge size */
     int nudgeSize;
-    /** Size of gap at compress */
-    int compressXGap, compressYGap;
+    /** Size of gap at compress. We expand by half of it */
+    int compressGap;
     /** Size of gap at hscale=auto */
     int hscaleAutoXGap;
     /* Width of the frames used for tracking boxes on screen */
     int trackFrameWidth;
+    /* How much do we expand tracking covers */
+    int trackExpandBy;
 
     /* Parse Options */
     double       hscale;     /** Relative xsize, -1 is auto **/
@@ -159,6 +161,9 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
 
+    EIterator EntityMinMaxByPos(EIterator i, EIterator j, bool min) const;
+    EIterator EntityMinByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, true);}
+    EIterator EntityMaxByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, false);}
     EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
     void AddArcs(ArcList *a);
     ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
@@ -176,6 +181,7 @@ public:
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
 
     void HideEntityLines(const Area &area);
+    void HideEntityLines(const Block &area);
 
     void DrawEntityLines(double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(double y, double height)

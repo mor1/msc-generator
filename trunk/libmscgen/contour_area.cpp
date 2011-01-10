@@ -19,8 +19,6 @@
 #include <cassert>
 #include "contour_area.h"
 
-namespace contour {
-
 /////////////////////////////////////////  ContourList implementation
 
 void ContourList::assign(std::vector<Edge> &&v, bool winding)
@@ -88,7 +86,7 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
             return *this;
         }
     }
-    append(current_blob); //this extends bounding box appropriately
+    append(std::move(current_blob)); //this extends bounding box appropriately
     return *this;
 }
 
@@ -373,4 +371,13 @@ void Area::Fill2(cairo_t *cr, int r, int g, int b) const
 }
 
 
-}; //namespace
+AreaList AreaList::CreateExpand(double gap) const
+{
+    if (!gap) return *this;
+    AreaList al;
+    for (auto i=cover.begin(); i!=cover.end(); i++)
+        al += i->CreateExpand(gap);
+    return al;
+}
+
+

@@ -15,6 +15,7 @@ struct MscStyle
     ArrowHead arrow;
     StringFormat text;
     std::pair<bool, unsigned char> solid;
+    std::pair<bool, bool> fromright; //true if we can see into the pipe's hole from right
     std::pair<bool, bool> numbering;
     std::pair<bool, bool> compress;
 

@@ -5,8 +5,6 @@
 #include <list>
 #include "contour_edge.h"
 
-namespace contour {
-
 class ContourList;
 struct CPOnEdge;
 
@@ -74,7 +72,7 @@ public:
     bool operator < (const Contour &b) const;
     bool operator ==(const Contour &b) const;
     Contour &operator=(Contour &&p) {swap(p);  return *this;}
-	Contour &operator=(const Contour &p) {std::vector<Edge>::operator=(p); boundingBox=p.boundingBox; return *this;}
+    Contour &operator=(const Contour &p) {if (p.size()) {std::vector<Edge>::operator=(p); boundingBox=p.boundingBox;} else clear();  return *this;}
 
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
 	XY PrevTangentPoint(int edge, double pos) const {return at(edge).PrevTangentPoint(pos, at_prev(edge));}
@@ -99,6 +97,7 @@ public:
 
     void Expand(double gap, ContourList &res) const;
     ContourList CreateExpand(double gap) const;
+    Contour CreateWithLastEdge(int i) const;
     void Path(cairo_t *cr, bool inverse=false) const;
     void PathOpen(cairo_t *cr) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
@@ -126,5 +125,4 @@ inline double Contour::OffsetBelow(const Contour &below, double &touchpoint, dou
     return do_offsetbelow(below, touchpoint);
 }
 
-}; //namespace
 #endif //CONTOUR_CONTOUR_H

@@ -185,7 +185,8 @@ bool Attribute::EnsureNotClear(MscError &error, StyleType t) const
 /////////////////////////////////////////////////////////////////////////////
 
 template<> const char EnumEncapsulator<MscLineType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", "solid", "dotted", "dashed", "double", ""};
+    {"invalid", "none", "solid", "dotted", "dashed", "long_dashed", "dash_dotted", 
+     "double", "triple", "triple_thick", ""};
 
 MscLineAttr::MscLineAttr() :
     type(true, LINE_SOLID), color(true, MscColorType(0,0,0)), width(true, 1.),
@@ -204,13 +205,18 @@ void MscLineAttr::MakeComplete()
 
 const double * MscLineAttr::DashPattern(int &num) const
 {
-    static const double dash_dotted[]={2, 2, 0};
-    static const double dash_dashed[]={6, 6, 0};
+    //last number is sum of the ones before
+    static const double dash_dotted[]={2, 2, 4};
+    static const double dash_dashed[]={6, 6, 12};
+    static const double dash_long_dashed[]={12, 12, 24};
+    static const double dash_dash_dot[]={6, 4, 2, 4, 16};
     static const double dash_solid[] ={0};
     _ASSERT(type.first && type.second!=LINE_INVALID);
     switch (type.second) {
     case LINE_DOTTED: num = 2; return dash_dotted;
     case LINE_DASHED: num = 2; return dash_dashed;
+    case LINE_LONG_DASHED: num = 2; return dash_long_dashed;
+    case LINE_DASH_DOT: num = 4; return dash_dash_dot;
     }
     num = 0; return dash_solid;
 }
@@ -305,16 +311,16 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void MscLineAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"line.color", "line.type", "line.width", "line.radius", ""};
+    {"", "line.color", "line.type", "line.width", "line.radius", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
 bool CshHintGraphicCallbackForLineType(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 2, 0);
-    msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y/2), 
-              XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y/2), line);
+    MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 1, 0);
+    msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
+              XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y*0.8), line);
     return true;
 }
 
@@ -349,6 +355,76 @@ string MscLineAttr::Print(int ident) const
     if (color.first) ss << " color:" << color.second.Print();
     return ss + ")";
 }
+
+//XXX Add chopped edges
+//This one does not assume anything about wether the resulting rectange should be the
+//outer edge or inner edge of the line - just uses the radius value and coordinates
+//as they are.
+Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2) const
+{
+    Contour ret;
+    if (!radius.first || radius.second<=0) return Contour(x1, x2, y1, y2);
+    const double r = std::min(std::min(fabs(x1-x2)/2, fabs(y1-y2)/2), radius.second);
+    ret.AddAnEdge(Edge(XY(x1+r, y1)));
+    ret.AddAnEdge(Edge(XY(x2-r, y1+r), r, r, 0, 270, 360));
+    ret.AddAnEdge(Edge(XY(x2, y2-r)));
+    ret.AddAnEdge(Edge(XY(x2-r, y2-r), r, r, 0,   0,  90));
+    ret.AddAnEdge(Edge(XY(x1+r, y2)));
+    ret.AddAnEdge(Edge(XY(x1+r, y2-r), r, r, 0,  90, 180));
+    ret.AddAnEdge(Edge(XY(x1, y1+r)));
+    ret.AddAnEdge(Edge(XY(x1+r, y1+r), r, r, 0, 180, 270));
+    return ret;
+}
+
+//This assumes that we draw a rectangle at outer edge y position rect_top 
+//with the corner specified in "this".
+//And checks how much margin the text needs form the _outer_edge_ of the rectangle
+//This is at least lineWidth() (if radius==0)
+//return first contains the left margin and second the right one
+//This one assumes that the radius corresponds to the inner edge
+DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top, MscDrawer *debug) const
+{
+    const double lw = LineWidth();
+    if (radius.second <= LineWidth()) return DoublePair(lw, lw);
+    //create a path at the inner edge of the rectangle 
+    XY lr = textCover.GetBoundingBox().LowerRight();
+    Block inner(lw, radius.second*3, rect_top+lw, lr.y+radius.second);
+    const Area inner_area = CreateRectangle(inner); //the radius we have in the style luckily corresponds to the inner edge
+    const Range left_right = textCover.GetBoundingBox().x;
+    textCover.Rotate(90);
+
+    DoublePair ret;
+    double off, tp;
+    //left margin
+    Area a = Contour(0, inner.x.MidPoint(), inner.y.from-1, inner.y.till+1) - inner_area;
+    a.Rotate(90);
+    off = a.OffsetBelow(textCover, tp, CONTOUR_INFINITY, false);
+    ret.first = left_right.from - off;
+    if (debug) {
+        MscFillAttr fill;
+        MscLineAttr line;
+        fill.color.second=MscColorType(0,0,0);
+        Area xa = a;
+        debug->Fill(xa.Shift(XY(100,100)), fill);
+        Area x = textCover;
+        fill.color.second.g=255;
+        debug->Fill(x.Shift(XY(100,100)), fill);
+        line.color.second.b=255;
+        debug->Line(XY(100, 100+ret.first), XY(200, 100+ret.first), line);
+    }
+    //right margin
+    a = Contour(inner.x.MidPoint(), inner.x.till+lw, inner.y.from-1, inner.y.till+1) - inner_area;
+    a.Rotate(90);
+    off = textCover.OffsetBelow(a, tp, CONTOUR_INFINITY, false);
+    ret.second = inner.x.till-off-left_right.till + lw;
+    return ret;
+}
+
+
+
+
+
+
 
 MscFillAttr::MscFillAttr() :
     color(true, MscColorType(255,255,255)), color2(false, MscColorType(255,255,255)), 
@@ -433,9 +509,11 @@ bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
     const int off_y = 1;
     MscColorType black(0,0,0);
     MscFillAttr fill(black, MscColorType(255,255,255), MscGradientType(int(p)));
+    MscLineAttr line(LINE_SOLID, black, 1, 0);
     Block rect(XY(off_x, off_y), XY(off_x+size, off_y+size));
+    rect.Round().Shift(XY(.5,.5));
     msc->Fill(rect, fill);
-    msc->Line(rect, black);
+    msc->Line(rect, line);
     return true;
 }
 
@@ -443,7 +521,7 @@ bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
 void MscFillAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"fill.color", "fill.color2", "fill.gradient", ""};
+    {"", "fill.color", "fill.color2", "fill.gradient", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
@@ -557,7 +635,7 @@ bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void MscShadowAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"shadow.color", "shadow.offset", "shadow.blur", ""};
+    {"", "shadow.color", "shadow.offset", "shadow.blur", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
@@ -568,7 +646,7 @@ bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "offset") ||
-        CaseInsensitiveEndsWith(attr, "offset")) {
+        CaseInsensitiveEndsWith(attr, "blur")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"<number in pixels>", HINT_ATTR_VALUE));
         return true;
     }
@@ -613,19 +691,3 @@ bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p)
     return true;
 }
 
-//XXX Add chopped edges
-Contour MscRectangle(double x1, double x2, double y1, double y2, MscLineAttr line)
-{
-    Contour ret;
-    if (!line.radius.first || line.radius.second<=0) return Contour(x1, x2, y1, y2);
-    const double r = line.radius.second;
-    ret.AddAnEdge(Edge(XY(x1, y1+r)));
-    ret.AddAnEdge(Edge(XY(x2-r, y1+r), r, r, 0, 270, 360));
-    ret.AddAnEdge(Edge(XY(x2-r, y2)));
-    ret.AddAnEdge(Edge(XY(x2-r, y2-r), r, r, 0,   0,  90));
-    ret.AddAnEdge(Edge(XY(x1+r, y2)));
-    ret.AddAnEdge(Edge(XY(x1+r, y2-r), r, r, 0,  90, 180));
-    ret.AddAnEdge(Edge(XY(x1, y1+r)));
-    ret.AddAnEdge(Edge(XY(x1+r, y1+r), r, r, 0, 180, 270));
-    return ret;
-}

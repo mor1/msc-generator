@@ -25,8 +25,6 @@
 
 //////////////////Helper functions
 
-namespace contour {
-
 //returns -1 if a==b
 //returns -2 if a==c
 //returns -3 if b==c
@@ -222,6 +220,33 @@ Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg,double
     straight = false;
     start = ell.Radian2Point(s);
 }
+
+void Edge::Rotate(double cos, double sin, double radian, const XY&B) 
+{
+    start.Rotate(cos, sin);
+    if (!straight) {
+        const double turn = ell.Rotate(cos, sin, radian); 
+        if (turn) {
+            s += turn; if (s>2*M_PI) s-= 2*M_PI;
+            e += turn; if (e>2*M_PI) e-= 2*M_PI;
+        }
+    }
+    CalculateBoundingBox(B);
+}
+
+void Edge::RotateAround(const XY&c, double cos, double sin, double radian, const XY&B) 
+{
+    start.RotateAround(c, cos, sin);
+    if (!straight) {
+        const double turn = ell.RotateAround(c, cos, sin, radian); 
+        if (turn) {
+            s += turn; if (s>2*M_PI) s-= 2*M_PI;
+            e += turn; if (e>2*M_PI) e-= 2*M_PI;
+        }
+    }
+    CalculateBoundingBox(B);
+}
+
 
 void Edge::SwapXY()
 {
@@ -506,38 +531,52 @@ void Edge::Path(cairo_t *cr, const XY &next, bool reverse) const
 //Destroys bounding box!!!
 bool Edge::ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const
 {
-	r1.straight=straight;
-	if (straight) {
-		const double length = (next-start).length();
-		const XY wh = (next-start).Rotate90CCW()/length*gap;
-		r1.start = start+wh; 
-		r2 = next+wh;
-	} else {
+	if (!straight) {
 		r1.ell = ell;
-		if (!r1.ell.Expand(gap))
-			return false;
-		r1.s = s;
-		r1.e = e;
-		r1.clockwise_arc = clockwise_arc;
-		r1.start = r1.ell.Radian2Point(s);
-		r2 = r1.ell.Radian2Point(e);
+		if (r1.ell.Expand(clockwise_arc ? gap : -gap)) {
+            r1.straight = false;
+            r1.s = s;
+            r1.e = e;
+            r1.clockwise_arc = clockwise_arc;
+            r1.start = r1.ell.Radian2Point(s);
+            r2 = r1.ell.Radian2Point(e);
+            return true;
+        }
+        //if ellipse becomes too small, fall through to below and replace it with a straight line
 	}
-	return true;
+    const double length = (next-start).length();
+    const XY wh = (next-start).Rotate90CCW()/length*gap;
+    r1.start = start+wh; 
+    r2 = next+wh;
+    r1.straight = true;
+    return true;
 }
 
-int find_closest(int num, const double r[], double p) 
+//distance of two radians between -pi and +pi
+//true that diff+b == a(+-2pi)
+double rad_dist(double a, double b)
 {
-	int pos = -1;
-	double diff=200;
-	for (int i=0; i<num; i++) {
-		if (fabs(r[i]-p) < diff) {
-			diff = fabs(r[i]-p);
-			pos = i;
-		} 
-		if (2*M_PI-fabs(r[i]-p) < diff) {
-			diff = 2*M_PI-fabs(r[i]-p);
-			pos = i;
-		}
+    _ASSERT(a>=0 && a<=2*M_PI && b>=0 && b<=2*M_PI);
+    if (a-b <= -M_PI) return a-b + 2*M_PI;
+    if (a-b >   M_PI) return a-b - 2*M_PI;
+    return a-b;
+}
+
+//p is the original radian of the crosspoint, r are the radians of the cps of the expanded edges
+//We find among the r values the one that is closes (in circle distance) to p
+//In case of a tie, we pick the larger "larger" is ture 
+int find_closest(int num, const double r[], double p, bool larger) 
+{
+    if (num==0) return -1;
+	int pos = 0;
+	double diff= fabs(rad_dist(r[0], p));
+	for (int i=1; i<num; i++) {
+        const double dist = rad_dist(r[i], p);
+        if (test_smaller(diff, fabs(dist))) continue;
+        if (!test_smaller(fabs(dist), diff)) 
+            if (larger == (rad_dist(r[pos], p) >= diff)) continue;
+        diff = fabs(dist);
+        pos = i;
 	}
 	return pos;
 }
@@ -562,7 +601,7 @@ int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, 
 		XY r[8];
 		double radian_us[8], pos_M[8];
 		int num = ell.CrossingStraight(M.start, N, r, radian_us, pos_M);
-		int pos = find_closest(num, radian_us, e);
+        int pos = find_closest(num, radian_us, e, !clockwise_arc);
 		if (pos == -1) return 0;
 		res.start = r[pos];
 		res.straight = true;
@@ -578,7 +617,7 @@ int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, 
 			if (ell == M.ell) return -2; //we combine two segments of the same ellipse
 			num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
 		}
-		int pos = find_closest(num, radian_M, M.s);
+        int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
 		if (pos == -1) return 0;
 		res.start = r[pos];
 		res.straight = false;
@@ -591,6 +630,7 @@ int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, 
 		return 1;
 	}
 }
+
 
 inline bool radbw(double r, double s, double e)
 {
@@ -615,6 +655,8 @@ int Edge::IsOppositeDir(const XY &B, const Edge &M, const XY &N) const
 		else 
 			return (start.y<B.y) != (M.start.y<N.y);
 	}
+    //exception: if any is exactly 180 degrees, we return same direction
+    if (fabs(s-e) == M_PI || fabs(M.s-M.e) == M_PI) return 0;
 	const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
 	const bool dir_M = (M.e>M.s && (M.e-M.s)<M_PI) || (M.s>M.e && (M.s-M.e)>=M_PI);
     if (dir_us == dir_M) return 0;
@@ -661,17 +703,25 @@ double Edge::offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M
 double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_is_up, double &touchpoint) const
 {
     _ASSERT(!IsStraight());
-    const double rad = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
-    const double end = s<e ? e : e+2*M_PI;
-    XY prev = start;
+    double rad = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
+    double end, beg;
+    if (clockwise_arc) {
+        end = s<e ? e : e+2*M_PI;
+        beg = s;
+    } else {
+        rad = -rad;
+        end = e;
+        beg = s>e ? s : s+2*M_PI;
+    }
+    XY prev = ell.Radian2Point(beg);
     double ret = CONTOUR_INFINITY;
-    for (double r = s+rad; r<end; r+=rad) {
+    for (double r = beg+rad; (r<end && clockwise_arc) || (r>end && !clockwise_arc); r+=rad) {
         const XY xy = ell.Radian2Point(r);
         double tp, off;
         if (straight_is_up)
             off = offsetbelow_straight_straight(A, B, prev, xy, tp);
         else
-            off = ret, offsetbelow_straight_straight(prev, xy, A, B, tp);
+            off = offsetbelow_straight_straight(prev, xy, A, B, tp);
         if (off < ret) {
             ret = off;
             touchpoint = tp;
@@ -709,5 +759,3 @@ double Edge::offsetbelow_curvy_curvy(const Edge &o, double &touchpoint) const
     }
     return ret;
 }
-
-} //namespace
