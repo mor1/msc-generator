@@ -156,6 +156,6 @@ void COutputViewBar::ShowCshErrors(const std::list<CString> &errors)
         m_wndOutput.AddString(*i);
     for (auto i=errors.begin(); i!=errors.end(); i++) 
         m_wndOutput.AddString(*i);
-    ShowPane(true, true, false);
+    //ShowPane(true, true, false);  //do not do this! If user wants them, let him turn errors on
     m_wndOutput.SetRedraw(true);
 }

@@ -727,7 +727,28 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     }
     if (m_csh.hintedStringPos.first_pos>=0) 
         GetTextRange(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos, text);
-    m_hintsPopup.Show(m_csh, text, pt.x, pt.y, m_bUserRequested, m_bWasReturnKey);
+    
+    bool changed = m_hintsPopup.m_listBox.PreprocessHints(m_csh, (const char *)text, m_bUserRequested, m_bWasReturnKey);
+    //If we are about to start hint mode due to a Ctrl+Space, check how many hints do we fit on
+    if (!InHintMode() && m_bUserRequested) {
+        auto hit = m_csh.Hints.end();
+        for (auto i = m_csh.Hints.begin(); i!=m_csh.Hints.end(); i++)
+            //find a non-selectable item or one that the text under cursor fits 
+            if (!i->selectable)
+                goto show_window;
+            else if (text == i->plain.substr(0, text.GetLength()).c_str()) {
+                if (hit == m_csh.Hints.end())
+                    hit = i;
+                else 
+                    goto show_window; //this is the second such item, let us show the hint window
+            }
+        if (hit!=m_csh.Hints.end())
+            ReplaceHintedString(hit->plain.c_str(), true);
+        SetFocus();
+        return;
+    } 
+show_window:
+    m_hintsPopup.Show(changed, text, pt.x, pt.y);
     SetFocus();
 }
 
@@ -742,10 +763,10 @@ void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintM
 {
     SetRedraw(false);
     SetSel(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos);
+    SetRedraw(true);
     ReplaceSel(substitute);
     if (endHintMode) 
         CancelHintMode();
-    SetRedraw(true);
 }
 
 /////////////////////////////////////////////////////////////////////////////

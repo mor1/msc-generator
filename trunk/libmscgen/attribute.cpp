@@ -452,7 +452,10 @@ DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top, Msc
     //create a path at the inner edge of the rectangle 
     XY lr = textCover.GetBoundingBox().LowerRight();
     Block inner(lw, cornersize.second*3, rect_top+lw, lr.y+cornersize.second);
-    const Area inner_area = CreateRectangle(inner); //the cornersize we have in the style luckily corresponds to the inner edge
+    Area inner_area = CreateRectangle(inner); //the cornersize we have in the style luckily corresponds to the inner edge
+    if (corner.second == CORNER_NOTE)
+        inner_area -= Contour(inner.x.till-cornersize.second, inner.y.from, inner.x.till-cornersize.second, 
+                              inner.y.from+cornersize.second, inner.x.till, inner.y.from+cornersize.second);
     const Range left_right = textCover.GetBoundingBox().x;
     textCover.Rotate(90);
 

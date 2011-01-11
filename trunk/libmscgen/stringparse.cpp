@@ -734,6 +734,28 @@ void StringFormat::RemovePosEscapes(string &text)
     }
 }
 
+void StringFormat::ConvertToPlainText(string &text)
+{
+    StringFormat sf;
+    unsigned pos = 0;
+    while (pos < text.length()) {
+        unsigned length;
+        switch (sf.ProcessEscape(text.c_str()+pos, length)) {
+        case NON_FORMATTING:
+        case NON_ESCAPE:
+            pos += length;
+            break;
+        case LINE_BREAK:
+            text.replace(pos, length, "\n");
+            pos++;
+            break;
+        default:
+            text.erase(pos, length);  //all other escapes
+            break;
+        }
+    }
+}
+
 
 //Parse the string as long as valid escape sequences come and apply their meaning
 //If you hit something not a valid format changing escape char, stop & return

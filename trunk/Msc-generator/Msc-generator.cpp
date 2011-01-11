@@ -804,6 +804,27 @@ UINT CheckVersionFreshness(LPVOID)
 			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE, INTERNET_PORT(80));
 		CHttpFile *file = httpconn->OpenRequest("GET", "version", NULL, 1, NULL, NULL, 
 			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE);
+        wchar_t locale[LOCALE_NAME_MAX_LENGTH];
+        if (0<GetUserDefaultLocaleName(locale, LOCALE_NAME_MAX_LENGTH))
+            file->AddRequestHeaders(CString("Accept-Language: ")+locale, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+        OSVERSIONINFOEX osvi;
+        ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+        //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
+        if(GetVersionEx ((OSVERSIONINFO *) &osvi)) {
+            char loc[LOCALE_NAME_MAX_LENGTH+2] = "; ";
+            int i, j=2;
+            for (i=0; i<LOCALE_NAME_MAX_LENGTH && locale[i]!=0; i++)
+                if (locale[i]<128)
+                    loc[j++] = (char)(locale[i]);
+            loc[j]=0;
+            if (i==2) loc[0]=0;
+            char buff[200];
+            //Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US)
+            sprintf(buff, "User-Agent: Msc-generator/%s (Windows; U; Windows NT %d.%d%s)", VersionText()+1, 
+                osvi.dwMajorVersion, osvi.dwMinorVersion, loc);
+            file->AddRequestHeaders(buff, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+        }
 		if (!file->SendRequest()) return false;
 		if (!file->ReadString(latest_version)) return false;
 	} CATCH(CInternetException, pEx) {

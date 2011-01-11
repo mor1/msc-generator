@@ -285,9 +285,8 @@ END_MESSAGE_MAP()
 
 
 // CPopupList message handlers
-bool CPopupList::Show(Csh &csh, const LPCSTR uc, int x, int y, bool userRequest, bool afterReturnKey)
+bool CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
 {
-    bool changed = m_listBox.PreprocessHints(csh, uc, userRequest, afterReturnKey);
     if (changed) {
         if (m_listBox.m_current_hints.size()==0) {
             Hide();
