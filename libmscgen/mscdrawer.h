@@ -35,6 +35,26 @@ class MscDrawer
     OutputType  outType;
     FILE*       outFile;
 
+    cairo_surface_t *surface;
+    cairo_t *cr;
+    double save_x, save_y;
+
+    void _line_path(XY s, XY d, double wider, MscLineType type)
+        {_line_path(s.x, s.y, d.x, d.y, wider, type);}
+    void _rectangle_line_path(XY s, XY, double offset, double wider, double radius, MscLineType type);
+    void rectangle_path(XY s, XY, double offset=0, double wider=0, double radius=0);
+    void _set_linear_gradient(MscColorType from, MscColorType to, XY s, XY d, MscGradientType type);
+    void _set_radial_gradient(MscColorType from, MscColorType to, XY s,
+		                      double outer_radius, double inner_radius, MscGradientType type);
+  public:
+    MscError     Error;
+    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
+    /** The total width & height of the drawing and the height of the bottom copyright text (all to be calculated) */
+    double totalWidth, totalHeight;
+    double copyrightTextHeight;
+	/** The starting ypos of each page. Its number of elements specify the number of pages yPageStart[0] is always 0. */
+    std::vector<double> yPageStart;
+
     /* Low-level drawing options */
     bool         white_background; /* Draw a white background */
     bool         use_text_path;  /* Use cairo_text_path() instead of cairo_show_text (windows metafile & truetype font problem)*/
@@ -46,51 +66,9 @@ class MscDrawer
 	bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
     double       scale; /*final rendering should be scaled like this */
     unsigned	 fallback_resolution; /* for cairo WMF backends */
-    bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
 
-    cairo_surface_t *surface;
-    cairo_t *cr;
-    double fake_dash_offset;
-
-    void SetLowLevelParams(OutputType ot=PNG);
-
-    void ArcPath(const EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
-    void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
-    void RectanglePath(double sx, double dx, double sy, double dy);
-    void RectanglePath(double sx, double dx, double sy, double dy, const MscLineAttr &line);
-
-    void fakeDashedLine(const XY &s, const XY &d, 
-                        const double pattern[], int num, int &pos, double &offset);
-    void fakeDashedLine(const XY &c, double r1, double r2, double tilt, double s, double e, 
-                        const double pattern[], int num, int &pos, double &offset, bool reverse);
-
-    void linearGradient(MscColorType from, MscColorType to, const XY &s, const XY &d, MscGradientType type);
-    void fakeLinearGrad(MscColorType from, MscColorType to, const XY &s, const XY &d, bool dir_is_x, unsigned steps);
-    void radialGradient(MscColorType from, MscColorType to, const XY &s,
-		                double outer_radius, double inner_radius, MscGradientType type);
-    void fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, double outer_radius, double inner_radius,
-                        unsigned steps, bool rectangle, double rad_from=0, double rad_to=2*M_PI);
-
-    void singleLine(const XY &s, const XY &d, const MscLineAttr &line);
-    void singleLine(const XY &c, double r1, double r2, double tilt, double s, double e, const MscLineAttr &line, bool reverse=false);
-    void singleLine(const Block &, const MscLineAttr &line);
-    void singleLine(const Contour &, const MscLineAttr &line, bool open);
-    void singleLine(const ContourList&, const MscLineAttr &line);
-    void singleLine(const Area&, const MscLineAttr &line);
-
-
-friend class StringFormat; //for all sorts of text manipulation
-friend class ArcEmphasis;  //for exotic line joints
-    void SetColor(MscColorType);
-    void SetLineAttr(MscLineAttr);
-    void SetDash(MscLineAttr, double pattern_offset=0);
-    void SetFontFace(const char*face, bool italics, bool bold);
-    void SetFontSize(double size) {cairo_set_font_size (cr, size);}
-    double textWidth(const string &s);
-    void Text(XY p, const string &s, bool isRotated);
-
-  public:
     MscDrawer();
+    void SetLowLevelParams(OutputType ot=PNG);
     void GetPagePosition(int page, XY &offset, XY &size) const;
     bool SetOutput(OutputType, const string &fn=string(), int page=-1);
 #ifdef CAIRO_HAS_WIN32_SURFACE
@@ -101,70 +79,33 @@ friend class ArcEmphasis;  //for exotic line joints
 #endif
     void CloseOutput();
 
-    MscError     Error;
-    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
-    /** The total width & height of the drawing and the height of the bottom copyright text (all to be calculated) */
-    XY total;
-    double copyrightTextHeight;
-	/** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
-    std::vector<double> yPageStart;
-
-    cairo_line_join_t SetLineJoin(cairo_line_join_t t);
-    cairo_line_cap_t SetLineCap(cairo_line_cap_t t);
-
     cairo_t *GetContext() const {return cr;}
-    void Clip(double sx, double dx, double sy, double dy);
-    void Clip(double sx, double dx, double sy, double dy, const MscLineAttr &line);
-    void Clip(const XY &s, const XY &d);
-    void Clip(const XY &s, const XY &d, const MscLineAttr &line);
-    void Clip(const Block &b);
-    void Clip(const Block &b, const MscLineAttr &line);
-    void Clip(const EllipseData &ellipse);
-    void Clip(const Area &area);
+    void Clip() {cairo_save(cr); cairo_clip(cr);}
+    void ClipRectangle(XY s, XY d, int radius=0)
+       {rectangle_path(s, d+XY(1,1), 0, 0, radius); Clip();}
     void UnClip() {cairo_restore(cr);}
-    void Transform_Rotate90(double s, double d, bool clockwise);
-    void Transform_SwapXY();
-    void Transform_FlipHorizontal(double y);
-    void UnTransform() {cairo_restore(cr);}
+    void Rotate90(double s, double d, bool clockwise=true);
 
-    void Line(const Edge& edge, const MscLineAttr &line);          
-    void Line(const XY &s, const XY &d, const MscLineAttr &line, double pattern_offset=0);                
-    void Line(const Block &b, const MscLineAttr &line);
-    void Line(const Contour &contour, const MscLineAttr &line);    
-    void Line(const Area &area, const MscLineAttr &line);          
-    void LineOpen(const Contour &contour, const MscLineAttr &line);  //an arbitrary contour, but not its last edge
-    void Fill(const XY &s, const XY &d, const MscFillAttr &fill);
-    void Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill);
-    void Fill(const Block &b, const MscFillAttr &fill);
-    void Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill);
-    void Fill(const EllipseData &ellipse, const MscFillAttr &fill);
-    void Fill(const Contour &contour, const MscFillAttr &fill);
-    void Fill(const Area &area, const MscFillAttr &fill);
-    void Shadow(const Block &b, const MscShadowAttr &shadow) {Shadow(b, MscLineAttr(), shadow);}
-    void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow);
-    void Shadow(const Area &area, const MscShadowAttr &shadow);
+    void SetColor(MscColorType);
+    void SetLineAttr(MscLineAttr);
+    void SetFontFace(const char*face, bool italics, bool bold);
+    void SetFontSize(double size) {cairo_set_font_size (cr, size);}
+
+    void text(XY p, const string &s, bool isRotated);
+    double textWidth(const string &s);
+
+    void arc(XY c, XY wh, double s, double e, MscLineAttr line);
+
+    void line(XY s, XY d, MscLineAttr line);
+    void rectangle(XY s, XY d, MscLineAttr line);
+    void filledRectangle(XY s, XY d, MscFillAttr fill, int radius=0);
+    void shadow(XY s, XY d, MscShadowAttr shadow, int radius=0, bool clip=false);
+
+    void _new_path() {save_x = save_y = -1; cairo_new_sub_path(cr);}
+    void _line_path(double sx, double sy, double dx, double dy, double wider, MscLineType type);
+    void _line_path_to(double dx, double dy, double wider, MscLineType type)
+        {_line_path(save_x, save_y, dx, dy, wider, type);}
+    void _arc_path(XY c, XY wh, double s, double e, double wider, MscLineType type, bool reverse=false);
 };
-
-//A number, which is larger than any chart, but small enough for contour to make no mistakes
-#define MSC_BIG_COORD 1e5
-
-inline void MscDrawer::Clip(double sx, double dx, double sy, double dy) {cairo_save(cr); RectanglePath(sx, dx, sy, dy); cairo_clip(cr);}
-inline void MscDrawer::Clip(double sx, double dx, double sy, double dy, const MscLineAttr &line) {cairo_save(cr); RectanglePath(sx, dx, sy, dy, line); cairo_clip(cr);}
-inline void MscDrawer::Clip(const XY &s, const XY &d) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y); cairo_clip(cr);}
-inline void MscDrawer::Clip(const XY &s, const XY &d, const MscLineAttr &line) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y, line); cairo_clip(cr);}
-inline void MscDrawer::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till); cairo_clip(cr);}
-inline void MscDrawer::Clip(const Block &b, const MscLineAttr &line) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line); cairo_clip(cr);}
-//void Clip(const EllipseData &ellipse); not inline
-inline void MscDrawer::Clip(const Area &area) {cairo_save(cr); area.Path(cr); cairo_clip(cr);}
-
-
-inline void MscDrawer::Fill(const XY &s, const XY &d, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
-inline void MscDrawer::Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
-//void MscDrawer:: Fill(const Block &b, const MscFillAttr &fill); //Not inline
-inline void MscDrawer::Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill) {Clip(b, line); Fill(b, fill); UnClip();}
-//void MscDrawer::Fill(const EllipseData &ellipse, const MscFillAttr &fill); //Not inline
-inline void MscDrawer::Fill(const Contour &c, const MscFillAttr &fill) {Clip(c); Fill(c.GetBoundingBox(), fill); UnClip();}
-inline void MscDrawer::Fill(const Area &area, const MscFillAttr &fill) {Clip(area); Fill(area.GetBoundingBox(), fill); UnClip();}
-
 
 #endif

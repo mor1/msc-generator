@@ -23,7 +23,7 @@
 
 //////////////////////////////////////////////////////////////////////////////////
 
-template<> const char EnumEncapsulator<MscIdentType>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<MscIdentType>::names[][15] =
     {"invalid", "left", "center", "right", ""};
 
 
@@ -60,26 +60,6 @@ void StringFormat::Empty()
     ident.first = false;
     normalFontSize.first = false;
     smallFontSize.first = false;
-}
-
-bool StringFormat::IsComplete() const
-{
-    return 
-        color.first &&
-        fontType.first &&
-        spacingBelow.first &&
-        bold.first && bold.second!=invert &&
-        italics.first && italics.second!=invert &&
-        underline.first && underline.second!=invert &&
-        face.first &&
-        textHGapPre.first &&
-        textHGapPost.first &&
-        textVGapAbove.first &&
-        textVGapBelow.first &&
-        textVGapLineSpacing.first &&
-        ident.first &&
-        normalFontSize.first &&
-        smallFontSize.first;
 }
 
 StringFormat::StringFormat(void) :
@@ -399,7 +379,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             parameter.substr(0, parameter.length()-1);
         }
         if (msc)
-            c = msc->Contexts.back().colors.GetColor(parameter); //consider color names and defs
+            c = msc->Contexts.top().colors.GetColor(parameter); //consider color names and defs
         else if (apply || resolve) //try to resolve this if we are applying
             c = MscColorType(parameter);  //just consider defs
         else	   //if we are just parsing (probably for csh) keep as is.
@@ -439,8 +419,8 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             else	   //if we are just parsing (probably for csh) keep as is.
                 goto ok;
         }
-        i = msc->Contexts.back().styles.find(parameter);
-        if (i==msc->Contexts.back().styles.end()) {
+        i = msc->Contexts.top().styles.find(parameter);
+        if (i==msc->Contexts.top().styles.end()) {
             maybe_s_msg="Unrecognized style '" + parameter +
                 "'. Treating style name as small text in parenthesis.";
             goto maybe_s;
@@ -633,7 +613,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     }
 }
 
-//Replaces style and color references to actual definitions found in msc->Contexts.back()
+//Replaces style and color references to actual definitions found in msc->Contexts.top()
 //Also performs syntax error checking and generates errors/warnings
 //escape contais the string to parse (and change)
 //if ignore then in errors we say we ignore the erroneous escape and also remove it from the str
@@ -879,8 +859,8 @@ string StringFormat::Print() const
 bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
-        StyleSet::const_iterator i = msc->Contexts.back().styles.find(a.name);
-        if (i == msc->Contexts.back().styles.end()) {
+        StyleSet::const_iterator i = msc->Contexts.top().styles.find(a.name);
+        if (i == msc->Contexts.top().styles.end()) {
             a.InvalidStyleError(msc->Error);
             return true;
         }
@@ -893,9 +873,9 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
                 color.first = false;
             return true;
         }
-        if (!a.CheckColor(msc->Contexts.back().colors, msc->Error)) return true;
+        if (!a.CheckColor(msc->Contexts.top().colors, msc->Error)) return true;
         color.first = true;
-        color.second = msc->Contexts.back().colors.GetColor(a.value);
+        color.second = msc->Contexts.top().colors.GetColor(a.value);
         return true;
     }
     if (a.EndsWith("ident")) {
@@ -937,55 +917,6 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 
 }
-
-void StringFormat::AttributeNames(Csh &csh)
-{
-    static const char names[][ENUM_STRING_LEN] =
-    {"", "text.color", "text.ident", "text.format", ""};
-    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
-}
-
-bool CshHintGraphicCallbackForTextIdent(MscDrawer *msc, CshHintGraphicParam p)
-{
-    if (!msc) return false;
-    const MscArrowType t = (MscArrowType)(int)p;
-    const static double sizePercentage[] = {50, 30, 60};
-    const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
-    double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
-    double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
-    for (int i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
-        double x1 = floor(HINT_GRAPHIC_SIZE_X*sizePercentage[i]/100.+0.5);
-        double x2 = floor(HINT_GRAPHIC_SIZE_X*0.2);
-        switch (t) {
-        case MSC_IDENT_LEFT: x1 = x2+x1; break;
-        case MSC_IDENT_CENTER: x2 = floor(HINT_GRAPHIC_SIZE_X*0.5)-x1/2; x1 = x1+x2; break;
-        case MSC_IDENT_RIGHT: x2 = floor(HINT_GRAPHIC_SIZE_X*0.8); x1 = x2-x1; break;
-        }
-        msc->Line(XY(x1, y+y_inc), XY(x2, y+y_inc), line);
-        y+=y_inc;
-    }
-    return true;
-}
-
-bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
-{
-    if (CaseInsensitiveEndsWith(attr, "color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "ident")) {
-        csh.AddToHints(EnumEncapsulator<MscIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE), HINT_ATTR_VALUE,
-            CshHintGraphicCallbackForTextIdent);
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "format")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<\format string\">", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    return false;
-}
-
-
 //This shall be called only after StringFormat::ExpandColorAndStyle on a label and both num strings
 //If we find a \N escape in the label we replace that to num (for multiple \Ns, if needed)
 //If we find no such escape, we add it to the beginning, but after the initial formatting strings
@@ -1059,7 +990,6 @@ double StringFormat::spaceWidth(const string &text, MscDrawer *mscd, bool front)
 double StringFormat::getFragmentWidth(const string &s, MscDrawer *mscd) const
 {
     if (s.length()==0 || mscd==NULL) return 0;
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1083,7 +1013,6 @@ double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
                                                       MscDrawer *mscd) const
 {
     if (s.length()==0 || mscd==NULL) return 0;
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1104,7 +1033,6 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
                                                       MscDrawer *mscd) const
 {
     if (s.length()==0 || mscd==NULL) return 0;
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1125,7 +1053,6 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool 
 {
     if (s.length()==0 || mscd==NULL) return 0;
     //Mybe we have not all fields set
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
     to_use.ApplyFontToContext(mscd);
@@ -1144,14 +1071,14 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool 
     cairo_text_extents_t te;
     cairo_text_extents (mscd->GetContext(), s.c_str(), &te);
 	xy.x += spaceWidth(s, mscd, true);
-	mscd->Text(xy, s, isRotated);
+	mscd->text(xy, s, isRotated);
 
     double advance = spaceWidth(s, mscd, true) + te.x_advance + spaceWidth(s, mscd, false);
 
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        mscd->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, CORNER_NONE, 0));
+        mscd->line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, 0));
     }
     return advance;
 }
@@ -1191,28 +1118,6 @@ ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) 
     if (heightAboveBaseLine == 0 && format.getSpacingBelow())
         heightAboveBaseLine = format.getFragmentHeightAboveBaseLine("M", mscd);
 };
-
-ParsedLine::operator std::string() const
-{
-    StringFormat format(startFormat);
-    size_t pos = 0;
-    unsigned length;
-    string replaceto;
-    string ret;
-
-    while (line.length()>pos) {
-        //collect characters up until we hit a vaild formatting escape (or string end)
-        while (line.length()>pos) {
-            if (StringFormat::FORMATTING_OK == format.ProcessEscape(line.c_str()+pos, length, true, false, &replaceto, &startFormat)) break;
-            ret.append(replaceto);
-            pos += length;
-        }
-        //Apply the formatting escapes as they come
-        if (line.length()>pos)
-            pos += format.Apply(line.c_str()+pos);
-    }
-    return ret;
-}
 
 void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
 {
@@ -1276,16 +1181,6 @@ void Label::AddSpacing(unsigned line, double spacing)
     }
 }
 
-Label::operator std::string() const
-{
-    string ret;
-    if (size()>0)
-        for (unsigned i = 0; i<size(); i++)
-            ret += at(i);
-    return ret;
-}
-
-
 /* Get the width of a (potentially multi-line) text or one of its lines
  *  If text is empty return 0
  * we add spacings around,
@@ -1323,7 +1218,8 @@ XY Label::getTextWidthHeight(int line) const
     return xy;
 };
 
-void Label::CoverOrDraw(double sx, double dx, double y, bool isRotated, Area *area) const
+void Label::DrawCovers(double sx, double dx, double y,
+                       Geometry &cover, bool draw, bool isRotated) const
 {
     if (size()==0) return;
     XY xy;
@@ -1341,10 +1237,10 @@ void Label::CoverOrDraw(double sx, double dx, double y, bool isRotated, Area *ar
             xy.x = dx - wh.x - at(i).startFormat.textHGapPost.second; break;
         }
         //Draw line of text
-        if (area)
-            *area += Block(xy, xy+wh); //TODO: Make this finer if there are smaller text or italics...
-        else
+        if (draw)
             at(i).Draw(xy, msc, isRotated);
+        else
+            cover += Block(xy, xy+wh);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;
     }

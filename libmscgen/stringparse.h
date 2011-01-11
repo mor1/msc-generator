@@ -65,8 +65,8 @@ class StringFormat {
     explicit StringFormat(string&text) {Empty(); Apply(text);}
     explicit StringFormat(const char *s) {Empty(); Apply(s);}
 
+
     void Empty();
-    bool IsComplete() const;
 
     // Apply a formatting to us, stop at non-formatting escape or a bad formatting one or at one including style/color name
     unsigned Apply(string &escape); //this one removes the escape chars form beginning of input!
@@ -75,8 +75,6 @@ class StringFormat {
     StringFormat &operator +=(const StringFormat& toadd);
     void SetColor(MscColorType c);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
 
     MscIdentType GetIdent() const
         {return ident.first?ident.second:MSC_IDENT_CENTER;}
@@ -108,41 +106,40 @@ class StringFormat {
 
 //An object that stores a line (no '\n' inside)
 class ParsedLine {
-    friend class Label;
-protected:
+  protected:
     StringFormat startFormat;
     string     line;
     double     width;
     double     heightAboveBaseLine;
     double     heightBelowBaseLine;
-public:
+
+    friend class Label;
+
+  public:
     ParsedLine(const string&, MscDrawer *, StringFormat &sf);
-    operator std::string() const;
     void Draw(XY xy, MscDrawer *, bool isRotated) const;
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}
 };
 
 //A class holding a list of parsed lines
-class Label : public std::vector<ParsedLine>
+class Label :  public std::vector<ParsedLine>
 {
     using std::vector<ParsedLine>::size;
     using std::vector<ParsedLine>::at;
 protected:
     MscDrawer *msc;
     unsigned AddText(const string &s, StringFormat);
-    void CoverOrDraw(double sx, double dx, double y, bool isRotated, Area *area) const;
 public:
     Label(const string &s, MscDrawer *m , const StringFormat &f): msc(m)
         {AddText(s,f);}
     explicit Label(MscDrawer *m) : msc(m) {}
     void Set(const string &s, const StringFormat &f) {clear(); AddText(s,f);}
     void AddSpacing(unsigned line, double spacing);
-    operator std::string() const;
 
     XY getTextWidthHeight(int line=-1) const;
-    Area Cover(double sx, double dx, double y, bool isRotated=false) const {Area a; CoverOrDraw(sx, dx, y, isRotated, &a); return a;}
-    void Draw(double sx, double dx, double y, bool isRotated=false) const {CoverOrDraw(sx, dx, y, isRotated, NULL);}
+    void DrawCovers(double sx, double dx, double y,
+                    Geometry &cover, bool draw, bool isRotated=false) const;
 };
 
 

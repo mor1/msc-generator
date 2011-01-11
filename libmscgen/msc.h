@@ -115,36 +115,30 @@ public:
     EntityDefList                 AutoGenEntities;
     double                        Entity_max_pos;
     ArcList                       Arcs;
-    std::list<Context>            Contexts;
+    std::stack<Context>           Contexts;
     std::map<string, Design>      Designs;
     std::map<string, MarkerType>  Markers;
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
     LineToArcMapType              AllArcs;
-    AreaList                      AllCovers;
+    std::list<Block>              AllCovers;
 
     /** Gap at the bottom of the page for lengthening entity lines */
-    int chartTailGap;
+    double chartTailGap;
     /** Self Pointing arc Y size. */
-    int selfArrowYSize;
+    double selfArrowYSize;
     /** Vertical gap above and below headings */
-    int headingVGapAbove, headingVGapBelow;
+    double headingVGapAbove, headingVGapBelow;
     /** Vertical gap above and below emph boxes */
-    int emphVGapOutside, emphVGapInside;
+    double emphVGapOutside, emphVGapInside;
     /** Vertical gap above and below arcs */
-    int arcVGapAbove, arcVGapBelow;
-    /* How much extra space above and below a discontinuity line (...) */
-    int discoVgap;
+    double arcVGapAbove, arcVGapBelow;
     /** Nudge size */
-    int nudgeSize;
-    /** Size of gap at compress. We expand by half of it */
-    int compressGap;
+    double nudgeSize;
+    /** Size of gap at compress */
+    double compressXGap, compressYGap;
     /** Size of gap at hscale=auto */
-    int hscaleAutoXGap;
-    /* Width of the frames used for tracking boxes on screen */
-    int trackFrameWidth;
-    /* How much do we expand tracking covers */
-    int trackExpandBy;
+    double hscaleAutoXGap;
 
     /* Parse Options */
     double       hscale;     /** Relative xsize, -1 is auto **/
@@ -160,12 +154,7 @@ public:
 
     bool AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string attr, Csh &csh);
 
-    EIterator EntityMinMaxByPos(EIterator i, EIterator j, bool min) const;
-    EIterator EntityMinByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, true);}
-    EIterator EntityMaxByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, false);}
     EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
     void AddArcs(ArcList *a);
     ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
@@ -174,34 +163,41 @@ public:
     void PushContext(bool empty=false);
     ArcBase *PopContext();
 
-    void ParseText(const char *input, const char *filename);
-
-    void PostParseProcessArcList(ArcList &arcs, bool resetiterators, EIterator &left, 
-                                 EIterator &right, Numbering &number, bool top_level);
+    void PostParseProcessArcList(ArcList &arcs, bool resetiterators,
+                                         EIterator &left, EIterator &right,
+                                         Numbering &number, bool top_level);
     void PostParseProcess(void);
     virtual string Print(int ident=0) const;
-    double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
 
-    void HideEntityLines(const Area &area);
-    void HideEntityLines(const Block &area);
+    double XCoord(double pos) const
+        {return pos*130*(hscale>0?hscale:1);}
+    double FindCollision(const Geometry &a, const Geometry &b, double &CollisionYPos) const;
+    double FindCollision(const Geometry &a, const Geometry &b) const
+	    {double dummy; return FindCollision(a,b,dummy);}
+
+    void HideEntityLines(const Geometry &geom);
 
     void DrawEntityLines(double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(double y, double height)
          {DrawEntityLines(y, height, Entities.begin(), Entities.end());}
 
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
-    double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
-    double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
-                          double top_y, const AreaList &area_top, bool forceCompress=false);
-    void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
-    void CalculateWidthHeight(void);
-    void PostPosProcessArcList(ArcList &arcs, double autoMarker);
+    double PlaceDrawListUnder(ArcList::iterator from, ArcList::iterator to,
+                              double top_y, double low_y,
+                              Geometry &g, Geometry &g_result,
+                              bool draw, bool final, bool forceCompress=false);
+    double DrawHeightArcList(ArcList::iterator from, ArcList::iterator to,
+                             double y, Geometry &g,
+                             bool draw, bool final, double autoMarker=-1);
 
-    void CompleteParse(OutputType, bool avoidEmpty);
-    void DrawArcList(ArcList &arcs);
+    void CalculateWidthHeight(void);
+    void PostHeightProcess(void);
     void Draw(bool pageBreaks);
     void DrawCopyrightText(int page=-1);
     void DrawPageBreaks();
+
+    void ParseText(const char *input, const char *filename);
+    void CompleteParse(OutputType, bool avoidEmpty);
     void DrawToOutput(OutputType, const string &);
 };
 

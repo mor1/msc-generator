@@ -25,6 +25,13 @@
 
 using namespace std;
 
+void TrackableElement::SetLineEnd(file_line_range l, bool f)
+{
+    if (linenum_final) return;
+    linenum_final = f;
+    file_pos = l;
+}
+
 ///////////////////////////////////////////////////////////////////////
 
 //Inserts a horizontal space requirement.
@@ -195,18 +202,16 @@ Msc::Msc() :
     emphVGapInside = 2;
     arcVGapAbove = 0;
     arcVGapBelow = 3;
-    discoVgap = 5;
     nudgeSize = 4;
-    compressGap = 0;
+    compressXGap = 2;
+    compressYGap = 2;
     hscaleAutoXGap = 5;
-    trackFrameWidth = 4;
-    trackExpandBy = 2;
 
     pedantic=false;
     ignore_designs = false;
 
     //Add topmost style and color sets (global context), all empty now
-    Contexts.push_back(Context());
+    Contexts.push(Context());
 
     //Add "plain" style - the default constructor of Design sets that
     Designs["plain"];
@@ -214,12 +219,12 @@ Msc::Msc() :
     SetDesign("plain", true);
 
     //Add virtual entities
-    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, Contexts.back().styles["entity"]);
+    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, this);
     Entities.Append(entity);
     NoEntity = Entities.begin();
-    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, Contexts.back().styles["entity"]);
+    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, this);
     Entities.Append(entity);
-    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, Contexts.back().styles["entity"]);
+    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, this);
     Entities.Append(entity);
 }
 
@@ -230,14 +235,14 @@ bool Msc::SetDesign(const string&name, bool force)
         return false;
     if (ignore_designs &&!force)
         return true;
-    Contexts.back().numbering = i->second.numbering;
-    Contexts.back().compress  = i->second.compress;
+    Contexts.top().numbering = i->second.numbering;
+    Contexts.top().compress  = i->second.compress;
     hscale = i->second.hscale;
     for (ColorSet::const_iterator j = i->second.colors.begin(); j!=i->second.colors.end(); j++)
-        Contexts.back().colors[j->first] = j->second;
+		Contexts.top().colors[j->first] = j->second;
     for (StyleSet::const_iterator j = i->second.styles.begin(); j!=i->second.styles.end(); j++)
-        Contexts.back().styles[j->first] = j->second;
-	Contexts.back().numberingStyle = i->second.numberingStyle;
+        Contexts.top().styles[j->first] = j->second;
+	Contexts.top().numberingStyle = i->second.numberingStyle;
     return true;
 }
 
@@ -250,20 +255,6 @@ string Msc::GetDesigns() const
     return retval;
 }
 
-//Helper function. If the pos of *value is smaller (or larger) than i
-//if one of the elements is .end() always the other is returned, different
-//from operator < above (where .end() is smaller)
-EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const 
-{
-    if (j==NoEntity) return i;
-    if (i==NoEntity) return j;
-    if (min ^ ((*i)->pos < (*j)->pos))
-        return j;
-    else
-        return i;
-};
-
-
 EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
 {
     if (e==NULL)
@@ -275,7 +266,7 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
                         + "'. Assuming implicit definition.",
                         "This may be a mistyped entity name."
                         " Try turning 'pedantic' off to remove these messages.");
-        Entity *entity = new Entity(e, e, e, Entity_max_pos++, Contexts.back().styles["entity"]);
+        Entity *entity = new Entity(e, e, e, Entity_max_pos++, this);
         Entities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
@@ -289,8 +280,8 @@ ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
                               const char*d, file_line_range dl)
 {
     if (strcmp(s,d))
-        return new ArcDirArrow(t, s, sl, d, dl, this, Contexts.back().styles["arrow"]);
-    MscStyle style = Contexts.back().styles["arrow"];
+        return new ArcDirArrow(t, s, sl, d, dl, this, Contexts.top().styles["arrow"]);
+    MscStyle style = Contexts.top().styles["arrow"];
     style.text.Apply("\\pr");
     return new ArcSelfArrow(t, s, sl, this, style, selfArrowYSize);
 }
@@ -303,7 +294,7 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
         Error.Error(base->file_pos.start, "Big arrows cannot point back to the same entity. Ignoring it.");
         return NULL;
     }
-    return new ArcBigArrow(*arrow, Contexts.back().styles["blockarrow"]);
+    return new ArcBigArrow(*arrow, Contexts.top().styles["blockarrow"]);
 
 }
 
@@ -340,24 +331,24 @@ bool Msc::AddAttribute(const Attribute &a)
     }
     if (a.Is("compress")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
-        Contexts.back().compress = a.yes;
+        Contexts.top().compress = a.yes;
         return true;
     }
     if (a.Is("numbering")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
-        Contexts.back().numbering = a.yes;
+        Contexts.top().numbering = a.yes;
         return true;
     }
     if (a.Is("numbering.pre")) {
-        Contexts.back().numberingStyle.pre = a.value;
-        StringFormat::ExpandColorAndStyle(Contexts.back().numberingStyle.pre, this,
+        Contexts.top().numberingStyle.pre = a.value;
+        StringFormat::ExpandColorAndStyle(Contexts.top().numberingStyle.pre, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return true;
     }
     if (a.Is("numbering.post")) {
-        Contexts.back().numberingStyle.post = a.value;
-        StringFormat::ExpandColorAndStyle(Contexts.back().numberingStyle.post, this,
+        Contexts.top().numberingStyle.post = a.value;
+        StringFormat::ExpandColorAndStyle(Contexts.top().numberingStyle.post, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return true;
@@ -365,13 +356,13 @@ bool Msc::AddAttribute(const Attribute &a)
     if (a.Is("numbering.append")) {
         std::vector<NumberingStyleFragment> nsfs;
         if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs))
-            Contexts.back().numberingStyle.Push(nsfs);
+            Contexts.top().numberingStyle.Push(nsfs);
         return true;
     }
     if (a.Is("numbering.format")) {
         std::vector<NumberingStyleFragment> nsfs;
         if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs)) {
-            int off = Contexts.back().numberingStyle.Apply(nsfs);
+            int off = Contexts.top().numberingStyle.Apply(nsfs);
             if (off > 0) {
                 string msg = "Numbering here is ";
                 msg << off << " levels deep, and you specified more (" << nsfs.size();
@@ -404,91 +395,33 @@ bool Msc::AddDesignAttribute(const Attribute &a)
     return false;
 }
 
-void Msc::AttributeNames(Csh &csh)
-{
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "compress", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
-}
-
-bool Msc::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"msc")) {
-        csh.AddDesignsToHints();
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"hscale")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "auto", HINT_ATTR_VALUE));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"compress") ||
-        CaseInsensitiveEqual(attr,"numbering") ||
-        CaseInsensitiveEqual(attr,"pednatic")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
-        return true;
-    }
-
-    if (CaseInsensitiveBeginsWith(attr,"background")) {
-        MscFillAttr::AttributeValues(attr, csh);
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"numbering.pre")||
-        CaseInsensitiveEqual(attr,"numbering.post")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"text\">", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"numbering.format")||
-        CaseInsensitiveEqual(attr,"numbering.append")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<\"numbering format\">", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    return false;
-}
-
 
 void Msc::PushContext(bool empty)
 {
     if (empty) {
-        Contexts.push_back(Context());
+        Contexts.push(Context());
         SetDesign("plain", true);
     } else
-        Contexts.push_back(Contexts.back());
+        Contexts.push(Contexts.top());
 }
 
 ArcBase *Msc::PopContext()
 {
     if (Contexts.size()<2) return NULL;
-    int old_size = Contexts.back().numberingStyle.Size();
-    Contexts.pop_back();
+    int old_size = Contexts.top().numberingStyle.Size();
+    Contexts.pop();
     //if numbering continues with the same amount of levels, no action will be needed
     //in PostParseProcess, so we do not generate any Command arcs.
-    if (old_size == Contexts.back().numberingStyle.Size())
+    if (old_size == Contexts.top().numberingStyle.Size())
         return NULL;
     //if number of levels is less in the outer context, we will need to trim the Numbering list
     //during PostParseProcess after processing all arcs in the inner context, so we insert
     //a CommandNumbering, which first trims the Numbering list to the new size and then increments
     //the last number, so after 1.2.2 comes 1.3
-    if (old_size > Contexts.back().numberingStyle.Size())
-        return new CommandNumbering(this, CommandNumbering::INCREMENT, Contexts.back().numberingStyle.Size());
+    if (old_size > Contexts.top().numberingStyle.Size())
+        return new CommandNumbering(this, CommandNumbering::INCREMENT, Contexts.top().numberingStyle.Size());
     //We should never get here, but if the length is increasing, we just expand the Numbering list
-    return new CommandNumbering(this, CommandNumbering::SIZE, Contexts.back().numberingStyle.Size());
-}
-
-void Msc::ParseText(const char *input, const char *filename)
-{
-    current_file = Error.AddFile(filename);
-    MscParse(*this, input, strlen(input));
+    return new CommandNumbering(this, CommandNumbering::SIZE, Contexts.top().numberingStyle.Size());
 }
 
 string Msc::Print(int ident) const
@@ -572,16 +505,11 @@ void Msc::PostParseProcess(void)
         i = Arcs.insert(i, new CommandEntity(new EntityDefList, this));
     dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
 
-    //Set all entity's shown to false, to avoid accidentally showing them via (heading;) before definition
-    for (auto i = Entities.begin(); i!=Entities.end(); i++)
-        (*i)->shown = false;
-
     //Traverse Arc tree and perform post-parse processing
     //1. Add line numbers to labels
     //2. Calculate which entities to cover for auto-adjusting emphasis boxes
     //3. Print a few warning messages
     //4. Combine CommandEntities following one another into a signle one.
-    //5. Setup of variables for CommandEntities & EntityDefs
     Numbering number; //starts at a single level from 1
     EIterator dummy1=NoEntity, dummy2=NoEntity;
     PostParseProcessArcList(Arcs, true, dummy1, dummy2, number, true);
@@ -589,38 +517,18 @@ void Msc::PostParseProcess(void)
 
 
 
-void Msc::HideEntityLines(const Area &area)
+void Msc::HideEntityLines(const Geometry &geom)
 {
     for (EIterator i = Entities.begin(); i!=Entities.end(); i++) {
         if ((*i)->name == NONE_ENT_STR) continue;
         if ((*i)->name == LSIDE_ENT_STR) continue;
         if ((*i)->name == RSIDE_ENT_STR) continue;
         double xpos = XCoord((*i)->pos);
-        DoubleMap<bool> hide;
-        area.VerticalCrossSection(xpos, hide);  //sections of hide are true, where we need to hide
-        auto j = hide.begin();
-        while (j!=hide.end()) {
-            while (j!=hide.end() && !j->second) j++;  //go to first where we turn on
-            if (j==hide.end()) break;
-            auto k = j;
-            while (j!=hide.end() && j->second) j++;  //go to first where we turn off
-            if (j==hide.end()) break;
-            (*i)->status.HideRange(Range(k->first, j->first));
-        }
+        for (set<Block>::const_iterator b = geom.GetCover().begin(); b!=geom.GetCover().end(); b++)
+            if (b->x.from <= xpos && xpos <= b->x.till)
+                (*i)->status.HideRange(b->y);
     }
 }
-
-void Msc::HideEntityLines(const Block &area)
-{
-    for (EIterator i = Entities.begin(); i!=Entities.end(); i++) {
-        if ((*i)->name == NONE_ENT_STR) continue;
-        if ((*i)->name == LSIDE_ENT_STR) continue;
-        if ((*i)->name == RSIDE_ENT_STR) continue;
-        if (area.x.IsWithin(XCoord((*i)->pos)))
-            (*i)->status.HideRange(area.y);
-    }
-}
-
 
 void Msc::DrawEntityLines(double y, double height,
                           EIterator from, EIterator to)
@@ -634,17 +542,33 @@ void Msc::DrawEntityLines(double y, double height,
         while (up.y < till) {
             down.y = min((*from)->status.Till(up.y), till);
             if ((*from)->status.GetHideStatus(up.y) &&
-                (*from)->status.GetStatus(up.y)) {
-                const MscLineAttr &vline = (*from)->status.GetStyle(up.y).vline;
-                const XY offset(fmod(vline.width.second/2,1),0);
-                const XY magic(0,1);  //HACK needed in windows
-                const XY start = up+offset-magic;
-                Line(start, down+offset, vline, start.y); //last param is dash_offset  
-            }
+                (*from)->status.GetStatus(up.y))
+                line(up, down, (*from)->status.GetStyle(up.y).vline);
             up.y = down.y;
         }
         from++;
     }
+}
+
+//This is not symmetric. We have the 'a' blocks established
+//and want to see if the 'b' blocks (supposedly below the 'a' ones)
+//can be shifted up, and by how much
+double Msc::FindCollision(const Geometry &a, const Geometry &b,
+                          double &CollisionYPos) const
+{
+    double up = MAINLINE_INF;
+	if (a.mainline.HasValidTill() && b.mainline.HasValidFrom()) {
+            up = b.mainline.from - a.mainline.till - compressYGap;
+            CollisionYPos = a.mainline.till + compressYGap/2;
+        }
+    for (set<Block>::const_iterator i=a.GetCover().begin(); i!=a.GetCover().end(); i++)
+        for (set<Block>::const_iterator j=b.GetCover().begin(); j!=b.GetCover().end(); j++)
+            if (i->x.Overlaps(j->x, compressXGap))
+                if (up > j->y.from - i->y.till - compressYGap) {
+                    up = j->y.from - i->y.till - compressYGap;
+                    CollisionYPos = i->y.till + compressYGap/2;
+                }
+    return up;
 }
 
 void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
@@ -653,12 +577,59 @@ void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
         (*i)->Width(distances);
 }
 
-//Draws a full list starting at position==0
-//We always place each element on an integer coordinates
-double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover)
+//This one places a list at low_y, then compresses up taking g into account,
+//but no higher than top_y (low_y is supposed to be the bottom of g).
+//Compression is done if the first element in the list has compress=true
+//or if forceCompress=true
+//After placement covers are added to g_result, g is unchanged
+//returns how much to advance y from low_y
+//The whole reason for this function is to prevent a big empty space
+//between the first and second arrow, when the first arrow can be
+//compressed a lot, but the second not. Here we move all the arrows
+//as one block only up till none of them collides with something.
+double Msc::PlaceDrawListUnder(ArcList::iterator from, ArcList::iterator to,
+                               double top_y, double low_y,
+                               Geometry &g, Geometry &g_result,
+                               bool draw, bool final, bool forceCompress)
 {
-    cover.clear();
-    double y = 0;
+    if (from == to) return 0;
+    if (draw)
+        return DrawHeightArcList(from, to, low_y, g_result, draw, final);
+    double original_low_y = low_y;
+    if ((*from)->IsCompressed() || forceCompress) {
+        Geometry geom_content;
+        //set an upper limit for the list - just to make them start fully below low_y
+        Block limiter_low(0, totalWidth, low_y, low_y);
+        geom_content += limiter_low;
+        DrawHeightArcList(from, to, low_y, geom_content, false, false);
+        geom_content -= limiter_low;
+        //Now see how much we can shift the content upwards as one block
+        if (geom_content.GetCover().size()>0) {
+            Block limiter_top(0, totalWidth, top_y, top_y);
+            g += limiter_top;
+            low_y -= FindCollision(g, geom_content);
+            g -= limiter_top;
+        }
+    }
+
+    Block limiter_at_exact_position(0, totalWidth, low_y, low_y);
+    g_result += limiter_at_exact_position;
+    low_y += DrawHeightArcList(from, to, low_y, g_result, false, final);
+    g_result -= limiter_at_exact_position;
+    return low_y - original_low_y;
+}
+
+double Msc::DrawHeightArcList(ArcList::iterator from, ArcList::iterator to,
+                              double y, Geometry &g,
+                              bool draw, bool final, double autoMarker)
+{
+    double original_y = y;
+
+    //largest_y is maintained so that the full bottom of the list is seen
+    //for the cases when the last elements are compressed so that their
+    //bottom is _higher_ then one of the previous ones.
+    double largest_y = y;
+
     //Zero-height arcs shall be positioned to the same place
     //as the first non-zero height arc below them (so that
     //if that arc is compressed up, they are not _below_
@@ -666,79 +637,92 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
     //height arc so we can go back and adjust the zero height ones
     ArcList::iterator first_zero_height = to;
 
+    //if one arc is set "parallel" the next one should be compressed,
+    //even if not set so
+    bool previousWasParallel = false;
+    //the one coming after a parallel should not be compressed higher than this
+    double lastNonParallelBottom = y;
+
     for (ArcList::iterator i = from; i!=to; i++) {
-        AreaList arc_cover;
-        double h = (*i)->Height(arc_cover);
-        _ASSERT(h>=arc_cover.GetBoundingBox().y.till);
-        arc_cover = arc_cover.CreateExpand(compressGap/2);
-        double touchpoint = y;
-        if ((*i)->IsCompressed()) {
-            //if arc is of zero height, just collect it. 
-            //Its position may depend on the next arc if that is compressed.
-            if (h==0) {
-                if (first_zero_height == to) first_zero_height = i;
+        double orig_mainline_till = g.mainline.till;
+        double size;
+        //if we draw y will be ignored by arcs' DrawHeight
+        //so we need not calculate compress again
+        if (!draw && (*i)->IsCompressed()) {
+            Geometry geom;
+            //Drawheight for non final locations can be called at fractional y
+            size = (*i)->DrawHeight(y, geom, false, false, autoMarker);
+            //if it is of zero height, just collect it, its pos may depend on
+            //the next arc if that is compressed
+            //Note that we do this here where we are only if we do not draw.
+            if (size == 0) {
+                if (first_zero_height == to)
+                    first_zero_height = i;
                 continue;
             }
-            const double new_y = std::max(0.0, -cover.OffsetBelow(arc_cover, touchpoint));
-            //Here new_y can be larger than y, if the copressGap requirement pushed the current arc (in "i")
-            //further below than the original height of the arcs above would have dictated.
-            //Since we do compression, we pick the smallest of the two values.
-            y = std::min(y, new_y);
+            double up = 0, CollisionYPos = -1;
+            if (geom.mainline.HasValidFrom() || geom.GetCover().size()>0)
+                up = FindCollision(g, geom, CollisionYPos);
+            //Now we know how much be can compess it up
+            //position known, re-invoke any previous zero-height at this pos
+            //so that they can store correct y pos if final==true
+            // use the median of the two mainlines, if both exists
+            // and the returned collision position is outside
+            if (g.mainline.HasValidTill() && geom.mainline.HasValidFrom())
+                if (CollisionYPos < g.mainline.till ||
+                    CollisionYPos > geom.mainline.from-up)
+                    CollisionYPos = (g.mainline.till + geom.mainline.from-up)/2;
+            CollisionYPos = ceil(CollisionYPos);
+            while (first_zero_height != i && first_zero_height != to)
+                (*first_zero_height++)->DrawHeight(CollisionYPos, g, false, final,
+                                                   autoMarker);
+            first_zero_height = to;
+            //recalculate cover again for current arc and add it's cover to g
+            //We ensure DrawHeight is always called on integer y position for bitmaps
+            double draw_y = ceil(y-up);
+            draw_y += (*i)->DrawHeight(draw_y, g, false, final, autoMarker);
+            size = draw_y - y;
+        } else {
+            //Ensure drawheight is only called at integer positions
+            y = ceil(y);
+            //if we do not yet draw and last arcs before a non-compressed one
+            //were of zero height re-invoke them at the current pos
+            if (!draw) {
+                while (first_zero_height != i && first_zero_height != to)
+                    (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
+                first_zero_height = to;
+            }
+            size = (*i)->DrawHeight(y, g, draw, final, autoMarker);
         }
-        touchpoint = floor(touchpoint+0.5);
-        y = ceil(y);
-        //We got a non-zero height or a non-compressed one, flush zero_height ones (if any)
-        while (first_zero_height != to && first_zero_height != i)
-            (*first_zero_height++)->ShiftBy(touchpoint);
-        first_zero_height = to;
-        //Shift the arc in question to its place
-        (*i)->ShiftBy(y);
-        arc_cover.Shift(XY(0,y));
-        Range save_mainline = cover.mainline;
-        cover += arc_cover;
-        y += h;
-
+        y += size;
+        if (largest_y < y)
+            largest_y = y;
         //If we are parallel draw the rest of the block in one go
         if ((*i)->IsParallel()) {
-            //restore mainline to the one before we added the arc marked as parallel
-            cover.mainline = save_mainline;
+            //First place the collected zero heights here (unlikely to have any)
+            if (!draw) {
+                while (first_zero_height != i && first_zero_height != to)
+                    (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
+                first_zero_height = to;
+            }
+            //reset mainline to original one
+            g.mainline.till = orig_mainline_till;
             //Place blocks, always compress the first
-            return PlaceListUnder(++i, to, y, y-h, cover, true);
+            y += PlaceDrawListUnder(++i, to, y - size, y, g, g, draw, final, true);
+            break; //we have drawn all
         }
-    }
-    return y;
-}
 
-//This one places a list (arcs) at start_y (which is supposed to be
-//well below area_top), and calls Height for all of them and ShifyBy.
-//Then, if the first element has compress==yes or forcecompress==true, it
-//compresses the list up taking area_top into account, but no higher than top_y
-//Returns the bottommost coordinate touched by the list after completion.
-//The whole reason for this function is to prevent a big empty space
-//between the first and second arrow, when the first arrow can be
-//compressed a lot, but the second not. Here we move all the arrows
-//as one block only up till none of them collides with something.
-//No matter what input parameters we get we always place the list at an integer
-//y coordinate
-double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
-                           double top_y, const AreaList &area_top, bool forceCompress)
-{
-    if (from==to) return 0;
-    AreaList cover;
-    double h = HeightArcList(from, to, cover);
-    if (forceCompress || (*from)->IsCompressed()) {
-        double touchpoint;
-        start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     }
-    start_y = ceil(start_y);
-    ShiftByArcList(from, to, start_y);
-    return start_y + h;
-}
-
-void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)
-{
-    while (from!=to)
-        (*from++)->ShiftBy(y);  
+    //if we do not yet draw and last arcs were of zero height
+    //re-invoke them at final pos
+    if (!draw) {
+        y = ceil(y);
+        if (largest_y < y)
+            largest_y = y;
+        while (first_zero_height != to)
+            (*first_zero_height++)->DrawHeight(y, g, false, final, autoMarker);
+    }
+    return largest_y - original_y;
 }
 
 //Find the smallest elements between indexes [i, j) and bring them up to the
@@ -778,13 +762,12 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 }
 
 
-//Calculate total.x and y. Ensure they are integers
 void Msc::CalculateWidthHeight(void)
 {
     yPageStart.clear();
     yPageStart.push_back(0);
-    if (Arcs.size()==0) return;
-    if (total.y == 0) {
+
+    if (totalHeight == 0) {
         //start with width calculation, that is used by many elements
         EntityDistanceMap distances;
         //Add distance for arcs,
@@ -803,7 +786,8 @@ void Msc::CalculateWidthHeight(void)
             //distances.pairs starts with requiremenst between neighbouring entities
             //and continues with requirements between second neighbours, ... etc.
             //we process these sequentially
-            for (auto i = distances.pairs.begin(); i!=distances.pairs.end(); i++) {
+            for (map<IPair, double, IPairComp>::iterator i = distances.pairs.begin();
+                 i!=distances.pairs.end(); i++) {
                 //Get the requirement
                 double toadd = i->second;
                 //Substract the distance already there
@@ -821,26 +805,38 @@ void Msc::CalculateWidthHeight(void)
             unsigned index = 0;
             for (EntityList::iterator j = Entities.begin(); j!=Entities.end(); j++) {
                 (*j)->pos = curr_pos;
-                curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
+                curr_pos += dist[index++]/unit;
             }
-            total.x = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO)+1; 
+            totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO);
         } else {
-            total.x = XCoord((*--(Entities.end()))->pos+MARGIN)+1; //XCoord is always integer
+            totalWidth = XCoord((*--(Entities.end()))->pos+MARGIN);
         }
-        XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight().RoundUp();
-        if (total.x<crTexSize.x) total.x = crTexSize.x;
+        XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight();
+        if (totalWidth<crTexSize.x) totalWidth = crTexSize.x;
 
         copyrightTextHeight = crTexSize.y;
-        AreaList cover;
-        total.y = HeightArcList(Arcs.begin(), Arcs.end(), cover) + chartTailGap;
-        total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
+        Geometry g;
+		g += Block(0, totalWidth, 0, 0); //limiter
+        //not draw but final
+        double height = DrawHeightArcList(Arcs.begin(), Arcs.end(), 0, g, false, true);
+        totalHeight = height + chartTailGap;
     }
 }
 
-void Msc::PostPosProcessArcList(ArcList &arcs, double autoMarker)
+void Msc::PostHeightProcess(void)
 {
-    for (auto j = arcs.begin(); j != arcs.end(); j++)
-        (*j)->PostPosProcess(autoMarker);
+    if (totalHeight == 0) return;
+    for (ArcList::iterator j = Arcs.begin(); j != Arcs.end(); j++)
+        (*j)->PostHeightProcess();
+//    for (EntityList::iterator i = Entities.begin(); i!=Entities.end(); i++)
+//        cerr << (*i)->name << std::endl << (*i)->status.Print(1);
+}
+
+
+void Msc::ParseText(const char *input, const char *filename)
+{
+    current_file = Error.AddFile(filename);
+    MscParse(*this, input, strlen(input));
 }
 
 void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
@@ -858,71 +854,66 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
     CalculateWidthHeight();
 
     //If the chart ended up empty we may want to display something
-    if (total.y <= chartTailGap && avoidEmpty) {
+    if (totalHeight <= chartTailGap && avoidEmpty) {
         //Add the Empty command
         Arcs.push_front(new CommandEmpty(this));
         hscale = -1;
         //Redo calculations
-        total.x = total.y = 0;
+        totalWidth = totalHeight = 0;
         CalculateWidthHeight();
         //Luckily Width and DrawCover calls do not generate error messages,
         //So Errors collected so far are OK even after redoing this
     }
 
     //A final step of prcessing, checking for additional drawing warnings
-    PostPosProcessArcList(Arcs, -1);
+    PostHeightProcess();
     CloseOutput();
 
     Error.Sort();
 }
 
-void Msc::DrawArcList(ArcList &arcs)
-{
-    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
-        (*i)->Draw();
-}
-
-
 void Msc::DrawCopyrightText(int page)
 {
-    if (total.x==0 || !cr) return;
+    if (totalWidth==0 || !cr) return;
     XY size, dummy;
     GetPagePosition(page, dummy, size);
     Label label(copyrightText, this, StringFormat());
     if (white_background) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
-        Fill(Block(XY(0,size.y), XY(total.x,size.y+label.getTextWidthHeight().y)), fill_bkg);
+        filledRectangle(XY(0,size.y), XY(totalWidth,size.y+label.getTextWidthHeight().y), fill_bkg);
     }
-    label.Draw(0, total.x, size.y);
+    Geometry dummy2;
+    label.DrawCovers(0, totalWidth, size.y, dummy2, true);
 }
 
 void Msc::DrawPageBreaks()
 {
     if (yPageStart.size()<=1) return;
-    if (total.y==0 || !cr) return;
+    if (totalHeight==0 || !cr) return;
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
     format.Apply("\\pr\\-");
     Label label(this);
+    Geometry dummy;
     for (unsigned page=1; page<yPageStart.size(); page++) {
         char text[20];
         const double y = yPageStart[page];
         XY d;
-        Line(XY(0, y), XY(total.x, y), line);
+        MscDrawer::line(XY(0, y), XY(totalWidth, y), line);
         sprintf(text, "page %d", page);
         label.Set(text, format);
-        label.Draw(0, total.x, y-label.getTextWidthHeight().y);
+        label.DrawCovers(0, totalWidth, y-label.getTextWidthHeight().y, dummy, true);
     }
 }
 
 void Msc::Draw(bool pageBreaks)
 {
-    if (total.y == 0 || !cr) return;
+    if (totalHeight == 0 || !cr) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
-	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
-	Line(XY(0,0), XY(1,0), marker);
-	Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
+	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, 0);
+	line(XY(0,0), XY(1,0), marker);
+	line(XY(totalWidth,totalHeight), XY(totalWidth-1,totalHeight), marker);
 	//draw background
     MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
     double y = 0;
@@ -930,7 +921,7 @@ void Msc::Draw(bool pageBreaks)
     while (i!=Background.end()) {
         if (i->first != y) {
             if (y!=0 || white_background)
-                Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
+                filledRectangle(XY(0,y), XY(totalWidth,i->first), fill_bkg);
             y = i->first;
         }
         fill_bkg += i->second;
@@ -938,16 +929,18 @@ void Msc::Draw(bool pageBreaks)
             fill_bkg.color.second = MscColorType(255,255,255);
         i++;
     }
-    if (y < total.y) {
+    if (y < totalHeight) {
         if (y!=0 || white_background)
-            Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
+            filledRectangle(XY(0,y), XY(totalWidth,totalHeight), fill_bkg);
     }
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks();
 	//Draw initial set of entity lines (boxes will cover these and redraw)
-    DrawEntityLines(0, total.y);
-    DrawArcList(Arcs);
+    DrawEntityLines(0, totalHeight);
+    //draw==true and final==false (both true would be confusing)
+    Geometry g;
+    DrawHeightArcList(Arcs.begin(), Arcs.end(), 0, g, true, false);
 }
 
 void Msc::DrawToOutput(OutputType ot, const string &fn)

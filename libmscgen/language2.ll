@@ -291,23 +291,8 @@ vertical\>\>  yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 vertical\>    yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 vertical=\>   yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 
- /* Numbers */
-[+\-]?[0-9]+\.?[0-9]*  %{
-    yylval_param->str = strdup(yytext);
-    return TOK_NUMBER;
-%}
-
- /* Strings not ending with a dot */
-[A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* %{
-    yylval_param->str = strdup(yytext);
-    return TOK_STRING;
-%}
-
- /* Strings ending with a dot, not followed by a second dot */
-[A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])*\./[^\.] %{
-    yylval_param->str = strdup(yytext);
-    return TOK_STRING;
-%}
+[+\-]?[0-9]+\.?[0-9]*                   yylval_param->str = strdup(yytext); return TOK_NUMBER;
+[A-Za-z_]([A-Za-z0-9_\.]?[A-Za-z0-9_])* yylval_param->str = strdup(yytext); return TOK_STRING;
 
 [ \t]+    /* ignore whitespace */;
 %%

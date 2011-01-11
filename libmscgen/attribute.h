@@ -5,18 +5,8 @@
 #include <sstream>
 #include <list>
 #include "color.h"
-#include "csh.h"
-#include "contour_area.h"
 
 using std::string;
-
-class DoublePair : public std::pair<double, double> 
-{
-public:
-    DoublePair() {};
-    DoublePair(double a, double b) : std::pair<double, double>(a,b) {}
-    void swap() {std::swap(first, second);}
-};
 
 // Needed to supply string with a good "<<" operator
 template <class T>
@@ -27,23 +17,15 @@ template <class T>
         return s;
     };
 
-int CaseInsensitiveCommonPrefixLen(const char *a, const char *b);
-int CaseInsensitiveBeginsWith(const char *a, const char *b);
-inline int CaseInsensitiveBeginsWith(const string &a, const char *b)
-    {return CaseInsensitiveBeginsWith(a.c_str(), b);}
+int CaseInsensitiveBeginsWidth(const char *a, const char *b);
 inline bool CaseInsensitiveEqual(const char *a, const char *b)
-    {return CaseInsensitiveBeginsWith(a,b)==2;}
+    {return CaseInsensitiveBeginsWidth(a,b)==2;}
 inline bool CaseInsensitiveEqual(const string &a, const char *b)
     {return CaseInsensitiveEqual(a.c_str(), b);}
 inline bool CaseInsensitiveEqual(const char *a, const string &b)
     {return CaseInsensitiveEqual(a, b.c_str());}
 inline bool CaseInsensitiveEqual(const string &a, const string &b)
     {return CaseInsensitiveEqual(a.c_str(), b.c_str());}
-
-//this one returns true if ending is terminated at a dot "."
-bool CaseInsensitiveEndsWith(const char *base, const char *a);
-inline bool CaseInsensitiveEndsWith(const string &base, const char *a)
-{return CaseInsensitiveEndsWith(base.c_str(), a);}
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -81,7 +63,7 @@ template <typename Enum>
 class EnumEncapsulator {
 public:
     Enum value;
-    const static char names[][ENUM_STRING_LEN];
+    const static char names[][15];
     EnumEncapsulator(Enum a) : value(a) {}
 };
 
@@ -115,13 +97,6 @@ string CandidatesFor(Enum dummy1)
         s.append(EnumEncapsulator<Enum>::names[i]);
     }
     return s;
-};
-
-class const_char_vector_t : public std::set<string>
-{
-public:
-    void Add(const string &a) {insert(a);}
-    void Add(const char names[][ENUM_STRING_LEN], const string &prefix);
 };
 
 ////////////////////////////////////////////////////////////
@@ -193,64 +168,28 @@ typedef enum {
     LINE_SOLID,
     LINE_DOTTED,
     LINE_DASHED,
-    LINE_LONG_DASHED,
-    LINE_DASH_DOT,
-    LINE_DOUBLE,
-    LINE_TRIPLE,
-    LINE_TRIPLE_THICK
+    LINE_DOUBLE
 } MscLineType;
-
-inline bool IsLineTypeContinuous(MscLineType t) {return t!=LINE_DOTTED && t!=LINE_DASHED && t!=LINE_LONG_DASHED && t!=LINE_DASH_DOT;}
-inline bool IsLineTypeDouble(MscLineType t) {return t==LINE_DOUBLE;}
-inline bool IsLineTypeTriple(MscLineType t) {return t==LINE_TRIPLE || t==LINE_TRIPLE_THICK;}
-inline bool IsLineTypeDoubleOrTriple(MscLineType t) {return IsLineTypeDouble(t) || IsLineTypeTriple(t);}
-
-typedef enum {
-    CORNER_INVALID = 0,
-    CORNER_NONE,
-    CORNER_ROUND,
-    CORNER_BEVEL,
-    CORNER_NOTE
-} MscCornerType;
 
 class MscLineAttr {
 public:
-    std::pair<bool, MscLineType>   type;
-    std::pair<bool, MscColorType>  color;
-    std::pair<bool, double>        width;
-    std::pair<bool, double>        cornersize;
-    std::pair<bool, MscCornerType> corner;
+    std::pair<bool, MscLineType>  type;
+    std::pair<bool, MscColorType> color;
+    std::pair<bool, double>       width;
+    std::pair<bool, int>          radius;
     MscLineAttr();
     MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}
     MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
-    MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, int r) :
-        type(true, t), color(true, c), width(true, w), corner(true, ct), cornersize(true, r) {}
-    void Empty() {type.first = color.first = width.first = corner.first = cornersize.first = false;}
-    bool IsComplete() const {return type.first && color.first && width.first && corner.first && cornersize.first;}
-    void MakeComplete();
-    bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);}
-    bool IsDouble() const {_ASSERT(type.first); return IsLineTypeDouble(type.second);}
-    bool IsTriple() const {_ASSERT(type.first); return IsLineTypeTriple(type.second);}
-    bool IsDoubleOrTriple() const {return IsDouble() || IsTriple();}
-    double DoubleSpacing() const     {_ASSERT(IsDouble()&&width.first); return width.second;}
-    double TripleSpacing() const     {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.5:2.0);}
-    double TripleMiddleWidth() const {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.0:1.0);}
-    const double * DashPattern(int &num) const;
+    MscLineAttr(MscLineType t, MscColorType c, double w, int r) :
+        type(true, t), color(true, c), width(true, w), radius(true, r) {}
+    void Empty() {type.first = color.first = width.first = radius.first = false;}
     MscLineAttr &operator +=(const MscLineAttr&a);
     bool operator == (const MscLineAttr &a);
-    double LineWidth() const {_ASSERT(type.first && width.first);
-         return width.second * (type.second==LINE_NONE ? 0 : type.second==LINE_DOUBLE ? 3 :
-             type.second==LINE_TRIPLE ? 5 : type.second==LINE_TRIPLE_THICK ? 6 : 1);}
+    double LineWidth() const
+        {switch(type.second) {case LINE_NONE: return 0;
+        case LINE_DOUBLE: return width.second*3; default: return width.second;}}
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
-
-    Contour CreateRectangle(double x1, double x2, double y1, double y2) const;
-    Contour CreateRectangle(const XY &s, const XY &d) const {return CreateRectangle(s.x, d.x, s.y, d.y);}
-    Contour CreateRectangle(const Block &b) const {return CreateRectangle(b.x.from, b.x.till, b.y.from, b.y.till);}
-
-    DoublePair CalculateTextMargin(Area textCover, double rect_top, MscDrawer *debug=NULL) const; //XXX kill debug here
 };
 
 typedef enum {
@@ -268,24 +207,15 @@ typedef enum {
 struct MscFillAttr {
 public:
     std::pair<bool, MscColorType> color;
-    std::pair<bool, MscColorType> color2;
     std::pair<bool, MscGradientType> gradient;
     MscFillAttr();
     MscFillAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
     MscFillAttr(MscColorType c, MscGradientType g) :
         color(true, c), gradient(true,g) {}
-    MscFillAttr(MscColorType c, MscColorType c2) : 
-        color(true, c), color2(true, c2), gradient(false, GRADIENT_INVALID) {}
-    MscFillAttr(MscColorType c, MscColorType c2, MscGradientType g) :
-        color(true, c), color2(true, c2), gradient(true,g) {}
-    void Empty() {color.first = color2.first = gradient.first = false;}
-    void MakeComplete();
-    bool IsComplete() const {return color.first && gradient.first;} //color2 is not needed
+    void Empty() {color.first = gradient.first = false;}
     MscFillAttr &operator +=(const MscFillAttr&a);
     bool operator == (const MscFillAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
@@ -297,16 +227,11 @@ public:
     MscShadowAttr();
     MscShadowAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
     void Empty() {color.first = offset.first = blur.first=false;}
-    void MakeComplete();
-    bool IsComplete() const {return color.first && offset.first && blur.first;}
     MscShadowAttr &operator +=(const MscShadowAttr&a);
     bool operator == (const MscShadowAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
-bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p);
 
 #endif

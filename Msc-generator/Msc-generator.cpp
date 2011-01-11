@@ -76,7 +76,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 BOOL CAboutDlg::OnInitDialog( ) 
 {
 	bool a = CDialog::OnInitDialog();
-	m_btnLink.SetURL(_T("https://sourceforge.net/projects/msc-generator/"));
+	m_btnLink.SetURL(_T("http://msc-generator.sourcforge.net"));
 	m_btnLink.SetTooltip(_T("Visit the Msc-generator site"));
 	m_btnLink.SizeToContent();
 	CString text = "Msc-generator Version ";
@@ -121,15 +121,6 @@ public:
 	BOOL m_bCsh;
 	int m_nCshScheme;
 	BOOL m_bSmartIdent;
-    BOOL m_bCshErrors;
-    BOOL m_bCshErrorsInWindow;
-    BOOL m_bHints;
-    BOOL m_bHintsLineStart;
-    BOOL m_bHintsEntity;
-    BOOL m_bHintsAttrName;
-    BOOL m_bHintsAttrValue;
-    BOOL m_bHintsCompact;
-    BOOL m_bHintsFilter;
 };
 
 
@@ -147,15 +138,6 @@ COptionDlg::COptionDlg(CWnd* pParent /*=NULL*/)
 	, m_bCsh(FALSE)
 	, m_bSmartIdent(FALSE)
 	, m_nCshScheme(0)
-    , m_bHints(FALSE)
-    , m_bHintsLineStart(FALSE)
-    , m_bHintsEntity(FALSE)
-    , m_bHintsAttrName(FALSE)
-    , m_bHintsAttrValue(FALSE)
-    , m_bHintsCompact(FALSE)
-    , m_bHintsFilter(FALSE)
-    , m_bCshErrors(FALSE)
-    , m_bCshErrorsInWindow(FALSE)
 {
 }
 
@@ -165,29 +147,20 @@ COptionDlg::~COptionDlg()
 
 void COptionDlg::DoDataExchange(CDataExchange* pDX)
 {
-    CDialog::DoDataExchange(pDX);
-    DDX_Check(pDX, IDC_CHECK_PEDANTIC, m_Pedantic);
-    DDX_Check(pDX, IDC_CHECK_WARNINGS, m_Warnings);
-    DDX_Text(pDX, IDC_EDIT_DEFAULT_TEXT, m_DefaultText);
-    DDX_Radio(pDX, IDC_RADIO1, m_TextEditorRadioButtons);
-    DDX_Text(pDX, IDC_EDIT1, m_TextEditStartCommand);
-    DDX_Text(pDX, IDC_EDIT2, m_TextEditorJumpToLineCommand);
-    DDX_Check(pDX, IDC_CHECK_PB_EDITING, m_bPB_Editing);
-    DDX_Check(pDX, IDC_CHECK_PB_EMBEDDED, m_bPB_Embedded);
-    DDX_Check(pDX, IDC_CHECK_CSH, m_bCsh);
-    DDX_Check(pDX, IDC_CHECK_SMART_IDENT, m_bSmartIdent);
-    DDX_Check(pDX, IDC_CHECK_ALWAYSOPEN, m_bAlwaysOpen);
-    DDX_CBIndex(pDX, IDC_COMBO_CSH, m_nCshScheme);
-
-    DDX_Check(pDX, IDC_CHECK_HINTS, m_bHints);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_LINE_START, m_bHintsLineStart);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_ENTITY, m_bHintsEntity);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_ATTR_NAME, m_bHintsAttrName);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_ATTR_VALUE, m_bHintsAttrValue);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_COMPACT, m_bHintsCompact);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_FILTER, m_bHintsFilter);
-    DDX_Check(pDX, IDC_CHECK_CSH_ERRORS, m_bCshErrors);
-    DDX_Check(pDX, IDC_CHECK_CSH_ERROR_IN_WINDOW, m_bCshErrorsInWindow);
+	CDialog::DoDataExchange(pDX);
+	DDX_Check(pDX, IDC_CHECK_PEDANTIC, m_Pedantic);
+	DDX_Check(pDX, IDC_CHECK_WARNINGS, m_Warnings);
+	DDX_Text(pDX, IDC_EDIT_DEFAULT_TEXT, m_DefaultText);
+	DDX_Radio(pDX, IDC_RADIO1, m_TextEditorRadioButtons);
+	DDX_Text(pDX, IDC_EDIT1, m_TextEditStartCommand);
+	DDX_Text(pDX, IDC_EDIT2, m_TextEditorJumpToLineCommand);
+	DDX_Check(pDX, IDC_CHECK_PB_EDITING, m_bPB_Editing);
+	DDX_Check(pDX, IDC_CHECK_PB_EMBEDDED, m_bPB_Embedded);
+	DDX_Check(pDX, IDC_CHECK_CSH, m_bCsh);
+	DDX_Check(pDX, IDC_CHECK_SMART_IDENT, m_bSmartIdent);
+	DDX_Check(pDX, IDC_CHECK_ALWAYSOPEN, m_bAlwaysOpen);
+	DDX_CBIndex(pDX, IDC_COMBO_CSH, m_nCshScheme);
+	
 }
 
 BOOL COptionDlg::OnInitDialog()
@@ -198,14 +171,6 @@ BOOL COptionDlg::OnInitDialog()
 	GetDlgItem(IDC_RADIO2)->EnableWindow(m_bNppExists);
 	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_bCsh);
 	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(m_bCsh);
-    GetDlgItem(IDC_CHECK_CSH_ERROR)->EnableWindow(m_bCsh);
-    GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW)->EnableWindow(m_bCshErrors && m_bCsh);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_NAME)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_VALUE)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ENTITY)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_LINE_START)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_COMPACT)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_FILTER)->EnableWindow(m_bHints);
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -217,18 +182,6 @@ void COptionDlg::OnBnClicked()
 	bool cshSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH))->GetCheck();
 	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(cshSet);
 	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(cshSet);
-    GetDlgItem(IDC_CHECK_CSH_ERROR)->EnableWindow(cshSet);
-    bool cshErrorSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH_ERROR))->GetCheck();
-    GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW)->EnableWindow(cshSet && cshErrorSet);
-    if (!cshErrorSet)
-        ((CButton*)GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW))->SetCheck(false);
-    bool hintSet = ((CButton*)this->GetDlgItem(IDC_CHECK_HINTS))->GetCheck();
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_NAME)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_VALUE)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ENTITY)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_LINE_START)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_COMPACT)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_FILTER)->EnableWindow(hintSet);
 }
 
 BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
@@ -236,8 +189,6 @@ BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
 	ON_BN_CLICKED(IDC_RADIO2, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClicked)
 	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_CHECK_HINTS, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_CHECK_CSH_ERROR, &COptionDlg::OnBnClicked)
 END_MESSAGE_MAP()
 
 // CMscGenApp
@@ -503,23 +454,14 @@ void CMscGenApp::OnEditPreferences()
 		pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
 
 	COptionDlg optionDlg;
-	optionDlg.m_Pedantic           = m_Pedantic;
-	optionDlg.m_Warnings           = m_Warnings;
-	optionDlg.m_bPB_Editing        = m_bPB_Editing;
-	optionDlg.m_bPB_Embedded       = m_bPB_Embedded;
-	optionDlg.m_bAlwaysOpen        = m_bAlwaysOpen;
-	optionDlg.m_bCsh	           = m_bShowCsh;
-	optionDlg.m_nCshScheme         = m_nCshScheme;
-	optionDlg.m_bSmartIdent        = m_bSmartIdent;
-    optionDlg.m_bCshErrors         = m_bShowCshErrors;
-    optionDlg.m_bCshErrorsInWindow = m_bShowCshErrorsInWindow;
-    optionDlg.m_bHints             = m_bHints;
-    optionDlg.m_bHintsLineStart    = m_bHintLineStart;
-    optionDlg.m_bHintsEntity       = m_bHintEntity;
-    optionDlg.m_bHintsAttrName     = m_bHintAttrName;
-    optionDlg.m_bHintsAttrValue    = m_bHintAttrValue;
-    optionDlg.m_bHintsCompact      = m_bHintCompact;
-    optionDlg.m_bHintsFilter       = m_bHintFilter;
+	optionDlg.m_Pedantic     = m_Pedantic;
+	optionDlg.m_Warnings     = m_Warnings;
+	optionDlg.m_bPB_Editing  = m_bPB_Editing;
+	optionDlg.m_bPB_Embedded = m_bPB_Embedded;
+	optionDlg.m_bAlwaysOpen  = m_bAlwaysOpen;
+	optionDlg.m_bCsh		 = m_bCsh;
+	optionDlg.m_nCshScheme   = m_nCshScheme;
+	optionDlg.m_bSmartIdent  = m_bSmartIdent;
 
 	EnsureCRLF(m_DefaultText);
 	ReplaceTAB(m_DefaultText);
@@ -547,24 +489,15 @@ void CMscGenApp::OnEditPreferences()
 		bool recompile = (m_Pedantic != (bool)optionDlg.m_Pedantic) ||
 			(m_bPB_Editing != optionDlg.m_bPB_Editing) ||
 			(m_bPB_Embedded != optionDlg.m_bPB_Embedded);
+		bool updateCSH = (optionDlg.m_bCsh != m_bCsh) || (m_bCsh &&	optionDlg.m_nCshScheme != m_nCshScheme);
 
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, m_Pedantic = optionDlg.m_Pedantic);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, m_Warnings = optionDlg.m_Warnings);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing = optionDlg.m_bPB_Editing);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded = optionDlg.m_bPB_Embedded);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, m_bAlwaysOpen = optionDlg.m_bAlwaysOpen);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh = optionDlg.m_bCsh);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_bSmartIdent = optionDlg.m_bSmartIdent);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_nCshScheme = optionDlg.m_nCshScheme);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, m_bShowCshErrors = optionDlg.m_bCshErrors);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, m_bShowCshErrorsInWindow = optionDlg.m_bCshErrorsInWindow);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, m_bHints = optionDlg.m_bHints);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_LINESTART, m_bHintLineStart = optionDlg.m_bHintsLineStart);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, m_bHintEntity = optionDlg.m_bHintsEntity);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, m_bHintAttrName = optionDlg.m_bHintsAttrName);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, m_bHintAttrValue = optionDlg.m_bHintsAttrValue);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, m_bHintFilter = optionDlg.m_bHintsFilter);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_COMPACT, m_bHintCompact = optionDlg.m_bHintsCompact);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bCsh = optionDlg.m_bCsh);
+		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_nCshScheme = optionDlg.m_nCshScheme);
 
 		bool bRestartEditor = false;
 		EEditorType temp;
@@ -607,7 +540,7 @@ void CMscGenApp::OnEditPreferences()
 
 		if (recompile && pDoc) 
 			pDoc->ShowEditingChart(false);     //Do not change zoom, merely recompile & re-issue 
-		if (IsInternalEditorRunning())
+		if (updateCSH && IsInternalEditorRunning())
 			m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
 	}
 }
@@ -636,26 +569,15 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	//Load Registry values
 	m_Pedantic = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, FALSE);
 	m_Warnings = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, TRUE);
-	m_bPB_Editing     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
-	m_bPB_Embedded    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, FALSE);
-	m_bAlwaysOpen     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, TRUE);
-	m_bShowCsh        = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
-	m_nCshScheme      = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
+	m_bPB_Editing  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
+	m_bPB_Embedded = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, FALSE);
+	m_bAlwaysOpen  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, TRUE);
+	m_bCsh         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
+	m_nCshScheme   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
-	m_bSmartIdent    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
-	m_bShowCshErrors = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, TRUE);
-	m_bShowCshErrorsInWindow = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, FALSE);
+	m_bSmartIdent  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
 	m_trackLineColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKLINERGBA, RGBA(128, 0, 0, 255));
 	m_trackFillColor = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TRACKFILLRGBA, RGBA(255, 0, 0, 128));
-    m_bHints         = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, TRUE);
-    m_bHintLineStart = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_LINESTART, TRUE);
-    m_bHintEntity    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, TRUE);
-    m_bHintAttrName  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, TRUE);
-    m_bHintAttrValue = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, TRUE);
-    m_bHintFilter    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, TRUE);
-    m_bHintCompact   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_COMPACT, TRUE);
-
-	m_bDoCshProcessing = m_bShowCsh || m_bHints;
 
 	m_NppPath = "C:\\Program Files\\Notepad++\\notepad++.exe";
 	CFileFind finder;
@@ -804,6 +726,10 @@ UINT CheckVersionFreshness(LPVOID)
 			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE, INTERNET_PORT(80));
 		CHttpFile *file = httpconn->OpenRequest("GET", "version", NULL, 1, NULL, NULL, 
 			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE);
+        wchar_t locale[LOCALE_NAME_MAX_LENGTH];
+        if (0<GetUserDefaultLocaleName(locale, LOCALE_NAME_MAX_LENGTH))
+            file->AddRequestHeaders(CString("Accept-Language: ")+locale, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+        //file->AddRequestHeaders("User-Agent: Msc-generator (Linux; X11)", HTTP_ADDREQ_FLAG_ADD_IF_NEW);
 		if (!file->SendRequest()) return false;
 		if (!file->ReadString(latest_version)) return false;
 	} CATCH(CInternetException, pEx) {
@@ -833,4 +759,3 @@ UINT CheckVersionFreshness(LPVOID)
 	}
 	return true;
 }
-
