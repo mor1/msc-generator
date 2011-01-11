@@ -28,6 +28,7 @@ class CCshRichEditCtrl : public CRichEditCtrl
 	Csh  m_designlib_csh;
     bool m_bWasReturnKey;        //if the return key was pressed
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
+    bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
     CPopupList m_hintsPopup;
 public:
 	int m_tabsize;
@@ -66,7 +67,7 @@ public:
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 
     //Hint window related
-    void StartHintMode(); //also used to update hints
+    void StartHintMode(bool setUptoCursor); //also used to update hints in popup, if already in hint mode
     bool InHintMode() const {return m_hintsPopup.m_shown;}
     void CancelHintMode();
     void CancelUserSelected() {m_bUserRequested = false;}

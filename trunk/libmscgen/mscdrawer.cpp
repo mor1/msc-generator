@@ -1061,8 +1061,8 @@ void MscDrawer::Line(const Block &b, const MscLineAttr &line)
         } else {
             const double r = line.cornersize.second;
             singleLine(b, line);
-            singleLine(XY(b.x.till-r, b.y.from), XY(b.x.till-r, b.y.till+r), line);
-            singleLine(XY(b.x.till-r, b.y.till+r), XY(b.x.till, b.y.till-r), line);
+            singleLine(XY(b.x.till-r, b.y.from), XY(b.x.till-r, b.y.from+r), line);
+            singleLine(XY(b.x.till-r, b.y.till+r), XY(b.x.till, b.y.from+r), line);
         }
         if (line.IsDouble()) {
             const double r = line.cornersize.second;

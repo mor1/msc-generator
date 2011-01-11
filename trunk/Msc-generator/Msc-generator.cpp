@@ -76,7 +76,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 BOOL CAboutDlg::OnInitDialog( ) 
 {
 	bool a = CDialog::OnInitDialog();
-	m_btnLink.SetURL(_T("http://msc-generator.sourcforge.net"));
+	m_btnLink.SetURL(_T("https://sourceforge.net/projects/msc-generator/"));
 	m_btnLink.SetTooltip(_T("Visit the Msc-generator site"));
 	m_btnLink.SizeToContent();
 	CString text = "Msc-generator Version ";

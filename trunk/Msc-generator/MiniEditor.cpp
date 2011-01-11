@@ -40,6 +40,7 @@ CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : m_hintsPopup(parent, this)
 	m_bCshUpdateInProgress = false;  
     m_bWasReturnKey = false;
     m_bUserRequested = false;
+    m_bTillCursorOnly = false;
 }
 
 BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
@@ -315,8 +316,6 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
     if (m_hintsPopup.m_shown) {
         if (pMsg->message == WM_KEYDOWN) { 
             if (pMsg->wParam == VK_ESCAPE) {CancelHintMode(); return TRUE;}
-            if (pMsg->wParam == VK_DELETE || 
-                pMsg->wParam == VK_BACK) {return FALSE;} //keep hinted mode, but no special processing
             if (pMsg->wParam == VK_UP)     {m_hintsPopup.m_listBox.UpDownKey(-1); return TRUE;}
             if (pMsg->wParam == VK_DOWN)   {m_hintsPopup.m_listBox.UpDownKey(+1); return TRUE;}
             if (pMsg->wParam == VK_PRIOR)  {m_hintsPopup.m_listBox.UpDownKey(-2); return TRUE;}
@@ -331,7 +330,8 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 //if nothing selected let it run further
             }
         } else if (pMsg->message == WM_CHAR) {
-            if (isalnum(pMsg->wParam) || pMsg->wParam == '_')
+            if (isalnum(pMsg->wParam) || pMsg->wParam == '_' || 
+                pMsg->wParam == VK_DELETE || pMsg->wParam == VK_BACK)
                 //characters that can make up a hinted keyword - we insert them and re-calc hints afterwards in OnCommand
                 return FALSE;
             //do nothing if no item is selected
@@ -341,7 +341,11 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             if (item->state != HINT_ITEM_SELECTED) return FALSE;
             if (pMsg->wParam == '.') {
                 //expand only till the next dot in the hint
-                int pos = m_csh.hintedStringPos.last_pos - m_csh.hintedStringPos.last_pos;
+                int pos = m_csh.hintedStringPos.last_pos;
+                long s, e;
+                GetSel(s,e);
+                if (m_bTillCursorOnly) pos = pos - e;
+                else pos = pos - m_csh.hintedStringPos.last_pos;
                 pos = item->plain.find_first_of('.', pos);
                 if (pos != string::npos) {
                     ReplaceHintedString(item->plain.substr(0, pos).c_str(), false);
@@ -358,7 +362,19 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         && GetKeyState(VK_CONTROL) & 0x8000) {
             m_bUserRequested = true;
             UpdateCsh();
-            StartHintMode();
+            //see if we are at the beginning of a word
+            long s, e;
+            GetSel(s, e);
+            bool till_cursor_only = false;
+            if (s==0) till_cursor_only = true;
+            else {
+                CString str;
+                GetTextRange(s-1,s, str);
+                if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;
+            }
+            //if so, set the hint mode such that we only consider the word under the curson
+            //up to the cursor (and cut away the remainder)
+            StartHintMode(till_cursor_only); 
             return TRUE;
     }
 
@@ -552,6 +568,9 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
         //Take the design, color and style definitions from the designlib
         m_csh = m_designlib_csh;
 		m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
+        //If we consider the hinted string only up to the cursor, trim the returned pos
+        if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
+            m_csh.hintedStringPos.last_pos = cr.cpMin; 
         ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
         //Apply the color syntax to the text in the editor
         if (pApp->m_bShowCsh) {
@@ -672,7 +691,9 @@ BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 }
 
 //Assumes we have called UpdateCsh just before and m_csh is up-to-date
-void CCshRichEditCtrl::StartHintMode()
+//if setUptoCursor is true, we set m_bTillCursorOnly to true
+//if false, we leave the value unchanged (=start with a false value)
+void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
 {
     long start, end;
     GetSel(start, end);
@@ -697,6 +718,13 @@ void CCshRichEditCtrl::StartHintMode()
     }
     ClientToScreen(&pt);
     CString text;
+    if (setUptoCursor) {
+        m_bTillCursorOnly = true;
+        long s,e;
+        GetSel(s,e);
+        if (s<m_csh.hintedStringPos.last_pos)
+            m_csh.hintedStringPos.last_pos = s;
+    }
     if (m_csh.hintedStringPos.first_pos>=0) 
         GetTextRange(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos, text);
     m_hintsPopup.Show(m_csh, text, pt.x, pt.y, m_bUserRequested, m_bWasReturnKey);
@@ -707,6 +735,7 @@ void CCshRichEditCtrl::CancelHintMode()
 {
     m_hintsPopup.Hide();
     m_bUserRequested = false;
+    m_bTillCursorOnly = false; 
 }
 
 void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintMode)
@@ -866,13 +895,21 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
         //if we changed word below us, first kill the user requested nature
         if (!same_hints)
             m_ctrlEditor.CancelUserSelected();
-        m_ctrlEditor.StartHintMode();
+        m_ctrlEditor.StartHintMode(false); //false == do not change m_bTillCursorOnly
     } else {
         long s, e;
         m_ctrlEditor.GetSel(s,e);
         //Enter hint mode only if we typed a character
-        if (m_totalLenAtPreviousTextChange < len && s==e)
-            m_ctrlEditor.StartHintMode();
+        if (m_totalLenAtPreviousTextChange < len && s==e) {
+            bool till_cursor_only = false;
+            if (s<=1) till_cursor_only = true;
+            else {
+                CString str;
+                m_ctrlEditor.GetTextRange(s-2,s-1, str);
+                if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;
+            }
+            m_ctrlEditor.StartHintMode(till_cursor_only);
+        }
     }        
     m_totalLenAtPreviousTextChange = len;
 	m_ctrlEditor.NotifyDocumentOfChange();
