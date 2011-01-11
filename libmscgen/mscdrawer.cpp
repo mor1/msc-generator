@@ -703,7 +703,7 @@ void MscDrawer::RectanglePath(double sx, double dx, double sy, double dy, const 
         cairo_new_path(cr);
         cairo_move_to(cr, sx, sy);
         cairo_line_to(cr, dx-r, sy);
-        cairo_line_to(cr, dx, dy-r);
+        cairo_line_to(cr, dx, sy+r);
         cairo_line_to(cr, dx, dy);
         cairo_line_to(cr, sx, dy);
         cairo_close_path(cr);
@@ -1037,10 +1037,10 @@ void MscDrawer::Line(const Block &b, const MscLineAttr &line)
             Block bb(b);
             MscLineAttr line2(line);
             bb.Expand(spacing);
-            if (line2.cornersize.second>0) line2.cornersize.second += spacing;
+            if (line2.cornersize.second>0) line2.cornersize.second += spacing * line2.RadiusIncMul();
             singleLine(bb, line2);
             bb.Expand(-2*spacing);
-            line2.cornersize.second -= 2*spacing; //negative cornersize is handled as 0 by singleLine
+            line2.cornersize.second -= 2*spacing * line2.RadiusIncMul(); //negative cornersize is handled as 0 by singleLine
             singleLine(bb, line2);
         } 
         if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
@@ -1052,10 +1052,10 @@ void MscDrawer::Line(const Block &b, const MscLineAttr &line)
             Block bb(b);
             MscLineAttr line2(line);
             bb.Expand(spacing);
-            line2.cornersize.second += spacing;
+            line2.cornersize.second += spacing * RadiusIncMultiplier(CORNER_BEVEL);
             singleLine(bb, line2);
             bb.Expand(-2*spacing);
-            const double r = line2.cornersize.second - 2*spacing; 
+            const double r = line.cornersize.second - spacing * RadiusIncMultiplier(CORNER_BEVEL); 
             Area inner = bb - Contour(bb.x.till-r, bb.x.till, bb.y.from, bb.y.from+r);
             singleLine(inner, line);
         } else {
@@ -1065,8 +1065,8 @@ void MscDrawer::Line(const Block &b, const MscLineAttr &line)
             singleLine(XY(b.x.till-r, b.y.till+r), XY(b.x.till, b.y.from+r), line);
         }
         if (line.IsDouble()) {
-            const double r = line.cornersize.second;
-            singleLine(Contour(XY(b.x.till-r, b.y.from),XY(b.x.till-r, b.y.till+r), XY(b.x.till, b.y.till-r)), line);
+            const double r = line.cornersize.second - spacing * RadiusIncMultiplier(CORNER_BEVEL);
+            singleLine(Contour(XY(b.x.till-r, b.y.from+spacing),XY(b.x.till-r, b.y.from+r), XY(b.x.till-spacing, b.y.from+r)), line);
         } else if (line.IsTriple()) {
             MscLineAttr line2(line);
             line2.type.second = LINE_SOLID;

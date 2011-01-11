@@ -104,6 +104,7 @@ class StringFormat {
                                     ETextType textType);
     static int FindNumberingFormatEscape(const char *text);
     static void RemovePosEscapes(string &text);
+    static void ConvertToPlainText(string &text);
 };
 
 //An object that stores a line (no '\n' inside)

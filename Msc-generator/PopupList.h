@@ -59,7 +59,7 @@ public:
 // Dialog Data
 	enum { IDD = IDD_POPUPLIST };
 
-    bool Show(Csh &csh, const LPCSTR uc, int x, int y, bool userRequest, bool afterReturnKey);
+    bool Show(bool changed, const LPCSTR uc, int x, int y);
     void Hide();
 
 protected:

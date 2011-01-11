@@ -2114,14 +2114,14 @@ void ArcEmphasis::Draw()
         MscLineAttr line = style.line;  //We will vary the cornersize, so we need a copy
         //The cornersize specified in style.line will be that of the inner edge of the line
         if (line.cornersize.second > 0)
-            line.cornersize.second += lw; //now it is appropriate for the outer edge
+            line.cornersize.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
         Block r(chart->XCoord((*src)->pos) - left_space, chart->XCoord((*dst)->pos) + right_space, 
                 yPos, yPos+total_height); //The outer edge of the lines
         //First draw the shadow. 
         chart->Shadow(r, line, style.shadow);
         //Do a clip region for the overall box (for round corners) 
         //at half a linewidth from the inner edge (use the width of a single line!)
-        line.cornersize.second -= lw-style.line.width.second/2.;
+        line.cornersize.second += ( -lw + style.line.width.second/2.) * style.line.RadiusIncMul();
         r.Expand(-lw+style.line.width.second/2.);
         chart->Clip(r, line);
         for (auto i = follow.begin(); i!=follow.end(); i++) {
@@ -2147,7 +2147,7 @@ void ArcEmphasis::Draw()
         chart->UnClip();
         //shring to the inner edge
         r.Expand(-style.line.width.second/2.);
-        line.cornersize.second -= style.line.width.second/2.;
+        line.cornersize.second -= style.line.width.second/2. * style.line.RadiusIncMul();
         //Draw box lines - Cycle only for subsequent boxes
         for (auto i = ++(follow.begin()); i!=follow.end(); i++) {
             const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
@@ -2156,7 +2156,7 @@ void ArcEmphasis::Draw()
         }
         //Finally draw the overall line around the box, expand to midpoint of line
         r.Expand(lw/2);
-        line.cornersize.second += lw/2;
+        line.cornersize.second += (lw/2)  * style.line.RadiusIncMul();
         chart->Line(r, line);
         //XXX double line joints: fix it
         for (auto i = follow.begin(); i!=follow.end(); i++) {

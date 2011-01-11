@@ -41,6 +41,8 @@ FIX: shodw should extend by half of blur
 TRY: shadow to arrows and labels
 FIX: Check that focus always goes back to the internal editor.
 FIX: corner=note
+FIX: What happens if we press ctrl+space and we are at the end of a word - this should be the special case
+
 
 In 3.0
 ADDED: More precise tracking mode

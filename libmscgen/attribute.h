@@ -204,6 +204,7 @@ inline bool IsLineTypeContinuous(MscLineType t) {return t!=LINE_DOTTED && t!=LIN
 inline bool IsLineTypeDouble(MscLineType t) {return t==LINE_DOUBLE;}
 inline bool IsLineTypeTriple(MscLineType t) {return t==LINE_TRIPLE || t==LINE_TRIPLE_THICK;}
 inline bool IsLineTypeDoubleOrTriple(MscLineType t) {return IsLineTypeDouble(t) || IsLineTypeTriple(t);}
+inline double LineWidthMultiplier(MscLineType t) {return t==LINE_NONE ? 0 : t==LINE_DOUBLE ? 3 : t==LINE_TRIPLE ? 5 : t==LINE_TRIPLE_THICK ? 6 : 1;}
 
 typedef enum {
     CORNER_INVALID = 0,
@@ -212,6 +213,8 @@ typedef enum {
     CORNER_BEVEL,
     CORNER_NOTE
 } MscCornerType;
+
+inline double RadiusIncMultiplier(MscCornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL ?  tan(22.5*M_PI/180): t==CORNER_NOTE ? 0 : 0;}
 
 class MscLineAttr {
 public:
@@ -228,6 +231,10 @@ public:
     void Empty() {type.first = color.first = width.first = corner.first = cornersize.first = false;}
     bool IsComplete() const {return type.first && color.first && width.first && corner.first && cornersize.first;}
     void MakeComplete();
+    MscLineAttr &operator +=(const MscLineAttr&a);
+    bool operator == (const MscLineAttr &a);
+
+    //functions about line style
     bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);}
     bool IsDouble() const {_ASSERT(type.first); return IsLineTypeDouble(type.second);}
     bool IsTriple() const {_ASSERT(type.first); return IsLineTypeTriple(type.second);}
@@ -235,12 +242,10 @@ public:
     double DoubleSpacing() const     {_ASSERT(IsDouble()&&width.first); return width.second;}
     double TripleSpacing() const     {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.5:2.0);}
     double TripleMiddleWidth() const {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.0:1.0);}
+    double LineWidth() const {_ASSERT(type.first && width.first); return width.second * LineWidthMultiplier(type.second);}
     const double * DashPattern(int &num) const;
-    MscLineAttr &operator +=(const MscLineAttr&a);
-    bool operator == (const MscLineAttr &a);
-    double LineWidth() const {_ASSERT(type.first && width.first);
-         return width.second * (type.second==LINE_NONE ? 0 : type.second==LINE_DOUBLE ? 3 :
-             type.second==LINE_TRIPLE ? 5 : type.second==LINE_TRIPLE_THICK ? 6 : 1);}
+    double RadiusIncMul() const {_ASSERT(type.first); return ::RadiusIncMultiplier(corner.second);}
+
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
