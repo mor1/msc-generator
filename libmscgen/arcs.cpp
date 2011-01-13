@@ -25,7 +25,7 @@
 using namespace std;
 
 TrackableElement::TrackableElement(const TrackableElement&o) :
-    linenum_final(o.linenum_final), area(o.area), yPos(o.yPos), 
+    linenum_final(o.linenum_final), area(o.area), yPos(o.yPos),
     area_draw(o.area_draw), draw_is_different(o.draw_is_different)
 {
     area.arc = this;
@@ -54,11 +54,13 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     type(t), chart(msc), valid(true), compress(false), parallel(false), area_draw_is_frame(false)
 {
     if (msc) compress = msc->Contexts.back().compress;
+    had_add_attr_list = false;
 }
 
 //l can be an empty list
 ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 {
+    had_add_attr_list = true;
     if (l==NULL || !valid) return this;
     for (AttributeList::iterator i=l->begin(); i!=l->end(); i++)
         AddAttribute(**i);
@@ -118,6 +120,7 @@ string ArcBase::PrintType(void) const
 
 void ArcBase::PostPosProcess(double autoMarker)
 {
+    _ASSERT(had_add_attr_list);
     if (valid) {
         if (!area.IsEmpty()) {
             area = area.CreateExpand(chart->trackExpandBy);
@@ -176,13 +179,18 @@ ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
 
 ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
 {
-    if (l==NULL || !valid) return this;
+    if (!valid) return this;
     //Find label attribute
     file_line linenum_label;
-    for (AttributeList::iterator i = l->begin(); i!=l->end(); i++)
-        if ((*i)->Is("label")) linenum_label = (*i)->linenum_value.start;
+    if (l)
+        for (AttributeList::iterator i = l->begin(); i!=l->end(); i++)
+            if ((*i)->Is("label")) linenum_label = (*i)->linenum_value.start;
     //Add attributest first
     ArcBase::AddAttributeList(l);
+    //Make style.text complete using the default text formatting in the context as default
+    StringFormat to_use(chart->Contexts.back().text);
+    to_use += style.text;
+    style.text = to_use;
     //Then convert color and style names in labels
     if (label.length()>0)
         StringFormat::ExpandColorAndStyle(label, chart, linenum_label, &style.text,
@@ -1308,7 +1316,7 @@ void ArcVerticalArrow::Draw()
 ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
-    emphasis(NULL), follow(true), first(NULL), pipe(false), 
+    emphasis(NULL), follow(true), first(NULL), pipe(false),
     drawEntityLines(true), drawing_variant(1)
 {
     src = chart->FindAllocEntity(s, sl, &valid);
@@ -1407,13 +1415,13 @@ ArcEmphasis* ArcEmphasis::AddFollow(ArcEmphasis*f)
     if (valid && pipe) {
         if (f->style.fromright.first) {
             f->style.fromright.first = false;
-            chart->Error.Error(f->file_pos.start, 
+            chart->Error.Error(f->file_pos.start,
                                "Attribute 'fromright' can only be specified in the first "
                                "element in a pipe series. Ignoring it in subsequent ones.");
         }
         if (f->style.line.radius.first) {
             f->style.line.radius.first = false;
-            chart->Error.Error(f->file_pos.start, 
+            chart->Error.Error(f->file_pos.start,
                                "Attribute 'line.radius' can only be specified in the first "
                                "element in a pipe series. Ignoring it in subsequent ones.");
         }
@@ -1447,7 +1455,7 @@ struct pipe_compare
     bool operator ()(const ArcEmphasis *p1, const ArcEmphasis *p2) const {
         EIterator min1 = chart->EntityMinMaxByPos(p1->src, p1->dst, fromright);
         EIterator min2 = chart->EntityMinMaxByPos(p2->src, p2->dst, fromright);
-        if (min1==min2) return false; //equals are not less 
+        if (min1==min2) return false; //equals are not less
         return min1 == chart->EntityMinMaxByPos(min1, min2, fromright);
     }
 };
@@ -1518,7 +1526,7 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
 
         //increase the radius everywhere by the thickest lw (if it is not zero)
         if (style.line.radius.second>0)
-            for (auto i = follow.begin(); i!=follow.end(); i++) 
+            for (auto i = follow.begin(); i!=follow.end(); i++)
                 (*i)->style.line.radius.second += lw_max;
 
         //set e1 and e2 to real leftmost and rightmost entity affected
@@ -1539,11 +1547,11 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
             //Set flags if we are adjacent to previous one
             auto i_prev = i;
             i_prev--;
-            if ((style.fromright.second && (*i_prev)->dst == (*i)->src) || 
+            if ((style.fromright.second && (*i_prev)->dst == (*i)->src) ||
                 (!style.fromright.second && (*i_prev)->src == (*i)->dst)) {
                 (*i)->pipe_connect_back = true;
                 (*i_prev)->pipe_connect_forw = true;
-            } else if ((style.fromright.second && chart->EntityMaxByPos((*i_prev)->dst, (*i)->src) != (*i)->src) || 
+            } else if ((style.fromright.second && chart->EntityMaxByPos((*i_prev)->dst, (*i)->src) != (*i)->src) ||
                       (!style.fromright.second && chart->EntityMinByPos((*i_prev)->src, (*i)->dst) != (*i)->dst)) {
                 chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
                                      " It may not look so good.",
@@ -1621,10 +1629,10 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             bool connect_left = style.fromright.second ? (*i)->pipe_connect_back : (*i)->pipe_connect_forw;
             bool connect_right = style.fromright.second ? (*i)->pipe_connect_forw : (*i)->pipe_connect_back;
             //Check if we are connecting to a neighbour pipe segment
-            if (connect_left) 
+            if (connect_left)
                 (*i)->left_space = 0;
-            else 
-                distances.Insert((*(*i)->src)->index, DISTANCE_LEFT, 
+            else
+                distances.Insert((*(*i)->src)->index, DISTANCE_LEFT,
                                  (*i)->left_space + ilw + (*i)->style.line.radius.second +
                                  chart->compressGap);
             //add shadow to the right size only if we are the rightmost entity
@@ -1632,10 +1640,10 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             if ((style.fromright.second && i==--follow.end()) ||
                 (!style.fromright.second && i==follow.begin()))
                 shadow_to_add = (*i)->style.shadow.offset.second;
-            if (connect_right) 
+            if (connect_right)
                 (*i)->right_space = 0;
             else
-                distances.Insert((*(*i)->dst)->index, DISTANCE_RIGHT, 
+                distances.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
                                  (*i)->right_space + ilw + (*i)->style.line.radius.second +
                                  chart->compressGap + shadow_to_add);
         }
@@ -1730,7 +1738,7 @@ double ArcEmphasis::Height(AreaList &cover)
                 (*i)->dx_text -= style.line.radius.second;
             else
                 (*i)->sx_text += style.line.radius.second;
-            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text); 
+            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
             // omit text cover for pipes if the pipe is fully opaque,
             // in that case content can be drawn at same position as label - opaque pipe will cover anyway
             double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
@@ -1793,17 +1801,17 @@ double ArcEmphasis::Height(AreaList &cover)
             //Do front end, and whole_line
             if ((*i)->pipe_connect_forw) {
                 (*i)->area = (*i)->pipe_shadow;
-                if (emphasis && (*i)->style.solid.second < 255) 
+                if (emphasis && (*i)->style.solid.second < 255)
                     (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
                 //We take a big, unshrunken back-end out of fill: (this will be the next segments outer edge)
                 if (rad.x>0) {
                     (*i)->pipe_body_fill -= forw_end;
                     (*i)->area -= forw_end;
-                    //below we need to first expand forw_end before substracting it 
+                    //below we need to first expand forw_end before substracting it
                     //the other way is not ok: Expand fails in expanding negative arcs
                     if (emphasis && (*i)->style.solid.second < 255) {
-                        (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth); 
-                        (*i)->area_draw *= Contour(style.fromright.second ? 0 : chart->total.x, cd.x, 
+                        (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth);
+                        (*i)->area_draw *= Contour(style.fromright.second ? 0 : chart->total.x, cd.x,
                                                    -chart->trackFrameWidth-1, total_height+chart->trackFrameWidth+1);
                     }
                 }
@@ -1818,7 +1826,7 @@ double ArcEmphasis::Height(AreaList &cover)
             } else {
                 //No connection, we draw this end, too
                 if (rad.x>0) {
-                    (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2.); 
+                    (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2.);
                     (*i)->pipe_whole_line = (*i)->pipe_body_line + Area(forw_end.CreateExpand(gap_for_line));
                     (*i)->pipe_body_line -= forw_end.CreateExpand(gap_for_line);
 
@@ -1826,7 +1834,7 @@ double ArcEmphasis::Height(AreaList &cover)
                     (*i)->pipe_shadow += forw_end;
                     (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line).GetFirst();
                     (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill).GetFirst();
-                    (*i)->pipe_hole_curve = Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 
+                    (*i)->pipe_hole_curve = Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0,
                                                  style.fromright.second?270:90, style.fromright.second?90:270);
                 } else {
                     //just chop off from fill and line
@@ -1839,7 +1847,7 @@ double ArcEmphasis::Height(AreaList &cover)
                     (*i)->pipe_hole_curve = Edge(); //wont draw anything
                 }
                 (*i)->area = (*i)->pipe_shadow;
-                if (emphasis && (*i)->style.solid.second < 255) 
+                if (emphasis && (*i)->style.solid.second < 255)
                     (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
             }
             //Finalize covers
@@ -1901,11 +1909,11 @@ double ArcEmphasis::Height(AreaList &cover)
                     Block b(sx, dx, y+lw, lw+y+style.line.radius.second*4);
                     MscLineAttr limiter_line(style.line);
                     limiter_line.radius.second += chart->compressGap;
-                    limit += Block(sx, dx, 0, y+lw+limiter_line.radius.second) - 
+                    limit += Contour(Block(sx, dx, 0, y+lw+limiter_line.radius.second)) -
                              limiter_line.CreateRectangle(b);
                     if (style.line.corner.second == CORNER_NOTE) {
                         const double r = style.line.radius.second + chart->compressGap;
-                        limit += Contour(b.x.till-r, b.y.from, b.x.till-r, b.y.from+r, 
+                        limit += Contour(b.x.till-r, b.y.from, b.x.till-r, b.y.from+r,
                                          b.x.till, b.y.from+r);
                     }
                 }
@@ -1919,7 +1927,7 @@ double ArcEmphasis::Height(AreaList &cover)
                 Block b(sx, dx, 0, y);
                 MscLineAttr limiter_line(style.line);
                 limiter_line.radius.second += chart->compressGap;
-                const Area bottom = Block(sx, dx, limiter_line.radius.second+1, y+1) - 
+                const Area bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -
                               limiter_line.CreateRectangle(b);
                 double tp;
                 double off = content_cover.OffsetBelow(bottom, tp);
@@ -1943,7 +1951,7 @@ double ArcEmphasis::Height(AreaList &cover)
             if (i==--follow.end())
                 (*i)->height_w_lower_line = (*i)->height + lw;
             else
-                (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.line.LineWidth(); 
+                (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.line.LineWidth();
         } /* for cycle through segments */
         //Final advance of linewidth, the inner edge (y) is on integer
         total_height = y + lw - yPos;
@@ -2019,7 +2027,7 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
         for (auto i = follow.begin(); i!=follow.end(); i++)
             chart->HideEntityLines((*i)->pipe_shadow);
     } else {
-        //For boxes we always add the background first then the content
+        //For boxes we always add the background cover first then the content
         //And we do this for each segment sequentially
         for (auto i = follow.begin(); i!=follow.end(); i++)
             if ((*i)->valid) {
@@ -2028,7 +2036,7 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
                     chart->PostPosProcessArcList(*(*i)->emphasis, autoMarker);
             }
 
-        //Hide entity lines during the lines inside the box    
+        //Hide entity lines during the lines inside the box
         for (auto i = ++follow.begin(); i!=follow.end(); i++) {
             chart->HideEntityLines((*i)->text_cover);
             if ((*i)->style.line.IsDoubleOrTriple()) {
@@ -2037,12 +2045,14 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
                     (*j)->status.HideRange(r);
             }
         }
+        //hide the entity lines under the label of the first segment (not handled above)
+        chart->HideEntityLines(text_cover);
         //hide top and bottom line if double
         if (style.line.IsDoubleOrTriple()) {
             const double lw = style.line.LineWidth();
             const double r_in = style.line.radius.second; //radius for inner edge
             const double r_out = r_in + lw * style.line.RadiusIncMul(); //radius for outer edge
-            Block b(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space, 
+            Block b(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space,
                     yPos, yPos+total_height); //The outer edge of the lines
             switch (style.line.corner.second) {
             case CORNER_BEVEL:
@@ -2091,7 +2101,7 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
 //backside is the small oval visible form the back of the pipe
 //this->yPos is the outer edge of the top line
 //this->left_space and right_space includes linewidth
-void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text, 
+void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text,
                            double next_lw)
 {
     if (shadow) {
@@ -2122,7 +2132,7 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
     }
     if (topSideLine) {
         cairo_line_join_t t = chart->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
-        Contour clip(0, pipe_block.x.till, 0, chart->total.y);  
+        Contour clip(0, pipe_block.x.till, 0, chart->total.y);
         if (style.line.radius.second>0 && pipe_connect_forw) {
             const double x = style.fromright.second ? pipe_block.x.till : pipe_block.x.from;
             const XY c(x, pipe_block.y.MidPoint());
@@ -2156,7 +2166,7 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
         chart->UnClip();
         chart->SetLineJoin(t);
     }
-    if (text) 
+    if (text)
         parsed_label.Draw(sx_text, dx_text, y_text);
 }
 
@@ -2165,14 +2175,14 @@ void ArcEmphasis::Draw()
     if (!valid) return;
     if (pipe) {
         //First shadows
-        for (auto i = follow.begin(); i!=follow.end(); i++) 
+        for (auto i = follow.begin(); i!=follow.end(); i++)
             (*i)->DrawPipe(false, false, false, true, false, 0);  //dummy 0
         for (auto i = follow.begin(); i!=follow.end(); i++) {
             //Dont draw the topside fill
             //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
             //Draw the backside in any case.
             //Do not draw text
-            auto i_next = i; i_next++; 
+            auto i_next = i; i_next++;
             const double next_linewidth = i_next!=follow.end() ? (*i_next)->style.line.width.second : 0;
             (*i)->DrawPipe(false, (*i)->style.solid.second == 0, true, false, false, next_linewidth);
             if (emphasis && drawEntityLines)
@@ -2185,7 +2195,7 @@ void ArcEmphasis::Draw()
             //Draw the topside line in any case
             //Do not draw the backside (that may content arrow lines already drawn)
             //Draw the text
-            auto i_next = i; i_next++; 
+            auto i_next = i; i_next++;
             const double next_linewidth = i_next!=follow.end() ? (*i_next)->style.line.width.second : 0;
             (*i)->DrawPipe((*i)->style.solid.second > 0, true, false, false, true, next_linewidth);
         }
@@ -2196,11 +2206,11 @@ void ArcEmphasis::Draw()
         //The radius specified in style.line will be that of the inner edge of the line
         if (line.radius.second > 0)
             line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
-        Block r(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space, 
+        Block r(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space,
                 yPos, yPos+total_height); //The outer edge of the lines
-        //First draw the shadow. 
+        //First draw the shadow.
         chart->Shadow(r, line, style.shadow);
-        //Do a clip region for the overall box (for round corners) 
+        //Do a clip region for the overall box (for round corners)
         //at half a linewidth from the inner edge (use the width of a single line!)
         line.radius.second += ( -lw + style.line.width.second/2.) * style.line.RadiusIncMul();
         r.Expand(-lw+style.line.width.second/2.);
@@ -2215,7 +2225,7 @@ void ArcEmphasis::Draw()
             double dy = (*i)->yPos + (*i)->height;
             //decrease upper limit for the first one (note+triple line has areas higher than this to cover)
             //clip will cut away the not needed areas
-            if (i==follow.begin()) 
+            if (i==follow.begin())
                 sy -= lw;
             //Increase the fill area downward by half of the linewidth below us
             PtrList<ArcEmphasis>::const_iterator next = i;
@@ -2811,6 +2821,7 @@ CommandEmpty::CommandEmpty(Msc *msc) :
     ArcCommand(MSC_COMMAND_EMPTY, msc), parsed_label(msc)
 {
     StringFormat format;
+    format.Default();
     format.Apply("\\pc\\mu(10)\\md(10)\\ml(10)\\mr(10)\\c(255,255,255)\\b\\i");
     parsed_label.Set(string("\\i\\bEmpty chart"), format);
 }

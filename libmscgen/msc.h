@@ -13,6 +13,7 @@
 #include "trackable.h"
 #include "style.h"
 #include "entity.h"
+#include "mscdrawer.h"
 #include "arcs.h"
 
 using std::string;

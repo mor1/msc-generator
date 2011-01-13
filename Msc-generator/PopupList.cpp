@@ -27,6 +27,7 @@
 
 CHintListBox::CHintListBox()
 {
+    m_format.Default();
     m_format += "\\f(Courier New)\\mn(12)\\ms(8)\\pl";
     //m_format += "\\f(Arial)\\mn(24)\\ms(8)\\pl";
 }

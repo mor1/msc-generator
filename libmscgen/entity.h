@@ -1,6 +1,7 @@
 #if !defined(ENTITY_H)
 #define ENTITY_H
 
+#include "trackable.h"
 #include "style.h"
 #include "contour_area.h"
 

@@ -50,10 +50,11 @@ class Context
 public:
     bool           numbering;
     bool           compress;
+    StringFormat   text;
     StyleSet       styles;
     ColorSet       colors;
     NumberingStyle numberingStyle;
-    Context() : numbering(false), compress(false) {}
+    Context() : numbering(false), compress(false) {text.Default();}
 };
 
 class Design : public Context

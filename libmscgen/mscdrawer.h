@@ -15,6 +15,7 @@
 #include "error.h"
 #include "attribute.h"
 #include "trackable.h"
+#include "stringparse.h"
 
 #define CAIRO_OFF (0.5)
 

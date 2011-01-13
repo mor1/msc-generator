@@ -48,6 +48,7 @@ class EntityDistanceMap;
 
 class ArcBase : public TrackableElement
 {
+    bool had_add_attr_list; //XXXdebug only
 protected:
     Msc *chart;
     bool valid;        /* If false, then construction failed, arc does not exist */

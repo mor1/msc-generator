@@ -77,6 +77,11 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
         delete l;
     }
 
+    //make style.text fully specified
+    StringFormat to_use(chart->Contexts.back().text);
+    to_use += style.text;
+    style.text = to_use;
+
     if (i == chart->NoEntity) {
         double position = chart->Entity_max_pos;
         if (rel.first) {
