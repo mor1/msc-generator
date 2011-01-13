@@ -345,7 +345,8 @@ const char *const keyword_names[] = {"heading", "newpage", "nudge", "parallel",
 
 const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
-"pedantic", "background.color", "background.color2", "background.gradient", ""};
+"pedantic", "background.color", "background.color2", "background.gradient", 
+"text.color", "text.format", "text.ident", ""};
 
 const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 "pos", "relative", "show", "makeroom", "readfrom", "offset", "solid",
@@ -902,6 +903,7 @@ void Csh::ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &
 {
     if (!msc) return;
     StringFormat f;
+    f.Default();
     if (format==NULL) format = &f;
     Label label(msc);
     CshHint start("", HINT_ENTITY); //empty start

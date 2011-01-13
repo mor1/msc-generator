@@ -343,6 +343,8 @@ bool Msc::AddAttribute(const Attribute &a)
         Contexts.back().compress = a.yes;
         return true;
     }
+    if (a.StartsWith("text")) 
+        return Contexts.back().text.AddAttribute(a, this, STYLE_OPTION);
     if (a.Is("numbering")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
         Contexts.back().numbering = a.yes;
@@ -397,7 +399,8 @@ bool Msc::AddAttribute(const Attribute &a)
 //This is called when a design definition is in progress.
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
-    if (a.Is("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc"))
+    if (a.Is("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || 
+        a.StartsWith("text"))
         return AddAttribute(a);
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
                   "' as part of a design definition. Ignoring it.");
@@ -418,6 +421,7 @@ void Msc::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
+    StringFormat::AttributeNames(csh);
 }
 
 bool Msc::AttributeValues(const std::string attr, Csh &csh)
@@ -438,6 +442,8 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
+    if (CaseInsensitiveBeginsWith(attr, "text")) 
+        return StringFormat::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
         MscFillAttr::AttributeValues(attr, csh);
@@ -834,7 +840,9 @@ void Msc::CalculateWidthHeight(void)
         } else {
             total.x = XCoord((*--(Entities.end()))->pos+MARGIN)+1; //XCoord is always integer
         }
-        XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight().RoundUp();
+        StringFormat sf;
+        sf.Default(); 
+        XY crTexSize = Label(copyrightText, this, sf).getTextWidthHeight().RoundUp();
         if (total.x<crTexSize.x) total.x = crTexSize.x;
 
         copyrightTextHeight = crTexSize.y;
@@ -867,7 +875,7 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
     //If the chart ended up empty we may want to display something
     if (total.y <= chartTailGap && avoidEmpty) {
         //Add the Empty command
-        Arcs.push_front(new CommandEmpty(this));
+        Arcs.push_front((new CommandEmpty(this))->AddAttributeList(NULL));
         hscale = -1;
         //Redo calculations
         total.x = total.y = 0;
@@ -895,7 +903,9 @@ void Msc::DrawCopyrightText(int page)
     if (total.x==0 || !cr) return;
     XY size, dummy;
     GetPagePosition(page, dummy, size);
-    Label label(copyrightText, this, StringFormat());
+    StringFormat sf;
+    sf.Default();
+    Label label(copyrightText, this, sf);
     if (white_background) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
         Fill(Block(XY(0,size.y), XY(total.x,size.y+label.getTextWidthHeight().y)), fill_bkg);
@@ -910,6 +920,7 @@ void Msc::DrawPageBreaks()
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
+    format.Default();
     format.Apply("\\pr\\-");
     Label label(this);
     for (unsigned page=1; page<yPageStart.size(); page++) {

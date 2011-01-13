@@ -459,7 +459,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-        $$=$1;
+        $$=($1)->AddAttributeList(NULL);
   #endif
 }
               | arcrel full_arcattrlist_with_label
@@ -479,8 +479,11 @@ arc:           arcrel
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
         //Returns NULL, if BIG is before a self-pointing arrow
-        $$ = msc.CreateArcBigArrow($2);
+        ArcBase *arc = msc.CreateArcBigArrow($2);
+        if (arc)
+            arc->AddAttributeList(NULL);
         delete $2;
+        $$ = arc;
   #endif
     free($1);
 }
@@ -506,7 +509,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        $$ = $2;
+        $$ = ($2)->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -538,7 +541,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    $$ = new CommandEntity((new EntityDefList)->Append($1), &msc);
+    $$ = (new CommandEntity((new EntityDefList)->Append($1), &msc))->AddAttributeList(NULL);
   #endif
 }
             |  first_entity TOK_COMMA entitylist
@@ -546,7 +549,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
   #else
-    $$ = new CommandEntity(($3)->Prepend($1), &msc);
+    $$ = (new CommandEntity(($3)->Prepend($1), &msc))->AddAttributeList(NULL);
   #endif
 }
               | optlist
@@ -572,7 +575,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    $$ = $1;
+    $$ = ($1)->AddAttributeList(NULL);
   #endif
 }
               | TOK_COMMAND_DEFCOLOR colordeflist
@@ -607,7 +610,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        $$ = new CommandEntity(NULL, &msc);
+        $$ = (new CommandEntity(NULL, &msc))->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -629,7 +632,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        $$ = new ArcDivider(MSC_COMMAND_NUDGE, &msc);
+        $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -652,7 +655,7 @@ arc:           arcrel
         csh.AddCSH(@1, COLOR_KEYWORD);
         csh.AddCSH(@2, COLOR_MARKERNAME);
   #else
-        $$ = new CommandMark($2, MSC_POS(@$), &msc);
+        $$ = (new CommandMark($2, MSC_POS(@$), &msc))->AddAttributeList(NULL);
   #endif
     free($1);
     free($2);
@@ -677,7 +680,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        $$ = new CommandNewpage(&msc);
+        $$ = (new CommandNewpage(&msc))->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -805,7 +808,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         MscFillAttr fill;
         fill.Empty();
         if (a.StartsWith("background") && fill.AddAttribute(a, &msc, STYLE_OPTION)) {
-            $$ = new CommandNewBackground(&msc, fill);
+            $$ = (new CommandNewBackground(&msc, fill))->AddAttributeList(NULL);
         } else {
             msc.AddAttribute(a);
             $$ = NULL;
@@ -1227,8 +1230,9 @@ emphasis_list: first_emphasis
            | emphasis_list emphrel
 {
   #ifndef C_S_H_IS_COMPILED
+    ($2)->ChangeStyleForFollow()->AddAttributeList(NULL);
     ($2)->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow(($2)->ChangeStyleForFollow());
+    $$ = ($1)->AddFollow($2);
   #endif
 }
            | emphasis_list emphrel full_arcattrlist_with_label
@@ -1247,8 +1251,9 @@ emphasis_list: first_emphasis
            | emphasis_list emphrel braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
+    ($2)->AddArcList($3)->ChangeStyleForFollow()->AddAttributeList(NULL);
     ($2)->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow(($2)->AddArcList($3)->ChangeStyleForFollow());
+    $$ = ($1)->AddFollow($2);
   #endif
 }
            | emphasis_list braced_arclist
@@ -1291,6 +1296,7 @@ emphasis_list: first_emphasis
 first_emphasis:   emphrel
 {
   #ifndef C_S_H_IS_COMPILED
+    ($1)->AddAttributeList(NULL);
     ($1)->SetLineEnd(MSC_POS(@$));
     $$ = $1;
   #endif
@@ -1311,6 +1317,7 @@ first_emphasis:   emphrel
            | emphrel braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
+    ($1)->AddAttributeList(NULL);
     ($1)->SetLineEnd(MSC_POS(@1));
     $$ = ($1)->AddArcList($2);
   #endif
@@ -1334,7 +1341,7 @@ pipe_def_list: TOK_COMMAND_PIPE emphrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        ($2)->SetPipe()->SetLineEnd(MSC_POS(@$));
+        ($2)->SetPipe()->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@$));
         $$ = $2;
   #endif
     free($1);
@@ -1356,8 +1363,8 @@ pipe_def_list: TOK_COMMAND_PIPE emphrel
              | pipe_def_list emphrel
 {
   #ifndef C_S_H_IS_COMPILED
-    ($2)->SetPipe()->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow(($2)->ChangeStyleForFollow());
+    ($2)->SetPipe()->ChangeStyleForFollow()->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@2));
+    $$ = ($1)->AddFollow($2);
   #endif
 }
              | pipe_def_list emphrel full_arcattrlist_with_label

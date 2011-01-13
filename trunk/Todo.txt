@@ -18,6 +18,8 @@ ADD: Combined directional arrow styles such as a<->b<<>>c
 ADD: arrows in an angle
 ADD: Make divider only within a box
 ADD: Allow divider to have entities
+ADD: More arrow types --> ==> >>> ..> 
+ADD: More arrowheads
 ADD: Expand parallel behaviour
 - add valign={top, center, bottom} attribute
 - (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
@@ -35,16 +37,14 @@ Planned in 3.0
 ISSUE: missing ; at the end of last command creates an empty chart
 BUG: Change icons for file, program, etc.
 UPDATE DOC: With hints
-ADD: More arrowheads
 ADD: More BIG arrowheads
-ADD: More arrow types --> ==> >>> ..> 
 ADD: onlyforboxes side requirement for widths
 ADD: Split View for Full screen (automatically)
-ADD: SHOW and HIDE keywords
+ADD: SHOW and HIDE keywords (showexplicit flag to EntityDef)
 ADD: Add command bye so that file end can be used for comments
 ADD: Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
-ADD: Add global text.format chart option to impact all text
 FIX: note not fully OK (thick lines and entity lines)
+FIX: Any character pressed in View should be dispatched to internal editor (with focus)
 
 In 3.0
 ADDED: More precise tracking mode
@@ -52,6 +52,7 @@ ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
 ADDED: shadow attribute to block arrows
 ADDED: More space to ... dividers
 ADDED: line.corner attribute with bevel, note 
+ADDED: global text.format chart option to impact all text (can be part of a design too)
 FIXED: If we select a hint, use the hinted text, not the one in the editor (casedness)
 FIXED: allow hint when typing just before another word
 FIXED: Hints are now auto-completion
