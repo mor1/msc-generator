@@ -100,7 +100,7 @@ public:
 	bool FillDesignDesignCombo(const char *current, bool updateComboContent=false);
 	void FillDesignPageCombo(int no_pages, int page);
 	bool IsInternalEditorRunning() const {
-		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) && m_pWndEditor->IsVisible();}
+		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) /* && m_pWndEditor->IsVisible()*/;}
 
 	afx_msg void OnAppAbout();
 	afx_msg void OnEditPreferences();

@@ -41,6 +41,7 @@ CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : m_hintsPopup(parent, this)
     m_bWasReturnKey = false;
     m_bUserRequested = false;
     m_bTillCursorOnly = false;
+    m_bWasAutoComplete = false;
 }
 
 BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
@@ -695,9 +696,12 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     //cancel hints if
     //1. multiple characters selected
     //2. no hints collected
-    //3. the cursor stands at the beginning of a real nonzero len hinted word and the user did not press Ctrl+Space
-    if (start!=end || m_csh.Hints.size()==0 || 
-        (m_csh.hintedStringPos.first_pos == start && m_csh.hintedStringPos.first_pos!=m_csh.hintedStringPos.last_pos && !m_bUserRequested)) {
+    //3. If this StartHintMode is the result of an autocompletion
+    //4. the cursor stands at the beginning of a real nonzero len hinted word 
+    //   and the user did not press Ctrl+Space
+    const CshPos &p = m_csh.hintedStringPos;
+    if (start!=end || m_csh.Hints.size()==0 || m_bWasAutoComplete ||
+        (p.first_pos != p.last_pos && !m_bUserRequested && p.first_pos == start)) {
         CancelHintMode();
         return;
     }
@@ -726,7 +730,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     bool changed = m_hintsPopup.m_listBox.PreprocessHints(m_csh, (const char *)text, m_bUserRequested, m_bWasReturnKey);
     //If we are about to start hint mode due to a Ctrl+Space and we are at the end of the word under cursor, 
     //then check how many hints do we fit on and if there is only one, auto complete without
-    //popping up the 
+    //popping up the hint list
     if (!InHintMode() && m_bUserRequested && !m_bTillCursorOnly && m_csh.hintedStringPos.last_pos==s) {
         auto hit = m_csh.Hints.end();
         for (auto i = m_csh.Hints.begin(); i!=m_csh.Hints.end(); i++)
@@ -739,7 +743,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
                 else 
                     goto show_window; //this is the second such item, let us show the hint window
             }
-        if (hit!=m_csh.Hints.end())
+        if (hit!=m_csh.Hints.end()) 
             ReplaceHintedString(hit->plain.c_str(), true);
         //SetFocus();
         return;
@@ -754,6 +758,7 @@ void CCshRichEditCtrl::CancelHintMode()
     m_hintsPopup.Hide();
     m_bUserRequested = false;
     m_bTillCursorOnly = false; 
+    m_bWasAutoComplete = false;
 }
 
 void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintMode)
@@ -762,8 +767,11 @@ void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintM
     CString subst(substitute); //CancelHintMode will likely destroy "substitute"
     //Need to call before CancelHintMode before ReplaceSel, since after replace that results a call 
     //to OnCommand and we get confused, if we are still in Hint mode then
-    if (endHintMode) 
+    if (endHintMode) {
         CancelHintMode(); 
+        //Set flag So that we do not re-enter hint mode as a result of change we do below
+        m_bWasAutoComplete = true; 
+    }
     SetRedraw(false);
     SetSel(pos.first_pos, pos.last_pos);
     SetRedraw(true);
@@ -849,8 +857,14 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	ASSERT(pMainWnd!=NULL);
 	if (pMainWnd->GetActiveView() != NULL) {
 		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
-		if (pDoc != NULL && pDoc->m_ExternalEditor.IsRunning())
-			SetReadOnly();
+		if (pDoc != NULL) {
+            if (pDoc->m_ExternalEditor.IsRunning())
+                SetReadOnly();
+            pApp->m_pWndEditor->m_ctrlEditor.SetRedraw(false);
+            pApp->m_pWndEditor->m_ctrlEditor.SetSel(0,-1);
+            pApp->m_pWndEditor->m_ctrlEditor.SetRedraw(true);
+            pApp->m_pWndEditor->m_ctrlEditor.ReplaceSel(pDoc->m_itrEditing->GetText());
+        }
 	}
 
 	return 0;

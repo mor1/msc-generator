@@ -224,6 +224,7 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_CREATE()
 	ON_WM_DROPFILES()
 	ON_WM_LBUTTONDOWN()
+//    ON_WM_ACTIVATE()
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
@@ -1058,4 +1059,14 @@ BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT dropEffect, CPo
 	return TRUE;
 }
 
-
+//void CMscGenView::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
+//{
+//    CScrollView::OnActivate(nState, pWndOther, bMinimized);
+//
+//    //Set focus to internal editor
+//	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+//	ASSERT(pApp != NULL);
+//    if (nState != WA_INACTIVE)
+//        if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
+//            pApp->m_pWndEditor->SetFocus();
+//}

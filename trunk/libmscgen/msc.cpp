@@ -595,7 +595,7 @@ void Msc::HideEntityLines(const Area &area)
         if ((*i)->name == NONE_ENT_STR) continue;
         if ((*i)->name == LSIDE_ENT_STR) continue;
         if ((*i)->name == RSIDE_ENT_STR) continue;
-        double xpos = XCoord((*i)->pos);
+        double xpos = XCoord(i);
         DoubleMap<bool> hide;
         area.VerticalCrossSection(xpos, hide);  //sections of hide are true, where we need to hide
         auto j = hide.begin();
@@ -616,7 +616,7 @@ void Msc::HideEntityLines(const Block &area)
         if ((*i)->name == NONE_ENT_STR) continue;
         if ((*i)->name == LSIDE_ENT_STR) continue;
         if ((*i)->name == RSIDE_ENT_STR) continue;
-        if (area.x.IsWithin(XCoord((*i)->pos)))
+        if (area.x.IsWithin(XCoord(i)))
             (*i)->status.HideRange(area.y);
     }
 }
@@ -628,7 +628,7 @@ void Msc::DrawEntityLines(double y, double height,
     //No checking of iterators!! Call with caution
     //"to" is not included!!
     while(from != to) {
-        XY up(XCoord((*from)->pos), y);
+        XY up(XCoord(from), y);
         XY down(up.x, y);
         const double till = y+height;
         while (up.y < till) {

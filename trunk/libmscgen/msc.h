@@ -181,6 +181,7 @@ public:
     void PostParseProcess(void);
     virtual string Print(int ident=0) const;
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
+    double XCoord(EIterator i) const {_ASSERT(i!=Entities.end()); return XCoord((*i)->pos);} //rounded
 
     void HideEntityLines(const Area &area);
     void HideEntityLines(const Block &area);

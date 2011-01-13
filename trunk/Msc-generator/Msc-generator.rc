@@ -16,7 +16,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Hungarian (Hungary) resources
+// English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_HUN)
 LANGUAGE LANG_HUNGARIAN, SUBLANG_DEFAULT
@@ -412,22 +412,22 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
-        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
-        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&ut (from Internal Editor)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (from Internal Editor)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (into Internal Editor)\tCtrl+V", ID_EDIT_PASTE
         MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
         MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
         MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
-        MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
+        MENUITEM "Update drawing from &Internal Editor\tCtrl+W", ID_EDIT_UPDATE
         MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
-        MENUITEM "&Preferences...",             ID_EDIT_PREFERENCES
+        MENUITEM "Pre&ferences...",             ID_EDIT_PREFERENCES
     END
     POPUP "&View"
     BEGIN
         MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
         MENUITEM "&Errors and Warnings",        ID_VIEW_OUTPUT
-        MENUITEM "&Chart Text",                 ID_VIEW_EDITOR
+        MENUITEM "&Internal Editor",                 ID_VIEW_EDITOR
         MENUITEM SEPARATOR
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
         MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
@@ -463,15 +463,15 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
-        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
-        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&ut (from Internal Editor)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (from Internal Editor)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (into Internal Editor)\tCtrl+V", ID_EDIT_PASTE
         MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
         MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
-        MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
+        MENUITEM "Update drawing from &Internal Editor\tCtrl+W", ID_EDIT_UPDATE
         MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
-        MENUITEM "P&references...",             ID_EDIT_PREFERENCES
+        MENUITEM "Pre&ferences...",             ID_EDIT_PREFERENCES
     END
     POPUP "&View"
     BEGIN
@@ -648,8 +648,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,5,0,0
- PRODUCTVERSION 2,5,0,0
+ FILEVERSION 3,0,0,0
+ PRODUCTVERSION 3,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -666,12 +666,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "2.5.0"
+            VALUE "FileVersion", "3.0"
             VALUE "InternalName", "Msc-generator.exe"
-            VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10.  All rights reserved."
+            VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "2.5.0"
+            VALUE "ProductVersion", "3.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -788,10 +788,10 @@ STRINGTABLE
 BEGIN
     ID_EDIT_CLEAR           "Erase the selection\nErase"
     ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
-    ID_EDIT_COPY            "Copy the selection in the Chart Text pane and put it on the Clipboard\nCopy"
-    ID_EDIT_CUT             "Cut the selection in the Chart Text pane and put it on the Clipboard\nCut"
+    ID_EDIT_COPY            "Copy the selection in the Internal Editor and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection in the Internal Editor and put it on the Clipboard\nCut"
     ID_EDIT_FIND            "Find the specified text\nFind"
-    ID_EDIT_PASTE           "Insert Clipboard contents in the Chart Text pane\nPaste"
+    ID_EDIT_PASTE           "Insert Clipboard contents into the Internal Editor\nPaste"
     ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
     ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
     ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
@@ -879,7 +879,7 @@ END
 STRINGTABLE
 BEGIN
     ID_VIEW_EDITOR          "Show/Hide the Error Window\nToggle Editor Window"
-    ID_EDIT_UPDATE          "Update & redraw chart with the description currently in the Chart Text panel\nUpdate & redraw"
+    ID_EDIT_UPDATE          "Update and redraw chart with the description currently in the Internal Editor\nUpdate & redraw"
     ID_VIEW_NEXTERROR       "Go to the next error\nNext error"
 END
 

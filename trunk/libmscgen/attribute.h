@@ -221,15 +221,15 @@ public:
     std::pair<bool, MscLineType>   type;
     std::pair<bool, MscColorType>  color;
     std::pair<bool, double>        width;
-    std::pair<bool, double>        cornersize;
+    std::pair<bool, double>        radius;
     std::pair<bool, MscCornerType> corner;
     MscLineAttr();
     MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}
     MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
     MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, int r) :
-        type(true, t), color(true, c), width(true, w), corner(true, ct), cornersize(true, r) {}
-    void Empty() {type.first = color.first = width.first = corner.first = cornersize.first = false;}
-    bool IsComplete() const {return type.first && color.first && width.first && corner.first && cornersize.first;}
+        type(true, t), color(true, c), width(true, w), corner(true, ct), radius(true, r) {}
+    void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;}
+    bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;}
     void MakeComplete();
     MscLineAttr &operator +=(const MscLineAttr&a);
     bool operator == (const MscLineAttr &a);
