@@ -39,7 +39,7 @@ double ArrowHead::arrowSizePercentage[6] = {
 double ArrowHead::baseArrowWidth = 17;    /* Arrow size for BIG */
 double ArrowHead::baseArrowHeight = 10;    /* Half Arrow size for BIG */
 double ArrowHead::baseDiamondSize = 10;    /* Half Diamond size for BIG */
-double ArrowHead::baseDotSize = 9;    /* Dot cornersize for BIG */
+double ArrowHead::baseDotSize = 9;    /* Dot radius for BIG */
 
 void ArrowHead::Empty() {
     line.Empty();

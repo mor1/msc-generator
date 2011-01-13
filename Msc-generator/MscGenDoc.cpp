@@ -1271,6 +1271,7 @@ void CMscGenDoc::SetTrackMode(bool on)
         pApp->m_pWndEditor->m_ctrlEditor.SetSel(m_saved_charrange);
         pApp->m_pWndEditor->m_ctrlEditor.SetEventMask(eventmask);
         m_saved_charrange.cpMin = -1;
+        pApp->m_pWndEditor->SetFocus();
     }
 }
 

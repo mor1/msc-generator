@@ -193,7 +193,7 @@ template<> const char EnumEncapsulator<MscCornerType>::names[][ENUM_STRING_LEN] 
 
 MscLineAttr::MscLineAttr() :
     type(true, LINE_SOLID), color(true, MscColorType(0,0,0)), width(true, 1.),
-    corner(true, CORNER_NONE), cornersize(true, 0)
+    corner(true, CORNER_NONE), radius(true, 0)
 {
 }
 
@@ -203,7 +203,7 @@ void MscLineAttr::MakeComplete()
     if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255;}
     if (!width.first) {width.first = true; width.second = 1;}
     if (!corner.first) {corner.first = true; corner.second = CORNER_NONE;}
-    if (!cornersize.first) {cornersize.first = true; cornersize.second = 0;}
+    if (!radius.first) {radius.first = true; radius.second = 0;}
 }
 
 
@@ -230,8 +230,8 @@ MscLineAttr &MscLineAttr::operator +=(const MscLineAttr&a)
     if (a.type.first) type = a.type;
     if (a.color.first) color = a.color;
     if (a.width.first) width = a.width;
-    if (a.corner.first) cornersize = a.corner;
-    if (a.cornersize.first) cornersize = a.cornersize;
+    if (a.corner.first) radius = a.corner;
+    if (a.radius.first) radius = a.radius;
     return *this;
 };
 
@@ -243,8 +243,8 @@ bool MscLineAttr::operator == (const MscLineAttr &a)
     if (color.first && !(a.color.second == color.second)) return false;
     if (a.width.first != width.first) return false;
     if (width.first && a.width.second != width.second) return false;
-    if (a.cornersize.first != cornersize.first) return false;
-    if (cornersize.first && a.cornersize.second != cornersize.second) return false;
+    if (a.radius.first != radius.first) return false;
+    if (radius.first && a.radius.second != radius.second) return false;
     if (a.corner.first != corner.first) return false;
     if (corner.first && a.corner.second != corner.second) return false;
     return true;
@@ -312,16 +312,15 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         a.InvalidValueError(CandidatesFor(corner.second), msc->Error);
         return true;
     }
-    if (a.EndsWith("cornersize") || 
-        a.EndsWith("radius")) {
+    if (a.EndsWith("radius")) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
-                cornersize.first = false;
+                radius.first = false;
             return true;
         }
         if (a.CheckType(MSC_ATTR_NUMBER, msc->Error)) {
-            cornersize.second = a.number;
-            cornersize.first = true;
+            radius.second = a.number;
+            radius.first = true;
             if (!corner.first || corner.second == CORNER_NONE) {
                 corner.first = true;
                 corner.second = CORNER_ROUND;
@@ -336,7 +335,7 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void MscLineAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "line.color", "line.type", "line.width", "line.cornersize", "line.corner", ""};
+    {"", "line.color", "line.type", "line.width", "line.radius", "line.corner", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
@@ -382,8 +381,7 @@ bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForCornerType);
         return true;
     }
-    if (CaseInsensitiveEndsWith(attr, "cornersize") ||
-        CaseInsensitiveEndsWith(attr, "radius")) {
+    if (CaseInsensitiveEndsWith(attr, "radius")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
         return true;
     }
@@ -400,15 +398,15 @@ string MscLineAttr::Print(int ident) const
 }
 
 //This one does not assume anything about wether the resulting rectange should be the
-//outer edge or inner edge of the line - just uses the cornersize value and coordinates
+//outer edge or inner edge of the line - just uses the radius value and coordinates
 //as they are.
 //For CORNER_NOTE it creates the outer edge
 Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2) const
 {
     Contour ret;
-    if (!cornersize.first || cornersize.second<=0 || !corner.first) 
+    if (!radius.first || radius.second<=0 || !corner.first) 
         return Contour(x1, x2, y1, y2);
-    const double r = std::min(std::min(fabs(x1-x2)/2, fabs(y1-y2)/2), cornersize.second);
+    const double r = std::min(std::min(fabs(x1-x2)/2, fabs(y1-y2)/2), radius.second);
     switch (corner.second) {
     default: 
         return Contour(x1, x2, y1, y2);
@@ -446,22 +444,22 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
 //This assumes that we draw a rectangle at outer edge y position rect_top 
 //with the corner specified in "this".
 //And checks how much margin the text needs form the _outer_edge_ of the rectangle
-//This is at least lineWidth() (if cornersize==0)
+//This is at least lineWidth() (if radius==0)
 //return first contains the left margin and second the right one
-//This one assumes that the cornersize corresponds to the inner edge
+//This one assumes that the radius corresponds to the inner edge
 DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top) const
 {
     DoublePair ret(0,0);
     if (textCover.IsEmpty()) return ret;
     const double lw = LineWidth();
-    if (cornersize.second <= LineWidth()) return DoublePair(lw, lw);
+    if (radius.second <= LineWidth()) return DoublePair(lw, lw);
     //create a path at the inner edge of the rectangle 
     XY lr = textCover.GetBoundingBox().LowerRight();
-    Block inner(lw, cornersize.second*3, rect_top+lw, rect_top+lw +lr.y+cornersize.second*2);
-    Area inner_area = CreateRectangle(inner); //the cornersize we have in the style luckily corresponds to the inner edge
+    Block inner(lw, radius.second*3, rect_top+lw, rect_top+lw +lr.y+radius.second*2);
+    Area inner_area = CreateRectangle(inner); //the radius we have in the style luckily corresponds to the inner edge
     if (corner.second == CORNER_NOTE)
-        inner_area -= Contour(inner.x.till-cornersize.second, inner.y.from, inner.x.till-cornersize.second, 
-                              inner.y.from+cornersize.second, inner.x.till, inner.y.from+cornersize.second);
+        inner_area -= Contour(inner.x.till-radius.second, inner.y.from, inner.x.till-radius.second, 
+                              inner.y.from+radius.second, inner.x.till, inner.y.from+radius.second);
     const Range left_right = textCover.GetBoundingBox().x;
     textCover.Rotate(90);
 

@@ -47,6 +47,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_REGISTERED_MESSAGE(AFX_WM_RESETTOOLBAR, OnToolbarReset)
 	ON_COMMAND_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnApplicationLook)
 	ON_UPDATE_COMMAND_UI_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnUpdateApplicationLook)
+    ON_WM_ACTIVATE()
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -142,7 +143,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	pApp->m_pWndOutputView = &m_wndOutputView;
 
-	if (!m_ctrlEditor.Create(_T("Chart Text"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
+	if (!m_ctrlEditor.Create(_T("Internal Editor"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
 	{
 		TRACE0("Failed to create output bar\n");
@@ -219,7 +220,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	//SetWindowPos(NULL, 0, 0, 550, 300,  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 
-	if (m_ctrlEditor.IsVisible()) m_ctrlEditor.m_ctrlEditor.SetFocus();
+	if (m_ctrlEditor.IsVisible()) 
+        m_ctrlEditor.SetFocus();
 
 	EnableFullScreenMode(ID_VIEW_FULL_SCREEN);
 	EnableFullScreenMainMenu(FALSE);
@@ -514,4 +516,17 @@ void CMainFrame::OnViewFullScreen()
 
 		ShowFullScreen();
 	}
+}
+
+
+void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
+{
+    CFrameWndEx::OnActivate(nState, pWndOther, bMinimized);
+
+    //Set focus to internal editor
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (nState != WA_INACTIVE)
+        if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
+            pApp->m_pWndEditor->SetFocus();
 }

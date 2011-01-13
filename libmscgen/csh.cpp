@@ -352,7 +352,7 @@ const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color",
-"line.color", "line.type", "line.width", "line.corner", "line.cornersize", "line.radius",
+"line.color", "line.type", "line.width", "line.corner", "line.radius", 
 "vline.color", "vline.type", "vline.width",
 "fill.color", "fill.color2", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
 
@@ -692,7 +692,7 @@ bool CshHintGraphicCallbackForAttributeNames(MscDrawer *msc, CshHintGraphicParam
     const double off = 0.35*HINT_GRAPHIC_SIZE_Y;
     MscColorType color(0, 0, 0);
     MscLineAttr line;
-    line.cornersize.second = 3;
+    line.radius.second = 3;
     MscFillAttr fill(color, GRADIENT_NONE);
     msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h), line, fill);
     msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off), line, fill);
@@ -760,7 +760,7 @@ bool CshHintGraphicCallbackForDesigns(MscDrawer *msc, CshHintGraphicParam /*p*/)
     const XY br(0.8*HINT_GRAPHIC_SIZE_X, 0.8*HINT_GRAPHIC_SIZE_Y);
     MscColorType color(0, 0, 0);
     MscLineAttr line;
-    line.cornersize.second = 2;
+    line.radius.second = 2;
     msc->Clip(ul, br, line);
     cairo_pattern_t *pattern = cairo_pattern_create_linear(ul.x, ul.y, br.x, br.y);
     cairo_pattern_add_color_stop_rgb(pattern, 0.0, 255/255., 255/255., 255/255.);  //white

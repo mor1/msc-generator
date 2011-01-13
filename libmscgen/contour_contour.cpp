@@ -1354,7 +1354,7 @@ void Contour::Expand(double gap, ContourList &res) const
 		if (edges[i].valid) current_size++;
 	}
 	if (current_size==0)
-		return; //empty - all edges were removed by expand (e.g., circles with too small cornersize and gap<0)
+		return; //empty - all edges were removed by expand (e.g., circles with too small radius and gap<0)
 
 	bool once_more;
 	//Now remove edges that got reversed as long as there are none such
