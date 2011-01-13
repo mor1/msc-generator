@@ -285,12 +285,12 @@ END_MESSAGE_MAP()
 
 
 // CPopupList message handlers
-bool CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
+void CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
 {
     if (changed) {
         if (m_listBox.m_current_hints.size()==0) {
             Hide();
-            return false;
+            return;
         }
         CSize size = m_listBox.SetHintsToCurrent();
         SetWindowPos(&CWnd::wndTop, x, y, size.cx+3, size.cy+3, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
@@ -298,14 +298,13 @@ bool CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
         //not changed
         if (m_listBox.m_current_hints.size()==0) {
             _ASSERT(!m_shown);
-            return false;
+            return;
         }
         //just update window pos (should not be needed!)
         SetWindowPos(&CWnd::wndTop, x, y, 0, 0, SWP_NOOWNERZORDER | SWP_SHOWWINDOW | SWP_NOSIZE);
     } 
     m_listBox.SetStringUnderCursor(uc);
     m_shown=true;
-    return true;
 }
 
 void CPopupList::Hide() 

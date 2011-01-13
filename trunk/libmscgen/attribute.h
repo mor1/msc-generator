@@ -214,7 +214,7 @@ typedef enum {
     CORNER_NOTE
 } MscCornerType;
 
-inline double RadiusIncMultiplier(MscCornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL ?  tan(22.5*M_PI/180): t==CORNER_NOTE ? 0 : 0;}
+inline double RadiusIncMultiplier(MscCornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL || t==CORNER_NOTE ? tan(22.5*M_PI/180) : 0;}
 
 class MscLineAttr {
 public:
@@ -255,7 +255,7 @@ public:
     Contour CreateRectangle(const XY &s, const XY &d) const {return CreateRectangle(s.x, d.x, s.y, d.y);}
     Contour CreateRectangle(const Block &b) const {return CreateRectangle(b.x.from, b.x.till, b.y.from, b.y.till);}
 
-    DoublePair CalculateTextMargin(Area textCover, double rect_top, MscDrawer *debug=NULL) const; //XXX kill debug here
+    DoublePair CalculateTextMargin(Area textCover, double rect_top) const; 
 };
 
 typedef enum {

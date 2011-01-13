@@ -1598,7 +1598,7 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             chart->WidthArcList(*emphasis, d);
 
         //(*i)->src and dst contain the left and right end of a pipe
-        //The order of the pipe segments in follow depends on style.fromright, however that is irrelevant in Width()
+        //The order of the pipe segments in follow depends on style.fromright
         for (auto i = follow.begin(); i!=follow.end(); i++) {
             const double ilw = (*i)->style.line.LineWidth();
             const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->emphVGapInside;
@@ -1621,11 +1621,23 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             bool connect_left = style.fromright.second ? (*i)->pipe_connect_back : (*i)->pipe_connect_forw;
             bool connect_right = style.fromright.second ? (*i)->pipe_connect_forw : (*i)->pipe_connect_back;
             //Check if we are connecting to a neighbour pipe segment
-            if (connect_left) (*i)->left_space = 0;
-            if (connect_right) (*i)->right_space = 0;
-            if (!connect_left) distances.Insert((*(*i)->src)->index, DISTANCE_LEFT, left_space + ilw/2);
-            if (connect_right) distances.Insert((*(*i)->dst)->index, DISTANCE_RIGHT, right_space + ilw/2 +
-                                                                  (*i)->style.shadow.offset.second);
+            if (connect_left) 
+                (*i)->left_space = 0;
+            else 
+                distances.Insert((*(*i)->src)->index, DISTANCE_LEFT, 
+                                 (*i)->left_space + ilw + (*i)->style.line.cornersize.second +
+                                 chart->compressGap);
+            //add shadow to the right size only if we are the rightmost entity
+            double shadow_to_add = 0;
+            if ((style.fromright.second && i==--follow.end()) ||
+                (!style.fromright.second && i==follow.begin()))
+                shadow_to_add = (*i)->style.shadow.offset.second;
+            if (connect_right) 
+                (*i)->right_space = 0;
+            else
+                distances.Insert((*(*i)->dst)->index, DISTANCE_RIGHT, 
+                                 (*i)->right_space + ilw + (*i)->style.line.cornersize.second +
+                                 chart->compressGap + shadow_to_add);
         }
 
         //Finally add the requirements of the content
@@ -1653,7 +1665,7 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
         }
 
         max_width += 2*chart->emphVGapInside; //margin for text
-        //XXX Make segment as wide as needed to accomodate curvature...?
+        //TODO: Make box as wide as needed for the curvature?
 
         //Now d contains distance requirements within this emph box series
         //And width contains the widest
@@ -1880,22 +1892,50 @@ double ArcEmphasis::Height(AreaList &cover)
             (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
             //Advance label height
             double th = (*i)->parsed_label.getTextWidthHeight().y;
-            y += th;
-            //Draw arrows if any under the label
-            if ((*i)->emphasis)
+            //Position arrows if any under the label
+            AreaList content_cover = (*i)->text_cover;
+            if ((*i)->emphasis) {
+                Area limit = (*i)->text_cover;
+                if (i==follow.begin() && style.line.corner.second != CORNER_NONE && style.line.cornersize.second>0) {
+                    //Funnily shaped emphasis, prevent content from hitting it
+                    Block b(sx, dx, y+lw, lw+y+style.line.cornersize.second*4);
+                    MscLineAttr limiter_line(style.line);
+                    limiter_line.cornersize.second += chart->compressGap;
+                    limit += Block(sx, dx, 0, y+lw+limiter_line.cornersize.second) - 
+                             limiter_line.CreateRectangle(b);
+                    if (style.line.corner.second == CORNER_NOTE) {
+                        const double r = style.line.cornersize.second + chart->compressGap;
+                        limit += Contour(b.x.till-r, b.y.from, b.x.till-r, b.y.from+r, 
+                                         b.x.till, b.y.from+r);
+                    }
+                }
                 y = chart->PlaceListUnder((*i)->emphasis->begin(), (*i)->emphasis->end(),
-                                           y, y-th, (*i)->text_cover, compress);  //no extra margin below text
-
+                                           y+th, y, limit, compress, &content_cover);  //no extra margin below text
+            } else {
+                y += th; //no content, just add textheight
+            }
+            if (i==--follow.end() && style.line.corner.second != CORNER_NONE && style.line.cornersize.second>0) {
+                //Funnily shaped emphasis, prevent it content from hitting the bottom of the content
+                Block b(sx, dx, 0, y);
+                MscLineAttr limiter_line(style.line);
+                limiter_line.cornersize.second += chart->compressGap;
+                const Area bottom = Block(sx, dx, limiter_line.cornersize.second+1, y+1) - 
+                              limiter_line.CreateRectangle(b);
+                double tp;
+                double off = content_cover.OffsetBelow(bottom, tp);
+                if (off>0 && compress) y-=off;
+                if (off<0) y-=off;
+            }
             y += chart->emphVGapInside;
             //Make segment as tall as needed to accomodate curvature
-            if (style.line.cornersize.second>0) {
-                double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
-                if (i==follow.begin())
-                    we_need_this_much_for_radius += style.line.cornersize.second;
-                if (i==--follow.end())
-                    we_need_this_much_for_radius += style.line.cornersize.second;
-                y = std::max(y, (*i)->yPos + we_need_this_much_for_radius);
-            }
+            //if (style.line.cornersize.second>0) {
+            //    double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
+            //    if (i==follow.begin())
+            //        we_need_this_much_for_radius += style.line.cornersize.second;
+            //    if (i==--follow.end())
+            //        we_need_this_much_for_radius += style.line.cornersize.second;
+            //    y = std::max(y, (*i)->yPos + we_need_this_much_for_radius);
+            //}
             y = ceil(y);
             (*i)->height = y - (*i)->yPos;
 
@@ -1985,9 +2025,11 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
             if ((*i)->valid) {
                 (*i)->ArcLabelled::PostPosProcess(autoMarker);
                 if ((*i)->emphasis)
-                    chart->PostPosProcessArcList(*emphasis, autoMarker);
+                    chart->PostPosProcessArcList(*(*i)->emphasis, autoMarker);
             }
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
+
+        //Hide entity lines during the lines inside the box    
+        for (auto i = ++follow.begin(); i!=follow.end(); i++) {
             chart->HideEntityLines((*i)->text_cover);
             if ((*i)->style.line.IsDoubleOrTriple()) {
                 const Range r((*i)->yPos, (*i)->yPos+(*i)->style.line.LineWidth());
@@ -1995,12 +2037,52 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
                     (*j)->status.HideRange(r);
             }
         }
-        //hide bottom line if double
+        //hide top and bottom line if double
         if (style.line.IsDoubleOrTriple()) {
-            const double y = yPos+total_height;
-            const Range r(y-style.line.LineWidth(), y);
-            for (auto j=src; j!=++EIterator(dst); j++)
-                (*j)->status.HideRange(r);
+            const double lw = style.line.LineWidth();
+            const double r_in = style.line.cornersize.second; //cornersize for inner edge
+            const double r_out = r_in + lw * style.line.RadiusIncMul(); //cornersize for outer edge
+            Block b(chart->XCoord((*src)->pos) - left_space, chart->XCoord((*dst)->pos) + right_space, 
+                    yPos, yPos+total_height); //The outer edge of the lines
+            switch (style.line.corner.second) {
+            case CORNER_BEVEL:
+            case CORNER_ROUND:
+                for (auto j=src; j!=++EIterator(dst); j++) {
+                    const double x = chart->XCoord((*j)->pos);
+                    //distance from the changepoint towards the edges (=0 in edges, =r_in/out in the middle)
+                    const double x_diff_in  = std::min(std::min(x-b.x.from+lw, b.x.till-lw-x), r_in);
+                    const double x_diff_out = std::min(std::min(x-b.x.from,    b.x.till-x   ), r_out);
+                    double off_out, off_in;
+                    if (style.line.corner.second == CORNER_BEVEL) {
+                        off_out = r_out - x_diff_out;
+                        off_in = lw + r_in - x_diff_in;
+                    } else {
+                        off_out = r_out - sqrt(r_out*r_out - x_diff_out*x_diff_out);
+                        off_in = lw + r_in - sqrt(r_in*r_in - x_diff_in*x_diff_in);
+                    }
+                    const Range top   (b.y.from + off_out, b.y.from + off_in);
+                    const Range bottom(b.y.till - off_in,  b.y.till - off_out);
+                    (*j)->status.HideRange(top);
+                    (*j)->status.HideRange(bottom);
+                }
+                break;
+            case CORNER_NOTE:
+                for (auto j=src; j!=++EIterator(dst); j++) {
+                    const double x = chart->XCoord((*j)->pos);
+                    const double off_in  = x < b.x.till-r_out ? lw : r_out+lw;
+                    const double off_out = r_out - std::min(b.x.till-x, r_out);
+                    const Range top   (b.y.from + off_out, b.y.from + off_in);
+                    (*j)->status.HideRange(top);
+                }
+                /*Fallthrough*/
+            case CORNER_NONE:
+                const Range top(b.y.from, b.y.from + lw);
+                const Range bottom(b.y.till - lw, b.y.till);
+                for (auto j=src; j!=++EIterator(dst); j++) {
+                    (*j)->status.HideRange(top);
+                    (*j)->status.HideRange(bottom);
+                }
+            }
         }
     }
 }
@@ -2132,6 +2214,10 @@ void ArcEmphasis::Draw()
             //for single lines style.line.LineWidth()==style.line.width.second
             double sy = (*i)->yPos + (*i)->style.line.LineWidth() - (*i)->style.line.width.second/2.;
             double dy = (*i)->yPos + (*i)->height;
+            //decrease upper limit for the first one (note+triple line has areas higher than this to cover)
+            //clip will cut away the not needed areas
+            if (i==follow.begin()) 
+                sy -= lw;
             //Increase the fill area downward by half of the linewidth below us
             PtrList<ArcEmphasis>::const_iterator next = i;
             next++;
@@ -2139,7 +2225,8 @@ void ArcEmphasis::Draw()
                 dy += style.line.width.second/2.;
             else
                 dy += (*next)->style.line.width.second/2.;
-            chart->Fill(Block(r.x, Range(sy, dy)), (*i)->style.fill);
+            //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
+            chart->Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
             //if there are contained entities, draw entity lines, strictly from inside of line
             if ((*i)->emphasis && (*i)->drawEntityLines)
                 chart->DrawEntityLines((*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), src, ++EIterator(dst));

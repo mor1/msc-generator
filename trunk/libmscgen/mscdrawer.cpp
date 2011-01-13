@@ -534,6 +534,26 @@ void MscDrawer::Clip(const EllipseData &ellipse)
     cairo_clip(cr);
 }
 
+void MscDrawer::Clip(const Block &b, const MscLineAttr &line)
+{
+    _ASSERT(line.IsComplete());
+    cairo_save(cr);
+    if (line.corner.second == CORNER_NOTE && line.IsDoubleOrTriple()) {
+        //spacing from the line midpoint to the midpoint of the outer line of a double/triple line
+        const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
+        const double r = line.cornersize.second + spacing * (line.IsDouble() ? 0 : RadiusIncMultiplier(CORNER_NOTE)); //expand cornersize
+        //Add main body as a closed path
+        (Contour(b) - Block(b.x.till-r, b.x.till, b.y.from, b.y.from+r)).Path(cr);
+        const double r1 = line.cornersize.second - spacing * (line.IsDouble() ? 2 : 1-RadiusIncMultiplier(CORNER_NOTE)); //expand cornersize
+        const double r2 = spacing * (line.IsDouble() ? 1./RadiusIncMultiplier(CORNER_NOTE) - 1. : - 1);
+        //Add little triangle as a path
+        Contour(XY(b.x.till-r1, b.y.from+r2),XY(b.x.till-r1, b.y.from+r1), XY(b.x.till-r2, b.y.from+r1)).Path(cr);
+    } else {
+        RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
+    }
+    cairo_clip(cr);
+}
+
 //rotates such that a 
 void MscDrawer::Transform_Rotate90(double s, double d, bool clockwise)
 {
@@ -593,6 +613,8 @@ void MscDrawer::SetLineAttr(MscLineAttr line)
         SetColor(line.color.second);
     if (line.width.first)
         cairo_set_line_width(cr, line.width.second);
+    if (line.type.first)
+        SetDash(line, 0);
 }
 
 void MscDrawer::SetDash(MscLineAttr line, double pattern_offset)
@@ -1052,25 +1074,27 @@ void MscDrawer::Line(const Block &b, const MscLineAttr &line)
             Block bb(b);
             MscLineAttr line2(line);
             bb.Expand(spacing);
-            line2.cornersize.second += spacing * RadiusIncMultiplier(CORNER_BEVEL);
+            line2.cornersize.second += spacing * (line.IsDouble() ? -RadiusIncMultiplier(CORNER_NOTE) : RadiusIncMultiplier(CORNER_NOTE));
             singleLine(bb, line2);
             bb.Expand(-2*spacing);
-            const double r = line.cornersize.second - spacing * RadiusIncMultiplier(CORNER_BEVEL); 
+            const double r = line.cornersize.second - spacing * (line.IsDouble() ? 1 : 0); 
             Area inner = bb - Contour(bb.x.till-r, bb.x.till, bb.y.from, bb.y.from+r);
             singleLine(inner, line);
         } else {
             const double r = line.cornersize.second;
             singleLine(b, line);
-            singleLine(XY(b.x.till-r, b.y.from), XY(b.x.till-r, b.y.from+r), line);
-            singleLine(XY(b.x.till-r, b.y.till+r), XY(b.x.till, b.y.from+r), line);
+            LineOpen(Contour(XY(b.x.till, b.y.from+r), XY(b.x.till-r, b.y.from+r), XY(b.x.till-r, b.y.from)), line);
         }
         if (line.IsDouble()) {
-            const double r = line.cornersize.second - spacing * RadiusIncMultiplier(CORNER_BEVEL);
-            singleLine(Contour(XY(b.x.till-r, b.y.from+spacing),XY(b.x.till-r, b.y.from+r), XY(b.x.till-spacing, b.y.from+r)), line);
+            const double r1 = line.cornersize.second - 2*spacing;
+            const double r2 = spacing / RadiusIncMultiplier(CORNER_NOTE);
+            singleLine(Contour(XY(b.x.till-r1, b.y.from+r2),XY(b.x.till-r1, b.y.from+r1), XY(b.x.till-r2, b.y.from+r1)), line);
         } else if (line.IsTriple()) {
             MscLineAttr line2(line);
             line2.type.second = LINE_SOLID;
-            singleLine(b, line2);
+            if (line.type.second == LINE_TRIPLE_THICK)
+                line2.width.second *= 2;
+            Line(b, line2);
         }
     }
 }
@@ -1432,14 +1456,7 @@ void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
     if (shadow.offset.second==0) return;
 	if (!shadow.color.second.valid || shadow.color.second.a==0) return;
     //For now just call the other Shadow Routine
-    //But add half the blur to the cornersize if we are no corner or rounded
-    MscLineAttr line_blur(line);
-    if (line_blur.cornersize.second<0) line_blur.cornersize.second = 0;
-    if (shadow.blur.second==0 || line.corner.second==CORNER_ROUND) {
-        line_blur.cornersize.second += shadow.blur.second/2.;
-        line_blur.corner.second = CORNER_ROUND;
-    }
-    Shadow(line_blur.CreateRectangle(b), shadow);
+    Shadow(line.CreateRectangle(b), shadow);
     return;
 
     // chopped corners needed to be added here
