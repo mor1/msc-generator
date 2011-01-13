@@ -168,10 +168,10 @@ void CDrawingChartData::CompileIfNeeded(bool doEMF) const
 	//Do postparse, compile, calculate sizes and sort errors by line    
 	m_msc->CompleteParse(doEMF ? MscDrawer::WMF : MscDrawer::WMF, true);
 
+	m_hemf_is_true_emf = doEMF;
 	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
 	Draw(hdc, doEMF, pApp->m_bPB_Editing);
 	m_hemf = CloseEnhMetaFile(hdc);
-	m_hemf_is_true_emf = doEMF;
 }
 
 unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {
