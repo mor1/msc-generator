@@ -16,9 +16,7 @@ public:
     MscColorType() : r(0), g(0), b(0), a(255), valid(false) {}
     MscColorType(unsigned char R, unsigned char G, unsigned char B, unsigned char A=255) :
         r(R), g(G), b(B), a(A), valid(true) {}
-    explicit MscColorType(const std::string&);
-    explicit MscColorType(void*);
-    operator void*() const;
+        MscColorType(const std::string&);
     bool operator==(const MscColorType &x) const
         {return (r==x.r && g==x.g && b==x.b && a==x.a && valid && x.valid) ||
                 (!valid && !x.valid);}

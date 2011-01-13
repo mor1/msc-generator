@@ -208,7 +208,7 @@ CSize CDrawingChartData::GetSize() const
 {
 	XY offset, size;
 	GetMsc()->GetPagePosition(int(m_page)-1, offset, size);
-    return CSize(GetMsc()->total.x, size.y + GetMsc()->copyrightTextHeight);
+    return CSize(GetMsc()->totalWidth, size.y + GetMsc()->copyrightTextHeight);
 }
 
 double CDrawingChartData::GetPageYShift() const
@@ -268,9 +268,9 @@ TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 	CompileIfNeeded();
 	if (m_page>0)
 		point.y += m_msc->yPageStart[m_page];
-    const Area *area = m_msc->AllCovers.InWhichFromBack(XY(point.x, point.y));
-	if (area==NULL) return NULL;
-	return area->arc;
+	const Block *block = InWhich(m_msc->AllCovers, XY(point.x, point.y));
+	if (block==NULL) return NULL;
+	return block->arc;
 }
 
 TrackableElement *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const

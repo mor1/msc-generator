@@ -24,42 +24,32 @@
 
 using namespace std;
 
-TrackableElement::TrackableElement(const TrackableElement&o) :
-    linenum_final(o.linenum_final), area(o.area), yPos(o.yPos), 
-    area_draw(o.area_draw), draw_is_different(o.draw_is_different)
-{
-    area.arc = this;
-    area_draw.arc = this;
-}
-
-void TrackableElement::SetLineEnd(file_line_range l, bool f)
-{
-    if (linenum_final) return;
-    linenum_final = f;
-    file_pos = l;
-}
-
-void TrackableElement::ShiftBy(double y)
-{
-    if (y==0) return;
-    area.Shift(XY(0, y));
-    area_draw.Shift(XY(0, y));
-    yPos+=y;
-}
-
-
 //template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
-    type(t), chart(msc), valid(true), compress(false), parallel(false), area_draw_is_frame(false)
+    type(t), chart(msc), valid(true), compress(false), parallel(false), yPos(0)
 {
-    if (msc) compress = msc->Contexts.back().compress;
+    if (msc)
+        compress = msc->Contexts.top().compress;
 }
+
+//Helper function. If the pos of *value is smaller (or larger) than i
+//if one of the elements is .end() always the other is returned, different
+//from operator < above (where .end() is smaller)
+EIterator ArcBase::MinMaxByPos(EIterator i, EIterator j, bool min)
+{
+    if (j==chart->NoEntity) return i;
+    if (i==chart->NoEntity) return j;
+    if (min ^ ((*i)->pos < (*j)->pos))
+        return j;
+    else
+        return i;
+};
 
 //l can be an empty list
 ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 {
-    if (l==NULL || !valid) return this;
+    if (l==NULL) return this;
     for (AttributeList::iterator i=l->begin(); i!=l->end(); i++)
         AddAttribute(**i);
     delete l;
@@ -87,23 +77,6 @@ bool ArcBase::AddAttribute(const Attribute &a)
     return false;
 }
 
-void ArcBase::AttributeNames(Csh &csh)
-{
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
-}
-
-bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"compress")||
-        CaseInsensitiveEqual(attr,"parallel")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "no", HINT_ATTR_VALUE));
-        return true;
-    }
-    return false;
-}
-
 string ArcBase::PrintType(void) const
 {
     static const char arcnames[][25] = {
@@ -116,16 +89,10 @@ string ArcBase::PrintType(void) const
     return arcnames[int(type)-1];
 }
 
-void ArcBase::PostPosProcess(double autoMarker)
+void ArcBase::PostHeightProcess(void)
 {
-    if (valid) {
-        if (!area.IsEmpty()) {
-            area = area.CreateExpand(chart->trackExpandBy);
-            chart->AllCovers += area;
-        }
-        if (draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
-            area_draw = area_draw.CreateExpand(chart->trackExpandBy);
-    }
+    if (valid)
+        chart->AllCovers.insert(chart->AllCovers.end(), geometry.GetCover().begin(), geometry.GetCover().end());
     chart->AllArcs[file_pos] = this;
 }
 
@@ -134,7 +101,7 @@ void ArcBase::PostPosProcess(double autoMarker)
 
 //Take numbering style from the current context
 ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
-    ArcBase(t, msc), style(s), numberingStyle(msc->Contexts.back().numberingStyle),
+    ArcBase(t, msc), style(s), numberingStyle(msc->Contexts.top().numberingStyle),
 	parsed_label(msc), concrete_number(-1)
 {
     style.type = STYLE_ARC;
@@ -142,41 +109,41 @@ ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
     //current chart option.
     if (!style.numbering.first) {
         style.numbering.first = true;
-        style.numbering.second = msc->Contexts.back().numbering;
+        style.numbering.second = msc->Contexts.top().numbering;
     }
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-		style += msc->Contexts.back().styles["->"]; break;
+		style += msc->Contexts.top().styles["->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += msc->Contexts.back().styles[">"]; break;
+        style += msc->Contexts.top().styles[">"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += msc->Contexts.back().styles[">>"]; break;
+        style += msc->Contexts.top().styles[">>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += msc->Contexts.back().styles["=>"]; break;
+        style += msc->Contexts.top().styles["=>"]; break;
     case MSC_EMPH_SOLID:
-        style += msc->Contexts.back().styles["--"]; break;
+        style += msc->Contexts.top().styles["--"]; break;
     case MSC_EMPH_DASHED:
-        style += msc->Contexts.back().styles["++"]; break;
+        style += msc->Contexts.top().styles["++"]; break;
     case MSC_EMPH_DOTTED:
-        style += msc->Contexts.back().styles[".."]; break;
+        style += msc->Contexts.top().styles[".."]; break;
     case MSC_EMPH_DOUBLE:
-        style += msc->Contexts.back().styles["=="]; break;
+        style += msc->Contexts.top().styles["=="]; break;
     case MSC_EMPH_UNDETERMINED_FOLLOW:
         break; /*do nothing*/
     case MSC_ARC_DIVIDER:
-        style += msc->Contexts.back().styles["---"]; break;
+        style += msc->Contexts.top().styles["---"]; break;
     case MSC_ARC_DISCO:
-        style += msc->Contexts.back().styles["..."]; break;
+        style += msc->Contexts.top().styles["..."]; break;
     };
 }
 
 ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
 {
-    if (l==NULL || !valid) return this;
+    if (l==NULL) return this;
     //Find label attribute
     file_line linenum_label;
     for (AttributeList::iterator i = l->begin(); i!=l->end(); i++)
@@ -242,7 +209,7 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         }
         //We have a string as number - it may be a roman number or abc
         int num;
-        int off = chart->Contexts.back().numberingStyle.Last().Input(a.value, num);
+        int off = chart->Contexts.top().numberingStyle.Last().Input(a.value, num);
         //off is how many characters we could not understand at the end of a.value
         if (off == a.value.length()) {
             //No characters understood
@@ -271,35 +238,7 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
     if (ArcBase::AddAttribute(a)) return true;
     a.InvalidAttrError(chart->Error);
     return false;
-}
-
-void ArcLabelled::AttributeNames(Csh &csh)
-{
-    ArcBase::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", HINT_ATTR_NAME));
-    csh.AddStylesToHints();
-}
-
-bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"label")) {
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    if (ArcBase::AttributeValues(attr, csh)) return true;
-    return false;
-}
+};
 
 string ArcLabelled::Print(int ident) const
 {
@@ -307,11 +246,10 @@ string ArcLabelled::Print(int ident) const
     ss << string(ident*2, ' ');
     ss << PrintType().append(":").append(label);
     return ss;
-}
+};
 
 void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
     at_top_level = top_level;
     string num;
     string pre_num_post;
@@ -342,20 +280,6 @@ void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering 
         compress = style.compress.second;
 }
 
-void ArcArrow::AttributeNames(Csh &csh)
-{
-    ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
-    style.AttributeNames(csh);
-}
-
-bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
-{
-    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
-    if (style.AttributeValues(attr, csh)) return true;
-    if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    return false;
-}
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
@@ -384,46 +308,78 @@ string ArcSelfArrow::Print(int ident) const
 
 void ArcSelfArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
-    left = chart->EntityMinByPos(left, src);
-    right = chart->EntityMaxByPos(right, src);
+    left = MinMaxByPos(left, src, true);    //true=Min
+    right = MinMaxByPos(right, src, false); //false=Max
 }
 
 void ArcSelfArrow::Width(EntityDistanceMap &distances)
 {
-    if (!valid) return;
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375));
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x);
 }
 
-double ArcSelfArrow::Height(AreaList &cover)
+double ArcSelfArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
-    yPos = 0;
-    xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START);
-    xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
-    xy_s.y = ceil(xy_s.y);
-    xy_e.y = ceil(xy_e.y);
-    XY wh(ceil(chart->XCoord(0.375)), ceil(2*YSize));
-    dx = chart->XCoord((*src)->pos);
-    sx = 0;
+    if (final) yPos = y;
+    if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
-    double y = chart->arcVGapAbove;
-    area = parsed_label.Cover(sx, dx, y);
-    area += Block(dx, ceil(dx+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
-    area.mainline = Range(y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
+    double dx = chart->XCoord((*src)->pos);
+    double sx = 0;
 
-    cover = area;
-    return area.GetBoundingBox().y.till + chart->arcVGapBelow;
+    const XY xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END, chart);
+    const XY xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START, chart);
+
+    y  += chart->arcVGapAbove;
+
+    //inserts elements into cover only if not drawing
+    parsed_label.DrawCovers(sx, dx, y, geometry, draw);
+    XY wh(chart->XCoord(0.375), 2*YSize);
+
+    if (!draw) {
+        Block b;
+        b.y.from = y;
+        b.y.till = y + xy_s.y + wh.y + xy_e.y;
+        b.x.from = dx;
+        b.x.till = dx + wh.x;
+        geometry += b;
+        b.y.from = y - chart->nudgeSize/2;
+        b.y.till = y + wh.y + chart->nudgeSize/2;
+        geometry.mainline += b.y;
+        geometry.SetArc(this);
+        g += geometry;
+    }
+
+    y += xy_s.y;
+
+    if (draw) {
+        //If both params are 100 we have traditional style
+        //else rounded squares should look symmetric
+        if (style.line.radius.second < 0) {
+            wh.x *=2;
+            chart->_new_path();
+            chart->arc(XY(dx, y+YSize), wh, 270, 90, style.line);
+        } else {
+            chart->ClipRectangle(XY(dx,0), XY(chart->totalWidth, chart->totalHeight));
+            chart->rectangle(XY(0, y), XY(dx,y)+wh, style.line);
+            chart->UnClip();
+        }
+
+        style.arrow.Draw(XY(dx, y+2*YSize), false, isBidir(), MSC_ARROW_END, chart);
+        style.arrow.Draw(XY(dx, y        ), true,  isBidir(), MSC_ARROW_START, chart);
+    }
+    return max(xy_s.x + wh.y + xy_e.x, parsed_label.getTextWidthHeight().y) +
+        chart->arcVGapAbove + chart->arcVGapBelow;
 }
 
-void ArcSelfArrow::PostPosProcess(double autoMarker)
+void ArcSelfArrow::PostHeightProcess(void)
 {
+    ArcBase::PostHeightProcess();
     if (!valid) return;
-    ArcBase::PostPosProcess(autoMarker);
 
     //Check if the entity involved is actually turned on.
     if (!(*src)->status.GetStatus(yPos)) {
@@ -432,29 +388,6 @@ void ArcSelfArrow::PostPosProcess(double autoMarker)
         sss << " turned off, but referenced here.";
         chart->Error.Warning(file_pos.start, sss, "It will look strange.");
     }
-}
-
-void ArcSelfArrow::Draw()
-{
-    if (!valid) return;
-    double y = yPos + chart->arcVGapAbove;
-
-    parsed_label.Draw(sx, dx, y);
-    y += xy_s.y;
-
-    if (style.line.cornersize.second < 0) {
-        //draw an arc
-        wh.x *=2;
-        chart->Line(Edge(XY(dx, y+YSize), wh.x, wh.y, 270, 90), style.line);
-    } else {
-        //draw (part of) a rounded rectangle
-        chart->Clip(dx, chart->total.x, 0, chart->total.y);
-        chart->Line(Block(XY(0, y), XY(dx,y)+wh), style.line);
-        chart->UnClip();
-    }
-    //draw arrowheads
-    style.arrow.Draw(XY(dx, y+2*YSize), false, isBidir(), MSC_ARROW_END, chart);
-    style.arrow.Draw(XY(dx, y        ), true,  isBidir(), MSC_ARROW_START, chart);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -470,7 +403,6 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
 
 ArcArrow * ArcDirArrow::AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l)
 {
-    if (!valid) return this;
     EIterator mid;
     if (m==NULL) {
         if (((*src)->pos < (*dst)->pos) ^ forward)
@@ -522,26 +454,25 @@ string ArcDirArrow::Print(int ident) const
 
 void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
     const EIterator _left = ++chart->Entities.begin(); // leftmost entity;
     const EIterator _right = --chart->Entities.end();  // rightmost entiry
-    const EIterator our_left =  chart->EntityMinByPos(src, dst);
-    const EIterator our_right = chart->EntityMaxByPos(src, dst);
+    const EIterator our_left =  MinMaxByPos(src, dst, true);  //true=Min
+    const EIterator our_right = MinMaxByPos(src, dst, false); //false=Max
 
     //Change left and right only if they actually point to a "real entity"
     //and not (left) or (right). If they do, consider our other "end"
     if (our_left != _left)
-        left = chart->EntityMinByPos(left, our_left);
+        left = MinMaxByPos(left, our_left, true);
     else
-        left = chart->EntityMinByPos(left, our_right);
+        left = MinMaxByPos(left, our_right, true);
 
     if (our_right != _right)
-        right = chart->EntityMaxByPos(right, our_right);
+        right = MinMaxByPos(right, our_right, false);
     else
-        right = chart->EntityMaxByPos(right, our_left);
+        right = MinMaxByPos(right, our_left, false);
 
     //Insert a small extra spacing for the arrow line
     if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
@@ -586,111 +517,121 @@ void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering 
 void ArcDirArrow::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
-    //we lie about us being forward (we do not check), so we know which of first/second to use
-    DoublePair end = style.arrow.getWidths(true, isBidir(), MSC_ARROW_END, false, style.line);
-    DoublePair start = style.arrow.getWidths(true, isBidir(), MSC_ARROW_START, false, style.line);
     distances.Insert((*src)->index, (*dst)->index,
-                     end.first + start.second + parsed_label.getTextWidthHeight().x);
-    //Add distances for arrowheads
-    const bool fw = (*src)->index  <  (*dst)->index;
-    distances.Insert((*src)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, start.first);
-    distances.Insert((*dst)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, end.second);
-
-    if (middle.size()==0) return;
-    EntityDistanceMap d;
-    for (int i=0; i<middle.size(); i++) {
-        DoublePair mid = style.arrow.getWidths(true, isBidir(), MSC_ARROW_MIDDLE, false, style.line);
-        distances.Insert((*middle[i])->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, start.first);
-        distances.Insert((*middle[i])->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, end.second);
-    }
-    d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
-    distances += d;
+                     style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END, chart).x +
+                     style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START, chart).x +
+                     parsed_label.getTextWidthHeight().x);
 }
 
-MscArrowEnd ArcDirArrow::WhichArrow(int i)
-{
-    //in xPos (may not be filled up yet, index 0 will be the src and indes xpos.size()-1 will be dest
-    //in between there will be middle.size() number of middle arrows.
-    //"i" here is an index that will be used for xPos.
-    if (i>0 && i<middle.size()+1) return MSC_ARROW_MIDDLE;
-    if ((i==0) == (*src)->index  <  (*dst)->index) return MSC_ARROW_START;
-    return MSC_ARROW_END;
-}
-
-double ArcDirArrow::Height(AreaList &cover)
+double ArcDirArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
-    yPos = 0;
-    area.clear();
-    sx = chart->XCoord((*src)->pos);
-    dx = chart->XCoord((*dst)->pos);
+    if (final) yPos = y;
+    if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
-    const double lw = style.line.LineWidth();
-    const XY xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
-    const XY xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START);
+    double sx = chart->XCoord((*src)->pos);
+    double dx = chart->XCoord((*dst)->pos);
+
+    const XY xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END, chart);
+    const XY xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START, chart);
+
+    y  += chart->arcVGapAbove;
+
+    /* A regular horizontal arrow */
+    double aH  = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_MIDDLE, chart).y;
+
     //If there are middle arrows, make aH be the highest of endType/startType
     //and midType arrows.
     //If not use endType/startType only
-    double aH = max(xy_e.y, xy_s.y);
     if (middle.size()>0)
-        aH = max(aH, style.arrow.getWidthHeight(isBidir(), MSC_ARROW_MIDDLE).y);
+        aH = max(aH, max(xy_e.y, xy_s.y));
+    else
+        aH = max(xy_e.y, xy_s.y);
 
-    double y = chart->arcVGapAbove;
-    const XY text_wh = parsed_label.getTextWidthHeight();
-    if (text_wh.y) {
+    double height;
+    if (parsed_label.getTextWidthHeight().y) {
         double firstLineHeight = parsed_label.getTextWidthHeight(0).y;
         double furtherLinesHeight = parsed_label.getTextWidthHeight().y - firstLineHeight;
 
+        height = max(firstLineHeight, aH);
+        /* Part below the arrow */
+        height += max(furtherLinesHeight, aH);
+        height += chart->arcVGapAbove + chart->arcVGapBelow;
+
         //Determine coverage for the text (or draw it if we already draw)
-        if (sx<dx) {
-            sx_text = sx + xy_s.x;
-            dx_text = dx - xy_e.x;
-        } else {
-            sx_text = dx + xy_s.x;
-            dx_text = sx - xy_e.x;
-        }
-        area += text_cover = parsed_label.Cover(sx_text, dx_text, y);
-        //determine top edge position of arrow midline
-        y += std::max(aH, firstLineHeight+ARROW_TEXT_VSPACE_ABOVE);
+        if (sx<dx)
+            parsed_label.DrawCovers(sx + xy_s.x, dx - xy_e.x, y, geometry, draw);
+        else
+            parsed_label.DrawCovers(dx + xy_e.x, sx - xy_s.x, y, geometry, draw);
+        //Exclude the areas covered by the text from further drawing
+        //geometry.cover will be empty if we draw but then it is !final anyway
+        if (final) chart->HideEntityLines(geometry);
+        //determine position of arrow midline
+        y += max(aH, firstLineHeight+ARROW_TEXT_VSPACE_ABOVE+style.line.LineWidth()/2);
     } else {
         /* no text */
-        y += aH;
+        height = 2*aH + chart->arcVGapAbove + chart->arcVGapBelow;
+        y+=aH;
     }
-    centerline = y = ceil(y) + lw/2;
-    //prepare xPos and margins
-    xPos.clear(); xPos.reserve(2+middle.size());
-    margins.clear(); margins.reserve(2+middle.size());
-    xPos.push_back(sx);
-    margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_START, true, style.line));
-    for (int i=0; i<middle.size(); i++) {
-        xPos.push_back(chart->XCoord((*middle[i])->pos));
-        margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_MIDDLE, true, style.line));
-    }
-    xPos.push_back(dx);
-    margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_END, true, style.line));
-    if (sx>=dx) {
-        std::reverse(xPos.begin(), xPos.end());
-        std::reverse(margins.begin(), margins.end());
+    if (!draw) {
+        // Now y is midline of arrow. Calculate mainline and add cover block for arrow
+        Block b(min(sx,dx)+1, max(sx,dx)-1, y-aH, y+aH);
+        geometry += b;
+        b.y.from = y - chart->nudgeSize/2;
+        b.y.till = y + chart->nudgeSize/2;
+        geometry.mainline += b.y;
+        geometry.SetArc(this);
+        g += geometry;
     }
 
-    //Add arrowheads and line segments to cover
-    for (int i=0; i<xPos.size(); i++)
-        area += style.arrow.Cover(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i), style.line);
-    for (int i=0; i<xPos.size()-1; i++)
-        //x coordinates below are not integer- but this will be merged with other contours - so they disappear
-        area += Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-ceil(lw/2), y+ceil(lw/2));
-    //set mainline - not much dependent on main line with
-    area.mainline = Range(y - (chart->nudgeSize+1)/2, y + (chart->nudgeSize+1)/2);
-    cover = area;
-    return std::max(y+max(aH, lw/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
+    /* Draw the line */
+    if (draw) {
+        //all the entities this (potentially multi-segment arrow visits)
+        vector<EIterator> e(1);
+        e[0] = src;
+        e.insert(e.end(), middle.begin(), middle.end());
+        e.push_back(dst);
+        //The x-size of the arrow at each stop
+        vector<pair<double, double> > asize(1);
+        int dir = (sx<dx) ? 1 : -1;
+        asize[0] = style.arrow.getWidthForLine(isBidir(), MSC_ARROW_START, chart);
+        asize.insert(asize.end(), middle.size(), style.arrow.getWidthForLine(isBidir(), MSC_ARROW_MIDDLE, chart));
+        asize.push_back(style.arrow.getWidthForLine(isBidir(), MSC_ARROW_END, chart));
+
+        const double fy = floor(y);
+        for (unsigned i=0; i<e.size()-1; i++) {
+            const double tsx = chart->XCoord((*e[i]  )->pos);
+            const double tdx = chart->XCoord((*e[i+1])->pos);
+            chart->line(XY(tsx+dir*asize[i].second, fy), XY(tdx-dir*asize[i+1].first, fy), style.line);
+        }
+        /* Now the arrow heads */
+        style.arrow.Draw(XY(dx, fy), sx<dx, isBidir(), MSC_ARROW_END, chart);
+        style.arrow.Draw(XY(sx, fy), sx<dx, isBidir(), MSC_ARROW_START, chart);
+    }
+
+    //record where do we have to skip the entityline
+    if (final) {
+        Range hideEntityLine;
+        hideEntityLine = style.arrow.EntityLineCover(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END, chart);
+        (*dst)->status.HideRange(hideEntityLine);
+        hideEntityLine = style.arrow.EntityLineCover(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START, chart);
+        (*src)->status.HideRange(hideEntityLine);
+    }
+
+    // Do the above two things for segmented arrows
+    for (unsigned i=0; i<middle.size(); i++) {
+        const double mx = chart->XCoord((*middle[i])->pos);
+        if (draw)
+            style.arrow.Draw(XY(mx, floor(y)), sx<dx, isBidir(), MSC_ARROW_MIDDLE, chart);
+        if (final) {
+            Range hideEntityLine = style.arrow.EntityLineCover(XY(mx, y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, chart);
+            (*middle[i])->status.HideRange(hideEntityLine);
+        }
+    }
+    return height;
 }
 
-void ArcDirArrow::ShiftBy(double y)
-{
-    if (!valid) return;
-    if (y) text_cover.Shift(XY(0, y));
-    ArcArrow::ShiftBy(y);
-}
 
 void ArcDirArrow::CheckSegmentOrder(double y)
 {
@@ -731,78 +672,27 @@ void ArcDirArrow::CheckSegmentOrder(double y)
     }
 }
 
-
-void ArcDirArrow::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
-    ArcArrow::PostPosProcess(autoMarker);
-    CheckSegmentOrder(yPos+centerline);
-    //Exclude the areas covered by the text from entity lines
-    chart->HideEntityLines(text_cover);
-    //Exclude the areas covered by the arrow heads from entity lines
-    Range hideEntityLine;
-    hideEntityLine = style.arrow.EntityLineCover(XY(dx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_END);
-    (*dst)->status.HideRange(hideEntityLine);
-    hideEntityLine = style.arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_START);
-    (*src)->status.HideRange(hideEntityLine);
-    //for multi-segment arrows
-    for (unsigned i=0; i<middle.size(); i++) {
-        const double mx = chart->XCoord((*middle[i])->pos);
-        Range hideEntityLine = style.arrow.EntityLineCover(XY(mx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_MIDDLE);
-        (*middle[i])->status.HideRange(hideEntityLine);
-    }
-}
-
-void ArcDirArrow::Draw()
-{
-    if (!valid) return;
-    if (parsed_label.getTextWidthHeight().y)
-        parsed_label.Draw(sx_text, dx_text, yPos + chart->arcVGapAbove);
-    /* Draw the line */
-    //all the entities this (potentially multi-segment arrow visits)
-    const double y = yPos+centerline;  //should be integer
-    for (unsigned i=0; i<xPos.size()-1; i++)
-        chart->Line(XY(xPos[i]+margins[i].second, y), XY(xPos[i+1]-margins[i+1].first, y), style.line);
-    /* Now the arrow heads */
-    for (unsigned i=0; i<xPos.size(); i++)
-        style.arrow.Draw(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i), chart);
-}
-
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) : ArcDirArrow(dirarrow)
+ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
+    ArcDirArrow(dirarrow), content(NULL), height(0)
 {
     style = s;
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-        style += chart->Contexts.back().styles["block->"]; break;
+        style += chart->Contexts.top().styles["block->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += chart->Contexts.back().styles["block>"]; break;
+        style += chart->Contexts.top().styles["block>"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += chart->Contexts.back().styles["block>>"]; break;
+        style += chart->Contexts.top().styles["block>>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += chart->Contexts.back().styles["block=>"]; break;
+        style += chart->Contexts.top().styles["block=>"]; break;
     }
     modifyFirstLineSpacing = false;
-}
-
-void ArcBigArrow::AttributeNames(Csh &csh)
-{
-    ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true);  //no vline solid
-    style.AttributeNames(csh);
-}
-
-bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
-{
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
-    if (style.AttributeValues(attr, csh)) return true;
-    if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    return false;
 }
 
 string ArcBigArrow::Print(int ident) const
@@ -812,9 +702,20 @@ string ArcBigArrow::Print(int ident) const
 
 void ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
     ArcDirArrow::PostParseProcess(left, right, number, top_level);
+    //Check if we still play
+    if (!valid) return;
+
+    if (content) {
+        //If we have attached a number to the label of a big arrow, set flag on number,
+        //so that if we add levels inside the content of the box (before displaying any number)
+        //we continue from present value
+        if (style.numbering.second && label.length()!=0)
+            number.decrementOnAddingLevels = true;
+        chart->PostParseProcessArcList(*content, false, left, right, number, top_level);
+        number.decrementOnAddingLevels = false;
+    }
     //Finally copy the line attribute to the arrow, as well
     style.arrow.line = style.line;
 }
@@ -822,130 +723,185 @@ void ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering 
 void ArcBigArrow::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
-    //Set sy and dy
-    //sy and dy are at the midline of the line around the body.
-    //We ensure that the outer edge of the body falls on an integer value
-    const double lw = style.line.LineWidth();
-    const double aH = ceil(style.arrow.bigYExtent(isBidir(), middle.size()>0));
-    XY twh = parsed_label.getTextWidthHeight();
-    if (twh.y == 0)
-        dy += Label("M", chart, style.text).getTextWidthHeight().y;
-    sy = chart->arcVGapAbove + aH + lw/2;
-    dy = ceil(sy + lw/2 + twh.y + chart->emphVGapInside*2 + lw) - lw/2;
+    //Add distances for the content
+    if (content) {
+        EntityDistanceMap d;
+        chart->WidthArcList(*content, d);
+        //Now d contains distance requirements within this big arrow
+        d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+        d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
+        distances += d;
+    }
 
-    Area tcov = parsed_label.Cover(0, twh.x, lw/2);
-    const bool fw = (*src)->index < (*dst)->index;
-    const DoublePair start = style.arrow.getBigWidths(fw, isBidir(), MSC_ARROW_START, dy-sy);
-    const DoublePair end   = style.arrow.getBigWidths(fw, isBidir(), MSC_ARROW_END, dy-sy);
+    const double sext = style.arrow.getBigEndWidthExt(isBidir(), MSC_ARROW_START, chart);
+    const double dext = style.arrow.getBigEndWidthExt(isBidir(), MSC_ARROW_END, chart);
 
-    distances.Insert((fw ? *src : *dst)->index, DISTANCE_LEFT, start.first);
-    distances.Insert((fw ? *dst : *src)->index, DISTANCE_RIGHT, end.second);
+    const double tw = parsed_label.getTextWidthHeight().x;
 
-    //Collect iterators and distances into arrays
+    //Add external distances
+    if ((*src)->index  <  (*dst)->index) {
+        distances.Insert((*src)->index, DISTANCE_LEFT,  sext);
+        distances.Insert((*dst)->index, DISTANCE_RIGHT, dext);
+    } else {
+        distances.Insert((*src)->index, DISTANCE_RIGHT, sext);
+        distances.Insert((*dst)->index, DISTANCE_LEFT,  dext);
+    }
+
+    //Collect indeses and distances into arrays
+    std::vector<double> margins;
     std::vector<EIterator> iterators;
-    iterators.reserve(2+middle.size());
-    margins.reserve(2+middle.size()); margins.clear();
     iterators.push_back(src);
-    margins.push_back(start);
+    margins.push_back(style.arrow.getBigEndWidthMargin(isBidir(), MSC_ARROW_START, chart));
     for (int i=0; i<middle.size(); i++) {
         iterators.push_back(middle[i]);
-        margins.push_back(style.arrow.getBigWidths(fw, isBidir(), MSC_ARROW_MIDDLE, dy-sy));
+        margins.push_back(style.arrow.getBigEndWidthMargin(isBidir(), MSC_ARROW_MIDDLE, chart));
     }
     iterators.push_back(dst);
-    margins.push_back(end);
+    margins.push_back(style.arrow.getBigEndWidthMargin(isBidir(), MSC_ARROW_END, chart));
     //Sort to make them increasing - direction does not count
-    if (!fw) {
+    if ((*src)->index > (*dst)->index) {
         std::reverse(iterators.begin(), iterators.end());
-        std::reverse(margins.begin(), margins.end());
+        std::swap(margins[0], margins[margins.size()-1]);
     }
     for (int i=0; i<iterators.size()-1; i++) {
         //if neighbours
         if ((*iterators[i])->index + 1 == (*iterators[i+1])->index) {
             distances.Insert((*iterators[i])->index, (*iterators[i+1])->index,
-                             margins[i].second+margins[i+1].first + 3);
+                             margins[i]+margins[i+1] + 3);
         } else {
             distances.Insert((*iterators[i  ])->index,   (*iterators[i  ])->index+1,
-                             margins[i].second + 3);
+                             margins[i] + 3);
             distances.Insert((*iterators[i+1])->index-1, (*iterators[i+1])->index  ,
-                             margins[i+1].first + 3);
+                             margins[i+1] + 3);
         }
     }
 
     //Determine if there are multiple segments, if so add text into the appropriate one
-    if (middle.size()>0 && style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_MIDDLE)) {
-        unsigned index;
-        switch (style.text.GetIdent()) {
-		default:
-        case MSC_IDENT_LEFT:   index = 0; break;
-        case MSC_IDENT_CENTER: index = iterators.size()/2-1; break;
-        case MSC_IDENT_RIGHT:  index = iterators.size()-2; break;
+    const double lw = style.line.LineWidth();
+    if (middle.size()>0)
+        switch (style.arrow.GetType(isBidir(), MSC_ARROW_MIDDLE)) {
+        case MSC_ARROW_SOLID: /* Filled */
+        case MSC_ARROW_EMPTY: /* Non-Filled */
+        case MSC_ARROW_LINE: /* Two lines */
+        case MSC_ARROW_HALF: /* Unfilled half */
+            unsigned index;
+            switch (style.text.GetIdent()) {
+			default:
+            case MSC_IDENT_LEFT:   index = 0; break;
+            case MSC_IDENT_CENTER: index = iterators.size()/2-1; break;
+            case MSC_IDENT_RIGHT:  index = iterators.size()-2; break;
+            }
+            stext = iterators[index];
+            dtext = iterators[index+1];
+            sm = margins[index];
+            dm = margins[index+1];
+            /*Correct for the fact that non-bidir arrows do not have
+             **bidir arrowheads in the middle.
+             ** TODO: We should do this in the whole Width() by using 2
+             ** margins[], but maybe later.. */
+            if (!isBidir()) {
+                if ((*src)->index < (*dst)->index)
+                    sm = 0;
+                else
+                    dm = 0;
+            }
+            goto final;
         }
-        stext = index;
-        dtext = index+1;
-    } else {
-        //if no segments, then span the whole arrow.
-        stext = 0;
-        dtext = iterators.size()-1;
-    }
-    sm = style.arrow.getBigMargin(tcov, 0, dy-sy, true, fw, isBidir(), WhichArrow(stext)) + lw;
-    dm = style.arrow.getBigMargin(tcov, 0, dy-sy, false, fw, isBidir(), WhichArrow(dtext)) + lw;
-    distances.Insert((*iterators[stext])->index, (*iterators[dtext])->index, sm + twh.x + dm);
+    //if no segments, then span the whole arrow.
+    stext = iterators[0];
+    dtext = iterators[iterators.size()-1];
+    sm = margins[0];
+    dm = margins[margins.size()-1];
+
+    final:
+    sm =  (sm == 0) ? lw : sm  - lw - 3;
+    dm =  (dm == 0) ? lw : dm  - lw - 3;
+    distances.Insert((*stext)->index, (*dtext)->index, sm + tw + dm);
 }
 
-
-double ArcBigArrow::Height(AreaList &cover)
+double ArcBigArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
-    yPos = 0;
+    if (final) yPos = y;
+    if (draw) y = yPos;
+    if (!draw) geometry.Clear();
 
-    //Reuse sy and dy set in Width()
-    centerline = (sy+dy)/2;
+    const double ah =style.arrow.Big_yExtent(isBidir(), middle.size()>0, chart);
+    const XY twh = parsed_label.getTextWidthHeight();
+    const double lw = style.line.LineWidth();
 
-    //set sx and dx
-    sx = chart->XCoord((*src)->pos);
-    dx = chart->XCoord((*dst)->pos);
-    //prepare xPos (margins were already done in Width)
-    xPos.clear(); xPos.reserve(2+middle.size());
-    xPos.push_back(sx);
+    const double orig_y = y;
+    y += ah;
+
+    XY s, d;
+    s.x = chart->XCoord((*src)->pos);
+    s.y = y;
+    d.x = chart->XCoord((*dst)->pos);
+    //height has uninitialized value when called first time
+    //but we do not care, d is used only when actually drawing
+    d.y = y + height - 2*ah;
+
+    //Prepare an array with the visual x positions of segments
+    vector<double> xPos;
+    xPos.push_back(s.x);
     for (int i=0; i<middle.size(); i++)
         xPos.push_back(chart->XCoord((*middle[i])->pos));
-    xPos.push_back(dx);
-    if (sx>=dx)
-        std::reverse(xPos.begin(), xPos.end());
+    xPos.push_back(d.x);
 
-    sx_text = xPos[stext] + sm;
-    dx_text = xPos[dtext] - dm;
+    if (draw) {
+        //Draw background
+        style.arrow.FillBig(xPos, s.y, d.y, isBidir(), chart, style.fill);
+        //Draw outline
+        style.arrow.DrawBig(xPos, s.y, d.y, isBidir(), chart);
+        //draw content if any
+        if (content) {
+            if (s.x < d.x)
+                chart->DrawEntityLines(s.y, d.y-s.y, src, ++EIterator(dst));
+            else
+                chart->DrawEntityLines(s.y, d.y-s.y, dst, ++EIterator(src));
+        }
+    }
 
-    //use += to keep arc and other params of area
-    area = style.arrow.BigCover(xPos, sy, dy, isBidir());
-    area.arc = this;
-    //set mainline - not much dependent on main line with
-    area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
-    cover = area;
-    return centerline*2 - chart->arcVGapAbove + chart->arcVGapBelow;
-}
+    Geometry geom;
 
-void ArcBigArrow::ShiftBy(double y)
-{
-    if (!valid) return;
-    sy += y;
-    dy += y;
-    ArcArrow::ShiftBy(y); //Skip ArcDirArrow
-}
+    //Ok, now do the content
+    y += lw; //+chart->emphVGapInside;
 
-void ArcBigArrow::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
-    ArcArrow::PostPosProcess(autoMarker); //Skip ArcDirArrow
-    CheckSegmentOrder(yPos + centerline);
-}
+    //Add text cover. stext, dtext, sm, dm values calculated in Width()
+    parsed_label.DrawCovers(chart->XCoord((*stext)->pos) + sm,
+                            chart->XCoord((*dtext)->pos) - dm,
+                            y, geom, draw);
 
-void ArcBigArrow::Draw()
-{
-    if (!valid) return;
-    chart->Shadow(style.arrow.BigCover(xPos, sy, dy, isBidir()), style.shadow);
-    style.arrow.BigDraw(xPos, sy, dy, isBidir(), style.fill, chart);
-    parsed_label.Draw(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside);
+    //If final position, cover the entity lines where text goes
+    if (final) chart->HideEntityLines(geom);
+    //store the uppermost level where content can come
+    double low_y = y;
+    //Advance label height
+    if (twh.y == 0)
+        y += Label("M", chart, style.text).getTextWidthHeight().y;
+    else
+        y += twh.y;
+    //Draw content if any
+    if (content)
+        y += chart->PlaceDrawListUnder(content->begin(), content->end(),
+                                       low_y, y, geom, geom, draw, final);
+
+    //Final advance of linewidth, gap and arrow tips
+    y += lw; //+ chart->emphVGapInside;
+    y += ah;
+
+    height = y - orig_y;
+
+    if (!draw) {
+        //Generate one block for cover
+        Block box(s.x, d.x, orig_y+ah, y-ah);
+        geometry += box;
+        style.arrow.CoverBig(xPos, orig_y+ah, y-ah, isBidir(), chart, geometry);
+        geometry.SetArc(this);
+        g += geometry;
+    }
+
+    return height;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -977,7 +933,8 @@ VertXPos::VertXPos(Msc&m, postype p)
 
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
                                    VertXPos *p, Msc *msc) :
-    ArcArrow(t, msc, msc->Contexts.back().styles["vertical"]), pos(*p), ypos(2)
+    ArcArrow(t, msc, msc->Contexts.top().styles["vertical"]), pos(*p),
+    ypos(2)
 {
     if (!p || !p->valid) {
         valid = false;
@@ -994,29 +951,30 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d,
     }
     makeroom=false;
     offset = 0;
+    aMarker = -1;
     //overwrite the sty;e set by ArcArrow
-    style = msc->Contexts.back().styles["vertical"];
+    style = msc->Contexts.top().styles["vertical"];
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
-        style += chart->Contexts.back().styles["vertical->"]; break;
+        style += chart->Contexts.top().styles["vertical->"]; break;
     case MSC_ARC_DOTTED:
     case MSC_ARC_DOTTED_BIDIR:
-        style += chart->Contexts.back().styles["vertical>"]; break;
+        style += chart->Contexts.top().styles["vertical>"]; break;
     case MSC_ARC_DASHED:
     case MSC_ARC_DASHED_BIDIR:
-        style += chart->Contexts.back().styles["vertical>>"]; break;
+        style += chart->Contexts.top().styles["vertical>>"]; break;
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
-        style += chart->Contexts.back().styles["vertical=>"]; break;
+        style += chart->Contexts.top().styles["vertical=>"]; break;
     case MSC_EMPH_SOLID:
-        style += chart->Contexts.back().styles["vertical--"]; break;
+        style += chart->Contexts.top().styles["vertical--"]; break;
     case MSC_EMPH_DASHED:
-        style += chart->Contexts.back().styles["vertical++"]; break;
+        style += chart->Contexts.top().styles["vertical++"]; break;
     case MSC_EMPH_DOTTED:
-        style += chart->Contexts.back().styles["vertical.."]; break;
+        style += chart->Contexts.top().styles["vertical.."]; break;
     case MSC_EMPH_DOUBLE:
-        style += chart->Contexts.back().styles["vertical=="]; break;
+        style += chart->Contexts.top().styles["vertical=="]; break;
     }
 }
 
@@ -1054,39 +1012,6 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
     return ArcArrow::AddAttribute(a);
 }
 
-void ArcVerticalArrow::AttributeNames(Csh &csh)
-{
-    ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
-    style.AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"pos", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"readfrom", HINT_ATTR_NAME));
-}
-
-bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"pos")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"left", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"right", HINT_ATTR_VALUE));
-        return true;
-    }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
-    if (style.AttributeValues(attr, csh)) return true;
-    if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    return false;
-}
-
-
 void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level)
 {
@@ -1123,22 +1048,22 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
-    left = chart->EntityMinByPos(left, pos.entity1);
-    right = chart->EntityMaxByPos(right, pos.entity1);
-    left = chart->EntityMinByPos(left, pos.entity2);
-    right = chart->EntityMaxByPos(right, pos.entity2);
+    left = MinMaxByPos(left, pos.entity1, true);    //true=Min
+    right = MinMaxByPos(right, pos.entity1, false); //false=Max
+    left = MinMaxByPos(left, pos.entity2, true);    //true=Min
+    right = MinMaxByPos(right, pos.entity2, false); //false=Max
 
     //Finally copy the line attribute to the arrow, as well
     style.arrow.line = style.line;
 
-    static const MscGradientType readfrom_left_gardient[] = {
-        GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
-        GRADIENT_RIGHT, GRADIENT_LEFT, GRADIENT_DOWN, GRADIENT_UP,
-        GRADIENT_LEFT};
-    static const MscGradientType readfrom_right_gardient[] = {
-        GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
-        GRADIENT_LEFT, GRADIENT_RIGHT, GRADIENT_UP, GRADIENT_DOWN,
-        GRADIENT_RIGHT};
+static const MscGradientType readfrom_left_gardient[] = {
+    GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
+    GRADIENT_RIGHT, GRADIENT_LEFT, GRADIENT_DOWN, GRADIENT_UP,
+    GRADIENT_LEFT};
+static const MscGradientType readfrom_right_gardient[] = {
+    GRADIENT_INVALID, GRADIENT_NONE, GRADIENT_OUT, GRADIENT_IN,
+    GRADIENT_LEFT, GRADIENT_RIGHT, GRADIENT_UP, GRADIENT_DOWN,
+    GRADIENT_RIGHT};
 
     if (style.fill.gradient.first) {
         if (readfromleft)
@@ -1150,7 +1075,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
 
 void ArcVerticalArrow::Width(EntityDistanceMap &distances)
 {
-    if (!valid) return;
+	if (!valid) return;
     //No extra space requirement
     if (!makeroom) return;
     //The offset is ignored during the process of setting space requirements
@@ -1161,7 +1086,7 @@ void ArcVerticalArrow::Width(EntityDistanceMap &distances)
         width = Label("M", chart, style.text).getTextWidthHeight().y;
     width += 2*lw + 2*chart->hscaleAutoXGap;
 
-    const double aw =style.arrow.bigYExtent(isBidir(), false);
+    const double aw =style.arrow.Big_yExtent(isBidir(), false, chart);
     const unsigned index = (*pos.entity1)->index;
     switch (pos.pos) {
     default:
@@ -1188,31 +1113,19 @@ void ArcVerticalArrow::Width(EntityDistanceMap &distances)
     };
 }
 
-//Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
-//So here we do nothing. yPos is not used for this
-double ArcVerticalArrow::Height(AreaList &cover)
+void ArcVerticalArrow::PostHeightProcess(void)
 {
-    return 0;
-}
-
-void ArcVerticalArrow::ShiftBy(double y)
-{
-}
-
-void ArcVerticalArrow::PostPosProcess(double autoMarker)
-{
+    ArcBase::PostHeightProcess();
+	//geometry is empty here, so we will have to add our stuff to chart->AllCovers later in this function
     if (!valid) return;
-    ArcArrow::PostPosProcess(autoMarker);
-	//area is empty here, so we will have to add our stuff to chart->AllCovers later in this function
 
     //Here we are sure markers are OK
-    //all below are integers. yPos is such, in general. "Markers" are yPos of the markers
     if (src == MARKER_HERE_STR)
         ypos[0] = yPos;
     else if (src != MARKER_PREV_PARALLEL_STR)
         ypos[0] = chart->Markers.find(src)->second.second;
-    else if (autoMarker>=0)
-        ypos[0] = floor(autoMarker+0.5);
+    else if (aMarker>=0)
+        ypos[0] = aMarker;
     else {
         chart->Error.Error(file_pos.start, "Vertical with no markers cannot take its size from the preceeding blocks."
                             " Ignoring vertical arrow.",
@@ -1225,8 +1138,8 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
         ypos[1] = yPos;
     else if (dst != MARKER_PREV_PARALLEL_STR)
         ypos[1] = chart->Markers.find(dst)->second.second;
-    else if (autoMarker>=0)
-        ypos[1] = floor(autoMarker+0.5);
+    else if (aMarker>=0)
+        ypos[1] = aMarker;
     else {
         chart->Error.Error(file_pos.start, "Vertical with no markers cannot take its size from the preceeding blocks."
                             " Ignoring vertical arrow.",
@@ -1238,78 +1151,107 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
     if (!readfromleft)
         swap(ypos[0], ypos[1]);
 
-    const double lw = style.line.LineWidth();
     const XY twh = parsed_label.getTextWidthHeight();
-    Area text_cover = parsed_label.Cover(0, twh.x, lw/2);
-
-    const double sm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, true, readfromleft, isBidir(), MSC_ARROW_START);
-    const double dm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, false, readfromleft, isBidir(), MSC_ARROW_END);
-
-    if (sm + twh.x + dm  > fabs(ypos[0]-ypos[1]))
-        chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
+    double arrow_x_size;
+    arrow_x_size =  style.arrow.getBigEndWidthExt(isBidir(), MSC_ARROW_START, chart);
+    arrow_x_size += style.arrow.getBigEndWidthExt(isBidir(), MSC_ARROW_END, chart);
+    arrow_x_size += style.arrow.getBigEndWidthMargin(isBidir(), MSC_ARROW_START, chart);
+    arrow_x_size += style.arrow.getBigEndWidthMargin(isBidir(), MSC_ARROW_END, chart);
+    if (arrow_x_size + twh.x > fabs(ypos[0]-ypos[1])) {
+        if (arrow_x_size>0)
+            chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text and arrow.",
                                  "May look strange.");
+        else
+            chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
+                                 "May look strange.");
+    }
+	double x, width;
+	CalculateXandWidth(x, width);
 
-    //calculate xpos and width
+	//Generate one block for cover
+    Geometry geom;
+    Block box(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]), x-width/2, x+width/2);
+    geom += box;
+    style.arrow.CoverBig(ypos, x-width/2, x+width/2, isBidir(), chart, geom);
+    //Ok, now rotate it by 90 and copy to geometry
+    for(std::set<Block>::const_iterator i=geom.GetCover().begin(); i!=geom.GetCover().end(); i++) {
+        Block b;
+        b.x = i->y;
+        b.y = i->x;
+        b.arc = this;
+        geometry += b;
+    }
+    chart->AllCovers.insert(chart->AllCovers.end(), geometry.GetCover().begin(), geometry.GetCover().end());
+}
+
+//Can be called after postparseprocess
+void ArcVerticalArrow::CalculateXandWidth(double &x, double &width) const
+{
+    const XY twh = parsed_label.getTextWidthHeight();
+    const double lw = style.line.LineWidth();
     width = twh.y;
     if (width==0)
         width = Label("M", chart, style.text).getTextWidthHeight().y;
-    width = ceil(width + 2*lw + 2*chart->emphVGapInside);
-    width += fmod(width, 2); //width is even integer now: the distance from outer edge to outer edge
+    width += 2*lw;
 
-    const double aw = style.arrow.bigYExtent(isBidir(), false)/2;
-    xpos = chart->XCoord((*pos.entity1)->pos);
+    const double aw =style.arrow.Big_yExtent(isBidir(), false, chart)/2;
+    x = chart->XCoord((*pos.entity1)->pos);
     const double gap = chart->hscaleAutoXGap;
     switch (pos.pos) {
     default:
     case VertXPos::POS_AT: break;
-    case VertXPos::POS_CENTER:      xpos = (xpos + chart->XCoord((*pos.entity2)->pos))/2; break;
-    case VertXPos::POS_LEFT_BY:     xpos -= width/2 + aw + gap; break;
-    case VertXPos::POS_RIGHT_BY:    xpos += width/2 + aw + gap; break;
+    case VertXPos::POS_CENTER: x = (x + chart->XCoord((*pos.entity2)->pos))/2; break;
+    case VertXPos::POS_LEFT_BY:     x -= width/2 + aw + gap; break;
+    case VertXPos::POS_RIGHT_BY:    x += width/2 + aw + gap; break;
 
-    case VertXPos::POS_LEFT_SIDE:   xpos -= width/2 + gap; break;
-    case VertXPos::POS_RIGHT_SIDE:  xpos += width/2 + gap; break;
+    case VertXPos::POS_LEFT_SIDE:   x -= width/2 + gap; break;
+    case VertXPos::POS_RIGHT_SIDE:  x += width/2 + gap; break;
     };
-    xpos = floor(xpos + offset + 0.5); //xpos is integer now: the centerline of arrow
-    width -= lw; //not necessarily integer, the distance from midline to midline
-
-    if (readfromleft) {
-        sy_text = std::min(ypos[0], ypos[1])+sm;
-        dy_text = std::max(ypos[0], ypos[1])-dm;
-    } else {
-        sy_text = std::max(ypos[0], ypos[1])-sm;
-        dy_text = std::min(ypos[0], ypos[1])+dm;
-    }
-
-	//Generate area
-    area = style.arrow.BigCover(ypos, xpos-width/2, xpos+width/2, isBidir());
-    area.SwapXY();
-    //Add us to chart's all covers list
-    chart->AllCovers += area;
-    yPos = std::min(ypos[0], ypos[1]);  //not used for much...
-}
+    x += offset;
+};
 
 
-void ArcVerticalArrow::Draw()
+//We do not store anything in here
+double ArcVerticalArrow::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
-    if (!valid) return;
+    if (!valid) return 0;
+    if (final) {
+        yPos = y;
+        aMarker = autoMarker;
+    }
+    if (!draw) return 0; //all relevant calculation happens in postheightprocess
+
+    double x, width;
+    CalculateXandWidth(x, width);
+
     if (readfromleft)
-        chart->Transform_Rotate90(xpos-width/2, xpos+width/2, false);
+        chart->Rotate90(x-width/2, x+width/2, false);
     else
-        chart->Transform_Rotate90(ypos[0], ypos[1], true);
+        chart->Rotate90(ypos[0], ypos[1], true);
     //Draw background
-    style.arrow.BigDraw(ypos, xpos-width/2, xpos+width/2, isBidir(), style.fill, chart);
-    parsed_label.Draw(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
-                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, true);
-    chart->UnTransform();
+    style.arrow.FillBig(ypos, x-width/2, x+width/2, isBidir(), chart, style.fill);
+    //Draw outline
+    style.arrow.DrawBig(ypos, x-width/2, x+width/2, isBidir(), chart);
+    Geometry dummy;
+    style.arrow.ClipBig(ypos, x-width/2, x+width/2, isBidir(), chart);
+    parsed_label.DrawCovers(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+                            x-width/2+style.line.LineWidth(), dummy, draw, true);
+    chart->UnClip();
+    if (readfromleft)
+        chart->Rotate90(x-width/2, x+width/2, true);
+    else
+        chart->Rotate90(ypos[0], ypos[1], false);
+
+    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
-    emphasis(NULL), follow(true), first(NULL), pipe(false), 
-    drawEntityLines(true), drawing_variant(1)
+    ArcLabelled(t, msc, msc->Contexts.top().styles["emptybox"]),
+    emphasis(NULL), follow(true), first(NULL), height(0), total_height(0),
+    pipe(false), pipe_connect_left(false), pipe_connect_right(false)
 {
     src = chart->FindAllocEntity(s, sl, &valid);
     dst = chart->FindAllocEntity(d, dl, &valid);
@@ -1325,26 +1267,23 @@ ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
 
 ArcEmphasis* ArcEmphasis::SetPipe()
 {
-    if (!valid) return this;
     pipe = true;
-    drawEntityLines = false;
-    style = chart->Contexts.back().styles["pipe"];
+    style = chart->Contexts.top().styles["pipe"];
     switch (type) {
     case MSC_EMPH_SOLID:
-        style += chart->Contexts.back().styles["pipe--"]; break;
+        style += chart->Contexts.top().styles["pipe--"]; break;
     case MSC_EMPH_DASHED:
-        style += chart->Contexts.back().styles["pipe++"]; break;
+        style += chart->Contexts.top().styles["pipe++"]; break;
     case MSC_EMPH_DOTTED:
-        style += chart->Contexts.back().styles["pipe.."]; break;
+        style += chart->Contexts.top().styles["pipe.."]; break;
     case MSC_EMPH_DOUBLE:
-        style += chart->Contexts.back().styles["pipe=="]; break;
+        style += chart->Contexts.top().styles["pipe=="]; break;
     }
     return this;
 }
 
 ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
 {
-    if (!valid) return this;
     if (l!=NULL && l->size()>0) {
         if (emphasis) {
             emphasis->insert(emphasis->end(), l->begin(), l->end());
@@ -1355,7 +1294,7 @@ ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
         }
     }
     if (!pipe)
-        style += chart->Contexts.back().styles["box"];
+        style += chart->Contexts.top().styles["box"];
     return this;
 }
 
@@ -1367,26 +1306,7 @@ bool ArcEmphasis::AddAttribute(const Attribute &a)
         return style.fill.AddAttribute(a, chart, style.type);
     }
     return ArcLabelled::AddAttribute(a);
-}
-
-void ArcEmphasis::AttributeNames(Csh &csh, bool pipe)
-{
-    ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
-    style.AttributeNames(csh);
-}
-
-bool ArcEmphasis::AttributeValues(const std::string attr, Csh &csh, bool pipe)
-{
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, pipe, true, true); //no arrow, vline solid
-    if (style.AttributeValues(attr, csh)) return true;
-    if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    return false;
-}
+};
 
 ArcEmphasis* ArcEmphasis::ChangeStyleForFollow(ArcEmphasis* other)
 {
@@ -1400,29 +1320,12 @@ ArcEmphasis* ArcEmphasis::ChangeStyleForFollow(ArcEmphasis* other)
 
 ArcEmphasis* ArcEmphasis::AddFollow(ArcEmphasis*f)
 {
-    _ASSERT(f);
-    if (f==NULL) return this;
-    if (!f->valid)
-        valid = false;
-    if (valid && pipe) {
-        if (f->style.fromright.first) {
-            f->style.fromright.first = false;
-            chart->Error.Error(f->file_pos.start, 
-                               "Attribute 'fromright' can only be specified in the first "
-                               "element in a pipe series. Ignoring it in subsequent ones.");
-        }
-        if (f->style.line.cornersize.first) {
-            f->style.line.cornersize.first = false;
-            chart->Error.Error(f->file_pos.start, 
-                               "Attribute 'line.cornersize' can only be specified in the first "
-                               "element in a pipe series. Ignoring it in subsequent ones.");
-        }
-    }
-    //we do this even if we are valid, so that f will be properly destroyed
     f->first = this;
-    MscStyle s = style;
-    s += f->style;
-    f->style = s;
+    if (!pipe) { //Inherit styles only for boxes, not pipes
+        MscStyle s = style;
+        s += f->style;
+        f->style = s;
+    }
     follow.Append(f);
     return this;
 }
@@ -1439,24 +1342,10 @@ string ArcEmphasis::Print(int ident) const
     return ss;
 }
 
-struct pipe_compare
-{
-    const Msc *chart;
-    bool fromright;
-    pipe_compare(const Msc *c, bool fr) : chart(c), fromright(fr) {}
-    bool operator ()(const ArcEmphasis *p1, const ArcEmphasis *p2) const {
-        EIterator min1 = chart->EntityMinMaxByPos(p1->src, p1->dst, fromright);
-        EIterator min2 = chart->EntityMinMaxByPos(p2->src, p2->dst, fromright);
-        if (min1==min2) return false; //equals are not less 
-        return min1 == chart->EntityMinMaxByPos(min1, min2, fromright);
-    }
-};
-
 //will only be called for the first box of a multi-segment box series
 void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
                                    Numbering &number, bool top_level)
 {
-    if (!valid) return;
     //Add ourselves as the first element in follow.
     follow.push_front(this);
 
@@ -1477,115 +1366,66 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
         }
     }
 
-    if (pipe) {
-        //Check that all pipe segments are fully specified, non-overlapping and sort them
-        //After this follow.begin will not point to "this" but to the leftmost (fromright==true) or rightmost (==false)
-        //Also set pipe_connect_back/forw flags
-        //Terminology: backwards means left if "fromright" and right otherwise
+    if (src==chart->NoEntity) src = e1;
+    if (dst==chart->NoEntity) dst = e2;
 
-        //frist sort from left to right
-        pipe_compare comp(chart, true);
-        follow.sort(comp);
-        //Make both src and dst specified and ordered in all segments
-        //The leftmost and the rightmost segment can auto-adjust to the content (e1 and e2)
-        //others can snap left and right if not specified
-        //Also collect thickest linewidth
-        EIterator last = e1;
-        EIterator next;
-        double lw_max = 0;
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            auto i_next = i;
-            i_next++;
-            next = i_next==follow.end() ? e2 : chart->EntityMinByPos((*i_next)->src, (*i_next)->dst);
+    //Src and dst can still be == NoEntity, if no arcs specified
+    //inside the emphasis and no enity specified at emph declaration.
+    //In this case emph box spans to leftmost and rightmost entity in chart.
+    //At PostParse "Entities" is already sorted by pos values
+    //we only do this step if we are the first in an Emphasis box series.
+    if (src==chart->NoEntity) src = ++ ++chart->Entities.begin();     //leftmost entity after Noentity and (left)
+    if (dst==chart->NoEntity) dst = -- --chart->Entities.end();    //rightmost entity (before (right)
 
-            if ((*i)->src == chart->NoEntity) (*i)->src = last;
-            if ((*i)->dst == chart->NoEntity) (*i)->dst = next;
+    left = MinMaxByPos(MinMaxByPos(left, src, true), dst, true);    //true=Min
+    right = MinMaxByPos(MinMaxByPos(right, src, false), dst, false); //false=Max
 
-            if ((*i)->src == chart->NoEntity || (*i)->dst == chart->NoEntity) {
-                std::string msg = "Could not figure out the extent of this pipe";
-                if (follow.size()>1) msg += " segment";
-                msg += ". Specify starting and/or terminating entity.";
-                chart->Error.Error((*i)->file_pos.start, msg);
-                valid = false;
-                return;
-            }
-            if ((*i)->src != chart->EntityMinByPos((*i)->src, (*i)->dst))
-                swap((*i)->src, (*i)->dst);
-            last = (*i)->dst;
+    if (!pipe) return;
 
-            lw_max = std::max(lw_max, (*i)->style.line.LineWidth());
+    //Check that all pipe segments are fully specified, non-overlapping
+    //Also set pipe_connect_left/right flags
+    EIterator last = dst;
+    for (PtrList<ArcEmphasis>::iterator i = ++follow.begin(); i!=follow.end(); i++) {
+        if ((*i)->src==chart->NoEntity && (*i)->dst==chart->NoEntity) {
+            chart->Error.Error((*i)->file_pos.start, "Pipes in a pipe series must be given at least an end entity."
+                            " Ignoring pipe segment.");
+            (*i)->valid = false;
+            continue;
+        }
+        //Make both src and dst specified and ordered
+        if ((*i)->src == chart->NoEntity) (*i)->src = last;
+        else if ((*i)->dst == chart->NoEntity) (*i)->dst = last;
+        if ((*i)->src != MinMaxByPos((*i)->src, (*i)->dst, true)) //true=Min
+            swap((*i)->src, (*i)->dst);
+
+        //We can be here if follow.size()>1, so we are definitely talking about segments, not full pipes
+        if ((*i)->src == (*i)->dst) {
+            chart->Error.Error((*i)->file_pos.start, "This pipe segment seems to start and end at the same entity."
+                               " Ignoring pipe segment.");
+            (*i)->valid = false;
+            continue;
         }
 
-        //increase the cornersize everywhere by the thickest lw (if it is not zero)
-        if (style.line.cornersize.second>0)
-            for (auto i = follow.begin(); i!=follow.end(); i++) 
-                (*i)->style.line.cornersize.second += lw_max;
-
-        //set e1 and e2 to real leftmost and rightmost entity affected
-        e1 = chart->EntityMinByPos(e1, (*follow.begin())->src);
-        e2 = chart->EntityMaxByPos(e2, (*--follow.end())->dst);
-
-        //Sort according to fromright: begin() should point to the leftmost pipe if fromright==true, and to the rightmost if fromright==false
-        if (style.fromright.second == false) {
-            comp.fromright = false;
-            follow.sort(comp);
+        //Set flags if we are adjacent to previous one
+        if (last == (*i)->src) {
+            (*i)->pipe_connect_left = true;
+            i--;
+            (*i)->pipe_connect_right = true;
+            i++;
+        } else if (last == MinMaxByPos((*i)->src, last, false)) {
+            chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previous."
+                                 " It may not look so good.",
+                                 "Encapsulate one in the other if you want that effect.");
         }
-
-        //Fill in pipe_connect vlaues
-        pipe_connect_back = false;
-        (*--follow.end())->pipe_connect_forw = false;
-        for (auto i = ++follow.begin(); i!=follow.end(); i++) {
-            (*i)->pipe_connect_back = (*i)->pipe_connect_forw = false;
-            //Set flags if we are adjacent to previous one
-            auto i_prev = i;
-            i_prev--;
-            if ((style.fromright.second && (*i_prev)->dst == (*i)->src) || 
-                (!style.fromright.second && (*i_prev)->src == (*i)->dst)) {
-                (*i)->pipe_connect_back = true;
-                (*i_prev)->pipe_connect_forw = true;
-            } else if ((style.fromright.second && chart->EntityMaxByPos((*i_prev)->dst, (*i)->src) != (*i)->src) || 
-                      (!style.fromright.second && chart->EntityMinByPos((*i_prev)->src, (*i)->dst) != (*i)->dst)) {
-                chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
-                                     " It may not look so good.",
-                                     "Encapsulate one in the other if you want that effect.");
-            }
-        }
-        //Now check that segments connecting to both sides are not only spanning a single entity
-        if (follow.size()>1)
-            for (auto i = follow.begin(); i!=follow.end(); i++) {
-                if ((*i)->src == (*i)->dst) {
-                    chart->Error.Error((*i)->file_pos.start, "This pipe segment is sqeezed between two connecting neighbouring segments and will not show."
-                        " Ignoring pipe.");
-                    valid = false;
-                    return;
-            }
-        }
-
-        //set return value
-        left = chart->EntityMinByPos(e1, left);
-        right = chart->EntityMaxByPos(e2, right);
-
-        //if there is no content, no need to draw a transparent cover
-        //save drawing cost (and potential fallback img)
-        //only first pipe can have content (which becomes the content of all pipe)
-        if (!emphasis || emphasis->size() == 0)
-            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
-                (*i)->style.solid.second = 255;
-    } else {
-        if (src==chart->NoEntity) src = e1;
-        if (dst==chart->NoEntity) dst = e2;
-
-        //Src and dst can still be == NoEntity, if no arcs specified
-        //inside the emphasis and no enity specified at emph declaration.
-        //In this case emph box spans to leftmost and rightmost entity in chart.
-        //At PostParse "Entities" is already sorted by pos values
-        //we only do this step if we are the first in an Emphasis box series.
-        if (src==chart->NoEntity) src = ++ ++chart->Entities.begin();     //leftmost entity after Noentity and (left)
-        if (dst==chart->NoEntity) dst = -- --chart->Entities.end();    //rightmost entity (before (right)
-
-        left = chart->EntityMinByPos(chart->EntityMinByPos(left, src), dst);
-        right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, src), dst);
+        last = MinMaxByPos((*i)->dst, last, false); //false = Max
     }
+
+    //if there is no content, no need to draw a transparent cover
+    //save drawing cost (and potential fallback img)
+    //only first pipe can have content (which becomes the content of all pipe)
+    if (!emphasis || emphasis->size() == 0)
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
+            (*i)->style.solid.second = 255;
 }
 
 //will only be called for the first box of a multi-segment box series
@@ -1593,676 +1433,454 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
     if (pipe) {
-        EntityDistanceMap d;
-        if (emphasis)
-            chart->WidthArcList(*emphasis, d);
-
-        //(*i)->src and dst contain the left and right end of a pipe
-        //The order of the pipe segments in follow depends on style.fromright
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            const double ilw = (*i)->style.line.LineWidth();
-            const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->emphVGapInside;
-            (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
-            (*i)->right_space = d.Query((*(*i)->dst)->index, DISTANCE_RIGHT) + chart->emphVGapInside;
-
-            //The style.line.cornersize.second is understood to be the cornersize of the hole of the _outer edge_
-            if ((*i)->src==(*i)->dst) {
-                (*i)->left_space  = std::max(width/2, (*i)->left_space);
-                (*i)->right_space = std::max(width/2, (*i)->right_space);
-            } else {
-                //keep a big enough space between src and dst for the text + curvature of pipe
-                //the text can go out of the entity lines, all the way to the left-space
-                distances.Insert((*(*i)->src)->index, (*(*i)->dst)->index,
-                                 width - (*i)->left_space - (*i)->right_space +
-                                 2*chart->emphVGapInside);
-            }
-            (*i)->left_space  = ceil((*i)->left_space);
-            (*i)->right_space = ceil((*i)->right_space);
-            bool connect_left = style.fromright.second ? (*i)->pipe_connect_back : (*i)->pipe_connect_forw;
-            bool connect_right = style.fromright.second ? (*i)->pipe_connect_forw : (*i)->pipe_connect_back;
-            //Check if we are connecting to a neighbour pipe segment
-            if (connect_left) 
-                (*i)->left_space = 0;
-            else 
-                distances.Insert((*(*i)->src)->index, DISTANCE_LEFT, 
-                                 (*i)->left_space + ilw + (*i)->style.line.cornersize.second +
-                                 chart->compressGap);
-            //add shadow to the right size only if we are the rightmost entity
-            double shadow_to_add = 0;
-            if ((style.fromright.second && i==--follow.end()) ||
-                (!style.fromright.second && i==follow.begin()))
-                shadow_to_add = (*i)->style.shadow.offset.second;
-            if (connect_right) 
-                (*i)->right_space = 0;
-            else
-                distances.Insert((*(*i)->dst)->index, DISTANCE_RIGHT, 
-                                 (*i)->right_space + ilw + (*i)->style.line.cornersize.second +
-                                 chart->compressGap + shadow_to_add);
-        }
-
-        //Finally add the requirements of the content
-        d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
-        d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
-        distances += d;
-    } else {
-        EntityDistanceMap d;
-        double max_width = 0; //the widest label plus margins
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            if ((*i)->emphasis)
-                chart->WidthArcList(*((*i)->emphasis), d);
-            double width = (*i)->parsed_label.getTextWidthHeight().x;
-            //calculated margins (only for first segment) and save them
-            if (i==follow.begin()) {
-                const Area tcov = (*i)->parsed_label.Cover(0, width, style.line.LineWidth()+chart->emphVGapInside);
-                DoublePair margins = style.line.CalculateTextMargin(tcov, 0);
-                width += margins.first + margins.second;
-                (*i)->sx_text = margins.first;
-                (*i)->dx_text = margins.second;
-            } else {
-                (*i)->sx_text = (*i)->dx_text = style.line.LineWidth();
-            }
-            max_width = max(max_width, width);
-        }
-
-        max_width += 2*chart->emphVGapInside; //margin for text
-        //TODO: Make box as wide as needed for the curvature?
-
-        //Now d contains distance requirements within this emph box series
-        //And width contains the widest
-        left_space = d.Query((*src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
-        right_space = d.Query((*dst)->index, DISTANCE_RIGHT) + chart->emphVGapInside;
-
-        d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
-        d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
-
-        if (src==dst) {
-            left_space = std::max(max_width/2, left_space) + style.line.LineWidth();
-            right_space = std::max(max_width/2, right_space) + style.line.LineWidth();
-        } else {
-            const double def_margin = chart->XCoord(0.25);
-            left_space = max(def_margin, left_space) + style.line.LineWidth();
-            right_space = max(def_margin, right_space) + style.line.LineWidth();
-            if (max_width > left_space + right_space)
-                distances.Insert((*src)->index, (*dst)->index,
-                                 max_width - left_space - right_space);
-        }
-        distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
-        distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
-        distances += d;
+        WidthPipe(distances);
+        return;
     }
-}
-
-//Will only be called for the first box of a multi-segment box/pipe series
-double ArcEmphasis::Height(AreaList &cover)
-{
-    if (!valid) return 0;
-    if (pipe) {
-        //Collect cover information from labels and linewidth, so compression of content arrows can be done
-        //Determine thickest line for precise pipe alignment
-        double max_lineWidth = 0;
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            max_lineWidth = std::max(max_lineWidth, (*i)->style.line.LineWidth());
-        double lowest_line_bottom =  max_lineWidth + chart->emphVGapInside;
-        //Determine highest label and collect all text covers
-        //Also calcualte all x positioning
-        double lowest_label_bottom = 0;
-        double lowest_opaque_label_bottom = 0;
-        Area label_covers;
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Variables already set (all of them rounded):
-            //pipe_connect true if a segment connects to us directly
-            //left_space, right_space contains how much our content expands beyond the entity line,
-            (*i)->yPos = 0;
-            (*i)->area.clear();
-            (*i)->area_draw.clear();
-            (*i)->draw_is_different = false;
-
-            //Set pipe_block.x, sx_text, dx_text in each segment, in the meantime
-            //pipe_block contains the outside of the pipe, with the exception of the curvature (since it is a rect)
-            (*i)->y_text = ceil(chart->emphVGapOutside + (*i)->style.line.LineWidth() +
-                           chart->emphVGapInside);
-            (*i)->area.clear();
-            (*i)->pipe_block.x.from = chart->XCoord((*(*i)->src)->pos) - (*i)->left_space; //already rounded
-            (*i)->pipe_block.x.till = chart->XCoord((*(*i)->dst)->pos) + (*i)->right_space;
-            (*i)->sx_text = (*i)->pipe_block.x.from + (*i)->style.line.LineWidth() + chart->emphVGapInside; //not rounded
-            (*i)->dx_text = (*i)->pipe_block.x.till - (*i)->style.line.LineWidth() - chart->emphVGapInside;
-            if (style.fromright.second)
-                (*i)->dx_text -= style.line.cornersize.second;
-            else
-                (*i)->sx_text += style.line.cornersize.second;
-            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text); 
-            // omit text cover for pipes if the pipe is fully opaque,
-            // in that case content can be drawn at same position as label - opaque pipe will cover anyway
-            double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
-            if (style.solid.second < 255) {
-                label_covers += (*i)->text_cover;
-                lowest_label_bottom = std::max(lowest_label_bottom, y);
-            } else {
-                //collect the highest label of opaque segments for later use
-                lowest_opaque_label_bottom = std::max(lowest_opaque_label_bottom, y);
-            }
-        }
-        //check if thick lined segments having no label have lower still
-        if (lowest_label_bottom < lowest_line_bottom)
-            lowest_label_bottom = lowest_line_bottom;
-        double y = lowest_label_bottom;
-
-        //Calculate the Height of the content
-        if (emphasis)
-            y = ceil(chart->PlaceListUnder(emphasis->begin(), emphasis->end(), ceil(y),
-                                           lowest_line_bottom, label_covers));
-        //now y contains the bottom of the content arrows (if any),
-        //adjust if an opaque pipe's label was not yet considered in y
-        y = std::max(y, lowest_opaque_label_bottom);
-        y += chart->emphVGapInside + max_lineWidth;
-        //now y contains the bottommost pixel of the pipe itself
-        total_height = y = ceil(y);
-        //Now set the y coordinate in all segments
-        //Also calculate the Contours that will be used for drawing
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            const double ilw = (*i)->style.line.LineWidth();
-
-            //fill in pipe_block.y (both are integer)
-            (*i)->pipe_block.y.from = chart->emphVGapOutside;
-            (*i)->pipe_block.y.till = y;
-
-            XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
-            XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
-            const XY rad(style.line.cornersize.second, (*i)->pipe_block.y.Spans()/2); //we use the first pipe's line.cornersize
-            if (!style.fromright.second) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
-            //now cd is the one with the hole
-            Contour back_end(cs, rad.x, rad.y);
-            Contour forw_end(cd, rad.x, rad.y);
-            //(*i)->pipe_block, back_end and forw_end are now all outer edge
-            //we need to shring by ilw/2 to get the line contour and by ilw/2-line.width/2 to get the fill contour
-            const double gap_for_line = -ilw/2;
-            const double gap_for_fill = -ilw + (*i)->style.line.width.second/2;
-            (*i)->pipe_body_fill = Block((*i)->pipe_block.x, Range((*i)->pipe_block.y).Expand(gap_for_fill));
-            (*i)->pipe_body_line = Block((*i)->pipe_block.x, Range((*i)->pipe_block.y).Expand(gap_for_line));
-            (*i)->pipe_shadow = (*i)->pipe_block;
-            //Do back end
-            if (rad.x>0) {
-                (*i)->pipe_body_fill += back_end.CreateExpand(gap_for_fill);
-                (*i)->pipe_body_line += back_end.CreateExpand(gap_for_line);
-                (*i)->pipe_shadow += back_end;
-            } else {
-                //square end: chop off from fill and line
-                (*i)->pipe_body_fill -= Block(Range(cs.x, cs.x), (*i)->pipe_block.y).Expand(gap_for_fill);
-                (*i)->pipe_body_line -= Block(Range(cs.x, cs.x), (*i)->pipe_block.y).Expand(gap_for_line);
-            }
-            //Do front end, and whole_line
-            if ((*i)->pipe_connect_forw) {
-                (*i)->area = (*i)->pipe_shadow;
-                if (emphasis && (*i)->style.solid.second < 255) 
-                    (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
-                //We take a big, unshrunken back-end out of fill: (this will be the next segments outer edge)
-                if (rad.x>0) {
-                    (*i)->pipe_body_fill -= forw_end;
-                    (*i)->area -= forw_end;
-                    //below we need to first expand forw_end before substracting it 
-                    //the other way is not ok: Expand fails in expanding negative arcs
-                    if (emphasis && (*i)->style.solid.second < 255) {
-                        (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth); 
-                        (*i)->area_draw *= Contour(style.fromright.second ? 0 : chart->total.x, cd.x, 
-                                                   -chart->trackFrameWidth-1, total_height+chart->trackFrameWidth+1);
-                    }
-                }
-                //Line shall fall entirely under the next segment, so we add a small block to it
-                (*i)->pipe_body_line += Block(Range(cd.x-ilw/2, cd.x+ilw/2), Range((*i)->pipe_block.y).Expand(gap_for_line));
-                (*i)->pipe_whole_line = (*i)->pipe_body_line;
-                //shadow need no asjustment, as it will be merged with next segment
-                //we clear the holes: no need
-                (*i)->pipe_hole_fill.clear();
-                (*i)->pipe_hole_line.clear();
-                (*i)->pipe_hole_curve = Edge(); //wont draw anything
-            } else {
-                //No connection, we draw this end, too
-                if (rad.x>0) {
-                    (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2.); 
-                    (*i)->pipe_whole_line = (*i)->pipe_body_line + Area(forw_end.CreateExpand(gap_for_line));
-                    (*i)->pipe_body_line -= forw_end.CreateExpand(gap_for_line);
-
-                    //for shaodow we add
-                    (*i)->pipe_shadow += forw_end;
-                    (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line).GetFirst();
-                    (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill).GetFirst();
-                    (*i)->pipe_hole_curve = Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 
-                                                 style.fromright.second?270:90, style.fromright.second?90:270);
-                } else {
-                    //just chop off from fill and line
-                    (*i)->pipe_body_fill -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_fill);
-                    (*i)->pipe_body_line -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_line);
-                    (*i)->pipe_whole_line = (*i)->pipe_body_line;
-                    //we clear the holes: no need, body will draw the line we need
-                    (*i)->pipe_hole_fill.clear();
-                    (*i)->pipe_hole_line.clear();
-                    (*i)->pipe_hole_curve = Edge(); //wont draw anything
-                }
-                (*i)->area = (*i)->pipe_shadow;
-                if (emphasis && (*i)->style.solid.second < 255) 
-                    (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
-            }
-            //Finalize covers
-            (*i)->area.arc = *i;
-            if (emphasis && (*i)->style.solid.second < 255) {
-                //Make a frame, add it to the already added label
-                (*i)->area_draw -= (*i)->area;
-                (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
-                (*i)->area_draw.arc = *i;
-                (*i)->area_draw_is_frame = true;
-                (*i)->draw_is_different = true;
-            }
-            //now determine the cover to be used for placement
-            if (style.shadow.offset.second)
-                cover += (*i)->pipe_shadow + Area((*i)->pipe_shadow).Shift(XY(style.shadow.offset.second, style.shadow.offset.second));
-            else
-                cover += (*i)->pipe_shadow;
-            //merge shadows of connected previous segment to ours
-            if ((*i)->pipe_connect_back) {
-                auto i_prev = i; i_prev--;
-                (*i_prev)->pipe_shadow = ((*i)->pipe_shadow + (*i_prev)->pipe_shadow).GetFirst();
-                (*i)->pipe_shadow.clear();
-            }
-        }
-        cover.mainline = Range(chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside for pipes
-    } else {
-        //We are a box here
-        //A few explanations of the variables exact meaning
-        //the upper edge of the upper line of each segment is at yPos
-        //total_height includes linewidths and shadow, but not emphVGapOutside (contrary for pipes)
-        //left_space and right_space includes linewidth
-        //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, but not lower lw
-        //sx and dx are the inner edges of the lines of the whole box
-        const double lw = style.line.LineWidth();
-        const double sx = chart->XCoord((*src)->pos) - left_space + lw;
-        const double dx = chart->XCoord((*dst)->pos) + right_space - lw;
-
-        double y = chart->emphVGapOutside;
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            (*i)->yPos = y;
-            // y now points to the *top* of the line of the top edge of this box
-            // if we are pipe, we draw the segment side-by side, so we reset y here
-
-            //Advance upper line and spacing
-            y += (*i)->style.line.LineWidth() + chart->emphVGapInside;
-            (*i)->y_text = y;
-            (*i)->sx_text = sx + (*i)->sx_text - lw + chart->emphVGapInside;  //both sx and sx_text includes a lw
-            (*i)->dx_text = dx - (*i)->dx_text + lw - chart->emphVGapInside;
-            //Add text cover & draw if necessary
-            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
-            //Advance label height
-            double th = (*i)->parsed_label.getTextWidthHeight().y;
-            //Position arrows if any under the label
-            AreaList content_cover = (*i)->text_cover;
-            if ((*i)->emphasis) {
-                Area limit = (*i)->text_cover;
-                if (i==follow.begin() && style.line.corner.second != CORNER_NONE && style.line.cornersize.second>0) {
-                    //Funnily shaped emphasis, prevent content from hitting it
-                    Block b(sx, dx, y+lw, lw+y+style.line.cornersize.second*4);
-                    MscLineAttr limiter_line(style.line);
-                    limiter_line.cornersize.second += chart->compressGap;
-                    limit += Block(sx, dx, 0, y+lw+limiter_line.cornersize.second) - 
-                             limiter_line.CreateRectangle(b);
-                    if (style.line.corner.second == CORNER_NOTE) {
-                        const double r = style.line.cornersize.second + chart->compressGap;
-                        limit += Contour(b.x.till-r, b.y.from, b.x.till-r, b.y.from+r, 
-                                         b.x.till, b.y.from+r);
-                    }
-                }
-                y = chart->PlaceListUnder((*i)->emphasis->begin(), (*i)->emphasis->end(),
-                                           y+th, y, limit, compress, &content_cover);  //no extra margin below text
-            } else {
-                y += th; //no content, just add textheight
-            }
-            if (i==--follow.end() && style.line.corner.second != CORNER_NONE && style.line.cornersize.second>0) {
-                //Funnily shaped emphasis, prevent it content from hitting the bottom of the content
-                Block b(sx, dx, 0, y);
-                MscLineAttr limiter_line(style.line);
-                limiter_line.cornersize.second += chart->compressGap;
-                const Area bottom = Block(sx, dx, limiter_line.cornersize.second+1, y+1) - 
-                              limiter_line.CreateRectangle(b);
-                double tp;
-                double off = content_cover.OffsetBelow(bottom, tp);
-                if (off>0 && compress) y-=off;
-                if (off<0) y-=off;
-            }
-            y += chart->emphVGapInside;
-            //Make segment as tall as needed to accomodate curvature
-            //if (style.line.cornersize.second>0) {
-            //    double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
-            //    if (i==follow.begin())
-            //        we_need_this_much_for_radius += style.line.cornersize.second;
-            //    if (i==--follow.end())
-            //        we_need_this_much_for_radius += style.line.cornersize.second;
-            //    y = std::max(y, (*i)->yPos + we_need_this_much_for_radius);
-            //}
-            y = ceil(y);
-            (*i)->height = y - (*i)->yPos;
-
-            //Add the linewidth of the next box or the final one
-            if (i==--follow.end())
-                (*i)->height_w_lower_line = (*i)->height + lw;
-            else
-                (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.line.LineWidth(); 
-        } /* for cycle through segments */
-        //Final advance of linewidth, the inner edge (y) is on integer
-        total_height = y + lw - yPos;
-        Block b(sx-lw, dx+lw, yPos, yPos + total_height);
-        MscLineAttr line_for_outer_edge = style.line;
-        Area overall_box = line_for_outer_edge.CreateRectangle(b);
-        // now we have all geometries correct, now calculate areas and covers
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            (*i)->area = Contour(sx-lw, dx+lw, (*i)->yPos, (*i)->yPos + (*i)->height_w_lower_line) * overall_box;
-            (*i)->area.arc = *i;
-            if ((*i)->emphasis) {
-                //Make a frame, add it to the already added label
-                (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth) - (*i)->area;
-                (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
-                (*i)->area_draw.arc = *i;
-                (*i)->draw_is_different = true;
-                (*i)->area_draw_is_frame = true;
-            } else {
-                (*i)->area_draw.clear();
-                (*i)->draw_is_different = false;
-                (*i)->area_draw_is_frame = false;
-            }
-        }
-        overall_box.mainline = b.y;
-        if (style.shadow.offset.second)
-            cover += overall_box + Area(overall_box).Shift(XY(style.shadow.offset.second, style.shadow.offset.second));
-        else
-            cover += overall_box;
-    }
-    return yPos + total_height + style.shadow.offset.second + chart->emphVGapOutside;
-}
-
-void ArcEmphasis::ShiftBy(double y)
-{
-    if (!valid) return;
-    if (y==0) return;
-    for (auto i=follow.begin(); i!=follow.end(); i++) {
-        if (pipe) {
-            (*i)->pipe_block.Shift(XY(0,y));
-            (*i)->pipe_shadow.Shift(XY(0,y));
-            (*i)->pipe_body_line.Shift(XY(0,y));
-            (*i)->pipe_whole_line.Shift(XY(0,y));
-            (*i)->pipe_hole_line.Shift(XY(0,y));
-            (*i)->pipe_body_fill.Shift(XY(0,y));
-            (*i)->pipe_hole_fill.Shift(XY(0,y));
-            (*i)->pipe_hole_curve.Shift(XY(0,y));
-        }
-        (*i)->y_text += y;
-        (*i)->text_cover.Shift(XY(0,y));
-        (*i)->ArcLabelled::ShiftBy(y);
+    EntityDistanceMap d;
+    double width = 0;
+    for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
         if ((*i)->emphasis)
-            chart->ShiftByArcList((*i)->emphasis->begin(), (*i)->emphasis->end(), y);
+            chart->WidthArcList(*((*i)->emphasis), d);
+        width = max(width, (*i)->parsed_label.getTextWidthHeight().x);
     }
+
+    //Now d contains distance requirements within this emph box series
+    //And width contains the widest label
+
+    left_space = d.Query((*src)->index, DISTANCE_LEFT) + 3;
+    right_space = d.Query((*dst)->index, DISTANCE_RIGHT) + 3;
+
+    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+    d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
+
+    if (src==dst) {
+        left_space = max(width/2, left_space) + style.line.LineWidth();
+        right_space = max(width/2, right_space) + style.line.LineWidth() +
+            style.shadow.offset.second;
+    } else {
+        const double def_margin = chart->XCoord(0.25);
+        left_space = max(def_margin, left_space) + style.line.LineWidth();
+        right_space = max(def_margin, right_space) + style.line.LineWidth() +
+            style.shadow.offset.second;
+        if (width > left_space + right_space)
+            distances.Insert((*src)->index, (*dst)->index,
+                             width - left_space - right_space);
+    }
+    distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
+    distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
+    distances += d;
 }
 
-//Will only be called for the first box of a multi-segment box series
-void ArcEmphasis::PostPosProcess(double autoMarker)
+void ArcEmphasis::WidthPipe(EntityDistanceMap &distances)
 {
     if (!valid) return;
-    if (pipe) {
-        //For pipes we first add those covers to chart->AllCovers that are not fully opaque,
-        //then the content (only in the first segment)
-        //then those segments, which are fully opaque
-        //(this is because search is backwards and this arrangement fits the visual best
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            if ((*i)->valid && (*i)->style.solid.second < 255)
-                (*i)->ArcLabelled::PostPosProcess(autoMarker);
-        if (emphasis)
-            chart->PostPosProcessArcList(*emphasis, autoMarker);
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            if ((*i)->valid && (*i)->style.solid.second == 255)
-                (*i)->ArcLabelled::PostPosProcess(autoMarker);
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            chart->HideEntityLines((*i)->pipe_shadow);
-    } else {
-        //For boxes we always add the background first then the content
-        //And we do this for each segment sequentially
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            if ((*i)->valid) {
-                (*i)->ArcLabelled::PostPosProcess(autoMarker);
-                if ((*i)->emphasis)
-                    chart->PostPosProcessArcList(*(*i)->emphasis, autoMarker);
-            }
+    EntityDistanceMap d;
+    double width = 0;
+    if (emphasis)
+        chart->WidthArcList(*emphasis, d);
 
-        //Hide entity lines during the lines inside the box    
-        for (auto i = ++follow.begin(); i!=follow.end(); i++) {
-            chart->HideEntityLines((*i)->text_cover);
-            if ((*i)->style.line.IsDoubleOrTriple()) {
-                const Range r((*i)->yPos, (*i)->yPos+(*i)->style.line.LineWidth());
-                for (auto j=src; j!=++EIterator(dst); j++)
-                    (*j)->status.HideRange(r);
-            }
-        }
-        //hide top and bottom line if double
-        if (style.line.IsDoubleOrTriple()) {
-            const double lw = style.line.LineWidth();
-            const double r_in = style.line.cornersize.second; //cornersize for inner edge
-            const double r_out = r_in + lw * style.line.RadiusIncMul(); //cornersize for outer edge
-            Block b(chart->XCoord((*src)->pos) - left_space, chart->XCoord((*dst)->pos) + right_space, 
-                    yPos, yPos+total_height); //The outer edge of the lines
-            switch (style.line.corner.second) {
-            case CORNER_BEVEL:
-            case CORNER_ROUND:
-                for (auto j=src; j!=++EIterator(dst); j++) {
-                    const double x = chart->XCoord((*j)->pos);
-                    //distance from the changepoint towards the edges (=0 in edges, =r_in/out in the middle)
-                    const double x_diff_in  = std::min(std::min(x-b.x.from+lw, b.x.till-lw-x), r_in);
-                    const double x_diff_out = std::min(std::min(x-b.x.from,    b.x.till-x   ), r_out);
-                    double off_out, off_in;
-                    if (style.line.corner.second == CORNER_BEVEL) {
-                        off_out = r_out - x_diff_out;
-                        off_in = lw + r_in - x_diff_in;
-                    } else {
-                        off_out = r_out - sqrt(r_out*r_out - x_diff_out*x_diff_out);
-                        off_in = lw + r_in - sqrt(r_in*r_in - x_diff_in*x_diff_in);
-                    }
-                    const Range top   (b.y.from + off_out, b.y.from + off_in);
-                    const Range bottom(b.y.till - off_in,  b.y.till - off_out);
-                    (*j)->status.HideRange(top);
-                    (*j)->status.HideRange(bottom);
-                }
-                break;
-            case CORNER_NOTE:
-                for (auto j=src; j!=++EIterator(dst); j++) {
-                    const double x = chart->XCoord((*j)->pos);
-                    const double off_in  = x < b.x.till-r_out ? lw : r_out+lw;
-                    const double off_out = r_out - std::min(b.x.till-x, r_out);
-                    const Range top   (b.y.from + off_out, b.y.from + off_in);
-                    (*j)->status.HideRange(top);
-                }
-                /*Fallthrough*/
-            case CORNER_NONE:
-                const Range top(b.y.from, b.y.from + lw);
-                const Range bottom(b.y.till - lw, b.y.till);
-                for (auto j=src; j!=++EIterator(dst); j++) {
-                    (*j)->status.HideRange(top);
-                    (*j)->status.HideRange(bottom);
-                }
-            }
+    for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+        width = (*i)->parsed_label.getTextWidthHeight().x;
+        (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + 3;
+        (*i)->right_space = d.Query((*(*i)->dst)->index, DISTANCE_RIGHT) + 3;
+
+        if ((*i)->src==(*i)->dst) {
+            //This can happen only if the pipe contains one segment only i == follow.begin
+            //so no need to check pipe_connect flags
+            (*i)->left_space  = max(width/2, (*i)->left_space)  + (*i)->style.line.LineWidth() +
+                (*i)->style.line.radius.second;
+            (*i)->right_space = max(width/2, (*i)->right_space) + (*i)->style.line.LineWidth() +
+                (*i)->style.line.radius.second + (*i)->style.shadow.offset.second;
+        } else {
+            (*i)->left_space  += (*i)->style.line.LineWidth() + (*i)->style.line.radius.second;
+            (*i)->right_space += (*i)->style.line.LineWidth() + (*i)->style.line.radius.second +
+                (*i)->style.shadow.offset.second;
+            //Check if we are connecting to a neighbour pipe segment
+            if ((*i)->pipe_connect_left) (*i)->left_space = 0;
+            if ((*i)->pipe_connect_right) (*i)->right_space = 0;
+            distances.Insert((*(*i)->src)->index, (*(*i)->dst)->index,
+                             width + (*i)->left_space + (*i)->right_space);
         }
     }
+    distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
+    distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
+
+    //Finally add the requirements of the content
+    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+    d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
+    distances += d;
 }
 
 //Draw a pipe, this is called for each segment
 //topside is the bigger part of the pipe
 //backside is the small oval visible form the back of the pipe
 //this->yPos is the outer edge of the top line
+//this->height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, and for pipes the lower linewidth, too
 //this->left_space and right_space includes linewidth
-void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text, 
-                           double next_lw)
+void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool text)
 {
-    if (shadow) {
-        //Shadow under the whole pipe
-        chart->Shadow(pipe_shadow, style.shadow);
-    }
+    if (!valid || !pipe) return;
+    //ls and ld will point to the middle of the line
+    const double lw = style.line.LineWidth();
+    XY ls, ld;
+    ls.y = ceil(yPos + lw/2);
+    ld.y = floor(yPos + height - lw/2);
+    ls.x = chart->XCoord((*src)->pos) - left_space;
+    ld.x = chart->XCoord((*dst)->pos) + right_space;
+
+    XY cs(ls.x, (ls.y+ld.y)/2);
+    XY cd(ld.x, (ls.y+ld.y)/2);
+    XY wh(style.line.radius.second*2, ld.y-ls.y);
+    XY shift(style.line.radius.second+lw, lw/2);
+
     if (backSide) {
+        chart->shadow(ls, ld+XY(style.line.radius.second/2, lw/2), style.shadow, 0, false);
+
         //The back of the main pipe
-        MscFillAttr fill = style.fill;
-        //backside is always filled fully opaque
-        fill.color.second.a = 255;
-        fill.color2.second.a = 255;
-        chart->Fill(pipe_body_fill, fill);
+        chart->_arc_path(cs, wh, 270, 90, 0, LINE_SOLID, true);
+        chart->_arc_path(cd, wh, 90, 270, 0, LINE_SOLID);
+        chart->Clip();
+        chart->filledRectangle(ls-shift, ld+shift, style.fill, 0);
+        chart->UnClip();
+
         //the back of the small ellipsis visible from the side
+        MscFillAttr fill = style.fill;
         if (fill.gradient.second == GRADIENT_UP)
             fill.gradient.second = GRADIENT_DOWN;
         else if (fill.gradient.second == GRADIENT_DOWN)
             fill.gradient.second = GRADIENT_UP;
-        chart->Fill(pipe_hole_fill, fill);
+        chart->_arc_path(cd, wh, 0, 360, 0, LINE_SOLID);
+        chart->Clip();
+        chart->filledRectangle(ls-shift, ld+shift, fill, 0);
+        chart->UnClip();
+
         //Draw the backside line
-        chart->Line(pipe_hole_curve, style.line);
+        chart->SetLineAttr(style.line);
+        chart->_arc_path(cd, wh, 270, 90, style.line.width.second, style.line.type.second); //and not line.LineWidth()!
+        cairo_stroke(chart->GetContext());
+        chart->_arc_path(cs, wh, 270, 90, style.line.width.second, style.line.type.second); //and not line.LineWidth()!
+        cairo_stroke(chart->GetContext());
     }
     if (topSideFill) {
-        //apply the transparency of the solid attribute
         MscFillAttr fill = style.fill;
         fill.color.second.a = unsigned(style.solid.second) * unsigned(fill.color.second.a) / 255;
-        chart->Fill(pipe_body_fill, fill);
+        chart->_arc_path(cs, wh, 270, 90, 0, LINE_SOLID, true);
+        chart->_arc_path(cd, wh, 90, 270, 0, LINE_SOLID);
+        chart->Clip();
+        chart->filledRectangle(ls-shift, ld+shift, fill, 0);
+        chart->UnClip();
     }
     if (topSideLine) {
-        cairo_line_join_t t = chart->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
-        Contour clip(0, pipe_block.x.till, 0, chart->total.y);  
-        if (style.line.cornersize.second>0 && pipe_connect_forw) {
-            const double x = style.fromright.second ? pipe_block.x.till : pipe_block.x.from;
-            const XY c(x, pipe_block.y.MidPoint());
-            clip = (clip-Contour(c, style.line.cornersize.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2)).GetFirst();
-        }
-        chart->Clip(clip);
-        if (!style.line.IsDoubleOrTriple() || drawing_variant==0)
-            chart->Line(pipe_body_line, style.line); //basic variant, in case of double & triple, lines cross
-        else if (style.line.IsDouble()) {
-            chart->SetLineAttr(style.line);
-            if (drawing_variant==1) { //advanced: lines do not cross
-                chart->singleLine(pipe_whole_line.CreateExpand(style.line.DoubleSpacing()), style.line);
-                chart->singleLine(pipe_body_line.CreateExpand(-style.line.DoubleSpacing()), style.line);
-                chart->singleLine(pipe_hole_line.CreateExpand(-style.line.DoubleSpacing()), style.line);
-            } else { //very advanced: proper double line joint
-                chart->singleLine(pipe_whole_line.CreateExpand(style.line.DoubleSpacing()), style.line); //outer
-                chart->singleLine(pipe_body_line.CreateExpand(-style.line.DoubleSpacing()) -
-                                  pipe_hole_line.CreateExpand(style.line.DoubleSpacing()), style.line);  //inner body
-                chart->singleLine(pipe_hole_line.CreateExpand(-style.line.DoubleSpacing()), style.line); //inner hole
-            }
-        } else if (style.line.IsTriple()) {
-            chart->SetLineAttr(style.line);
-            //here variant 1 and 2 result in the same
-            chart->singleLine(pipe_whole_line.CreateExpand(style.line.TripleSpacing()), style.line);  //outer
-            chart->singleLine(pipe_body_line.CreateExpand(-style.line.TripleSpacing()) -
-                                pipe_hole_line.CreateExpand(style.line.TripleSpacing()), style.line);  //inner body
-            chart->singleLine(pipe_hole_line.CreateExpand(-style.line.TripleSpacing()), style.line);   //inner hole
-            cairo_set_line_width(chart->cr, style.line.TripleMiddleWidth());
-            chart->singleLine(pipe_body_line, style.line); //middle line
-        }
-        chart->UnClip();
-        chart->SetLineJoin(t);
+        chart->_arc_path(cs, wh, 90, 270, style.line.width.second, style.line.type.second);
+        cairo_new_sub_path(chart->GetContext());
+        chart->_arc_path(cd, wh, 90, 270, style.line.width.second, style.line.type.second);
+        chart->SetLineAttr(style.line);
+        cairo_stroke(chart->GetContext());
+        chart->line(ls, XY(ld.x, ls.y), style.line);
+        chart->line(XY(ls.x, ld.y), ld, style.line);
     }
-    if (text) 
-        parsed_label.Draw(sx_text, dx_text, y_text);
+    if (text) {
+        Geometry dummy;
+        double curve_gap = 0;
+        if (style.text.GetIdent() == MSC_IDENT_RIGHT)
+            curve_gap = style.line.radius.second;
+        parsed_label.DrawCovers(ls.x, ld.x-curve_gap,
+                                yPos + style.line.LineWidth() + chart->emphVGapInside,
+                                dummy, true);
+    }
 }
 
-void ArcEmphasis::Draw()
+//Will only be called for the first box of a multi-segment box series
+//geometry conatins cover for label (if any), all of the labels in the first box's geometry (rest empty)
+//geomery_all is set only the first box, and is a full cover for all, as well
+double ArcEmphasis::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
-    if (!valid) return;
+    if (!valid) return 0;
+    y += chart->emphVGapOutside;
+    if (final) yPos = y;
+    if (draw) y = yPos;
+
+    //A few explanations of the variables exact meaning
+    //total_orig_y points to the upper edge of the upper line
+    //total_height do not contain the emphvgapoutside, but includes linewidth
+    //left_space and right_space includes linewidth
+    //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, and for pipes the lower linewidth, too
+    //yPos is pointing to the upper edge of the upper line
+    const double total_orig_y = y;
+
     if (pipe) {
-        //First shadows
-        for (auto i = follow.begin(); i!=follow.end(); i++) 
-            (*i)->DrawPipe(false, false, false, true, false, 0);  //dummy 0
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Dont draw the topside fill
-            //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
-            //Draw the backside in any case.
-            //Do not draw text
-            auto i_next = i; i_next++; 
-            const double next_linewidth = i_next!=follow.end() ? (*i_next)->style.line.width.second : 0;
-            (*i)->DrawPipe(false, (*i)->style.solid.second == 0, true, false, false, next_linewidth);
-            if (emphasis && drawEntityLines)
-                chart->DrawEntityLines(yPos, height, (*i)->src, ++EIterator((*i)->dst));
+        //If we are drawing, first iterate through the segments and draw their backside
+        if (draw)
+            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+                //Draw the topside fill only if the pipe is at least a bit transparent. Else it will be later covered anyway.
+                //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
+                //Draw the backside in any case.
+                //Do not draw text
+                (*i)->DrawPipe((*i)->style.solid.second < 255, (*i)->style.solid.second == 0, true, false);
+                //if (emphasis)
+                //    chart->DrawEntityLines(yPos, height, (*i)->src, ++EIterator((*i)->dst));
+            }
+        //if we just calculate collect the cover for those labels that are not on a fully opaque segment
+        //Then we draw the content of the first segment's emphasis
+        Geometry geom_labels;
+        double max_lineWidth = 0;
+        double lowest_label_bottom = total_orig_y;
+        double lowest_line_bottom = total_orig_y;
+        if (!draw) {
+            //Determine thickest line for precise pipe alignment
+            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
+                if (max_lineWidth < (*i)->style.line.LineWidth()) max_lineWidth = (*i)->style.line.LineWidth();
+            lowest_line_bottom = total_orig_y + max_lineWidth + chart->emphVGapInside;
+            //Collect cover information from labels and linewidth, so compression of content arrows can be done
+            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+                //Set this variables in each segment
+                (*i)->yPos = total_orig_y;
+                y = total_orig_y + max_lineWidth/2 + (*i)->style.line.LineWidth()/2 + chart->emphVGapInside;
+                (*i)->geometry.Clear();
+                const double lsx = chart->XCoord((*(*i)->src)->pos) - (*i)->left_space;
+                const double ldx = chart->XCoord((*(*i)->dst)->pos) + (*i)->right_space;
+                //do not draw here, only add text cover
+                // ... but even omit text cover for pipes if the pipe is fully opaque,
+                //     in that case content can be drawn at same position as label - opaque pipe will cover anyway
+                if (style.solid.second < 255 ) {
+                    Geometry geom_this_label;
+                    double curve_gap = 0;
+                    if ((*i)->style.text.GetIdent() == MSC_IDENT_RIGHT)
+                        curve_gap = (*i)->style.line.radius.second;
+                    (*i)->parsed_label.DrawCovers(lsx, ldx-curve_gap, y, geom_this_label, draw);
+                    y += (*i)->parsed_label.getTextWidthHeight().y;
+                    if (lowest_label_bottom < y) lowest_label_bottom = y;
+
+                    if (final) {
+                        //Add cover block only to this->geometry not to g
+                        //We collect geometries of all follow's the geometry of the first box
+                        geom_this_label.SetArc(*i);
+                        geom_this_label.SetFindType(Block::FIND_NONE);
+                        (*i)->geometry += geom_this_label;
+                    }
+                    geom_labels += geom_this_label;
+                }
+            }
+            //check if thick lined segments having no label have lower still
+            if (lowest_label_bottom < lowest_line_bottom)
+                lowest_label_bottom = lowest_line_bottom;
+            y = lowest_label_bottom;
+        } /* if (!draw) */
+
+        //Draw content arrows if any. If not yet drawing, then just calculate their pos
+        if (emphasis)
+            y += chart->PlaceDrawListUnder(emphasis->begin(), emphasis->end(),
+                                           lowest_line_bottom, lowest_label_bottom,
+                                           geom_labels, g, draw, final);
+        //now y contains the bottom of the content arrows
+        //draw the top side of the pipe and the label
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+            if (draw)
+                //Draw the topside fill only if the pipe is not fully transparent.
+                //Draw the topside line in any case
+                //Do not draw the backside (that may content arrow lines already drawn)
+                //Draw the text
+                (*i)->DrawPipe((*i)->style.solid.second > 0, true, false, true);
+            else if ((*i)->style.solid.second == 255) {
+                //if not yet drawing but we are fully opaque adjust y to be at least as large as the sum of the texts
+                //(content height may be smaller than labels)
+                const double covered_text_y = total_orig_y + (*i)->style.line.LineWidth() +
+                    chart->emphVGapInside + (*i)->parsed_label.getTextWidthHeight().y;
+                if (y < covered_text_y)
+                    y = covered_text_y;
+            }
+        }
+        y += chart->emphVGapInside + max_lineWidth;
+        if (!draw) {
+            const double bottom = y;
+            //Now bottom contains the bottom of the pipes (inner edge of line)
+            //y will be updated to be the bottom of the pipes (linewidth and shadow-wise)
+            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+                const double mybottom = bottom + (*i)->style.shadow.offset.second;
+                if (y<mybottom) y = mybottom;
+                //Set variables in each segment if this is the final position
+                //Height does not include the lower linewidth or shadow
+                (*i)->height = bottom - total_orig_y;
+                //Add a frame/box for tracking for the entire segment
+                const double lsx = chart->XCoord((*(*i)->src)->pos) - (*i)->left_space;
+                const double ldx = chart->XCoord((*(*i)->dst)->pos) + (*i)->right_space;
+                Block box(lsx, ldx, total_orig_y, bottom, *i);
+                //If we have content and not fully opaque, draw only the frame of the box for tracking
+                if (final) {
+                    if (emphasis && (*i)->style.solid.second < 255)
+                        box.drawType = Block::DRAW_FRAME;
+                    (*i)->geometry += box;
+                }
+                //Ok, now add a box to g to be returned as cover. Here we also include shadows
+                box.x.till += (*i)->style.shadow.offset.second;
+                box.y.till += (*i)->style.shadow.offset.second;
+                g += box;
+            }
+            //y now contains the full bottom, including shadows and linewidths
+            g.mainline += Range(total_orig_y, y);
+        } /* if (!draw) */
+    } else { /* if (pipe) */
+        //For boxes we cycle through the segments, drawing/calculating labels and content alike
+        //First set a few constants
+        //s and d are the inner edges of the lines of the whole box
+        const XY lw(style.line.LineWidth(), style.line.LineWidth());
+        const XY lw2(lw.x/2, lw.y/2);
+        XY s, d;
+        s.x = chart->XCoord((*src)->pos) - left_space + lw.x;
+        s.y = y + lw.y;
+        d.x = chart->XCoord((*dst)->pos) + right_space - lw.x - style.shadow.offset.second;
+        //height has uninitialized value when this function is called the first time
+        //but we do not care, d is used only when actually drawing
+        //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside,
+        //but for boxes not lower linewidth (that is just for pipes)
+        d.y = y + total_height - lw.y - style.shadow.offset.second;
+
+        //First draw the background and lines
+        if (draw) {
+            //for boxes draw background for each segment, then separator lines, then bounding rectangle lines
+            //First draw the shadow. If we have non-opaque fill colors, draw also
+            //"behind" the box
+            bool clipShadow = true;
+            for (PtrList<ArcEmphasis>::const_iterator i = follow.begin(); i!=follow.end(); i++)
+                if ((*i)->style.fill.color.second.a<255) {
+                    clipShadow = false;
+                    break;
+                }
+            chart->shadow(s-lw2, d+lw2, style.shadow, style.line.radius.second, clipShadow);
+            //First do a clip region for the overall box (for round corners)
+            chart->ClipRectangle(s, d, style.line.radius.second);
+            //ls and ld are the inner edges of the lines of the local box (that of (*i))
+            XY ls = s, ld = d;
+            for (PtrList<ArcEmphasis>::const_iterator i = follow.begin(); i!=follow.end(); i++) {
+                ls.y = (*i)->yPos + (*i)->style.line.LineWidth();
+                ld.y = (*i)->yPos + (*i)->height;
+                //Increase the fill area downward by half of the linewidth below us
+                PtrList<ArcEmphasis>::const_iterator next = i;
+                next++;
+                if (next==follow.end())
+                    ld.y += style.line.LineWidth()/2;
+                else
+                    ld.y += (*next)->style.line.LineWidth()/2;
+                //Draw square-corenered rectangles, radius = 0
+                chart->filledRectangle(ls, ld, (*i)->style.fill, 0);
+                //if there are contained entities, draw entity lines
+                if ((*i)->emphasis)
+                    chart->DrawEntityLines(ls.y, ld.y-ls.y, src, ++EIterator(dst));
+            }
+            //Draw box lines - Cycle only for subsequent boxes
+            for (PtrList<ArcEmphasis>::const_iterator i = ++(follow.begin()); i!=follow.end(); i++) {
+                ls.y = ld.y = ceil((*i)->yPos + (*i)->style.line.LineWidth()/2);
+                chart->line(ls, ld, (*i)->style.line);
+            }
+            chart->UnClip();
+            //Finally draw the overall line around the box using original s and d
+            chart->rectangle(s-lw2, d+lw2, style.line);
+        } /* if (draw) */
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+            // y now points to the *top* of the line of the top edge of this box
+            // if we are pipe, we draw the segment side-by side, so we reset y here
+            if (draw) y = (*i)->yPos;
+            else (*i)->geometry.Clear();
+            y = ceil(y);
+            const double orig_y = y;
+            Geometry geom_label;
+
+            //Advance upper line and spacing
+            y += (*i)->style.line.LineWidth() + chart->emphVGapInside;
+            //Add text cover & draw if necessary
+            (*i)->parsed_label.DrawCovers(s.x, d.x, y, geom_label, draw);
+            if (final) {
+                //Add label cover block only to this->geometry not to g
+                //Only if box has content. Else we just add a rectangle covering all of it later
+                if ((*i)->emphasis) {
+                    geom_label.SetArc(*i);
+                    geom_label.SetFindType(Block::FIND_NONE);
+                    (*i)->geometry += geom_label;
+                }
+                //If final position, cover the entity lines where text goes
+                chart->HideEntityLines(geom_label);
+            }
+            //Advance label height
+            double th = (*i)->parsed_label.getTextWidthHeight().y;
+            y += th;
+            //Draw arrows if any under the label (place cover in geom_label, which we will discard)
+            if ((*i)->emphasis)
+                y += chart->PlaceDrawListUnder((*i)->emphasis->begin(), (*i)->emphasis->end(),
+                                               y - th, y, geom_label, geom_label, draw, final);
+
+            y += chart->emphVGapInside;
+
+            //Set variables to store for later to draw the box lines and bkg above
+            if (final) {
+                (*i)->yPos = orig_y;
+                (*i)->height = y - orig_y;
+                //Add a frame/box for tracking for the entire segment
+                Block box(s.x-lw.x+style.shadow.offset.second, d.x+lw.x, orig_y, y, *i);
+                //If we are the last in the follow series extend to cover bottom shadow
+                if (++PtrList<ArcEmphasis>::iterator(i) == follow.end())
+                    box.y.till += lw.y + style.shadow.offset.second;
+                //If we have content, draw only the frame of the box for tracking
+                if ((*i)->emphasis)
+                    box.drawType = Block::DRAW_FRAME;
+                (*i)->geometry += box;
+            }
+        } /* for cycle through segments */
+        //Final advance of linewidth
+        y = ceil(y + lw.y + style.shadow.offset.second);
+
+        //Generate a single block covering the entire box series to be returned for compression
+        if (!draw) {
+            Block box(s.x-lw.x, d.x+lw.x+style.shadow.offset.second, total_orig_y, y);
+            g += box;
+            g.mainline += box.y;
+        }
+    } /* else if pipe */
+
+    if (!draw)
+        total_height = y - total_orig_y;
+
+    return total_height + 2*chart->emphVGapOutside;
+}
+
+//Will only be called for the first box of a multi-segment box series
+void ArcEmphasis::PostHeightProcess(void)
+{
+    if (pipe) {
+        //For pipes we first add those covers to chart->AllCovers that are at least a bit transparent,
+        //then the content (only in the first segment)
+        //then those segments, which are fully opaque
+        //(this is because search is backwards and this arrangement fits the visual best
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+            if (!(*i)->valid || (*i)->style.solid.second == 255) continue;
+            chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+            chart->AllArcs[(*i)->file_pos] = *i;
         }
         if (emphasis)
-            chart->DrawArcList(*emphasis);
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Draw the topside fill only if the pipe is not fully transparent.
-            //Draw the topside line in any case
-            //Do not draw the backside (that may content arrow lines already drawn)
-            //Draw the text
-            auto i_next = i; i_next++; 
-            const double next_linewidth = i_next!=follow.end() ? (*i_next)->style.line.width.second : 0;
-            (*i)->DrawPipe((*i)->style.solid.second > 0, true, false, false, true, next_linewidth);
+            for (ArcList::iterator j = emphasis->begin(); j!=emphasis->end(); j++)
+                (*j)->PostHeightProcess();
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+            if (!(*i)->valid || (*i)->style.solid.second < 255) continue;
+            chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+            chart->AllArcs[(*i)->file_pos] = *i;
         }
-    } else {
-        //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
-        const double lw = style.line.LineWidth();
-        MscLineAttr line = style.line;  //We will vary the cornersize, so we need a copy
-        //The cornersize specified in style.line will be that of the inner edge of the line
-        if (line.cornersize.second > 0)
-            line.cornersize.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
-        Block r(chart->XCoord((*src)->pos) - left_space, chart->XCoord((*dst)->pos) + right_space, 
-                yPos, yPos+total_height); //The outer edge of the lines
-        //First draw the shadow. 
-        chart->Shadow(r, line, style.shadow);
-        //Do a clip region for the overall box (for round corners) 
-        //at half a linewidth from the inner edge (use the width of a single line!)
-        line.cornersize.second += ( -lw + style.line.width.second/2.) * style.line.RadiusIncMul();
-        r.Expand(-lw+style.line.width.second/2.);
-        chart->Clip(r, line);
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Overall rule for background fill:
-            //for single line borders we fill up to the middle of the border
-            //for double line borders we fill up to the middle of the inner line of the border
-            //style.line.LineWidth() gives the full width of the (double) line, width.second is just one line of it
-            //for single lines style.line.LineWidth()==style.line.width.second
-            double sy = (*i)->yPos + (*i)->style.line.LineWidth() - (*i)->style.line.width.second/2.;
-            double dy = (*i)->yPos + (*i)->height;
-            //decrease upper limit for the first one (note+triple line has areas higher than this to cover)
-            //clip will cut away the not needed areas
-            if (i==follow.begin()) 
-                sy -= lw;
-            //Increase the fill area downward by half of the linewidth below us
-            PtrList<ArcEmphasis>::const_iterator next = i;
-            next++;
-            if (next==follow.end())
-                dy += style.line.width.second/2.;
-            else
-                dy += (*next)->style.line.width.second/2.;
-            //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
-            chart->Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
-            //if there are contained entities, draw entity lines, strictly from inside of line
-            if ((*i)->emphasis && (*i)->drawEntityLines)
-                chart->DrawEntityLines((*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), src, ++EIterator(dst));
-        }
-        chart->UnClip();
-        //shring to the inner edge
-        r.Expand(-style.line.width.second/2.);
-        line.cornersize.second -= style.line.width.second/2. * style.line.RadiusIncMul();
-        //Draw box lines - Cycle only for subsequent boxes
-        for (auto i = ++(follow.begin()); i!=follow.end(); i++) {
-            const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
-            const XY magic(1,0);  //XXX needed in windows
-            chart->Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.line);
-        }
-        //Finally draw the overall line around the box, expand to midpoint of line
-        r.Expand(lw/2);
-        line.cornersize.second += (lw/2)  * style.line.RadiusIncMul();
-        chart->Line(r, line);
-        //XXX double line joints: fix it
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            (*i)->parsed_label.Draw((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
-            if ((*i)->emphasis)
-                chart->DrawArcList(*(*i)->emphasis);
-            //if (i==follow.begin()) {
-            //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
-            //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
-            //}
-        }
-    }
+    } else
+        //For boxes we always add the background first then the content
+        //And we do this for each segment sequentially
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
+            if ((*i)->valid) {
+                chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
+                chart->AllArcs[(*i)->file_pos] = *i;
+                if ((*i)->emphasis)
+                    for (ArcList::iterator j = (*i)->emphasis->begin(); j!=(*i)->emphasis->end(); j++)
+                        (*j)->PostHeightProcess();
+            }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
-        nudge(t==MSC_COMMAND_NUDGE), extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0)
+    ArcLabelled(t, msc, msc->Contexts.top().styles["divider"]),
+    nudge(t==MSC_COMMAND_NUDGE)
 {
 }
 
@@ -2276,26 +1894,8 @@ bool ArcDivider::AddAttribute(const Attribute &a)
     return ArcLabelled::AddAttribute(a);
 };
 
-void ArcDivider::AttributeNames(Csh &csh, bool nudge)
-{
-    if (nudge) return;
-    ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
-    style.AttributeNames(csh);
-}
-
-bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
-{
-    if (nudge) return false;
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
-    if (style.AttributeValues(attr, csh)) return true;
-    if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    return false;
-}
-
 void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
@@ -2326,85 +1926,84 @@ void ArcDivider::Width(EntityDistanceMap &distances)
         distances.Insert(lside_index, rside_index, width);
 }
 
-double ArcDivider::Height(AreaList &cover)
+
+double ArcDivider::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
-    yPos = 0;
+    if (final) yPos = y;
+    if (draw) y = yPos;
+    if (!draw) geometry.Clear();
+
     if (nudge) {
-        Block b(0, chart->total.x, 0, chart->nudgeSize);
-        area = b;
-        area.mainline=b.y;
-        cover+=area;
-        return chart->nudgeSize;
+        if (!draw) {
+            Block b(0, chart->totalWidth, y, y + chart->nudgeSize);
+            geometry += b;
+            geometry.mainline += b.y;
+            geometry.SetArc(this);
+            g += geometry;
+        }
+        return  chart->nudgeSize;
     }
-    double y = wide ? 0 : chart->arcVGapAbove;
-    y += extra_space;
-    const double charheight = Label("M", chart, style.text).getTextWidthHeight().y;
+
+    double charheight = Label("M", chart, style.text).getTextWidthHeight().y;
+    if (!wide) y += chart->arcVGapAbove;
 
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;
-    centerline = y+wh.y/2;
-    text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
-    line_margin = chart->XCoord(MARGIN);
-    text_cover = parsed_label.Cover(text_margin, chart->total.x-text_margin, y);
-    area = text_cover;
-    area.arc = this;
+    const double lineYPos = y+wh.y/2;
 
-    //Add a cover block for the line, if one exists
-    if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
-        area += Block(line_margin, chart->total.x-line_margin,
-                      centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
+    const double text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
+    const double line_margin = chart->XCoord(MARGIN);
+    Geometry text_cover;
+    //Never draw here, just obtain the cover
+    //(DrawCovers does not return a cover if drawing)
+    parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
+                            text_cover, false);
+    if (draw) {
+        parsed_label.DrawCovers(text_margin, chart->totalWidth-text_margin, y,
+                                text_cover, true);
+        //determine widest extent for coverage at the lineYpos+- style.line.LineWidth()/2;
+        Range yRange(lineYPos - ceil(style.line.LineWidth()/2.), lineYPos + ceil(style.line.LineWidth()/2.));
+        Range xRange(chart->totalWidth-line_margin, line_margin);
+        //geometry so far contains the cover of the text
+        for (std::set<Block>::const_iterator i = text_cover.GetCover().begin(); i!=text_cover.GetCover().end(); i++)
+            if (yRange.Overlaps(i->y, chart->compressYGap))
+                xRange += i->x;
+        chart->line(XY(line_margin, lineYPos),
+                    XY(xRange.from-chart->compressXGap/2., lineYPos), style.line);
+        if (xRange.from < xRange.till) // Text covers the line - two part drawing
+            chart->line(XY(xRange.till+chart->compressXGap, lineYPos),
+                        XY(chart->totalWidth-line_margin, lineYPos), style.line);
+    }
+
+    //Hide entity lines where text shows
+    if (final)
+        chart->HideEntityLines(text_cover);
+
+    if (!draw) {
+        geometry += text_cover;
+        //Add a cover block for the line, if one exists
+        if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
+            geometry += Block(line_margin, chart->totalWidth-line_margin,
+                              lineYPos - style.line.LineWidth()*2, lineYPos + style.line.LineWidth()*2);
+        Range r(lineYPos-charheight/2, lineYPos+charheight/2);
+        geometry.mainline += r;
+        geometry.SetArc(this);
+        g+=geometry;
+    }
+
+    double height = wh.y;
     if (!wide)
-        wh.y += chart->arcVGapAbove + chart->arcVGapBelow;
-    height = wh.y + extra_space;
-    //Discontinuity lines cannot be compressed much
-    if (type==MSC_ARC_DISCO)
-        area.mainline += Range(wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
-    else
-        area.mainline += Range(centerline-charheight/2, centerline+charheight/2);
-    cover += area;
-    return height;
-}
-
-void ArcDivider::ShiftBy(double y)
-{
-    if (!valid) return;
-    if (!nudge)
-        text_cover.Shift(XY(0,y));
-    ArcLabelled::ShiftBy(y);
-}
-
-void ArcDivider::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
+        height += chart->arcVGapAbove + chart->arcVGapBelow;
+    if (!final) return height;
 	//If there is a vline in the current style, add that to entitylines
 	if (style.vline.width.first || style.vline.type.first || style.vline.color.first) {
 		MscStyle toadd;
 		toadd.vline = style.vline;
         for(EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++)
-            (*i)->status.ApplyStyle(Range(yPos, yPos+height), toadd);
+			(*i)->status.ApplyStyleRange(Range(yPos, yPos+height), toadd);
 	}
-
-    if (!nudge)
-        chart->HideEntityLines(text_cover);
-    ArcLabelled::PostPosProcess(autoMarker);
-}
-
-void ArcDivider::Draw()
-{
-    if (!valid) return;
-    if (nudge) return;
-    parsed_label.Draw(text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove));
-    //determine widest extent for coverage at the centerline+-style.line.LineWidth()/2;
-    const double lw2 = ceil(style.line.LineWidth()/2.);
-    Block b(line_margin, chart->total.x-line_margin, yPos + centerline - lw2, yPos + centerline + lw2);
-    Range r = (text_cover * b).GetBoundingBox().x;
-    if (r.IsInvalid())
-        chart->Line(XY(line_margin, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
-    else {
-        chart->Line(XY(line_margin, yPos + centerline), XY(r.from-chart->emphVGapInside, yPos + centerline), style.line);
-        chart->Line(XY(r.till+chart->emphVGapInside, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
-    }
+    return height;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -2426,7 +2025,6 @@ string ArcParallel::Print(int ident) const
 
 void ArcParallel::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
     at_top_level = top_level;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
         chart->PostParseProcessArcList(**i, false, left, right, number, false);
@@ -2443,47 +2041,44 @@ void ArcParallel::Width(EntityDistanceMap &distances)
     distances += d;
 }
 
-double ArcParallel::Height(AreaList &cover)
+double ArcParallel::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
-    heights.clear();
-    heights.reserve(blocks.size());
+    if (final) yPos = y;
+    if (draw) y = yPos;
+    //we keep this->geometry empty, as it is merely the sum of its content
+
     double height = 0;
-    for (auto i=blocks.begin(); i != blocks.end(); i++) {
-        AreaList cover_block;
-        //Each parallel block is compressed without regard to the others
-        double h = chart->HeightArcList((*i)->begin(), (*i)->end(), cover_block);
-        height = std::max(height, h);
-        heights.push_back(height);
-        cover += cover_block;
+    if (draw) { //quicker without the geometry manipulations
+        for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++) {
+            double h = chart->DrawHeightArcList((*i)->begin(), (*i)->end(),
+                                                y, g, true, final, height?y+height:autoMarker);
+            if (height < h) height = h;
+        }
+    } else {
+        Block limiter(0, chart->totalWidth, y, y);
+        g += limiter; // prevent any compression for now in DrawHeightArcList
+        Geometry g_original = g;
+        for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++) {
+            //Each parallel block is compressed without regard to the others
+            Geometry geom = g_original;
+            double h = chart->DrawHeightArcList((*i)->begin(), (*i)->end(),
+                                                y, geom, false, final, height?y+height:autoMarker);
+            if (height < h) height = h;
+            g += geom;
+        };
+        g -= limiter; //remove blockage
     }
     return height;
 }
 
-void ArcParallel::ShiftBy(double y)
+void ArcParallel::PostHeightProcess(void)
 {
+    ArcBase::PostHeightProcess();
     if (!valid) return;
-    for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->ShiftByArcList((*i)->begin(), (*i)->end(), y);
-    ArcBase::ShiftBy(y);
-}
-
-void ArcParallel::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
-    ArcBase::PostPosProcess(autoMarker);
-    int n=0;
-    //For automarker, give the bottom of the largest of previous blocks
-    for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PostPosProcessArcList(*(*i),
-            n>0 && heights[n-1]>0 ? yPos + heights[n-1] : autoMarker);
-}
-
-void ArcParallel::Draw()
-{
-    if (!valid) return;
-    for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->DrawArcList(*(*i));
+    for (PtrList<ArcList>::iterator i=blocks.begin(); i!=blocks.end(); i++)
+        for (ArcList::iterator j = (*i)->begin(); j != (*i)->end(); j++)
+            (*j)->PostHeightProcess();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -2498,46 +2093,22 @@ string ArcCommand::Print(int ident) const
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandEntity::CommandEntity(EntityDefList *e, Msc *msc)
-    : ArcCommand(MSC_COMMAND_ENTITY, msc)
-{
-    full_heading = (e==NULL);
-    if (e) {
-        entities.splice(entities.end(), *e);
-        delete e;
-    }
-}
-
-bool CommandEntity::AddAttribute(const Attribute &)
-{
-    return false;
-}
-
-void CommandEntity::AttributeNames(Csh &csh)
-{
-    return;
-}
-
-bool CommandEntity::AttributeValues(const std::string attr, Csh &csh)
-{
-    return false;
-}
-
-
 string CommandEntity::Print(int ident) const
 {
     string ss;
     ss << string(ident*2, ' ');
     ss << "Entity Command";
     if (full_heading) ss<<"(full_heading)";
-    for (auto i = entities.begin();i != entities.end(); i++)
-        ss << "\n" << (*i)->Print(ident+1);
+    if (entities)
+        for (EntityDefList::iterator i = entities->begin();i != entities->end(); i++)
+            ss << "\n" << (*i)->Print(ident+1);
     return ss;
 }
 
 void CommandEntity::AppendToEntities(const EntityDefList &e)
 {
-    entities.insert(entities.end(), e.begin(), e.end());
+    if (!entities) entities = new EntityDefList;
+    entities->insert(entities->end(),e.begin(),e.end());
 }
 
 
@@ -2550,62 +2121,33 @@ void CommandEntity::Combine(CommandEntity *ce)
     if (!full_heading && ce->full_heading)
         file_pos = ce->file_pos;
     if (ce->full_heading) full_heading = true;
-    AppendToEntities(ce->entities);
-    ce->entities.clear();
+    if (ce->entities) {
+        AppendToEntities(*(ce->entities));
+        ce->entities->clear();
+    }
 }
 
 
 void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numbering &number,
                                      bool top_level)
 {
-    if (!valid) return;
     at_top_level = top_level;
     if (full_heading && !top_level)
         chart->Error.Warning(file_pos.start, "The command 'heading' is specified "
                              "inside a parallel block. May display incorrectly.");
-    set<Entity*> explicitly_listed;
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        EIterator j_ent = chart->Entities.Find_by_Name((*i_def)->name);
-        (*i_def)->itr = j_ent;
+	//a pure "heading" command does not change left or right and change no entity style/status
+	if (!entities)
+        return;
+    for (EntityDefList::iterator i=entities->begin(); i!=entities->end(); i++) {
+        EIterator j = chart->Entities.Find_by_Name((*i)->name);
+        //Expand left and right to cover j
+        left = MinMaxByPos(left, j, true);
+        right = MinMaxByPos(right, j, false);
         //Make the style of the entitydef fully specified using the accumulated style info in Entity
-        (*j_ent)->running_style += (*i_def)->style;  //(*i)->style is a partial style here specified by the user
-        (*i_def)->style = (*j_ent)->running_style;	 //(*i)->style now become the full style to use from this point
-        (*i_def)->parsed_label.Set((*j_ent)->label, (*i_def)->style.text);
-
-        //Decide, if this entitydef will show an entity or not
-        //It can get drawn because we 1) said show=yes, or
-        //2) because it is on, we mention it (without show=yes) and it is
-        //a full heading.
-        (*i_def)->shown = ((*i_def)->show.second && (*i_def)->show.first) || (full_heading && (*j_ent)->shown);
-        explicitly_listed.insert(*j_ent);
-        //Adjust the running status of the entity. This is just for the Height process
-        if ((*i_def)->show.first)
-            (*j_ent)->shown = (*i_def)->show.second;
-    }
-    //A "heading" command, we have to draw all entities that are on
-    //for these we create additional EntityDefs and append them to entities
-    if (full_heading)
-        for (auto i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
-            if (!(*i)->shown) continue;
-            if (explicitly_listed.find(*i) != explicitly_listed.end()) continue;
-            EntityDef *e = new EntityDef((*i)->name.c_str(), chart);
-            //fill in all values necessary
-            e->implicit = true;
-            e->itr = i;
-            e->style = (*i)->running_style;
-            e->parsed_label.Set((*i)->label, e->style.text);
-            e->shown = true;
-            entities.Append(e);
-        }
-
-    //Now we have all entities among "entities" that will show here
-    //Go through them and update left, right and the entities' maxwidth
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        if (!(*i_def)->shown) continue;
-        left = chart->EntityMinByPos(left, (*i_def)->itr);
-        right = chart->EntityMaxByPos(right, (*i_def)->itr);
-        double w = (*i_def)->Width();
-        if ((*(*i_def)->itr)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
+        (*j)->running_style += (*i)->style;  //(*i)->style is a partial style here specified by the user
+        (*i)->style = (*j)->running_style;	 //(*i)->style now become the full style to use from this point
+        double w = (*j)->Width((*j)->running_style);
+        if ((*j)->maxwidth < w) (*j)->maxwidth = w;
     }
 }
 
@@ -2615,122 +2157,144 @@ void CommandEntity::Width(EntityDistanceMap &distances)
     if (!valid) return;
     //Add distances for entity heading
     EntityDistanceMap d;
-    //in PostParseProcess we created an entitydef for all entities shown here. "full_heading" not even checked here
-    for (auto i = entities.begin(); i!=entities.end(); i++) {
-        //Take entity height into account or draw it if show=on was added
-        if ((*i)->shown) {
-			const double halfsize = (*(*i)->itr)->maxwidth/2;
-            const unsigned index = (*(*i)->itr)->index;
+    if (entities)   //we have individually named entities
+        for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
+            EIterator j = chart->Entities.Find_by_Name((*i)->name);
+            //Take entity height into account or draw it if show=on was added
+            if ((*i)->show.second && (*i)->show.first) {
+				const double halfsize = (*j)->maxwidth/2;
+                const unsigned index = (*j)->index;
+                d.Insert(index, DISTANCE_LEFT, halfsize);
+                d.Insert(index, DISTANCE_RIGHT, halfsize);
+            }
+        }
+    if (full_heading)  //A "heading" command, all entities that are on
+        for (EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
+            if ((*i)->name == NONE_ENT_STR) continue;
+            if ((*i)->name == LSIDE_ENT_STR) continue;
+            if ((*i)->name == RSIDE_ENT_STR) continue;
+            //Here we do not know if all entities will be on at the same time.
+            //So we assume worst case (yes) and add distances for all
+            const double halfsize = (*i)->maxwidth/2;
+            const unsigned index = (*i)->index;
             d.Insert(index, DISTANCE_LEFT, halfsize);
             d.Insert(index, DISTANCE_RIGHT, halfsize);
         }
-    }
     //convert left and right requirements (added above) to pairwise ones.
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     distances += d;
 }
 
-double CommandEntity::Height(AreaList &cover)
+double CommandEntity::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
+    if (final) yPos = y;
+    if (draw)  y = yPos;
+    if (!draw) geometry.Clear();
+
     double height = 0;
-    //Those entities explicitly listed will have their own EntityDef for this line.
-    //Thus their area will be stored there and not in CommandEntity->area
-    //But, still put those into "cover" so they can be considered for placement
-    //There are other entities shown here, those triggered by a heading command.
-    //They have "implicit" set to true. They have no line info and they do not add
-    //their "area" to the allcovers of the chart in EntityDef::PostPosProcess.
-    //Instead we add their area to this->area now
+    //Those entities explicitly listed, put their cover in their geometry
+    //only the ones added by a heading command to this commandentity will
+    //put anything into this->geometry
     set<Entity*> explicitly_listed_entities;
-    for (auto i = entities.begin(); i!=entities.end(); i++) {
-        if ((*i)->shown) {
-            const double h = (*i)->Height(cover); //this also adds the cover to the entitydef's area
-            if (height <h) height = h;
-            if ((*i)->implicit)
-                area += (*i)->GetAreaToSearch();
+    if (entities) {  //An entity command
+        for (EntityDefList::iterator i = entities->begin(); i!=entities->end(); i++) {
+            //Clear geometry that may have been accumulated by !final rounds
+            if (!draw)
+                (*i)->geometry.Clear();
+            EIterator j = chart->Entities.Find_by_Name((*i)->name);
+            assert(j != chart->NoEntity);
+
+            //Record status and style changes
+            if (final) {
+                EIterator k = chart->Entities.Find_by_Name((*i)->name);
+                assert(k != chart->NoEntity);
+                //Apply changes in style
+                (*k)->status.ApplyStyle(yPos, (*i)->style);
+                //Apply changes in show status
+                if ((*i)->show.first)
+					(*k)->status.SetStatus(yPos, (*i)->show.second ? EntityStatusMap::SHOW_ON : EntityStatusMap::SHOW_OFF);
+            }
+            //Take entity height into account if it gets drawn
+            //It can get drawn because we 1) said show=yes, or
+            //2) because it is on, we mention it (without show=yes) and it is
+            //a full heading.
+            if (((*i)->show.second && (*i)->show.first) ||
+                (full_heading && (*j)->status.GetStatus(y))) {
+                const double h = (*j)->DrawHeight(y, (*i)->geometry, draw, final);
+                //If we are not drawing, we add the cover to the entitydef's geometry
+                if (!draw) {
+                    (*i)->geometry.SetArc(*i);
+                    g += (*i)->geometry; //we add it to the one returned
+                }
+                //We add this entity to the list of entities already done
+                explicitly_listed_entities.insert(*j);
+                if (height <h) height = h;
+            }
         }
+    }
+
+    if (!full_heading) return height;
+    //A "heading" command, draw all entities that are on
+    for (EntityList::const_iterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
+        if (!(*i)->status.GetStatus(y)) continue;
+        if (explicitly_listed_entities.find(*i) != explicitly_listed_entities.end()) continue;
+        const double h = (*i)->DrawHeight(y, geometry, draw, final);
+        if (height <h) height = h;
+    }
+    if (!draw) {
+        geometry.SetArc(this);
+        g += geometry;
     }
     return height;
 }
 
-void CommandEntity::ShiftBy(double y)
+void CommandEntity::PostHeightProcess(void)
 {
+    //Add us to the big file positions list
+    if (entities)
+        for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
+            chart->AllArcs[(*i)->file_pos] = *i;
+    chart->AllArcs[file_pos] = this;
     if (!valid) return;
-    for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->ShiftBy(y);
-    ArcCommand::ShiftBy(y);
+	//Add our covers to the big cover list
+    chart->AllCovers.insert(chart->AllCovers.end(), geometry.GetCover().begin(), geometry.GetCover().end());
+    if (entities)   //An entity command
+        for (EntityDefList::const_iterator i = entities->begin(); i!=entities->end(); i++)
+            chart->AllCovers.insert(chart->AllCovers.end(), (*i)->geometry.GetCover().begin(), (*i)->geometry.GetCover().end());
 }
 
-void CommandEntity::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
-    for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->PostPosProcess();
-    ArcCommand::PostPosProcess(autoMarker);
-}
 
-void CommandEntity::Draw()
+//////////////////////////////////////////////////////////////////////////////////////
+
+double CommandNewpage::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
-    if (!valid) return;
-    for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->Draw();
+    if (!final || !valid) return 0;
+    yPos = y;
+    chart->yPageStart.push_back(y);
+    Block b(0, chart->totalWidth, y, y, this);
+    b.findType = Block::FIND_NONE;
+    geometry += b;
+    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-bool CommandNewpage::AddAttribute(const Attribute &)
+double CommandNewBackground::DrawHeight(double y, Geometry &g,
+                                        bool draw, bool final, double autoMarker)
 {
-    return false;
-}
-
-void CommandNewpage::AttributeNames(Csh &csh)
-{
-
-}
-
-bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
-{
-    return false;
-}
-
-double CommandNewpage::Height(AreaList &cover)
-{
-    if (!valid) return 0;
-    Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
-    area_draw = b;
-    area_draw.mainline = b.y;
-    draw_is_different = true; //area is empty - never find this
+    if (!final || !valid) return 0;
+    yPos = y;
+    chart->Background[y] = fill;
+    Block b(0, chart->totalWidth, y, y, this);
+    b.findType = Block::FIND_NONE;
+    geometry += b;
     return 0;
-}
-
-void CommandNewpage::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
-    chart->yPageStart.push_back(yPos);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////
-
-double CommandNewBackground::Height(AreaList &cover)
-{
-    if (!valid) return 0;
-    Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
-    area_draw = b;
-    area_draw.mainline = b.y;
-    draw_is_different = true; //area is empty - never find this
-    return 0;
-}
-
-void CommandNewBackground::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
-    chart->Background[yPos] = fill;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 void CommandNumbering::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
     if ((action & SIZE) && length)
         number.SetSize(length);
     if (action & INCREMENT)
@@ -2738,6 +2302,12 @@ void CommandNumbering::PostParseProcess(EIterator &left, EIterator &right, Numbe
     if (action & DECREMENT)
         --number;
 }
+
+double CommandNumbering::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
+{
+    return 0;
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -2771,36 +2341,16 @@ bool CommandMark::AddAttribute(const Attribute &a)
     return ArcBase::AddAttribute(a);
 }
 
-void CommandMark::AttributeNames(Csh &csh)
+double CommandMark::DrawHeight(double y, Geometry &g,
+                               bool draw, bool final, double autoMarker)
 {
-    ArcBase::AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
-}
-
-bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"offset")) {
-        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    if (ArcBase::AttributeValues(attr, csh)) return true;
-    return false;
-}
-
-double CommandMark::Height(AreaList &cover)
-{
-    if (!valid) return 0;
-    Block b(0, chart->total.x, offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
-    area_draw = b;
-    area_draw.mainline = b.y;
-    draw_is_different = true; //area is empty - never find this
+    if (draw || !valid) return 0;
+    chart->Markers[name].second = y+offset;
+    if (!final) return 0;
+    Block b(0, chart->totalWidth, y+offset, y+offset, this);
+    b.findType = Block::FIND_NONE;
+    geometry += b;
     return 0;
-}
-
-void CommandMark::PostPosProcess(double autoMarker)
-{
-    if (!valid) return;
-    chart->Markers[name].second = yPos+offset;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -2825,38 +2375,35 @@ void CommandEmpty::Width(EntityDistanceMap &distances)
     distances.Insert(lside_index, rside_index, width);
 }
 
-double CommandEmpty::Height(AreaList &cover)
+double CommandEmpty::DrawHeight(double y, Geometry &g, bool draw, bool final, double autoMarker)
 {
     if (!valid) return 0;
-    yPos = 0;
-    const XY wh = parsed_label.getTextWidthHeight();
-    Contour a = Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y);
-    cover += a;
-    return wh.y + EMPTY_MARGIN_Y*2;
-}
-
-void CommandEmpty::Draw()
-{
-    if (!valid) return;
     const double width  = parsed_label.getTextWidthHeight().x;
     const double height = parsed_label.getTextWidthHeight().y;
-    MscLineAttr line;
-    line.width.second = 3;
-    line.corner.second = CORNER_ROUND;
-    line.cornersize.second = 10;
+    if (draw) {
+        MscLineAttr line;
+        line.width.second = 3;
+        line.radius.second = 10;
 
-    MscFillAttr fill;
-    fill.color.second = MscColorType(0,0,128);
-    fill.gradient.second = GRADIENT_BUTTON;
+        MscFillAttr fill;
+        fill.color.second = MscColorType(0,0,128);
+        fill.gradient.second = GRADIENT_BUTTON;
 
-    MscShadowAttr shadow;
-    shadow.offset.second = 5;
-    shadow.blur.second = 5;
+        MscShadowAttr shadow;
+        shadow.offset.second = 5;
+        shadow.blur.second = 5;
 
-    Block b(XY((chart->total.x-width)/2 , yPos+EMPTY_MARGIN_Y),
-            XY((chart->total.x+width)/2 , yPos+EMPTY_MARGIN_Y+height));
-
-    chart->Shadow(b, line, shadow);
-    chart->Fill(b, line, fill);
-    chart->Line(b, line);
+        chart->shadow(XY((chart->totalWidth-width)/2 , y+EMPTY_MARGIN_Y),
+                      XY((chart->totalWidth+width)/2 , y+EMPTY_MARGIN_Y+height),
+                      shadow, line.radius.second);
+        chart->filledRectangle(XY((chart->totalWidth-width)/2 , y+EMPTY_MARGIN_Y),
+                               XY((chart->totalWidth+width)/2 , y+EMPTY_MARGIN_Y+height),
+                               fill, line.radius.second);
+        chart->rectangle(XY((chart->totalWidth-width)/2 , y+EMPTY_MARGIN_Y),
+                         XY((chart->totalWidth+width)/2 , y+EMPTY_MARGIN_Y+height), line);
+    }
+    parsed_label.DrawCovers((chart->totalWidth-width)/2,
+                            (chart->totalWidth+width)/2,
+                            y+EMPTY_MARGIN_Y, g, draw);
+    return height + EMPTY_MARGIN_Y*2;
 }

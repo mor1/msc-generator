@@ -16,182 +16,11 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Hungarian (Hungary) resources
-
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_HUN)
-LANGUAGE LANG_HUNGARIAN, SUBLANG_DEFAULT
-#pragma code_page(1250)
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Dialog
-//
-
-IDD_POPUPLIST DIALOGEX 0, 0, 320, 201
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CLIPCHILDREN | WS_BORDER
-FONT 8, "MS Shell Dlg", 0, 0, 0x0
-BEGIN
-    LISTBOX         IDC_LIST2,0,0,306,187,LBS_SORT | LBS_OWNERDRAWVARIABLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-END
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// DESIGNINFO
-//
-
-#ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO
-BEGIN
-    IDD_POPUPLIST, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 312
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 193
-    END
-END
-#endif    // APSTUDIO_INVOKED
-
-#endif    // Hungarian (Hungary) resources
-/////////////////////////////////////////////////////////////////////////////
-
-
-/////////////////////////////////////////////////////////////////////////////
 // English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Dialog
-//
-
-IDD_PROGRESSDIALOG DIALOGEX 0, 0, 93, 0
-STYLE DS_SETFONT | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_THICKFRAME
-EXSTYLE WS_EX_TOPMOST
-CAPTION "Drawing in progress..."
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-END
-
-IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 396
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Msc-generator Preferences"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,137,375,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,200,375,50,14
-    LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
-    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
-    GROUPBOX        "External Text Editor",IDC_STATIC,7,258,243,93
-    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,269,74,10
-    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,282,54,10
-    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,293,87,10
-    CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,127,96,10
-    COMBOBOX        IDC_COMBO_CSH,179,126,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Use scheme:",IDC_STATIC,133,128,42,8
-    LTEXT           "&Start Command",IDC_STATIC,27,308,50,8
-    LTEXT           "Jump to &Line",IDC_STATIC,27,324,41,8
-    EDITTEXT        IDC_EDIT1,81,306,161,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT2,81,322,161,14,ES_AUTOHSCROLL
-    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,338,140,8
-    GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
-    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
-    CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
-    GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
-    CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
-    CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
-    CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,357,213,10
-    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,138
-    CONTROL         "&Smart &ident for labels",IDC_CHECK_SMART_IDENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,139,84,10
-    CONTROL         "&Auto completion information",IDC_CHECK_HINTS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,170,105,10
-    CONTROL         "typing an entity name",IDC_CHECK_SMART_HINT_ENTITY,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,210,86,10
-    CONTROL         "typing an attribute/option name",IDC_CHECK_SMART_HINT_ATTR_NAME,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,224,118,10
-    CONTROL         "typing an attribute/option value",IDC_CHECK_SMART_HINT_ATTR_VALUE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,238,118,10
-    CONTROL         "starting a new line",IDC_CHECK_SMART_HINT_LINE_START,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,196,75,10
-    CONTROL         "Group hints by prefix",IDC_CHECK_SMART_HINT_COMPACT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,160,182,83,10
-    CONTROL         "Filter as you type",IDC_CHECK_SMART_HINT_FILTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,160,196,72,10
-    LTEXT           "Automatically provide hints when...",IDC_STATIC,24,183,114,8
-    CONTROL         "Show errors as you type",IDC_CHECK_CSH_ERROR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,152,95,10
-    CONTROL         "Show errors in error window",IDC_CHECK_CSH_ERROR_IN_WINDOW,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,135,152,106,10
-END
-
-IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About Msc-generator"
-FONT 8, "MS Shell Dlg", 0, 0, 0x1
-BEGIN
-    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
-    LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
-    DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
-    PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
-END
-
-IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "A new version of Msc-generator  is available"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,61,75,14
-    PUSHBUTTON      "Do not remind me",IDOK,103,61,84,14
-    PUSHBUTTON      "https://sourceforge.net/projects/msc-generator/",IDC_BUTTON_URL2,14,39,169,14
-    LTEXT           "Currently installed version:",IDC_STATIC_CURRENT_VERSION,26,9,133,8
-    LTEXT           "Latest version available:",IDC_STATIC_LATEST_VERSION,34,24,134,8
-END
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// DESIGNINFO
-//
-
-#ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO
-BEGIN
-    IDD_PROGRESSDIALOG, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 86
-    END
-
-    IDD_DIALOG_OPTIONS, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 250
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 389
-    END
-
-    IDD_ABOUTBOX, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 228
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 48
-    END
-
-    IDD_DIALOG_VERSION, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 187
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 75
-    END
-END
-#endif    // APSTUDIO_INVOKED
-
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -644,12 +473,84 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
+// Dialog
+//
+
+IDD_PROGRESSDIALOG DIALOGEX 0, 0, 93, 0
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_THICKFRAME
+EXSTYLE WS_EX_TOPMOST
+CAPTION "Drawing in progress..."
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+END
+
+IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 300
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Msc-generator Preferences"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,137,279,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,200,279,50,14
+    LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
+    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
+    GROUPBOX        "External Text Editor",IDC_STATIC,7,160,243,93
+    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,171,74,10
+    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,184,54,10
+    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,195,87,10
+    CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,127,96,10
+    COMBOBOX        IDC_COMBO_CSH,179,126,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Use scheme:",IDC_STATIC,133,128,42,8
+    LTEXT           "&Start Command",IDC_STATIC,27,209,50,8
+    LTEXT           "Jump to &Line",IDC_STATIC,27,225,41,8
+    EDITTEXT        IDC_EDIT1,81,208,161,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,81,224,161,14,ES_AUTOHSCROLL
+    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,240,140,8
+    GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
+    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
+    CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
+    GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
+    CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
+    CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
+    CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,259,213,10
+    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,40
+    CONTROL         "&Smart &ident for labels",IDC_CHECK_SMART_IDENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,43,140,84,10
+END
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About Msc-gnerator"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
+    PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
+END
+
+IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "A new version of Msc-generator  is available"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,61,75,14
+    PUSHBUTTON      "Do not remind me",IDOK,103,61,84,14
+    PUSHBUTTON      "https://sourceforge.net/projects/msc-generator/",IDC_BUTTON_URL2,14,39,169,14
+    LTEXT           "Currently installed version:",IDC_STATIC_CURRENT_VERSION,26,9,133,8
+    LTEXT           "Latest version available:",IDC_STATIC_LATEST_VERSION,34,24,134,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
 // Version
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,5,0,0
- PRODUCTVERSION 2,5,0,0
+ FILEVERSION 2,5,6,0
+ PRODUCTVERSION 2,5,6,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -666,12 +567,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "2.5.0"
+            VALUE "FileVersion", "2.5.6.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "2.5.0"
+            VALUE "ProductVersion", "2.5.6.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -679,6 +580,47 @@ BEGIN
         VALUE "Translation", 0x409, 1252
     END
 END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_PROGRESSDIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 86
+    END
+
+    IDD_DIALOG_OPTIONS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 250
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 293
+    END
+
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_DIALOG_VERSION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 187
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 75
+    END
+END
+#endif    // APSTUDIO_INVOKED
 
 
 /////////////////////////////////////////////////////////////////////////////

@@ -196,10 +196,6 @@
     <ClCompile Include="colorsyntax.cc" />
     <ClCompile Include="colorsyntax2.cc" />
     <ClCompile Include="commandline.cpp" />
-    <ClCompile Include="contour_area.cpp" />
-    <ClCompile Include="contour_contour.cpp" />
-    <ClCompile Include="contour_edge.cpp" />
-    <ClCompile Include="contour_ellipse.cpp" />
     <ClCompile Include="csh.cpp" />
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="error.cpp" />
@@ -223,11 +219,6 @@
     <ClInclude Include="colorsyntax.h" />
     <ClInclude Include="colorsyntax2.h" />
     <ClInclude Include="commandline.h" />
-    <ClInclude Include="contour_area.h" />
-    <ClInclude Include="contour_basics.h" />
-    <ClInclude Include="contour_contour.h" />
-    <ClInclude Include="contour_edge.h" />
-    <ClInclude Include="contour_ellipse.h" />
     <ClInclude Include="csh.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="error.h" />

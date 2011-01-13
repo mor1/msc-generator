@@ -8,57 +8,11 @@ Two helpers needed:
  Add a test for metafiles
  Allow new function only for metafiles
 
-
-TODO: Switch to cairo 1.10 and the new pixman after summer.
-ADD: more styles to design lib
-TODO: Re-add escape key to exit in-place editing...
-ADD: Combined directional arrow styles such as a<->b<<>>c
-ADD: Make divider only within a box
-ADD: Allow divider to have entities
-ADD: Add entity create/destroy
-ADD: message lost
-ADD: Expand parallel behaviour
-- add valign={top, center, bottom} attribute
-- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
-   should return one)
-- add overlap=no attribute to use compress, but downward...
-- add these attributes to the style under parallel.valign and parallel.overlaps
-ADD: Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
-make that read-only. 
-ADD: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
-ADD: Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
-ADD: Add global text.format chart option to impact all text
-ADD: Add command bye so that file end can be used for comments
-
 ISSUE: missing ; at the end of last command creates an empty chart
 BUG: Change icons for file, program, etc.
-UPDATE DOC: With hints
-TODO: variant #1 double and triple-line joints for emphasis
-ADD: More arrowheads
-ADD: More BIG arrowheads
-ADD: More arrow types --> ==> >>> ..> 
-FIX: shodw should extend by half of blur
-TRY: shadow to arrows and labels
-FIX: Check that focus always goes back to the internal editor.
-FIX: corner=note
-FIX: What happens if we press ctrl+space and we are at the end of a word - this should be the special case
 
-
-In 3.0
-ADDED: More precise tracking mode
-ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
-ADDED: shadow attribute to block arrows
-ADDED: More space to ... dividers
-ADDED: line.corner attribute with bevel (also cornersize)
-FIXED: If we select a hint, use the hinted text, not the one in the editor (casedness)
-FIXED: allow hint when typing just before another word
-
-In 2.6
-FIXED: Many improvements to parsing, but missing the ; still result in empty chart
-ADDED: IntelliSense-like suggestions and auto-completion
 
 In 2.5.5
-FIXED: Under XP now we use cairo_text_path, so it works.
 FIXED: after a many line-label terminated with a semicolon TAB works bad in next line
 FIXED: Tabbing a multiline label (all of it) works bad
 FIXED: Now dropping a file will be equal to opening one (will ask for save and erase undo)
@@ -83,4 +37,25 @@ In 2.5.1
 FIXED: Applying a style kills numbering
 ADDED: Add empty escape to allow number style to be different from beginning of text
 FIXED: ... makes vlines dotted till end of chart
+
+
+Switch to cairo 1.10 and the new pixman after summer.
+design lib
+Re-add escape key to exit in-place editing...
+Add a<->b<<>>c
+Make divider only within a box
+Allow divider to have entities
+Add entity create/destroy
+Expand parallel behaviour
+- add valign={top, center, bottom} attribute
+- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
+   should return one)
+- add overlap=no attribute to use compress, but downward...
+- add these attributes to the style under parallel.valign and parallel.overlaps
+Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
+make that read-only. 
+Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
+Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
+Add global text.format chart option to impact all text
+Add command bye so that file end can be used for comments
  

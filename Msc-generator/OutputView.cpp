@@ -129,33 +129,3 @@ void COutputViewBar::OnSetFocus(CWnd* pOldWnd)
 }
 
 
-void COutputViewBar::ShowCompilationErrors(const CDrawingChartData &chart) 
-{
-    if (!::IsWindow(m_wndOutput)) return;
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	m_wndOutput.ResetContent();
-    compilation_errors.clear();
-	unsigned num = chart.GetErrorNum(pApp->m_Warnings);
-	for (int i=0; i<num; i++) {
-        compilation_errors.push_back(chart.GetErrorText(i, pApp->m_Warnings));
-        m_wndOutput.AddString(*compilation_errors.rbegin());
-    }
-	ShowPane(num>0, false, true);
-}
-
-
-void COutputViewBar::ShowCshErrors(const std::list<CString> &errors) 
-{
-    if (!::IsWindow(m_wndOutput)) return;
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    m_wndOutput.SetRedraw(false);
-	m_wndOutput.ResetContent();
-	for (auto i=compilation_errors.begin(); !(i==compilation_errors.end()); i++) 
-        m_wndOutput.AddString(*i);
-    for (auto i=errors.begin(); i!=errors.end(); i++) 
-        m_wndOutput.AddString(*i);
-    //ShowPane(true, true, false);  //do not do this! If user wants them, let him turn errors on
-    m_wndOutput.SetRedraw(true);
-}
