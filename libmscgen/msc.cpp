@@ -197,7 +197,7 @@ Msc::Msc() :
     arcVGapBelow = 3;
     discoVgap = 5;
     nudgeSize = 4;
-    compressGap = 0;
+    compressGap = 2;
     hscaleAutoXGap = 5;
     trackFrameWidth = 4;
     trackExpandBy = 2;
@@ -720,18 +720,25 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
 //as one block only up till none of them collides with something.
 //No matter what input parameters we get we always place the list at an integer
 //y coordinate
+//If ret_cover is not null, we return the rsulting cover of the list at the pos where placed
 double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
-                           double top_y, const AreaList &area_top, bool forceCompress)
+                           double top_y, const AreaList &area_top, bool forceCompress, 
+                           AreaList *ret_cover)
 {
     if (from==to) return 0;
     AreaList cover;
     double h = HeightArcList(from, to, cover);
-    if (forceCompress || (*from)->IsCompressed()) {
-        double touchpoint;
-        start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
-    }
+    double touchpoint;
+    double new_start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
+    //if we shifted up, apply shift only if compess is on
+    if (forceCompress || (*from)->IsCompressed()) 
+        if (new_start_y < start_y) start_y = new_start_y;
+    //if we shifted down, apply it in any case
+    else if (new_start_y > start_y) start_y = new_start_y;
     start_y = ceil(start_y);
     ShiftByArcList(from, to, start_y);
+    if (ret_cover) 
+        ret_cover->swap(cover.Shift(XY(0, start_y)));
     return start_y + h;
 }
 

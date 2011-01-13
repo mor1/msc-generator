@@ -153,7 +153,7 @@ inline void MscDrawer::Clip(double sx, double dx, double sy, double dy, const Ms
 inline void MscDrawer::Clip(const XY &s, const XY &d) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y); cairo_clip(cr);}
 inline void MscDrawer::Clip(const XY &s, const XY &d, const MscLineAttr &line) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y, line); cairo_clip(cr);}
 inline void MscDrawer::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till); cairo_clip(cr);}
-inline void MscDrawer::Clip(const Block &b, const MscLineAttr &line) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line); cairo_clip(cr);}
+//inline void MscDrawer::Clip(const Block &b, const MscLineAttr &line); not inline
 //void Clip(const EllipseData &ellipse); not inline
 inline void MscDrawer::Clip(const Area &area) {cairo_save(cr); area.Path(cr); cairo_clip(cr);}
 

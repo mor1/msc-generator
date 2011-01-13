@@ -191,6 +191,7 @@ public:
     AreaList(AreaList &&al) : boundingBox(al.boundingBox), mainline(al.mainline), cover(std::move(al.cover)) {}
     const std::list<Area> &GetCover() const {return cover;}
     void clear() {boundingBox.MakeInvalid(); mainline.MakeInvalid(); cover.clear();}
+    void swap(AreaList &o) {cover.swap(o.cover); std::swap(boundingBox, o.boundingBox); std::swap(mainline, o.mainline);}
     void SetArc(TrackableElement *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
     AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
     AreaList &operator+=(Area &&b) {cover.push_back(std::move(b)); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}

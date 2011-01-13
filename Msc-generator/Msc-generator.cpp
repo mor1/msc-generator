@@ -780,7 +780,7 @@ void CVersionDlg::DoDataExchange(CDataExchange* pDX)
 
 BOOL CVersionDlg::OnInitDialog( ) 
 {
-	bool a = CDialog::OnInitDialog();
+	bool ret = CDialog::OnInitDialog();
 	m_btnLink.SetURL(_T("https://sourceforge.net/projects/msc-generator/"));
 	m_btnLink.SetTooltip(_T("Download from SourceForge"));
 	m_btnLink.SizeToContent();
@@ -788,7 +788,7 @@ BOOL CVersionDlg::OnInitDialog( )
 	GetDlgItem(IDC_STATIC_CURRENT_VERSION)->SetWindowText(text + VersionText());
  	text = "Latest version available: ";
 	GetDlgItem(IDC_STATIC_LATEST_VERSION)->SetWindowText(text + VersionText(a, b, c));
-	return a;
+	return ret;
 }
 
 

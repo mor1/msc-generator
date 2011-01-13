@@ -433,7 +433,11 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
         ret.AddAnEdge(Edge(XY(x1, y1+r)));
         break;
     case CORNER_NOTE:
-        ret = (Contour(x1,x2,y1,y2) - Contour(x2-r, y1, x2-r, y1+r, x2, y1+r)).GetFirst();
+        ret.AddAnEdge(Edge(XY(x1, y1)));
+        ret.AddAnEdge(Edge(XY(x2-r, y1)));
+        ret.AddAnEdge(Edge(XY(x2, y1+r)));
+        ret.AddAnEdge(Edge(XY(x2, y2)));
+        ret.AddAnEdge(Edge(XY(x1, y2)));
         break;
     }
     return ret;
@@ -445,13 +449,15 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
 //This is at least lineWidth() (if cornersize==0)
 //return first contains the left margin and second the right one
 //This one assumes that the cornersize corresponds to the inner edge
-DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top, MscDrawer *debug) const
+DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top) const
 {
+    DoublePair ret(0,0);
+    if (textCover.IsEmpty()) return ret;
     const double lw = LineWidth();
     if (cornersize.second <= LineWidth()) return DoublePair(lw, lw);
     //create a path at the inner edge of the rectangle 
     XY lr = textCover.GetBoundingBox().LowerRight();
-    Block inner(lw, cornersize.second*3, rect_top+lw, lr.y+cornersize.second);
+    Block inner(lw, cornersize.second*3, rect_top+lw, rect_top+lw +lr.y+cornersize.second*2);
     Area inner_area = CreateRectangle(inner); //the cornersize we have in the style luckily corresponds to the inner edge
     if (corner.second == CORNER_NOTE)
         inner_area -= Contour(inner.x.till-cornersize.second, inner.y.from, inner.x.till-cornersize.second, 
@@ -459,25 +465,12 @@ DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top, Msc
     const Range left_right = textCover.GetBoundingBox().x;
     textCover.Rotate(90);
 
-    DoublePair ret;
     double off, tp;
     //left margin
     Area a = Contour(0, inner.x.MidPoint(), inner.y.from-1, inner.y.till+1) - inner_area;
     a.Rotate(90);
     off = a.OffsetBelow(textCover, tp, CONTOUR_INFINITY, false);
     ret.first = left_right.from - off;
-    if (debug) {
-        MscFillAttr fill;
-        MscLineAttr line;
-        fill.color.second=MscColorType(0,0,0);
-        Area xa = a;
-        debug->Fill(xa.Shift(XY(100,100)), fill);
-        Area x = textCover;
-        fill.color.second.g=255;
-        debug->Fill(x.Shift(XY(100,100)), fill);
-        line.color.second.b=255;
-        debug->Line(XY(100, 100+ret.first), XY(200, 100+ret.first), line);
-    }
     //right margin
     a = Contour(inner.x.MidPoint(), inner.x.till+lw, inner.y.from-1, inner.y.till+1) - inner_area;
     a.Rotate(90);

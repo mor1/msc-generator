@@ -69,6 +69,8 @@ double angle(XY base, XY A, XY B)
         return -1; //error one of them equals to another
     };
     double cos = (A-base).DotProduct(B-base) / (A-base).length() / (B-base).length();
+    cos = std::min(cos, 1.);
+    cos = std::max(cos, -1.);
     if (clockwise)
         return 1-cos; //gives [0..2]
     else
@@ -219,6 +221,8 @@ Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg,double
 {
     straight = false;
     start = ell.Radian2Point(s);
+    if (s!=0 && d_deg==360) 
+        e = 0;
 }
 
 void Edge::Rotate(double cos, double sin, double radian, const XY&B) 
