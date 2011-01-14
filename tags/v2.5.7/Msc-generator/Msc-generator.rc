@@ -1,0 +1,878 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#ifndef APSTUDIO_INVOKED\r\n"
+    "#include ""targetver.h""\r\n"
+    "#endif\r\n"
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#include ""res\\Mscgenerator.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#include ""afxprint.rc""       // printing/print preview resources\r\n"
+    "#include ""afxolesv.rc""       // OLE server resources\r\n"
+    "#if !defined(_AFXDLL)\r\n"
+    "#include ""afxribbon.rc""              // MFC ribbon and control bar resources\r\n"
+    "#endif\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\Msc-generator.ico"
+IDR_SigChartTYPE        ICON                    "res\\Msc-generatorDoc.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_TOOLBAR_MAINFRAME_256 BITMAP                  "res\\Toolbar256.bmp"
+IDR_SRVR_INPLACE_256    BITMAP                  "res\\IToolbar256.bmp"
+IDR_TOOLBAR_MAINFRAME   BITMAP                  "res\\mainfram.bmp"
+IDR_TOOLBAR_SRVR_INPLACE BITMAP                  "res\\srvr_inp.bmp"
+IDR_DESIGNBAR           BITMAP                  "res\\toolbar1.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_TOOLBAR_MAINFRAME_256 TOOLBAR 16, 16
+BEGIN
+    BUTTON      ID_FILE_NEW
+    BUTTON      ID_FILE_OPEN
+    BUTTON      ID_FILE_SAVE
+    BUTTON      ID_FILE_PRINT
+    SEPARATOR
+    BUTTON      ID_EDIT_COPYENTIRECHART
+    BUTTON      ID_EDIT_PASETENTIRECHART
+    BUTTON      ID_EDIT_UNDO
+    BUTTON      ID_EDIT_REDO
+    SEPARATOR
+    BUTTON      ID_BUTTON_EDITTEXT
+    BUTTON      ID_VIEW_ZOOMNORMALIZE
+    BUTTON      ID_BUTTON_TRACK
+END
+
+IDR_TOOLBAR_MAINFRAME TOOLBAR 16, 15
+BEGIN
+    BUTTON      ID_FILE_NEW
+    BUTTON      ID_FILE_OPEN
+    BUTTON      ID_FILE_SAVE
+    BUTTON      ID_FILE_PRINT
+    SEPARATOR
+    BUTTON      ID_EDIT_COPYENTIRECHART
+    BUTTON      ID_EDIT_PASETENTIRECHART
+    BUTTON      ID_EDIT_UNDO
+    BUTTON      ID_EDIT_REDO
+    SEPARATOR
+    BUTTON      ID_BUTTON_EDITTEXT
+    BUTTON      ID_VIEW_ZOOMNORMALIZE
+    BUTTON      ID_BUTTON_TRACK
+END
+
+IDR_TOOLBAR_SRVR_INPLACE TOOLBAR 16, 15
+BEGIN
+    BUTTON      ID_EDIT_COPYENTIRECHART
+    BUTTON      ID_EDIT_PASETENTIRECHART
+    BUTTON      ID_EDIT_UNDO
+    BUTTON      ID_EDIT_REDO
+    SEPARATOR
+    BUTTON      ID_BUTTON_EDITTEXT
+    BUTTON      ID_VIEW_RESETASPECTRATIO_INPLACE
+    BUTTON      ID_BUTTON_TRACK
+END
+
+IDR_DESIGNBAR TOOLBAR 16, 15
+BEGIN
+    BUTTON      ID_DESIGN_PAGE
+    BUTTON      ID_DESIGN_ZOOM
+    BUTTON      ID_DESIGN_DESIGN
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
+        MENUITEM SEPARATOR
+        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT
+        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW
+        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
+        MENUITEM SEPARATOR
+        MENUITEM "C&ut\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+        MENUITEM SEPARATOR
+        MENUITEM "&Find...\tCtrl+F",            ID_EDIT_FIND
+        MENUITEM "Find &Next\tF3",              ID_EDIT_REPEAT
+        MENUITEM "R&eplace...\tCtrl+H",         ID_EDIT_REPLACE
+        MENUITEM SEPARATOR
+        MENUITEM "C&opy entire chart\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
+        MENUITEM "P&aste entire chart\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
+        MENUITEM SEPARATOR
+        MENUITEM "Update drawing\tCtrl+W",      ID_EDIT_UPDATE
+        MENUITEM "&Edit in extrernal text editor...\tCtrl+E", 32772
+        MENUITEM "P&references...",             ID_EDIT_PREFERENCES
+    END
+    POPUP "&View"
+    BEGIN
+        POPUP "&Toolbars and Docking Windows"
+        BEGIN
+            MENUITEM "<placeholder>",               ID_VIEW_TOOLBAR
+        END
+        MENUITEM "&Status Bar",                 ID_VIEW_STATUS_BAR
+        POPUP "&Application Look"
+        BEGIN
+            MENUITEM "Windows &2000",               ID_VIEW_APPLOOK_WIN_2000
+            MENUITEM "Office &XP",                  ID_VIEW_APPLOOK_OFF_XP
+            MENUITEM "&Windows XP",                 ID_VIEW_APPLOOK_WIN_XP
+            MENUITEM "Office 200&3",                ID_VIEW_APPLOOK_OFF_2003
+            MENUITEM "Visual Studio.NET 200&5",     ID_VIEW_APPLOOK_VS_2005
+            POPUP "Office 200&7"
+            BEGIN
+                MENUITEM "&Blue Style",                 ID_VIEW_APPLOOK_OFF_2007_BLUE
+                MENUITEM "B&lack Style",                ID_VIEW_APPLOOK_OFF_2007_BLACK
+                MENUITEM "&Silver Style",               ID_VIEW_APPLOOK_OFF_2007_SILVER
+                MENUITEM "&Aqua Style",                 ID_VIEW_APPLOOK_OFF_2007_AQUA
+            END
+        END
+        MENUITEM "S&plit",                      ID_WINDOW_SPLIT
+        MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
+        MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
+        MENUITEM SEPARATOR
+        MENUITEM "Zoom &in\tCtrl+'+'",          ID_VIEW_ZOOMIN
+        MENUITEM "Zoom &out\tCtrl+'-'",         ID_VIEW_ZOOMOUT
+        MENUITEM SEPARATOR
+        MENUITEM "Zoom to &overview\tCtrl+0",   ID_VIEW_ZOOMNORMALIZE
+        MENUITEM "&Adjust width\tCtrl+9",       ID_VIEW_ADJUSTWIDTH
+        MENUITEM "&Fit to width\tCtrl+8",       ID_VIEW_FITTOWIDTH
+        MENUITEM SEPARATOR
+        MENUITEM "Keep in &Overview",           ID_ZOOMMODE_KEEPINOVERVIEW
+        MENUITEM "Keep adjusting &width",       ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH
+        MENUITEM "Keep &fitting to width",      ID_ZOOMMODE_KEEPFITTINGTOWIDTH
+        MENUITEM SEPARATOR
+        MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
+        MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+        MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
+        MENUITEM "&Help...\tF1",                ID_HELP_HELP
+    END
+END
+
+IDR_SRVR_INPLACE MENU
+BEGIN
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
+        MENUITEM SEPARATOR
+        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
+        MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
+        MENUITEM SEPARATOR
+        MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
+        MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
+        MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
+        MENUITEM "&Preferences...",             ID_EDIT_PREFERENCES
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
+        MENUITEM "&Errors and Warnings",        ID_VIEW_OUTPUT
+        MENUITEM "&Chart Text",                 ID_VIEW_EDITOR
+        MENUITEM SEPARATOR
+        MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
+        MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
+        MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
+        MENUITEM "Reset &Aspect Ratio to 1:1\tCtrl+1", ID_VIEW_RESETASPECTRATIO_INPLACE
+        MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+    END
+    MENUITEM SEPARATOR
+    MENUITEM SEPARATOR
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
+        MENUITEM "&Help...\tF1",                ID_HELP_HELP
+    END
+END
+
+IDR_SRVR_EMBEDDED MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Update\tCtrl+S",             ID_FILE_UPDATE
+        MENUITEM "Save Copy &As...",            ID_FILE_SAVE_COPY_AS
+        MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
+        MENUITEM SEPARATOR
+        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT
+        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW
+        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
+        MENUITEM SEPARATOR
+        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
+        MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
+        MENUITEM SEPARATOR
+        MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
+        MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
+        MENUITEM "P&references...",             ID_EDIT_PREFERENCES
+    END
+    POPUP "&View"
+    BEGIN
+        POPUP "&Toolbars and Docking Windows"
+        BEGIN
+            MENUITEM "<placeholder>",               ID_VIEW_TOOLBAR
+        END
+        MENUITEM "&Status Bar",                 ID_VIEW_STATUS_BAR
+        POPUP "&Application Look"
+        BEGIN
+            MENUITEM "Windows &2000",               ID_VIEW_APPLOOK_WIN_2000
+            MENUITEM "Office &XP",                  ID_VIEW_APPLOOK_OFF_XP
+            MENUITEM "&Windows XP",                 ID_VIEW_APPLOOK_WIN_XP
+            MENUITEM "Office 200&3",                ID_VIEW_APPLOOK_OFF_2003
+            MENUITEM "Visual Studio.NET 200&5",     ID_VIEW_APPLOOK_VS_2005
+            POPUP "Office 200&7"
+            BEGIN
+                MENUITEM "&Blue Style",                 ID_VIEW_APPLOOK_OFF_2007_BLUE
+                MENUITEM "B&lack Style",                ID_VIEW_APPLOOK_OFF_2007_BLACK
+                MENUITEM "&Silver Style",               ID_VIEW_APPLOOK_OFF_2007_SILVER
+                MENUITEM "&Aqua Style",                 ID_VIEW_APPLOOK_OFF_2007_AQUA
+            END
+        END
+        MENUITEM "S&plit",                      ID_WINDOW_SPLIT
+        MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
+        MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
+        MENUITEM "Zoom &in\tCtrl+'+'",          ID_VIEW_ZOOMIN
+        MENUITEM "Zoom &out\tCtrl+'-'",         ID_VIEW_ZOOMOUT
+        MENUITEM SEPARATOR
+        MENUITEM "Zoom to &overview\tCtrl+0",   ID_VIEW_ZOOMNORMALIZE
+        MENUITEM "&Adjust width\tCtrl+9",       ID_VIEW_ADJUSTWIDTH
+        MENUITEM "&Fit to width\tCtrl+8",       ID_VIEW_FITTOWIDTH
+        MENUITEM SEPARATOR
+        MENUITEM "Keep in &Overview",           ID_ZOOMMODE_KEEPINOVERVIEW
+        MENUITEM "Keep adjusting &width",       ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH
+        MENUITEM "Keep &fitting to width",      ID_ZOOMMODE_KEEPFITTINGTOWIDTH
+        MENUITEM SEPARATOR
+        MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
+        MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+        MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
+        MENUITEM "&Help...\tF1",                ID_HELP_HELP
+    END
+END
+
+IDR_POPUP_EDIT MENU
+BEGIN
+    POPUP "Edit"
+    BEGIN
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+    END
+END
+
+IDR_THEME_MENU MENU
+BEGIN
+    MENUITEM "Office 2007 (&Blue Style)",   ID_VIEW_APPLOOK_OFF_2007_BLUE
+    MENUITEM "Office 2007 (B&lack Style)",  ID_VIEW_APPLOOK_OFF_2007_BLACK
+    MENUITEM "Office 2007 (&Silver Style)", ID_VIEW_APPLOOK_OFF_2007_SILVER
+    MENUITEM "Office 2007 (&Aqua Style)",   ID_VIEW_APPLOOK_OFF_2007_AQUA
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS
+BEGIN
+    "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "F",            ID_EDIT_FIND,           VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
+    "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
+    VK_F3,          ID_EDIT_REPEAT,         VIRTKEY, NOINVERT
+    "H",            ID_EDIT_REPLACE,        VIRTKEY, CONTROL, NOINVERT
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
+    VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
+    VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
+    "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
+    "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
+    "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
+    "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
+    "8",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
+    VK_F11,         ID_VIEW_FULL_SCREEN,    VIRTKEY, NOINVERT
+    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
+    "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
+    VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
+    "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
+    VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
+    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
+END
+
+IDR_SRVR_INPLACE ACCELERATORS
+BEGIN
+    "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
+    VK_ESCAPE,      ID_CANCEL_EDIT_SRVR,    VIRTKEY, NOINVERT
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
+    "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
+    VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
+    VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
+    "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
+    "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
+    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
+    "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
+    "1",            ID_VIEW_RESETASPECTRATIO_INPLACE, VIRTKEY, CONTROL, NOINVERT
+    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
+END
+
+IDR_SRVR_EMBEDDED ACCELERATORS
+BEGIN
+    "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
+    "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT, NOINVERT
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
+    VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
+    VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
+    "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
+    "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FILE_UPDATE,         VIRTKEY, CONTROL, NOINVERT
+    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
+    "9",            ID_VIEW_ADJUSTWIDTH,    VIRTKEY, CONTROL, NOINVERT
+    "8",            ID_VIEW_FITTOWIDTH,     VIRTKEY, CONTROL, NOINVERT
+    VK_F11,         ID_VIEW_FULL_SCREEN,    VIRTKEY, NOINVERT
+    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
+    "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
+    VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
+    "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
+    VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
+    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_PROGRESSDIALOG DIALOGEX 0, 0, 93, 0
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_THICKFRAME
+EXSTYLE WS_EX_TOPMOST
+CAPTION "Drawing in progress..."
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+END
+
+IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 300
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Msc-generator Preferences"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,137,279,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,200,279,50,14
+    LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
+    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
+    GROUPBOX        "External Text Editor",IDC_STATIC,7,160,243,93
+    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,171,74,10
+    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,184,54,10
+    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,195,87,10
+    CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,127,96,10
+    COMBOBOX        IDC_COMBO_CSH,179,126,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Use scheme:",IDC_STATIC,133,128,42,8
+    LTEXT           "&Start Command",IDC_STATIC,27,209,50,8
+    LTEXT           "Jump to &Line",IDC_STATIC,27,225,41,8
+    EDITTEXT        IDC_EDIT1,81,208,161,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,81,224,161,14,ES_AUTOHSCROLL
+    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,240,140,8
+    GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
+    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
+    CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
+    GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
+    CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
+    CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
+    CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,259,213,10
+    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,40
+    CONTROL         "&Smart &ident for labels",IDC_CHECK_SMART_IDENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,43,140,84,10
+END
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About Msc-generator"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "Copyright (C) 2008-2011 Zoltan Turanyi",IDC_STATIC,40,25,139,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
+    PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
+END
+
+IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "A new version of Msc-generator  is available"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,61,75,14
+    PUSHBUTTON      "Do not remind me",IDOK,103,61,84,14
+    PUSHBUTTON      "https://sourceforge.net/projects/msc-generator/",IDC_BUTTON_URL2,14,39,169,14
+    LTEXT           "Currently installed version:",IDC_STATIC_CURRENT_VERSION,26,9,133,8
+    LTEXT           "Latest version available:",IDC_STATIC_LATEST_VERSION,34,24,134,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 2,5,7,0
+ PRODUCTVERSION 2,5,7,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "Open Source"
+            VALUE "FileDescription", "Msc-generator"
+            VALUE "FileVersion", "2.5.7.0"
+            VALUE "InternalName", "Msc-generator.exe"
+            VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11.  All rights reserved."
+            VALUE "OriginalFilename", "Msc-generator.exe"
+            VALUE "ProductName", "Msc-generator"
+            VALUE "ProductVersion", "2.5.7.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_PROGRESSDIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 86
+    END
+
+    IDD_DIALOG_OPTIONS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 250
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 293
+    END
+
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_DIALOG_VERSION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 187
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 75
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_DIALOG_OPTIONS DLGINIT
+BEGIN
+    IDC_COMBO_CSH, 0x403, 8, 0
+0x694d, 0x696e, 0x616d, 0x006c, 
+    IDC_COMBO_CSH, 0x403, 9, 0
+0x7453, 0x6e61, 0x6164, 0x6472, "\000" 
+    IDC_COMBO_CSH, 0x403, 9, 0
+0x6f43, 0x6f6c, 0x6672, 0x6c75, "\000" 
+    IDC_COMBO_CSH, 0x403, 15, 0
+0x7245, 0x6f72, 0x2d72, 0x726f, 0x6569, 0x746e, 0x6465, "\000" 
+    0
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDP_OLE_INIT_FAILED     "OLE initialization failed.  Make sure that the OLE libraries are the correct version."
+END
+
+STRINGTABLE
+BEGIN
+    IDR_MAINFRAME           "Msc-generator\n\nSignalling Chart\nMsc-generator Signalling Charts (*.signalling)\n.signalling\nMscgen.Chart\nMsc-generator Signalling Chart"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_APP_TITLE       "Msc-generator"
+    AFX_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE
+BEGIN
+    ID_INDICATOR_EXT        "EXT"
+    ID_INDICATOR_CAPS       "CAP"
+    ID_INDICATOR_NUM        "NUM"
+    ID_INDICATOR_SCRL       "SCRL"
+    ID_INDICATOR_OVR        "OVR"
+    ID_INDICATOR_REC        "REC"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_NEW             "Create a new document\nNew"
+    ID_FILE_OPEN            "Open an existing document\nOpen"
+    ID_FILE_CLOSE           "Close the active document\nClose"
+    ID_FILE_SAVE            "Save the active document\nSave"
+    ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
+    ID_FILE_PAGE_SETUP      "Change the printing options\nPage Setup"
+    ID_FILE_PRINT_SETUP     "Change the printer and printing options\nPrint Setup"
+    ID_FILE_PRINT           "Print the active document\nPrint"
+    ID_FILE_PRINT_DIRECT    "Print the active document using current options\nQuick Print"
+    ID_FILE_PRINT_PREVIEW   "Display full pages\nPrint Preview"
+    ID_FILE_UPDATE          "Update the container to show any changes\nUpdate"
+    ID_FILE_SAVE_COPY_AS    "Save a copy of the active document with a new name\nSave Copy"
+END
+
+STRINGTABLE
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_MRU_FILE1       "Open this document"
+    ID_FILE_MRU_FILE2       "Open this document"
+    ID_FILE_MRU_FILE3       "Open this document"
+    ID_FILE_MRU_FILE4       "Open this document"
+    ID_FILE_MRU_FILE5       "Open this document"
+    ID_FILE_MRU_FILE6       "Open this document"
+    ID_FILE_MRU_FILE7       "Open this document"
+    ID_FILE_MRU_FILE8       "Open this document"
+    ID_FILE_MRU_FILE9       "Open this document"
+    ID_FILE_MRU_FILE10      "Open this document"
+    ID_FILE_MRU_FILE11      "Open this document"
+    ID_FILE_MRU_FILE12      "Open this document"
+    ID_FILE_MRU_FILE13      "Open this document"
+    ID_FILE_MRU_FILE14      "Open this document"
+    ID_FILE_MRU_FILE15      "Open this document"
+    ID_FILE_MRU_FILE16      "Open this document"
+END
+
+STRINGTABLE
+BEGIN
+    ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
+    ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
+END
+
+STRINGTABLE
+BEGIN
+    ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_CLEAR           "Erase the selection\nErase"
+    ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
+    ID_EDIT_COPY            "Copy the selection in the Chart Text pane and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection in the Chart Text pane and put it on the Clipboard\nCut"
+    ID_EDIT_FIND            "Find the specified text\nFind"
+    ID_EDIT_PASTE           "Insert Clipboard contents in the Chart Text pane\nPaste"
+    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
+    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_UNDO            "Undo the last action\nUndo"
+    ID_EDIT_REDO            "Redo the previously undone action\nRedo"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_TOOLBAR         "Show/Hide the Toolbar"
+    ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle Status Bar"
+    ID_VIEW_OUTPUT          "Show/Hide the Error Window\nToggle Error Window"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_PREVIEW_CLOSE   "Close print preview mode\nCancel Preview"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STATUS_PANE1        "Pane 1"
+    IDS_STATUS_PANE2        "Pane 2"
+    IDS_TOOLBAR_STANDARD    "Standard"
+    IDS_TOOLBAR_CUSTOMIZE   "Customize..."
+    IDS_TOOLBAR_DESIGN      "Design"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_EDIT_MENU           "Edit"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_EXPORT          "Export to graphics or text file\nExport"
+    ID_BUTTON_EDITTEXT      "Edit Chart in External Text Editor\nExternal Editor"
+    ID_EDIT_PREFERENCES     "Edit Msc-generator options\nPreferences"
+    ID_VIEW_ZOOMIN          "Increase zoom factor by 10%\nZoom in"
+    ID_VIEW_ZOOMOUT         "Decrease zoom factor by 10%\\Zoom out"
+    ID_VIEW_ADJUSTWIDTH     "Adjust window width to fit chart with current zoom level\nFit width"
+    ID_VIEW_FITTOWIDTH      "Adjust zoom level to fit window width\nFit to width"
+    ID_ZOOMMODE_KEEPINOVERVIEW 
+                            "Automatically adjust zoom and window size after each update\nKeep in overview"
+    ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH 
+                            "Automatically adjust window width after each update\nKeep adjusting width"
+    ID_ZOOMMODE_KEEPFITTINGTOWIDTH 
+                            "Automatically adjust zoom level to fit window width after each update\nKeep fitting to width"
+    ID_VIEW_REDRAW          "Regenerate the visual appearance of the chart\nRedraw"
+    ID_VIEW_ZOOMNORMALIZE   "Adjust window size to fit all the chart\nOverview"
+END
+
+STRINGTABLE
+BEGIN
+    ID_DESIGN_PAGE          "Select Page\nPage"
+    ID_DESIGN_ZOOM          "Set Zoom\nZoom"
+    ID_DESIGN_DESIGN        "Set Design\nDesign"
+    ID_VIEW_RESETASPECTRATIO_INPLACE 
+                            "Reset the aspect ratio to 1:1\nReset Aspect Ratio"
+END
+
+STRINGTABLE
+BEGIN
+    IDC_OUTPUT_LIST         "Output"
+    IDC_INTERNAL_EDITOR     "Internal Editor"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_EDITOR          "Show/Hide the Error Window\nToggle Editor Window"
+    ID_EDIT_UPDATE          "Update & redraw chart with the description currently in the Chart Text panel\nUpdate & redraw"
+    ID_VIEW_NEXTERROR       "Go to the next error\nNext error"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats\nCopy entire chart"
+    ID_EDIT_PASETENTIRECHART 
+                            "Paste an entire chart from the Clipboard\nPaste entire chart"
+    ID_BUTTON_TRACK         "Turn element tracking on or off\nToggle Tracking"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_FULL_SCREEN     "Toggles full screen mode\nFull Screen"
+END
+
+STRINGTABLE
+BEGIN
+    ID_HELP_HELP            "Opens help"
+    ID_VIEW_PREVERROR       "Go to the previous error\nPrevious error"
+END
+
+STRINGTABLE
+BEGIN
+    ID_INDICATOR_TRK        "Track"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#include "res\Mscgenerator.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#include "afxprint.rc"       // printing/print preview resources
+#include "afxolesv.rc"       // OLE server resources
+#if !defined(_AFXDLL)
+#include "afxribbon.rc"              // MFC ribbon and control bar resources
+#endif
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
