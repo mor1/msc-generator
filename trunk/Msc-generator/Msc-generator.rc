@@ -134,9 +134,9 @@ FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
     LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
+    LTEXT           "Copyright (C) 2008-2011 Zoltan Turanyi",IDC_STATIC,40,25,139,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
-    PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
+    PUSHBUTTON      "http://msc-generator.sourceforge.net",IDC_BUTTON_URL,38,37,133,14
 END
 
 IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
