@@ -76,7 +76,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 BOOL CAboutDlg::OnInitDialog( ) 
 {
 	bool a = CDialog::OnInitDialog();
-	m_btnLink.SetURL(_T("http://msc-generator.sourcforge.net"));
+	m_btnLink.SetURL(_T("http://msc-generator.sourceforge.net"));
 	m_btnLink.SetTooltip(_T("Visit the Msc-generator site"));
 	m_btnLink.SizeToContent();
 	CString text = "Msc-generator Version ";
@@ -726,10 +726,28 @@ UINT CheckVersionFreshness(LPVOID)
 			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE, INTERNET_PORT(80));
 		CHttpFile *file = httpconn->OpenRequest("GET", "version", NULL, 1, NULL, NULL, 
 			INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE);
-        wchar_t locale[LOCALE_NAME_MAX_LENGTH];
-        if (0<GetUserDefaultLocaleName(locale, LOCALE_NAME_MAX_LENGTH))
-            file->AddRequestHeaders(CString("Accept-Language: ")+locale, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
-        //file->AddRequestHeaders("User-Agent: Msc-generator (Linux; X11)", HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+        wchar_t locale[LOCALE_NAME_MAX_LENGTH] = L"en-US";
+        //Locale name only available in Vista!!
+        //if (0<GetUserDefaultLocaleName(locale, LOCALE_NAME_MAX_LENGTH))
+        //    file->AddRequestHeaders(CString("Accept-Language: ")+locale, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+        OSVERSIONINFOEX osvi;
+        ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+        //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
+        if(GetVersionEx ((OSVERSIONINFO *) &osvi)) {
+            char loc[LOCALE_NAME_MAX_LENGTH+2] = "; ";
+            int i, j=2;
+            for (i=0; i<LOCALE_NAME_MAX_LENGTH && locale[i]!=0; i++)
+                if (locale[i]<128)
+                    loc[j++] = (char)(locale[i]);
+            loc[j]=0;
+            if (i==2) loc[0]=0;
+            char buff[200];
+            //Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US)
+            sprintf(buff, "User-Agent: Msc-generator/%s (Windows; U; Windows NT %d.%d%s)", VersionText()+1, 
+                osvi.dwMajorVersion, osvi.dwMinorVersion, loc);
+            file->AddRequestHeaders(buff, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+        }
 		if (!file->SendRequest()) return false;
 		if (!file->ReadString(latest_version)) return false;
 	} CATCH(CInternetException, pEx) {
