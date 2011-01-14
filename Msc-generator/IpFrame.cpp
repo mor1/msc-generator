@@ -147,7 +147,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	else if (r.bottom > 2000) r.bottom = 400;
 	else r.bottom /= 5;
 
-	if (!m_ctrlEditor.Create(_T("Internal Editor"), pFrame, r, TRUE, ID_VIEW_EDITOR, 
+	if (!m_ctrlEditor.Create(_T("Chart Text"), pFrame, r, TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
 	{
 		TRACE0("Failed to create editor\n");

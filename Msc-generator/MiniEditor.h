@@ -11,8 +11,6 @@
 #undef min
 #undef max
 #include <msc.h>
-#include "PopupList.h"
-
 /////////////////////////////////////////////////////////////////////////////
 // CMiniEditor window
 
@@ -23,18 +21,11 @@ struct CEditorUndoRecord {
 
 class CCshRichEditCtrl : public CRichEditCtrl
 {
-	bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
+	bool m_bCshUpdateInProgress;
 	Csh  m_csh;
-	Csh  m_designlib_csh;
-    bool m_bWasReturnKey;        //if the return key was pressed
-    bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
-    bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
-    bool m_bWasAutoComplete;     //Set to prevent entering hint mode after an auto-completion
-    CPopupList m_hintsPopup;
 public:
 	int m_tabsize;
-	CCshRichEditCtrl(CWnd *parent);
-    virtual BOOL Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID);
+	CCshRichEditCtrl();
 
 	//Generic helpers
 	void GetSelLineCol(int &lStartLine, int &lStartCol, int &lEndLine, int &lEndCol) const;
@@ -55,10 +46,9 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
 
 	//Color Syntax Highlighting functions
-    void SetForcedDesign(const CString &fd) {m_designlib_csh.ForcedDesign = fd;}
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
-	bool UpdateCsh(bool force = false); //retuns true if the past and new m_csh.hintedStringPos overlap
+	void UpdateCsh(bool force = false);
 	void CancelPartialMatch();
 	bool IsCshUpdateInProgress() {return m_bCshUpdateInProgress;}
 	bool NotifyDocumentOfChange(bool onlySelChange=false);
@@ -66,13 +56,6 @@ public:
 	//Mouse Wheel handling
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
-
-    //Hint window related
-    void StartHintMode(bool setUptoCursor); //also used to update hints in popup, if already in hint mode
-    bool InHintMode() const {return m_hintsPopup.m_shown;}
-    void CancelHintMode();
-    void CancelUserSelected() {m_bUserRequested = false;}
-    void ReplaceHintedString(const char *substitute, bool endHintMode);
 
 	DECLARE_MESSAGE_MAP()
 };
@@ -96,8 +79,6 @@ public:
 	UINT m_nPasteType;
 	BOOL m_bFirstSearch;
 	bool m_bSuspendNotifications;
-    long m_totalLenAtPreviousSelChange;
-    long m_totalLenAtPreviousTextChange;
 
 // Implementation
 public:

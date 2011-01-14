@@ -48,8 +48,6 @@ public:
 	double m_stretch_y;
 	//Fading Timer
 	UINT_PTR m_FadingTimer;
-	CPoint m_hoverPoint; //XXX
-	bool m_clicked; //XXX
 	//Drag and Drop 
 	COleDropTarget m_DropTarget;
 	DROPEFFECT m_nDropEffect;
@@ -117,7 +115,6 @@ public:
 	virtual DROPEFFECT OnDragOver(COleDataObject* pDataObject, DWORD dwKeyState, CPoint point);
 	virtual void OnDragLeave();
 	virtual BOOL OnDrop(COleDataObject* pDataObject, DROPEFFECT dropEffect, CPoint point);
-//    afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 };
 
 #ifndef _DEBUG  // debug version in MscGenView.cpp

@@ -46,14 +46,13 @@ char *ReadFile(FILE *in)
     while (!feof(in)) {
         len += fread(buff+len, 1, alloc-1-len, in);
         char *buff2;
-        if (len == alloc-1) {
+        if (len == alloc-1)
             buff2 = (char*)realloc(buff, alloc+=16384);
-            if (buff2 == NULL) {
-                free(buff);
-                return NULL;
-            }
-            buff = buff2;
+        if (buff2 == NULL) {
+            free(buff);
+            return NULL;
         }
+        buff = buff2;
     }
     buff[len]=0;
     return buff;
@@ -331,7 +330,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     if (oCshize) {
         MscInitializeCshAppearanceList();
         Csh csh;
-        csh.ParseText(input, strlen(input), -1, 1);
+        csh.ParseText(input, strlen(input));
         string tmp = Cshize(input, strlen(input), csh.CshList, 1, csh_textformat.c_str());
         FILE *out = fopen(oOutputFile.c_str(), "w");
         if (!out) {

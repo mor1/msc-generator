@@ -69,7 +69,6 @@ public:
 	virtual void Dump(CDumpContext& dc) const;
 #endif
 
-    afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 };
 
 

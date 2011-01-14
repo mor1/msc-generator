@@ -109,7 +109,8 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
 	m_ZoomMode = (EZoomMode)AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_DEFAULTZOOMMODE, 0);
 	m_zoom = 100;
 	m_bTrackMode = false;
-	m_saved_charrange.cpMin = -1;
+	m_saved_charrange.cpMax = 0;
+	m_saved_charrange.cpMin = 0;
 	m_last_arc = NULL;
 	m_pViewFadingTimer = NULL;
 
@@ -704,8 +705,6 @@ void CMscGenDoc::OnSelChange()
 
 void CMscGenDoc::OnDesignDesign() 
 {
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
 	CObList list;
 	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
 	POSITION p = list.GetHeadPosition();
@@ -723,7 +722,6 @@ void CMscGenDoc::OnDesignDesign()
 	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo, keep page shown
 	m_itrEditing->SetDesign(new_forcedDesign);
-    pApp->m_pWndEditor->m_ctrlEditor.SetForcedDesign(new_forcedDesign);
 	ShowEditingChart(true);
 	CheckIfChanged();     
 }
@@ -1088,13 +1086,10 @@ void CMscGenDoc::OnInternalEditorChange()
 	}
 }
 
-//User changes selection in internal editor
-//This is not called if a mouse move changes the selection during tack mode
 void CMscGenDoc::OnInternalEditorSelChange()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    m_saved_charrange.cpMin = -1;
 	if (!m_bTrackMode || !pApp->IsInternalEditorRunning()) return;
 	long start, end;
 	pApp->m_pWndEditor->m_ctrlEditor.GetSel(start, end);
@@ -1123,6 +1118,7 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
 	}
 
+
 	m_itrShown = m_itrEditing;
 	m_itrShown->m_wasDrawn = true;
 	m_ChartShown = *m_itrEditing;
@@ -1136,8 +1132,14 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	}
 	
 	//Display error messages
-	if (pApp->m_pWndOutputView && !m_bAttemptingToClose) 
-        pApp->m_pWndOutputView->ShowCompilationErrors(m_ChartShown);
+	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
+	if (pOutputView && ::IsWindow(pOutputView->m_wndOutput)) {
+		pOutputView->m_wndOutput.ResetContent();
+		unsigned num = m_ChartShown.GetErrorNum(pApp->m_Warnings);
+		for (int i=0; i<num; i++) 
+			pOutputView->m_wndOutput.AddString(m_ChartShown.GetErrorText(i, pApp->m_Warnings));
+		if (!m_bAttemptingToClose) pOutputView->ShowPane(num>0, false, true);
+	}
 
 	if (!m_bAttemptingToClose) {
 		//Update page controls and variables
@@ -1179,14 +1181,15 @@ void CMscGenDoc::StartFadingTimer()
 
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 300; //XXX millisecons XXX, shoud be 300
+	const double fade_completely = 300;
 	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
 	bool keep_coming_back = false;
 	Block bounding;
 	for (int i = 0; i<m_trackArcs.size(); i++) {
 		if (m_trackArcs[i].delay_fade < 0)
 			continue;
-		Block b = m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
+		Block b;
+		m_trackArcs[i].arc->geometry.GetBoundingBox(b);
 		if (m_trackArcs[i].delay_fade > 0) 
 			m_trackArcs[i].delay_fade--;
 		else if (m_trackArcs[i].alpha > alpha_reduct) 
@@ -1214,7 +1217,7 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
 	if (arc==NULL) return false;
 	Block b;
 	//Do not add if it has no visual element
-    if (arc->GetAreaToDraw().IsEmpty()) 
+	if (!arc->geometry.GetBoundingBox(b)) 
 		return false;
 	bool found = false;
 	//Look for this arc. If already on list and still fully visible return false - no need to update
@@ -1262,17 +1265,8 @@ void CMscGenDoc::SetTrackMode(bool on)
 	StartFadingAll(); //Delete trackrects from screen (even if turned on)
 	if (on) {
 		SyncShownWithEditing("turn tracking on");
-		//We have already saved the internal editor selection state into m_saved_charrange in MscGenView::OnLButtonUp
-	} else if (pApp->IsInternalEditorRunning()) {
-        //Disable selection change events - we are causing selection change
-        //and we do not want to be notified (and add more track rects)
-        DWORD eventmask = pApp->m_pWndEditor->m_ctrlEditor.GetEventMask();
-        pApp->m_pWndEditor->m_ctrlEditor.SetEventMask(eventmask & ~ENM_SELCHANGE);
-        pApp->m_pWndEditor->m_ctrlEditor.SetSel(m_saved_charrange);
-        pApp->m_pWndEditor->m_ctrlEditor.SetEventMask(eventmask);
-        m_saved_charrange.cpMin = -1;
-        pApp->m_pWndEditor->SetFocus();
-    }
+		if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_saved_charrange);
+	}
 }
 
 //Expects the coordinates in MscDrawer space (MscDrawer::totalWidth & Height, except local to the current page)
@@ -1283,6 +1277,7 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
 		return;
+	bool wasArc = m_last_arc!=NULL;
 	m_last_arc = arc;
 	StartFadingAll();
 	AddTrackArc(arc);
@@ -1297,13 +1292,12 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	//and we do not want to be notified (and add more track rects)
 	editor.SetEventMask(eventmask & ~ENM_SELCHANGE);
 	if (arc) {
-		//Store selection if there was no previous saved selection
-        if (m_saved_charrange.cpMin==-1) editor.GetSel(m_saved_charrange);
+		//Store selection if there was no previous highlight
+		if (!wasArc) editor.GetSel(m_saved_charrange);
 		HighLightArc(arc);
 	} else {
 		//restore selection to the one before tracking was initiated
 		editor.SetSel(m_saved_charrange);
-        m_saved_charrange.cpMin=-1;
 	}
 	editor.SetEventMask(eventmask);
 }

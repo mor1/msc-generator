@@ -81,8 +81,7 @@
      TOK_COMMAND_MARK = 297,
      TOK_COMMAND_PARALLEL = 298,
      TOK_VERTICAL = 299,
-     TOK_AT = 300,
-     TOK__NEVER__HAPPENS = 301
+     TOK_AT = 300
    };
 #endif
 /* Tokens.  */
@@ -129,7 +128,6 @@
 #define TOK_COMMAND_PARALLEL 298
 #define TOK_VERTICAL 299
 #define TOK_AT 300
-#define TOK__NEVER__HAPPENS 301
 
 
 
@@ -139,7 +137,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 134 "language.yy"
+#line 136 "language.yy"
 
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;
@@ -159,7 +157,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 163 "language.h"
+#line 161 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

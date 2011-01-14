@@ -69,16 +69,16 @@
     <ClCompile Include="numbering.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_contour.cpp">
+    <ClCompile Include="geometry_edge.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_edge.cpp">
+    <ClCompile Include="geometry_ellipse.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_ellipse.cpp">
+    <ClCompile Include="geometry_polygon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_area.cpp">
+    <ClCompile Include="geometry_xarea.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -146,19 +146,19 @@
     <ClInclude Include="numbering.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_basics.h">
+    <ClInclude Include="geometry_basics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_contour.h">
+    <ClInclude Include="geometry_edge.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_edge.h">
+    <ClInclude Include="geometry_ellipse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_ellipse.h">
+    <ClInclude Include="geometry_polygon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_area.h">
+    <ClInclude Include="geometry_xarea.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
