@@ -30,21 +30,21 @@ ADD: Add a spinbutton to page and design combos. Add a spinbutton also to the Fu
 make that read-only. 
 ADD: variant #1 double and triple-line joints for emphasis
 ADD: shadow to arrows and labels
+ADD: Comments to arcs (leftside, rightside, bubble)
 CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
 CANCELLED: Re-add escape key to exit in-place editing...
 
 Planned in 3.0
-ISSUE: missing ; at the end of last command creates an empty chart
-BUG: Change icons for file, program, etc.
-UPDATE DOC: With hints
+UPDATE DOC: With hints and all else
+FIX: Change icons for file, program, etc.
 ADD: More BIG arrowheads
 ADD: onlyforboxes side requirement for widths
 ADD: Split View for Full screen (automatically)
-ADD: SHOW and HIDE keywords (showexplicit flag to EntityDef)
-ADD: Add command bye so that file end can be used for comments
 ADD: Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
+CHANGE: fromright attribute out of f_solid, and combine it with readfromleft into "side"
 FIX: note not fully OK (thick lines and entity lines)
 FIX: Any character pressed in View should be dispatched to internal editor (with focus)
+FIX: Text after bye should be a big comment
 
 In 3.0
 ADDED: More precise tracking mode
@@ -53,10 +53,13 @@ ADDED: shadow attribute to block arrows
 ADDED: More space to ... dividers
 ADDED: line.corner attribute with bevel, note 
 ADDED: global text.format chart option to impact all text (can be part of a design too)
+ADDED: SHOW and HIDE keywords (showexplicit flag to EntityDef)
+ADDED: Command bye so that file end can be used for comments
+FIXED: missing ; at the end of last command creates an empty chart
 FIXED: If we select a hint, use the hinted text, not the one in the editor (casedness)
 FIXED: allow hint when typing just before another word
-FIXED: Hints are now auto-completion
-FIXED: Check that focus always goes back to the internal editor.
+FIXED: Hints now do auto-completion
+FIXED: Focus always goes back to the internal editor.
 
 In 2.6
 FIXED: Many improvements to parsing, but missing the ; still result in empty chart

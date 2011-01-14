@@ -261,7 +261,7 @@ protected:
     mutable double total_height;
     mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow
     mutable double sx_text, dx_text, y_text;  //label placement
-    mutable Area text_cover; 
+    mutable Area text_cover;
 public:
     //Constructor to construct the first emphasis in a series
     ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
@@ -290,7 +290,7 @@ class ArcDivider : public ArcLabelled
 protected:
     const bool nudge;
     bool wide;  //if true, we keep no margin and add no arcvgapabove & below (for copyright text)
-    const double extra_space; 
+    const double extra_space;
 
     mutable double centerline, height;
     mutable double text_margin, line_margin;
@@ -346,6 +346,7 @@ public:
     void AppendToEntities(const EntityDefList &e);
     void Combine(CommandEntity *ce);
     bool AddAttribute(const Attribute &);
+    CommandEntity *ApplyShowHide(bool show);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);

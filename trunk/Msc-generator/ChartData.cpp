@@ -178,19 +178,35 @@ unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {
 	return GetMsc()->Error.GetErrorNum(oWarnings);
 }
 
+bool CDrawingChartData::IsErrorInFile(unsigned num, bool oWarnings) const 
+{
+    if (GetErrorNum(oWarnings)>num && num>=0)
+        return GetMsc()->Error.GetErrorLoc(num, oWarnings).file == GetMsc()->Error.Files.size()-1;
+    else
+        return false;
+}
+
 unsigned CDrawingChartData::GetErrorLine(unsigned num, bool oWarnings) const 
 {
-	return GetMsc()->Error.GetErrorLoc(num, oWarnings).line;
+    if (GetErrorNum(oWarnings)>num && num>=0 )
+        return GetMsc()->Error.GetErrorLoc(num, oWarnings).line;
+    else
+        return 0;
 }
 
 unsigned CDrawingChartData::GetErrorCol(unsigned num, bool oWarnings) const 
 {
-	return GetMsc()->Error.GetErrorLoc(num, oWarnings).col;
+    if (GetErrorNum(oWarnings)>num && num>=0)
+        return GetMsc()->Error.GetErrorLoc(num, oWarnings).col;
+    return 0;
 }
 
 CString CDrawingChartData::GetErrorText(unsigned num, bool oWarnings) const 
 {
-	return CString(GetMsc()->Error.GetErrorText(num, oWarnings));
+    if (GetErrorNum(oWarnings)>num && num>=0)
+        return CString(GetMsc()->Error.GetErrorText(num, oWarnings));
+    else 
+        return "";
 }
 
 CString CDrawingChartData::GetDesigns() const 

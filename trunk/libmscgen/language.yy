@@ -128,7 +128,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
-       TOK_VERTICAL TOK_AT
+       TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE TOK_BYE
        TOK__NEVER__HAPPENS
 %union
 {
@@ -171,8 +171,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
-                   TOK_COMMAND_PARALLEL TOK_COMMAND_MARK
-                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT
+                   TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
+                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
@@ -185,12 +185,24 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
 %destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
-%destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_PARALLEL
+%destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
-%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_COMMAND_MARK
+%destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
+%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE
 
 %%
+
+msc_with_bye: msc
+              | msc TOK_BYE
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@2, COLOR_KEYWORD);
+  #else
+  #endif
+  free($2);
+  YYACCEPT; //ignore anything after bye
+}
 
 msc:
 {
@@ -216,22 +228,23 @@ msc:
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-        msc.AddArcs($1);
+    msc.AddArcs($1);
   #endif
-};
-
-top_level_arclist: arclist
-                 | arclist error
+}
+                 | top_level_arclist error
 {
   #ifdef C_S_H_IS_COMPILED
     if ((@1).last_pos >= (@2).first_pos)
         (@2).first_pos = (@1).last_pos;
     csh.AddCSH_Error(@2, "Could not recognize this as a valid line.");
   #else
-    $$ = $1;
+    msc.AddArcs($1);
   #endif
-}
-                 | arclist TOK_CCBRACKET
+  YYACCEPT;
+};
+
+top_level_arclist: arclist_maybe_no_semicolon
+                 | arclist_maybe_no_semicolon TOK_CCBRACKET
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_Error(@2, "Closing brace missing its opening pair.");
@@ -240,7 +253,7 @@ top_level_arclist: arclist
         msc.Error.Error(MSC_POS(@2).start, "Unexpected '}'.");
   #endif
 }
-                 | arclist TOK_CCBRACKET top_level_arclist
+                 | arclist_maybe_no_semicolon TOK_CCBRACKET top_level_arclist
 {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_Error(@2, "Closing brace missing its opening pair.");
@@ -516,13 +529,13 @@ arc:           arcrel
               | TOK_VERTICAL vertrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
-        csh.AddCSH(@1, COLOR_KEYWORD);
-        if (csh.CheckHintLocated(HINT_ATTR_NAME))
-            ArcVerticalArrow::AttributeNames(csh);
-        else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-            ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcVerticalArrow::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
-        $$ = ($2)->AddAttributeList($3);
+    $$ = ($2)->AddAttributeList($3);
   #endif
     free($1);
 }
@@ -544,13 +557,60 @@ arc:           arcrel
     $$ = (new CommandEntity((new EntityDefList)->Append($1), &msc))->AddAttributeList(NULL);
   #endif
 }
+              | TOK_SHOW first_entity
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    CommandEntity *ce = new CommandEntity((new EntityDefList)->Append($2), &msc);
+    ce->AddAttributeList(NULL);
+    $$ = ce->ApplyShowHide(true);
+  #endif
+    free($1);
+}
+              | TOK_HIDE first_entity
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    CommandEntity *ce = new CommandEntity((new EntityDefList)->Append($2), &msc);
+    ce->AddAttributeList(NULL);
+    $$ = ce->ApplyShowHide(false);
+  #endif
+    free($1);
+}
             |  first_entity TOK_COMMA entitylist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@2, COLOR_COMMA);
   #else
-    $$ = (new CommandEntity(($3)->Prepend($1), &msc))->AddAttributeList(NULL);
+    CommandEntity *ce = new CommandEntity(($3)->Prepend($1), &msc);
+    $$ = ce->AddAttributeList(NULL);
   #endif
+}
+            |  TOK_SHOW first_entity TOK_COMMA entitylist
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@3, COLOR_COMMA);
+  #else
+    CommandEntity *ce = new CommandEntity(($4)->Prepend($2), &msc);
+    ce->AddAttributeList(NULL);
+    $$ = ce->ApplyShowHide(true);
+  #endif
+    free($1);
+}
+            |  TOK_HIDE first_entity TOK_COMMA entitylist
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@3, COLOR_COMMA);
+  #else
+    CommandEntity *ce = new CommandEntity(($4)->Prepend($2), &msc);
+    ce->AddAttributeList(NULL);
+    $$ = ce->ApplyShowHide(false);
+  #endif
+    free($1);
 }
               | optlist
 {

@@ -669,20 +669,26 @@ void CMscGenDoc::DoViewNexterror(bool next)
 	int cursel = pOutputView->m_wndOutput.GetCurSel();
 	cursel = (cursel + (next ? 1 : -1) + maxsel) % maxsel;
 	pOutputView->m_wndOutput.SetCurSel(cursel);
-	//Jump to that pos in editor
-	int line = m_ChartShown.GetErrorLine(cursel, pApp->m_Warnings);
-	int col = m_ChartShown.GetErrorCol(cursel, pApp->m_Warnings);
-	//Jump in the internal and external editors
-	if (pApp->IsInternalEditorRunning()) 
-		pApp->m_pWndEditor->m_ctrlEditor.JumpToLine(line, col);
-	if (m_ExternalEditor.IsRunning())
-		m_ExternalEditor.JumpToLine(line, col);
 
-	//Turn tracking off
+    //Turn tracking off
 	if (m_bTrackMode) SetTrackMode(false);
 	else StartFadingAll();
-	//Show tracking boxes for the error
-	AddTrackArc(m_ChartShown.GetArcByLine(line, col));
+
+    //exit if we do not know the location of the error
+    if (cursel >= pOutputView->error_pos.size() || cursel<0) return;
+    if (pOutputView->error_pos[cursel].first < 0) return;
+
+    //Jump to that pos in editor
+    int line = pOutputView->error_pos[cursel].first;
+    int col = pOutputView->error_pos[cursel].second;
+    //Jump in the internal and external editors
+    if (pApp->IsInternalEditorRunning()) 
+        pApp->m_pWndEditor->m_ctrlEditor.JumpToLine(line, col);
+    if (m_ExternalEditor.IsRunning())
+        m_ExternalEditor.JumpToLine(line, col);
+
+    //Show tracking boxes for the error
+    AddTrackArc(m_ChartShown.GetArcByLine(line, col));
 }
 
 //Selection in the error window changes
