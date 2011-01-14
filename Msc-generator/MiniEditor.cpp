@@ -585,14 +585,17 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
                 }
             if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
                 MscError Error;
-                Error.AddFile("CSH");
+                Error.AddFile("Hint");
                 std::list<CString> errors;
+                std::vector<std::pair<int, int>> error_pos;
                 for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
                     int line, col;
                     ConvertPosToLineCol(i->first_pos, line, col);
+                    line++; col++; //XXX WTF This is needed
+                    error_pos.push_back(std::pair<int,int>(line, col));
                     errors.push_back(Error.FormulateElement(file_line(0, line, col), true, false, i->text).text.c_str());
                 }
-                pApp->m_pWndOutputView->ShowCshErrors(errors);
+                pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
             }
         }
 	}

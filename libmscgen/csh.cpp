@@ -288,6 +288,14 @@ void Csh::AddCSH(CshPos&pos, MscColorSyntaxType i)
     CshList.AddToBack(e);
 }
 
+void Csh::AddCSH_ErrorAfter(CshPos&pos, const char *text)
+{
+    CshPos pos2;
+    pos2.first_pos = pos.last_pos;
+    pos2.last_pos = pos.last_pos+1;
+    CshErrors.Add(pos2, text);
+}
+
 void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
     if (!name || CaseInsensitiveEqual(name, "label") ||
@@ -339,16 +347,18 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
     free(copy);
 }
 
-const char *const keyword_names[] = {"heading", "newpage", "nudge", "parallel",
-"block", "pipe", "defdesign", "defcolor", "defstyle",
-"vertical", "mark", ""};
+static const char keyword_names[][ENUM_STRING_LEN] =
+{"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
+"defcolor", "defdesign", "vertical", "mark", "parallel", "show", "hide", "bye", ""};
 
-const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
+static const char opt_names[][ENUM_STRING_LEN] =
+{"msc", "hscale", "compress", "numbering",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
 "text.color", "text.format", "text.ident", ""};
 
-const char *const attr_names[] = {"compress", "color", "label", "number", "id",
+static const char attr_names[][ENUM_STRING_LEN] =
+{"compress", "color", "label", "number", "id",
 "pos", "relative", "show", "makeroom", "readfrom", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
@@ -357,7 +367,7 @@ const char *const attr_names[] = {"compress", "color", "label", "number", "id",
 "vline.color", "vline.type", "vline.width",
 "fill.color", "fill.color2", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
 
-int find_opt_attr_name(const char *name, const char * const array[])
+int find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
 {
     for (int i=0; array[i][0]; i++)
         switch (CaseInsensitiveBeginsWith(array[i], name)) {
@@ -409,7 +419,7 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
 
 void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color)
 {
-    char const *const *array;
+    const char (*array)[ENUM_STRING_LEN];
     if (color == COLOR_OPTIONNAME) array = opt_names;
     if (color == COLOR_ATTRNAME) array = attr_names;
     int match_result = find_opt_attr_name(name, array);
@@ -867,10 +877,7 @@ bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
 
 void Csh::AddKeywordsToHints()
 {
-    static const char names[][ENUM_STRING_LEN] =
-    {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
-    "defcolor", "defdesign", "vertical", "mark", "parallel", ""};
-    AddToHints(names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
+    AddToHints(keyword_names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
 }
 
 bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/)

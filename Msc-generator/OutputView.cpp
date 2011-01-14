@@ -137,15 +137,24 @@ void COutputViewBar::ShowCompilationErrors(const CDrawingChartData &chart)
 	m_wndOutput.ResetContent();
     compilation_errors.clear();
 	unsigned num = chart.GetErrorNum(pApp->m_Warnings);
+    error_pos.resize(num);
 	for (int i=0; i<num; i++) {
         compilation_errors.push_back(chart.GetErrorText(i, pApp->m_Warnings));
         m_wndOutput.AddString(*compilation_errors.rbegin());
+        if (chart.IsErrorInFile(i, pApp->m_Warnings)) {
+            error_pos[i].first = chart.GetErrorLine(i, pApp->m_Warnings);
+            error_pos[i].second = chart.GetErrorCol(i, pApp->m_Warnings);
+        } else {
+            error_pos[i].first = -1;
+        }
     }
-	ShowPane(num>0, false, true);
+    //turn off only if m_bShowCshErrorsInWindow is false && no errors
+    ShowPane(num>0 || (pApp->m_bShowCshErrorsInWindow && IsVisible()), false, true);
 }
 
 
-void COutputViewBar::ShowCshErrors(const std::list<CString> &errors) 
+void COutputViewBar::ShowCshErrors(const std::list<CString> &errors, 
+                                   const std::vector<std::pair<int, int>> &err_pos) 
 {
     if (!::IsWindow(m_wndOutput)) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -156,6 +165,10 @@ void COutputViewBar::ShowCshErrors(const std::list<CString> &errors)
         m_wndOutput.AddString(*i);
     for (auto i=errors.begin(); i!=errors.end(); i++) 
         m_wndOutput.AddString(*i);
+    error_pos.resize(compilation_errors.size());
+    error_pos.insert(error_pos.end(), err_pos.begin(), err_pos.end());
     //ShowPane(true, true, false);  //do not do this! If user wants them, let him turn errors on
     m_wndOutput.SetRedraw(true);
+    //turn off only if m_bShowCshErrorsInWindow is false && no errors
+	ShowPane(error_pos.size()>0 || (pApp->m_bShowCshErrorsInWindow && IsVisible()), false, true);
 }

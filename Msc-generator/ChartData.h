@@ -82,6 +82,7 @@ public:
 	HENHMETAFILE GetEMF(bool trueEMF) const {CompileIfNeeded(trueEMF); return m_hemf;}
 //Error related
 	unsigned GetErrorNum(bool oWarnings) const;
+    bool     IsErrorInFile(unsigned num, bool oWarnings) const;
 	unsigned GetErrorLine(unsigned num, bool oWarnings) const;
 	unsigned GetErrorCol(unsigned num, bool oWarnings) const;
 	CString GetErrorText(unsigned num, bool oWarnings) const;

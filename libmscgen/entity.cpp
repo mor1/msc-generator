@@ -54,9 +54,10 @@ EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
 {
     label.first = false;
     pos.first = false;
-    pos.second = 0; //field 'pos' is used even if no such attribute
+    pos.second = 0; //field 'pos.second' is used even if no such attribute
     rel.first = false;
     show.second = show.first = true; //if no attributes, we are ON
+    show_is_explicit = false;
     style.Empty();
 }
 
@@ -68,6 +69,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
     if (i != chart->NoEntity) {
         // Existing entity: kill auto-assumed "show=on"
         show.first = false;
+        // Leave show_explicit as false
     }
 
     // Process attribute list
@@ -93,7 +95,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
                     s += "' in attribute 'relative'. Ignoring attriute.";
                     chart->Error.Error(rel.third, s);
                 } else {
-                    chart->Entities.Append(new Entity(rel.second, rel.second, rel.second, chart->Entity_max_pos++, 
+                    chart->Entities.Append(new Entity(rel.second, rel.second, rel.second, chart->Entity_max_pos++,
                                                       chart->Contexts.back().styles["entity"]));
                     chart->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), chart));
                     //position remains at the old, not incremented Entity_max_pos
@@ -115,7 +117,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
             }
         }
 
-        //If no show attribute, set it to "ON"
+        //If no show attribute, set it to "ON", but keep show_is_explicit false
         if (!show.first)
             show.second = show.first = true;
 
@@ -194,6 +196,7 @@ bool EntityDef::AddAttribute(const Attribute& a)
         // MSC_ATTR_CLEAR is handled above
         show.second = a.yes;
         show.first = true;
+        show_is_explicit = true;
         return true;
     }
     if (a.Is("color")) {
@@ -282,7 +285,7 @@ double EntityDef::Width() const
     return width + fmod(width, 2); //always return an even number
 }
 
-double EntityDef::Height(AreaList &cover) 
+double EntityDef::Height(AreaList &cover)
 {
     const double x = chart->XCoord((*itr)->pos); //integer
     const XY wh = parsed_label.getTextWidthHeight();
@@ -297,7 +300,7 @@ double EntityDef::Height(AreaList &cover)
     //Add shadow to outer_edge and place that to cover
     cover += Contour(Block(outer_edge) += Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)));
     cover.mainline += outer_edge.y;
-    return chart->headingVGapAbove + height + chart->headingVGapBelow + style.shadow.offset.second; 
+    return chart->headingVGapAbove + height + chart->headingVGapBelow + style.shadow.offset.second;
 }
 
 void EntityDef::PostPosProcess()
@@ -309,7 +312,7 @@ void EntityDef::PostPosProcess()
     //    if (shown)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is shown due to this line, but is later turned "
     //                             "off in a parallel block above this position.", "May not be what intended.");
-    //    else 
+    //    else
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
@@ -324,11 +327,11 @@ void EntityDef::PostPosProcess()
 }
 
 
-void EntityDef::Draw() 
+void EntityDef::Draw()
 {
     const double lw = style.line.LineWidth();
 
-    Block b(outer_edge); 
+    Block b(outer_edge);
     MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
     if (line2.radius.second>0) line2.radius.second += lw;  //expand to outer edge
     chart->Shadow(b, style.line, style.shadow);

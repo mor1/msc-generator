@@ -82,7 +82,10 @@
      TOK_COMMAND_PARALLEL = 298,
      TOK_VERTICAL = 299,
      TOK_AT = 300,
-     TOK__NEVER__HAPPENS = 301
+     TOK_SHOW = 301,
+     TOK_HIDE = 302,
+     TOK_BYE = 303,
+     TOK__NEVER__HAPPENS = 304
    };
 #endif
 /* Tokens.  */
@@ -129,7 +132,10 @@
 #define TOK_COMMAND_PARALLEL 298
 #define TOK_VERTICAL 299
 #define TOK_AT 300
-#define TOK__NEVER__HAPPENS 301
+#define TOK_SHOW 301
+#define TOK_HIDE 302
+#define TOK_BYE 303
+#define TOK__NEVER__HAPPENS 304
 
 
 
@@ -159,7 +165,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 163 "language.h"
+#line 169 "language.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

@@ -2563,6 +2563,16 @@ void CommandEntity::Combine(CommandEntity *ce)
     ce->entities.clear();
 }
 
+CommandEntity *CommandEntity::ApplyShowHide(bool show)
+{
+    for (auto i=entities.begin(); i!=entities.end(); i++) {
+        if ((*i)->show_is_explicit) continue;
+        (*i)->show.first = true;
+        (*i)->show.second = show;
+    }
+    return this;
+}
+
 
 void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numbering &number,
                                      bool top_level)
