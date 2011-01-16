@@ -39,10 +39,6 @@ public:
 	bool m_DeleteBkg;
 	// Drawn chart
 	CSize        m_size;
-	//Cached bitmap containing the picture at indicated zoom and clip
-	CBitmap  m_cachedBitmap;
-	CRect    m_cachedBitmapClip;
-	unsigned m_cachedBitmapZoom;
 	//stretch for in-place editing
 	double m_stretch_x;
 	double m_stretch_y;
@@ -67,7 +63,7 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in MscGen page space)
-			void DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale);
+			void DrawTrackRects(CDC* pDC, CRect clip, double scale);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

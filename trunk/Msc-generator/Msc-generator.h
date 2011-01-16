@@ -26,6 +26,7 @@
 #endif
 
 #include "resource.h"       // main symbols
+#include "ChartData.h"
 #include "OutputView.h"
 #include "MiniEditor.h"
 #include "csh.h"
@@ -83,6 +84,7 @@ public:
     bool m_bHintAttrValue;
     bool m_bHintFilter;
     bool m_bHintCompact;
+    CDrawingChartData::ECacheType m_cacheType;
 
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;

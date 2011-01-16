@@ -415,7 +415,8 @@ double ArcSelfArrow::Height(AreaList &cover)
     xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
     xy_s.y = ceil(xy_s.y);
     xy_e.y = ceil(xy_e.y);
-    XY wh(ceil(chart->XCoord(0.375)), ceil(2*YSize));
+    wh.x = ceil(chart->XCoord(0.375));
+    wh.y = ceil(2*YSize);
     dx = chart->XCoord(src);
     sx = 0;
 
@@ -453,7 +454,7 @@ void ArcSelfArrow::Draw()
     if (style.line.radius.second < 0) {
         //draw an arc
         wh.x *=2;
-        chart->Line(Edge(XY(dx, y+YSize), wh.x, wh.y, 270, 90), style.line);
+        chart->Line(Edge(XY(dx, y+YSize), wh.x, wh.y, 0, 270, 90), style.line);
     } else {
         //draw (part of) a rounded rectangle
         chart->Clip(dx, chart->total.x, 0, chart->total.y);

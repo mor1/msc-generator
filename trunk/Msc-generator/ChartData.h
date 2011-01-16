@@ -60,26 +60,34 @@ public:
 };
 
 class CDrawingChartData : public CChartData {
-protected:
-	mutable Msc *m_msc;
-	mutable HENHMETAFILE m_hemf;
-	mutable bool m_hemf_is_true_emf;
-	Msc *GetMsc() const {CompileIfNeeded(m_hemf_is_true_emf); return m_msc;}
 public:
-	CDrawingChartData() : m_msc(NULL), m_hemf(NULL), m_hemf_is_true_emf(true) {}
-	CDrawingChartData(const CChartData&o) : m_msc(NULL), m_hemf(NULL), m_hemf_is_true_emf(true) {operator=(o);}
+    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_BMP} ECacheType;
+protected:
+	mutable Msc         *m_msc;
+    mutable bool         m_bPageBreaks;
+    mutable ECacheType   m_cacheType;
+	mutable HENHMETAFILE m_cache_EMF;
+    mutable CBitmap      m_cache_BMP;
+    mutable double       m_cache_BMP_scale;
+    mutable CRect        m_cache_BMP_clip;
+	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
+    void ClearCaches() const;
+public:
+	CDrawingChartData();
+	CDrawingChartData(const CChartData&o);
+	CDrawingChartData(const CDrawingChartData&o);
 	CDrawingChartData & operator = (const CChartData& o) {FreeMsc(); CChartData::operator =(o); return *this;}
 	virtual void Delete(void) {CChartData::Delete(); FreeMsc();}
+    virtual void SetCacheType(ECacheType t) const {ClearCaches(); m_cacheType=t;}
 	virtual void SetDesign (const char *design);
-	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; if (m_msc) Recompile();}
+	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; FreeMsc();}
+    virtual void SetPageBreaks(bool on) {if (m_bPageBreaks!=on) {m_bPageBreaks=on; ClearCaches();}}
 	unsigned GetPage() const {return m_page;}
 //Compilation related
-	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL; DeleteEnhMetaFile(m_hemf); m_hemf=NULL;}}
-	void CompileIfNeeded(bool doEMF) const;
-	void CompileIfNeeded() const {CompileIfNeeded(m_hemf_is_true_emf);}
+    void FreeMsc() const;
+	void CompileIfNeeded() const;
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
 	BOOL IsCompiled() const {return m_msc!=NULL;}
-	HENHMETAFILE GetEMF(bool trueEMF) const {CompileIfNeeded(trueEMF); return m_hemf;}
 //Error related
 	unsigned GetErrorNum(bool oWarnings) const;
     bool     IsErrorInFile(unsigned num, bool oWarnings) const;
@@ -92,8 +100,9 @@ public:
 	CSize GetSize() const;
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
-	void Draw(HDC hdc, bool doEMF, bool pageBreaks) const;
-	void Draw(const char* fileName) const;
+	void DrawToWindow(HDC hdc, double scale, const CRect &clip) const;
+	void DrawToWMF(HDC hdc, bool pageBreaks) const;
+	void DrawToFile(const char* fileName, double scale=1.0) const;
 //Cover related
 	TrackableElement *GetArcByCoordinate(CPoint point) const;
 	TrackableElement *GetArcByLine(unsigned line, unsigned col) const;

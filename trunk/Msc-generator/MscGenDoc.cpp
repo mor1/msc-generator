@@ -409,7 +409,7 @@ void CMscGenDoc::OnFileExport()
 	m_a.m_pOFN->nMaxFile = sizeof(filename);
 	if (m_a.DoModal() != IDOK)
 		return;
-	m_ChartShown.Draw(m_a.GetPathName());
+	m_ChartShown.DrawToFile(m_a.GetPathName());
 }
 
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
@@ -1132,8 +1132,9 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 	m_itrShown = m_itrEditing;
 	m_itrShown->m_wasDrawn = true;
 	m_ChartShown = *m_itrEditing;
+    m_ChartShown.SetCacheType(pApp->m_cacheType);
 
-	int max_page = m_ChartShown.GetPages();
+	int max_page = m_ChartShown.GetPages(); //This GetPages compiles
 	if (max_page == 1) max_page=0;
 
 	if (max_page<m_ChartShown.GetPage()) {
@@ -1183,16 +1184,16 @@ void CMscGenDoc::StartFadingTimer()
 		pView->StartFadingTimer();
 }
 
+//return false if no fading rect remained
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 300; //XXX millisecons XXX, shoud be 300
+	const double fade_completely = 300; //XXX millisecons shoud be 300
 	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
-	bool keep_coming_back = false;
-	Block bounding;
+    Block bounding; bounding.MakeInvalid();
 	for (int i = 0; i<m_trackArcs.size(); i++) {
 		if (m_trackArcs[i].delay_fade < 0)
 			continue;
-		Block b = m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
+		bounding += m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
 		if (m_trackArcs[i].delay_fade > 0) 
 			m_trackArcs[i].delay_fade--;
 		else if (m_trackArcs[i].alpha > alpha_reduct) 
@@ -1201,16 +1202,14 @@ bool CMscGenDoc::DoFading()
 			m_trackArcs.erase(m_trackArcs.begin()+i);
 			i--;
 		}
-		if (!keep_coming_back) bounding = b;
-		else bounding += b;
-		keep_coming_back = true;
 	}
+    if (bounding.IsInvalid()) return false;
 	POSITION pos = GetFirstViewPosition();
 	while(pos) {
 		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
 		if (pView) pView->InvalidateBlock(bounding);
 	}
-	return keep_coming_back;
+	return true;
 }
 
 
@@ -1218,25 +1217,29 @@ bool CMscGenDoc::DoFading()
 bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
 {
 	if (arc==NULL) return false;
-	Block b;
 	//Do not add if it has no visual element
     if (arc->GetAreaToDraw().IsEmpty()) 
 		return false;
 	bool found = false;
+    Block b; b.MakeInvalid();
 	//Look for this arc. If already on list and still fully visible return false - no need to update
-	for (std::vector<TrackedArc>::iterator i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) 
+	for (auto i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) {
 		if (i->arc == arc) {
 			i->delay_fade = delay;
 			if (i->alpha == 255) 
-				return false;
+				return false; //we found and it is fully highlighted
 			else {
 				i->alpha = 255;
 				found = true;
-				break; 
 			}
-		}
+		} 
+        b += i->arc->GetAreaToDraw().GetBoundingBox();
+    }
+    //We always redraw all the tracked rectangles, to look better
 	if (!found)
 		m_trackArcs.push_back(TrackedArc(arc, delay));
+    if (b.IsInvalid()) 
+        return true;
 	POSITION pos = GetFirstViewPosition();
 	while(pos) {
 		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));

@@ -263,6 +263,7 @@ CMscGenApp::CMscGenApp()
 	m_pWndOutputView = 0;
 	m_pWndEditor = 0;
 	m_bFullScreenViewMode = false;
+    m_cacheType = CDrawingChartData::CACHE_NONE;
 }
 
 
@@ -704,6 +705,14 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	for (int scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
 		for (int i=0; i<COLOR_MAX; i++) 
 			ConvertMscCshAppearanceToCHARFORMAT(MscCshAppearanceList[scheme][i], m_csh_cf[scheme][i]);
+
+    m_cacheType = CDrawingChartData::CACHE_BMP; //This works on all platforms
+    OSVERSIONINFOEX osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
+    if(GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion >= 6) 
+        m_cacheType = CDrawingChartData::CACHE_EMF;
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.
