@@ -44,7 +44,7 @@ ADD: Add size settings (scale=, x=, y=) to command line and a customized dialog 
 CHANGE: fromright attribute out of f_solid, and combine it with readfromleft into "side"
 FIX: note not fully OK (thick lines and entity lines)
 FIX: Any character pressed in View should be dispatched to internal editor (with focus)
-FIX: Text after bye should be a big comment
+FIX: Selfarrow
 
 In 3.0
 ADDED: More precise tracking mode
@@ -60,6 +60,7 @@ FIXED: If we select a hint, use the hinted text, not the one in the editor (case
 FIXED: allow hint when typing just before another word
 FIXED: Hints now do auto-completion
 FIXED: Focus always goes back to the internal editor.
+ADDED: Scale to all drawing operations. Direct drawing to windows surface & bitmap caching
 
 In 2.6
 FIXED: Many improvements to parsing, but missing the ; still result in empty chart

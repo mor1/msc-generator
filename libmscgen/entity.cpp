@@ -97,7 +97,9 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
                 } else {
                     chart->Entities.Append(new Entity(rel.second, rel.second, rel.second, chart->Entity_max_pos++,
                                                       chart->Contexts.back().styles["entity"]));
-                    chart->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), chart));
+                    EntityDef *ed = new EntityDef(rel.second.c_str(), chart);
+                    ed->AddAttributeList(NULL);
+                    chart->AutoGenEntities.Append(ed);
                     //position remains at the old, not incremented Entity_max_pos
                     //the definedHere of the entityDef above will be set to true in chart->PostParseProcees
                 }

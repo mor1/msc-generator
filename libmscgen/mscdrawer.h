@@ -42,10 +42,11 @@ class MscDrawer
     bool         use_text_path_rotated; /* Use text path() on rotated text */
     bool         individual_chars; /* Each character is drawn one by one */
     unsigned     fake_gradients; /* Do not use cairo gradients, mimic them with a lot of fills, #of steps if non-zero */
+    double       scale_for_shadows; /* how many pixel lies below one logical pixel (needed for fine shadows) */
     bool         fake_shadows; /* Do not use alpha blending in shadows */
     bool         fake_dash; /* Do not use cairo dash, mimic them with individual dashes */
 	bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
-    double       scale; /*final rendering should be scaled like this */
+    double       fake_scale; /*final rendering should be scaled like this */
     unsigned	 fallback_resolution; /* for cairo WMF backends */
     bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
 
@@ -93,13 +94,14 @@ friend class ArcEmphasis;  //for exotic line joints
   public:
     MscDrawer();
     void GetPagePosition(int page, XY &offset, XY &size) const;
-    bool SetOutput(OutputType, const string &fn=string(), int page=-1);
+    bool SetOutput(OutputType, double scale=1.0, const string &fn=string(), int page=-1);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, save_hdc;
-    bool SetOutputWin32(OutputType, HDC hdc, int page=-1);
+    bool SetOutputWin32(OutputType, HDC hdc, double scale=1.0, int page=-1);
     HENHMETAFILE CloseOutputRetainHandleEMF();
     HMETAFILE CloseOutputRetainHandleWMF();
 #endif
+    void PrepareForCopyrightText();
     void CloseOutput();
 
     MscError     Error;

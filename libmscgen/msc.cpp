@@ -279,6 +279,8 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
         Entities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
+        ed->AddAttributeList(NULL);
+        ed->show.first = ed->show.second = true; //start turned on
         AutoGenEntities.Append(ed);
         ei = Entities.Find_by_Name(e);
     }
@@ -574,8 +576,11 @@ void Msc::PostParseProcess(void)
     //Otherwise, generate a new entity command as first arc
     ArcList::iterator i = Arcs.begin();
     if (i == Arcs.end()) return; //we cannot have autogen entities either.
-    if ((*i)->type != MSC_COMMAND_ENTITY)
-        i = Arcs.insert(i, new CommandEntity(new EntityDefList, this));
+    if ((*i)->type != MSC_COMMAND_ENTITY) {
+        CommandEntity *ce = new CommandEntity(new EntityDefList, this);
+        ce->AddAttributeList(NULL);
+        i = Arcs.insert(i, ce);
+    }
     dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
 
     //Set all entity's shown to false, to avoid accidentally showing them via (heading;) before definition
@@ -968,20 +973,20 @@ void Msc::Draw(bool pageBreaks)
     DrawArcList(Arcs);
 }
 
-void Msc::DrawToOutput(OutputType ot, const string &fn)
+void Msc::DrawToOutput(OutputType ot, double scale, const string &fn)
 {
     if (yPageStart.size()<=1) {
-        SetOutput(ot, fn, -1);
+        SetOutput(ot, scale, fn, -1);
         Draw(false);
-        UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
+        PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
         DrawCopyrightText();
         CloseOutput();
         return;
     }
     for (unsigned page=0; page<yPageStart.size(); page++) {
-        SetOutput(ot, fn, page);
+        SetOutput(ot, scale, fn, page);
         Draw(false);
-        UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
+        PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
         DrawCopyrightText(page);
         CloseOutput();
     }

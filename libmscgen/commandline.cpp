@@ -347,7 +347,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         msc.CompleteParse(oOutType, true);
         std::cerr << msc.Error.Print(oWarning);
         //Now cycle through pages and write them to individual files
-        msc.DrawToOutput(oOutType, oOutputFile);
+        msc.DrawToOutput(oOutType, 1.0, oOutputFile);
     }
 
     free(input);
