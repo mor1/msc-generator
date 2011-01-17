@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -68,7 +68,8 @@ protected:
     mutable ECacheType   m_cacheType;
 	mutable HENHMETAFILE m_cache_EMF;
     mutable CBitmap      m_cache_BMP;
-    mutable double       m_cache_BMP_scale;
+    mutable double       m_cache_BMP_x_scale;
+    mutable double       m_cache_BMP_y_scale;
     mutable CRect        m_cache_BMP_clip;
 	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
     void ClearCaches() const;
@@ -100,9 +101,9 @@ public:
 	CSize GetSize() const;
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
-	void DrawToWindow(HDC hdc, double scale, const CRect &clip) const;
+	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const;
 	void DrawToWMF(HDC hdc, bool pageBreaks) const;
-	void DrawToFile(const char* fileName, double scale=1.0) const;
+	void DrawToFile(const char* fileName, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
 	TrackableElement *GetArcByCoordinate(CPoint point) const;
 	TrackableElement *GetArcByLine(unsigned line, unsigned col) const;

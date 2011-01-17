@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -973,10 +973,10 @@ void Msc::Draw(bool pageBreaks)
     DrawArcList(Arcs);
 }
 
-void Msc::DrawToOutput(OutputType ot, double scale, const string &fn)
+void Msc::DrawToOutput(OutputType ot, double x_scale, double y_scale, const string &fn)
 {
     if (yPageStart.size()<=1) {
-        SetOutput(ot, scale, fn, -1);
+        SetOutput(ot, x_scale, y_scale, fn, -1);
         Draw(false);
         PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
         DrawCopyrightText();
@@ -984,7 +984,7 @@ void Msc::DrawToOutput(OutputType ot, double scale, const string &fn)
         return;
     }
     for (unsigned page=0; page<yPageStart.size(); page++) {
-        SetOutput(ot, scale, fn, page);
+        SetOutput(ot, x_scale, y_scale, fn, page);
         Draw(false);
         PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
         DrawCopyrightText(page);

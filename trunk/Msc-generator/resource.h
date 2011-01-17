@@ -8,13 +8,10 @@
 #define IDR_SRVR_EMBEDDED               6
 #define IDP_OLE_INIT_FAILED             100
 #define IDR_POPUP_EDIT                  119
-#define ID_STATUSBAR_PANE1              120
-#define ID_STATUSBAR_PANE2              121
 #define IDS_STATUS_PANE1                122
 #define IDS_STATUS_PANE2                123
 #define IDS_TOOLBAR_STANDARD            124
 #define IDS_TOOLBAR_CUSTOMIZE           125
-#define ID_VIEW_CUSTOMIZE               126
 #define IDS_TOOLBAR_DESIGN              126
 #define IDR_MAINFRAME                   128
 #define IDR_TOOLBAR_MAINFRAME           128
@@ -25,7 +22,6 @@
 #define IDD_PROGRESSDIALOG              135
 #define IDD_ABOUTBOX                    136
 #define IDR_THEME_MENU                  200
-#define ID_SET_STYLE                    201
 #define ID_VIEW_APPLOOK_WIN_2000        210
 #define ID_VIEW_APPLOOK_OFF_XP          211
 #define ID_VIEW_APPLOOK_WIN_XP          212
@@ -40,11 +36,11 @@
 #define IDD_POPUPLIST                   311
 #define IDD_DIALOG_VERSION              313
 #define IDR_HTML1                       314
+#define IDD_DIALOG1                     315
+#define IDD_SCALE                       315
 #define IDC_RADIO1                      1000
 #define IDC_EDIT1                       1001
-#define IDC_BUTTON1                     1001
 #define IDC_BUTTON_URL                  1001
-#define IDC_COMBO_EDITOR                1002
 #define IDC_EDIT2                       1002
 #define IDC_CHECK_PEDANTIC              1003
 #define IDC_EDIT3                       1003
@@ -52,13 +48,13 @@
 #define IDC_RADIO2                      1005
 #define IDC_RADIO3                      1006
 #define IDC_EDIT_DEFAULT_TEXT           1007
+#define IDC_RADIO_SCALING_Y             1007
 #define IDC_OUTPUT_LIST                 1008
 #define IDC_CHECK_ALWAYSOPEN            1008
 #define IDC_CHECK_PB_EDITING            1009
 #define IDC_INTERNAL_EDITOR             1009
 #define IDC_CHECK_PB_EMBEDDED           1010
 #define IDC_CHECK_CSH                   1011
-#define IDC_RADIO4                      1012
 #define IDC_CHECK_SMART_IDENT           1012
 #define IDC_COMBO_CSH                   1013
 #define IDC_BUTTON_URL2                 1014
@@ -77,12 +73,23 @@
 #define IDC_CHECK_SMART_HINT_FILTER     1020
 #define IDC_CHECK_CSH_ERRORS            1021
 #define IDC_CHECK_CSH_ERROR             1021
+#define IDC_RADIO_SCALING_NO            1021
 #define IDC_CHECK_CSH_ERROR_IN_WINDOW   1022
+#define IDC_RADIO5                      1022
+#define IDC_RADIO_SCALING_XY            1022
+#define IDC_BUTTON_SCALE                1023
+#define IDC_EDIT_SCALE                  1023
+#define IDC_EDIT_X                      1024
+#define IDC_EDIT_Y                      1025
+#define IDC_EDIT_XY_X                   1026
+#define IDC_EDIT_XY_Y                   1027
+#define IDC_STATIC_ORIGINAL_SIZE        1028
+#define IDC_RADIO_SCALING_SCALE         1029
+#define IDC_RADIO_SCALING_X             1030
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
 #define ID_EDIT_PREFERENCES             32773
-#define ID_VIEW_DESIGNBAR               32774
 #define ID_VIEW_ZOOMIN                  32775
 #define ID_VIEW_ZOOMOUT                 32776
 #define ID_VIEW_ADJUSTWIDTH             32777
@@ -96,8 +103,8 @@
 #define ID_DESIGN_ZOOM                  32788
 #define ID_DESIGN_DESIGN                32789
 #define ID_VIEW_RESETASPECTRATIO_INPLACE 32790
+#define ID_VIEW_CUSTOMIZE               32791
 #define ID_VIEW_EDITOR                  32804
-#define ID_EDIT_UPDATEFROMCHARTTEXTPANEL 32806
 #define ID_EDIT_UPDATE                  32807
 #define ID_VIEW_NEXTERROR               32814
 #define ID_EDIT_COPYENTIRECHART         32820
@@ -115,9 +122,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        315
+#define _APS_NEXT_RESOURCE_VALUE        316
 #define _APS_NEXT_COMMAND_VALUE         32860
-#define _APS_NEXT_CONTROL_VALUE         1021
-#define _APS_NEXT_SYMED_VALUE           312
+#define _APS_NEXT_CONTROL_VALUE         1031
+#define _APS_NEXT_SYMED_VALUE           315
 #endif
 #endif

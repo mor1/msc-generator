@@ -16,7 +16,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (United States) resources
+// Hungarian (Hungary) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_HUN)
 LANGUAGE LANG_HUNGARIAN, SUBLANG_DEFAULT
@@ -34,6 +34,33 @@ BEGIN
     LISTBOX         IDC_LIST2,0,0,306,187,LBS_SORT | LBS_OWNERDRAWVARIABLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
+IDD_SCALE DIALOGEX 0, 0, 262, 125
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Scaling options"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,144,104,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,205,104,50,14
+    CONTROL         "&No scaling",IDC_RADIO_SCALING_NO,"Button",BS_AUTORADIOBUTTON,15,20,48,10
+    CONTROL         "Scale &by a factor of",IDC_RADIO_SCALING_SCALE,"Button",BS_AUTORADIOBUTTON,15,36,79,10
+    CONTROL         "Keep aspect ratio and set &width to",IDC_RADIO_SCALING_X,
+                    "Button",BS_AUTORADIOBUTTON,15,52,126,10
+    CONTROL         "Keep aspect ratio and set &height to",IDC_RADIO_SCALING_Y,
+                    "Button",BS_AUTORADIOBUTTON,15,68,129,10
+    CONTROL         "Set width to",IDC_RADIO_SCALING_XY,"Button",BS_AUTORADIOBUTTON,15,84,55,10
+    LTEXT           "(1092 x 1983 pixels)",IDC_STATIC_ORIGINAL_SIZE,61,21,66,8
+    EDITTEXT        IDC_EDIT_SCALE,93,34,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_X,141,50,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_Y,141,66,40,14,ES_AUTOHSCROLL
+    LTEXT           "pixels",IDC_STATIC,185,53,19,8
+    LTEXT           "pixels",IDC_STATIC,185,69,19,8
+    EDITTEXT        IDC_EDIT_XY_X,67,82,40,14,ES_AUTOHSCROLL
+    LTEXT           "pixels and height to",IDC_STATIC,110,85,64,8
+    EDITTEXT        IDC_EDIT_XY_Y,175,82,40,14,ES_AUTOHSCROLL
+    LTEXT           "pixels",IDC_STATIC,219,85,19,8
+    LTEXT           "Please select how to scale the resulting bitmap.",IDC_STATIC,7,7,152,8
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -49,6 +76,14 @@ BEGIN
         RIGHTMARGIN, 312
         TOPMARGIN, 7
         BOTTOMMARGIN, 193
+    END
+
+    IDD_SCALE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 255
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 118
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -427,7 +462,7 @@ BEGIN
     BEGIN
         MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
         MENUITEM "&Errors and Warnings",        ID_VIEW_OUTPUT
-        MENUITEM "&Internal Editor",                 ID_VIEW_EDITOR
+        MENUITEM "&Internal Editor",            ID_VIEW_EDITOR
         MENUITEM SEPARATOR
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
         MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR

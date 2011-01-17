@@ -94,10 +94,10 @@ friend class ArcEmphasis;  //for exotic line joints
   public:
     MscDrawer();
     void GetPagePosition(int page, XY &offset, XY &size) const;
-    bool SetOutput(OutputType, double scale=1.0, const string &fn=string(), int page=-1);
+    bool SetOutput(OutputType, double x_scale=1.0, double y_scale=1.0, const string &fn=string(), int page=-1);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, save_hdc;
-    bool SetOutputWin32(OutputType, HDC hdc, double scale=1.0, int page=-1);
+    bool SetOutputWin32(OutputType, HDC hdc, double x_scale=1.0, double y_scale=1.0, int page=-1);
     HENHMETAFILE CloseOutputRetainHandleEMF();
     HMETAFILE CloseOutputRetainHandleWMF();
 #endif

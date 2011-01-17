@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -2213,7 +2213,7 @@ void ArcEmphasis::Draw()
         chart->Shadow(r, line, style.shadow);
         //Do a clip region for the overall box (for round corners)
         //at half a linewidth from the inner edge (use the width of a single line!)
-        line.radius.second += ( -lw + style.line.width.second/2.) * style.line.RadiusIncMul();
+        line.radius.second += ( -lw + line.width.second/2.) * line.RadiusIncMul();
         r.Expand(-lw+style.line.width.second/2.);
         chart->Clip(r, line);
         for (auto i = follow.begin(); i!=follow.end(); i++) {
@@ -2243,8 +2243,8 @@ void ArcEmphasis::Draw()
         }
         chart->UnClip();
         //shring to the inner edge
-        r.Expand(-style.line.width.second/2.);
-        line.radius.second -= style.line.width.second/2. * style.line.RadiusIncMul();
+        r.Expand(-line.width.second/2.);
+        line.radius.second -= line.width.second/2. * line.RadiusIncMul();
         //Draw box lines - Cycle only for subsequent boxes
         for (auto i = ++(follow.begin()); i!=follow.end(); i++) {
             const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
@@ -2253,7 +2253,7 @@ void ArcEmphasis::Draw()
         }
         //Finally draw the overall line around the box, expand to midpoint of line
         r.Expand(lw/2);
-        line.radius.second += (lw/2)  * style.line.RadiusIncMul();
+        line.radius.second += (lw/2)  * line.RadiusIncMul();
         chart->Line(r, line);
         //XXX double line joints: fix it
         for (auto i = follow.begin(); i!=follow.end(); i++) {
