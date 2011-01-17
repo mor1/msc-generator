@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -345,8 +345,8 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     data.SetCacheType(CDrawingChartData::CACHE_NONE);  //Will call draw only once, no point in caching 
 
     CSize orig_size = data.GetSize(); //This one compiles
-	double fzoom = double(pInfo->m_rectDraw.Width())/orig_size.cx;
-    data.DrawToWindow(pDC->m_hDC, fzoom, pInfo->m_rectDraw);
+	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
+    data.DrawToWindow(pDC->m_hDC, scale, scale, pInfo->m_rectDraw);
 
 	//CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 	//HENHMETAFILE hemf = data.GetEMF(true);
@@ -437,7 +437,7 @@ void CMscGenView::InvalidateBlock(const Block &b)
 
 
 //clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
-void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double scale)
+void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_scale)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
@@ -445,11 +445,11 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double scale)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
-    clip.bottom = std::min(clip.bottom, (LONG)ceil(scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
+    clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
 	//This is the destination surface
 	cairo_surface_t *surface = cairo_win32_surface_create(*pDC);
 	cairo_t *cr = cairo_create(surface);
-    cairo_scale(cr, scale, scale);
+    cairo_scale(cr, x_scale, y_scale);
     //cairo_rectangle(cr, clip.left, clip.top, clip.right, clip.bottom);
     //cairo_clip(cr);
     cairo_set_line_width(cr, 1);
@@ -478,14 +478,15 @@ void CMscGenView::OnDraw(CDC* pDC)
 	if (SizeEmpty(m_size)) return;
     CRect total;
     CRect clip;
-    double scale;
+    double x_scale, y_scale;
 	if (pDoc->IsInPlaceActive()) {
-        scale = 1;              //zoom is always 100% when in place
+        x_scale = double(pDC->GetViewportExt().cx)/m_size.cx;              
+        y_scale = double(pDC->GetViewportExt().cy)/m_size.cy;              
         total.SetRect(CPoint(0, 0), CPoint(pDC->GetViewportExt()));
         clip = total;
 	} else {
-        scale = pDoc->m_zoom/100.0;
-		total = CRect(CPoint(0, 0), ScaleSize(m_size, scale));
+        x_scale = y_scale = pDoc->m_zoom/100.0;
+		total = CRect(CPoint(0, 0), CPoint(m_size.cx*x_scale, m_size.cy*y_scale));
 		pDC->GetClipBox(&clip);
     }
     CPoint upper = GetScrollPosition();
@@ -497,8 +498,8 @@ void CMscGenView::OnDraw(CDC* pDC)
     oldBitmap = memDC.SelectObject(&bitmap);
     memDC.SetWindowOrg(clip.left, clip.top);
     memDC.FillSolidRect(clip, pDC->GetBkColor());
-    pDoc->m_ChartShown.DrawToWindow(memDC.m_hDC, scale, clip);
-	DrawTrackRects(&memDC, clip, scale);
+    pDoc->m_ChartShown.DrawToWindow(memDC.m_hDC, x_scale, y_scale, clip);
+	DrawTrackRects(&memDC, clip, x_scale, y_scale);
     //pDC->SetMapMode(MM_TEXT);
     pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, clip.left, clip.top, SRCCOPY);   
 	memDC.SelectObject(oldBitmap);

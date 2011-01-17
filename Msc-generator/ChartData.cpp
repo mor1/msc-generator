@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -144,25 +144,25 @@ void CDrawingChartData::ClearCaches() const
         DeleteEnhMetaFile(m_cache_EMF);
         m_cache_EMF = NULL;
     }
-    if (m_cache_BMP_scale) {
-        m_cache_BMP_scale = 0;
+    if (m_cache_BMP_x_scale) {
+        m_cache_BMP_x_scale = 0;
         m_cache_BMP.DeleteObject();
     }
 }
 
 CDrawingChartData::CDrawingChartData() : m_msc(NULL), m_bPageBreaks(false), 
-    m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_BMP_scale(0)
+    m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_BMP_x_scale(0), m_cache_BMP_y_scale(0)
 {
 }
 
 CDrawingChartData::CDrawingChartData(const CChartData&o) : m_msc(NULL), m_bPageBreaks(false), 
-    m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_BMP_scale(0) 
+    m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_BMP_x_scale(0), m_cache_BMP_y_scale(0)
 {
     operator=(o);
 }
 
 CDrawingChartData::CDrawingChartData(const CDrawingChartData&o) : m_msc(NULL), m_bPageBreaks(m_bPageBreaks), 
-    m_cacheType(o.m_cacheType), m_cache_EMF(NULL), m_cache_BMP_scale(0) 
+    m_cacheType(o.m_cacheType), m_cache_EMF(NULL), m_cache_BMP_x_scale(0), m_cache_BMP_y_scale(0)
 {
     operator=(static_cast<const CChartData&>(o));
 }
@@ -217,10 +217,10 @@ void CDrawingChartData::CompileIfNeeded() const
     case CACHE_EMF:
         if (!m_cache_EMF) {
             HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-            if (!m_msc->SetOutputWin32(MscDrawer::EMF, hdc, 1., int(m_page)-1)) return;
+            if (!m_msc->SetOutputWin32(MscDrawer::EMF, hdc, 1., 1., int(m_page)-1)) return;
             //draw page breaks only if requested and not drawing a single page only
             m_msc->Draw(m_bPageBreaks && m_page==0);
-            m_msc->UnClip(); //Unclip the banner text exclusion clipped in SetOutputWin32()
+            m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
             m_msc->DrawCopyrightText(int(m_page)-1);
             m_msc->CloseOutput();
             m_cache_EMF = CloseEnhMetaFile(hdc);
@@ -297,12 +297,12 @@ double CDrawingChartData::GetBottomWithoutCopyright() const
     return size.y;
 }
 
-void CDrawingChartData::DrawToWindow(HDC hdc, double scale, const CRect &clip) const
+void CDrawingChartData::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const
 {
     CompileIfNeeded();
     switch (m_cacheType) {
     case CACHE_NONE:
-        if (m_msc->SetOutputWin32(MscDrawer::WIN, hdc, scale, int(m_page)-1)) {
+        if (m_msc->SetOutputWin32(MscDrawer::WIN, hdc, x_scale, y_scale, int(m_page)-1)) {
             //draw page breaks only if requested and not drawing a single page only
             m_msc->Draw(m_bPageBreaks && m_page==0);
             m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
@@ -314,12 +314,13 @@ void CDrawingChartData::DrawToWindow(HDC hdc, double scale, const CRect &clip) c
         break;
     case CACHE_BMP:
         //GetClipBox(hdc, &clip);
-        if (m_cache_BMP_scale != scale || m_cache_BMP_clip != clip) {
+        if (m_cache_BMP_x_scale != x_scale || m_cache_BMP_y_scale != y_scale || m_cache_BMP_clip != clip) {
             //Cache not ok, regenerate
-            if (m_cache_BMP_scale) 
+            if (m_cache_BMP_x_scale) 
                 m_cache_BMP.DeleteObject(); //Delete old cached object
             m_cache_BMP_clip = clip;
-            m_cache_BMP_scale = scale;
+            m_cache_BMP_x_scale = x_scale;
+            m_cache_BMP_y_scale = y_scale;
             CDC targetDC;
             targetDC.Attach(hdc);
 	        CDC memDC;
@@ -328,7 +329,7 @@ void CDrawingChartData::DrawToWindow(HDC hdc, double scale, const CRect &clip) c
             CBitmap *oldBitmap = memDC.SelectObject(&m_cache_BMP);
             memDC.SetWindowOrg(clip.left, clip.top);
             memDC.FillSolidRect(clip, targetDC.GetBkColor());
-            if (m_msc->SetOutputWin32(MscDrawer::WIN, memDC.m_hDC, scale, int(m_page)-1)) {
+            if (m_msc->SetOutputWin32(MscDrawer::WIN, memDC.m_hDC, x_scale, y_scale, int(m_page)-1)) {
                 //draw page breaks only if requested and not drawing a single page only
                 m_msc->Draw(m_bPageBreaks && m_page==0);
                 m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
@@ -351,7 +352,7 @@ void CDrawingChartData::DrawToWindow(HDC hdc, double scale, const CRect &clip) c
         }
         break;
     case CACHE_EMF:
-        CRect full(0,0, GetSize().cx*scale, GetSize().cy*scale);
+        CRect full(0,0, GetSize().cx*x_scale, GetSize().cy*y_scale);
         PlayEnhMetaFile(hdc, m_cache_EMF, &full);
         break;
     }
@@ -359,7 +360,7 @@ void CDrawingChartData::DrawToWindow(HDC hdc, double scale, const CRect &clip) c
 
 void CDrawingChartData::DrawToWMF(HDC hdc, bool pageBreaks) const
 {
-    if (!GetMsc()->SetOutputWin32(MscDrawer::WMF, hdc, 1.0, int(m_page)-1)) return;
+    if (!GetMsc()->SetOutputWin32(MscDrawer::WMF, hdc, 1.0, 1.0, int(m_page)-1)) return;
 	//draw page breaks only if requested and not drawing a single page only
     m_msc->Draw(pageBreaks && m_page==0);
 	m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
@@ -367,7 +368,7 @@ void CDrawingChartData::DrawToWMF(HDC hdc, bool pageBreaks) const
     m_msc->CloseOutput();
 }
 
-void CDrawingChartData::DrawToFile(const char* fileName, double scale) const
+void CDrawingChartData::DrawToFile(const char* fileName, double x_scale, double y_scale) const
 {
 	string fn(fileName?fileName:"Untitled");
     size_t pos = fn.find_last_of('.');
@@ -388,7 +389,7 @@ void CDrawingChartData::DrawToFile(const char* fileName, double scale) const
         fn += ".png";
     }
 	//Ignore useTextPaths
-    GetMsc()->DrawToOutput(ot, scale, fn);
+    GetMsc()->DrawToOutput(ot, x_scale, y_scale, fn);
 }
 
 TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const

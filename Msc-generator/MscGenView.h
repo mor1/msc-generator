@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -63,7 +63,7 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in MscGen page space)
-			void DrawTrackRects(CDC* pDC, CRect clip, double scale);
+			void DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_scale);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

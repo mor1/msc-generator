@@ -205,7 +205,7 @@ public:
     void Draw(bool pageBreaks);
     void DrawCopyrightText(int page=-1);
     void DrawPageBreaks();
-    void DrawToOutput(OutputType, double scale, const string &);
+    void DrawToOutput(OutputType, double x_scale, double y_scale, const string &);
 };
 
 

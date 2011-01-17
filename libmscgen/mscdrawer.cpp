@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -150,19 +150,20 @@ void MscDrawer::GetPagePosition(int page, XY &offset, XY &size) const
 
 //page numbering starts from 0
 //Use this to save to a file or to determine dimensions
-bool MscDrawer::SetOutput(OutputType ot, double scale, const string &fn, int page)
+bool MscDrawer::SetOutput(OutputType ot, double x_scale, double y_scale, const string &fn, int page)
 {
     assert(ot!=WIN);
     if (surface) CloseOutput();
 
     SetLowLevelParams(ot);
-    scale_for_shadows = scale;
+    scale_for_shadows = sqrt(x_scale*y_scale);
 
     XY size, origSize, origOffset;
     GetPagePosition(page, origOffset, origSize);
 	size = origSize;
     size.y += copyrightTextHeight;
-    size = size*fake_scale*scale;
+    size.x *= fake_scale*x_scale;
+    size.y *= fake_scale*y_scale;
 
     outType = ot;
     if (fn.length()==0) {
@@ -253,7 +254,7 @@ bool MscDrawer::SetOutput(OutputType ot, double scale, const string &fn, int pag
     }
 
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-    cairo_scale(cr, fake_scale*scale, fake_scale*scale);
+    cairo_scale(cr, fake_scale*x_scale, fake_scale*y_scale);
     if (total.x>0 && total.y>0) {
         //clip first to allow for banner text, but not for WIN contexts
         if (ot!=WIN) 
@@ -270,7 +271,7 @@ bool MscDrawer::SetOutput(OutputType ot, double scale, const string &fn, int pag
 
 //Draw to a DC that is either a display DC or a metafile
 //Use this to display a chart, use SetOutput to save the chart to a file
-bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, double scale, int page)
+bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, double x_scale, double y_scale, int page)
 {
     if (surface) CloseOutput();
     if (ot!=WIN && ot!=WMF && ot!=EMF) return false;
@@ -282,13 +283,14 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, double scale, int page)
     fileName.clear();
 
     SetLowLevelParams(ot);
-    scale_for_shadows = scale;
+    scale_for_shadows = sqrt(x_scale*y_scale);
 
     XY size, origSize, origOffset;
     GetPagePosition(page, origOffset, origSize);
 	size = origSize;
     size.y += copyrightTextHeight;
-    size = size*(fake_scale*scale);
+    size.x *= fake_scale*x_scale;
+    size.y *= fake_scale*y_scale;
 
     switch (ot) {
     case WIN:
@@ -316,7 +318,7 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, double scale, int page)
     if (st) goto problem;
 
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-    cairo_scale(cr, fake_scale*scale, fake_scale*scale);
+    cairo_scale(cr, fake_scale*x_scale, fake_scale*y_scale);
     if (total.x>0 && total.y>0) {
         //clip first to allow for banner text
         if (ot!=WIN) 
@@ -555,10 +557,10 @@ void MscDrawer::Clip(const Block &b, const MscLineAttr &line)
     if (line.corner.second == CORNER_NOTE && line.IsDoubleOrTriple()) {
         //spacing from the line midpoint to the midpoint of the outer line of a double/triple line
         const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
-        const double r = line.radius.second + spacing * (line.IsDouble() ? 0 : RadiusIncMultiplier(CORNER_NOTE)); //expand radius
+        const double r = line.radius.second + (line.IsDouble() ? - line.width.second/2 : spacing * RadiusIncMultiplier(CORNER_NOTE)); //expand radius
         //Add main body as a closed path
         (Contour(b) - Block(b.x.till-r, b.x.till, b.y.from, b.y.from+r)).Path(cr);
-        const double r1 = line.radius.second - spacing * (line.IsDouble() ? 2 : 1-RadiusIncMultiplier(CORNER_NOTE)); //expand radius
+        const double r1 = line.radius.second - (line.IsDouble() ? spacing *2 + line.width.second/2: spacing *(1-RadiusIncMultiplier(CORNER_NOTE))); 
         const double r2 = spacing * (line.IsDouble() ? 1./RadiusIncMultiplier(CORNER_NOTE) - 1. : - 1);
         //Add little triangle as a path
         Contour(XY(b.x.till-r1, b.y.from+r2),XY(b.x.till-r1, b.y.from+r1), XY(b.x.till-r2, b.y.from+r1)).Path(cr);

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -35,6 +35,113 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+
+
+class CScaleDlg : public CDialog
+{
+public:
+	CScaleDlg();
+
+// Dialog Data
+	enum { IDD = IDD_SCALE };
+
+protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog( );
+	afx_msg void OnBnClicked();
+
+// Implementation
+protected:
+	DECLARE_MESSAGE_MAP()
+public:
+    double m_scale;
+    UINT m_x;
+    UINT m_y;
+    UINT m_xy_x;
+    UINT m_xy_y;
+    CSize m_orig_size;
+    double m_res_x, m_res_y;
+    int m_selected;
+};
+
+BEGIN_MESSAGE_MAP(CScaleDlg, CDialog)
+	ON_BN_CLICKED(IDC_RADIO_SCALING_NO, &CScaleDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_RADIO_SCALING_SCALE, &CScaleDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_RADIO_SCALING_X, &CScaleDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_RADIO_SCALING_Y, &CScaleDlg::OnBnClicked)
+	ON_BN_CLICKED(IDC_RADIO_SCALING_XY, &CScaleDlg::OnBnClicked)
+END_MESSAGE_MAP()
+
+CScaleDlg::CScaleDlg() : CDialog(CScaleDlg::IDD)
+    , m_scale(0)
+    , m_x(0)
+    , m_y(0)
+    , m_xy_x(0)
+    , m_xy_y(0)
+{
+}
+
+void CScaleDlg::DoDataExchange(CDataExchange* pDX)
+{
+    CDialog::DoDataExchange(pDX);
+    DDX_Text(pDX, IDC_EDIT_SCALE, m_scale);
+    DDV_MinMaxDouble(pDX, m_scale, 0.001, 100);
+    DDX_Text(pDX, IDC_EDIT_X, m_x);
+	DDV_MinMaxUInt(pDX, m_x, 10, 200000);
+    DDX_Text(pDX, IDC_EDIT_Y, m_y);
+	DDV_MinMaxUInt(pDX, m_y, 10, 200000);
+    DDX_Text(pDX, IDC_EDIT_XY_X, m_xy_x);
+	DDV_MinMaxUInt(pDX, m_xy_x, 10, 200000);
+    DDX_Text(pDX, IDC_EDIT_XY_Y, m_xy_y);
+	DDV_MinMaxUInt(pDX, m_xy_y, 10, 200000);
+}
+
+BOOL CScaleDlg::OnInitDialog( ) 
+{
+    char buff[200];
+    sprintf(buff, "(%d x %d)", m_orig_size.cx, m_orig_size.cy);
+    GetDlgItem(IDC_STATIC_ORIGINAL_SIZE)->SetWindowText(buff);
+    m_selected = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, "SCALING_OPTION", 0);
+    m_scale = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, "SCALING_SCALE", 1000)/1000.;
+    m_x = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, "SCALING_X", m_orig_size.cx);
+    m_y = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, "SCALING_Y", m_orig_size.cy);
+    m_xy_x = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_X", m_orig_size.cx);
+    m_xy_y = AfxGetApp()->GetProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_Y", m_orig_size.cy);
+    ((CButton*)GetDlgItem(IDC_RADIO_SCALING_NO))->SetCheck(m_selected==0);
+    ((CButton*)GetDlgItem(IDC_RADIO_SCALING_SCALE))->SetCheck(m_selected==1);
+    ((CButton*)GetDlgItem(IDC_RADIO_SCALING_X))->SetCheck(m_selected==2);
+    ((CButton*)GetDlgItem(IDC_RADIO_SCALING_Y))->SetCheck(m_selected==3);
+    ((CButton*)GetDlgItem(IDC_RADIO_SCALING_XY))->SetCheck(m_selected==4);
+    GetDlgItem(IDC_EDIT_SCALE)->EnableWindow(m_selected==1);
+    GetDlgItem(IDC_EDIT_X)->EnableWindow(m_selected==2);
+    GetDlgItem(IDC_EDIT_Y)->EnableWindow(m_selected==3);
+    GetDlgItem(IDC_EDIT_XY_X)->EnableWindow(m_selected==4);
+    GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
+	bool a = CDialog::OnInitDialog();
+	return a;
+}
+
+void CScaleDlg::OnBnClicked()
+{
+    if (((CButton*)GetDlgItem(IDC_RADIO_SCALING_NO))->GetCheck())
+        m_selected = 0;
+    else if (((CButton*)GetDlgItem(IDC_RADIO_SCALING_SCALE))->GetCheck())
+        m_selected = 1;
+    else if (((CButton*)GetDlgItem(IDC_RADIO_SCALING_X))->GetCheck())
+        m_selected = 2;
+    else if (((CButton*)GetDlgItem(IDC_RADIO_SCALING_Y))->GetCheck())
+        m_selected = 3;
+    else if (((CButton*)GetDlgItem(IDC_RADIO_SCALING_XY))->GetCheck())
+        m_selected = 4;
+    else
+        _ASSERT(0);
+    GetDlgItem(IDC_EDIT_SCALE)->EnableWindow(m_selected==1);
+    GetDlgItem(IDC_EDIT_X)->EnableWindow(m_selected==2);
+    GetDlgItem(IDC_EDIT_Y)->EnableWindow(m_selected==3);
+    GetDlgItem(IDC_EDIT_XY_X)->EnableWindow(m_selected==4);
+    GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
+}
 
 // CMscGenDoc
 
@@ -394,22 +501,78 @@ void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 void CMscGenDoc::OnFileExport()
 {
 	SyncShownWithEditing("export");
-	CFileDialog m_a(false);
-	m_a.m_pOFN->lpstrTitle = "Export to file";
-	m_a.m_pOFN->lpstrFilter =	
-		"Portable Network Graphics (*.png)\0*.png\0"
-		"Windows Bitmap (*.bmp)\0*.bmp\0"
-		"Enhanced Metafile (*emf)\0*.emf\0"
-		"Scalable Vector Graphics (*svg)\0*.svg\0"
-		"Portable Document Format (*.pdf)\0*.pdf\0"
-		"Encapsulated PostScript (*.eps)\0*.eps\0";
-	m_a.m_pOFN->nFilterIndex = 1;
-	char filename[1024] = "*.png";
-	m_a.m_pOFN->lpstrFile = filename;
-	m_a.m_pOFN->nMaxFile = sizeof(filename);
-	if (m_a.DoModal() != IDOK)
-		return;
-	m_ChartShown.DrawToFile(m_a.GetPathName());
+    CString name;
+    bool bitmap;
+    double x_scale, y_scale;
+    do {  //must not call DoModal twice for the same instance of CFileDialog
+        CFileDialog dialog(false);
+        dialog.m_pOFN->Flags &= ~OFN_OVERWRITEPROMPT & ~OFN_NOTESTFILECREATE;
+        dialog.m_pOFN->lpstrTitle = "Export to file";
+        dialog.m_pOFN->lpstrFilter =	
+            "Portable Network Graphics (*.png)\0*.png\0"
+            "Windows Bitmap (*.bmp)\0*.bmp\0"
+            "Enhanced Metafile (*emf)\0*.emf\0"
+            "Scalable Vector Graphics (*svg)\0*.svg\0"
+            "Portable Document Format (*.pdf)\0*.pdf\0"
+            "Encapsulated PostScript (*.eps)\0*.eps\0";
+        dialog.m_pOFN->nFilterIndex = 1;
+        name = GetPathName();
+        char filename[1024];
+        strcpy_s(filename, name);
+        if (PathFindExtension(filename) == CString(".signalling"))
+            PathRemoveExtension(filename);
+        dialog.m_pOFN->lpstrFile = filename;  
+        dialog.m_pOFN->nMaxFile = sizeof(filename);
+        //dialog.ApplyOFNToShellDialog();
+        if (dialog.DoModal() != IDOK)
+            return;
+        //dialog.UpdateOFNFromShellDialog();
+        name = dialog.GetPathName();
+        CString ext = PathFindExtension(name);
+        if (ext==".png" || ext==".bmp" || ext==".emf" ||
+            ext==".svg" || ext==".pdf" || ext==".eps") {
+            strcpy_s(filename, name);
+            PathRemoveExtension(filename);
+            name = filename;
+        }
+        switch(dialog.m_pOFN->nFilterIndex) {
+        case 1: name += ".png"; bitmap=true; break;
+        case 2: name += ".bmp"; bitmap=true; break;
+        case 3: name += ".emf"; bitmap=false;break;
+        case 4: name += ".svg"; bitmap=false;break;
+        case 5: name += ".pdf"; bitmap=false;break;
+        case 6: name += ".eps"; bitmap=false;break;
+        default: _ASSERT(0);
+        }
+        if (PathFileExists(name)) 
+            if (IDNO == MessageBox(0, "File " + name + " exists. Do you want to overwrite?", "Msc-generator", MB_YESNO))
+                continue;
+        break;
+    } while(1);
+    if (bitmap) {
+        CScaleDlg scale;
+        scale.m_orig_size = m_ChartShown.GetSize();
+        if (IDCANCEL == scale.DoModal())
+            return;
+        switch (scale.m_selected) {
+        default: _ASSERT(0); //no break, release edition falls through to no scaling
+        case 0: x_scale = y_scale = 1; break;
+        case 1: x_scale = y_scale = scale.m_scale; break;
+        case 2: x_scale = y_scale = double(scale.m_x)/scale.m_orig_size.cx; break;
+        case 3: x_scale = y_scale = double(scale.m_y)/scale.m_orig_size.cy; break;
+        case 4: 
+            x_scale = double(scale.m_x)/scale.m_orig_size.cx; 
+            y_scale = double(scale.m_y)/scale.m_orig_size.cy; 
+            break;
+        }
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_OPTION", scale.m_selected);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_SCALE", scale.m_scale*1000);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_X", scale.m_x);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_Y", scale.m_y);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_X", scale.m_xy_x);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_Y", scale.m_xy_y);
+    }
+    m_ChartShown.DrawToFile(name, x_scale, y_scale);
 }
 
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)
@@ -1346,3 +1509,5 @@ void CMscGenDoc::OnHelpHelp()
 
 	ShellExecute(NULL, NULL, cmdLine.c_str(), NULL, NULL, SW_SHOW); 
 }
+
+
