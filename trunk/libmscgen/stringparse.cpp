@@ -979,7 +979,7 @@ void StringFormat::AttributeNames(Csh &csh)
 bool CshHintGraphicCallbackForTextIdent(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    const MscArrowType t = (MscArrowType)(int)p;
+    const MscIdentType t = (MscIdentType)(int)p;
     const static double sizePercentage[] = {50, 30, 60};
     const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;

@@ -699,7 +699,7 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     //cancel hints if
     //1. multiple characters selected
     //2. no hints collected
-    //3. If this StartHintMode is the result of an autocompletion
+    //3. If this StartHintMode is the result of a previous autocompletion (initiated from this function below)
     //4. the cursor stands at the beginning of a real nonzero len hinted word 
     //   and the user did not press Ctrl+Space
     const CshPos &p = m_csh.hintedStringPos;
@@ -731,27 +731,33 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
         GetTextRange(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos, text);
     
     bool changed = m_hintsPopup.m_listBox.PreprocessHints(m_csh, (const char *)text, m_bUserRequested, m_bWasReturnKey);
+    //See how many of the remaining hits fit the word under the cursor 
+    auto hit = m_csh.Hints.end(), i = m_csh.Hints.begin();
+    for (; i!=m_csh.Hints.end(); i++) {
+        //find a non-selectable item or one that the text under cursor fits 
+        if (!i->selectable)
+            continue;
+        else if (text == i->plain.substr(0, text.GetLength()).c_str()) {
+            if (hit == m_csh.Hints.end())
+                hit = i;
+            else 
+                break; //this is the second such item, let us show the hint window
+        }
+    }
+    bool onlyOne = i==m_csh.Hints.end() && hit!=m_csh.Hints.end();
+    //if there is only one hit and it is equal to the word under cursor, cancel hit mode
+    if (onlyOne && hit->plain.c_str() == text) {
+        CancelHintMode();
+        return;
+    }
     //If we are about to start hint mode due to a Ctrl+Space and we are at the end of the word under cursor, 
     //then check how many hints do we fit on and if there is only one, auto complete without
     //popping up the hint list
-    if (!InHintMode() && m_bUserRequested && !m_bTillCursorOnly && m_csh.hintedStringPos.last_pos==s) {
-        auto hit = m_csh.Hints.end();
-        for (auto i = m_csh.Hints.begin(); i!=m_csh.Hints.end(); i++)
-            //find a non-selectable item or one that the text under cursor fits 
-            if (!i->selectable)
-                continue;
-            else if (text == i->plain.substr(0, text.GetLength()).c_str()) {
-                if (hit == m_csh.Hints.end())
-                    hit = i;
-                else 
-                    goto show_window; //this is the second such item, let us show the hint window
-            }
-        if (hit!=m_csh.Hints.end()) 
-            ReplaceHintedString(hit->plain.c_str(), true);
-        //SetFocus();
+    if (onlyOne && !InHintMode() && m_bUserRequested && !m_bTillCursorOnly && m_csh.hintedStringPos.last_pos==s) {
+        ReplaceHintedString(hit->plain.c_str(), true);
         return;
     } 
-show_window:
+    //Show the window (or keep it shown & update the list)
     m_hintsPopup.Show(changed, text, pt.x, pt.y);
     SetFocus();
 }

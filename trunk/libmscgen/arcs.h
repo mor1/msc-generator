@@ -216,7 +216,6 @@ protected:
     string src, dst;   //vertical position
     VertXPos pos;
     double offset; //horizontal position base offset
-    bool readfromleft;
     bool makeroom;
     mutable std::vector<double> ypos; //calculate them in PostPosProcess
     mutable double sy_text, dy_text;
@@ -266,8 +265,7 @@ public:
     //Constructor to construct the first emphasis in a series
     ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc);
-    ~ArcEmphasis()
-    {if (follow.size()>0 && *follow.begin()==this) follow.pop_front(); delete emphasis;}
+    ~ArcEmphasis();
     ArcEmphasis* SetPipe();
     ArcEmphasis* AddArcList(ArcList*l);
     bool AddAttribute(const Attribute &);

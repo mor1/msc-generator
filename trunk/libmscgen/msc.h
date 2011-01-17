@@ -82,8 +82,14 @@ public:
     std::map<IPair, double, IPairComp> pairs;
     std::map<unsigned, double> left;
     std::map<unsigned, double> right;
+    std::map<unsigned, std::list<std::pair<double, double>>> box_side;
+
     void Insert(unsigned, int, double);
-    double Query(unsigned, int);
+    double Query(unsigned, int) const;
+    void InsertBoxSide(unsigned, double, double);
+    std::pair<double, double> QueryBoxSide(unsigned, bool left) const;
+    void CopyBoxSideToPair(double gap);
+    void ClearBoxSizde() {box_side.clear();}
     void CombineLeftRightToPair_Sum(double gap);
     void CombineLeftRightToPair_Max(double gap);
     void CombineLeftRightToPair_Single(double gap);
