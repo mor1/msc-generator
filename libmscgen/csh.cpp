@@ -358,8 +358,8 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "text.color", "text.format", "text.ident", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
-{"compress", "color", "label", "number", "id",
-"pos", "relative", "show", "makeroom", "readfrom", "offset", "solid",
+{"compress", "color", "label", "number", 
+"pos", "relative", "show", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color",

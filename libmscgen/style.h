@@ -7,6 +7,13 @@
 #include "numbering.h"
 #include "csh.h"
 
+typedef enum {
+    SIDE_INVALID = 0,
+    SIDE_LEFT,
+    SIDE_RIGHT
+} MscSideType;
+
+
 struct MscStyle
 {
     MscLineAttr line, vline;
@@ -15,17 +22,17 @@ struct MscStyle
     ArrowHead arrow;
     StringFormat text;
     std::pair<bool, unsigned char> solid;
-    std::pair<bool, bool> fromright; //true if we can see into the pipe's hole from right
+    std::pair<bool, MscSideType> side; //for pipes, verticals or notes
     std::pair<bool, bool> numbering;
     std::pair<bool, bool> compress;
 
     StyleType type;
 
-    bool f_line, f_vline, f_fill, f_shadow, f_text, f_solid, f_numbering, f_compress;
+    bool f_line, f_vline, f_fill, f_shadow, f_text, f_solid, f_numbering, f_compress, f_side;
     ArrowHead::ArcType f_arrow;
 
     MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
-    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co);
+    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co, bool si);
     void Empty();
     MscStyle &operator +=(const MscStyle &toadd);
     MscStyle operator +(const MscStyle &toadd) const

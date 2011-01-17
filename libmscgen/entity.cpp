@@ -49,7 +49,7 @@ void EntityList::SortByPos(void)
 
 EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
     chart(msc), style(STYLE_ARC, ArrowHead::NONE/*arrow*/, true, true, true, true, true,
-	  false /*solid*/, false /*numbering*/, false /*compress*/),
+	  false /*solid*/, false /*numbering*/, false /*compress*/, false /*side*/),
     parsed_label(msc), implicit(false)
 {
     label.first = false;
@@ -235,7 +235,7 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "show", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
     style.AttributeNames(csh);
 
 }
@@ -262,7 +262,7 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
     if (style.AttributeValues(attr, csh)) return true;
     return false;
 }

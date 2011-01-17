@@ -507,14 +507,16 @@ void CMainFrame::OnViewFullScreen()
 		//The last two we dont want since a full screen windows has all the wrong state and placement
 		CFrameWnd::OnClose();
 	} else {
-		//If we are cancelling full screen update the zoom combo box with current value
-		if (IsFullScreen()) {
+        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetActiveView());
+		if (!IsFullScreen()) {
+            ShowFullScreen();
+        } else {
+            //If we are cancelling full screen update the zoom combo box with current value
 			CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 			if (pDoc) 
 				pDoc->SetZoom(); 
-		}
-
-		ShowFullScreen();
+            ShowFullScreen();
+        }
 	}
 }
 

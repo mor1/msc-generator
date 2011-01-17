@@ -59,24 +59,63 @@ void EntityDistanceMap::Insert(unsigned e1, int e2, double xdist)
 //Query what was the (largest) requirement.
 //e2 can again be DISTANCE_{LEFT,RIGHT}. we return 0 if there were no
 //requirements for these entities.
-double EntityDistanceMap::Query(unsigned e1, int e2)
+double EntityDistanceMap::Query(unsigned e1, int e2) const
 {
     if (e1==e2) return 0;
     if (e2==DISTANCE_LEFT) {
-        std::map<unsigned, double>::iterator i = left.find(e1);
+        auto i = left.find(e1);
         if (i==left.end()) return 0;
         return i->second;
     }
     if (e2==DISTANCE_RIGHT) {
-        std::map<unsigned, double>::iterator i = right.find(e1);
+        auto i = right.find(e1);
         if (i==right.end()) return 0;
         return i->second;
     }
     IPair eip(e1, e2);
-    std::map<IPair, double, IPairComp>::iterator i = pairs.find(eip);
+    auto i = pairs.find(eip);
     if (i==pairs.end()) return 0;
     return i->second;
 }
+
+//BoxSide distances are pair of distances between two neighbouring entities.
+//One is a distance on the left side of the rightmost entity (say "e"); the other 
+//is a distance on the right side of the other entity (e+1). If nothing special happens, 
+//these two will be added and converted to a distance between e and e+1.
+//However this distance requirement comes from inside a box and the box ends between
+//e and e+1, we will have to space the side of the box appropriately and also make this wider
+//by the thickness of the box line width and gaps.
+//This is useful for arc elements (especially entity commands) that cover multiple disjoint 
+//areas (the shown entities) some of which can fall into a box around them, some of them
+//can fall outside.
+void EntityDistanceMap::InsertBoxSide(unsigned e, double r, double l) 
+{
+    box_side[e].push_back(std::pair<double, double>(r, l));
+}
+
+//query the maximum boxside distance between e and e+1. left is true if we are interested
+//in the max distance left of e+1 (and false if right from e)
+std::pair<double, double> EntityDistanceMap::QueryBoxSide(unsigned e, bool left) const
+{
+    const auto l = box_side.find(e);
+    if (l == box_side.end() || l->second.size()==0) return std::pair<double, double>(0,0);
+    auto hit = l->second.begin();
+    for (auto i = l->second.begin(); i!=l->second.end(); i++)
+        if ((left && i->second > hit->second) || (!left && i->first > hit->first))
+            hit = i;
+    return *hit;
+}
+
+void EntityDistanceMap::CopyBoxSideToPair(double gap)
+{
+    for (auto k = box_side.begin(); k!=box_side.end(); k++) {
+        double req = 0;
+        for (auto l = k->second.begin(); l!=k->second.end(); l++)
+            req = std::max(req, l->first + l->second);
+        Insert(k->first, k->first+1, req + gap);
+    }
+}
+
 
 //If there is X on the right side of e1 and Y on the e1+1 entity
 //convert these to a distance of X+Y+gap between e1 and e1+1
@@ -153,6 +192,8 @@ EntityDistanceMap &EntityDistanceMap::operator +=(const EntityDistanceMap &d)
         Insert(i->first, DISTANCE_LEFT, i->second);
     for(i=d.right.begin(); i!=d.right.end(); i++)
         Insert(i->first, DISTANCE_RIGHT, i->second);
+    for(auto b = d.box_side.begin(); b!=d.box_side.end(); b++)
+        box_side[b->first].insert(box_side[b->first].end(), b->second.begin(), b->second.end());
     return *this;
 }
 
@@ -811,6 +852,7 @@ void Msc::CalculateWidthHeight(void)
         if (hscale<0) {
             distances.CombineLeftRightToPair_Max(hscaleAutoXGap);
             distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
+            distances.CopyBoxSideToPair(hscaleAutoXGap);
 
             //Now go through all the pairwise requirements and calc actual pos.
             //dist will hold required distance to the right of entity with index []
