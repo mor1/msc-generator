@@ -2686,7 +2686,7 @@ void CommandEntity::Width(EntityDistanceMap &distances)
 double CommandEntity::Height(AreaList &cover)
 {
     if (!valid) return 0;
-    double height = 0;
+    height = 0;
     //Those entities explicitly listed will have their own EntityDef for this line.
     //Thus their area will be stored there and not in CommandEntity->area
     //But, still put those into "cover" so they can be considered for placement
@@ -2720,6 +2720,10 @@ void CommandEntity::PostPosProcess(double autoMarker)
     for (auto i = entities.begin(); i!=entities.end(); i++)
         (*i)->PostPosProcess();
     ArcCommand::PostPosProcess(autoMarker);
+    if (height>0) {
+        if (chart->headingSize == 0) chart->headingSize = yPos + height;
+        chart->headingSize = std::min(chart->headingSize, yPos + height);
+    }
 }
 
 void CommandEntity::Draw()

@@ -24,6 +24,13 @@
 #include "OutputView.h"
 #include "MiniEditor.h"
 
+class CMscGenSplitterWnd : public CSplitterWnd
+{
+public:
+    virtual BOOL SplitRow(int cyBefore);
+    virtual void DeleteRow(int rowDelete);
+};
+
 
 class CMainFrame : public CFrameWndEx
 {
@@ -34,15 +41,18 @@ protected: // create from serialization only
 
 // Attributes
 public:
-	CSplitterWnd      m_wndSplitter;
+	CMscGenSplitterWnd m_wndSplitter;
 	CMFCStatusBar     m_wndStatusBar;
 protected:  
+    friend class CMscGenSplitterWnd;
 	CMFCMenuBar       m_wndMenuBar;
 	CMFCToolBar       m_wndToolBar;
 	CMFCToolBar       m_wndDesignBar;
 	CMFCToolBarImages m_UserImages;
 	COutputViewBar    m_wndOutputView;
 	CEditorBar        m_ctrlEditor;
+    bool m_bAutoSplit;         //True if autosplit mode is on
+
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -51,6 +61,8 @@ protected:
 	afx_msg LRESULT OnToolbarReset(WPARAM wp, LPARAM lp);
 	afx_msg void OnApplicationLook(UINT id);
 	afx_msg void OnUpdateApplicationLook(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateButtonAutoSplit(CCmdUI *pCmdUI);
+	afx_msg void OnButtonAutoSplit();             //AutpSplit mode button
 	DECLARE_MESSAGE_MAP()
 public:
 	virtual BOOL OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext);
@@ -60,6 +72,9 @@ public:
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	        BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnViewFullScreen();
+
+    bool IsInAutoSplitMode() const {return m_bAutoSplit;}
+    void SetSplitSize(unsigned coord);
 
 // Implementation
 public:

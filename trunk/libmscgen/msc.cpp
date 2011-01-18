@@ -914,6 +914,7 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
 
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
+    headingSize = 0;
     PostParseProcess();
 
     //Calculate chart size
