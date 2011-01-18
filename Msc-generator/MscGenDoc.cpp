@@ -958,6 +958,9 @@ void CMscGenDoc::SetZoom(int zoom)
 			pView->Invalidate();
 		}
 	}
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd)
+        pWnd->SetSplitSize(m_ChartShown.GetHeadingSize()*double(m_zoom)/100.);
 }
 
 void CMscGenDoc::OnViewZoomin()
@@ -1026,6 +1029,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			//Kill all, but one view
 			for (int i = 1; i<pWnd->m_wndSplitter.GetRowCount(); i++)
 				pWnd->m_wndSplitter.DeleteRow(i);
+            //HACK: Update this
 			//Re-query view size		
 			pos = GetFirstViewPosition();
 			if (pos == NULL) return;

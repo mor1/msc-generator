@@ -101,6 +101,7 @@ public:
 	CSize GetSize() const;
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
+    double GetHeadingSize() const;
 	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const;
 	void DrawToWMF(HDC hdc, bool pageBreaks) const;
 	void DrawToFile(const char* fileName, double x_scale=1.0, double y_scale=1.0) const;

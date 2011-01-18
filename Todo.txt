@@ -38,9 +38,9 @@ CANCELLED: Re-add escape key to exit in-place editing...
 Planned in 3.0
 UPDATE DOC: With hints and all else
 FIX: Change icons for file, program, etc.
-ADD: Split View for Full screen (automatically) - rather add split auto-follow entity size
 FIX: Any character pressed in View should be dispatched to internal editor (with focus)
 FIX: pipe side=left drawing
+FIX: Move caching from 
 TEST: verticals
 
 In 3.0
@@ -53,6 +53,7 @@ ADDED: global text.format chart option to impact all text (can be part of a desi
 ADDED: SHOW and HIDE keywords (showexplicit flag to EntityDef)
 ADDED: Command bye so that file end can be used for comments
 ADDED: Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
+ADDED: AutoSplit mode (also for full screen)
 FIXED: missing ; at the end of last command creates an empty chart
 FIXED: If we select a hint, use the hinted text, not the one in the editor (casedness)
 FIXED: allow hint when typing just before another word

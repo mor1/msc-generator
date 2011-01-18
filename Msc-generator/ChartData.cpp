@@ -297,6 +297,12 @@ double CDrawingChartData::GetBottomWithoutCopyright() const
     return size.y;
 }
 
+
+double CDrawingChartData::GetHeadingSize() const
+{
+    return GetMsc()->headingSize;
+}
+
 void CDrawingChartData::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const
 {
     CompileIfNeeded();

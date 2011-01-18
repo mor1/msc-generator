@@ -115,6 +115,8 @@
 #define ID_HELP_HELP                    32851
 #define ID_VIEW_PREVERROR               32856
 #define ID_VIEW_GOTOPREVIOUSERROR       32859
+#define ID_BUTTON_AUTO_SPLIT            32860
+#define ID_BUTTON_AUT                   32861
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -123,7 +125,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        316
-#define _APS_NEXT_COMMAND_VALUE         32860
+#define _APS_NEXT_COMMAND_VALUE         32862
 #define _APS_NEXT_CONTROL_VALUE         1031
 #define _APS_NEXT_SYMED_VALUE           315
 #endif

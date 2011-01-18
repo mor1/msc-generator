@@ -338,6 +338,7 @@ class CommandEntity : public ArcCommand
 protected:
     EntityDefList entities;
     bool full_heading;
+    double height;
 public:
     CommandEntity(EntityDefList *e, Msc *msc);
     string Print(int ident=0) const;

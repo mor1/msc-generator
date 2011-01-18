@@ -159,6 +159,8 @@ public:
     bool         pedantic;   /* if we require pre-defined entities. */
     bool         ignore_designs; /* ignore design changes */
 
+    double       headingSize;
+
     Msc();
 
     void AddStandardDesigns(void);
