@@ -120,7 +120,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         }
         a.InvalidValueError("0..1' or '0..255", msc->Error);
     }
-    if (a.Is("side") && f_solid) {
+    if (a.Is("side") && f_side) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
                 side.first = false;

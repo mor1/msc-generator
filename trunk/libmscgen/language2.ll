@@ -269,6 +269,7 @@ do {                                                \
 \.\.     yylval_param->arctype=MSC_EMPH_DOTTED;     return TOK_EMPH;             // ..
 ==       yylval_param->arctype=MSC_EMPH_DOUBLE;     return TOK_EMPH;             // ==
 -        return TOK_DASH;
+\+       return TOK_PLUS;
 =        return TOK_EQUAL;
 ,        return TOK_COMMA;
 \;       return TOK_SEMICOLON;

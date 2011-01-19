@@ -39,6 +39,7 @@ public:
 	bool m_DeleteBkg;
 	// Drawn chart
 	CSize        m_size;
+    CChartCache  m_cache;
 	//stretch for in-place editing
 	double m_stretch_x;
 	double m_stretch_y;

@@ -200,8 +200,8 @@ msc_with_bye: msc
     csh.AddCSH(@2, COLOR_KEYWORD);
   #else
   #endif
-  free($2);
-  YYACCEPT; //ignore anything after bye
+    free($2);
+    YYACCEPT; //ignore anything after bye
 }
 
 msc:
@@ -221,8 +221,9 @@ msc:
     if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         csh.AddDesignsToHints();
   #else
-        msc.AddArcs($2);
+    msc.AddArcs($2);
   #endif
+    YYACCEPT;
 }
            | top_level_arclist
 {
@@ -442,9 +443,6 @@ arc_with_parallel_semicolon: arc_with_parallel TOK_SEMICOLON
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing ';'.");
   #endif
 }
-
-
-
 
 arc_with_parallel: arc
 {
@@ -2148,7 +2146,7 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_PIPE |
                        TOK_VERTICAL | TOK_COMMAND_PARALLEL |
                        TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
-                       TOK_COMMAND_MARK | TOK_AT
+                       TOK_COMMAND_MARK | TOK_AT | TOK_SHOW | TOK_HIDE | TOK_BYE
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}

@@ -48,8 +48,7 @@ void EntityList::SortByPos(void)
 }
 
 EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
-    chart(msc), style(STYLE_ARC, ArrowHead::NONE/*arrow*/, true, true, true, true, true,
-	  false /*solid*/, false /*numbering*/, false /*compress*/, false /*side*/),
+    chart(msc), style(chart->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
     parsed_label(msc), implicit(false)
 {
     label.first = false;
@@ -80,8 +79,9 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
     }
 
     //make style.text fully specified
-    StringFormat to_use(chart->Contexts.back().text);
-    to_use += style.text;
+    StringFormat to_use(chart->Contexts.back().text);       //default text
+    to_use += chart->Contexts.back().styles["entity"].text; //entity style 
+    to_use += style.text;                                   //attributes specified by user
     style.text = to_use;
 
     if (i == chart->NoEntity) {
@@ -335,15 +335,18 @@ void EntityDef::Draw()
 
     Block b(outer_edge);
     MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
-    if (line2.radius.second>0) line2.radius.second += lw;  //expand to outer edge
+    if (line2.radius.second>0) line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
+    b.Expand(-line2.width.second/2.);
     chart->Shadow(b, style.line, style.shadow);
     if (style.fill.color.first && style.fill.color.second.valid) {
-        b.Expand(-lw+style.line.width.second/2.);
-        line2.radius.second += -lw+style.line.width.second/2.; //only decreases radius
+        b.Expand(-lw+style.line.width.second);
+        line2.radius.second += -lw+style.line.width.second; //only decreases radius
         chart->Fill(b, style.line, style.fill);
     }
     Block b2(outer_edge);
     b2.Expand(-lw/2);
+    line2 = style.line;
+    line2.radius.second -= lw/2;
     chart->Line(b2, style.line);
 
     //Draw text

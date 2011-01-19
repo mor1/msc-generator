@@ -1433,7 +1433,7 @@ void MscDrawer::Shadow(const Area &area, const MscShadowAttr &shadow)
     //    cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
     //    cairo_clip(cr);
     //}
-    Area substract = area.CreateExpand(-0.5);
+    const Area &substract = area;//.CreateExpand(-0.5);
     Area outer(area), inner;
     outer.Shift(XY(shadow.offset.second, shadow.offset.second));
     MscColorType color = shadow.color.second;

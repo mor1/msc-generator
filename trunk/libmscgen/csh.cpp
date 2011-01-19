@@ -189,7 +189,7 @@ string CurrentState::Print(bool fakeDash) const
     if (!(effects & COLOR_FLAG_BOLD)) ret += fakeDash?"\377b":"\\b";
     if (!(effects & COLOR_FLAG_ITALICS)) ret += fakeDash?"\377i":"\\i";
     if (!(effects & COLOR_FLAG_UNDERLINE)) ret += fakeDash?"\377u":"\\u";
-    if (color.valid) ret += fakeDash?"\377c":"\\c" + color.Print();
+    if (color.valid) ret += (fakeDash?"\377c":"\\c") + color.Print();
     return ret;
 }
 
