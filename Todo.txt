@@ -11,6 +11,7 @@ Two helpers needed:
 
 PLANNED in 3.1
 TODO: Switch to cairo 1.10 and the new pixman after summer.
+FIX: Any character pressed in View should be dispatched to internal editor (with focus)
 ADD: more styles to design lib
 ADD: Add entity create/destroy
 ADD: message lost
@@ -37,11 +38,6 @@ CANCELLED: Re-add escape key to exit in-place editing...
 
 Planned in 3.0
 UPDATE DOC: With hints and all else
-FIX: Change icons for file, program, etc.
-FIX: Any character pressed in View should be dispatched to internal editor (with focus)
-FIX: pipe side=left drawing
-FIX: Move caching from 
-TEST: verticals
 
 In 3.0
 ADDED: More precise tracking mode
@@ -59,6 +55,7 @@ FIXED: If we select a hint, use the hinted text, not the one in the editor (case
 FIXED: allow hint when typing just before another word
 FIXED: Hints now do auto-completion
 FIXED: Focus always goes back to the internal editor.
+FIXED: Move caching from CChartData to a separate object.
 ADDED: Scale to all drawing operations. Direct drawing to windows surface & bitmap caching
 ADDED: onlyforboxes side requirement for widths
 CHANGE: pipe::fromright and vertical::readfromleft are both renamed into "side"

@@ -340,9 +340,8 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 
 	CWaitCursor wait;
 	CDrawingChartData data(pDoc->m_ChartShown);
-    data.SetPageBreaks(false);
+    data.m_bPageBreaks = false;
 	data.SetPage(pInfo->m_nCurPage);
-    data.SetCacheType(CDrawingChartData::CACHE_NONE);  //Will call draw only once, no point in caching 
 
     CSize orig_size = data.GetSize(); //This one compiles
 	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
@@ -498,7 +497,7 @@ void CMscGenView::OnDraw(CDC* pDC)
     oldBitmap = memDC.SelectObject(&bitmap);
     memDC.SetWindowOrg(clip.left, clip.top);
     memDC.FillSolidRect(clip, pDC->GetBkColor());
-    pDoc->m_ChartShown.DrawToWindow(memDC.m_hDC, x_scale, y_scale, clip);
+    m_cache.DrawToWindow(memDC.m_hDC, x_scale, y_scale, clip);
 	DrawTrackRects(&memDC, clip, x_scale, y_scale);
     //pDC->SetMapMode(MM_TEXT);
     pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, clip.left, clip.top, SRCCOPY);   
@@ -526,6 +525,9 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
+
+    m_cache.SetCacheType(pApp->m_cacheType);
+    m_cache.SetData(&pDoc->m_ChartShown);
 
 	//Delete the cached bitmap
 	if (pDoc->m_ChartShown.IsEmpty()) {

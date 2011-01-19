@@ -61,28 +61,20 @@ public:
 
 class CDrawingChartData : public CChartData {
 public:
-    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_BMP} ECacheType;
 protected:
+    friend class CChartCache;
 	mutable Msc         *m_msc;
-    mutable bool         m_bPageBreaks;
-    mutable ECacheType   m_cacheType;
-	mutable HENHMETAFILE m_cache_EMF;
-    mutable CBitmap      m_cache_BMP;
-    mutable double       m_cache_BMP_x_scale;
-    mutable double       m_cache_BMP_y_scale;
-    mutable CRect        m_cache_BMP_clip;
 	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
-    void ClearCaches() const;
 public:
-	CDrawingChartData();
+    mutable bool         m_bPageBreaks;
+
+    CDrawingChartData() : m_msc(NULL), m_bPageBreaks(false) {}
 	CDrawingChartData(const CChartData&o);
 	CDrawingChartData(const CDrawingChartData&o);
 	CDrawingChartData & operator = (const CChartData& o) {FreeMsc(); CChartData::operator =(o); return *this;}
 	virtual void Delete(void) {CChartData::Delete(); FreeMsc();}
-    virtual void SetCacheType(ECacheType t) const {ClearCaches(); m_cacheType=t;}
 	virtual void SetDesign (const char *design);
 	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; FreeMsc();}
-    virtual void SetPageBreaks(bool on) {if (m_bPageBreaks!=on) {m_bPageBreaks=on; ClearCaches();}}
 	unsigned GetPage() const {return m_page;}
 //Compilation related
     void FreeMsc() const;
@@ -102,7 +94,7 @@ public:
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
     double GetHeadingSize() const;
-	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const;
+    void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const;
 	void DrawToWMF(HDC hdc, bool pageBreaks) const;
 	void DrawToFile(const char* fileName, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
@@ -113,3 +105,24 @@ public:
 
 typedef std::list<CChartData>::iterator IChartData;
 typedef std::list<CChartData>::const_iterator IChartData_const;
+
+class CChartCache 
+{
+public:
+    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_BMP} ECacheType;
+protected:
+    CDrawingChartData   *m_data;
+    ECacheType   m_cacheType;
+	HENHMETAFILE m_cache_EMF;
+    CBitmap      m_cache_BMP;
+    double       m_cache_BMP_x_scale;
+    double       m_cache_BMP_y_scale;
+    CRect        m_cache_BMP_clip;
+public:
+    CChartCache();
+    void ClearCache();
+    void SetData(CDrawingChartData *data) {ClearCache(); m_data = data;}
+    const CDrawingChartData *GetChartData() const {return m_data;}
+	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip);
+    void SetCacheType(ECacheType t) {if (m_cacheType!=t) {ClearCache(); m_cacheType=t;}}
+};

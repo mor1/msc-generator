@@ -16,6 +16,57 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+/*
+    Here is how the lifecycle of an Arc goes.
+    1. Construction: Only basic initialization is done here. For arcs with style (descendants of ArcLabelled)
+       we fetch the appropriate style from Msc::Contexts.back()
+    2. AddAttributeList: This is called to add the attributes set by the user. It is called even if
+       there are no attributes (with NULL), which allows to do processing after the addition of attributes.
+       This is the last place where Msc::Contexts.back() holds the parsing context (with current 
+       style, color, numbering, compress settings).
+    3. Additional small functions (SetLineEnd, SetPipe (before AddAttributeList), etc.)
+    4. PostParseProcess: This is called recursive to determine the non-specified entities for boxes, to
+       add numering to labels, combine CommandEntities one after the other, set up extra variables and
+       to print error messages. This function can only be called once, as it changes arcs (you do not want to
+       add numbering twice).
+    5. Width: This is also called recursively. Here each arc can place the distance requirements between
+       entities. Using the data Msc::CalculateWithAndHeight() can place entities dynamically if hscale==auto.
+       If hcale!=auto, entities have fixed positions, but this function is still called (so as it can be used
+       to calculate cached values).
+    6. Height: This is a key function, returning the vertical space an element(/arc) occupies. It also places
+       the contour of the element in its "cover" parameter. The former (height) is used when compress is off and 
+       the latter (contour) if compress is on. In the latter case the entity will be placed just below entities
+       abover such that their contours just touch but do not overlap. Height also fills in 
+       TrackableElement::area and area_draw with contours that will be used to detect if a mouse pointer is 
+       inside the arc or not and to draw a tracking contour over the arc. Observe
+       - contour returned in cover is used for placement and should contain shadows
+       - area is used to detect if the mouse is within, should not contain shadows
+       - area_draw is used to draw, it should be a frame for boxes and pipes with content, not the contour of the box.
+       Height can also store some pre-computed values and contours to make drawing faster.
+       Height always places the element at the vertical position=0. Any contour should assume that.
+    7. ShiftBy: During the placement process this is called to shift an entity in the vertical direction 
+       (usually downwards). This should update area, area_draw and any other cached variable.
+       ArcBase::yPos contains the sum of these shifts. This function can be called multiple times.
+    8. PostPosProcess: Called after the last call to ShiftBy. Here entity lines are hidden behind text and
+       warnings/errors are generated which require vertical position to decide. No error messages can be printed
+       after this function.
+    9. Draw: This function actually draws the chart to the Msc pointed by its "chart" member (initialized in the
+       constructor). This function can rely cached values in the elements. It can be called several times and
+       should not change state of the element including the cached values.
+   10. Destructor.
+
+       All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
+       the remainder from the Msc:: memeber functions of similar names, with the exception of ShiftBy, which is
+       called from Msc::Height and Msc::PlaceListUnder.
+
+    Color Syntax Highlighting support also has functions in Arcs. 
+    1. AttributeNames: A static function that inserts the attributes valid for this type of arc into a Csh object.
+    2. AttributeValues: A static function that inserts the possible values for a given attribute into a Csh object.
+    Both of the above calls include a callback function to draw the small pictograms for hints. These functions
+    are in fact only used for the hinting process and not for actual syntax highlighting (which requires no
+    support from Arc objects, since those are not created during a Csh parse.
+*/
 #include <math.h>
 #include <cassert>
 #include <iostream>
@@ -124,6 +175,7 @@ void ArcBase::PostPosProcess(double autoMarker)
     if (valid) {
         if (!area.IsEmpty()) {
             area = area.CreateExpand(chart->trackExpandBy);
+            area.arc = this;
             chart->AllCovers += area;
         }
         if (draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
@@ -432,7 +484,7 @@ double ArcSelfArrow::Height(AreaList &cover)
 void ArcSelfArrow::PostPosProcess(double autoMarker)
 {
     if (!valid) return;
-    ArcBase::PostPosProcess(autoMarker);
+    ArcArrow::PostPosProcess(autoMarker);
 
     //Check if the entity involved is actually turned on.
     if (!(*src)->status.GetStatus(yPos)) {
@@ -601,15 +653,15 @@ void ArcDirArrow::Width(EntityDistanceMap &distances)
                      end.first + start.second + parsed_label.getTextWidthHeight().x);
     //Add distances for arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
-    distances.Insert((*src)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, start.first);
-    distances.Insert((*dst)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, end.second);
+    distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, start.second);
+    distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, end.first);
 
     if (middle.size()==0) return;
     EntityDistanceMap d;
     for (int i=0; i<middle.size(); i++) {
-        DoublePair mid = style.arrow.getWidths(true, isBidir(), MSC_ARROW_MIDDLE, false, style.line);
-        distances.Insert((*middle[i])->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, start.first);
-        distances.Insert((*middle[i])->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, end.second);
+        DoublePair mid = style.arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, false, style.line);
+        distances.Insert((*middle[i])->index, DISTANCE_LEFT, mid.first);
+        distances.Insert((*middle[i])->index, DISTANCE_RIGHT, mid.second);
     }
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     distances += d;
@@ -654,8 +706,8 @@ double ArcDirArrow::Height(AreaList &cover)
             sx_text = sx + xy_s.x;
             dx_text = dx - xy_e.x;
         } else {
-            sx_text = dx + xy_s.x;
-            dx_text = sx - xy_e.x;
+            sx_text = dx + xy_e.x;
+            dx_text = sx - xy_s.x;
         }
         area += text_cover = parsed_label.Cover(sx_text, dx_text, y);
         //determine top edge position of arrow midline
@@ -1191,6 +1243,7 @@ double ArcVerticalArrow::Height(AreaList &cover)
 
 void ArcVerticalArrow::ShiftBy(double y)
 {
+    yPos += y;
 }
 
 void ArcVerticalArrow::PostPosProcess(double autoMarker)
@@ -1275,11 +1328,13 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
     }
 
 	//Generate area
-    area = style.arrow.BigCover(ypos, xpos-width/2, xpos+width/2, isBidir());
+    auto ypos_tmp = ypos;
+    std::swap(ypos_tmp[0], ypos_tmp[1]);
+    area = style.arrow.BigCover(ypos_tmp, xpos-width/2, xpos+width/2, isBidir());
+    area.arc = this;
     area.SwapXY();
     //Add us to chart's all covers list
-    chart->AllCovers += area;
-    yPos = std::min(ypos[0], ypos[1]);  //not used for much...
+    ArcArrow::PostPosProcess(autoMarker);
 }
 
 
@@ -1524,13 +1579,14 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
         }
 
         //increase the radius everywhere by the thickest lw (if it is not zero)
-        if (style.line.radius.second>0)
+        if (style.line.radius.second>0) {
+            const double radius = style.line.radius.second + lw_max;
             for (auto i = follow.begin(); i!=follow.end(); i++)
-                (*i)->style.line.radius.second += lw_max;
-
+                (*i)->style.line.radius.second = radius;
+        }
         //set e1 and e2 to real leftmost and rightmost entity affected
         e1 = chart->EntityMinByPos(e1, (*follow.begin())->src);
-        e2 = chart->EntityMaxByPos(e2, (*--follow.end())->dst);
+        e2 = chart->EntityMaxByPos(e2, (*follow.rbegin())->dst);
 
         //Sort according to fromright: begin() should point to the leftmost pipe if side==right, 
         //and to the rightmost if side=left
@@ -1551,11 +1607,14 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
                 (style.side.second == SIDE_LEFT  && (*i_prev)->src == (*i)->dst)) {
                 (*i)->pipe_connect_back = true;
                 (*i_prev)->pipe_connect_forw = true;
-            } else if ((style.side.second == SIDE_RIGHT && chart->EntityMaxByPos((*i_prev)->dst, (*i)->src) != (*i)->src) ||
-                       (style.side.second == SIDE_LEFT  && chart->EntityMinByPos((*i_prev)->src, (*i)->dst) != (*i)->dst)) {
-                chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
-                                     " It may not look so good.",
-                                     "Encapsulate one in the other if you want that effect.");
+            } else {
+                if ((style.side.second == SIDE_RIGHT && chart->EntityMaxByPos((*i_prev)->dst, (*i)->src) != (*i)->src) ||
+                    (style.side.second == SIDE_LEFT  && chart->EntityMinByPos((*i_prev)->src, (*i)->dst) != (*i)->dst)) 
+                    chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
+                                         " It may not look so good.",
+                                         "Encapsulate one in the other if you want that effect.");
+                (*i)->pipe_connect_back = false;
+                (*i_prev)->pipe_connect_forw = false;
             }
         }
         //Now check that segments connecting to both sides are not only spanning a single entity
@@ -1601,17 +1660,22 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
     if (pipe) {
-        EntityDistanceMap d;
+        EntityDistanceMap d, d_pipe;
         if (emphasis)
             chart->WidthArcList(*emphasis, d);
 
         //(*i)->src and dst contain the left and right end of a pipe
-        //The order of the pipe segments in follow depends on style.fromright
+        //The order of the pipe segments in follow depends on style.side
         for (auto i = follow.begin(); i!=follow.end(); i++) {
             const double ilw = (*i)->style.line.LineWidth();
             const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->emphVGapInside;
             (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
             (*i)->right_space = d.Query((*(*i)->dst)->index, DISTANCE_RIGHT) + chart->emphVGapInside;
+            //Add extra space for curvature
+            if (style.side.second == SIDE_RIGHT)
+                (*i)->right_space += style.line.radius.second;
+            else
+                (*i)->left_space += style.line.radius.second;
 
             //The style.line.radius.second is understood to be the radius of the hole of the _outer edge_
             if ((*i)->src==(*i)->dst) {
@@ -1620,9 +1684,9 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             } else {
                 //keep a big enough space between src and dst for the text + curvature of pipe
                 //the text can go out of the entity lines, all the way to the left-space
-                distances.Insert((*(*i)->src)->index, (*(*i)->dst)->index,
+                d_pipe.Insert((*(*i)->src)->index, (*(*i)->dst)->index,
                                  width - (*i)->left_space - (*i)->right_space +
-                                 2*chart->emphVGapInside);
+                                 style.line.radius.second);
             }
             (*i)->left_space  = ceil((*i)->left_space);
             (*i)->right_space = ceil((*i)->right_space);
@@ -1632,9 +1696,8 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             if (connect_left)
                 (*i)->left_space = 0;
             else
-                distances.Insert((*(*i)->src)->index, DISTANCE_LEFT,
-                                 (*i)->left_space + ilw + (*i)->style.line.radius.second +
-                                 chart->compressGap);
+                d_pipe.Insert((*(*i)->src)->index, DISTANCE_LEFT,
+                                 (*i)->left_space + ilw + style.line.radius.second);
             //add shadow to the right size only if we are the rightmost entity
             double shadow_to_add = 0;
             if ((style.side.second == SIDE_RIGHT && i==--follow.end()) ||
@@ -1643,10 +1706,12 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
             if (connect_right)
                 (*i)->right_space = 0;
             else
-                distances.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
-                                 (*i)->right_space + ilw + (*i)->style.line.radius.second +
-                                 chart->compressGap + shadow_to_add);
+                d_pipe.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
+                                 (*i)->right_space + ilw + style.line.radius.second +
+                                 shadow_to_add);
         }
+        d_pipe.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
+        distances += d_pipe;
 
         //Finally add the requirements of the content
         d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
@@ -1892,6 +1957,8 @@ double ArcEmphasis::Height(AreaList &cover)
             }
         }
         cover.mainline = Range(chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside for pipes
+        for (auto i = follow.begin(); i!=follow.end(); i++)
+            (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
     } else {
         //We are a box here
         //A few explanations of the variables exact meaning
@@ -2153,9 +2220,9 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
     }
     if (topSideLine) {
         cairo_line_join_t t = chart->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
-        Contour clip(0, pipe_block.x.till, 0, chart->total.y);
+        const double x = style.side.second == SIDE_RIGHT ? pipe_block.x.till : pipe_block.x.from;
+        Contour clip(x, style.side.second == SIDE_LEFT ? chart->total.x : 0, 0, chart->total.y);
         if (style.line.radius.second>0 && pipe_connect_forw) {
-            const double x = style.side.second == SIDE_RIGHT ? pipe_block.x.till : pipe_block.x.from;
             const XY c(x, pipe_block.y.MidPoint());
             clip = (clip-Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2)).GetFirst();
         }
@@ -2230,11 +2297,13 @@ void ArcEmphasis::Draw()
         Block r(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space,
                 yPos, yPos+total_height); //The outer edge of the lines
         //First draw the shadow.
+        r.Expand(-line.width.second/2.);
+        line.radius.second -= line.width.second/2. * line.RadiusIncMul();
         chart->Shadow(r, line, style.shadow);
         //Do a clip region for the overall box (for round corners)
         //at half a linewidth from the inner edge (use the width of a single line!)
-        line.radius.second += ( -lw + line.width.second/2.) * line.RadiusIncMul();
-        r.Expand(-lw+style.line.width.second/2.);
+        line.radius.second -= (lw-line.width.second) * line.RadiusIncMul();
+        r.Expand(-lw+line.width.second);
         chart->Clip(r, line);
         for (auto i = follow.begin(); i!=follow.end(); i++) {
             //Overall rule for background fill:
@@ -2730,7 +2799,8 @@ void CommandEntity::Draw()
 {
     if (!valid) return;
     for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->Draw();
+        if ((*i)->shown) 
+            (*i)->Draw();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

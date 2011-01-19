@@ -358,8 +358,8 @@ static void yy_fatal_error (yyconst char msg[] ,yyscan_t yyscanner );
 	*yy_cp = '\0'; \
 	yyg->yy_c_buf_p = yy_cp;
 
-#define YY_NUM_RULES 74
-#define YY_END_OF_BUFFER 75
+#define YY_NUM_RULES 75
+#define YY_END_OF_BUFFER 76
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -369,29 +369,29 @@ struct yy_trans_info
 	};
 static yyconst flex_int16_t yy_accept[209] =
     {   0,
-        0,    0,   75,   74,   73,    2,    3,   74,    4,   74,
-       48,   46,   74,   70,   74,   49,   40,   47,   39,   71,
-       71,   71,   71,   71,   71,   71,   71,   71,   71,   71,
-       52,   53,   71,   71,   71,   50,   51,   73,    1,    0,
-        0,    8,    4,   43,   70,   42,   30,   44,   70,   70,
+        0,    0,   76,   75,   74,    2,    3,   75,    4,   47,
+       49,   46,   75,   71,   75,   50,   40,   48,   39,   72,
+       72,   72,   72,   72,   72,   72,   72,   72,   72,   72,
+       53,   54,   72,   72,   72,   51,   52,   74,    1,    0,
+        0,    8,    4,   43,   71,   42,   30,   44,   71,   71,
         7,    7,    0,    0,   31,   37,   34,   41,   45,   33,
-       36,    0,   71,   22,   71,   71,   71,   71,   71,   71,
-       71,   71,   23,   71,   71,   71,   71,   71,   71,   71,
-       71,   71,    9,   29,   28,   70,    7,    0,    7,    7,
-        7,    0,    0,    6,    5,    0,   32,    0,   35,   72,
+       36,    0,   72,   22,   72,   72,   72,   72,   72,   72,
+       72,   72,   23,   72,   72,   72,   72,   72,   72,   72,
+       72,   72,    9,   29,   28,   71,    7,    0,    7,    7,
+        7,    0,    0,    6,    5,    0,   32,    0,   35,   73,
 
-       71,   71,   27,   71,   71,   71,   71,   10,   71,   71,
-       71,   71,   71,   71,   24,   71,   71,   71,    7,    7,
-        6,    5,    0,    7,    5,   38,   71,   71,   71,   71,
-       71,   26,   19,   71,   71,   71,   18,   25,   71,   71,
-       18,   71,    7,    6,    5,    7,   17,   71,   71,   71,
-       71,   71,   12,   71,   71,   17,    0,    0,    0,    0,
-       71,    5,   71,   71,   71,   71,   71,   71,   71,    0,
-        0,   59,   55,   54,   57,   56,   71,   71,   71,   71,
-       11,   16,   71,   71,   58,   61,   60,   71,   13,   71,
-       14,   20,   21,   21,   15,    0,    0,    0,    0,   68,
+       72,   72,   27,   72,   72,   72,   72,   10,   72,   72,
+       72,   72,   72,   72,   24,   72,   72,   72,    7,    7,
+        6,    5,    0,    7,    5,   38,   72,   72,   72,   72,
+       72,   26,   19,   72,   72,   72,   18,   25,   72,   72,
+       18,   72,    7,    6,    5,    7,   17,   72,   72,   72,
+       72,   72,   12,   72,   72,   17,    0,    0,    0,    0,
+       72,    5,   72,   72,   72,   72,   72,   72,   72,    0,
+        0,   60,   56,   55,   58,   57,   72,   72,   72,   72,
+       11,   16,   72,   72,   59,   62,   61,   72,   13,   72,
+       14,   20,   21,   21,   15,    0,    0,    0,    0,   69,
 
-       63,   62,   66,   65,   64,   69,   67,    0
+       64,   63,   67,   66,   65,   70,   68,    0
     } ;
 
 static yyconst flex_int32_t yy_ec[256] =
@@ -658,7 +658,7 @@ static yyconst flex_int16_t yy_chk[663] =
 #line 5 "language2.ll"
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -1440,42 +1440,42 @@ return TOK_DASH;
 case 47:
 YY_RULE_SETUP
 #line 272 "language2.ll"
-return TOK_EQUAL;
+return TOK_PLUS;
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
 #line 273 "language2.ll"
-return TOK_COMMA;
+return TOK_EQUAL;
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
 #line 274 "language2.ll"
-return TOK_SEMICOLON;
+return TOK_COMMA;
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
 #line 275 "language2.ll"
-return TOK_OCBRACKET;
+return TOK_SEMICOLON;
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
 #line 276 "language2.ll"
-return TOK_CCBRACKET;
+return TOK_OCBRACKET;
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
 #line 277 "language2.ll"
-return TOK_OSBRACKET;
+return TOK_CCBRACKET;
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
 #line 278 "language2.ll"
-return TOK_CSBRACKET;
+return TOK_OSBRACKET;
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 280 "language2.ll"
-yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+#line 279 "language2.ll"
+return TOK_CSBRACKET;
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
@@ -1552,48 +1552,53 @@ YY_RULE_SETUP
 #line 295 "language2.ll"
 yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
 	YY_BREAK
-/* Numbers */
 case 70:
 YY_RULE_SETUP
-#line 298 "language2.ll"
+#line 296 "language2.ll"
+yylval_param->str=strdup(yytext); return TOK_STYLE_NAME;
+	YY_BREAK
+/* Numbers */
+case 71:
+YY_RULE_SETUP
+#line 299 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_NUMBER;
 
 	YY_BREAK
 /* Strings not ending with a dot */
-case 71:
+case 72:
 YY_RULE_SETUP
-#line 304 "language2.ll"
+#line 305 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_STRING;
 
 	YY_BREAK
 /* Strings ending with a dot, not followed by a second dot */
-case 72:
-/* rule 72 can match eol */
+case 73:
+/* rule 73 can match eol */
 *yy_cp = yyg->yy_hold_char; /* undo effects of setting up yytext */
 yyg->yy_c_buf_p = yy_cp -= 1;
 YY_DO_BEFORE_ACTION; /* set up yytext again */
 YY_RULE_SETUP
-#line 310 "language2.ll"
+#line 311 "language2.ll"
 
     yylval_param->str = strdup(yytext);
     return TOK_STRING;
 
 	YY_BREAK
-case 73:
-YY_RULE_SETUP
-#line 315 "language2.ll"
-/* ignore whitespace */;
-	YY_BREAK
 case 74:
 YY_RULE_SETUP
 #line 316 "language2.ll"
+/* ignore whitespace */;
+	YY_BREAK
+case 75:
+YY_RULE_SETUP
+#line 317 "language2.ll"
 ECHO;
 	YY_BREAK
-#line 1597 "<stdout>"
+#line 1602 "<stdout>"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2734,7 +2739,7 @@ void csh_free (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 316 "language2.ll"
+#line 317 "language2.ll"
 
 
 

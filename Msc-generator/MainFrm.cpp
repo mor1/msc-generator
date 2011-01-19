@@ -550,7 +550,8 @@ void CMainFrame::OnViewFullScreen()
                 if (j) {
                     CMFCToolBar *p = dynamic_cast<CMFCToolBar *>(j);
                     CSize size = p->GetButtonSize();
-                    CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, -1, "AutoSplit", TRUE, TRUE);
+                    int buttonBitMap = CMFCToolBar::GetDefaultImage(ID_BUTTON_AUTO_SPLIT);
+                    CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, buttonBitMap, "AutoSplit", TRUE, TRUE);
                     p->InsertButton(button);
                     CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
                     f->SizeToContent();

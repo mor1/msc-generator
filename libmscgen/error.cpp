@@ -102,7 +102,7 @@ void MscError::_sort(std::vector<ErrorElement> &store)
 string MscError::Print(bool oWarnings) const
 {
     string a;
-	const std::vector<ErrorElement> &store = get_store(oWarnings);
+    const std::vector<ErrorElement> &store = get_store(oWarnings);
     for (int i = 0; i<store.size(); i++)
         a.append(store[i].text).append("\n");
     return a;
