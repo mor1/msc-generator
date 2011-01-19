@@ -415,8 +415,14 @@ void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDraw
     if (forward) wh.x *= -1;
 
     MscFillAttr fill(line.color.second, GRADIENT_NONE);
-    Contour tri1(xy + wh - XY(0, wh.y) - XY(0, wh.y), xy, xy+wh);
-    Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+    Contour tri1, tri2;
+    if (forward) {
+        tri1 = Contour(xy + wh - XY(0, wh.y) - XY(0, wh.y), xy, xy+wh);
+        tri2 = Contour(xy - wh + XY(0, wh.y) + XY(0, wh.y), xy, xy-wh);
+    } else {
+        tri1 = Contour(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
+        tri2 = Contour(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+    }
 
     switch(GetType(bidir, which))
     {
