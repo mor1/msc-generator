@@ -307,7 +307,7 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         }
         if (a.type == MSC_ATTR_STRING && Convert(a.value, corner.second)) {
             corner.first = true;
-            if (radius.first || radius.second<=0) {
+            if (!radius.first || radius.second<=0) {
                 radius.first = true;
                 radius.second = 10;
             }
@@ -323,16 +323,15 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
             return true;
         }
         if (a.CheckType(MSC_ATTR_NUMBER, msc->Error)) {
-            if (a.number>=0 && a.number<=1000) {
-                radius.second = a.number;
-                radius.first = true;
-                if (!corner.first || corner.second == CORNER_NONE) {
-                    corner.first = true;
-                    corner.second = CORNER_ROUND;
-                }
-                return true;
+            radius.second = a.number;
+            radius.first = true;
+            if (a.number<0) {
+                corner.second = CORNER_NONE;
+            } else if (!corner.first || corner.second == CORNER_NONE) {
+                corner.first = true;
+                corner.second = CORNER_ROUND;
             }
-        a.InvalidValueError("0..1000", msc->Error);
+            return true;
         }
         return true;
     }
