@@ -1288,9 +1288,10 @@ emphasis_list: first_emphasis
            | emphasis_list emphrel
 {
   #ifndef C_S_H_IS_COMPILED
-    ($2)->ChangeStyleForFollow()->AddAttributeList(NULL);
+    ($2)->ChangeStyleForFollow();
     ($2)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
+    ($2)->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
            | emphasis_list emphrel full_arcattrlist_with_label
@@ -1301,17 +1302,20 @@ emphasis_list: first_emphasis
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
   #else
-    ($2)->ChangeStyleForFollow()->AddAttributeList($3);
+    ($2)->ChangeStyleForFollow();
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
+    ($2)->AddAttributeList($3); //should come after AddFollow
+
   #endif
 }
            | emphasis_list emphrel braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
-    ($2)->AddArcList($3)->ChangeStyleForFollow()->AddAttributeList(NULL);
+    ($2)->AddArcList($3)->ChangeStyleForFollow();
     ($2)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
+    ($2)->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
            | emphasis_list braced_arclist
@@ -1320,6 +1324,7 @@ emphasis_list: first_emphasis
     ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
     temp->AddArcList($2)->ChangeStyleForFollow($1);
     $$ = ($1)->AddFollow(temp);
+    temp->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
            | emphasis_list emphrel full_arcattrlist_with_label braced_arclist
@@ -1331,8 +1336,9 @@ emphasis_list: first_emphasis
         ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
   #else
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
-    ($2)->AddArcList($4)->ChangeStyleForFollow()->AddAttributeList($3);
+    ($2)->AddArcList($4)->ChangeStyleForFollow();
     $$ = ($1)->AddFollow($2);
+    ($2)->AddAttributeList($3); //should come after AddFollow
   #endif
 }
            | emphasis_list full_arcattrlist_with_label braced_arclist
@@ -1345,8 +1351,9 @@ emphasis_list: first_emphasis
   #else
     ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
     temp->SetLineEnd(MSC_POS(@2));
-    temp->AddArcList($3)->ChangeStyleForFollow($1)->AddAttributeList($2);
+    temp->AddArcList($3)->ChangeStyleForFollow($1);
     $$ = ($1)->AddFollow(temp);
+    temp->AddAttributeList($2); //should come after AddFollow
   #endif
 };
 
@@ -1421,8 +1428,9 @@ pipe_def_list: TOK_COMMAND_PIPE emphrel
              | pipe_def_list emphrel
 {
   #ifndef C_S_H_IS_COMPILED
-    ($2)->SetPipe()->ChangeStyleForFollow()->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@2));
+    ($2)->SetPipe()->ChangeStyleForFollow()->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
+    ($2)->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
              | pipe_def_list emphrel full_arcattrlist_with_label
@@ -1433,8 +1441,9 @@ pipe_def_list: TOK_COMMAND_PIPE emphrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         ArcEmphasis::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ($2)->SetPipe()->ChangeStyleForFollow()->AddAttributeList($3)->SetLineEnd(MSC_POS2(@2, @3));
+    ($2)->SetPipe()->ChangeStyleForFollow()->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
+    ($2)->AddAttributeList($3); //should come after AddFollow
   #endif
 }
              | TOK_COMMAND_PIPE
