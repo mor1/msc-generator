@@ -335,7 +335,10 @@ void EntityDef::Draw()
 
     Block b(outer_edge);
     MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
-    if (line2.radius.second>0) line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
+    line2.radius.second = std::min(std::min(outer_edge.y.Spans()/2 - lw, outer_edge.x.Spans()/2 - lw),
+                                    line2.radius.second);
+    if (line2.radius.second>0) 
+        line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
     b.Expand(-line2.width.second/2.);
     chart->Shadow(b, style.line, style.shadow);
     if (style.fill.color.first && style.fill.color.second.valid) {

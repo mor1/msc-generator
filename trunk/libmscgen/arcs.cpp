@@ -174,7 +174,11 @@ void ArcBase::PostPosProcess(double autoMarker)
     _ASSERT(had_add_attr_list);
     if (valid) {
         if (!area.IsEmpty()) {
-            area = area.CreateExpand(chart->trackExpandBy);
+            //TODO: Pipe segments suck here, so if expand cannot do it,
+            //we still keep the original stuff.
+            Area expanded_area = area.CreateExpand(chart->trackExpandBy);
+            if (!expanded_area.IsEmpty())
+                area = expanded_area;
             area.arc = this;
             chart->AllCovers += area;
         }
@@ -970,11 +974,16 @@ double ArcBigArrow::Height(AreaList &cover)
     for (int i=0; i<middle.size(); i++)
         xPos.push_back(chart->XCoord(middle[i]));
     xPos.push_back(dx);
-    if (sx>=dx)
-        std::reverse(xPos.begin(), xPos.end());
-
-    sx_text = xPos[stext] + sm;
-    dx_text = xPos[dtext] - dm;
+    //calculate text margings
+    //note that stext and dtext note indexes with indexes ordered from 
+    //left to right, not in the original order of them, so we adjust here
+    if (sx < dx) {
+        sx_text = xPos[stext] + sm;
+        dx_text = xPos[dtext] - dm;
+    } else {
+        sx_text = xPos[xPos.size()-1-stext] + sm;
+        dx_text = xPos[xPos.size()-1-dtext] - dm;
+    }
 
     //use += to keep arc and other params of area
     area = style.arrow.BigCover(xPos, sy, dy, isBidir());
@@ -2291,11 +2300,12 @@ void ArcEmphasis::Draw()
         //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
         const double lw = style.line.LineWidth();
         MscLineAttr line = style.line;  //We will vary the radius, so we need a copy
+        Block r(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space,
+                yPos, yPos+total_height); //The outer edge of the lines
+        line.radius.second = std::min(std::min(r.y.Spans()/2 - lw, r.x.Spans()/2 - lw), line.radius.second);
         //The radius specified in style.line will be that of the inner edge of the line
         if (line.radius.second > 0)
             line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
-        Block r(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space,
-                yPos, yPos+total_height); //The outer edge of the lines
         //First draw the shadow.
         r.Expand(-line.width.second/2.);
         line.radius.second -= line.width.second/2. * line.RadiusIncMul();
