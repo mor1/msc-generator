@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -82,23 +82,15 @@ bool StringFormat::IsComplete() const
         smallFontSize.first;
 }
 
-void StringFormat::Default() 
+StringFormat::StringFormat(void) :
+    normalFontSize(true,16), smallFontSize(true, 10),
+    textHGapPre(true, 4), textHGapPost(true, 2),
+    textVGapAbove(true, 2), textVGapBelow(true,2),
+    textVGapLineSpacing(true, 0), ident(true, MSC_IDENT_CENTER),
+    color(true, MscColorType(0,0,0)), fontType(true, 0),
+    spacingBelow(true, 0), face(true, "Arial"),
+    bold(true,no), italics(true,no), underline(true, no)
 {
-    normalFontSize.first = true; normalFontSize.second = 16; 
-    smallFontSize.first = true; smallFontSize.second = 10;
-    textHGapPre.first = true; textHGapPre.second = 4; 
-    textHGapPost.first = true; textHGapPost.second = 2;
-    textVGapAbove.first = true; textVGapAbove.second = 2;
-    textVGapBelow.first = true; textVGapBelow.second = 2;
-    textVGapLineSpacing.first = true; textVGapLineSpacing.second = 0; 
-    ident.first = true; ident.second = MSC_IDENT_CENTER;
-    color.first = true; color.second =  MscColorType(0,0,0); 
-    fontType.first = true; fontType.second = 0;
-    spacingBelow.first = true; spacingBelow.second =  0; 
-    face.first = true; face.second =  "Arial";
-    bold.first = true; bold.second = no;
-    italics.first = true; italics.second = no; 
-    underline.first = true; underline.second =  no;
 }
 
 StringFormat &StringFormat::operator =(const StringFormat &f)
@@ -150,17 +142,16 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 //for NUMBERING and NUMBERING_FORMAT return the actual escape
 //What do we do:
 //- if apply==true: Apply the string formatting escape to "this". (or do nothing for invalid escapes)
-//- if resolve==true we resolve color/style references (stored in msc->Contexts). 
-//  (If msc==NULL, or we do not find the stye/color we return INVALID_ESCAPE)
+//- if resolve==true we resolve strings in msc. If msc==NULL, or we do not find the stye/color we return INVALID_ESCAPE
 //  if apply==true, resolve parameter is ignored, we assume resolve==true.
 //  resolve has no impact on other than \s \c and has impact only if msc!=NULL && apply==false
 //- if linenum!=NULL: any problem generates an Error/Warning. if sayIgnore the we say we ignore the error,
-//                    otherwise we say we keep the problematic escape as verbatim text.
+//                    otherwise we say we keep it as verbatim text.
 //In general linenum carries the location of the first char of input. When we return, it contains the position
 //of the character in input+length. (In the original input file this can e.g., be in a different line.)
 //"length" returns the length of the escape (or non-escape string) we have processed
 //"basic" carries the formatting we use to resolve \s() \c() \f() and \mX(). If NULL, we apply nothing even if "apply" is
-//true and we keep the escape in replaceto unchanged. Basic must be a fully specified StringFormat (all .first == true)
+//true and we keep the escape in replaceto unchanged.
 #define PER_S_DEPRECATED_MSG "The use of '\\s' control escape to indicate small text is deprecated. Use '\\-' instead."
 #define MAX_ESCAPE_M_VALUE 500
 #define TOO_LARGE_M_VALUE_MSG  "Use an integer between [0..500]."
@@ -647,7 +638,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 //escape contais the string to parse (and change)
 //if ignore then in errors we say we ignore the erroneous escape and also remove it from the str
 //if not then we say we keep verbatim and we do so
-//basic contains the baseline style and color, must be a fully specified StringFormat
+//basic contains the baseline style and color
 //(the one to return to at \s() and \c() and \f(), mX())
 //if NULL, those escapes remain in unchanged
 //textType is NUMBER_FORMAT if this string is a number format (cannot contain \N)
@@ -740,28 +731,6 @@ void StringFormat::RemovePosEscapes(string &text)
                 continue;
             }
         pos += length;
-    }
-}
-
-void StringFormat::ConvertToPlainText(string &text)
-{
-    StringFormat sf;
-    unsigned pos = 0;
-    while (pos < text.length()) {
-        unsigned length;
-        switch (sf.ProcessEscape(text.c_str()+pos, length)) {
-        case NON_FORMATTING:
-        case NON_ESCAPE:
-            pos += length;
-            break;
-        case LINE_BREAK:
-            text.replace(pos, length, "\n");
-            pos++;
-            break;
-        default:
-            text.erase(pos, length);  //all other escapes
-            break;
-        }
     }
 }
 
@@ -979,9 +948,9 @@ void StringFormat::AttributeNames(Csh &csh)
 bool CshHintGraphicCallbackForTextIdent(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    const MscIdentType t = (MscIdentType)(int)p;
+    const MscArrowType t = (MscArrowType)(int)p;
     const static double sizePercentage[] = {50, 30, 60};
-    const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
+    const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 0);
     double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
     double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
     for (int i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
@@ -1182,7 +1151,7 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool 
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        mscd->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, CORNER_NONE, 0));
+        mscd->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, 0));
     }
     return advance;
 }

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -59,63 +59,24 @@ void EntityDistanceMap::Insert(unsigned e1, int e2, double xdist)
 //Query what was the (largest) requirement.
 //e2 can again be DISTANCE_{LEFT,RIGHT}. we return 0 if there were no
 //requirements for these entities.
-double EntityDistanceMap::Query(unsigned e1, int e2) const
+double EntityDistanceMap::Query(unsigned e1, int e2)
 {
     if (e1==e2) return 0;
     if (e2==DISTANCE_LEFT) {
-        auto i = left.find(e1);
+        std::map<unsigned, double>::iterator i = left.find(e1);
         if (i==left.end()) return 0;
         return i->second;
     }
     if (e2==DISTANCE_RIGHT) {
-        auto i = right.find(e1);
+        std::map<unsigned, double>::iterator i = right.find(e1);
         if (i==right.end()) return 0;
         return i->second;
     }
     IPair eip(e1, e2);
-    auto i = pairs.find(eip);
+    std::map<IPair, double, IPairComp>::iterator i = pairs.find(eip);
     if (i==pairs.end()) return 0;
     return i->second;
 }
-
-//BoxSide distances are pair of distances between two neighbouring entities.
-//One is a distance on the left side of the rightmost entity (say "e"); the other 
-//is a distance on the right side of the other entity (e+1). If nothing special happens, 
-//these two will be added and converted to a distance between e and e+1.
-//However this distance requirement comes from inside a box and the box ends between
-//e and e+1, we will have to space the side of the box appropriately and also make this wider
-//by the thickness of the box line width and gaps.
-//This is useful for arc elements (especially entity commands) that cover multiple disjoint 
-//areas (the shown entities) some of which can fall into a box around them, some of them
-//can fall outside.
-void EntityDistanceMap::InsertBoxSide(unsigned e, double r, double l) 
-{
-    box_side[e].push_back(std::pair<double, double>(r, l));
-}
-
-//query the maximum boxside distance between e and e+1. left is true if we are interested
-//in the max distance left of e+1 (and false if right from e)
-std::pair<double, double> EntityDistanceMap::QueryBoxSide(unsigned e, bool left) const
-{
-    const auto l = box_side.find(e);
-    if (l == box_side.end() || l->second.size()==0) return std::pair<double, double>(0,0);
-    auto hit = l->second.begin();
-    for (auto i = l->second.begin(); i!=l->second.end(); i++)
-        if ((left && i->second > hit->second) || (!left && i->first > hit->first))
-            hit = i;
-    return *hit;
-}
-
-void EntityDistanceMap::CopyBoxSideToPair(double gap)
-{
-    for (auto k = box_side.begin(); k!=box_side.end(); k++) {
-        double req = 0;
-        for (auto l = k->second.begin(); l!=k->second.end(); l++)
-            req = std::max(req, l->first + l->second);
-        Insert(k->first, k->first+1, req + gap);
-    }
-}
-
 
 //If there is X on the right side of e1 and Y on the e1+1 entity
 //convert these to a distance of X+Y+gap between e1 and e1+1
@@ -192,8 +153,6 @@ EntityDistanceMap &EntityDistanceMap::operator +=(const EntityDistanceMap &d)
         Insert(i->first, DISTANCE_LEFT, i->second);
     for(i=d.right.begin(); i!=d.right.end(); i++)
         Insert(i->first, DISTANCE_RIGHT, i->second);
-    for(auto b = d.box_side.begin(); b!=d.box_side.end(); b++)
-        box_side[b->first].insert(box_side[b->first].end(), b->second.begin(), b->second.end());
     return *this;
 }
 
@@ -236,9 +195,8 @@ Msc::Msc() :
     emphVGapInside = 2;
     arcVGapAbove = 0;
     arcVGapBelow = 3;
-    discoVgap = 5;
     nudgeSize = 4;
-    compressGap = 2;
+    compressGap = 0;
     hscaleAutoXGap = 5;
     trackFrameWidth = 4;
     trackExpandBy = 2;
@@ -320,8 +278,6 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
         Entities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
-        ed->AddAttributeList(NULL);
-        ed->show.first = ed->show.second = true; //start turned on
         AutoGenEntities.Append(ed);
         ei = Entities.Find_by_Name(e);
     }
@@ -386,8 +342,6 @@ bool Msc::AddAttribute(const Attribute &a)
         Contexts.back().compress = a.yes;
         return true;
     }
-    if (a.StartsWith("text")) 
-        return Contexts.back().text.AddAttribute(a, this, STYLE_OPTION);
     if (a.Is("numbering")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
         Contexts.back().numbering = a.yes;
@@ -442,8 +396,7 @@ bool Msc::AddAttribute(const Attribute &a)
 //This is called when a design definition is in progress.
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
-    if (a.Is("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || 
-        a.StartsWith("text"))
+    if (a.Is("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc"))
         return AddAttribute(a);
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
                   "' as part of a design definition. Ignoring it.");
@@ -464,7 +417,6 @@ void Msc::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
-    StringFormat::AttributeNames(csh);
 }
 
 bool Msc::AttributeValues(const std::string attr, Csh &csh)
@@ -485,8 +437,6 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (CaseInsensitiveBeginsWith(attr, "text")) 
-        return StringFormat::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
         MscFillAttr::AttributeValues(attr, csh);
@@ -617,11 +567,8 @@ void Msc::PostParseProcess(void)
     //Otherwise, generate a new entity command as first arc
     ArcList::iterator i = Arcs.begin();
     if (i == Arcs.end()) return; //we cannot have autogen entities either.
-    if ((*i)->type != MSC_COMMAND_ENTITY) {
-        CommandEntity *ce = new CommandEntity(new EntityDefList, this);
-        ce->AddAttributeList(NULL);
-        i = Arcs.insert(i, ce);
-    }
+    if ((*i)->type != MSC_COMMAND_ENTITY)
+        i = Arcs.insert(i, new CommandEntity(new EntityDefList, this));
     dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
 
     //Set all entity's shown to false, to avoid accidentally showing them via (heading;) before definition
@@ -647,7 +594,7 @@ void Msc::HideEntityLines(const Area &area)
         if ((*i)->name == NONE_ENT_STR) continue;
         if ((*i)->name == LSIDE_ENT_STR) continue;
         if ((*i)->name == RSIDE_ENT_STR) continue;
-        double xpos = XCoord(i);
+        double xpos = XCoord((*i)->pos);
         DoubleMap<bool> hide;
         area.VerticalCrossSection(xpos, hide);  //sections of hide are true, where we need to hide
         auto j = hide.begin();
@@ -668,7 +615,7 @@ void Msc::HideEntityLines(const Block &area)
         if ((*i)->name == NONE_ENT_STR) continue;
         if ((*i)->name == LSIDE_ENT_STR) continue;
         if ((*i)->name == RSIDE_ENT_STR) continue;
-        if (area.x.IsWithin(XCoord(i)))
+        if (area.x.IsWithin(XCoord((*i)->pos)))
             (*i)->status.HideRange(area.y);
     }
 }
@@ -680,7 +627,7 @@ void Msc::DrawEntityLines(double y, double height,
     //No checking of iterators!! Call with caution
     //"to" is not included!!
     while(from != to) {
-        XY up(XCoord(from), y);
+        XY up(XCoord((*from)->pos), y);
         XY down(up.x, y);
         const double till = y+height;
         while (up.y < till) {
@@ -689,7 +636,7 @@ void Msc::DrawEntityLines(double y, double height,
                 (*from)->status.GetStatus(up.y)) {
                 const MscLineAttr &vline = (*from)->status.GetStyle(up.y).vline;
                 const XY offset(fmod(vline.width.second/2,1),0);
-                const XY magic(0,1);  //HACK needed in windows
+                const XY magic(0,1);  //XXX needed in windows
                 const XY start = up+offset-magic;
                 Line(start, down+offset, vline, start.y); //last param is dash_offset  
             }
@@ -772,32 +719,25 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
 //as one block only up till none of them collides with something.
 //No matter what input parameters we get we always place the list at an integer
 //y coordinate
-//If ret_cover is not null, we return the rsulting cover of the list at the pos where placed
 double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
-                           double top_y, const AreaList &area_top, bool forceCompress, 
-                           AreaList *ret_cover)
+                           double top_y, const AreaList &area_top, bool forceCompress)
 {
     if (from==to) return 0;
     AreaList cover;
     double h = HeightArcList(from, to, cover);
-    double touchpoint;
-    double new_start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
-    //if we shifted up, apply shift only if compess is on
-    if (forceCompress || (*from)->IsCompressed()) 
-        if (new_start_y < start_y) start_y = new_start_y;
-    //if we shifted down, apply it in any case
-    else if (new_start_y > start_y) start_y = new_start_y;
+    if (forceCompress || (*from)->IsCompressed()) {
+        double touchpoint;
+        start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
+    }
     start_y = ceil(start_y);
     ShiftByArcList(from, to, start_y);
-    if (ret_cover) 
-        ret_cover->swap(cover.Shift(XY(0, start_y)));
     return start_y + h;
 }
 
 void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)
 {
     while (from!=to)
-        (*from++)->ShiftBy(y);  
+        (*from++)->ShiftBy(y);  //XXX ensure we call this with ceil(y)
 }
 
 //Find the smallest elements between indexes [i, j) and bring them up to the
@@ -852,7 +792,6 @@ void Msc::CalculateWidthHeight(void)
         if (hscale<0) {
             distances.CombineLeftRightToPair_Max(hscaleAutoXGap);
             distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
-            distances.CopyBoxSideToPair(hscaleAutoXGap);
 
             //Now go through all the pairwise requirements and calc actual pos.
             //dist will hold required distance to the right of entity with index []
@@ -887,9 +826,7 @@ void Msc::CalculateWidthHeight(void)
         } else {
             total.x = XCoord((*--(Entities.end()))->pos+MARGIN)+1; //XCoord is always integer
         }
-        StringFormat sf;
-        sf.Default(); 
-        XY crTexSize = Label(copyrightText, this, sf).getTextWidthHeight().RoundUp();
+        XY crTexSize = Label(copyrightText, this, StringFormat()).getTextWidthHeight().RoundUp();
         if (total.x<crTexSize.x) total.x = crTexSize.x;
 
         copyrightTextHeight = crTexSize.y;
@@ -914,7 +851,6 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
 
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
-    headingSize = 0;
     PostParseProcess();
 
     //Calculate chart size
@@ -923,7 +859,7 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
     //If the chart ended up empty we may want to display something
     if (total.y <= chartTailGap && avoidEmpty) {
         //Add the Empty command
-        Arcs.push_front((new CommandEmpty(this))->AddAttributeList(NULL));
+        Arcs.push_front(new CommandEmpty(this));
         hscale = -1;
         //Redo calculations
         total.x = total.y = 0;
@@ -951,9 +887,7 @@ void Msc::DrawCopyrightText(int page)
     if (total.x==0 || !cr) return;
     XY size, dummy;
     GetPagePosition(page, dummy, size);
-    StringFormat sf;
-    sf.Default();
-    Label label(copyrightText, this, sf);
+    Label label(copyrightText, this, StringFormat());
     if (white_background) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
         Fill(Block(XY(0,size.y), XY(total.x,size.y+label.getTextWidthHeight().y)), fill_bkg);
@@ -968,7 +902,6 @@ void Msc::DrawPageBreaks()
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
-    format.Default();
     format.Apply("\\pr\\-");
     Label label(this);
     for (unsigned page=1; page<yPageStart.size(); page++) {
@@ -986,7 +919,7 @@ void Msc::Draw(bool pageBreaks)
 {
     if (total.y == 0 || !cr) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
-	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
+	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, 0);
 	Line(XY(0,0), XY(1,0), marker);
 	Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
 	//draw background
@@ -1016,20 +949,20 @@ void Msc::Draw(bool pageBreaks)
     DrawArcList(Arcs);
 }
 
-void Msc::DrawToOutput(OutputType ot, double x_scale, double y_scale, const string &fn)
+void Msc::DrawToOutput(OutputType ot, const string &fn)
 {
     if (yPageStart.size()<=1) {
-        SetOutput(ot, x_scale, y_scale, fn, -1);
+        SetOutput(ot, fn, -1);
         Draw(false);
-        PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
+        UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
         DrawCopyrightText();
         CloseOutput();
         return;
     }
     for (unsigned page=0; page<yPageStart.size(); page++) {
-        SetOutput(ot, x_scale, y_scale, fn, page);
+        SetOutput(ot, fn, page);
         Draw(false);
-        PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
+        UnClip(); //Unclip the banner text exclusion clipped in SetOutput()
         DrawCopyrightText(page);
         CloseOutput();
     }

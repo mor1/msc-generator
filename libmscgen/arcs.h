@@ -48,7 +48,6 @@ class EntityDistanceMap;
 
 class ArcBase : public TrackableElement
 {
-    bool had_add_attr_list; //XXXdebug only
 protected:
     Msc *chart;
     bool valid;        /* If false, then construction failed, arc does not exist */
@@ -216,6 +215,7 @@ protected:
     string src, dst;   //vertical position
     VertXPos pos;
     double offset; //horizontal position base offset
+    bool readfromleft;
     bool makeroom;
     mutable std::vector<double> ypos; //calculate them in PostPosProcess
     mutable double sy_text, dy_text;
@@ -260,12 +260,13 @@ protected:
     mutable double total_height;
     mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow
     mutable double sx_text, dx_text, y_text;  //label placement
-    mutable Area text_cover;
+    mutable Area text_cover; 
 public:
     //Constructor to construct the first emphasis in a series
     ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc);
-    ~ArcEmphasis();
+    ~ArcEmphasis()
+    {if (follow.size()>0 && *follow.begin()==this) follow.pop_front(); delete emphasis;}
     ArcEmphasis* SetPipe();
     ArcEmphasis* AddArcList(ArcList*l);
     bool AddAttribute(const Attribute &);
@@ -287,8 +288,7 @@ class ArcDivider : public ArcLabelled
 {
 protected:
     const bool nudge;
-    bool wide;  //if true, we keep no margin and add no arcvgapabove & below (for copyright text)
-    const double extra_space;
+    bool wide;
 
     mutable double centerline, height;
     mutable double text_margin, line_margin;
@@ -338,14 +338,12 @@ class CommandEntity : public ArcCommand
 protected:
     EntityDefList entities;
     bool full_heading;
-    double height;
 public:
     CommandEntity(EntityDefList *e, Msc *msc);
     string Print(int ident=0) const;
     void AppendToEntities(const EntityDefList &e);
     void Combine(CommandEntity *ce);
     bool AddAttribute(const Attribute &);
-    CommandEntity *ApplyShowHide(bool show);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);

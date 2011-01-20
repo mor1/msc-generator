@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -60,30 +60,28 @@ public:
 };
 
 class CDrawingChartData : public CChartData {
-public:
 protected:
-    friend class CChartCache;
-	mutable Msc         *m_msc;
-	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
+	mutable Msc *m_msc;
+	mutable HENHMETAFILE m_hemf;
+	mutable bool m_hemf_is_true_emf;
+	Msc *GetMsc() const {CompileIfNeeded(m_hemf_is_true_emf); return m_msc;}
 public:
-    mutable bool         m_bPageBreaks;
-
-    CDrawingChartData() : m_msc(NULL), m_bPageBreaks(false) {}
-	CDrawingChartData(const CChartData&o);
-	CDrawingChartData(const CDrawingChartData&o);
+	CDrawingChartData() : m_msc(NULL), m_hemf(NULL), m_hemf_is_true_emf(true) {}
+	CDrawingChartData(const CChartData&o) : m_msc(NULL), m_hemf(NULL), m_hemf_is_true_emf(true) {operator=(o);}
 	CDrawingChartData & operator = (const CChartData& o) {FreeMsc(); CChartData::operator =(o); return *this;}
 	virtual void Delete(void) {CChartData::Delete(); FreeMsc();}
 	virtual void SetDesign (const char *design);
-	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; FreeMsc();}
+	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; if (m_msc) Recompile();}
 	unsigned GetPage() const {return m_page;}
 //Compilation related
-    void FreeMsc() const;
-	void CompileIfNeeded() const;
+	void FreeMsc() const {if (m_msc) {delete m_msc; m_msc=NULL; DeleteEnhMetaFile(m_hemf); m_hemf=NULL;}}
+	void CompileIfNeeded(bool doEMF) const;
+	void CompileIfNeeded() const {CompileIfNeeded(m_hemf_is_true_emf);}
 	void Recompile() const {FreeMsc(); CompileIfNeeded();}
 	BOOL IsCompiled() const {return m_msc!=NULL;}
+	HENHMETAFILE GetEMF(bool trueEMF) const {CompileIfNeeded(trueEMF); return m_hemf;}
 //Error related
 	unsigned GetErrorNum(bool oWarnings) const;
-    bool     IsErrorInFile(unsigned num, bool oWarnings) const;
 	unsigned GetErrorLine(unsigned num, bool oWarnings) const;
 	unsigned GetErrorCol(unsigned num, bool oWarnings) const;
 	CString GetErrorText(unsigned num, bool oWarnings) const;
@@ -93,10 +91,8 @@ public:
 	CSize GetSize() const;
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
-    double GetHeadingSize() const;
-    void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const;
-	void DrawToWMF(HDC hdc, bool pageBreaks) const;
-	void DrawToFile(const char* fileName, double x_scale=1.0, double y_scale=1.0) const;
+	void Draw(HDC hdc, bool doEMF, bool pageBreaks) const;
+	void Draw(const char* fileName) const;
 //Cover related
 	TrackableElement *GetArcByCoordinate(CPoint point) const;
 	TrackableElement *GetArcByLine(unsigned line, unsigned col) const;
@@ -105,24 +101,3 @@ public:
 
 typedef std::list<CChartData>::iterator IChartData;
 typedef std::list<CChartData>::const_iterator IChartData_const;
-
-class CChartCache 
-{
-public:
-    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_BMP} ECacheType;
-protected:
-    CDrawingChartData   *m_data;
-    ECacheType   m_cacheType;
-	HENHMETAFILE m_cache_EMF;
-    CBitmap      m_cache_BMP;
-    double       m_cache_BMP_x_scale;
-    double       m_cache_BMP_y_scale;
-    CRect        m_cache_BMP_clip;
-public:
-    CChartCache();
-    void ClearCache();
-    void SetData(CDrawingChartData *data) {ClearCache(); m_data = data;}
-    const CDrawingChartData *GetChartData() const {return m_data;}
-	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip);
-    void SetCacheType(ECacheType t) {if (m_cacheType!=t) {ClearCache(); m_cacheType=t;}}
-};

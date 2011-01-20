@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -48,15 +48,15 @@ void EntityList::SortByPos(void)
 }
 
 EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
-    chart(msc), style(chart->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
+    chart(msc), style(STYLE_ARC, ArrowHead::NONE/*arrow*/, true, true, true, true, true,
+	  false /*solid*/, false /*numbering*/, false /*compress*/),
     parsed_label(msc), implicit(false)
 {
     label.first = false;
     pos.first = false;
-    pos.second = 0; //field 'pos.second' is used even if no such attribute
+    pos.second = 0; //field 'pos' is used even if no such attribute
     rel.first = false;
     show.second = show.first = true; //if no attributes, we are ON
-    show_is_explicit = false;
     style.Empty();
 }
 
@@ -68,7 +68,6 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
     if (i != chart->NoEntity) {
         // Existing entity: kill auto-assumed "show=on"
         show.first = false;
-        // Leave show_explicit as false
     }
 
     // Process attribute list
@@ -77,12 +76,6 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
             AddAttribute(**j);
         delete l;
     }
-
-    //make style.text fully specified
-    StringFormat to_use(chart->Contexts.back().text);       //default text
-    to_use += chart->Contexts.back().styles["entity"].text; //entity style 
-    to_use += style.text;                                   //attributes specified by user
-    style.text = to_use;
 
     if (i == chart->NoEntity) {
         double position = chart->Entity_max_pos;
@@ -95,11 +88,9 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
                     s += "' in attribute 'relative'. Ignoring attriute.";
                     chart->Error.Error(rel.third, s);
                 } else {
-                    chart->Entities.Append(new Entity(rel.second, rel.second, rel.second, chart->Entity_max_pos++,
+                    chart->Entities.Append(new Entity(rel.second, rel.second, rel.second, chart->Entity_max_pos++, 
                                                       chart->Contexts.back().styles["entity"]));
-                    EntityDef *ed = new EntityDef(rel.second.c_str(), chart);
-                    ed->AddAttributeList(NULL);
-                    chart->AutoGenEntities.Append(ed);
+                    chart->AutoGenEntities.Append(new EntityDef(rel.second.c_str(), chart));
                     //position remains at the old, not incremented Entity_max_pos
                     //the definedHere of the entityDef above will be set to true in chart->PostParseProcees
                 }
@@ -119,7 +110,7 @@ EntityDef* EntityDef::AddAttributeList(AttributeList *l)
             }
         }
 
-        //If no show attribute, set it to "ON", but keep show_is_explicit false
+        //If no show attribute, set it to "ON"
         if (!show.first)
             show.second = show.first = true;
 
@@ -198,7 +189,6 @@ bool EntityDef::AddAttribute(const Attribute& a)
         // MSC_ATTR_CLEAR is handled above
         show.second = a.yes;
         show.first = true;
-        show_is_explicit = true;
         return true;
     }
     if (a.Is("color")) {
@@ -235,7 +225,7 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "show", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
     style.AttributeNames(csh);
 
 }
@@ -262,7 +252,7 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
     if (style.AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -287,7 +277,7 @@ double EntityDef::Width() const
     return width + fmod(width, 2); //always return an even number
 }
 
-double EntityDef::Height(AreaList &cover)
+double EntityDef::Height(AreaList &cover) 
 {
     const double x = chart->XCoord((*itr)->pos); //integer
     const XY wh = parsed_label.getTextWidthHeight();
@@ -302,7 +292,7 @@ double EntityDef::Height(AreaList &cover)
     //Add shadow to outer_edge and place that to cover
     cover += Contour(Block(outer_edge) += Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)));
     cover.mainline += outer_edge.y;
-    return chart->headingVGapAbove + height + chart->headingVGapBelow + style.shadow.offset.second;
+    return chart->headingVGapAbove + height + chart->headingVGapBelow + style.shadow.offset.second; 
 }
 
 void EntityDef::PostPosProcess()
@@ -314,7 +304,7 @@ void EntityDef::PostPosProcess()
     //    if (shown)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is shown due to this line, but is later turned "
     //                             "off in a parallel block above this position.", "May not be what intended.");
-    //    else
+    //    else 
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
@@ -329,24 +319,21 @@ void EntityDef::PostPosProcess()
 }
 
 
-void EntityDef::Draw()
+void EntityDef::Draw() 
 {
     const double lw = style.line.LineWidth();
 
-    Block b(outer_edge);
+    Block b(outer_edge); 
     MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
-    if (line2.radius.second>0) line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
-    b.Expand(-line2.width.second/2.);
+    if (line2.radius.second>0) line2.radius.second += lw;  //expand to outer edge
     chart->Shadow(b, style.line, style.shadow);
     if (style.fill.color.first && style.fill.color.second.valid) {
-        b.Expand(-lw+style.line.width.second);
-        line2.radius.second += -lw+style.line.width.second; //only decreases radius
+        b.Expand(-lw+style.line.width.second/2.);
+        line2.radius.second += -lw+style.line.width.second/2.; //only decreases radius
         chart->Fill(b, style.line, style.fill);
     }
     Block b2(outer_edge);
     b2.Expand(-lw/2);
-    line2 = style.line;
-    line2.radius.second -= lw/2;
     chart->Line(b2, style.line);
 
     //Draw text

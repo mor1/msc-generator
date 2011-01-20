@@ -1,15 +1,11 @@
 #if !defined(STRINGPARSE_H)
 #define STRINGPARSE_H
 #include <set>
-#include "cairo.h"
 #include "numbering.h"
-#include "attribute.h"
+#include "mscdrawer.h"
 #include "csh.h"
 
 class Label;
-class MscDrawer;
-
-using std::string;
 
 typedef enum
 {
@@ -28,8 +24,6 @@ enum tristate {no=0, yes, invert};
 #define ESCAPE_STRING_NUMBERFORMAT "\x02"
 
 //This class stores string formatting (bold, color, fontsize, etc.)
-//Contrary to other attribute types its default constructor contains an empty set
-//A chart->defaultStringFormat value is used whenever applied to a context
 //It can do operations on a fragment (a string containing no escape sequences)
 // - It calculate height or width of a fragment using a drawing context
 // - It draw a fragment using a drawing context
@@ -41,7 +35,7 @@ class StringFormat {
     std::pair<bool, tristate>     bold;
     std::pair<bool, tristate>     italics;
     std::pair<bool, tristate>     underline;
-    std::pair<bool, std::string>  face;
+    std::pair<bool, string>       face;
 
     std::pair<bool, double>       textHGapPre, textHGapPost;
     std::pair<bool, double>       textVGapAbove, textVGapBelow;
@@ -66,14 +60,13 @@ class StringFormat {
   public:
       typedef enum {LABEL, TEXT_FORMAT, NUMBER_FORMAT} ETextType;
     // Generate the default formatting (all value set == all .second is true)
-    StringFormat(void) {Empty();}
+    StringFormat(void);
     StringFormat &operator =(const StringFormat &f);
     explicit StringFormat(string&text) {Empty(); Apply(text);}
     explicit StringFormat(const char *s) {Empty(); Apply(s);}
 
     void Empty();
     bool IsComplete() const;
-    void Default();
 
     // Apply a formatting to us, stop at non-formatting escape or a bad formatting one or at one including style/color name
     unsigned Apply(string &escape); //this one removes the escape chars form beginning of input!
@@ -111,7 +104,6 @@ class StringFormat {
                                     ETextType textType);
     static int FindNumberingFormatEscape(const char *text);
     static void RemovePosEscapes(string &text);
-    static void ConvertToPlainText(string &text);
 };
 
 //An object that stores a line (no '\n' inside)

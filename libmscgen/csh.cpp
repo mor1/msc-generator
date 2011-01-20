@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -189,7 +189,7 @@ string CurrentState::Print(bool fakeDash) const
     if (!(effects & COLOR_FLAG_BOLD)) ret += fakeDash?"\377b":"\\b";
     if (!(effects & COLOR_FLAG_ITALICS)) ret += fakeDash?"\377i":"\\i";
     if (!(effects & COLOR_FLAG_UNDERLINE)) ret += fakeDash?"\377u":"\\u";
-    if (color.valid) ret += (fakeDash?"\377c":"\\c") + color.Print();
+    if (color.valid) ret += fakeDash?"\377c":"\\c" + color.Print();
     return ret;
 }
 
@@ -288,14 +288,6 @@ void Csh::AddCSH(CshPos&pos, MscColorSyntaxType i)
     CshList.AddToBack(e);
 }
 
-void Csh::AddCSH_ErrorAfter(CshPos&pos, const char *text)
-{
-    CshPos pos2;
-    pos2.first_pos = pos.last_pos;
-    pos2.last_pos = pos.last_pos+1;
-    CshErrors.Add(pos2, text);
-}
-
 void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
 {
     if (!name || CaseInsensitiveEqual(name, "label") ||
@@ -347,27 +339,24 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
     free(copy);
 }
 
-static const char keyword_names[][ENUM_STRING_LEN] =
-{"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
-"defcolor", "defdesign", "vertical", "mark", "parallel", "show", "hide", "bye", ""};
+const char *const keyword_names[] = {"heading", "newpage", "nudge", "parallel",
+"block", "pipe", "defdesign", "defcolor", "defstyle",
+"vertical", "mark", ""};
 
-static const char opt_names[][ENUM_STRING_LEN] =
-{"msc", "hscale", "compress", "numbering",
+const char *const opt_names[] = {"msc", "hscale", "compress", "numbering",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
-"pedantic", "background.color", "background.color2", "background.gradient", 
-"text.color", "text.format", "text.ident", ""};
+"pedantic", "background.color", "background.color2", "background.gradient", ""};
 
-static const char attr_names[][ENUM_STRING_LEN] =
-{"compress", "color", "label", "number", 
-"pos", "relative", "show", "makeroom", "side", "offset", "solid",
+const char *const attr_names[] = {"compress", "color", "label", "number", "id",
+"pos", "relative", "show", "makeroom", "readfrom", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color",
-"line.color", "line.type", "line.width", "line.corner", "line.radius", 
+"line.color", "line.type", "line.width", "line.radius",
 "vline.color", "vline.type", "vline.width",
 "fill.color", "fill.color2", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
 
-int find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
+int find_opt_attr_name(const char *name, const char * const array[])
 {
     for (int i=0; array[i][0]; i++)
         switch (CaseInsensitiveBeginsWith(array[i], name)) {
@@ -419,7 +408,7 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
 
 void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color)
 {
-    const char (*array)[ENUM_STRING_LEN];
+    char const *const *array;
     if (color == COLOR_OPTIONNAME) array = opt_names;
     if (color == COLOR_ATTRNAME) array = attr_names;
     int match_result = find_opt_attr_name(name, array);
@@ -746,7 +735,7 @@ bool CshHintGraphicCallbackForColors(MscDrawer *msc, CshHintGraphicParam p)
     b.Round();
     msc->Fill(b, MscFillAttr(color, GRADIENT_NONE));
     b.Expand(0.5);
-    msc->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0));
+    msc->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, 0));
     return true;
 }
 
@@ -807,7 +796,7 @@ void Csh::AddDesignsToHints()
 bool CshHintGraphicCallbackForStyles(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_ROUND, 1);
+    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 1);
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
     MscShadowAttr shadow(MscColorType(0,0,0));
     shadow.offset.first=true;
@@ -877,14 +866,17 @@ bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
 
 void Csh::AddKeywordsToHints()
 {
-    AddToHints(keyword_names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
+    static const char names[][ENUM_STRING_LEN] =
+    {"parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
+    "defcolor", "defdesign", "vertical", "mark", "parallel", ""};
+    AddToHints(names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
 }
 
 bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/)
 {
     if (!msc) return false;
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
-    MscLineAttr vline(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_NONE, 0);
+    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, 0);
+    MscLineAttr vline(LINE_SOLID, MscColorType(0,0,0), 2, 0);
     MscFillAttr fill(MscColorType(192,192,192), GRADIENT_UP);
     MscShadowAttr shadow(MscColorType(0,0,0));
     shadow.offset.first=true;
@@ -910,7 +902,6 @@ void Csh::ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &
 {
     if (!msc) return;
     StringFormat f;
-    f.Default();
     if (format==NULL) format = &f;
     Label label(msc);
     CshHint start("", HINT_ENTITY); //empty start

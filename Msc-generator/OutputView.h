@@ -8,7 +8,6 @@
 // Microsoft Foundation Classes product.
 
 #pragma once
-#include <vector>
 #include "ChartData.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -38,7 +37,6 @@ public:
 	CFont m_Font;
 	COutputList m_wndOutput;
     std::list<CString> compilation_errors;
-    std::vector<std::pair<int, int>> error_pos;
 
 protected:
 	void AdjusrHorzScroll(CListBox& wndListBox);
@@ -47,8 +45,8 @@ protected:
 public:
 	virtual ~COutputViewBar();
     void ShowCompilationErrors(const CDrawingChartData &chart);
-    void ShowCshErrors(const std::list<CString> &errors, 
-                       const std::vector<std::pair<int, int>> &err_pos);
+    void ShowCshErrors(const std::list<CString> &errors);
+
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);

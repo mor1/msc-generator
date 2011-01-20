@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -188,12 +188,9 @@ template<> const char EnumEncapsulator<MscLineType>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "solid", "dotted", "dashed", "long_dashed", "dash_dotted", 
      "double", "triple", "triple_thick", ""};
 
-template<> const char EnumEncapsulator<MscCornerType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", "round", "bevel", "note"""};
-
 MscLineAttr::MscLineAttr() :
     type(true, LINE_SOLID), color(true, MscColorType(0,0,0)), width(true, 1.),
-    corner(true, CORNER_NONE), radius(true, 0)
+    radius(true, 0)
 {
 }
 
@@ -202,7 +199,6 @@ void MscLineAttr::MakeComplete()
     if (!type.first) {type.first = true; type.second = LINE_SOLID;}
     if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255;}
     if (!width.first) {width.first = true; width.second = 1;}
-    if (!corner.first) {corner.first = true; corner.second = CORNER_NONE;}
     if (!radius.first) {radius.first = true; radius.second = 0;}
 }
 
@@ -230,7 +226,6 @@ MscLineAttr &MscLineAttr::operator +=(const MscLineAttr&a)
     if (a.type.first) type = a.type;
     if (a.color.first) color = a.color;
     if (a.width.first) width = a.width;
-    if (a.corner.first) radius = a.corner;
     if (a.radius.first) radius = a.radius;
     return *this;
 };
@@ -245,8 +240,6 @@ bool MscLineAttr::operator == (const MscLineAttr &a)
     if (width.first && a.width.second != width.second) return false;
     if (a.radius.first != radius.first) return false;
     if (radius.first && a.radius.second != radius.second) return false;
-    if (a.corner.first != corner.first) return false;
-    if (corner.first && a.corner.second != corner.second) return false;
     return true;
 }
 
@@ -299,23 +292,6 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         a.InvalidValueError("0..10", msc->Error);
         return true;
     }
-    if (a.EndsWith("corner")) {
-        if (a.type == MSC_ATTR_CLEAR) {
-            if (a.EnsureNotClear(msc->Error, t))
-                corner.first = false;
-            return true;
-        }
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, corner.second)) {
-            corner.first = true;
-            if (!radius.first || radius.second<=0) {
-                radius.first = true;
-                radius.second = 10;
-            }
-            return true;
-        }
-        a.InvalidValueError(CandidatesFor(corner.second), msc->Error);
-        return true;
-    }
     if (a.EndsWith("radius")) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
@@ -325,12 +301,6 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         if (a.CheckType(MSC_ATTR_NUMBER, msc->Error)) {
             radius.second = a.number;
             radius.first = true;
-            if (a.number<0) {
-                corner.second = CORNER_NONE;
-            } else if (!corner.first || corner.second == CORNER_NONE) {
-                corner.first = true;
-                corner.second = CORNER_ROUND;
-            }
             return true;
         }
         return true;
@@ -341,28 +311,16 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void MscLineAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "line.color", "line.type", "line.width", "line.radius", "line.corner", ""};
+    {"", "line.color", "line.type", "line.width", "line.radius", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
 bool CshHintGraphicCallbackForLineType(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
-    MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 1, CORNER_NONE, 0);
+    MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 1, 0);
     msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
               XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y*0.8), line);
-    return true;
-}
-
-bool CshHintGraphicCallbackForCornerType(MscDrawer *msc, CshHintGraphicParam p)
-{
-    if (!msc) return false;
-    msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
-              XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y*0.8));
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 2, MscCornerType(int(p)), ceil(HINT_GRAPHIC_SIZE_Y*0.3));
-    msc->Line(Block(-HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_X*0.7, 
-              HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*2), line);
-    msc->UnClip();
     return true;
 }
 
@@ -382,11 +340,6 @@ bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (CaseInsensitiveEndsWith(attr, "corner")) {
-        csh.AddToHints(EnumEncapsulator<MscCornerType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForCornerType);
-        return true;
-    }
     if (CaseInsensitiveEndsWith(attr, "radius")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
         return true;
@@ -403,47 +356,23 @@ string MscLineAttr::Print(int ident) const
     return ss + ")";
 }
 
+//XXX Add chopped edges
 //This one does not assume anything about wether the resulting rectange should be the
 //outer edge or inner edge of the line - just uses the radius value and coordinates
 //as they are.
-//For CORNER_NOTE it creates the outer edge
 Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2) const
 {
     Contour ret;
-    if (!radius.first || radius.second<=0 || !corner.first) 
-        return Contour(x1, x2, y1, y2);
+    if (!radius.first || radius.second<=0) return Contour(x1, x2, y1, y2);
     const double r = std::min(std::min(fabs(x1-x2)/2, fabs(y1-y2)/2), radius.second);
-    switch (corner.second) {
-    default: 
-        return Contour(x1, x2, y1, y2);
-    case CORNER_ROUND:
-        ret.AddAnEdge(Edge(XY(x1+r, y1)));
-        ret.AddAnEdge(Edge(XY(x2-r, y1+r), r, r, 0, 270, 360));
-        ret.AddAnEdge(Edge(XY(x2, y2-r)));
-        ret.AddAnEdge(Edge(XY(x2-r, y2-r), r, r, 0,   0,  90));
-        ret.AddAnEdge(Edge(XY(x1+r, y2)));
-        ret.AddAnEdge(Edge(XY(x1+r, y2-r), r, r, 0,  90, 180));
-        ret.AddAnEdge(Edge(XY(x1, y1+r)));
-        ret.AddAnEdge(Edge(XY(x1+r, y1+r), r, r, 0, 180, 270));
-        break;
-    case CORNER_BEVEL:
-        ret.AddAnEdge(Edge(XY(x1+r, y1)));
-        ret.AddAnEdge(Edge(XY(x2-r, y1)));
-        ret.AddAnEdge(Edge(XY(x2, y1+r)));
-        ret.AddAnEdge(Edge(XY(x2, y2-r)));
-        ret.AddAnEdge(Edge(XY(x2-r, y2)));
-        ret.AddAnEdge(Edge(XY(x1+r, y2)));
-        ret.AddAnEdge(Edge(XY(x1, y2-r)));
-        ret.AddAnEdge(Edge(XY(x1, y1+r)));
-        break;
-    case CORNER_NOTE:
-        ret.AddAnEdge(Edge(XY(x1, y1)));
-        ret.AddAnEdge(Edge(XY(x2-r, y1)));
-        ret.AddAnEdge(Edge(XY(x2, y1+r)));
-        ret.AddAnEdge(Edge(XY(x2, y2)));
-        ret.AddAnEdge(Edge(XY(x1, y2)));
-        break;
-    }
+    ret.AddAnEdge(Edge(XY(x1+r, y1)));
+    ret.AddAnEdge(Edge(XY(x2-r, y1+r), r, r, 0, 270, 360));
+    ret.AddAnEdge(Edge(XY(x2, y2-r)));
+    ret.AddAnEdge(Edge(XY(x2-r, y2-r), r, r, 0,   0,  90));
+    ret.AddAnEdge(Edge(XY(x1+r, y2)));
+    ret.AddAnEdge(Edge(XY(x1+r, y2-r), r, r, 0,  90, 180));
+    ret.AddAnEdge(Edge(XY(x1, y1+r)));
+    ret.AddAnEdge(Edge(XY(x1+r, y1+r), r, r, 0, 180, 270));
     return ret;
 }
 
@@ -453,28 +382,36 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
 //This is at least lineWidth() (if radius==0)
 //return first contains the left margin and second the right one
 //This one assumes that the radius corresponds to the inner edge
-DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top) const
+DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top, MscDrawer *debug) const
 {
-    DoublePair ret(0,0);
-    if (textCover.IsEmpty()) return ret;
     const double lw = LineWidth();
     if (radius.second <= LineWidth()) return DoublePair(lw, lw);
     //create a path at the inner edge of the rectangle 
     XY lr = textCover.GetBoundingBox().LowerRight();
-    Block inner(lw, radius.second*3, rect_top+lw, rect_top+lw +lr.y+radius.second*2);
-    Area inner_area = CreateRectangle(inner); //the radius we have in the style luckily corresponds to the inner edge
-    if (corner.second == CORNER_NOTE)
-        inner_area -= Contour(inner.x.till-radius.second, inner.y.from, inner.x.till-radius.second, 
-                              inner.y.from+radius.second, inner.x.till, inner.y.from+radius.second);
+    Block inner(lw, radius.second*3, rect_top+lw, lr.y+radius.second);
+    const Area inner_area = CreateRectangle(inner); //the radius we have in the style luckily corresponds to the inner edge
     const Range left_right = textCover.GetBoundingBox().x;
     textCover.Rotate(90);
 
+    DoublePair ret;
     double off, tp;
     //left margin
     Area a = Contour(0, inner.x.MidPoint(), inner.y.from-1, inner.y.till+1) - inner_area;
     a.Rotate(90);
     off = a.OffsetBelow(textCover, tp, CONTOUR_INFINITY, false);
     ret.first = left_right.from - off;
+    if (debug) {
+        MscFillAttr fill;
+        MscLineAttr line;
+        fill.color.second=MscColorType(0,0,0);
+        Area xa = a;
+        debug->Fill(xa.Shift(XY(100,100)), fill);
+        Area x = textCover;
+        fill.color.second.g=255;
+        debug->Fill(x.Shift(XY(100,100)), fill);
+        line.color.second.b=255;
+        debug->Line(XY(100, 100+ret.first), XY(200, 100+ret.first), line);
+    }
     //right margin
     a = Contour(inner.x.MidPoint(), inner.x.till+lw, inner.y.from-1, inner.y.till+1) - inner_area;
     a.Rotate(90);
@@ -572,7 +509,7 @@ bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
     const int off_y = 1;
     MscColorType black(0,0,0);
     MscFillAttr fill(black, MscColorType(255,255,255), MscGradientType(int(p)));
-    MscLineAttr line(LINE_SOLID, black, 1, CORNER_NONE, 0);
+    MscLineAttr line(LINE_SOLID, black, 1, 0);
     Block rect(XY(off_x, off_y), XY(off_x+size, off_y+size));
     rect.Round().Shift(XY(.5,.5));
     msc->Fill(rect, fill);

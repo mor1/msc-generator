@@ -13,7 +13,6 @@
 #include "trackable.h"
 #include "style.h"
 #include "entity.h"
-#include "mscdrawer.h"
 #include "arcs.h"
 
 using std::string;
@@ -82,14 +81,8 @@ public:
     std::map<IPair, double, IPairComp> pairs;
     std::map<unsigned, double> left;
     std::map<unsigned, double> right;
-    std::map<unsigned, std::list<std::pair<double, double>>> box_side;
-
     void Insert(unsigned, int, double);
-    double Query(unsigned, int) const;
-    void InsertBoxSide(unsigned, double, double);
-    std::pair<double, double> QueryBoxSide(unsigned, bool left) const;
-    void CopyBoxSideToPair(double gap);
-    void ClearBoxSizde() {box_side.clear();}
+    double Query(unsigned, int);
     void CombineLeftRightToPair_Sum(double gap);
     void CombineLeftRightToPair_Max(double gap);
     void CombineLeftRightToPair_Single(double gap);
@@ -140,8 +133,6 @@ public:
     int emphVGapOutside, emphVGapInside;
     /** Vertical gap above and below arcs */
     int arcVGapAbove, arcVGapBelow;
-    /* How much extra space above and below a discontinuity line (...) */
-    int discoVgap;
     /** Nudge size */
     int nudgeSize;
     /** Size of gap at compress. We expand by half of it */
@@ -158,8 +149,6 @@ public:
     double       saved_hscale; /** save hscale during design definition */
     bool         pedantic;   /* if we require pre-defined entities. */
     bool         ignore_designs; /* ignore design changes */
-
-    double       headingSize;
 
     Msc();
 
@@ -190,7 +179,6 @@ public:
     void PostParseProcess(void);
     virtual string Print(int ident=0) const;
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
-    double XCoord(EIterator i) const {_ASSERT(i!=Entities.end()); return XCoord((*i)->pos);} //rounded
 
     void HideEntityLines(const Area &area);
     void HideEntityLines(const Block &area);
@@ -202,8 +190,7 @@ public:
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
     double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
     double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
-                          double top_y, const AreaList &area_top, bool forceCompress=false,
-                          AreaList *ret_cover=NULL);
+                          double top_y, const AreaList &area_top, bool forceCompress=false);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(void);
     void PostPosProcessArcList(ArcList &arcs, double autoMarker);
@@ -213,7 +200,7 @@ public:
     void Draw(bool pageBreaks);
     void DrawCopyrightText(int page=-1);
     void DrawPageBreaks();
-    void DrawToOutput(OutputType, double x_scale, double y_scale, const string &);
+    void DrawToOutput(OutputType, const string &);
 };
 
 

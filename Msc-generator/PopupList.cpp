@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -27,7 +27,6 @@
 
 CHintListBox::CHintListBox()
 {
-    m_format.Default();
     m_format += "\\f(Courier New)\\mn(12)\\ms(8)\\pl";
     //m_format += "\\f(Arial)\\mn(24)\\ms(8)\\pl";
 }
@@ -204,7 +203,7 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     Block b(lpItem->rcItem.left+1, lpItem->rcItem.right-1, lpItem->rcItem.top, lpItem->rcItem.bottom-1);
     MscColorType black(0,0,0);
     MscFillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
-    MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
+    MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, 3);
     switch (item->state) {
     case HINT_ITEM_SELECTED:
         mscdrawer.Fill(b, line, fill);
@@ -286,12 +285,13 @@ END_MESSAGE_MAP()
 
 
 // CPopupList message handlers
-void CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
+bool CPopupList::Show(Csh &csh, const LPCSTR uc, int x, int y, bool userRequest, bool afterReturnKey)
 {
+    bool changed = m_listBox.PreprocessHints(csh, uc, userRequest, afterReturnKey);
     if (changed) {
         if (m_listBox.m_current_hints.size()==0) {
             Hide();
-            return;
+            return false;
         }
         CSize size = m_listBox.SetHintsToCurrent();
         SetWindowPos(&CWnd::wndTop, x, y, size.cx+3, size.cy+3, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
@@ -299,13 +299,14 @@ void CPopupList::Show(bool changed, const LPCSTR uc, int x, int y)
         //not changed
         if (m_listBox.m_current_hints.size()==0) {
             _ASSERT(!m_shown);
-            return;
+            return false;
         }
         //just update window pos (should not be needed!)
         SetWindowPos(&CWnd::wndTop, x, y, 0, 0, SWP_NOOWNERZORDER | SWP_SHOWWINDOW | SWP_NOSIZE);
     } 
     m_listBox.SetStringUnderCursor(uc);
     m_shown=true;
+    return true;
 }
 
 void CPopupList::Hide() 

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -21,20 +21,19 @@
 
 MscStyle::MscStyle(StyleType tt) : type(tt)
 {
-    f_line=f_vline=f_fill=f_shadow=f_text=f_solid=f_numbering=f_compress=f_side=true;
+    f_line=f_vline=f_fill=f_shadow=f_text=f_solid=f_numbering=f_compress=true;
     f_arrow=ArrowHead::ANY;
     Empty();
 }
 
-MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
-                   bool so, bool nu, bool co, bool si) :
+MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co) :
     type(tt), f_arrow(a), f_text(t), f_line(l), f_vline(vl), f_fill(f),
-    f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co), f_side(si)
+    f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co)
 {
     solid.first=so;
     solid.second = 128;
-    side.first = si;  
-    side.second = SIDE_RIGHT;
+    fromright.first=so;  //f_solid also governs fromright, as it is also only for pipes
+    fromright.second=true;
     compress.first = co;
     compress.second = false;
     numbering.first = nu;
@@ -50,7 +49,7 @@ void MscStyle::Empty()
     arrow.Empty();
     shadow.Empty();
     solid.first = false;
-    side.first = false;
+    fromright.first = false;
     compress.first = false;
     numbering.first = false;
 }
@@ -64,15 +63,11 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     if (toadd.f_text && f_text) text += toadd.text;
     if (toadd.f_arrow!=ArrowHead::NONE && f_arrow!=ArrowHead::NONE) arrow += toadd.arrow;
     if (toadd.f_solid && f_solid && toadd.solid.first) solid = toadd.solid;
-    if (toadd.f_side && f_side && toadd.side.first) side = toadd.side;
+    if (toadd.f_solid && f_solid && toadd.fromright.first) fromright = toadd.fromright;
     if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
     if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
     return *this;
 }
-
-template<> const char EnumEncapsulator<MscSideType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "left", "right", ""};
-
 
 bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
 {
@@ -120,18 +115,15 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         }
         a.InvalidValueError("0..1' or '0..255", msc->Error);
     }
-    if (a.Is("side") && f_side) {
+    if (a.Is("fromright") && f_solid) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
-                side.first = false;
+                fromright.first = false;
             return true;
         }
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, side.second)) {
-            side.first = true;
-            return true;
-        }
-        a.InvalidValueError(CandidatesFor(side.second), msc->Error);
-        return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
+        fromright.first = true;
+        fromright.second = a.yes;
     }
     if (a.Is("compress") && f_compress) {
         if (a.type == MSC_ATTR_CLEAR) {
@@ -173,33 +165,12 @@ void MscStyle::AttributeNames(Csh &csh) const
     if (f_text) StringFormat::AttributeNames(csh);
     if (f_solid) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid", HINT_ATTR_NAME));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"side", HINT_ATTR_NAME));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"fromright", HINT_ATTR_NAME));
     }
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
     if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
     if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
     csh.AddStylesToHints();
-}
-
-bool CshHintGraphicCallbackForSide(MscDrawer *msc, CshHintGraphicParam p)
-{
-    if (!msc) return false;
-    const MscSideType t = (MscSideType)(int)p;
-    const double xx = 0.7;
-    std::vector<double> xPos(2); 
-    xPos[0] = t==SIDE_LEFT ? 0 : HINT_GRAPHIC_SIZE_X*0.3;
-    xPos[1] = t==SIDE_LEFT ? HINT_GRAPHIC_SIZE_X*0.7 : HINT_GRAPHIC_SIZE_X;
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
-    msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
-    ArrowHead ah(ArrowHead::BIGARROW);
-    ah.line += MscColorType(0,32,192); //blue-green
-    ah.endType.second =   t==SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
-    ah.startType.second = t!=SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
-    ah.size.second = MSC_ARROWS_INVALID;
-    MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, fill, msc);
-    msc->UnClip();
-    return true;
 }
 
 bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
@@ -226,14 +197,10 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (CaseInsensitiveEqual(attr, "compress") && f_compress) {
+    if ((CaseInsensitiveEqual(attr, "compress") && f_compress) ||
+        (CaseInsensitiveEqual(attr, "fromright") && f_solid)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
-        return true;
-    }
-    if (CaseInsensitiveEndsWith(attr, "side")) {
-        csh.AddToHints(EnumEncapsulator<MscSideType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForSide); 
         return true;
     }
     if (CaseInsensitiveEqual(attr, "number") && f_numbering) {
@@ -254,7 +221,7 @@ string MscStyle::Print(int ident) const
     if (f_fill) s.append(fill.Print());
     if (f_shadow) s.append(shadow.Print());
     if (f_solid) s.append("solid:").append(solid.second?"yes":"no").append("\n");
-    if (f_solid) s.append("fromright:").append(side.second==SIDE_LEFT?"left":"right").append("\n");
+    if (f_solid) s.append("fromright:").append(fromright.second?"yes":"no").append("\n");
 //    if (f_arrow!=ArrowHead::NONE) s.append(arrow.Print());
 //    if (f_text) s.append(text.Print());
     s.append(")");
@@ -288,7 +255,7 @@ void Design::Reset()
     colors["lgray"] = MscColorType(200, 200, 200);
 
     styles.clear();
-    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false); //no fill, shadow, vline solid side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true); //no fill, shadow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -306,7 +273,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false);  //no vline solid side
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true);  //no vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.numbering.first = false;
@@ -325,7 +292,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["block=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true, true);  //no shadow, vline solid
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true);  //no shadow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -358,7 +325,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["vertical=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false); //no arrow, fill, shadow solid side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true); //no arrow, fill, shadow solid
     style.compress.first = false;
     style.numbering.first = false;
     style.vline.Empty();
@@ -376,7 +343,7 @@ void Design::Reset()
     style.text.Apply("\\mu(10)\\md(10)");
     styles["..."] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false); //no arrow, vline solid side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true); //no arrow, vline solid
     style.compress.first = false;
     style.numbering.first = false;
     styles["emptybox"] = style;
@@ -397,7 +364,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true); //no arrow, vline
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true); //no arrow, vline
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = 5;
@@ -417,7 +384,7 @@ void Design::Reset()
     styles["pipe=="] = style;
 
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false); //no arrow, solid numbering compress
     styles["entity"] = style;
 
     style = MscStyle(STYLE_STYLE); //has everything, but is empty

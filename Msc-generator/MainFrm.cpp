@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -31,21 +31,6 @@
 #define new DEBUG_NEW
 #endif
 
-BOOL CMscGenSplitterWnd::SplitRow(int cyBefore)
-{
-    return CSplitterWnd::SplitRow(cyBefore);
-}
-
-void CMscGenSplitterWnd::DeleteRow(int rowDelete)
-{
-    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(GetParent());
-    if (pWnd)
-        pWnd->m_bAutoSplit = false;
-    CSplitterWnd::DeleteRow(rowDelete);
-}
-
-
-
 // CMainFrame
 
 IMPLEMENT_DYNCREATE(CMainFrame, CFrameWndEx)
@@ -58,13 +43,10 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_CREATE()
 	ON_COMMAND(ID_VIEW_CUSTOMIZE, OnViewCustomize)
 	ON_COMMAND(ID_VIEW_FULL_SCREEN, OnViewFullScreen)
-	ON_COMMAND(ID_BUTTON_AUTO_SPLIT, OnButtonAutoSplit)
-	ON_UPDATE_COMMAND_UI(ID_BUTTON_AUTO_SPLIT, OnUpdateButtonAutoSplit)
 //	ON_REGISTERED_MESSAGE(AFX_WM_CREATETOOLBAR, &CMainFrame::OnToolbarCreateNew)
 	ON_REGISTERED_MESSAGE(AFX_WM_RESETTOOLBAR, OnToolbarReset)
 	ON_COMMAND_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnApplicationLook)
 	ON_UPDATE_COMMAND_UI_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnUpdateApplicationLook)
-    ON_WM_ACTIVATE()
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -81,7 +63,6 @@ static UINT indicators[] =
 CMainFrame::CMainFrame()
 {
 	theApp.m_nAppLook = theApp.GetInt(_T("ApplicationLook"), ID_VIEW_APPLOOK_VS_2005);
-    m_bAutoSplit = false;
 }
 
 CMainFrame::~CMainFrame()
@@ -161,7 +142,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	pApp->m_pWndOutputView = &m_wndOutputView;
 
-	if (!m_ctrlEditor.Create(_T("Internal Editor"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
+	if (!m_ctrlEditor.Create(_T("Chart Text"), this, CRect(0, 0, 100, 100), TRUE, ID_VIEW_EDITOR, 
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
 	{
 		TRACE0("Failed to create output bar\n");
@@ -238,8 +219,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	//SetWindowPos(NULL, 0, 0, 550, 300,  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 
-	if (m_ctrlEditor.IsVisible()) 
-        m_ctrlEditor.SetFocus();
+	if (m_ctrlEditor.IsVisible()) m_ctrlEditor.m_ctrlEditor.SetFocus();
 
 	EnableFullScreenMode(ID_VIEW_FULL_SCREEN);
 	EnableFullScreenMainMenu(FALSE);
@@ -467,7 +447,7 @@ void CMainFrame::OnSetFocus(CWnd* pOldWnd)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
+	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
 }
 
@@ -525,141 +505,13 @@ void CMainFrame::OnViewFullScreen()
 		//The last two we dont want since a full screen windows has all the wrong state and placement
 		CFrameWnd::OnClose();
 	} else {
-        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetActiveView());
-		if (!IsFullScreen()) {
-            ShowFullScreen();
-
-            CString strCaption;
-            strCaption.LoadString(IDS_AFXBARRES_FULLSCREEN);
-            CWnd *i, *j;
-            for (i = GetWindow(GW_HWNDFIRST); i; i=i->GetWindow(GW_HWNDNEXT)) {
-                CString s;
-                i->GetWindowText(s);
-                if (s != strCaption) continue;
-                if (!i->IsKindOf(RUNTIME_CLASS(CPaneFrameWnd))) continue;
-                break;
-            }
-            if (i) {
-                for (j = i->GetWindow(GW_CHILD); j; j=j->GetWindow(GW_HWNDNEXT)) {
-                    CString s;
-                    j->GetWindowText(s);
-                    if (s != strCaption) continue;
-                    if (!j->IsKindOf(RUNTIME_CLASS(CMFCToolBar))) continue;
-                    break;
-                }
-                if (j) {
-                    CMFCToolBar *p = dynamic_cast<CMFCToolBar *>(j);
-                    CSize size = p->GetButtonSize();
-                    int buttonBitMap = CMFCToolBar::GetDefaultImage(ID_BUTTON_AUTO_SPLIT);
-                    CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, buttonBitMap, "AutoSplit", TRUE, TRUE);
-                    p->InsertButton(button);
-                    CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
-                    f->SizeToContent();
-                    p->SetHeight(size.cy);
-                }
-            }
-        } else {
-            //If we are cancelling full screen update the zoom combo box with current value
+		//If we are cancelling full screen update the zoom combo box with current value
+		if (IsFullScreen()) {
 			CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 			if (pDoc) 
 				pDoc->SetZoom(); 
-            ShowFullScreen();
-        }
+		}
+
+		ShowFullScreen();
 	}
-}
-
-
-void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
-{
-    CFrameWndEx::OnActivate(nState, pWndOther, bMinimized);
-
-    //Set focus to internal editor
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    if (nState != WA_INACTIVE)
-        if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
-            pApp->m_pWndEditor->SetFocus();
-}
-
-
-void CMainFrame::OnButtonAutoSplit()
-{
-    if (!m_bAutoSplit) {
-        CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
-        m_bAutoSplit = true;
-        if (pDoc)
-            SetSplitSize(pDoc->m_ChartShown.GetHeadingSize()*pDoc->m_zoom/100.);
-    } else {
-        //turn it off
-        switch (m_wndSplitter.GetRowCount()) {
-        default: _ASSERT(0);
-        case 1: break;
-        case 2: 
-            int Cur, Min;
-            m_wndSplitter.GetRowInfo(0, Cur, Min);
-            m_wndSplitter.DeleteRow(0); 
-            CMscGenView *pView = dynamic_cast<CMscGenView *>(m_wndSplitter.GetPane(0,0));
-            if (pView) {
-		        CPoint pos = pView->GetScrollPosition();
-                pos.y -= Cur;
-                if (pos.y<0) pos.y=0;
-		        pView->ScrollToPosition(pos);
-            }
-            break;
-        }
-        m_bAutoSplit = false;
-    }
-}
-
-void CMainFrame::OnUpdateButtonAutoSplit(CCmdUI *pCmdUI)
-{
-	pCmdUI->SetCheck(m_bAutoSplit);
-}
-
-
-void CMainFrame::SetSplitSize(unsigned coord)
-{
-    if (!m_bAutoSplit) return;
-    //CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
-    //if (pDoc) coord = double(coord)*pDoc->m_zoom/100.;
-    int prev, dummy;
-    CSize orig_pos(0,0);
-    switch (m_wndSplitter.GetRowCount()) {
-    case 1: 
-        {
-        CMscGenView *pView = dynamic_cast<CMscGenView *>(m_wndSplitter.GetPane(0,0));
-        if (pView) orig_pos = pView->GetScrollPosition();
-        m_wndSplitter.SplitRow(coord); 
-        prev = 0; 
-        }
-        break;
-    case 2: 
-        {
-        CMscGenView *pView = dynamic_cast<CMscGenView *>(m_wndSplitter.GetPane(1,0));
-        if (pView) orig_pos = pView->GetScrollPosition();
-        }
-        m_wndSplitter.GetRowInfo(0, prev, dummy); 
-        m_wndSplitter.SetRowInfo(0, coord, dummy); 
-        m_wndSplitter.RecalcLayout();
-        break;
-    default: _ASSERT(0);
-    }
-    int now;
-    m_wndSplitter.GetRowInfo(0, now, dummy); 
-    //Now prev contains what was the size of pane(0) before and now is after
-    CMscGenView *pView = dynamic_cast<CMscGenView *>(m_wndSplitter.GetPane(0,0));
-    if (pView) {
-		CPoint pos = pView->GetScrollPosition();
-        pos.x = orig_pos.cx;
-        pos.y = 0;
-		pView->ScrollToPosition(pos);
-    }
-    pView = dynamic_cast<CMscGenView *>(m_wndSplitter.GetPane(1,0));
-    if (pView) {
-		CPoint pos = pView->GetScrollPosition();
-        pos.x = orig_pos.cx;
-        pos.y = orig_pos.cy + now-prev; 
-        if (pos.y < coord) pos.y = coord;
-		pView->ScrollToPosition(pos);
-    }
 }

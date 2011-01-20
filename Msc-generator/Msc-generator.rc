@@ -34,33 +34,6 @@ BEGIN
     LISTBOX         IDC_LIST2,0,0,306,187,LBS_SORT | LBS_OWNERDRAWVARIABLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
-IDD_SCALE DIALOGEX 0, 0, 262, 125
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Scaling options"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,144,104,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,205,104,50,14
-    CONTROL         "&No scaling",IDC_RADIO_SCALING_NO,"Button",BS_AUTORADIOBUTTON,15,20,48,10
-    CONTROL         "Scale &by a factor of",IDC_RADIO_SCALING_SCALE,"Button",BS_AUTORADIOBUTTON,15,36,79,10
-    CONTROL         "Keep aspect ratio and set &width to",IDC_RADIO_SCALING_X,
-                    "Button",BS_AUTORADIOBUTTON,15,52,126,10
-    CONTROL         "Keep aspect ratio and set &height to",IDC_RADIO_SCALING_Y,
-                    "Button",BS_AUTORADIOBUTTON,15,68,129,10
-    CONTROL         "Set width to",IDC_RADIO_SCALING_XY,"Button",BS_AUTORADIOBUTTON,15,84,55,10
-    LTEXT           "(1092 x 1983 pixels)",IDC_STATIC_ORIGINAL_SIZE,61,21,66,8
-    EDITTEXT        IDC_EDIT_SCALE,93,34,40,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_X,141,50,40,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_Y,141,66,40,14,ES_AUTOHSCROLL
-    LTEXT           "pixels",IDC_STATIC,185,53,19,8
-    LTEXT           "pixels",IDC_STATIC,185,69,19,8
-    EDITTEXT        IDC_EDIT_XY_X,67,82,40,14,ES_AUTOHSCROLL
-    LTEXT           "pixels and height to",IDC_STATIC,110,85,64,8
-    EDITTEXT        IDC_EDIT_XY_Y,175,82,40,14,ES_AUTOHSCROLL
-    LTEXT           "pixels",IDC_STATIC,219,85,19,8
-    LTEXT           "Please select how to scale the resulting bitmap.",IDC_STATIC,7,7,152,8
-END
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -76,14 +49,6 @@ BEGIN
         RIGHTMARGIN, 312
         TOPMARGIN, 7
         BOTTOMMARGIN, 193
-    END
-
-    IDD_SCALE, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 255
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 118
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -164,14 +129,14 @@ END
 
 IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About Msc-generator"
+CAPTION "About Msc-gnerator"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
     LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2008-2011 Zoltan Turanyi",IDC_STATIC,40,25,139,8
+    LTEXT           "Copyright (C) 2008-2010 Zoltan Turanyi",IDC_STATIC,40,25,139,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
-    PUSHBUTTON      "http://msc-generator.sourceforge.net",IDC_BUTTON_URL,38,37,133,14
+    PUSHBUTTON      "http://msc-generator.sourcforge.net",IDC_BUTTON_URL,38,37,133,14
 END
 
 IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
@@ -310,7 +275,6 @@ BEGIN
     BUTTON      ID_BUTTON_EDITTEXT
     BUTTON      ID_VIEW_ZOOMNORMALIZE
     BUTTON      ID_BUTTON_TRACK
-    BUTTON      ID_BUTTON_AUTO_SPLIT
 END
 
 IDR_TOOLBAR_MAINFRAME TOOLBAR 16, 15
@@ -328,7 +292,6 @@ BEGIN
     BUTTON      ID_BUTTON_EDITTEXT
     BUTTON      ID_VIEW_ZOOMNORMALIZE
     BUTTON      ID_BUTTON_TRACK
-    BUTTON      ID_BUTTON_AUTO_SPLIT
 END
 
 IDR_TOOLBAR_SRVR_INPLACE TOOLBAR 16, 15
@@ -449,22 +412,22 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "C&ut (from Internal Editor)\tCtrl+X", ID_EDIT_CUT
-        MENUITEM "&Copy (from Internal Editor)\tCtrl+C", ID_EDIT_COPY
-        MENUITEM "&Paste (into Internal Editor)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
         MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
         MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
         MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
-        MENUITEM "Update drawing from &Internal Editor\tCtrl+W", ID_EDIT_UPDATE
+        MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
         MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
-        MENUITEM "Pre&ferences...",             ID_EDIT_PREFERENCES
+        MENUITEM "&Preferences...",             ID_EDIT_PREFERENCES
     END
     POPUP "&View"
     BEGIN
         MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
         MENUITEM "&Errors and Warnings",        ID_VIEW_OUTPUT
-        MENUITEM "&Internal Editor",            ID_VIEW_EDITOR
+        MENUITEM "&Chart Text",                 ID_VIEW_EDITOR
         MENUITEM SEPARATOR
         MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
         MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
@@ -500,15 +463,15 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "C&ut (from Internal Editor)\tCtrl+X", ID_EDIT_CUT
-        MENUITEM "&Copy (from Internal Editor)\tCtrl+C", ID_EDIT_COPY
-        MENUITEM "&Paste (into Internal Editor)\tCtrl+V", ID_EDIT_PASTE
+        MENUITEM "C&ut (in Chart Text pane)\tCtrl+X", ID_EDIT_CUT
+        MENUITEM "&Copy (in Chart Text pane)\tCtrl+C", ID_EDIT_COPY
+        MENUITEM "&Paste (in Chart Text pane)\tCtrl+V", ID_EDIT_PASTE
         MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
         MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
         MENUITEM SEPARATOR
-        MENUITEM "Update drawing from &Internal Editor\tCtrl+W", ID_EDIT_UPDATE
+        MENUITEM "Update from Chart &Text panel\tCtrl+W", ID_EDIT_UPDATE
         MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
-        MENUITEM "Pre&ferences...",             ID_EDIT_PREFERENCES
+        MENUITEM "P&references...",             ID_EDIT_PREFERENCES
     END
     POPUP "&View"
     BEGIN
@@ -685,8 +648,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,0,0,0
- PRODUCTVERSION 3,0,0,0
+ FILEVERSION 2,5,0,0
+ PRODUCTVERSION 2,5,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -703,12 +666,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "3.0"
+            VALUE "FileVersion", "2.5.0"
             VALUE "InternalName", "Msc-generator.exe"
-            VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11.  All rights reserved."
+            VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "3.0"
+            VALUE "ProductVersion", "2.5.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -825,10 +788,10 @@ STRINGTABLE
 BEGIN
     ID_EDIT_CLEAR           "Erase the selection\nErase"
     ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
-    ID_EDIT_COPY            "Copy the selection in the Internal Editor and put it on the Clipboard\nCopy"
-    ID_EDIT_CUT             "Cut the selection in the Internal Editor and put it on the Clipboard\nCut"
+    ID_EDIT_COPY            "Copy the selection in the Chart Text pane and put it on the Clipboard\nCopy"
+    ID_EDIT_CUT             "Cut the selection in the Chart Text pane and put it on the Clipboard\nCut"
     ID_EDIT_FIND            "Find the specified text\nFind"
-    ID_EDIT_PASTE           "Insert Clipboard contents into the Internal Editor\nPaste"
+    ID_EDIT_PASTE           "Insert Clipboard contents in the Chart Text pane\nPaste"
     ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
     ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
     ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
@@ -916,7 +879,7 @@ END
 STRINGTABLE
 BEGIN
     ID_VIEW_EDITOR          "Show/Hide the Error Window\nToggle Editor Window"
-    ID_EDIT_UPDATE          "Update and redraw chart with the description currently in the Internal Editor\nUpdate & redraw"
+    ID_EDIT_UPDATE          "Update & redraw chart with the description currently in the Chart Text panel\nUpdate & redraw"
     ID_VIEW_NEXTERROR       "Go to the next error\nNext error"
 END
 
@@ -937,7 +900,6 @@ STRINGTABLE
 BEGIN
     ID_HELP_HELP            "Opens help"
     ID_VIEW_PREVERROR       "Go to the previous error\nPrevious error"
-    ID_BUTTON_AUTO_SPLIT    "Split view and keeps entity heading at top pane."
 END
 
 STRINGTABLE

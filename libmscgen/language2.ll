@@ -246,9 +246,6 @@ do {                                                \
 (?i:at)        yylval_param->str = strdup(yytext); return TOK_AT;
 (?i:no)        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 (?i:yes)       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
-(?i:show)      yylval_param->str = strdup(yytext); return TOK_SHOW;
-(?i:hide)      yylval_param->str = strdup(yytext); return TOK_HIDE;
-(?i:bye)       yylval_param->str = strdup(yytext); return TOK_BYE;
 
 \.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
 ---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
@@ -269,7 +266,6 @@ do {                                                \
 \.\.     yylval_param->arctype=MSC_EMPH_DOTTED;     return TOK_EMPH;             // ..
 ==       yylval_param->arctype=MSC_EMPH_DOUBLE;     return TOK_EMPH;             // ==
 -        return TOK_DASH;
-\+       return TOK_PLUS;
 =        return TOK_EQUAL;
 ,        return TOK_COMMA;
 \;       return TOK_SEMICOLON;

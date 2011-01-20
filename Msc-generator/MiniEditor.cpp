@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -40,8 +40,6 @@ CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : m_hintsPopup(parent, this)
 	m_bCshUpdateInProgress = false;  
     m_bWasReturnKey = false;
     m_bUserRequested = false;
-    m_bTillCursorOnly = false;
-    m_bWasAutoComplete = false;
 }
 
 BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
@@ -314,9 +312,11 @@ void CCshRichEditCtrl::SetCurrentIdentTo(int ident)
 BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 {
     m_bWasReturnKey = false;
-    if (InHintMode()) {
+    if (m_hintsPopup.m_shown) {
         if (pMsg->message == WM_KEYDOWN) { 
             if (pMsg->wParam == VK_ESCAPE) {CancelHintMode(); return TRUE;}
+            if (pMsg->wParam == VK_DELETE || 
+                pMsg->wParam == VK_BACK) {return FALSE;} //keep hinted mode, but no special processing
             if (pMsg->wParam == VK_UP)     {m_hintsPopup.m_listBox.UpDownKey(-1); return TRUE;}
             if (pMsg->wParam == VK_DOWN)   {m_hintsPopup.m_listBox.UpDownKey(+1); return TRUE;}
             if (pMsg->wParam == VK_PRIOR)  {m_hintsPopup.m_listBox.UpDownKey(-2); return TRUE;}
@@ -331,7 +331,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
                 //if nothing selected let it run further
             }
         } else if (pMsg->message == WM_CHAR) {
-            if (isalnum(pMsg->wParam) || pMsg->wParam == '_' || pMsg->wParam == VK_BACK)
+            if (isalnum(pMsg->wParam) || pMsg->wParam == '_')
                 //characters that can make up a hinted keyword - we insert them and re-calc hints afterwards in OnCommand
                 return FALSE;
             //do nothing if no item is selected
@@ -341,7 +341,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             if (item->state != HINT_ITEM_SELECTED) return FALSE;
             if (pMsg->wParam == '.') {
                 //expand only till the next dot in the hint
-                int pos = m_csh.hintedStringPos.last_pos - m_csh.hintedStringPos.first_pos;
+                int pos = m_csh.hintedStringPos.last_pos - m_csh.hintedStringPos.last_pos;
                 pos = item->plain.find_first_of('.', pos);
                 if (pos != string::npos) {
                     ReplaceHintedString(item->plain.substr(0, pos).c_str(), false);
@@ -358,19 +358,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
         && GetKeyState(VK_CONTROL) & 0x8000) {
             m_bUserRequested = true;
             UpdateCsh();
-            //see if we are at the beginning of a word
-            long s, e;
-            GetSel(s, e);
-            bool till_cursor_only = false;
-            if (s==0) till_cursor_only = true;
-            else {
-                CString str;
-                GetTextRange(s-1,s, str);
-                if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;
-            }
-            //if so, set the hint mode such that we only consider the word under the curson
-            //up to the cursor (and cut away the remainder)
-            StartHintMode(till_cursor_only); 
+            StartHintMode();
             return TRUE;
     }
 
@@ -564,9 +552,6 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
         //Take the design, color and style definitions from the designlib
         m_csh = m_designlib_csh;
 		m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
-        //If we consider the hinted string only up to the cursor, trim the returned pos
-        if (m_bTillCursorOnly && m_csh.hintedStringPos.last_pos>cr.cpMin)
-            m_csh.hintedStringPos.last_pos = cr.cpMin; 
         ret = m_csh.hintedStringPos.first_pos <= old_uc.last_pos && old_uc.first_pos<=m_csh.hintedStringPos.last_pos;
         //Apply the color syntax to the text in the editor
         if (pApp->m_bShowCsh) {
@@ -585,17 +570,14 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
                 }
             if (pApp->m_bShowCshErrorsInWindow && pApp->m_pWndOutputView) {
                 MscError Error;
-                Error.AddFile("Hint");
+                Error.AddFile("CSH");
                 std::list<CString> errors;
-                std::vector<std::pair<int, int>> error_pos;
                 for (auto i = m_csh.CshErrors.begin(); i!=m_csh.CshErrors.end(); i++) {
                     int line, col;
                     ConvertPosToLineCol(i->first_pos, line, col);
-                    line++; col++; //XXX WTF This is needed
-                    error_pos.push_back(std::pair<int,int>(line, col));
                     errors.push_back(Error.FormulateElement(file_line(0, line, col), true, false, i->text).text.c_str());
                 }
-                pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
+                pApp->m_pWndOutputView->ShowCshErrors(errors);
             }
         }
 	}
@@ -615,7 +597,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 	GetSel(cr);
 
     //First check if hint is on and we have left the hinted word
-    if (InHintMode() && !m_csh.hintedStringPos.IsWithin(cr.cpMin))
+    if (m_hintsPopup.m_shown && !m_csh.hintedStringPos.IsWithin(cr.cpMin))
         m_hintsPopup.Hide();
 
     if (!m_csh.was_partial) return;
@@ -684,27 +666,22 @@ BOOL CCshRichEditCtrl::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	//Process message only if within our view
 	if (!view.PtInRect(pt)) return FALSE;
 	CWnd::OnMouseWheel(nFlags, zDelta, pt);
-    if (InHintMode())
+    if (m_hintsPopup.m_shown)
         CancelHintMode();
 	return TRUE;
 }
 
 //Assumes we have called UpdateCsh just before and m_csh is up-to-date
-//if setUptoCursor is true, we set m_bTillCursorOnly to true
-//if false, we leave the value unchanged (=start with a false value)
-void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
+void CCshRichEditCtrl::StartHintMode()
 {
     long start, end;
     GetSel(start, end);
     //cancel hints if
     //1. multiple characters selected
     //2. no hints collected
-    //3. If this StartHintMode is the result of a previous autocompletion (initiated from this function below)
-    //4. the cursor stands at the beginning of a real nonzero len hinted word 
-    //   and the user did not press Ctrl+Space
-    const CshPos &p = m_csh.hintedStringPos;
-    if (start!=end || m_csh.Hints.size()==0 || m_bWasAutoComplete ||
-        (p.first_pos != p.last_pos && !m_bUserRequested && p.first_pos == start)) {
+    //3. the cursor stands at the beginning of a real nonzero len hinted word and the user did not press Ctrl+Space
+    if (start!=end || m_csh.Hints.size()==0 || 
+        (m_csh.hintedStringPos.first_pos == start && m_csh.hintedStringPos.first_pos!=m_csh.hintedStringPos.last_pos && !m_bUserRequested)) {
         CancelHintMode();
         return;
     }
@@ -720,45 +697,9 @@ void CCshRichEditCtrl::StartHintMode(bool setUptoCursor)
     }
     ClientToScreen(&pt);
     CString text;
-    long s,e;
-    GetSel(s,e);
-    if (setUptoCursor) {
-        m_bTillCursorOnly = true;
-        if (s<m_csh.hintedStringPos.last_pos)
-            m_csh.hintedStringPos.last_pos = s;
-    }
     if (m_csh.hintedStringPos.first_pos>=0) 
         GetTextRange(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos, text);
-    
-    bool changed = m_hintsPopup.m_listBox.PreprocessHints(m_csh, (const char *)text, m_bUserRequested, m_bWasReturnKey);
-    //See how many of the remaining hits fit the word under the cursor 
-    auto hit = m_csh.Hints.end(), i = m_csh.Hints.begin();
-    for (; i!=m_csh.Hints.end(); i++) {
-        //find a non-selectable item or one that the text under cursor fits 
-        if (!i->selectable)
-            continue;
-        else if (text == i->plain.substr(0, text.GetLength()).c_str()) {
-            if (hit == m_csh.Hints.end())
-                hit = i;
-            else 
-                break; //this is the second such item, let us show the hint window
-        }
-    }
-    bool onlyOne = i==m_csh.Hints.end() && hit!=m_csh.Hints.end();
-    //if there is only one hit and it is equal to the word under cursor, cancel hit mode
-    if (onlyOne && hit->plain.c_str() == text) {
-        CancelHintMode();
-        return;
-    }
-    //If we are about to start hint mode due to a Ctrl+Space and we are at the end of the word under cursor, 
-    //then check how many hints do we fit on and if there is only one, auto complete without
-    //popping up the hint list
-    if (onlyOne && !InHintMode() && m_bUserRequested && !m_bTillCursorOnly && m_csh.hintedStringPos.last_pos==s) {
-        ReplaceHintedString(hit->plain.c_str(), true);
-        return;
-    } 
-    //Show the window (or keep it shown & update the list)
-    m_hintsPopup.Show(changed, text, pt.x, pt.y);
+    m_hintsPopup.Show(m_csh, text, pt.x, pt.y, m_bUserRequested, m_bWasReturnKey);
     SetFocus();
 }
 
@@ -766,25 +707,16 @@ void CCshRichEditCtrl::CancelHintMode()
 {
     m_hintsPopup.Hide();
     m_bUserRequested = false;
-    m_bTillCursorOnly = false; 
-    m_bWasAutoComplete = false;
 }
 
 void CCshRichEditCtrl::ReplaceHintedString(const char *substitute, bool endHintMode)
 {
-    CshPos pos = m_csh.hintedStringPos;
-    CString subst(substitute); //CancelHintMode will likely destroy "substitute"
-    //Need to call before CancelHintMode before ReplaceSel, since after replace that results a call 
-    //to OnCommand and we get confused, if we are still in Hint mode then
-    if (endHintMode) {
-        CancelHintMode(); 
-        //Set flag So that we do not re-enter hint mode as a result of change we do below
-        m_bWasAutoComplete = true; 
-    }
     SetRedraw(false);
-    SetSel(pos.first_pos, pos.last_pos);
+    SetSel(m_csh.hintedStringPos.first_pos, m_csh.hintedStringPos.last_pos);
+    ReplaceSel(substitute);
+    if (endHintMode) 
+        CancelHintMode();
     SetRedraw(true);
-    ReplaceSel(subst);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -866,14 +798,8 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	ASSERT(pMainWnd!=NULL);
 	if (pMainWnd->GetActiveView() != NULL) {
 		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
-		if (pDoc != NULL) {
-            if (pDoc->m_ExternalEditor.IsRunning())
-                SetReadOnly();
-            pApp->m_pWndEditor->m_ctrlEditor.SetRedraw(false);
-            pApp->m_pWndEditor->m_ctrlEditor.SetSel(0,-1);
-            pApp->m_pWndEditor->m_ctrlEditor.SetRedraw(true);
-            pApp->m_pWndEditor->m_ctrlEditor.ReplaceSel(pDoc->m_itrEditing->GetText());
-        }
+		if (pDoc != NULL && pDoc->m_ExternalEditor.IsRunning())
+			SetReadOnly();
 	}
 
 	return 0;
@@ -940,21 +866,13 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
         //if we changed word below us, first kill the user requested nature
         if (!same_hints)
             m_ctrlEditor.CancelUserSelected();
-        m_ctrlEditor.StartHintMode(false); //false == do not change m_bTillCursorOnly
+        m_ctrlEditor.StartHintMode();
     } else {
         long s, e;
         m_ctrlEditor.GetSel(s,e);
         //Enter hint mode only if we typed a character
-        if (m_totalLenAtPreviousTextChange < len && s==e) {
-            bool till_cursor_only = false;
-            if (s<=1) till_cursor_only = true;
-            else {
-                CString str;
-                m_ctrlEditor.GetTextRange(s-2,s-1, str);
-                if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;
-            }
-            m_ctrlEditor.StartHintMode(till_cursor_only);
-        }
+        if (m_totalLenAtPreviousTextChange < len && s==e)
+            m_ctrlEditor.StartHintMode();
     }        
     m_totalLenAtPreviousTextChange = len;
 	m_ctrlEditor.NotifyDocumentOfChange();

@@ -8,30 +8,33 @@ Default topic=index.html
 Display compile progress=Yes
 Full-text search=Yes
 Language=0x0409 English (UNITED STATES)
-Title=Msc-generator v3.0.0
+Title=Msc-generator v2.5.0
 Enhanced decompilation=No
 
 [WINDOWS]
-Main="Msc-generator v3.0.0","toc.hhc",,"index.html","index.html",,,,,0x2520,,0x603006,,,,,,,,0
+Main="Msc-generator v2.5.0","toc.hhc",,"index.html","index.html",,,,,0x2520,,0x603006,,,,,,,,0
 
 
 [FILES]
 index.html
 ch01.html
 ch02.html
+ch02s02.html
+ch02s03.html
+ch02s04.html
+ch02s05.html
+ch02s06.html
 ch03.html
 ch03s02.html
 ch03s03.html
 ch03s04.html
 ch03s05.html
 ch03s06.html
-ch03s07.html
 ch04.html
 ch04s02.html
 ch04s03.html
 ch04s04.html
 ch04s05.html
-ch04s06.html
 ch05.html
 ch05s02.html
 ch05s03.html
@@ -40,18 +43,10 @@ ch05s05.html
 ch05s06.html
 ch05s07.html
 ch05s08.html
-ch06.html
-ch06s02.html
-ch06s03.html
-ch06s04.html
-ch06s05.html
-ch06s06.html
-ch06s07.html
-ch06s08.html
-ch06s09.html
-ch06s10.html
-ch06s11.html
-ch06s12.html
-ch06s13.html
-ch06s14.html
-ch06s15.html
+ch05s09.html
+ch05s10.html
+ch05s11.html
+ch05s12.html
+ch05s13.html
+ch05s14.html
+ch05s15.html

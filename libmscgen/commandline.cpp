@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -66,8 +66,8 @@ static void usage()
 {
     printf(
 "Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno]\n"
-"               [--pedantic] [[-x=<width>] [-y=<height>] | [-s=<scale>]\n"
-"               [--<chart_option>=<value> ...] [--<chart_design>]\n"
+"               [--pedantic] [--<chart_option>=<value> ...]\n"
+"               [--<chart_design>]\n"
 "       msc-gen -l\n"
 "\n"
 "Where:\n"
@@ -82,11 +82,6 @@ static void usage()
 "             '-', input will be read from stdin.\n"
 " -Wno        No warnings displayed.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
-" -x=<width>  Specifies chart width (in pixels).\n"
-" -y=<height> Specifies chart height (in pixels). If only one of -x or -y\n"
-"             is specified, the aspect ratio is kept.\n"
-" -s=<scale>  Can be used to scale chart size up or down. Default is 1.0.\n"
-"             Cannot be used together with any of -x or -y.\n"
 " --<chart_option>=<value>\n"
 "             These options will be evaluated before the input file. Any value\n"
 "             here will be overwritten by a conflicting option in the file.\n"
@@ -109,7 +104,7 @@ static void licence()
     printf(
 "Msc-generator, a message sequence chart renderer.\n"
 "This file is part of Msc-generator.\n"
-"Copyright 2008,2009,2010,2011 Zoltan Turanyi\n"
+"Copyright 2008,2009,2010 Zoltan Turanyi\n"
 "Distributed under GNU Affero General Public License.\n"
 "\n"
 "Msc-generator is free software: you can redistribute it and/or modify\n"
@@ -135,9 +130,6 @@ int do_main(const std::list<std::string> &args, const char *designs,
     bool                  oPrint = false;
     bool                  oWarning = true;
     bool                  oCshize = false;
-    int                   oX = -1;
-    int                   oY = -1;
-    double                oScale = 0;
     string ss;
 
     Msc msc;
@@ -151,35 +143,11 @@ int do_main(const std::list<std::string> &args, const char *designs,
     bool show_usage = false;
     bool fail_options = false;
 
-    //Load deisgn definitions
-    if (designs)
-        msc.ParseText(designs, "[designlib]");
+	//Load deisgn definitions
+	if (designs)
+		msc.ParseText(designs, "[designlib]");
 
     for (std::list<std::string>::const_iterator i=args.begin(); i!=args.end(); i++) {
-        if (i->at(0) == '-' && i->at(1) == 'x') {
-            if (i->at(2) != '=' || sscanf(i->c_str()+3, "%d", &oX)!=1)
-                msc.Error.Error(opt_pos, "Missing size after '-x='. Using native size.");
-            else if (oX<10 || oX>200000) {
-                msc.Error.Error(opt_pos, "Invalid x size, it should be between [10..200000]. Using native size.");
-                oX = -1;
-            }
-        }
-        if (i->at(0) == '-' && i->at(1) == 'y') {
-            if (i->at(2) != '=' || sscanf(i->c_str()+3, "%d", &oY)!=1)
-                msc.Error.Error(opt_pos, "Missing size after '-y='. Using native size.");
-            else if (oY<10 || oY>200000) {
-                msc.Error.Error(opt_pos, "Invalid y size, it should be between [10..200000]. Using native size.");
-                oY = -1;
-            }
-        }
-        if (i->at(0) == '-' && i->at(1) == 's') {
-            if (i->at(2) != '=' || sscanf(i->c_str()+3, "%lf", &oScale)!=1)
-                msc.Error.Error(opt_pos, "Missing scale after '-s='. Using native size.");
-            else if (oScale<=0.001 || oScale>100) {
-                msc.Error.Error(opt_pos, "Invalid scale, it should be between [0.001..100]. Ignoring it.");
-                oScale = 0;
-            }
-        }
         if (*i == "-o") {
             if (i==--args.end()) {
                 msc.Error.Error(opt_pos,
@@ -377,26 +345,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
         //parse input text;
         msc.ParseText(input, oInputFile.c_str());
         msc.CompleteParse(oOutType, true);
-
-        //Determine scaling
-        double x_scale = 1;
-        double y_scale = 1;
-        if (oX>0 || oY>0) {
-            if (oScale)
-                msc.Error.Error(opt_pos, "Conflicting scaing options. Use either -s or one/both of -x/-y. Using no scaling.");
-            else if (oX>0 && oY>0) {
-                x_scale = double(oX)/double(msc.total.x);
-                y_scale = double(oY)/double(msc.total.y);
-            } else if (oX>0)
-                y_scale = x_scale = double(oX)/double(msc.total.x);
-            else if (oY>0)
-                x_scale = y_scale = double(oY)/double(msc.total.y);
-        } else if (oScale)
-            x_scale = y_scale = oScale;
-
         std::cerr << msc.Error.Print(oWarning);
         //Now cycle through pages and write them to individual files
-        msc.DrawToOutput(oOutType, x_scale, y_scale, oOutputFile);
+        msc.DrawToOutput(oOutType, oOutputFile);
     }
 
     free(input);

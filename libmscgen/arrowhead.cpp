@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -144,7 +144,7 @@ bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
     std::vector<double> xPos(2); 
     xPos[0] = 0;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.7;
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
+    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, 0);
     msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     msc->Line(XY(xPos[1], 1), XY(xPos[1], HINT_GRAPHIC_SIZE_Y-1), eLine);
     ArrowHead ah(ArrowHead::BIGARROW);
@@ -162,7 +162,7 @@ bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrow
     if (!msc) return false;
     const double xx = left ? 0.9 : 0.7;
     XY xy(HINT_GRAPHIC_SIZE_X*xx, HINT_GRAPHIC_SIZE_Y/2);
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
+    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, 0);
     ArrowHead ah;
     ah.line += MscColorType(0,192,32); //green-blue
     ah.endType.second = type;
@@ -415,14 +415,8 @@ void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDraw
     if (forward) wh.x *= -1;
 
     MscFillAttr fill(line.color.second, GRADIENT_NONE);
-    Contour tri1, tri2;
-    if (forward) {
-        tri1 = Contour(xy + wh - XY(0, wh.y) - XY(0, wh.y), xy, xy+wh);
-        tri2 = Contour(xy - wh + XY(0, wh.y) + XY(0, wh.y), xy, xy-wh);
-    } else {
-        tri1 = Contour(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
-        tri2 = Contour(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
-    }
+    Contour tri1(xy + wh - XY(0, wh.y) - XY(0, wh.y), xy, xy+wh);
+    Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
 
     switch(GetType(bidir, which))
     {

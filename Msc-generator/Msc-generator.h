@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -26,7 +26,6 @@
 #endif
 
 #include "resource.h"       // main symbols
-#include "ChartData.h"
 #include "OutputView.h"
 #include "MiniEditor.h"
 #include "csh.h"
@@ -84,7 +83,6 @@ public:
     bool m_bHintAttrValue;
     bool m_bHintFilter;
     bool m_bHintCompact;
-    CChartCache::ECacheType m_cacheType;
 
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
@@ -102,7 +100,7 @@ public:
 	bool FillDesignDesignCombo(const char *current, bool updateComboContent=false);
 	void FillDesignPageCombo(int no_pages, int page);
 	bool IsInternalEditorRunning() const {
-		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) /* && m_pWndEditor->IsVisible()*/;}
+		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) && m_pWndEditor->IsVisible();}
 
 	afx_msg void OnAppAbout();
 	afx_msg void OnEditPreferences();

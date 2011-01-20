@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -138,17 +138,6 @@ void CChartData::RemoveSpacesAtLineEnds()
 	}
 }
 
-CDrawingChartData::CDrawingChartData(const CChartData&o) : m_msc(NULL), m_bPageBreaks(false)
-{
-    operator=(o);
-}
-
-CDrawingChartData::CDrawingChartData(const CDrawingChartData&o) : m_msc(NULL), m_bPageBreaks(m_bPageBreaks)
-{
-    operator=(static_cast<const CChartData&>(o));
-}
-
-
 void CDrawingChartData::SetDesign (const char *design)
 {
 	if (!design) return;
@@ -157,71 +146,51 @@ void CDrawingChartData::SetDesign (const char *design)
 	m_ForcedDesign = design;
 }
 
-void CDrawingChartData::FreeMsc() const 
+void CDrawingChartData::CompileIfNeeded(bool doEMF) const 
 {
-    if (m_msc) {
-        delete m_msc; 
-        m_msc=NULL; 
-    }
-}
-
-
-void CDrawingChartData::CompileIfNeeded() const 
-{
+	if (doEMF != m_hemf_is_true_emf) FreeMsc();
 	//To force a recompilation, call ReCompile()
-	if (!m_msc) {
-	    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	    ASSERT(pApp);
-	    m_msc = new Msc;
-	    if (pApp) 
-		    m_msc->pedantic = pApp->m_Pedantic;
-	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
-		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
-		    if (!m_ForcedDesign.IsEmpty())
-			    if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
-				    m_msc->ignore_designs = true;
-	    }
-	    m_msc->ParseText(m_text, "");
-	    if (pApp) 
-		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
-	    //Do postparse, compile, calculate sizes and sort errors by line    
-	    m_msc->CompleteParse(MscDrawer::EMF, true);
-    }
+	if (m_msc) return;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp);
+	m_msc = new Msc;
+	if (pApp) 
+		m_msc->pedantic = pApp->m_Pedantic;
+	if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
+		m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
+		if (!m_ForcedDesign.IsEmpty())
+			if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
+				m_msc->ignore_designs = true;
+	}
+	m_msc->ParseText(m_text, "");
+	if (pApp) 
+		m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
+	//Do postparse, compile, calculate sizes and sort errors by line    
+	m_msc->CompleteParse(doEMF ? MscDrawer::WMF : MscDrawer::WMF, true);
+
+	HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+	Draw(hdc, doEMF, pApp->m_bPB_Editing);
+	m_hemf = CloseEnhMetaFile(hdc);
+	m_hemf_is_true_emf = doEMF;
 }
 
 unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {
 	return GetMsc()->Error.GetErrorNum(oWarnings);
 }
 
-bool CDrawingChartData::IsErrorInFile(unsigned num, bool oWarnings) const 
-{
-    if (GetErrorNum(oWarnings)>num && num>=0)
-        return GetMsc()->Error.GetErrorLoc(num, oWarnings).file == GetMsc()->Error.Files.size()-1;
-    else
-        return false;
-}
-
 unsigned CDrawingChartData::GetErrorLine(unsigned num, bool oWarnings) const 
 {
-    if (GetErrorNum(oWarnings)>num && num>=0 )
-        return GetMsc()->Error.GetErrorLoc(num, oWarnings).line;
-    else
-        return 0;
+	return GetMsc()->Error.GetErrorLoc(num, oWarnings).line;
 }
 
 unsigned CDrawingChartData::GetErrorCol(unsigned num, bool oWarnings) const 
 {
-    if (GetErrorNum(oWarnings)>num && num>=0)
-        return GetMsc()->Error.GetErrorLoc(num, oWarnings).col;
-    return 0;
+	return GetMsc()->Error.GetErrorLoc(num, oWarnings).col;
 }
 
 CString CDrawingChartData::GetErrorText(unsigned num, bool oWarnings) const 
 {
-    if (GetErrorNum(oWarnings)>num && num>=0)
-        return CString(GetMsc()->Error.GetErrorText(num, oWarnings));
-    else 
-        return "";
+	return CString(GetMsc()->Error.GetErrorText(num, oWarnings));
 }
 
 CString CDrawingChartData::GetDesigns() const 
@@ -257,39 +226,21 @@ double CDrawingChartData::GetBottomWithoutCopyright() const
     return size.y;
 }
 
-
-double CDrawingChartData::GetHeadingSize() const
+void CDrawingChartData::Draw(HDC hdc, bool doEMF, bool pageBreaks) const
 {
-    return GetMsc()->headingSize;
-}
-
-void CDrawingChartData::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const
-{
-    CompileIfNeeded();
-    if (m_msc->SetOutputWin32(MscDrawer::WIN, hdc, x_scale, y_scale, int(m_page)-1)) {
-        //draw page breaks only if requested and not drawing a single page only
-        m_msc->Draw(m_bPageBreaks && m_page==0);
-        m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(int(m_page)-1);
-        //MscLineAttr line(LINE_SOLID, MscColorType(0,0,255), 4, CORNER_NONE, 0);
-        //m_msc->Line(XY(0,0), XY(GetSize().cx*scale, GetSize().cy*scale), line);
-        m_msc->CloseOutput();
-    }
-
-}
-
-void CDrawingChartData::DrawToWMF(HDC hdc, bool pageBreaks) const
-{
-    if (!GetMsc()->SetOutputWin32(MscDrawer::WMF, hdc, 1.0, 1.0, int(m_page)-1)) return;
+	CompileIfNeeded(doEMF);
+	MscDrawer::OutputType ot = doEMF ? MscDrawer::EMF : MscDrawer::WMF;
+    if (!m_msc->SetOutputWin32(ot, hdc, int(m_page)-1)) return;
 	//draw page breaks only if requested and not drawing a single page only
     m_msc->Draw(pageBreaks && m_page==0);
-	m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
+	m_msc->UnClip(); //Unclip the banner text exclusion clipped in SetOutputWin32()
 	m_msc->DrawCopyrightText(int(m_page)-1);
     m_msc->CloseOutput();
 }
 
-void CDrawingChartData::DrawToFile(const char* fileName, double x_scale, double y_scale) const
+void CDrawingChartData::Draw(const char* fileName) const
 {
+	CompileIfNeeded();
 	string fn(fileName?fileName:"Untitled");
     size_t pos = fn.find_last_of('.');
     if (pos==string::npos) {
@@ -309,7 +260,7 @@ void CDrawingChartData::DrawToFile(const char* fileName, double x_scale, double 
         fn += ".png";
     }
 	//Ignore useTextPaths
-    GetMsc()->DrawToOutput(ot, x_scale, y_scale, fn);
+    m_msc->DrawToOutput(ot, fn);
 }
 
 TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
@@ -334,93 +285,28 @@ TrackableElement *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) c
 	return itr->second;
 }
 
-CChartCache::CChartCache() :
-m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_BMP_x_scale(0), m_cache_BMP_y_scale(0)
+/*unsigned CDrawingChartData::GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const
 {
-}
+	if (arc==NULL) return 0;
+	CompileIfNeeded();
+	XY size, offset;
+    m_msc->GetPagePosition(page_shown, offset, size);
+	unsigned count=0;
+	for(std::set<Block>::const_iterator i=static_cast<ArcBase*>(arc)->GetGeometry().cover.begin(); 
+		    i!=static_cast<ArcBase*>(arc)->GetGeometry().cover.end() && count<max_size; i++) {
+		if (i->drawType == Block::DRAW_NONE) continue;
+		//If it lies entirely off the page, do not generate a record
+		if (i->y.from > offset.y + size.y) continue;
+		if (i->y.till < offset.y) continue;
 
-void CChartCache::ClearCache() 
-{
-    if (m_cache_EMF) {
-        DeleteEnhMetaFile(m_cache_EMF);
-        m_cache_EMF = NULL;
-    }
-    if (m_cache_BMP_x_scale) {
-        m_cache_BMP_x_scale = 0;
-        m_cache_BMP.DeleteObject();
-    }
+		result[count].r.left = i->x.from;
+		result[count].r.right = i->x.till;
+		result[count].r.top = i->y.from - offset.y; //shift tops by page start
+		result[count].r.bottom = i->y.till - offset.y;
+		result[count].frame_only = i->drawType == Block::DRAW_FRAME;
+		count++;
+	}
+	bottom_clip = size.y;
+	return count;
 }
-
-void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) 
-{
-    if (!m_data) return;
-    m_data->CompileIfNeeded();
-    if (!m_data->m_msc) return;
-    switch (m_cacheType) {
-    case CACHE_NONE:
-        if (m_data->m_msc->SetOutputWin32(MscDrawer::WIN, hdc, x_scale, y_scale, int(m_data->m_page)-1)) {
-            //draw page breaks only if requested and not drawing a single page only
-            m_data->m_msc->Draw(m_data->m_bPageBreaks && m_data->m_page==0);
-            m_data->m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-            m_data->m_msc->DrawCopyrightText(int(m_data->m_page)-1);
-            //MscLineAttr line(LINE_SOLID, MscColorType(0,0,255), 4, CORNER_NONE, 0);
-            //m_msc->Line(XY(0,0), XY(GetSize().cx*scale, GetSize().cy*scale), line);
-            m_data->m_msc->CloseOutput();
-        }
-        break;
-    case CACHE_BMP:
-        //GetClipBox(hdc, &clip);
-        if (m_cache_BMP_x_scale != x_scale || m_cache_BMP_y_scale != y_scale || m_cache_BMP_clip != clip) {
-            //Cache not ok, regenerate
-            if (m_cache_BMP_x_scale) 
-                m_cache_BMP.DeleteObject(); //Delete old cached object
-            m_cache_BMP_clip = clip;
-            m_cache_BMP_x_scale = x_scale;
-            m_cache_BMP_y_scale = y_scale;
-            CDC targetDC;
-            targetDC.Attach(hdc);
-	        CDC memDC;
-	        memDC.CreateCompatibleDC(&targetDC);
-            m_cache_BMP.CreateCompatibleBitmap(&targetDC, clip.Width(), clip.Height());
-            CBitmap *oldBitmap = memDC.SelectObject(&m_cache_BMP);
-            memDC.SetWindowOrg(clip.left, clip.top);
-            memDC.FillSolidRect(clip, targetDC.GetBkColor());
-            if (m_data->m_msc->SetOutputWin32(MscDrawer::WIN, memDC.m_hDC, x_scale, y_scale, int(m_data->m_page)-1)) {
-                //draw page breaks only if requested and not drawing a single page only
-                m_data->m_msc->Draw(m_data->m_bPageBreaks && m_data->m_page==0);
-                m_data->m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-                m_data->m_msc->DrawCopyrightText(int(m_data->m_page)-1);
-                m_data->m_msc->CloseOutput();
-            }
-            targetDC.BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, clip.left, clip.top, SRCCOPY);   
-            memDC.SelectObject(oldBitmap); //select our cached bitmap out from the temp context
-            targetDC.Detach();
-        } else {
-            //Copy cache to target
-            CDC targetDC;
-            targetDC.Attach(hdc);
-	        CDC memDC;
-	        memDC.CreateCompatibleDC(&targetDC);
-	        CBitmap *oldBitmap = memDC.SelectObject(&m_cache_BMP);
-            targetDC.BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, 0, 0, SRCCOPY);   
-            memDC.SelectObject(oldBitmap); //select our cached bitmap out from the temp context
-            targetDC.Detach();
-        }
-        break;
-    case CACHE_EMF:
-        if (!m_cache_EMF) {
-            //cache not OK, regenerate
-            HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-            if (!m_data->m_msc->SetOutputWin32(MscDrawer::EMF, hdc, 1., 1., int(m_data->m_page)-1)) return;
-            //draw page breaks only if requested and not drawing a single page only
-            m_data->m_msc->Draw(m_data->m_bPageBreaks && m_data->m_page==0);
-            m_data->m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-            m_data->m_msc->DrawCopyrightText(int(m_data->m_page)-1);
-            m_data->m_msc->CloseOutput();
-            m_cache_EMF = CloseEnhMetaFile(hdc);
-        }
-        CRect full(0,0, m_data->GetSize().cx*x_scale, m_data->GetSize().cy*y_scale);
-        PlayEnhMetaFile(hdc, m_cache_EMF, &full);
-        break;
-    }
-}
+*/

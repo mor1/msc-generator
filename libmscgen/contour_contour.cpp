@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -139,7 +139,7 @@ Ray::Ray(const XY &point, CPsByContour &st, int v, double p, bool i) :
         cangle = 0;
     else switch (triangle_dir(point, xy, e.GetEllipseData().GetCenter())) {
         case CLOCKWISE:
-            cangle = +1; break;   //TODO do it right: smaller circles should get larger value!!!
+            cangle = +1; break;   //XXX do it right: smaller circles should get larger value!!!
         case COUNTERCLOCKWISE:
             cangle = -1; break;
         default:
@@ -479,7 +479,7 @@ CPPointer::CPPointer(const CPOnEdge &cp) : bycont(&cp.iRay->bycont), vertex(cp.i
     iCP = bycont->find(CPPos(cp.iRay->vertex, cp.iRay->pos));
     //if a cp at pos is not found, jump to next vertex
     if (iCP == bycont->end()) {
-        _ASSERT(0); // remove this assert
+        _ASSERT(0); //XXX remove this assert
         vertex = (vertex+1)%bycont->contour->size();
         iCP = bycont->end();
     }
@@ -1325,7 +1325,7 @@ int prev_edgexy(const std::vector<EdgeXY> &edges, int i)
 	return edges[j].valid ? j : -1;
 }
 
-//TODO Fix Expand to deal with expanding counterclockwise curvy edges
+//XXX Fix Expand to deal with expanding counterclockwise curvy edges
 void Contour::Expand(double gap, ContourList &res) const
 {
     if (gap==0) {

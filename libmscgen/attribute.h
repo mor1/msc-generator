@@ -204,37 +204,21 @@ inline bool IsLineTypeContinuous(MscLineType t) {return t!=LINE_DOTTED && t!=LIN
 inline bool IsLineTypeDouble(MscLineType t) {return t==LINE_DOUBLE;}
 inline bool IsLineTypeTriple(MscLineType t) {return t==LINE_TRIPLE || t==LINE_TRIPLE_THICK;}
 inline bool IsLineTypeDoubleOrTriple(MscLineType t) {return IsLineTypeDouble(t) || IsLineTypeTriple(t);}
-inline double LineWidthMultiplier(MscLineType t) {return t==LINE_NONE ? 0 : t==LINE_DOUBLE ? 3 : t==LINE_TRIPLE ? 5 : t==LINE_TRIPLE_THICK ? 6 : 1;}
-
-typedef enum {
-    CORNER_INVALID = 0,
-    CORNER_NONE,
-    CORNER_ROUND,
-    CORNER_BEVEL,
-    CORNER_NOTE
-} MscCornerType;
-
-inline double RadiusIncMultiplier(MscCornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL || t==CORNER_NOTE ? tan(22.5*M_PI/180) : 0;}
 
 class MscLineAttr {
 public:
-    std::pair<bool, MscLineType>   type;
-    std::pair<bool, MscColorType>  color;
-    std::pair<bool, double>        width;
-    std::pair<bool, double>        radius;
-    std::pair<bool, MscCornerType> corner;
+    std::pair<bool, MscLineType>  type;
+    std::pair<bool, MscColorType> color;
+    std::pair<bool, double>       width;
+    std::pair<bool, double>       radius;
     MscLineAttr();
     MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}
     MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
-    MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, int r) :
-        type(true, t), color(true, c), width(true, w), corner(true, ct), radius(true, r) {}
-    void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;}
-    bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;}
+    MscLineAttr(MscLineType t, MscColorType c, double w, int r) :
+        type(true, t), color(true, c), width(true, w), radius(true, r) {}
+    void Empty() {type.first = color.first = width.first = radius.first = false;}
+    bool IsComplete() const {return type.first && color.first && width.first && radius.first;}
     void MakeComplete();
-    MscLineAttr &operator +=(const MscLineAttr&a);
-    bool operator == (const MscLineAttr &a);
-
-    //functions about line style
     bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);}
     bool IsDouble() const {_ASSERT(type.first); return IsLineTypeDouble(type.second);}
     bool IsTriple() const {_ASSERT(type.first); return IsLineTypeTriple(type.second);}
@@ -242,10 +226,12 @@ public:
     double DoubleSpacing() const     {_ASSERT(IsDouble()&&width.first); return width.second;}
     double TripleSpacing() const     {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.5:2.0);}
     double TripleMiddleWidth() const {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.0:1.0);}
-    double LineWidth() const {_ASSERT(type.first && width.first); return width.second * LineWidthMultiplier(type.second);}
     const double * DashPattern(int &num) const;
-    double RadiusIncMul() const {_ASSERT(type.first); return ::RadiusIncMultiplier(corner.second);}
-
+    MscLineAttr &operator +=(const MscLineAttr&a);
+    bool operator == (const MscLineAttr &a);
+    double LineWidth() const {_ASSERT(type.first && width.first);
+         return width.second * (type.second==LINE_NONE ? 0 : type.second==LINE_DOUBLE ? 3 :
+             type.second==LINE_TRIPLE ? 5 : type.second==LINE_TRIPLE_THICK ? 6 : 1);}
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
@@ -255,7 +241,7 @@ public:
     Contour CreateRectangle(const XY &s, const XY &d) const {return CreateRectangle(s.x, d.x, s.y, d.y);}
     Contour CreateRectangle(const Block &b) const {return CreateRectangle(b.x.from, b.x.till, b.y.from, b.y.till);}
 
-    DoublePair CalculateTextMargin(Area textCover, double rect_top) const; 
+    DoublePair CalculateTextMargin(Area textCover, double rect_top, MscDrawer *debug=NULL) const; //XXX kill debug here
 };
 
 typedef enum {

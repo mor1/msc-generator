@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -115,7 +115,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-	pDoc->m_ChartShown.DrawToWMF(pDC->m_hDC, pApp->m_bPB_Embedded);
+	pDoc->m_ChartShown.Draw(pDC->m_hDC, false, pApp->m_bPB_Embedded);
 	return TRUE;
 }
 

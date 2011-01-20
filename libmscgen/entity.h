@@ -1,7 +1,6 @@
 #if !defined(ENTITY_H)
 #define ENTITY_H
 
-#include "trackable.h"
 #include "style.h"
 #include "contour_area.h"
 
@@ -78,7 +77,7 @@ template <class T1, class T2, class T3> struct triplet
 };
 
 /* Class allocated during parse */
-//Each occurrence of an entity in an enity command allocates an EntityDef.
+//Each occurrence of an entity in an enity command allocates an EntityDef. 
 //In contrast, there is only one Entity object per entity
 class EntityDef : public TrackableElement
 {
@@ -92,7 +91,6 @@ public:
     triplet<bool,double,file_line> pos;
     triplet<bool,string,file_line> rel;
     std::pair<bool,bool>           show;
-    bool                           show_is_explicit; //"show" comes from user text
 
     EIterator                      itr;         //this is set during PostParse, points to the entity
     MscStyle                       style;       //this is finalized during PostParse

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -197,9 +197,6 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
     std::pair<string,string>("TOK_COMMAND_PARALLEL", "'parallel'"),
     std::pair<string,string>("TOK_VERTICAL", "'vertical'"),
     std::pair<string,string>("TOK_AT", "'at'"),
-    std::pair<string,string>("TOK_SHOW", "'show'"),
-    std::pair<string,string>("TOK_HIDE", "'hide'"),
-    std::pair<string,string>("TOK_BYE", "'bye'"),
     std::pair<string,string>("TOK_COLON_STRING", "':'"),  //just say colon to the user
     std::pair<string,string>("TOK_COLON_QUOTED_STRING", "':'"),  //just say colon to the user
     std::pair<string,string>("TOK_NUMBER", "number"),

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -24,13 +24,6 @@
 #include "OutputView.h"
 #include "MiniEditor.h"
 
-class CMscGenSplitterWnd : public CSplitterWnd
-{
-public:
-    virtual BOOL SplitRow(int cyBefore);
-    virtual void DeleteRow(int rowDelete);
-};
-
 
 class CMainFrame : public CFrameWndEx
 {
@@ -41,18 +34,15 @@ protected: // create from serialization only
 
 // Attributes
 public:
-	CMscGenSplitterWnd m_wndSplitter;
+	CSplitterWnd      m_wndSplitter;
 	CMFCStatusBar     m_wndStatusBar;
 protected:  
-    friend class CMscGenSplitterWnd;
 	CMFCMenuBar       m_wndMenuBar;
 	CMFCToolBar       m_wndToolBar;
 	CMFCToolBar       m_wndDesignBar;
 	CMFCToolBarImages m_UserImages;
 	COutputViewBar    m_wndOutputView;
 	CEditorBar        m_ctrlEditor;
-    bool m_bAutoSplit;         //True if autosplit mode is on
-
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -61,8 +51,6 @@ protected:
 	afx_msg LRESULT OnToolbarReset(WPARAM wp, LPARAM lp);
 	afx_msg void OnApplicationLook(UINT id);
 	afx_msg void OnUpdateApplicationLook(CCmdUI* pCmdUI);
-	afx_msg void OnUpdateButtonAutoSplit(CCmdUI *pCmdUI);
-	afx_msg void OnButtonAutoSplit();             //AutpSplit mode button
 	DECLARE_MESSAGE_MAP()
 public:
 	virtual BOOL OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext);
@@ -73,9 +61,6 @@ public:
 	        BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnViewFullScreen();
 
-    bool IsInAutoSplitMode() const {return m_bAutoSplit;}
-    void SetSplitSize(unsigned coord);
-
 // Implementation
 public:
 	virtual ~CMainFrame();
@@ -84,7 +69,6 @@ public:
 	virtual void Dump(CDumpContext& dc) const;
 #endif
 
-    afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 };
 
 

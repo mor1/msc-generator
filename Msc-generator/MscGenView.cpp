@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@
 
 #include <string>
 #include <cmath>
-#include <utility>
+
 #include "contour_area.h"
 
 
@@ -224,7 +224,6 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_CREATE()
 	ON_WM_DROPFILES()
 	ON_WM_LBUTTONDOWN()
-//    ON_WM_ACTIVATE()
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
@@ -232,6 +231,8 @@ END_MESSAGE_MAP()
 CMscGenView::CMscGenView() : m_size(0,0)
 {
 	m_size.SetSize(0,0);
+	m_cachedBitmapClip.SetRectEmpty();
+	m_cachedBitmapZoom = 100;
 	// construction code here
 	m_DeleteBkg = false;
 	m_stretch_x = m_stretch_y = 1;
@@ -247,7 +248,7 @@ CMscGenView::~CMscGenView()
 
 BOOL CMscGenView::PreCreateWindow(CREATESTRUCT& cs)
 {
-	// Modify the Window class or styles here by modifying
+	// TODO: Modify the Window class or styles here by modifying
 	//  the CREATESTRUCT cs
 
 	return CScrollView::PreCreateWindow(cs);
@@ -340,21 +341,19 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 
 	CWaitCursor wait;
 	CDrawingChartData data(pDoc->m_ChartShown);
-    data.m_bPageBreaks = false;
 	data.SetPage(pInfo->m_nCurPage);
 
     CSize orig_size = data.GetSize(); //This one compiles
-	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
-    data.DrawToWindow(pDC->m_hDC, scale, scale, pInfo->m_rectDraw);
+	double fzoom = double(pInfo->m_rectDraw.Width())/orig_size.cx;
+	CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 
-	//CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
-	//HENHMETAFILE hemf = data.GetEMF(true);
-	//ENHMETAHEADER header;
-	//GetEnhMetaFileHeader(hemf, sizeof(header), &header);
-	//r.SetRect(header.rclBounds.left*fzoom, header.rclBounds.top*fzoom,
-	//	      header.rclBounds.right*fzoom, header.rclBounds.bottom*fzoom); 
-	//PlayEnhMetaFile(pDC->m_hDC, hemf, r);
-	//DeleteEnhMetaFile(hemf);
+	HENHMETAFILE hemf = data.GetEMF(true);
+	ENHMETAHEADER header;
+	GetEnhMetaFileHeader(hemf, sizeof(header), &header);
+	r.SetRect(header.rclBounds.left*fzoom, header.rclBounds.top*fzoom,
+		      header.rclBounds.right*fzoom, header.rclBounds.bottom*fzoom); 
+	PlayEnhMetaFile(pDC->m_hDC, hemf, r);
+	DeleteEnhMetaFile(hemf);
 }
 
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
@@ -420,53 +419,157 @@ void CMscGenView::InvalidateBlock(const Block &b)
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
 	//pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
-	double scale = pDoc->m_zoom / 100.; 
+	double xFactor = pDoc->m_zoom / 100.; 
+	double yFactor = pDoc->m_zoom / 100.; 
 
-	//double pageTop = pDoc->m_ChartShown.GetPageYShift();
+	double pageTop = pDoc->m_ChartShown.GetPageYShift();
 
-	//CPoint point = GetDeviceScrollPosition();
-	////inflate by 2 pixels, as track rects cover a bigger area
-	////Shift so that we are in page coordinates
-	////then scale to device units
-	////then shift by the scroll position
-    CRect r(b.x.from*scale-1, b.y.from*scale-1, b.x.till*scale+1, b.y.till*scale+1);
-	//InvalidateRect(&r);
-    Invalidate();
+	CPoint point = GetDeviceScrollPosition();
+	//inflate by 2 pixels, as track rects cover a bigger area
+	//Shift so that we are in page coordinates
+	//then scale to device units
+	//then shift by the scroll position
+	CRect r((b.x.from-2)*xFactor - point.x, (b.y.from-pageTop-2)*yFactor - point.y, 
+		    (b.x.till+4)*xFactor - point.x, (b.y.till-pageTop+4)*yFactor - point.y);
+//	InvalidateRect(&r);
+	Invalidate();
 }
+
+//Draw covers to the dest surface
+void AddTrackRectsToSurface(const AreaList &al, double alpha, cairo_t *cr,
+							double xScale, double yScale, 
+                            COLORREF lineColor, COLORREF fillColor)
+{
+    cairo_save(cr);
+    cairo_scale(cr, xScale, yScale);
+    cairo_set_line_width(cr, 1);
+
+    for (auto i = al.GetCover().begin(); i!=al.GetCover().end(); i++) {
+	    cairo_set_source_rgba(cr, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+		                          GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+        i->Fill(cr);
+	    cairo_set_source_rgba(cr, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+		                          GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+        i->Line(cr);
+    }
+    cairo_restore(cr);
+    
+    ////Calculate line width
+	//int lwx = floor(xScale+0.5);
+	//if (lwx<1) lwx = 1;
+	//int lwy = floor(yScale+0.5);
+	//if (lwy<1) lwy = 1;
+	//Block b;
+	//contour.GetBoundingBox(b);
+	//b.x.from = (b.x.from-2) * xScale;
+	//b.x.till = (b.x.till+4) * xScale;
+	//b.y.from = (b.y.from-2) * yScale;
+	//b.y.till = (b.y.till+4) * yScale;
+	////create fill surface
+	////We make it lwx, lwy larger at top and left, so xor operations are not truncated there
+	//cairo_surface_t *surface_fill = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
+	//cairo_t *cr_fill = cairo_create(surface_fill);
+	//cairo_set_source_rgba(cr_fill, 1, 1, 1, 1);
+	//
+	//for (std::set<Block>::const_iterator j = contour.GetCover().begin(); j!=contour.GetCover().end(); j++) {
+	//	CRect rr;
+	//	rr.left   = j->x.from * xScale - 2*lwx;
+	//	rr.right  = j->x.till * xScale + 2*lwx;
+	//	rr.top    = j->y.from * yScale - 2*lwy;
+	//	rr.bottom = j->y.till * yScale + 2*lwy;
+	//	cairo_rectangle(cr_fill, rr.left - b.x.from + lwx, rr.top - b.y.from + lwy, rr.Width(), rr.Height());
+	//	//Here j->drawType can only be NORMAL. FFRAMEs are handled in CMscGenView::DrawTrackRects
+	//	cairo_fill(cr_fill);
+	//}	
+	//cairo_destroy(cr_fill);
+
+	////create outline surface  (we make it lwx, lwy larger...)
+	//cairo_surface_t *surface_line = cairo_image_surface_create(CAIRO_FORMAT_A8, b.x.Spans()+lwx, b.y.Spans()+lwy);
+	//cairo_t *cr_line = cairo_create(surface_line);
+	//cairo_set_operator(cr_line, CAIRO_OPERATOR_XOR);
+	//cairo_set_source_rgba(cr_line, 1, 1, 1, 1);
+	//cairo_mask_surface(cr_line, surface_fill, 0, 0);
+	//cairo_mask_surface(cr_line, surface_fill, lwx, lwy);
+	//cairo_destroy(cr_line);
+
+	////Copy stuff to the destination surface
+	//cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+	//	                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+	//cairo_mask_surface(cr_dest, surface_fill, b.x.from, b.y.from);
+	//cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+	//	                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+	//cairo_mask_surface(cr_dest, surface_line, b.x.from-lwx, b.y.from-lwy);
+	//cairo_surface_destroy(surface_line);
+	//cairo_surface_destroy(surface_fill);
+}
+
+//Draw a frame to the dest surface, assume b is a frame
+//void AddFrameToSurface(const Block &block, double alpha, cairo_t *cr_dest, 
+//					   double xScale, double yScale, COLORREF lineColor, COLORREF fillColor)
+//{
+//	//Calculate line width
+//	int lwx = floor(xScale+0.5);
+//	if (lwx<1) lwx = 1;
+//	int lwy = floor(yScale+0.5);
+//	if (lwy<1) lwy = 1;
+//	Block b;
+//	b.x.from = (block.x.from) * xScale;
+//	b.x.till = (block.x.till) * xScale;
+//	b.y.from = (block.y.from) * yScale;
+//	b.y.till = (block.y.till) * yScale;
+//	cairo_rectangle(cr_dest, b.x.from,         b.y.from,         b.x.Spans(),         b.y.Spans());
+//	cairo_rectangle(cr_dest, b.x.from - 3*lwx, b.y.from - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
+//	cairo_set_fill_rule(cr_dest, CAIRO_FILL_RULE_EVEN_ODD);
+//	cairo_set_source_rgba(cr_dest, GetRValue(fillColor)/255., GetGValue(fillColor)/255., 
+//		                           GetBValue(fillColor)/255., GetAValue(fillColor)/255.*alpha);
+//	cairo_fill(cr_dest);
+//
+//	cairo_set_source_rgba(cr_dest, GetRValue(lineColor)/255., GetGValue(lineColor)/255., 
+//		                           GetBValue(lineColor)/255., GetAValue(lineColor)/255.*alpha);
+//	cairo_rectangle(cr_dest, b.x.from+0.5,         b.y.from+0.5,         b.x.Spans(),         b.y.Spans());
+//	cairo_rectangle(cr_dest, b.x.from+0.5 - 3*lwx, b.y.from+0.5 - 3*lwy, b.x.Spans() + 6*lwx, b.y.Spans() + 6*lwy);
+//	cairo_set_line_width(cr_dest, (lwx+lwy)/2);
+//	cairo_stroke(cr_dest);
+//}
 
 
 //clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
-void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_scale)
+void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double xScale, double yScale)
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (pDoc->m_trackArcs.size()==0 || pDC==NULL) return;
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
-    clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
+	if (clip.bottom > yScale*pDoc->m_ChartShown.GetBottomWithoutCopyright());
+		clip.bottom = yScale*pDoc->m_ChartShown.GetBottomWithoutCopyright();
 	//This is the destination surface
-	cairo_surface_t *surface = cairo_win32_surface_create(*pDC);
-	cairo_t *cr = cairo_create(surface);
-    cairo_scale(cr, x_scale, y_scale);
-    //cairo_rectangle(cr, clip.left, clip.top, clip.right, clip.bottom);
-    //cairo_clip(cr);
-    cairo_set_line_width(cr, 1);
+	cairo_surface_t *surface_dest = cairo_win32_surface_create(*pDC);
+	cairo_t *cr_dest = cairo_create(surface_dest);
 	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
-        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                  GetGValue(pApp->m_trackFillColor)/255., 
-		                          GetBValue(pApp->m_trackFillColor)/255., 
-                                  GetAValue(pApp->m_trackFillColor)/255.*i->alpha/255.);
-        i->arc->GetAreaToDraw().Fill(cr);
-	    cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                  GetGValue(pApp->m_trackFillColor)/255., 
-		                          GetBValue(pApp->m_trackFillColor)/255., 
-                                  GetAValue(pApp->m_trackFillColor)/255.*i->alpha/255.);
-        i->arc->GetAreaToDraw().Line(cr);
-    }
+        AddTrackRectsToSurface(i->arc->GetAreaToDraw(), i->alpha/255., cr_dest, xScale, yScale, 
+			                   pApp->m_trackLineColor, pApp->m_trackFillColor);
+		////Draw normal covers, leave out FRAME
+		//Geometry contour;
+		//for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
+		//	if (j->drawType == Block::DRAW_NORMAL)
+		//		contour += *j;
+		//AddTrackRectsToSurface(contour, i->alpha/255., cr_dest, xScale, yScale, 
+		//	                   pApp->m_trackLineColor, pApp->m_trackFillColor);
+		////Do the frames
+		//for (std::set<Block>::const_iterator j = i->arc->geometry.GetCover().begin(); j!=i->arc->geometry.GetCover().end(); j++) 
+		//	if (j->drawType == Block::DRAW_FRAME) 
+		//		AddFrameToSurface(*j, i->alpha/255., cr_dest, xScale, yScale, 
+		//		                  pApp->m_trackLineColor, pApp->m_trackFillColor);
+	}
+
+	//ToDo: POLYGON TESTING XXX
+	//test_geo(cr_dest, m_hoverPoint.x, m_hoverPoint.y, m_clicked);
+
 	//Cleanup
-	cairo_destroy(cr);
-	cairo_surface_destroy(surface);
+	cairo_destroy(cr_dest);
+	cairo_surface_destroy(surface_dest);
 }
 
 
@@ -475,33 +578,72 @@ void CMscGenView::OnDraw(CDC* pDC)
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (SizeEmpty(m_size)) return;
-    CRect total;
-    CRect clip;
-    double x_scale, y_scale;
+	//m_zoom is always 100% when in place
 	if (pDoc->IsInPlaceActive()) {
-        x_scale = double(pDC->GetViewportExt().cx)/m_size.cx;              
-        y_scale = double(pDC->GetViewportExt().cy)/m_size.cy;              
-        total.SetRect(CPoint(0, 0), CPoint(pDC->GetViewportExt()));
-        clip = total;
+		//physical size of in place frame
+		CRect viewPort(CPoint(0, 0), pDC->GetViewportExt());
+		pDC->SetMapMode(MM_TEXT);
+		CDC memDC;
+		memDC.CreateCompatibleDC(pDC);
+		CBitmap bitmap;
+		bitmap.CreateCompatibleBitmap(pDC, viewPort.Width(), viewPort.Height());
+		CBitmap *oldBitmap = memDC.SelectObject(&bitmap);
+		memDC.FillSolidRect(viewPort, pDC->GetBkColor());
+		PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(false), viewPort);
+		DrawTrackRects(&memDC, viewPort, viewPort.Width()/double(m_size.cx), viewPort.Height()/double(m_size.cy));
+		pDC->BitBlt(0, 0, viewPort.Width(), viewPort.Height(), &memDC, 0, 0, SRCCOPY);   
+		memDC.SelectObject(oldBitmap);
 	} else {
-        x_scale = y_scale = pDoc->m_zoom/100.0;
-		total = CRect(CPoint(0, 0), CPoint(m_size.cx*x_scale, m_size.cy*y_scale));
+		CRect clip;
 		pDC->GetClipBox(&clip);
-    }
-    CPoint upper = GetScrollPosition();
-	CDC memDC;
-	memDC.CreateCompatibleDC(pDC);
-	CBitmap bitmap;
-	CBitmap *oldBitmap;
-    bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
-    oldBitmap = memDC.SelectObject(&bitmap);
-    memDC.SetWindowOrg(clip.left, clip.top);
-    memDC.FillSolidRect(clip, pDC->GetBkColor());
-    m_cache.DrawToWindow(memDC.m_hDC, x_scale, y_scale, clip);
-	DrawTrackRects(&memDC, clip, x_scale, y_scale);
-    //pDC->SetMapMode(MM_TEXT);
-    pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, clip.left, clip.top, SRCCOPY);   
-	memDC.SelectObject(oldBitmap);
+		CRect r(CPoint(0, 0), ScaleSize(m_size, pDoc->m_zoom/100.0));
+		CDC memDC;
+		memDC.CreateCompatibleDC(pDC);
+		CBitmap *oldBitmap;
+		//See if the cached bitmap is OK (same zoom & clip falls entirely within the bitmap)
+		if (m_cachedBitmapZoom == pDoc->m_zoom && ((m_cachedBitmapClip | clip) == m_cachedBitmapClip)) {
+			//Yes, select it into memDC
+			oldBitmap = memDC.SelectObject(&m_cachedBitmap);
+			memDC.SetWindowOrg(m_cachedBitmapClip.left, m_cachedBitmapClip.top);
+		} else {
+			//No, discard and regenerate bitmap
+			//A null m_cachedBitmapClp indicates m_cachedBitmap is invalid;
+			if (!m_cachedBitmapClip.IsRectNull()) m_cachedBitmap.DeleteObject();
+			m_cachedBitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
+			oldBitmap = memDC.SelectObject(&m_cachedBitmap);
+			memDC.SetWindowOrg(clip.left, clip.top);
+			memDC.FillSolidRect(clip, pDC->GetBkColor());
+			PlayEnhMetaFile(memDC.m_hDC, pDoc->m_ChartShown.GetEMF(true), r);
+			m_cachedBitmapClip = clip;
+			m_cachedBitmapZoom = pDoc->m_zoom;
+		}
+
+		//See if we have to draw trackrects
+		if (pDoc->m_trackArcs.size()>0) {
+			//Define second bitmap, copy chart there and add darw trackrects on top
+			CDC memDC2;
+			memDC2.CreateCompatibleDC(pDC);
+			CBitmap bitmap;
+			bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
+			CBitmap *oldBitmap2 = memDC2.SelectObject(&bitmap);
+			memDC2.SetWindowOrg(clip.left, clip.top);
+			memDC2.BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
+						  &memDC, clip.left, clip.top, SRCCOPY);   
+			DrawTrackRects(&memDC2, clip, pDoc->m_zoom/100., pDoc->m_zoom/100.);
+			//Finally copy to output DC
+			pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
+						&memDC2, clip.left, clip.top, SRCCOPY);   
+			memDC2.SelectObject(oldBitmap2);
+			//clip.DeflateRect(1,1);
+			//pDC->DPtoLP(clip);
+			//pDC->Rectangle(clip);
+		} else {
+			//Else just use the cached bitmap
+			pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(),
+						&memDC, clip.left, clip.top, SRCCOPY);   
+		}
+		memDC.SelectObject(oldBitmap);
+	}
 }
 
 void CMscGenView::OnViewRedraw()
@@ -526,10 +668,11 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
 
-    m_cache.SetCacheType(pApp->m_cacheType);
-    m_cache.SetData(&pDoc->m_ChartShown);
-
 	//Delete the cached bitmap
+	if (!m_cachedBitmapClip.IsRectNull()) 
+		m_cachedBitmap.DeleteObject();
+	m_cachedBitmapClip.SetRectEmpty();
+
 	if (pDoc->m_ChartShown.IsEmpty()) {
 		m_size.cx = m_size.cy = 0;
 		m_DeleteBkg = true;
@@ -915,14 +1058,4 @@ BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT dropEffect, CPo
 	return TRUE;
 }
 
-//void CMscGenView::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
-//{
-//    CScrollView::OnActivate(nState, pWndOther, bMinimized);
-//
-//    //Set focus to internal editor
-//	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-//	ASSERT(pApp != NULL);
-//    if (nState != WA_INACTIVE)
-//        if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
-//            pApp->m_pWndEditor->SetFocus();
-//}
+
