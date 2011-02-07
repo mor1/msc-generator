@@ -458,10 +458,10 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
 		                          GetBValue(pApp->m_trackFillColor)/255., 
                                   GetAValue(pApp->m_trackFillColor)/255.*i->alpha/255.);
         i->arc->GetAreaToDraw().Fill(cr);
-	    cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                  GetGValue(pApp->m_trackFillColor)/255., 
-		                          GetBValue(pApp->m_trackFillColor)/255., 
-                                  GetAValue(pApp->m_trackFillColor)/255.*i->alpha/255.);
+	    cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
+                                  GetGValue(pApp->m_trackLineColor)/255., 
+		                          GetBValue(pApp->m_trackLineColor)/255., 
+                                  GetAValue(pApp->m_trackLineColor)/255.*i->alpha/255.);
         i->arc->GetAreaToDraw().Line(cr);
     }
 	//Cleanup

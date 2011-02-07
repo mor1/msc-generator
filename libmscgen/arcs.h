@@ -48,7 +48,7 @@ class EntityDistanceMap;
 
 class ArcBase : public TrackableElement
 {
-    bool had_add_attr_list; //XXXdebug only
+    bool had_add_attr_list; //TODO: debug only, remove
 protected:
     Msc *chart;
     bool valid;        /* If false, then construction failed, arc does not exist */
@@ -221,9 +221,9 @@ protected:
     mutable double sy_text, dy_text;
     mutable double xpos, width;
 public:
-    ArcVerticalArrow(MscArcType t, const char *s, const char *d,
-        VertXPos *p, Msc *msc);
+    ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc);
     ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
+    ArcVerticalArrow* AddXpos(VertXPos *p);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -243,7 +243,7 @@ protected:
     bool            pipe;       //True if we display as a pipe
     bool            drawEntityLines; //true if we draw the entity lines (only if there is content)
     int             drawing_variant; //how to draw double or triple lines
-    ArcList        *emphasis;
+    ArcList        *content;
     ArcEmphasis    *first;      //If null, we are the first
     PtrList<ArcEmphasis> follow;
 
@@ -262,7 +262,7 @@ protected:
     mutable double sx_text, dx_text, y_text;  //label placement
     mutable Area text_cover;
 public:
-    //Constructor to construct the first emphasis in a series
+    //Constructor to construct the first box/pipe in a series
     ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc);
     ~ArcEmphasis();
@@ -273,6 +273,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh, bool pipe=false);
     ArcEmphasis* ChangeStyleForFollow(ArcEmphasis* =NULL);
     ArcEmphasis* AddFollow(ArcEmphasis*f);
+    ArcEmphasis* GetLastFollow() {return follow.size()?*follow.rbegin():this;}
     string Print(int ident=0) const;
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
@@ -401,7 +402,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual double Height(AreaList &cover);
-    virtual void PostPosProcess(double autoMarker);
+    virtual void ShiftBy(double y);
 };
 
 class CommandEmpty : public ArcCommand

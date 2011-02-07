@@ -120,6 +120,8 @@ public:
 
 	afx_msg void OnDesignDesign(); //design combo box changes
 	afx_msg void OnDesignPage(); //page combo box changes
+    afx_msg void OnUpdateDesignPage(CCmdUI *pCmdUI);
+    afx_msg void OnUpdateDesignDesign(CCmdUI *pCmdUI);
 
 	//Zoom functions
 			void SetZoom(int zoom=0);                        //Update views with new zoom factor. ==0 means just reset toolbar

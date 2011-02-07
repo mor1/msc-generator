@@ -442,7 +442,7 @@ bool Msc::AddAttribute(const Attribute &a)
 //This is called when a design definition is in progress.
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
-    if (a.Is("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || 
+    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || 
         a.StartsWith("text"))
         return AddAttribute(a);
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
@@ -450,7 +450,7 @@ bool Msc::AddDesignAttribute(const Attribute &a)
     return false;
 }
 
-void Msc::AttributeNames(Csh &csh)
+void Msc::AttributeNames(Csh &csh, bool designOnly)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale", HINT_ATTR_NAME));
@@ -460,11 +460,12 @@ void Msc::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.format", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.append", HINT_ATTR_NAME));
+    StringFormat::AttributeNames(csh);
+    if (designOnly) return;
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "pedantic", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
-    StringFormat::AttributeNames(csh);
 }
 
 bool Msc::AttributeValues(const std::string attr, Csh &csh)

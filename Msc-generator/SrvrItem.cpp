@@ -229,7 +229,9 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
 				pApp->m_bFullScreenViewMode = true;
 				//Switch to full screen
 				pMainFrame->ShowFullScreen();
-				if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->SetReadOnly(true);
+                pMainFrame->AddToFullScreenToolbar();
+				if (pApp->IsInternalEditorRunning()) 
+                    pApp->m_pWndEditor->SetReadOnly(true);
 				//Finally show the CMainFrame Window
 				CDocObjectServerItem::OnDoVerb(1); //Open
 				//Hide menu, seems to be needed, or else a native menu appears

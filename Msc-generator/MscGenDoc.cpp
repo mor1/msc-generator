@@ -168,8 +168,10 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_CBN_SELENDOK(ID_DESIGN_ZOOM, OnDesignZoom)
 	ON_COMMAND(ID_DESIGN_PAGE, OnDesignPage)
 	ON_CBN_SELENDOK(ID_DESIGN_PAGE, OnDesignPage)
+	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignPage)
 	ON_COMMAND(ID_DESIGN_DESIGN, OnDesignDesign)
 	ON_CBN_SELENDOK(ID_DESIGN_DESIGN, OnDesignDesign)
+	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignDesign)
 	ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
 	ON_COMMAND(ID_VIEW_PREVERROR, &CMscGenDoc::OnViewPreverror)
 	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
@@ -897,6 +899,13 @@ void CMscGenDoc::OnDesignDesign()
 	CheckIfChanged();     
 }
 
+void CMscGenDoc::OnUpdateDesignDesign(CCmdUI *pCmdUI)
+{
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    pCmdUI->Enable(pApp->m_SetOfDesigns.GetLength()>0);
+}
+
 void CMscGenDoc::OnDesignPage()
 {
 	CObList list;
@@ -917,6 +926,11 @@ void CMscGenDoc::OnDesignPage()
 	m_itrEditing->SetPage(index);  //set new page
 	ShowEditingChart(true);
 	CheckIfChanged();     
+}
+
+void CMscGenDoc::OnUpdateDesignPage(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_ChartShown.GetPages()>1);
 }
 
 void CMscGenDoc::SetZoom(int zoom)
@@ -1455,13 +1469,12 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
 	if (!m_bTrackMode) return;
 	TrackableElement *arc = m_ChartShown.GetArcByCoordinate(mouse);
+	StartFadingAll();
+	AddTrackArc(arc);
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
 		return;
 	m_last_arc = arc;
-	StartFadingAll();
-	AddTrackArc(arc);
-
 	//Now update selection in internal editor
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);

@@ -75,6 +75,7 @@ public:
 
     bool IsInAutoSplitMode() const {return m_bAutoSplit;}
     void SetSplitSize(unsigned coord);
+    bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it
 
 // Implementation
 public:
