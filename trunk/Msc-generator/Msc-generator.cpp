@@ -475,18 +475,22 @@ void CMscGenApp::FillDesignPageCombo(int no_pages, int page)
 	while(p) {
 		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
 		if (!combo) continue;
+        if (no_pages<2) combo->EnableWindow(false);
 		if (no_pages == 1 && combo->GetCount() == 1) continue;
 		//If the combo shows different number of pages then we have, update the combo
 		if (no_pages+1 != combo->GetCount()) {
 			combo->RemoveAllItems();
 			//Fill combo list with the appropriate number of pages
-			combo->AddItem("(all)", 0);
-			CString str;
-			if (no_pages > 1)
+			if (no_pages > 1) {
+                combo->AddItem("(all)", 0);
+                CString str;
 				for (int i=1; i<=no_pages; i++) {
 					str.Format("%d", i);
 					combo->AddItem(str, i);
 				}
+            } else {
+                combo->AddItem("(page)", 0);
+            }
 			combo->SetDropDownHeight(250);
 		}
 		//Set the index to the current page
@@ -712,7 +716,8 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
     //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
     if(GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion >= 6) 
-        m_cacheType = CChartCache::CACHE_EMF;
+       // m_cacheType = CChartCache::CACHE_EMF;
+       ;
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.

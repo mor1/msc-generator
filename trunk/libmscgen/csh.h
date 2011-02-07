@@ -136,6 +136,7 @@ typedef enum {
     HINT_ATTR_NAME,
     HINT_ATTR_VALUE,
     HINT_ENTITY,
+    HINT_MARKER,
     HINT_LINE_START
 } CshHintType;
 
@@ -190,6 +191,7 @@ public:
     bool              hintsForcedOnly; //if true hints should be displayed only if user forces that
     //Running variables during csh parsing
     std::set<std::string>             EntityNames;
+    std::set<std::string>             MarkerNames;
     std::map<std::string, CshContext> Designs;
     std::list<CshContext>             Contexts;
     CshHintType                       hintType;        //low level rules use to indicate type to higher rules
@@ -222,12 +224,18 @@ public:
     CshCursorRelPosType CursorIn(const CshPos &p) const {return CursorIn(p.first_pos, p.last_pos);}
     CshCursorRelPosType CursorIn(int a, int b) const;
     bool CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
+    bool CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
     bool CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
+    bool CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
     bool CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name=NULL);
+    bool CheckHintAtPlusOne(const CshPos &one, CshHintType ht, const char *a_name=NULL);
     bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name=NULL);
+    bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name=NULL);
     bool CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two);
+    bool CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAt(const CshPos &one);
     bool CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd);
+    bool CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd);
     bool CheckHintLocated(CshHintType ht);
      
     std::string HintPrefixNonSelectable() const {return "\\i";}
@@ -242,9 +250,10 @@ public:
     void AddDesignsToHints();
     void AddStylesToHints();
     void AddOptionsToHints();
-    void AddKeywordsToHints();
+    void AddDesignOptionsToHints();
+    void AddKeywordsToHints(bool includeParallel=true);
     void AddEntitiesToHints();
-    void AddLineBeginToHints() {AddOptionsToHints(); AddKeywordsToHints(); AddEntitiesToHints();}
+    void AddLineBeginToHints(bool includeParallel=true) {AddOptionsToHints(); AddKeywordsToHints(includeParallel); AddEntitiesToHints();}
     //fill in size, plain and filter/compact if needed
     void ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
 };

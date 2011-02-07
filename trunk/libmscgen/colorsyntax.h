@@ -152,6 +152,7 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ArcBase)          *arcbase;
     CHAR_IF_CSH(ArcList)          *arclist;
     CHAR_IF_CSH(ArcArrow)         *arcarrow;
+    CHAR_IF_CSH(ArcVerticalArrow) *arcvertarrow;
     CHAR_IF_CSH(ArcEmphasis)      *arcemph;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(MscArcType)        arctype;
@@ -165,7 +166,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 169 "colorsyntax.h"
+#line 170 "colorsyntax.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

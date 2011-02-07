@@ -169,7 +169,7 @@ public:
 
     bool AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
-    static void AttributeNames(Csh &csh);
+    static void AttributeNames(Csh &csh, bool designOnly);
     static bool AttributeValues(const std::string attr, Csh &csh);
 
     EIterator EntityMinMaxByPos(EIterator i, EIterator j, bool min) const;

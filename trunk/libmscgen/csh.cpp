@@ -347,9 +347,10 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
     free(copy);
 }
 
+
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
-"defcolor", "defdesign", "vertical", "mark", "parallel", "show", "hide", "bye", ""};
+"defcolor", "defdesign", "vertical", "mark", "show", "hide", "bye", ""};
 
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering",
@@ -487,6 +488,26 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     was_partial = true;
 }
 
+bool CshHintGraphicCallbackForMarkers(MscDrawer *msc, CshHintGraphicParam /*p*/)
+{
+    if (!msc) return false;
+    MscLineAttr line(LINE_SOLID, MscColorType(64,0,255), 1, CORNER_NONE, 0);
+    MscFillAttr fill(MscColorType(64,0,255).Lighter(0.2), GRADIENT_UP);
+    MscShadowAttr shadow(MscColorType(0,0,0));
+    shadow.offset.first=true;
+    shadow.offset.second=3;
+    shadow.blur.first=true;
+    shadow.blur.second=3;
+
+    Contour c(XY(int(HINT_GRAPHIC_SIZE_X*0.3), int(HINT_GRAPHIC_SIZE_Y*0.2)), 
+              XY(int(HINT_GRAPHIC_SIZE_X*0.3), int(HINT_GRAPHIC_SIZE_Y*0.8)),
+              XY(int(HINT_GRAPHIC_SIZE_X*0.8), int(HINT_GRAPHIC_SIZE_Y*0.5)));
+    msc->Shadow(c, shadow);
+    msc->Fill(c, fill);
+    msc->Line(c, line);
+    return true;
+}
+
 void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
 {
     //initialize data struct
@@ -494,6 +515,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
     cshScheme = scheme;
     CshList.clear();
     EntityNames.clear();
+    MarkerNames.clear();
     Contexts.clear();
     if (!ForcedDesign.empty() && Designs.find(ForcedDesign) != Designs.end())
         Contexts.push_back(Designs[ForcedDesign]);
@@ -510,6 +532,11 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
     Hints.clear();
 
     CshParse(*this, input, len);
+    if (hintStatus==HINT_LOCATED && hintType==HINT_MARKER) {
+        for (auto i=MarkerNames.begin(); i!=MarkerNames.end(); i++)
+            AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForMarkers));
+        hintStatus = HINT_READY;
+    }
     if (hintStatus!=HINT_READY || Hints.size()==0)
         return;
     //Take one from first, since RichEditCtrel works that way
@@ -593,6 +620,20 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht,
     return false;
 }
 
+//Checks if the cursor is between the two ranges (but one char after the firts) and if so, it applies
+//the hinttype with LOCATED. It sets hintsForcedOnly to false
+//If the cursor is immediately at the beginning of the second range we do nothing
+bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+{
+    if  (CursorIn(one.last_pos+1, two.first_pos-1) == CURSOR_IN) {
+        hintStatus = HINT_LOCATED;
+        hintsForcedOnly = false;
+        hintType = ht;
+        hintAttrName = a_name?a_name:"";
+        return true;
+    }
+    return false;
+}
 //Checks if the cursor is between one and lookahead or if atEnd==true then right after one
 //if so then set the hinttype with LOCATED. It sets hintsForcedOnly to false
 //If the cursor is immediately at the beginning of the second range we do nothing
@@ -618,6 +659,18 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
     return true;
 }
 
+//Checks if the cursor is between one char beyond "one" and "lookahead" or 
+//if atEnd==true then right after one char beyond "one"
+//if so then set the hinttype with LOCATED. It sets hintsForcedOnly to false
+//If the cursor is immediately at the beginning of the second range we do nothing
+bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name)
+{
+    if (one.last_pos >= lookahead.first_pos) return false;
+    CshPos one_oneAfter = one;
+    one_oneAfter.last_pos++;
+    return CheckHintAfter(one_oneAfter, lookahead, atEnd, ht, a_name);
+}
+
 //Check specifically for entity hints and if true, add entities to hints & set to HINT_READY
 bool Csh::CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two)
 {
@@ -625,6 +678,16 @@ bool Csh::CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two)
     AddEntitiesToHints();
     hintStatus = HINT_READY;
     return true;
+}
+
+//Check specifically for entity hints and if true, add entities to hints & set to HINT_READY
+//Does not result in hints if cursor is exactly after "one"
+bool Csh::CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two)
+{
+    if (one.last_pos >= two.first_pos) return false;
+    CshPos one_oneAfter = one;
+    one_oneAfter.last_pos++;
+    return CheckEntityHintAtAndBefore(one_oneAfter, two);
 }
 
 bool Csh::CheckEntityHintAt(const CshPos &one)
@@ -644,6 +707,14 @@ bool Csh::CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool 
 }
 
 
+bool Csh::CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd)
+{
+    if (!CheckHintAfterPlusOne(one, lookahead, atEnd, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
 //Checks if the cursor is between one and two or inside two
 //If so, it sets status to HINT_LOCATED. If cursor is inside two, hintedStringPos
 //is set to two. hintsForcedOnly is set to true if the cursor is truely before two
@@ -662,6 +733,14 @@ bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType
         hintedStringPos = two;
     return true;
 }
+
+bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+{
+    CshPos one_oneAfter = one;
+    one_oneAfter.last_pos++;
+    return CheckHintAtAndBefore(one_oneAfter, two, ht, a_name);
+}
+
 
 //Checks if the cursor is between one and two or inside two
 //If so, it sets status to HINT_LOCATED. If cursor is inside two, hintedStringPos
@@ -857,9 +936,14 @@ void Csh::AddStylesToHints()
         AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
 }
 
-void Csh::AddOptionsToHints()
+void Csh::AddOptionsToHints() 
 {
-    Msc::AttributeNames(*this);
+    Msc::AttributeNames(*this, false);
+}
+
+void Csh::AddDesignOptionsToHints() 
+{
+    Msc::AttributeNames(*this, true);
 }
 
 bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
@@ -875,9 +959,10 @@ bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
     return true;
 }
 
-void Csh::AddKeywordsToHints()
+void Csh::AddKeywordsToHints(bool includeParallel)
 {
-    AddToHints(keyword_names, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, CshHintGraphicCallbackForKeywords);
+    AddToHints(keyword_names+1-includeParallel, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
+               CshHintGraphicCallbackForKeywords);
 }
 
 bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/)

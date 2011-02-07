@@ -512,6 +512,7 @@ void CMainFrame::OnViewFullScreen()
 	ASSERT(pApp != NULL);
 	//if we show an embedded object in fullscreen mode, we have to exit now.
 	if (pApp->m_bFullScreenViewMode && IsFullScreen()) {
+        //Here we end a session opened by the Show in Full Screen OLE action
 		//Hide, so user does not see as fullscreen is first restored
 		ShowWindow(SW_HIDE);
 		//Exit app.
@@ -525,39 +526,9 @@ void CMainFrame::OnViewFullScreen()
 		//The last two we dont want since a full screen windows has all the wrong state and placement
 		CFrameWnd::OnClose();
 	} else {
-        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetActiveView());
 		if (!IsFullScreen()) {
             ShowFullScreen();
-
-            CString strCaption;
-            strCaption.LoadString(IDS_AFXBARRES_FULLSCREEN);
-            CWnd *i, *j;
-            for (i = GetWindow(GW_HWNDFIRST); i; i=i->GetWindow(GW_HWNDNEXT)) {
-                CString s;
-                i->GetWindowText(s);
-                if (s != strCaption) continue;
-                if (!i->IsKindOf(RUNTIME_CLASS(CPaneFrameWnd))) continue;
-                break;
-            }
-            if (i) {
-                for (j = i->GetWindow(GW_CHILD); j; j=j->GetWindow(GW_HWNDNEXT)) {
-                    CString s;
-                    j->GetWindowText(s);
-                    if (s != strCaption) continue;
-                    if (!j->IsKindOf(RUNTIME_CLASS(CMFCToolBar))) continue;
-                    break;
-                }
-                if (j) {
-                    CMFCToolBar *p = dynamic_cast<CMFCToolBar *>(j);
-                    CSize size = p->GetButtonSize();
-                    int buttonBitMap = CMFCToolBar::GetDefaultImage(ID_BUTTON_AUTO_SPLIT);
-                    CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, buttonBitMap, "AutoSplit", TRUE, TRUE);
-                    p->InsertButton(button);
-                    CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
-                    f->SizeToContent();
-                    p->SetHeight(size.cy);
-                }
-            }
+            AddToFullScreenToolbar();
         } else {
             //If we are cancelling full screen update the zoom combo box with current value
 			CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
@@ -567,6 +538,42 @@ void CMainFrame::OnViewFullScreen()
         }
 	}
 }
+
+bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
+{
+    CString strCaption;
+    strCaption.LoadString(IDS_AFXBARRES_FULLSCREEN);
+    CWnd *i, *j;
+    for (i = GetWindow(GW_HWNDFIRST); i; i=i->GetWindow(GW_HWNDNEXT)) {
+        CString s;
+        i->GetWindowText(s);
+        if (s != strCaption) continue;
+        if (!i->IsKindOf(RUNTIME_CLASS(CPaneFrameWnd))) continue;
+        break;
+    }
+    if (i) {
+        for (j = i->GetWindow(GW_CHILD); j; j=j->GetWindow(GW_HWNDNEXT)) {
+            CString s;
+            j->GetWindowText(s);
+            if (s != strCaption) continue;
+            if (!j->IsKindOf(RUNTIME_CLASS(CMFCToolBar))) continue;
+            break;
+        }
+        if (j) {
+            CMFCToolBar *p = dynamic_cast<CMFCToolBar *>(j);
+            CSize size = p->GetButtonSize();
+            int buttonBitMap = CMFCToolBar::GetDefaultImage(ID_BUTTON_AUTO_SPLIT);
+            CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, buttonBitMap, "AutoSplit", TRUE, TRUE);
+            p->InsertButton(button);
+            CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
+            f->SizeToContent();
+            p->SetHeight(size.cy);
+            return true;
+        }
+    }
+    return false;
+}
+
 
 
 void CMainFrame::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
