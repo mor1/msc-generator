@@ -169,7 +169,8 @@ int Edge::crossing_straight_straight(const XY A, const XY B, const XY M, const X
 bool Edge::radianbetween(double r) const
 {
     _ASSERT(!straight);
-    r = radiannormalize(r);
+    if (full_circle) return true;
+    r = fmod(r, 2*M_PI);
     if (clockwise_arc) {
         if (s<e) return s<=r && r<=e;
         else return r>=s || r<=e;
@@ -184,6 +185,8 @@ double Edge::pos2radian(double r) const
 {
     _ASSERT(!straight);
     _ASSERT(0<=r && r<=1);
+    if (full_circle) 
+        return fmod(clockwise_arc ? s+r*2*M_PI : s-(r*2*M_PI), 2*M_PI);
     double ret;
     if (clockwise_arc) {
         if (s<e) ret = s + (e-s)*r;
@@ -201,8 +204,15 @@ double Edge::pos2radian(double r) const
 double Edge::radian2pos(double r) const
 {
     _ASSERT(!straight);
-    r = radiannormalize(r);
+    if (full_circle) {
+        if (test_equal(r, 2*M_PI)) 
+            return clockwise_arc ? 1 : 0;
+        r = clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/2*M_PI;
+        return fmod(r, 1);
+    }
+    r = fmod(r, 2*M_PI);
     if (test_equal(s,e)) return 0;
+    if (IsFullCircle() && test_zero(fmod(r,2*M_PI))) return 0;
     if (clockwise_arc) {
         //here r-s can be <0 or bigger than span,
         //so returned pos can be outside [0..1]
@@ -221,9 +231,13 @@ Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg,double
 {
     straight = false;
     start = ell.Radian2Point(s);
-    if (s!=0 && d_deg==360) 
+    if (d_deg==360) {
         e = 0;
+        full_circle = (s==0);
+    } else
+        full_circle = false;
 }
+
 
 void Edge::Rotate(double cos, double sin, double radian, const XY&B) 
 {
@@ -269,6 +283,7 @@ void Edge::CopyInverseToMe(const Edge &B, const XY &next)
         ell = B.ell;
         s = B.e;
         e = B.s;
+        full_circle = B.full_circle;
         clockwise_arc = !B.clockwise_arc;
     }
     start = next;
@@ -418,6 +433,8 @@ int Edge::CrossingVertical(double x, const XY &B, double y[], double pos[], bool
         //if the centerpoint is left of x and a1==e it is the end of a leftward edge        => exclude
 		if (ell.GetCenter().x >= x)
 			return 0;
+        if (full_circle) 
+            return 0;
         if (test_arc_end(start, x, loc_y[0])) {
 			y[0] = start.y;
 			pos[0] = 0;
@@ -443,7 +460,9 @@ int Edge::CrossingVertical(double x, const XY &B, double y[], double pos[], bool
         //So first we see if we are close to the endpoints in an approximate manner
         //and then if yes, then we further refine the decision on endpoint using > < operators
         //and then we see if this is a leftward or rightward edge
-        if (test_equal(radian[i], s)) {                       //OK we treat this as a crosspoint
+        if (full_circle)
+            ; //If full circle, any crosspoint is valid
+        else if (test_equal(radian[i], s)) {                       //OK we treat this as a crosspoint
             if (test_arc_end(start, x, loc_y[i]) &&           //but if *exactly* on the startpoint...
                 ell.Tangent(radian[i], clockwise_arc).x > x)  //...and fw tangent to the left: exclude
                 continue;
@@ -503,6 +522,7 @@ bool Edge::CheckAndCombine(const Edge &next, const XY &after)
     } else
         if (s>=next.e) e = std::max(e, next.e);
         else e = s; //round over, we crop to full circle
+    full_circle = e==s;
     return true;
 }
 
@@ -541,6 +561,7 @@ bool Edge::ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const
             r1.straight = false;
             r1.s = s;
             r1.e = e;
+            r1.full_circle = full_circle;
             r1.clockwise_arc = clockwise_arc;
             r1.start = r1.ell.Radian2Point(s);
             r2 = r1.ell.Radian2Point(e);
@@ -627,7 +648,8 @@ int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, 
 		res.straight = false;
 		res.ell = M.ell;
 		res.s = radian_M[pos];
-		//do not modify res.r, it may have been set
+		//do not modify res.e, it may have been set
+        //TODO: full_circle???
 		res.clockwise_arc = M.clockwise_arc;
 		if (!straight)
 			res_prev.e = radian_us[pos];

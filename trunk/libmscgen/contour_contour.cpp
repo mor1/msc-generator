@@ -804,8 +804,10 @@ bool Contour::CalculateClockwise() const
 void Contour::AppendDuringWalk(const Edge &edge)
 {
     //if the last point equals to the startpoint of edge, skip the last edge added
+    //except if the last edge is a full circle
     if (size()>0 && edge.GetStart().test_equal(rbegin()->GetStart()))
-        pop_back();
+        if (rbegin()->IsStraight() || !rbegin()->IsFullCircle())
+            pop_back();
     //check if current_xy falls on the same line as the previous two
     if (size()>=2 &&
         at(size()-2).CheckAndCombine(at(size()-1), edge.GetStart()))
@@ -888,7 +890,7 @@ bool Contour::PostWalk()
                 at(i).CalculateBoundingBox(at_next(i).GetStart());
                 boundingBox += at(i).start;
             } else {
-                at(i).SetEnd(at_next(i).GetStart());
+                at(i).SetEnd(at_next(i).GetStart(), true);
                 at(i).CalculateBoundingBox(at_next(i).GetStart());
                 boundingBox += at(i).GetBoundingBox();
             }
@@ -944,8 +946,9 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
     }
     //With union we may have holes, but only one surface
     //With intersect (and substract), we can have multiple surfaces, but no holes
-    _ASSERT(result.size()==1 || holes.size()==0);
-    if (holes.size())
+    //...or also, we may have just holes (e.g., substracting a larger area from a smaller one)
+    _ASSERT(result.size()==1 || holes.size()==0 || result.size()==0);
+    if (holes.size() && result.size())  //if we got only holes, we return empty
         result.begin()->holes.swap(holes);
     cp[0].Finish();
     cp[1].Finish();
@@ -1507,7 +1510,7 @@ void Contour::Path(cairo_t *cr, bool inverse) const
             at(i).Path(cr, at_prev(i).GetStart(), true);
     else
         for (int i = 0; i<size(); i++)
-            at(i).Path(cr, at_next(i).GetStart());
+            at(i).Path(cr, at_next(i).GetStart()); //TODO: for circles???
     cairo_close_path(cr);
 }
 

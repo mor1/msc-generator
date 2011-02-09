@@ -245,10 +245,15 @@ inline ContourList &ContourList::operator += (const ContourList &a)
 
 inline ContourList &ContourList::operator *= (const ContourList &a)
 {
-    if (boundingBox.Overlaps(a.boundingBox))
-        for (auto i = a.begin(); i!=a.end(); i++)
-            operator *= (*i);
-    else
+    if (boundingBox.Overlaps(a.boundingBox)) {
+        ContourList result;
+        for (auto i = a.begin(); i!=a.end(); i++) {
+            ContourList tmp(*this);
+            tmp *= *i;
+            result.append(tmp);
+        }
+        swap(result);
+    } else
         clear();
     return *this;
 }

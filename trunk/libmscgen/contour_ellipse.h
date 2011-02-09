@@ -148,13 +148,6 @@ inline void EllipseData::TransformForDrawing(cairo_t *cr) const
     cairo_scale(cr, radius1, radius2);
 }
 
-//ensures r is between [0..2pi]
-inline double radiannormalize(double r)
-{
-    if (r>=0 && r<2*M_PI) return r;
-    return r - floor(r/(2*M_PI))*(2*M_PI);
-}
-
 inline bool between01(double r)
 {
     return r>=0 && r<=1;
