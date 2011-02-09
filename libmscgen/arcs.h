@@ -159,6 +159,7 @@ protected:
     mutable std::vector<DoublePair> margins; //margins sorted
     mutable Area text_cover;   //so that we can hide entity lines in PostPosProcess - not used by ArcBigArrow
     mutable double centerline; //y offset of line compared to yPos
+    mutable Area clip_area;
 public:
     ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc, const MscStyle &);

@@ -39,7 +39,8 @@ protected:
     bool    straight;
     XY      start;
     EllipseData ell;
-    double  s, e;   //supposedly between [0..2pi]
+    bool    full_circle;    //if true, s==e (but can take a value)
+    double  s, e;           //supposedly between [0..2pi), if s==e, either empty or full circle
     bool    clockwise_arc;  //this is clocwise if y is downwards
     Block   boundingBox;
 
@@ -75,7 +76,8 @@ public:
     const Block &GetBoundingBox() const {return boundingBox;}
     const EllipseData &GetEllipseData() const {_ASSERT(!straight); return ell;}
     void CopyInverseToMe(const Edge &B, const XY &next);
-    void SetEllipseToFull() {_ASSERT(!straight); s=0; e=2*M_PI; start=ell.Radian2Point(0);}
+    void SetEllipseToFull() {_ASSERT(!straight); e=s; full_circle=true; start=ell.Radian2Point(0);}
+    bool IsFullCircle() const {_ASSERT(!straight); return full_circle;}
 	double GetSpan() const;
     double GetRadianS() const {_ASSERT(!straight); return s;}
     double GetRadianE() const {_ASSERT(!straight); return e;}
@@ -89,7 +91,7 @@ public:
     //Removes the part of the edge or curve before point p. Assumes p lies on us. pos must match p
     Edge&  SetStart(const XY &p, double pos);
     //Removes the part of the edge or curve after point p. Assumes p lies on us.
-    Edge&  SetEnd(const XY &p);
+    Edge&  SetEnd(const XY &p, bool keep_full_circle);
     //calculates bb without the endpoint (Contour will add that).
     const Block& CalculateBoundingBox(const XY &next);
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
@@ -117,7 +119,9 @@ inline bool Edge::operator ==(const Edge& p) const
 {
     if (start!=p.start || straight!=p.straight) return false;
     if (straight) return true;
-    if (s!=p.s || e!=p.e || clockwise_arc!=p.clockwise_arc) return false;
+    if (full_circle != p.full_circle) return false;
+    if (s!=p.s || e!=p.e) return false;
+    if (clockwise_arc!=p.clockwise_arc) return false;
     return ell==p.ell;
 }
 
@@ -126,6 +130,7 @@ inline bool Edge::operator < (const Edge& p) const
     if (start!=p.start) return start<p.start;
     if (straight!= p.straight) return straight;
     if (straight) return false; //they are equal
+    if (full_circle != p.full_circle) return !full_circle; //full circle is bigger
     if (s!=p.s) return s < p.s;
     if (e!=p.e) return e < p.e;
     if (clockwise_arc!=p.clockwise_arc) return clockwise_arc;
@@ -135,6 +140,7 @@ inline bool Edge::operator < (const Edge& p) const
 inline double Edge::GetSpan() const
 {
 	_ASSERT(!straight);
+    if (full_circle) return 2*M_PI;
 	if (clockwise_arc) {
 		if (s<e) return e-s;
 		else return e-s+2*M_PI;
@@ -169,15 +175,18 @@ inline Edge& Edge::SetStart(const XY &p, double pos)
     if (straight) return *this;
     const double r = pos2radian(pos);
     _ASSERT(radianbetween(r));
+    full_circle = full_circle && test_equal(s,r);
     s = r;
     return *this;
 }
 //Removes the part of the edge or curve after point p. Assumes p lies on us.
-inline Edge& Edge::SetEnd(const XY &p)
+inline Edge& Edge::SetEnd(const XY &p, bool keep_full_circle)
 {
     if (straight) return *this;
-    e = ell.Point2Radian(p);
-    //_ASSERT(radianbetween(e));
+    const double r = ell.Point2Radian(p);
+    //_ASSERT(radianbetween(r));
+    full_circle = full_circle && test_equal(e,r) && keep_full_circle;
+    e = r;
     return *this;
 }
 

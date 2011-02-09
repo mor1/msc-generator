@@ -809,11 +809,16 @@ void ArcDirArrow::PostPosProcess(double autoMarker)
     (*dst)->status.HideRange(hideEntityLine);
     hideEntityLine = style.arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_START);
     (*src)->status.HideRange(hideEntityLine);
+    //calculate clip 
+    const double y = yPos+centerline;  //should be integer
+    clip_area  = style.arrow.ClipForLine(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START, chart);
+    clip_area *= style.arrow.ClipForLine(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END, chart);
     //for multi-segment arrows
     for (unsigned i=0; i<middle.size(); i++) {
         const double mx = chart->XCoord(middle[i]);
         Range hideEntityLine = style.arrow.EntityLineCover(XY(mx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_MIDDLE);
         (*middle[i])->status.HideRange(hideEntityLine);
+        clip_area *= style.arrow.ClipForLine(XY(mx, y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, chart);
     }
 }
 
@@ -825,8 +830,14 @@ void ArcDirArrow::Draw()
     /* Draw the line */
     //all the entities this (potentially multi-segment arrow visits)
     const double y = yPos+centerline;  //should be integer
+    chart->Clip(clip_area);
     for (unsigned i=0; i<xPos.size()-1; i++)
-        chart->Line(XY(xPos[i]+margins[i].second, y), XY(xPos[i+1]-margins[i+1].first, y), style.line);
+        chart->Line(XY(xPos[i], y), XY(xPos[i+1], y), style.line);
+        //chart->Line(XY(xPos[i]+margins[i].second, y), XY(xPos[i+1]-margins[i+1].first, y), style.line);
+    chart->UnClip();
+    //MscFillAttr fill(MscColorType(0,0,0,64), GRADIENT_NONE);
+    //chart->Line(clip_area, style.line);
+    //chart->Fill(clip_area, fill);
     /* Now the arrow heads */
     for (unsigned i=0; i<xPos.size(); i++)
         style.arrow.Draw(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i), chart);

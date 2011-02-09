@@ -353,6 +353,67 @@ Range ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd wh
     return ret;
 }
 
+Area ArrowHead::ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const
+{
+    XY wh = getWidthHeight(bidir, which);
+    if (bidir && which == MSC_ARROW_START)
+        forward = !forward;
+    if (forward) wh.x *= -1;
+
+    MscFillAttr fill(line.color.second);
+    Contour tri1(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
+    Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+    Range r;
+
+    Area area;
+
+    switch(GetType(bidir, which)) {
+    case MSC_ARROW_NONE:
+        r.from = r.till = wh.x;
+        break;
+    case MSC_ARROW_SOLID: /* Filled */
+    case MSC_ARROW_EMPTY: /* Non-Filled */
+        r.from = xy.x + wh.x;
+        r.till = (bidir && (which==MSC_ARROW_MIDDLE)) ? xy.x - wh.x : xy.x;
+        if (r.from>r.till) std::swap(r.from, r.till);
+        break;
+    case MSC_ARROW_LINE: /* Two lines */
+        area = tri1;
+        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2;
+        r = area.GetBoundingBox().x;
+        break;
+    case MSC_ARROW_HALF: /* Unfilled half */
+        area = Contour(xy+wh, xy, xy + XY(wh.x, 0));
+        if (bidir && (which==MSC_ARROW_MIDDLE))
+            area += Contour(xy + XY(-wh.x, wh.y), xy, xy - XY(wh.x, 0));
+        r = area.GetBoundingBox().x;
+        break;
+
+    case MSC_ARROW_DIAMOND:
+    case MSC_ARROW_DIAMOND_EMPTY:
+        area = diamond(xy, wh);
+        r = area.GetBoundingBox().x;
+        area = Contour(Block(r, Range(0, msc->total.y))) - area;
+        break;
+
+    case MSC_ARROW_DOT:
+    case MSC_ARROW_DOT_EMPTY:
+        area = Contour(xy, wh.x, wh.y);
+        r = area.GetBoundingBox().x;
+        area = Contour(Block(r, Range(0, msc->total.y))) - area;
+        break;
+    }
+    if (r.from==r.till) 
+        area = Block(0, msc->total.x, 0, msc->total.y);
+    else {
+        if (r.from>r.till) std::swap(r.from, r.till);
+        area += Block(0, r.from, 0, msc->total.y);
+        area += Block(r.till, msc->total.x, 0, msc->total.y);
+    }
+    return area;
+}
+
+
 Area ArrowHead::Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const
 {
     XY wh = getWidthHeight(bidir, which);

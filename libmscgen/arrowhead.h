@@ -73,6 +73,8 @@ public:
     DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, const MscLineAttr &mainline) const;
     //tells what range of the entity line is covered by the arrowhead
     Range EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
+    //Returns a clip contour covering the arrowhead and the rest of the chart (both sides)
+    Area ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const;
     //Returns a contour covering the arrowhead
     Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const;
     //This actually draws an arrowhead

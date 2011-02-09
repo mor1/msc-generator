@@ -257,8 +257,8 @@ unsigned solve_degree4(const double m_afCoeff[5], double afRoot[4])
 //arc-length in the clockwise dir (msc space!) from s to e
 inline double radianspan(double s, double e)
 {
-    s = radiannormalize(s);
-    e = radiannormalize(e);
+    s = fmod(s, 2*M_PI);
+    e = fmod(e, 2*M_PI);
     if (s<=e) return e-s;
     return 2*M_PI - (s-e);
 }
@@ -470,12 +470,12 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
         sintilt = sin;
     }
     const double new_tilt = tilted ? tilt : 0;
-    return radiannormalize(radian-(new_tilt-old_tilt));
+    return fmod(radian-(new_tilt-old_tilt), 2*M_PI);
 	_ASSERT((tilt>=0 && tilt<2*M_PI) || !tilted);
 }
 
 EllipseData::EllipseData(const XY &c, double radius_x, double radius_y, double tilt_degree) :
-    center(c), radius1(radius_x), radius2(radius_y), tilted(false)
+    center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false)
 {
     if (radius2 == 0) radius2 = radius1; //circle
     if (radius1 != radius2 && tilt_degree!=0) {
