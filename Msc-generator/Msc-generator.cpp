@@ -716,7 +716,8 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
     //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
     if(GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion >= 6) 
-        m_cacheType = CChartCache::CACHE_EMF;
+        //m_cacheType = CChartCache::CACHE_EMF;
+        ;
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.

@@ -204,15 +204,10 @@ double Edge::pos2radian(double r) const
 double Edge::radian2pos(double r) const
 {
     _ASSERT(!straight);
-    if (full_circle) {
-        if (test_equal(r, 2*M_PI)) 
-            return clockwise_arc ? 1 : 0;
-        r = clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/2*M_PI;
-        return fmod(r, 1);
-    }
     r = fmod(r, 2*M_PI);
+    if (full_circle) 
+        return fmod(clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/2*M_PI, 1);
     if (test_equal(s,e)) return 0;
-    if (IsFullCircle() && test_zero(fmod(r,2*M_PI))) return 0;
     if (clockwise_arc) {
         //here r-s can be <0 or bigger than span,
         //so returned pos can be outside [0..1]
@@ -512,17 +507,21 @@ bool Edge::CheckAndCombine(const Edge &next, const XY &after)
         return test_zero(a) || test_equal(a,2);
     }
     //calc tangent for curvy edges
-    if (ell != next.ell || clockwise_arc != next.clockwise_arc) return false;
-    //same center, same radiuses, same tilt, same dir
-    //keep our s and pick the bigger of the two e:s
-    //but not accidentally pick an e smaller than s
-    if (s<e) {
-        if (s<next.e) e = std::max(e, next.e);
-        else e = next.e;
-    } else
-        if (s>=next.e) e = std::max(e, next.e);
-        else e = s; //round over, we crop to full circle
-    full_circle = e==s;
+    if (ell != next.ell) return false;
+    //same center, same radiuses, same tilt
+    //if same dir, take the "e" of next
+    if (clockwise_arc == next.clockwise_arc) {
+        //full circle, if next.e == s and we cover the whole circumference
+        full_circle = next.e==s && next.radianbetween(e);
+        e = next.e;
+    } else {
+        //opposite dir. Full circle only if either of us is already full & we remain so
+        full_circle = (full_circle || next.full_circle) && s==next.e;
+        //direction changes if new endpoint outside our old span
+        if (!radianbetween(next.e))
+            clockwise_arc = !clockwise_arc;
+        e = next.e;
+    }
     return true;
 }
 
@@ -537,16 +536,17 @@ void Edge::Path(cairo_t *cr, const XY &next, bool reverse) const
     }
     cairo_save(cr);
     ell.TransformForDrawing(cr);
+    double new_e = !full_circle ? e : clockwise_arc ? e+2*M_PI : e-2*M_PI;
     if (reverse) {
         if (clockwise_arc)
-            cairo_arc_negative(cr, 0, 0, 1, e, s);
+            cairo_arc_negative(cr, 0, 0, 1, new_e, s);
         else
-            cairo_arc(cr, 0, 0, 1, e, s);
+            cairo_arc(cr, 0, 0, 1, new_e, s);
     } else {
         if (clockwise_arc)
-            cairo_arc(cr, 0, 0, 1, s, e);
+            cairo_arc(cr, 0, 0, 1, s, new_e);
         else
-            cairo_arc_negative(cr, 0, 0, 1, s, e);
+            cairo_arc_negative(cr, 0, 0, 1, s, new_e);
     }
     cairo_restore(cr);
 }
@@ -649,7 +649,8 @@ int Edge::CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, 
 		res.ell = M.ell;
 		res.s = radian_M[pos];
 		//do not modify res.e, it may have been set
-        //TODO: full_circle???
+        //we are full circle if res.e == res.s and the original edge (M) is more than half
+        res.full_circle = test_equal(res.s, res.e) && M.GetSpan()>M_PI;
 		res.clockwise_arc = M.clockwise_arc;
 		if (!straight)
 			res_prev.e = radian_us[pos];
@@ -732,12 +733,12 @@ double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_
     double rad = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
     double end, beg;
     if (clockwise_arc) {
-        end = s<e ? e : e+2*M_PI;
+        end = full_circle ? s+2*M_PI : s<e ? e : e+2*M_PI;
         beg = s;
     } else {
         rad = -rad;
         end = e;
-        beg = s>e ? s : s+2*M_PI;
+        beg = full_circle ? s+2*M_PI : s>e ? s : s+2*M_PI;
     }
     XY prev = ell.Radian2Point(beg);
     double ret = CONTOUR_INFINITY;
@@ -764,6 +765,7 @@ double Edge::offsetbelow_curvy_curvy(const Edge &o, double &touchpoint) const
     _ASSERT(!IsStraight() && !o.IsStraight());
     const double rad1 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
     const double rad2 = CURVY_OFFSET_BELOW_GRANULARIRY*2/(o.ell.radius1 + o.ell.radius2);
+    //TODO: Fix this for full_circle==true, too!!
     const double end1 = s<e ? e : e+2*M_PI;
     const double end2 = o.s<o.e ? o.e : o.e+2*M_PI;
     double ret = CONTOUR_INFINITY;

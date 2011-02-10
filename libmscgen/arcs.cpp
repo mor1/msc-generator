@@ -835,9 +835,6 @@ void ArcDirArrow::Draw()
         chart->Line(XY(xPos[i], y), XY(xPos[i+1], y), style.line);
         //chart->Line(XY(xPos[i]+margins[i].second, y), XY(xPos[i+1]-margins[i+1].first, y), style.line);
     chart->UnClip();
-    //MscFillAttr fill(MscColorType(0,0,0,64), GRADIENT_NONE);
-    //chart->Line(clip_area, style.line);
-    //chart->Fill(clip_area, fill);
     /* Now the arrow heads */
     for (unsigned i=0; i<xPos.size(); i++)
         style.arrow.Draw(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i), chart);
