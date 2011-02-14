@@ -19,6 +19,7 @@ typedef enum
     MSC_ARC_DASHED_BIDIR,
     MSC_ARC_DOUBLE,
     MSC_ARC_DOUBLE_BIDIR,
+    MSC_ARC_UNDETERMINED_SEGMENT,
 
     MSC_ARC_BIG,
 
@@ -104,6 +105,7 @@ protected:
     NumberingStyle  numberingStyle; //This is not part of styles in general, but of contexts
 public:
     ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
+    virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
     ArcBase* AddAttributeList(AttributeList *);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -116,7 +118,7 @@ class ArcArrow : public ArcLabelled
 {
 public:
     ArcArrow(MscArcType t, Msc *msc, const MscStyle &s) : ArcLabelled(t, msc, s) {}
-    virtual ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l) = 0;
+    virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l) = 0;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     bool isBidir(void) const {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
@@ -134,7 +136,7 @@ protected:
 public:
     ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
         Msc *msc, const MscStyle &, double ys);
-    virtual ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
+    virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     string Print(int ident=0) const;
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
@@ -147,11 +149,14 @@ public:
 class ArcDirArrow : public ArcArrow
 {
 protected:
-    EIterator              src, dst;
-    file_line              linenum_src, linenum_dst;
-    std::vector<EIterator> middle;
-    std::vector<file_line> linenum_middle;
-    bool                   modifyFirstLineSpacing;
+    EIterator                src, dst;
+    file_line                linenum_src, linenum_dst;
+    std::vector<EIterator>   middle;
+    std::vector<file_line>   linenum_middle;
+    std::vector<MscArcType>  segment_types; //one for each segment ([0] is the one from src), set during AddSegment()s
+    std::vector<MscLineAttr> segment_lines; //one for each segment ([0] is the one from src), set during AddAttributeList()
+    bool                     modifyFirstLineSpacing;
+    const bool               specified_as_forward; //true if user specified "a->b", false if "b<-a"
 
     mutable double sx, dx;     //xpos of two final arrowheads (sx can be > dx)
     mutable double sx_text, dx_text; //xpos for text display (sorted)
@@ -162,8 +167,9 @@ protected:
     mutable Area clip_area;
 public:
     ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
-        const char *d, file_line_range dl, Msc *msc, const MscStyle &);
-    virtual ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
+        const char *d, file_line_range dl, Msc *msc, bool fw, const MscStyle &);
+    virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
+    ArcBase *AddAttributeList(AttributeList *l);
     string Print(int ident=0) const;
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
@@ -185,6 +191,7 @@ protected:
     mutable double sm, dm;    //filled by Width: margin (left and right) for text
 public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);
+    virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
@@ -223,7 +230,7 @@ protected:
     mutable double xpos, width;
 public:
     ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc);
-    ArcArrow *AddSegment(const char *m, file_line_range ml, bool forward, file_line_range l);
+    ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     ArcVerticalArrow* AddXpos(VertXPos *p);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);

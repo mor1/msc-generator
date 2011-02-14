@@ -129,6 +129,7 @@ public:
     std::string                   copyrightText;
     LineToArcMapType              AllArcs;
     AreaList                      AllCovers;
+    Area                          HideELinesArea;
 
     /** Gap at the bottom of the page for lengthening entity lines */
     int chartTailGap;
@@ -178,7 +179,7 @@ public:
     EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
     void AddArcs(ArcList *a);
     ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
-                             const char*d, file_line_range dl);
+                             const char*d, bool fw, file_line_range dl);
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
     void PushContext(bool empty=false);
     ArcBase *PopContext();
@@ -192,8 +193,8 @@ public:
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
     double XCoord(EIterator i) const {_ASSERT(i!=Entities.end()); return XCoord((*i)->pos);} //rounded
 
-    void HideEntityLines(const Area &area);
-    void HideEntityLines(const Block &area);
+    void HideEntityLines(const Area &area) {HideELinesArea += area;}
+    void HideEntityLines(const Block &area) {HideELinesArea += area;}
 
     void DrawEntityLines(double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(double y, double height)

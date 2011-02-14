@@ -143,9 +143,9 @@ friend class ArcEmphasis;  //for exotic line joints
     void Fill(const EllipseData &ellipse, const MscFillAttr &fill);
     void Fill(const Contour &contour, const MscFillAttr &fill);
     void Fill(const Area &area, const MscFillAttr &fill);
-    void Shadow(const Block &b, const MscShadowAttr &shadow) {Shadow(b, MscLineAttr(), shadow);}
-    void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow);
-    void Shadow(const Area &area, const MscShadowAttr &shadow);
+    void Shadow(const Block &b, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false) {Shadow(b, MscLineAttr(), shadow, shadow_x_neg, shadow_y_neg);}
+    void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
+    void Shadow(const Area &area, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
 };
 
 //A number, which is larger than any chart, but small enough for contour to make no mistakes

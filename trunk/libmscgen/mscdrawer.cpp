@@ -1420,7 +1420,7 @@ void MscDrawer::Fill(const EllipseData &ellipse, const MscFillAttr &fill)
 
 ////////////////////// Shadow routines
 
-void MscDrawer::Shadow(const Area &area, const MscShadowAttr &shadow)
+void MscDrawer::Shadow(const Area &area, const MscShadowAttr &shadow, bool shadow_x_neg, bool shadow_y_neg)
 {
     _ASSERT(shadow.IsComplete());
     if (shadow.offset.second==0 || area.IsEmpty()) return;
@@ -1435,45 +1435,47 @@ void MscDrawer::Shadow(const Area &area, const MscShadowAttr &shadow)
     //}
     const Area &substract = area;//.CreateExpand(-0.5);
     Area outer(area), inner;
-    outer.Shift(XY(shadow.offset.second, shadow.offset.second));
+    outer.Shift(XY(shadow_x_neg?-shadow.offset.second:shadow.offset.second, shadow_y_neg?-shadow.offset.second:shadow.offset.second));
     MscColorType color = shadow.color.second;
     if (shadow.blur.second>0) {
         const int steps = floor(std::min(shadow.blur.second, shadow.offset.second)*scale_for_shadows + 0.5);
         const double transp_step = double(color.a)/(steps+1);
-        color.a = transp_step;
+        double alpha = 0;
         for (int i=0; i<steps; i++) {
             inner = outer.CreateExpand(-1/scale_for_shadows);
+            if (inner.IsEmpty() && outer.GetBoundingBox().x.Spans()>2 && outer.GetBoundingBox().y.Spans()>2) 
+                _ASSERT(0);
             outer -= inner;
+            alpha += transp_step;
+            color.a = alpha;
             if (fake_shadows)
-                SetColor(color.FlattenAlpha());
+                SetColor(MscColorType(color).FlattenAlpha());
             else
                 SetColor(color);
             //since clip is not working so well, we substract the original area
             (outer-=substract).Fill(cr);
             swap(inner, outer);
-            color.a += transp_step;
         }
     }
-    if (shadow.blur.second > shadow.offset.second) { //we still use a blurred shadow color
-        if (fake_shadows)
-            SetColor(color.FlattenAlpha());
+    if (shadow.blur.second <= shadow.offset.second) {
+        if (fake_shadows)  //we still use a blurred shadow color
+            SetColor(MscColorType(shadow.color.second).FlattenAlpha());
         else
-            SetColor(color);
-    } else
-        SetColor(shadow.color.second);
+            SetColor(shadow.color.second);
+    }
     (outer-=substract).Fill(cr);
     //if (clip)
     //    cairo_restore(cr);
 }
 
 /* Set clip, if the rectangle of which this is the shadow of is not opaque */
-void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow)
+void MscDrawer::Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg, bool shadow_y_neg)
 {
     _ASSERT(shadow.IsComplete() && line.radius.first);
     if (shadow.offset.second==0) return;
 	if (!shadow.color.second.valid || shadow.color.second.a==0) return;
     //For now just call the other Shadow Routine
-    Shadow(line.CreateRectangle(b), shadow);
+    Shadow(line.CreateRectangle(b), shadow, shadow_x_neg, shadow_y_neg);
     return;
 
     //// chopped corners needed to be added here

@@ -12,17 +12,14 @@ public:
 protected:
     DoubleMap<MscStyle> styleStatus;   //style of the entity line at and beyond a position
     DoubleMap<EStatus>  showStatus;    //tells if the entity is turned on or off or active
-    DoubleMap<bool>     hideStatus;    //if true, the vline is hiden by e.g., a text
 public:
-    explicit EntityStatusMap(const MscStyle &def) : styleStatus(def), hideStatus(true), showStatus(SHOW_OFF) {}
+    explicit EntityStatusMap(const MscStyle &def) : styleStatus(def), showStatus(SHOW_OFF) {}
     void ApplyStyle(double pos, const MscStyle &style) {styleStatus.Add(pos, style);}
     void ApplyStyle(Range pos, const MscStyle &style) {styleStatus.Add(pos, style);}
     void SetStatus(double pos, EStatus status) {showStatus.Set(pos, status);}
-    void HideRange(Range pos) {hideStatus.Set(pos, false);}
     const MscStyle &GetStyle(double pos) const {return *styleStatus.Get(pos);}
     EStatus GetStatus(double pos) const {return *showStatus.Get(pos);}
-    bool GetHideStatus(double pos) const {return *hideStatus.Get(pos);}
-	double Till(double pos) const {return std::min(std::min(hideStatus.Till(pos), showStatus.Till(pos)), styleStatus.Till(pos));}
+	double Till(double pos) const {return std::min(showStatus.Till(pos), styleStatus.Till(pos));}
 };
 
 class Msc;

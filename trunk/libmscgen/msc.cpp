@@ -329,10 +329,10 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
 }
 
 ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
-                              const char*d, file_line_range dl)
+                              const char*d, bool fw, file_line_range dl)
 {
     if (strcmp(s,d))
-        return new ArcDirArrow(t, s, sl, d, dl, this, Contexts.back().styles["arrow"]);
+        return new ArcDirArrow(t, s, sl, d, dl, this, fw, Contexts.back().styles["arrow"]);
     MscStyle style = Contexts.back().styles["arrow"];
     style.text.Apply("\\pr");
     return new ArcSelfArrow(t, s, sl, this, style, selfArrowYSize);
@@ -347,7 +347,6 @@ ArcBigArrow *Msc::CreateArcBigArrow(const ArcBase *base)
         return NULL;
     }
     return new ArcBigArrow(*arrow, Contexts.back().styles["blockarrow"]);
-
 }
 
 void Msc::AddArcs(ArcList *a)
@@ -640,57 +639,28 @@ void Msc::PostParseProcess(void)
     PostParseProcessArcList(Arcs, true, dummy1, dummy2, number, true);
 }
 
-
-
-void Msc::HideEntityLines(const Area &area)
-{
-    for (EIterator i = Entities.begin(); i!=Entities.end(); i++) {
-        if ((*i)->name == NONE_ENT_STR) continue;
-        if ((*i)->name == LSIDE_ENT_STR) continue;
-        if ((*i)->name == RSIDE_ENT_STR) continue;
-        double xpos = XCoord(i);
-        DoubleMap<bool> hide;
-        area.VerticalCrossSection(xpos, hide);  //sections of hide are true, where we need to hide
-        auto j = hide.begin();
-        while (j!=hide.end()) {
-            while (j!=hide.end() && !j->second) j++;  //go to first where we turn on
-            if (j==hide.end()) break;
-            auto k = j;
-            while (j!=hide.end() && j->second) j++;  //go to first where we turn off
-            if (j==hide.end()) break;
-            (*i)->status.HideRange(Range(k->first, j->first));
-        }
-    }
-}
-
-void Msc::HideEntityLines(const Block &area)
-{
-    for (EIterator i = Entities.begin(); i!=Entities.end(); i++) {
-        if ((*i)->name == NONE_ENT_STR) continue;
-        if ((*i)->name == LSIDE_ENT_STR) continue;
-        if ((*i)->name == RSIDE_ENT_STR) continue;
-        if (area.x.IsWithin(XCoord(i)))
-            (*i)->status.HideRange(area.y);
-    }
-}
-
-
 void Msc::DrawEntityLines(double y, double height,
                           EIterator from, EIterator to)
 {
     //No checking of iterators!! Call with caution
     //"to" is not included!!
+    cairo_save(cr);
+    Block outer(XY(-1,-1), total+XY(1,1));
+    outer += Block(HideELinesArea.GetBoundingBox()).Expand(1);
+    cairo_rectangle(cr, outer.x.from, outer.y.from, outer.x.Spans(), outer.y.Spans());
+    cairo_new_sub_path(cr);
+    HideELinesArea.ContourList::Path(cr, true);
+    cairo_clip(cr);
     while(from != to) {
         XY up(XCoord(from), y);
         XY down(up.x, y);
         const double till = y+height;
         while (up.y < till) {
             down.y = min((*from)->status.Till(up.y), till);
-            if ((*from)->status.GetHideStatus(up.y) &&
-                (*from)->status.GetStatus(up.y)) {
+            if ((*from)->status.GetStatus(up.y)) {
                 const MscLineAttr &vline = (*from)->status.GetStyle(up.y).vline;
                 const XY offset(fmod(vline.width.second/2,1),0);
-                const XY magic(0,1);  //HACK needed in windows
+                const XY magic(0,0);  //HACK needed in windows: 0,1
                 const XY start = up+offset-magic;
                 Line(start, down+offset, vline, start.y); //last param is dash_offset  
             }
@@ -698,6 +668,7 @@ void Msc::DrawEntityLines(double y, double height,
         }
         from++;
     }
+    cairo_restore(cr);
 }
 
 void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
@@ -843,6 +814,7 @@ void Msc::CalculateWidthHeight(void)
 {
     yPageStart.clear();
     yPageStart.push_back(0);
+    HideELinesArea.clear();
     if (Arcs.size()==0) return;
     if (total.y == 0) {
         //start with width calculation, that is used by many elements
@@ -1015,6 +987,9 @@ void Msc::Draw(bool pageBreaks)
 	//Draw initial set of entity lines (boxes will cover these and redraw)
     DrawEntityLines(0, total.y);
     DrawArcList(Arcs);
+    //cairo_set_source_rgb(cr, 0, 0, 1);
+    //cairo_set_line_width(cr,2);
+    //HideELinesArea.Line(cr);
 }
 
 void Msc::DrawToOutput(OutputType ot, double x_scale, double y_scale, const string &fn)
