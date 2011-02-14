@@ -626,7 +626,12 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B,
     double D = M.PerpProduct(N);
     XY d = N-M;
     double disc = d.length()*d.length() - D*D;
-    if (disc<0) return 0; //no intersection
+    if (disc<0) {
+        //no intersection, check if it almost touches
+        const double dist = fabs((N.x-M.x)*(M.y-0) - (M.x-0)*(N.y-M.y))/(N-M).length();
+        if (test_equal(dist,1)) disc=0;
+        else return 0;
+    }
 
     XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
     if (d.y<0) v.x = -v.x;

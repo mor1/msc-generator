@@ -151,7 +151,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 
 %type <msc>        msc
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
-%type <arcvertarrow> vertrel_no_xpos 
+%type <arcvertarrow> vertrel_no_xpos
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def_list pipe_def_list_no_attr
 %type <arcparallel>parallel
@@ -159,6 +159,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <entity>     entity first_entity
 %type <entitylist> entitylist
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
+                   relation_to_cont relation_from_cont relation_bidir_cont
                    TOK_REL_SOLID_TO TOK_REL_DOUBLE_TO TOK_REL_DASHED_TO TOK_REL_DOTTED_TO
                    TOK_REL_SOLID_FROM TOK_REL_DOUBLE_FROM TOK_REL_DASHED_FROM
                    TOK_REL_DOTTED_FROM
@@ -178,7 +179,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
-%destructor {if (!C_S_H) delete $$;} vertrel_no_xpos 
+%destructor {if (!C_S_H) delete $$;} vertrel_no_xpos
 %destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} emphrel first_emphasis emphasis_list pipe_emphasis pipe_def_list pipe_def_list_no_attr
@@ -531,7 +532,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2); 
+    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
   #else
     //Returns NULL, if BIG is before a self-pointing arrow
     ArcBase *arc = msc.CreateArcBigArrow($2);
@@ -564,7 +565,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_MARKER);  
+    csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_MARKER);
     csh.AddCSH_ErrorAfter(@1, "Missing a marker.");
   #else
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing a marker.");
@@ -687,7 +688,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@3, COLOR_COMMA);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);  
+    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@3, "Missing an entity.");
   #else
@@ -1634,7 +1635,7 @@ pipe_def_list_no_attr: TOK_COMMAND_PIPE emphrel
     free($1);
 };
 
-pipe_def_list:   pipe_def_list_no_attr 
+pipe_def_list:   pipe_def_list_no_attr
                | pipe_def_list_no_attr full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1809,7 +1810,7 @@ vertxpos: TOK_AT entity_string
 
 empharcrel_straight: TOK_EMPH | relation_to | relation_bidir;
 
-vertrel_no_xpos: entity_string empharcrel_straight entity_string 
+vertrel_no_xpos: entity_string empharcrel_straight entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
@@ -1823,7 +1824,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
     free($1);
     free($3);
 }
-       | empharcrel_straight entity_string 
+       | empharcrel_straight entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1834,7 +1835,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
   #endif
     free($2);
 }
-       | entity_string empharcrel_straight 
+       | entity_string empharcrel_straight
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
@@ -1846,7 +1847,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
   #endif
     free($1);
 }
-       | empharcrel_straight 
+       | empharcrel_straight
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1855,7 +1856,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
     $$ = new ArcVerticalArrow($1, MARKER_HERE_STR, MARKER_PREV_PARALLEL_STR, &msc);
   #endif
 }
-       | entity_string relation_from entity_string 
+       | entity_string relation_from entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
@@ -1869,7 +1870,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
     free($1);
     free($3);
 }
-       | relation_from entity_string 
+       | relation_from entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1880,7 +1881,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
   #endif
     free($2);
 }
-       | entity_string relation_from 
+       | entity_string relation_from
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
@@ -1892,7 +1893,7 @@ vertrel_no_xpos: entity_string empharcrel_straight entity_string
   #endif
     free($1);
 }
-       | relation_from 
+       | relation_from
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
@@ -1924,9 +1925,9 @@ vertrel: vertrel_no_xpos vertxpos
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    if ($1) 
+    if ($1)
         $$ = ($1)->AddXpos($2);
-    else 
+    else
         $$ = NULL;
     delete $2;
   #endif
@@ -1972,7 +1973,7 @@ arcrel_to:    entity_string relation_to entity_string
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
-    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), $3, MSC_POS(@3));
+    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), $3, true, MSC_POS(@3));
   #endif
     free($1);
     free($3);
@@ -1984,7 +1985,7 @@ arcrel_to:    entity_string relation_to entity_string
     csh.CheckEntityHintAtAndBefore(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
   #else
-    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, MSC_POS(@1), $2, MSC_POS(@2));
+    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, MSC_POS(@1), $2, true, MSC_POS(@2));
   #endif
     free($2);
 }
@@ -1996,7 +1997,7 @@ arcrel_to:    entity_string relation_to entity_string
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
-    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), RSIDE_ENT_STR, MSC_POS(@2));
+    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), RSIDE_ENT_STR, true, MSC_POS(@2));
   #endif
     free($1);
 }
@@ -2007,7 +2008,7 @@ arcrel_to:    entity_string relation_to entity_string
     csh.CheckEntityHintAt(@3);
     csh.AddCSH_EntityName(@3, $3);
   #else
-    $$ = ($1)->AddSegment($3, MSC_POS(@3), true, MSC_POS2(@2, @3));
+    $$ = ($1)->AddSegment($2, $3, MSC_POS(@3), MSC_POS2(@2, @3));
   #endif
     free($3);
 }
@@ -2017,7 +2018,7 @@ arcrel_to:    entity_string relation_to entity_string
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@1, yylloc, yychar==YYEOF);
   #else
-    $$ = ($1)->AddSegment(NULL, MSC_POS(@2), true, MSC_POS(@2));
+    $$ = ($1)->AddSegment($2, NULL, MSC_POS(@2), MSC_POS(@2));
   #endif
 };
 
@@ -2031,7 +2032,7 @@ arcrel_from:    entity_string relation_from entity_string
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
-    $$ = msc.CreateArcArrow($2, $3, MSC_POS(@3), $1, MSC_POS(@1));
+    $$ = msc.CreateArcArrow($2, $3, MSC_POS(@3), $1, false, MSC_POS(@1));
   #endif
     free($1);
     free($3);
@@ -2043,7 +2044,7 @@ arcrel_from:    entity_string relation_from entity_string
     csh.CheckEntityHintAtAndBefore(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
   #else
-    $$ = msc.CreateArcArrow($1, $2, MSC_POS(@2), LSIDE_ENT_STR, MSC_POS(@1));
+    $$ = msc.CreateArcArrow($1, $2, MSC_POS(@2), LSIDE_ENT_STR, false, MSC_POS(@1));
   #endif
     free($2);
 }
@@ -2055,7 +2056,7 @@ arcrel_from:    entity_string relation_from entity_string
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
-    $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, MSC_POS(@2), $1, MSC_POS(@1));
+    $$ = msc.CreateArcArrow($2, RSIDE_ENT_STR, MSC_POS(@2), $1, false, MSC_POS(@1));
   #endif
     free($1);
 }
@@ -2066,7 +2067,7 @@ arcrel_from:    entity_string relation_from entity_string
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
-    $$ = ($1)->AddSegment($3, MSC_POS(@3), false, MSC_POS2(@2, @3));
+    $$ = ($1)->AddSegment($2, $3, MSC_POS(@3), MSC_POS2(@2, @3));
   #endif
     free($3);
 }
@@ -2076,7 +2077,7 @@ arcrel_from:    entity_string relation_from entity_string
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
-    $$ = ($1)->AddSegment(NULL, MSC_POS(@2), false, MSC_POS(@2));
+    $$ = ($1)->AddSegment($2, NULL, MSC_POS(@2), MSC_POS(@2));
   #endif
 };
 
@@ -2089,7 +2090,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
-    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), $3, MSC_POS(@3));
+    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), $3, true, MSC_POS(@3));
   #endif
     free($1);
     free($3);
@@ -2101,7 +2102,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
     csh.CheckEntityHintAtAndBefore(@1, @2);
     csh.AddCSH_EntityName(@2, $2);
   #else
-    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, MSC_POS(@1), $2, MSC_POS(@2));
+    $$ = msc.CreateArcArrow($1, LSIDE_ENT_STR, MSC_POS(@1), $2, true, MSC_POS(@2));
   #endif
     free($2);
 }
@@ -2113,7 +2114,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==EOF);
   #else
-    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), RSIDE_ENT_STR, MSC_POS(@2));
+    $$ = msc.CreateArcArrow($2, $1, MSC_POS(@1), RSIDE_ENT_STR, true, MSC_POS(@2));
   #endif
     free($1);
 }
@@ -2124,7 +2125,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
     csh.CheckEntityHintAtAndBefore(@2, @3);
     csh.AddCSH_EntityName(@3, $3);
   #else
-    $$ = ($1)->AddSegment($3, MSC_POS(@3), true, MSC_POS2(@2, @3));
+    $$ = ($1)->AddSegment($2, $3, MSC_POS(@3), MSC_POS2(@2, @3));
   #endif
     free($3);
 }
@@ -2134,7 +2135,7 @@ arcrel_bidir:    entity_string relation_bidir entity_string
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
-    $$ = ($1)->AddSegment(NULL, MSC_POS(@2), true, MSC_POS(@2));
+    $$ = ($1)->AddSegment($2, NULL, MSC_POS(@2), MSC_POS(@2));
   #endif
 };
 
@@ -2142,9 +2143,9 @@ relation_to:   TOK_REL_SOLID_TO | TOK_REL_DOUBLE_TO | TOK_REL_DASHED_TO | TOK_RE
 relation_from: TOK_REL_SOLID_FROM | TOK_REL_DOUBLE_FROM | TOK_REL_DASHED_FROM | TOK_REL_DOTTED_FROM;
 relation_bidir: TOK_REL_SOLID_BIDIR | TOK_REL_DOUBLE_BIDIR | TOK_REL_DASHED_BIDIR | TOK_REL_DOTTED_BIDIR;
 
-relation_to_cont : relation_to | TOK_DASH;
-relation_from_cont : relation_from | TOK_DASH;
-relation_bidir_cont : relation_bidir | TOK_DASH;
+relation_to_cont : relation_to | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
+relation_from_cont : relation_from | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
+relation_bidir_cont : relation_bidir | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
 
 
 colon_string: TOK_COLON_QUOTED_STRING

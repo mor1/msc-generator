@@ -307,7 +307,8 @@ double EntityDef::Height(AreaList &cover)
 
 void EntityDef::PostPosProcess()
 {
-    (*itr)->status.HideRange(outer_edge.y);
+    if (shown) 
+        chart->HideEntityLines(outer_edge);
     if (show.first)
         (*itr)->status.SetStatus(yPos, show.second ? EntityStatusMap::SHOW_ON : EntityStatusMap::SHOW_OFF);
     //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {

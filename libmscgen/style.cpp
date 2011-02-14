@@ -196,8 +196,9 @@ bool CshHintGraphicCallbackForSide(MscDrawer *msc, CshHintGraphicParam p)
     ah.endType.second =   t==SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
     ah.startType.second = t!=SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
     ah.size.second = MSC_ARROWS_INVALID;
+    MscShadowAttr shadow;
     MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, fill, msc);
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, msc);
     msc->UnClip();
     return true;
 }
@@ -325,7 +326,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["block=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, false, false, false, true, true, true);  //no shadow, vline solid
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true);  //no vline solid
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;

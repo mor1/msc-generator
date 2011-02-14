@@ -923,8 +923,9 @@ bool CshHintGraphicCallbackForStyles2(MscDrawer *msc, CshHintGraphicParam p)
     ah.line += MscColorType(0,0,0); //black
     ah.endType.second = MSC_ARROW_SOLID;
     ah.size.second = MSC_ARROWS_INVALID;
+    MscShadowAttr shadow;
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, fill, msc);
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, msc);
     msc->UnClip();
     return true;
 }

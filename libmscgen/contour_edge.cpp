@@ -25,6 +25,17 @@
 
 //////////////////Helper functions
 
+//an fmod that always return value strictly in [0..mod)
+inline double pos_fmod(double orig, double mod)
+{
+    _ASSERT(mod>0);
+    double ret = orig>=0 ? fmod(orig, mod) : mod - fmod(-orig, mod);
+    if (ret == mod) return 0;
+    _ASSERT(ret>=0 && ret<mod);
+    return ret;
+}
+
+
 //returns -1 if a==b
 //returns -2 if a==c
 //returns -3 if b==c
@@ -170,7 +181,7 @@ bool Edge::radianbetween(double r) const
 {
     _ASSERT(!straight);
     if (full_circle) return true;
-    r = fmod(r, 2*M_PI);
+    r = pos_fmod(r, 2*M_PI);
     if (clockwise_arc) {
         if (s<e) return s<=r && r<=e;
         else return r>=s || r<=e;
@@ -186,7 +197,7 @@ double Edge::pos2radian(double r) const
     _ASSERT(!straight);
     _ASSERT(0<=r && r<=1);
     if (full_circle) 
-        return fmod(clockwise_arc ? s+r*2*M_PI : s-(r*2*M_PI), 2*M_PI);
+        return pos_fmod(clockwise_arc ? s+r*2*M_PI : s-(r*2*M_PI), 2*M_PI);
     double ret;
     if (clockwise_arc) {
         if (s<e) ret = s + (e-s)*r;
@@ -204,9 +215,9 @@ double Edge::pos2radian(double r) const
 double Edge::radian2pos(double r) const
 {
     _ASSERT(!straight);
-    r = fmod(r, 2*M_PI);
+    r = pos_fmod(r, 2*M_PI);
     if (full_circle) 
-        return fmod(clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/2*M_PI, 1);
+        return pos_fmod(clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/(2*M_PI), 1);
     if (test_equal(s,e)) return 0;
     if (clockwise_arc) {
         //here r-s can be <0 or bigger than span,
@@ -732,17 +743,19 @@ double Edge::offsetbelow_curvy_straight(const XY &A, const XY &B, bool straight_
     _ASSERT(!IsStraight());
     double rad = CURVY_OFFSET_BELOW_GRANULARIRY*2/(ell.radius1 + ell.radius2);
     double end, beg;
-    if (clockwise_arc) {
-        end = full_circle ? s+2*M_PI : s<e ? e : e+2*M_PI;
+    if (full_circle) {
+        beg = 0;
+        end = 2*M_PI;
+    } else if (clockwise_arc) {
         beg = s;
+        end = s<e ? e : e+2*M_PI;
     } else {
-        rad = -rad;
-        end = e;
-        beg = full_circle ? s+2*M_PI : s>e ? s : s+2*M_PI;
+        beg = e;
+        end = s>e ? s : s+2*M_PI;
     }
     XY prev = ell.Radian2Point(beg);
     double ret = CONTOUR_INFINITY;
-    for (double r = beg+rad; (r<end && clockwise_arc) || (r>end && !clockwise_arc); r+=rad) {
+    for (double r = beg+rad; r<end; r+=rad) {
         const XY xy = ell.Radian2Point(r);
         double tp, off;
         if (straight_is_up)

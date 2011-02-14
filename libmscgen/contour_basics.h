@@ -49,6 +49,7 @@ public:
     XY &   Round()                        {x = floor(x+.5); y=floor(y+.5); return *this;}
     XY &   RoundUp()                      {x = ceil(x); y=ceil(y); return *this;}
     XY &   RoundDown()                    {x = floor(x); y=floor(y); return *this;}
+    XY &   Scale(const XY &sc)            {x*=sc.x; y*=sc.y; return *this;}
 };
 
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
@@ -89,6 +90,7 @@ struct Range {
     Range & RoundDown()   {from = floor(from); till=floor(till); return *this;}
     Range & RoundWider()  {from = floor(from); till=ceil(till); return *this;}
     Range & RoundCloser() {from = ceil(from); till=floor(till); return *this;}
+    Range & Scale(double sc) {from*=sc; till*=sc; return *this;}
 };
 
 struct Block {
@@ -118,7 +120,7 @@ struct Block {
     XY LowerRight(void) const
         {return XY(x.till, y.till);}
     XY UpperRight(void) const
-        {return XY(x.from, y.till);}
+        {return XY(x.till, y.from);}
     XY LowerLeft(void) const
         {return XY(x.from, y.till);}
     XY CenterPoint(void) const
@@ -142,6 +144,7 @@ struct Block {
     Block & RoundDown()   {x.RoundDown(); y.RoundDown(); return *this;}
     Block & RoundWider()  {x.RoundWider(); y.RoundWider(); return *this;}
     Block & RoundCloser() {x.RoundCloser(); y.RoundCloser(); return *this;}
+    Block & Scale(const XY &sc) {x.Scale(sc.x); y.Scale(sc.y); return *this;}
 };
 
 #endif //CONTOUR_BASICS_H

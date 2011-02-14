@@ -151,8 +151,9 @@ bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
     ah.line += MscColorType(0,192,32); //green-blue
     ah.endType.second = (MscArrowType)(int)p;
     ah.size.second = MSC_ARROWS_INVALID;
+    MscShadowAttr shadow;
     MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, fill, msc);
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, msc);
     msc->UnClip();
     return true;
 }
@@ -167,7 +168,7 @@ bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrow
     ah.line += MscColorType(0,192,32); //green-blue
     ah.endType.second = type;
     ah.size.second = size;
-    Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END);
+    Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END).GetBoundingBox().y;
     msc->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     if (cover.from>1)
         msc->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
@@ -331,23 +332,17 @@ Contour diamond(XY xy, XY wh)
 
 /** Return the Y range for which the entity line shall not be drawn
  */
-Range ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const
+Area ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const
 {
     XY wh = getWidthHeight(bidir, which);
-    if (bidir && which == MSC_ARROW_START)
-        forward = !forward;
-
-    Range ret(0,0);
-
+    Area ret;
     switch(GetType(bidir, which)) {
     case MSC_ARROW_DIAMOND_EMPTY:
-        ret.from = xy.y-wh.y;
-        ret.till = xy.y+wh.y;
+        ret = diamond(xy, wh);
         break;
 
     case MSC_ARROW_DOT_EMPTY:
-        ret.from = xy.y-wh.x;
-        ret.till = xy.y+wh.x;
+        ret = Contour(xy, wh.x, wh.y);
         break;
     }
     return ret;
@@ -674,7 +669,8 @@ Area ArrowHead::BigCoverOne(double x, double sy, double dy, bool forward, bool b
     return area;
 }
 
-Area ArrowHead::BigCover(std::vector<double> xPos, double sy, double dy, bool bidir) const
+//if no_segment==-1 return the cover for all segments, if not, return only one segment (if we have multiple)
+Area ArrowHead::BigCover(std::vector<double> xPos, double sy, double dy, bool bidir, int no_segment) const
 {
     Area area;
     const bool forward = xPos[0] < xPos[1];
@@ -682,13 +678,13 @@ Area ArrowHead::BigCover(std::vector<double> xPos, double sy, double dy, bool bi
     const MscArrowEnd i_end   = forward ? MSC_ARROW_END : MSC_ARROW_START;
     std::sort(xPos.begin(), xPos.end()); //from left to right
 
+    const bool segment = bigDoesSegment(bidir, MSC_ARROW_MIDDLE);
     //draw leftmost arrowhead
     area += BigCoverOne(xPos[0], sy, dy, forward, bidir, i_begin);
     double from_x = xPos[0] + getBigWidths(forward, bidir, i_begin, dy-sy).second;
 
     //set up variables for mid-points
     DoublePair mid_xx = getBigWidths(forward, bidir, MSC_ARROW_MIDDLE, dy-sy);
-    const bool segment = bigDoesSegment(bidir, MSC_ARROW_MIDDLE);
     for (int i=1; i<xPos.size()-1; i++) {
         area += BigCoverOne(xPos[i], sy, dy, forward, bidir, MSC_ARROW_MIDDLE);
         if (segment) {
@@ -705,10 +701,33 @@ Area ArrowHead::BigCover(std::vector<double> xPos, double sy, double dy, bool bi
     return area;
 }
 
-void ArrowHead::BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir, const MscFillAttr &fill, MscDrawer *msc) const
+void ArrowHead::BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir, 
+                        const MscShadowAttr &shadow, const MscFillAttr &fill, 
+                        const std::vector<MscLineAttr> *lines, MscDrawer *msc,
+                        bool shadow_x_neg, bool shadow_y_neg) const
 {
-    Area area = BigCover(xPos, sy, dy, bidir);
-    msc->Fill(area, fill);
-    msc->Line(area, line);
+    const Area area = BigCover(xPos, sy, dy, bidir);
+    if (xPos.size()>2 && bigDoesSegment(bidir, MSC_ARROW_MIDDLE) && lines) {
+        for (int i=0; i<xPos.size()-1; i++) {
+            Block this_segment(xPos[i], xPos[i+1], 0, msc->total.y);
+            if (i==0) {
+                if (xPos[0]<xPos[1]) this_segment.x.from = 0;
+                else this_segment.x.till = msc->total.x;
+            } else if (i==xPos.size()-1) {
+                if (xPos[0]<xPos[1]) this_segment.x.till = msc->total.x;
+                else this_segment.x.from = 0;
+            }
+            const Area local_area = area * this_segment;
+            const double gap = lines->at(i).LineWidth()/2-lines->at(i).width.second/2;
+            msc->Shadow(local_area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
+            msc->Fill  (local_area.CreateExpand(-gap), fill);
+            msc->Line  (local_area, lines->at(i));
+        }
+    } else {
+        const double gap = line.LineWidth()/2-line.width.second/2;
+        msc->Shadow(area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
+        msc->Fill  (area.CreateExpand(-gap), fill);
+        msc->Line  (area, line);
+    }
 }
 

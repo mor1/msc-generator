@@ -72,7 +72,7 @@ public:
     //tells how much of the arrow line is covered by the arrowhead (on both sides of the entity line)
     DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, const MscLineAttr &mainline) const;
     //tells what range of the entity line is covered by the arrowhead
-    Range EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
+    Area EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //Returns a clip contour covering the arrowhead and the rest of the chart (both sides)
     Area ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const;
     //Returns a contour covering the arrowhead
@@ -92,8 +92,10 @@ public:
     //tells how much the arrow (overall) extends above or below sy and dy
     double bigYExtent(bool bidir, bool multisegment) const;
     Area BigCoverOne(double x, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const; 
-    Area BigCover(std::vector<double> xPos, double sy, double dy, bool bidir) const;
-    void BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir, const MscFillAttr &fill, MscDrawer *msc) const;
+    Area BigCover(std::vector<double> xPos, double sy, double dy, bool bidir, int no_segment=-1) const;
+    void BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir,  const MscShadowAttr &shadow, 
+                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscDrawer *msc, 
+                 bool shadow_x_neg=false, bool shadow_y_neg=false) const;
 };
 
 #endif //ARROWHEAD_H
