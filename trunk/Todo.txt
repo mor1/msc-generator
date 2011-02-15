@@ -11,32 +11,38 @@ Two helpers needed:
 
 PLANNED in 3.1
 TODO: Switch to cairo 1.10 and the new pixman after summer.
-FIX: Any character pressed in View should be dispatched to internal editor (with focus)
-ADD: more styles to design lib
-ADD: Add entity create/destroy
-ADD: message lost
-ADD: Combined directional arrow styles such as a<->b<<>>c
-ADD: arrows in an angle
-ADD: Make divider only within a box
-ADD: Allow divider to have entities
-ADD: More arrow types --> ==> >>> ..> 
-ADD: More arrowheads
-ADD: More BIG arrowheads
-ADD: Expand parallel behaviour
-- add valign={top, center, bottom} attribute
-- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
-   should return one)
-- add overlap=no attribute to use compress, but downward...
-- add these attributes to the style under parallel.valign and parallel.overlaps
-ADD: Add a spinbutton to page and design combos. Add a spinbutton also to the Full screen floating toolbar, but 
-make that read-only. 
-ADD: variant #1 double and triple-line joints for emphasis
 ADD: shadow to arrows and labels
 ADD: Comments to arcs (leftside, rightside, bubble)
+Activate package
+	ADD: message lost
+	ADD: Add entity create/destroy
+	Entity activate/deactivate
+ADD: Expand parallel behaviour
+	- add valign={top, center, bottom} attribute
+	- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
+		should return one)
+	- add overlap=no attribute to use compress, but downward...
+	- add these attributes to the style under parallel.valign and parallel.overlaps
+ADD: arrows in an angle
+	Arrows
+	Block arrows
+Divider package
+	ADD: Make divider only within a box
+	ADD: Allow divider to have entities
+To be considered
+	ADD: more styles to design lib
+	ADD: More arrow types --> ==> >>> ..> 
+ADD: variant #1 double and triple-line joints for emphasis
 CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
 CANCELLED: Re-add escape key to exit in-place editing...
 
 In 3.0
+ADD: More arrowheads
+ADD: More BIG arrowheads
+ADD: UNINSTALL
+FIX: Node hideentitylines, for radius bigger than 70
+FIX: Vertical tracking bad
+
 ADDED: More precise tracking mode
 ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
 ADDED: Combined directional arrow styles such as a<->b<<>>c (also for block arrows)
@@ -48,6 +54,7 @@ ADDED: SHOW and HIDE keywords (showexplicit flag to EntityDef)
 ADDED: Command bye so that file end can be used for comments
 ADDED: Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
 ADDED: AutoSplit mode (also for full screen)
+ADDED: Page combo to fulls screen toolbar
 FIXED: missing ; at the end of last command creates an empty chart
 FIXED: If we select a hint, use the hinted text, not the one in the editor (casedness)
 FIXED: allow hint when typing just before another word

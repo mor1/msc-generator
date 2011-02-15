@@ -337,11 +337,11 @@ LRESULT CMainFrame::OnToolbarReset(WPARAM wp, LPARAM)
  
 	if (uiToolBarId==IDR_DESIGNBAR) {
 		CMFCToolBarComboBoxButton pageButton (ID_DESIGN_PAGE,
-			GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE, FALSE), CBS_DROPDOWNLIST, 50);
+			GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE, FALSE), CBS_DROPDOWNLIST, 70);
 		m_wndDesignBar.ReplaceButton(ID_DESIGN_PAGE, pageButton);
 
 		CMFCToolBarComboBoxButton zoomButton (ID_DESIGN_ZOOM,
-			GetCmdMgr ()->GetCmdImage (ID_WINDOW_ARRANGE, FALSE), CBS_DROPDOWN, 50);
+			GetCmdMgr ()->GetCmdImage (ID_WINDOW_ARRANGE, FALSE), CBS_DROPDOWN, 70);
 		m_wndDesignBar.ReplaceButton(ID_DESIGN_ZOOM, zoomButton);
 
 		CMFCToolBarComboBoxButton designButton (ID_DESIGN_DESIGN,
@@ -562,12 +562,23 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
         if (j) {
             CMFCToolBar *p = dynamic_cast<CMFCToolBar *>(j);
             CSize size = p->GetButtonSize();
+            //Add autoSplit Button
             int buttonBitMap = CMFCToolBar::GetDefaultImage(ID_BUTTON_AUTO_SPLIT);
             CMFCToolBarButton button(ID_BUTTON_AUTO_SPLIT, buttonBitMap, "AutoSplit", TRUE, TRUE);
             p->InsertButton(button);
+            //Add page combo, if more than one page
+            CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+            CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+            if (pDoc && pApp) {
+                CMFCToolBarComboBoxButton pageButton (ID_DESIGN_PAGE,
+                    GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE, FALSE), CBS_DROPDOWNLIST, 70);
+                p->InsertButton(pageButton);
+                pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
+            }
+            //Arrange size
             CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
+            p->StretchPane(32000, false);
             f->SizeToContent();
-            p->SetHeight(size.cy);
             return true;
         }
     }
