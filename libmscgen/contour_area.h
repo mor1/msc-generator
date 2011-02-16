@@ -48,11 +48,12 @@ public:
     const Block &GetBoundingBox(void) const {return boundingBox;}
     const ContourWithHoles GetFirst() const;
     is_within_t IsWithin(XY p) const;
-    ContourList &Shift(XY xy);
-    ContourList &Rotate(double cos, double sin, double radian);
-    ContourList &RotateAround(const XY&c, double cos, double sin, double radian);
-	ContourList &Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r); return *this;}
-    ContourList &RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r); return *this;}
+    void Shift(XY xy);
+    ContourList CreateShifted(const XY & xy) const {ContourList a(*this); a.Shift(xy); return std::move(a);}
+    void Rotate(double cos, double sin, double radian);
+    void RotateAround(const XY&c, double cos, double sin, double radian);
+	void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
+    void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
     void SwapXY();
 
     ContourList &operator += (const ContourWithHoles &p);
@@ -99,6 +100,7 @@ public:
     const Block &GetBoundingBox(void) const {return Contour::GetBoundingBox();}
     is_within_t IsWithin(XY p) const;
     void Shift(XY xy) {Contour::Shift(xy); holes.Shift(xy);}
+    ContourWithHoles CreateShifted(const XY & xy) const {ContourWithHoles a(*this); a.Shift(xy); return std::move(a);}
     void Rotate(double cos, double sin, double radian)
         {Contour::Rotate(cos, sin, radian); if (holes.size()) holes.Rotate(cos, sin, radian);}
     void RotateAround(const XY&c, double cos, double sin, double radian)
@@ -159,10 +161,11 @@ public:
     bool IsEmpty() const {return size()==0;}
     const Block &GetBoundingBox(void) const {return boundingBox;}
     is_within_t IsWithin(const XY &p) const;
-    Area & Shift(XY xy) {ContourList::Shift(xy); mainline.Shift(xy.y); return *this;}
-    Area & Rotate(double degrees) {ContourList::Rotate(degrees); return *this;}
-    Area & RotateAround(const XY&c, double degrees) {ContourList::RotateAround(c, degrees); return *this;}
-    Area & SwapXY() {ContourList::SwapXY(); mainline.MakeInvalid(); return *this;}
+    void Shift(XY xy) {ContourList::Shift(xy); mainline.Shift(xy.y);}
+    Area CreateShifted(const XY & xy) const {Area a(*this); a.Shift(xy); return std::move(a);}
+    void Rotate(double degrees) {ContourList::Rotate(degrees);}
+    void RotateAround(const XY&c, double degrees) {ContourList::RotateAround(c, degrees);}
+    void SwapXY() {ContourList::SwapXY(); mainline.MakeInvalid();}
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
 
     Area CreateExpand(double gap) const;
@@ -300,33 +303,30 @@ inline is_within_t ContourList::IsWithin(XY p) const
     return WI_OUTSIDE;
 }
 
-inline ContourList &ContourList::Shift(XY xy)
+inline void ContourList::Shift(XY xy)
 {
     for (auto i = begin(); i!=end(); i++)
         i->Shift(xy);
     boundingBox.Shift(xy);
-    return *this;
 }
 
 
-inline ContourList &ContourList::Rotate(double cos, double sin, double radian)
+inline void ContourList::Rotate(double cos, double sin, double radian)
 {
     boundingBox.MakeInvalid();
     for (auto i = begin(); i!=end(); i++) {
         i->Rotate(cos, sin, radian);
         boundingBox += i->GetBoundingBox();
     }
-    return *this;
 }
 
-inline ContourList &ContourList::RotateAround(const XY&c, double cos, double sin, double radian)
+inline void ContourList::RotateAround(const XY&c, double cos, double sin, double radian)
 {
     boundingBox.MakeInvalid();
     for (auto i = begin(); i!=end(); i++) {
         i->RotateAround(c, cos, sin, radian);
         boundingBox += i->GetBoundingBox();
     }
-    return *this;
 }
 
 inline void ContourList::ClearHoles()

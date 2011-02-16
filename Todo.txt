@@ -37,14 +37,13 @@ CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that 
 CANCELLED: Re-add escape key to exit in-place editing...
 
 In 3.0
-ADD: More arrowheads
 ADD: More BIG arrowheads
 ADD: UNINSTALL
 FIX: Node hideentitylines, for radius bigger than 70
-FIX: Vertical tracking bad
 
 ADDED: More precise tracking mode
 ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
+ADDED: More arrowheads (double_*, triple_*, sharp, empty_sharp; also xmul and ymul attributes)
 ADDED: Combined directional arrow styles such as a<->b<<>>c (also for block arrows)
 ADDED: shadow attribute to block arrows and verticals (updated designlib)
 ADDED: More space to ... dividers

@@ -58,6 +58,8 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         CDC* pDC = GetDC();
         MscDrawer mscdrawer;
         mscdrawer.SetOutputWin32(MscDrawer::WIN, pDC->m_hAttribDC);
+        mscdrawer.total.x = HINT_GRAPHIC_SIZE_X;
+        mscdrawer.total.y = HINT_GRAPHIC_SIZE_Y;
         csh.ProcessHints(&mscdrawer, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
         mscdrawer.CloseOutput();
         ReleaseDC(pDC);

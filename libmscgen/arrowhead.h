@@ -5,20 +5,37 @@
 #include "contour_area.h" 
 
 typedef enum {
+    //Both big and small arrows
     MSC_ARROW_INVALID = 0,
     MSC_ARROW_NONE,
     MSC_ARROW_SOLID,
-    MSC_ARROW_DIAMOND,
-    MSC_ARROW_DOT,
     MSC_ARROW_EMPTY,
     MSC_ARROW_LINE,
     MSC_ARROW_HALF,
+    MSC_ARROW_DIAMOND,
     MSC_ARROW_DIAMOND_EMPTY,
-    MSC_ARROW_DOT_EMPTY
+    MSC_ARROW_DOT,
+    MSC_ARROW_DOT_EMPTY,
+    MSC_ARROW_SHARP,
+    MSC_ARROW_SHARP_EMPTY,
+    //Small arrows only
+    MSC_ARROW_DOUBLE,
+    MSC_ARROW_DOUBLE_EMPTY,
+    MSC_ARROW_DOUBLE_LINE,
+    MSC_ARROW_DOUBLE_HALF,
+    MSC_ARROW_TRIPLE,
+    MSC_ARROW_TRIPLE_EMPTY,
+    MSC_ARROW_TRIPLE_LINE,
+    MSC_ARROW_TRIPLE_HALF,
+    //Big arrows only
+    MSC_ARROW_EMPTY_INV
 } MscArrowType;
 
-inline bool MSC_ARROW_OK_FOR_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_DOT_EMPTY;}
-inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_DOT;}
+inline bool MSC_ARROW_OK_FOR_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_IS_DOUBLE(MscArrowType t) {return t>=MSC_ARROW_DOUBLE && t<=MSC_ARROW_DOUBLE_HALF;}
+inline bool MSC_ARROW_IS_TRIPLE(MscArrowType t) {return t>=MSC_ARROW_TRIPLE && t<=MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_IS_HALF(MscArrowType t) {return t==MSC_ARROW_HALF || t==MSC_ARROW_DOUBLE_HALF || t==MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(MscArrowType t) {return t>0 && (t<=MSC_ARROW_SHARP_EMPTY || t>=MSC_ARROW_EMPTY_INV);}
 
 typedef enum {
     MSC_ARROWS_INVALID = 0,
@@ -49,16 +66,17 @@ protected:
 public:
     MscLineAttr                   line;
     std::pair<bool, MscArrowSize> size;
+    std::pair<bool, double>       xmul;
+    std::pair<bool, double>       ymul;
     std::pair<bool, MscArrowType> endType;
     std::pair<bool, MscArrowType> midType;
     std::pair<bool, MscArrowType> startType;
     enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
 
-    explicit ArrowHead(ArcType t=ANY) : type(t),
-        size(true, MSC_ARROW_SMALL), endType(true, MSC_ARROW_SOLID),
-        midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
+    explicit ArrowHead(ArcType t=ANY) : type(t), size(true, MSC_ARROW_SMALL), xmul(true, 1), ymul(true, 1), 
+        endType(true, MSC_ARROW_SOLID), midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
     void Empty();
-    bool IsComplete() const {return line.IsComplete() && size.first && endType.first && midType.first && startType.first;}
+    bool IsComplete() const {return line.IsComplete() && size.first && endType.first && midType.first && startType.first && xmul.first && ymul.first;}
     ArrowHead & operator += (const ArrowHead &);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
@@ -69,14 +87,17 @@ public:
 //functions for normal (small) arrowheads
     //tells how wide and high a specific arrowhead
     XY getWidthHeight(bool bidir, MscArrowEnd which) const;
-    //tells how much of the arrow line is covered by the arrowhead (on both sides of the entity line)
-    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, const MscLineAttr &mainline) const;
+    //tells how wide a triangle is (=above for simple arrowheads, differs for DOUBLE and TRIPLE ones)
+    double getTriWidth(bool bidir, MscArrowEnd which) const;
+    //tells how much of the arrow line is covered by the arrowhead for text margin (on both sides of the entity line)
+    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const;
     //tells what range of the entity line is covered by the arrowhead
     Area EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //Returns a clip contour covering the arrowhead and the rest of the chart (both sides)
-    Area ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const;
+    Area ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, const Block &total, 
+                     const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //Returns a contour covering the arrowhead
-    Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const;
+    Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //This actually draws an arrowhead
     void Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *) const;
 

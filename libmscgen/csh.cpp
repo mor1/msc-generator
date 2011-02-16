@@ -363,7 +363,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "pos", "relative", "show", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
-"arrow.endtype", "arrow.color",
+"arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
 "line.color", "line.type", "line.width", "line.corner", "line.radius", 
 "vline.color", "vline.type", "vline.width",
 "fill.color", "fill.color2", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};

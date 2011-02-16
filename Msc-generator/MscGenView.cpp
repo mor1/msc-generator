@@ -58,7 +58,7 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 
 		cooomplex2 += cooomplex;
 		custom = cooomplex2;
-		cooomplex2 += Area(cooomplex2).Shift(XY(15,15));
+		cooomplex2 += cooomplex2.CreateShifted(XY(15,15));
 		cooomplex2.Shift(XY(200,0));
 		custom. Shift(XY(200,0));
 
@@ -117,7 +117,8 @@ void test_geo(cairo_t *cr, int x, int y, bool clicked)
 	//huhu *= Contour(XY(130,201), 30,20);
 	//huhu.Line2(cr);
     //x=363; y=188;
-	Area bexp = cooomplex2.RotateAround(XY(300,100), x-y).CreateExpand((x-y)/10).Shift(XY(0,100));
+    cooomplex2.RotateAround(XY(300,100), x-y);
+	Area bexp = cooomplex2.CreateExpand((x-y)/10).CreateShifted(XY(0,100));
     //Area aaa(cooomplex2.begin()->GetHoles());
     //Area bexp=aaa, bexp2;
     //auto i = aaa.begin();
