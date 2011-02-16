@@ -591,7 +591,8 @@ ArcBase *ArcDirArrow::AddAttributeList(AttributeList *l)
         const MscStyle *refinement = GetRefinementStyle(segment_types[i]);
         if (refinement) {
             segment_lines.push_back(chart->Contexts.back().styles["arrow"].line);
-            segment_lines.rbegin()->operator+=(refinement->line);
+            *segment_lines.rbegin() += refinement->line;
+            *segment_lines.rbegin() += style.line;
         } else {
             segment_lines.push_back(save.line);
         }
@@ -683,8 +684,8 @@ void ArcDirArrow::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
     //we lie about us being forward (we do not check), so we know which of first/second to use
-    DoublePair end = style.arrow.getWidths(true, isBidir(), MSC_ARROW_END, false, style.line);
-    DoublePair start = style.arrow.getWidths(true, isBidir(), MSC_ARROW_START, false, style.line);
+    DoublePair end = style.arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.line);
+    DoublePair start = style.arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.line);
     distances.Insert((*src)->index, (*dst)->index,
                      end.first + start.second + parsed_label.getTextWidthHeight().x);
     //Add distances for arrowheads
@@ -695,7 +696,7 @@ void ArcDirArrow::Width(EntityDistanceMap &distances)
     if (middle.size()==0) return;
     EntityDistanceMap d;
     for (int i=0; i<middle.size(); i++) {
-        DoublePair mid = style.arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, false, style.line);
+        DoublePair mid = style.arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.line);
         distances.Insert((*middle[i])->index, DISTANCE_LEFT, mid.first);
         distances.Insert((*middle[i])->index, DISTANCE_RIGHT, mid.second);
     }
@@ -721,9 +722,9 @@ double ArcDirArrow::Height(AreaList &cover)
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
 
-    double lw = style.line.LineWidth();
+    double lw_max = style.line.LineWidth();
     for (int i=0; i<segment_lines.size(); i++) 
-        lw = std::max(lw, segment_lines[i].LineWidth());
+        lw_max = std::max(lw_max, segment_lines[i].LineWidth());
     const XY xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
     const XY xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START);
     //If there are middle arrows, make aH be the highest of endType/startType
@@ -754,44 +755,56 @@ double ArcDirArrow::Height(AreaList &cover)
         /* no text */
         y += aH;
     }
-    centerline = y = ceil(y) + lw/2;
+    centerline = y = ceil(y) + lw_max/2;
     //prepare xPos and margins
     xPos.clear(); xPos.reserve(2+middle.size());
     margins.clear(); margins.reserve(2+middle.size());
     xPos.push_back(sx);
-    margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_START, true, style.line));
+    margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_START, style.line));
     for (int i=0; i<middle.size(); i++) {
         xPos.push_back(chart->XCoord(middle[i]));
-        margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_MIDDLE, true, style.line));
+        margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_MIDDLE, style.line));
     }
     xPos.push_back(dx);
-    margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_END, true, style.line));
+    margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_END, style.line));
     if (sx>=dx) {
         std::reverse(xPos.begin(), xPos.end());
         std::reverse(margins.begin(), margins.end());
         std::reverse(segment_lines.begin(), segment_lines.end());
         std::reverse(segment_types.begin(), segment_types.end());
     }
+    //prepare clip_area
+    Block total(sx, dx, 0, y+lw_max);
+    clip_area  = style.arrow.ClipForLine(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START, 
+                                         total, *segment_lines.begin(), *segment_lines.begin());
+    clip_area *= style.arrow.ClipForLine(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END, 
+                                         total, *segment_lines.rbegin(), *segment_lines.rbegin());
+    for (unsigned i=0; i<middle.size(); i++) 
+        clip_area *= style.arrow.ClipForLine(XY(chart->XCoord(middle[i]), y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, 
+                                             total, segment_lines[i], segment_lines[i+1]);
 
     //Add arrowheads and line segments to cover
     for (int i=0; i<xPos.size(); i++)
-        area += style.arrow.Cover(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i), style.line);
+        area += style.arrow.Cover(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i));
     for (int i=0; i<xPos.size()-1; i++) {
         const double lw2 = ceil(segment_lines[i].LineWidth()/2);
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
-        area += Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
+        area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
     }
-    lw = std::max(lw, chart->nudgeSize+1.0);
+    lw_max = std::max(lw_max, chart->nudgeSize+1.0);
     //set mainline - not much dependent on main line with
-    area.mainline = Range(y - lw/2, y + lw/2);
+    area.mainline = Range(y - lw_max/2, y + lw_max/2);
     cover = area;
-    return std::max(y+max(aH, lw/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
+    return std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
 }
 
 void ArcDirArrow::ShiftBy(double y)
 {
     if (!valid) return;
-    if (y) text_cover.Shift(XY(0, y));
+    if (y) {
+        text_cover.Shift(XY(0, y));
+        clip_area.Shift(XY(0, y));
+    }
     ArcArrow::ShiftBy(y);
 }
 
@@ -845,15 +858,10 @@ void ArcDirArrow::PostPosProcess(double autoMarker)
     //Exclude the areas covered by the arrow heads from entity lines
     chart->HideEntityLines(style.arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_START));
     chart->HideEntityLines(style.arrow.EntityLineCover(XY(dx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_END));
-    //calculate clip
-    const double y = yPos+centerline;  //should be integer
-    clip_area  = style.arrow.ClipForLine(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START, chart);
-    clip_area *= style.arrow.ClipForLine(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END, chart);
     //for multi-segment arrows
     for (unsigned i=0; i<middle.size(); i++) {
         const double mx = chart->XCoord(middle[i]);
         chart->HideEntityLines(style.arrow.EntityLineCover(XY(mx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_MIDDLE));
-        clip_area *= style.arrow.ClipForLine(XY(mx, y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, chart);
     }
 }
 
@@ -2029,7 +2037,7 @@ double ArcEmphasis::Height(AreaList &cover)
             }
             //now determine the cover to be used for placement
             if (style.shadow.offset.second)
-                cover += (*i)->pipe_shadow + Area((*i)->pipe_shadow).Shift(XY(style.shadow.offset.second, style.shadow.offset.second));
+                cover += (*i)->pipe_shadow + (*i)->pipe_shadow.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
             else
                 cover += (*i)->pipe_shadow;
             //merge shadows of connected previous segment to ours
@@ -2146,7 +2154,7 @@ double ArcEmphasis::Height(AreaList &cover)
         }
         overall_box.mainline = b.y;
         if (style.shadow.offset.second)
-            cover += overall_box + Area(overall_box).Shift(XY(style.shadow.offset.second, style.shadow.offset.second));
+            cover += overall_box + overall_box.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
         else
             cover += overall_box;
     }

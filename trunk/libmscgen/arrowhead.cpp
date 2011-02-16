@@ -22,8 +22,11 @@
 #include "msc.h"
 
 template<> const char EnumEncapsulator<MscArrowType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", "solid", "diamond", "dot", "empty", "line", "half", 
-     "empty_diamond", "empty_dot", ""};
+    {"invalid", "none", "solid", "empty", "line", "half", "diamond", "empty_diamond", 
+     "dot", "empty_dot", "sharp", "empty_sharp",
+     "double", "double_empty", "double_line", "double_half",
+     "triple", "triple_empty", "triple_line", "triple_half",
+     "empty_inv", ""};
 template<> const char EnumEncapsulator<MscArrowSize>::names[][ENUM_STRING_LEN] =
     {"invalid", "tiny", "small", "normal", "big", "huge", ""};
 
@@ -41,12 +44,17 @@ double ArrowHead::baseArrowHeight = 10;    /* Half Arrow size for BIG */
 double ArrowHead::baseDiamondSize = 10;    /* Half Diamond size for BIG */
 double ArrowHead::baseDotSize = 9;    /* Dot radius for BIG */
 
+const double SHARP_MUL_1 = 1.2;  /* How much wider is a sharp arrow than a normal one */
+const double SHARP_MUL_2 = 0.7;  /* What percentage of the width of a sharp arrow is at the line */
+
 void ArrowHead::Empty() {
     line.Empty();
     size.first = false;
     endType.first = false;
     midType.first = false;
     startType.first = false;
+    xmul.first = false;
+    ymul.first = false;
 }
 
 ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
@@ -57,6 +65,8 @@ ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
     if (a.endType.first) endType = a.endType;
     if (a.midType.first) midType = a.midType;
     if (a.startType.first) startType = a.startType;
+    if (a.xmul.first) xmul = a.xmul;
+    if (a.ymul.first) ymul = a.ymul;
     return *this;
 }
 
@@ -123,6 +133,21 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         a.InvalidValueError(CandidatesFor(size.second), msc->Error);
         return true;
     }
+    if (a.EndsWith("xmul") || a.EndsWith("ymul")) {
+        std::pair<bool, double> &mul = a.EndsWith("xmul") ? xmul : ymul;
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                mul.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_NUMBER && a.number>=0.1 && a.number<=10) {
+            mul.second = a.number;
+            mul.first = true;
+            return true;
+        }
+        a.InvalidValueError("0.1 .. 10", msc->Error);
+        return true;
+    }
     if (a.EndsWith("color") || a.EndsWith("line.width")) {
         return line.AddAttribute(a, msc, t);
     }
@@ -133,7 +158,7 @@ void ArrowHead::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
     {"invalid", "arrow.type", "arrow.size", "arrow.color", "arrow.starttype", "arrow.midtype",
-     "arrow.endtype", "line.width", ""};
+     "arrow.endtype", "line.width", "arrow.xmul", "arrow.ymul", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
@@ -174,9 +199,10 @@ bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrow
         msc->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
     if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
         msc->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    double stop = ah.getWidths(true, false, MSC_ARROW_END, true, eLine).first;
-    if (stop<HINT_GRAPHIC_SIZE_X*(xx-0.1))
-        msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), XY(xy.x-stop, xy.y), ah.line);
+    Area clip = ah.ClipForLine(xy, true, false, MSC_ARROW_END, Block(0,msc->total.x, 0, msc->total.y), eLine, eLine);
+    msc->Clip(clip);
+    msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), xy, ah.line);
+    msc->UnClip();
     ah.Draw(xy, true, false, MSC_ARROW_END, msc);
     msc->UnClip();
     return true;
@@ -206,6 +232,10 @@ bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, ArcType t)
                                HINT_ATTR_VALUE, true, 
                                t==BIGARROW ? CshHintGraphicCallbackForBigArrows : CshHintGraphicCallbackForArrowTypes,
                                CshHintGraphicParam(i)));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "xmul") || CaseInsensitiveEndsWith(attr, "ymul")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<multiplier between 0.1 and 10>", HINT_ATTR_VALUE, false));
         return true;
     }
     if (CaseInsensitiveEqual(attr, "arrowsize") ||
@@ -261,6 +291,35 @@ XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
         xy.y = baseArrowHeight*sizePercentage/100;
         break;
 
+    case MSC_ARROW_SHARP:
+    case MSC_ARROW_SHARP_EMPTY:
+        xy.x = baseArrowWidth*SHARP_MUL_1*sizePercentage/100;
+        xy.y = baseArrowHeight*sizePercentage/100;
+        break;
+
+    case MSC_ARROW_DOUBLE:
+    case MSC_ARROW_DOUBLE_EMPTY:
+        xy.x = 2 * baseArrowWidth*sizePercentage/100;
+        xy.y = baseArrowHeight*sizePercentage/100;
+        break;
+
+    case MSC_ARROW_DOUBLE_LINE:
+    case MSC_ARROW_DOUBLE_HALF:
+        xy.x = 1.5 * baseArrowWidth*sizePercentage/100;
+        xy.y = baseArrowHeight*sizePercentage/100;
+        break;
+
+    case MSC_ARROW_TRIPLE:
+    case MSC_ARROW_TRIPLE_EMPTY:
+        xy.x = 3 * baseArrowWidth*sizePercentage/100;
+        xy.y = baseArrowHeight*sizePercentage/100;
+        break;
+    case MSC_ARROW_TRIPLE_LINE:
+    case MSC_ARROW_TRIPLE_HALF:
+        xy.x = 2 * baseArrowWidth*sizePercentage/100;
+        xy.y = baseArrowHeight*sizePercentage/100;
+        break;
+
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DIAMOND_EMPTY:
         xy.x = xy.y = baseDiamondSize*sizePercentage/100;
@@ -271,8 +330,32 @@ XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
         xy.x = xy.y = baseDotSize*sizePercentage/100;
         break;
     }
+    if (xmul.first) xy.x *= xmul.second;
+    if (ymul.first) xy.y *= ymul.second;
     return xy;
 }
+
+double ArrowHead::getTriWidth(bool bidir, MscArrowEnd which) const
+{
+    const double w = getWidthHeight(bidir, which).x;
+    switch(GetType(bidir, which)) {
+    case MSC_ARROW_TRIPLE_LINE:
+    case MSC_ARROW_TRIPLE_HALF:
+    case MSC_ARROW_DOUBLE:
+    case MSC_ARROW_DOUBLE_EMPTY:
+        return w/2;
+
+    case MSC_ARROW_DOUBLE_LINE:
+    case MSC_ARROW_DOUBLE_HALF:
+        return w/1.5;
+
+    case MSC_ARROW_TRIPLE:
+    case MSC_ARROW_TRIPLE_EMPTY:
+        return w/3;
+    }
+    return w;
+}
+
 
 /* return value:
  * - first is the extent on the left side of the entity line
@@ -282,7 +365,7 @@ XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
  * If forLine is true, we return how much of the arrow line the arrowhead covers
  * If false, we return how much the text margin should be from the entity line
  */
-DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, bool forLine, const MscLineAttr &mainline) const
+DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const
 {
     DoublePair ret(0,0);
     const MscArrowType t = GetType(bidir, which);
@@ -293,16 +376,17 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, boo
     case MSC_ARROW_EMPTY: /* Non-Filled */
     case MSC_ARROW_HALF: /* Unfilled half */
     case MSC_ARROW_LINE: /* Two lines */
-        if (forLine && (t == MSC_ARROW_HALF || t == MSC_ARROW_LINE)) {
-            if (mainline.IsDouble())
-                ret.first = mainline.DoubleSpacing(); //these do not cover the line that much
-            else if (mainline.IsTriple())
-                ret.first = mainline.TripleSpacing();
-            else
-                ret.first = 0; 
-        } else
-            ret.first = getWidthHeight(bidir, which).x;
-
+    case MSC_ARROW_SHARP:
+    case MSC_ARROW_SHARP_EMPTY:
+    case MSC_ARROW_DOUBLE:
+    case MSC_ARROW_DOUBLE_EMPTY:
+    case MSC_ARROW_DOUBLE_LINE:
+    case MSC_ARROW_DOUBLE_HALF:
+    case MSC_ARROW_TRIPLE:
+    case MSC_ARROW_TRIPLE_EMPTY:
+    case MSC_ARROW_TRIPLE_LINE:
+    case MSC_ARROW_TRIPLE_HALF:
+        ret.first = getWidthHeight(bidir, which).x;
         //Now see if we put the value to the right of first/second
         if (bidir && (which==MSC_ARROW_MIDDLE))
             ret.second = ret.first;
@@ -348,93 +432,172 @@ Area ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd whi
     return ret;
 }
 
-Area ArrowHead::ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const
+Area ArrowHead::ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, const Block &total, 
+    const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
 {
     XY wh = getWidthHeight(bidir, which);
+    double w = getTriWidth(bidir, which);
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
-    if (forward) wh.x *= -1;
+    if (forward) {
+        wh.x *= -1;
+        w *= -1;
+    }
+    std::swap(wh.x, w);
+    //wh now contains the triangle size, w the size of the entire stuff (same for all,but DOUBLE & TRIPLE)
 
     MscFillAttr fill(line.color.second);
     Contour tri1(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
     Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+    const Contour tri_sharp1(xy+wh, xy+XY(wh.x*SHARP_MUL_2, 0), xy + wh - XY(0, wh.y) - XY(0, wh.y));
+    const Contour tri_sharp2(xy-wh, xy-XY(wh.x*SHARP_MUL_2, 0), xy - wh + XY(0, wh.y) + XY(0, wh.y));
     Range r;
-
     Area area;
+    XY half_offset(0,0);
 
     switch(GetType(bidir, which)) {
     case MSC_ARROW_NONE:
         r.from = r.till = wh.x;
         break;
+
+    case MSC_ARROW_SHARP:
+    case MSC_ARROW_SHARP_EMPTY:
+        area = tri_sharp1;
+        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri_sharp2;
+        /* Fallthrough for calculating r */
     case MSC_ARROW_SOLID: /* Filled */
     case MSC_ARROW_EMPTY: /* Non-Filled */
-        r.from = xy.x + wh.x;
-        r.till = (bidir && (which==MSC_ARROW_MIDDLE)) ? xy.x - wh.x : xy.x;
+    case MSC_ARROW_DOUBLE:
+    case MSC_ARROW_DOUBLE_EMPTY:
+    case MSC_ARROW_TRIPLE:
+    case MSC_ARROW_TRIPLE_EMPTY:
+        r.from = xy.x + w;
+        r.till = (bidir && (which==MSC_ARROW_MIDDLE)) ? xy.x - w : xy.x;
         if (r.from>r.till) std::swap(r.from, r.till);
         break;
+
+    case MSC_ARROW_TRIPLE_LINE:
+        tri1.Shift(XY( wh.x/2,0));
+        tri2.Shift(XY(-wh.x/2,0));
+        //Fallthrough
+    case MSC_ARROW_DOUBLE_LINE:
+        tri1.Shift(XY( wh.x/2,0));
+        tri2.Shift(XY(-wh.x/2,0));
+        //Fallthrough
     case MSC_ARROW_LINE: /* Two lines */
         area = tri1;
         if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2;
         r = area.GetBoundingBox().x;
+        r += xy.x; //expand range so that it includes the vertical line
         break;
+
+    case MSC_ARROW_TRIPLE_HALF:
+        half_offset.x += wh.x/2;
+        //Fallthrough
+    case MSC_ARROW_DOUBLE_HALF:
+        half_offset.x += wh.x/2;
+        //Fallthrough
     case MSC_ARROW_HALF: /* Unfilled half */
-        area = Contour(xy+wh, xy, xy + XY(wh.x, 0));
+        area = Contour(xy+wh+half_offset, xy+half_offset, xy + XY(wh.x, 0)+half_offset);
         if (bidir && (which==MSC_ARROW_MIDDLE))
-            area += Contour(xy + XY(-wh.x, wh.y), xy, xy - XY(wh.x, 0));
+            area += Contour(xy + XY(-wh.x, wh.y)-half_offset, xy-half_offset, xy - XY(wh.x, 0)-half_offset);
         r = area.GetBoundingBox().x;
+        r += xy.x; //expand so that it includes the vertical line
+        //now allow the top half of the line to be visible
+        if (r.from < xy.x) {
+            if (mainline_left.IsDoubleOrTriple()) 
+                area += Block(r.from, xy.x, total.y.from, xy.y-(mainline_left.LineWidth()/2-mainline_left.width.second));
+            area += Block(r.from, r.from+fabs(wh.x), total.y.from, xy.y);
+        }
+        if (r.till > xy.x) {
+            if (mainline_right.IsDoubleOrTriple()) 
+                area += Block(xy.x, r.till, total.y.from, xy.y-(mainline_right.LineWidth()/2-mainline_right.width.second));
+            area += Block(r.till-fabs(wh.x), r.till, total.y.from, xy.y);
+        }
         break;
 
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DIAMOND_EMPTY:
         area = diamond(xy, wh);
         r = area.GetBoundingBox().x;
-        area = Contour(Block(r, Range(0, msc->total.y))) - area;
+        area = Contour(Block(r, total.y)) - area;
         break;
 
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
         area = Contour(xy, wh.x, wh.y);
         r = area.GetBoundingBox().x;
-        area = Contour(Block(r, Range(0, msc->total.y))) - area;
+        area = Contour(Block(r, total.y)) - area;
         break;
     }
     if (r.from==r.till) 
-        area = Block(0, msc->total.x, 0, msc->total.y);
+        area = total;
     else {
         if (r.from>r.till) std::swap(r.from, r.till);
-        area += Block(0, r.from, 0, msc->total.y);
-        area += Block(r.till, msc->total.x, 0, msc->total.y);
+        if (total.x.from < r.from)
+            area += Block(total.x.from, r.from, total.y.from, total.y.till);
+        if (total.x.till > r.till)
+            area += Block(r.till, total.x.till, total.y.from, total.y.till);
     }
     return area;
 }
 
 
-Area ArrowHead::Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const
+Area ArrowHead::Cover(XY xy, bool forward, bool bidir, MscArrowEnd which) const
 {
     XY wh = getWidthHeight(bidir, which);
+    double w = getTriWidth(bidir, which);
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
-    if (forward) wh.x *= -1;
+    if (forward) {
+        wh.x *= -1;
+        w *= -1;
+    }
+    std::swap(wh.x, w);
+    //wh now contains the triangle size, w the size of the entire stuff (same for all,but DOUBLE & TRIPLE)
 
     MscFillAttr fill(line.color.second);
-    Contour tri1(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
-    Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+    const Contour tri1(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
+    const Contour tri2(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+    const Contour tri_sharp1(xy+wh, xy+XY(wh.x*SHARP_MUL_2, 0), xy + wh - XY(0, wh.y) - XY(0, wh.y));
+    const Contour tri_sharp2(xy-wh, xy-XY(wh.x*SHARP_MUL_2, 0), xy - wh + XY(0, wh.y) + XY(0, wh.y));
 
     Area area;
 
     switch(GetType(bidir, which)) {
     case MSC_ARROW_NONE:
         break;
+    case MSC_ARROW_TRIPLE:
+    case MSC_ARROW_TRIPLE_EMPTY:
+        area += tri1.CreateShifted(XY(wh.x*2, 0));
+        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2.CreateShifted(XY(-wh.x*2, 0));
+        /*Fallthrough*/
+    case MSC_ARROW_DOUBLE:
+    case MSC_ARROW_DOUBLE_EMPTY:
+        area += tri1.CreateShifted(XY(wh.x, 0));
+        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2.CreateShifted(XY(-wh.x, 0));
+        /*Fallthrough*/
     case MSC_ARROW_SOLID: /* Filled */
     case MSC_ARROW_EMPTY: /* Non-Filled */
     case MSC_ARROW_LINE: /* Two lines */
-        area = tri1;
+    case MSC_ARROW_HALF: /* Unfilled half */
+        area += tri1;
         if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2;
         break;
-    case MSC_ARROW_HALF: /* Unfilled half */
-        area = Contour(xy+wh, xy, xy + XY(wh.x, 0));
-        if (bidir && (which==MSC_ARROW_MIDDLE))
-            area += Contour(xy + XY(-wh.x, wh.y), xy, xy - XY(wh.x, 0));
+
+    case MSC_ARROW_TRIPLE_LINE:
+    case MSC_ARROW_DOUBLE_LINE:
+    case MSC_ARROW_DOUBLE_HALF:
+    case MSC_ARROW_TRIPLE_HALF:
+        area += Contour(xy.x+w, xy.x+wh.x, xy.y-wh.y, xy.y+wh.y) + tri1;
+        if (bidir && (which==MSC_ARROW_MIDDLE)) 
+            area += Contour(xy.x-wh.x, xy.x-w, xy.y-wh.y, xy.y+wh.y) + tri2;
+        break;
+
+    case MSC_ARROW_SHARP:
+    case MSC_ARROW_SHARP_EMPTY:
+        area = tri1 - tri_sharp1;
+        if (bidir && (which==MSC_ARROW_MIDDLE)) area += tri2 - tri_sharp2;
         break;
 
     case MSC_ARROW_DIAMOND:
@@ -449,12 +612,8 @@ Area ArrowHead::Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, const 
     }
     if (line.LineWidth()>1)
         area = area.CreateExpand(line.LineWidth()/2);
-    if (GetType(bidir, which)==MSC_ARROW_HALF) {
-        if (line.LineWidth() > mainline.LineWidth())
-            area -= Block(-MSC_BIG_COORD, +MSC_BIG_COORD, xy.y+mainline.LineWidth(), MSC_BIG_COORD);
-        else
-            area += Block(xy.x+wh.x, xy.x, xy.y, xy.y+mainline.LineWidth());
-    }
+    if (MSC_ARROW_IS_HALF(GetType(bidir, which))) 
+        area -= Block(-MSC_BIG_COORD, +MSC_BIG_COORD, -MSC_BIG_COORD, xy.y);
     return area;
 }
 
@@ -466,56 +625,74 @@ Area ArrowHead::Cover(XY xy, bool forward, bool bidir, MscArrowEnd which, const 
 void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const
 {
     XY wh = getWidthHeight(bidir, which);
+    double w = getTriWidth(bidir, which);
+    const bool forward_orig = forward;
     if (bidir && which == MSC_ARROW_START)
         forward = !forward;
-    if (forward) wh.x *= -1;
+    if (forward) {
+        wh.x *= -1;
+        w *= -1;
+    }
+    std::swap(wh.x, w);
+    //wh now contains the triangle size, w the size of the entire stuff (same for all,but DOUBLE & TRIPLE)
 
     MscFillAttr fill(line.color.second, GRADIENT_NONE);
-    Contour tri1, tri2;
+    Contour tri1, tri2, tri_sharp1, tri_sharp2;
     if (forward) {
         tri1 = Contour(xy + wh - XY(0, wh.y) - XY(0, wh.y), xy, xy+wh);
         tri2 = Contour(xy - wh + XY(0, wh.y) + XY(0, wh.y), xy, xy-wh);
+        tri_sharp1 = Contour(xy + wh - XY(0, wh.y) - XY(0, wh.y), xy+XY(wh.x*SHARP_MUL_2, 0), xy+wh);
+        tri_sharp2 = Contour(xy - wh + XY(0, wh.y) + XY(0, wh.y), xy-XY(wh.x*SHARP_MUL_2, 0), xy-wh);
     } else {
         tri1 = Contour(xy+wh, xy, xy + wh - XY(0, wh.y) - XY(0, wh.y));
         tri2 = Contour(xy-wh, xy, xy - wh + XY(0, wh.y) + XY(0, wh.y));
+        tri_sharp1 = Contour(xy+wh, xy+XY(wh.x*SHARP_MUL_2, 0), xy + wh - XY(0, wh.y) - XY(0, wh.y));
+        tri_sharp2 = Contour(xy-wh, xy-XY(wh.x*SHARP_MUL_2, 0), xy - wh + XY(0, wh.y) + XY(0, wh.y));
     }
+
+    if (MSC_ARROW_IS_HALF(GetType(bidir, which))) 
+        msc->Clip(0, msc->total.x, xy.y, msc->total.y);
 
     switch(GetType(bidir, which))
     {
     case MSC_ARROW_NONE:
         break;
+    case MSC_ARROW_TRIPLE:
+    case MSC_ARROW_DOUBLE:
     case MSC_ARROW_SOLID: /* Filled */
-        msc->Fill(tri1, fill);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->Fill(tri2, fill);
+    case MSC_ARROW_SHARP: /* Filled */
+    case MSC_ARROW_DIAMOND:
+    case MSC_ARROW_DOT:
+        msc->Fill(Cover(xy, forward_orig, bidir, which), fill);
         break;
+
+    case MSC_ARROW_TRIPLE_EMPTY:
+    case MSC_ARROW_DOUBLE_EMPTY:
     case MSC_ARROW_EMPTY: /* Non-Filled */
-        msc->Line(tri1, line);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->Line(tri2, line);
+    case MSC_ARROW_SHARP_EMPTY: /* Non-Filled */
+    case MSC_ARROW_DIAMOND_EMPTY:
+    case MSC_ARROW_DOT_EMPTY:
+        msc->Line(Cover(xy, forward_orig, bidir, which), line);
         break;
+
+    case MSC_ARROW_TRIPLE_LINE:
+    case MSC_ARROW_TRIPLE_HALF:
+        msc->LineOpen(tri1.CreateShifted(XY(wh.x, 0)), line);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->LineOpen(tri2.CreateShifted(XY(-wh.x, 0)), line);
+        /*Fallthrough*/
+    case MSC_ARROW_DOUBLE_LINE:
+    case MSC_ARROW_DOUBLE_HALF:
+        msc->LineOpen(tri1.CreateShifted(XY(wh.x/2, 0)), line);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->LineOpen(tri2.CreateShifted(XY(-wh.x/2, 0)), line);
+        /*Fallthrough*/
     case MSC_ARROW_LINE: /* Two lines */
+    case MSC_ARROW_HALF: /* Unfilled half */
         msc->LineOpen(tri1, line);
         if (bidir && (which==MSC_ARROW_MIDDLE)) msc->LineOpen(tri2, line);
         break;
-    case MSC_ARROW_HALF: /* Unfilled half */
-        msc->Line(tri1.GetEdge(2).GetStart(), tri1.GetEdge(1).GetStart(), line);
-        if (bidir && (which==MSC_ARROW_MIDDLE))
-            msc->Line(tri2.GetEdge(0).GetStart(), tri2.GetEdge(1).GetStart(), line);
-        break;
-
-    case MSC_ARROW_DIAMOND:
-        msc->Fill(diamond(xy, wh), fill);
-        break;
-    case MSC_ARROW_DIAMOND_EMPTY:
-        msc->Line(diamond(xy, wh), line);
-        break;
-
-    case MSC_ARROW_DOT:
-        msc->Fill(Contour(xy, wh.x, wh.y), fill);
-        break;
-    case MSC_ARROW_DOT_EMPTY:
-        msc->Line(Contour(xy, wh.x, wh.y), line);
-        break;
     }
+    if (MSC_ARROW_IS_HALF(GetType(bidir, which))) 
+        msc->UnClip();
 }
 
 //For largely internal use - characteristic size of the big arrowheads

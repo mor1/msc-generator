@@ -89,10 +89,11 @@ public:
     bool AddAnEdge(const Edge &edge);
     bool OpenHere(const XY &xy);
 
-    void Shift(XY xy) {boundingBox.Shift(xy); for (int i=0; i<size(); i++) at(i).Shift(xy);}
+    void Shift(const XY &xy) {boundingBox.Shift(xy); for (int i=0; i<size(); i++) at(i).Shift(xy);}
+    Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return std::move(a);}
     void Rotate(double cos, double sin, double radian);
     void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
-    Contour& SwapXY() {boundingBox.SwapXY(); for (int i=0; i<size(); i++) at(i).SwapXY(); return *this;}
+    Contour& SwapXY() {boundingBox.SwapXY(); for (int i=0; i<size(); i++) at(i).SwapXY(); *this = CreateInverse(); return *this;}
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
 
     void Expand(double gap, ContourList &res) const;
