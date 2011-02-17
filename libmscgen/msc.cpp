@@ -79,16 +79,16 @@ double EntityDistanceMap::Query(unsigned e1, int e2) const
 }
 
 //BoxSide distances are pair of distances between two neighbouring entities.
-//One is a distance on the left side of the rightmost entity (say "e"); the other 
-//is a distance on the right side of the other entity (e+1). If nothing special happens, 
+//One is a distance on the left side of the rightmost entity (say "e"); the other
+//is a distance on the right side of the other entity (e+1). If nothing special happens,
 //these two will be added and converted to a distance between e and e+1.
 //However this distance requirement comes from inside a box and the box ends between
 //e and e+1, we will have to space the side of the box appropriately and also make this wider
 //by the thickness of the box line width and gaps.
-//This is useful for arc elements (especially entity commands) that cover multiple disjoint 
+//This is useful for arc elements (especially entity commands) that cover multiple disjoint
 //areas (the shown entities) some of which can fall into a box around them, some of them
 //can fall outside.
-void EntityDistanceMap::InsertBoxSide(unsigned e, double r, double l) 
+void EntityDistanceMap::InsertBoxSide(unsigned e, double r, double l)
 {
     box_side[e].push_back(std::pair<double, double>(r, l));
 }
@@ -294,7 +294,7 @@ string Msc::GetDesigns() const
 //Helper function. If the pos of *value is smaller (or larger) than i
 //if one of the elements is .end() always the other is returned, different
 //from operator < above (where .end() is smaller)
-EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const 
+EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const
 {
     if (j==NoEntity) return i;
     if (i==NoEntity) return j;
@@ -385,7 +385,7 @@ bool Msc::AddAttribute(const Attribute &a)
         Contexts.back().compress = a.yes;
         return true;
     }
-    if (a.StartsWith("text")) 
+    if (a.StartsWith("text"))
         return Contexts.back().text.AddAttribute(a, this, STYLE_OPTION);
     if (a.Is("numbering")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
@@ -441,7 +441,7 @@ bool Msc::AddAttribute(const Attribute &a)
 //This is called when a design definition is in progress.
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
-    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || 
+    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") ||
         a.StartsWith("text"))
         return AddAttribute(a);
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
@@ -485,7 +485,7 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (CaseInsensitiveBeginsWith(attr, "text")) 
+    if (CaseInsensitiveBeginsWith(attr, "text"))
         return StringFormat::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
@@ -644,13 +644,7 @@ void Msc::DrawEntityLines(double y, double height,
 {
     //No checking of iterators!! Call with caution
     //"to" is not included!!
-    cairo_save(cr);
-    Block outer(XY(-1,-1), total+XY(1,1));
-    outer += Block(HideELinesArea.GetBoundingBox()).Expand(1);
-    cairo_rectangle(cr, outer.x.from, outer.y.from, outer.x.Spans(), outer.y.Spans());
-    cairo_new_sub_path(cr);
-    HideELinesArea.ContourList::Path(cr, true);
-    cairo_clip(cr);
+    ClipInverse(HideELinesArea);
     while(from != to) {
         XY up(XCoord(from), y);
         XY down(up.x, y);
@@ -662,13 +656,13 @@ void Msc::DrawEntityLines(double y, double height,
                 const XY offset(fmod(vline.width.second/2,1),0);
                 const XY magic(0,0);  //HACK needed in windows: 0,1
                 const XY start = up+offset-magic;
-                Line(start, down+offset, vline, start.y); //last param is dash_offset  
+                Line(start, down+offset, vline, start.y); //last param is dash_offset
             }
             up.y = down.y;
         }
         from++;
     }
-    cairo_restore(cr);
+    UnClip();
 }
 
 void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
@@ -697,7 +691,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
         arc_cover = arc_cover.CreateExpand(compressGap/2);
         double touchpoint = y;
         if ((*i)->IsCompressed()) {
-            //if arc is of zero height, just collect it. 
+            //if arc is of zero height, just collect it.
             //Its position may depend on the next arc if that is compressed.
             if (h==0) {
                 if (first_zero_height == to) first_zero_height = i;
@@ -745,8 +739,8 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
 //No matter what input parameters we get we always place the list at an integer
 //y coordinate
 //If ret_cover is not null, we return the rsulting cover of the list at the pos where placed
-double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
-                           double top_y, const AreaList &area_top, bool forceCompress, 
+double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y,
+                           double top_y, const AreaList &area_top, bool forceCompress,
                            AreaList *ret_cover)
 {
     if (from==to) return 0;
@@ -755,13 +749,13 @@ double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double 
     double touchpoint;
     double new_start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     //if we shifted up, apply shift only if compess is on
-    if (forceCompress || (*from)->IsCompressed()) 
+    if (forceCompress || (*from)->IsCompressed())
         if (new_start_y < start_y) start_y = new_start_y;
     //if we shifted down, apply it in any case
     else if (new_start_y > start_y) start_y = new_start_y;
     start_y = ceil(start_y);
     ShiftByArcList(from, to, start_y);
-    if (ret_cover) 
+    if (ret_cover)
         ret_cover->swap(cover.Shift(XY(0, start_y)));
     return start_y + h;
 }
@@ -769,7 +763,7 @@ double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double 
 void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)
 {
     while (from!=to)
-        (*from++)->ShiftBy(y);  
+        (*from++)->ShiftBy(y);
 }
 
 //Find the smallest elements between indexes [i, j) and bring them up to the
@@ -856,12 +850,12 @@ void Msc::CalculateWidthHeight(void)
                 (*j)->pos = curr_pos;
                 curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
             }
-            total.x = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO)+1; 
+            total.x = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
         } else {
             total.x = XCoord((*--(Entities.end()))->pos+MARGIN)+1; //XCoord is always integer
         }
         StringFormat sf;
-        sf.Default(); 
+        sf.Default();
         XY crTexSize = Label(copyrightText, this, sf).getTextWidthHeight().RoundUp();
         if (total.x<crTexSize.x) total.x = crTexSize.x;
 

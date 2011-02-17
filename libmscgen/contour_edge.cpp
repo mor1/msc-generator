@@ -297,6 +297,15 @@ void Edge::CopyInverseToMe(const Edge &B, const XY &next)
 	boundingBox = B.boundingBox;
 }
 
+double Edge::GetRadianMidPoint() const 
+{
+    _ASSERT(!straight); 
+    if (full_circle) return fmod(s+M_PI, 2*M_PI);
+    if (e==s) return s;
+    if (clockwise_arc == (s<e)) return (s+e)/2;
+    return fmod((s+e)/2+M_PI, 2*M_PI);
+}
+
 //This must ensure that we do not return pos values that are very close to 0 or 1
 //such values are to be rounded to 0 or 1 and in that case exatly the endpoint of the arc
 //shall be returned

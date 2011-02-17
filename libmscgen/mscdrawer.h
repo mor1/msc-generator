@@ -45,7 +45,7 @@ class MscDrawer
     double       scale_for_shadows; /* how many pixel lies below one logical pixel (needed for fine shadows) */
     bool         fake_shadows; /* Do not use alpha blending in shadows */
     bool         fake_dash; /* Do not use cairo dash, mimic them with individual dashes */
-	bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
+    bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
     double       fake_scale; /*final rendering should be scaled like this */
     unsigned	 fallback_resolution; /* for cairo WMF backends */
     bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
@@ -63,7 +63,7 @@ class MscDrawer
 
     void fakeDashedLine(const XY &s, const XY &d, 
                         const double pattern[], int num, int &pos, double &offset);
-    void fakeDashedLine(const XY &c, double r1, double r2, double tilt, double s, double e, 
+    void fakeDashedLine(const XY &c, double r1, double r2, double tilt, double s, double e,
                         const double pattern[], int num, int &pos, double &offset, bool reverse);
 
     void linearGradient(MscColorType from, MscColorType to, const XY &s, const XY &d, MscGradientType type);
@@ -124,17 +124,18 @@ friend class ArcEmphasis;  //for exotic line joints
     void Clip(const Block &b, const MscLineAttr &line);
     void Clip(const EllipseData &ellipse);
     void Clip(const Area &area);
+    void ClipInverse(const Area &area);
     void UnClip() {cairo_restore(cr);}
     void Transform_Rotate90(double s, double d, bool clockwise);
     void Transform_SwapXY();
     void Transform_FlipHorizontal(double y);
     void UnTransform() {cairo_restore(cr);}
 
-    void Line(const Edge& edge, const MscLineAttr &line);          
-    void Line(const XY &s, const XY &d, const MscLineAttr &line, double pattern_offset=0);                
+    void Line(const Edge& edge, const MscLineAttr &line);
+    void Line(const XY &s, const XY &d, const MscLineAttr &line, double pattern_offset=0);
     void Line(const Block &b, const MscLineAttr &line);
-    void Line(const Contour &contour, const MscLineAttr &line);    
-    void Line(const Area &area, const MscLineAttr &line);          
+    void Line(const Contour &contour, const MscLineAttr &line);
+    void Line(const Area &area, const MscLineAttr &line);
     void LineOpen(const Contour &contour, const MscLineAttr &line);  //an arbitrary contour, but not its last edge
     void Fill(const XY &s, const XY &d, const MscFillAttr &fill);
     void Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill);

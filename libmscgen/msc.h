@@ -186,7 +186,7 @@ public:
 
     void ParseText(const char *input, const char *filename);
 
-    void PostParseProcessArcList(ArcList &arcs, bool resetiterators, EIterator &left, 
+    void PostParseProcessArcList(ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(void);
     virtual string Print(int ident=0) const;
@@ -202,7 +202,7 @@ public:
 
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
     double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
-    double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y, 
+    double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y,
                           double top_y, const AreaList &area_top, bool forceCompress=false,
                           AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
