@@ -34,7 +34,7 @@
 class Edge
 {
     friend class Contour;
-    friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
+    friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///TODO: remove
 protected:
     bool    straight;
     XY      start;
@@ -81,6 +81,7 @@ public:
 	double GetSpan() const;
     double GetRadianS() const {_ASSERT(!straight); return s;}
     double GetRadianE() const {_ASSERT(!straight); return e;}
+    double GetRadianMidPoint() const;
     bool GetClockWise() const {_ASSERT(!straight); return clockwise_arc;}
 
     //Gives the intersecting points of AB and MN

@@ -786,7 +786,12 @@ bool Contour::CalculateClockwise() const
                 return at(0).clockwise_arc;
             //two curves with opposite dir, they do not touch only at the two ends
             //the one contains the other decides
-            _ASSERT(0); //figure this out;
+            const XY center_line = (at(0).GetStart()+at(1).GetStart())/2;
+            const XY center0 = at(0).GetEllipseData().Radian2Point(at(0).GetRadianMidPoint());
+            const XY center1 = at(1).GetEllipseData().Radian2Point(at(1).GetRadianMidPoint());
+            const double dist0 = (center0 - center_line).length();
+            const double dist1 = (center1 - center_line).length();
+            return at(0).GetClockWise() == (dist0 > dist1);
         }
         //one curve, one straight: dir is decided by curve
         if (at(0).IsStraight())

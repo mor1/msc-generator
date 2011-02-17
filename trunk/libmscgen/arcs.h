@@ -189,6 +189,7 @@ protected:
     mutable double sy, dy;    //The middle of the contour of the body: set in Width already
     mutable int stext, dtext; //filled by Width: index the two entity in xPos between which the text spans (sorted)
     mutable double sm, dm;    //filled by Width: margin (left and right) for text
+    mutable Area label_cover;
 public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);
     virtual const MscStyle *GetRefinementStyle(MscArcType t) const;

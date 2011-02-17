@@ -2,7 +2,7 @@
 #define ARROWHEAD_H
 #include <vector>
 #include "attribute.h"
-#include "contour_area.h" 
+#include "contour_area.h"
 
 typedef enum {
     //Both big and small arrows
@@ -73,7 +73,7 @@ public:
     std::pair<bool, MscArrowType> startType;
     enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
 
-    explicit ArrowHead(ArcType t=ANY) : type(t), size(true, MSC_ARROW_SMALL), xmul(true, 1), ymul(true, 1), 
+    explicit ArrowHead(ArcType t=ANY) : type(t), size(true, MSC_ARROW_SMALL), xmul(true, 1), ymul(true, 1),
         endType(true, MSC_ARROW_SOLID), midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
     void Empty();
     bool IsComplete() const {return line.IsComplete() && size.first && endType.first && midType.first && startType.first && xmul.first && ymul.first;}
@@ -81,7 +81,7 @@ public:
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh, ArcType t);
-    //tells what sort of MscArrowType should be drawn 
+    //tells what sort of MscArrowType should be drawn
     MscArrowType GetType(bool bidir, MscArrowEnd which) const;
 
 //functions for normal (small) arrowheads
@@ -94,7 +94,7 @@ public:
     //tells what range of the entity line is covered by the arrowhead
     Area EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //Returns a clip contour covering the arrowhead and the rest of the chart (both sides)
-    Area ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, const Block &total, 
+    Area ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, const Block &total,
                      const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //Returns a contour covering the arrowhead
     Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
@@ -106,17 +106,21 @@ public:
     XY getBigWidthHeight(bool bidir, MscArrowEnd which) const;
     //Returns true if this type of arrow will segment a big arrow as midtype
     bool bigDoesSegment(bool bidir, MscArrowEnd which) const;
-    //tells how much of the arrow line is covered by the arrowhead (on both sides of the entity line)
-    DoublePair getBigWidths(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
+    //tells how much of the arrow body is covered by the arrowhead (on both sides of the entity line)
+    DoublePair getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
+    //tells the full width of the arrowhead (on both sides of the entity line) for ArcBigArrow::Width()
+    DoublePair getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
     //Determines how much margin is needed for a text with this cover
     double getBigMargin(Area text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const;
     //tells how much the arrow (overall) extends above or below sy and dy
     double bigYExtent(bool bidir, bool multisegment) const;
-    Area BigCoverOne(double x, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const; 
+    Area BigCoverOne(double x, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
     Area BigCover(std::vector<double> xPos, double sy, double dy, bool bidir, int no_segment=-1) const;
-    void BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir,  const MscShadowAttr &shadow, 
-                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscDrawer *msc, 
-                 bool shadow_x_neg=false, bool shadow_y_neg=false) const;
+    Area BigEntityLineCover(const std::vector<double> &xPos, double sy, double dy, bool bidir,
+                            const std::vector<MscLineAttr> *lines, const Block &total) const;
+    void BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
+                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscDrawer *msc,
+                 const Area *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
 };
 
 #endif //ARROWHEAD_H

@@ -961,8 +961,8 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
 
     Area tcov = parsed_label.Cover(0, twh.x, max_lw/2);
     const bool fw = (*src)->index < (*dst)->index;
-    const DoublePair start = style.arrow.getBigWidths(fw, isBidir(), MSC_ARROW_START, dy-sy);
-    const DoublePair end   = style.arrow.getBigWidths(fw, isBidir(), MSC_ARROW_END, dy-sy);
+    const DoublePair start = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_START, dy-sy);
+    const DoublePair end   = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_END, dy-sy);
 
     distances.Insert((fw ? *src : *dst)->index, DISTANCE_LEFT, start.first);
     distances.Insert((fw ? *dst : *src)->index, DISTANCE_RIGHT, end.second);
@@ -975,7 +975,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
     margins.push_back(start);
     for (int i=0; i<middle.size(); i++) {
         iterators.push_back(middle[i]);
-        margins.push_back(style.arrow.getBigWidths(fw, isBidir(), MSC_ARROW_MIDDLE, dy-sy));
+        margins.push_back(style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_MIDDLE, dy-sy));
     }
     iterators.push_back(dst);
     margins.push_back(end);
@@ -1056,6 +1056,7 @@ double ArcBigArrow::Height(AreaList &cover)
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
     cover = area;
+    label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside);
     return centerline*2 - chart->arcVGapAbove + chart->arcVGapBelow + style.shadow.offset.second;
 }
 
@@ -1064,20 +1065,24 @@ void ArcBigArrow::ShiftBy(double y)
     if (!valid) return;
     sy += y;
     dy += y;
+    label_cover.Shift(XY(0,y));
     ArcArrow::ShiftBy(y); //Skip ArcDirArrow
 }
 
 void ArcBigArrow::PostPosProcess(double autoMarker)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(autoMarker); //Skip ArcDirArrow
     CheckSegmentOrder(yPos + centerline);
+    if (!valid) return;
+    ArcArrow::PostPosProcess(autoMarker); //Skip ArcDirArrow
+    chart->HideEntityLines(style.arrow.BigEntityLineCover(xPos, sy, dy, isBidir(), &segment_lines,
+        Block(XY(0,0), chart->total)));
 }
 
 void ArcBigArrow::Draw()
 {
     if (!valid) return;
-    style.arrow.BigDraw(xPos, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, chart);
+    style.arrow.BigDraw(xPos, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, chart, &label_cover);
     parsed_label.Draw(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside);
 }
 
@@ -1435,6 +1440,8 @@ void ArcVerticalArrow::Draw()
         chart->Transform_Rotate90(ypos[0], ypos[1], true);
     //Draw background
     style.arrow.BigDraw(ypos, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill, NULL, chart, 
+        &parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, true),
         style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
     parsed_label.Draw(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
                       xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, true);
