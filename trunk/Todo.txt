@@ -9,6 +9,11 @@ Two helpers needed:
  Allow new function only for metafiles
 
 
+ Doc elejére, hogy mi új
+ 2 új block arrowhead
+ Cairo meta surfaces.
+
+
 PLANNED in 3.1
 TODO: Switch to cairo 1.10 and the new pixman after summer.
 ADD: shadow to arrows and labels

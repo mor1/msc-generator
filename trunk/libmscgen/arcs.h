@@ -159,7 +159,7 @@ protected:
     const bool               specified_as_forward; //true if user specified "a->b", false if "b<-a"
 
     mutable double sx, dx;     //xpos of two final arrowheads (sx can be > dx)
-    mutable double sx_text, dx_text; //xpos for text display (sorted)
+    mutable double sx_text, dx_text, cx_text; //xpos for text display (sorted)
     mutable std::vector<double> xPos; //positions sorted
     mutable std::vector<DoublePair> margins; //margins sorted
     mutable Area text_cover;   //so that we can hide entity lines in PostPosProcess - not used by ArcBigArrow
