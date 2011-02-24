@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cairo", "cairo\cairo.vcxproj", "{8138BE58-5504-4F58-A7C8-BD05E8636192}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cairo-1.10", "cairo-1.10\cairo.vcxproj", "{8138BE58-5504-4F58-A7C8-BD05E8636192}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libpng", "libpng\projects\visualc71\libpng.vcxproj", "{4B88E8EF-E18E-4D17-A804-74A3802764A5}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pixman", "pixman\pixman.vcxproj", "{4583C918-AD1B-4FFE-B80A-845F4E385A09}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pixman-0.21.6", "pixman-0.21.6\pixman.vcxproj", "{4583C918-AD1B-4FFE-B80A-845F4E385A09}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib", "zlib\projects\visualc71\zlib.vcxproj", "{71088238-128E-4835-8E4B-4C88B83F1D15}"
 EndProject
