@@ -748,7 +748,8 @@ double ArcDirArrow::Height(AreaList &cover)
             sx_text = dx + xy_e.x;
             dx_text = sx - xy_s.x;
         }
-        area += text_cover = parsed_label.Cover(sx_text, dx_text, y);
+        cx_text = (sx+dx)/2;
+        area += text_cover = parsed_label.Cover(sx_text, dx_text, y, cx_text);
         //determine top edge position of arrow midline
         y += std::max(aH, firstLineHeight+ARROW_TEXT_VSPACE_ABOVE);
     } else {
@@ -869,7 +870,7 @@ void ArcDirArrow::Draw()
 {
     if (!valid) return;
     if (parsed_label.getTextWidthHeight().y)
-        parsed_label.Draw(sx_text, dx_text, yPos + chart->arcVGapAbove);
+        parsed_label.Draw(sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text);
     /* Draw the line */
     //all the entities this (potentially multi-segment arrow visits)
     const double y = yPos+centerline;  //should be integer
@@ -1045,18 +1046,19 @@ double ArcBigArrow::Height(AreaList &cover)
     if (sx < dx) {
         sx_text = xPos[stext] + sm;
         dx_text = xPos[dtext] - dm;
+        cx_text = (xPos[stext] + xPos[dtext])/2;
     } else {
         sx_text = xPos[xPos.size()-1-stext] + sm;
         dx_text = xPos[xPos.size()-1-dtext] - dm;
+        cx_text = (xPos[xPos.size()-1-stext] + xPos[xPos.size()-1-dtext])/2;
     }
-
     //use += to keep arc and other params of area
     area = style.arrow.BigCover(xPos, sy, dy, isBidir());
     area.arc = this;
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
     cover = area;
-    label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside);
+    label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     return centerline*2 - chart->arcVGapAbove + chart->arcVGapBelow + style.shadow.offset.second;
 }
 
@@ -1083,7 +1085,7 @@ void ArcBigArrow::Draw()
 {
     if (!valid) return;
     style.arrow.BigDraw(xPos, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, chart, &label_cover);
-    parsed_label.Draw(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside);
+    parsed_label.Draw(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1441,10 +1443,10 @@ void ArcVerticalArrow::Draw()
     //Draw background
     style.arrow.BigDraw(ypos, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill, NULL, chart, 
         &parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
-                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, true),
+                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true),
         style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
     parsed_label.Draw(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
-                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, true);
+                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);
     chart->UnTransform();
 }
 
@@ -2081,7 +2083,7 @@ double ArcEmphasis::Height(AreaList &cover)
             (*i)->sx_text = sx + (*i)->sx_text - lw + chart->emphVGapInside;  //both sx and sx_text includes a lw
             (*i)->dx_text = dx - (*i)->dx_text + lw - chart->emphVGapInside;
             //Add text cover & draw if necessary
-            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
+            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, ((*i)->sx_text + (*i)->dx_text)/2, (*i)->y_text);
             //Advance label height
             double th = (*i)->parsed_label.getTextWidthHeight().y;
             //Position arrows if any under the label

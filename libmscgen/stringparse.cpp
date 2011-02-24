@@ -1354,7 +1354,7 @@ XY Label::getTextWidthHeight(int line) const
     return xy;
 };
 
-void Label::CoverOrDraw(double sx, double dx, double y, bool isRotated, Area *area) const
+void Label::CoverOrDraw(double sx, double dx, double y, double cx, bool isRotated, Area *area) const
 {
     if (size()==0) return;
     XY xy;
@@ -1364,10 +1364,18 @@ void Label::CoverOrDraw(double sx, double dx, double y, bool isRotated, Area *ar
         switch (at(i).startFormat.ident.second) {
         case MSC_IDENT_LEFT:
         default:
-            xy.x = sx+at(i).startFormat.textHGapPre.second; break;
-        case MSC_IDENT_CENTER:
-            xy.x = (sx + dx - wh.x + at(i).startFormat.textHGapPre.second -
-                    at(i).startFormat.textHGapPost.second) / 2; break;
+            xy.x = sx+at(i).startFormat.textHGapPre.second; 
+            break;
+        case MSC_IDENT_CENTER: {
+            double w = wh.x + at(i).startFormat.textHGapPre.second + at(i).startFormat.textHGapPost.second;
+            //if center, attempt to center around cx, but minimize extension beyond sx and dx
+            if (w >= dx-sx || cx<sx || cx>dx) xy.x = (sx + dx - w) / 2; 
+            else {
+                xy.x = std::max(cx - w/2, sx);
+                xy.x = std::min(xy.x, dx - w);
+            }   
+            break;
+            }
         case MSC_IDENT_RIGHT:
             xy.x = dx - wh.x - at(i).startFormat.textHGapPost.second; break;
         }

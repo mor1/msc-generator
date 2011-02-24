@@ -139,7 +139,7 @@ class Label : public std::vector<ParsedLine>
 protected:
     MscDrawer *msc;
     unsigned AddText(const string &s, StringFormat);
-    void CoverOrDraw(double sx, double dx, double y, bool isRotated, Area *area) const;
+    void CoverOrDraw(double sx, double dx, double y, double cx, bool isRotated, Area *area) const;
 public:
     Label(const string &s, MscDrawer *m , const StringFormat &f): msc(m)
         {AddText(s,f);}
@@ -149,8 +149,8 @@ public:
     operator std::string() const;
 
     XY getTextWidthHeight(int line=-1) const;
-    Area Cover(double sx, double dx, double y, bool isRotated=false) const {Area a; CoverOrDraw(sx, dx, y, isRotated, &a); return a;}
-    void Draw(double sx, double dx, double y, bool isRotated=false) const {CoverOrDraw(sx, dx, y, isRotated, NULL);}
+    Area Cover(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {Area a; CoverOrDraw(sx, dx, y, cx, isRotated, &a); return a;}
+    void Draw(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {CoverOrDraw(sx, dx, y, cx, isRotated, NULL);}
 };
 
 
