@@ -86,7 +86,7 @@ void StringFormat::Default()
 {
     normalFontSize.first = true; normalFontSize.second = 16; 
     smallFontSize.first = true; smallFontSize.second = 10;
-    textHGapPre.first = true; textHGapPre.second = 4; 
+    textHGapPre.first = true; textHGapPre.second = 2; 
     textHGapPost.first = true; textHGapPost.second = 2;
     textVGapAbove.first = true; textVGapAbove.second = 2;
     textVGapBelow.first = true; textVGapBelow.second = 2;
@@ -1374,6 +1374,7 @@ void Label::CoverOrDraw(double sx, double dx, double y, double cx, bool isRotate
                 xy.x = std::max(cx - w/2, sx);
                 xy.x = std::min(xy.x, dx - w);
             }   
+            xy.x += at(i).startFormat.textHGapPre.second;
             break;
             }
         case MSC_IDENT_RIGHT:
