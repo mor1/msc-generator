@@ -5,9 +5,9 @@ set ROOTDIR=%CD%\..
 
 set INCLUDE=%INCLUDE%;%ROOTDIR%\zlib
 set INCLUDE=%INCLUDE%;%ROOTDIR%\libpng
-set INCLUDE=%INCLUDE%;%ROOTDIR%\pixman\pixman
-set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo\boilerplate
-set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo\src
+set INCLUDE=%INCLUDE%;%ROOTDIR%\pixman-0.21.6\pixman
+set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo-1.10\boilerplate
+set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo-1.10\src
 
 set LIB_SAVE=%LIB%
 
