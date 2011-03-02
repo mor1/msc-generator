@@ -9,9 +9,8 @@ Two helpers needed:
  Allow new function only for metafiles
 
 
- Doc elejére, hogy mi új
- 2 új block arrowhead
- Cairo meta surfaces.
+2 új block arrowhead
+FIX: tördelési probléma boxokkal (examples)
 
 
 PLANNED in 3.1
@@ -43,6 +42,8 @@ ADD: UNINSTALL
 FIX: Node hideentitylines, for radius bigger than 70
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
+CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
+
 
 In 3.0
 DONE: Switched to cairo 1.10 and the new pixman after summer.
