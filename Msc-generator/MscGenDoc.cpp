@@ -505,7 +505,7 @@ void CMscGenDoc::OnFileExport()
 	SyncShownWithEditing("export");
     CString name;
     bool bitmap;
-    double x_scale, y_scale;
+    double x_scale=1, y_scale=1;
     do {  //must not call DoModal twice for the same instance of CFileDialog
         CFileDialog dialog(false);
         dialog.m_pOFN->Flags &= ~OFN_OVERWRITEPROMPT & ~OFN_NOTESTFILECREATE;
@@ -531,8 +531,9 @@ void CMscGenDoc::OnFileExport()
         //dialog.UpdateOFNFromShellDialog();
         name = dialog.GetPathName();
         CString ext = PathFindExtension(name);
-        if (ext==".png" || ext==".bmp" || ext==".emf" ||
-            ext==".svg" || ext==".pdf" || ext==".eps") {
+        if (ext.CompareNoCase(".png")==0 || ext.CompareNoCase(".bmp")==0 || 
+            ext.CompareNoCase(".emf")==0 || ext.CompareNoCase(".svg")==0 || 
+            ext.CompareNoCase(".pdf")==0 || ext.CompareNoCase(".eps")==0) {
             strcpy_s(filename, name);
             PathRemoveExtension(filename);
             name = filename;

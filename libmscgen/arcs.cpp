@@ -2083,7 +2083,7 @@ double ArcEmphasis::Height(AreaList &cover)
             (*i)->sx_text = sx + (*i)->sx_text - lw + chart->emphVGapInside;  //both sx and sx_text includes a lw
             (*i)->dx_text = dx - (*i)->dx_text + lw - chart->emphVGapInside;
             //Add text cover & draw if necessary
-            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, ((*i)->sx_text + (*i)->dx_text)/2, (*i)->y_text);
+            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
             //Advance label height
             double th = (*i)->parsed_label.getTextWidthHeight().y;
             //Position arrows if any under the label

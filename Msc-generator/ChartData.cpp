@@ -296,14 +296,14 @@ void CDrawingChartData::DrawToFile(const char* fileName, double x_scale, double 
         pos = fn.length();
         fn += ".png";
     }
-    string ext = fn.substr(pos+1);
+    CString ext = fn.substr(pos+1).c_str();
     MscDrawer::OutputType ot;
-    if (ext == "png") ot = MscDrawer::PNG;
-    else if (ext == "png") ot = MscDrawer::PNG;
-    else if (ext == "emf") ot = MscDrawer::EMF;
-    else if (ext == "svg") ot = MscDrawer::SVG;
-    else if (ext == "pdf") ot = MscDrawer::PDF;
-    else if (ext == "eps") ot = MscDrawer::EPS;
+    if (ext.CompareNoCase("png")==0) ot = MscDrawer::PNG;
+    else if (ext.CompareNoCase("png")==0) ot = MscDrawer::PNG;
+    else if (ext.CompareNoCase("emf")==0) ot = MscDrawer::EMF;
+    else if (ext.CompareNoCase("svg")==0) ot = MscDrawer::SVG;
+    else if (ext.CompareNoCase("pdf")==0) ot = MscDrawer::PDF;
+    else if (ext.CompareNoCase("eps")==0) ot = MscDrawer::EPS;
     else {
         ot = MscDrawer::PNG;
         fn += ".png";

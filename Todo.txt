@@ -10,7 +10,9 @@ Two helpers needed:
 
 
 2 új block arrowhead
-FIX: tördelési probléma boxokkal (examples)
+elso sorban bad tracking lines
+add tips to doc (like boxing entities)
+UNINSTALL
 
 
 PLANNED in 3.1
