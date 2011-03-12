@@ -315,7 +315,7 @@ bool MscDrawer::SetOutputWin32(OutputType ot, HDC hdc, double x_scale, double y_
 
 	cr = cairo_create (surface);
     st = cairo_status(cr);
-    if (st) goto problem;
+    if (st) goto problem; 
 
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
     cairo_scale(cr, fake_scale*x_scale, fake_scale*y_scale);

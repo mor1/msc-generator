@@ -34,7 +34,7 @@ int isatty (int) {return 0;}
 void msc_jump_line(YYLTYPE *loc)
 {
     loc->last_line = loc->first_line+1;
-    loc->last_column=0;
+    loc->last_column=1;
 };
 
 /* in-place removal of whitespace. Returns new head */

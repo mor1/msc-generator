@@ -9,13 +9,10 @@ Two helpers needed:
  Allow new function only for metafiles
 
 
-2 új block arrowhead
-elso sorban bad tracking lines
-add tips to doc (like boxing entities)
-UNINSTALL
-
-
 PLANNED in 3.1
+CHANGE: Switched to cairo 1.10 and the new pixman after summer.
+   - Bug1: hints drawing into popubox
+   - Bug2: EMF re-scaling
 ADD: shadow to arrows and labels
 ADD: Comments to arcs (leftside, rightside, bubble)
 Activate package
@@ -40,7 +37,6 @@ To be considered
 ADD: variant #1 double and triple-line joints for emphasis
 CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
 CANCELLED: Re-add escape key to exit in-place editing...
-ADD: UNINSTALL
 FIX: Node hideentitylines, for radius bigger than 70
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
@@ -48,7 +44,7 @@ CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 
 In 3.0
-DONE: Switched to cairo 1.10 and the new pixman after summer.
+ADDED: Uninstall shortcut
 DONE: faster drawing on screen using meta surfaces
 ADDED: More precise tracking mode
 ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
