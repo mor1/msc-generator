@@ -28,7 +28,9 @@ typedef enum {
     MSC_ARROW_TRIPLE_LINE,
     MSC_ARROW_TRIPLE_HALF,
     //Big arrows only
-    MSC_ARROW_EMPTY_INV
+    MSC_ARROW_EMPTY_INV,
+    MSC_ARROW_STRIPES,
+    MSC_ARROW_TRIANGLE_STRIPES
 } MscArrowType;
 
 inline bool MSC_ARROW_OK_FOR_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_TRIPLE_HALF;}

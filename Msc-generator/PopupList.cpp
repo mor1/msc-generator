@@ -196,8 +196,7 @@ void CHintListBox::ChangeSelectionTo(int index, CshHintItemSelectionState state)
 
 void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 {
-    if (lpItem->itemID==-1 || lpItem->itemAction == ODA_FOCUS) return;
-
+    if (lpItem->itemID==-1) return;
     MscDrawer mscdrawer;
     mscdrawer.SetOutputWin32(MscDrawer::WIN, lpItem->hDC);
     CshHint *item= (CshHint*)lpItem->itemData;

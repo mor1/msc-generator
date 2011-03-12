@@ -26,7 +26,7 @@ template<> const char EnumEncapsulator<MscArrowType>::names[][ENUM_STRING_LEN] =
      "dot", "empty_dot", "sharp", "empty_sharp",
      "double", "double_empty", "double_line", "double_half",
      "triple", "triple_empty", "triple_line", "triple_half",
-     "empty_inv", ""};
+     "empty_inv", "stripes", "triangle_stripes", ""};
 template<> const char EnumEncapsulator<MscArrowSize>::names[][ENUM_STRING_LEN] =
     {"invalid", "tiny", "small", "normal", "big", "huge", ""};
 
@@ -162,9 +162,16 @@ void ArrowHead::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
+bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrowSize size, bool left);
+
 bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
 {
     if (!msc) return false;
+    if (!MSC_ARROW_OK_FOR_BIG_ARROWS((MscArrowType)(int)p)) {
+        if (MSC_ARROW_OK_FOR_ARROWS((MscArrowType)(int)p))
+            return CshHintGraphicCallbackForArrows(msc, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
+        else return false;
+    }
     const double xx = 0.7;
     std::vector<double> xPos(2); 
     xPos[0] = 0;
@@ -210,6 +217,11 @@ bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrow
 
 bool CshHintGraphicCallbackForArrowTypes(MscDrawer *msc, CshHintGraphicParam p)
 {
+    if (!MSC_ARROW_OK_FOR_ARROWS((MscArrowType)(int)p)) {
+        if (MSC_ARROW_OK_FOR_BIG_ARROWS((MscArrowType)(int)p))
+            return CshHintGraphicCallbackForBigArrows(msc, p);
+        else return false;
+    }
     return CshHintGraphicCallbackForArrows(msc, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
 }
 
@@ -725,6 +737,12 @@ XY ArrowHead::getBigWidthHeight(bool bidir, MscArrowEnd which) const
     case MSC_ARROW_DIAMOND:
         ret = XY(2*sizes[size.second], sizes[size.second]);
         break;
+    case MSC_ARROW_STRIPES:
+        ret = XY(sizes[size.second]*2, 0);
+        break;
+    case MSC_ARROW_TRIANGLE_STRIPES:
+        ret = XY(sizes[size.second]*2*1.2, 0);
+        break;
     }
     if (xmul.first) ret.x *= xmul.second;
     if (ymul.first) ret.y *= ymul.second;
@@ -756,6 +774,8 @@ DoublePair ArrowHead::getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd 
     case MSC_ARROW_LINE: 
     case MSC_ARROW_HALF: 
     case MSC_ARROW_EMPTY_INV: /* Inverse small triangle */
+    case MSC_ARROW_STRIPES:
+    case MSC_ARROW_TRIANGLE_STRIPES:
         ret.first = wh.x;
         if ((bidir || t== MSC_ARROW_EMPTY_INV) && which == MSC_ARROW_MIDDLE)
             ret.second = ret.first;
@@ -784,6 +804,7 @@ DoublePair ArrowHead::getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd 
     return ret;
 }
 
+//The values returned here are used to determine spacing between entities
 DoublePair ArrowHead::getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd which, double body_height) const
 {
     const MscArrowType t = GetType(bidir, which);
@@ -812,6 +833,8 @@ bool ArrowHead::bigDoesSegment(bool bidir, MscArrowEnd which) const
         case MSC_ARROW_EMPTY_INV: 
         case MSC_ARROW_LINE: 
         case MSC_ARROW_HALF: 
+        case MSC_ARROW_STRIPES:
+        case MSC_ARROW_TRIANGLE_STRIPES:
             return true;
         case MSC_ARROW_NONE:
         case MSC_ARROW_DIAMOND:
@@ -922,6 +945,34 @@ Area ArrowHead::BigCoverOne(double x, double sy, double dy, bool forward, bool b
     case MSC_ARROW_DOT:
         area += Contour(XY(x, mid_y), wh.x, (dy-sy)/2 + wh.y);    
         break;
+
+    case MSC_ARROW_STRIPES:
+        area += Contour(x+x_off/5.*0, x+x_off/5.*1, sy, dy);
+        area += Contour(x+x_off/5.*2, x+x_off/5.*4, sy, dy);
+        if (bidir && which == MSC_ARROW_MIDDLE) {
+            area += Contour(x-x_off/5.*0, x-x_off/5.*1, sy, dy);
+            area += Contour(x-x_off/5.*2, x-x_off/5.*4, sy, dy);
+        }
+        break;
+    case MSC_ARROW_TRIANGLE_STRIPES:
+        area += Contour(x+x_off/6.*0, x+x_off/6.*1, sy, dy);
+        area += Contour(x+x_off/6.*2, x+x_off/6.*4, sy, dy);
+        area += Contour(x+x_off/6.*5, x+x_off/6.*6, sy, dy);
+        area -= Contour(XY(x+x_off/6.*1, mid_y), XY(x+x_off/6.*0, sy), XY(x+x_off/6.*0, dy));
+        area += Contour(XY(x+x_off/6.*2, mid_y), XY(x+x_off/6.*1, sy), XY(x+x_off/6.*1, dy));
+        area -= Contour(XY(x+x_off/6.*3, mid_y), XY(x+x_off/6.*2, sy), XY(x+x_off/6.*2, dy));
+        area += Contour(XY(x+x_off/6.*5, mid_y), XY(x+x_off/6.*4, sy), XY(x+x_off/6.*4, dy));
+        area -= Contour(XY(x+x_off/6.*6, mid_y), XY(x+x_off/6.*5, sy), XY(x+x_off/6.*5, dy));
+        if (bidir && which == MSC_ARROW_MIDDLE) {
+            area += Contour(x-x_off/6.*0, x-x_off/6.*1, sy, dy);
+            area += Contour(x-x_off/6.*2, x-x_off/6.*4, sy, dy);
+            area += Contour(x-x_off/6.*5, x-x_off/6.*6, sy, dy);
+            area -= Contour(XY(x-x_off/6.*1, mid_y), XY(x-x_off/6.*0, sy), XY(x-x_off/6.*0, dy));
+            area += Contour(XY(x-x_off/6.*2, mid_y), XY(x-x_off/6.*1, sy), XY(x-x_off/6.*1, dy));
+            area -= Contour(XY(x-x_off/6.*3, mid_y), XY(x-x_off/6.*2, sy), XY(x-x_off/6.*2, dy));
+            area += Contour(XY(x-x_off/6.*5, mid_y), XY(x-x_off/6.*4, sy), XY(x-x_off/6.*4, dy));
+            area -= Contour(XY(x-x_off/6.*6, mid_y), XY(x-x_off/6.*5, sy), XY(x-x_off/6.*5, dy));
+        }
     }
     return area;
 }

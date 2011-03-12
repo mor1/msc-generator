@@ -8,10 +8,11 @@
 
 #include "language.h"
 
-#define MSC_POS(A) MSC_POS2(A,A)
-#define MSC_POS2(A, B) file_line_range(                                    \
-            file_line(msc.current_file, (A).first_line, (A).first_column), \
-            file_line(msc.current_file, (B).last_line, (B).last_column))
+//yacc column numbers start with 1 - we substract one here
+#define MSC_POS(A) MSC_POS2(A,A) 
+#define MSC_POS2(A, B) file_line_range(                                                          \
+            file_line(msc.current_file, (A).first_line, (A).first_column - 1), \
+            file_line(msc.current_file, (B).last_line,  (B).last_column  - 1))
 
 void msc_jump_line(YYLTYPE *loc);
 char *msc_remove_head_tail_whitespace(char *s);
