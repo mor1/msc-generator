@@ -60,6 +60,8 @@ int _tmain(int argc, _TCHAR* argv[])
         args.push_back(std::string(argv[i]));
 
 	string designs = ReadDesigns("designlib.signalling");
+    if (designs.length()==0) 
+        designs = ReadDesigns("original_designlib.signalling");
 
     return do_main(args, designs.c_str(), "\\f(courier new)\\mn(12)");
 	return 0;

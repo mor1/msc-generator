@@ -698,7 +698,9 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 		"b->c:trallala;\r\n"
 		"a->b:new message;\r\n");
 
-	ReadDesigns(reportProblem); //fills m_ChartSourcePreamble appropriately, default filename applies
+    //fills m_ChartSourcePreamble and m_SetOfDesigns
+	if (1==ReadDesigns(reportProblem, "designlib.signalling")) //designlib.signalling not found in install dir
+	    ReadDesigns(reportProblem, "original_designlib.signalling"); //use original_designlib.signalling 
 	FillDesignDesignCombo("", true);
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
 		              "http://msc-generator.sourceforge.net ";
@@ -720,8 +722,13 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.
-//If no problem, update m_ChartSourcePreamble and return true
-bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
+//Filename can contain wildcards, all matching files are loaded
+//Always updates m_ChartSourcePreamble and m_SetOfDesigns (at problem they may be empty or partial)
+//returns 0 if OK
+//returns 1 if no file found
+//returns 2 if file found but there were errors in it (you can probably ignore them)
+
+int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 {
 	char buff[1024]; 
 	GetModuleFileName(NULL, buff, 1024);
@@ -730,12 +737,16 @@ bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 	ASSERT(pos!=std::string::npos);
 	CString designlib_filename = dir.substr(0,pos).append("\\").append(fileName).c_str();
 
-	CString preamble;
+	//clear existing designs
+    m_SetOfDesigns.Empty();
+    m_ChartSourcePreamble = ";\n";
+
+    CString preamble;
 	CString msg;
 	CFileFind finder;
 	bool errors = false;
 	bool bFound = finder.FindFile(designlib_filename);
-	if (bFound) m_SetOfDesigns.Empty();
+    if (!bFound) return 1;
 	while (bFound) {
 		bFound = finder.FindNextFile();
 		bool designlib_pedantic = true;
@@ -763,7 +774,7 @@ bool CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 		m_ChartSourcePreamble = preamble;
 	else 
 		m_ChartSourcePreamble = ";\n";
-	return !errors;
+	return errors?2:0;
 }
 
 

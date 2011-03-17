@@ -10,6 +10,7 @@ Two helpers needed:
 
 
 PLANNED in 3.1
+Add: Grouping of entities
 CHANGE: Switched to cairo 1.10 and the new pixman after summer.
    - Bug1: hints drawing into popubox
    - Bug2: EMF re-scaling
@@ -44,6 +45,7 @@ CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 
 In 3.0
+FIXED: Upgrade install
 ADDED: Uninstall shortcut
 DONE: faster drawing on screen using meta surfaces
 ADDED: More precise tracking mode
