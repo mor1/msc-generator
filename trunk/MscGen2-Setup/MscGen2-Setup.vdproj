@@ -21,12 +21,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_11B30C3FAF5143EAA79EEE3D57816A03"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -39,13 +33,25 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_5CFCD0277F9843EF841A1D8BEEAB6780"
+        "MsmKey" = "8:_2044FD3E577E19EF3457E127D9A06FBB"
         "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_5CFCD0277F9843EF841A1D8BEEAB6780"
+        "MsmKey" = "8:_2044FD3E577E19EF3457E127D9A06FBB"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_32061E24963F45D7AC18991A50B4E66C"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_32061E24963F45D7AC18991A50B4E66C"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -63,7 +69,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_926694095C9944669FEDB625672F9129"
+        "MsmKey" = "8:_9A89BFC4BEBF45EFB4374ED2BE2E1924"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -77,6 +83,12 @@
         {
         "MsmKey" = "8:_E3EC895DEE334AE1955560AD21D3DFAE"
         "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_E9B05C72A2564C6D804BBA81DC63D45D"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -249,6 +261,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2044FD3E577E19EF3457E127D9A06FBB"
+            {
+            "SourcePath" = "8:cairo.dll"
+            "TargetName" = "8:cairo.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:TRUE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6613FEF835754514BC83A62E3B74C6D5"
             {
             "SourcePath" = "8:..\\doc\\Demo.signalling"
@@ -269,10 +301,10 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_926694095C9944669FEDB625672F9129"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9A89BFC4BEBF45EFB4374ED2BE2E1924"
             {
-            "SourcePath" = "8:..\\doc\\designlib.signalling"
-            "TargetName" = "8:designlib.signalling"
+            "SourcePath" = "8:..\\doc\\original_designlib.signalling"
+            "TargetName" = "8:original_designlib.signalling"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
             "Condition" = "8:"
@@ -450,15 +482,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
-        "ProductCode" = "8:{453AC3C8-F260-4D88-832A-EC957E92FDEB}"
-        "PackageCode" = "8:{BA613F35-2BA1-4B95-9CA7-2F51BAEE29E3}"
+        "ProductCode" = "8:{DD4D0FA1-B55B-42DB-8C37-4BA176D1F87F}"
+        "PackageCode" = "8:{994CDAF1-B676-432B-8A0C-EFE66F6A171E}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:1.0.0"
+        "ProductVersion" = "8:3.0.0"
         "Manufacturer" = "8:Zoltan Turanyi"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1916,11 +1948,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_11B30C3FAF5143EAA79EEE3D57816A03"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_32061E24963F45D7AC18991A50B4E66C"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
                 "Properties"
                 {
                 }
@@ -1930,11 +1962,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_5CFCD0277F9843EF841A1D8BEEAB6780"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_E9B05C72A2564C6D804BBA81DC63D45D"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
                 "Properties"
                 {
                 }
@@ -1949,7 +1981,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
             {
-            "SourcePath" = "8:..\\Debug\\msc-gen.exe"
+            "SourcePath" = "8:..\\Release\\msc-gen.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
@@ -1977,7 +2009,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_8D210BB11DE54BFF9295776C6C22707B"
             {
-            "SourcePath" = "8:..\\Debug\\Msc-generator.exe"
+            "SourcePath" = "8:..\\Release\\Msc-generator.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
