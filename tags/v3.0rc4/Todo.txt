@@ -1,0 +1,108 @@
+In cairo
+Alt #1: Add win32_printing_surface_create_with_size
+Alt #2: Add a cairo_pdf_surface_set_size like function to the win32_printing backend
+Two helpers needed:
+  - _extract_pdf_surface - like
+  - _cairo_pdf_surface_set_size_internal - like
+
+ Add a test for metafiles
+ Allow new function only for metafiles
+
+
+PLANNED in 3.1
+Add: Grouping of entities
+CHANGE: Switched to cairo 1.10 and the new pixman after summer.
+   - Bug1: hints drawing into popubox
+   - Bug2: EMF re-scaling
+ADD: shadow to arrows and labels
+ADD: Comments to arcs (leftside, rightside, bubble)
+Activate package
+	ADD: message lost
+	ADD: Add entity create/destroy
+	Entity activate/deactivate
+ADD: Expand parallel behaviour
+	- add valign={top, center, bottom} attribute
+	- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
+		should return one)
+	- add overlap=no attribute to use compress, but downward...
+	- add these attributes to the style under parallel.valign and parallel.overlaps
+ADD: arrows in an angle
+	Arrows
+	Block arrows
+Divider package
+	ADD: Make divider only within a box
+	ADD: Allow divider to have entities
+To be considered
+	ADD: more styles to design lib
+	ADD: More arrow types --> ==> >>> ..> 
+ADD: variant #1 double and triple-line joints for emphasis
+CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
+CANCELLED: Re-add escape key to exit in-place editing...
+FIX: Node hideentitylines, for radius bigger than 70
+ADD: Style and color explorer (show what a style or color contains at any place in the chart)
+ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
+CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
+
+
+In 3.0
+FIXED: Upgrade install
+ADDED: Uninstall shortcut
+DONE: faster drawing on screen using meta surfaces
+ADDED: More precise tracking mode
+ADDED: long_dashed, dash_dotted, triple and triple_thick line styles
+ADDED: More arrowheads (double_*, triple_*, sharp, empty_sharp; also xmul and ymul attributes)
+ADDED: A richer variety of block arrowhead (*_empty, added empty_inv and sharp)
+ADDED: Combined directional arrow styles such as a<->b<<>>c (also for block arrows)
+ADDED: shadow attribute to block arrows and verticals (updated designlib)
+ADDED: More space to ... dividers
+ADDED: line.corner attribute with bevel, note 
+ADDED: global text.format chart option to impact all text (can be part of a design too)
+ADDED: SHOW and HIDE keywords (showexplicit flag to EntityDef)
+ADDED: Command bye so that file end can be used for comments
+ADDED: Add size settings (scale=, x=, y=) to command line and a customized dialog to File->Export
+ADDED: AutoSplit mode (also for full screen)
+ADDED: Page combo to fulls screen toolbar
+FIXED: missing ; at the end of last command creates an empty chart
+FIXED: If we select a hint, use the hinted text, not the one in the editor (casedness)
+FIXED: allow hint when typing just before another word
+FIXED: Hints now do auto-completion
+FIXED: Focus always goes back to the internal editor.
+FIXED: Move caching from CChartData to a separate object.
+ADDED: Scale to all drawing operations. Direct drawing to windows surface & bitmap caching
+ADDED: onlyforboxes side requirement for widths
+CHANGE: pipe::fromright and vertical::readfromleft are both renamed into "side"
+
+In 2.6
+FIXED: Many improvements to parsing, but missing the ; still result in empty chart
+ADDED: IntelliSense-like suggestions and auto-completion
+
+In 2.5.6
+FIXED: A critical bug (new in 2.5.5): freeze when copying the chart to the clipboard or opening an embedded one
+
+In 2.5.5
+FIXED: Under XP now we use cairo_text_path, so it works.
+FIXED: after a many line-label terminated with a semicolon TAB works bad in next line
+FIXED: Tabbing a multiline label (all of it) works bad
+FIXED: Now dropping a file will be equal to opening one (will ask for save and erase undo)
+
+In 2.5.4
+FIXED: Notification of new version showed the old version in the dialog.
+FIXED: non-empty boxes were not numbered by default even if numbering=yes
+UPDATE DOC: with empty escape and numbering updates (formats & multi-level)
+CHANGED: Number format was too cryptic, changed to simpler escapes
+
+In 2.5.3
+CHANGED: Introduced Context into code
+CHANGED: if adding levels just at the beginning of a numbered box, block arrow, etc., decrement that.
+ADDED: Multi-level numbering
+ADDED: Number formats
+ADDED: Possibility to place the number anywhere you want inside a label
+
+In 2.5.2
+FIXED again: ... makes vlines dotted till end of chart
+
+In 2.5.1
+FIXED: Applying a style kills numbering
+ADDED: Add empty escape to allow number style to be different from beginning of text
+FIXED: ... makes vlines dotted till end of chart
+ 
