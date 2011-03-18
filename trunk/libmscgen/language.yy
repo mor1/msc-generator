@@ -1127,7 +1127,7 @@ entity:       entity_string full_arcattrlist_with_label
     free($1);
 };
 
-first_entity:  entity_string full_arcattrlist_with_label
+first_entity_no_group:  entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintAt(@1, HINT_LINE_START)) {
@@ -1153,13 +1153,40 @@ first_entity:  entity_string full_arcattrlist_with_label
 	}
     csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
   #else
-        $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL);
-        ($$)->SetLineEnd(MSC_POS(@$));
+    $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL);
+    ($$)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
 };
 
 
+first_entity: first_entity_no_group
+{
+  #ifndef C_S_H_IS_COMPILED
+    $$ = (EntityDefList*)((new EntityDefList)->Append($1));
+  #endif
+}
+              | first_entity_no_group braced_arclist
+{
+  #ifndef C_S_H_IS_COMPILED
+    EntityDefList *edl = new EntityDefList;
+    edl->Append($1);
+    if ($2) {
+        for (auto i = ($2)->begin(); i!=($2)->end(); i++) {
+            CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
+            if (ce==NULL || ce->full_heading) 
+                msc.Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
+            else {
+                for (auto j = ce->entities.begin(); j!=ce->entities.end(); j++)
+                    ; //XXX add parent, if entity has no parent yet
+                edl->splice(edl->end(), ce->entities);
+            }
+        }
+        delete ($2);
+    }
+    $$ = edl;
+  #endif
+};
 
 styledeflist: styledef
              | styledeflist TOK_COMMA styledef
