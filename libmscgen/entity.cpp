@@ -22,9 +22,11 @@
 
 template class PtrList<Entity>;
 
-Entity::Entity(const string &n, const string &l, const string &ol, double p, const MscStyle &entity_style) :
+Entity::Entity(const string &n, const string &l, const string &ol, 
+    double p, const MscStyle &entity_style) :
     maxwidth(0), running_style(entity_style),
-    name(n), orig_label(ol), label(l), pos(p), index(0), status(entity_style)
+    name(n), orig_label(ol), label(l), collapsed(false),
+    pos(p), index(0), status(entity_style)
 {
 }
 
