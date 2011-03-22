@@ -414,12 +414,12 @@ inline double Area::OffsetBelow(const Contour &below, double &touchpoint, double
 inline double Area::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
-    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
     if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
         if (below.mainline.from - mainline.till < offset) {
             offset = below.mainline.from - mainline.till;
             touchpoint = mainline.till;
         }
+    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
     for (auto i = begin(); i!=end(); i++)
         for (auto j = below.begin(); j!=below.end(); j++) {
             double off, tp;
@@ -449,12 +449,12 @@ inline double AreaList::OffsetBelow(const Area &below, double &touchpoint, doubl
 inline double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
-    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
     if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
         if (below.mainline.from - mainline.till < offset) {
             offset = below.mainline.from - mainline.till;
             touchpoint = mainline.till;
         }
+    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
     for (auto i = cover.begin(); i!=cover.end(); i++)
         for (auto j = below.cover.begin(); j!=below.cover.end(); j++)
             offset = std::min(offset, i->OffsetBelow(*j, touchpoint, offset, bMainline));

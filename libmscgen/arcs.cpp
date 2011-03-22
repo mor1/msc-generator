@@ -2437,7 +2437,8 @@ void ArcEmphasis::Draw()
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
-        nudge(t==MSC_COMMAND_NUDGE), extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0)
+    nudge(t==MSC_COMMAND_NUDGE), extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0), 
+	wide(false)
 {
 }
 
@@ -2530,7 +2531,7 @@ double ArcDivider::Height(AreaList &cover)
         area += Block(line_margin, chart->total.x-line_margin,
                       centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
     if (!wide)
-        wh.y += chart->arcVGapAbove + chart->arcVGapBelow;
+        wh.y += chart->arcVGapBelow;
     height = wh.y + extra_space;
     //Discontinuity lines cannot be compressed much
     if (type==MSC_ARC_DISCO)
