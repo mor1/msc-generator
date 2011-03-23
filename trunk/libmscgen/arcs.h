@@ -351,11 +351,14 @@ protected:
     double height;
 public:
     CommandEntity(EntityDefList *e, Msc *msc);
+	bool IsFullHeading() {return full_heading;}
+	void SetEntityParent(const char *name);
+	void MoveMyEntityDefsAfter(EntityDefList *e) {if (e) e->splice(e->end(), entities);} //effectively empty 'entities'
     string Print(int ident=0) const;
     void AppendToEntities(const EntityDefList &e);
     void Combine(CommandEntity *ce);
     bool AddAttribute(const Attribute &);
-    CommandEntity *ApplyShowHide(bool show);
+    CommandEntity *ApplyPrefix(const char *prefix);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
