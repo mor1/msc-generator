@@ -57,13 +57,9 @@ class PtrList : public std::list<Object*>
             {responsible=r;}
         PtrList *Append(Object *o)
             {if (o) push_back(o); return this;}
-        PtrList *Append(PtrList<Object> *l)
-		    {if (l) {_ASSERT(responsible==l->responsible); splice(end(), *l);} return this;}
         PtrList *Prepend(Object *o)
             {if (o) push_front(o); return this;}
-        PtrList *Prepend(PtrList<Object> *l)
-	        {if (l) {_ASSERT(responsible==l->responsible); splice(begin(), *l);} return this;}        
-		~PtrList()
+        ~PtrList()
             {typename std::list<Object*>::iterator i=std::list<Object*>::begin();
              if (responsible)
                  while (i!=std::list<Object*>::end())

@@ -2702,16 +2702,6 @@ bool CommandEntity::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-//add parent to all entities referenced by this command, if entity has no parent yet
-void CommandEntity::SetEntityParent(const char *name) 
-{
-	for (auto j = entities.begin(); j!=entities.end(); j++) {
-		EIterator j_ent = chart->Entities.Find_by_Name((*j)->name);
-		_ASSERT (j_ent != chart->NoEntity);
-		if ((*j_ent)->parent_name.length()==0)
-			(*j_ent)->parent_name = name; 
-	}
-}
 
 string CommandEntity::Print(int ident) const
 {
@@ -2743,14 +2733,12 @@ void CommandEntity::Combine(CommandEntity *ce)
     ce->entities.clear();
 }
 
-CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
+CommandEntity *CommandEntity::ApplyShowHide(bool show)
 {
     for (auto i=entities.begin(); i!=entities.end(); i++) {
-		if (CaseInsensitiveEqual(prefix, "show") || CaseInsensitiveEqual(prefix, "hide")) {
-			if ((*i)->show_is_explicit) continue;	
-			(*i)->show.first = true;	
-			(*i)->show.second = CaseInsensitiveEqual(prefix, "show");
-		}
+        if ((*i)->show_is_explicit) continue;
+        (*i)->show.first = true;
+        (*i)->show.second = show;
     }
     return this;
 }
