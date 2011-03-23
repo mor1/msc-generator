@@ -41,7 +41,6 @@ public:
     std::set<string> children_names; //if we are an entity group, tells who are within us
     bool             collapsed;      //true if we are group, but show collapsed
 
-
     Entity(const string &n, const string &l, const string &ol, double p, const MscStyle &entity_style);
     virtual ~Entity() {};
     string Print(int ident = 0) const;

@@ -156,8 +156,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def_list pipe_def_list_no_attr
 %type <arcparallel>parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
-%type <entity>     entity first_entity
-%type <entitylist> entitylist
+%type <entity>     entity_no_group first_entity_no_group
+%type <entitylist> entitylist entity first_entity
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
                    relation_to_cont relation_from_cont relation_bidir_cont
                    TOK_REL_SOLID_TO TOK_REL_DOUBLE_TO TOK_REL_DASHED_TO TOK_REL_DOTTED_TO
@@ -169,7 +169,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
-%type <str>        entity_string reserved_word_string string symbol_string colon_string
+%type <str>        entity_command_prefixes
+                   entity_string reserved_word_string string symbol_string colon_string
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -610,10 +611,10 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    $$ = (new CommandEntity((new EntityDefList)->Append($1), &msc))->AddAttributeList(NULL);
+    $$ = (new CommandEntity($1, &msc))->AddAttributeList(NULL);
   #endif
 }
-              | TOK_SHOW
+              | entity_command_prefixes
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -625,39 +626,15 @@ arc:           arcrel
     free($1);
     $$ = NULL;
 }
-              | TOK_HIDE
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
-    csh.AddCSH_ErrorAfter(@1, "Missing an entity.");
-  #else
-    msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing an entity.");
-  #endif
-    free($1);
-    $$ = NULL;
-}
-              | TOK_SHOW first_entity
+              | entity_command_prefixes first_entity
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
   #else
-    CommandEntity *ce = new CommandEntity((new EntityDefList)->Append($2), &msc);
+    CommandEntity *ce = new CommandEntity($2, &msc);
     ce->AddAttributeList(NULL);
-    $$ = ce->ApplyShowHide(true);
-  #endif
-    free($1);
-}
-              | TOK_HIDE first_entity
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
-  #else
-    CommandEntity *ce = new CommandEntity((new EntityDefList)->Append($2), &msc);
-    ce->AddAttributeList(NULL);
-    $$ = ce->ApplyShowHide(false);
+	$$ = ce->ApplyPrefix($1);
   #endif
     free($1);
 }
@@ -668,7 +645,7 @@ arc:           arcrel
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@2, "Missing an entity.");
   #else
-    CommandEntity *ce = new CommandEntity((new EntityDefList)->Append($1), &msc);
+    CommandEntity *ce = new CommandEntity($1, &msc);
     $$ = ce->AddAttributeList(NULL);
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing an entity.");
   #endif
@@ -680,10 +657,11 @@ arc:           arcrel
     csh.CheckEntityHintAtAndBefore(@2, @3);
   #else
     CommandEntity *ce = new CommandEntity(($3)->Prepend($1), &msc);
+	delete ($1);
     $$ = ce->AddAttributeList(NULL);
   #endif
 }
-            | TOK_SHOW first_entity TOK_COMMA
+            | entity_command_prefixes first_entity TOK_COMMA
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -692,14 +670,14 @@ arc:           arcrel
     csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@3, "Missing an entity.");
   #else
-    CommandEntity *ce = new CommandEntity((new EntityDefList)->Append($2), &msc);
+    CommandEntity *ce = new CommandEntity($2, &msc);
     ce->AddAttributeList(NULL);
-    $$ = ce->ApplyShowHide(true);
+	$$ = ce->ApplyPrefix($1);
     msc.Error.Error(MSC_POS(@3).end.NextChar(), "Missing an entity.");
   #endif
     free($1);
 }
-            | TOK_SHOW first_entity TOK_COMMA entitylist
+            | entity_command_prefixes first_entity TOK_COMMA entitylist
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -708,38 +686,9 @@ arc:           arcrel
     csh.CheckEntityHintAtAndBefore(@3, @4);
   #else
     CommandEntity *ce = new CommandEntity(($4)->Prepend($2), &msc);
+	delete ($2);
     ce->AddAttributeList(NULL);
-    $$ = ce->ApplyShowHide(true);
-  #endif
-    free($1);
-}
-            | TOK_HIDE first_entity TOK_COMMA
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.AddCSH(@3, COLOR_COMMA);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
-    csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
-    csh.AddCSH_ErrorAfter(@3, "Missing an entity.");
-  #else
-    CommandEntity *ce = new CommandEntity((new EntityDefList)->Append($2), &msc);
-    ce->AddAttributeList(NULL);
-    $$ = ce->ApplyShowHide(false);
-    msc.Error.Error(MSC_POS(@3).end.NextChar(), "Missing an entity.");
-  #endif
-    free($1);
-}
-            | TOK_HIDE first_entity TOK_COMMA entitylist
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.AddCSH(@3, COLOR_COMMA);
-    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
-    csh.CheckEntityHintAtAndBefore(@3, @4);
-  #else
-    CommandEntity *ce = new CommandEntity(($4)->Prepend($2), &msc);
-    ce->AddAttributeList(NULL);
-    $$ = ce->ApplyShowHide(false);
+    $$ = ce->ApplyPrefix($1);
   #endif
     free($1);
 }
@@ -890,6 +839,8 @@ arc:           arcrel
   #endif
     free($1);
 }
+
+entity_command_prefixes: TOK_HIDE | TOK_SHOW;
 
 optlist:     opt
 {
@@ -1073,7 +1024,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
 entitylist:   entity
 {
   #ifndef C_S_H_IS_COMPILED
-    $$ = (EntityDefList*)((new EntityDefList)->Append($1));
+    $$ = (EntityDefList*)($1);
   #endif
 }
             | entitylist TOK_COMMA entity
@@ -1083,6 +1034,7 @@ entitylist:   entity
     csh.CheckEntityHintAtAndBefore(@2, @3);
   #else
     $$ = (EntityDefList*)(($1)->Append($3));
+	delete ($3);
   #endif
 }
             | entitylist TOK_COMMA
@@ -1100,7 +1052,7 @@ entitylist:   entity
               | entitylist TOK_COMMA TOK__NEVER__HAPPENS;
 
 
-entity:       entity_string full_arcattrlist_with_label
+entity_no_group:       entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
@@ -1126,6 +1078,34 @@ entity:       entity_string full_arcattrlist_with_label
   #endif
     free($1);
 };
+
+entity: entity_no_group
+{
+  #ifndef C_S_H_IS_COMPILED
+    $$ = (EntityDefList*)((new EntityDefList)->Append($1));
+  #endif
+}
+              | entity_no_group braced_arclist
+{
+  #ifndef C_S_H_IS_COMPILED
+    EntityDefList *edl = new EntityDefList;
+    edl->Append($1);
+    if ($2) {
+        for (auto i = ($2)->begin(); i!=($2)->end(); i++) {
+            CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
+            if (ce==NULL || ce->IsFullHeading())
+                msc.Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
+            else {
+				ce->SetEntityParent(($1)->name.c_str());
+                ce->MoveMyEntityDefsAfter(edl);  //ce is emptied out of all EntityDefs
+            }
+        }
+        delete ($2);
+    }
+    $$ = edl;
+  #endif
+};
+
 
 first_entity_no_group:  entity_string full_arcattrlist_with_label
 {
@@ -1174,12 +1154,11 @@ first_entity: first_entity_no_group
     if ($2) {
         for (auto i = ($2)->begin(); i!=($2)->end(); i++) {
             CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
-            if (ce==NULL || ce->full_heading) 
+            if (ce==NULL || ce->IsFullHeading())
                 msc.Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
             else {
-                for (auto j = ce->entities.begin(); j!=ce->entities.end(); j++)
-                    ; //XXX add parent, if entity has no parent yet
-                edl->splice(edl->end(), ce->entities);
+				ce->SetEntityParent(($1)->name.c_str());
+                ce->MoveMyEntityDefsAfter(edl);  //ce is emptied out of all EntityDefs
             }
         }
         delete ($2);

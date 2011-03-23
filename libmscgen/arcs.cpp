@@ -723,7 +723,7 @@ double ArcDirArrow::Height(AreaList &cover)
     dx = chart->XCoord(dst);
 
     double lw_max = style.line.LineWidth();
-    for (int i=0; i<segment_lines.size(); i++) 
+    for (int i=0; i<segment_lines.size(); i++)
         lw_max = std::max(lw_max, segment_lines[i].LineWidth());
     const XY xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
     const XY xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START);
@@ -776,12 +776,12 @@ double ArcDirArrow::Height(AreaList &cover)
     }
     //prepare clip_area
     Block total(sx, dx, 0, y+lw_max);
-    clip_area  = style.arrow.ClipForLine(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START, 
+    clip_area  = style.arrow.ClipForLine(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START,
                                          total, *segment_lines.begin(), *segment_lines.begin());
-    clip_area *= style.arrow.ClipForLine(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END, 
+    clip_area *= style.arrow.ClipForLine(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END,
                                          total, *segment_lines.rbegin(), *segment_lines.rbegin());
-    for (unsigned i=0; i<middle.size(); i++) 
-        clip_area *= style.arrow.ClipForLine(XY(chart->XCoord(middle[i]), y), sx<dx, isBidir(), MSC_ARROW_MIDDLE, 
+    for (unsigned i=0; i<middle.size(); i++)
+        clip_area *= style.arrow.ClipForLine(XY(chart->XCoord(middle[i]), y), sx<dx, isBidir(), MSC_ARROW_MIDDLE,
                                              total, segment_lines[i], segment_lines[i+1]);
 
     //Add arrowheads and line segments to cover
@@ -1015,7 +1015,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
         dtext = iterators.size()-1;
     }
     //calculate text margin. segment_lines is now ordered from smaller x to larger x
-    sm = style.arrow.getBigMargin(tcov, 0, dy-sy, true, fw, isBidir(), WhichArrow(stext)) + 
+    sm = style.arrow.getBigMargin(tcov, 0, dy-sy, true, fw, isBidir(), WhichArrow(stext)) +
          segment_lines[stext].LineWidth();
     dm = style.arrow.getBigMargin(tcov, 0, dy-sy, false, fw, isBidir(), WhichArrow(dtext)) +
          segment_lines[dtext-1].LineWidth();
@@ -1441,10 +1441,12 @@ void ArcVerticalArrow::Draw()
     else
         chart->Transform_Rotate90(ypos[0], ypos[1], true);
     //Draw background
-    style.arrow.BigDraw(ypos, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill, NULL, chart, 
-        &parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
-                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true),
-        style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
+    const Area lab = parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+                                        xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
+                                        -1, true);
+    style.arrow.BigDraw(ypos, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill,
+                        NULL, chart, &lab,
+                        style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
     parsed_label.Draw(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
                       xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);
     chart->UnTransform();
@@ -2437,7 +2439,8 @@ void ArcEmphasis::Draw()
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
-        nudge(t==MSC_COMMAND_NUDGE), extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0)
+    nudge(t==MSC_COMMAND_NUDGE), extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0),
+    wide(false)
 {
 }
 
@@ -2530,7 +2533,7 @@ double ArcDivider::Height(AreaList &cover)
         area += Block(line_margin, chart->total.x-line_margin,
                       centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
     if (!wide)
-        wh.y += chart->arcVGapAbove + chart->arcVGapBelow;
+        wh.y += chart->arcVGapBelow;
     height = wh.y + extra_space;
     //Discontinuity lines cannot be compressed much
     if (type==MSC_ARC_DISCO)
@@ -2699,6 +2702,16 @@ bool CommandEntity::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
+//add parent to all entities referenced by this command, if entity has no parent yet
+void CommandEntity::SetEntityParent(const char *name) 
+{
+	for (auto j = entities.begin(); j!=entities.end(); j++) {
+		EIterator j_ent = chart->Entities.Find_by_Name((*j)->name);
+		_ASSERT (j_ent != chart->NoEntity);
+		if ((*j_ent)->parent_name.length()==0)
+			(*j_ent)->parent_name = name; 
+	}
+}
 
 string CommandEntity::Print(int ident) const
 {
@@ -2730,12 +2743,14 @@ void CommandEntity::Combine(CommandEntity *ce)
     ce->entities.clear();
 }
 
-CommandEntity *CommandEntity::ApplyShowHide(bool show)
+CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 {
     for (auto i=entities.begin(); i!=entities.end(); i++) {
-        if ((*i)->show_is_explicit) continue;
-        (*i)->show.first = true;
-        (*i)->show.second = show;
+		if (CaseInsensitiveEqual(prefix, "show") || CaseInsensitiveEqual(prefix, "hide")) {
+			if ((*i)->show_is_explicit) continue;	
+			(*i)->show.first = true;	
+			(*i)->show.second = CaseInsensitiveEqual(prefix, "show");
+		}
     }
     return this;
 }
