@@ -23,12 +23,33 @@
 template class PtrList<Entity>;
 
 Entity::Entity(const string &n, const string &l, const string &ol, 
-    double p, const MscStyle &entity_style) :
+    double p, const MscStyle &entity_style, const file_line &fp) :
     maxwidth(0), running_style(entity_style),
     name(n), orig_label(ol), label(l), collapsed(false),
-    pos(p), index(0), status(entity_style)
+    pos(p), index(0), status(entity_style), file_pos(fp)
 {
 }
+
+//Check that all entities in edl have no parent; exist; are defined by this
+//EntityDef in edl. Then add them to children list and make us their parent
+void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
+{
+    if (!children) return;
+    for (auto i=children->begin(); i!=children->end(); i++) {
+        EIterator ei = chart->AllEntities.Find_by_Name((*i)->name);
+        _ASSERT(*ei != chart->NoEntity);
+        if (!(*i)->defining) {
+            chart->Error.Error((*i)->file_pos.start, "Cannot make an already existing entity part of a group.", 
+                               " Entity remains outside this group.");
+            chart->Error.Error((*ei)->file_pos, (*i)->file_pos.start, "Entity '" + (*ei)->name + "' was defined here.");
+        } else {
+            _ASSERT((*ei)->parent_name.length()==0);
+            children_names.insert((*i)->name);
+            (*ei)->parent_name = name;
+        }
+    }
+}
+
 
 string Entity::Print(int ident) const
 {
@@ -51,7 +72,7 @@ void EntityList::SortByPos(void)
 
 EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
     chart(msc), style(chart->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
-    parsed_label(msc), implicit(false)
+    parsed_label(msc), implicit(false), defining(false)
 {
     label.first = false;
     pos.first = false;
@@ -60,98 +81,7 @@ EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
     show.second = show.first = true; //if no attributes, we are ON
     show_is_explicit = false;
     style.Empty();
-}
-
-//This function is always called, even if there are no attributes specified (l will be NULL in that case)
-//Except for automatically generated entities
-EntityDef* EntityDef::AddAttributeList(AttributeList *l)
-{
-    EIterator i = chart->Entities.Find_by_Name(name);
-    if (i != chart->NoEntity) {
-        // Existing entity: kill auto-assumed "show=on"
-        show.first = false;
-        // Leave show_explicit as false
-    }
-
-    // Process attribute list
-    if (l) {
-        for (AttributeList::iterator j=l->begin(); j!=l->end(); j++)
-            AddAttribute(**j);
-        delete l;
-    }
-
-    //make style.text fully specified
-    StringFormat to_use(chart->Contexts.back().text);       //default text
-    to_use += chart->Contexts.back().styles["entity"].text; //entity style 
-    to_use += style.text;                                   //attributes specified by user
-    style.text = to_use;
-
-    if (i == chart->NoEntity) {
-        double position = chart->Entity_max_pos;
-        if (rel.first) {
-            //Look up the entity in a potential 'relative' attribute
-            EntityList::iterator j = chart->Entities.Find_by_Name(rel.second);
-            if (j == chart->NoEntity) {
-                if (chart->pedantic) {
-                    string s = "Cound not find entity '" + rel.second;
-                    s += "' in attribute 'relative'. Ignoring attriute.";
-                    chart->Error.Error(rel.third, s);
-                } else {
-                    chart->Entities.Append(new Entity(rel.second, rel.second, rel.second, chart->Entity_max_pos++,
-                                                      chart->Contexts.back().styles["entity"]));
-                    EntityDef *ed = new EntityDef(rel.second.c_str(), chart);
-                    ed->AddAttributeList(NULL);
-                    chart->AutoGenEntities.Append(ed);
-                    //position remains at the old, not incremented Entity_max_pos
-                    //the definedHere of the entityDef above will be set to true in chart->PostParseProcees
-                }
-            } else {
-                position = (*j)->pos;
-            }
-        }
-
-        //Add the effect of pos attribute to position
-        if (pos.first) {
-            if (pos.second<-10 || pos.second>10) {
-                string msg = "Exterme value for 'pos' attribute: '";
-                msg << pos.second << "'. Ignoring it.";
-                chart->Error.Error(pos.third, msg, "Use a value between [-10..10].");
-            } else {
-                position += pos.second;
-            }
-        }
-
-        //If no show attribute, set it to "ON", but keep show_is_explicit false
-        if (!show.first)
-            show.second = show.first = true;
-
-        string orig_label = label.first?label.second:name;
-        string proc_label = orig_label;
-
-        StringFormat::ExpandColorAndStyle(proc_label, chart, linenum_label_value,
-                                          &style.text, true, StringFormat::LABEL);
-
-
-        //Allocate new entity with correct label
-        Entity *e = new Entity(name, proc_label, orig_label, position, chart->Contexts.back().styles["entity"]);
-        //Add to entity list
-        chart->Entities.Append(e);
-        //Calculate potential pos for next entity
-        chart->Entity_max_pos = std::max(chart->Entity_max_pos, position+1);
-    } else {
-        // An existing entity. Disallow attributes that change drawing positions
-        if (label.first && label.second != (*i)->label)
-            chart->Error.Error(label.third,
-                             "Cannot change the label of an entity after declaration. Keeping old label :'"
-                             + (*i)->orig_label + "'.");
-        if (pos.first)
-            chart->Error.Error(pos.third,
-                               "Cannot change the position of an entity after declaration. Ignoring attribute 'pos'.");
-        if (rel.first)
-            chart->Error.Error(rel.third,
-                               "Cannot change the position of an entity after declaration. Ignoring attribute 'relative'.");
-    }
-    return this;
+    collapsed.first = false;
 }
 
 bool EntityDef::AddAttribute(const Attribute& a)
@@ -195,6 +125,13 @@ bool EntityDef::AddAttribute(const Attribute& a)
         rel.third = a.linenum_attr.start;
         return true;
     }
+    if (a.Is("collapsed")) {
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        collapsed.second = a.yes;
+        collapsed.first = true;
+        collapsed.third = a.linenum_attr.start;
+        return true;
+    }
     if (a.Is("show")) {
         if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
         // MSC_ATTR_CLEAR is handled above
@@ -229,6 +166,162 @@ bool EntityDef::AddAttribute(const Attribute& a)
     a.InvalidAttrError(chart->Error);
     return false;
 };
+
+//This function is always called, even if there are no attributes specified (l will be NULL in that case)
+//Except for automatically generated entities
+//Any children are already defined at this point, so we can modify their "parent_name" field
+EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *children, file_line l)
+{
+    EIterator i = chart->AllEntities.Find_by_Name(name);
+    if (*i != chart->NoEntity) {
+        // Existing entity: kill auto-assumed "show=on"
+        show.first = false;
+        // Leave show_explicit as false
+    } else {
+        //indicate that this EntityDef created the Entity
+		defining = true;
+    }
+
+    // Process attribute list
+    if (al) {
+        for (AttributeList::iterator j=al->begin(); j!=al->end(); j++)
+            AddAttribute(**j);
+        delete al;
+    }
+
+    //make style.text fully specified
+    StringFormat to_use(chart->Contexts.back().text);       //default text
+    to_use += chart->Contexts.back().styles["entity"].text; //entity style 
+    to_use += style.text;                                   //attributes specified by user
+    style.text = to_use;
+
+    //Check that we apply certain attributes the right way for grouped entities
+    if (children) {
+        if (pos.first || rel.first) 
+            chart->Error.Error(pos.first ? pos.third : rel.third, 
+                               "The position of grouped entities is derived from its member entities.",
+                               " Ignoring attribute.");
+        pos.first = rel.first = false;
+    } else {
+        if (collapsed.first)
+            chart->Error.Error(collapsed.third, "Only grouped entities can be collapsed.",
+                               " Ignoring attribute.");
+        collapsed.first = false;
+    }
+
+    EntityDefList *edl = new EntityDefList;
+
+    if (*i == chart->NoEntity) {
+        double position = chart->GetEntityMaxPos()+1;
+        if (rel.first) {
+            //Look up the entity in a potential 'relative' attribute
+            EntityList::iterator j = chart->AllEntities.Find_by_Name(rel.second);
+            if (*j == chart->NoEntity) {
+                if (chart->pedantic) {
+                    string s = "Cound not find entity '" + rel.second;
+                    s += "' in attribute 'relative'. Ignoring attriute.";
+                    chart->Error.Error(rel.third, s);
+                } else {
+                    chart->AllEntities.Append(new Entity(rel.second, rel.second, rel.second, chart->GetEntityMaxPos()+1,
+                                                      chart->Contexts.back().styles["entity"], rel.third));
+                    EntityDef *ed = new EntityDef(rel.second.c_str(), chart);
+                    ed->AddAttributeList(NULL, NULL, file_line());
+                    chart->AutoGenEntities.Append(ed);
+                    //position remains at the old, not incremented Entity_max_pos
+                    //the definedHere of the entityDef above will be set to true in chart->PostParseProcees
+                }
+            } else if ((*j)->children_names.size()) {
+                //the entity in the "relative" attribute is a grouped one
+                if (!pos.first) 
+                    chart->Error.Error(rel.third, "Cannot put an entity exactly onto a grouped entity. Specify the 'pos' attribute.",
+                                       " Ignoring attribute.");
+                else if (pos.second==0)
+                    chart->Error.Error(pos.third, "Cannot put an entity exactly onto a grouped entity. Specify the 'pos' attribute.",
+                                       " Ignoring positioning attributes.");
+                else 
+                    position = (*chart->FindLeftRightmostChildren(j, pos.second<0))->pos;
+            } else 
+                position = (*j)->pos;
+        }
+
+        //Add the effect of pos attribute to position
+        if (pos.first) {
+            if (pos.second<-10 || pos.second>10) {
+                string msg = "Exterme value for 'pos' attribute: '";
+                msg << pos.second << "'. Ignoring it.";
+                chart->Error.Error(pos.third, msg, "Use a value between [-10..10].");
+            } else {
+                position += pos.second;
+            }
+        }
+
+        //If no show attribute, set it to "ON", but keep show_is_explicit false
+        if (!show.first)
+            show.second = show.first = true;
+
+        string orig_label = label.first?label.second:name;
+        string proc_label = orig_label;
+
+        StringFormat::ExpandColorAndStyle(proc_label, chart, linenum_label_value,
+                                          &style.text, true, StringFormat::LABEL);
+
+        //If we have children, add them to "edl"
+	    if (children) {
+            for (auto i = children->begin(); i!=children->end(); i++) {
+                CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
+                if (ce==NULL || ce->IsFullHeading())
+                    chart->Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
+                else 
+                    ce->MoveMyEntityDefsAfter(edl);  //ce is emptied out of all EntityDefs
+            }
+            delete children;
+
+            //change pos, so that grouped entities do not occupy one more slot
+            position = chart->GetEntityMaxPos();
+        }
+
+        //Allocate new entity with correct label and children
+        Entity *e = new Entity(name, proc_label, orig_label, position, 
+                               chart->Contexts.back().styles["entity"], file_pos.start);
+        e->AddChildrenList(edl, chart);
+        //Add to entity list
+        chart->AllEntities.Append(e);
+    } else {
+        file_line p(-1,0,0);
+        // An existing entity. Disallow attributes that change drawing positions
+        if (label.first && label.second != (*i)->label) 
+            chart->Error.Error(p = label.third,
+                             "Cannot change the label of an entity after declaration. Keeping old label :'"
+                             + (*i)->orig_label + "'.");
+
+        if (pos.first)
+            chart->Error.Error(p = pos.third,
+                               "Cannot change the position of an entity after declaration. Ignoring attribute 'pos'.");
+        if (rel.first)
+            chart->Error.Error(p = rel.third,
+                               "Cannot change the position of an entity after declaration. Ignoring attribute 'relative'.");
+        if (collapsed.first)
+            chart->Error.Error(p = collapsed.third,
+                               "You can only declare an entity collapsed at its definition. Ignoring attribute 'collapsed'.");
+        //if any of the above errors, add extra info
+        if (p.file!=-1)
+            chart->Error.Error(file_pos.start, p, "Entity '" + name + "' was defined here.");
+        label.first = pos.first = rel.first = collapsed.first = false;
+
+        //Also disallow any children
+        if (children) {
+            chart->Error.Error(l, "You can specify an entity group only when first defining an entity. "
+		                      "Ignoring grouping and placing entities just after.");
+            chart->Error.Error(file_pos.start, l, "Entity '" + name + "' was defined here.");
+            delete children;
+        }
+    }
+
+    //Prepend this entity to the list (list is empty if no children)
+    edl->Prepend(this);
+    return edl;
+}
+
 
 void EntityDef::AttributeNames(Csh &csh)
 {
@@ -289,22 +382,35 @@ double EntityDef::Width() const
     return width + fmod(width, 2); //always return an even number
 }
 
-double EntityDef::Height(AreaList &cover)
+double EntityDef::Height(AreaList &cover, const EntityDefList &children)
 {
-    const double x = chart->XCoord((*itr)->pos); //integer
     const XY wh = parsed_label.getTextWidthHeight();
     const double lw = style.line.LineWidth();
-    const double width = lw*2 + wh.x;
-    const double height = ceil(chart->headingVGapAbove + wh.y + chart->headingVGapBelow + 2*lw);
+    if (children.size()==0) {
+        const double x = chart->XCoord((*itr)->pos); //integer
+        const double width = lw*2 + wh.x;
+        const double height = ceil(chart->headingVGapAbove + wh.y + chart->headingVGapBelow + 2*lw);
 
-    //do not include shadow in anything... but the returned height (uses for non-compressed placement)
-    outer_edge = Block(x-ceil(width/2), x+ceil(width/2), chart->headingVGapAbove, height - chart->headingVGapBelow);
+        //do not include shadow in anything... but the returned height (uses for non-compressed placement)
+        outer_edge = Block(x-ceil(width/2), x+ceil(width/2), chart->headingVGapAbove, height - chart->headingVGapBelow);
+    } else {
+        outer_edge.x.from = chart->XCoord((*left_ent)->pos) - left_offset;
+        outer_edge.x.till = chart->XCoord((*right_ent)->pos) + right_offset;
+        outer_edge.y.from = chart->headingVGapAbove;
+        double offset = ceil(chart->headingVGapAbove + wh.y + lw);
+        double bottom = offset;
+        for (auto i = children.begin(); i!=children.end(); i++) {
+            (*i)->ShiftBy(offset);
+            bottom = std::max(bottom, (*i)->outer_edge.y.till + (*i)->style.shadow.offset.second);
+        }
+        outer_edge.y.till = bottom + lw + chart->headingVGapBelow;
+    }
     area = style.line.CreateRectangle(outer_edge);
     area.arc = this;
     //Add shadow to outer_edge and place that to cover
     cover += Contour(Block(outer_edge) += Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)));
     cover.mainline += outer_edge.y;
-    return chart->headingVGapAbove + height + chart->headingVGapBelow + style.shadow.offset.second;
+    return outer_edge.y.till + style.shadow.offset.second;
 }
 
 void EntityDef::PostPosProcess()

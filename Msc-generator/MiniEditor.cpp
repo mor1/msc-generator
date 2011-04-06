@@ -593,7 +593,7 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
                     ConvertPosToLineCol(i->first_pos, line, col);
                     line++; col++; //XXX WTF This is needed
                     error_pos.push_back(std::pair<int,int>(line, col));
-                    errors.push_back(Error.FormulateElement(file_line(0, line, col), true, false, i->text).text.c_str());
+                    errors.push_back(Error.FormulateElement(file_line(0, line, col), file_line(0, line, col), true, false, i->text).text.c_str());
                 }
                 pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
             }

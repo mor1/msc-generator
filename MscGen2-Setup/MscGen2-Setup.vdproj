@@ -33,8 +33,8 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_2044FD3E577E19EF3457E127D9A06FBB"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmKey" = "8:_1DA8469417214225A7C39D78501AA386"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -57,14 +57,20 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
-        "OwnerKey" = "8:_UNDEFINED"
+        "MsmKey" = "8:_A45CACCC291D4E939FC5A9886B81E877"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_C81EB018CAF34171AD8592F25E75DA93"
+        "MsmKey" = "8:_A45CACCC291D4E939FC5A9886B81E877"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -76,18 +82,6 @@
         "Entry"
         {
         "MsmKey" = "8:_E5A14705B3BBF976A15859DB5B589876"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_E9A33C75B41F4773BA375E480CBDA041"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_E9A33C75B41F4773BA375E480CBDA041"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -259,26 +253,6 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2044FD3E577E19EF3457E127D9A06FBB"
-            {
-            "SourcePath" = "8:cairo.dll"
-            "TargetName" = "8:cairo.dll"
-            "Tag" = "8:"
-            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6613FEF835754514BC83A62E3B74C6D5"
@@ -503,7 +477,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{DD4D0FA1-B55B-42DB-8C37-4BA176D1F87F}"
-        "PackageCode" = "8:{125B29A3-13B5-47A7-A325-CED7914040B1}"
+        "PackageCode" = "8:{B9437036-E807-49AE-BA28-73FE76EFBE07}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -1968,7 +1942,7 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_C81EB018CAF34171AD8592F25E75DA93"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_1DA8469417214225A7C39D78501AA386"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
@@ -1982,7 +1956,7 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_E9A33C75B41F4773BA375E480CBDA041"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_A45CACCC291D4E939FC5A9886B81E877"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
@@ -2001,7 +1975,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
             {
-            "SourcePath" = "8:..\\Release\\msc-gen.exe"
+            "SourcePath" = "8:..\\Debug\\msc-gen.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
@@ -2029,7 +2003,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_8D210BB11DE54BFF9295776C6C22707B"
             {
-            "SourcePath" = "8:..\\Release\\Msc-generator.exe"
+            "SourcePath" = "8:..\\Debug\\Msc-generator.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"

@@ -19,21 +19,48 @@
 
 /*
     Here is how the lifecycle of an Arc goes.
+
+    <parsing starts>
+
     1. Construction: Only basic initialization is done here. For arcs with style (descendants of ArcLabelled)
        we fetch the appropriate style from Msc::Contexts.back()
-    2. AddAttributeList: This is called to add the attributes set by the user. It is called even if
-       there are no attributes (with NULL), which allows to do processing after the addition of attributes.
-       This is the last place where Msc::Contexts.back() holds the parsing context (with current
-       style, color, numbering, compress settings).
-    3. Additional small functions (SetLineEnd, SetPipe (before AddAttributeList), etc.)
-    4. PostParseProcess: This is called recursive to determine the non-specified entities for boxes, to
-       add numering to labels, combine CommandEntities one after the other, set up extra variables and
-       to print error messages. This function can only be called once, as it changes arcs (you do not want to
-       add numbering twice).
+       We also look up entities the arc refers to (and create them if needed), so after this point
+       we have EIterators pointing to the AllEntities list.
+    2. AddAttributeList: Add attributes to arc. This function must be called (with NULL if no attributes)
+       We have to do this before we can create a list of Active Entities, since attributes can 
+       result in the implicit definition of new entities.
+    3. Additional small functions (SetLineEnd, ArcEmphasis::SetPipe, CommandEntity::ApplyPrefix, etc.)
+
+    <parsing ends>
+    <here we construct a list of active entities from AllEntities to ActiveEntities>
+
+    5. PostParseProcess: This is called recursive to do the following.
+       a) Determine the non-specified entities for boxes. Note that the EIterators received as parameters
+          are iterators of AllEntities and not ActiveEntities.
+       b) Add numering to labels
+       c) Determine which actual entities the arc refers to. In step #1 all entities of the arc point to 
+          an entity in the Msc::AllEntities list. In this step we consider collapsed entities and search
+          the corresponding entity in the ActiveEntities list. After this point all entities shall point 
+          to the ActiveEntities list. We have to ensure that just because of collapsing entities, 
+          automatic numbering does not change. (Some numbers are skipped - those that are assigned to
+          invisible arcs, such as arc between entities not shown.)
+       d) For boxes we check if the box is collapsed. If so, we replace content to CommandEmptyBox. 
+          Here we have to ensure that automatic numbering of arrows do not change as for step 4c above.
+          We also have to ensure that for auto-sizing entities (e.g., " .. : label { <content> }") we
+          keep the size as would be the case for a non-collapsed box.
+       e) Combine CommandEntities one after the other
+       f) Set up some extra variables
+       g) Print error messages. 
+       This function can only be called once, as it changes arcs (e.g., you do not want to
+       add numbering twice). Often the arc needs to be changed to a different one, in this case the
+       return pointer shall be used. If the return pointer == this, the arc shall not be replaced.
     5. Width: This is also called recursively. Here each arc can place the distance requirements between
        entities. Using the data Msc::CalculateWithAndHeight() can place entities dynamically if hscale==auto.
        If hcale!=auto, entities have fixed positions, but this function is still called (so as it can be used
        to calculate cached values).
+
+    <here we calculate the Entity::pos for all entities in ActiveEntities>
+
     6. Height: This is a key function, returning the vertical space an element(/arc) occupies. It also places
        the contour of the element in its "cover" parameter. The former (height) is used when compress is off and
        the latter (contour) if compress is on. In the latter case the entity will be placed just below entities
@@ -382,9 +409,12 @@ string ArcLabelled::Print(int ident) const
     return ss;
 }
 
-void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+//This assigns a running number to the label and 
+//fills the "compress" member from the style.
+//Strictly to be called by descendants
+ArcBase *ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     at_top_level = top_level;
     string num;
     string pre_num_post;
@@ -413,6 +443,7 @@ void ArcLabelled::PostParseProcess(EIterator &left, EIterator &right, Numbering 
     parsed_label.Set(label, style.text);
     if (style.compress.first)
         compress = style.compress.second;
+    return this;
 }
 
 void ArcArrow::AttributeNames(Csh &csh)
@@ -455,14 +486,24 @@ string ArcSelfArrow::Print(int ident) const
     return ss;
 };
 
-void ArcSelfArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcSelfArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
+    if (chart->ErrorIfEntityGrouped(src, (*src)->file_pos)) return NULL;
+
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
+    EIterator substitute = chart->FindActiveParentEntity(src);
+    if (src != substitute) return NULL; //src is not visible -> we disappear, too
+
     left = chart->EntityMinByPos(left, src);
     right = chart->EntityMaxByPos(right, src);
+
+    //update src to point to ActiveEntities
+    src = chart->ActiveEntities.Find_by_Ptr(*src);
+    _ASSERT(src != chart->ActiveEntities.end());
+    return this;
 }
 
 void ArcSelfArrow::Width(EntityDistanceMap &distances)
@@ -555,7 +596,7 @@ ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range 
             mid = chart->FindAllocEntity(RSIDE_ENT_STR, ml);
     } else
         mid = chart->FindAllocEntity(m, ml);
-    assert(mid != chart->NoEntity);
+    _ASSERT(*mid != chart->NoEntity);
     if (specified_as_forward) {
         //check for this situation: ->b->a (where a is left of b)
         if (middle.size()==0 && (*src)->name ==LSIDE_ENT_STR &&
@@ -617,43 +658,27 @@ string ArcDirArrow::Print(int ident) const
 #define ARROW_TEXT_VSPACE_ABOVE 1
 #define ARROW_TEXT_VSPACE_BELOW 1
 
-void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase *ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
+    bool error = false;
+    error |= chart->ErrorIfEntityGrouped(src, file_pos.start);
+    error |= chart->ErrorIfEntityGrouped(dst, file_pos.start);
+    for (auto i = middle.begin(); i!=middle.end(); i++)
+        error |= chart->ErrorIfEntityGrouped(*i, file_pos.start);
+    if (error) return NULL;
+
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
-    const EIterator _left = ++chart->Entities.begin(); // leftmost entity;
-    const EIterator _right = --chart->Entities.end();  // rightmost entiry
-    const EIterator our_left =  chart->EntityMinByPos(src, dst);
-    const EIterator our_right = chart->EntityMaxByPos(src, dst);
-
-    //Change left and right only if they actually point to a "real entity"
-    //and not (left) or (right). If they do, consider our other "end"
-    if (our_left != _left)
-        left = chart->EntityMinByPos(left, our_left);
-    else
-        left = chart->EntityMinByPos(left, our_right);
-
-    if (our_right != _right)
-        right = chart->EntityMaxByPos(right, our_right);
-    else
-        right = chart->EntityMaxByPos(right, our_left);
-
-    //Insert a small extra spacing for the arrow line
-    if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
-        parsed_label.AddSpacing(0, style.line.LineWidth()+
-                                ARROW_TEXT_VSPACE_ABOVE+ARROW_TEXT_VSPACE_BELOW);
-
     //OK, now we check if arrow will display correctly
-    if (middle.size()==0) return; //nothing to check
-
-    const bool dir = (*src)->pos < (*dst)->pos; //true for ->, false for <-
-    if (dir != ((*src)->pos < ((*middle[0])->pos))) goto problem;
-    for (unsigned i=0; i<middle.size()-1; i++)
-        if (dir != ((*middle[i])->pos < (*middle[i+1])->pos)) goto problem;
-    if (dir != (((*middle[middle.size()-1])->pos < (*dst)->pos))) goto problem;
-    return; // no problem
+    if (middle.size()) {
+        const bool dir = (*src)->pos < (*dst)->pos; //true for ->, false for <-
+        if (dir != ((*src)->pos < ((*middle[0])->pos))) goto problem;
+        for (unsigned i=0; i<middle.size()-1; i++)
+            if (dir != ((*middle[i])->pos < (*middle[i+1])->pos)) goto problem;
+        if (dir != (((*middle[middle.size()-1])->pos < (*dst)->pos))) goto problem;
+        goto no_problem;
 
     problem:
         const char *arrow_string = isBidir()?"<->":dir?"->":"<-";
@@ -678,6 +703,68 @@ void ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering 
         ss << ". Ignoring arc.";
         valid = false;
 		chart->Error.Error(file_pos.start, ss);
+        return NULL; //Remove this arrow.
+    }
+    no_problem:
+
+    //Update left and right 
+    const EIterator _left = ++chart->AllEntities.begin(); // leftmost entity;
+    const EIterator _right = --chart->AllEntities.end();  // rightmost entiry
+    const EIterator our_left =  chart->EntityMinByPos(src, dst);
+    const EIterator our_right = chart->EntityMaxByPos(src, dst);
+    //Change left and right only if they actually point to a "real entity"
+    //and not (left) or (right). If they do, consider our other "end"
+    if (our_left != _left)
+        left = chart->EntityMinByPos(left, our_left);
+    else
+        left = chart->EntityMinByPos(left, our_right);
+
+    if (our_right != _right)
+        right = chart->EntityMaxByPos(right, our_right);
+    else
+        right = chart->EntityMaxByPos(right, our_left);
+
+    //Update src, dst and mid
+    EIterator sub;
+    sub = chart->FindActiveParentEntity(src);
+    if (sub!=src) {
+        src = chart->ActiveEntities.Find_by_Ptr(*sub);
+        _ASSERT(src != chart->ActiveEntities.end());
+    }
+    sub = chart->FindActiveParentEntity(dst);
+    if (sub!=dst) {
+        dst = chart->ActiveEntities.Find_by_Ptr(*sub);
+        _ASSERT(dst != chart->ActiveEntities.end());
+    }
+    if (src == dst) return NULL; //We became a degenerate arrow, do not show us
+
+    //Find the visible parent of each middle point and remove it if equals to
+    //an end or to any other middle visible parent
+    for (int ii = 0; ii<middle.size(); ii++) {
+        sub = chart->FindActiveParentEntity(middle[ii]);
+        if (middle[ii] == sub) continue;
+        //if the replacement parent equals to an end, delete it
+        if (sub == src || sub == dst) {
+            erase:
+            middle.erase(middle.begin()+ii);
+            ii++;
+            continue;
+        }
+        for (int jj=0; jj<ii; jj++) 
+            if (middle[jj] == sub) goto erase;
+        middle[ii] = sub;
+    }
+    //Replace middle[] values to point to ActiveEntities
+    for (int iii = 0; iii<middle.size(); iii++) {
+        middle[iii] = chart->ActiveEntities.Find_by_Ptr(*middle[iii]);
+        _ASSERT(middle[iii] != chart->ActiveEntities.end());
+    }
+
+    //Insert a small extra spacing for the arrow line
+    if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
+        parsed_label.AddSpacing(0, style.line.LineWidth()+
+                                ARROW_TEXT_VSPACE_ABOVE+ARROW_TEXT_VSPACE_BELOW);
+    return this;
 }
 
 void ArcDirArrow::Width(EntityDistanceMap &distances)
@@ -935,13 +1022,14 @@ string ArcBigArrow::Print(int ident) const
     return ArcDirArrow::Print(ident);
 }
 
-void ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcBigArrow::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
-    ArcDirArrow::PostParseProcess(left, right, number, top_level);
+    ArcBase *ret = ArcDirArrow::PostParseProcess(left, right, number, top_level);
     //Finally copy the line attribute to the arrow, as well (arrow.line.* attributes are annulled here)
     style.arrow.line = style.line;
+    return ret;
 }
 
 void ArcBigArrow::Width(EntityDistanceMap &distances)
@@ -1097,7 +1185,10 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l,
     pos = p;
     entity1 = m.FindAllocEntity(e1, e1l, &valid);
     if (pos == POS_CENTER) entity2 = m.FindAllocEntity(e2, e2l, &valid);
-    else entity2 = m.NoEntity;
+    else {
+        entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
+        _ASSERT(entity2 != m.AllEntities.end());
+    }
 }
 
 VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p)
@@ -1105,14 +1196,17 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p)
     valid = true;
     pos = p;
     entity1 = m.FindAllocEntity(e1, e1l, &valid);
-    entity2 = m.NoEntity;
+    entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
+    _ASSERT(entity2 != m.AllEntities.end());
 }
 
 VertXPos::VertXPos(Msc&m, postype p)
 {
     valid = true;
-    entity1 = m.NoEntity;
-    entity2 = m.NoEntity;
+    entity1 = m.AllEntities.Find_by_Ptr(m.NoEntity);
+    _ASSERT(entity1 != m.AllEntities.end());
+    entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
+    _ASSERT(entity2 != m.AllEntities.end());
 }
 
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc) :
@@ -1217,10 +1311,10 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
 }
 
 
-void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
+ArcBase* ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     if (src == MARKER_HERE_STR || src == MARKER_PREV_PARALLEL_STR)
         if (dst == MARKER_HERE_STR || dst == MARKER_PREV_PARALLEL_STR)
             if (top_level) {
@@ -1228,7 +1322,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
                                    " Ignoring vertical arrow.",
                                    "Only verticals inside a parallel block can omit both markers.");
                 valid = false;
-                return;
+                return NULL;
             }
 
     if (src != MARKER_HERE_STR && src != MARKER_PREV_PARALLEL_STR) {
@@ -1237,7 +1331,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
             chart->Error.Error(file_pos.start, "Cannot find marker '" + src + "'."
                                " Ignoring vertical arrow.");
             valid=false;
-            return;
+            return NULL;
         }
     }
 
@@ -1247,9 +1341,14 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
             chart->Error.Error(file_pos.start, "Cannot find marker '" + dst + "'."
                                " Ignoring vertical arrow.");
             valid=false;
-            return;
+            return NULL;
         }
     }
+
+    bool error = chart->ErrorIfEntityGrouped(pos.entity1, file_pos.start);
+    error |= chart->ErrorIfEntityGrouped(pos.entity2, file_pos.start);
+    if (error) return NULL;
+
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
@@ -1257,6 +1356,14 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
     right = chart->EntityMaxByPos(right, pos.entity1);
     left = chart->EntityMinByPos(left, pos.entity2);
     right = chart->EntityMaxByPos(right, pos.entity2);
+
+    //Now change entities in vertxPos to point to ActiveEntities
+    pos.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity1));
+    pos.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity2));
+    _ASSERT(pos.entity1 != chart->ActiveEntities.end());
+    _ASSERT(pos.entity2 != chart->ActiveEntities.end());
+    if (pos.pos == VertXPos::POS_CENTER && pos.entity1 == pos.entity2)
+        pos.pos = VertXPos::POS_AT;
 
     //Finally copy the line attribute to the arrow, as well
     style.arrow.line = style.line;
@@ -1276,6 +1383,7 @@ void ArcVerticalArrow::PostParseProcess(EIterator &left, EIterator &right,
         else
             style.fill.gradient.second = readfrom_right_gardient[style.fill.gradient.second];
     }
+    return this;
 }
 
 void ArcVerticalArrow::Width(EntityDistanceMap &distances)
@@ -1464,12 +1572,9 @@ ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
     dst = chart->FindAllocEntity(d, dl, &valid);
 
     //If both src and dst specified, order them
-    if (src!=chart->NoEntity && dst!=chart->NoEntity)
-        if ((*src)->pos > (*dst)->pos) {
-            EIterator e = dst;
-            dst = src;
-            src = e;
-        }
+    if (*src!=chart->NoEntity && *dst!=chart->NoEntity)
+        if ((*src)->pos > (*dst)->pos) 
+            std::swap(src, dst);
 };
 
 ArcEmphasis* ArcEmphasis::SetPipe()
@@ -1615,17 +1720,17 @@ struct pipe_compare
 };
 
 //will only be called for the first box of a multi-segment box series
-void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
-                                   Numbering &number, bool top_level)
+ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
+                                       Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     //Add ourselves as the first element in follow.
     follow.push_front(this);
 
     EIterator e1=src;      //src.pos < dst.pos guaranteed in constructor (if none is NULL)
     EIterator e2=dst;
     //OK, now expand further if there are following boxes
-    for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++) {
+    for (auto i = follow.begin(); i!=follow.end(); i++) {
         //Add numbering, if needed
         (*i)->ArcLabelled::PostParseProcess(left, right, number, top_level);
         if ((*i)->content) {
@@ -1635,124 +1740,239 @@ void ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
             if ((*i)->style.numbering.second && (*i)->label.length()!=0)
                 number.decrementOnAddingLevels = true;
             chart->PostParseProcessArcList(*((*i)->content), false, e1, e2, number, top_level);
+            //Check if content has disappeared (entity collapsing may cause this)
+            if ((*i)->content->size() == 0) {
+                delete (*i)->content;
+                (*i)->content = NULL;
+            } 
             number.decrementOnAddingLevels = false;
         }
     }
 
-    if (pipe) {
-        //Check that all pipe segments are fully specified, non-overlapping and sort them
-        //After this follow.begin will not point to "this" but to the leftmost (fromright==true) or rightmost (==false)
-        //Also set pipe_connect_back/forw flags
-        //Terminology: backwards means left if "fromright" and right otherwise
-
-        //frist sort from left to right
-        pipe_compare comp(chart, true);
-        follow.sort(comp);
-        //Make both src and dst specified and ordered in all segments
-        //The leftmost and the rightmost segment can auto-adjust to the content (e1 and e2)
-        //others can snap left and right if not specified
-        //Also collect thickest linewidth
-        EIterator last = e1;
-        EIterator next;
-        double lw_max = 0;
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            auto i_next = i;
-            i_next++;
-            next = i_next==follow.end() ? e2 : chart->EntityMinByPos((*i_next)->src, (*i_next)->dst);
-
-            if ((*i)->src == chart->NoEntity) (*i)->src = last;
-            if ((*i)->dst == chart->NoEntity) (*i)->dst = next;
-
-            if ((*i)->src == chart->NoEntity || (*i)->dst == chart->NoEntity) {
-                std::string msg = "Could not figure out the extent of this pipe";
-                if (follow.size()>1) msg += " segment";
-                msg += ". Specify starting and/or terminating entity.";
-                chart->Error.Error((*i)->file_pos.start, msg);
-                valid = false;
-                return;
-            }
-            if ((*i)->src != chart->EntityMinByPos((*i)->src, (*i)->dst))
-                swap((*i)->src, (*i)->dst);
-            last = (*i)->dst;
-
-            lw_max = std::max(lw_max, (*i)->style.line.LineWidth());
-        }
-
-        //increase the radius everywhere by the thickest lw (if it is not zero)
-        if (style.line.radius.second>0) {
-            const double radius = style.line.radius.second + lw_max;
-            for (auto i = follow.begin(); i!=follow.end(); i++)
-                (*i)->style.line.radius.second = radius;
-        }
-        //set e1 and e2 to real leftmost and rightmost entity affected
-        e1 = chart->EntityMinByPos(e1, (*follow.begin())->src);
-        e2 = chart->EntityMaxByPos(e2, (*follow.rbegin())->dst);
-
-        //Sort according to fromright: begin() should point to the leftmost pipe if side==right,
-        //and to the rightmost if side=left
-        if (style.side.second == SIDE_LEFT) {
-            comp.fromright = false;
-            follow.sort(comp);
-        }
-
-        //Fill in pipe_connect vlaues
-        (*follow.begin())->pipe_connect_back = false;
-        (*follow.rbegin())->pipe_connect_forw = false;
-        for (auto i = ++follow.begin(); i!=follow.end(); i++) {
-            (*i)->pipe_connect_back = (*i)->pipe_connect_forw = false;
-            //Set flags if we are adjacent to previous one
-            auto i_prev = i;
-            i_prev--;
-            if ((style.side.second == SIDE_RIGHT && (*i_prev)->dst == (*i)->src) ||
-                (style.side.second == SIDE_LEFT  && (*i_prev)->src == (*i)->dst)) {
-                (*i)->pipe_connect_back = true;
-                (*i_prev)->pipe_connect_forw = true;
-            } else {
-                if ((style.side.second == SIDE_RIGHT && chart->EntityMaxByPos((*i_prev)->dst, (*i)->src) != (*i)->src) ||
-                    (style.side.second == SIDE_LEFT  && chart->EntityMinByPos((*i_prev)->src, (*i)->dst) != (*i)->dst))
-                    chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
-                                         " It may not look so good.",
-                                         "Encapsulate one in the other if you want that effect.");
-                (*i)->pipe_connect_back = false;
-                (*i_prev)->pipe_connect_forw = false;
-            }
-        }
-        //Now check that segments connecting to both sides are not only spanning a single entity
-        if (follow.size()>1)
-            for (auto i = follow.begin(); i!=follow.end(); i++) {
-                if ((*i)->src == (*i)->dst) {
-                    chart->Error.Error((*i)->file_pos.start, "This pipe segment is sqeezed between two connecting neighbouring segments and will not show."
-                        " Ignoring pipe.");
-                    valid = false;
-                    return;
-            }
-        }
-
-        //set return value
-        left = chart->EntityMinByPos(e1, left);
-        right = chart->EntityMaxByPos(e2, right);
-
-        //if there is no content, no need to draw a transparent cover
-        //save drawing cost (and potential fallback img)
-        //only first pipe can have content (which becomes the content of all pipe)
-        if (!content || content->size() == 0)
-            for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
-                (*i)->style.solid.second = 255;
-    } else {
-        if (src==chart->NoEntity) src = e1;
-        if (dst==chart->NoEntity) dst = e2;
+    if (!pipe) { /* We are a box */
+        if (*src==chart->NoEntity) src = e1;
+        if (*dst==chart->NoEntity) dst = e2;
 
         //Src and dst can still be == NoEntity, if no arcs specified
         //inside the content and no enity specified at emph declaration.
         //In this case emph box spans to leftmost and rightmost entity in chart.
         //At PostParse "Entities" is already sorted by pos values
         //we only do this step if we are the first in an Emphasis box series.
-        if (src==chart->NoEntity) src = ++ ++chart->Entities.begin();     //leftmost entity after Noentity and (left)
-        if (dst==chart->NoEntity) dst = -- --chart->Entities.end();    //rightmost entity (before (right)
+        if (*src==chart->NoEntity) src = ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
+        if (*dst==chart->NoEntity) dst = -- --chart->AllEntities.end();    //rightmost entity (before (right)
+
+        //Now convert src and dst to an iterator pointing to ActiveEntities
+        EIterator sub1 = chart->FindActiveParentEntity(src);
+        EIterator sub2 = chart->FindActiveParentEntity(dst);
+        //if src (or dst) is visible, look up their leftmost/rightmost children (if any)
+        if (sub1 == src) sub1 = chart->FindLeftRightmostChildren(sub1, true);
+        if (sub2 == dst) sub2 = chart->FindLeftRightmostChildren(sub2, false);
+
+        //if pipe segment spans a single entity and both ends have changed, 
+        //we kill this box but not content
+        if (sub1==sub2 && sub1!=src && sub2!=dst) {
+            ArcList *al = new ArcList;
+            for (auto i = follow.begin(); i!=follow.end(); i++) 
+                al->Append((*i)->content); //NULL is handled, content is emptied
+            ArcParallel *p = new ArcParallel(chart);
+            p->AddArcList(al); //ownership of "al" is taken
+            return p;
+        } 
+        src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
+        dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
+        _ASSERT(src != chart->ActiveEntities.end()); 
+        _ASSERT(dst != chart->ActiveEntities.end()); 
 
         left = chart->EntityMinByPos(chart->EntityMinByPos(left, src), dst);
         right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, src), dst);
+        return this;
     }
+
+    /* We are pipe */
+    //Check that all pipe segments are fully specified, non-overlapping and sort them
+    //After this follow.begin will not point to "this" but to the leftmost (fromright==true) or rightmost (==false)
+    //Also set pipe_connect_back/forw flags
+    //Terminology: backwards means left if "fromright" and right otherwise
+
+    //frist sort from left to right
+    pipe_compare comp(chart, true);
+    follow.sort(comp);
+    //Make both src and dst specified and ordered in all segments
+    //The leftmost and the rightmost segment can auto-adjust to the content (e1 and e2)
+    //others can snap left and right if not specified
+    EIterator last = e1;
+    EIterator next;
+    for (auto i = follow.begin(); i!=follow.end(); i++) {
+        auto i_next = i;
+        i_next++;
+        next = i_next==follow.end() ? e2 : chart->EntityMinByPos((*i_next)->src, (*i_next)->dst);
+
+        if (*(*i)->src == chart->NoEntity) (*i)->src = last;
+        if (*(*i)->dst == chart->NoEntity) (*i)->dst = next;
+
+        if (*(*i)->src == chart->NoEntity || *(*i)->dst == chart->NoEntity) {
+            std::string msg = "Could not figure out the extent of this pipe";
+            if (follow.size()>1) msg += " segment";
+            msg += ". Specify starting and/or terminating entity.";
+            chart->Error.Error((*i)->file_pos.start, msg);
+            valid = false;
+            return NULL;
+        }
+        if ((*i)->src != chart->EntityMinByPos((*i)->src, (*i)->dst))
+            swap((*i)->src, (*i)->dst);
+        last = (*i)->dst;
+
+    }
+
+    //Now check that segments sanity
+    for (auto i = follow.begin(); i!=follow.end(); i++) {
+        auto i_prev = i, i_next = i;
+        if (i!=follow.begin()) i_prev--; 
+        if (i!=--follow.end()) i_next++;
+        const EIterator loc_src = chart->FindLeftRightmostChildren((*i)->src, true);
+        const EIterator loc_dst = chart->FindLeftRightmostChildren((*i)->dst, false);
+        const EIterator next_src = chart->FindLeftRightmostChildren(i_next!=follow.end() ? (*i_next)->src : (*i)->src, true);
+        const EIterator prev_dst = chart->FindLeftRightmostChildren(i_prev!=follow.end() ? (*i_prev)->dst : (*i)->dst, false);
+
+        if (loc_src == loc_dst && (
+              (i_prev!=follow.end() && prev_dst != loc_src) ||
+              (i_next!=follow.end() && next_src != loc_dst)
+              )) {
+            chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to a neighbouring segments but spans only a single entity."
+                " Segment cannot be shown. Ignoring pipe.");
+            valid = false;
+            return NULL;
+        }
+        if ((i_prev!=follow.end() && chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) ||
+            (i_next!=follow.end() && chart->EntityMinByPos(next_src, loc_dst) != loc_dst))
+                chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
+                " It may not look so good.",
+                "Encapsulate one in the other if you want that effect.");
+    }
+    //All the above operations were checked on AllEntities. We have accepted the pipe
+    //as valid here and should not complain no matter what entities are collapsed or not
+
+    bool killed_this = false;
+    //Now change src:s and dst:s to active entities.
+    //First look up their active parent in AllEntities (or if they are
+    //visible group entities find, the left/right-most children)
+    //Then convert to ActiveEntities iterators
+    //If may happen that a pipe segment disappears.
+    //If the first one disappears (==this), we need to do a replacement
+    //If all disappear, we just return the content in an ArcParallel
+    //Do one pass of checking
+    for (auto i = follow.begin(); i!=follow.end(); /*none*/) {
+        EIterator sub1 = chart->FindActiveParentEntity((*i)->src);
+        EIterator sub2 = chart->FindActiveParentEntity((*i)->dst);
+        //if src (or dst) is visible, look up their leftmost/rightmost children (if any)
+        if (sub1 == (*i)->src) sub1 = chart->FindLeftRightmostChildren(sub1, true);
+        if (sub2 == (*i)->dst) sub2 = chart->FindLeftRightmostChildren(sub2, true);
+
+        //if pipe segment spans a single entity and both ends have changed, 
+        //we kill this segment
+        if (sub1==sub2 && sub1!=(*i)->src && sub2!=(*i)->dst) {
+            if (*i != this) delete *i;
+            else killed_this = true;
+            follow.erase(i++);
+        } else {
+            (*i)->src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
+            (*i)->dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
+            _ASSERT((*i)->src != chart->ActiveEntities.end()); 
+            _ASSERT((*i)->dst != chart->ActiveEntities.end()); 
+            i++;
+        }
+    }
+    //Do second pass: a single entity segment is kept only if it does not 
+    //connect to the previous or next segments
+    //Also collect thickest linewidth of remaining segments
+    double lw_max = 0;
+    for (auto i = follow.begin(); i!=follow.end(); i++) {
+        if ((*i)->src == (*i)->dst) {
+            auto j = i;
+            auto k = i;
+            if ((i!=follow.begin() && (*--j)->dst == (*i)->src) ||
+                (i!=--follow.end() && (*++k)->src == (*i)->dst)) {
+                    if (*i != this) delete *i;
+                    else killed_this = true;
+                    follow.erase(i++);
+                    i--;
+                    continue;
+            }
+        }
+        lw_max = std::max(lw_max, (*i)->style.line.LineWidth());
+    }
+    
+    //see if we have any segments left, if not return only content
+    if (follow.size()==0) {
+        if (content && content->size()) {
+            ArcParallel *p = new ArcParallel(chart);
+            p->AddArcList(content);
+            return p;
+        }
+        return NULL;
+    }
+
+    //increase the radius everywhere by the thickest lw (if it is not zero)
+    if (style.line.radius.second>0) {
+        const double radius = style.line.radius.second + lw_max;
+        for (auto i = follow.begin(); i!=follow.end(); i++)
+            (*i)->style.line.radius.second = radius;
+    }
+    //set e1 and e2 to real leftmost and rightmost entity affected
+    e1 = chart->EntityMinByPos(e1, (*follow.begin())->src);
+    e2 = chart->EntityMaxByPos(e2, (*follow.rbegin())->dst);
+
+    //Sort according to fromright: begin() should point to the leftmost pipe if side==right,
+    //and to the rightmost if side=left
+    if (style.side.second == SIDE_LEFT) {
+        comp.fromright = false;
+        follow.sort(comp);
+    }
+
+    //Fill in pipe_connect vlaues
+    (*follow.begin())->pipe_connect_back = false;
+    (*follow.rbegin())->pipe_connect_forw = false;
+    for (auto i = ++follow.begin(); i!=follow.end(); i++) {
+        (*i)->pipe_connect_back = (*i)->pipe_connect_forw = false;
+        //Set flags if we are adjacent to previous one
+        auto i_prev = i;
+        i_prev--;
+        if ((style.side.second == SIDE_RIGHT && (*i_prev)->dst == (*i)->src) ||
+            (style.side.second == SIDE_LEFT  && (*i_prev)->src == (*i)->dst)) {
+            (*i)->pipe_connect_back = true;
+            (*i_prev)->pipe_connect_forw = true;
+        } else {
+            (*i)->pipe_connect_back = false;
+            (*i_prev)->pipe_connect_forw = false;
+        }
+    }
+
+    //set return value
+    left = chart->EntityMinByPos(e1, left);
+    right = chart->EntityMaxByPos(e2, right);
+
+    //if there is no content, no need to draw a transparent cover
+    //save drawing cost (and potential fallback img)
+    //only first pipe can have content (which becomes the content of all pipe)
+    if (!content || content->size() == 0)
+        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
+            (*i)->style.solid.second = 255;
+
+    //if we have killed "this" copy "follow", "content" to first guy and replace us
+    if (killed_this) {
+        ArcEmphasis *ret = *follow.begin();
+        ret->follow = follow;
+        follow.clear();
+        ret->first = NULL;
+        ret->content = content;
+        if (content) {
+            content->clear();
+            delete content;
+            content = NULL;
+        }
+        return ret;
+    }
+    return this;
 }
 
 //will only be called for the first box of a multi-segment box series
@@ -2471,9 +2691,9 @@ bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
     return false;
 }
 
-void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcDivider::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(left, right, number, top_level);
 
@@ -2482,6 +2702,7 @@ void ArcDivider::PostParseProcess(EIterator &left, EIterator &right, Numbering &
         ss << (type==MSC_ARC_DISCO ? "'...'" : "'---'") << " is specified inside a parallel block.";
         chart->Error.Warning(file_pos.start, ss, "May display incorrectly.");
     }
+    return this;
 }
 
 void ArcDivider::Width(EntityDistanceMap &distances)
@@ -2489,8 +2710,8 @@ void ArcDivider::Width(EntityDistanceMap &distances)
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
-    const unsigned lside_index = (*chart->Entities.Find_by_Name(LSIDE_ENT_STR))->index;
-    const unsigned rside_index = (*chart->Entities.Find_by_Name(RSIDE_ENT_STR))->index;
+    const unsigned lside_index = (*chart->ActiveEntities.Find_by_Name(LSIDE_ENT_STR))->index;
+    const unsigned rside_index = (*chart->ActiveEntities.Find_by_Name(RSIDE_ENT_STR))->index;
     //Get marging from chart edge
     double margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     //convert it to a margin from lside and rside
@@ -2559,7 +2780,7 @@ void ArcDivider::PostPosProcess(double autoMarker)
 	if (style.vline.width.first || style.vline.type.first || style.vline.color.first) {
 		MscStyle toadd;
 		toadd.vline = style.vline;
-        for(EIterator i = chart->Entities.begin(); i!=chart->Entities.end(); i++)
+        for(EIterator i = chart->ActiveEntities.begin(); i!=chart->ActiveEntities.end(); i++)
             (*i)->status.ApplyStyle(Range(yPos, yPos+height), toadd);
 	}
 
@@ -2602,12 +2823,13 @@ string ArcParallel::Print(int ident) const
     return ss;
 };
 
-void ArcParallel::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcParallel::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     at_top_level = top_level;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
         chart->PostParseProcessArcList(**i, false, left, right, number, false);
+    return this;
 }
 
 void ArcParallel::Width(EntityDistanceMap &distances)
@@ -2702,17 +2924,6 @@ bool CommandEntity::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-//add parent to all entities referenced by this command, if entity has no parent yet
-void CommandEntity::SetEntityParent(const char *name) 
-{
-	for (auto j = entities.begin(); j!=entities.end(); j++) {
-		EIterator j_ent = chart->Entities.Find_by_Name((*j)->name);
-		_ASSERT (j_ent != chart->NoEntity);
-		if ((*j_ent)->parent_name.length()==0)
-			(*j_ent)->parent_name = name; 
-	}
-}
-
 string CommandEntity::Print(int ident) const
 {
     string ss;
@@ -2723,12 +2934,6 @@ string CommandEntity::Print(int ident) const
         ss << "\n" << (*i)->Print(ident+1);
     return ss;
 }
-
-void CommandEntity::AppendToEntities(const EntityDefList &e)
-{
-    entities.insert(entities.end(), e.begin(), e.end());
-}
-
 
 void CommandEntity::Combine(CommandEntity *ce)
 {
@@ -2750,44 +2955,113 @@ CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 			if ((*i)->show_is_explicit) continue;	
 			(*i)->show.first = true;	
 			(*i)->show.second = CaseInsensitiveEqual(prefix, "show");
+            (*i)->show_is_explicit = true; //prefix of a grouped entity will not impact inner ones with prefix
 		}
     }
     return this;
 }
 
+void CommandEntity::ApplyShowToChildren(const string &name, bool show)
+{
+    EIterator j_ent = chart->AllEntities.Find_by_Name(name);
+    if ((*j_ent)->children_names.size()==0) {
+        for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+            if ((*i_def)->name == name) {
+                (*i_def)->show.first = true;
+                (*i_def)->show.second = show;
+                return;
+            }
+        EntityDef *ed = new EntityDef(name.c_str(), chart);
+        ed->AddAttribute(Attribute("show", show, file_line_range(), file_line_range(), NULL));
+        entities.Append(ed);
+    } else {
+        for (auto s = (*j_ent)->children_names.begin(); s != (*j_ent)->children_names.end(); s++) 
+            ApplyShowToChildren(*s, show);
+    }
+}
 
-void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numbering &number,
+ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numbering &number,
                                      bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     at_top_level = top_level;
     if (full_heading && !top_level)
         chart->Error.Warning(file_pos.start, "The command 'heading' is specified "
                              "inside a parallel block. May display incorrectly.");
     set<Entity*> explicitly_listed;
+    //Remove show on/off attribute from grouped entities
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        EIterator j_ent = chart->Entities.Find_by_Name((*i_def)->name);
+        EIterator j_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
         (*i_def)->itr = j_ent;
+        //if the entity is a grouped entity with a show/hide attribute, 
+        //add an entitydef to our list for those children, who have no entitidefs
+        //yet in the list. For those children, who have, just set show attribute
+        //if not set yet
+        if ((*i_def)->show.first && (*j_ent)->children_names.size()) { 
+            for (auto ss = (*j_ent)->children_names.begin(); ss!=(*j_ent)->children_names.end(); ss++) {
+                auto ii_def = entities.begin();
+                for (/*none*/ ; ii_def != entities.end(); ii_def++) 
+                    if ((*ii_def)->name == *ss) {
+                        if (!(*ii_def)->show.first) 
+                            (*ii_def)->show = (*i_def)->show;
+                        break;
+                    }
+                if (ii_def == entities.end()) {
+                    EIterator jj_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
+                    EntityDef *ed = new EntityDef(ss->c_str(), chart);
+                    ed->show = (*i_def)->show;
+                    ed->implicit = true;
+                    ed->itr = jj_ent;
+                    ed->style = (*jj_ent)->running_style;
+                    ed->parsed_label.Set((*jj_ent)->label, ed->style.text);
+                    entities.Append(ed);
+                }
+            }
+            (*i_def)->show.first = false;
+        }
+    }
+    //Next apply the style changes of this command to the running style of the entities
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
+        EIterator j_ent = (*i_def)->itr;
         //Make the style of the entitydef fully specified using the accumulated style info in Entity
         (*j_ent)->running_style += (*i_def)->style;  //(*i)->style is a partial style here specified by the user
-        (*i_def)->style = (*j_ent)->running_style;	 //(*i)->style now become the full style to use from this point
-        (*i_def)->parsed_label.Set((*j_ent)->label, (*i_def)->style.text);
-
-        //Decide, if this entitydef will show an entity or not
-        //It can get drawn because we 1) said show=yes, or
-        //2) because it is on, we mention it (without show=yes) and it is
-        //a full heading.
-        (*i_def)->shown = ((*i_def)->show.second && (*i_def)->show.first) || (full_heading && (*j_ent)->shown);
-        explicitly_listed.insert(*j_ent);
-        //Adjust the running status of the entity. This is just for the Height process
-        if ((*i_def)->show.first)
-            (*j_ent)->shown = (*i_def)->show.second;
     }
+    //Now remove grouped entities (we have handled style and show for them)
+    //and calculate shown status for non-grouped ones
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+        if ((*(*i_def)->itr)->children_names.size()) {
+            entities.erase(i_def++);
+            i_def--;
+        } else {
+            EIterator j_ent = (*i_def)->itr;
+            //Decide, if this entitydef will show an entity or not
+            //It can get drawn because we 1) said show=yes, or
+            //2) because it is on, we mention it (without show=yes) and it is
+            //a full heading.
+            (*i_def)->shown = ((*i_def)->show.second && (*i_def)->show.first) || (full_heading && (*j_ent)->shown);
+            //Adjust the running status of the entity, this is valid *after* this command. 
+            //This is just for the Height process knwos whch entity is on/off
+            if ((*i_def)->show.first)
+                (*j_ent)->shown = (*i_def)->show.second;
+            //remove entitydef if not shown
+            if (!(*i_def)->shown) {
+                entities.erase(i_def++);
+                i_def--;
+            } else { 
+                explicitly_listed.insert(*(*i_def)->itr);
+                //Update the style of the entitydef
+                (*i_def)->style = (*j_ent)->running_style;	 //(*i)->style now become the full style to use from this point
+                (*i_def)->parsed_label.Set((*j_ent)->label, (*i_def)->style.text);
+            }
+        }
+
     //A "heading" command, we have to draw all entities that are on
     //for these we create additional EntityDefs and append them to entities
+    //Only do this for children (non-grouped entities)
     if (full_heading)
-        for (auto i = chart->Entities.begin(); i!=chart->Entities.end(); i++) {
+        for (auto i = chart->AllEntities.begin(); i!=chart->AllEntities.end(); i++) {
             if (!(*i)->shown) continue;
+            if ((*i)->children_names.size()) continue;
             if (explicitly_listed.find(*i) != explicitly_listed.end()) continue;
             EntityDef *e = new EntityDef((*i)->name.c_str(), chart);
             //fill in all values necessary
@@ -2798,47 +3072,117 @@ void CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numberin
             e->shown = true;
             entities.Append(e);
         }
+    //At this point the list contains all non-grouped entities with show=yes
+    //Collapse is not considered yet, we will do it below
+
+    //Now add parents to the list for those children that are visible
+    //Maintain reverse ordering: parents later, children earlier in the list
+    std::list<string> sl;
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
+        if (!(*i_def)->shown) continue;
+        const string &myparent = (*(*i_def)->itr)->parent_name;
+        if (myparent.length()==0) continue;
+        if (std::find(sl.begin(), sl.end(), myparent) != sl.end()) continue;
+        auto si = sl.begin();
+        while (si != sl.end() && !chart->IsMyParentEntity(myparent, *si)) si++;
+        sl.insert(si, myparent);
+    }
+    //Now add an entitydef for each parent (whith shown=yes) and reverse order
+    for (auto i = sl.begin(); i!=sl.end(); i++) {
+        EntityDef *e = new EntityDef(i->c_str(), chart);
+        //fill in all values necessary
+        e->implicit = true;
+        e->itr = chart->AllEntities.Find_by_Name(*i);
+        e->style = (*e->itr)->running_style;
+        e->parsed_label.Set((*e->itr)->label, e->style.text);
+        e->shown = true;
+        entities.Prepend(e);
+    }
+
+    //Finally prune the list: remove those that shall not be displayed due to collapse
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+        if (chart->FindActiveParentEntity((*i_def)->itr) != (*i_def)->itr) {
+            entities.erase(i_def++);
+            i_def--;
+        }
 
     //Now we have all entities among "entities" that will show here
     //Go through them and update left, right and the entities' maxwidth
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
         if (!(*i_def)->shown) continue;
-        left = chart->EntityMinByPos(left, (*i_def)->itr);
-        right = chart->EntityMaxByPos(right, (*i_def)->itr);
+        if ((*(*i_def)->itr)->children_names.size() && !(*(*i_def)->itr)->collapsed) {
+            EIterator j_ent = (*i_def)->itr;
+            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
+                j_ent = chart->FindLeftRightmostChildren(j_ent, true);
+            left = chart->EntityMinByPos(left, j_ent);
+            j_ent = (*i_def)->itr;
+            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
+                j_ent = chart->FindLeftRightmostChildren(j_ent, false);
+            right = chart->EntityMaxByPos(right, j_ent);
+        } else {
+            //for non-grouped or collapsed entities
+            left = chart->EntityMinByPos(left, (*i_def)->itr);
+            right = chart->EntityMaxByPos(right, (*i_def)->itr);
+        }
         double w = (*i_def)->Width();
         if ((*(*i_def)->itr)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
     }
+    return this;
 }
 
-
+//Here we have EIterators in entitydefs that point to AllEntities (in contrast to
+//all other arcs, where PostParseProcess will convert to iterators in AllActiveEntities)
+//If an entity we list here is not collapsed and have children, then it will
+//be drawn as containing other entities.
+//Since parents are in the beginning of the list, we will go and add distances from the back
+//and use the added distances later in the cycle when processing parents
 void CommandEntity::Width(EntityDistanceMap &distances)
 {
+    //TODO: Fix here, to calculate width of grouped entities, too
     if (!valid) return;
     //Add distances for entity heading
     //Start by creating a map in which distances are ordered by index
-    std::map<unsigned, double> dist; //same distance on left and right side
-    //in PostParseProcess we created an entitydef for all entities shown here. "full_heading" not even checked here
-    for (auto i = entities.begin(); i!=entities.end(); i++) {
+    std::map<int, pair<double, double>> dist; //map the index of an active entity to spaces left & right
+    //in PostParseProcess we created an entitydef for all entities shown here. 
+    //"full_heading" not even checked here
+    for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
         //Take entity height into account or draw it if show=on was added
-        if ((*i)->shown) {
-			const double halfsize = (*(*i)->itr)->maxwidth/2;
+        if (!(*i)->shown) continue;
+        if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
+            const double halfsize = (*(*i)->itr)->maxwidth/2;
             const unsigned index = (*(*i)->itr)->index;
-            auto ii = dist.find(index);
-            if (ii==dist.end() || ii->second < halfsize)
-                dist[index] = halfsize;
+            dist[index] = pair<double, double>(halfsize, halfsize);
+            (*i)->right_ent = (*i)->left_ent = (*i)->itr;
+            (*i)->right_offset = (*i)->left_offset = 0;
+        } else {
+            //grouped entity, which is not collapsed
+            //find leftmost and rightmost active entity 
+            EIterator j_ent = (*i)->itr;
+            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
+                j_ent = chart->FindLeftRightmostChildren(j_ent, true);
+            (*i)->left_ent = j_ent;
+            (*i)->left_offset = dist[(*j_ent)->index].first += 10; //Todo: Fix
+            j_ent = (*i)->itr;
+            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
+                j_ent = chart->FindLeftRightmostChildren(j_ent, false);
+            (*i)->right_ent= j_ent;
+            (*i)->right_offset = dist[(*j_ent)->index].second += 10; //Todo: Fix
+
+            //Insert a requirement between left_ent and right_ent, so that our width will fit (e.g., long text)
+            distances.Insert((*(*i)->left_ent)->index, (*(*i)->right_ent)->index,
+                             (*(*i)->itr)->maxwidth - (*i)->left_offset - (*i)->right_offset);
         }
     }
-    if (dist.size()==0) return;
     //Now convert neighbouring ones to box_side distances, and add the rest as normal side distance
-    distances.Insert(dist.begin()->first,  DISTANCE_LEFT, dist.begin()->second); //leftmost distance
-    distances.Insert(dist.rbegin()->first, DISTANCE_RIGHT,dist.rbegin()->second); //rightmost distance
+    distances.Insert(dist.begin()->first,  DISTANCE_LEFT, dist.begin()->second.first); //leftmost distance
+    distances.Insert(dist.rbegin()->first, DISTANCE_RIGHT,dist.rbegin()->second.second); //rightmost distance
     for (auto d = dist.begin(); d!=--dist.end(); d++) {
         auto d_next = d; d_next++;
         if (d->first == d_next->first-1) //neighbours
-            distances.InsertBoxSide(d->first, d->second, d_next->second);
+            distances.InsertBoxSide(d->first, d->second.second, d_next->second.first);
         else {
-            distances.Insert(d->first, DISTANCE_RIGHT, d->second);
-            distances.Insert(d_next->first, DISTANCE_LEFT, d_next->second);
+            distances.Insert(d->first, DISTANCE_RIGHT, d->second.second);
+            distances.Insert(d_next->first, DISTANCE_LEFT, d_next->second.first);
         }
     }
 }
@@ -2854,14 +3198,19 @@ double CommandEntity::Height(AreaList &cover)
     //They have "implicit" set to true. They have no line info and they do not add
     //their "area" to the allcovers of the chart in EntityDef::PostPosProcess.
     //Instead we add their area to this->area now
-    set<Entity*> explicitly_listed_entities;
-    for (auto i = entities.begin(); i!=entities.end(); i++) {
-        if ((*i)->shown) {
-            const double h = (*i)->Height(cover); //this also adds the cover to the entitydef's area
-            if (height <h) height = h;
-            if ((*i)->implicit)
-                area += (*i)->GetAreaToSearch();
-        }
+
+    //We go backwards, so that contained entities get calculated first
+    for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
+        if (!(*i)->shown) continue;
+        //Collect who is my children in this list
+        EntityDefList edl(false);
+        for (auto ii = entities.rbegin(); !(ii==entities.rend()); ii++) 
+            if (*ii != *i && chart->IsMyParentEntity((*ii)->name, (*i)->name))
+                edl.Append(*ii);
+        const double h = (*i)->Height(cover, edl); //this also adds the cover to the entitydef's area
+        if (height <h) height = h;
+        if ((*i)->implicit)
+            area += (*i)->GetAreaToSearch();
     }
     return height;
 }
@@ -2946,15 +3295,16 @@ void CommandNewBackground::PostPosProcess(double autoMarker)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-void CommandNumbering::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* CommandNumbering::PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
-    if (!valid) return;
+    if (!valid) return NULL;
     if ((action & SIZE) && length)
         number.SetSize(length);
     if (action & INCREMENT)
         ++number;
     if (action & DECREMENT)
         --number;
+    return this;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -3039,8 +3389,8 @@ CommandEmpty::CommandEmpty(Msc *msc) :
 void CommandEmpty::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
-    const unsigned lside_index = (*chart->Entities.Find_by_Name(LSIDE_ENT_STR))->index;
-    const unsigned rside_index = (*chart->Entities.Find_by_Name(RSIDE_ENT_STR))->index;
+    const unsigned lside_index = (*chart->ActiveEntities.Find_by_Name(LSIDE_ENT_STR))->index;
+    const unsigned rside_index = (*chart->ActiveEntities.Find_by_Name(RSIDE_ENT_STR))->index;
     const double width = parsed_label.getTextWidthHeight().x + 2*EMPTY_MARGIN_X;
     distances.Insert(lside_index, rside_index, width);
 }

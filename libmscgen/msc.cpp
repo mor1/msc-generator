@@ -223,10 +223,9 @@ string EntityDistanceMap::Print()
 //"AutoGenEntities" is not, as its contents will be inserted into an
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
-    Entities(true),
+    AllEntities(true), ActiveEntities(false),
     AutoGenEntities(false),
-    Arcs(true),
-    Entity_max_pos(0)
+    Arcs(true)
 {
     chartTailGap = 3;
     selfArrowYSize = 12;
@@ -254,14 +253,15 @@ Msc::Msc() :
     //Apply "plain" design
     SetDesign("plain", true);
 
+    std::set<string> children_names;
     //Add virtual entities
-    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, Contexts.back().styles["entity"]);
-    Entities.Append(entity);
-    NoEntity = Entities.begin();
-    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, Contexts.back().styles["entity"]);
-    Entities.Append(entity);
-    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, Contexts.back().styles["entity"]);
-    Entities.Append(entity);
+    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, Contexts.back().styles["entity"], file_line());
+    AllEntities.Append(entity);
+    NoEntity = *AllEntities.begin();
+    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, Contexts.back().styles["entity"], file_line());
+    AllEntities.Append(entity);
+    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, Contexts.back().styles["entity"], file_line());
+    AllEntities.Append(entity);
 }
 
 bool Msc::SetDesign(const string&name, bool force)
@@ -296,38 +296,106 @@ string Msc::GetDesigns() const
 //from operator < above (where .end() is smaller)
 EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const
 {
-    if (j==NoEntity) return i;
-    if (i==NoEntity) return j;
+    if (*j==NoEntity) return i;
+    if (*i==NoEntity) return j;
     if (min ^ ((*i)->pos < (*j)->pos))
         return j;
     else
         return i;
 };
 
-
+/* Finds an entity in AllEntities. If not found, it creates one */
 EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
 {
-    if (e==NULL)
-        return NoEntity;
-    EIterator ei = Entities.Find_by_Name(e);
-    if (ei == NoEntity) {
+    if (e==NULL) {
+        _ASSERT (AllEntities.Find_by_Ptr(NoEntity) != AllEntities.end());
+        return AllEntities.Find_by_Ptr(NoEntity);
+    }
+    EIterator ei = AllEntities.Find_by_Name(e);
+    if (*ei == NoEntity) {
         if (pedantic)
             Error.Error(l.start, "Unknown entity '" + string(e)
                         + "'. Assuming implicit definition.",
                         "This may be a mistyped entity name."
                         " Try turning 'pedantic' off to remove these messages.");
-        Entity *entity = new Entity(e, e, e, Entity_max_pos++, Contexts.back().styles["entity"]);
-        Entities.Append(entity);
+        Entity *entity = new Entity(e, e, e, GetEntityMaxPos()+1, Contexts.back().styles["entity"], 
+                                    l.start);
+        AllEntities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
-        ed->AddAttributeList(NULL);
+        ed->AddAttributeList(NULL, NULL, file_line());
         ed->show.first = ed->show.second = true; //start turned on
         AutoGenEntities.Append(ed);
-        ei = Entities.Find_by_Name(e);
+        ei = AllEntities.Find_by_Name(e);
     }
     return ei;
 }
 
+//Searches in AllEntities for the highest parent of i which is collapsed and return it
+//If no parent is collapsed, it returns i.
+//In essence it tells, which entity is shown on the chart for i
+//If i is a grouped entity which is not collapsed, it will not show, but we return it.
+EIterator Msc::FindActiveParentEntity(EIterator i)  
+{
+    if ((*i)->parent_name.length() == 0) return i;
+    EIterator j = AllEntities.Find_by_Name((*i)->parent_name);
+    if (*j==NoEntity) return i;
+    EIterator k = FindActiveParentEntity(j);
+    if (j!=k) return k;  //An ancestor of our parent is collapsed: we show that guy
+    if ((*j)->collapsed) return j;  //our parent would show and is collapsed: we show him
+    return i; //our parent would show and is not collapsed: we show up
+}
+
+//ei is points to AllEntities. If grouped we return its leftmost or rightmost children
+EIterator Msc::FindLeftRightmostChildren(EIterator ei, bool left)
+{
+    if ((*ei)->children_names.size()==0) return ei;
+    EIterator ret = AllEntities.Find_by_Name(*(*ei)->children_names.begin());
+    for (auto i = ++(*ei)->children_names.begin(); i!=(*ei)->children_names.end(); i++)
+        ret = EntityMinMaxByPos(ret, AllEntities.Find_by_Name(*i), left);
+    return ret;
+}
+
+
+string Msc::ListGroupedEntityChildren(EIterator ei) 
+{
+    if ((*ei)->children_names.size() == 0) return "'" + (*ei)->name + "'";
+    string s = "'";
+    for (auto i = (*ei)->children_names.begin(); i!=(*ei)->children_names.end(); i++)
+        s.append(ListGroupedEntityChildren(AllEntities.Find_by_Name(*i))).append("', '");
+    s.erase(s.length()-3);
+    return s;
+}
+
+//Check if the entity is a grouped one. If so, return true and give an error msg
+bool Msc::ErrorIfEntityGrouped(EIterator ei, file_line l) 
+{
+    if ((*ei)->children_names.size()==0) return false;
+    Error.Error(l, "Group entity '" + (*ei)->name + "' cannot be used here.", 
+                "Use one of its members (" + ListGroupedEntityChildren(ei) + ") instead."); 
+    return true;
+}
+
+bool Msc::IsMyParentEntity(const string &children, const string &parent)
+{
+    if (children == parent) return false;
+    const string myparent = (*AllEntities.Find_by_Name(children))->parent_name;
+    if (myparent.length()==0) return false;
+    if (myparent == parent) return true;
+    return IsMyParentEntity(myparent, parent);
+}
+
+//Get the "pos" of the highest entity (without leftside, rightside and noentity)
+double Msc::GetEntityMaxPos() const
+{
+    double ret = -1;  //first entity will be return + 1, which will be zero 
+    for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
+        if ((*i)->name != NONE_ENT_STR && (*i)->name != LSIDE_ENT_STR && 
+            (*i)->name != RSIDE_ENT_STR && ret < (*i)->pos)
+            ret = (*i)->pos;
+    return ret;
+}
+            
 ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
                               const char*d, bool fw, file_line_range dl)
 {
@@ -542,7 +610,7 @@ void Msc::ParseText(const char *input, const char *filename)
 
 string Msc::Print(int ident) const
 {
-    string s = Entities.Print(ident).append("\n");
+    string s = AllEntities.Print(ident).append("\n");
     s.append(Arcs.Print(ident)).append("\n");
     return s;
 }
@@ -553,8 +621,8 @@ void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
 {
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); i++) {
         if (resetiterators) {
-            left = NoEntity;
-            right = NoEntity;
+            right = left = AllEntities.Find_by_Ptr(NoEntity);
+            _ASSERT (left != AllEntities.end());
         }
         //Combine subsequent CommandEntities
         CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
@@ -573,32 +641,54 @@ void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
     }
 }
 
-void Msc::PostParseProcess(void)
+void Msc::PostParseProcess(const std::map<std::string,bool> &force_entity_collapse)
 {
+    //Force arcs collapsed or expanded as dictated by the parameter
+    for (auto i = force_entity_collapse.begin(); i!=force_entity_collapse.end(); i++) {
+        const EIterator j = AllEntities.Find_by_Name(i->first);
+        if (*j!=NoEntity) (*j)->collapsed = i->second;
+    }
+
     //Sort the defined entities as will be displayed from left to right
-    Entities.SortByPos();
+    AllEntities.SortByPos();
+
+    //Now create a list of active Entities
+    ActiveEntities.clear();
+    for (auto i = AllEntities.begin(); i!=AllEntities.end(); i++) {
+        const EIterator j = FindActiveParentEntity(i);
+        if (ActiveEntities.size()==0) 
+            ActiveEntities.Append(*j);  //first active entity
+        else if (*ActiveEntities.Find_by_Name((*j)->name) == NoEntity)
+            ActiveEntities.Append(*j);  //a new active entity, not yet added
+        else if ((*ActiveEntities.rbegin()) != *j) {
+            //already added but not as last one
+            Error.Error((*j)->file_pos, "Entities grouped into entity '" + (*j)->name +"' are not consecutive.",
+                                        "May result in unintended consequences.");
+            Error.Error((*i)->file_pos, (*j)->file_pos, "Entity '" + (*i)->name, "' may be one outlier.");
+        }
+    }   
 
     //Set index field in Entities
     unsigned index = 0;
-    for (EIterator temp = Entities.begin(); temp!=Entities.end(); temp++, index++)
+    for (EIterator temp = ActiveEntities.begin(); temp!=ActiveEntities.end(); temp++, index++)
         (*temp)->index = index;
 
-    EIterator lside = Entities.Find_by_Name(LSIDE_ENT_STR);
-    EIterator rside = Entities.Find_by_Name(RSIDE_ENT_STR);
+    EIterator lside = ActiveEntities.Find_by_Name(LSIDE_ENT_STR);
+    EIterator rside = ActiveEntities.Find_by_Name(RSIDE_ENT_STR);
 
     //Find the first real entity
-    EIterator tmp = Entities.begin();
-    if (tmp == NoEntity) tmp++;
+    EIterator tmp = ActiveEntities.begin();
+    if (*tmp == NoEntity) tmp++;
     if (tmp == lside) tmp++;
     if (tmp == rside) tmp++;
 
     //Ensure that leftmost real entity pos == 2*MARGIN
     double rightmost = 0;
-    if (tmp != Entities.end()) {
+    if (tmp != ActiveEntities.end()) {
         double leftmost = (*tmp)->pos - 2*MARGIN;
-        for  (EIterator i = Entities.begin(); i != Entities.end(); i++) {
+        for  (EIterator i = ActiveEntities.begin(); i != ActiveEntities.end(); i++) {
             const_cast<double&>((*i)->pos) -= leftmost;
-            if (i==lside || i==rside || i==NoEntity) continue;
+            if (i==lside || i==rside || *i==NoEntity) continue;
             if (rightmost < (*i)->pos)
                 rightmost = (*i)->pos;
         }
@@ -610,7 +700,7 @@ void Msc::PostParseProcess(void)
     //Set the position of the virtual side entities & resort
     const_cast<double&>((*lside)->pos) = MARGIN;
     const_cast<double&>((*rside)->pos) = rightmost + MARGIN;
-    Entities.SortByPos();
+    ActiveEntities.SortByPos();
 
     //Add the Auto generated entities to the list of entities
     //Add them to the the first arc if it is an EntityCommand,
@@ -625,17 +715,14 @@ void Msc::PostParseProcess(void)
     dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
 
     //Set all entity's shown to false, to avoid accidentally showing them via (heading;) before definition
-    for (auto i = Entities.begin(); i!=Entities.end(); i++)
+    for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++)
         (*i)->shown = false;
 
     //Traverse Arc tree and perform post-parse processing
-    //1. Add line numbers to labels
-    //2. Calculate which entities to cover for auto-adjusting emphasis boxes
-    //3. Print a few warning messages
-    //4. Combine CommandEntities following one another into a signle one.
-    //5. Setup of variables for CommandEntities & EntityDefs
     Numbering number; //starts at a single level from 1
-    EIterator dummy1=NoEntity, dummy2=NoEntity;
+    EIterator dummy1, dummy2;
+    dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
+    _ASSERT(dummy1 != AllEntities.end());
     PostParseProcessArcList(Arcs, true, dummy1, dummy2, number, true);
 }
 
@@ -823,7 +910,7 @@ void Msc::CalculateWidthHeight(void)
 
             //Now go through all the pairwise requirements and calc actual pos.
             //dist will hold required distance to the right of entity with index []
-            vector<double> dist(Entities.size(), 0);
+            vector<double> dist(ActiveEntities.size(), 0);
             dist[0] = 0;
             dist[1] = XCoord(MARGIN_HSCALE_AUTO);
             dist[dist.size()-2] = XCoord(MARGIN_HSCALE_AUTO);
@@ -846,13 +933,13 @@ void Msc::CalculateWidthHeight(void)
             double unit = XCoord(1);
             double curr_pos = MARGIN_HSCALE_AUTO;
             unsigned index = 0;
-            for (EntityList::iterator j = Entities.begin(); j!=Entities.end(); j++) {
+            for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
                 (*j)->pos = curr_pos;
                 curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
             }
-            total.x = XCoord((*--(Entities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
+            total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
         } else {
-            total.x = XCoord((*--(Entities.end()))->pos+MARGIN)+1; //XCoord is always integer
+            total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN)+1; //XCoord is always integer
         }
         StringFormat sf;
         sf.Default();
@@ -882,7 +969,7 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
-    PostParseProcess();
+    PostParseProcess(std::map<string,bool>()); //TODO: allow forcing collapse/expand
 
     //Calculate chart size
     CalculateWidthHeight();

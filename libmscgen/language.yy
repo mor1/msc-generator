@@ -156,7 +156,6 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <arcemph>    emphrel emphasis_list pipe_emphasis first_emphasis pipe_def_list pipe_def_list_no_attr
 %type <arcparallel>parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
-%type <entity>     entity_no_group first_entity_no_group
 %type <entitylist> entitylist entity first_entity
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
                    relation_to_cont relation_from_cont relation_bidir_cont
@@ -1052,7 +1051,7 @@ entitylist:   entity
               | entitylist TOK_COMMA TOK__NEVER__HAPPENS;
 
 
-entity_no_group:       entity_string full_arcattrlist_with_label
+entity:       entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
@@ -1062,8 +1061,10 @@ entity_no_group:       entity_string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = (new EntityDef($1, &msc))->AddAttributeList($2);
-    ($$)->SetLineEnd(MSC_POS(@$));
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    ed->AddAttributeList($2, NULL, file_line());
+    $$ = (EntityDefList*)((new EntityDefList)->Append(ed));
   #endif
     free($1);
 }
@@ -1073,41 +1074,43 @@ entity_no_group:       entity_string full_arcattrlist_with_label
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
   #else
-    $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL);
-    ($$)->SetLineEnd(MSC_POS(@$));
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    ed->AddAttributeList(NULL, NULL, file_line());
+    $$ = (EntityDefList*)((new EntityDefList)->Append(ed));
+  #endif
+    free($1);
+}
+             | entity_string full_arcattrlist_with_label braced_arclist
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        EntityDef::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        EntityDef::AttributeValues(csh.hintAttrName, csh);
+  #else
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    $$ = ed->AddAttributeList($2, $3, MSC_POS(@3).start);
+  #endif
+    free($1);
+}
+            | entity_string braced_arclist
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@1, $1);
+  #else
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    $$ = ed->AddAttributeList(NULL, $2, MSC_POS(@2).start);
   #endif
     free($1);
 };
 
-entity: entity_no_group
-{
-  #ifndef C_S_H_IS_COMPILED
-    $$ = (EntityDefList*)((new EntityDefList)->Append($1));
-  #endif
-}
-              | entity_no_group braced_arclist
-{
-  #ifndef C_S_H_IS_COMPILED
-    EntityDefList *edl = new EntityDefList;
-    edl->Append($1);
-    if ($2) {
-        for (auto i = ($2)->begin(); i!=($2)->end(); i++) {
-            CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
-            if (ce==NULL || ce->IsFullHeading())
-                msc.Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
-            else {
-				ce->SetEntityParent(($1)->name.c_str());
-                ce->MoveMyEntityDefsAfter(edl);  //ce is emptied out of all EntityDefs
-            }
-        }
-        delete ($2);
-    }
-    $$ = edl;
-  #endif
-};
-
-
-first_entity_no_group:  entity_string full_arcattrlist_with_label
+first_entity:  entity_string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintAt(@1, HINT_LINE_START)) {
@@ -1119,8 +1122,9 @@ first_entity_no_group:  entity_string full_arcattrlist_with_label
         EntityDef::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
   #else
-    $$ = (new EntityDef($1, &msc))->AddAttributeList($2);
-    ($$)->SetLineEnd(MSC_POS(@$));
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    $$ = ed->AddAttributeList($2, NULL, file_line());
   #endif
     free($1);
 }
@@ -1133,38 +1137,45 @@ first_entity_no_group:  entity_string full_arcattrlist_with_label
 	}
     csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
   #else
-    $$ = (new EntityDef($1, &msc))->AddAttributeList(NULL);
-    ($$)->SetLineEnd(MSC_POS(@$));
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    ed->AddAttributeList(NULL, NULL, file_line());
+    $$ = (EntityDefList*)((new EntityDefList)->Append(ed));
   #endif
     free($1);
-};
-
-
-first_entity: first_entity_no_group
-{
-  #ifndef C_S_H_IS_COMPILED
-    $$ = (EntityDefList*)((new EntityDefList)->Append($1));
-  #endif
 }
-              | first_entity_no_group braced_arclist
+                   | entity_string full_arcattrlist_with_label braced_arclist
 {
-  #ifndef C_S_H_IS_COMPILED
-    EntityDefList *edl = new EntityDefList;
-    edl->Append($1);
-    if ($2) {
-        for (auto i = ($2)->begin(); i!=($2)->end(); i++) {
-            CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
-            if (ce==NULL || ce->IsFullHeading())
-                msc.Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
-            else {
-				ce->SetEntityParent(($1)->name.c_str());
-                ce->MoveMyEntityDefsAfter(edl);  //ce is emptied out of all EntityDefs
-            }
-        }
-        delete ($2);
-    }
-    $$ = edl;
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintAt(@1, HINT_LINE_START)) {
+	    csh.AddLineBeginToHints();
+	    csh.hintStatus = HINT_READY;
+	} else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        EntityDef::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        EntityDef::AttributeValues(csh.hintAttrName, csh);
+    csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
+  #else
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    $$ = ed->AddAttributeList($2, $3, MSC_POS(@3).start);
   #endif
+    free($1);
+}
+            | entity_string braced_arclist
+{
+  #ifdef C_S_H_IS_COMPILED
+  	if (csh.CheckHintAt(@1, HINT_LINE_START)) {
+	    csh.AddLineBeginToHints();
+	    csh.hintStatus = HINT_READY;
+	}
+    csh.AddCSH_KeywordOrEntity(@1, $1);   //Do it after AddLineBeginToHints so this one is not included
+  #else
+    EntityDef *ed = new EntityDef($1, &msc);
+    ed->SetLineEnd(MSC_POS(@$));
+    $$ = ed->AddAttributeList(NULL, $2, MSC_POS(@2).start);
+  #endif
+    free($1);
 };
 
 styledeflist: styledef
