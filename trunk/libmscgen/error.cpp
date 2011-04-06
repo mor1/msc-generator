@@ -35,7 +35,7 @@ unsigned MscError::AddFile(const string &filename)
     return Files.size()-1;
 }
 
-ErrorElement MscError::FormulateElement(file_line linenum, bool is_err, bool is_once, const std::string &msg) const
+ErrorElement MscError::FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const
 {
     ErrorElement e;
     e.message = msg;
@@ -55,7 +55,7 @@ ErrorElement MscError::FormulateElement(file_line linenum, bool is_err, bool is_
         e.text.append("warning: ");
     e.text.append(e.message);
     e.relevant_line = linenum;
-    e.ordering_line = linenum;
+    e.ordering_line = linenum_ord;
     e.isError = is_err;
     e.isOnlyOnce = is_once;
     return e;
@@ -66,20 +66,20 @@ void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const
     if (a.error) return;
     a.error = true;
     if (atValue)
-        Add(a.linenum_value.start, s, once, is_err);
+        Add(a.linenum_value.start, a.linenum_value.start, s, once, is_err);
     else
-        Add(a.linenum_attr.start, s, once, is_err);
+        Add(a.linenum_attr.start, a.linenum_attr.start, s, once, is_err);
 }
 
-void MscError::Add(file_line linenum, const std::string &s, const std::string &once, bool is_err)
+void MscError::Add(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once, bool is_err)
 {
-    ErrorElement e1 = FormulateElement(linenum, is_err, false, s);
+    ErrorElement e1 = FormulateElement(linenum, linenum_ord, is_err, false, s);
     if (is_err)
         Errors.push_back(e1);
     ErrorsAndWarnings.push_back(e1);
 
     if (once.length()>0) {
-        ErrorElement e2 = FormulateElement(linenum, is_err, true, once);
+        ErrorElement e2 = FormulateElement(linenum, linenum_ord, is_err, true, once);
         if (is_err)
             Errors.push_back(e2);
         ErrorsAndWarnings.push_back(e2);

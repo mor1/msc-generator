@@ -117,10 +117,10 @@ public:
     typedef std::pair<file_line, double> MarkerType;
     typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
             LineToArcMapType;
-    EntityList                    Entities;
-    EIterator                     NoEntity;
+    EntityList                    AllEntities;
+    EntityList                    ActiveEntities;
+    Entity                       *NoEntity;
     EntityDefList                 AutoGenEntities;
-    double                        Entity_max_pos;
     ArcList                       Arcs;
     std::list<Context>            Contexts;
     std::map<string, Design>      Designs;
@@ -177,6 +177,12 @@ public:
     EIterator EntityMinByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, true);}
     EIterator EntityMaxByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, false);}
     EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
+    EIterator FindActiveParentEntity(EIterator);
+    EIterator FindLeftRightmostChildren(EIterator, bool left);
+    string ListGroupedEntityChildren(EIterator ei);
+    bool ErrorIfEntityGrouped(EIterator, file_line l);
+    bool IsMyParentEntity(const string &children, const string &parent);
+    double GetEntityMaxPos() const;
     void AddArcs(ArcList *a);
     ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
                              const char*d, bool fw, file_line_range dl);
@@ -188,17 +194,17 @@ public:
 
     void PostParseProcessArcList(ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
-    void PostParseProcess(void);
+    void PostParseProcess(const std::map<std::string,bool> &force_entity_collapse);
     virtual string Print(int ident=0) const;
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
-    double XCoord(EIterator i) const {_ASSERT(i!=Entities.end()); return XCoord((*i)->pos);} //rounded
+    double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
     void HideEntityLines(const Area &area) {HideELinesArea += area;}
     void HideEntityLines(const Block &area) {HideELinesArea += area;}
 
     void DrawEntityLines(double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(double y, double height)
-         {DrawEntityLines(y, height, Entities.begin(), Entities.end());}
+         {DrawEntityLines(y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
     double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);

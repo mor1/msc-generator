@@ -69,18 +69,22 @@ protected:
     void _sort(std::vector<ErrorElement> &store);
 
 
-    void Add(file_line linenum, const std::string &s, const std::string &once, bool is_err);
+    void Add(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once, bool is_err);
     void Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once, bool is_err);
 
 public:
     std::vector<std::string> Files;
     unsigned AddFile(const std::string &filename);
     void Warning(file_line linenum, const std::string &s, const std::string &once="")
-        {Add(linenum, s, once, false);}
+        {Add(linenum, linenum, s, once, false);}
+    void Warning(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once="")
+        {Add(linenum, linenum_ord, s, once, false);}
     void Warning(const Attribute &a, bool atValue, const std::string &s, const std::string &once="")
         {Add(a, atValue, s, once, false);}
     void Error(file_line linenum, const std::string &s, const std::string &once="")
-        {Add(linenum, s, once, true);}
+        {Add(linenum, linenum, s, once, true);}
+    void Error(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once="")
+        {Add(linenum, linenum_ord, s, once, true);}
     void Error(const Attribute &a, bool atValue, const std::string &s, const std::string &once="")
         {Add(a, atValue, s, once, true);}
 
@@ -90,7 +94,7 @@ public:
     unsigned GetErrorNum(bool oWarnings) const {return get_store(oWarnings).size();}
     file_line GetErrorLoc(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].relevant_line;}
     const char *GetErrorText(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].text.c_str();}
-    ErrorElement FormulateElement(file_line linenum, bool is_err, bool is_once, const std::string &msg) const ;
+    ErrorElement FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const ;
 };
 
 #endif

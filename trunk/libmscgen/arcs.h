@@ -78,8 +78,8 @@ public:
     virtual string Print(int ident = 0) const = 0;
 
     //These functions are called recursively for all arcs in this order
-    /* This is called after parsing and adding attributes. Entity order is already known here */
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level) {}
+    /* This is called after parsing and adding attributes. Entity order and collapse/expand is already known here */
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level) {return this;}
     /* This fills in distances for hscale=auto mechanism */
     virtual void Width(EntityDistanceMap &distances) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
@@ -111,7 +111,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
 };
 
 class ArcArrow : public ArcLabelled
@@ -138,7 +138,7 @@ public:
         Msc *msc, const MscStyle &, double ys);
     virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     string Print(int ident=0) const;
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void PostPosProcess(double autoMarker);
@@ -171,7 +171,7 @@ public:
     virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     ArcBase *AddAttributeList(AttributeList *l);
     string Print(int ident=0) const;
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     MscArrowEnd WhichArrow(int i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
@@ -196,7 +196,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
@@ -236,8 +236,8 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
-    void Width(EntityDistanceMap &distances);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(double autoMarker);
@@ -284,7 +284,7 @@ public:
     ArcEmphasis* AddFollow(ArcEmphasis*f);
     ArcEmphasis* GetLastFollow() {return follow.size()?*follow.rbegin():this;}
     string Print(int ident=0) const;
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
@@ -308,7 +308,7 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool nudge=false);
     static bool AttributeValues(const std::string attr, Csh &csh, bool nudge=false);
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
@@ -325,7 +325,7 @@ public:
     ArcParallel(Msc *msc) : ArcBase(MSC_ARC_PARALLEL, msc) {}
     ArcParallel* AddArcList(ArcList*l) {blocks.push_back(l); return this;}
     string Print(int ident=0) const;
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
@@ -347,21 +347,22 @@ class CommandEntity : public ArcCommand
 {
 protected:
     EntityDefList entities;
+    EntityDefList parent_entities;
     bool full_heading;
     double height;
 public:
     CommandEntity(EntityDefList *e, Msc *msc);
 	bool IsFullHeading() {return full_heading;}
-	void SetEntityParent(const char *name);
 	void MoveMyEntityDefsAfter(EntityDefList *e) {if (e) e->splice(e->end(), entities);} //effectively empty 'entities'
     string Print(int ident=0) const;
-    void AppendToEntities(const EntityDefList &e);
+    void AppendToEntities(const EntityDefList &e) {entities.insert(entities.end(), e.begin(), e.end());}
     void Combine(CommandEntity *ce);
     bool AddAttribute(const Attribute &);
     CommandEntity *ApplyPrefix(const char *prefix);
+    void ApplyShowToChildren(const string &name, bool show);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
@@ -401,7 +402,7 @@ public:
 
     CommandNumbering(Msc *msc, EAction a, int l=0)
         : ArcCommand(MSC_COMMAND_NUMBERING, msc), action(a), length(l) {if (l) action = EAction(action | SIZE);}
-    virtual void PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
 };
 
 class CommandMark : public ArcCommand
