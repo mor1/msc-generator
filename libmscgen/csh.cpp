@@ -356,7 +356,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
-"text.color", "text.format", "text.ident", ""};
+"text.color", "text.format", "text.ident", "collapsed", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
 {"compress", "color", "label", "number", 

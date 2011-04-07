@@ -255,12 +255,15 @@ Msc::Msc() :
 
     std::set<string> children_names;
     //Add virtual entities
-    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, Contexts.back().styles["entity"], file_line());
+    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, 
+                                Contexts.back().styles["entity"], file_line(), false);
     AllEntities.Append(entity);
     NoEntity = *AllEntities.begin();
-    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, Contexts.back().styles["entity"], file_line());
+    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, 
+                        Contexts.back().styles["entity"], file_line(), false);
     AllEntities.Append(entity);
-    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, Contexts.back().styles["entity"], file_line());
+    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 
+                        Contexts.back().styles["entity"], file_line(), false);
     AllEntities.Append(entity);
 }
 
@@ -319,7 +322,7 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
                         "This may be a mistyped entity name."
                         " Try turning 'pedantic' off to remove these messages.");
         Entity *entity = new Entity(e, e, e, GetEntityMaxPos()+1, Contexts.back().styles["entity"], 
-                                    l.start);
+                                    l.start, false);
         AllEntities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
@@ -619,7 +622,7 @@ void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
-    for (ArcList::iterator i = arcs.begin(); i != arcs.end(); i++) {
+    for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
             _ASSERT (left != AllEntities.end());
@@ -637,18 +640,15 @@ void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
             arcs.erase(j);
             continue; //i remains at this very same CommandEntity!
         }
-        (*i)->PostParseProcess(left, right, number, top_level);
+        ArcBase *replace = (*i)->PostParseProcess(left, right, number, top_level);
+        if (replace == *i) i++;
+        else if (replace != NULL) (*i++) = replace;
+        else arcs.erase(i++);
     }
 }
 
-void Msc::PostParseProcess(const std::map<std::string,bool> &force_entity_collapse)
+void Msc::PostParseProcess()
 {
-    //Force arcs collapsed or expanded as dictated by the parameter
-    for (auto i = force_entity_collapse.begin(); i!=force_entity_collapse.end(); i++) {
-        const EIterator j = AllEntities.Find_by_Name(i->first);
-        if (*j!=NoEntity) (*j)->collapsed = i->second;
-    }
-
     //Sort the defined entities as will be displayed from left to right
     AllEntities.SortByPos();
 
@@ -656,6 +656,7 @@ void Msc::PostParseProcess(const std::map<std::string,bool> &force_entity_collap
     ActiveEntities.clear();
     for (auto i = AllEntities.begin(); i!=AllEntities.end(); i++) {
         const EIterator j = FindActiveParentEntity(i);
+        if (i==j && (*i)->children_names.size() && !(*i)->collapsed) continue;
         if (ActiveEntities.size()==0) 
             ActiveEntities.Append(*j);  //first active entity
         else if (*ActiveEntities.Find_by_Name((*j)->name) == NoEntity)
@@ -686,8 +687,10 @@ void Msc::PostParseProcess(const std::map<std::string,bool> &force_entity_collap
     double rightmost = 0;
     if (tmp != ActiveEntities.end()) {
         double leftmost = (*tmp)->pos - 2*MARGIN;
+        for  (EIterator i = AllEntities.begin(); i != AllEntities.end(); i++) 
+            (*i)->pos -= leftmost;
+        //Find rightmost entity's pos
         for  (EIterator i = ActiveEntities.begin(); i != ActiveEntities.end(); i++) {
-            const_cast<double&>((*i)->pos) -= leftmost;
             if (i==lside || i==rside || *i==NoEntity) continue;
             if (rightmost < (*i)->pos)
                 rightmost = (*i)->pos;
@@ -935,6 +938,18 @@ void Msc::CalculateWidthHeight(void)
             unsigned index = 0;
             for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
                 (*j)->pos = curr_pos;
+                ////Mark all parents of this active entity (they are not active) with this "pos"
+                ////In the end this will make any grouped entity to have the same "pos" as
+                ////one of its active descendants. It is unspecified, which, but that does not
+                ////matter, we just need this in CommandEntity::Width, where we want to find
+                ////the leftmost and rightmost active descendant of a grouped node
+                //EIterator j_loc = j;
+                //while ((*j_loc)->parent_name.length()>0) {
+                //    j_loc = AllEntities.Find_by_Name((*j_loc)->parent_name);
+                //    _ASSERT(*j_loc != NoEntity);
+                //    (*j_loc)->pos = curr_pos;
+                //}
+                //advance curr_pos to the next entity
                 curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
             }
             total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
@@ -969,7 +984,7 @@ void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
-    PostParseProcess(std::map<string,bool>()); //TODO: allow forcing collapse/expand
+    PostParseProcess(); 
 
     //Calculate chart size
     CalculateWidthHeight();

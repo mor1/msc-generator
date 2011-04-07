@@ -10,6 +10,7 @@ Two helpers needed:
 
 
 PLANNED in 3.1
+BUG: thick lines with dot mid do not show in WMF
 Add: Grouping of entities
 CHANGE: Switched to cairo 1.10 and the new pixman after summer.
    - Bug1: hints drawing into popubox

@@ -727,15 +727,11 @@ ArcBase *ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Number
     //Update src, dst and mid
     EIterator sub;
     sub = chart->FindActiveParentEntity(src);
-    if (sub!=src) {
-        src = chart->ActiveEntities.Find_by_Ptr(*sub);
-        _ASSERT(src != chart->ActiveEntities.end());
-    }
+    src = chart->ActiveEntities.Find_by_Ptr(*sub);
+    _ASSERT(src != chart->ActiveEntities.end());
     sub = chart->FindActiveParentEntity(dst);
-    if (sub!=dst) {
-        dst = chart->ActiveEntities.Find_by_Ptr(*sub);
-        _ASSERT(dst != chart->ActiveEntities.end());
-    }
+    dst = chart->ActiveEntities.Find_by_Ptr(*sub);
+    _ASSERT(dst != chart->ActiveEntities.end());
     if (src == dst) return NULL; //We became a degenerate arrow, do not show us
 
     //Find the visible parent of each middle point and remove it if equals to
@@ -1764,27 +1760,28 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
         //Now convert src and dst to an iterator pointing to ActiveEntities
         EIterator sub1 = chart->FindActiveParentEntity(src);
         EIterator sub2 = chart->FindActiveParentEntity(dst);
-        //if src (or dst) is visible, look up their leftmost/rightmost children (if any)
-        if (sub1 == src) sub1 = chart->FindLeftRightmostChildren(sub1, true);
-        if (sub2 == dst) sub2 = chart->FindLeftRightmostChildren(sub2, false);
+        //if src (or dst) is visible, look up their leftmost/rightmost 
+        //active children (if any)
+        if (sub1 == src) 
+            while ((*sub1)->children_names.size() && !(*sub1)->collapsed)
+                sub1 = chart->FindLeftRightmostChildren(sub1, true);
+        if (sub2 == dst) 
+            while ((*sub2)->children_names.size() && !(*sub2)->collapsed)
+                sub2 = chart->FindLeftRightmostChildren(sub2, false);
 
-        //if pipe segment spans a single entity and both ends have changed, 
-        //we kill this box but not content
-        if (sub1==sub2 && sub1!=src && sub2!=dst) {
-            ArcList *al = new ArcList;
-            for (auto i = follow.begin(); i!=follow.end(); i++) 
-                al->Append((*i)->content); //NULL is handled, content is emptied
-            ArcParallel *p = new ArcParallel(chart);
-            p->AddArcList(al); //ownership of "al" is taken
-            return p;
-        } 
+        //if box spans a single entity and both ends have changed, 
+        //we kill this box 
+        if (sub1==sub2 && sub1!=src && sub2!=dst) return NULL;
+        
         src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
         dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
         _ASSERT(src != chart->ActiveEntities.end()); 
         _ASSERT(dst != chart->ActiveEntities.end()); 
 
-        left = chart->EntityMinByPos(chart->EntityMinByPos(left, src), dst);
-        right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, src), dst);
+        //Note that src and dst now point to ActiveEntities: use subX to 
+        //keep left and right to point to AllEntities
+        left = chart->EntityMinByPos(chart->EntityMinByPos(left, sub1), sub2);
+        right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, sub1), sub2);
         return this;
     }
 
@@ -1864,9 +1861,14 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
     for (auto i = follow.begin(); i!=follow.end(); /*none*/) {
         EIterator sub1 = chart->FindActiveParentEntity((*i)->src);
         EIterator sub2 = chart->FindActiveParentEntity((*i)->dst);
-        //if src (or dst) is visible, look up their leftmost/rightmost children (if any)
-        if (sub1 == (*i)->src) sub1 = chart->FindLeftRightmostChildren(sub1, true);
-        if (sub2 == (*i)->dst) sub2 = chart->FindLeftRightmostChildren(sub2, true);
+        //if src (or dst) is visible, look up their leftmost/rightmost 
+        //active children (if any)
+        if (sub1 == (*i)->src) 
+            while ((*sub1)->children_names.size() && !(*sub1)->collapsed)
+                sub1 = chart->FindLeftRightmostChildren(sub1, true);
+        if (sub2 == (*i)->dst) 
+            while ((*sub2)->children_names.size() && !(*sub2)->collapsed)
+                sub2 = chart->FindLeftRightmostChildren(sub2, false);
 
         //if pipe segment spans a single entity and both ends have changed, 
         //we kill this segment
@@ -1906,6 +1908,7 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
     if (follow.size()==0) {
         if (content && content->size()) {
             ArcParallel *p = new ArcParallel(chart);
+            p->AddAttributeList(NULL);
             p->AddArcList(content);
             return p;
         }
@@ -3138,7 +3141,6 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
 //and use the added distances later in the cycle when processing parents
 void CommandEntity::Width(EntityDistanceMap &distances)
 {
-    //TODO: Fix here, to calculate width of grouped entities, too
     if (!valid) return;
     //Add distances for entity heading
     //Start by creating a map in which distances are ordered by index
@@ -3157,16 +3159,18 @@ void CommandEntity::Width(EntityDistanceMap &distances)
         } else {
             //grouped entity, which is not collapsed
             //find leftmost and rightmost active entity 
+            //and expand us by linewidth and space
             EIterator j_ent = (*i)->itr;
+            double expand = chart->emphVGapInside + (*i)->style.line.LineWidth();
             while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
                 j_ent = chart->FindLeftRightmostChildren(j_ent, true);
             (*i)->left_ent = j_ent;
-            (*i)->left_offset = dist[(*j_ent)->index].first += 10; //Todo: Fix
+            (*i)->left_offset = dist[(*j_ent)->index].first += expand; 
             j_ent = (*i)->itr;
             while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
                 j_ent = chart->FindLeftRightmostChildren(j_ent, false);
             (*i)->right_ent= j_ent;
-            (*i)->right_offset = dist[(*j_ent)->index].second += 10; //Todo: Fix
+            (*i)->right_offset = dist[(*j_ent)->index].second += expand; 
 
             //Insert a requirement between left_ent and right_ent, so that our width will fit (e.g., long text)
             distances.Insert((*(*i)->left_ent)->index, (*(*i)->right_ent)->index,
@@ -3190,7 +3194,7 @@ void CommandEntity::Width(EntityDistanceMap &distances)
 double CommandEntity::Height(AreaList &cover)
 {
     if (!valid) return 0;
-    height = 0;
+    Range hei(0,0);
     //Those entities explicitly listed will have their own EntityDef for this line.
     //Thus their area will be stored there and not in CommandEntity->area
     //But, still put those into "cover" so they can be considered for placement
@@ -3207,12 +3211,17 @@ double CommandEntity::Height(AreaList &cover)
         for (auto ii = entities.rbegin(); !(ii==entities.rend()); ii++) 
             if (*ii != *i && chart->IsMyParentEntity((*ii)->name, (*i)->name))
                 edl.Append(*ii);
-        const double h = (*i)->Height(cover, edl); //this also adds the cover to the entitydef's area
-        if (height <h) height = h;
+        //EntityDef::Height places children entities to yPos==0
+        //Grouped entities may start at negative yPos.
+        //We collect here the maximum extent
+        //Note: Height() also adds the cover to the entitydef's area
+        hei += (*i)->Height(cover, edl); 
         if ((*i)->implicit)
             area += (*i)->GetAreaToSearch();
     }
-    return height;
+    //Ensure overall startpos is zero
+    ShiftBy(-hei.from + chart->headingVGapAbove);
+    return height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
 }
 
 void CommandEntity::ShiftBy(double y)
