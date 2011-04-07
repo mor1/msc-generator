@@ -159,7 +159,8 @@ public:
     double       saved_hscale; /** save hscale during design definition */
     bool         pedantic;   /* if we require pre-defined entities. */
     bool         ignore_designs; /* ignore design changes */
-
+    std::map<string,bool> 
+                 force_entity_collapse; //these entities must be collapsed/expanded
     double       headingSize;
 
     Msc();
@@ -194,7 +195,7 @@ public:
 
     void PostParseProcessArcList(ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
-    void PostParseProcess(const std::map<std::string,bool> &force_entity_collapse);
+    void PostParseProcess();
     virtual string Print(int ident=0) const;
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded

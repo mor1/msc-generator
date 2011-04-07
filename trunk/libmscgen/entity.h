@@ -43,10 +43,10 @@ public:
 
     string           parent_name;    //tells if we are part of an entity group
     std::set<string> children_names; //if we are an entity group, tells who are within us
-    bool             collapsed;      //true if we are group, but show collapsed
+    const bool       collapsed;      //true if we are group, but show collapsed
 
     Entity(const string &n, const string &l, const string &ol, double p, 
-           const MscStyle &entity_style, const file_line &fp);
+           const MscStyle &entity_style, const file_line &fp, bool coll);
     void AddChildrenList(const EntityDefList *children, Msc *chart);
     virtual ~Entity() {};
     string Print(int ident = 0) const;
@@ -134,7 +134,7 @@ public:
     virtual string Print(int ident=0) const;
 
     double Width() const;
-    double Height(AreaList &cover, const EntityDefList &edl);
+    Range Height(AreaList &cover, const EntityDefList &edl);
     void ShiftBy(double y) {TrackableElement::ShiftBy(y); outer_edge.Shift(XY(0,y));}
     void PostPosProcess();
     void Draw();
