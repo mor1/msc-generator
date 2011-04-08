@@ -8,22 +8,38 @@
 #include "error.h" //for file_line
 #include "contour_area.h" //for file_line
 
+typedef enum MscControlType {
+    MSC_CONTROL_EXPAND,
+    MSC_CONTROL_COLLAPSE
+};
+
+class Msc;
+
 //This is a set of Areas, that may overlap
 class TrackableElement {
 protected:
-    bool linenum_final; //true if file_pos below is the final value
-    Area area;          //The area covered by the element...
-    double yPos;        //...drawn at this point
-    Area area_draw;     //The area to draw when highlighting the element
-    bool draw_is_different;
+    Msc * const chart;
+    bool   linenum_final; //true if file_pos below is the final value
+    Area   area;          //The area covered by the element...
+    double yPos;          //...drawn at this point
+    Area   area_draw;     //The area to draw when highlighting the element
+    bool   draw_is_different;  //True is area_draw is different from area
+    bool   area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
+    std::vector<MscControlType> 
+           controls;      //Controls added for this box  
+    XY     control_location; //Top-left corner of controls
 public:
     file_line_range file_pos;
-    TrackableElement() : linenum_final(false), draw_is_different(false), yPos(0) {area_draw.arc = area.arc = this;}
+    explicit TrackableElement(Msc *m);
     TrackableElement(const TrackableElement&);
     void SetLineEnd(file_line_range l, bool f=true);
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const {return area;};
     const Area &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
+    const std::vector<MscControlType>& GetControls() const {return controls;}
+    const XY &GetControlLocation() const {return control_location;}
+    virtual void PostPosProcess(double);
+
 };
 
 

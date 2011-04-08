@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 // MscGenDoc.h : interface of the CMscGenDoc class
@@ -29,10 +29,12 @@
 class CMscGenSrvrItem;
 
 struct TrackedArc {
-	TrackableElement *arc;
-	int               delay_fade;  //in ms. negative means never fade, 0 means is fading
-	unsigned char     alpha;
-	TrackedArc(TrackableElement *a, int delay = -1) : arc(a), delay_fade(delay), alpha(255) {}
+	TrackableElement * const arc;
+    const enum ElementType {CONTROL, TRACKRECT} what;
+    enum {APPEARING, SHOWING, FADING, OFF} status;
+	int    fade_delay;  //After appear this much delay is there to fade in ms. <0 never fade
+	double fade_value;  //0 is not shown, 1 is fully shown
+	TrackedArc(TrackableElement *a, ElementType et, int delay = -1);
 };
 
 class CMscGenDoc : public COleServerDocEx

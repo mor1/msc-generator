@@ -86,8 +86,8 @@ void EntityList::SortByPos(void)
     PtrList<Entity>::sort(SmallerByPos);
 }
 
-EntityDef::EntityDef(const char *s, Msc* msc) : name(s),
-    chart(msc), style(chart->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
+EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
+    style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
     parsed_label(msc), implicit(false), defining(false)
 {
     label.first = false;
@@ -436,10 +436,13 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
-void EntityDef::PostPosProcess()
+void EntityDef::PostPosProcess(double dummy)
 {
-    if (shown) 
+    if (shown) {
         chart->HideEntityLines(outer_edge);
+        if ((*itr)->children_names.size()) 
+            TrackableElement::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);        
+    }
     if (show.first)
         (*itr)->status.SetStatus(yPos, show.second ? EntityStatusMap::SHOW_ON : EntityStatusMap::SHOW_OFF);
     //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {
@@ -450,14 +453,8 @@ void EntityDef::PostPosProcess()
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
-    if (implicit) return;
-    if (!area.IsEmpty()) {
-        area = area.CreateExpand(chart->trackExpandBy);
-        chart->AllCovers += area;
-    }
-    if (draw_is_different && !area_draw.IsEmpty())
-        area_draw = area_draw.CreateExpand(chart->trackExpandBy);
-    chart->AllArcs[file_pos] = this;
+    if (!implicit) 
+        TrackableElement::PostPosProcess(dummy);
 }
 
 
