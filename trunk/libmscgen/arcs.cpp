@@ -102,9 +102,19 @@
 
 using namespace std;
 
+TrackableElement::TrackableElement(Msc *m) : chart(m), 
+    linenum_final(false),  yPos(0),
+    draw_is_different(false), area_draw_is_frame(false)
+{
+    area_draw.arc = area.arc = this;
+}
+
+
 TrackableElement::TrackableElement(const TrackableElement&o) :
     linenum_final(o.linenum_final), area(o.area), yPos(o.yPos),
-    area_draw(o.area_draw), draw_is_different(o.draw_is_different)
+    area_draw(o.area_draw), draw_is_different(o.draw_is_different),
+    area_draw_is_frame(o.area_draw_is_frame), chart(o.chart),
+    controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
     area_draw.arc = this;
@@ -123,13 +133,35 @@ void TrackableElement::ShiftBy(double y)
     area.Shift(XY(0, y));
     area_draw.Shift(XY(0, y));
     yPos+=y;
+    control_location.y += y;
+}
+
+void TrackableElement::PostPosProcess(double)
+{
+    if (!area.IsEmpty()) {
+        //TODO: Pipe segments suck here, so if expand cannot do it,
+        //we still keep the original stuff.
+        Area expanded_area = area.CreateExpand(chart->trackExpandBy);
+        if (!expanded_area.IsEmpty())
+            area = expanded_area;
+        area.arc = this;
+        chart->AllCovers += area;
+        //Determine, where the controls shall be shown
+        control_location = area.GetBoundingBox().UpperRight();
+    } else {
+        //remove controls if we cannot pinpoint a location for them
+        controls.clear();
+    }
+    if (draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
+        area_draw = area_draw.CreateExpand(chart->trackExpandBy);
+    chart->AllArcs[file_pos] = this;
 }
 
 
 //template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
-    type(t), chart(msc), valid(true), compress(false), parallel(false), area_draw_is_frame(false)
+    TrackableElement(msc), type(t), valid(true), compress(false), parallel(false)
 {
     if (msc) compress = msc->Contexts.back().compress;
     had_add_attr_list = false;
@@ -199,20 +231,10 @@ string ArcBase::PrintType(void) const
 void ArcBase::PostPosProcess(double autoMarker)
 {
     _ASSERT(had_add_attr_list);
-    if (valid) {
-        if (!area.IsEmpty()) {
-            //TODO: Pipe segments suck here, so if expand cannot do it,
-            //we still keep the original stuff.
-            Area expanded_area = area.CreateExpand(chart->trackExpandBy);
-            if (!expanded_area.IsEmpty())
-                area = expanded_area;
-            area.arc = this;
-            chart->AllCovers += area;
-        }
-        if (draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
-            area_draw = area_draw.CreateExpand(chart->trackExpandBy);
-    }
-    chart->AllArcs[file_pos] = this;
+    if (valid) 
+        TrackableElement::PostPosProcess(autoMarker);
+    else
+        chart->AllArcs[file_pos] = this; //Do this even if we are invalid
 }
 
 
@@ -3236,7 +3258,7 @@ void CommandEntity::PostPosProcess(double autoMarker)
 {
     if (!valid) return;
     for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->PostPosProcess();
+        (*i)->PostPosProcess(autoMarker);
     ArcCommand::PostPosProcess(autoMarker);
     if (height>0) {
         if (chart->headingSize == 0) chart->headingSize = yPos + height;

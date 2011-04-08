@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 // MscGenView.cpp : implementation of the CMscGenView class
 //
@@ -38,6 +38,7 @@
 #define new DEBUG_NEW
 #endif
 
+//This is a temporary function to test the contour_* library
 void test_geo(cairo_t *cr, int x, int y, bool clicked) 
 {
 	static Area tri, boxhole, cooomplex, cooomplex2, cooomplex3, custom;
@@ -435,7 +436,7 @@ void CMscGenView::InvalidateBlock(const Block &b)
     Invalidate();
 }
 
-
+//Draw tracking rectangles and controls
 //clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
 void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_scale)
 {
@@ -454,16 +455,52 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
     //cairo_clip(cr);
     cairo_set_line_width(cr, 1);
 	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
-        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                  GetGValue(pApp->m_trackFillColor)/255., 
-		                          GetBValue(pApp->m_trackFillColor)/255., 
-                                  GetAValue(pApp->m_trackFillColor)/255.*i->alpha/255.);
-        i->arc->GetAreaToDraw().Fill(cr);
-	    cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
-                                  GetGValue(pApp->m_trackLineColor)/255., 
-		                          GetBValue(pApp->m_trackLineColor)/255., 
-                                  GetAValue(pApp->m_trackLineColor)/255.*i->alpha/255.);
-        i->arc->GetAreaToDraw().Line(cr);
+        if (i->what == TrackedArc::TRACKRECT) {
+            cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
+                                      GetGValue(pApp->m_trackFillColor)/255., 
+		                              GetBValue(pApp->m_trackFillColor)/255., 
+                                      GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
+            i->arc->GetAreaToDraw().Fill(cr);
+	        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
+                                      GetGValue(pApp->m_trackLineColor)/255., 
+		                              GetBValue(pApp->m_trackLineColor)/255., 
+                                      GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
+            i->arc->GetAreaToDraw().Line(cr);
+        } else if (i->what == TrackedArc::CONTROL && i->arc->GetControls().size() && i->fade_value>0.01) {
+            const XY control_size(30, 30);
+            cairo_save(cr);
+            XY center = i->arc->GetControlLocation() + control_size/2;
+            cairo_translate(cr, center.x, center.y);
+            cairo_scale(cr, i->fade_value, i->fade_value);
+            MscLineAttr l_rect(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_ROUND, 5);
+            MscFillAttr f_rect(MscColorType(0,0,0), MscColorType(64,64,64), GRADIENT_DOWN);
+            MscShadowAttr s_rect(MscColorType(0,0,0));
+            s_rect.offset.first = s_rect.blur.first = true;
+            s_rect.offset.second = 5;
+            s_rect.blur.second = 5;
+            for (auto j = i->arc->GetControls().begin(); j!=i->arc->GetControls().end(); j++) {
+                Area rect = l_rect.CreateRectangle(-control_size.x/2, control_size.x/2, 
+                                                        -control_size.y/2, control_size.y/2);
+                cairo_set_source_rgb(cr, 1,1,1);
+                rect.Fill(cr);
+                cairo_set_source_rgb(cr, 0,0,0);
+                cairo_set_line_width(cr, 2);
+                rect.Line(cr);
+                cairo_set_line_width(cr, 8);
+                cairo_set_source_rgb(cr, 1,0,0);
+                cairo_move_to(cr, -control_size.x*0.7, 0);
+                cairo_line_to(cr, +control_size.x*0.7, 0);
+                if (*j == MSC_CONTROL_EXPAND) {
+                    cairo_new_sub_path(cr);
+                    cairo_move_to(cr, 0, -control_size.x*0.7);
+                    cairo_line_to(cr, 0, +control_size.x*0.7);
+                }
+                cairo_stroke(cr);
+                //move down to next control location
+                cairo_translate(cr, 0, control_size.y/i->fade_value);
+            }
+            cairo_restore(cr);
+        }
     }
 	//Cleanup
 	cairo_destroy(cr);

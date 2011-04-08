@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 // MscGenDoc.cpp : implementation of the CMscGenDoc class
@@ -142,6 +142,12 @@ void CScaleDlg::OnBnClicked()
     GetDlgItem(IDC_EDIT_XY_X)->EnableWindow(m_selected==4);
     GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
 }
+
+TrackedArc::TrackedArc(TrackableElement *a, ElementType et, int delay) :
+    arc(a), what(et), status(APPEARING), fade_value(0), fade_delay(delay)
+{
+}
+
 
 // CMscGenDoc
 
@@ -1368,23 +1374,39 @@ void CMscGenDoc::StartFadingTimer()
 //return false if no fading rect remained
 bool CMscGenDoc::DoFading()
 {
-	const double fade_completely = 300; //XXX millisecons shoud be 300
-	unsigned char alpha_reduct = std::min<double>(254, 255./(fade_completely/FADE_TIMER));
+	const double fade_appear = 300; //XXX millisecons shoud be 300
+	const double fade_disappear = 300; //XXX millisecons shoud be 300
     Block bounding; bounding.MakeInvalid();
 	for (int i = 0; i<m_trackArcs.size(); i++) {
-		if (m_trackArcs[i].delay_fade < 0)
-			continue;
-		bounding += m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
-		if (m_trackArcs[i].delay_fade > 0) 
-			m_trackArcs[i].delay_fade--;
-		else if (m_trackArcs[i].alpha > alpha_reduct) 
-			m_trackArcs[i].alpha -= alpha_reduct;
-		else {
-			m_trackArcs.erase(m_trackArcs.begin()+i);
-			i--;
+        switch (m_trackArcs[i].status) {
+            case TrackedArc::SHOWING:
+                if (m_trackArcs[i].fade_delay>=0) {
+                    m_trackArcs[i].fade_delay -= FADE_TIMER;
+                    if (m_trackArcs[i].fade_delay<=0) 
+                        m_trackArcs[i].status = TrackedArc::FADING;
+                }
+                break;
+            case TrackedArc::APPEARING:
+                bounding += m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
+                m_trackArcs[i].fade_value += FADE_TIMER/fade_appear;
+                if (m_trackArcs[i].fade_value >= 1) {
+                    m_trackArcs[i].fade_value = 1;
+                    m_trackArcs[i].status = TrackedArc::SHOWING;
+                }
+                break;
+            case TrackedArc::FADING:
+                bounding += m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
+                m_trackArcs[i].fade_value -= FADE_TIMER/fade_appear;
+                if (m_trackArcs[i].fade_value > 0) 
+                    break;
+                /*Fallthrough*/
+            case TrackedArc::OFF:
+                m_trackArcs.erase(m_trackArcs.begin()+i);
+                i--;
+                break;
 		}
 	}
-    if (bounding.IsInvalid()) return false;
+    if (bounding.IsInvalid()) return false;  //nothing to update
 	POSITION pos = GetFirstViewPosition();
 	while(pos) {
 		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));

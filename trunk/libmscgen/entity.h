@@ -102,8 +102,6 @@ typedef PtrList<EntityDef> EntityDefList;
 //In contrast, there is only one Entity object per entity
 class EntityDef : public TrackableElement
 {
-protected:
-    Msc             *chart;
 public:
     //Store attribute values added in an entity command subsequent to declaration
     const string                   name;
@@ -136,7 +134,7 @@ public:
     double Width() const;
     Range Height(AreaList &cover, const EntityDefList &edl);
     void ShiftBy(double y) {TrackableElement::ShiftBy(y); outer_edge.Shift(XY(0,y));}
-    void PostPosProcess();
+    virtual void PostPosProcess(double);
     void Draw();
 };
 

@@ -56,7 +56,6 @@ protected:
     bool at_top_level; /* if at top level by PostParseProcess() */
     bool compress;     /* if compress mechanism is on for this arc */
     bool parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
-    bool area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
 public:
     const MscArcType type;
 
