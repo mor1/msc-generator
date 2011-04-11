@@ -860,7 +860,7 @@ void CMscGenDoc::DoViewNexterror(bool next)
         m_ExternalEditor.JumpToLine(line, col);
 
     //Show tracking boxes for the error
-    AddTrackArc(m_ChartShown.GetArcByLine(line, col));
+    AddTrackArc(m_ChartShown.GetArcByLine(line, col), TrackedArc::TRACKRECT);
 }
 
 //Selection in the error window changes
@@ -1296,7 +1296,7 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	pApp->m_pWndEditor->m_ctrlEditor.ConvertPosToLineCol(start, line, col);
 	//Add new track arc and update the views if there is a change
 	StartFadingAll();
-	AddTrackArc(m_ChartShown.GetArcByLine(line+1, col+1)); 
+	AddTrackArc(m_ChartShown.GetArcByLine(line+1, col+1), TrackedArc::TRACKRECT); 
 }
 
 void CMscGenDoc::ShowEditingChart(bool resetZoom)
@@ -1417,7 +1417,7 @@ bool CMscGenDoc::DoFading()
 
 
 //Add a tracking element to the list. Updates Views if needed & rets ture if so
-bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
+bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type, int delay)
 {
 	if (arc==NULL) return false;
 	//Do not add if it has no visual element
@@ -1427,12 +1427,12 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
     Block b; b.MakeInvalid();
 	//Look for this arc. If already on list and still fully visible return false - no need to update
 	for (auto i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) {
-		if (i->arc == arc) {
-			i->delay_fade = delay;
-			if (i->alpha == 255) 
+		if (i->arc == arc && i->what == type) {
+			i->fade_delay = delay;
+			if (i->status == TrackedArc::SHOWING) 
 				return false; //we found and it is fully highlighted
 			else {
-				i->alpha = 255;
+				i->status = TrackedArc::APPEARING;
 				found = true;
 			}
 		} 
@@ -1440,7 +1440,7 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
     }
     //We always redraw all the tracked rectangles, to look better
 	if (!found)
-		m_trackArcs.push_back(TrackedArc(arc, delay));
+		m_trackArcs.push_back(TrackedArc(arc, type, delay));
     if (b.IsInvalid()) 
         return true;
 	POSITION pos = GetFirstViewPosition();
@@ -1454,7 +1454,7 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, int delay)
 //Start the fading process for all rectangles (even for delay<0)
 void CMscGenDoc::StartFadingAll() {
 	for (std::vector<TrackedArc>::iterator i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) 
-		i->delay_fade = 0;
+		i->status = TrackedArc::FADING;
 	//If fading in progress we exit
 	POSITION pos = GetFirstViewPosition();
 	while(pos) 
@@ -1493,7 +1493,7 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	if (!m_bTrackMode) return;
 	TrackableElement *arc = m_ChartShown.GetArcByCoordinate(mouse);
 	StartFadingAll();
-	AddTrackArc(arc);
+	AddTrackArc(arc, TrackedArc::TRACKRECT);
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
 		return;

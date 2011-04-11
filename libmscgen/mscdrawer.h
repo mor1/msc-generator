@@ -1,3 +1,21 @@
+/*
+    This file is part of Msc-generator.
+	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #if !defined(MSCDRAW_H)
 #define MSCDRAW_H
 
@@ -25,19 +43,13 @@
 /***************************************************************************
  ***************************************************************************/
 
-// Base class for Mscs that can draw themselves
-class MscDrawer
+class MscCanvas 
 {
-  public:
+public:
     //WMF does the same as EMF, but uses features only that can be in WMFs
     typedef enum {PNG, EPS, PDF, SVG, EMF, WMF, WIN} OutputType;
-  protected:
-    string      fileName;
-    OutputType  outType;
-    FILE*       outFile;
-
-    /* Low-level drawing options */
-    bool         white_background; /* Draw a white background */
+protected:
+    /* Low-level options needed at drawing */
     bool         use_text_path;  /* Use cairo_text_path() instead of cairo_show_text (windows metafile & truetype font problem)*/
     bool         use_text_path_rotated; /* Use text path() on rotated text */
     bool         individual_chars; /* Each character is drawn one by one */
@@ -46,15 +58,14 @@ class MscDrawer
     bool         fake_shadows; /* Do not use alpha blending in shadows */
     bool         fake_dash; /* Do not use cairo dash, mimic them with individual dashes */
     bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
-    double       fake_scale; /*final rendering should be scaled like this */
-    unsigned	 fallback_resolution; /* for cairo WMF backends */
-    bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
+    
+    /* Status of fake dashes */
+    double           fake_dash_offset;
 
-    cairo_surface_t *surface;
-    cairo_t *cr;
-    double fake_dash_offset;
-
-    void SetLowLevelParams(OutputType ot=PNG);
+    /* Context data */
+    cairo_t * const  cr;
+    const OutputType outType;
+    const Block      extents;
 
     void ArcPath(const EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
@@ -91,31 +102,14 @@ friend class ArcEmphasis;  //for exotic line joints
     double textWidth(const string &s);
     void Text(XY p, const string &s, bool isRotated);
 
-  public:
-    MscDrawer();
-    void GetPagePosition(int page, XY &offset, XY &size) const;
-    bool SetOutput(OutputType, double x_scale=1.0, double y_scale=1.0, const string &fn=string(), int page=-1);
-#ifdef CAIRO_HAS_WIN32_SURFACE
-    HDC win32_dc, save_hdc;
-    bool SetOutputWin32(OutputType, HDC hdc, double x_scale=1.0, double y_scale=1.0, int page=-1);
-    HENHMETAFILE CloseOutputRetainHandleEMF();
-    HMETAFILE CloseOutputRetainHandleWMF();
-#endif
-    void PrepareForCopyrightText();
-    void CloseOutput();
-
-    MscError     Error;
-    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
-    /** The total width & height of the drawing and the height of the bottom copyright text (all to be calculated) */
-    XY total;
-    double copyrightTextHeight;
-	/** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
-    std::vector<double> yPageStart;
+public:
+    MscCanvas(cairo_t *context, OutputType ot, double scale_sh, const Block &size);
+    OutputType GetOutputType() const {return outType;}
+    cairo_t *GetContext() const {return cr;}
+    const Block &GetExtents() const {return extents;}
 
     cairo_line_join_t SetLineJoin(cairo_line_join_t t);
     cairo_line_cap_t SetLineCap(cairo_line_cap_t t);
-
-    cairo_t *GetContext() const {return cr;}
     void Clip(double sx, double dx, double sy, double dy);
     void Clip(double sx, double dx, double sy, double dy, const MscLineAttr &line);
     void Clip(const XY &s, const XY &d);
@@ -149,26 +143,69 @@ friend class ArcEmphasis;  //for exotic line joints
     void Shadow(const Area &area, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
 };
 
+// Base class for Mscs that can draw themselves
+class MscBase
+{
+  protected:
+    string      fileName;
+    FILE*       outFile;
+
+    /* Low-level options needed at context creation */
+    bool         white_background; /* Draw a white background */
+    double       fake_scale; /*final rendering should be scaled like this */
+    unsigned	 fallback_resolution; /* for cairo WMF backends */
+    bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
+
+    cairo_surface_t *surface;
+    cairo_t         *context;
+    MscCanvas       *canvas;
+
+    void SetLowLevelParams(MscCanvas::OutputType ot);
+    bool CreateContextAndCanvasFromSurface(MscCanvas::OutputType, XY scale, XY origSize, XY origOffset);
+  public:
+    MscBase();
+    MscCanvas *GetCanvas() {return canvas;}
+    void GetPagePosition(int page, XY &offset, XY &size) const;
+    bool SetOutput(MscCanvas::OutputType, double x_scale=1.0, double y_scale=1.0, const string &fn=string(), int page=-1);
+#ifdef CAIRO_HAS_WIN32_SURFACE
+    HDC win32_dc, save_hdc;
+    bool SetOutputWin32(MscCanvas::OutputType, HDC hdc, double x_scale=1.0, double y_scale=1.0, int page=-1);
+    HENHMETAFILE CloseOutputRetainHandleEMF();
+    HMETAFILE CloseOutputRetainHandleWMF();
+#endif
+    void PrepareForCopyrightText();
+    void CloseOutput();
+
+    MscError     Error;
+    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
+    /** The total width & height of the drawing and the height of the bottom copyright text (all to be calculated) */
+    XY total;
+    double copyrightTextHeight;
+	/** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
+    std::vector<double> yPageStart;
+
+};
+
 //A number, which is larger than any chart, but small enough for contour to make no mistakes
 #define MSC_BIG_COORD 1e5
 
-inline void MscDrawer::Clip(double sx, double dx, double sy, double dy) {cairo_save(cr); RectanglePath(sx, dx, sy, dy); cairo_clip(cr);}
-inline void MscDrawer::Clip(double sx, double dx, double sy, double dy, const MscLineAttr &line) {cairo_save(cr); RectanglePath(sx, dx, sy, dy, line); cairo_clip(cr);}
-inline void MscDrawer::Clip(const XY &s, const XY &d) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y); cairo_clip(cr);}
-inline void MscDrawer::Clip(const XY &s, const XY &d, const MscLineAttr &line) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y, line); cairo_clip(cr);}
-inline void MscDrawer::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till); cairo_clip(cr);}
-//inline void MscDrawer::Clip(const Block &b, const MscLineAttr &line); not inline
+inline void MscCanvas::Clip(double sx, double dx, double sy, double dy) {cairo_save(cr); RectanglePath(sx, dx, sy, dy); cairo_clip(cr);}
+inline void MscCanvas::Clip(double sx, double dx, double sy, double dy, const MscLineAttr &line) {cairo_save(cr); RectanglePath(sx, dx, sy, dy, line); cairo_clip(cr);}
+inline void MscCanvas::Clip(const XY &s, const XY &d) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y); cairo_clip(cr);}
+inline void MscCanvas::Clip(const XY &s, const XY &d, const MscLineAttr &line) {cairo_save(cr); RectanglePath(s.x, d.x, s.y, d.y, line); cairo_clip(cr);}
+inline void MscCanvas::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till); cairo_clip(cr);}
+//inline void MscCanvas::Clip(const Block &b, const MscLineAttr &line); not inline
 //void Clip(const EllipseData &ellipse); not inline
-inline void MscDrawer::Clip(const Area &area) {cairo_save(cr); area.Path(cr); cairo_clip(cr);}
+inline void MscCanvas::Clip(const Area &area) {cairo_save(cr); area.Path(cr); cairo_clip(cr);}
 
 
-inline void MscDrawer::Fill(const XY &s, const XY &d, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
-inline void MscDrawer::Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
-//void MscDrawer:: Fill(const Block &b, const MscFillAttr &fill); //Not inline
-inline void MscDrawer::Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill) {Clip(b, line); Fill(b, fill); UnClip();}
-//void MscDrawer::Fill(const EllipseData &ellipse, const MscFillAttr &fill); //Not inline
-inline void MscDrawer::Fill(const Contour &c, const MscFillAttr &fill) {Clip(c); Fill(c.GetBoundingBox(), fill); UnClip();}
-inline void MscDrawer::Fill(const Area &area, const MscFillAttr &fill) {Clip(area); Fill(area.GetBoundingBox(), fill); UnClip();}
+inline void MscCanvas::Fill(const XY &s, const XY &d, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
+inline void MscCanvas::Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
+//void MscCanvas:: Fill(const Block &b, const MscFillAttr &fill); //Not inline
+inline void MscCanvas::Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill) {Clip(b, line); Fill(b, fill); UnClip();}
+//void MscCanvas::Fill(const EllipseData &ellipse, const MscFillAttr &fill); //Not inline
+inline void MscCanvas::Fill(const Contour &c, const MscFillAttr &fill) {Clip(c); Fill(c.GetBoundingBox(), fill); UnClip();}
+inline void MscCanvas::Fill(const Area &area, const MscFillAttr &fill) {Clip(area); Fill(area.GetBoundingBox(), fill); UnClip();}
 
 
 #endif

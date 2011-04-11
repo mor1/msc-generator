@@ -55,7 +55,7 @@ typedef enum {
     MSC_ARROW_START
 } MscArrowEnd;
 
-class MscDrawer;
+class MscCanvas;
 
 class ArrowHead
 {
@@ -101,7 +101,7 @@ public:
     //Returns a contour covering the arrowhead
     Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //This actually draws an arrowhead
-    void Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *) const;
+    void Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscCanvas *) const;
 
 //functions for block arrow heads
     //The characteristic size of arrowhead
@@ -121,7 +121,7 @@ public:
     Area BigEntityLineCover(const std::vector<double> &xPos, double sy, double dy, bool bidir,
                             const std::vector<MscLineAttr> *lines, const Block &total) const;
     void BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
-                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscDrawer *msc,
+                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscCanvas *canvas,
                  const Area *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
 };
 

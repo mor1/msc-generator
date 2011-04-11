@@ -488,9 +488,9 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     was_partial = true;
 }
 
-bool CshHintGraphicCallbackForMarkers(MscDrawer *msc, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForMarkers(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     MscLineAttr line(LINE_SOLID, MscColorType(64,0,255), 1, CORNER_NONE, 0);
     MscFillAttr fill(MscColorType(64,0,255).Lighter(0.2), GRADIENT_UP);
     MscShadowAttr shadow(MscColorType(0,0,0));
@@ -502,9 +502,9 @@ bool CshHintGraphicCallbackForMarkers(MscDrawer *msc, CshHintGraphicParam /*p*/)
     Contour c(XY(int(HINT_GRAPHIC_SIZE_X*0.3), int(HINT_GRAPHIC_SIZE_Y*0.2)), 
               XY(int(HINT_GRAPHIC_SIZE_X*0.3), int(HINT_GRAPHIC_SIZE_Y*0.8)),
               XY(int(HINT_GRAPHIC_SIZE_X*0.8), int(HINT_GRAPHIC_SIZE_Y*0.5)));
-    msc->Shadow(c, shadow);
-    msc->Fill(c, fill);
-    msc->Line(c, line);
+    canvas->Shadow(c, shadow);
+    canvas->Fill(c, fill);
+    canvas->Line(c, line);
     return true;
 }
 
@@ -774,9 +774,9 @@ std::string Csh::HintPrefix(MscColorSyntaxType t) const
 }
 
 
-bool CshHintGraphicCallbackForAttributeNames(MscDrawer *msc, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForAttributeNames(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const double w = 0.4*HINT_GRAPHIC_SIZE_X;
     const double h = 0.08*HINT_GRAPHIC_SIZE_Y;
     const double off = 0.35*HINT_GRAPHIC_SIZE_Y;
@@ -784,8 +784,8 @@ bool CshHintGraphicCallbackForAttributeNames(MscDrawer *msc, CshHintGraphicParam
     MscLineAttr line;
     line.radius.second = 3;
     MscFillAttr fill(color, GRADIENT_NONE);
-    msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h), line, fill);
-    msc->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off), line, fill);
+    canvas->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h), line, fill);
+    canvas->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off), line, fill);
     return true;
 }
 
@@ -814,18 +814,18 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
         AddToHints(CshHint(prefix+names[i], t, true, c, p));
 }
 
-bool CshHintGraphicCallbackForColors(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForColors(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const int size = HINT_GRAPHIC_SIZE_Y-3;
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
     MscColorType color(p);
     Block b(XY(off_x, off_y), XY(off_x+size, off_y+size));
     b.Round();
-    msc->Fill(b, MscFillAttr(color, GRADIENT_NONE));
+    canvas->Fill(b, MscFillAttr(color, GRADIENT_NONE));
     b.Expand(0.5);
-    msc->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0));
+    canvas->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0));
     return true;
 }
 
@@ -843,15 +843,15 @@ void Csh::AddColorValuesToHints()
     }
 }
 
-bool CshHintGraphicCallbackForDesigns(MscDrawer *msc, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForDesigns(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const XY ul(0.2*HINT_GRAPHIC_SIZE_X, 0.2*HINT_GRAPHIC_SIZE_Y);
     const XY br(0.8*HINT_GRAPHIC_SIZE_X, 0.8*HINT_GRAPHIC_SIZE_Y);
     MscColorType color(0, 0, 0);
     MscLineAttr line;
     line.radius.second = 2;
-    msc->Clip(ul, br, line);
+    canvas->Clip(ul, br, line);
     cairo_pattern_t *pattern = cairo_pattern_create_linear(ul.x, ul.y, br.x, br.y);
     cairo_pattern_add_color_stop_rgb(pattern, 0.0, 255/255., 255/255., 255/255.);  //white
     cairo_pattern_add_color_stop_rgb(pattern, 0.1, 128/255., 128/255.,   0/255.);  //brown
@@ -864,15 +864,15 @@ bool CshHintGraphicCallbackForDesigns(MscDrawer *msc, CshHintGraphicParam /*p*/)
     cairo_pattern_add_color_stop_rgb(pattern, 0.8, 255/255.,   0/255.,   0/255.);  //red
     cairo_pattern_add_color_stop_rgb(pattern, 0.9, 255/255., 255/255.,   0/255.);  //yellow
     cairo_pattern_add_color_stop_rgb(pattern, 1.0, 255/255., 255/255., 255/255.);  //white
-    cairo_set_source(msc->GetContext(), pattern);
-    cairo_rectangle(msc->GetContext(), ul.x, ul.y, br.x, br.y);
-    cairo_fill(msc->GetContext());
+    cairo_set_source(canvas->GetContext(), pattern);
+    cairo_rectangle(canvas->GetContext(), ul.x, ul.y, br.x, br.y);
+    cairo_fill(canvas->GetContext());
     //Over a white rectange to lower saturation
-    cairo_set_source_rgba(msc->GetContext(), 1, 1, 1, 0.5);
-    cairo_rectangle(msc->GetContext(), ul.x, ul.y, br.x, br.y);
-    cairo_fill(msc->GetContext());
-    msc->UnClip();
-    msc->Line(ul, br, line);
+    cairo_set_source_rgba(canvas->GetContext(), 1, 1, 1, 0.5);
+    cairo_rectangle(canvas->GetContext(), ul.x, ul.y, br.x, br.y);
+    cairo_fill(canvas->GetContext());
+    canvas->UnClip();
+    canvas->Line(ul, br, line);
     cairo_pattern_destroy(pattern);
     return true;
 }
@@ -883,9 +883,9 @@ void Csh::AddDesignsToHints()
         Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
 }
 
-bool CshHintGraphicCallbackForStyles(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_ROUND, 1);
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
     MscShadowAttr shadow(MscColorType(0,0,0));
@@ -895,38 +895,38 @@ bool CshHintGraphicCallbackForStyles(MscDrawer *msc, CshHintGraphicParam p)
     shadow.blur.second=0;
 
     Block b(HINT_GRAPHIC_SIZE_X*0.1, HINT_GRAPHIC_SIZE_X*0.5, HINT_GRAPHIC_SIZE_Y*0.1, HINT_GRAPHIC_SIZE_Y*0.5);
-    msc->Fill(b, line, fill);
-    msc->Line(b, line);
+    canvas->Fill(b, line, fill);
+    canvas->Line(b, line);
 
     b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
     fill.color.second = MscColorType(255,0,0);
-    msc->Fill(b, fill);
-    msc->Line(b, line);
+    canvas->Fill(b, fill);
+    canvas->Line(b, line);
 
     b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
     fill.color.second = MscColorType(0,0,255);
-    msc->Shadow(b, shadow);
-    msc->Fill(b, fill);
-    msc->Line(b, line);
+    canvas->Shadow(b, shadow);
+    canvas->Fill(b, fill);
+    canvas->Line(b, line);
     return true;
 }
 
-bool CshHintGraphicCallbackForStyles2(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const double xx = 0.7;
     std::vector<double> xPos(2); 
     xPos[0] = HINT_GRAPHIC_SIZE_X*0.2;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.8;
-    msc->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
+    canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     ArrowHead ah(ArrowHead::BIGARROW);
     ah.line += MscColorType(0,0,0); //black
     ah.endType.second = MSC_ARROW_SOLID;
     ah.size.second = MSC_ARROWS_INVALID;
     MscShadowAttr shadow;
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, msc);
-    msc->UnClip();
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, canvas);
+    canvas->UnClip();
     return true;
 }
 
@@ -947,16 +947,16 @@ void Csh::AddDesignOptionsToHints()
     Msc::AttributeNames(*this, true);
 }
 
-bool CshHintGraphicCallbackForKeywords(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const int size = HINT_GRAPHIC_SIZE_Y-2;
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
     MscColorType color(128, 64, 64);
-    msc->Clip(EllipseData(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.6));
-    msc->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
-    msc->UnClip();
+    canvas->Clip(EllipseData(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.6));
+    canvas->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
+    canvas->UnClip();
     return true;
 }
 
@@ -966,9 +966,9 @@ void Csh::AddKeywordsToHints(bool includeParallel)
                CshHintGraphicCallbackForKeywords);
 }
 
-bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForEntities(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     MscLineAttr vline(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_NONE, 0);
     MscFillAttr fill(MscColorType(192,192,192), GRADIENT_UP);
@@ -979,10 +979,10 @@ bool CshHintGraphicCallbackForEntities(MscDrawer *msc, CshHintGraphicParam /*p*/
     shadow.blur.second=0;
 
     Block b(HINT_GRAPHIC_SIZE_X*0.25, HINT_GRAPHIC_SIZE_X*0.75, HINT_GRAPHIC_SIZE_Y*0.1, HINT_GRAPHIC_SIZE_Y*0.5);
-    msc->Line(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.5), XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.9), vline);
-    msc->Shadow(b, line, shadow);
-    msc->Fill(b, line, fill);
-    msc->Line(b, line);
+    canvas->Line(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.5), XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y*0.9), vline);
+    canvas->Shadow(b, line, shadow);
+    canvas->Fill(b, line, fill);
+    canvas->Line(b, line);
     return true;
 }
 
@@ -992,18 +992,18 @@ void Csh::AddEntitiesToHints()
         AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForEntities));
 }
 
-void Csh::ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)
+void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)
 {
-    if (!msc) return;
+    if (!canvas) return;
     StringFormat f;
     f.Default();
     if (format==NULL) format = &f;
-    Label label(msc);
+    Label label(canvas);
     CshHint start("", HINT_ENTITY); //empty start
     int start_len=0;
     int start_counter;
     for (auto i=Hints.begin(); i!=Hints.end(); /*none*/) {
-        label.Set(i->decorated, *format);
+        label.Set(i->decorated, canvas, *format);
         i->plain = label;
         //if we filter and label does not begin with uc, we drop it
         if (filter_by_uc && uc.length() && !CaseInsensitiveBeginsWith(i->plain, uc.c_str())) {
@@ -1033,7 +1033,7 @@ void Csh::ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &
                     start.plain.erase(start_len+1);
                     start.keep = true;
                 }
-                Label label2(start.decorated, msc, *format);
+                Label label2(start.decorated, canvas, *format);
                 XY xy = label2.getTextWidthHeight();
                 start.x_size = xy.x;
                 start.y_size = xy.y;
@@ -1066,7 +1066,7 @@ void Csh::ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &
             start.plain.erase(start_len+1);
             start.keep = true;
         }
-        Label label2(start.decorated, msc, *format);
+        Label label2(start.decorated, canvas, *format);
         XY xy = label2.getTextWidthHeight();
         start.x_size = xy.x;
         start.y_size = xy.y;

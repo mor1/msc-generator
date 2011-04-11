@@ -105,12 +105,12 @@ std::string Cshize(const char *input, unsigned len, const CshListType &cshList, 
                    const char *command=NULL);
 
 
-class MscDrawer;
+class MscCanvas;
 class StringFormat;
 #define HINT_GRAPHIC_SIZE_X 25
 #define HINT_GRAPHIC_SIZE_Y 18
 typedef void* CshHintGraphicParam;
-typedef bool (*CshHintGraphicCallback)(MscDrawer*, CshHintGraphicParam);
+typedef bool (*CshHintGraphicCallback)(MscCanvas*, CshHintGraphicParam);
 
 //Object to collect color syntax highlighting data
 class CshContext
@@ -255,7 +255,7 @@ public:
     void AddEntitiesToHints();
     void AddLineBeginToHints(bool includeParallel=true) {AddOptionsToHints(); AddKeywordsToHints(includeParallel); AddEntitiesToHints();}
     //fill in size, plain and filter/compact if needed
-    void ProcessHints(MscDrawer *msc, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
+    void ProcessHints(MscCanvas *canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
 };
 
 void CshParse(Csh &csh, const char *buff, unsigned len);

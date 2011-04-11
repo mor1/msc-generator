@@ -976,9 +976,9 @@ void StringFormat::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
-bool CshHintGraphicCallbackForTextIdent(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const MscIdentType t = (MscIdentType)(int)p;
     const static double sizePercentage[] = {50, 30, 60};
     const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
@@ -992,7 +992,7 @@ bool CshHintGraphicCallbackForTextIdent(MscDrawer *msc, CshHintGraphicParam p)
         case MSC_IDENT_CENTER: x2 = floor(HINT_GRAPHIC_SIZE_X*0.5)-x1/2; x1 = x1+x2; break;
         case MSC_IDENT_RIGHT: x2 = floor(HINT_GRAPHIC_SIZE_X*0.8); x1 = x2-x1; break;
         }
-        msc->Line(XY(x1, y+y_inc), XY(x2, y+y_inc), line);
+        canvas->Line(XY(x1, y+y_inc), XY(x2, y+y_inc), line);
         y+=y_inc;
     }
     return true;
@@ -1045,29 +1045,29 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
         label.insert(beginning_pos, pre_num_post);
 }
 
-void StringFormat::ApplyFontToContext(MscDrawer *mscd) const
+void StringFormat::ApplyFontTo(MscCanvas *canvas) const
 {
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
-    mscd->SetFontFace(to_use.face.second.c_str(), to_use.italics.first&&to_use.italics.second,
+    canvas->SetFontFace(to_use.face.second.c_str(), to_use.italics.first&&to_use.italics.second,
                       to_use.bold.first&&to_use.bold.second);
 
-    mscd->SetFontSize(to_use.smallFontSize.second);
-    cairo_font_extents(mscd->GetContext(), &smallFontExtents);
-    mscd->SetFontSize(to_use.normalFontSize.second);
-    cairo_font_extents(mscd->GetContext(), &normalFontExtents);
+    canvas->SetFontSize(to_use.smallFontSize.second);
+    cairo_font_extents(canvas->GetContext(), &smallFontExtents);
+    canvas->SetFontSize(to_use.normalFontSize.second);
+    cairo_font_extents(canvas->GetContext(), &normalFontExtents);
 
     if (to_use.fontType.second == 0) /*Normal font*/
-        mscd->SetFontSize(to_use.normalFontSize.second) ;
+        canvas->SetFontSize(to_use.normalFontSize.second) ;
     else /* Small, subscript, superscript */
-        mscd->SetFontSize(to_use.smallFontSize.second);
-    mscd->SetColor(to_use.color.second);
+        canvas->SetFontSize(to_use.smallFontSize.second);
+    canvas->SetColor(to_use.color.second);
 }
 
 //front is yes if we want heading space width and false if trailing
-double StringFormat::spaceWidth(const string &text, MscDrawer *mscd, bool front) const
+double StringFormat::spaceWidth(const string &text, MscCanvas *canvas, bool front) const
 {
-    if (text.length()==0 || !mscd->fake_spaces) return 0;
+    if (text.length()==0 || !canvas->fake_spaces) return 0;
     size_t s;
     if (front) {
         s = text.find_first_not_of(' ');
@@ -1078,46 +1078,46 @@ double StringFormat::spaceWidth(const string &text, MscDrawer *mscd, bool front)
         s = text.length() - s - 1;
     }
     if (s==0) return 0;
-    ApplyFontToContext(mscd);
+    ApplyFontTo(canvas);
     cairo_text_extents_t te;
-	cairo_text_extents (mscd->GetContext(), "M N", &te); //this counts one more space then needed
+	cairo_text_extents (canvas->GetContext(), "M N", &te); //this counts one more space then needed
     double  w = te.x_advance;
-    cairo_text_extents (mscd->GetContext(), "MN", &te);
+    cairo_text_extents (canvas->GetContext(), "MN", &te);
     w -= te.x_advance;
 	return w*s;
 }
 
-double StringFormat::getFragmentWidth(const string &s, MscDrawer *mscd) const
+double StringFormat::getFragmentWidth(const string &s, MscCanvas *canvas) const
 {
-    if (s.length()==0 || mscd==NULL) return 0;
+    if (s.length()==0 || canvas==NULL) return 0;
     _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
-    to_use.ApplyFontToContext(mscd);
+    to_use.ApplyFontTo(canvas);
     cairo_text_extents_t te;
-    if (mscd->individual_chars) {
+    if (canvas->individual_chars) {
         double advance = 0;
         char tmp_stirng[2] = "a";
         for (int i=0; i<s.length(); i++) {
             tmp_stirng[0] = s[i];
-            cairo_text_extents(mscd->GetContext(), tmp_stirng, &te);
+            cairo_text_extents(canvas->GetContext(), tmp_stirng, &te);
             advance += te.x_advance;
         }
         te.x_advance = advance;
     } else {
-        cairo_text_extents (mscd->GetContext(), s.c_str(), &te);
+        cairo_text_extents (canvas->GetContext(), s.c_str(), &te);
     }
-    return spaceWidth(s, mscd, true) + te.x_advance + spaceWidth(s, mscd, false);
+    return spaceWidth(s, canvas, true) + te.x_advance + spaceWidth(s, canvas, false);
 }
 
 double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
-                                                      MscDrawer *mscd) const
+                                                      MscCanvas *canvas) const
 {
-    if (s.length()==0 || mscd==NULL) return 0;
+    if (s.length()==0 || canvas==NULL) return 0;
     _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
-    to_use.ApplyFontToContext(mscd);
+    to_use.ApplyFontTo(canvas);
     switch(to_use.fontType.second) {
     case 0:  //normal font
         return to_use.normalFontExtents.ascent;
@@ -1132,13 +1132,13 @@ double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
 }
 
 double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
-                                                      MscDrawer *mscd) const
+                                                      MscCanvas *canvas) const
 {
-    if (s.length()==0 || mscd==NULL) return 0;
+    if (s.length()==0 || canvas==NULL) return 0;
     _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
-    to_use.ApplyFontToContext(mscd);
+    to_use.ApplyFontTo(canvas);
     switch(to_use.fontType.second) {
     case 0:  //normal font
         return to_use.normalFontExtents.descent;
@@ -1152,14 +1152,14 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
     return 0;
 }
 
-double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool isRotated) const
+double StringFormat::drawFragment(const string &s, MscCanvas *canvas, XY xy, bool isRotated) const
 {
-    if (s.length()==0 || mscd==NULL) return 0;
+    if (s.length()==0 || canvas==NULL) return 0;
     //Mybe we have not all fields set
     _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
     StringFormat to_use; //default
     to_use += *this; //apply our settings;
-    to_use.ApplyFontToContext(mscd);
+    to_use.ApplyFontTo(canvas);
     switch(to_use.fontType.second) {
     case 0:  //normal font
     case 1:  //Small font
@@ -1173,23 +1173,23 @@ double StringFormat::drawFragment(const string &s, MscDrawer *mscd, XY xy, bool 
     }
 
     cairo_text_extents_t te;
-    cairo_text_extents (mscd->GetContext(), s.c_str(), &te);
-	xy.x += spaceWidth(s, mscd, true);
-	mscd->Text(xy, s, isRotated);
+    cairo_text_extents (canvas->GetContext(), s.c_str(), &te);
+	xy.x += spaceWidth(s, canvas, true);
+	canvas->Text(xy, s, isRotated);
 
-    double advance = spaceWidth(s, mscd, true) + te.x_advance + spaceWidth(s, mscd, false);
+    double advance = spaceWidth(s, canvas, true) + te.x_advance + spaceWidth(s, canvas, false);
 
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        mscd->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, CORNER_NONE, 0));
+        canvas->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, CORNER_NONE, 0));
     }
     return advance;
 }
 
 //////////////////////////////////////////////////////////////
 
-ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) :
+ParsedLine::ParsedLine(const string &in, MscCanvas *canvas, StringFormat &format) :
     line(in), width(0), heightAboveBaseLine(0), heightBelowBaseLine(0)
 {
     format.Apply(line); //eats away initial formatting, ensures we do not start with escape
@@ -1208,11 +1208,11 @@ ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) 
             pos += length;
         }
         //store fragment data
-        width += format.getFragmentWidth(fragment, mscd);
+        width += format.getFragmentWidth(fragment, canvas);
         heightAboveBaseLine =
-            std::max(heightAboveBaseLine, format.getFragmentHeightAboveBaseLine(fragment, mscd));
+            std::max(heightAboveBaseLine, format.getFragmentHeightAboveBaseLine(fragment, canvas));
         heightBelowBaseLine =
-            std::max(heightBelowBaseLine, format.getFragmentHeightBelowBaseLine(fragment, mscd));
+            std::max(heightBelowBaseLine, format.getFragmentHeightBelowBaseLine(fragment, canvas));
 
         //Apply the formatting escapes as they come
         if (line.length()>pos)
@@ -1220,7 +1220,7 @@ ParsedLine::ParsedLine(const string &in, MscDrawer *mscd, StringFormat &format) 
     }
     //Add spacing below. If there is spacingbelow, span a full height line
     if (heightAboveBaseLine == 0 && format.getSpacingBelow())
-        heightAboveBaseLine = format.getFragmentHeightAboveBaseLine("M", mscd);
+        heightAboveBaseLine = format.getFragmentHeightAboveBaseLine("M", canvas);
 };
 
 ParsedLine::operator std::string() const
@@ -1245,7 +1245,7 @@ ParsedLine::operator std::string() const
     return ret;
 }
 
-void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
+void ParsedLine::Draw(XY xy, MscCanvas *canvas, bool isRotated) const
 {
     StringFormat format(startFormat);
     size_t pos = 0;
@@ -1264,7 +1264,7 @@ void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
             pos += length;
         }
         //draw Fragment
-        xy.x += format.drawFragment(fragment, mscd, xy, isRotated);
+        xy.x += format.drawFragment(fragment, canvas, xy, isRotated);
 
         //Apply the formatting escapes as they come
         if (line.length()>pos)
@@ -1278,7 +1278,7 @@ void ParsedLine::Draw(XY xy, MscDrawer *mscd, bool isRotated) const
 /** Split a string to substrings based on '\n' delimiters.
  * Then parse the strings for escape control characters
  */
-unsigned Label::AddText(const string &input, StringFormat format)
+unsigned Label::AddText(const string &input, MscCanvas *canvas, StringFormat format)
 {
     size_t pos = 0, line_start = 0;
     unsigned length;
@@ -1289,7 +1289,7 @@ unsigned Label::AddText(const string &input, StringFormat format)
             pos += length;
         }
         //Add a new line
-        push_back(ParsedLine(input.substr(line_start, pos-line_start), msc, format)); //format changed here
+        push_back(ParsedLine(input.substr(line_start, pos-line_start), canvas, format)); //format changed here
         pos += length; //add the length of the line break itself
         line_start = pos;
     }
@@ -1354,7 +1354,7 @@ XY Label::getTextWidthHeight(int line) const
     return xy;
 };
 
-void Label::CoverOrDraw(double sx, double dx, double y, double cx, bool isRotated, Area *area) const
+void Label::CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Area *area) const
 {
     if (size()==0) return;
     XY xy;
@@ -1383,8 +1383,8 @@ void Label::CoverOrDraw(double sx, double dx, double y, double cx, bool isRotate
         //Draw line of text
         if (area)
             *area += Block(xy, xy+wh); //TODO: Make this finer if there are smaller text or italics...
-        else
-            at(i).Draw(xy, msc, isRotated);
+        else if (canvas)
+            at(i).Draw(xy, canvas, isRotated);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;
     }

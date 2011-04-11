@@ -162,14 +162,14 @@ void ArrowHead::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
-bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrowSize size, bool left);
+bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscArrowSize size, bool left);
 
-bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     if (!MSC_ARROW_OK_FOR_BIG_ARROWS((MscArrowType)(int)p)) {
         if (MSC_ARROW_OK_FOR_ARROWS((MscArrowType)(int)p))
-            return CshHintGraphicCallbackForArrows(msc, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
+            return CshHintGraphicCallbackForArrows(canvas, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
         else return false;
     }
     const double xx = 0.7;
@@ -177,22 +177,22 @@ bool CshHintGraphicCallbackForBigArrows(MscDrawer *msc, CshHintGraphicParam p)
     xPos[0] = 0;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.7;
     MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
-    msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
-    msc->Line(XY(xPos[1], 1), XY(xPos[1], HINT_GRAPHIC_SIZE_Y-1), eLine);
+    canvas->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
+    canvas->Line(XY(xPos[1], 1), XY(xPos[1], HINT_GRAPHIC_SIZE_Y-1), eLine);
     ArrowHead ah(ArrowHead::BIGARROW);
     ah.line += MscColorType(0,192,32); //green-blue
     ah.endType.second = (MscArrowType)(int)p;
     ah.size.second = MSC_ARROWS_INVALID;
     MscShadowAttr shadow;
     MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, msc);
-    msc->UnClip();
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, canvas);
+    canvas->UnClip();
     return true;
 }
 
-bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrowSize size, bool left)
+bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscArrowSize size, bool left)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const double xx = left ? 0.9 : 0.7;
     XY xy(HINT_GRAPHIC_SIZE_X*xx, HINT_GRAPHIC_SIZE_Y/2);
     MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
@@ -201,33 +201,33 @@ bool CshHintGraphicCallbackForArrows(MscDrawer *msc, MscArrowType type, MscArrow
     ah.endType.second = type;
     ah.size.second = size;
     Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END).GetBoundingBox().y;
-    msc->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
+    canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     if (cover.from>1)
-        msc->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
+        canvas->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
     if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
-        msc->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    Area clip = ah.ClipForLine(xy, true, false, MSC_ARROW_END, Block(0,msc->total.x, 0, msc->total.y), eLine, eLine);
-    msc->Clip(clip);
-    msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), xy, ah.line);
-    msc->UnClip();
-    ah.Draw(xy, true, false, MSC_ARROW_END, msc);
-    msc->UnClip();
+        canvas->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
+    Area clip = ah.ClipForLine(xy, true, false, MSC_ARROW_END, canvas->GetExtents(), eLine, eLine);
+    canvas->Clip(clip);
+    canvas->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), xy, ah.line);
+    canvas->UnClip();
+    ah.Draw(xy, true, false, MSC_ARROW_END, canvas);
+    canvas->UnClip();
     return true;
 }
 
-bool CshHintGraphicCallbackForArrowTypes(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForArrowTypes(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!MSC_ARROW_OK_FOR_ARROWS((MscArrowType)(int)p)) {
         if (MSC_ARROW_OK_FOR_BIG_ARROWS((MscArrowType)(int)p))
-            return CshHintGraphicCallbackForBigArrows(msc, p);
+            return CshHintGraphicCallbackForBigArrows(canvas, p);
         else return false;
     }
-    return CshHintGraphicCallbackForArrows(msc, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
+    return CshHintGraphicCallbackForArrows(canvas, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
 }
 
-bool CshHintGraphicCallbackForArrowSizes(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForArrowSizes(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    return CshHintGraphicCallbackForArrows(msc, MSC_ARROW_SOLID, (MscArrowSize)(int)p, true);
+    return CshHintGraphicCallbackForArrows(canvas, MSC_ARROW_SOLID, (MscArrowSize)(int)p, true);
 }
 
 bool ArrowHead::AttributeValues(const std::string &attr, Csh &csh, ArcType t)
@@ -634,7 +634,7 @@ Area ArrowHead::Cover(XY xy, bool forward, bool bidir, MscArrowEnd which) const
  * x,y is the tip of the arrow
  * which is 0 for destination, 1 for middle, 2 for source end of arrow
  */
-void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDrawer *msc) const
+void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscCanvas *canvas) const
 {
     XY wh = getWidthHeight(bidir, which);
     double w = getTriWidth(bidir, which);
@@ -662,8 +662,11 @@ void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDraw
         tri_sharp2 = Contour(xy-wh, xy-XY(wh.x*SHARP_MUL_2, 0), xy - wh + XY(0, wh.y) + XY(0, wh.y));
     }
 
-    if (MSC_ARROW_IS_HALF(GetType(bidir, which))) 
-        msc->Clip(0, msc->total.x, xy.y, msc->total.y);
+    if (MSC_ARROW_IS_HALF(GetType(bidir, which))) {
+        Block ext = canvas->GetExtents();
+        ext.y.from = xy.y;
+        canvas->Clip(ext);
+    }
 
     switch(GetType(bidir, which))
     {
@@ -675,7 +678,7 @@ void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDraw
     case MSC_ARROW_SHARP: /* Filled */
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DOT:
-        msc->Fill(Cover(xy, forward_orig, bidir, which), fill);
+        canvas->Fill(Cover(xy, forward_orig, bidir, which), fill);
         break;
 
     case MSC_ARROW_TRIPLE_EMPTY:
@@ -684,27 +687,27 @@ void ArrowHead::Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscDraw
     case MSC_ARROW_SHARP_EMPTY: /* Non-Filled */
     case MSC_ARROW_DIAMOND_EMPTY:
     case MSC_ARROW_DOT_EMPTY:
-        msc->Line(Cover(xy, forward_orig, bidir, which), line);
+        canvas->Line(Cover(xy, forward_orig, bidir, which), line);
         break;
 
     case MSC_ARROW_TRIPLE_LINE:
     case MSC_ARROW_TRIPLE_HALF:
-        msc->LineOpen(tri1.CreateShifted(XY(wh.x, 0)), line);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->LineOpen(tri2.CreateShifted(XY(-wh.x, 0)), line);
+        canvas->LineOpen(tri1.CreateShifted(XY(wh.x, 0)), line);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->LineOpen(tri2.CreateShifted(XY(-wh.x, 0)), line);
         /*Fallthrough*/
     case MSC_ARROW_DOUBLE_LINE:
     case MSC_ARROW_DOUBLE_HALF:
-        msc->LineOpen(tri1.CreateShifted(XY(wh.x/2, 0)), line);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->LineOpen(tri2.CreateShifted(XY(-wh.x/2, 0)), line);
+        canvas->LineOpen(tri1.CreateShifted(XY(wh.x/2, 0)), line);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->LineOpen(tri2.CreateShifted(XY(-wh.x/2, 0)), line);
         /*Fallthrough*/
     case MSC_ARROW_LINE: /* Two lines */
     case MSC_ARROW_HALF: /* Unfilled half */
-        msc->LineOpen(tri1, line);
-        if (bidir && (which==MSC_ARROW_MIDDLE)) msc->LineOpen(tri2, line);
+        canvas->LineOpen(tri1, line);
+        if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->LineOpen(tri2, line);
         break;
     }
     if (MSC_ARROW_IS_HALF(GetType(bidir, which))) 
-        msc->UnClip();
+        canvas->UnClip();
 }
 
 //For largely internal use - characteristic size of the big arrowheads
@@ -1038,31 +1041,31 @@ Area ArrowHead::BigEntityLineCover(const std::vector<double> &xPos, double sy, d
 
 void ArrowHead::BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir,
                         const MscShadowAttr &shadow, const MscFillAttr &fill,
-                        const std::vector<MscLineAttr> *lines, MscDrawer *msc,
+                        const std::vector<MscLineAttr> *lines, MscCanvas *canvas,
                         const Area *clip, bool shadow_x_neg, bool shadow_y_neg) const
 {
     const Area area = BigCover(xPos, sy, dy, bidir);
     if (xPos.size()>2 && bigDoesSegment(bidir, MSC_ARROW_MIDDLE) && lines) {
         for (int i=0; i<xPos.size()-1; i++) {
-            Block this_segment(xPos[i], xPos[i+1], 0, msc->total.y);
+            Block this_segment(Range(xPos[i], xPos[i+1]), canvas->GetExtents().y);
             if (i==0) {
-                if (xPos[0]<xPos[1]) this_segment.x.from = 0;
-                else this_segment.x.till = msc->total.x;
+                if (xPos[0]<xPos[1]) this_segment.x.from = canvas->GetExtents().x.from;
+                else this_segment.x.till = canvas->GetExtents().x.till;
             } else if (i==xPos.size()-1) {
-                if (xPos[0]<xPos[1]) this_segment.x.till = msc->total.x;
-                else this_segment.x.from = 0;
+                if (xPos[0]<xPos[1]) this_segment.x.till = canvas->GetExtents().x.till;
+                else this_segment.x.from = canvas->GetExtents().x.from;
             }
             const Area local_area = area * this_segment;
             const double gap = lines->at(i).LineWidth()/2-lines->at(i).width.second/2;
-            msc->Shadow(local_area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
-            msc->Fill  (local_area.CreateExpand(-gap), fill);
-            msc->Line  (local_area, lines->at(i));
+            canvas->Shadow(local_area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
+            canvas->Fill  (local_area.CreateExpand(-gap), fill);
+            canvas->Line  (local_area, lines->at(i));
         }
     } else {
         const double gap = line.LineWidth()/2-line.width.second/2;
-        msc->Shadow(area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
-        msc->Fill  (area.CreateExpand(-gap), fill);
-        msc->Line  (area, line);
+        canvas->Shadow(area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
+        canvas->Fill  (area.CreateExpand(-gap), fill);
+        canvas->Line  (area, line);
         const MscArrowType t = GetType(bidir, MSC_ARROW_MIDDLE);
         //if we have empty_dot or empty_diamond middle arrow types, draw them in addition
         //..but clip the drawing area, so that text is not disturbed
@@ -1073,7 +1076,7 @@ void ArrowHead::BigDraw(const std::vector<double> &xPos, double sy, double dy, b
             const XY wh(x_off, (dy-sy)/2);
             const Contour contour = t==MSC_ARROW_DOT_EMPTY ? Contour(center, wh.x, wh.y) : diamond(center, wh);
             for (int i=1; i<xPos.size()-1; i++)
-                msc->Line(contour.CreateShifted(XY(xPos[i], 0)), line);
+                canvas->Line(contour.CreateShifted(XY(xPos[i], 0)), line);
         }
         //if (clip) msc->UnClip();
     }

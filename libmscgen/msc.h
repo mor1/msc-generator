@@ -112,7 +112,7 @@ struct file_line_range_length_compare
     }
 };
 
-class Msc : public MscDrawer {
+class Msc : public MscBase {
 public:
     typedef std::pair<file_line, double> MarkerType;
     typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
@@ -216,12 +216,12 @@ public:
     void CalculateWidthHeight(void);
     void PostPosProcessArcList(ArcList &arcs, double autoMarker);
 
-    void CompleteParse(OutputType, bool avoidEmpty);
+    void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
     void DrawArcList(ArcList &arcs);
     void Draw(bool pageBreaks);
     void DrawCopyrightText(int page=-1);
     void DrawPageBreaks();
-    void DrawToOutput(OutputType, double x_scale, double y_scale, const string &);
+    void DrawToOutput(MscCanvas::OutputType, double x_scale, double y_scale, const string &);
 };
 
 
