@@ -29,8 +29,8 @@
 class CMscGenSrvrItem;
 
 struct TrackedArc {
-	TrackableElement * const arc;
-    const enum ElementType {CONTROL, TRACKRECT} what;
+	TrackableElement * arc;
+    enum ElementType {CONTROL, TRACKRECT} what;
     enum {APPEARING, SHOWING, FADING, OFF} status;
 	int    fade_delay;  //After appear this much delay is there to fade in ms. <0 never fade
 	double fade_value;  //0 is not shown, 1 is fully shown
@@ -156,7 +156,9 @@ public:
 
 	void StartFadingTimer();                             //Ensure that one and only one View runs a fading timer;
 	bool DoFading();                                     //Do one step fading. Return true if there are still elements in the process of fading
-	bool AddTrackArc(TrackableElement *, int delay=-1);  //Add a tracking element to the list. Updates Views if needed & rets ture if so
+	bool AddTrackArc(TrackableElement *, 
+                     TrackedArc::ElementType, 
+                     int delay=-1);                      //Add a tracking element to the list. Updates Views if needed & rets ture if so
 	void StartFadingAll();                               //Start the fading process for all rectangles (even for delay<0)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)

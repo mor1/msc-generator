@@ -56,11 +56,11 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         //Display all hints (not only the ones matching the string under cursor) if Ctrl+Space
         const bool filter_by_uc = pApp->m_bHintFilter && !userRequest;
         CDC* pDC = GetDC();
-        MscDrawer mscdrawer;
-        mscdrawer.SetOutputWin32(MscDrawer::WIN, pDC->m_hAttribDC);
+        MscBase mscdrawer;
         mscdrawer.total.x = HINT_GRAPHIC_SIZE_X;
         mscdrawer.total.y = HINT_GRAPHIC_SIZE_Y;
-        csh.ProcessHints(&mscdrawer, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
+        mscdrawer.SetOutputWin32(MscCanvas::WIN, pDC->m_hAttribDC);
+        csh.ProcessHints(mscdrawer.GetCanvas(), &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
         mscdrawer.CloseOutput();
         ReleaseDC(pDC);
     }
@@ -197,10 +197,10 @@ void CHintListBox::ChangeSelectionTo(int index, CshHintItemSelectionState state)
 void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 {
     if (lpItem->itemID==-1) return;
-    MscDrawer mscdrawer;
-    mscdrawer.SetOutputWin32(MscDrawer::WIN, lpItem->hDC);
+    MscBase mscdrawer;
+    mscdrawer.SetOutputWin32(MscCanvas::WIN, lpItem->hDC);
     CshHint *item= (CshHint*)lpItem->itemData;
-    Label label(item->decorated, &mscdrawer, m_format);
+    Label label(item->decorated, mscdrawer.GetCanvas(), m_format);
     XY wh = label.getTextWidthHeight();
     Block b(lpItem->rcItem.left+1, lpItem->rcItem.right-1, lpItem->rcItem.top, lpItem->rcItem.bottom-1);
     MscColorType black(0,0,0);
@@ -208,16 +208,16 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
     switch (item->state) {
     case HINT_ITEM_SELECTED:
-        mscdrawer.Fill(b, line, fill);
+        mscdrawer.GetCanvas()->Fill(b, line, fill);
     case HINT_ITEM_SELECTED_HALF:
-        mscdrawer.Line(b, line);
+        mscdrawer.GetCanvas()->Line(b, line);
     }
     int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
-    label.Draw(lpItem->rcItem.left+ HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right, lpItem->rcItem.top + y);
+    label.Draw(mscdrawer.GetCanvas(), lpItem->rcItem.left+ HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right, lpItem->rcItem.top + y);
     if (item->callback) {
         int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
-        cairo_translate(mscdrawer.GetContext(), lpItem->rcItem.left, lpItem->rcItem.top + y);
-        item->callback(&mscdrawer, item->param);
+        cairo_translate(mscdrawer.GetCanvas()->GetContext(), lpItem->rcItem.left, lpItem->rcItem.top + y);
+        item->callback(mscdrawer.GetCanvas(), item->param);
         //We do not restore the context, we drop it anyway
     }
     mscdrawer.CloseOutput();

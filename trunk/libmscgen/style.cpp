@@ -181,16 +181,16 @@ void MscStyle::AttributeNames(Csh &csh) const
     csh.AddStylesToHints();
 }
 
-bool CshHintGraphicCallbackForSide(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const MscSideType t = (MscSideType)(int)p;
     const double xx = 0.7;
     std::vector<double> xPos(2); 
     xPos[0] = t==SIDE_LEFT ? 0 : HINT_GRAPHIC_SIZE_X*0.3;
     xPos[1] = t==SIDE_LEFT ? HINT_GRAPHIC_SIZE_X*0.7 : HINT_GRAPHIC_SIZE_X;
     MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
-    msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
+    canvas->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     ArrowHead ah(ArrowHead::BIGARROW);
     ah.line += MscColorType(0,32,192); //blue-green
     ah.endType.second =   t==SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
@@ -198,8 +198,8 @@ bool CshHintGraphicCallbackForSide(MscDrawer *msc, CshHintGraphicParam p)
     ah.size.second = MSC_ARROWS_INVALID;
     MscShadowAttr shadow;
     MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, msc);
-    msc->UnClip();
+    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, canvas);
+    canvas->UnClip();
     return true;
 }
 

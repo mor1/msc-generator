@@ -7,7 +7,7 @@
 #include "csh.h"
 
 class Label;
-class MscDrawer;
+class MscCanvas;
 
 using std::string;
 
@@ -53,8 +53,8 @@ class StringFormat {
 
     mutable cairo_font_extents_t smallFontExtents;
     mutable cairo_font_extents_t normalFontExtents;
-    void ApplyFontToContext(MscDrawer *) const;
-    double spaceWidth(const string &, MscDrawer *, bool front) const;
+    void ApplyFontTo(MscCanvas *) const;
+    double spaceWidth(const string &, MscCanvas *, bool front) const;
 
     typedef enum {FORMATTING_OK, INVALID_ESCAPE, NON_FORMATTING, NON_ESCAPE, LINE_BREAK, NUMBERING, NUMBERING_FORMAT, SOLO_ESCAPE} EEscapeType;
     EEscapeType ProcessEscape(const char *input, unsigned &length,
@@ -89,14 +89,14 @@ class StringFormat {
         {return ident.first?ident.second:MSC_IDENT_CENTER;}
     string Print() const;
     //Return text geometry
-    double getFragmentWidth(const string &, MscDrawer *) const;
-    double getFragmentHeightAboveBaseLine(const string &, MscDrawer *) const;
-    double getFragmentHeightBelowBaseLine(const string &, MscDrawer *) const;
+    double getFragmentWidth(const string &, MscCanvas *) const;
+    double getFragmentHeightAboveBaseLine(const string &, MscCanvas *) const;
+    double getFragmentHeightBelowBaseLine(const string &, MscCanvas *) const;
     double getSpacingBelow(void) const
         {return spacingBelow.first?spacingBelow.second:0;}
 
     //Draw a fragment y specifies baseline (not in cairo sense)
-    double drawFragment(const string &, MscDrawer *, XY, bool isRotated) const;
+    double drawFragment(const string &, MscCanvas *, XY, bool isRotated) const;
 
     //This adds CSH entries to csh. Malformed \c and \s arguments are assumed OK
     static void ExtractCSH(int startpos, const char *text, Csh &csh);
@@ -124,9 +124,9 @@ protected:
     double     heightAboveBaseLine;
     double     heightBelowBaseLine;
 public:
-    ParsedLine(const string&, MscDrawer *, StringFormat &sf);
+    ParsedLine(const string&, MscCanvas *, StringFormat &sf);
     operator std::string() const;
-    void Draw(XY xy, MscDrawer *, bool isRotated) const;
+    void Draw(XY xy, MscCanvas *, bool isRotated) const;
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}
 };
@@ -137,20 +137,19 @@ class Label : public std::vector<ParsedLine>
     using std::vector<ParsedLine>::size;
     using std::vector<ParsedLine>::at;
 protected:
-    MscDrawer *msc;
-    unsigned AddText(const string &s, StringFormat);
-    void CoverOrDraw(double sx, double dx, double y, double cx, bool isRotated, Area *area) const;
+    unsigned AddText(const string &s, MscCanvas *canvas, StringFormat);
+    void CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Area *area) const;
 public:
-    Label(const string &s, MscDrawer *m , const StringFormat &f): msc(m)
-        {AddText(s,f);}
-    explicit Label(MscDrawer *m) : msc(m) {}
-    void Set(const string &s, const StringFormat &f) {clear(); AddText(s,f);}
+    Label(const string &s, MscCanvas *c , const StringFormat &f)
+        {AddText(s,c,f);}
+    explicit Label(MscCanvas *c) {}
+    void Set(const string &s, MscCanvas *c, const StringFormat &f) {clear(); AddText(s,c,f);}
     void AddSpacing(unsigned line, double spacing);
     operator std::string() const;
 
     XY getTextWidthHeight(int line=-1) const;
-    Area Cover(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {Area a; CoverOrDraw(sx, dx, y, cx, isRotated, &a); return a;}
-    void Draw(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {CoverOrDraw(sx, dx, y, cx, isRotated, NULL);}
+    Area Cover(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {Area a; CoverOrDraw(NULL, sx, dx, y, cx, isRotated, &a); return a;}
+    void Draw(MscCanvas *canvas, double sx, double dx, double y, double cx=-1, bool isRotated=false) const {CoverOrDraw(canvas, sx, dx, y, cx, isRotated, NULL);}
 };
 
 

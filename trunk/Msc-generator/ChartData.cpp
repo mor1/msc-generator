@@ -185,7 +185,7 @@ void CDrawingChartData::CompileIfNeeded() const
 	    if (pApp) 
 		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	    //Do postparse, compile, calculate sizes and sort errors by line    
-	    m_msc->CompleteParse(MscDrawer::EMF, true);
+	    m_msc->CompleteParse(MscCanvas::EMF, true);
     }
 }
 
@@ -266,7 +266,7 @@ double CDrawingChartData::GetHeadingSize() const
 void CDrawingChartData::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const
 {
     CompileIfNeeded();
-    if (m_msc->SetOutputWin32(MscDrawer::WIN, hdc, x_scale, y_scale, int(m_page)-1)) {
+    if (m_msc->SetOutputWin32(MscCanvas::WIN, hdc, x_scale, y_scale, int(m_page)-1)) {
         //draw page breaks only if requested and not drawing a single page only
         m_msc->Draw(m_bPageBreaks && m_page==0);
         m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
@@ -280,7 +280,7 @@ void CDrawingChartData::DrawToWindow(HDC hdc, double x_scale, double y_scale, co
 
 void CDrawingChartData::DrawToWMF(HDC hdc, bool pageBreaks) const
 {
-    if (!GetMsc()->SetOutputWin32(MscDrawer::WMF, hdc, 1.0, 1.0, int(m_page)-1)) return;
+    if (!GetMsc()->SetOutputWin32(MscCanvas::WMF, hdc, 1.0, 1.0, int(m_page)-1)) return;
 	//draw page breaks only if requested and not drawing a single page only
     m_msc->Draw(pageBreaks && m_page==0);
 	m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
@@ -297,15 +297,15 @@ void CDrawingChartData::DrawToFile(const char* fileName, double x_scale, double 
         fn += ".png";
     }
     CString ext = fn.substr(pos+1).c_str();
-    MscDrawer::OutputType ot;
-    if (ext.CompareNoCase("png")==0) ot = MscDrawer::PNG;
-    else if (ext.CompareNoCase("png")==0) ot = MscDrawer::PNG;
-    else if (ext.CompareNoCase("emf")==0) ot = MscDrawer::EMF;
-    else if (ext.CompareNoCase("svg")==0) ot = MscDrawer::SVG;
-    else if (ext.CompareNoCase("pdf")==0) ot = MscDrawer::PDF;
-    else if (ext.CompareNoCase("eps")==0) ot = MscDrawer::EPS;
+    MscCanvas::OutputType ot;
+    if (ext.CompareNoCase("png")==0) ot = MscCanvas::PNG;
+    else if (ext.CompareNoCase("png")==0) ot = MscCanvas::PNG;
+    else if (ext.CompareNoCase("emf")==0) ot = MscCanvas::EMF;
+    else if (ext.CompareNoCase("svg")==0) ot = MscCanvas::SVG;
+    else if (ext.CompareNoCase("pdf")==0) ot = MscCanvas::PDF;
+    else if (ext.CompareNoCase("eps")==0) ot = MscCanvas::EPS;
     else {
-        ot = MscDrawer::PNG;
+        ot = MscCanvas::PNG;
         fn += ".png";
     }
 	//Ignore useTextPaths
@@ -358,7 +358,7 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
     if (!m_data->m_msc) return;
     switch (m_cacheType) {
     case CACHE_NONE:
-        if (m_data->m_msc->SetOutputWin32(MscDrawer::WIN, hdc, x_scale, y_scale, int(m_data->m_page)-1)) {
+        if (m_data->m_msc->SetOutputWin32(MscCanvas::WIN, hdc, x_scale, y_scale, int(m_data->m_page)-1)) {
             //draw page breaks only if requested and not drawing a single page only
             m_data->m_msc->Draw(m_data->m_bPageBreaks && m_data->m_page==0);
             m_data->m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
@@ -385,7 +385,7 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
             CBitmap *oldBitmap = memDC.SelectObject(&m_cache_BMP);
             memDC.SetWindowOrg(clip.left, clip.top);
             memDC.FillSolidRect(clip, targetDC.GetBkColor());
-            if (m_data->m_msc->SetOutputWin32(MscDrawer::WIN, memDC.m_hDC, x_scale, y_scale, int(m_data->m_page)-1)) {
+            if (m_data->m_msc->SetOutputWin32(MscCanvas::WIN, memDC.m_hDC, x_scale, y_scale, int(m_data->m_page)-1)) {
                 //draw page breaks only if requested and not drawing a single page only
                 m_data->m_msc->Draw(m_data->m_bPageBreaks && m_data->m_page==0);
                 m_data->m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
@@ -411,7 +411,7 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
         if (!m_cache_EMF) {
             //cache not OK, regenerate
             HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-            if (!m_data->m_msc->SetOutputWin32(MscDrawer::EMF, hdc, 1., 1., int(m_data->m_page)-1)) return;
+            if (!m_data->m_msc->SetOutputWin32(MscCanvas::EMF, hdc, 1., 1., int(m_data->m_page)-1)) return;
             //draw page breaks only if requested and not drawing a single page only
             m_data->m_msc->Draw(m_data->m_bPageBreaks && m_data->m_page==0);
             m_data->m_msc->PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()

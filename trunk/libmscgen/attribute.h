@@ -316,6 +316,6 @@ public:
     string Print(int ident = 0) const;
 };
 
-bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
 
 #endif

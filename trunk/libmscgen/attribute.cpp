@@ -345,24 +345,24 @@ void MscLineAttr::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
-bool CshHintGraphicCallbackForLineType(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForLineType(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     MscLineAttr line(MscLineType(int(p)), MscColorType(0,0,0), 1, CORNER_NONE, 0);
-    msc->Line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
+    canvas->Line(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
               XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y*0.8), line);
     return true;
 }
 
-bool CshHintGraphicCallbackForCornerType(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForCornerType(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
-    msc->Clip(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
+    if (!canvas) return false;
+    canvas->Clip(XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.2), 
               XY(HINT_GRAPHIC_SIZE_X*0.8, HINT_GRAPHIC_SIZE_Y*0.8));
     MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 2, MscCornerType(int(p)), ceil(HINT_GRAPHIC_SIZE_Y*0.3));
-    msc->Line(Block(-HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_X*0.7, 
+    canvas->Line(Block(-HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_X*0.7, 
               HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*2), line);
-    msc->UnClip();
+    canvas->UnClip();
     return true;
 }
 
@@ -564,9 +564,9 @@ bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
-bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForGradient(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
+    if (!canvas) return false;
     const int size = HINT_GRAPHIC_SIZE_Y-2;
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
@@ -575,8 +575,8 @@ bool CshHintGraphicCallbackForGradient(MscDrawer *msc, CshHintGraphicParam p)
     MscLineAttr line(LINE_SOLID, black, 1, CORNER_NONE, 0);
     Block rect(XY(off_x, off_y), XY(off_x+size, off_y+size));
     rect.Round().Shift(XY(.5,.5));
-    msc->Fill(rect, fill);
-    msc->Line(rect, line);
+    canvas->Fill(rect, fill);
+    canvas->Line(rect, line);
     return true;
 }
 
@@ -727,11 +727,11 @@ string MscShadowAttr::Print(int ident) const
 }
 
 
-bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p)
 {
-    if (!msc) return false;
-    msc->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
-    cairo_t *cr = msc->GetContext();
+    if (!canvas) return false;
+    canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
+    cairo_t *cr = canvas->GetContext();
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
     cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);  //UnClip will remove these
     cairo_set_line_width(cr, 3);
@@ -750,7 +750,7 @@ bool CshHintGraphicCallbackForYesNo(MscDrawer *msc, CshHintGraphicParam p)
         cairo_line_to(cr, xy.x+off, xy.y-off);
     }
     cairo_stroke(cr);
-    msc->UnClip();
+    canvas->UnClip();
     return true;
 }
 

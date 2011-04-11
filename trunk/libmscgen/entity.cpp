@@ -88,7 +88,7 @@ void EntityList::SortByPos(void)
 
 EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
     style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
-    parsed_label(msc), implicit(false), defining(false)
+    parsed_label(msc->GetCanvas()), implicit(false), defining(false)
 {
     label.first = false;
     pos.first = false;
@@ -469,19 +469,19 @@ void EntityDef::Draw()
     if (line2.radius.second>0) 
         line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
     b.Expand(-line2.width.second/2.);
-    chart->Shadow(b, style.line, style.shadow);
+    chart->GetCanvas()->Shadow(b, style.line, style.shadow);
     if (style.fill.color.first && style.fill.color.second.valid) {
         b.Expand(-lw+style.line.width.second);
         line2.radius.second += -lw+style.line.width.second; //only decreases radius
-        chart->Fill(b, style.line, style.fill);
+        chart->GetCanvas()->Fill(b, style.line, style.fill);
     }
     Block b2(outer_edge);
     b2.Expand(-lw/2);
     line2 = style.line;
     line2.radius.second -= lw/2;
-    chart->Line(b2, style.line);
+    chart->GetCanvas()->Line(b2, style.line);
 
     //Draw text
-    parsed_label.Draw(b2.x.from, b2.x.till, b2.y.from + lw/2);
+    parsed_label.Draw(chart->GetCanvas(), b2.x.from, b2.x.till, b2.y.from + lw/2);
 }
 

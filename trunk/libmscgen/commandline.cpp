@@ -129,7 +129,7 @@ static void licence()
 int do_main(const std::list<std::string> &args, const char *designs,
             string csh_textformat)
 {
-    MscDrawer::OutputType oOutType=MscDrawer::PNG;
+    MscCanvas::OutputType oOutType=MscCanvas::PNG;
     string                oOutputFile;
     string                oInputFile;
     bool                  oPrint = false;
@@ -193,7 +193,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 msc.Error.Error(opt_pos,
                                 "Missing output type after '-T'.",
                                 "Assuming 'png'.");
-                oOutType = MscDrawer::PNG;
+                oOutType = MscCanvas::PNG;
                 show_usage = true;
             } else {
                 i++;
@@ -202,27 +202,27 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 else
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
                 if (*i == "png")
-                    oOutType = MscDrawer::PNG;
+                    oOutType = MscCanvas::PNG;
                 else
 #endif
 #ifdef CAIRO_HAS_PS_SURFACE
                  if (*i == "eps")
-                     oOutType = MscDrawer::EPS;
+                     oOutType = MscCanvas::EPS;
                  else
 #endif
 #ifdef CAIRO_HAS_PDF_SURFACE
                  if (*i == "pdf")
-                     oOutType = MscDrawer::PDF;
+                     oOutType = MscCanvas::PDF;
                  else
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
                  if (*i == "svg")
-                     oOutType = MscDrawer::SVG;
+                     oOutType = MscCanvas::SVG;
                  else
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
                  if (*i == "emf")
-                     oOutType = MscDrawer::EMF;
+                     oOutType = MscCanvas::EMF;
                  else
 #endif
                  {
@@ -245,7 +245,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                      " 'emf'"
 #endif
                      " or 'csh'. Using 'png'.");
-                     oOutType = MscDrawer::PNG;
+                     oOutType = MscCanvas::PNG;
                  }
             }
         } else if (*i == "-l") {
@@ -320,15 +320,15 @@ int do_main(const std::list<std::string> &args, const char *designs,
         if (oCshize)
             oOutputFile.append(".csh");
         else switch (oOutType) {
-        case MscDrawer::PNG:
+        case MscCanvas::PNG:
             oOutputFile.append(".png"); break;
-        case MscDrawer::EPS:
+        case MscCanvas::EPS:
             oOutputFile.append(".eps"); break;
-        case MscDrawer::PDF:
+        case MscCanvas::PDF:
             oOutputFile.append(".pdf"); break;
-        case MscDrawer::SVG:
+        case MscCanvas::SVG:
             oOutputFile.append(".svg"); break;
-        case MscDrawer::EMF:
+        case MscCanvas::EMF:
             oOutputFile.append(".emf"); break;
         default:
             assert(0);

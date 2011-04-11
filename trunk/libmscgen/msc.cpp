@@ -734,7 +734,7 @@ void Msc::DrawEntityLines(double y, double height,
 {
     //No checking of iterators!! Call with caution
     //"to" is not included!!
-    ClipInverse(HideELinesArea);
+    canvas->ClipInverse(HideELinesArea);
     while(from != to) {
         XY up(XCoord(from), y);
         XY down(up.x, y);
@@ -746,13 +746,13 @@ void Msc::DrawEntityLines(double y, double height,
                 const XY offset(fmod(vline.width.second/2,1),0);
                 const XY magic(0,0);  //HACK needed in windows: 0,1
                 const XY start = up+offset-magic;
-                Line(start, down+offset, vline, start.y); //last param is dash_offset
+                canvas->Line(start, down+offset, vline, start.y); //last param is dash_offset
             }
             up.y = down.y;
         }
         from++;
     }
-    UnClip();
+    canvas->UnClip();
 }
 
 void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
@@ -958,7 +958,7 @@ void Msc::CalculateWidthHeight(void)
         }
         StringFormat sf;
         sf.Default();
-        XY crTexSize = Label(copyrightText, this, sf).getTextWidthHeight().RoundUp();
+        XY crTexSize = Label(copyrightText, canvas, sf).getTextWidthHeight().RoundUp();
         if (total.x<crTexSize.x) total.x = crTexSize.x;
 
         copyrightTextHeight = crTexSize.y;
@@ -974,7 +974,7 @@ void Msc::PostPosProcessArcList(ArcList &arcs, double autoMarker)
         (*j)->PostPosProcess(autoMarker);
 }
 
-void Msc::CompleteParse(OutputType ot, bool avoidEmpty)
+void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 {
 
     //Allocate (non-sized) output object and assign it to the chart
@@ -1017,47 +1017,47 @@ void Msc::DrawArcList(ArcList &arcs)
 
 void Msc::DrawCopyrightText(int page)
 {
-    if (total.x==0 || !cr) return;
+    if (total.x==0 || !canvas) return;
     XY size, dummy;
     GetPagePosition(page, dummy, size);
     StringFormat sf;
     sf.Default();
-    Label label(copyrightText, this, sf);
+    Label label(copyrightText, canvas, sf);
     if (white_background) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
-        Fill(Block(XY(0,size.y), XY(total.x,size.y+label.getTextWidthHeight().y)), fill_bkg);
+        canvas->Fill(Block(XY(0,size.y), XY(total.x,size.y+label.getTextWidthHeight().y)), fill_bkg);
     }
-    label.Draw(0, total.x, size.y);
+    label.Draw(canvas, 0, total.x, size.y);
 }
 
 void Msc::DrawPageBreaks()
 {
     if (yPageStart.size()<=1) return;
-    if (total.y==0 || !cr) return;
+    if (total.y==0 || !canvas) return;
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
     format.Default();
     format.Apply("\\pr\\-");
-    Label label(this);
+    Label label(canvas);
     for (unsigned page=1; page<yPageStart.size(); page++) {
         char text[20];
         const double y = yPageStart[page];
         XY d;
-        Line(XY(0, y), XY(total.x, y), line);
+        canvas->Line(XY(0, y), XY(total.x, y), line);
         sprintf(text, "page %d", page);
-        label.Set(text, format);
-        label.Draw(0, total.x, y-label.getTextWidthHeight().y);
+        label.Set(text, canvas, format);
+        label.Draw(canvas, 0, total.x, y-label.getTextWidthHeight().y);
     }
 }
 
 void Msc::Draw(bool pageBreaks)
 {
-    if (total.y == 0 || !cr) return;
+    if (total.y == 0 || !canvas) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
 	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
-	Line(XY(0,0), XY(1,0), marker);
-	Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
+	canvas->Line(XY(0,0), XY(1,0), marker);
+	canvas->Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
 	//draw background
     MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
     double y = 0;
@@ -1065,7 +1065,7 @@ void Msc::Draw(bool pageBreaks)
     while (i!=Background.end()) {
         if (i->first != y) {
             if (y!=0 || white_background)
-                Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
+                canvas->Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
             y = i->first;
         }
         fill_bkg += i->second;
@@ -1075,7 +1075,7 @@ void Msc::Draw(bool pageBreaks)
     }
     if (y < total.y) {
         if (y!=0 || white_background)
-            Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
+            canvas->Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
     }
 	//Draw page breaks
     if (pageBreaks)
@@ -1088,7 +1088,7 @@ void Msc::Draw(bool pageBreaks)
     //HideELinesArea.Line(cr);
 }
 
-void Msc::DrawToOutput(OutputType ot, double x_scale, double y_scale, const string &fn)
+void Msc::DrawToOutput(MscCanvas::OutputType ot, double x_scale, double y_scale, const string &fn)
 {
     if (yPageStart.size()<=1) {
         SetOutput(ot, x_scale, y_scale, fn, -1);
