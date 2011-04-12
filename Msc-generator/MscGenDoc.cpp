@@ -1297,7 +1297,9 @@ void CMscGenDoc::OnInternalEditorChange()
 	//But when it does (e.g., at multi-line TAB identation) we store a new version just for the selection
 	if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
 		int page = m_itrEditing->GetPage();
-		InsertNewChart(CChartData(text, cr, m_itrEditing->GetDesign(), page));
+        CChartData chart(text, cr, m_itrEditing->GetDesign(), page);
+        chart.ForceEntityCollapse(m_itrEditing->GetForcedEntityCollapse());
+		InsertNewChart(chart);
 		CheckIfChanged();     
 	}
 }
@@ -1584,15 +1586,18 @@ void CMscGenDoc::HighLightArc(const TrackableElement *arc)
 bool CMscGenDoc::OnControlClicked(TrackableElement *arc, MscControlType t)
 {
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
+    CChartData chart(*m_itrEditing);
     EntityDef *ed = dynamic_cast<EntityDef*>(arc);
     if (ed != NULL) {
-        if (t==MSC_CONTROL_COLLAPSE) m_itrEditing->ForceEntityCollapse(ed->name, true);
-        else if (t==MSC_CONTROL_EXPAND) m_itrEditing->ForceEntityCollapse(ed->name, false);
+        if (t==MSC_CONTROL_COLLAPSE) chart.ForceEntityCollapse(ed->name, true);
+        else if (t==MSC_CONTROL_EXPAND) chart.ForceEntityCollapse(ed->name, false);
         else return false;
     }
     m_trackArcs.clear();
     m_controlsShowing.clear();
-    ShowEditingChart(false);
+	InsertNewChart(chart);
+	CheckIfChanged();     
+    ShowEditingChart(true);
     return true;
 }
 

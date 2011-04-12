@@ -11,7 +11,8 @@ defdesign rose {
 defdesign mild_yellow {
     defcolor yellow ="255,255,196";
     defstyle divider [line.width=3, text.format="\b"];
-    defstyle box, pipe, vertical [fill.color=yellow];
+    defstyle box, pipe, vertical, expanded_entity [fill.color=yellow];
+    defstyle expanded_entity [fill.color=yellow];
     hscale = auto, compress = yes;
 };
 defdesign omegapple {
@@ -24,6 +25,8 @@ defdesign omegapple {
     defstyle entity[text.color=white, text.format="\b\mu(10)\md(10)\ml(12)\mr(8)",
                     line.width=2, line.color=rose2, line.radius=10,
                     fill.color=rose, fill.gradient=down];
+    defstyle collapsed_entity [line.width=4];
+    defstyle expanded_entity [text.color=rose];
     defstyle pipe [fill.color=faint_rose, fill.gradient=down, line.color=black,
                    text.format="\b", text.color=rose];
     defstyle weak [line.color=faint_rose, vline.color=faint_rose, arrow.color=faint_rose];
@@ -33,6 +36,7 @@ defdesign qsd {
       defstyle entity, pipe, box, emptybox, blockarrow, vertical [shadow.offset=4, shadow.blur=2];
       defstyle entity [text.format="\u\mu(6)\md(6)\ml(6)\mr(6)"];
       defstyle entity [vline.type=dashed];
+      defstyle expanded_entity [line.type=];
       defstyle >, >> [arrow.type=line];
       hscale=auto;
 };
@@ -41,6 +45,8 @@ defdesign modern_blue {
       defstyle entity [text.color=white, text.format="\mu(6)\ml(6)\mr(6)\md(6)"];
       defstyle entity [fill.color=blue, line.color=blue, line.radius=5];
       defstyle entity, emptybox, pipe, blockarrow, vertical [shadow.offset=4, shadow.blur=6];
+      defstyle collapsed_entity [line.color="blue-30"];
+      defstyle expanded_entity [shadow.offset=0, shadow.blur=0, text.color=blue];
       defstyle arrow, blockarrow [line.width=2];
       defstyle >, >> [arrow.type=line];
       defstyle => [arrow.size=normal];
@@ -54,6 +60,7 @@ defdesign round_green {
       defstyle entity [fill.color=green, line.color=green];
       defstyle entity [text.format="\mu(6)\ml(6)\mr(6)\md(6)"];
       defstyle entity [vline.color=gray, vline.type=dashed];
+      defstyle collapsed_entity [line.color="green-30"];
       defstyle emptybox, blockarrow [fill.color=lbrown, line.color=brown];
       defstyle >, >> [arrow.type=line];
       defstyle box, pipe, vertical [line.width=2, line.color=green];
@@ -63,6 +70,8 @@ defdesign green_earth {
       defstyle entity [fill.color=green, line.color=green];
       defstyle entity [text.format="\mu(6)\ml(6)\mr(6)\md(6)\b", text.color=white];
       defstyle entity [vline.color=gray, vline.type=dashed];
+      defstyle collapsed_entity [line.color="green-30"];
+      defstyle expanded_entity [text.color=black];
       defstyle emptybox, pipe, blockarrow, vertical [shadow.offset=4, shadow.blur=6];
       defstyle emptybox [line.width=2];
       defstyle arrow, blockarrow [line.width=2];

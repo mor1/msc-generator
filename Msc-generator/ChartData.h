@@ -59,6 +59,7 @@ public:
 	virtual void SetPage(unsigned page) {m_page=page;}
 	unsigned GetPage() const {return m_page;}
     virtual bool ForceEntityCollapse(const std::string &s, bool b);
+    virtual bool ForceEntityCollapse(const std::map<std::string,bool> &);
     const std::map<std::string,bool> &GetForcedEntityCollapse() const {return m_ForcedEntityCollapse;}
 };
 
@@ -80,6 +81,7 @@ public:
 	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; FreeMsc();}
 	unsigned GetPage() const {return m_page;}
     bool ForceEntityCollapse(const std::string &s, bool b);
+    bool ForceEntityCollapse(const std::map<std::string,bool> &);
 //Compilation related
     void FreeMsc() const;
 	void CompileIfNeeded() const;

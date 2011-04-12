@@ -64,6 +64,9 @@ void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
         }
     }
     pos = min_pos; // do this even if we are not collapsed (so that we take up no space)
+
+    if (children_names.size())
+        running_style += chart->Contexts.back().styles[collapsed?"collapsed_entity":"expanded_entity"];
 }
 
 
@@ -205,12 +208,6 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         delete al;
     }
 
-    //make style.text fully specified
-    StringFormat to_use(chart->Contexts.back().text);       //default text
-    to_use += chart->Contexts.back().styles["entity"].text; //entity style 
-    to_use += style.text;                                   //attributes specified by user
-    style.text = to_use;
-
     //If we have children, add them to "edl"
     EntityDefList *children = new EntityDefList;
 	if (ch) {
@@ -263,13 +260,13 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
                     s += "' in attribute 'relative'. Ignoring attriute.";
                     chart->Error.Error(rel.third, s);
                 } else {
-                    Entity *e = new Entity(rel.second, rel.second, rel.second, 
-                                           chart->GetEntityMaxPos()+1,
-                                           chart->Contexts.back().styles["entity"], 
-                                           rel.third, false);
-                    chart->AllEntities.Append(e);
+                    //Entity *e = new Entity(rel.second, rel.second, rel.second, 
+                    //                       chart->GetEntityMaxPos()+1,
+                    //                       chart->Contexts.back().styles["entity"], 
+                    //                       rel.third, false);
+                    //chart->AllEntities.Append(e);
                     EntityDef *ed = new EntityDef(rel.second.c_str(), chart);
-                    ed->AddAttributeList(NULL, NULL, file_line());
+                    ed->AddAttributeList(NULL, NULL, rel.third);
                     chart->AutoGenEntities.Append(ed);
                     //position remains at the old, not incremented Entity_max_pos
                     //the definedHere of the entityDef above will be set to true in chart->PostParseProcees
@@ -303,17 +300,29 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         if (!show.first)
             show.second = show.first = true;
 
+        //create a fully specified string format for potential \s() \f() \c() and \mX() in label
+        StringFormat to_use(chart->Contexts.back().text);       //default text
+        to_use += chart->Contexts.back().styles["entity"].text; //entity style 
+        if (children && children->size()) //we are group entity
+            to_use += chart->Contexts.back().styles[make_collapsed?"collapsed_entity":"expanded_entity"].text; 
+        to_use += style.text;                                   //attributes specified by user
+
         string orig_label = label.first?label.second:name;
         string proc_label = orig_label;
 
         StringFormat::ExpandColorAndStyle(proc_label, chart, linenum_label_value,
-                                          &style.text, true, StringFormat::LABEL);
+                                          &to_use, true, StringFormat::LABEL);
+
+        //Create a base style with the text part fully specified (which is not the case in "entity")
+        MscStyle style_to_use = chart->Contexts.back().styles["entity"];
+        to_use = chart->Contexts.back().text;
+        to_use += style_to_use.text;
+        style_to_use.text = to_use;
 
         //Allocate new entity with correct label and children
         Entity *e = new Entity(name, proc_label, orig_label, position, 
-                               chart->Contexts.back().styles["entity"], 
-                               file_pos.start, collapsed.second);
-        e->AddChildrenList(children, chart);  //also fixes positions
+                               style_to_use, file_pos.start, make_collapsed);
+        e->AddChildrenList(children, chart);  //also fixes positions & updates running_style
         //Add to entity list
         chart->AllEntities.Append(e);
     } else {
@@ -452,6 +461,7 @@ void EntityDef::PostPosProcess(double dummy)
     }
     if (show.first)
         (*itr)->status.SetStatus(yPos, show.second ? EntityStatusMap::SHOW_ON : EntityStatusMap::SHOW_OFF);
+    (*itr)->status.ApplyStyle(yPos, style);
     //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {
     //    if (shown)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is shown due to this line, but is later turned "

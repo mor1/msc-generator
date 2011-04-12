@@ -147,6 +147,12 @@ bool CChartData::ForceEntityCollapse(const std::string &s, bool b)
     return changed;
 }
 
+bool CChartData::ForceEntityCollapse(const std::map<std::string,bool> &o)
+{
+    bool changed = m_ForcedEntityCollapse == o;
+    m_ForcedEntityCollapse = o;
+    return changed;
+}
 
 CDrawingChartData::CDrawingChartData(const CChartData&o) : m_msc(NULL), m_bPageBreaks(false)
 {
@@ -169,8 +175,20 @@ void CDrawingChartData::SetDesign (const char *design)
 
 bool CDrawingChartData::ForceEntityCollapse(const std::string &s, bool b) 
 {
-	FreeMsc();
-    return CChartData::ForceEntityCollapse(s, b);
+	if (CChartData::ForceEntityCollapse(s, b)) {
+        FreeMsc();
+        return true;
+    }
+    return false;
+}
+
+bool CDrawingChartData::ForceEntityCollapse(const std::map<std::string,bool> &o)
+{
+	if (CChartData::ForceEntityCollapse(o)) {
+        FreeMsc();
+        return true;
+    }
+    return false;
 }
 
 void CDrawingChartData::FreeMsc() const 

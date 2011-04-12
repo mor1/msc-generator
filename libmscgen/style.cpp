@@ -420,6 +420,21 @@ void Design::Reset()
 
     style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
     styles["entity"] = style;
+    style.Empty();
+    style.type = STYLE_STYLE;
+    style.line.type.first=true;
+    style.line.type.second=LINE_DASHED;
+    style.fill.color.first=true;
+    style.fill.color.second = MscColorType(); //none
+    style.fill.gradient.first=true;
+    style.fill.gradient.second = GRADIENT_NONE;
+    styles["expanded_entity"] = style;
+    style.Empty();
+    style.line.width.first=true;
+    style.line.width.second=3;
+    style.vline.width.first=true;
+    style.vline.width.second=3;
+    styles["collapsed_entity"] = style;
 
     style = MscStyle(STYLE_STYLE); //has everything, but is empty
     MscLineAttr line(MscColorType(150,150,150));

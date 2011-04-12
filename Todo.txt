@@ -11,7 +11,6 @@ Two helpers needed:
 
 PLANNED in 3.1
 BUG: thick lines with dot mid do not show in WMF
-Add: Grouping of entities
 CHANGE: Switched to cairo 1.10 and the new pixman after summer.
    - Bug1: hints drawing into popubox
    - Bug2: EMF re-scaling
@@ -44,6 +43,9 @@ ADD: Style and color explorer (show what a style or color contains at any place 
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
+In 3.1
+ADDED: Grouping of entities, collapsed_entity + expanded_entity style.
+FIXED: vline was quite much ignored.
 
 In 3.0
 FIXED: Upgrade install
