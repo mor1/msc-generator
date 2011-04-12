@@ -88,7 +88,7 @@ void EntityList::SortByPos(void)
 
 EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
     style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
-    parsed_label(msc->GetCanvas()), implicit(false), defining(false)
+    parsed_label(msc->GetCanvas()), defining(false)
 {
     label.first = false;
     pos.first = false;
@@ -224,6 +224,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         delete ch;
     }
 
+    bool make_collapsed = false;
     //Check that we apply certain attributes the right way for grouped entities
     if (children) {
         if (pos.first || rel.first) 
@@ -233,11 +234,17 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         pos.first = rel.first = false;
         //We start fiddling with collapsed.second.
         //It will have a meaning from now on even if collapsed.first is false
-        if (!collapsed.first) 
+        if (collapsed.first) 
+            make_collapsed = collapsed.second;
+        else
             collapsed.second = false;
         auto force_itr = chart->force_entity_collapse.find(name);
-        if (force_itr != chart->force_entity_collapse.end())
-            collapsed.second = force_itr->second;
+        if (force_itr != chart->force_entity_collapse.end()) {
+            make_collapsed = force_itr->second;
+            //If force_entity_collapse is same as chart value, remove
+            if (make_collapsed == force_itr->second)
+                chart->force_entity_collapse.erase(force_itr);
+        }
     } else {
         if (collapsed.first)
             chart->Error.Error(collapsed.third, "Only grouped entities can be collapsed.",
@@ -453,8 +460,7 @@ void EntityDef::PostPosProcess(double dummy)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
-    if (!implicit) 
-        TrackableElement::PostPosProcess(dummy);
+    TrackableElement::PostPosProcess(dummy);
 }
 
 

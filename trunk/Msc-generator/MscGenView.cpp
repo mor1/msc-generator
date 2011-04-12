@@ -454,6 +454,7 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
     //cairo_rectangle(cr, clip.left, clip.top, clip.right, clip.bottom);
     //cairo_clip(cr);
     cairo_set_line_width(cr, 1);
+    MscCanvas canvas(cr, MscCanvas::WIN, sqrt(x_scale*y_scale), Block(0,0,m_size.cx, m_size.cy));
 	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
         if (i->what == TrackedArc::TRACKRECT) {
             cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
@@ -466,41 +467,8 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
 		                              GetBValue(pApp->m_trackLineColor)/255., 
                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
             i->arc->GetAreaToDraw().Line(cr);
-        } else if (i->what == TrackedArc::CONTROL && i->arc->GetControls().size() && i->fade_value>0.01) {
-            const XY control_size(30, 30);
-            cairo_save(cr);
-            XY center = i->arc->GetControlLocation() + control_size/2;
-            cairo_translate(cr, center.x, center.y);
-            cairo_scale(cr, i->fade_value, i->fade_value);
-            MscLineAttr l_rect(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_ROUND, 5);
-            MscFillAttr f_rect(MscColorType(0,0,0), MscColorType(64,64,64), GRADIENT_DOWN);
-            MscShadowAttr s_rect(MscColorType(0,0,0));
-            s_rect.offset.first = s_rect.blur.first = true;
-            s_rect.offset.second = 5;
-            s_rect.blur.second = 5;
-            for (auto j = i->arc->GetControls().begin(); j!=i->arc->GetControls().end(); j++) {
-                Area rect = l_rect.CreateRectangle(-control_size.x/2, control_size.x/2, 
-                                                        -control_size.y/2, control_size.y/2);
-                cairo_set_source_rgb(cr, 1,1,1);
-                rect.Fill(cr);
-                cairo_set_source_rgb(cr, 0,0,0);
-                cairo_set_line_width(cr, 2);
-                rect.Line(cr);
-                cairo_set_line_width(cr, 8);
-                cairo_set_source_rgb(cr, 1,0,0);
-                cairo_move_to(cr, -control_size.x*0.7, 0);
-                cairo_line_to(cr, +control_size.x*0.7, 0);
-                if (*j == MSC_CONTROL_EXPAND) {
-                    cairo_new_sub_path(cr);
-                    cairo_move_to(cr, 0, -control_size.x*0.7);
-                    cairo_line_to(cr, 0, +control_size.x*0.7);
-                }
-                cairo_stroke(cr);
-                //move down to next control location
-                cairo_translate(cr, 0, control_size.y/i->fade_value);
-            }
-            cairo_restore(cr);
-        }
+        } else if (i->what == TrackedArc::CONTROL) 
+            i->arc->DrawControls(&canvas, i->fade_value);
     }
 	//Cleanup
 	cairo_destroy(cr);
@@ -776,7 +744,7 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 			CMscGenView* pView = static_cast<CMscGenView*>(pDoc->GetNextView(p));
 			if (pView != this) pView->Invalidate();
 		}
-	} else if (pDoc->m_bTrackMode) {
+	} else {
 		TRACKMOUSEEVENT tme;
 		tme.cbSize = sizeof(tme);
 		tme.hwndTrack = m_hWnd;
@@ -790,7 +758,7 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
-	if (pDoc == NULL || !pDoc->m_bTrackMode) return CScrollView::OnMouseHover(nFlags, point);
+	if (pDoc == NULL) return CScrollView::OnMouseHover(nFlags, point);
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
 	CClientDC dc(this);
@@ -824,6 +792,11 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	//then take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
+    for (auto i = pDoc->m_controlsShowing.begin(); i!=pDoc->m_controlsShowing.end(); i++)
+        if (i->first.IsWithin(XY(point.x, point.y))==WI_INSIDE)
+            if (i->second)
+                if (pDoc->OnControlClicked(i->second, i->second->WhichControl(XY(point.x, point.y))))
+                    return; //Chart and "i" is no longer valid pDoc->m_trackArc and m_controlsShown are empty
 	if (pDoc->m_bTrackMode) {
 		m_clicked=true;
 		pDoc->UpdateTrackRects(point);
@@ -831,7 +804,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
 			pDoc->StartFadingAll();
-			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, delay_before_fade/FADE_TIMER);
+			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, delay_before_fade);
 			pDoc->HighLightArc(arc);
 			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 			ASSERT(pApp != NULL);

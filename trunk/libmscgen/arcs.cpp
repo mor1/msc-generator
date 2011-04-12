@@ -147,7 +147,10 @@ void TrackableElement::PostPosProcess(double)
         area.arc = this;
         chart->AllCovers += area;
         //Determine, where the controls shall be shown
-        control_location = area.GetBoundingBox().UpperRight();
+        control_location.x = Range(area.GetBoundingBox().x.till, 
+                                   area.GetBoundingBox().x.till + control_size.x);
+        control_location.y = Range(area.GetBoundingBox().y.from, 
+                                   area.GetBoundingBox().y.from + control_size.y*controls.size());
     } else {
         //remove controls if we cannot pinpoint a location for them
         controls.clear();
@@ -155,6 +158,54 @@ void TrackableElement::PostPosProcess(double)
     if (draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
         area_draw = area_draw.CreateExpand(chart->trackExpandBy);
     chart->AllArcs[file_pos] = this;
+}
+
+
+const XY TrackableElement::control_size = XY(30, 30);
+
+void TrackableElement::DrawControls(MscCanvas*canvas, double size)
+{
+    if (size<0.01 || size>1 || controls.size()==0 || canvas==NULL) return;
+    cairo_t *cr = canvas->GetContext();
+    cairo_save(cr);
+    XY center = control_location.UpperLeft() + control_size/2;
+    cairo_translate(cr, center.x, center.y);
+    cairo_scale(cr, size, size);
+    MscLineAttr l_rect(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_ROUND, 5);
+    MscFillAttr f_rect(MscColorType(0,0,0), MscColorType(64,64,64), GRADIENT_DOWN);
+    MscShadowAttr s_rect(MscColorType(0,0,0));
+    s_rect.offset.first = s_rect.blur.first = true;
+    s_rect.offset.second = 5;
+    s_rect.blur.second = 5;
+    for (auto j = controls.begin(); j!=controls.end(); j++) {
+        Area rect = l_rect.CreateRectangle(-control_size.x/2, control_size.x/2, 
+                                                -control_size.y/2, control_size.y/2);
+        cairo_set_source_rgb(cr, 1,1,1);
+        rect.Fill(cr);
+        cairo_set_source_rgb(cr, 0,0,0);
+        cairo_set_line_width(cr, 2);
+        rect.Line(cr);
+        cairo_set_line_width(cr, 8);
+        cairo_set_source_rgb(cr, 1,0,0);
+        cairo_move_to(cr, -control_size.x*0.3, 0);
+        cairo_line_to(cr, +control_size.x*0.3, 0);
+        if (*j == MSC_CONTROL_EXPAND) {
+            cairo_new_sub_path(cr);
+            cairo_move_to(cr, 0, -control_size.x*0.3);
+            cairo_line_to(cr, 0, +control_size.x*0.3);
+        }
+        cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+        cairo_stroke(cr);
+        //move down to next control location
+        cairo_translate(cr, 0, control_size.y/size);
+    }
+    cairo_restore(cr);
+}
+
+MscControlType TrackableElement::WhichControl(const XY &xy)
+{
+    if (control_location.IsWithin(xy)!=WI_INSIDE) return MSC_CONTROL_INVALID;
+    return controls[(xy.y - control_location.y.from)/control_size.y];
 }
 
 
@@ -3035,7 +3086,7 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
                     EIterator jj_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
                     EntityDef *ed = new EntityDef(ss->c_str(), chart);
                     ed->show = (*i_def)->show;
-                    ed->implicit = true;
+                    ed->file_pos = (*i_def)->file_pos; 
                     ed->itr = jj_ent;
                     ed->style = (*jj_ent)->running_style;
                     ed->parsed_label.Set((*jj_ent)->label, chart->GetCanvas(), ed->style.text);
@@ -3090,8 +3141,8 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
             if (explicitly_listed.find(*i) != explicitly_listed.end()) continue;
             EntityDef *e = new EntityDef((*i)->name.c_str(), chart);
             //fill in all values necessary
-            e->implicit = true;
             e->itr = i;
+            e->file_pos = file_pos; //use the file_pos of the CommandEntity
             e->style = (*i)->running_style;
             e->parsed_label.Set((*i)->label, chart->GetCanvas(), e->style.text);
             e->shown = true;
@@ -3102,22 +3153,25 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
 
     //Now add parents to the list for those children that are visible
     //Maintain reverse ordering: parents later, children earlier in the list
-    std::list<string> sl;
+    std::list<pair<string, file_line_range>> sl;
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
         if (!(*i_def)->shown) continue;
         const string &myparent = (*(*i_def)->itr)->parent_name;
         if (myparent.length()==0) continue;
-        if (std::find(sl.begin(), sl.end(), myparent) != sl.end()) continue;
         auto si = sl.begin();
-        while (si != sl.end() && !chart->IsMyParentEntity(myparent, *si)) si++;
-        sl.insert(si, myparent);
+        for(/*nope*/; si!=sl.end(); si++) 
+            if (si->first == myparent) break;
+        if (si != sl.end()) continue;
+        si = sl.begin();
+        while (si != sl.end() && !chart->IsMyParentEntity(myparent, si->first)) si++;
+        sl.insert(si, pair<string, file_line_range>(myparent, (*i_def)->file_pos));
     }
     //Now add an entitydef for each parent (whith shown=yes) and reverse order
     for (auto i = sl.begin(); i!=sl.end(); i++) {
-        EntityDef *e = new EntityDef(i->c_str(), chart);
+        EntityDef *e = new EntityDef(i->first.c_str(), chart);
         //fill in all values necessary
-        e->implicit = true;
-        e->itr = chart->AllEntities.Find_by_Name(*i);
+        e->itr = chart->AllEntities.Find_by_Name(i->first);
+        e->file_pos = i->second;
         e->style = (*e->itr)->running_style;
         e->parsed_label.Set((*e->itr)->label, chart->GetCanvas(), e->style.text);
         e->shown = true;
@@ -3221,7 +3275,7 @@ double CommandEntity::Height(AreaList &cover)
     //Thus their area will be stored there and not in CommandEntity->area
     //But, still put those into "cover" so they can be considered for placement
     //There are other entities shown here, those triggered by a heading command.
-    //They have "implicit" set to true. They have no line info and they do not add
+    //They have no line info and they do not add
     //their "area" to the allcovers of the chart in EntityDef::PostPosProcess.
     //Instead we add their area to this->area now
 
@@ -3238,8 +3292,7 @@ double CommandEntity::Height(AreaList &cover)
         //We collect here the maximum extent
         //Note: Height() also adds the cover to the entitydef's area
         hei += (*i)->Height(cover, edl); 
-        if ((*i)->implicit)
-            area += (*i)->GetAreaToSearch();
+        area += (*i)->GetAreaToSearch();
     }
     //Ensure overall startpos is zero
     ShiftBy(-hei.from + chart->headingVGapAbove);
@@ -3257,9 +3310,9 @@ void CommandEntity::ShiftBy(double y)
 void CommandEntity::PostPosProcess(double autoMarker)
 {
     if (!valid) return;
+    ArcCommand::PostPosProcess(autoMarker);
     for (auto i = entities.begin(); i!=entities.end(); i++)
         (*i)->PostPosProcess(autoMarker);
-    ArcCommand::PostPosProcess(autoMarker);
     if (height>0) {
         if (chart->headingSize == 0) chart->headingSize = yPos + height;
         chart->headingSize = std::min(chart->headingSize, yPos + height);

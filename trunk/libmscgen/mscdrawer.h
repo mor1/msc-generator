@@ -60,7 +60,7 @@ protected:
     bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
     
     /* Status of fake dashes */
-    double           fake_dash_offset;
+    double       fake_dash_offset;
 
     /* Context data */
     cairo_t * const  cr;
