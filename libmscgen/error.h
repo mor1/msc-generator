@@ -12,8 +12,10 @@ public:
     unsigned file;
     unsigned line;
     unsigned col;
-    file_line() : file(0), line(0), col(0) {}
+    file_line() {MakeInvalid();}
     file_line(unsigned a, unsigned b, unsigned c=0) : file(a), line(b), col(c) {}
+    void MakeInvalid() {file = -1;}
+    bool IsInvalid() const {return file<0;}
     bool operator < (const file_line&a) const {
         if (file==a.file) {
             if (line==a.line)

@@ -35,6 +35,7 @@ protected:
 	CString m_text;
 	CString m_ForcedDesign;
 	unsigned m_page;
+    std::map<std::string,bool> m_ForcedEntityCollapse; 
 public:
 	CHARRANGE m_sel;
 	bool m_wasDrawn;
@@ -57,6 +58,8 @@ public:
 	BOOL IsEmpty() const {return m_text.GetLength()==0;}
 	virtual void SetPage(unsigned page) {m_page=page;}
 	unsigned GetPage() const {return m_page;}
+    virtual bool ForceEntityCollapse(const std::string &s, bool b);
+    const std::map<std::string,bool> &GetForcedEntityCollapse() const {return m_ForcedEntityCollapse;}
 };
 
 class CDrawingChartData : public CChartData {
@@ -76,6 +79,7 @@ public:
 	virtual void SetDesign (const char *design);
 	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; FreeMsc();}
 	unsigned GetPage() const {return m_page;}
+    bool ForceEntityCollapse(const std::string &s, bool b);
 //Compilation related
     void FreeMsc() const;
 	void CompileIfNeeded() const;

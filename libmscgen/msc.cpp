@@ -649,6 +649,12 @@ void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
 
 void Msc::PostParseProcess()
 {
+    //remove those entities from "force_entity_collapse" which are not defined as entities
+    for (auto i = force_entity_collapse.begin(); i!=force_entity_collapse.end(); /*nope*/)
+        if (*AllEntities.Find_by_Name(i->first) == NoEntity)
+            force_entity_collapse.erase(i++);
+        else i++;
+
     //Sort the defined entities as will be displayed from left to right
     AllEntities.SortByPos();
 

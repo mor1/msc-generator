@@ -143,8 +143,10 @@ void CScaleDlg::OnBnClicked()
     GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
 }
 
-TrackedArc::TrackedArc(TrackableElement *a, ElementType et, int delay) :
-    arc(a), what(et), status(APPEARING), fade_value(0), fade_delay(delay)
+TrackedArc::TrackedArc(TrackableElement *a, ElementType et, int delay, 
+                       int appear, int disappear) :
+    arc(a), what(et), status(APPEARING), fade_value(0), fade_delay(delay),
+    appe_time(appear), disa_time(disappear)
 {
 }
 
@@ -294,15 +296,19 @@ void CMscGenDoc::Serialize(CArchive& ar)
 {
 	if (ar.IsStoring()) {
 		ar << CString(NEW_VERSION_STRING);
-		ar << unsigned(1); //file format version
+		ar << unsigned(2); //file format version
 		ar << m_ChartShown.GetDesign();
 		ar << m_ChartShown.GetPage();
 		ar << m_ChartShown.GetText();
+        ar << unsigned(m_ChartShown.GetForcedEntityCollapse().size());
+        for (auto i = m_ChartShown.GetForcedEntityCollapse().begin(); i!=m_ChartShown.GetForcedEntityCollapse().end(); i++)
+            ar << CString(i->first.c_str()) << unsigned(i->second);
 	} else {
 		CString text;
 		CString design;
 		unsigned page;
 		ar >> design;
+        unsigned file_version = -1;
 		if (design != NEW_VERSION_STRING) {
 			//Old file format
 			ar >> page;
@@ -320,10 +326,9 @@ void CMscGenDoc::Serialize(CArchive& ar)
 			free(buff);
 		} else {
 			//New file format
-			unsigned file_version;
 			ar >> file_version;
 			switch (file_version) {
-				case 0:
+				case 0:  //since v2.3.4
 					char *buff;
 					unsigned length;
 					ar >> design;
@@ -335,8 +340,9 @@ void CMscGenDoc::Serialize(CArchive& ar)
 					text = buff;
 					free(buff);
 					break;
-				default:
-				case 1:
+				case 1:  //since ???
+				case 2:  //since v3.1
+				default: //any future version
 					ar >> design;
 					ar >> page;
 					ar >> text;
@@ -345,8 +351,22 @@ void CMscGenDoc::Serialize(CArchive& ar)
 		}
 		EnsureCRLF(text);
 		ReplaceTAB(text);
-		InsertNewChart(CChartData(text, design, page));
-	}
+		CChartData chart(text, design, page);
+        unsigned force_entity_size;
+        switch (file_version) {
+        default: //any future version 
+        case 2:  //since v3.1
+            ar >> force_entity_size;
+            for (int i=0; i<force_entity_size; i++) {
+                CString s; unsigned b;
+                ar >> s;
+                ar >> b;
+                chart.ForceEntityCollapse(string(s), bool(b));
+            }
+            break;
+        }
+        InsertNewChart(chart);
+	} /* not IsStoring */
 }
 
 void CMscGenDoc::DeleteContents()
@@ -1374,39 +1394,43 @@ void CMscGenDoc::StartFadingTimer()
 //return false if no fading rect remained
 bool CMscGenDoc::DoFading()
 {
-	const double fade_appear = 300; //XXX millisecons shoud be 300
-	const double fade_disappear = 300; //XXX millisecons shoud be 300
     Block bounding; bounding.MakeInvalid();
 	for (int i = 0; i<m_trackArcs.size(); i++) {
-        switch (m_trackArcs[i].status) {
+        TrackedArc &ta = m_trackArcs[i];
+        switch (ta.status) {
             case TrackedArc::SHOWING:
-                if (m_trackArcs[i].fade_delay>=0) {
-                    m_trackArcs[i].fade_delay -= FADE_TIMER;
-                    if (m_trackArcs[i].fade_delay<=0) 
-                        m_trackArcs[i].status = TrackedArc::FADING;
-                }
+                if (ta.fade_delay>0) 
+                    ta.fade_delay = std::max(0, ta.fade_delay-FADE_TIMER);
+                if (ta.fade_delay==0) 
+                    ta.status = TrackedArc::FADING;
                 break;
             case TrackedArc::APPEARING:
-                bounding += m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
-                m_trackArcs[i].fade_value += FADE_TIMER/fade_appear;
-                if (m_trackArcs[i].fade_value >= 1) {
-                    m_trackArcs[i].fade_value = 1;
-                    m_trackArcs[i].status = TrackedArc::SHOWING;
+                bounding += ta.arc->GetAreaToDraw().GetBoundingBox();
+                ta.fade_value += double(FADE_TIMER)/ta.appe_time;
+                if (ta.fade_value >= 1) {
+                    ta.fade_value = 1;
+                    ta.status = TrackedArc::SHOWING;
                 }
                 break;
             case TrackedArc::FADING:
-                bounding += m_trackArcs[i].arc->GetAreaToDraw().GetBoundingBox();
-                m_trackArcs[i].fade_value -= FADE_TIMER/fade_appear;
-                if (m_trackArcs[i].fade_value > 0) 
+                bounding += ta.arc->GetAreaToDraw().GetBoundingBox();
+                ta.fade_value -= double(FADE_TIMER)/ta.disa_time;
+                if (ta.fade_value > 0) 
                     break;
                 /*Fallthrough*/
             case TrackedArc::OFF:
+                //if a control, remove from m_controlsShowing
+                if (ta.what==TrackedArc::CONTROL) 
+                    for (auto ii=m_controlsShowing.begin(); ii!=m_controlsShowing.end(); /*nope*/)
+                        if (ii->second == ta.arc) m_controlsShowing.erase(ii++);
+                        else ii++;
                 m_trackArcs.erase(m_trackArcs.begin()+i);
                 i--;
                 break;
 		}
 	}
-    if (bounding.IsInvalid()) return false;  //nothing to update
+    if (bounding.IsInvalid()) //nothing to update
+        return m_trackArcs.size()>0;  //return true if we need to keep the timer
 	POSITION pos = GetFirstViewPosition();
 	while(pos) {
 		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
@@ -1421,7 +1445,7 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type
 {
 	if (arc==NULL) return false;
 	//Do not add if it has no visual element
-    if (arc->GetAreaToDraw().IsEmpty()) 
+    if (type == TrackedArc::TRACKRECT && arc->GetAreaToDraw().IsEmpty()) 
 		return false;
 	bool found = false;
     Block b; b.MakeInvalid();
@@ -1439,8 +1463,14 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type
         b += i->arc->GetAreaToDraw().GetBoundingBox();
     }
     //We always redraw all the tracked rectangles, to look better
-	if (!found)
-		m_trackArcs.push_back(TrackedArc(arc, type, delay));
+	if (!found) {
+        const int appear = type == TrackedArc::TRACKRECT ? 300 : 100;
+        const int disapp = type == TrackedArc::TRACKRECT ? 300 : 100;
+		m_trackArcs.push_back(TrackedArc(arc, type, delay, appear, disapp));
+        if (type == TrackedArc::CONTROL) 
+            m_controlsShowing[arc->GetControlLocation()] = arc;
+        b += arc->GetControlLocation();
+    } 
     if (b.IsInvalid()) 
         return true;
 	POSITION pos = GetFirstViewPosition();
@@ -1452,7 +1482,8 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type
 }
 
 //Start the fading process for all rectangles (even for delay<0)
-void CMscGenDoc::StartFadingAll() {
+void CMscGenDoc::StartFadingAll() 
+{
 	for (std::vector<TrackedArc>::iterator i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) 
 		i->status = TrackedArc::FADING;
 	//If fading in progress we exit
@@ -1487,12 +1518,25 @@ void CMscGenDoc::SetTrackMode(bool on)
     }
 }
 
-//Expects the coordinates in MscDrawer space (MscDrawer::totalWidth & Height, except local to the current page)
+//Expects the coordinates in Msc space (MscBase::totalWidth & Height, 
+//except local to the current page)
+//If m_bTrackMode is on, we do tracking rectangles
+//if not, we only check for controls
 void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
-	if (!m_bTrackMode) return;
-	TrackableElement *arc = m_ChartShown.GetArcByCoordinate(mouse);
+    //Start fading all controls and track rectangles
 	StartFadingAll();
+    //re-add those controls which are under mouse
+    for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
+        if (i->first.IsWithin(XY(mouse.x, mouse.y)) == WI_INSIDE)
+            AddTrackArc(i->second, TrackedArc::CONTROL);
+    //re-add any control for elements under mouse
+	TrackableElement *arc = m_ChartShown.GetArcByCoordinate(mouse);
+    if (arc && arc->GetControls().size()) 
+        AddTrackArc(arc, TrackedArc::CONTROL);
+    //if we do not display tracking rectangles, exit
+	if (!m_bTrackMode) return;
+    //Re-add tracking rectangle under cursor
 	AddTrackArc(arc, TrackedArc::TRACKRECT);
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
@@ -1536,6 +1580,22 @@ void CMscGenDoc::HighLightArc(const TrackableElement *arc)
 	editor.SetRedraw(true);
 	editor.Invalidate();
 }
+
+bool CMscGenDoc::OnControlClicked(TrackableElement *arc, MscControlType t)
+{
+    if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
+    EntityDef *ed = dynamic_cast<EntityDef*>(arc);
+    if (ed != NULL) {
+        if (t==MSC_CONTROL_COLLAPSE) m_itrEditing->ForceEntityCollapse(ed->name, true);
+        else if (t==MSC_CONTROL_EXPAND) m_itrEditing->ForceEntityCollapse(ed->name, false);
+        else return false;
+    }
+    m_trackArcs.clear();
+    m_controlsShowing.clear();
+    ShowEditingChart(false);
+    return true;
+}
+
 
 void CMscGenDoc::OnHelpHelp()
 {

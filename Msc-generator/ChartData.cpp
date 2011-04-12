@@ -138,6 +138,16 @@ void CChartData::RemoveSpacesAtLineEnds()
 	}
 }
 
+bool CChartData::ForceEntityCollapse(const std::string &s, bool b) 
+{
+    auto itr = m_ForcedEntityCollapse.find(s);
+    bool changed = itr == m_ForcedEntityCollapse.end() || b != itr->second;
+    if (changed) 
+        m_ForcedEntityCollapse[s] = b; 
+    return changed;
+}
+
+
 CDrawingChartData::CDrawingChartData(const CChartData&o) : m_msc(NULL), m_bPageBreaks(false)
 {
     operator=(o);
@@ -157,6 +167,12 @@ void CDrawingChartData::SetDesign (const char *design)
 	m_ForcedDesign = design;
 }
 
+bool CDrawingChartData::ForceEntityCollapse(const std::string &s, bool b) 
+{
+	FreeMsc();
+    return CChartData::ForceEntityCollapse(s, b);
+}
+
 void CDrawingChartData::FreeMsc() const 
 {
     if (m_msc) {
@@ -173,19 +189,30 @@ void CDrawingChartData::CompileIfNeeded() const
 	    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	    ASSERT(pApp);
 	    m_msc = new Msc;
+        //copy pedantic flag from app settings
 	    if (pApp) 
 		    m_msc->pedantic = pApp->m_Pedantic;
+        //compile preamble and set forced design
 	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
 		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
 		    if (!m_ForcedDesign.IsEmpty())
 			    if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
 				    m_msc->ignore_designs = true;
 	    }
+        //copy forced collapse/expand entities
+        m_msc->force_entity_collapse = m_ForcedEntityCollapse;
+
+        //parse chart text
 	    m_msc->ParseText(m_text, "");
+        //set copyright text
 	    if (pApp) 
 		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
-	    //Do postparse, compile, calculate sizes and sort errors by line    
+	    //Do postparse, compile, calculate sizes and sort errors by line
 	    m_msc->CompleteParse(MscCanvas::EMF, true);
+        //See which of the forced entity collapse directives remained
+        //ones with no entity or equal state as chart were removed in Msc::PostParseProcess and
+        //EntityDef::AddAttributeList
+        m_msc->force_entity_collapse = m_ForcedEntityCollapse;
     }
 }
 
