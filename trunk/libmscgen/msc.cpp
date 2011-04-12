@@ -321,12 +321,12 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
                         + "'. Assuming implicit definition.",
                         "This may be a mistyped entity name."
                         " Try turning 'pedantic' off to remove these messages.");
-        Entity *entity = new Entity(e, e, e, GetEntityMaxPos()+1, Contexts.back().styles["entity"], 
-                                    l.start, false);
-        AllEntities.Append(entity);
+        //Entity *entity = new Entity(e, e, e, GetEntityMaxPos()+1, Contexts.back().styles["entity"], 
+        //                            l.start, false);
+        //AllEntities.Append(entity);
         EntityDef *ed = new EntityDef(e, this);
         ed->SetLineEnd(l);
-        ed->AddAttributeList(NULL, NULL, file_line());
+        ed->AddAttributeList(NULL, NULL, l.start);
         ed->show.first = ed->show.second = true; //start turned on
         AutoGenEntities.Append(ed);
         ei = AllEntities.Find_by_Name(e);
