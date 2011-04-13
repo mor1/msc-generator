@@ -354,6 +354,9 @@ void CMscGenDoc::Serialize(CArchive& ar)
 		CChartData chart(text, design, page);
         unsigned force_entity_size;
         switch (file_version) {
+        case 0:
+        case 1: 
+            break; //nothing to read besides design, page and text
         default: //any future version 
         case 2:  //since v3.1
             ar >> force_entity_size;

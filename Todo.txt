@@ -46,6 +46,7 @@ In 3.1
 BUG: thick lines with dot mid do not show in WMF
 BUG: FullScreen view should not allow modification
 FIX: hinting is bad for entity attributes inside a group.
+FIX: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)
 ADD: indicator chart option and context element. PostParseProcess shall return indicators instead of NULL, when appropriate.
 ADD: Collapse attribute to boxes (not pipe), add control (collapse and collapse_to_block_arrow) to boxes and add collapse to Box::PostParseProcess
 CHANGE:Rename Emphasis to Box in c++ code

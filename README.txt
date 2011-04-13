@@ -12,6 +12,9 @@ To compile, you need Visual C++ 2010 and gnu make.
 First compile cairo.sln both for "Debug" and "Release" (firts one will return an error, that is OK).
 This will (collectively) compile both the debug and release cairo.dll (including my fix)
 
+However, you do not need to compile cairo, as I have included compiled binaries in the "compiled_cairo" 
+directory. This is where Msc-generator.sln takes the compiled binary.
+
 Then you can compile Msc-generator.sln. It will always include the release version of cairo.dll.
 
 Enjoy and send feedback.

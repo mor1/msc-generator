@@ -3104,10 +3104,9 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
     }
     //Now remove grouped entities (we have handled style and show for them)
     //and calculate shown status for non-grouped ones
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+    for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) 
         if ((*(*i_def)->itr)->children_names.size()) {
             entities.erase(i_def++);
-            i_def--;
         } else {
             EIterator j_ent = (*i_def)->itr;
             //Decide, if this entitydef will show an entity or not
@@ -3122,12 +3121,12 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
             //remove entitydef if not shown
             if (!(*i_def)->shown) {
                 entities.erase(i_def++);
-                i_def--;
             } else { 
                 explicitly_listed.insert(*(*i_def)->itr);
                 //Update the style of the entitydef
                 (*i_def)->style = (*j_ent)->running_style;	 //(*i)->style now become the full style to use from this point
                 (*i_def)->parsed_label.Set((*j_ent)->label, chart->GetCanvas(), (*i_def)->style.text);
+                i_def++; //cycle to next in for-cycle
             }
         }
 
@@ -3179,12 +3178,11 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
     }
 
     //Finally prune the list: remove those that shall not be displayed due to collapse
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
-        if (chart->FindActiveParentEntity((*i_def)->itr) != (*i_def)->itr) {
+    for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) 
+        if (chart->FindActiveParentEntity((*i_def)->itr) != (*i_def)->itr) 
             entities.erase(i_def++);
-            i_def--;
-        }
-
+        else
+            i_def++;
     //Now we have all entities among "entities" that will show here
     //Go through them and update left, right and the entities' maxwidth
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
@@ -3253,16 +3251,18 @@ void CommandEntity::Width(EntityDistanceMap &distances)
                              (*(*i)->itr)->maxwidth - (*i)->left_offset - (*i)->right_offset);
         }
     }
-    //Now convert neighbouring ones to box_side distances, and add the rest as normal side distance
-    distances.Insert(dist.begin()->first,  DISTANCE_LEFT, dist.begin()->second.first); //leftmost distance
-    distances.Insert(dist.rbegin()->first, DISTANCE_RIGHT,dist.rbegin()->second.second); //rightmost distance
-    for (auto d = dist.begin(); d!=--dist.end(); d++) {
-        auto d_next = d; d_next++;
-        if (d->first == d_next->first-1) //neighbours
-            distances.InsertBoxSide(d->first, d->second.second, d_next->second.first);
-        else {
-            distances.Insert(d->first, DISTANCE_RIGHT, d->second.second);
-            distances.Insert(d_next->first, DISTANCE_LEFT, d_next->second.first);
+    if (dist.size()) {
+        //Now convert neighbouring ones to box_side distances, and add the rest as normal side distance
+        distances.Insert(dist.begin()->first,  DISTANCE_LEFT, dist.begin()->second.first); //leftmost distance
+        distances.Insert(dist.rbegin()->first, DISTANCE_RIGHT,dist.rbegin()->second.second); //rightmost distance
+        for (auto d = dist.begin(); d!=--dist.end(); d++) {
+            auto d_next = d; d_next++;
+            if (d->first == d_next->first-1) //neighbours
+                distances.InsertBoxSide(d->first, d->second.second, d_next->second.first);
+            else {
+                distances.Insert(d->first, DISTANCE_RIGHT, d->second.second);
+                distances.Insert(d_next->first, DISTANCE_LEFT, d_next->second.first);
+            }
         }
     }
 }
