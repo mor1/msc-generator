@@ -503,7 +503,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{79C56C4C-34CA-483D-8996-3A694E394C5A}"
-        "PackageCode" = "8:{2EDBDEA4-B43A-4F54-8B6D-AB4D7FE43473}"
+        "PackageCode" = "8:{B715C536-6B22-4AC1-811E-30FE1D1F9565}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
