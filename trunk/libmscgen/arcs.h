@@ -242,7 +242,7 @@ public:
     virtual void Draw();
 };
 
-class ArcEmphasis : public ArcLabelled
+class ArcBox : public ArcLabelled
 {
     friend struct pipe_compare;
 protected:
@@ -251,8 +251,8 @@ protected:
     bool            drawEntityLines; //true if we draw the entity lines (only if there is content)
     int             drawing_variant; //how to draw double or triple lines
     ArcList        *content;
-    ArcEmphasis    *first;      //If null, we are the first
-    PtrList<ArcEmphasis> follow;
+    ArcBox         *first;      //If null, we are the first
+    PtrList<ArcBox> follow;
 
     //for boxes
     mutable double height, height_w_lower_line;
@@ -270,17 +270,17 @@ protected:
     mutable Area text_cover;
 public:
     //Constructor to construct the first box/pipe in a series
-    ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
+    ArcBox(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc);
-    ~ArcEmphasis();
-    ArcEmphasis* SetPipe();
-    ArcEmphasis* AddArcList(ArcList*l);
+    ~ArcBox();
+    ArcBox* SetPipe();
+    ArcBox* AddArcList(ArcList*l);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool pipe=false);
     static bool AttributeValues(const std::string attr, Csh &csh, bool pipe=false);
-    ArcEmphasis* ChangeStyleForFollow(ArcEmphasis* =NULL);
-    ArcEmphasis* AddFollow(ArcEmphasis*f);
-    ArcEmphasis* GetLastFollow() {return follow.size()?*follow.rbegin():this;}
+    ArcBox* ChangeStyleForFollow(ArcBox* =NULL);
+    ArcBox* AddFollow(ArcBox*f);
+    ArcBox* GetLastFollow() {return follow.size()?*follow.rbegin():this;}
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);

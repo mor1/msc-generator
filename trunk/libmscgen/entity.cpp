@@ -23,11 +23,11 @@
 template class PtrList<Entity>;
 
 Entity::Entity(const string &n, const string &l, const string &ol, 
-    double p, const MscStyle &entity_style, const file_line &fp,
+    double p, double pe, const MscStyle &entity_style, const file_line &fp,
     bool coll) :
     maxwidth(0), running_style(entity_style),
     name(n), orig_label(ol), label(l), collapsed(coll),
-    pos(p), index(0), status(entity_style), file_pos(fp)
+    pos(p), pos_exp(pe), index(0), status(entity_style), file_pos(fp)
 {
 }
 
@@ -84,9 +84,21 @@ inline bool SmallerByPos(Entity *e1, Entity *e2)
     return e1->pos < e2->pos;
 }
 
+inline bool SmallerByPosExp(Entity *e1, Entity *e2)
+{
+    if (e1==NULL) return true;
+    if (e2==NULL) return false;
+    return e1->pos_exp < e2->pos_exp;
+}
+
 void EntityList::SortByPos(void)
 {
     PtrList<Entity>::sort(SmallerByPos);
+}
+
+void EntityList::SortByPosExp(void)
+{
+    PtrList<Entity>::sort(SmallerByPosExp);
 }
 
 EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
@@ -251,6 +263,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
 
     if (*i == chart->NoEntity) {
         double position = chart->GetEntityMaxPos()+1;
+        double position_exp = chart->GetEntityMaxPosExp()+1;
         if (rel.first) {
             //Look up the entity in a potential 'relative' attribute
             EntityList::iterator j = chart->AllEntities.Find_by_Name(rel.second);
@@ -279,10 +292,15 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
                 else if (pos.second==0)
                     chart->Error.Error(pos.third, "Cannot put an entity exactly onto a grouped entity. Specify the 'pos' attribute.",
                                        " Ignoring positioning attributes.");
-                else 
-                    position = (*chart->FindLeftRightmostChildren(j, pos.second<0))->pos;
-            } else 
-                position = (*j)->pos;
+                else {
+                    const EIterator right = chart->FindLeftRightDescendant(j, pos.second<0, false);
+                    position     = (*right)->pos;
+                    position_exp = (*right)->pos_exp;
+                }
+            } else {
+                position     = (*j)->pos;
+                position_exp = (*j)->pos_exp;
+            }
         }
 
         //Add the effect of pos attribute to position
@@ -292,7 +310,8 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
                 msg << pos.second << "'. Ignoring it.";
                 chart->Error.Error(pos.third, msg, "Use a value between [-10..10].");
             } else {
-                position += pos.second;
+                position     += pos.second;
+                position_exp += pos.second;
             }
         }
 
@@ -320,7 +339,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         style_to_use.text = to_use;
 
         //Allocate new entity with correct label and children
-        Entity *e = new Entity(name, proc_label, orig_label, position, 
+        Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
                                style_to_use, file_pos.start, make_collapsed);
         e->AddChildrenList(children, chart);  //also fixes positions & updates running_style
         //Add to entity list

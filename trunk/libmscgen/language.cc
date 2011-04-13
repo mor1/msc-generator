@@ -322,7 +322,7 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ArcList)          *arclist;
     CHAR_IF_CSH(ArcArrow)         *arcarrow;
     CHAR_IF_CSH(ArcVerticalArrow) *arcvertarrow;
-    CHAR_IF_CSH(ArcEmphasis)      *arcemph;
+    CHAR_IF_CSH(ArcBox)           *arcbox;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(MscArcType)        arctype;
     CHAR_IF_CSH(EntityDef)        *entity;
@@ -804,15 +804,15 @@ static const char *const yytname[] =
   "entitylist", "entity", "first_entity", "styledeflist", "styledef",
   "tok_stringlist", "colordeflist", "colordef", "designdef",
   "scope_open_empty", "designelementlist", "designelement",
-  "designoptlist", "designopt", "parallel", "emphasis_list",
-  "first_emphasis", "pipe_def_list_no_attr", "pipe_def_list",
-  "pipe_emphasis", "emphrel", "vertxpos", "empharcrel_straight",
-  "vertrel_no_xpos", "vertrel", "arcrel", "arcrel_to", "arcrel_from",
-  "arcrel_bidir", "relation_to", "relation_from", "relation_bidir",
-  "relation_to_cont", "relation_from_cont", "relation_bidir_cont",
-  "colon_string", "full_arcattrlist_with_label", "full_arcattrlist",
-  "arcattrlist", "arcattr", "entity_string", "reserved_word_string",
-  "symbol_string", "string", "scope_open", "scope_close", 0
+  "designoptlist", "designopt", "parallel", "box_list", "first_box",
+  "pipe_def_list_no_attr", "pipe_def_list", "pipe_box", "boxrel",
+  "vertxpos", "empharcrel_straight", "vertrel_no_xpos", "vertrel",
+  "arcrel", "arcrel_to", "arcrel_from", "arcrel_bidir", "relation_to",
+  "relation_from", "relation_bidir", "relation_to_cont",
+  "relation_from_cont", "relation_bidir_cont", "colon_string",
+  "full_arcattrlist_with_label", "full_arcattrlist", "arcattrlist",
+  "arcattr", "entity_string", "reserved_word_string", "symbol_string",
+  "string", "scope_open", "scope_close", 0
 };
 #endif
 
@@ -2091,20 +2091,20 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, RESULT, yyscanner)
 /* Line 1000 of yacc.c  */
 #line 2093 "language.cc"
 	break;
-      case 79: /* "emphasis_list" */
+      case 79: /* "box_list" */
 
 /* Line 1000 of yacc.c  */
 #line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
+	{if (!C_S_H) delete (yyvaluep->arcbox);};
 
 /* Line 1000 of yacc.c  */
 #line 2102 "language.cc"
 	break;
-      case 80: /* "first_emphasis" */
+      case 80: /* "first_box" */
 
 /* Line 1000 of yacc.c  */
 #line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
+	{if (!C_S_H) delete (yyvaluep->arcbox);};
 
 /* Line 1000 of yacc.c  */
 #line 2111 "language.cc"
@@ -2113,7 +2113,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, RESULT, yyscanner)
 
 /* Line 1000 of yacc.c  */
 #line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
+	{if (!C_S_H) delete (yyvaluep->arcbox);};
 
 /* Line 1000 of yacc.c  */
 #line 2120 "language.cc"
@@ -2122,25 +2122,25 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, RESULT, yyscanner)
 
 /* Line 1000 of yacc.c  */
 #line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
+	{if (!C_S_H) delete (yyvaluep->arcbox);};
 
 /* Line 1000 of yacc.c  */
 #line 2129 "language.cc"
 	break;
-      case 83: /* "pipe_emphasis" */
+      case 83: /* "pipe_box" */
 
 /* Line 1000 of yacc.c  */
 #line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
+	{if (!C_S_H) delete (yyvaluep->arcbox);};
 
 /* Line 1000 of yacc.c  */
 #line 2138 "language.cc"
 	break;
-      case 84: /* "emphrel" */
+      case 84: /* "boxrel" */
 
 /* Line 1000 of yacc.c  */
 #line 185 "language.yy"
-	{if (!C_S_H) delete (yyvaluep->arcemph);};
+	{if (!C_S_H) delete (yyvaluep->arcbox);};
 
 /* Line 1000 of yacc.c  */
 #line 2147 "language.cc"
@@ -3326,7 +3326,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
   #else
-    (yyval.arcbase) = (yyvsp[(1) - (1)].arcemph); //to remove warning for downcast
+    (yyval.arcbase) = (yyvsp[(1) - (1)].arcbox); //to remove warning for downcast
   #endif
 }
     break;
@@ -4317,7 +4317,7 @@ yyreduce:
 #line 1462 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    (yyval.arcemph) = (yyvsp[(1) - (1)].arcemph);
+    (yyval.arcbox) = (yyvsp[(1) - (1)].arcbox);
   #endif
 }
     break;
@@ -4327,7 +4327,7 @@ yyreduce:
 /* Line 1455 of yacc.c  */
 #line 1468 "language.yy"
     {
-    (yyval.arcemph) = (yyvsp[(1) - (1)].arcemph);
+    (yyval.arcbox) = (yyvsp[(1) - (1)].arcbox);
 }
     break;
 
@@ -4337,10 +4337,10 @@ yyreduce:
 #line 1473 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    ((yyvsp[(2) - (2)].arcemph))->ChangeStyleForFollow();
-    ((yyvsp[(2) - (2)].arcemph))->SetLineEnd(MSC_POS((yylsp[(2) - (2)])));
-    (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddFollow((yyvsp[(2) - (2)].arcemph));
-    ((yyvsp[(2) - (2)].arcemph))->AddAttributeList(NULL); //should come after AddFollow
+    ((yyvsp[(2) - (2)].arcbox))->ChangeStyleForFollow();
+    ((yyvsp[(2) - (2)].arcbox))->SetLineEnd(MSC_POS((yylsp[(2) - (2)])));
+    (yyval.arcbox) = ((yyvsp[(1) - (2)].arcbox))->AddFollow((yyvsp[(2) - (2)].arcbox));
+    ((yyvsp[(2) - (2)].arcbox))->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
     break;
@@ -4352,14 +4352,14 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME))
-        ArcEmphasis::AttributeNames(csh);
+        ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+        ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ((yyvsp[(2) - (3)].arcemph))->ChangeStyleForFollow();
-    ((yyvsp[(2) - (3)].arcemph))->SetLineEnd(MSC_POS2((yylsp[(2) - (3)]), (yylsp[(3) - (3)])));
-    (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph))->AddFollow((yyvsp[(2) - (3)].arcemph));
-    ((yyvsp[(2) - (3)].arcemph))->AddAttributeList((yyvsp[(3) - (3)].attriblist)); //should come after AddFollow
+    ((yyvsp[(2) - (3)].arcbox))->ChangeStyleForFollow();
+    ((yyvsp[(2) - (3)].arcbox))->SetLineEnd(MSC_POS2((yylsp[(2) - (3)]), (yylsp[(3) - (3)])));
+    (yyval.arcbox) = ((yyvsp[(1) - (3)].arcbox))->AddFollow((yyvsp[(2) - (3)].arcbox));
+    ((yyvsp[(2) - (3)].arcbox))->AddAttributeList((yyvsp[(3) - (3)].attriblist)); //should come after AddFollow
 
   #endif
 }
@@ -4371,10 +4371,10 @@ yyreduce:
 #line 1497 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    ((yyvsp[(2) - (3)].arcemph))->AddArcList((yyvsp[(3) - (3)].arclist))->ChangeStyleForFollow();
-    ((yyvsp[(2) - (3)].arcemph))->SetLineEnd(MSC_POS((yylsp[(2) - (3)])));
-    (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph))->AddFollow((yyvsp[(2) - (3)].arcemph));
-    ((yyvsp[(2) - (3)].arcemph))->AddAttributeList(NULL); //should come after AddFollow
+    ((yyvsp[(2) - (3)].arcbox))->AddArcList((yyvsp[(3) - (3)].arclist))->ChangeStyleForFollow();
+    ((yyvsp[(2) - (3)].arcbox))->SetLineEnd(MSC_POS((yylsp[(2) - (3)])));
+    (yyval.arcbox) = ((yyvsp[(1) - (3)].arcbox))->AddFollow((yyvsp[(2) - (3)].arcbox));
+    ((yyvsp[(2) - (3)].arcbox))->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
     break;
@@ -4385,9 +4385,9 @@ yyreduce:
 #line 1506 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS((yylsp[(1) - (2)])), NULL, MSC_POS((yylsp[(1) - (2)])), &msc);
-    temp->AddArcList((yyvsp[(2) - (2)].arclist))->ChangeStyleForFollow((yyvsp[(1) - (2)].arcemph));
-    (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddFollow(temp);
+    ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS((yylsp[(1) - (2)])), NULL, MSC_POS((yylsp[(1) - (2)])), &msc);
+    temp->AddArcList((yyvsp[(2) - (2)].arclist))->ChangeStyleForFollow((yyvsp[(1) - (2)].arcbox));
+    (yyval.arcbox) = ((yyvsp[(1) - (2)].arcbox))->AddFollow(temp);
     temp->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
@@ -4400,14 +4400,14 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME))
-        ArcEmphasis::AttributeNames(csh);
+        ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+        ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ((yyvsp[(2) - (4)].arcemph))->SetLineEnd(MSC_POS2((yylsp[(2) - (4)]), (yylsp[(3) - (4)])));
-    ((yyvsp[(2) - (4)].arcemph))->AddArcList((yyvsp[(4) - (4)].arclist))->ChangeStyleForFollow();
-    (yyval.arcemph) = ((yyvsp[(1) - (4)].arcemph))->AddFollow((yyvsp[(2) - (4)].arcemph));
-    ((yyvsp[(2) - (4)].arcemph))->AddAttributeList((yyvsp[(3) - (4)].attriblist)); //should come after AddFollow
+    ((yyvsp[(2) - (4)].arcbox))->SetLineEnd(MSC_POS2((yylsp[(2) - (4)]), (yylsp[(3) - (4)])));
+    ((yyvsp[(2) - (4)].arcbox))->AddArcList((yyvsp[(4) - (4)].arclist))->ChangeStyleForFollow();
+    (yyval.arcbox) = ((yyvsp[(1) - (4)].arcbox))->AddFollow((yyvsp[(2) - (4)].arcbox));
+    ((yyvsp[(2) - (4)].arcbox))->AddAttributeList((yyvsp[(3) - (4)].attriblist)); //should come after AddFollow
   #endif
 }
     break;
@@ -4419,14 +4419,14 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME))
-        ArcEmphasis::AttributeNames(csh);
+        ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+        ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcEmphasis *temp = new ArcEmphasis(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS((yylsp[(1) - (3)])), NULL, MSC_POS((yylsp[(1) - (3)])), &msc);
+    ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS((yylsp[(1) - (3)])), NULL, MSC_POS((yylsp[(1) - (3)])), &msc);
     temp->SetLineEnd(MSC_POS((yylsp[(2) - (3)])));
-    temp->AddArcList((yyvsp[(3) - (3)].arclist))->ChangeStyleForFollow((yyvsp[(1) - (3)].arcemph));
-    (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph))->AddFollow(temp);
+    temp->AddArcList((yyvsp[(3) - (3)].arclist))->ChangeStyleForFollow((yyvsp[(1) - (3)].arcbox));
+    (yyval.arcbox) = ((yyvsp[(1) - (3)].arcbox))->AddFollow(temp);
     temp->AddAttributeList((yyvsp[(2) - (3)].attriblist)); //should come after AddFollow
   #endif
 }
@@ -4438,9 +4438,9 @@ yyreduce:
 #line 1546 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    ((yyvsp[(1) - (1)].arcemph))->AddAttributeList(NULL);
-    ((yyvsp[(1) - (1)].arcemph))->SetLineEnd(MSC_POS((yyloc)));
-    (yyval.arcemph) = (yyvsp[(1) - (1)].arcemph);
+    ((yyvsp[(1) - (1)].arcbox))->AddAttributeList(NULL);
+    ((yyvsp[(1) - (1)].arcbox))->SetLineEnd(MSC_POS((yyloc)));
+    (yyval.arcbox) = (yyvsp[(1) - (1)].arcbox);
   #endif
 }
     break;
@@ -4452,13 +4452,13 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME))
-        ArcEmphasis::AttributeNames(csh);
+        ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+        ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ((yyvsp[(1) - (2)].arcemph))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
-    ((yyvsp[(1) - (2)].arcemph))->SetLineEnd(MSC_POS((yyloc)));
-    (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph));
+    ((yyvsp[(1) - (2)].arcbox))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    ((yyvsp[(1) - (2)].arcbox))->SetLineEnd(MSC_POS((yyloc)));
+    (yyval.arcbox) = ((yyvsp[(1) - (2)].arcbox));
   #endif
 }
     break;
@@ -4469,9 +4469,9 @@ yyreduce:
 #line 1567 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    ((yyvsp[(1) - (2)].arcemph))->AddAttributeList(NULL);
-    ((yyvsp[(1) - (2)].arcemph))->SetLineEnd(MSC_POS((yylsp[(1) - (2)])));
-    (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddArcList((yyvsp[(2) - (2)].arclist));
+    ((yyvsp[(1) - (2)].arcbox))->AddAttributeList(NULL);
+    ((yyvsp[(1) - (2)].arcbox))->SetLineEnd(MSC_POS((yylsp[(1) - (2)])));
+    (yyval.arcbox) = ((yyvsp[(1) - (2)].arcbox))->AddArcList((yyvsp[(2) - (2)].arclist));
   #endif
 }
     break;
@@ -4483,13 +4483,13 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME))
-        ArcEmphasis::AttributeNames(csh);
+        ArcBox::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-        ArcEmphasis::AttributeValues(csh.hintAttrName, csh);
+        ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ((yyvsp[(1) - (3)].arcemph))->SetLineEnd(MSC_POS2((yylsp[(1) - (3)]), (yylsp[(2) - (3)])));
-    ((yyvsp[(1) - (3)].arcemph))->AddArcList((yyvsp[(3) - (3)].arclist))->AddAttributeList((yyvsp[(2) - (3)].attriblist));
-    (yyval.arcemph) = ((yyvsp[(1) - (3)].arcemph));
+    ((yyvsp[(1) - (3)].arcbox))->SetLineEnd(MSC_POS2((yylsp[(1) - (3)]), (yylsp[(2) - (3)])));
+    ((yyvsp[(1) - (3)].arcbox))->AddArcList((yyvsp[(3) - (3)].arclist))->AddAttributeList((yyvsp[(2) - (3)].attriblist));
+    (yyval.arcbox) = ((yyvsp[(1) - (3)].arcbox));
   #endif
 }
     break;
@@ -4506,8 +4506,8 @@ yyreduce:
         csh.AddEntitiesToHints();
     }
   #else
-    ((yyvsp[(2) - (2)].arcemph))->SetPipe()->AddAttributeList(NULL)->SetLineEnd(MSC_POS((yyloc)));
-    (yyval.arcemph) = (yyvsp[(2) - (2)].arcemph);
+    ((yyvsp[(2) - (2)].arcbox))->SetPipe()->AddAttributeList(NULL)->SetLineEnd(MSC_POS((yyloc)));
+    (yyval.arcbox) = (yyvsp[(2) - (2)].arcbox);
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -4519,9 +4519,9 @@ yyreduce:
 #line 1603 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    ((yyvsp[(2) - (2)].arcemph))->SetPipe()->ChangeStyleForFollow()->SetLineEnd(MSC_POS((yylsp[(2) - (2)])));
-    (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddFollow((yyvsp[(2) - (2)].arcemph));
-    ((yyvsp[(2) - (2)].arcemph))->AddAttributeList(NULL); //should come after AddFollow
+    ((yyvsp[(2) - (2)].arcbox))->SetPipe()->ChangeStyleForFollow()->SetLineEnd(MSC_POS((yylsp[(2) - (2)])));
+    (yyval.arcbox) = ((yyvsp[(1) - (2)].arcbox))->AddFollow((yyvsp[(2) - (2)].arcbox));
+    ((yyvsp[(2) - (2)].arcbox))->AddAttributeList(NULL); //should come after AddFollow
   #endif
 }
     break;
@@ -4541,7 +4541,7 @@ yyreduce:
     csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing a box symbol.");
   #else
     msc.Error.Error(MSC_POS((yylsp[(2) - (2)])).end.NextChar(), "Missing a box symbol. Ignoring pipe.");
-    (yyval.arcemph) = NULL;
+    (yyval.arcbox) = NULL;
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -4556,7 +4556,7 @@ yyreduce:
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
     csh.CheckEntityHintAfterPlusOne((yylsp[(1) - (1)]), yylloc, yychar==YYEOF);
   #else
-    (yyval.arcemph) = NULL;
+    (yyval.arcbox) = NULL;
     msc.Error.Error(MSC_POS((yylsp[(1) - (1)])).end.NextChar(), "The keyword '" + string((yyvsp[(1) - (1)].str)) +"' should be followed by an entity, or '--', '..', '++' or '=='.");
   #endif
     free((yyvsp[(1) - (1)].str));
@@ -4570,12 +4570,12 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME))
-        ArcEmphasis::AttributeNames(csh, true);
+        ArcBox::AttributeNames(csh, true);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-        ArcEmphasis::AttributeValues(csh.hintAttrName, csh, true);
+        ArcBox::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ((yyvsp[(1) - (2)].arcemph))->GetLastFollow()->AddAttributeList((yyvsp[(2) - (2)].attriblist));
-    (yyval.arcemph) = (yyvsp[(1) - (2)].arcemph);
+    ((yyvsp[(1) - (2)].arcbox))->GetLastFollow()->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    (yyval.arcbox) = (yyvsp[(1) - (2)].arcbox);
   #endif
 }
     break;
@@ -4586,7 +4586,7 @@ yyreduce:
 #line 1674 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    (yyval.arcemph) = ((yyvsp[(1) - (2)].arcemph))->AddArcList((yyvsp[(2) - (2)].arclist));
+    (yyval.arcbox) = ((yyvsp[(1) - (2)].arcbox))->AddArcList((yyvsp[(2) - (2)].arclist));
   #endif
 }
     break;
@@ -4603,7 +4603,7 @@ yyreduce:
     csh.CheckEntityHintAtAndBefore((yylsp[(2) - (3)]), (yylsp[(3) - (3)]));
     csh.AddCSH_EntityName((yylsp[(3) - (3)]), (yyvsp[(3) - (3)].str));
   #else
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), MSC_POS((yylsp[(1) - (3)])), (yyvsp[(3) - (3)].str), MSC_POS((yylsp[(3) - (3)])), &msc);
+    (yyval.arcbox) = new ArcBox((yyvsp[(2) - (3)].arctype), (yyvsp[(1) - (3)].str), MSC_POS((yylsp[(1) - (3)])), (yyvsp[(3) - (3)].str), MSC_POS((yylsp[(3) - (3)])), &msc);
   #endif
     free((yyvsp[(1) - (3)].str));
     free((yyvsp[(3) - (3)].str));
@@ -4620,7 +4620,7 @@ yyreduce:
     csh.CheckEntityHintAtAndBefore((yylsp[(1) - (2)]), (yylsp[(2) - (2)]));
     csh.AddCSH_EntityName((yylsp[(2) - (2)]), (yyvsp[(2) - (2)].str));
   #else
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(1) - (2)].arctype), NULL, MSC_POS((yylsp[(1) - (2)])), (yyvsp[(2) - (2)].str), MSC_POS((yylsp[(2) - (2)])), &msc);
+    (yyval.arcbox) = new ArcBox((yyvsp[(1) - (2)].arctype), NULL, MSC_POS((yylsp[(1) - (2)])), (yyvsp[(2) - (2)].str), MSC_POS((yylsp[(2) - (2)])), &msc);
   #endif
     free((yyvsp[(2) - (2)].str));
 }
@@ -4637,7 +4637,7 @@ yyreduce:
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
     csh.CheckEntityHintAfter((yylsp[(2) - (2)]), yylloc, yychar==YYEOF);
   #else
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), MSC_POS((yylsp[(1) - (2)])), NULL, MSC_POS((yylsp[(2) - (2)])), &msc);
+    (yyval.arcbox) = new ArcBox((yyvsp[(2) - (2)].arctype), (yyvsp[(1) - (2)].str), MSC_POS((yylsp[(1) - (2)])), NULL, MSC_POS((yylsp[(2) - (2)])), &msc);
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -4652,7 +4652,7 @@ yyreduce:
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
     csh.CheckEntityHintAfter((yylsp[(1) - (1)]), yylloc, yychar==YYEOF);
   #else
-    (yyval.arcemph) = new ArcEmphasis((yyvsp[(1) - (1)].arctype), NULL, MSC_POS((yylsp[(1) - (1)])), NULL, MSC_POS((yylsp[(1) - (1)])), &msc);
+    (yyval.arcbox) = new ArcBox((yyvsp[(1) - (1)].arctype), NULL, MSC_POS((yylsp[(1) - (1)])), NULL, MSC_POS((yylsp[(1) - (1)])), &msc);
   #endif
 }
     break;

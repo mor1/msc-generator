@@ -43,14 +43,15 @@ ADD: Context menu to editor (track one, tracking mode, find, replace, Style expl
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.1
+BUG: Single click do not see flash-up. Add mechanism to keep single-click objects in trackrects, while inside them
 BUG: thick lines with dot mid do not show in WMF
 BUG: FullScreen view should not allow modification
 FIX: hinting is bad for entity attributes inside a group.
 FIX: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)
 ADD: indicator chart option and context element. PostParseProcess shall return indicators instead of NULL, when appropriate.
 ADD: Collapse attribute to boxes (not pipe), add control (collapse and collapse_to_block_arrow) to boxes and add collapse to Box::PostParseProcess
-CHANGE:Rename Emphasis to Box in c++ code
 DOC: all the changes
+CHANGED:Rename Emphasis to Box in c++ code
 ADDED: Grouping of entities, collapsed_entity + expanded_entity style.
 FIXED: vline was quite much ignored.
 

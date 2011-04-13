@@ -178,12 +178,14 @@ public:
     EIterator EntityMinByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, true);}
     EIterator EntityMaxByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, false);}
     EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
+    EIterator FindLeftRightDescendant(EIterator, bool left, bool stop_at_collapsed);
     EIterator FindActiveParentEntity(EIterator);
-    EIterator FindLeftRightmostChildren(EIterator, bool left);
+    EIterator FindWhoIsShowingInsteadOf(EIterator, bool left);
     string ListGroupedEntityChildren(EIterator ei);
     bool ErrorIfEntityGrouped(EIterator, file_line l);
     bool IsMyParentEntity(const string &children, const string &parent);
     double GetEntityMaxPos() const;
+    double GetEntityMaxPosExp() const;
     void AddArcs(ArcList *a);
     ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
                              const char*d, bool fw, file_line_range dl);

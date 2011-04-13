@@ -1472,9 +1472,11 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type
         const int appear = type == TrackedArc::TRACKRECT ? 300 : 100;
         const int disapp = type == TrackedArc::TRACKRECT ? 300 : 100;
 		m_trackArcs.push_back(TrackedArc(arc, type, delay, appear, disapp));
-        if (type == TrackedArc::CONTROL) 
+        if (type == TrackedArc::CONTROL) {
             m_controlsShowing[arc->GetControlLocation()] = arc;
-        b += arc->GetControlLocation();
+            b += arc->GetControlLocation();
+        } else
+            b += arc->GetAreaToDraw().GetBoundingBox();
     } 
     if (b.IsInvalid()) 
         return true;

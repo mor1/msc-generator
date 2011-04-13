@@ -153,7 +153,7 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ArcList)          *arclist;
     CHAR_IF_CSH(ArcArrow)         *arcarrow;
     CHAR_IF_CSH(ArcVerticalArrow) *arcvertarrow;
-    CHAR_IF_CSH(ArcEmphasis)      *arcemph;
+    CHAR_IF_CSH(ArcBox)           *arcbox;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(MscArcType)        arctype;
     CHAR_IF_CSH(EntityDef)        *entity;

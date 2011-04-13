@@ -29,7 +29,7 @@
     2. AddAttributeList: Add attributes to arc. This function must be called (with NULL if no attributes)
        We have to do this before we can create a list of Active Entities, since attributes can 
        result in the implicit definition of new entities.
-    3. Additional small functions (SetLineEnd, ArcEmphasis::SetPipe, CommandEntity::ApplyPrefix, etc.)
+    3. Additional small functions (SetLineEnd, ArcBox::SetPipe, CommandEntity::ApplyPrefix, etc.)
 
     <parsing ends>
     <here we construct a list of active entities from AllEntities to ActiveEntities>
@@ -161,7 +161,7 @@ void TrackableElement::PostPosProcess(double)
 }
 
 
-const XY TrackableElement::control_size = XY(30, 30);
+const XY TrackableElement::control_size = XY(20, 20);
 
 void TrackableElement::DrawControls(MscCanvas*canvas, double size)
 {
@@ -171,7 +171,7 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
     XY center = control_location.UpperLeft() + control_size/2;
     cairo_translate(cr, center.x, center.y);
     cairo_scale(cr, size, size);
-    MscLineAttr l_rect(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_ROUND, 5);
+    MscLineAttr l_rect(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_ROUND, (control_size.x+control_size.y)/6);
     MscFillAttr f_rect(MscColorType(0,0,0), MscColorType(64,64,64), GRADIENT_DOWN);
     MscShadowAttr s_rect(MscColorType(0,0,0));
     s_rect.offset.first = s_rect.blur.first = true;
@@ -185,7 +185,7 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
         cairo_set_source_rgb(cr, 0,0,0);
         cairo_set_line_width(cr, 2);
         rect.Line(cr);
-        cairo_set_line_width(cr, 8);
+        cairo_set_line_width(cr, (control_size.x+control_size.y)/10);
         cairo_set_source_rgb(cr, 1,0,0);
         cairo_move_to(cr, -control_size.x*0.3, 0);
         cairo_line_to(cr, +control_size.x*0.3, 0);
@@ -746,11 +746,11 @@ ArcBase *ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Number
 
     //OK, now we check if arrow will display correctly
     if (middle.size()) {
-        const bool dir = (*src)->pos < (*dst)->pos; //true for ->, false for <-
-        if (dir != ((*src)->pos < ((*middle[0])->pos))) goto problem;
+        const bool dir = (*src)->pos_exp < (*dst)->pos_exp; //true for ->, false for <-
+        if (dir != ((*src)->pos_exp < ((*middle[0])->pos_exp))) goto problem;
         for (unsigned i=0; i<middle.size()-1; i++)
-            if (dir != ((*middle[i])->pos < (*middle[i+1])->pos)) goto problem;
-        if (dir != (((*middle[middle.size()-1])->pos < (*dst)->pos))) goto problem;
+            if (dir != ((*middle[i])->pos_exp < (*middle[i+1])->pos_exp)) goto problem;
+        if (dir != (((*middle[middle.size()-1])->pos_exp < (*dst)->pos_exp))) goto problem;
         goto no_problem;
 
     problem:
@@ -768,7 +768,7 @@ ArcBase *ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Number
         while (ii!=e.end())
             ss << arrow_string << (*ii++)->name;
         ss << ", but entity order is ";
-        e.SortByPos();
+        e.SortByPosExp();
         ii = e.begin();
         ss << (*ii++)->name;
         while (ii!=e.end())
@@ -813,7 +813,8 @@ ArcBase *ArcDirArrow::PostParseProcess(EIterator &left, EIterator &right, Number
         sub = chart->FindActiveParentEntity(middle[ii]);
         if (middle[ii] == sub) continue;
         //if the replacement parent equals to an end, delete it
-        if (sub == src || sub == dst) {
+        //sub now is an iterator to AllEntities, src and dst is to ActiveEntities
+        if (*sub == *src || *sub == *dst) {
             erase:
             middle.erase(middle.begin()+ii);
             ii++;
@@ -1631,7 +1632,7 @@ void ArcVerticalArrow::Draw()
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
+ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
     content(NULL), follow(true), first(NULL), pipe(false),
@@ -1646,7 +1647,7 @@ ArcEmphasis::ArcEmphasis(MscArcType t, const char *s, file_line_range sl,
             std::swap(src, dst);
 };
 
-ArcEmphasis* ArcEmphasis::SetPipe()
+ArcBox* ArcBox::SetPipe()
 {
     if (!valid) return this;
     pipe = true;
@@ -1665,7 +1666,7 @@ ArcEmphasis* ArcEmphasis::SetPipe()
     return this;
 }
 
-ArcEmphasis::~ArcEmphasis()
+ArcBox::~ArcBox()
 {
     //"this" is also inserted into follow
     //pipes reorder follow so it can be any element
@@ -1678,7 +1679,7 @@ ArcEmphasis::~ArcEmphasis()
 }
 
 
-ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
+ArcBox* ArcBox::AddArcList(ArcList*l)
 {
     if (!valid) return this;
     if (l!=NULL && l->size()>0) {
@@ -1696,7 +1697,7 @@ ArcEmphasis* ArcEmphasis::AddArcList(ArcList*l)
 }
 
 
-bool ArcEmphasis::AddAttribute(const Attribute &a)
+bool ArcBox::AddAttribute(const Attribute &a)
 {
     if (a.type == MSC_ATTR_STYLE) return ArcLabelled::AddAttribute(a);
     if (a.Is("color")) {
@@ -1705,14 +1706,14 @@ bool ArcEmphasis::AddAttribute(const Attribute &a)
     return ArcLabelled::AddAttribute(a);
 }
 
-void ArcEmphasis::AttributeNames(Csh &csh, bool pipe)
+void ArcBox::AttributeNames(Csh &csh, bool pipe)
 {
     ArcLabelled::AttributeNames(csh);
     MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, pipe, true, true, false); //no arrow, vline solid side
     style.AttributeNames(csh);
 }
 
-bool ArcEmphasis::AttributeValues(const std::string attr, Csh &csh, bool pipe)
+bool ArcBox::AttributeValues(const std::string attr, Csh &csh, bool pipe)
 {
     if (CaseInsensitiveEqual(attr,"color")) {
         csh.AddColorValuesToHints();
@@ -1724,7 +1725,7 @@ bool ArcEmphasis::AttributeValues(const std::string attr, Csh &csh, bool pipe)
     return false;
 }
 
-ArcEmphasis* ArcEmphasis::ChangeStyleForFollow(ArcEmphasis* other)
+ArcBox* ArcBox::ChangeStyleForFollow(ArcBox* other)
 {
     style.Empty();
     if (other)
@@ -1734,7 +1735,7 @@ ArcEmphasis* ArcEmphasis::ChangeStyleForFollow(ArcEmphasis* other)
     return this;
 }
 
-ArcEmphasis* ArcEmphasis::AddFollow(ArcEmphasis*f)
+ArcBox* ArcBox::AddFollow(ArcBox*f)
 {
     _ASSERT(f);
     if (f==NULL) return this;
@@ -1763,7 +1764,7 @@ ArcEmphasis* ArcEmphasis::AddFollow(ArcEmphasis*f)
     return this;
 }
 
-string ArcEmphasis::Print(int ident) const
+string ArcBox::Print(int ident) const
 {
     string ss;
     ss << string(ident*2, ' ');
@@ -1780,7 +1781,7 @@ struct pipe_compare
     const Msc *chart;
     bool fromright;
     pipe_compare(const Msc *c, bool fr) : chart(c), fromright(fr) {}
-    bool operator ()(const ArcEmphasis *p1, const ArcEmphasis *p2) const {
+    bool operator ()(const ArcBox *p1, const ArcBox *p2) const {
         EIterator min1 = chart->EntityMinMaxByPos(p1->src, p1->dst, fromright);
         EIterator min2 = chart->EntityMinMaxByPos(p2->src, p2->dst, fromright);
         if (min1==min2) return false; //equals are not less
@@ -1789,7 +1790,7 @@ struct pipe_compare
 };
 
 //will only be called for the first box of a multi-segment box series
-ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
+ArcBase* ArcBox::PostParseProcess(EIterator &left, EIterator &right,
                                        Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
@@ -1826,21 +1827,13 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
         //inside the content and no enity specified at emph declaration.
         //In this case emph box spans to leftmost and rightmost entity in chart.
         //At PostParse "Entities" is already sorted by pos values
-        //we only do this step if we are the first in an Emphasis box series.
+        //we only do this step if we are the first in a box series.
         if (*src==chart->NoEntity) src = ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
         if (*dst==chart->NoEntity) dst = -- --chart->AllEntities.end();    //rightmost entity (before (right)
 
         //Now convert src and dst to an iterator pointing to ActiveEntities
-        EIterator sub1 = chart->FindActiveParentEntity(src);
-        EIterator sub2 = chart->FindActiveParentEntity(dst);
-        //if src (or dst) is visible, look up their leftmost/rightmost 
-        //active children (if any)
-        if (sub1 == src) 
-            while ((*sub1)->children_names.size() && !(*sub1)->collapsed)
-                sub1 = chart->FindLeftRightmostChildren(sub1, true);
-        if (sub2 == dst) 
-            while ((*sub2)->children_names.size() && !(*sub2)->collapsed)
-                sub2 = chart->FindLeftRightmostChildren(sub2, false);
+        EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);
+        EIterator sub2 = chart->FindWhoIsShowingInsteadOf(dst, false);
 
         //if box spans a single entity and both ends have changed, 
         //we kill this box 
@@ -1891,34 +1884,34 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
         if ((*i)->src != chart->EntityMinByPos((*i)->src, (*i)->dst))
             swap((*i)->src, (*i)->dst);
         last = (*i)->dst;
-
     }
 
     //Now check that segments sanity
-    for (auto i = follow.begin(); i!=follow.end(); i++) {
-        auto i_prev = i, i_next = i;
-        if (i!=follow.begin()) i_prev--; 
-        if (i!=--follow.end()) i_next++;
-        const EIterator loc_src = chart->FindLeftRightmostChildren((*i)->src, true);
-        const EIterator loc_dst = chart->FindLeftRightmostChildren((*i)->dst, false);
-        const EIterator next_src = chart->FindLeftRightmostChildren(i_next!=follow.end() ? (*i_next)->src : (*i)->src, true);
-        const EIterator prev_dst = chart->FindLeftRightmostChildren(i_prev!=follow.end() ? (*i_prev)->dst : (*i)->dst, false);
+    if (follow.size()>1) 
+        for (auto i = follow.begin(); i!=follow.end(); i++) {
+            auto i_prev = i, i_next = i;
+            if (i!=follow.begin()) i_prev--; 
+            if (i!=--follow.end()) i_next++;
+            const EIterator loc_src = chart->FindLeftRightDescendant((*i)->src, true, false);
+            const EIterator loc_dst = chart->FindLeftRightDescendant((*i)->dst, false, false);
+            const EIterator next_src = chart->FindLeftRightDescendant(i_next!=follow.end() ? (*i_next)->src : (*i)->src, true, false);
+            const EIterator prev_dst = chart->FindLeftRightDescendant(i_prev!=follow.end() ? (*i_prev)->dst : (*i)->dst, false, false);
 
-        if (loc_src == loc_dst && (
-              (i_prev!=follow.end() && prev_dst != loc_src) ||
-              (i_next!=follow.end() && next_src != loc_dst)
-              )) {
-            chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to a neighbouring segments but spans only a single entity."
-                " Segment cannot be shown. Ignoring pipe.");
-            valid = false;
-            return NULL;
+            if (loc_src == loc_dst && (
+                  (i_prev!=follow.end() && prev_dst != loc_src) ||
+                  (i_next!=follow.end() && next_src != loc_dst)
+                  )) {
+                chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to a neighbouring segments but spans only a single entity."
+                    " Segment cannot be shown. Ignoring pipe.");
+                valid = false;
+                return NULL;
+            }
+            if ((i_prev!=follow.end() && chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) ||
+                (i_next!=follow.end() && chart->EntityMinByPos(next_src, loc_dst) != loc_dst))
+                    chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
+                    " It may not look so good.",
+                    "Encapsulate one in the other if you want that effect.");
         }
-        if ((i_prev!=follow.end() && chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) ||
-            (i_next!=follow.end() && chart->EntityMinByPos(next_src, loc_dst) != loc_dst))
-                chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
-                " It may not look so good.",
-                "Encapsulate one in the other if you want that effect.");
-    }
     //All the above operations were checked on AllEntities. We have accepted the pipe
     //as valid here and should not complain no matter what entities are collapsed or not
 
@@ -1932,16 +1925,8 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
     //If all disappear, we just return the content in an ArcParallel
     //Do one pass of checking
     for (auto i = follow.begin(); i!=follow.end(); /*none*/) {
-        EIterator sub1 = chart->FindActiveParentEntity((*i)->src);
-        EIterator sub2 = chart->FindActiveParentEntity((*i)->dst);
-        //if src (or dst) is visible, look up their leftmost/rightmost 
-        //active children (if any)
-        if (sub1 == (*i)->src) 
-            while ((*sub1)->children_names.size() && !(*sub1)->collapsed)
-                sub1 = chart->FindLeftRightmostChildren(sub1, true);
-        if (sub2 == (*i)->dst) 
-            while ((*sub2)->children_names.size() && !(*sub2)->collapsed)
-                sub2 = chart->FindLeftRightmostChildren(sub2, false);
+        EIterator sub1 = chart->FindWhoIsShowingInsteadOf((*i)->src, true);
+        EIterator sub2 = chart->FindWhoIsShowingInsteadOf((*i)->dst, false);
 
         //if pipe segment spans a single entity and both ends have changed, 
         //we kill this segment
@@ -2031,12 +2016,12 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
     //save drawing cost (and potential fallback img)
     //only first pipe can have content (which becomes the content of all pipe)
     if (!content || content->size() == 0)
-        for (PtrList<ArcEmphasis>::iterator i = follow.begin(); i!=follow.end(); i++)
+        for (PtrList<ArcBox>::iterator i = follow.begin(); i!=follow.end(); i++)
             (*i)->style.solid.second = 255;
 
     //if we have killed "this" copy "follow", "content" to first guy and replace us
     if (killed_this) {
-        ArcEmphasis *ret = *follow.begin();
+        ArcBox *ret = *follow.begin();
         ret->follow = follow;
         follow.clear();
         ret->first = NULL;
@@ -2052,7 +2037,7 @@ ArcBase* ArcEmphasis::PostParseProcess(EIterator &left, EIterator &right,
 }
 
 //will only be called for the first box of a multi-segment box series
-void ArcEmphasis::Width(EntityDistanceMap &distances)
+void ArcBox::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
     if (pipe) {
@@ -2180,7 +2165,7 @@ void ArcEmphasis::Width(EntityDistanceMap &distances)
 }
 
 //Will only be called for the first box of a multi-segment box/pipe series
-double ArcEmphasis::Height(AreaList &cover)
+double ArcBox::Height(AreaList &cover)
 {
     if (!valid) return 0;
     if (pipe) {
@@ -2468,7 +2453,7 @@ double ArcEmphasis::Height(AreaList &cover)
     return yPos + total_height + style.shadow.offset.second + chart->emphVGapOutside;
 }
 
-void ArcEmphasis::ShiftBy(double y)
+void ArcBox::ShiftBy(double y)
 {
     if (!valid) return;
     if (y==0) return;
@@ -2492,7 +2477,7 @@ void ArcEmphasis::ShiftBy(double y)
 }
 
 //Will only be called for the first box of a multi-segment box series
-void ArcEmphasis::PostPosProcess(double autoMarker)
+void ArcBox::PostPosProcess(double autoMarker)
 {
     if (!valid) return;
     if (pipe) {
@@ -2562,7 +2547,7 @@ void ArcEmphasis::PostPosProcess(double autoMarker)
 //backside is the small oval visible form the back of the pipe
 //this->yPos is the outer edge of the top line
 //this->left_space and right_space includes linewidth
-void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text,
+void ArcBox::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text,
                            double next_lw)
 {
     if (shadow) {
@@ -2631,7 +2616,7 @@ void ArcEmphasis::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bo
         parsed_label.Draw(chart->GetCanvas(), sx_text, dx_text, y_text);
 }
 
-void ArcEmphasis::Draw()
+void ArcBox::Draw()
 {
     if (!valid) return;
     if (pipe) {
@@ -2692,7 +2677,7 @@ void ArcEmphasis::Draw()
             if (i==follow.begin())
                 sy -= lw;
             //Increase the fill area downward by half of the linewidth below us
-            PtrList<ArcEmphasis>::const_iterator next = i;
+            PtrList<ArcBox>::const_iterator next = i;
             next++;
             if (next==follow.end())
                 dy += style.line.width.second/2.;
@@ -3187,20 +3172,8 @@ ArcBase* CommandEntity::PostParseProcess(EIterator &left, EIterator &right, Numb
     //Go through them and update left, right and the entities' maxwidth
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
         if (!(*i_def)->shown) continue;
-        if ((*(*i_def)->itr)->children_names.size() && !(*(*i_def)->itr)->collapsed) {
-            EIterator j_ent = (*i_def)->itr;
-            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
-                j_ent = chart->FindLeftRightmostChildren(j_ent, true);
-            left = chart->EntityMinByPos(left, j_ent);
-            j_ent = (*i_def)->itr;
-            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
-                j_ent = chart->FindLeftRightmostChildren(j_ent, false);
-            right = chart->EntityMaxByPos(right, j_ent);
-        } else {
-            //for non-grouped or collapsed entities
-            left = chart->EntityMinByPos(left, (*i_def)->itr);
-            right = chart->EntityMaxByPos(right, (*i_def)->itr);
-        }
+        left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf((*i_def)->itr, true));
+        right = chart->EntityMaxByPos(right, chart->FindWhoIsShowingInsteadOf((*i_def)->itr, false));
         double w = (*i_def)->Width();
         if ((*(*i_def)->itr)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
     }
@@ -3234,17 +3207,12 @@ void CommandEntity::Width(EntityDistanceMap &distances)
             //grouped entity, which is not collapsed
             //find leftmost and rightmost active entity 
             //and expand us by linewidth and space
-            EIterator j_ent = (*i)->itr;
+            const EIterator j_ent = (*i)->itr;
             double expand = chart->emphVGapInside + (*i)->style.line.LineWidth();
-            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
-                j_ent = chart->FindLeftRightmostChildren(j_ent, true);
-            (*i)->left_ent = j_ent;
-            (*i)->left_offset = dist[(*j_ent)->index].first += expand; 
-            j_ent = (*i)->itr;
-            while ((*j_ent)->children_names.size() && !(*j_ent)->collapsed) 
-                j_ent = chart->FindLeftRightmostChildren(j_ent, false);
-            (*i)->right_ent= j_ent;
-            (*i)->right_offset = dist[(*j_ent)->index].second += expand; 
+            (*i)->left_ent = chart->FindWhoIsShowingInsteadOf(j_ent, true);
+            (*i)->right_ent= chart->FindWhoIsShowingInsteadOf(j_ent, false);
+            (*i)->left_offset = dist[(*(*i)->left_ent)->index].first += expand; 
+            (*i)->right_offset = dist[(*(*i)->right_ent)->index].second += expand; 
 
             //Insert a requirement between left_ent and right_ent, so that our width will fit (e.g., long text)
             distances.Insert((*(*i)->left_ent)->index, (*(*i)->right_ent)->index,
