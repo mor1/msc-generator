@@ -8,11 +8,11 @@
 #include "error.h" //for file_line
 #include "contour_area.h" //for file_line
 
-typedef enum MscControlType {
+typedef enum {
     MSC_CONTROL_INVALID,
     MSC_CONTROL_EXPAND,
     MSC_CONTROL_COLLAPSE
-};
+} MscControlType;
 
 class Msc;
 class MscCanvas;

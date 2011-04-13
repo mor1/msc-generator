@@ -35,6 +35,7 @@ public:
     const string     orig_label; //the text the user specified for label (for error msgs)
     const file_line  file_pos; //Where the entity was initially defined
     double           pos;      // 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
+    const double     pos_exp;  // position if all entities were expanded (for a->b->c sanity checking)
     unsigned         index;    // counts entities left to right
     EntityStatusMap  status;   // contains vertical line status & type & color
     MscStyle         running_style;  //Used during PostParse process to make EntityDef::style's fully specified
@@ -45,7 +46,7 @@ public:
     std::set<string> children_names; //if we are an entity group, tells who are within us
     const bool       collapsed;      //true if we are group, but show collapsed
 
-    Entity(const string &n, const string &l, const string &ol, double p, 
+    Entity(const string &n, const string &l, const string &ol, double p, double pe,
            const MscStyle &entity_style, const file_line &fp, bool coll);
     void AddChildrenList(const EntityDefList *children, Msc *chart);
     virtual ~Entity() {};
@@ -73,6 +74,7 @@ class EntityList : public PtrList<Entity>
         }
 
         void SortByPos(void);
+        void SortByPosExp(void);
 };
 typedef EntityList::const_iterator EIterator;
 

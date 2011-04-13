@@ -1273,7 +1273,7 @@ bool MscBase::CreateContextAndCanvasFromSurface(MscCanvas::OutputType ot, XY sca
     }
     cairo_translate(context, -origOffset.x, -origOffset.y);
 
-    canvas = new MscCanvas(context, ot, sqrt(scale.x*scale.y), Block(0,0, origSize.x,origSize.y));
+    canvas = new MscCanvas(context, ot, sqrt(scale.x*scale.y), Block(0, origSize.x, 0, origSize.y));
     return true;
 }
 

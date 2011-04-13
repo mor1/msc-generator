@@ -255,14 +255,14 @@ Msc::Msc() :
 
     std::set<string> children_names;
     //Add virtual entities
-    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, 
+    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, -1001,
                                 Contexts.back().styles["entity"], file_line(), false);
     AllEntities.Append(entity);
     NoEntity = *AllEntities.begin();
-    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, 
+    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, -1000,
                         Contexts.back().styles["entity"], file_line(), false);
     AllEntities.Append(entity);
-    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 
+    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 10000,
                         Contexts.back().styles["entity"], file_line(), false);
     AllEntities.Append(entity);
 }
@@ -334,6 +334,21 @@ EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
     return ei;
 }
 
+//ei is points to AllEntities. If grouped we return its leftmost or rightmost descendant
+//which may be several groups below. If stop_at_collapsed is true, we do not go down to
+//the descendants of a collapsed entity, if false, we treat as if all entities were expanded
+EIterator Msc::FindLeftRightDescendant(EIterator ei, bool left, bool stop_at_collapsed)
+{
+    while ((*ei)->children_names.size() && !(stop_at_collapsed && (*ei)->collapsed)) {
+        if ((*ei)->children_names.size()==0) break;
+        EIterator tmp = AllEntities.Find_by_Name(*(*ei)->children_names.begin());
+        for (auto i = ++(*ei)->children_names.begin(); i!=(*ei)->children_names.end(); i++)
+            tmp = EntityMinMaxByPos(tmp, AllEntities.Find_by_Name(*i), left);
+        ei = tmp;
+    }
+    return ei;
+}
+
 //Searches in AllEntities for the highest parent of i which is collapsed and return it
 //If no parent is collapsed, it returns i.
 //In essence it tells, which entity is shown on the chart for i
@@ -349,14 +364,14 @@ EIterator Msc::FindActiveParentEntity(EIterator i)
     return i; //our parent would show and is not collapsed: we show up
 }
 
-//ei is points to AllEntities. If grouped we return its leftmost or rightmost children
-EIterator Msc::FindLeftRightmostChildren(EIterator ei, bool left)
+//If a parent of "ei" is collapsed, return that
+//if "ei" is an expanded group entity with no parents collapsed, return the laft/rightmost descendant
+//that shows
+EIterator Msc::FindWhoIsShowingInsteadOf(EIterator ei, bool left)
 {
-    if ((*ei)->children_names.size()==0) return ei;
-    EIterator ret = AllEntities.Find_by_Name(*(*ei)->children_names.begin());
-    for (auto i = ++(*ei)->children_names.begin(); i!=(*ei)->children_names.end(); i++)
-        ret = EntityMinMaxByPos(ret, AllEntities.Find_by_Name(*i), left);
-    return ret;
+    EIterator sub = FindActiveParentEntity(ei);
+    if (sub != ei) return sub; //a parent of ours show instead of us
+    return FindLeftRightDescendant(sub, left, true); //a child of us shows
 }
 
 
@@ -396,6 +411,17 @@ double Msc::GetEntityMaxPos() const
         if ((*i)->name != NONE_ENT_STR && (*i)->name != LSIDE_ENT_STR && 
             (*i)->name != RSIDE_ENT_STR && ret < (*i)->pos)
             ret = (*i)->pos;
+    return ret;
+}
+            
+//Get the "pos_exp" of the highest entity (without leftside, rightside and noentity)
+double Msc::GetEntityMaxPosExp() const
+{
+    double ret = -1;  //first entity will be return + 1, which will be zero 
+    for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
+        if ((*i)->name != NONE_ENT_STR && (*i)->name != LSIDE_ENT_STR && 
+            (*i)->name != RSIDE_ENT_STR && ret < (*i)->pos_exp)
+            ret = (*i)->pos_exp;
     return ret;
 }
             
