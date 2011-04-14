@@ -1,0 +1,69 @@
+msc=round_green;
+hscale=auto, compress=no, numbering = yes;
+numbering.format="123";
+MD, eNB, MDE, MDA, MDGW;
+
+pipe MDA==MDA: \iPre-configured with
+          UE ID and long-term key [number=no, line.width=1, fill.color=black, fill.gradient=down];
+
+..: LTS (Long-Term Session) Setup Procedure {
+    MD->eNB: LTS Setup Req (\N)
+             \-MD perm ID, security capabilities;
+    eNB--eNB: Select close MDE
+              Keep RRC to MD;
+    eNB->MDE: LTS Setup Req
+              \-MD perm ID, security capabilities;
+    MDE--MDE: Check if security\ncapabilities match;
+    MDE->MDA: LTS Setup Req
+              \-MD perm ID, eNB ID;
+    MDA--MDA: Check if security\ncapabilities match;
+    --: Security procedure [number=yes, line.radius=0, line.color="(200,255,255)", fill.color="(200,255,255)"] {
+        numbering.append = ".123";
+        #numbering.format = "123";
+        MDA--MDA: Create challenge\n(maybe puzzle, too);
+        MDA->MDE: MD Auth Req  (\N)
+                  \-MD perm ID, challenge, eNB-ID;
+        MDE->eNB->MD: MD Auth Req
+                      \-MD perm ID, challenge;
+        MD--MD: Calculate response
+                and MSK;
+        MD->eNB: MD Auth Resp
+                 \-MD perm ID, response;
+        eNB->MDE-MDA: MD Auth Resp
+                      \-MD perm ID, response, eNB ID;
+        MDA--MDA: Verify response
+                  Calculate MSK
+                  Look Up MDGW;
+    };
+    MDA->MDE: MD Auth Success
+              \-MD perm ID, MSK, eNB ID, MDGW ID
+              Security capabilities of MD,
+              Selected sec algorithms;
+    MDE--MDE: Create LTS Context;
+    MDE->eNB-MD: MD Auth Success
+                 \-MD perm ID, MSK(MD soft ID),
+                 Selected sec algorithm;
+    MDE->MDGW: Location Update
+                \-MD perm ID, MD soft ID;
+    MDGW--MDGW: Store Location;
+    MDE<-MDGW: Location Update Ack;
+};
+
+..: Uplink transmission {
+    MD->eNB: Uplink Data
+             \-MD soft ID, MSK(data), seq
+             MDE ack flag;
+    MD<<eNB: RLC ack;
+    eNB--eNB: Look up MDE;
+    eNB--eNB: Keep RRC open
+              if MDE ack flag;
+    eNB->MDE: Uplink Data
+             \-MD soft ID, MSK(data), seq
+             MDE ack flag;
+    MDE--MDE: Decrypt, check CRC;
+    MD<<eNB-MDE: Ack
+                 \-MD soft ID, seq, signed by MSK;
+    parallel eNB++eNB: Release RRC;
+    MDE->MDGW: Uplink Data\n\-MD soft ID, data;
+    MDE<-MDGW: Ack;
+};
