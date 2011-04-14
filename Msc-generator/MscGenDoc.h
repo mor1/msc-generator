@@ -161,7 +161,7 @@ public:
 	bool DoFading();                                     //Do one step fading. Return true if there are still elements in the process of fading
 	bool AddTrackArc(TrackableElement *, 
                  TrackedArc::ElementType, int delay=-1); //Add a tracking element to the list. Updates Views if needed & rets ture if so
-	void StartFadingAll();                               //Start the fading process for all rectangles (even for delay<0)
+	void StartFadingAll(const TrackableElement *except); //Start the fading process for all rectangles (even for delay<0, except one)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 	void HighLightArc(const TrackableElement *arc);      //Select in internal editor

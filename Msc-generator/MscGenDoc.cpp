@@ -867,7 +867,7 @@ void CMscGenDoc::DoViewNexterror(bool next)
 
     //Turn tracking off
 	if (m_bTrackMode) SetTrackMode(false);
-	else StartFadingAll();
+	else StartFadingAll(NULL);
 
     //exit if we do not know the location of the error
     if (cursel >= pOutputView->error_pos.size() || cursel<0) return;
@@ -1287,7 +1287,7 @@ void CMscGenDoc::OnInternalEditorChange()
 	if (m_bTrackMode) 
 		SetTrackMode(false);
 	else 
-		StartFadingAll();
+		StartFadingAll(NULL);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	ASSERT(pApp->IsInternalEditorRunning());
@@ -1320,7 +1320,7 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	int line, col;
 	pApp->m_pWndEditor->m_ctrlEditor.ConvertPosToLineCol(start, line, col);
 	//Add new track arc and update the views if there is a change
-	StartFadingAll();
+	StartFadingAll(NULL);
 	AddTrackArc(m_ChartShown.GetArcByLine(line+1, col+1), TrackedArc::TRACKRECT); 
 }
 
@@ -1489,10 +1489,11 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type
 }
 
 //Start the fading process for all rectangles (even for delay<0)
-void CMscGenDoc::StartFadingAll() 
+void CMscGenDoc::StartFadingAll(const TrackableElement *except) 
 {
 	for (std::vector<TrackedArc>::iterator i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) 
-		i->status = TrackedArc::FADING;
+        if (i->arc != except)
+            i->status = TrackedArc::FADING;
 	//If fading in progress we exit
 	POSITION pos = GetFirstViewPosition();
 	while(pos) 
@@ -1509,7 +1510,7 @@ void CMscGenDoc::SetTrackMode(bool on)
 	m_bTrackMode = on;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	StartFadingAll(); //Delete trackrects from screen (even if turned on)
+	StartFadingAll(NULL); //Delete trackrects from screen (even if turned on)
 	if (on) {
 		SyncShownWithEditing("turn tracking on");
 		//We have already saved the internal editor selection state into m_saved_charrange in MscGenView::OnLButtonUp
@@ -1531,14 +1532,13 @@ void CMscGenDoc::SetTrackMode(bool on)
 //if not, we only check for controls
 void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
-    //Start fading all controls and track rectangles
-	StartFadingAll();
+    //Start fading all controls and track rectangles, except the one under cursor
+	TrackableElement *arc = m_ChartShown.GetArcByCoordinate(mouse);
+	StartFadingAll(arc); 
     //re-add those controls which are under mouse
     for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
         if (i->first.IsWithin(XY(mouse.x, mouse.y)) == WI_INSIDE)
             AddTrackArc(i->second, TrackedArc::CONTROL);
-    //re-add any control for elements under mouse
-	TrackableElement *arc = m_ChartShown.GetArcByCoordinate(mouse);
     if (arc && arc->GetControls().size()) 
         AddTrackArc(arc, TrackedArc::CONTROL);
     //if we do not display tracking rectangles, exit

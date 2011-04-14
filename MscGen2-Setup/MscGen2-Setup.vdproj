@@ -39,14 +39,20 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_47BE96F99D364D269EF83E9F4173A734"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
-        "OwnerKey" = "8:_UNDEFINED"
+        "MsmKey" = "8:_7CA696FAF90C450899EDA01055F64273"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_7CA696FAF90C450899EDA01055F64273"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -69,13 +75,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_D4EABB515EED4222BC83CF4D09BE458C"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_D4EABB515EED4222BC83CF4D09BE458C"
+        "MsmKey" = "8:_C8D7EB5084D14853B39FEACE673E1A2B"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -502,15 +502,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
-        "ProductCode" = "8:{79C56C4C-34CA-483D-8996-3A694E394C5A}"
-        "PackageCode" = "8:{86BE0563-6AD5-4E06-9EFA-306BED2FF65A}"
+        "ProductCode" = "8:{374389E7-5E9D-4AEA-BB39-530E5B63B56A}"
+        "PackageCode" = "8:{B7ECAEE8-5BA8-4608-956B-1E17379C8392}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:3.1.0"
+        "ProductVersion" = "8:3.1.1"
         "Manufacturer" = "8:Zoltan Turanyi"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1968,11 +1968,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_47BE96F99D364D269EF83E9F4173A734"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_7CA696FAF90C450899EDA01055F64273"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_DebugMFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
                 "Properties"
                 {
                 }
@@ -1982,11 +1982,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_D4EABB515EED4222BC83CF4D09BE458C"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_C8D7EB5084D14853B39FEACE673E1A2B"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_DebugCRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
                 "Properties"
                 {
                 }
@@ -2001,7 +2001,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
             {
-            "SourcePath" = "8:..\\Debug\\msc-gen.exe"
+            "SourcePath" = "8:..\\Release\\msc-gen.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
@@ -2029,7 +2029,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_8D210BB11DE54BFF9295776C6C22707B"
             {
-            "SourcePath" = "8:..\\Debug\\Msc-generator.exe"
+            "SourcePath" = "8:..\\Release\\Msc-generator.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
