@@ -214,6 +214,7 @@
     <ClCompile Include="parse_tools.cpp" />
     <ClCompile Include="stringparse.cpp" />
     <ClCompile Include="style.cpp" />
+    <ClCompile Include="trackable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arcs.h" />

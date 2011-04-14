@@ -803,7 +803,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	} else {
 		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
-			pDoc->StartFadingAll();
+			pDoc->StartFadingAll(NULL);
 			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, delay_before_fade);
 			pDoc->HighLightArc(arc);
 			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());

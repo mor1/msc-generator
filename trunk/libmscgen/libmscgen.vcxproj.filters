@@ -81,6 +81,9 @@
     <ClCompile Include="contour_area.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="trackable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arcs.h">

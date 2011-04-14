@@ -21,6 +21,7 @@ class MscCanvas;
 class TrackableElement {
 protected:
     static const XY control_size;
+    static const XY indicator_size;
     Msc * const chart;
     bool   linenum_final; //true if file_pos below is the final value
     Area   area;          //The area covered by the element...
@@ -45,6 +46,9 @@ public:
     virtual void PostPosProcess(double);
     void DrawControls(MscCanvas*, double size);
     MscControlType WhichControl(const XY &xy);
+
+    static Block GetIndicatorCover(const XY &pos);
+    static void DrawIndicator(const XY &pos, MscCanvas *canvas);
 };
 
 
