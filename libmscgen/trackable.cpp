@@ -20,18 +20,23 @@
 using namespace std;
 
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
-    linenum_final(false),  yPos(0),
-    draw_is_different(false), area_draw_is_frame(false)
+    hidden(false), linenum_final(false),  yPos(0),
+    draw_is_different(false), area_draw_is_frame(false),
+    indicator(false), indicator_style(m->Contexts.back().styles["indicator"])
 {
     area_draw.arc = area.arc = this;
+    control_location.MakeInvalid();
+    if (m && m->Contexts.size()) 
+        indicator = m->Contexts.back().indicator;
 }
 
 
 TrackableElement::TrackableElement(const TrackableElement&o) :
-    linenum_final(o.linenum_final), area(o.area), yPos(o.yPos),
+    hidden(o.hidden), linenum_final(o.linenum_final), area(o.area), yPos(o.yPos),
     area_draw(o.area_draw), draw_is_different(o.draw_is_different),
     area_draw_is_frame(o.area_draw_is_frame), chart(o.chart),
-    controls(o.controls), control_location(o.control_location)
+    controls(o.controls), control_location(o.control_location),
+    indicator(o.indicator)
 {
     area.arc = this;
     area_draw.arc = this;
@@ -55,7 +60,7 @@ void TrackableElement::ShiftBy(double y)
 
 void TrackableElement::PostPosProcess(double)
 {
-    if (!area.IsEmpty()) {
+    if (!area.IsEmpty()&& !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,
         //we still keep the original stuff.
         Area expanded_area = area.CreateExpand(chart->trackExpandBy);
@@ -72,9 +77,10 @@ void TrackableElement::PostPosProcess(double)
         //remove controls if we cannot pinpoint a location for them
         controls.clear();
     }
-    if (draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
+    if (!hidden && draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
         area_draw = area_draw.CreateExpand(chart->trackExpandBy);
-    chart->AllArcs[file_pos] = this;
+    if (!file_pos.IsInvalid())
+        chart->AllArcs[file_pos] = this;
 }
 
 
@@ -126,29 +132,35 @@ MscControlType TrackableElement::WhichControl(const XY &xy)
 }
 
 
-const XY TrackableElement::indicator_size = XY(15, 25);
+const XY TrackableElement::indicator_size = XY(25, 10);
 
+//The outer Edge of indicators
 Block TrackableElement::GetIndicatorCover(const XY &pos)
 {
-    return Block(pos.x-indicator_size.x/2, pos.x+indicator_size.x/2,
-                 pos.y-indicator_size.y/2, pos.y+indicator_size.y/2);
+    Block b(pos.x-indicator_size.x/2, pos.x+indicator_size.x/2,
+            pos.y, pos.y+indicator_size.y);
+    return b.Expand(indicator_style.line.LineWidth()/2);
 }
 
-void TrackableElement::DrawIndicator(const XY &pos, MscCanvas *canvas)
+void TrackableElement::DrawIndicator(XY pos, MscCanvas *canvas)
 {
     if (canvas==NULL) return;
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_BEVEL, 0);
-    MscFillAttr fill(MscColorType(255,255,255), GRADIENT_NONE);
-    MscShadowAttr shadow;
 
+    MscLineAttr line = indicator_style.line;
     Block area = GetIndicatorCover(pos);
-    canvas->Shadow(area, line, shadow);
-    canvas->Fill(area, line, fill);
+    canvas->Shadow(area, line, indicator_style.shadow);
+    area.Expand(-line.LineWidth()+line.width.second/2);
+    line.radius.second -= line.LineWidth()-line.width.second/2;
+    canvas->Fill(area, line, indicator_style.fill);
+    area.Expand(line.LineWidth()/2-line.width.second/2);
+    line.radius.second += line.LineWidth()/2-line.width.second/2;
     canvas->Line(area, line);
 
     cairo_save(canvas->GetContext());
     cairo_set_line_cap(canvas->GetContext(), CAIRO_LINE_CAP_ROUND);
     line.width.second = area.y.Spans()/4;
+    line.type.second = LINE_SOLID;
+    pos.y += indicator_size.y/2;
     canvas->Line(pos, pos, line);
     const XY offset(area.x.Spans()/4, 0);
     canvas->Line(pos-offset, pos-offset, line);

@@ -353,13 +353,13 @@ static const char keyword_names[][ENUM_STRING_LEN] =
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "bye", ""};
 
 static const char opt_names[][ENUM_STRING_LEN] =
-{"msc", "hscale", "compress", "numbering",
+{"msc", "hscale", "compress", "numbering", "indicator", 
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
 "text.color", "text.format", "text.ident", "collapsed", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
-{"compress", "color", "label", "number", 
+{"compress", "color", "label", "number", "indicator",
 "pos", "relative", "show", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",

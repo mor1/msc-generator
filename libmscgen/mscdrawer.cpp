@@ -75,6 +75,7 @@ MscCanvas::MscCanvas(cairo_t *context, OutputType ot, double scale_sh, const Blo
     fake_dash = false; 
     fake_shadows = false;
     fake_spaces = false;
+    needs_arrow_fix = false;
 
 #ifdef CAIRO_HAS_WIN32_SURFACE
     switch (ot) {
@@ -82,6 +83,7 @@ MscCanvas::MscCanvas(cairo_t *context, OutputType ot, double scale_sh, const Blo
         individual_chars = true; //do this so that it is easier to convert to WMF
         use_text_path_rotated = true;
         fake_dash = true;
+        needs_arrow_fix = true;
         //Fallthrough
     case EMF:
         fake_gradients = 30;

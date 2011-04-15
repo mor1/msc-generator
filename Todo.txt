@@ -44,18 +44,18 @@ CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.1
 EntityCollapse issues
-BUG: thick lines with dot mid do not show in WMF
 BUG: FullScreen view should not allow modification
 FIX: hinting is bad for entity attributes inside a group.
 FIX: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)
-ADD: indicator chart option and context element. PostParseProcess shall return indicators instead of NULL, when appropriate.
-FIX: Show indicators in collapsed attributes (but show them upwards)
 DOC: all the changes
 BoxCollapse issues
 ADD: Collapse attribute to boxes (not pipe), add control (collapse and collapse_to_block_arrow) to boxes and add collapse to Box::PostParseProcess
 Done
+ADDED: Show indicators in collapsed attributes (but show them upwards)
+FIXED: thick lines with dot mid do not show in WMF
+ADDED: indicator chart option and context element. PostParseProcess shall return indicators instead of NULL, when appropriate.
 CHANGED:Rename Emphasis to Box in c++ code
-ADDED: Grouping of entities, collapsed_entity + expanded_entity style.
+ADDED: Grouping of entities, collapsed_entity + expanded_entity + indicator style. Also indicator option and attribute.
 FIXED: vline was quite much ignored.
 
 In 3.0

@@ -389,7 +389,7 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "collapsed", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true); //no arrow, solid numbering compress side
     style.AttributeNames(csh);
 
 }
@@ -416,7 +416,7 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true); //no arrow, solid numbering compress side
     if (style.AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -437,7 +437,10 @@ string EntityDef::Print(int ident) const
 //returns how wide the entity is, not including its shadow
 double EntityDef::Width() const
 {
-    const double width = ceil(style.line.LineWidth()*2 + parsed_label.getTextWidthHeight().x);
+    double inner = parsed_label.getTextWidthHeight().x; 
+    if ((*itr)->children_names.size() && indicator && (*itr)->collapsed)
+        inner = std::max(inner, indicator_size.x + 2*chart->emphVGapInside);
+    const double width = ceil(style.line.LineWidth()*2 + inner);
     return width + fmod(width, 2); //always return an even number
 }
 
@@ -447,12 +450,20 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
     const double lw = style.line.LineWidth();
     if (children.size()==0) {
         const double x = chart->XCoord((*itr)->pos); //integer
-        const double width = lw*2 + wh.x;
-        const double height = ceil(chart->headingVGapAbove + wh.y + chart->headingVGapBelow + 2*lw);
+        if ((*itr)->children_names.size() && indicator)
+            indicator_ypos_offset = wh.y + lw;
+        else 
+            indicator_ypos_offset = -1;
+        const double width = Width();
+        const double indicator_height = (indicator_ypos_offset > 0) ? indicator_size.y + chart->emphVGapInside: 0;
+        const double height = ceil(chart->headingVGapAbove + wh.y + indicator_height + chart->headingVGapBelow + 2*lw);
 
         //do not include shadow in anything... but the returned height (uses for non-compressed placement)
-        outer_edge = Block(x-ceil(width/2), x+ceil(width/2), chart->headingVGapAbove, height - chart->headingVGapBelow);
+        outer_edge = Block(x-ceil(width/2), x+ceil(width/2), 
+                           chart->headingVGapAbove - indicator_height, 
+                           height - chart->headingVGapBelow-indicator_height);
     } else {
+        indicator_ypos_offset = -1;
         outer_edge.x.from = chart->XCoord((*left_ent)->pos) - left_offset;
         outer_edge.x.till = chart->XCoord((*right_ent)->pos) + right_offset;
         double top = 0, bottom = 0;
@@ -473,7 +484,7 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
 
 void EntityDef::PostPosProcess(double dummy)
 {
-    if (shown) {
+    if (shown && !hidden) {
         chart->HideEntityLines(outer_edge);
         if ((*itr)->children_names.size()) 
             TrackableElement::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);        
@@ -518,5 +529,9 @@ void EntityDef::Draw()
 
     //Draw text
     parsed_label.Draw(chart->GetCanvas(), b2.x.from, b2.x.till, b2.y.from + lw/2);
+    //Draw indicator
+    if (indicator_ypos_offset > 0)
+        DrawIndicator(XY(outer_edge.CenterPoint().x, outer_edge.y.from + indicator_ypos_offset), 
+                      chart->GetCanvas());
 }
 

@@ -58,6 +58,7 @@ protected:
     bool         fake_shadows; /* Do not use alpha blending in shadows */
     bool         fake_dash; /* Do not use cairo dash, mimic them with individual dashes */
     bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
+    bool         needs_arrow_fix; /*Cannot do the convex clipping for arrowheads */
     
     /* Status of fake dashes */
     double       fake_dash_offset;
@@ -107,6 +108,7 @@ public:
     OutputType GetOutputType() const {return outType;}
     cairo_t *GetContext() const {return cr;}
     const Block &GetExtents() const {return extents;}
+    bool NeedsArrowFix() const {return needs_arrow_fix;}
 
     cairo_line_join_t SetLineJoin(cairo_line_join_t t);
     cairo_line_cap_t SetLineCap(cairo_line_cap_t t);
