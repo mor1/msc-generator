@@ -482,6 +482,11 @@ bool Msc::AddAttribute(const Attribute &a)
         Contexts.back().compress = a.yes;
         return true;
     }
+    if (a.Is("indicator")) {
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        Contexts.back().indicator = a.yes;
+        return true;
+    }
     if (a.StartsWith("text"))
         return Contexts.back().text.AddAttribute(a, this, STYLE_OPTION);
     if (a.Is("numbering")) {
@@ -644,10 +649,11 @@ string Msc::Print(int ident) const
     return s;
 }
 
-void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
+bool Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
+    bool ret = false;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
@@ -666,11 +672,28 @@ void Msc::PostParseProcessArcList(ArcList &arcs, bool resetiterators,
             arcs.erase(j);
             continue; //i remains at this very same CommandEntity!
         }
-        ArcBase *replace = (*i)->PostParseProcess(left, right, number, top_level);
+        bool need_indicator = false;
+        ArcBase *replace = (*i)->PostParseProcess(hide, left, right, number, top_level, need_indicator);
+        //Do not add an ArcIndicator, if previous thing was also an ArcIndicator on the same entity
+        ArcIndicator *ai = dynamic_cast<ArcIndicator*>(replace);
+        if (ai && i!=arcs.begin()) {
+            ArcIndicator *ai2 = dynamic_cast<ArcIndicator*>(*--ArcList::iterator(i));
+            if (ai2 && ai->e == ai2->e)
+                replace = NULL;
+        }
+        ret |= need_indicator;
         if (replace == *i) i++;
-        else if (replace != NULL) (*i++) = replace;
+        else if (replace != NULL) (*i++) = replace; //TODO: Check for ArcIndicators
         else arcs.erase(i++);
     }
+    //We may get need_indicator==true returns from individual arc postparseprocess() calls
+    //if hide == true. In this case only such arcs may remain, which generate no height
+    //such as background change, entity command with no heading, markers, page breaks, etc.
+    //We return true if any actual arcs were removed, which generate height, so that caller
+    //(a box or a parallel) can place an indicator.
+    //Note that if the indicator attribute of all removed arcs are set to "no" none of them
+    //will return indicator_needed==true, so we will also return false
+    return ret;
 }
 
 void Msc::PostParseProcess()
@@ -758,7 +781,7 @@ void Msc::PostParseProcess()
     EIterator dummy1, dummy2;
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
-    PostParseProcessArcList(Arcs, true, dummy1, dummy2, number, true);
+    PostParseProcessArcList(false, Arcs, true, dummy1, dummy2, number, true);
 }
 
 void Msc::DrawEntityLines(double y, double height,

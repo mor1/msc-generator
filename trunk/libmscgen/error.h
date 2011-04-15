@@ -16,6 +16,7 @@ public:
     file_line(unsigned a, unsigned b, unsigned c=0) : file(a), line(b), col(c) {}
     void MakeInvalid() {file = -1;}
     bool IsInvalid() const {return file<0;}
+    bool operator == (const file_line&a) const {return file==a.file && line==a.line && col==a.col;}
     bool operator < (const file_line&a) const {
         if (file==a.file) {
             if (line==a.line)
@@ -47,9 +48,24 @@ public:
 struct file_line_range {
     file_line start;
     file_line end;
-    file_line_range() {}
+    file_line_range() {MakeInvalid();}
     file_line_range(file_line s, file_line e) : start(s), end(e) {}
     file_line_range &IncStartCol(unsigned i=1) {start.col+=i; return *this;}
+    void MakeInvalid() {start.MakeInvalid(); end.MakeInvalid();}
+    bool IsInvalid() const {return start.IsInvalid() || end.IsInvalid();}
+};
+
+struct file_line_range_length_compare
+{
+    bool operator() (const file_line_range &a, const file_line_range &b) const {
+        if (b.end.file - b.start.file == a.end.file - a.start.file) {
+            if (b.end.line - b.start.line == a.end.line - a.start.line) {
+                if (b.end.col - b.start.col == a.end.col - a.start.col)
+                    return a.start<b.start;
+                else return b.end.col - b.start.col > a.end.col - a.start.col;
+            } else return b.end.line - b.start.line > a.end.line - a.start.line;
+        } else return b.end.file - b.start.file > a.end.file - a.start.file;
+    }
 };
 
 struct ErrorElement

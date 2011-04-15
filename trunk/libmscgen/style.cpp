@@ -21,15 +21,16 @@
 
 MscStyle::MscStyle(StyleType tt) : type(tt)
 {
-    f_line=f_vline=f_fill=f_shadow=f_text=f_solid=f_numbering=f_compress=f_side=true;
+    f_line=f_vline=f_fill=f_shadow=f_text=f_solid=f_numbering=f_compress=f_side=f_indicator=true;
     f_arrow=ArrowHead::ANY;
     Empty();
 }
 
 MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
-                   bool so, bool nu, bool co, bool si) :
+                   bool so, bool nu, bool co, bool si, bool i) :
     type(tt), f_arrow(a), f_text(t), f_line(l), f_vline(vl), f_fill(f),
-    f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co), f_side(si)
+    f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
+    f_indicator(i)
 {
     solid.first=so;
     solid.second = 128;
@@ -39,6 +40,8 @@ MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, b
     compress.second = false;
     numbering.first = nu;
     numbering.second = false;
+    indicator.first = i;
+    indicator.second = true;
 }
 
 void MscStyle::Empty()
@@ -53,6 +56,7 @@ void MscStyle::Empty()
     side.first = false;
     compress.first = false;
     numbering.first = false;
+    indicator.first = false;
 }
 
 MscStyle & MscStyle::operator +=(const MscStyle &toadd)
@@ -67,6 +71,7 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     if (toadd.f_side && f_side && toadd.side.first) side = toadd.side;
     if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
     if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
+    if (toadd.f_indicator && f_indicator && toadd.indicator.first) indicator = toadd.indicator;
     return *this;
 }
 
@@ -158,6 +163,17 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         numbering.second = a.yes;
         return true;
     }
+    if (a.Is("indicator") && f_indicator) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, type))
+                compress.first = false;
+            return true;
+        }
+        if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
+        indicator.first = true;
+        indicator.second = a.yes;
+        return true;
+    }
     return false;
 }
 
@@ -176,6 +192,7 @@ void MscStyle::AttributeNames(Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"side", HINT_ATTR_NAME));
     }
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
+    if (f_indicator) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"indicator", HINT_ATTR_NAME));
     if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
     if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
     csh.AddStylesToHints();
@@ -227,7 +244,8 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number: \b0..255\b>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (CaseInsensitiveEqual(attr, "compress") && f_compress) {
+    if ((CaseInsensitiveEqual(attr, "compress") && f_compress) ||
+        (CaseInsensitiveEqual(attr, "indicator") && f_indicator)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
@@ -289,7 +307,7 @@ void Design::Reset()
     colors["lgray"] = MscColorType(200, 200, 200);
 
     styles.clear();
-    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false); //no fill, shadow, vline solid side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false, true); //no fill, shadow, vline solid side
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -307,7 +325,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false);  //no vline solid side
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, true);  //no vline solid side
     style.compress.first = false;
     style.numbering.first = false;
     style.numbering.first = false;
@@ -326,7 +344,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["block=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true);  //no vline solid
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true, false);  //no vline solid indicator
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -359,7 +377,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["vertical=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false); //no arrow, fill, shadow solid side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, true); //no arrow, fill, shadow solid side
     style.compress.first = false;
     style.numbering.first = false;
     style.vline.Empty();
@@ -377,7 +395,7 @@ void Design::Reset()
     style.text.Apply("\\mu(10)\\md(10)");
     styles["..."] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false); //no arrow, vline solid side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true); //no arrow, vline solid side
     style.compress.first = false;
     style.numbering.first = false;
     styles["emptybox"] = style;
@@ -398,7 +416,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true); //no arrow, vline
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, true); //no arrow, vline
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = 5;
@@ -418,7 +436,7 @@ void Design::Reset()
     styles["pipe=="] = style;
 
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false); //no arrow, solid numbering compress side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true); //no arrow, solid numbering compress side
     styles["entity"] = style;
     style.Empty();
     style.type = STYLE_STYLE;
@@ -435,6 +453,10 @@ void Design::Reset()
     style.vline.width.first=true;
     style.vline.width.second=3;
     styles["collapsed_entity"] = style;
+
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false); //fill line shadow only
+    style.line.width.second = 2;
+    styles["indicator"] = style;
 
     style = MscStyle(STYLE_STYLE); //has everything, but is empty
     MscLineAttr line(MscColorType(150,150,150));

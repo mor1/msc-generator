@@ -124,6 +124,7 @@ public:
     mutable EIterator left_ent, right_ent;      //for a grouped entity the left & right active entity (but in AllEntities)
     mutable double left_offset, right_offset;   //for a groupe entity the offset from them (of outer edge of contained entity)
     mutable Block  outer_edge;
+    mutable double indicator_ypos_offset;       //-1 if no indicator to be shown
     explicit EntityDef(const char *s, Msc* chart);
 
     virtual bool AddAttribute(const Attribute&);

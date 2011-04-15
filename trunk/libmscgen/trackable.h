@@ -6,7 +6,8 @@
 #include <cmath>
 #include <utility>
 #include "error.h" //for file_line
-#include "contour_area.h" //for file_line
+#include "contour_area.h" //for Area
+#include "style.h"  //for style
 
 typedef enum {
     MSC_CONTROL_INVALID,
@@ -23,15 +24,19 @@ protected:
     static const XY control_size;
     static const XY indicator_size;
     Msc * const chart;
-    bool   linenum_final; //true if file_pos below is the final value
-    Area   area;          //The area covered by the element...
-    double yPos;          //...drawn at this point
-    Area   area_draw;     //The area to draw when highlighting the element
+    bool   hidden;             //true if we are hidden inside a collapsed box
+    bool   linenum_final;      //true if file_pos below is the final value
+    Area   area;               //The area covered by the element...
+    double yPos;               //...drawn at this point
+    Area   area_draw;          //The area to draw when highlighting the element
     bool   draw_is_different;  //True is area_draw is different from area
     bool   area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
     std::vector<MscControlType> 
-           controls;      //Controls added for this box  
-    Block  control_location; //Top-left corner of controls
+           controls;           //Controls added for this box  
+    Block  control_location;   //Top-left corner of controls
+    bool   indicator;          //If this element is collapsed, shall we show an indicator?
+    const MscStyle 
+           indicator_style;  //The one to be used if we need to replace this with an indicator
 
 public:
     file_line_range file_pos;
@@ -47,8 +52,8 @@ public:
     void DrawControls(MscCanvas*, double size);
     MscControlType WhichControl(const XY &xy);
 
-    static Block GetIndicatorCover(const XY &pos);
-    static void DrawIndicator(const XY &pos, MscCanvas *canvas);
+    Block GetIndicatorCover(const XY &pos);
+    void DrawIndicator(XY pos, MscCanvas *canvas);
 };
 
 

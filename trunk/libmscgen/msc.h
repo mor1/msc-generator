@@ -99,19 +99,6 @@ public:
 
 /////////////////////////////////////////////////////////////////////
 
-struct file_line_range_length_compare
-{
-    bool operator() (const file_line_range &a, const file_line_range &b) const {
-        if (b.end.file - b.start.file == a.end.file - a.start.file) {
-            if (b.end.line - b.start.line == a.end.line - a.start.line) {
-                if (b.end.col - b.start.col == a.end.col - a.start.col)
-                    return a.start<b.start;
-                else return b.end.col - b.start.col > a.end.col - a.start.col;
-            } else return b.end.line - b.start.line > a.end.line - a.start.line;
-        } else return b.end.file - b.start.file > a.end.file - a.start.file;
-    }
-};
-
 class Msc : public MscBase {
 public:
     typedef std::pair<file_line, double> MarkerType;
@@ -161,6 +148,10 @@ public:
     bool         ignore_designs; /* ignore design changes */
     std::map<string,bool> 
                  force_entity_collapse; //these entities must be collapsed/expanded
+    ArcBoxCollapseCatalog 
+                 force_box_collapse;    //These boxes must be collapsed/expanded
+    std::list<BoxAttributes> 
+                 used_from_force_box_collapse; //These ones were used during PostParse
     double       headingSize;
 
     Msc();
@@ -195,7 +186,7 @@ public:
 
     void ParseText(const char *input, const char *filename);
 
-    void PostParseProcessArcList(ArcList &arcs, bool resetiterators, EIterator &left,
+    bool PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess();
     virtual string Print(int ident=0) const;
