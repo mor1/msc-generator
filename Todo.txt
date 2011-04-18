@@ -44,6 +44,7 @@ CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.1
 EntityCollapse issues
+FIX: Indicator should have cover and mainline.
 BUG: FullScreen view should not allow modification
 FIX: hinting is bad for entity attributes inside a group.
 FIX: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)

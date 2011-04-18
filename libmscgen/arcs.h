@@ -99,8 +99,10 @@ class ArcIndicator : public ArcBase
 {
     const MscStyle style;
 public:
-    const EIterator e;  //Shall always point to ActiveEntities
+    const EIterator src;  //Shall always point to ActiveEntities
+    const EIterator dst;  //Shall always point to ActiveEntities
     ArcIndicator(Msc *chart, EIterator s, const MscStyle &st);
+    ArcIndicator(Msc *chart, EIterator s, EIterator d, const MscStyle &st);
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
     virtual double Height(AreaList &cover) {return indicator_size.y;} //No cover
     virtual void Draw();
