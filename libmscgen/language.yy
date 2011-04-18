@@ -139,6 +139,9 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
     CHAR_IF_CSH(ArcArrow)         *arcarrow;
     CHAR_IF_CSH(ArcVerticalArrow) *arcvertarrow;
     CHAR_IF_CSH(ArcBox)           *arcbox;
+    CHAR_IF_CSH(ArcPipe)          *arcpipe;
+    CHAR_IF_CSH(ArcBoxSeries)     *arcboxseries;
+    CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(MscArcType)        arctype;
     CHAR_IF_CSH(EntityDef)        *entity;
@@ -153,8 +156,11 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
 %type <arcvertarrow> vertrel_no_xpos
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
-%type <arcbox>     boxrel box_list pipe_box first_box pipe_def_list pipe_def_list_no_attr
-%type <arcparallel>parallel
+%type <arcbox>     boxrel first_box 
+%type <arcpipe>    first_pipe 
+%type <arcboxseries> box_list 
+%type <arcpipeseries> pipe_list_no_content pipe_list
+%type <arcparallel> parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %type <entitylist> entitylist entity first_entity
 %type <arctype>    relation_to relation_from relation_bidir empharcrel_straight
@@ -182,7 +188,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {if (!C_S_H) delete $$;} vertrel_no_xpos
 %destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
-%destructor {if (!C_S_H) delete $$;} boxrel first_box box_list pipe_box pipe_def_list pipe_def_list_no_attr
+%destructor {if (!C_S_H) delete $$;} boxrel first_box box_list first_pipe pipe_list pipe_list_no_content
 %destructor {if (!C_S_H) delete $$;} parallel
 %destructor {if (!C_S_H) delete $$;} top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %destructor {if (!C_S_H) delete $$;} entity first_entity entitylist
@@ -704,6 +710,13 @@ arc:           arcrel
   #endif
 }
               | box_list
+{
+  #ifdef C_S_H_IS_COMPILED
+  #else
+    $$ = $1; //to remove warning for downcast
+  #endif
+}
+              | pipe_list
 {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -1461,18 +1474,13 @@ parallel:    braced_arclist
 box_list: first_box
 {
   #ifndef C_S_H_IS_COMPILED
-    $$ = $1;
+    $$ = new ArcBoxSeries($1);
   #endif
-}
-           | pipe_box
-{
-    $$ = $1;
 }
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
            | box_list boxrel
 {
   #ifndef C_S_H_IS_COMPILED
-    ($2)->ChangeStyleForFollow();
     ($2)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList(NULL); //should come after AddFollow
@@ -1486,7 +1494,6 @@ box_list: first_box
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ($2)->ChangeStyleForFollow();
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList($3); //should come after AddFollow
@@ -1496,8 +1503,7 @@ box_list: first_box
            | box_list boxrel braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
-    ($2)->AddArcList($3)->ChangeStyleForFollow();
-    ($2)->SetLineEnd(MSC_POS(@2));
+    ($2)->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList(NULL); //should come after AddFollow
   #endif
@@ -1506,7 +1512,7 @@ box_list: first_box
 {
   #ifndef C_S_H_IS_COMPILED
     ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
-    temp->AddArcList($2)->ChangeStyleForFollow($1);
+    temp->AddArcList($2);
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList(NULL); //should come after AddFollow
   #endif
@@ -1519,8 +1525,7 @@ box_list: first_box
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
-    ($2)->SetLineEnd(MSC_POS2(@2, @3));
-    ($2)->AddArcList($4)->ChangeStyleForFollow();
+    ($2)->AddArcList($4)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList($3); //should come after AddFollow
   #endif
@@ -1534,8 +1539,7 @@ box_list: first_box
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
-    temp->SetLineEnd(MSC_POS(@2));
-    temp->AddArcList($3)->ChangeStyleForFollow($1);
+    temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList($2); //should come after AddFollow
   #endif
@@ -1585,7 +1589,8 @@ first_box:   boxrel
   #endif
 };
 
-pipe_def_list_no_attr: TOK_COMMAND_PIPE boxrel
+
+first_pipe: TOK_COMMAND_PIPE boxrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
@@ -1594,36 +1599,11 @@ pipe_def_list_no_attr: TOK_COMMAND_PIPE boxrel
         csh.AddEntitiesToHints();
     }
   #else
-    ($2)->SetPipe()->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@$));
-    $$ = $2;
+    $$ = new ArcPipe($2);
+    ($$)->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@$));
   #endif
     free($1);
 }
-             | pipe_def_list boxrel
-{
-  #ifndef C_S_H_IS_COMPILED
-    ($2)->SetPipe()->ChangeStyleForFollow()->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow($2);
-    ($2)->AddAttributeList(NULL); //should come after AddFollow
-  #endif
-}
-/*             | TOK_COMMAND_PIPE entity_string
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.AddCSH_EntityName(@1, $1);
-    if (csh.CheckHintAtAndBeforePlusOne(@1, @2, HINT_ENTITY)) {
-        csh.hintStatus = HINT_READY;
-        csh.AddEntitiesToHints();
-    }
-    csh.AddCSH_ErrorAfter(@2, "Missing a box symbol.");
-  #else
-    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing a box symbol. Ignoring pipe.");
-    $$ = NULL;
-  #endif
-    free($1);
-    free($2);
-}*/
              | TOK_COMMAND_PIPE error
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1650,27 +1630,58 @@ pipe_def_list_no_attr: TOK_COMMAND_PIPE boxrel
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "The keyword '" + string($1) +"' should be followed by an entity, or '--', '..', '++' or '=='.");
   #endif
     free($1);
+} 
+             | TOK_COMMAND_PIPE boxrel full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintBetweenPlusOne(@1, @2, HINT_ENTITY)) {
+        csh.hintStatus = HINT_READY;
+        csh.AddEntitiesToHints();
+    } else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+        ArcPipe::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+        ArcPipe::AttributeValues(csh.hintAttrName, csh);
+  #else
+    $$ = new ArcPipe($2);
+    ($$)->AddAttributeList($3)->SetLineEnd(MSC_POS(@$));
+  #endif
+    free($1);
 };
 
-pipe_def_list:   pipe_def_list_no_attr
-               | pipe_def_list_no_attr full_arcattrlist_with_label
+pipe_list_no_content: first_pipe 
+{
+  #ifdef C_S_H_IS_COMPILED
+  #else
+    $$ = new ArcPipeSeries($1);
+  #endif
+}
+             | pipe_list_no_content boxrel
+{
+  #ifndef C_S_H_IS_COMPILED
+    ArcPipe *ap = new ArcPipe($2);
+    ap->SetLineEnd(MSC_POS(@2));
+    $$ = ($1)->AddFollow(ap);
+    (ap)->AddAttributeList(NULL); //should come after AddFollow
+  #endif
+}
+             | pipe_list_no_content boxrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME))
-        ArcBox::AttributeNames(csh, true);
+        ArcPipe::AttributeNames(csh);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-        ArcBox::AttributeValues(csh.hintAttrName, csh, true);
+        ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
-    ($1)->GetLastFollow()->AddAttributeList($2);
-    $$ = $1;
+    ArcPipe *ap = new ArcPipe($2);
+    ap->SetLineEnd(MSC_POS(@2));
+    $$ = ($1)->AddFollow(ap);
+    (ap)->AddAttributeList($3); //should come after AddFollow
   #endif
 };
 
-
-
-/* You can add arclist after setpipe safely */
-pipe_box: pipe_def_list
-             | pipe_def_list braced_arclist
+pipe_list: pipe_list_no_content
+         | pipe_list_no_content braced_arclist
 {
   #ifndef C_S_H_IS_COMPILED
     $$ = ($1)->AddArcList($2);

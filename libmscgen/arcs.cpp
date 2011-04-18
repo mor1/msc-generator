@@ -1578,6 +1578,9 @@ void ArcVerticalArrow::Draw()
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+template<> const char EnumEncapsulator<BoxCollapseType>::names[][ENUM_STRING_LEN] =
+    {"no", "yes", "blockarrow", ""};
+
 
 ArcBoxCollapseCatalog::iterator BoxAttributes::WhichIsSimilar(ArcBoxCollapseCatalog &cat) const
 {
@@ -1592,8 +1595,7 @@ ArcBoxCollapseCatalog::iterator BoxAttributes::WhichIsSimilar(ArcBoxCollapseCata
 ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
-    content(NULL), follow(true), first(NULL), pipe(false),
-    drawEntityLines(true), drawing_variant(1), collapsed(BOX_COLLAPSE_EXPAND)
+    content(NULL), drawEntityLines(true), collapsed(BOX_COLLAPSE_EXPAND)
 {
     src = chart->FindAllocEntity(s, sl, &valid);
     dst = chart->FindAllocEntity(d, dl, &valid);
@@ -1602,14 +1604,21 @@ ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
     if (*src!=chart->NoEntity && *dst!=chart->NoEntity)
         if ((*src)->pos > (*dst)->pos) 
             std::swap(src, dst);
-};
-
-ArcBox* ArcBox::SetPipe()
+}
+    
+ArcBoxSeries::ArcBoxSeries(ArcBox *first) : 
+    ArcBase(MSC_EMPH_SOLID, first->chart), drawing_variant(1), series(true)
 {
-    if (!valid) return this;
-    pipe = true;
-    drawEntityLines = false;
-    style = chart->Contexts.back().styles["pipe"];
+    dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
+    series.Append(first);
+}
+
+
+
+ArcPipe::ArcPipe(ArcBox *box) :
+    ArcLabelled(box->type, box->chart, box->chart->Contexts.back().styles["pipe"]),
+    src(box->src), dst(box->dst), drawEntityLines(false)
+{
     switch (type) {
     case MSC_EMPH_SOLID:
         style += chart->Contexts.back().styles["pipe--"]; break;
@@ -1620,39 +1629,28 @@ ArcBox* ArcBox::SetPipe()
     case MSC_EMPH_DOUBLE:
         style += chart->Contexts.back().styles["pipe=="]; break;
     }
-    return this;
 }
-
-ArcBox::~ArcBox()
-{
-    //"this" is also inserted into follow
-    //pipes reorder follow so it can be any element
-    for (auto i=follow.begin(); i!=follow.end(); i++)
-        if (*i == this) {
-            follow.erase(i);
-            break;
-        }
-    delete content;
-}
-
 
 ArcBox* ArcBox::AddArcList(ArcList*l)
 {
     if (!valid) return this;
     if (l!=NULL && l->size()>0) {
-        if (content) {
-            content->insert(content->end(), l->begin(), l->end());
-            l->clear(); //so that l's constructor does not delete Arcs in arclist
-            delete l;
-        } else {
-            content=l;
-        }
+        content.insert(content.end(), l->begin(), l->end());
+        l->clear(); //so that l's constructor does not delete Arcs in arclist
+        delete l;
     }
-    if (!pipe)
-        style += chart->Contexts.back().styles["box"];
-    return this;
+    style += chart->Contexts.back().styles["box"];
 }
 
+ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
+{
+    if (!valid) return this;
+    if (l!=NULL && l->size()>0) {
+        content.insert(content.end(), l->begin(), l->end());
+        l->clear(); //so that l's constructor does not delete Arcs in arclist
+        delete l;
+    }
+}
 
 bool ArcBox::AddAttribute(const Attribute &a)
 {
@@ -1661,53 +1659,100 @@ bool ArcBox::AddAttribute(const Attribute &a)
         return style.fill.AddAttribute(a, chart, style.type);
     }
     if (a.Is("collapsed")) {
-        if (pipe) {
-            chart->Error.Error(a, false, "The 'collapsed' attribute can not be used for pipes.");
+        if (a.EnsureNotClear(chart->Error, STYLE_ARC))
             return true;
-        }
-        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
-        collapsed = a.yes ? BOX_COLLAPSE_COLLAPSE : BOX_COLLAPSE_EXPAND;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, collapsed)) 
+            return true;
+        a.InvalidValueError(CandidatesFor(collapsed), chart->Error);
         return true;
     }
     return ArcLabelled::AddAttribute(a);
 }
 
-void ArcBox::AttributeNames(Csh &csh, bool pipe)
+bool ArcPipe::AddAttribute(const Attribute &a)
 {
-    ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, pipe, true, true, false, true); //no arrow, vline solid side
-    style.AttributeNames(csh);
+    if (a.type == MSC_ATTR_STYLE) return ArcLabelled::AddAttribute(a);
+    if (a.Is("color")) {
+        return style.fill.AddAttribute(a, chart, style.type);
+    }
+    return ArcLabelled::AddAttribute(a);
 }
 
-bool ArcBox::AttributeValues(const std::string attr, Csh &csh, bool pipe)
+void ArcBox::AttributeNames(Csh &csh)
+{
+    ArcLabelled::AttributeNames(csh);
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true); //no arrow, vline solid side
+    style.AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
+}
+
+bool CshHintGraphicCallbackForBoxCollapsed(MscCanvas *canvas, CshHintGraphicParam p)
+{
+    if (!canvas) return false;
+    return true;
+}
+
+bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"color")) {
         csh.AddColorValuesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, pipe, true, true, false, true); //no arrow, vline solid side
+    if (CaseInsensitiveEqual(attr, "collapsed")) {
+        csh.AddToHints(EnumEncapsulator<BoxCollapseType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
+        return true;
+    }
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true); //no arrow, vline solid side
     if (style.AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
 
-ArcBox* ArcBox::ChangeStyleForFollow(ArcBox* other)
+void ArcPipe::AttributeNames(Csh &csh)
 {
-    style.Empty();
-    if (other)
-        style.line = other->style.line;
-    else
-        style.line.type.first = true;
-    return this;
+    ArcLabelled::AttributeNames(csh);
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, true); //no arrow, vline  
+    style.AttributeNames(csh);
 }
 
-ArcBox* ArcBox::AddFollow(ArcBox*f)
+bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"color")) {
+        csh.AddColorValuesToHints();
+        return true;
+    }
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true , true, true, true, true); //no arrow, vline  
+    if (style.AttributeValues(attr, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+//This should be called after adding content to "f', but before adding any attributes
+ArcBoxSeries* ArcBoxSeries::AddFollow(ArcBox *f)
 {
     _ASSERT(f);
     if (f==NULL) return this;
-    if (!f->valid)
+    if (f->valid) {
+        //Use the style of the first box in the series as a base
+        MscStyle s = (*series.begin())->style;
+        //Override with the line type specified (if any)
+        if (f->type != MSC_EMPH_UNDETERMINED_FOLLOW)
+            s += *f->GetRefinementStyle(f->type);
+        f->style = s;
+        //AddAttributeList will be called for "f" after this function
+    } else
         valid = false;
-    if (valid && pipe) {
+    series.Append(f);
+    return this;
+}
+
+//Should be called before AddAttributeList for "f" is called
+ArcPipeSeries* ArcPipeSeries::AddFollow(ArcPipe*f)
+{
+    _ASSERT(f);
+    if (f==NULL) return this;
+    if (f->valid) {
         if (f->style.side.first) {
             f->style.side.first = false;
             chart->Error.Error(f->file_pos.start,
@@ -1720,13 +1765,16 @@ ArcBox* ArcBox::AddFollow(ArcBox*f)
                                "Attribute 'line.radius' can only be specified in the first "
                                "element in a pipe series. Ignoring it in subsequent ones.");
         }
-    }
-    //we do this even if we are valid, so that f will be properly destroyed
-    f->first = this;
-    MscStyle s = style;
-    s += f->style;
-    f->style = s;
-    follow.Append(f);
+        //Use the style of the first box in the series as a base
+        MscStyle s = (*series.begin())->style;
+        //Override with the line type specified (if any)
+        _ASSERT(f->type != MSC_EMPH_UNDETERMINED_FOLLOW);
+        s += *f->GetRefinementStyle(f->type);
+        f->style = s;
+        //AddAttributeList will be called for "f" after this function
+    } else
+        valid = false;
+    series.Append(f);
     return this;
 }
 
@@ -1736,9 +1784,37 @@ string ArcBox::Print(int ident) const
     ss << string(ident*2, ' ');
     ss << (*src)->name << "--" << (*dst)->name;
     if (label.length()>0) ss << ": \"" << label << "\"";
-    if (content)
-        for (ArcList::iterator i = content->begin(); i != content->end(); i++)
-            ss << "\n" << (*i)->Print(ident+1);
+    for (auto i = content.begin(); i != content.end(); i++)
+        ss << "\n" << (*i)->Print(ident+1);
+    return ss;
+}
+
+string ArcBoxSeries::Print(int ident) const
+{
+    string ss(ident*2, ' '); 
+    ss << "Box series");
+    for (auto i = series.begin(); i!=series.end(); i++)
+        ss << "\n" << (*i)->Print(ident+1);
+    return ss;
+}
+
+string ArcPipe::Print(int ident) const
+{
+    string ss;
+    ss << string(ident*2, ' ');
+    ss << (*src)->name << "--" << (*dst)->name;
+    if (label.length()>0) ss << ": \"" << label << "\"";
+    return ss;
+}
+
+string ArcPipeSeries::Print(int ident) const
+{
+    string ss(ident*2, ' '); 
+    ss << "Pipe series");
+    for (auto i = series.begin(); i!=series.end(); i++)
+        ss << "\n" << (*i)->Print(ident+1);
+    for (auto i = content.begin(); i != content.end(); i++)
+        ss << "\n" << (*i)->Print(ident+2);
     return ss;
 }
 
@@ -1755,178 +1831,186 @@ struct pipe_compare
     }
 };
 
-//will only be called for the first box of a multi-segment box series
 ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
-                                       Numbering &number, bool top_level, bool &need_indicator)
+                                  Numbering &number, bool top_level, bool &need_indicator)
+{
+    //Add numbering, if needed
+    ArcLabelled::PostParseProcess(hide, left, right, number, top_level, need_indicator);
+    if (content.size()) {
+        //Search for instructions (from GUI) if we should collapse or expand this box
+        auto force = GetAttributes().WhichIsSimilar(chart->force_box_collapse);
+        if (force != chart->force_box_collapse.end() && collapsed != force->second) {
+            collapsed = force->second;
+            chart->used_from_force_box_collapse.push_back(force->first);
+        }
+        //If we have attached a number to the label of a box, set flag on number,
+        //so that if we add levels inside the content of the box (before displaying any number)
+        //we continue from present value
+        if (style.numbering.second && label.length()!=0)
+            number.decrementOnAddingLevels = true;
+        const bool hide_i = hide || (collapsed!=BOX_COLLAPSE_EXPAND);
+        bool ind = chart->PostParseProcessArcList(hide_i, content, false, left, right, number, top_level);
+        //Collect those boxes, where we need to add an indicator to the content
+        //if "hide" is true, our entire box series will be hidden, so then we do not add indicators
+        //to any boxes.
+        //below condition can only be true if we are not pipe
+        if (ind && !hide) 
+            //We cannot add the indicator here, since we do not know exact src and dst yet
+            //So just add a NULL, and let ArcBoxSeries::PostParseProcess replace them to ArcIndicators
+            content.Append((ArcBase*)NULL);
+        number.decrementOnAddingLevels = false;
+    } else if (collapsed != BOX_COLLAPSE_EXPAND) {
+        chart->Error.Warning(file_pos.start, "Cannot collapse an empty box.", 
+                             "Ignoring 'collapsed' attribute.");
+        collapsed = BOX_COLLAPSE_EXPAND;
+    }
+    
+}
+
+ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+                                        Numbering &number, bool top_level, bool &need_indicator)
 {
     if (!valid) return NULL;
-    //Add ourselves as the first element in follow.
-    follow.push_front(this);
 
-    EIterator e1=src;      //src.pos < dst.pos guaranteed in constructor (if none is NULL)
-    EIterator e2=dst;
-    PtrList<ArcBox> add_indicator;
-    //OK, now expand further if there are following boxes
-    for (auto i = follow.begin(); i!=follow.end(); i++) {
-        //Add numbering, if needed
-        (*i)->ArcLabelled::PostParseProcess(hide, left, right, number, top_level, need_indicator);
-        if ((*i)->content) {
-            if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && follow.size()>1) {
-                chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
-                                   "Collapsing to a box.");
-                (*i)->collapsed = BOX_COLLAPSE_COLLAPSE;
-            }
-            auto force = (*i)->GetAttributes().WhichIsSimilar(chart->force_box_collapse);
-            if (force != chart->force_box_collapse.end() && (*i)->collapsed != force->second) {
-                (*i)->collapsed = force->second;
-                _ASSERT(follow.size()==1 || force->second!=BOX_COLLAPSE_BLOCKARROW);
-                chart->used_from_force_box_collapse.push_back(force->first);
-            }
-            //If we have attached a number to the label of a box, set flag on number,
-            //so that if we add levels inside the content of the box (before displaying any number)
-            //we continue from present value
-            if ((*i)->style.numbering.second && (*i)->label.length()!=0)
-                number.decrementOnAddingLevels = true;
-            const bool hide_i = hide || ((*i)->collapsed!=BOX_COLLAPSE_EXPAND);
-            bool ind = chart->PostParseProcessArcList(hide_i, *((*i)->content), false, e1, e2, number, top_level);
-            //Collect those boxes, where we need to add an indicator to the content
-            //if "hide" is true, our entire box series will be hidden, so then we do not add indicators
-            //to any boxes.
-            //below condition can only be true if we are not pipe
-            if (ind && !hide) {
-                //We cannot add the indicator here, since we do not know exact src and dst yet
-                //So just collect those boxes where we will need to add indicators
-                add_indicator.Append(*i);
-            } else {
-                //Check if content has disappeared (entity collapsing may cause this)
-                if ((*i)->content->size() == 0) {
-                    delete (*i)->content;
-                    (*i)->content = NULL;
-                }
-            } 
-            number.decrementOnAddingLevels = false;
-        } else {
-            if ((*i)->collapsed != BOX_COLLAPSE_EXPAND) {
-                chart->Error.Warning((*i)->file_pos.start, "Cannot collapse an empty box.", 
-                                   "Ignoring 'collapsed' attribute.");
-                (*i)->collapsed = BOX_COLLAPSE_EXPAND;
-            }
+    EIterator src, dst;
+    indicator = false;
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        if ((*i)->content.size() && (*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
+            chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
+                "Collapsing to a box instead.");
+            (*i)->collapsed = BOX_COLLAPSE_COLLAPSE;
         }
+        indicator |= (*i)->indicator;
+        //Add numbering, do content, add NULL for indicators, if needed
+        (*i)->PostParseProcess(hide, src, dst, number, top_level, need_indicator);
     }
 
-    if (!pipe) { /* We are a box */
-        if (*src==chart->NoEntity) src = e1;
-        if (*dst==chart->NoEntity) dst = e2;
+    //Src and dst can still be == NoEntity, if no arcs specified
+    //inside the content and no enity specified at box declaration.
+    //In this case emph box spans to leftmost and rightmost entity in chart.
+    //At PostParse chart->AllEntities is already sorted by pos values
+    //we only do this step if we are the first in a box series.
+    if (*src==chart->NoEntity) src = ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
+    if (*dst==chart->NoEntity) dst = -- --chart->AllEntities.end();    //rightmost entity (before (right)
 
-        //Src and dst can still be == NoEntity, if no arcs specified
-        //inside the content and no enity specified at emph declaration.
-        //In this case emph box spans to leftmost and rightmost entity in chart.
-        //At PostParse "Entities" is already sorted by pos values
-        //we only do this step if we are the first in a box series.
-        if (*src==chart->NoEntity) src = ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
-        if (*dst==chart->NoEntity) dst = -- --chart->AllEntities.end();    //rightmost entity (before (right)
+    //Now convert src and dst to an iterator pointing to ActiveEntities
+    EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);
+    EIterator sub2 = chart->FindWhoIsShowingInsteadOf(dst, false);
 
-        //Now convert src and dst to an iterator pointing to ActiveEntities
-        EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);
-        EIterator sub2 = chart->FindWhoIsShowingInsteadOf(dst, false);
-
-        //if box spans a single entity and both ends have changed, 
-        //we kill this box 
-        const bool we_diappear = sub1==sub2 && sub1!=src && sub2!=dst;
-        if (we_diappear && !indicator) 
-            return NULL;
+    //if box spans a single entity and both ends have changed, 
+    //we kill this box 
+    const bool we_diappear = sub1==sub2 && sub1!=src && sub2!=dst;
+    if (we_diappear && !indicator) 
+        return NULL;
         
-        src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
-        dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
-        _ASSERT(src != chart->ActiveEntities.end()); 
-        _ASSERT(dst != chart->ActiveEntities.end()); 
+    src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
+    dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
+    _ASSERT(src != chart->ActiveEntities.end()); 
+    _ASSERT(dst != chart->ActiveEntities.end()); 
 
-        for (auto i = follow.begin(); i!=follow.end(); i++) 
-            if (std::find(add_indicator.begin(), add_indicator.end(), *i) != add_indicator.end())
-                (*i)->content->Append(new ArcIndicator(chart, src, dst, indicator_style));
-            else if ((*i)->content && (*i)->content->size()==0) {
-                delete (*i)->content;
-                (*i)->content = NULL;
-            }
-
-        //Note that src and dst now point to ActiveEntities: use subX to 
-        //keep left and right to point to AllEntities
-        left = chart->EntityMinByPos(chart->EntityMinByPos(left, sub1), sub2);
-        right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, sub1), sub2);
-        if (hide) {
-            need_indicator = indicator;
-            return NULL;
-        }
-        if (we_diappear) 
-            return new ArcIndicator(chart, src, indicator_style);
-        return this;
+    //Now copy src, dst and indicator to all boxes
+    //Replace NULL in "content" to an ArcIndicator
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        if ((*i)->content.size() && *(*i)->content.rbegin() == NULL)
+            *(*i)->content.rbegin() = new ArcIndicator(chart, src, dst, (*i)->indicator_style);
+        (*i)->src = src;
+        (*i)->dst = dst;
+        (*i)->indicator = indicator;
     }
+    //Note that src and dst now point to ActiveEntities: use subX to 
+    //keep left and right to point to AllEntities
+    left = chart->EntityMinByPos(chart->EntityMinByPos(left, sub1), sub2);
+    right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, sub1), sub2);
+    if (hide) {
+        need_indicator = indicator;
+        return NULL;
+    }
+    if (we_diappear) //we disappear, but leave an indicator: left & right shall be updated
+        return new ArcIndicator(chart, src, indicator_style);
+    return this;
+}
 
-    /* We are pipe */
+ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+                                        Numbering &number, bool top_level, bool &need_indicator)
+{
+    if (!valid) return NULL;
+
+    indicator = false;
+    //Add numbering, if needed and collect indicator
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        (*i)->PostParseProcess(hide, left, right, number, top_level, need_indicator);
+        indicator |= (*i)->indicator;
+    }
+    //Postparse the content;
+    EIterator content_left, content_right;
+    bool ind_content = chart->PostParseProcessArcList(hide, content, true, content_left, content_right, number, top_level);
+
     //Check that all pipe segments are fully specified, non-overlapping and sort them
-    //After this follow.begin will not point to "this" but to the leftmost (fromright==true) or rightmost (==false)
-    //Also set pipe_connect_back/forw flags
-    //Terminology: backwards means left if "fromright" and right otherwise
 
     //frist sort from left to right
     pipe_compare comp(chart, true);
-    follow.sort(comp);
+    series.sort(comp);
     //Make both src and dst specified and ordered in all segments
-    //The leftmost and the rightmost segment can auto-adjust to the content (e1 and e2)
+    //The leftmost and the rightmost segment can auto-adjust to the content 
     //others can snap left and right if not specified
-    EIterator last = e1;
-    EIterator next;
-    for (auto i = follow.begin(); i!=follow.end(); i++) {
-        auto i_next = i;
-        i_next++;
-        next = i_next==follow.end() ? e2 : chart->EntityMinByPos((*i_next)->src, (*i_next)->dst);
-
-        if (*(*i)->src == chart->NoEntity) (*i)->src = last;
-        if (*(*i)->dst == chart->NoEntity) (*i)->dst = next;
-
-        if (*(*i)->src == chart->NoEntity || *(*i)->dst == chart->NoEntity) {
-            std::string msg = "Could not figure out the extent of this pipe";
-            if (follow.size()>1) msg += " segment";
-            msg += ". Specify starting and/or terminating entity.";
-            chart->Error.Error((*i)->file_pos.start, msg);
-            valid = false;
-            return NULL;
-        }
-        if ((*i)->src != chart->EntityMinByPos((*i)->src, (*i)->dst))
-            swap((*i)->src, (*i)->dst);
-        last = (*i)->dst;
+    if (*(*series.begin())->src == chart->NoEntity) 
+        (*series.begin())->src = content_left;
+    //If the left side is still unspecified, we had no content, return an error
+    if (*(*series.begin())->src == chart->NoEntity) {
+        chart->Error.Error((*series.begin())->file_pos.start, "The left side of the leftmost pipe segment in an empty pipe must be specified.",
+                           "Ignoring this pipe.");
+        return NULL;
     }
+    if (*(*series.begin())->src == chart->NoEntity) 
+        (*series.begin())->src = content_left;
+    //If the left side is still unspecified, we had no content, return an error
+    if (*(*series.begin())->src == chart->NoEntity) {
+        chart->Error.Error((*series.begin())->file_pos.start, "The right side of the rightmost pipe segment in an empty pipe must be specified.",
+                           "Ignoring this pipe.");
+        return NULL;
+    }
+    if (series.size()>1) {
+        for (auto i = ++series.begin(); i!=--series.end(); i++) {
+            auto i_next = i; i_next++;
 
-    //Now check that segments sanity
-    if (follow.size()>1) 
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
+            if (*(*i_next)->src == chart->NoEntity) (*i_next)->src = (*i)->dst;
+            if (*(*i)->dst      == chart->NoEntity) (*i)->dst      = (*i_next)->src;
+
+            if (*(*i)->dst == chart->NoEntity || *(*i_next)->src == chart->NoEntity) {
+                chart->Error.Error((*i)->file_pos.start, "Could not figure out the extent of this pipe segment. Specify right entity.");
+                return NULL;
+            }
+        }
+
+        //Now check that segments sanity
+        for (auto i = series.begin(); i!=series.end(); i++) {
             auto i_prev = i, i_next = i;
-            if (i!=follow.begin()) i_prev--; 
-            if (i!=--follow.end()) i_next++;
+            if (i!=series.begin()) i_prev--; 
+            if (i!=--series.end()) i_next++;
             const EIterator loc_src = chart->FindLeftRightDescendant((*i)->src, true, false);
             const EIterator loc_dst = chart->FindLeftRightDescendant((*i)->dst, false, false);
-            const EIterator next_src = chart->FindLeftRightDescendant(i_next!=follow.end() ? (*i_next)->src : (*i)->src, true, false);
-            const EIterator prev_dst = chart->FindLeftRightDescendant(i_prev!=follow.end() ? (*i_prev)->dst : (*i)->dst, false, false);
+            const EIterator next_src = chart->FindLeftRightDescendant(i_next!=series.end() ? (*i_next)->src : (*i)->src, true, false);
+            const EIterator prev_dst = chart->FindLeftRightDescendant(i_prev!=series.end() ? (*i_prev)->dst : (*i)->dst, false, false);
 
             if (loc_src == loc_dst && (
-                  (i_prev!=follow.end() && prev_dst != loc_src) ||
-                  (i_next!=follow.end() && next_src != loc_dst)
+                  (i_prev!=series.end() && prev_dst != loc_src) ||
+                  (i_next!=series.end() && next_src != loc_dst)
                   )) {
                 chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to a neighbouring segments but spans only a single entity."
                     " Segment cannot be shown. Ignoring pipe.");
-                valid = false;
                 return NULL;
             }
-            if ((i_prev!=follow.end() && chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) ||
-                (i_next!=follow.end() && chart->EntityMinByPos(next_src, loc_dst) != loc_dst))
+            if ((i_prev!=series.end() && chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) ||
+                (i_next!=series.end() && chart->EntityMinByPos(next_src, loc_dst) != loc_dst))
                     chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
                     " It may not look so good.",
                     "Encapsulate one in the other if you want that effect.");
         }
+    }
+
     //All the above operations were checked on AllEntities. We have accepted the pipe
     //as valid here and should not complain no matter what entities are collapsed or not
 
-    bool killed_this = false;
     //Now change src:s and dst:s to active entities.
     //First look up their active parent in AllEntities (or if they are
     //visible group entities find, the left/right-most children)
@@ -1935,16 +2019,15 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
     //If the first one disappears (==this), we need to do a replacement
     //If all disappear, we just return the content in an ArcParallel
     //Do one pass of checking
-    for (auto i = follow.begin(); i!=follow.end(); /*none*/) {
+    for (auto i = series.begin(); i!=series.end(); /*none*/) {
         EIterator sub1 = chart->FindWhoIsShowingInsteadOf((*i)->src, true);
         EIterator sub2 = chart->FindWhoIsShowingInsteadOf((*i)->dst, false);
 
         //if pipe segment spans a single entity and both ends have changed, 
         //we kill this segment
         if (sub1==sub2 && sub1!=(*i)->src && sub2!=(*i)->dst) {
-            if (*i != this) delete *i;
-            else killed_this = true;
-            follow.erase(i++);
+            delete *i;
+            series.erase(i++);
         } else {
             (*i)->src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
             (*i)->dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
@@ -1953,71 +2036,75 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
             i++;
         }
     }
+    EIterator ei_if_disappear = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     //Do second pass: a single entity segment is kept only if it does not 
     //connect to the previous or next segments
     //Also collect thickest linewidth of remaining segments
     double lw_max = 0;
-    for (auto i = follow.begin(); i!=follow.end(); i++) {
+    for (auto i = series.begin(); i!=series.end(); /*nope*/) {
         if ((*i)->src == (*i)->dst) {
             auto j = i;
             auto k = i;
-            if ((i!=follow.begin() && (*--j)->dst == (*i)->src) ||
-                (i!=--follow.end() && (*++k)->src == (*i)->dst)) {
-                    if (*i != this) delete *i;
-                    else killed_this = true;
-                    follow.erase(i++);
-                    i--;
+            if ((i!=series.begin() && (*--j)->dst == (*i)->src) ||
+                (i!=--series.end() && (*++k)->src == (*i)->dst)) {
+                    ei_if_disappear = (*i)->src;
+                    delete *i;
+                    series.erase(i++);
                     continue;
-            }
+            } 
         }
         lw_max = std::max(lw_max, (*i)->style.line.LineWidth());
+        i++;
     }
 
     //see if we have any segments left, if not return only content
-    if (follow.size()==0) {
-        if (content && content->size()) {
+    if (series.size()==0) {
+        if (content.size()) {
             ArcParallel *p = new ArcParallel(chart);
             p->AddAttributeList(NULL);
-            p->AddArcList(content);
+            ArcList *al = new ArcList;
+            al->swap(content);
+            p->AddArcList(al);  //this will do a "delete al;"
             return p;
         }
         //We completely disappear due to entity collapses and have no content
         if (indicator) {
             //leave an indicator, but update left and right
-            left = chart->EntityMinByPos(src, left);
-            right = chart->EntityMaxByPos(src, right);
-            return new ArcIndicator(chart, src, indicator_style);  //src already points to ActiveEntities
+            left = chart->EntityMinByPos(ei_if_disappear, left);
+            right = chart->EntityMaxByPos(ei_if_disappear, right);
+            ei_if_disappear = chart->FindWhoIsShowingInsteadOf(ei_if_disappear, true); //result points to ActiveEntities
+            return new ArcIndicator(chart, ei_if_disappear, indicator_style);  
         } else 
             return NULL;
     }
 
     //increase the radius everywhere by the thickest lw (if it is not zero)
-    if (style.line.radius.second>0) {
-        const double radius = style.line.radius.second + lw_max;
-        for (auto i = follow.begin(); i!=follow.end(); i++)
+    if ((*series.begin())->style.line.radius.second>0) {
+        const double radius = (*series.begin())->style.line.radius.second + lw_max;
+        for (auto i = series.begin(); i!=series.end(); i++)
             (*i)->style.line.radius.second = radius;
     }
-    //set e1 and e2 to real leftmost and rightmost entity affected
-    e1 = chart->EntityMinByPos(e1, (*follow.begin())->src);
-    e2 = chart->EntityMaxByPos(e2, (*follow.rbegin())->dst);
 
     //Sort according to fromright: begin() should point to the leftmost pipe if side==right,
     //and to the rightmost if side=left
-    if (style.side.second == SIDE_LEFT) {
+    if ((*series.begin())->style.side.second == SIDE_LEFT) {
         comp.fromright = false;
-        follow.sort(comp);
+        series.sort(comp);
     }
+    //Now series.begin does not point to the leftmost, but to the one showing the hole
+    //Also set pipe_connect_back/forw flags
+    //Terminology: backwards means left if "fromright" and right otherwise
 
     //Fill in pipe_connect vlaues
-    (*follow.begin())->pipe_connect_back = false;
-    (*follow.rbegin())->pipe_connect_forw = false;
-    for (auto i = ++follow.begin(); i!=follow.end(); i++) {
+    (*series.begin())->pipe_connect_back = false;
+    (*series.rbegin())->pipe_connect_forw = false;
+    for (auto i = ++series.begin(); i!=series.end(); i++) {
         (*i)->pipe_connect_back = (*i)->pipe_connect_forw = false;
         //Set flags if we are adjacent to previous one
         auto i_prev = i;
         i_prev--;
-        if ((style.side.second == SIDE_RIGHT && (*i_prev)->dst == (*i)->src) ||
-            (style.side.second == SIDE_LEFT  && (*i_prev)->src == (*i)->dst)) {
+        if (((*series.begin())->style.side.second == SIDE_RIGHT && (*i_prev)->dst == (*i)->src) ||
+            ((*series.begin())->style.side.second == SIDE_LEFT  && (*i_prev)->src == (*i)->dst)) {
             (*i)->pipe_connect_back = true;
             (*i_prev)->pipe_connect_forw = true;
         } else {
@@ -2027,8 +2114,10 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
     }
 
     //set return value
-    left = chart->EntityMinByPos(e1, left);
-    right = chart->EntityMaxByPos(e2, right);
+    left = chart->EntityMinByPos(left,  (*series.begin())->src);
+    left = chart->EntityMinByPos(left,  content_left);
+    right= chart->EntityMaxByPos(right, (*series.rbegin())->dst);
+    right= chart->EntityMaxByPos(right, content_right);
 
     if (hide) {
         need_indicator = indicator;
@@ -2037,153 +2126,147 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
     //if there is no content, no need to draw a transparent cover
     //save drawing cost (and potential fallback img)
     //only first pipe can have content (which becomes the content of all pipe)
-    if (!content || content->size() == 0)
-        for (PtrList<ArcBox>::iterator i = follow.begin(); i!=follow.end(); i++)
+    if (content.size() == 0)
+        for (auto i = series.begin(); i!=series.end(); i++)
             (*i)->style.solid.second = 255;
-
-    //if we have killed "this" copy "follow", "content" to first guy and replace us
-    if (killed_this) {
-        ArcBox *ret = *follow.begin();
-        ret->follow = follow;
-        follow.clear();
-        ret->first = NULL;
-        ret->content = content;
-        if (content) {
-            content->clear();
-            delete content;
-            content = NULL;
-        }
-        return ret;
-    }
     return this;
 }
 
 //will only be called for the first box of a multi-segment box series
-void ArcBox::Width(EntityDistanceMap &distances)
+void ArcBoxSeries::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
-    if (pipe) {
-        EntityDistanceMap d, d_pipe;
-        if (content)
-            chart->WidthArcList(*content, d);
+    const MscStyle &overall_style = (*series.begin())->style;
+    const EIterator src = (*series.begin())->src;
+    const EIterator dst = (*series.begin())->dst;
 
-        //(*i)->src and dst contain the left and right end of a pipe
-        //The order of the pipe segments in follow depends on style.side
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            const double ilw = (*i)->style.line.LineWidth();
-            const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->emphVGapInside;
-            (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
-            (*i)->right_space = d.Query((*(*i)->dst)->index, DISTANCE_RIGHT) + chart->emphVGapInside;
-            //Add extra space for curvature
-            if (style.side.second == SIDE_RIGHT)
-                (*i)->right_space += style.line.radius.second;
-            else
-                (*i)->left_space += style.line.radius.second;
-
-            //The style.line.radius.second is understood to be the radius of the hole of the _outer edge_
-            if ((*i)->src==(*i)->dst) {
-                (*i)->left_space  = std::max(width/2, (*i)->left_space);
-                (*i)->right_space = std::max(width/2, (*i)->right_space);
-            } else {
-                //keep a big enough space between src and dst for the text + curvature of pipe
-                //the text can go out of the entity lines, all the way to the left-space
-                d_pipe.Insert((*(*i)->src)->index, (*(*i)->dst)->index,
-                                 width - (*i)->left_space - (*i)->right_space +
-                                 style.line.radius.second);
-            }
-            (*i)->left_space  = ceil((*i)->left_space);
-            (*i)->right_space = ceil((*i)->right_space);
-            bool connect_left = style.side.second == SIDE_RIGHT ? (*i)->pipe_connect_back : (*i)->pipe_connect_forw;
-            bool connect_right = style.side.second == SIDE_RIGHT ? (*i)->pipe_connect_forw : (*i)->pipe_connect_back;
-            //Check if we are connecting to a neighbour pipe segment
-            if (connect_left)
-                (*i)->left_space = 0;
-            else
-                d_pipe.Insert((*(*i)->src)->index, DISTANCE_LEFT,
-                                 (*i)->left_space + ilw + style.line.radius.second);
-            //add shadow to the right size only if we are the rightmost entity
-            double shadow_to_add = 0;
-            if ((style.side.second == SIDE_RIGHT && i==--follow.end()) ||
-                (style.side.second == SIDE_LEFT  && i==follow.begin()))
-                shadow_to_add = (*i)->style.shadow.offset.second;
-            if (connect_right)
-                (*i)->right_space = 0;
-            else
-                d_pipe.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
-                                 (*i)->right_space + ilw + style.line.radius.second +
-                                 shadow_to_add);
-        }
-        d_pipe.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
-        distances += d_pipe;
-
-        //Finally add the requirements of the content
-        d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
-        d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
-        d.CopyBoxSideToPair(chart->hscaleAutoXGap);
-        distances += d;
-    } else {
-        EntityDistanceMap d;
-        double max_width = 0; //the widest label plus margins
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            if ((*i)->content)
-                chart->WidthArcList(*((*i)->content), d);
-            double width = (*i)->parsed_label.getTextWidthHeight().x;
-            //calculated margins (only for first segment) and save them
-            if (i==follow.begin()) {
-                const Area tcov = (*i)->parsed_label.Cover(0, width, style.line.LineWidth()+chart->emphVGapInside);
-                DoublePair margins = style.line.CalculateTextMargin(tcov, 0);
-                width += margins.first + margins.second;
-                (*i)->sx_text = margins.first;
-                (*i)->dx_text = margins.second;
-            } else {
-                (*i)->sx_text = (*i)->dx_text = style.line.LineWidth();
-            }
-            max_width = max(max_width, width);
-        }
-
-        //Now d contains distance requirements within this emph box series
-        //And width contains the widest
-        double left_space_inside = d.Query((*src)->index, DISTANCE_LEFT);
-        double right_space_inside = d.Query((*dst)->index, DISTANCE_RIGHT);
-
-        if (src==dst) {
-            //ensure that text fits
-            left_space_inside = std::max(max_width/2, left_space_inside);
-            right_space_inside = std::max(max_width/2, right_space_inside);
+    EntityDistanceMap d;
+    double max_width = 0; //the widest label plus margins
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        if ((*i)->content.size())
+            chart->WidthArcList(((*i)->content), d);
+        double width = (*i)->parsed_label.getTextWidthHeight().x;
+        //calculated margins (only for first segment) and save them
+        if (i==series.begin()) {
+            const Area tcov = (*i)->parsed_label.Cover(0, width, overall_style.line.LineWidth()+chart->emphVGapInside);
+            DoublePair margins = overall_style.line.CalculateTextMargin(tcov, 0);
+            width += margins.first + margins.second;
+            (*i)->sx_text = margins.first;
+            (*i)->dx_text = margins.second;
         } else {
-            //do a default margin and ensure that internals fit
-            const double def_margin = chart->XCoord(0.25);
-            left_space_inside = max(def_margin, left_space_inside);
-            right_space_inside = max(def_margin, right_space_inside);
+            (*i)->sx_text = (*i)->dx_text = overall_style.line.LineWidth();
         }
-
-        //add gap and linewidth
-        max_width += 2*chart->emphVGapInside;
-        left_space =  left_space_inside +  chart->emphVGapInside + style.line.LineWidth();
-        right_space = right_space_inside + chart->emphVGapInside + style.line.LineWidth();
-
-        //Check box_side requirements
-        const std::pair<double, double> l_tmp = d.QueryBoxSide((*src)->index, true); //left req
-        const std::pair<double, double> r_tmp = d.QueryBoxSide((*dst)->index, false); //left req
-        if (left_space_inside < l_tmp.second) left_space += l_tmp.second - left_space_inside;
-        if (right_space_inside < r_tmp.first) right_space += r_tmp.first - right_space_inside;
-        d.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
-        d.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
-
-        //convert the side requirements to pairwise distances
-        d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
-        d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
-        d.CopyBoxSideToPair(chart->hscaleAutoXGap);
-
-        //if we span multiple entities ensure that text fits
-        if (src!=dst && max_width > left_space + right_space)
-            distances.Insert((*src)->index, (*dst)->index, max_width - left_space - right_space);
-
-        //Add side distances
-        distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
-        distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
-        distances += d;
+        max_width = max(max_width, width);
     }
+
+    //Now d contains distance requirements within this emph box series
+    //And "max_width" contains the widest
+    double left_space_inside = d.Query((*src)->index, DISTANCE_LEFT);
+    double right_space_inside = d.Query((*dst)->index, DISTANCE_RIGHT);
+
+    if (src == dst) {
+        //ensure that text fits
+        left_space_inside = std::max(max_width/2, left_space_inside);
+        right_space_inside = std::max(max_width/2, right_space_inside);
+    } else {
+        //do a default margin and ensure that internals fit
+        const double def_margin = chart->XCoord(0.25);
+        left_space_inside = max(def_margin, left_space_inside);
+        right_space_inside = max(def_margin, right_space_inside);
+    }
+
+    //add gap and linewidth
+    max_width += 2*chart->emphVGapInside;
+    left_space =  left_space_inside +  chart->emphVGapInside + overall_style.line.LineWidth();
+    right_space = right_space_inside + chart->emphVGapInside + overall_style.line.LineWidth();
+
+    //Check box_side requirements
+    const std::pair<double, double> l_tmp = d.QueryBoxSide((*src)->index, true); //left req
+    const std::pair<double, double> r_tmp = d.QueryBoxSide((*dst)->index, false); //left req
+    if (left_space_inside < l_tmp.second) left_space += l_tmp.second - left_space_inside;
+    if (right_space_inside < r_tmp.first) right_space += r_tmp.first - right_space_inside;
+    d.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
+    d.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
+
+    //convert the side requirements to pairwise distances
+    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+    d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
+    d.CopyBoxSideToPair(chart->hscaleAutoXGap);
+
+    //if we span multiple entities ensure that text fits
+    if (src!=dst && max_width > left_space + right_space)
+        distances.Insert((*src)->index, (*dst)->index, max_width - left_space - right_space);
+
+    //Add side distances
+    distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
+    distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
+    distances += d;
+}
+
+//will only be called for the first box of a multi-segment box series
+void ArcPipeSeries::Width(EntityDistanceMap &distances)
+{
+    if (!valid) return;
+    EntityDistanceMap d, d_pipe;
+    if (content.size())
+        chart->WidthArcList(content, d);
+
+    const MscSideType side = (*series.begin())->style.side.second;
+    const double radius = (*series.begin())->style.radius.second;
+
+    //(*i)->src and dst contain the left and right end of a pipe
+    //The order of the pipe segments in follow depends on style.side
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        const double ilw = (*i)->style.line.LineWidth();
+        const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->emphVGapInside;
+        (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
+        (*i)->right_space = d.Query((*(*i)->dst)->index, DISTANCE_RIGHT) + chart->emphVGapInside;
+        //Add extra space for curvature
+        if (side == SIDE_RIGHT)
+            (*i)->right_space += radius;
+        else
+            (*i)->left_space += radius;
+
+        //The style.line.radius.second is understood to be the radius of the hole of the _outer edge_
+        if ((*i)->src==(*i)->dst) {
+            (*i)->left_space  = std::max(width/2, (*i)->left_space);
+            (*i)->right_space = std::max(width/2, (*i)->right_space);
+        } else {
+            //keep a big enough space between src and dst for the text + curvature of pipe
+            //the text can go out of the entity lines, all the way to the left-space
+            d_pipe.Insert((*(*i)->src)->index, (*(*i)->dst)->index,
+                                width - (*i)->left_space - (*i)->right_space +
+                                radius);
+        }
+        (*i)->left_space  = ceil((*i)->left_space);
+        (*i)->right_space = ceil((*i)->right_space);
+        bool connect_left = side == SIDE_RIGHT ? (*i)->pipe_connect_back : (*i)->pipe_connect_forw;
+        bool connect_right = side == SIDE_RIGHT ? (*i)->pipe_connect_forw : (*i)->pipe_connect_back;
+        //Check if we are connecting to a neighbour pipe segment
+        if (connect_left)
+            (*i)->left_space = 0;
+        else
+            d_pipe.Insert((*(*i)->src)->index, DISTANCE_LEFT,
+                                (*i)->left_space + ilw + radius);
+        //add shadow to the right size only if we are the rightmost entity
+        double shadow_to_add = 0;
+        if ((side == SIDE_RIGHT && i==--series.end()) ||
+            (side == SIDE_LEFT  && i==series.begin()))
+            shadow_to_add = (*i)->style.shadow.offset.second;
+        if (connect_right)
+            (*i)->right_space = 0;
+        else
+            d_pipe.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
+                                (*i)->right_space + ilw + radius + shadow_to_add);
+    }
+    d_pipe.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
+    distances += d_pipe;
+
+    //Finally add the requirements of the content
+    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+    d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
+    d.CopyBoxSideToPair(chart->hscaleAutoXGap);
+    distances += d;
 }
 
 //Will only be called for the first box of a multi-segment box/pipe series
