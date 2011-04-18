@@ -678,7 +678,7 @@ bool Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
         ArcIndicator *ai = dynamic_cast<ArcIndicator*>(replace);
         if (ai && i!=arcs.begin()) {
             ArcIndicator *ai2 = dynamic_cast<ArcIndicator*>(*--ArcList::iterator(i));
-            if (ai2 && ai->e == ai2->e)
+            if (ai2 && ai->src == ai2->src && ai->dst == ai2->dst)
                 replace = NULL;
         }
         ret |= need_indicator;

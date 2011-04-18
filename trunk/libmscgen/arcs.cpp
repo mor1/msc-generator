@@ -189,7 +189,13 @@ void ArcBase::PostPosProcess(double autoMarker)
 }
 
 ArcIndicator::ArcIndicator(Msc *chart, EIterator s, const MscStyle &st) : 
-    ArcBase(MSC_ARC_INDICATOR, chart), e(s), style(st)
+    ArcBase(MSC_ARC_INDICATOR, chart), src(s), dst(s), style(st)
+{
+    AddAttributeList(NULL);
+}
+
+ArcIndicator::ArcIndicator(Msc *chart, EIterator s, EIterator d, const MscStyle &st) : 
+    ArcBase(MSC_ARC_INDICATOR, chart), src(s), dst(d), style(st)
 {
     AddAttributeList(NULL);
 }
@@ -197,7 +203,8 @@ ArcIndicator::ArcIndicator(Msc *chart, EIterator s, const MscStyle &st) :
 
 void ArcIndicator::Draw() 
 {
-    DrawIndicator(XY(chart->XCoord((*e)->pos), yPos), chart->GetCanvas());
+    const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
+    DrawIndicator(XY(x, yPos), chart->GetCanvas());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1833,6 +1840,14 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
         dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
         _ASSERT(src != chart->ActiveEntities.end()); 
         _ASSERT(dst != chart->ActiveEntities.end()); 
+
+        for (auto i = follow.begin(); i!=follow.end(); i++) 
+            if (std::find(add_indicator.begin(), add_indicator.end(), *i) != add_indicator.end())
+                (*i)->content->Append(new ArcIndicator(chart, src, dst, indicator_style));
+            else if ((*i)->content && (*i)->content->size()==0) {
+                delete (*i)->content;
+                (*i)->content = NULL;
+            }
 
         //Note that src and dst now point to ActiveEntities: use subX to 
         //keep left and right to point to AllEntities
