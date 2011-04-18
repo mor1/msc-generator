@@ -260,7 +260,7 @@ public:
 //Box attributes we save to determine, if a box previously collapsed on the GUI
 //is the same as a box after re-compilation (and potentially source text modification)
 struct BoxAttributes;
-enum BoxCollapseType {BOX_COLLAPSE_EXPAND, BOX_COLLAPSE_COLLAPSE, BOX_COLLAPSE_BLOCKARROW};
+enum BoxCollapseType {BOX_COLLAPSE_EXPAND=0, BOX_COLLAPSE_COLLAPSE, BOX_COLLAPSE_BLOCKARROW};
 typedef std::map<BoxAttributes, BoxCollapseType> ArcBoxCollapseCatalog;
 
 struct BoxAttributes {
@@ -282,53 +282,111 @@ struct BoxAttributes {
 class ArcBox : public ArcLabelled
 {
     friend struct pipe_compare;
+    friend class ArcBoxSeries;
+    friend class ArcPipe;
 protected:
     EIterator       src, dst;
     BoxCollapseType collapsed;
-    bool            pipe;       //True if we display as a pipe
     bool            drawEntityLines; //true if we draw the entity lines (only if there is content)
-    int             drawing_variant; //how to draw double or triple lines
-    ArcList        *content;
-    ArcBox         *first;      //If null, we are the first
-    PtrList<ArcBox> follow;
+    ArcList         content;
 
     //for boxes
     mutable double height, height_w_lower_line;
-    //for pipes
-    mutable bool pipe_connect_back, pipe_connect_forw; //true if connects to neighbour pipe in pipe series
-    mutable Block pipe_block;   //representative rectangle of pipe                    ____
-    //These below correspond to the body of the pipe (skewed rectangle with curves): (____(
-    mutable Area pipe_shadow, pipe_body_line, pipe_whole_line, pipe_body_fill;
-    mutable Area pipe_hole_fill, pipe_hole_line;    //These refer to the hole __
-    mutable Edge pipe_hole_curve;                   //                        _()
     //for both
-    mutable double total_height;
-    mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow
     mutable double sx_text, dx_text, y_text;  //label placement
     mutable Area text_cover;
 public:
     //Constructor to construct the first box/pipe in a series
     ArcBox(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc);
-    ~ArcBox();
     BoxAttributes GetAttributes() const {return BoxAttributes((*src)->name, (*dst)->name, label, file_pos);}
-    ArcBox* SetPipe();
     ArcBox* AddArcList(ArcList*l);
     bool AddAttribute(const Attribute &);
-    static void AttributeNames(Csh &csh, bool pipe=false);
-    static bool AttributeValues(const std::string attr, Csh &csh, bool pipe=false);
-    ArcBox* ChangeStyleForFollow(ArcBox* =NULL);
-    ArcBox* AddFollow(ArcBox*f);
-    ArcBox* GetLastFollow() {return follow.size()?*follow.rbegin():this;}
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
+    string Print(int ident=0) const;
+    virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level, bool &need_indicator);
+    virtual double Height(AreaList &cover);
+    virtual void ShiftBy(double y);
+    virtual void PostPosProcess(double autoMarker);
+    virtual void Draw();
+};
+
+class ArcBoxSeries : public ArcBase
+{
+protected:
+    PtrList<ArcBox> series;
+    int             drawing_variant; //how to draw double or triple lines
+
+    mutable double total_height;
+    mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow
+public:
+    //Constructor to construct the first box/pipe in a series
+    ArcBoxSeries(ArcBox *first);
+    ArcBoxSeries* AddFollow(ArcBox *f);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level, bool &need_indicator);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(double autoMarker);
+    virtual void Draw();
+};
+
+class ArcPipe : public ArcLabelled
+{
+    friend struct pipe_compare;
+    friend class ArcPipeSeries;
+protected:
+    EIterator       src, dst;
+    bool            drawEntityLines; //true if we draw the entity lines (only if there is content)
+
+    mutable bool pipe_connect_back, pipe_connect_forw; //true if connects to neighbour pipe in pipe series
+    mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow
+    mutable double sx_text, dx_text, y_text;  //label placement
+    mutable Area text_cover;
+    mutable Block pipe_block;   //representative rectangle of pipe                    ____
+    //These below correspond to the body of the pipe (skewed rectangle with curves): (____(
+    mutable Area pipe_shadow, pipe_body_line, pipe_whole_line, pipe_body_fill;
+    mutable Area pipe_hole_fill, pipe_hole_line;    //These refer to the hole __
+    mutable Edge pipe_hole_curve;                   //                        _()
+public:
+    //Constructor to construct the first box/pipe in a series
+    ArcPipe(ArcBox *box);
+    bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
+    string Print(int ident=0) const;
+    virtual double Height(AreaList &cover);
+    virtual void ShiftBy(double y);
+    virtual void PostPosProcess(double autoMarker);
     void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text, double next_lw);
     virtual void Draw();
 };
+
+class ArcPipeSeries : public ArcBase
+{
+protected:
+    PtrList<ArcPipe> series;
+    ArcList          content;
+    int              drawing_variant; //how to draw double or triple lines
+
+    mutable double total_height;
+public:
+    //Constructor to construct the first box/pipe in a series
+    ArcPipeSeries(ArcPipe *first);
+    ArcPipeSeries* AddFollow(ArcPipe *f);
+    ArcPipeSeries* AddArcList(ArcList*l);
+    string Print(int ident=0) const;
+    virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level, bool &need_indicator);
+    virtual void Width(EntityDistanceMap &distances);
+    virtual double Height(AreaList &cover);
+    virtual void ShiftBy(double y);
+    virtual void PostPosProcess(double autoMarker);
+    virtual void Draw();
+};
+
+
 
 class ArcDivider : public ArcLabelled
 {

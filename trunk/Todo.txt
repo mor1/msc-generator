@@ -49,6 +49,7 @@ BUG: FullScreen view should not allow modification
 FIX: hinting is bad for entity attributes inside a group.
 FIX: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)
 DOC: all the changes
+ADD: Toolbar button to turn controls on/off
 BoxCollapse issues
 ADD: Collapse attribute to boxes (not pipe), add control (collapse and collapse_to_block_arrow) to boxes and add collapse to Box::PostParseProcess
 Done
