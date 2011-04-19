@@ -1743,11 +1743,7 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
             //So just add a NULL, and let ArcBoxSeries::PostParseProcess replace them to ArcIndicators
             content.Append((ArcBase*)NULL);
         number.decrementOnAddingLevels = false;
-    } else if (collapsed != BOX_COLLAPSE_EXPAND) {
-        chart->Error.Warning(file_pos.start, "Cannot collapse an empty box.", 
-                             "Ignoring 'collapsed' attribute.");
-        collapsed = BOX_COLLAPSE_EXPAND;
-    }
+    } 
     //left & right will not expand if src and dst is unspecified
     left = chart->EntityMinByPos(left, src);
     right = chart->EntityMaxByPos(left, dst);
@@ -1765,10 +1761,16 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
     dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     indicator = false;
     for (auto i = series.begin(); i!=series.end(); i++) {
-        if ((*i)->content.size() && (*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
-            chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
-                "Collapsing to a box instead.");
-            (*i)->collapsed = BOX_COLLAPSE_COLLAPSE;
+        if ((*i)->content.size()) {
+            if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
+                chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
+                    "Collapsing to a box instead.");
+                (*i)->collapsed = BOX_COLLAPSE_COLLAPSE;
+            } 
+        } else if ((*i)->collapsed != BOX_COLLAPSE_EXPAND) {
+            chart->Error.Warning(file_pos.start, "Cannot collapse an empty box.", 
+                                    "Ignoring 'collapsed' attribute.");
+            (*i)->collapsed = BOX_COLLAPSE_EXPAND;
         }
         indicator |= (*i)->indicator;
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
