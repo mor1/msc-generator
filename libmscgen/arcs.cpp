@@ -1591,7 +1591,6 @@ ArcBoxCollapseCatalog::iterator BoxAttributes::WhichIsSimilar(ArcBoxCollapseCata
     return cat.end();
 }
 
-
 ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
@@ -1609,27 +1608,9 @@ ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
 ArcBoxSeries::ArcBoxSeries(ArcBox *first) : 
     ArcBase(MSC_EMPH_SOLID, first->chart), drawing_variant(1), series(true)
 {
-    dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     series.Append(first);
 }
 
-
-
-ArcPipe::ArcPipe(ArcBox *box) :
-    ArcLabelled(box->type, box->chart, box->chart->Contexts.back().styles["pipe"]),
-    src(box->src), dst(box->dst), drawEntityLines(false)
-{
-    switch (type) {
-    case MSC_EMPH_SOLID:
-        style += chart->Contexts.back().styles["pipe--"]; break;
-    case MSC_EMPH_DASHED:
-        style += chart->Contexts.back().styles["pipe++"]; break;
-    case MSC_EMPH_DOTTED:
-        style += chart->Contexts.back().styles["pipe.."]; break;
-    case MSC_EMPH_DOUBLE:
-        style += chart->Contexts.back().styles["pipe=="]; break;
-    }
-}
 
 ArcBox* ArcBox::AddArcList(ArcList*l)
 {
@@ -1640,17 +1621,9 @@ ArcBox* ArcBox::AddArcList(ArcList*l)
         delete l;
     }
     style += chart->Contexts.back().styles["box"];
+    return this;
 }
 
-ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
-{
-    if (!valid) return this;
-    if (l!=NULL && l->size()>0) {
-        content.insert(content.end(), l->begin(), l->end());
-        l->clear(); //so that l's constructor does not delete Arcs in arclist
-        delete l;
-    }
-}
 
 bool ArcBox::AddAttribute(const Attribute &a)
 {
@@ -1665,15 +1638,6 @@ bool ArcBox::AddAttribute(const Attribute &a)
             return true;
         a.InvalidValueError(CandidatesFor(collapsed), chart->Error);
         return true;
-    }
-    return ArcLabelled::AddAttribute(a);
-}
-
-bool ArcPipe::AddAttribute(const Attribute &a)
-{
-    if (a.type == MSC_ATTR_STYLE) return ArcLabelled::AddAttribute(a);
-    if (a.Is("color")) {
-        return style.fill.AddAttribute(a, chart, style.type);
     }
     return ArcLabelled::AddAttribute(a);
 }
@@ -1709,25 +1673,6 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-void ArcPipe::AttributeNames(Csh &csh)
-{
-    ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, true); //no arrow, vline  
-    style.AttributeNames(csh);
-}
-
-bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"color")) {
-        csh.AddColorValuesToHints();
-        return true;
-    }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true , true, true, true, true); //no arrow, vline  
-    if (style.AttributeValues(attr, csh)) return true;
-    if (ArcLabelled::AttributeValues(attr, csh)) return true;
-    return false;
-}
-
 //This should be called after adding content to "f', but before adding any attributes
 ArcBoxSeries* ArcBoxSeries::AddFollow(ArcBox *f)
 {
@@ -1745,6 +1690,548 @@ ArcBoxSeries* ArcBoxSeries::AddFollow(ArcBox *f)
         valid = false;
     series.Append(f);
     return this;
+}
+
+string ArcBox::Print(int ident) const
+{
+    string ss;
+    ss << string(ident*2, ' ');
+    ss << (*src)->name << "--" << (*dst)->name;
+    if (label.length()>0) ss << ": \"" << label << "\"";
+    for (auto i = content.begin(); i != content.end(); i++)
+        ss << "\n" << (*i)->Print(ident+1);
+    return ss;
+}
+
+string ArcBoxSeries::Print(int ident) const
+{
+    string ss(ident*2, ' '); 
+    ss << "Box series";
+    for (auto i = series.begin(); i!=series.end(); i++)
+        ss << "\n" << (*i)->Print(ident+1);
+    return ss;
+}
+
+ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+                                  Numbering &number, bool top_level, bool &need_indicator)
+{
+    //Add numbering, if needed
+    ArcLabelled::PostParseProcess(hide, left, right, number, top_level, need_indicator);
+    EIterator left_content = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
+    EIterator right_content = left_content;
+    if (content.size()) {
+        //Search for instructions (from GUI) if we should collapse or expand this box
+        auto force = GetAttributes().WhichIsSimilar(chart->force_box_collapse);
+        if (force != chart->force_box_collapse.end() && collapsed != force->second) {
+            collapsed = force->second;
+            chart->used_from_force_box_collapse.push_back(force->first);
+        }
+        //If we have attached a number to the label of a box, set flag on number,
+        //so that if we add levels inside the content of the box (before displaying any number)
+        //we continue from present value
+        if (style.numbering.second && label.length()!=0)
+            number.decrementOnAddingLevels = true;
+        const bool hide_i = hide || (collapsed!=BOX_COLLAPSE_EXPAND);
+        bool ind = chart->PostParseProcessArcList(hide_i, content, false, 
+                          left_content, right_content, number, top_level);
+        //Collect those boxes, where we need to add an indicator to the content
+        //if "hide" is true, our entire box series will be hidden, so then we do not add indicators
+        //to any boxes.
+        //below condition can only be true if we are not pipe
+        if (ind && !hide) 
+            //We cannot add the indicator here, since we do not know exact src and dst yet
+            //So just add a NULL, and let ArcBoxSeries::PostParseProcess replace them to ArcIndicators
+            content.Append((ArcBase*)NULL);
+        number.decrementOnAddingLevels = false;
+    } else if (collapsed != BOX_COLLAPSE_EXPAND) {
+        chart->Error.Warning(file_pos.start, "Cannot collapse an empty box.", 
+                             "Ignoring 'collapsed' attribute.");
+        collapsed = BOX_COLLAPSE_EXPAND;
+    }
+    //left & right will not expand if src and dst is unspecified
+    left = chart->EntityMinByPos(left, src);
+    right = chart->EntityMaxByPos(left, dst);
+    if (*src == chart->NoEntity) src = left_content;
+    if (*dst == chart->NoEntity) dst = right_content;
+    return this;
+}
+
+ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+                                        Numbering &number, bool top_level, bool &need_indicator)
+{
+    if (!valid) return NULL;
+
+    EIterator src, dst;
+    dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
+    indicator = false;
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        if ((*i)->content.size() && (*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
+            chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
+                "Collapsing to a box instead.");
+            (*i)->collapsed = BOX_COLLAPSE_COLLAPSE;
+        }
+        indicator |= (*i)->indicator;
+        //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
+        //and collect left and right if needed
+        (*i)->PostParseProcess(hide, src, dst, number, top_level, need_indicator);
+    }
+    //src and dst can be NoEntity here if none of the series specified a left or a right entity
+    //Go through and use content to adjust to content
+    if (*src==chart->NoEntity) 
+        for (auto i = series.begin(); i!=series.end(); i++) 
+            src = chart->EntityMinByPos(src, (*i)->src);
+    if (*dst==chart->NoEntity) 
+        for (auto i = series.begin(); i!=series.end(); i++) 
+            dst = chart->EntityMaxByPos(dst, (*i)->dst);
+
+    //Src and dst can still be == NoEntity, if no arcs specified
+    //inside the content and no enity specified at box declaration.
+    //In this case emph box spans to leftmost and rightmost entity in chart.
+    //At PostParse chart->AllEntities is already sorted by pos values
+    //we only do this step if we are the first in a box series.
+    if (*src==chart->NoEntity) src = ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
+    if (*dst==chart->NoEntity) dst = -- --chart->AllEntities.end();    //rightmost entity (before (right)
+
+    //Now see how entities change due to entity collapse
+    EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);
+    EIterator sub2 = chart->FindWhoIsShowingInsteadOf(dst, false);
+
+    //if box spans a single entity and both ends have changed, 
+    //we kill this box 
+    const bool we_diappear = sub1==sub2 && sub1!=src && sub2!=dst;
+    if (we_diappear && !indicator) 
+        return NULL;
+        
+    //Now convert src and dst to an iterator pointing to ActiveEntities
+    src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
+    dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
+    _ASSERT(src != chart->ActiveEntities.end()); 
+    _ASSERT(dst != chart->ActiveEntities.end()); 
+
+    //Now copy src, dst and indicator to all boxes
+    //Replace NULL in "content" to an ArcIndicator
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        if ((*i)->content.size() && *(*i)->content.rbegin() == NULL)
+            *(*i)->content.rbegin() = new ArcIndicator(chart, src, dst, (*i)->indicator_style);
+        (*i)->src = src;
+        (*i)->dst = dst;
+        (*i)->indicator = indicator;
+    }
+    //Note that src and dst now point to ActiveEntities: use subX to 
+    //keep left and right to point to AllEntities
+    left = chart->EntityMinByPos(chart->EntityMinByPos(left, sub1), sub2);
+    right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, sub1), sub2);
+    if (hide) {
+        need_indicator = indicator;
+        return NULL;
+    }
+    if (we_diappear) //we disappear, but leave an indicator: left & right shall be updated
+        return new ArcIndicator(chart, src, indicator_style);
+    return this;
+}
+
+//will only be called for the first box of a multi-segment box series
+void ArcBoxSeries::Width(EntityDistanceMap &distances)
+{
+    if (!valid) return;
+    const MscStyle &overall_style = (*series.begin())->style;
+    const EIterator src = (*series.begin())->src;
+    const EIterator dst = (*series.begin())->dst;
+
+    EntityDistanceMap d;
+    double max_width = 0; //the widest label plus margins
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        if ((*i)->content.size())
+            chart->WidthArcList(((*i)->content), d);
+        double width = (*i)->parsed_label.getTextWidthHeight().x;
+        //calculated margins (only for first segment) and save them
+        if (i==series.begin()) {
+            const Area tcov = (*i)->parsed_label.Cover(0, width, overall_style.line.LineWidth()+chart->emphVGapInside);
+            DoublePair margins = overall_style.line.CalculateTextMargin(tcov, 0);
+            width += margins.first + margins.second;
+            (*i)->sx_text = margins.first;
+            (*i)->dx_text = margins.second;
+        } else {
+            (*i)->sx_text = (*i)->dx_text = overall_style.line.LineWidth();
+        }
+        max_width = max(max_width, width);
+    }
+
+    //Now d contains distance requirements within this emph box series
+    //And "max_width" contains the widest
+    double left_space_inside = d.Query((*src)->index, DISTANCE_LEFT);
+    double right_space_inside = d.Query((*dst)->index, DISTANCE_RIGHT);
+
+    if (src == dst) {
+        //ensure that text fits
+        left_space_inside = std::max(max_width/2, left_space_inside);
+        right_space_inside = std::max(max_width/2, right_space_inside);
+    } else {
+        //do a default margin and ensure that internals fit
+        const double def_margin = chart->XCoord(0.25);
+        left_space_inside = max(def_margin, left_space_inside);
+        right_space_inside = max(def_margin, right_space_inside);
+    }
+
+    //add gap and linewidth
+    max_width += 2*chart->emphVGapInside;
+    left_space =  left_space_inside +  chart->emphVGapInside + overall_style.line.LineWidth();
+    right_space = right_space_inside + chart->emphVGapInside + overall_style.line.LineWidth();
+
+    //Check box_side requirements
+    const std::pair<double, double> l_tmp = d.QueryBoxSide((*src)->index, true); //left req
+    const std::pair<double, double> r_tmp = d.QueryBoxSide((*dst)->index, false); //left req
+    if (left_space_inside < l_tmp.second) left_space += l_tmp.second - left_space_inside;
+    if (right_space_inside < r_tmp.first) right_space += r_tmp.first - right_space_inside;
+    d.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
+    d.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
+
+    //convert the side requirements to pairwise distances
+    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+    d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
+    d.CopyBoxSideToPair(chart->hscaleAutoXGap);
+
+    //if we span multiple entities ensure that text fits
+    if (src!=dst && max_width > left_space + right_space)
+        distances.Insert((*src)->index, (*dst)->index, max_width - left_space - right_space);
+
+    //Add side distances
+    distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
+    distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
+    distances += d;
+}
+
+double ArcBoxSeries::Height(AreaList &cover)
+{
+    if (!valid) return 0;
+    //A few explanations of the variables exact meaning
+    //the upper edge of the upper line of each segment is at yPos
+    //total_height includes linewidths and shadow, but not emphVGapOutside (contrary for pipes)
+    //left_space and right_space includes linewidth
+    //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, but not lower lw
+    //sx and dx are the inner edges of the lines of the whole box
+    const MscStyle &main_style = (*series.begin())->style;
+    const double lw = main_style.line.LineWidth();
+    const double sx = chart->XCoord((*series.begin())->src) - left_space + lw;
+    const double dx = chart->XCoord((*series.begin())->dst) + right_space - lw;
+
+    double y = chart->emphVGapOutside;
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        (*i)->yPos = y;
+        // y now points to the *top* of the line of the top edge of this box
+        // if we are pipe, we draw the segment side-by side, so we reset y here
+
+        //Advance upper line and spacing
+        y += (*i)->style.line.LineWidth() + chart->emphVGapInside;
+        (*i)->y_text = y;
+        (*i)->sx_text = sx + (*i)->sx_text - lw + chart->emphVGapInside;  //both sx and sx_text includes a lw
+        (*i)->dx_text = dx - (*i)->dx_text + lw - chart->emphVGapInside;
+        //Add text cover & draw if necessary
+        (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
+        //Advance label height
+        double th = (*i)->parsed_label.getTextWidthHeight().y;
+        //Position arrows if any under the label
+        AreaList content_cover = (*i)->text_cover;
+        if ((*i)->content.size()) {
+            const double &radius = main_style.line.radius.second;
+            Area limit = (*i)->text_cover;
+            if (i==series.begin() && radius != CORNER_NONE && radius>0) {
+                //Funnily shaped box, prevent content from hitting it
+                Block b(sx, dx, y, lw+y+radius*4);
+                limit += Contour(Block(sx, dx, 0, y+lw+main_style.line.radius.second)) -
+                            main_style.line.CreateRectangle(b);
+                if (main_style.line.corner.second == CORNER_NOTE) {
+                    const double r = radius + main_style.line.RadiusIncMul()*lw/2 -
+                        (main_style.line.IsDouble() ? main_style.line.DoubleSpacing() : 0);
+                    limit += Contour(b.x.till-r, b.y.from, b.x.till-r, b.y.from+r,
+                                        b.x.till, b.y.from+r);
+                }
+            }
+            y = chart->PlaceListUnder((*i)->content.begin(), (*i)->content.end(),
+                                        y+th, y, limit, compress, &content_cover);  //no extra margin below text
+        } else {
+            y += th; //no content, just add textheight
+        }
+        if (i==--series.end() && main_style.line.corner.second != CORNER_NONE && main_style.line.radius.second>0) {
+            //Funnily shaped box, prevent it content from hitting the bottom of the content
+            Block b(sx, dx, 0, y);
+            MscLineAttr limiter_line(main_style.line);
+            limiter_line.radius.second += chart->compressGap;
+            const Area bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -
+                            limiter_line.CreateRectangle(b);
+            double tp;
+            double off = content_cover.OffsetBelow(bottom, tp);
+            if (off>0 && compress) y-=off;
+            if (off<0) y-=off;
+        }
+        y += chart->emphVGapInside;
+        //Make segment as tall as needed to accomodate curvature
+        //if (style.line.radius.second>0) {
+        //    double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
+        //    if (i==follow.begin())
+        //        we_need_this_much_for_radius += style.line.radius.second;
+        //    if (i==--follow.end())
+        //        we_need_this_much_for_radius += style.line.radius.second;
+        //    y = std::max(y, (*i)->yPos + we_need_this_much_for_radius);
+        //}
+        y = ceil(y);
+        (*i)->height = y - (*i)->yPos;
+
+        //Add the linewidth of the next box or the final one
+        if (i==--series.end())
+            (*i)->height_w_lower_line = (*i)->height + lw;
+        else
+            (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.line.LineWidth();
+    } /* for cycle through segments */
+    //Final advance of linewidth, the inner edge (y) is on integer
+    total_height = y + lw - yPos;
+    Block b(sx-lw, dx+lw, yPos, yPos + total_height);
+    MscLineAttr line_for_outer_edge = main_style.line;
+    line_for_outer_edge.radius.second += lw * main_style.line.RadiusIncMul();
+    Area overall_box = line_for_outer_edge.CreateRectangle(b);
+    // now we have all geometries correct, now calculate areas and covers
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        (*i)->area = Contour(sx-lw, dx+lw, (*i)->yPos, (*i)->yPos + (*i)->height_w_lower_line) * overall_box;
+        (*i)->area.arc = *i;
+        if ((*i)->content.size()) {
+            //Make a frame, add it to the already added label
+            (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth) - (*i)->area;
+            (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
+            (*i)->area_draw.arc = *i;
+            (*i)->draw_is_different = true;
+            (*i)->area_draw_is_frame = true;
+        } else {
+            (*i)->area_draw.clear();
+            (*i)->draw_is_different = false;
+            (*i)->area_draw_is_frame = false;
+        }
+    }
+    overall_box.mainline = b.y;
+    const double &offset = main_style.shadow.offset.second;
+    if (offset)
+        cover += overall_box + overall_box.CreateShifted(XY(offset, offset));
+    else
+        cover += overall_box;
+    return yPos + total_height + offset + chart->emphVGapOutside;
+}
+
+void ArcBox::ShiftBy(double y)
+{
+    if (!valid) return;
+    if (y==0) return;
+    y_text += y;
+    text_cover.Shift(XY(0,y));
+    ArcLabelled::ShiftBy(y);
+    if (content.size())
+        chart->ShiftByArcList(content.begin(), content.end(), y);
+}
+
+void ArcBoxSeries::ShiftBy(double y)
+{
+    if (!valid) return;
+    if (y==0) return;
+    for (auto i=series.begin(); i!=series.end(); i++) 
+        (*i)->ShiftBy(y);    
+    ArcBase::ShiftBy(y);
+}
+
+void ArcBoxSeries::PostPosProcess(double autoMarker)
+{
+    if (!valid) return;
+    //For boxes we always add the background cover first then the content
+    //And we do this for each segment sequentially
+    for (auto i = series.begin(); i!=series.end(); i++)
+        if ((*i)->valid) {
+            if ((*i)->content.size()) 
+                switch ((*i)->collapsed) {
+                case BOX_COLLAPSE_EXPAND:
+                    TrackableElement::controls.push_back(MSC_CONTROL_COLLAPSE);        
+                    break;
+                case BOX_COLLAPSE_COLLAPSE:
+                    TrackableElement::controls.push_back(MSC_CONTROL_EXPAND);        
+                    break;
+                case BOX_COLLAPSE_BLOCKARROW:
+                    TrackableElement::controls.push_back(MSC_CONTROL_EXPAND);        
+                    break;
+                }
+            (*i)->ArcLabelled::PostPosProcess(autoMarker);
+            if ((*i)->content.size()) 
+                chart->PostPosProcessArcList((*i)->content, autoMarker);
+        }
+
+    //Hide entity lines during the lines inside the box
+    const MscStyle &main_style = (*series.begin())->style;
+    const double lw = main_style.line.LineWidth();
+    const double src_x = chart->XCoord((*series.begin())->src);
+    const double dst_x = chart->XCoord((*series.begin())->dst);
+    const double sx = src_x - left_space + lw;
+    const double dx = dst_x + right_space - lw;
+    for (auto i = ++series.begin(); i!=series.end(); i++) 
+        if ((*i)->style.line.IsDoubleOrTriple()) {
+            const Block r(sx, dx, (*i)->yPos, (*i)->yPos+(*i)->style.line.LineWidth());
+            chart->HideEntityLines(r);
+        }
+    
+    //hide the entity lines under the labels
+    for (auto i = series.begin(); i!=series.end(); i++) 
+        chart->HideEntityLines((*i)->text_cover);
+    //hide top and bottom line if double
+    if (main_style.line.IsDoubleOrTriple()) {
+        Block b(src_x - left_space, dst_x + right_space,
+                yPos, yPos+total_height); //The outer edge of the lines
+        MscLineAttr line = main_style.line;  //We will vary the radius, so we need a copy
+        line.radius.second = std::min(std::min(b.y.Spans()/2 - lw, b.x.Spans()/2 - lw), line.radius.second);
+        //The radius specified in style.line will be that of the inner edge of the line
+        if (line.radius.second > 0)
+            line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
+        Area hide = line.CreateRectangle(b);
+        line.radius.second -= lw * line.RadiusIncMul(); //now it is appropriate for the inner edge
+        hide -= line.CreateRectangle(b.Expand(-lw));
+
+        if (main_style.line.corner.second == CORNER_NOTE) {
+            const double r = main_style.line.radius.second + main_style.line.RadiusIncMul()*lw/2 -
+                                (main_style.line.IsDouble() ? main_style.line.DoubleSpacing() : 0);
+            hide += Contour(b.UpperRight()+XY(0,r), b.UpperRight()+XY(-r,0), b.UpperRight()+XY(-r,r));
+        }
+        chart->HideEntityLines(hide);
+    }
+}
+
+void ArcBoxSeries::Draw()
+{
+    if (!valid) return;
+    //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
+    const MscStyle &main_style = (*series.begin())->style;
+    const double lw = main_style.line.LineWidth();
+    const double src_x = chart->XCoord((*series.begin())->src);
+    const double dst_x = chart->XCoord((*series.begin())->dst);
+    MscLineAttr line = main_style.line;  //We will vary the radius, so we need a copy
+    Block r(src_x - left_space, dst_x + right_space, yPos, yPos+total_height); //The outer edge of the lines
+    line.radius.second = std::min(std::min(r.y.Spans()/2 - lw, r.x.Spans()/2 - lw), line.radius.second);
+    //The radius specified in style.line will be that of the inner edge of the line
+    if (line.radius.second > 0)
+        line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
+    //First draw the shadow.
+    r.Expand(-line.width.second/2.);
+    line.radius.second -= line.width.second/2. * line.RadiusIncMul();
+    chart->GetCanvas()->Shadow(r, line, main_style.shadow);
+    //Do a clip region for the overall box (for round corners)
+    //at half a linewidth from the inner edge (use the width of a single line!)
+    line.radius.second -= (lw-line.width.second) * line.RadiusIncMul();
+    r.Expand(-lw+line.width.second);
+    chart->GetCanvas()->Clip(r, line);
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Overall rule for background fill:
+        //for single line borders we fill up to the middle of the border
+        //for double line borders we fill up to the middle of the inner line of the border
+        //style.line.LineWidth() gives the full width of the (double) line, width.second is just one line of it
+        //for single lines style.line.LineWidth()==style.line.width.second
+        double sy = (*i)->yPos + (*i)->style.line.LineWidth() - (*i)->style.line.width.second/2.;
+        double dy = (*i)->yPos + (*i)->height;
+        //decrease upper limit for the first one (note+triple line has areas higher than this to cover)
+        //clip will cut away the not needed areas
+        if (i==series.begin())
+            sy -= lw;
+        //Increase the fill area downward by half of the linewidth below us
+        PtrList<ArcBox>::const_iterator next = i;
+        next++;
+        if (next==series.end())
+            dy += main_style.line.width.second/2.;
+        else
+            dy += (*next)->style.line.width.second/2.;
+        //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
+        chart->GetCanvas()->Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
+        //if there are contained entities, draw entity lines, strictly from inside of line
+        if ((*i)->content.size() && (*i)->drawEntityLines)
+            chart->DrawEntityLines((*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
+    }
+    chart->GetCanvas()->UnClip();
+    //shring to the inner edge
+    r.Expand(-line.width.second/2.);
+    line.radius.second -= line.width.second/2. * line.RadiusIncMul();
+    //Draw box lines - Cycle only for subsequent boxes
+    for (auto i = ++series.begin(); i!=series.end(); i++) {
+        const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
+        const XY magic(1,0);  //XXX needed in windows
+        chart->GetCanvas()->Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.line);
+    }
+    //Finally draw the overall line around the box, expand to midpoint of line
+    r.Expand(lw/2);
+    line.radius.second += (lw/2)  * line.RadiusIncMul();
+    chart->GetCanvas()->Line(r, line);
+    //XXX double line joints: fix it
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        (*i)->parsed_label.Draw(chart->GetCanvas(), (*i)->sx_text, (*i)->dx_text, (*i)->y_text);
+        if ((*i)->content.size())
+            chart->DrawArcList((*i)->content);
+        //if (i==follow.begin()) {
+        //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
+        //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
+        //}
+    }
+}
+
+/////////////////////////////////////////////////////////////////
+
+ArcPipe::ArcPipe(ArcBox *box) :
+    ArcLabelled(box->type, box->chart, box->chart->Contexts.back().styles["pipe"]),
+    src(box->src), dst(box->dst), drawEntityLines(false)
+{
+    switch (type) {
+    case MSC_EMPH_SOLID:
+        style += chart->Contexts.back().styles["pipe--"]; break;
+    case MSC_EMPH_DASHED:
+        style += chart->Contexts.back().styles["pipe++"]; break;
+    case MSC_EMPH_DOTTED:
+        style += chart->Contexts.back().styles["pipe.."]; break;
+    case MSC_EMPH_DOUBLE:
+        style += chart->Contexts.back().styles["pipe=="]; break;
+    }
+}
+
+ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
+    ArcBase(MSC_EMPH_SOLID, first->chart), drawing_variant(1), series(true)
+{
+    series.Append(first);
+}
+
+ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
+{
+    if (!valid) return this;
+    if (l!=NULL && l->size()>0) {
+        content.insert(content.end(), l->begin(), l->end());
+        l->clear(); //so that l's constructor does not delete Arcs in arclist
+        delete l;
+    }
+    return this;
+}
+
+bool ArcPipe::AddAttribute(const Attribute &a)
+{
+    if (a.type == MSC_ATTR_STYLE) return ArcLabelled::AddAttribute(a);
+    if (a.Is("color")) {
+        return style.fill.AddAttribute(a, chart, style.type);
+    }
+    return ArcLabelled::AddAttribute(a);
+}
+
+void ArcPipe::AttributeNames(Csh &csh)
+{
+    ArcLabelled::AttributeNames(csh);
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, true); //no arrow, vline  
+    style.AttributeNames(csh);
+}
+
+bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"color")) {
+        csh.AddColorValuesToHints();
+        return true;
+    }
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true , true, true, true, true); //no arrow, vline  
+    if (style.AttributeValues(attr, csh)) return true;
+    if (ArcLabelled::AttributeValues(attr, csh)) return true;
+    return false;
 }
 
 //Should be called before AddAttributeList for "f" is called
@@ -1778,26 +2265,6 @@ ArcPipeSeries* ArcPipeSeries::AddFollow(ArcPipe*f)
     return this;
 }
 
-string ArcBox::Print(int ident) const
-{
-    string ss;
-    ss << string(ident*2, ' ');
-    ss << (*src)->name << "--" << (*dst)->name;
-    if (label.length()>0) ss << ": \"" << label << "\"";
-    for (auto i = content.begin(); i != content.end(); i++)
-        ss << "\n" << (*i)->Print(ident+1);
-    return ss;
-}
-
-string ArcBoxSeries::Print(int ident) const
-{
-    string ss(ident*2, ' '); 
-    ss << "Box series");
-    for (auto i = series.begin(); i!=series.end(); i++)
-        ss << "\n" << (*i)->Print(ident+1);
-    return ss;
-}
-
 string ArcPipe::Print(int ident) const
 {
     string ss;
@@ -1810,7 +2277,7 @@ string ArcPipe::Print(int ident) const
 string ArcPipeSeries::Print(int ident) const
 {
     string ss(ident*2, ' '); 
-    ss << "Pipe series");
+    ss << "Pipe series";
     for (auto i = series.begin(); i!=series.end(); i++)
         ss << "\n" << (*i)->Print(ident+1);
     for (auto i = content.begin(); i != content.end(); i++)
@@ -1823,112 +2290,13 @@ struct pipe_compare
     const Msc *chart;
     bool fromright;
     pipe_compare(const Msc *c, bool fr) : chart(c), fromright(fr) {}
-    bool operator ()(const ArcBox *p1, const ArcBox *p2) const {
+    bool operator ()(const ArcPipe *p1, const ArcPipe *p2) const {
         EIterator min1 = chart->EntityMinMaxByPos(p1->src, p1->dst, fromright);
         EIterator min2 = chart->EntityMinMaxByPos(p2->src, p2->dst, fromright);
         if (min1==min2) return false; //equals are not less
         return min1 == chart->EntityMinMaxByPos(min1, min2, fromright);
     }
 };
-
-ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
-                                  Numbering &number, bool top_level, bool &need_indicator)
-{
-    //Add numbering, if needed
-    ArcLabelled::PostParseProcess(hide, left, right, number, top_level, need_indicator);
-    if (content.size()) {
-        //Search for instructions (from GUI) if we should collapse or expand this box
-        auto force = GetAttributes().WhichIsSimilar(chart->force_box_collapse);
-        if (force != chart->force_box_collapse.end() && collapsed != force->second) {
-            collapsed = force->second;
-            chart->used_from_force_box_collapse.push_back(force->first);
-        }
-        //If we have attached a number to the label of a box, set flag on number,
-        //so that if we add levels inside the content of the box (before displaying any number)
-        //we continue from present value
-        if (style.numbering.second && label.length()!=0)
-            number.decrementOnAddingLevels = true;
-        const bool hide_i = hide || (collapsed!=BOX_COLLAPSE_EXPAND);
-        bool ind = chart->PostParseProcessArcList(hide_i, content, false, left, right, number, top_level);
-        //Collect those boxes, where we need to add an indicator to the content
-        //if "hide" is true, our entire box series will be hidden, so then we do not add indicators
-        //to any boxes.
-        //below condition can only be true if we are not pipe
-        if (ind && !hide) 
-            //We cannot add the indicator here, since we do not know exact src and dst yet
-            //So just add a NULL, and let ArcBoxSeries::PostParseProcess replace them to ArcIndicators
-            content.Append((ArcBase*)NULL);
-        number.decrementOnAddingLevels = false;
-    } else if (collapsed != BOX_COLLAPSE_EXPAND) {
-        chart->Error.Warning(file_pos.start, "Cannot collapse an empty box.", 
-                             "Ignoring 'collapsed' attribute.");
-        collapsed = BOX_COLLAPSE_EXPAND;
-    }
-    
-}
-
-ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, bool top_level, bool &need_indicator)
-{
-    if (!valid) return NULL;
-
-    EIterator src, dst;
-    indicator = false;
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        if ((*i)->content.size() && (*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
-            chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
-                "Collapsing to a box instead.");
-            (*i)->collapsed = BOX_COLLAPSE_COLLAPSE;
-        }
-        indicator |= (*i)->indicator;
-        //Add numbering, do content, add NULL for indicators, if needed
-        (*i)->PostParseProcess(hide, src, dst, number, top_level, need_indicator);
-    }
-
-    //Src and dst can still be == NoEntity, if no arcs specified
-    //inside the content and no enity specified at box declaration.
-    //In this case emph box spans to leftmost and rightmost entity in chart.
-    //At PostParse chart->AllEntities is already sorted by pos values
-    //we only do this step if we are the first in a box series.
-    if (*src==chart->NoEntity) src = ++ ++chart->AllEntities.begin();  //leftmost entity after Noentity and (left)
-    if (*dst==chart->NoEntity) dst = -- --chart->AllEntities.end();    //rightmost entity (before (right)
-
-    //Now convert src and dst to an iterator pointing to ActiveEntities
-    EIterator sub1 = chart->FindWhoIsShowingInsteadOf(src, true);
-    EIterator sub2 = chart->FindWhoIsShowingInsteadOf(dst, false);
-
-    //if box spans a single entity and both ends have changed, 
-    //we kill this box 
-    const bool we_diappear = sub1==sub2 && sub1!=src && sub2!=dst;
-    if (we_diappear && !indicator) 
-        return NULL;
-        
-    src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
-    dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
-    _ASSERT(src != chart->ActiveEntities.end()); 
-    _ASSERT(dst != chart->ActiveEntities.end()); 
-
-    //Now copy src, dst and indicator to all boxes
-    //Replace NULL in "content" to an ArcIndicator
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        if ((*i)->content.size() && *(*i)->content.rbegin() == NULL)
-            *(*i)->content.rbegin() = new ArcIndicator(chart, src, dst, (*i)->indicator_style);
-        (*i)->src = src;
-        (*i)->dst = dst;
-        (*i)->indicator = indicator;
-    }
-    //Note that src and dst now point to ActiveEntities: use subX to 
-    //keep left and right to point to AllEntities
-    left = chart->EntityMinByPos(chart->EntityMinByPos(left, sub1), sub2);
-    right = chart->EntityMaxByPos(chart->EntityMaxByPos(right, sub1), sub2);
-    if (hide) {
-        need_indicator = indicator;
-        return NULL;
-    }
-    if (we_diappear) //we disappear, but leave an indicator: left & right shall be updated
-        return new ArcIndicator(chart, src, indicator_style);
-    return this;
-}
 
 ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level, bool &need_indicator)
@@ -1943,6 +2311,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
     }
     //Postparse the content;
     EIterator content_left, content_right;
+    content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     bool ind_content = chart->PostParseProcessArcList(hide, content, true, content_left, content_right, number, top_level);
 
     //Check that all pipe segments are fully specified, non-overlapping and sort them
@@ -2019,6 +2388,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
     //If the first one disappears (==this), we need to do a replacement
     //If all disappear, we just return the content in an ArcParallel
     //Do one pass of checking
+    EIterator ei_if_disappear = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     for (auto i = series.begin(); i!=series.end(); /*none*/) {
         EIterator sub1 = chart->FindWhoIsShowingInsteadOf((*i)->src, true);
         EIterator sub2 = chart->FindWhoIsShowingInsteadOf((*i)->dst, false);
@@ -2028,6 +2398,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
         if (sub1==sub2 && sub1!=(*i)->src && sub2!=(*i)->dst) {
             delete *i;
             series.erase(i++);
+            ei_if_disappear = sub1;
         } else {
             (*i)->src = chart->ActiveEntities.Find_by_Ptr(*sub1); 
             (*i)->dst = chart->ActiveEntities.Find_by_Ptr(*sub2);
@@ -2036,7 +2407,6 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
             i++;
         }
     }
-    EIterator ei_if_disappear = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     //Do second pass: a single entity segment is kept only if it does not 
     //connect to the previous or next segments
     //Also collect thickest linewidth of remaining segments
@@ -2047,7 +2417,6 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
             auto k = i;
             if ((i!=series.begin() && (*--j)->dst == (*i)->src) ||
                 (i!=--series.end() && (*++k)->src == (*i)->dst)) {
-                    ei_if_disappear = (*i)->src;
                     delete *i;
                     series.erase(i++);
                     continue;
@@ -2133,77 +2502,6 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
 }
 
 //will only be called for the first box of a multi-segment box series
-void ArcBoxSeries::Width(EntityDistanceMap &distances)
-{
-    if (!valid) return;
-    const MscStyle &overall_style = (*series.begin())->style;
-    const EIterator src = (*series.begin())->src;
-    const EIterator dst = (*series.begin())->dst;
-
-    EntityDistanceMap d;
-    double max_width = 0; //the widest label plus margins
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        if ((*i)->content.size())
-            chart->WidthArcList(((*i)->content), d);
-        double width = (*i)->parsed_label.getTextWidthHeight().x;
-        //calculated margins (only for first segment) and save them
-        if (i==series.begin()) {
-            const Area tcov = (*i)->parsed_label.Cover(0, width, overall_style.line.LineWidth()+chart->emphVGapInside);
-            DoublePair margins = overall_style.line.CalculateTextMargin(tcov, 0);
-            width += margins.first + margins.second;
-            (*i)->sx_text = margins.first;
-            (*i)->dx_text = margins.second;
-        } else {
-            (*i)->sx_text = (*i)->dx_text = overall_style.line.LineWidth();
-        }
-        max_width = max(max_width, width);
-    }
-
-    //Now d contains distance requirements within this emph box series
-    //And "max_width" contains the widest
-    double left_space_inside = d.Query((*src)->index, DISTANCE_LEFT);
-    double right_space_inside = d.Query((*dst)->index, DISTANCE_RIGHT);
-
-    if (src == dst) {
-        //ensure that text fits
-        left_space_inside = std::max(max_width/2, left_space_inside);
-        right_space_inside = std::max(max_width/2, right_space_inside);
-    } else {
-        //do a default margin and ensure that internals fit
-        const double def_margin = chart->XCoord(0.25);
-        left_space_inside = max(def_margin, left_space_inside);
-        right_space_inside = max(def_margin, right_space_inside);
-    }
-
-    //add gap and linewidth
-    max_width += 2*chart->emphVGapInside;
-    left_space =  left_space_inside +  chart->emphVGapInside + overall_style.line.LineWidth();
-    right_space = right_space_inside + chart->emphVGapInside + overall_style.line.LineWidth();
-
-    //Check box_side requirements
-    const std::pair<double, double> l_tmp = d.QueryBoxSide((*src)->index, true); //left req
-    const std::pair<double, double> r_tmp = d.QueryBoxSide((*dst)->index, false); //left req
-    if (left_space_inside < l_tmp.second) left_space += l_tmp.second - left_space_inside;
-    if (right_space_inside < r_tmp.first) right_space += r_tmp.first - right_space_inside;
-    d.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
-    d.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
-
-    //convert the side requirements to pairwise distances
-    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
-    d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
-    d.CopyBoxSideToPair(chart->hscaleAutoXGap);
-
-    //if we span multiple entities ensure that text fits
-    if (src!=dst && max_width > left_space + right_space)
-        distances.Insert((*src)->index, (*dst)->index, max_width - left_space - right_space);
-
-    //Add side distances
-    distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
-    distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
-    distances += d;
-}
-
-//will only be called for the first box of a multi-segment box series
 void ArcPipeSeries::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
@@ -2212,7 +2510,7 @@ void ArcPipeSeries::Width(EntityDistanceMap &distances)
         chart->WidthArcList(content, d);
 
     const MscSideType side = (*series.begin())->style.side.second;
-    const double radius = (*series.begin())->style.radius.second;
+    const double radius = (*series.begin())->style.line.radius.second;
 
     //(*i)->src and dst contain the left and right end of a pipe
     //The order of the pipe segments in follow depends on style.side
@@ -2269,403 +2567,247 @@ void ArcPipeSeries::Width(EntityDistanceMap &distances)
     distances += d;
 }
 
-//Will only be called for the first box of a multi-segment box/pipe series
-double ArcBox::Height(AreaList &cover)
+double ArcPipeSeries::Height(AreaList &cover)
 {
     if (!valid) return 0;
-    if (pipe) {
-        //Collect cover information from labels and linewidth, so compression of content arrows can be done
-        //Determine thickest line for precise pipe alignment
-        double max_lineWidth = 0;
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            max_lineWidth = std::max(max_lineWidth, (*i)->style.line.LineWidth());
-        double lowest_line_bottom =  max_lineWidth + chart->emphVGapInside;
-        //Determine highest label and collect all text covers
-        //Also calcualte all x positioning
-        double lowest_label_bottom = 0;
-        double lowest_opaque_label_bottom = 0;
-        Area label_covers;
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Variables already set (all of them rounded):
-            //pipe_connect true if a segment connects to us directly
-            //left_space, right_space contains how much our content expands beyond the entity line,
-            (*i)->yPos = 0;
-            (*i)->area.clear();
-            (*i)->area_draw.clear();
-            (*i)->draw_is_different = false;
+    //Collect cover information from labels and linewidth, so compression of content arrows can be done
+    //Determine thickest line for precise pipe alignment
+    double max_lineWidth = 0;
+    for (auto i = series.begin(); i!=series.end(); i++)
+        max_lineWidth = std::max(max_lineWidth, (*i)->style.line.LineWidth());
+    double lowest_line_bottom =  max_lineWidth + chart->emphVGapInside;
+    //Determine highest label and collect all text covers
+    //Also calcualte all x positioning
+    double lowest_label_bottom = 0;
+    double lowest_opaque_label_bottom = 0;
+    Area label_covers;
+    //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
+    const MscSideType side = (*series.begin())->style.side.second;
+    const double radius = (*series.begin())->style.line.radius.second;
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Variables already set (all of them rounded):
+        //pipe_connect true if a segment connects to us directly
+        //left_space, right_space contains how much our content expands beyond the entity line,
+        (*i)->yPos = 0;
+        (*i)->area.clear();
+        (*i)->area_draw.clear();
+        (*i)->draw_is_different = false;
 
-            //Set pipe_block.x, sx_text, dx_text in each segment, in the meantime
-            //pipe_block contains the outside of the pipe, with the exception of the curvature (since it is a rect)
-            (*i)->y_text = ceil(chart->emphVGapOutside + (*i)->style.line.LineWidth() +
-                           chart->emphVGapInside);
-            (*i)->area.clear();
-            (*i)->pipe_block.x.from = chart->XCoord((*i)->src) - (*i)->left_space; //already rounded
-            (*i)->pipe_block.x.till = chart->XCoord((*i)->dst) + (*i)->right_space;
-            (*i)->sx_text = (*i)->pipe_block.x.from + (*i)->style.line.LineWidth() + chart->emphVGapInside; //not rounded
-            (*i)->dx_text = (*i)->pipe_block.x.till - (*i)->style.line.LineWidth() - chart->emphVGapInside;
-            switch (style.side.second) {
-            case SIDE_RIGHT: (*i)->dx_text -= style.line.radius.second; break;
-            case SIDE_LEFT:  (*i)->sx_text += style.line.radius.second; break;
-            }
-            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
-            // omit text cover for pipes if the pipe is fully opaque,
-            // in that case content can be drawn at same position as label - opaque pipe will cover anyway
-            double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
-            if (y == (*i)->y_text && !content)
-                y += Label("M", chart->GetCanvas(), style.text).getTextWidthHeight().y;
-            if (style.solid.second < 255) {
-                label_covers += (*i)->text_cover;
-                lowest_label_bottom = std::max(lowest_label_bottom, y);
-            } else {
-                //collect the highest label of opaque segments for later use
-                lowest_opaque_label_bottom = std::max(lowest_opaque_label_bottom, y);
-            }
+        //Set pipe_block.x, sx_text, dx_text in each segment, in the meantime
+        //pipe_block contains the outside of the pipe, with the exception of the curvature (since it is a rect)
+        (*i)->y_text = ceil(chart->emphVGapOutside + (*i)->style.line.LineWidth() +
+                        chart->emphVGapInside);
+        (*i)->area.clear();
+        (*i)->pipe_block.x.from = chart->XCoord((*i)->src) - (*i)->left_space; //already rounded
+        (*i)->pipe_block.x.till = chart->XCoord((*i)->dst) + (*i)->right_space;
+        (*i)->sx_text = (*i)->pipe_block.x.from + (*i)->style.line.LineWidth() + chart->emphVGapInside; //not rounded
+        (*i)->dx_text = (*i)->pipe_block.x.till - (*i)->style.line.LineWidth() - chart->emphVGapInside;
+        switch (side) {
+        case SIDE_RIGHT: (*i)->dx_text -= radius; break;
+        case SIDE_LEFT:  (*i)->sx_text += radius; break;
         }
-        //check if thick lined segments having no label have lower still
-        if (lowest_label_bottom < lowest_line_bottom)
-            lowest_label_bottom = lowest_line_bottom;
-        double y = lowest_label_bottom;
+        (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
+        // omit text cover for pipes if the pipe is fully opaque,
+        // in that case content can be drawn at same position as label - opaque pipe will cover anyway
+        double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
+        if (y == (*i)->y_text && content.size()==0)
+            y += Label("M", chart->GetCanvas(), (*i)->style.text).getTextWidthHeight().y;
+        if ((*i)->style.solid.second < 255) {
+            label_covers += (*i)->text_cover;
+            lowest_label_bottom = std::max(lowest_label_bottom, y);
+        } else {
+            //collect the highest label of opaque segments for later use
+            lowest_opaque_label_bottom = std::max(lowest_opaque_label_bottom, y);
+        }
+    }
+    //check if thick lined segments having no label have lower still
+    if (lowest_label_bottom < lowest_line_bottom)
+        lowest_label_bottom = lowest_line_bottom;
+    double y = lowest_label_bottom;
 
-        //Calculate the Height of the content
-        if (content)
-            y = ceil(chart->PlaceListUnder(content->begin(), content->end(), ceil(y),
-                                           lowest_line_bottom, label_covers));
-        //now y contains the bottom of the content arrows (if any),
-        //adjust if an opaque pipe's label was not yet considered in y
-        y = std::max(y, lowest_opaque_label_bottom);
-        y += chart->emphVGapInside + max_lineWidth;
-        //now y contains the bottommost pixel of the pipe itself
-        total_height = y = ceil(y);
-        //Now set the y coordinate in all segments
-        //Also calculate the Contours that will be used for drawing
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            const double ilw = (*i)->style.line.LineWidth();
+    //Calculate the Height of the content
+    if (content.size())
+        y = ceil(chart->PlaceListUnder(content.begin(), content.end(), ceil(y),
+                                        lowest_line_bottom, label_covers));
+    //now y contains the bottom of the content arrows (if any),
+    //adjust if an opaque pipe's label was not yet considered in y
+    y = std::max(y, lowest_opaque_label_bottom);
+    y += chart->emphVGapInside + max_lineWidth;
+    //now y contains the bottommost pixel of the pipe itself
+    total_height = y = ceil(y);
+    //Now set the y coordinate in all segments
+    //Also calculate the Contours that will be used for drawing
+    double max_offset = 0;
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        const double ilw = (*i)->style.line.LineWidth();
 
-            //fill in pipe_block.y (both are integer)
-            (*i)->pipe_block.y.from = chart->emphVGapOutside;
-            (*i)->pipe_block.y.till = y;
+        //fill in pipe_block.y (both are integer)
+        (*i)->pipe_block.y.from = chart->emphVGapOutside;
+        (*i)->pipe_block.y.till = y;
 
-            XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
-            XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
-            const XY rad(style.line.radius.second, (*i)->pipe_block.y.Spans()/2); //we use the first pipe's line.radius
-            if (style.side.second == SIDE_LEFT) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
-            //now cd is the one with the hole
-            Contour back_end(cs, rad.x, rad.y);
-            Contour forw_end(cd, rad.x, rad.y);
-            //(*i)->pipe_block, back_end and forw_end are now all outer edge
-            //we need to shring by ilw/2 to get the line contour and by ilw/2-line.width/2 to get the fill contour
-            const double gap_for_line = -ilw/2;
-            const double gap_for_fill = -ilw + (*i)->style.line.width.second/2;
-            (*i)->pipe_body_fill = Block((*i)->pipe_block.x, Range((*i)->pipe_block.y).Expand(gap_for_fill));
-            (*i)->pipe_body_line = Block((*i)->pipe_block.x, Range((*i)->pipe_block.y).Expand(gap_for_line));
-            (*i)->pipe_shadow = (*i)->pipe_block;
-            //Do back end
+        XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
+        XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
+        const XY rad(radius, (*i)->pipe_block.y.Spans()/2); //we use the first pipe's line.radius
+        if (side == SIDE_LEFT) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
+        //now cd is the one with the hole
+        Contour back_end(cs, rad.x, rad.y);
+        Contour forw_end(cd, rad.x, rad.y);
+        //(*i)->pipe_block, back_end and forw_end are now all outer edge
+        //we need to shring by ilw/2 to get the line contour and by ilw/2-line.width/2 to get the fill contour
+        const double gap_for_line = -ilw/2;
+        const double gap_for_fill = -ilw + (*i)->style.line.width.second/2;
+        (*i)->pipe_body_fill = Block((*i)->pipe_block.x, Range((*i)->pipe_block.y).Expand(gap_for_fill));
+        (*i)->pipe_body_line = Block((*i)->pipe_block.x, Range((*i)->pipe_block.y).Expand(gap_for_line));
+        (*i)->pipe_shadow = (*i)->pipe_block;
+        //Do back end
+        if (rad.x>0) {
+            (*i)->pipe_body_fill += back_end.CreateExpand(gap_for_fill);
+            (*i)->pipe_body_line += back_end.CreateExpand(gap_for_line);
+            (*i)->pipe_shadow += back_end;
+        } else {
+            //square end: chop off from fill and line
+            (*i)->pipe_body_fill -= Block(Range(cs.x, cs.x), (*i)->pipe_block.y).Expand(gap_for_fill);
+            (*i)->pipe_body_line -= Block(Range(cs.x, cs.x), (*i)->pipe_block.y).Expand(gap_for_line);
+        }
+        //Do front end, and whole_line
+        if ((*i)->pipe_connect_forw) {
+            (*i)->area = (*i)->pipe_shadow;
+            if (content.size() && (*i)->style.solid.second < 255)
+                (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
+            //We take a big, unshrunken back-end out of fill: (this will be the next segments outer edge)
             if (rad.x>0) {
-                (*i)->pipe_body_fill += back_end.CreateExpand(gap_for_fill);
-                (*i)->pipe_body_line += back_end.CreateExpand(gap_for_line);
-                (*i)->pipe_shadow += back_end;
-            } else {
-                //square end: chop off from fill and line
-                (*i)->pipe_body_fill -= Block(Range(cs.x, cs.x), (*i)->pipe_block.y).Expand(gap_for_fill);
-                (*i)->pipe_body_line -= Block(Range(cs.x, cs.x), (*i)->pipe_block.y).Expand(gap_for_line);
-            }
-            //Do front end, and whole_line
-            if ((*i)->pipe_connect_forw) {
-                (*i)->area = (*i)->pipe_shadow;
-                if (content && (*i)->style.solid.second < 255)
-                    (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
-                //We take a big, unshrunken back-end out of fill: (this will be the next segments outer edge)
-                if (rad.x>0) {
-                    (*i)->pipe_body_fill -= forw_end;
-                    (*i)->area -= forw_end;
-                    //below we need to first expand forw_end before substracting it
-                    //the other way is not ok: Expand fails in expanding negative arcs
-                    if (content && (*i)->style.solid.second < 255) {
-                        (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth);
-                        (*i)->area_draw *= Contour(style.side.second == SIDE_RIGHT ? 0 : chart->total.x, cd.x,
-                                                   -chart->trackFrameWidth-1, total_height+chart->trackFrameWidth+1);
-                    }
+                (*i)->pipe_body_fill -= forw_end;
+                (*i)->area -= forw_end;
+                //below we need to first expand forw_end before substracting it
+                //the other way is not ok: Expand fails in expanding negative arcs
+                if (content.size() && (*i)->style.solid.second < 255) {
+                    (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth);
+                    (*i)->area_draw *= Contour(side == SIDE_RIGHT ? 0 : chart->total.x, cd.x,
+                                                -chart->trackFrameWidth-1, total_height+chart->trackFrameWidth+1);
                 }
-                //Line shall fall entirely under the next segment, so we add a small block to it
-                (*i)->pipe_body_line += Block(Range(cd.x-ilw/2, cd.x+ilw/2), Range((*i)->pipe_block.y).Expand(gap_for_line));
+            }
+            //Line shall fall entirely under the next segment, so we add a small block to it
+            (*i)->pipe_body_line += Block(Range(cd.x-ilw/2, cd.x+ilw/2), Range((*i)->pipe_block.y).Expand(gap_for_line));
+            (*i)->pipe_whole_line = (*i)->pipe_body_line;
+            //shadow need no asjustment, as it will be merged with next segment
+            //we clear the holes: no need
+            (*i)->pipe_hole_fill.clear();
+            (*i)->pipe_hole_line.clear();
+            (*i)->pipe_hole_curve = Edge(); //wont draw anything
+        } else {
+            //No connection, we draw this end, too
+            if (rad.x>0) {
+                (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2.);
+                (*i)->pipe_whole_line = (*i)->pipe_body_line + Area(forw_end.CreateExpand(gap_for_line));
+                (*i)->pipe_body_line -= forw_end.CreateExpand(gap_for_line);
+
+                //for shaodow we add
+                (*i)->pipe_shadow += forw_end;
+                (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line).GetFirst();
+                (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill).GetFirst();
+                (*i)->pipe_hole_curve = Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0,
+                                                side == SIDE_RIGHT ? 270 : 90,
+                                                side == SIDE_RIGHT ? 90 : 270);
+            } else {
+                //just chop off from fill and line
+                (*i)->pipe_body_fill -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_fill);
+                (*i)->pipe_body_line -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_line);
                 (*i)->pipe_whole_line = (*i)->pipe_body_line;
-                //shadow need no asjustment, as it will be merged with next segment
-                //we clear the holes: no need
+                //we clear the holes: no need, body will draw the line we need
                 (*i)->pipe_hole_fill.clear();
                 (*i)->pipe_hole_line.clear();
                 (*i)->pipe_hole_curve = Edge(); //wont draw anything
-            } else {
-                //No connection, we draw this end, too
-                if (rad.x>0) {
-                    (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2.);
-                    (*i)->pipe_whole_line = (*i)->pipe_body_line + Area(forw_end.CreateExpand(gap_for_line));
-                    (*i)->pipe_body_line -= forw_end.CreateExpand(gap_for_line);
-
-                    //for shaodow we add
-                    (*i)->pipe_shadow += forw_end;
-                    (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line).GetFirst();
-                    (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill).GetFirst();
-                    (*i)->pipe_hole_curve = Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0,
-                                                 style.side.second == SIDE_RIGHT ? 270 : 90,
-                                                 style.side.second == SIDE_RIGHT ? 90 : 270);
-                } else {
-                    //just chop off from fill and line
-                    (*i)->pipe_body_fill -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_fill);
-                    (*i)->pipe_body_line -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_line);
-                    (*i)->pipe_whole_line = (*i)->pipe_body_line;
-                    //we clear the holes: no need, body will draw the line we need
-                    (*i)->pipe_hole_fill.clear();
-                    (*i)->pipe_hole_line.clear();
-                    (*i)->pipe_hole_curve = Edge(); //wont draw anything
-                }
-                (*i)->area = (*i)->pipe_shadow;
-                if (content && (*i)->style.solid.second < 255)
-                    (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
             }
-            //Finalize covers
-            (*i)->area.arc = *i;
-            if (content && (*i)->style.solid.second < 255) {
-                //Make a frame, add it to the already added label
-                (*i)->area_draw -= (*i)->area;
-                (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
-                (*i)->area_draw.arc = *i;
-                (*i)->area_draw_is_frame = true;
-                (*i)->draw_is_different = true;
-            }
-            //now determine the cover to be used for placement
-            if (style.shadow.offset.second)
-                cover += (*i)->pipe_shadow + (*i)->pipe_shadow.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
-            else
-                cover += (*i)->pipe_shadow;
-            //merge shadows of connected previous segment to ours
-            if ((*i)->pipe_connect_back) {
-                auto i_neigh = i; i_neigh--;
-                (*i_neigh)->pipe_shadow = ((*i)->pipe_shadow + (*i_neigh)->pipe_shadow).GetFirst();
-                (*i)->pipe_shadow.clear();
-            }
+            (*i)->area = (*i)->pipe_shadow;
+            if (content.size() && (*i)->style.solid.second < 255)
+                (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth);
         }
-        cover.mainline = Range(chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside for pipes
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
-    } else {
-        //We are a box here
-        //A few explanations of the variables exact meaning
-        //the upper edge of the upper line of each segment is at yPos
-        //total_height includes linewidths and shadow, but not emphVGapOutside (contrary for pipes)
-        //left_space and right_space includes linewidth
-        //height includes the upper linewidth, emphvgapinside, content, lower emphvgapinside, but not lower lw
-        //sx and dx are the inner edges of the lines of the whole box
-        const double lw = style.line.LineWidth();
-        const double sx = chart->XCoord(src) - left_space + lw;
-        const double dx = chart->XCoord(dst) + right_space - lw;
-
-        double y = chart->emphVGapOutside;
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            (*i)->yPos = y;
-            // y now points to the *top* of the line of the top edge of this box
-            // if we are pipe, we draw the segment side-by side, so we reset y here
-
-            //Advance upper line and spacing
-            y += (*i)->style.line.LineWidth() + chart->emphVGapInside;
-            (*i)->y_text = y;
-            (*i)->sx_text = sx + (*i)->sx_text - lw + chart->emphVGapInside;  //both sx and sx_text includes a lw
-            (*i)->dx_text = dx - (*i)->dx_text + lw - chart->emphVGapInside;
-            //Add text cover & draw if necessary
-            (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
-            //Advance label height
-            double th = (*i)->parsed_label.getTextWidthHeight().y;
-            //Position arrows if any under the label
-            AreaList content_cover = (*i)->text_cover;
-            if ((*i)->content) {
-                Area limit = (*i)->text_cover;
-                if (i==follow.begin() && style.line.corner.second != CORNER_NONE && style.line.radius.second>0) {
-                    //Funnily shaped box, prevent content from hitting it
-                    Block b(sx, dx, y, lw+y+style.line.radius.second*4);
-                    limit += Contour(Block(sx, dx, 0, y+lw+style.line.radius.second)) -
-                             style.line.CreateRectangle(b);
-                    if (style.line.corner.second == CORNER_NOTE) {
-                        const double r = style.line.radius.second + style.line.RadiusIncMul()*lw/2 -
-                            (style.line.IsDouble() ? style.line.DoubleSpacing() : 0);
-                        limit += Contour(b.x.till-r, b.y.from, b.x.till-r, b.y.from+r,
-                                         b.x.till, b.y.from+r);
-                    }
-                }
-                y = chart->PlaceListUnder((*i)->content->begin(), (*i)->content->end(),
-                                           y+th, y, limit, compress, &content_cover);  //no extra margin below text
-            } else {
-                y += th; //no content, just add textheight
-            }
-            if (i==--follow.end() && style.line.corner.second != CORNER_NONE && style.line.radius.second>0) {
-                //Funnily shaped box, prevent it content from hitting the bottom of the content
-                Block b(sx, dx, 0, y);
-                MscLineAttr limiter_line(style.line);
-                limiter_line.radius.second += chart->compressGap;
-                const Area bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -
-                              limiter_line.CreateRectangle(b);
-                double tp;
-                double off = content_cover.OffsetBelow(bottom, tp);
-                if (off>0 && compress) y-=off;
-                if (off<0) y-=off;
-            }
-            y += chart->emphVGapInside;
-            //Make segment as tall as needed to accomodate curvature
-            //if (style.line.radius.second>0) {
-            //    double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
-            //    if (i==follow.begin())
-            //        we_need_this_much_for_radius += style.line.radius.second;
-            //    if (i==--follow.end())
-            //        we_need_this_much_for_radius += style.line.radius.second;
-            //    y = std::max(y, (*i)->yPos + we_need_this_much_for_radius);
-            //}
-            y = ceil(y);
-            (*i)->height = y - (*i)->yPos;
-
-            //Add the linewidth of the next box or the final one
-            if (i==--follow.end())
-                (*i)->height_w_lower_line = (*i)->height + lw;
-            else
-                (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.line.LineWidth();
-        } /* for cycle through segments */
-        //Final advance of linewidth, the inner edge (y) is on integer
-        total_height = y + lw - yPos;
-        Block b(sx-lw, dx+lw, yPos, yPos + total_height);
-        MscLineAttr line_for_outer_edge = style.line;
-        line_for_outer_edge.radius.second += lw * style.line.RadiusIncMul();
-        Area overall_box = line_for_outer_edge.CreateRectangle(b);
-        // now we have all geometries correct, now calculate areas and covers
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            (*i)->area = Contour(sx-lw, dx+lw, (*i)->yPos, (*i)->yPos + (*i)->height_w_lower_line) * overall_box;
-            (*i)->area.arc = *i;
-            if ((*i)->content) {
-                //Make a frame, add it to the already added label
-                (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth) - (*i)->area;
-                (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
-                (*i)->area_draw.arc = *i;
-                (*i)->draw_is_different = true;
-                (*i)->area_draw_is_frame = true;
-            } else {
-                (*i)->area_draw.clear();
-                (*i)->draw_is_different = false;
-                (*i)->area_draw_is_frame = false;
-            }
+        //Finalize covers
+        (*i)->area.arc = *i;
+        if (content.size() && (*i)->style.solid.second < 255) {
+            //Make a frame, add it to the already added label
+            (*i)->area_draw -= (*i)->area;
+            (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
+            (*i)->area_draw.arc = *i;
+            (*i)->area_draw_is_frame = true;
+            (*i)->draw_is_different = true;
         }
-        overall_box.mainline = b.y;
-        if (style.shadow.offset.second)
-            cover += overall_box + overall_box.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
+        //now determine the cover to be used for placement
+        const double offset = (*i)->style.shadow.offset.second;
+        if (offset)
+            cover += (*i)->pipe_shadow + (*i)->pipe_shadow.CreateShifted(XY(offset, offset));
         else
-            cover += overall_box;
+            cover += (*i)->pipe_shadow;
+        max_offset = std::max(max_offset, offset);
+        //merge shadows of connected previous segment to ours
+        if ((*i)->pipe_connect_back) {
+            auto i_neigh = i; i_neigh--;
+            (*i_neigh)->pipe_shadow = ((*i)->pipe_shadow + (*i_neigh)->pipe_shadow).GetFirst();
+            (*i)->pipe_shadow.clear();
+        }
     }
-    return yPos + total_height + style.shadow.offset.second + chart->emphVGapOutside;
+    cover.mainline = Range(chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside for pipes
+    for (auto i = series.begin(); i!=series.end(); i++)
+        (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
+    return yPos + total_height + max_offset + chart->emphVGapOutside;
 }
 
-void ArcBox::ShiftBy(double y)
+
+void ArcPipe::ShiftBy(double y)
 {
     if (!valid) return;
     if (y==0) return;
-    for (auto i=follow.begin(); i!=follow.end(); i++) {
-        if (pipe) {
-            (*i)->pipe_block.Shift(XY(0,y));
-            (*i)->pipe_shadow.Shift(XY(0,y));
-            (*i)->pipe_body_line.Shift(XY(0,y));
-            (*i)->pipe_whole_line.Shift(XY(0,y));
-            (*i)->pipe_hole_line.Shift(XY(0,y));
-            (*i)->pipe_body_fill.Shift(XY(0,y));
-            (*i)->pipe_hole_fill.Shift(XY(0,y));
-            (*i)->pipe_hole_curve.Shift(XY(0,y));
-        }
-        (*i)->y_text += y;
-        (*i)->text_cover.Shift(XY(0,y));
-        (*i)->ArcLabelled::ShiftBy(y);
-        if ((*i)->content)
-            chart->ShiftByArcList((*i)->content->begin(), (*i)->content->end(), y);
-    }
+    ArcLabelled::ShiftBy(y);
+    y_text += y;
+    text_cover.Shift(XY(0,y));
+    pipe_block.Shift(XY(0,y));
+    pipe_shadow.Shift(XY(0,y));
+    pipe_body_line.Shift(XY(0,y));
+    pipe_whole_line.Shift(XY(0,y));
+    pipe_hole_line.Shift(XY(0,y));
+    pipe_body_fill.Shift(XY(0,y));
+    pipe_hole_fill.Shift(XY(0,y));
+    pipe_hole_curve.Shift(XY(0,y));
 }
 
-//Will only be called for the first box of a multi-segment box series
-void ArcBox::PostPosProcess(double autoMarker)
+void ArcPipeSeries::ShiftBy(double y)
 {
     if (!valid) return;
-    if (pipe) {
-        //For pipes we first add those covers to chart->AllCovers that are not fully opaque,
-        //then the content (only in the first segment)
-        //then those segments, which are fully opaque
-        //(this is because search is backwards and this arrangement fits the visual best
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            if ((*i)->valid && (*i)->style.solid.second < 255)
-                (*i)->ArcLabelled::PostPosProcess(autoMarker);
-        if (content)
-            chart->PostPosProcessArcList(*content, autoMarker);
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            if ((*i)->valid && (*i)->style.solid.second == 255)
-                (*i)->ArcLabelled::PostPosProcess(autoMarker);
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            chart->HideEntityLines((*i)->pipe_shadow);
-    } else {
-        //For boxes we always add the background cover first then the content
-        //And we do this for each segment sequentially
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            if ((*i)->valid) {
-                if ((*i)->content) 
-                    switch ((*i)->collapsed) {
-                    case BOX_COLLAPSE_EXPAND:
-                        TrackableElement::controls.push_back(MSC_CONTROL_COLLAPSE);        
-                        break;
-                    case BOX_COLLAPSE_COLLAPSE:
-                        TrackableElement::controls.push_back(MSC_CONTROL_EXPAND);        
-                        break;
-                    case BOX_COLLAPSE_BLOCKARROW:
-                        TrackableElement::controls.push_back(MSC_CONTROL_EXPAND);        
-                        break;
-                    }
-                (*i)->ArcLabelled::PostPosProcess(autoMarker);
-                if ((*i)->content) 
-                    chart->PostPosProcessArcList(*(*i)->content, autoMarker);
-            }
-
-        //Hide entity lines during the lines inside the box
-        const double lw = style.line.LineWidth();
-        const double sx = chart->XCoord(src) - left_space + lw;
-        const double dx = chart->XCoord(dst) + right_space - lw;
-        for (auto i = ++follow.begin(); i!=follow.end(); i++) {
-            chart->HideEntityLines((*i)->text_cover);
-            if ((*i)->style.line.IsDoubleOrTriple()) {
-                const Block r(sx, dx, (*i)->yPos, (*i)->yPos+(*i)->style.line.LineWidth());
-                chart->HideEntityLines(r);
-            }
-        }
-        //hide the entity lines under the label of the first segment (not handled above)
-        chart->HideEntityLines(text_cover);
-        //hide top and bottom line if double
-        if (style.line.IsDoubleOrTriple()) {
-            const double lw = style.line.LineWidth();
-            Block b(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space,
-                    yPos, yPos+total_height); //The outer edge of the lines
-            MscLineAttr line = style.line;  //We will vary the radius, so we need a copy
-            line.radius.second = std::min(std::min(b.y.Spans()/2 - lw, b.x.Spans()/2 - lw), line.radius.second);
-            //The radius specified in style.line will be that of the inner edge of the line
-            if (line.radius.second > 0)
-                line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
-            Area hide = line.CreateRectangle(b);
-            line.radius.second -= lw * line.RadiusIncMul(); //now it is appropriate for the inner edge
-            hide -= line.CreateRectangle(b.Expand(-lw));
-
-            if (style.line.corner.second == CORNER_NOTE) {
-                const double r = style.line.radius.second + style.line.RadiusIncMul()*lw/2 -
-                                 (style.line.IsDouble() ? style.line.DoubleSpacing() : 0);
-                hide += Contour(b.UpperRight()+XY(0,r), b.UpperRight()+XY(-r,0), b.UpperRight()+XY(-r,r));
-            }
-            chart->HideEntityLines(hide);
-        }
-    }
+    if (y==0) return;
+    for (auto i=series.begin(); i!=series.end(); i++) 
+        (*i)->ShiftBy(y);    
+    if (content.size())
+        chart->ShiftByArcList(content.begin(), content.end(), y);
+    ArcBase::ShiftBy(y);
 }
 
-//Draw a pipe, this is called for each segment
+void ArcPipeSeries::PostPosProcess(double autoMarker)
+{
+    if (!valid) return;
+    //For pipes we first add those covers to chart->AllCovers that are not fully opaque,
+    //then the content (only in the first segment)
+    //then those segments, which are fully opaque
+    //(this is because search is backwards and this arrangement fits the visual best
+    for (auto i = series.begin(); i!=series.end(); i++)
+        if ((*i)->valid && (*i)->style.solid.second < 255)
+            (*i)->ArcLabelled::PostPosProcess(autoMarker);
+    if (content.size())
+        chart->PostPosProcessArcList(content, autoMarker);
+    for (auto i = series.begin(); i!=series.end(); i++)
+        if ((*i)->valid && (*i)->style.solid.second == 255)
+            (*i)->ArcLabelled::PostPosProcess(autoMarker);
+    for (auto i = series.begin(); i!=series.end(); i++)
+        chart->HideEntityLines((*i)->pipe_shadow);
+}
+
+//Draw a pipe, this is called for each segment, bool params dictate which part
 //topside is the bigger part of the pipe
 //backside is the small oval visible form the back of the pipe
 //this->yPos is the outer edge of the top line
 //this->left_space and right_space includes linewidth
-void ArcBox::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text,
-                           double next_lw)
+void ArcPipe::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, 
+                       bool shadow, bool text, double next_lw, 
+                       int drawing_variant)
 {
     if (shadow) {
         //Shadow under the whole pipe
@@ -2733,103 +2875,33 @@ void ArcBox::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool sh
         parsed_label.Draw(chart->GetCanvas(), sx_text, dx_text, y_text);
 }
 
-void ArcBox::Draw()
+void ArcPipeSeries::Draw()
 {
     if (!valid) return;
-    if (pipe) {
-        //First shadows
-        for (auto i = follow.begin(); i!=follow.end(); i++)
-            (*i)->DrawPipe(false, false, false, true, false, 0);  //dummy 0
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Dont draw the topside fill
-            //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
-            //Draw the backside in any case.
-            //Do not draw text
-            auto i_next = i; i_next++;
-            const double next_linewidth = i_next!=follow.end() ? (*i_next)->style.line.width.second : 0;
-            (*i)->DrawPipe(false, (*i)->style.solid.second == 0, true, false, false, next_linewidth);
-            if (content && drawEntityLines)
-                chart->DrawEntityLines(yPos, height, (*i)->src, ++EIterator((*i)->dst));
-        }
-        if (content)
-            chart->DrawArcList(*content);
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Draw the topside fill only if the pipe is not fully transparent.
-            //Draw the topside line in any case
-            //Do not draw the backside (that may content arrow lines already drawn)
-            //Draw the text
-            auto i_next = i; i_next++;
-            const double next_linewidth = i_next!=follow.end() ? (*i_next)->style.line.width.second : 0;
-            (*i)->DrawPipe((*i)->style.solid.second > 0, true, false, false, true, next_linewidth);
-        }
-    } else {
-        //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
-        const double lw = style.line.LineWidth();
-        MscLineAttr line = style.line;  //We will vary the radius, so we need a copy
-        Block r(chart->XCoord(src) - left_space, chart->XCoord(dst) + right_space,
-                yPos, yPos+total_height); //The outer edge of the lines
-        line.radius.second = std::min(std::min(r.y.Spans()/2 - lw, r.x.Spans()/2 - lw), line.radius.second);
-        //The radius specified in style.line will be that of the inner edge of the line
-        if (line.radius.second > 0)
-            line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
-        //First draw the shadow.
-        r.Expand(-line.width.second/2.);
-        line.radius.second -= line.width.second/2. * line.RadiusIncMul();
-        chart->GetCanvas()->Shadow(r, line, style.shadow);
-        //Do a clip region for the overall box (for round corners)
-        //at half a linewidth from the inner edge (use the width of a single line!)
-        line.radius.second -= (lw-line.width.second) * line.RadiusIncMul();
-        r.Expand(-lw+line.width.second);
-        chart->GetCanvas()->Clip(r, line);
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            //Overall rule for background fill:
-            //for single line borders we fill up to the middle of the border
-            //for double line borders we fill up to the middle of the inner line of the border
-            //style.line.LineWidth() gives the full width of the (double) line, width.second is just one line of it
-            //for single lines style.line.LineWidth()==style.line.width.second
-            double sy = (*i)->yPos + (*i)->style.line.LineWidth() - (*i)->style.line.width.second/2.;
-            double dy = (*i)->yPos + (*i)->height;
-            //decrease upper limit for the first one (note+triple line has areas higher than this to cover)
-            //clip will cut away the not needed areas
-            if (i==follow.begin())
-                sy -= lw;
-            //Increase the fill area downward by half of the linewidth below us
-            PtrList<ArcBox>::const_iterator next = i;
-            next++;
-            if (next==follow.end())
-                dy += style.line.width.second/2.;
-            else
-                dy += (*next)->style.line.width.second/2.;
-            //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
-            chart->GetCanvas()->Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
-            //if there are contained entities, draw entity lines, strictly from inside of line
-            if ((*i)->content && (*i)->drawEntityLines)
-                chart->DrawEntityLines((*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), src, ++EIterator(dst));
-        }
-        chart->GetCanvas()->UnClip();
-        //shring to the inner edge
-        r.Expand(-line.width.second/2.);
-        line.radius.second -= line.width.second/2. * line.RadiusIncMul();
-        //Draw box lines - Cycle only for subsequent boxes
-        for (auto i = ++(follow.begin()); i!=follow.end(); i++) {
-            const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
-            const XY magic(1,0);  //XXX needed in windows
-            chart->GetCanvas()->Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.line);
-        }
-        //Finally draw the overall line around the box, expand to midpoint of line
-        r.Expand(lw/2);
-        line.radius.second += (lw/2)  * line.RadiusIncMul();
-        chart->GetCanvas()->Line(r, line);
-        //XXX double line joints: fix it
-        for (auto i = follow.begin(); i!=follow.end(); i++) {
-            (*i)->parsed_label.Draw(chart->GetCanvas(), (*i)->sx_text, (*i)->dx_text, (*i)->y_text);
-            if ((*i)->content)
-                chart->DrawArcList(*(*i)->content);
-            //if (i==follow.begin()) {
-            //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
-            //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
-            //}
-        }
+    //First shadows
+    for (auto i = series.begin(); i!=series.end(); i++)
+        (*i)->DrawPipe(false, false, false, true, false, 0, drawing_variant);  //dummy 0
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Dont draw the topside fill
+        //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
+        //Draw the backside in any case.
+        //Do not draw text
+        auto i_next = i; i_next++;
+        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
+        (*i)->DrawPipe(false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
+        if (content.size() && (*i)->drawEntityLines)
+            chart->DrawEntityLines(yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
+    }
+    if (content.size())
+        chart->DrawArcList(content);
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Draw the topside fill only if the pipe is not fully transparent.
+        //Draw the topside line in any case
+        //Do not draw the backside (that may content arrow lines already drawn)
+        //Draw the text
+        auto i_next = i; i_next++;
+        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
+        (*i)->DrawPipe((*i)->style.solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
     }
 }
 

@@ -290,9 +290,7 @@ protected:
     bool            drawEntityLines; //true if we draw the entity lines (only if there is content)
     ArcList         content;
 
-    //for boxes
     mutable double height, height_w_lower_line;
-    //for both
     mutable double sx_text, dx_text, y_text;  //label placement
     mutable Area text_cover;
 public:
@@ -306,10 +304,9 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level, bool &need_indicator);
-    virtual double Height(AreaList &cover);
+    virtual double Height(AreaList &cover) {return 0;} //will never be called
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(double autoMarker);
-    virtual void Draw();
+    virtual void Draw() {} //will never be called
 };
 
 class ArcBoxSeries : public ArcBase
@@ -357,11 +354,11 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual double Height(AreaList &cover);
+    virtual double Height(AreaList &cover) {return 0;} //will never be called
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(double autoMarker);
-    void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, bool text, double next_lw);
-    virtual void Draw();
+    void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, 
+                  bool text, double next_lw, int drawing_variant);
+    virtual void Draw() {} //will never be called
 };
 
 class ArcPipeSeries : public ArcBase
