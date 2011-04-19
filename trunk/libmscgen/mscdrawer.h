@@ -95,6 +95,7 @@ protected:
 
 friend class StringFormat; //for all sorts of text manipulation
 friend class ArcBox;  //for exotic line joints
+friend class ArcPipe;  //for exotic line joints
     void SetColor(MscColorType);
     void SetLineAttr(MscLineAttr);
     void SetDash(MscLineAttr, double pattern_offset=0);
