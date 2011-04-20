@@ -147,11 +147,27 @@ bool CChartData::ForceEntityCollapse(const std::string &s, bool b)
     return changed;
 }
 
-bool CChartData::ForceEntityCollapse(const std::map<std::string,bool> &o)
+bool CChartData::ForceEntityCollapse(const EntityCollapseCatalog &o)
 {
     bool changed = m_ForcedEntityCollapse == o;
     m_ForcedEntityCollapse = o;
     return changed;
+}
+
+bool CChartData::ForceArcCollapse(const ArcSignature &s, BoxCollapseType t) 
+{
+    auto itr = m_ForcedArcCollapse.find(s);
+    bool changed = itr == m_ForcedArcCollapse.end() || t != itr->second;
+    if (changed) 
+        m_ForcedArcCollapse[s] = t; 
+    return changed;
+}
+
+bool CChartData::ForceArcCollapse(const ArcSignatureCatalog &o)
+{
+    if (m_ForcedArcCollapse == o) return false;
+    m_ForcedArcCollapse = o;
+    return true;
 }
 
 CDrawingChartData::CDrawingChartData(const CChartData&o) : m_msc(NULL), m_bPageBreaks(false)
@@ -191,6 +207,24 @@ bool CDrawingChartData::ForceEntityCollapse(const std::map<std::string,bool> &o)
     return false;
 }
 
+bool CDrawingChartData::ForceArcCollapse(const ArcSignature &s, BoxCollapseType t) 
+{
+	if (CChartData::ForceArcCollapse(s, t)) {
+        FreeMsc();
+        return true;
+    }
+    return false;
+}
+
+bool CDrawingChartData::ForceArcCollapse(const ArcSignatureCatalog &o)
+{
+	if (CChartData::ForceArcCollapse(o)) {
+        FreeMsc();
+        return true;
+    }
+    return false;
+}
+
 void CDrawingChartData::FreeMsc() const 
 {
     if (m_msc) {
@@ -217,8 +251,9 @@ void CDrawingChartData::CompileIfNeeded() const
 			    if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
 				    m_msc->ignore_designs = true;
 	    }
-        //copy forced collapse/expand entities
+        //copy forced collapse/expand entities/boxes
         m_msc->force_entity_collapse = m_ForcedEntityCollapse;
+        m_msc->force_box_collapse = m_ForcedArcCollapse;
 
         //parse chart text
 	    m_msc->ParseText(m_text, "");
@@ -227,10 +262,12 @@ void CDrawingChartData::CompileIfNeeded() const
 		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	    //Do postparse, compile, calculate sizes and sort errors by line
 	    m_msc->CompleteParse(MscCanvas::EMF, true);
-        //See which of the forced entity collapse directives remained
-        //ones with no entity or equal state as chart were removed in Msc::PostParseProcess and
+        //See which of the forced entity/box collapse directives remained
+        //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and
         //EntityDef::AddAttributeList
-        m_msc->force_entity_collapse = m_ForcedEntityCollapse;
+        //cast away constness, this is merely to reinterpret values
+        const_cast<EntityCollapseCatalog&>(m_ForcedEntityCollapse) = m_msc->force_entity_collapse;
+        const_cast<ArcSignatureCatalog&>(m_ForcedArcCollapse) = m_msc->force_box_collapse_instead;
     }
 }
 

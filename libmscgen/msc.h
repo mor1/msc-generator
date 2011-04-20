@@ -146,12 +146,12 @@ public:
     double       saved_hscale; /** save hscale during design definition */
     bool         pedantic;   /* if we require pre-defined entities. */
     bool         ignore_designs; /* ignore design changes */
-    std::map<string,bool> 
-                 force_entity_collapse; //these entities must be collapsed/expanded
-    ArcBoxCollapseCatalog 
-                 force_box_collapse;    //These boxes must be collapsed/expanded
-    std::list<BoxAttributes> 
-                 used_from_force_box_collapse; //These ones were used during PostParse
+
+    //Collapse/Expand instructions from and feedback to the GUI
+    EntityCollapseCatalog force_entity_collapse; //these entities must be collapsed/expanded
+    ArcSignatureCatalog   force_box_collapse;    //These boxes must be collapsed/expanded
+    ArcSignatureCatalog   force_box_collapse_instead; //These should be kept from force_box_collapse
+    //Size of first heading row collected during PostPosProcess(?)
     double       headingSize;
 
     Msc();
@@ -186,9 +186,11 @@ public:
 
     void ParseText(const char *input, const char *filename);
 
-    bool PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
+    void PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess();
+    MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
+
     virtual string Print(int ident=0) const;
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded

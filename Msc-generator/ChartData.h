@@ -22,7 +22,7 @@
 #include <list>
 #undef min
 #undef max
-#include "trackable.h"
+#include "arcs.h"
 
 void ReplaceTAB(CString &str, unsigned tabsize=6); //6 seems to be default for RichEditCtrl
 void RemoveCRLF(CString &str);
@@ -35,7 +35,8 @@ protected:
 	CString m_text;
 	CString m_ForcedDesign;
 	unsigned m_page;
-    std::map<std::string,bool> m_ForcedEntityCollapse; 
+    EntityCollapseCatalog m_ForcedEntityCollapse; 
+    ArcSignatureCatalog   m_ForcedArcCollapse; 
 public:
 	CHARRANGE m_sel;
 	bool m_wasDrawn;
@@ -59,8 +60,11 @@ public:
 	virtual void SetPage(unsigned page) {m_page=page;}
 	unsigned GetPage() const {return m_page;}
     virtual bool ForceEntityCollapse(const std::string &s, bool b);
-    virtual bool ForceEntityCollapse(const std::map<std::string,bool> &);
-    const std::map<std::string,bool> &GetForcedEntityCollapse() const {return m_ForcedEntityCollapse;}
+    virtual bool ForceEntityCollapse(const EntityCollapseCatalog&);
+    const EntityCollapseCatalog &GetForcedEntityCollapse() const {return m_ForcedEntityCollapse;}
+    virtual bool ForceArcCollapse(const ArcSignature &, BoxCollapseType t);
+    virtual bool ForceArcCollapse(const ArcSignatureCatalog &);
+    const ArcSignatureCatalog &GetForcedArcCollapse() const {return m_ForcedArcCollapse;}
 };
 
 class CDrawingChartData : public CChartData {
@@ -81,7 +85,9 @@ public:
 	virtual void SetPage(unsigned page) {if (m_page==page) return; m_page=page; FreeMsc();}
 	unsigned GetPage() const {return m_page;}
     bool ForceEntityCollapse(const std::string &s, bool b);
-    bool ForceEntityCollapse(const std::map<std::string,bool> &);
+    bool ForceEntityCollapse(const EntityCollapseCatalog &);
+    bool ForceArcCollapse(const ArcSignature &, BoxCollapseType t);
+    bool ForceArcCollapse(const ArcSignatureCatalog &);
 //Compilation related
     void FreeMsc() const;
 	void CompileIfNeeded() const;

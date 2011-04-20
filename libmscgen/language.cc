@@ -2679,7 +2679,7 @@ yyreduce:
 #line 239 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(1) - (2)])))
         csh.AddDesignsToHints();
   #else
     msc.AddArcs((yyvsp[(2) - (2)].arclist));
@@ -3059,9 +3059,9 @@ yyreduce:
 #line 515 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         ArcArrow::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         ArcArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     (yyval.arcbase) = ((yyvsp[(1) - (2)].arcbase))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -3114,9 +3114,9 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
     csh.CheckEntityHintAtAndBeforePlusOne((yylsp[(1) - (3)]), (yylsp[(2) - (3)]));
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(3) - (3)])))
         ArcBigArrow::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(3) - (3)])))
         ArcBigArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     //Returns NULL, if BIG is before a self-pointing arrow
@@ -3167,9 +3167,9 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(3) - (3)])))
         ArcVerticalArrow::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(3) - (3)])))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     (yyval.arcbase) = ((yyvsp[(2) - (3)].arcbase))->AddAttributeList((yyvsp[(3) - (3)].attriblist));
@@ -3184,10 +3184,10 @@ yyreduce:
 #line 605 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-        if (csh.CheckHintLocated(HINT_ATTR_NAME))
-            ArcDivider::AttributeNames(csh);
-        else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-            ArcDivider::AttributeValues(csh.hintAttrName, csh);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(1) - (1)])))
+        ArcDivider::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(1) - (1)])))
+        ArcDivider::AttributeValues(csh.hintAttrName, csh);
   #else
     (yyval.arcbase) = (new ArcDivider(MSC_ARC_VSPACE, &msc))->AddAttributeList((yyvsp[(1) - (1)].attriblist));
   #endif
@@ -3430,9 +3430,9 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         CommandEntity::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         CommandEntity::AttributeValues(csh.hintAttrName, csh);
   #else
     (yyval.arcbase) = (new CommandEntity(NULL, &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -3462,9 +3462,9 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         ArcDivider::AttributeNames(csh, true);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, true);
   #else
     (yyval.arcbase) = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -3499,9 +3499,9 @@ yyreduce:
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_MARKERNAME);
     csh.MarkerNames.insert((yyvsp[(2) - (3)].str));
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
         CommandMark::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (3)])))
         CommandMark::AttributeValues(csh.hintAttrName, csh);
   #else
         (yyval.arcbase) = (new CommandMark((yyvsp[(2) - (3)].str), MSC_POS((yyloc)), &msc))->AddAttributeList((yyvsp[(3) - (3)].attriblist));
@@ -3532,9 +3532,9 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         CommandNewpage::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         CommandNewpage::AttributeValues(csh.hintAttrName, csh);
   #else
     (yyval.arcbase) = (new CommandNewpage(&msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -3817,9 +3817,9 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
     csh.AddCSH_EntityName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
   #else
     EntityDef *ed = new EntityDef((yyvsp[(1) - (2)].str), &msc);
@@ -3857,9 +3857,9 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (3)]));
     csh.AddCSH_EntityName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (3)])))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
   #else
     EntityDef *ed = new EntityDef((yyvsp[(1) - (3)].str), &msc);
@@ -3896,9 +3896,9 @@ yyreduce:
     if (csh.CheckHintAt((yylsp[(1) - (2)]), HINT_LINE_START)) {
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
-	} else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));  //Do it after AddLineBeginToHints so this one is not included
   #else
@@ -3940,9 +3940,9 @@ yyreduce:
     if (csh.CheckHintAt((yylsp[(1) - (3)]), HINT_LINE_START)) {
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
-	} else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (3)])))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));  //Do it after AddLineBeginToHints so this one is not included
   #else
@@ -3994,9 +3994,9 @@ yyreduce:
     for (std::list<std::string>::iterator i = ((yyvsp[(1) - (2)].stringlist))->begin(); i!=((yyvsp[(1) - (2)].stringlist))->end(); i++)
         if (csh.ForbiddenStyles.find(*i) != csh.ForbiddenStyles.end())
             csh.Contexts.back().StyleNames.insert(string(*i));
-	if (csh.CheckHintLocated(HINT_ATTR_NAME))
+	if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         MscStyle().AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         MscStyle().AttributeValues(csh.hintAttrName, csh);
   #else
     for (std::list<std::string>::iterator i = ((yyvsp[(1) - (2)].stringlist))->begin(); i!=((yyvsp[(1) - (2)].stringlist))->end(); i++) {
@@ -4365,9 +4365,9 @@ yyreduce:
 #line 1490 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(3) - (3)])))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(3) - (3)])))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ((yyvsp[(2) - (3)].arcbox))->SetLineEnd(MSC_POS2((yylsp[(2) - (3)]), (yylsp[(3) - (3)])));
@@ -4411,9 +4411,9 @@ yyreduce:
 #line 1521 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (4)])))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (4)])))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ((yyvsp[(2) - (4)].arcbox))->AddArcList((yyvsp[(4) - (4)].arclist))->SetLineEnd(MSC_POS2((yylsp[(2) - (4)]), (yylsp[(3) - (4)])));
@@ -4429,9 +4429,9 @@ yyreduce:
 #line 1534 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (3)])))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS((yylsp[(1) - (3)])), NULL, MSC_POS((yylsp[(1) - (3)])), &msc);
@@ -4461,9 +4461,9 @@ yyreduce:
 #line 1558 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ((yyvsp[(1) - (2)].arcbox))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -4492,9 +4492,9 @@ yyreduce:
 #line 1579 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (3)])))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ((yyvsp[(1) - (3)].arcbox))->SetLineEnd(MSC_POS2((yylsp[(1) - (3)]), (yylsp[(2) - (3)])));
@@ -4570,9 +4570,9 @@ yyreduce:
     if (csh.CheckHintBetweenPlusOne((yylsp[(1) - (3)]), (yylsp[(2) - (3)]), HINT_ENTITY)) {
         csh.hintStatus = HINT_READY;
         csh.AddEntitiesToHints();
-    } else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    } else if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(3) - (3)])))
         ArcPipe::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(3) - (3)])))
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
     (yyval.arcpipe) = new ArcPipe((yyvsp[(2) - (3)].arcbox));
@@ -4614,9 +4614,9 @@ yyreduce:
 #line 1669 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(3) - (3)])))
         ArcPipe::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(3) - (3)])))
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
     ArcPipe *ap = new ArcPipe((yyvsp[(2) - (3)].arcbox));

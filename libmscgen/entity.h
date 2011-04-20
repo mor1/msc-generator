@@ -78,6 +78,7 @@ class EntityList : public PtrList<Entity>
 };
 typedef EntityList::const_iterator EIterator;
 
+typedef std::map<std::string,bool> EntityCollapseCatalog;
 
 template <class T1, class T2, class T3> struct triplet
 {

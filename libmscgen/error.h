@@ -53,6 +53,8 @@ struct file_line_range {
     file_line_range &IncStartCol(unsigned i=1) {start.col+=i; return *this;}
     void MakeInvalid() {start.MakeInvalid(); end.MakeInvalid();}
     bool IsInvalid() const {return start.IsInvalid() || end.IsInvalid();}
+    bool operator ==(const file_line_range &o) const {return start==o.start && end==o.end;}
+    bool operator <(const file_line_range &o) const {return start==o.start ? end<o.end : start<o.start;}
 };
 
 struct file_line_range_length_compare

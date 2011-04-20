@@ -18,7 +18,8 @@ struct CshPos
   int first_pos;
   int last_pos;
   CshPos() : first_pos(0), last_pos(0) {}
-  bool IsWithin(int p) {return first_pos<=p && last_pos>=p;}
+  bool IsWithin(int p) const {return first_pos<=p && last_pos>=p;}
+  bool IsWithin(const CshPos &p) const {return IsWithin(p.first_pos) && IsWithin(p.last_pos);}
 };
 
 typedef enum
@@ -236,7 +237,7 @@ public:
     bool CheckEntityHintAt(const CshPos &one);
     bool CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd);
     bool CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd);
-    bool CheckHintLocated(CshHintType ht);
+    bool CheckHintLocated(CshHintType ht, const CshPos  &location_to_check);
      
     std::string HintPrefixNonSelectable() const {return "\\i";}
     std::string HintPrefix(MscColorSyntaxType) const;
