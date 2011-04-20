@@ -12,7 +12,8 @@
 typedef enum {
     MSC_CONTROL_INVALID,
     MSC_CONTROL_EXPAND,
-    MSC_CONTROL_COLLAPSE
+    MSC_CONTROL_COLLAPSE, 
+    MSC_CONTROL_ARROW
 } MscControlType;
 
 class Msc;
@@ -34,7 +35,6 @@ protected:
     std::vector<MscControlType> 
            controls;           //Controls added for this box  
     Block  control_location;   //Top-left corner of controls
-    bool   indicator;          //If this element is collapsed, shall we show an indicator?
     const MscStyle 
            indicator_style;  //The one to be used if we need to replace this with an indicator
 

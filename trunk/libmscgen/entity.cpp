@@ -337,6 +337,12 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         to_use = chart->Contexts.back().text;
         to_use += style_to_use.text;
         style_to_use.text = to_use;
+        //If "entity" style contains no "indicator" value (the default in plain)
+        //we use the value from the context (true by default)
+        if (!style_to_use.indicator.first) {
+            style_to_use.indicator.first = true;
+            style_to_use.indicator.second = chart->Contexts.back().indicator;
+        }
 
         //Allocate new entity with correct label and children
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
@@ -438,7 +444,7 @@ string EntityDef::Print(int ident) const
 double EntityDef::Width() const
 {
     double inner = parsed_label.getTextWidthHeight().x; 
-    if ((*itr)->children_names.size() && indicator && (*itr)->collapsed)
+    if ((*itr)->children_names.size() && style.indicator.second && (*itr)->collapsed)
         inner = std::max(inner, indicator_size.x + 2*chart->emphVGapInside);
     const double width = ceil(style.line.LineWidth()*2 + inner);
     return width + fmod(width, 2); //always return an even number
@@ -450,7 +456,7 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
     const double lw = style.line.LineWidth();
     if (children.size()==0) {
         const double x = chart->XCoord((*itr)->pos); //integer
-        if ((*itr)->children_names.size() && indicator)
+        if ((*itr)->children_names.size() && style.indicator.second)
             indicator_ypos_offset = wh.y + lw;
         else 
             indicator_ypos_offset = -1;

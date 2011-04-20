@@ -156,9 +156,9 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
 %type <arcvertarrow> vertrel_no_xpos
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
-%type <arcbox>     boxrel first_box 
-%type <arcpipe>    first_pipe 
-%type <arcboxseries> box_list 
+%type <arcbox>     boxrel first_box
+%type <arcpipe>    first_pipe
+%type <arcboxseries> box_list
 %type <arcpipeseries> pipe_list_no_content pipe_list
 %type <arcparallel> parallel
 %type <arclist>    top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
@@ -233,12 +233,13 @@ msc:
     msc.AddArcs($2);
   #endif
     free($1);
+
     YYACCEPT;
 }
               | msckey braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    if (csh.CheckHintLocated(HINT_ATTR_VALUE, @1))
         csh.AddDesignsToHints();
   #else
     msc.AddArcs($2);
@@ -514,9 +515,9 @@ arc:           arcrel
               | arcrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         ArcArrow::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = ($1)->AddAttributeList($2);
@@ -554,9 +555,9 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
         ArcBigArrow::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcBigArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     //Returns NULL, if BIG is before a self-pointing arrow
@@ -592,9 +593,9 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
         ArcVerticalArrow::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = ($2)->AddAttributeList($3);
@@ -604,10 +605,10 @@ arc:           arcrel
               | full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
-        if (csh.CheckHintLocated(HINT_ATTR_NAME))
-            ArcDivider::AttributeNames(csh);
-        else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
-            ArcDivider::AttributeValues(csh.hintAttrName, csh);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @1))
+        ArcDivider::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @1))
+        ArcDivider::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc))->AddAttributeList($1);
   #endif
@@ -770,9 +771,9 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         CommandEntity::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandEntity::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandEntity(NULL, &msc))->AddAttributeList($2);
@@ -792,9 +793,9 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         ArcDivider::AttributeNames(csh, true);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, true);
   #else
     $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList($2);
@@ -819,9 +820,9 @@ arc:           arcrel
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.AddCSH(@2, COLOR_MARKERNAME);
     csh.MarkerNames.insert($2);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         CommandMark::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandMark::AttributeValues(csh.hintAttrName, csh);
   #else
         $$ = (new CommandMark($2, MSC_POS(@$), &msc))->AddAttributeList($3);
@@ -842,9 +843,9 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         CommandNewpage::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNewpage::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandNewpage(&msc))->AddAttributeList($2);
@@ -1069,9 +1070,9 @@ entity:       entity_string full_arcattrlist_with_label
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
   #else
     EntityDef *ed = new EntityDef($1, &msc);
@@ -1099,9 +1100,9 @@ entity:       entity_string full_arcattrlist_with_label
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt(@1);
     csh.AddCSH_EntityName(@1, $1);
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
   #else
     EntityDef *ed = new EntityDef($1, &msc);
@@ -1129,9 +1130,9 @@ first_entity:  entity_string full_arcattrlist_with_label
     if (csh.CheckHintAt(@1, HINT_LINE_START)) {
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
-	} else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
   #else
@@ -1163,9 +1164,9 @@ first_entity:  entity_string full_arcattrlist_with_label
     if (csh.CheckHintAt(@1, HINT_LINE_START)) {
 	    csh.AddLineBeginToHints();
 	    csh.hintStatus = HINT_READY;
-	} else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+	} else if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         EntityDef::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         EntityDef::AttributeValues(csh.hintAttrName, csh);
     csh.AddCSH_KeywordOrEntity(@1, $1);  //Do it after AddLineBeginToHints so this one is not included
   #else
@@ -1205,9 +1206,9 @@ styledef : tok_stringlist full_arcattrlist
     for (std::list<std::string>::iterator i = ($1)->begin(); i!=($1)->end(); i++)
         if (csh.ForbiddenStyles.find(*i) != csh.ForbiddenStyles.end())
             csh.Contexts.back().StyleNames.insert(string(*i));
-	if (csh.CheckHintLocated(HINT_ATTR_NAME))
+	if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         MscStyle().AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         MscStyle().AttributeValues(csh.hintAttrName, csh);
   #else
     for (std::list<std::string>::iterator i = ($1)->begin(); i!=($1)->end(); i++) {
@@ -1489,9 +1490,9 @@ box_list: first_box
            | box_list boxrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
@@ -1520,9 +1521,9 @@ box_list: first_box
            | box_list boxrel full_arcattrlist_with_label braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ($2)->AddArcList($4)->SetLineEnd(MSC_POS2(@2, @3));
@@ -1533,9 +1534,9 @@ box_list: first_box
            | box_list full_arcattrlist_with_label braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
@@ -1557,9 +1558,9 @@ first_box:   boxrel
            | boxrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ($1)->AddAttributeList($2);
@@ -1578,9 +1579,9 @@ first_box:   boxrel
            | boxrel full_arcattrlist_with_label braced_arclist
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
         ArcBox::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcBox::AttributeValues(csh.hintAttrName, csh);
   #else
     ($1)->SetLineEnd(MSC_POS2(@1, @2));
@@ -1630,7 +1631,7 @@ first_pipe: TOK_COMMAND_PIPE boxrel
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "The keyword '" + string($1) +"' should be followed by an entity, or '--', '..', '++' or '=='.");
   #endif
     free($1);
-} 
+}
              | TOK_COMMAND_PIPE boxrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1638,9 +1639,9 @@ first_pipe: TOK_COMMAND_PIPE boxrel
     if (csh.CheckHintBetweenPlusOne(@1, @2, HINT_ENTITY)) {
         csh.hintStatus = HINT_READY;
         csh.AddEntitiesToHints();
-    } else if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    } else if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
         ArcPipe::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = new ArcPipe($2);
@@ -1649,7 +1650,7 @@ first_pipe: TOK_COMMAND_PIPE boxrel
     free($1);
 };
 
-pipe_list_no_content: first_pipe 
+pipe_list_no_content: first_pipe
 {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -1668,9 +1669,9 @@ pipe_list_no_content: first_pipe
              | pipe_list_no_content boxrel full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
-    if (csh.CheckHintLocated(HINT_ATTR_NAME))
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
         ArcPipe::AttributeNames(csh);
-    else if (csh.CheckHintLocated(HINT_ATTR_VALUE))
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
     ArcPipe *ap = new ArcPipe($2);

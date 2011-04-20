@@ -325,7 +325,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, true);  //no vline solid side
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, false);  //no vline solid side indicator
     style.compress.first = false;
     style.numbering.first = false;
     style.numbering.first = false;
@@ -377,7 +377,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["vertical=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, true); //no arrow, fill, shadow solid side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, false); //no arrow, fill, shadow solid side indicator
     style.compress.first = false;
     style.numbering.first = false;
     style.vline.Empty();
@@ -395,7 +395,7 @@ void Design::Reset()
     style.text.Apply("\\mu(10)\\md(10)");
     styles["..."] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true); //no arrow, vline solid side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true); //no arrow, vline solid side 
     style.compress.first = false;
     style.numbering.first = false;
     styles["emptybox"] = style;
@@ -416,7 +416,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, true); //no arrow, vline
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, false ); //no arrow, vline indicator
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = 5;
@@ -454,7 +454,7 @@ void Design::Reset()
     style.vline.width.second=3;
     styles["collapsed_entity"] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false); //fill line shadow only
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false); //fill line shadow only indicator
     style.line.width.second = 2;
     styles["indicator"] = style;
 

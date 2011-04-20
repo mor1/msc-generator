@@ -356,10 +356,10 @@ static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
-"text.color", "text.format", "text.ident", "collapsed", ""};
+"text.color", "text.format", "text.ident", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
-{"compress", "color", "label", "number", "indicator",
+{"compress", "color", "label", "number", "indicator", "collapsed", 
 "pos", "relative", "show", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
@@ -757,10 +757,14 @@ bool Csh::CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name)
     return true;
 }
 
-//If the hint had been located and equals to this, we set it ready
-bool Csh::CheckHintLocated(CshHintType ht)
+//If the hint had been located, is in the "location_to_check" and equals to "ht", 
+//we set it ready and return true
+bool Csh::CheckHintLocated(CshHintType ht, const CshPos &location_to_check)
 {
     if (hintStatus!=HINT_LOCATED || hintType!=ht)
+        return false;
+    //if hintedString is fully inside the location_to_check only then do we signal a located hint
+    if (!location_to_check.IsWithin(hintedStringPos))
         return false;
     hintStatus = HINT_READY;
     return true;

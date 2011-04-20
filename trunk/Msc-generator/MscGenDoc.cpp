@@ -1593,11 +1593,27 @@ bool CMscGenDoc::OnControlClicked(TrackableElement *arc, MscControlType t)
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
     CChartData chart(*m_itrEditing);
     EntityDef *ed = dynamic_cast<EntityDef*>(arc);
-    if (ed != NULL) {
-        if (t==MSC_CONTROL_COLLAPSE) chart.ForceEntityCollapse(ed->name, true);
-        else if (t==MSC_CONTROL_EXPAND) chart.ForceEntityCollapse(ed->name, false);
-        else return false;
+    bool changed = false;
+    if (ed) {
+        if (t==MSC_CONTROL_COLLAPSE) changed |= chart.ForceEntityCollapse(ed->name, true);
+        else if (t==MSC_CONTROL_EXPAND) changed |= chart.ForceEntityCollapse(ed->name, false);
+    } 
+    ArcBase *ab = dynamic_cast<ArcBase *>(arc);
+    if (ab) {
+        const ArcSignature *sig = ab->GetSignature();
+        if (sig) switch (t) {
+        case MSC_CONTROL_COLLAPSE:
+            changed |= chart.ForceArcCollapse(*sig, BOX_COLLAPSE_COLLAPSE);
+            break;
+        case MSC_CONTROL_EXPAND:
+            changed |= chart.ForceArcCollapse(*sig, BOX_COLLAPSE_EXPAND);
+            break;
+        case MSC_CONTROL_ARROW:
+            changed |= chart.ForceArcCollapse(*sig, BOX_COLLAPSE_BLOCKARROW);
+            break;
+        }
     }
+    if (!changed) return false;
     m_trackArcs.clear();
     m_controlsShowing.clear();
 	InsertNewChart(chart);

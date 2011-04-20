@@ -12,7 +12,7 @@ typedef enum {
     SIDE_LEFT,
     SIDE_RIGHT
 } MscSideType;
-
+bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p);
 
 struct MscStyle
 {

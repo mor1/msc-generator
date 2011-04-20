@@ -22,12 +22,10 @@ using namespace std;
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
     hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
-    indicator(false), indicator_style(m->Contexts.back().styles["indicator"])
+    indicator_style(m->Contexts.back().styles["indicator"])
 {
     area_draw.arc = area.arc = this;
     control_location.MakeInvalid();
-    if (m && m->Contexts.size()) 
-        indicator = m->Contexts.back().indicator;
 }
 
 
@@ -35,8 +33,7 @@ TrackableElement::TrackableElement(const TrackableElement&o) :
     hidden(o.hidden), linenum_final(o.linenum_final), area(o.area), yPos(o.yPos),
     area_draw(o.area_draw), draw_is_different(o.draw_is_different),
     area_draw_is_frame(o.area_draw_is_frame), chart(o.chart),
-    controls(o.controls), control_location(o.control_location),
-    indicator(o.indicator)
+    controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
     area_draw.arc = this;
@@ -108,17 +105,33 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
         cairo_set_source_rgb(cr, 0,0,0);
         cairo_set_line_width(cr, 2);
         rect.Line(cr);
-        cairo_set_line_width(cr, (control_size.x+control_size.y)/10);
-        cairo_set_source_rgb(cr, 1,0,0);
-        cairo_move_to(cr, -control_size.x*0.25, 0);
-        cairo_line_to(cr, +control_size.x*0.25, 0);
-        if (*j == MSC_CONTROL_EXPAND) {
-            cairo_new_sub_path(cr);
-            cairo_move_to(cr, 0, -control_size.x*0.25);
-            cairo_line_to(cr, 0, +control_size.x*0.25);
+        switch (*j) {
+        case MSC_CONTROL_EXPAND:
+        case MSC_CONTROL_COLLAPSE:
+            cairo_set_line_width(cr, (control_size.x+control_size.y)/10);
+            cairo_set_source_rgb(cr, 1,0,0);
+            cairo_move_to(cr, -control_size.x*0.25, 0);
+            cairo_line_to(cr, +control_size.x*0.25, 0);
+            if (*j == MSC_CONTROL_EXPAND) {
+                cairo_new_sub_path(cr);
+                cairo_move_to(cr, 0, -control_size.x*0.25);
+                cairo_line_to(cr, 0, +control_size.x*0.25);
+            }
+            cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+            cairo_stroke(cr);
+            break;
+        case MSC_CONTROL_ARROW:
+            Area arrow = Contour(-control_size.x*0.25, -control_size.x*0.1,
+                                 -control_size.y*0.1,  control_size.y*0.1);
+            arrow += Contour(XY(-control_size.x*0.1, -control_size.y*0.25),
+                             XY(-control_size.x*0.1,  control_size.y*0.25),
+                             XY(control_size.x*0.25, 0));
+            MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
+            MscFillAttr fill(MscColorType(0,128,0), GRADIENT_UP);
+            canvas->Fill(arrow, fill);
+            canvas->Line(arrow, line);
+            break;
         }
-        cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-        cairo_stroke(cr);
         //move down to next control location
         cairo_translate(cr, 0, control_size.y/size);
     }

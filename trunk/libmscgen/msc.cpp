@@ -642,6 +642,31 @@ void Msc::ParseText(const char *input, const char *filename)
     MscParse(*this, input, strlen(input));
 }
 
+MscDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, MscDirType dir) const
+{
+    for (auto i = al.begin(); i!=al.end(); i++) {
+        EntityList el2(false);
+        MscDirType dir2 = (*i)->GetToucedEntities(el2);
+        //update combined direction
+        switch (dir2) {
+        case MSC_DIR_BIDIR:
+            dir = MSC_DIR_BIDIR; 
+            break;
+        case MSC_DIR_LEFT:
+        case MSC_DIR_RIGHT:
+            if (dir == MSC_DIR_INDETERMINATE) dir = dir2;
+            else if (dir != dir2) dir = MSC_DIR_BIDIR;
+            break;
+        /*Nothing for MSC_DIR_INDETERMIATE*/
+        }
+        //merge the two lists
+        for (auto ei2 = el2.begin(); ei2!=el2.end(); ei2++) 
+            if (el.Find_by_Ptr(*ei2) == el.end())
+                el.Append(*ei2);
+    }
+    return dir;
+}
+
 string Msc::Print(int ident) const
 {
     string s = AllEntities.Print(ident).append("\n");
@@ -649,11 +674,10 @@ string Msc::Print(int ident) const
     return s;
 }
 
-bool Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
+void Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
-    bool ret = false;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
@@ -672,28 +696,20 @@ bool Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
             arcs.erase(j);
             continue; //i remains at this very same CommandEntity!
         }
-        bool need_indicator = false;
-        ArcBase *replace = (*i)->PostParseProcess(hide, left, right, number, top_level, need_indicator);
+        ArcBase *replace = (*i)->PostParseProcess(hide, left, right, number, top_level);
         //Do not add an ArcIndicator, if previous thing was also an ArcIndicator on the same entity
         ArcIndicator *ai = dynamic_cast<ArcIndicator*>(replace);
         if (ai && i!=arcs.begin()) {
             ArcIndicator *ai2 = dynamic_cast<ArcIndicator*>(*--ArcList::iterator(i));
-            if (ai2 && ai->src == ai2->src && ai->dst == ai2->dst)
+            if (ai2 && ai2->Combine(ai)) {
+                delete replace;
                 replace = NULL;
+            }
         }
-        ret |= need_indicator;
         if (replace == *i) i++;
         else if (replace != NULL) (*i++) = replace; //TODO: Check for ArcIndicators
         else arcs.erase(i++);
     }
-    //We may get need_indicator==true returns from individual arc postparseprocess() calls
-    //if hide == true. In this case only such arcs may remain, which generate no height
-    //such as background change, entity command with no heading, markers, page breaks, etc.
-    //We return true if any actual arcs were removed, which generate height, so that caller
-    //(a box or a parallel) can place an indicator.
-    //Note that if the indicator attribute of all removed arcs are set to "no" none of them
-    //will return indicator_needed==true, so we will also return false
-    return ret;
 }
 
 void Msc::PostParseProcess()
