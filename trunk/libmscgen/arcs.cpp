@@ -271,7 +271,7 @@ ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
 
 //This is only used to convert an ArcBox to an ArcBigArrow in
 //ArcBoxSeries::PostParseProcess (when the box is collapsed to a block arrow)
-//So PostPProcess will not be called after this, but was called for "al"
+//So PostPProcess was not called for "al", but will be called for this
 ArcLabelled::ArcLabelled(MscArcType t, const ArcLabelled &al)
     : ArcBase(t, al.chart), label(al.label), parsed_label(al.parsed_label),
     concrete_number(al.concrete_number), style(al.style), numberingStyle(al.numberingStyle)
@@ -331,15 +331,16 @@ const MscStyle *ArcLabelled::GetRefinementStyle(MscArcType t) const
 ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
 {
     if (!valid) return this;
-    //Find label attribute
+    //Find position of label attribute (if any)
     file_line linenum_label;
     if (l)
         for (AttributeList::iterator i = l->begin(); i!=l->end(); i++)
             if ((*i)->Is("label")) linenum_label = (*i)->linenum_value.start;
+    //Add attributest 
+    ArcBase::AddAttributeList(l);
+    //compress went to the style, copy it
     if (style.compress.first)
         compress = style.compress.second;
-    //Add attributest first
-    ArcBase::AddAttributeList(l);
     //Make style.text complete using the default text formatting in the context as default
     StringFormat to_use(chart->Contexts.back().text);
     to_use += style.text;
@@ -659,12 +660,12 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
 ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabelled &al) :
     ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, al), specified_as_forward(false)
 {
-    src = chart->ActiveEntities.Find_by_Ptr(*el.begin());
-    dst = chart->ActiveEntities.Find_by_Ptr(*el.rbegin());
+    src = chart->AllEntities.Find_by_Ptr(*el.begin());
+    dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
     segment_types.push_back(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG);
     segment_lines.push_back(style.line);
     for (auto i = ++el.begin(); i!=--el.end(); i++) {
-        middle.push_back(chart->ActiveEntities.Find_by_Ptr(*i));
+        middle.push_back(chart->AllEntities.Find_by_Ptr(*i));
         segment_types.push_back(MSC_ARC_BIG);
         segment_lines.push_back(style.line);
     }
@@ -1692,7 +1693,7 @@ void ArcVerticalArrow::Draw()
 //////////////////////////////////////////////////////////////////////////////////////
 
 template<> const char EnumEncapsulator<BoxCollapseType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "no", "yes", "blockarrow", ""};
+    {"invalid", "no", "yes", "arrow", ""};
 
 
 ArcSignatureCatalog::iterator ArcSignature::WhichIsSimilar(ArcSignatureCatalog &cat) const
@@ -1781,11 +1782,11 @@ ArcBase *ArcBox::AddAttributeList(AttributeList *l)
     //If collapsed, use emptybox style
     const MscStyle *refinement = GetRefinementStyle(type);
     if (collapsed==BOX_COLLAPSE_COLLAPSE) {
-        style = chart->Contexts.back().styles["emptybox"];
+        style = chart->Contexts.back().styles["box_collapsed"];
         if (refinement) style += *refinement;
     }
     else if (collapsed==BOX_COLLAPSE_BLOCKARROW) {
-        style = chart->Contexts.back().styles["blockarrow"];
+        style = chart->Contexts.back().styles["box_collapsed_arrow"];
         if (refinement) style += *refinement;
     }
     ArcLabelled::AddAttributeList(l);
@@ -1907,8 +1908,28 @@ string ArcBoxSeries::Print(int ident) const
 ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
-    //Add numbering, if needed
+    if (collapsed == BOX_COLLAPSE_BLOCKARROW) {
+        EntityList el(false);
+        //replace us with a block arrow - here we are sure to be alone in the series
+        el.Append(*src);
+        el.Append(*dst);
+        MscDirType dir = chart->GetTouchedEntitiesArcList(content, el);
+        if (dir == MSC_DIR_INDETERMINATE) dir = MSC_DIR_BIDIR;
+        //remove NoEntity and side ones from el
+        for (auto i = el.begin(); i!=el.end(); /*nope*/)
+            if ((*i)->name == NONE_ENT_STR || (*i)->name == LSIDE_ENT_STR || (*i)->name == RSIDE_ENT_STR)
+                el.erase(i++);
+            else 
+                i++;
+        el.SortByPos();
+        if (dir == MSC_DIR_LEFT)
+            std::reverse(el.begin(), el.end());
+        ArcBigArrow *ret = new ArcBigArrow(el, dir == MSC_DIR_BIDIR, *this, GetSignature());
+        ret->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
+        return ret->PostParseProcess(hide, left, right, number, top_level);
+    }
     ArcLabelled::PostParseProcess(hide, left, right, number, top_level);
+    //Add numbering, if needed
     EIterator left_content = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     EIterator right_content = left_content;
     if (content.size()) {
@@ -1930,7 +1951,7 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
     } 
     //left & right will not expand if src and dst is unspecified
     left = chart->EntityMinByPos(left, src);
-    right = chart->EntityMaxByPos(left, dst);
+    right = chart->EntityMaxByPos(right, dst);
     if (*src == chart->NoEntity) src = left_content;
     if (*dst == chart->NoEntity) dst = right_content;
     return this;
@@ -1939,8 +1960,12 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
 ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level)
 {
-    if (!valid) return NULL;
+    if (!valid || series.size()==0) return NULL;
+    //If first segment is compressed or parallel, copy that to full series
+    compress = (*series.begin())->compress;
+//    parallel = (*series.begin())->parallel;
 
+    ArcBase *ret;
     EIterator src, dst;
     dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -1957,7 +1982,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
         }
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
-        (*i)->PostParseProcess(hide, src, dst, number, top_level); //always returns *i
+        ret = (*i)->PostParseProcess(hide, src, dst, number, top_level); //ret is an arcblockarrow if we need to collapse
     }
     //src and dst can be NoEntity here if none of the series specified a left or a right entity
     //Go through and use content to adjust to content
@@ -2012,20 +2037,8 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
         return new ArcIndicator(chart, src, indicator_style, file_pos);
 
     //Check if we are collapsed to a block arrow
-    if (series.size()==1 && (*series.begin())->collapsed == BOX_COLLAPSE_BLOCKARROW) {
-        //replace us with a block arrow
-        const ArcBox &box = **series.begin();
-        EntityList el(false);
-        el.Append(*box.src);
-        el.Append(*box.dst);
-        MscDirType dir = chart->GetTouchedEntitiesArcList(box.content, el);
-        if (dir == MSC_DIR_INDETERMINATE) dir = MSC_DIR_BIDIR;
-        el.SortByPos();
-        if (dir == MSC_DIR_LEFT)
-            std::reverse(el.begin(), el.end());
-        return new ArcBigArrow(el, dir == MSC_DIR_BIDIR, box, box.GetSignature());
-    }
-
+    if (series.size()==1 && (*series.begin())->collapsed == BOX_COLLAPSE_BLOCKARROW) 
+        return ret;
     return this;
 }
 
@@ -2245,15 +2258,17 @@ void ArcBoxSeries::PostPosProcess(double autoMarker)
                 switch ((*i)->collapsed) {
                 case BOX_COLLAPSE_EXPAND:
                     (*i)->controls.push_back(MSC_CONTROL_COLLAPSE);        
-                    (*i)->controls.push_back(MSC_CONTROL_ARROW);        
+                    if (series.size()==1) 
+                        (*i)->controls.push_back(MSC_CONTROL_ARROW);        
                     break;
                 case BOX_COLLAPSE_COLLAPSE:
                     (*i)->controls.push_back(MSC_CONTROL_EXPAND);        
-                    (*i)->controls.push_back(MSC_CONTROL_ARROW);        
+                    if (series.size()==1) 
+                        (*i)->controls.push_back(MSC_CONTROL_ARROW);        
                     break;
                 case BOX_COLLAPSE_BLOCKARROW:
-                    (*i)->controls.push_back(MSC_CONTROL_COLLAPSE);        
-                    (*i)->controls.push_back(MSC_CONTROL_EXPAND);        
+                default:
+                    _ASSERT(0); //should not happen here
                     break;
                 }
             (*i)->ArcLabelled::PostPosProcess(autoMarker);
@@ -2437,11 +2452,13 @@ bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
 }
 
 //Should be called before AddAttributeList for "f" is called
-ArcPipeSeries* ArcPipeSeries::AddFollow(ArcPipe*f)
+ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *l)
 {
     _ASSERT(f);
     if (f==NULL) return this;
     if (f->valid) {
+        f->style.Empty();
+        f->AddAttributeList(l);
         if (f->style.side.first) {
             f->style.side.first = false;
             chart->Error.Error(f->file_pos.start,
@@ -2459,8 +2476,9 @@ ArcPipeSeries* ArcPipeSeries::AddFollow(ArcPipe*f)
         //Override with the line type specified (if any)
         _ASSERT(f->type != MSC_EMPH_UNDETERMINED_FOLLOW);
         s += *f->GetRefinementStyle(f->type);
+        s += f->style; //add the result of attributes
         f->style = s;
-        //AddAttributeList will be called for "f" after this function
+        //AddAttributeList will NOT be called for "f" after this function
     } else
         valid = false;
     series.Append(f);
@@ -2561,30 +2579,37 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
         }
 
         //Now check that segments sanity
-        for (auto i = series.begin(); i!=series.end(); i++) {
-            auto i_prev = i, i_next = i;
-            if (i!=series.begin()) i_prev--; 
-            if (i!=--series.end()) i_next++;
-            const EIterator loc_src = chart->FindLeftRightDescendant((*i)->src, true, false);
-            const EIterator loc_dst = chart->FindLeftRightDescendant((*i)->dst, false, false);
-            const EIterator next_src = chart->FindLeftRightDescendant(i_next!=series.end() ? (*i_next)->src : (*i)->src, true, false);
-            const EIterator prev_dst = chart->FindLeftRightDescendant(i_prev!=series.end() ? (*i_prev)->dst : (*i)->dst, false, false);
-
-            if (loc_src == loc_dst && (
-                  (i_prev!=series.end() && prev_dst != loc_src) ||
-                  (i_next!=series.end() && next_src != loc_dst)
-                  )) {
-                chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to a neighbouring segments but spans only a single entity."
-                    " Segment cannot be shown. Ignoring pipe.");
-                return NULL;
+        if (series.size()>1) 
+            for (auto i = series.begin(); i!=series.end(); /*nope*/) {
+                const EIterator loc_src = chart->FindLeftRightDescendant((*i)->src, true, false);
+                const EIterator loc_dst = chart->FindLeftRightDescendant((*i)->dst, false, false);
+                if (i != --series.end()) {
+                    auto i_next = i; i_next++;
+                    const EIterator next_src = chart->FindLeftRightDescendant((*i_next)->src, true, false);
+                    if (loc_src == loc_dst && loc_dst == next_src) {
+                        chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to the next segment but spans only a single entity."
+                            "Segment will not be shown.");
+                        series.erase(i++);
+                        continue;
+                    }
+                }
+                if (i != series.begin()) {
+                    auto i_prev = i; i_prev--; 
+                    const EIterator prev_dst = chart->FindLeftRightDescendant((*i_prev)->dst, false, false);
+                    if (loc_src == loc_dst && loc_src == prev_dst) {
+                        chart->Error.Error((*i)->file_pos.start, "This pipe segment is attaches to the previous segment but spans only a single entity."
+                            "Segment will not be shown.");
+                        series.erase(i++);
+                        continue;
+                    }
+                    if (chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) 
+                        chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previousl one. It may not look so good.",
+                        "Encapsulate one in the other if you want that effect.");
+                }
+                i++;
             }
-            if ((i_prev!=series.end() && chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) ||
-                (i_next!=series.end() && chart->EntityMinByPos(next_src, loc_dst) != loc_dst))
-                    chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps a negighbouring one."
-                    " It may not look so good.",
-                    "Encapsulate one in the other if you want that effect.");
-        }
     }
+    if (series.size()==0) return NULL;
 
     //All the above operations were checked on AllEntities. We have accepted the pipe
     //as valid here and should not complain no matter what entities are collapsed or not
@@ -2832,9 +2857,10 @@ double ArcPipeSeries::Height(AreaList &cover)
     double y = lowest_label_bottom;
 
     //Calculate the Height of the content
+    AreaList content_cover;
     if (content.size())
         y = ceil(chart->PlaceListUnder(content.begin(), content.end(), ceil(y),
-                                        lowest_line_bottom, label_covers));
+                                        lowest_line_bottom, label_covers, false, &content_cover));
     //now y contains the bottom of the content arrows (if any),
     //adjust if an opaque pipe's label was not yet considered in y
     y = std::max(y, lowest_opaque_label_bottom);
@@ -2952,9 +2978,15 @@ double ArcPipeSeries::Height(AreaList &cover)
             (*i)->pipe_shadow.clear();
         }
     }
-    cover.mainline = Range(chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside for pipes
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
+    //Add content to cover (may "come out" from pipe)
+    cover += content_cover;
+    //If we have valid content, set mainline to that of the content
+    if (content.size() && !content_cover.mainline.IsInvalid()) 
+        cover.mainline += content_cover.mainline;
+    else  //else use the top and bottom of the pipe
+        cover.mainline = Range(chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
     return yPos + total_height + max_offset + chart->emphVGapOutside;
 }
 
@@ -3401,6 +3433,38 @@ string CommandEntity::Print(int ident) const
     return ss;
 }
 
+//This is called only from "Combine" and Msc::PostParseProcess(), so definitely
+//After AddAttrLits and before PostParseProcess, so here are the members
+//with comments on how to merge a later entityDef into a former one.
+//name                 //This is const, shall be the same
+//label;               //This can only be set once: keep the former
+//linenum_label_value; //pos of label text, irrelevant in later one
+//pos;                 //THis is used only in AddAttributeList
+//rel;                 //THis is used only in AddAttributeList
+//collapsed;           //THis is used only in AddAttributeList
+//show;                //the latter shall overwrite the former one
+//show_is_explicit;    //ignore, This is only used in ApplyPrefix which is only called during parse
+//itr;                 //this is set during PostParse, ignore
+//style;               //this is finalized during PostParse, combine latter into former
+//parsed_label;        //will be set during PostParse, ignore
+//defining;            //keep former
+//shown;               //ignore, will be set in PostParse
+void CommandEntity::AppendToEntities(const EntityDefList &e)
+{
+    for (auto i = e.begin(); i!=e.end(); i++) {
+        auto i2 = entities.begin();
+        for (/*nope*/; i2!=entities.end(); i2++)
+            if ((*i2)->name == (*i)->name) break;
+        if (i2 == entities.end()) {
+            entities.Append(*i);
+        } else {
+            (*i2)->style += (*i)->style;
+            if ((*i)->show.first) 
+                (*i2)->show = (*i)->show;
+        }
+    }
+}
+
 void CommandEntity::Combine(CommandEntity *ce)
 {
     if (!ce) return;
@@ -3413,6 +3477,7 @@ void CommandEntity::Combine(CommandEntity *ce)
     AppendToEntities(ce->entities);
     ce->entities.clear();
 }
+
 
 CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 {
@@ -3508,16 +3573,13 @@ ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &
             //This is just for the Height process knwos whch entity is on/off
             if ((*i_def)->show.first)
                 (*j_ent)->shown = (*i_def)->show.second;
-            //remove entitydef if not shown
-            if (!(*i_def)->shown) {
-                entities.erase(i_def++);
-            } else { 
+            if ((*i_def)->shown) {
                 explicitly_listed.insert(*(*i_def)->itr);
                 //Update the style of the entitydef
                 (*i_def)->style = (*j_ent)->running_style;	 //(*i)->style now become the full style to use from this point
                 (*i_def)->parsed_label.Set((*j_ent)->label, chart->GetCanvas(), (*i_def)->style.text);
-                i_def++; //cycle to next in for-cycle
             }
+            i_def++; //cycle to next in for-cycle
         }
 
     //A "heading" command, we have to draw all entities that are on
@@ -3669,9 +3731,11 @@ double CommandEntity::Height(AreaList &cover)
         hei += (*i)->Height(cover, edl); 
         area += (*i)->GetAreaToSearch();
     }
+    if (!hei.Spans()) return height = 0; //if no headings show
     //Ensure overall startpos is zero
     ShiftBy(-hei.from + chart->headingVGapAbove);
     return height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
+
 }
 
 void CommandEntity::ShiftBy(double y)

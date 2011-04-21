@@ -910,10 +910,11 @@ double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double 
     double touchpoint;
     double new_start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     //if we shifted up, apply shift only if compess is on
-    if (forceCompress || (*from)->IsCompressed())
-        if (new_start_y < start_y) start_y = new_start_y;
-    //if we shifted down, apply it in any case
-    else if (new_start_y > start_y) start_y = new_start_y;
+    if (new_start_y < start_y) {
+        if (forceCompress || (*from)->IsCompressed()) 
+            start_y = new_start_y;    
+    } else //if we shifted down, apply it in any case
+        start_y = new_start_y;
     start_y = ceil(start_y);
     ShiftByArcList(from, to, start_y);
     if (ret_cover)

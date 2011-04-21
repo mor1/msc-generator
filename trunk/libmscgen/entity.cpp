@@ -213,7 +213,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
 		defining = true;
     }
 
-    // Process attribute list
+    // Process attribute list, "style" is empty (emptied in constructor)
     if (al) {
         for (AttributeList::iterator j=al->begin(); j!=al->end(); j++)
             AddAttribute(**j);
@@ -235,7 +235,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
 
     bool make_collapsed = false;
     //Check that we apply certain attributes the right way for grouped entities
-    if (children) {
+    if (children && children->size()) {
         if (pos.first || rel.first) 
             chart->Error.Error(pos.first ? pos.third : rel.third, 
                                "The position of grouped entities is derived from its member entities.",
@@ -319,24 +319,19 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         if (!show.first)
             show.second = show.first = true;
 
-        //create a fully specified string format for potential \s() \f() \c() and \mX() in label
-        StringFormat to_use(chart->Contexts.back().text);       //default text
-        to_use += chart->Contexts.back().styles["entity"].text; //entity style 
+        const char *style_name;
         if (children && children->size()) //we are group entity
-            to_use += chart->Contexts.back().styles[make_collapsed?"collapsed_entity":"expanded_entity"].text; 
-        to_use += style.text;                                   //attributes specified by user
+            style_name = make_collapsed ? "entitygroup_collapsed" : "entitygroup";
+        else 
+            style_name = "entity";
 
-        string orig_label = label.first?label.second:name;
-        string proc_label = orig_label;
+        //create a fully specified string format for potential \s() \f() \c() and \mX() in label
+        //also take a proper starting style and add the contents of "style" (from attributes)
+        MscStyle style_to_use = chart->Contexts.back().styles[style_name];
+        style_to_use.text = chart->Contexts.back().text;                     //default text
+        style_to_use.text +=chart->Contexts.back().styles[style_name].text;  //entity style text
+        style_to_use += style;
 
-        StringFormat::ExpandColorAndStyle(proc_label, chart, linenum_label_value,
-                                          &to_use, true, StringFormat::LABEL);
-
-        //Create a base style with the text part fully specified (which is not the case in "entity")
-        MscStyle style_to_use = chart->Contexts.back().styles["entity"];
-        to_use = chart->Contexts.back().text;
-        to_use += style_to_use.text;
-        style_to_use.text = to_use;
         //If "entity" style contains no "indicator" value (the default in plain)
         //we use the value from the context (true by default)
         if (!style_to_use.indicator.first) {
@@ -344,7 +339,13 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
             style_to_use.indicator.second = chart->Contexts.back().indicator;
         }
 
-        //Allocate new entity with correct label and children
+        //Create parsed label
+        string orig_label = label.first?label.second:name;
+        string proc_label = orig_label;
+        StringFormat::ExpandColorAndStyle(proc_label, chart, linenum_label_value,
+                                          &style_to_use.text, true, StringFormat::LABEL);
+
+        //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
                                style_to_use, file_pos.start, make_collapsed);
         e->AddChildrenList(children, chart);  //also fixes positions & updates running_style

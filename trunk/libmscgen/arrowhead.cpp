@@ -100,11 +100,11 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         MscArrowType at;
         if (a.type == MSC_ATTR_STRING &&
             Convert(a.value, at)) {
-            if (type == ARROW && MSC_ARROW_OK_FOR_ARROWS(at)) {
+            if (type == ARROW && !MSC_ARROW_OK_FOR_ARROWS(at)) {
                 msc->Error.Error(a, true, "Value '"+a.value+"' is applicable only to block arrows.");
                 return true;
             }
-            if (type == BIGARROW && MSC_ARROW_OK_FOR_BIG_ARROWS(at)) {
+            if (type == BIGARROW && !MSC_ARROW_OK_FOR_BIG_ARROWS(at)) {
                 msc->Error.Error(a, true, "Value '"+a.value+"' is not applicable to block arrows.");
                 return true;
             }

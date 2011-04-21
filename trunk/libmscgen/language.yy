@@ -1662,8 +1662,7 @@ pipe_list_no_content: first_pipe
   #ifndef C_S_H_IS_COMPILED
     ArcPipe *ap = new ArcPipe($2);
     ap->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow(ap);
-    (ap)->AddAttributeList(NULL); //should come after AddFollow
+    $$ = ($1)->AddFollowWithAttributes(ap, NULL);
   #endif
 }
              | pipe_list_no_content boxrel full_arcattrlist_with_label
@@ -1676,8 +1675,7 @@ pipe_list_no_content: first_pipe
   #else
     ArcPipe *ap = new ArcPipe($2);
     ap->SetLineEnd(MSC_POS(@2));
-    $$ = ($1)->AddFollow(ap);
-    (ap)->AddAttributeList($3); //should come after AddFollow
+    $$ = ($1)->AddFollowWithAttributes(ap, $3);
   #endif
 };
 

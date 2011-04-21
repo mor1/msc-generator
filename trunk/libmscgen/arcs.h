@@ -57,6 +57,17 @@ typedef enum {
 
 class EntityDistanceMap;
 struct ArcSignature;
+//Box attributes we save to determine, if a box previously collapsed on the GUI
+//is the same as a box after re-compilation (and potentially source text modification)
+enum BoxCollapseType {BOX_COLLAPSE_INVALID=0, BOX_COLLAPSE_EXPAND, BOX_COLLAPSE_COLLAPSE, BOX_COLLAPSE_BLOCKARROW};
+typedef std::map<ArcSignature, BoxCollapseType> ArcSignatureCatalog;
+struct ArcSignature {
+    file_line_range file_pos;
+    bool operator == (const ArcSignature&o) const;
+    bool operator < (const ArcSignature&o) const;
+    ArcSignatureCatalog::iterator WhichIsSimilar(ArcSignatureCatalog &cat) const;
+};
+
 
 class ArcBase : public TrackableElement
 {
@@ -76,7 +87,7 @@ public:
     bool IsParallel() const {return parallel;}
     bool IsCompressed() const {return compress;}
     double GetPos() const {return yPos;}
-    //Get an (ordered) list of entities (from chart->ActiveEntities) that this arrow/box touches
+    //Get an (ordered) list of entities that this arrow/box touches
     virtual MscDirType GetToucedEntities(EntityList &el) const {return MSC_DIR_INDETERMINATE;}
 
     //Adding attributes and helpers for color syntax highlighting and hinting
@@ -154,7 +165,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     bool isBidir(void) const {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
-                                     type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR || 
+                                     type == MSC_ARC_DASHED_BIDIR || type == MSC_ARC_DOUBLE_BIDIR ||
                                      type == MSC_ARC_BIG_BIDIR;}
 };
 
@@ -285,23 +296,12 @@ public:
     virtual void Draw();
 };
 
-//Box attributes we save to determine, if a box previously collapsed on the GUI
-//is the same as a box after re-compilation (and potentially source text modification)
-enum BoxCollapseType {BOX_COLLAPSE_INVALID=0, BOX_COLLAPSE_EXPAND, BOX_COLLAPSE_COLLAPSE, BOX_COLLAPSE_BLOCKARROW};
-typedef std::map<ArcSignature, BoxCollapseType> ArcSignatureCatalog;
-struct ArcSignature {
-    file_line_range file_pos;
-    bool operator == (const ArcSignature&o) const;
-    bool operator < (const ArcSignature&o) const;
-    ArcSignatureCatalog::iterator WhichIsSimilar(ArcSignatureCatalog &cat) const;
-};
-
 class ArcBox : public ArcLabelled
 {
     friend struct pipe_compare;
     friend class ArcBoxSeries;
     friend class ArcPipe;
-    friend ArcSignature;
+    friend struct ArcSignature;
 protected:
     EIterator       src, dst;
     BoxCollapseType collapsed;
@@ -376,7 +376,7 @@ public:
     string Print(int ident=0) const;
     virtual double Height(AreaList &cover) {return 0;} //will never be called
     virtual void ShiftBy(double y);
-    void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow, 
+    void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow,
                   bool text, double next_lw, int drawing_variant);
     virtual void Draw() {} //will never be called
 };
@@ -392,7 +392,7 @@ protected:
 public:
     //Constructor to construct the first box/pipe in a series
     ArcPipeSeries(ArcPipe *first);
-    ArcPipeSeries* AddFollow(ArcPipe *f);
+    ArcPipeSeries* AddFollowWithAttributes(ArcPipe*f, AttributeList *l);
     ArcPipeSeries* AddArcList(ArcList*l);
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
@@ -469,7 +469,7 @@ public:
 	bool IsFullHeading() {return full_heading;}
 	void MoveMyEntityDefsAfter(EntityDefList *e) {if (e) e->splice(e->end(), entities);} //effectively empty 'entities'
     string Print(int ident=0) const;
-    void AppendToEntities(const EntityDefList &e) {entities.insert(entities.end(), e.begin(), e.end());}
+    void AppendToEntities(const EntityDefList &e);
     void Combine(CommandEntity *ce);
     bool AddAttribute(const Attribute &);
     CommandEntity *ApplyPrefix(const char *prefix);
