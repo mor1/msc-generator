@@ -30,7 +30,7 @@ MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, b
                    bool so, bool nu, bool co, bool si, bool i) :
     type(tt), f_arrow(a), f_text(t), f_line(l), f_vline(vl), f_fill(f),
     f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
-    f_indicator(i)
+    f_indicator(i), arrow(a)
 {
     solid.first=so;
     solid.second = 128;
@@ -328,9 +328,10 @@ void Design::Reset()
     style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, false);  //no vline solid side indicator
     style.compress.first = false;
     style.numbering.first = false;
-    style.numbering.first = false;
     style.line.radius.second = -1;
     styles["blockarrow"] = style;
+    style.arrow.midType.second = MSC_ARROW_DOT;
+    styles["box_collapsed_arrow"] = style;
 
     style.Empty();
     style.type = STYLE_STYLE;
@@ -399,6 +400,7 @@ void Design::Reset()
     style.compress.first = false;
     style.numbering.first = false;
     styles["emptybox"] = style;
+    styles["box_collapsed"] = style;
     style.text.Apply("\\pl");
     style.line.type.first = false;
     styles["box"] = style;
@@ -438,21 +440,9 @@ void Design::Reset()
 
     style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true); //no arrow, solid numbering compress side
     styles["entity"] = style;
-    style.Empty();
-    style.type = STYLE_STYLE;
-    style.line.type.first=true;
+    styles["entitygroup_collapsed"] = style;
     style.line.type.second=LINE_DASHED;
-    style.fill.color.first=true;
-    style.fill.color.second = MscColorType(); //none
-    style.fill.gradient.first=true;
-    style.fill.gradient.second = GRADIENT_NONE;
-    styles["expanded_entity"] = style;
-    style.Empty();
-    style.line.width.first=true;
-    style.line.width.second=3;
-    style.vline.width.first=true;
-    style.vline.width.second=3;
-    styles["collapsed_entity"] = style;
+    styles["entitygroup"] = style;
 
     style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false); //fill line shadow only indicator
     style.line.width.second = 2;

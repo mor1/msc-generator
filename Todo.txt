@@ -43,25 +43,26 @@ ADD: Context menu to editor (track one, tracking mode, find, replace, Style expl
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.1
-FIX: Entity hide does not work
-FIX: Why do we get bidir block arrow all the time if collapsing a box
-FIX: individual compress on/off does not work
 FIX: parallel shows strange symptoms
 FIX: No immediate hint after collapse=
 BUG: FullScreen view should not allow modification
-FIX: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)
-DOC: all the changes
 ADD: Toolbar button to turn controls on/off
+ADD: New styles for designs
+DOC: GUI parts remain
 Done
-ADDED: Box collapse
+FIXED: individual compress on/off does not work
+FIXED: Why do we get bidir block arrow all the time if collapsing a box
+FIXED: Entity hide does not work
+ADDED: Box collapse, box_collapsed + box_collapsed_arrow styles
 FIXED: hinting is bad for entity attributes inside a group.
 FIXED: Indicator should have cover and mainline.
 ADDED: Show indicators in collapsed attributes (but show them upwards)
 FIXED: thick lines with dot mid do not show in WMF
 ADDED: indicator chart option and context element. PostParseProcess shall return indicators instead of NULL, when appropriate.
 CHANGED:Split ArcEmphasis to ArcBox and ArcPipe & Series in c++ code
-ADDED: Grouping of entities, collapsed_entity + expanded_entity + indicator style. Also indicator option and attribute.
+ADDED: Grouping of entities, entitygroup + entitygroup_collapsed + indicator style. Also indicator option and attribute.
 FIXED: vline was quite much ignored.
+CANCELLED: Do another round of CommandEntity merging after PostParseProcess (entities may disappear)
 
 In 3.0
 FIXED: Upgrade install
