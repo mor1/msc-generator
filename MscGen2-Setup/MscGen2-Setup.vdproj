@@ -33,26 +33,26 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_6775070CBB134C5C9A0E3C0746590FEB"
+        "MsmKey" = "8:_2044FD3E577E19EF3457E127D9A06FBB"
         "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_6775070CBB134C5C9A0E3C0746590FEB"
+        "MsmKey" = "8:_3AD3970637534F899E79C9F5702C2918"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_3AD3970637534F899E79C9F5702C2918"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_7B03BBE59B0243E58381CDD16D06FF50"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -65,6 +65,12 @@
         {
         "MsmKey" = "8:_9A89BFC4BEBF45EFB4374ED2BE2E1924"
         "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_A2822A75C16945DFBFCE4F1D0CDECDFC"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -253,6 +259,26 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2044FD3E577E19EF3457E127D9A06FBB"
+            {
+            "SourcePath" = "8:cairo.dll"
+            "TargetName" = "8:cairo.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:TRUE"
+            "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6613FEF835754514BC83A62E3B74C6D5"
@@ -476,15 +502,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
-        "ProductCode" = "8:{7EF0EE64-A2E3-4A24-89E6-75D9AA63FA87}"
-        "PackageCode" = "8:{6665DD43-AA73-4543-BB55-3C913838CB32}"
+        "ProductCode" = "8:{135734D8-0404-4DBF-9AA9-407F604EFE22}"
+        "PackageCode" = "8:{BE9CDC25-BB7C-41EE-A082-3799746CE578}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:3.1.2"
+        "ProductVersion" = "8:3.1.3"
         "Manufacturer" = "8:Zoltan Turanyi"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1942,11 +1968,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_6775070CBB134C5C9A0E3C0746590FEB"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_3AD3970637534F899E79C9F5702C2918"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_DebugCRT_x86.msm"
                 "Properties"
                 {
                 }
@@ -1956,11 +1982,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_7B03BBE59B0243E58381CDD16D06FF50"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_A2822A75C16945DFBFCE4F1D0CDECDFC"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_DebugMFC_x86.msm"
                 "Properties"
                 {
                 }

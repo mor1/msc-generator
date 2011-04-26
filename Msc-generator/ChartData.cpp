@@ -20,6 +20,7 @@
 #include "Msc-generator.h"
 #include "ChartData.h"
 #include "csh.h"
+#include "version.h"
 
 void ReplaceTAB(CString &str, unsigned tabsize)
 {
@@ -62,6 +63,21 @@ void CChartData::SetDesign (const char *design)
 	if (m_ForcedDesign == design) return;
 	m_ForcedDesign = design;
 }
+
+//rets -1 if "this" has newer version, 0 if equal, +1 if "this" has older
+//If we have no version or the other is invalid, return 0
+int CChartData::CompareVersion(unsigned a, unsigned b, unsigned c) const 
+{
+    if (!HasVersion() || ver_a==0) return 0;
+    if (a<ver_a) return -1;
+    if (a>ver_a) return +1;
+    if (b<ver_b) return -1;
+    if (b>ver_b) return +1;
+    if (c<ver_c) return -1;
+    if (c>ver_c) return +1;
+    return 0;
+}
+
 
 BOOL CChartData::Save(const CString &fileName) 
 {
@@ -121,6 +137,7 @@ BOOL CChartData::Load(const CString &fileName, BOOL reportError)
 	RemoveSpacesAtLineEnds();
 	EnsureCRLF(m_text);
 	ReplaceTAB(m_text);
+    ver_a = ver_b = ver_c = 0;
 	return TRUE;
 }
 
@@ -244,6 +261,13 @@ void CDrawingChartData::CompileIfNeeded() const
         //copy pedantic flag from app settings
 	    if (pApp) 
 		    m_msc->pedantic = pApp->m_Pedantic;
+        if (HasVersion() && CompareVersion(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR)<0) {
+            string msg = "This chart was created with Msc-Generator v";
+            msg << ver_a << "." << ver_b;
+            if (ver_c) msg << "." << ver_c;
+            msg << ", which is newer than the current version. Please update Msc-generator, see Help|About...";
+            m_msc->Error.Warning(file_line(0, 0, 0), msg);
+        }
         //compile preamble and set forced design
 	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
 		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");

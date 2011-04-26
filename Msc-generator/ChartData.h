@@ -38,17 +38,22 @@ protected:
     EntityCollapseCatalog m_ForcedEntityCollapse; 
     ArcSignatureCatalog   m_ForcedArcCollapse; 
 public:
+    unsigned ver_a, ver_b, ver_c;
 	CHARRANGE m_sel;
 	bool m_wasDrawn;
-	CChartData() : m_page(0), m_wasDrawn(false) {m_sel.cpMax = m_sel.cpMin = 0;}
+	CChartData() : m_page(0), m_wasDrawn(false), ver_a(0), ver_b(0), ver_c(0) {m_sel.cpMax = m_sel.cpMin = 0;}
 	CChartData(const char *text, const char *design=NULL, unsigned page = 0) 
 		:m_text(text?text:""), m_ForcedDesign(design?design:""), m_page(page), 
-		 m_wasDrawn(false) {m_sel.cpMax = m_sel.cpMin = 0;}
+		 m_wasDrawn(false), ver_a(0), ver_b(0), ver_c(0) {m_sel.cpMax = m_sel.cpMin = 0;}
 	CChartData(const char *text, const CHARRANGE &sel, const char *design=NULL, unsigned page = 0) 
-		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""), m_page(page), m_wasDrawn(false) {}
+		:m_text(text?text:""), m_sel(sel), m_ForcedDesign(design?design:""), m_page(page), m_wasDrawn(false), 
+        ver_a(0), ver_b(0), ver_c(0)  {}
 	CChartData(const CChartData&o) {operator=(o);}
 	virtual ~CChartData() {Delete();}
 	virtual void Delete(void) {m_text.Empty(); m_wasDrawn = false; m_page=0; m_ForcedDesign.Empty(); m_sel.cpMax = m_sel.cpMin = 0;}
+    void SetVersion(unsigned a, unsigned b, unsigned c) {ver_a=a; ver_b=b; ver_c=c;}
+    bool HasVersion() const {return ver_a>0;}
+    int CompareVersion(unsigned a, unsigned b, unsigned c) const;
 	BOOL Save(const CString &fileName);
 	BOOL Load(const CString &fileName,  BOOL reportError=TRUE);
 	void Set(const char *text) {Delete(); m_text=text?text:"";}

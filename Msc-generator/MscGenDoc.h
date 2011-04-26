@@ -65,6 +65,7 @@ public:
 	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
 	IChartData m_itrDoNotSyncForThis; //At inplace exit we asked if we should sync this itrEditing to shown, but she said no, so we store it not to ask again
 	CDrawingChartData m_ChartShown;
+    CDrawingChartData m_ChartSerializedIn; //Any chart serialized in is stored here
 
 	// Zoom related 
 	int m_zoom; //In percentage. 100 is normal

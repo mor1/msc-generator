@@ -85,6 +85,7 @@ public:
     bool m_bHintFilter;
     bool m_bHintCompact;
     CChartCache::ECacheType m_cacheType;
+    bool m_bShowControls;
 
 	//Editor related
 	enum EEditorType {NOTEPAD=0, NPP=1, OTHER=2} m_iTextEditorType;
@@ -144,4 +145,5 @@ extern CMscGenApp theApp;
 #define REG_KEY_HINT_ATTRVALUE "HintAttrValue"
 #define REG_KEY_HINT_COMPACT "HintCompact"
 #define REG_KEY_HINT_FILTER "HintFilter"
+#define REG_KEY_SHOW_CONTROLS "ShowElementControls"
 

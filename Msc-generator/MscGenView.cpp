@@ -227,6 +227,8 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_DROPFILES()
 	ON_WM_LBUTTONDOWN()
 //    ON_WM_ACTIVATE()
+ON_COMMAND(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnViewShowElementControls)
+ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWELEMENTCONTROLS, &CMscGenView::OnUpdateViewShowElementControls)
 END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
@@ -467,7 +469,7 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
 		                              GetBValue(pApp->m_trackLineColor)/255., 
                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
             i->arc->GetAreaToDraw().Line(cr);
-        } else if (i->what == TrackedArc::CONTROL) 
+        } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls) 
             i->arc->DrawControls(&canvas, i->fade_value);
     }
 	//Cleanup
@@ -822,7 +824,7 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL) return;
-	pDoc->SetTrackMode(true);
+    //First transform the point to the chart coordinate space
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
 	CClientDC dc(this);
@@ -831,6 +833,15 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	//then take zooming into account.
 	point.x = point.x*100./pDoc->m_zoom;
 	point.y = point.y*100./pDoc->m_zoom;
+
+    //If the click is on an element that has controls, activate the first one
+	TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
+    if (arc && arc->GetControls().size()) {
+        pDoc->OnControlClicked(arc, *arc->GetControls().begin());
+        return; //Whole chart will be redrawn
+    }
+    //Dblclick not on an arc with controls=> enter tracking mode
+	pDoc->SetTrackMode(true);
 	pDoc->UpdateTrackRects(point);
 	CScrollView::OnLButtonDblClk(nFlags, point);
 }
@@ -937,3 +948,21 @@ BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT dropEffect, CPo
 //        if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
 //            pApp->m_pWndEditor->SetFocus();
 //}
+
+
+void CMscGenView::OnViewShowElementControls()
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    pApp->m_bShowControls = !pApp->m_bShowControls;
+    Invalidate();
+    pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SHOW_CONTROLS, pApp->m_bShowControls);
+}
+
+
+void CMscGenView::OnUpdateViewShowElementControls(CCmdUI *pCmdUI)
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    pCmdUI->SetCheck(pApp->m_bShowControls);
+}

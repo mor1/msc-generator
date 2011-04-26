@@ -264,6 +264,7 @@ CMscGenApp::CMscGenApp()
 	m_pWndEditor = 0;
 	m_bFullScreenViewMode = false;
     m_cacheType = CChartCache::CACHE_NONE;
+    m_bShowControls = false;
 }
 
 
@@ -659,6 +660,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     m_bHintAttrValue = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, TRUE);
     m_bHintFilter    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, TRUE);
     m_bHintCompact   = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_COMPACT, TRUE);
+    m_bShowControls  = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SHOW_CONTROLS, TRUE);
 
 	m_bDoCshProcessing = m_bShowCsh || m_bHints;
 

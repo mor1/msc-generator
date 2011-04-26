@@ -763,8 +763,12 @@ bool Csh::CheckHintLocated(CshHintType ht, const CshPos &location_to_check)
 {
     if (hintStatus!=HINT_LOCATED || hintType!=ht)
         return false;
-    //if hintedString is fully inside the location_to_check only then do we signal a located hint
-    if (!location_to_check.IsWithin(hintedStringPos))
+    //If hintedString is fully inside the location_to_check only then do we signal a located hint.
+    //If the hinted string is empty then hintedStringPos.first equals hintedStringPos.last+1.
+    //In this case if the last is within (perhaps at the end) of "location_to_check", we are
+    //still OK and shall give hints.
+    if (!location_to_check.IsWithin(hintedStringPos) && 
+        (hintedStringPos.first_pos<=hintedStringPos.last_pos || !location_to_check.IsWithin(hintedStringPos.last_pos)))
         return false;
     hintStatus = HINT_READY;
     return true;

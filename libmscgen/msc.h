@@ -205,8 +205,8 @@ public:
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
     double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
     double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y,
-                          double top_y, const AreaList &area_top, bool forceCompress=false,
-                          AreaList *ret_cover=NULL);
+                          double top_y, const AreaList &area_top, 
+                          bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(void);
     void PostPosProcessArcList(ArcList &arcs, double autoMarker);
