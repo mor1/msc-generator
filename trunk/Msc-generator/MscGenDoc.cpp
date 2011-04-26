@@ -23,6 +23,7 @@
 #include "stdafx.h"
 #include "Msc-generator.h"
 
+#include "version.h"
 #include "MscGenDoc.h"
 #include "SrvrItem.h"
 #include "MainFrm.h"
@@ -294,14 +295,30 @@ void CMscGenDoc::Dump(CDumpContext& dc) const
 #define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
 void CMscGenDoc::Serialize(CArchive& ar)
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	if (ar.IsStoring()) {
+        CChartData &chart = pApp->m_bFullScreenViewMode ? m_ChartSerializedIn : m_ChartShown;
 		ar << CString(NEW_VERSION_STRING);
-		ar << unsigned(2); //file format version
-		ar << m_ChartShown.GetDesign();
-		ar << m_ChartShown.GetPage();
-		ar << m_ChartShown.GetText();
-        ar << unsigned(m_ChartShown.GetForcedEntityCollapse().size());
-        for (auto i = m_ChartShown.GetForcedEntityCollapse().begin(); i!=m_ChartShown.GetForcedEntityCollapse().end(); i++)
+		ar << unsigned(3); //file format version
+		ar << chart.GetDesign();
+		ar << chart.GetPage();
+		ar << chart.GetText();
+        ar << unsigned(LIBMSCGEN_MAJOR);
+        ar << unsigned(LIBMSCGEN_MINOR);
+        ar << unsigned(LIBMSCGEN_SUPERMINOR);
+        ar << unsigned(chart.GetForcedArcCollapse().size());
+        for (auto i = chart.GetForcedArcCollapse().begin(); i!=chart.GetForcedArcCollapse().end(); i++) {
+            ar << unsigned(i->first.file_pos.start.file);
+            ar << unsigned(i->first.file_pos.start.line);
+            ar << unsigned(i->first.file_pos.start.col);
+            ar << unsigned(i->first.file_pos.end.file);
+            ar << unsigned(i->first.file_pos.end.line);
+            ar << unsigned(i->first.file_pos.end.col);
+            ar << unsigned(i->second);
+        }
+        ar << unsigned(chart.GetForcedEntityCollapse().size());
+        for (auto i = chart.GetForcedEntityCollapse().begin(); i!=chart.GetForcedEntityCollapse().end(); i++)
             ar << CString(i->first.c_str()) << unsigned(i->second);
 	} else {
 		CString text;
@@ -352,12 +369,31 @@ void CMscGenDoc::Serialize(CArchive& ar)
 		EnsureCRLF(text);
 		ReplaceTAB(text);
 		CChartData chart(text, design, page);
-        unsigned force_entity_size;
+        unsigned force_entity_size, force_arc_size;
+        unsigned a=0, b=0, c=0;
         switch (file_version) {
         case 0:
         case 1: 
             break; //nothing to read besides design, page and text
         default: //any future version 
+        case 3: //since 3.1.3
+            ar >> a;
+            ar >> b;
+            ar >> c;
+            chart.SetVersion(a,b,c);
+            ar >> force_arc_size;
+            for (int i=0; i<force_arc_size; i++) {
+                ArcSignature as;
+                ar >> as.file_pos.start.file;
+                ar >> as.file_pos.start.line;
+                ar >> as.file_pos.start.col;
+                ar >> as.file_pos.end.file;
+                ar >> as.file_pos.end.line;
+                ar >> as.file_pos.end.col;
+                ar >> a;
+                chart.ForceArcCollapse(as, BoxCollapseType(a));
+            }
+            //Fallthrough
         case 2:  //since v3.1
             ar >> force_entity_size;
             for (int i=0; i<force_entity_size; i++) {
@@ -369,6 +405,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
             break;
         }
         InsertNewChart(chart);
+        m_ChartSerializedIn = chart;
 	} /* not IsStoring */
 }
 
@@ -1236,6 +1273,9 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 
 void CMscGenDoc::SyncShownWithEditing(const CString &action) 
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->m_bFullScreenViewMode) return;
 	if (m_itrEditing == m_itrShown) return;
 	if (m_itrEditing == m_itrDoNotSyncForThis) return;
 	CString message = "I want to " + action + ", but you have made changes in the text editor.\n";
@@ -1250,14 +1290,20 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 
 void CMscGenDoc::CheckIfChanged()
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->m_bFullScreenViewMode) goto not_modified;
 	if (m_itrSaved == m_charts.end()) goto modified;
 	if (m_itrSaved != m_itrEditing) {
 		if (m_itrSaved->GetText() != m_itrEditing->GetText()) goto modified;
 		if (IsEmbedded()) {
 			if (m_itrSaved->GetPage() != m_itrEditing->GetPage()) goto modified;
 			if (m_itrSaved->GetDesign() != m_itrEditing->GetDesign()) goto modified;
+            if (!(m_itrSaved->GetForcedEntityCollapse() == m_itrEditing->GetForcedEntityCollapse())) goto modified;
+            if (!(m_itrSaved->GetForcedArcCollapse() == m_itrEditing->GetForcedArcCollapse())) goto modified;
 		}
 	}
+not_modified:
 	SetModifiedFlag(FALSE);
 	return;
 modified:

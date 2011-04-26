@@ -88,7 +88,10 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	rSize = pDoc->m_ChartShown.GetSize();
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT_VALID(pApp);
+    CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
+	rSize = chart.GetSize();
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -115,7 +118,8 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-	pDoc->m_ChartShown.DrawToWMF(pDC->m_hDC, pApp->m_bPB_Embedded);
+    CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
+	chart.DrawToWMF(pDC->m_hDC, pApp->m_bPB_Embedded);
 	return TRUE;
 }
 
@@ -201,6 +205,7 @@ BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMed
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	pDoc->SyncShownWithEditing("copy the chart to the clipboard");
+    //We always copy the editing text (even if a full screen read only doc)
 	CString text(pDoc->m_itrEditing->GetText());
 	lpStgMedium->tymed= TYMED_HGLOBAL;
 	lpStgMedium->hGlobal = GlobalAlloc(GMEM_MOVEABLE, text.GetLength()+1);

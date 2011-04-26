@@ -491,10 +491,15 @@ arc_with_parallel: arc
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    csh.hintStatus = HINT_READY;
-    csh.hintType = HINT_LINE_START;
-    csh.hintsForcedOnly = true;
-    csh.AddLineBeginToHints(false);
+    if (csh.CheckHintAt(@1, HINT_LINE_START)) {
+	    csh.AddLineBeginToHints(false);
+	    csh.hintStatus = HINT_READY;
+	} else if (csh.CheckHintBetween(@1, @2, HINT_LINE_START)) {
+        csh.hintStatus = HINT_READY;
+        csh.hintType = HINT_LINE_START;
+        csh.hintsForcedOnly = true;
+        csh.AddLineBeginToHints(false);
+    }
   #else
     if ($2) {
         ($2)->SetLineEnd(MSC_POS(@$));

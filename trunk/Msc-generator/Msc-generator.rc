@@ -311,6 +311,7 @@ BEGIN
     BUTTON      ID_VIEW_ZOOMNORMALIZE
     BUTTON      ID_BUTTON_TRACK
     BUTTON      ID_BUTTON_AUTO_SPLIT
+    BUTTON      ID_VIEW_SHOWELEMENTCONTROLS
 END
 
 IDR_TOOLBAR_MAINFRAME TOOLBAR 16, 15
@@ -329,6 +330,7 @@ BEGIN
     BUTTON      ID_VIEW_ZOOMNORMALIZE
     BUTTON      ID_BUTTON_TRACK
     BUTTON      ID_BUTTON_AUTO_SPLIT
+    BUTTON      ID_VIEW_SHOWELEMENTCONTROLS
 END
 
 IDR_TOOLBAR_SRVR_INPLACE TOOLBAR 16, 15
@@ -341,6 +343,7 @@ BEGIN
     BUTTON      ID_BUTTON_EDITTEXT
     BUTTON      ID_VIEW_RESETASPECTRATIO_INPLACE
     BUTTON      ID_BUTTON_TRACK
+    BUTTON      ID_VIEW_SHOWELEMENTCONTROLS
 END
 
 IDR_DESIGNBAR TOOLBAR 16, 15
@@ -433,6 +436,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS
         MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
     END
     POPUP "&Help"
@@ -471,6 +475,7 @@ BEGIN
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Reset &Aspect Ratio to 1:1\tCtrl+1", ID_VIEW_RESETASPECTRATIO_INPLACE
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS32864
     END
     MENUITEM SEPARATOR
     MENUITEM SEPARATOR
@@ -548,6 +553,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
+        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS32863
         MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
     END
     POPUP "&Help"
@@ -685,8 +691,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,1,2,0
- PRODUCTVERSION 3,1,2,0
+ FILEVERSION 3,1,3,0
+ PRODUCTVERSION 3,1,3,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -703,12 +709,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "3.1.2.0"
+            VALUE "FileVersion", "3.1.3.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "3.1.2.0"
+            VALUE "ProductVersion", "3.1.3.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -938,6 +944,8 @@ BEGIN
     ID_HELP_HELP            "Opens help"
     ID_VIEW_PREVERROR       "Go to the previous error\nPrevious error"
     ID_BUTTON_AUTO_SPLIT    "Split view and keeps entity heading at top pane."
+    ID_VIEW_SHOWELEMENTCONTROLS 
+                            "Show Collapse/Expand controls for chart elements "
 END
 
 STRINGTABLE

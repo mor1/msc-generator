@@ -849,6 +849,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
         AreaList arc_cover;
         double h = (*i)->Height(arc_cover);
         _ASSERT(h>=arc_cover.GetBoundingBox().y.till);
+        double y_bottom = ceil(y)+h;
         arc_cover = arc_cover.CreateExpand(compressGap/2);
         double touchpoint = y;
         if ((*i)->IsCompressed()) {
@@ -873,17 +874,19 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
         //Shift the arc in question to its place
         (*i)->ShiftBy(y);
         arc_cover.Shift(XY(0,y));
-        Range save_mainline = cover.mainline;
-        cover += arc_cover;
-        y += h;
 
         //If we are parallel draw the rest of the block in one go
         if ((*i)->IsParallel()) {
-            //restore mainline to the one before we added the arc marked as parallel
-            cover.mainline = save_mainline;
-            //Place blocks, always compress the first
-            return PlaceListUnder(++i, to, y, y-h, cover, true);
+            //kill the mainline of the last arc (in "i")
+            arc_cover.InvalidateMainLine();
+            cover += arc_cover;
+            //Place blocks, always compress the first (forceCompress=true)
+            //Use 0 instead of y if you want the element after "parallel" to completely
+            //ignore the "parallel" element (and potentially be above it)
+            return PlaceListUnder(++i, to, y_bottom, y /* or 0 */, cover, true);
         }
+        cover += arc_cover;
+        y = y_bottom;
     }
     return y;
 }

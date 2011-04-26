@@ -510,14 +510,12 @@ ArcBase *ArcLabelled::PostParseProcess(bool hide, EIterator &left, EIterator &ri
 void ArcArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false, false); //no fill, shadow, vline solid side indicator
-    style.AttributeNames(csh);
+    Design().styles["arrow"].AttributeNames(csh);
 }
 
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false, false); //no fill, shadow, vline solid side indicator
-    if (style.AttributeValues(attr, csh)) return true;
+    if (Design().styles["arrow"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -1124,14 +1122,12 @@ const MscStyle *ArcBigArrow::GetRefinementStyle(MscArcType t) const
 void ArcBigArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, false);  //no vline solid side indicator
-    style.AttributeNames(csh);
+    Design().styles["blockarrow"].AttributeNames(csh);
 }
 
 bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, false);  //no vline solid side indicator
-    if (style.AttributeValues(attr, csh)) return true;
+    if (Design().styles["blockarrow"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -1288,8 +1284,8 @@ void ArcBigArrow::PostPosProcess(double autoMarker)
     CheckSegmentOrder(yPos + centerline);
     if (!valid) return;
     if (sig) {
-        controls.push_back(MSC_CONTROL_COLLAPSE);        
         controls.push_back(MSC_CONTROL_EXPAND);        
+        controls.push_back(MSC_CONTROL_COLLAPSE);        
     }
     ArcArrow::PostPosProcess(autoMarker); //Skip ArcDirArrow
     chart->HideEntityLines(style.arrow.BigEntityLineCover(xPos, sy, dy, isBidir(), &segment_lines,
@@ -1416,8 +1412,7 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true, false);  //no vline solid indicator
-    style.AttributeNames(csh);
+    Design().styles["vertical"].AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
 }
@@ -1433,8 +1428,7 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true, false);  //no vline solid indicator
-    if (style.AttributeValues(attr, csh)) return true;
+    if (Design().styles["vertical"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -1822,8 +1816,7 @@ bool ArcBox::AddAttribute(const Attribute &a)
 void ArcBox::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true); //no arrow, vline solid side
-    style.AttributeNames(csh);
+    Design().styles["box"].AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
 }
 
@@ -1853,8 +1846,7 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true); //no arrow, vline solid side
-    if (style.AttributeValues(attr, csh)) return true;
+    if (Design().styles["box"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -2435,8 +2427,7 @@ bool ArcPipe::AddAttribute(const Attribute &a)
 void ArcPipe::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, false); //no arrow, vline indicator 
-    style.AttributeNames(csh);
+    Design().styles["pipe"].AttributeNames(csh);
 }
 
 bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
@@ -2445,8 +2436,7 @@ bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
         csh.AddColorValuesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true , true, true, true, false); //no arrow, vline  
-    if (style.AttributeValues(attr, csh)) return true;
+    if (Design().styles["pipe"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -3166,15 +3156,13 @@ void ArcDivider::AttributeNames(Csh &csh, bool nudge)
 {
     if (nudge) return;
     ArcLabelled::AttributeNames(csh);
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, false); //no arrow, fill, shadow solid side indicator
-    style.AttributeNames(csh);
+    Design().styles["divider"].AttributeNames(csh);
 }
 
 bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
 {
     if (nudge) return false;
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, false); //no arrow, fill, shadow solid side indicator
-    if (style.AttributeValues(attr, csh)) return true;
+    if (Design().styles["divider"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }

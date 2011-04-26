@@ -211,6 +211,7 @@ public:
 
     const Area *InWhich(const XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (i->IsWithin(p)!=WI_OUTSIDE) return &*i; return NULL;}
     const Area *InWhichFromBack(const XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (i->IsWithin(p)!=WI_OUTSIDE) return &*i; return NULL;}
+    void InvalidateMainLine() {mainline.MakeInvalid(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.MakeInvalid();}
 };
 
 
