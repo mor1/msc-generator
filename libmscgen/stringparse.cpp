@@ -201,7 +201,15 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     //If this is not an escape, search for the next escape
     if (input[0]!='\\') {
         length = 0;
-        while (input[length] && input[length]!='\\') length++;
+        while (input[length] && input[length]!='\\') {
+            //If there is an unescaped ']' or '}' in the verbatim string give a warning
+            if (linenum && msc)
+                if (input[length] == '}' || input[length] == ']') 
+                    msc->Error.Warning(file_line(linenum->file, linenum->line, linenum->col+length),
+                    string("'") + input[length] + "' character found in label without escape. Is this what you want?",
+                    "Insert a '\\' in front of it to remove this warning.");
+            length++;
+        }
         if (replaceto) replaceto->assign(input, length);
         if (linenum) linenum->col += length;
         return NON_ESCAPE;

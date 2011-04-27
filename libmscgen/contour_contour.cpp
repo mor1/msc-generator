@@ -952,7 +952,12 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
     //With union we may have holes, but only one surface
     //With intersect (and substract), we can have multiple surfaces, but no holes
     //...or also, we may have just holes (e.g., substracting a larger area from a smaller one)
-    _ASSERT(result.size()==1 || holes.size()==0 || result.size()==0);
+    if (doUnion && result.size()>1) 
+        result.erase(++result.begin(), result.end()); //TODO: THis is a bad fix!!
+    if (doUnion)
+        _ASSERT(result.size()<=1);
+    else
+        _ASSERT(holes.size()==0);
     if (holes.size() && result.size())  //if we got only holes, we return empty
         result.begin()->holes.swap(holes);
     cp[0].Finish();
