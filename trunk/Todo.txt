@@ -44,8 +44,15 @@ CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.1
 ADD: New styles for designs
-DOC: GUI parts remain
+FIX: Entity has margin and indicator
+FIX: Mild_yellow topography
+FIX: What is the problem with ex37??? in GNU
+FIX: Why image overlay in vline rose???
+FIX: Why box_collapse_arrow & entity collapse in grouped entities2.signalling
+FIX: Style copy does not work well (e.g., radius)
 Done
+DOC: Updated.
+CHANGED: Unescaped } and ] in labels gives warning.
 ADDED: Toolbar button to turn controls on/off
 FIXED: FullScreen view should not allow modification
 FIXED: No immediate hint after collapse=

@@ -49,7 +49,7 @@ void ContourList::assign(const std::vector<Edge> &v, bool winding)
     }
 }
 
-void ContourList::SwapXY() 
+void ContourList::SwapXY()
 {
     for (auto i=begin(); i!=end(); i++)
         i->SwapXY();
@@ -261,7 +261,7 @@ Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, ContourList &
         break; //empty
     case B_IS_EMPTY:
         res.append(*this);
-        break; 
+        break;
     case A_INSIDE_B:
         res.append(p);
         res.rbegin()->holes ^= *this;
