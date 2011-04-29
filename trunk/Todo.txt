@@ -43,14 +43,17 @@ ADD: Context menu to editor (track one, tracking mode, find, replace, Style expl
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.1
-ADD: New styles for designs
-FIX: Entity has margin and indicator
-FIX: Mild_yellow topography
 FIX: What is the problem with ex37??? in GNU
 FIX: Why image overlay in vline rose???
-FIX: Why box_collapse_arrow & entity collapse in grouped entities2.signalling
-FIX: Style copy does not work well (e.g., radius)
 Done
+ADDED: New styles for designs
+FIXED: Why box_collapse_arrow & entity collapse in grouped entities2.signalling
+FIXED: Entity has margin and indicator
+FIXED: Copy parallel from first box in a series to the series.
+FIXED: Style copy does not work well (e.g., radius)
+FIXED: Tipography for group headings bad with comrpess
+FIXED: Label of group entities cannot be wider if only one contained entity.
+FIXED: ArcHeightList returns bad height when compress effectively does something.
 DOC: Updated.
 CHANGED: Unescaped } and ] in labels gives warning.
 ADDED: Toolbar button to turn controls on/off

@@ -467,8 +467,8 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
 
         //do not include shadow in anything... but the returned height (uses for non-compressed placement)
         outer_edge = Block(x-ceil(width/2), x+ceil(width/2), 
-                           chart->headingVGapAbove - indicator_height, 
-                           height - chart->headingVGapBelow-indicator_height);
+                           chart->headingVGapAbove /*- indicator_height*/, 
+                           height - chart->headingVGapBelow /*-indicator_height*/);
     } else {
         indicator_ypos_offset = -1;
         outer_edge.x.from = chart->XCoord((*left_ent)->pos) - left_offset;

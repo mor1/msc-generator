@@ -240,7 +240,7 @@ double ArcIndicator::Height(AreaList &cover)
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
     area = b;
-    cover += area;
+    cover = area.CreateExpand(chart->compressGap/2);
     cover.mainline += b.y;
     return b.y.till + chart->emphVGapOutside;
 } 
@@ -603,7 +603,7 @@ double ArcSelfArrow::Height(AreaList &cover)
     area += Block(dx, ceil(dx+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
     area.mainline = Range(y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
 
-    cover = area;
+    cover = area.CreateExpand(chart->compressGap/2);
     return area.GetBoundingBox().y.till + chart->arcVGapBelow;
 }
 
@@ -983,7 +983,7 @@ double ArcDirArrow::Height(AreaList &cover)
     lw_max = std::max(lw_max, chart->nudgeSize+1.0);
     //set mainline - not much dependent on main line with
     area.mainline = Range(y - lw_max/2, y + lw_max/2);
-    cover = area;
+    cover = area.CreateExpand(chart->compressGap/2);
     return std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
 }
 
@@ -1259,13 +1259,13 @@ double ArcBigArrow::Height(AreaList &cover)
         dx_text = xPos[xPos.size()-1-dtext] - dm;
         cx_text = (xPos[xPos.size()-1-stext] + xPos[xPos.size()-1-dtext])/2;
     }
+    label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     //use += to keep arc and other params of area
     area = style.arrow.BigCover(xPos, sy, dy, isBidir());
     area.arc = this;
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
-    cover = area;
-    label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
+    cover = area.CreateExpand(chart->compressGap/2);
     return centerline*2 - chart->arcVGapAbove + chart->arcVGapBelow + style.shadow.offset.second;
 }
 
@@ -1913,7 +1913,7 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
                 el.erase(i++);
             else 
                 i++;
-        el.SortByPos();
+        el.SortByPosExp();
         if (dir == MSC_DIR_LEFT)
             std::reverse(el.begin(), el.end());
         ArcBigArrow *ret = new ArcBigArrow(el, dir == MSC_DIR_BIDIR, *this, GetSignature());
@@ -1961,6 +1961,11 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
     EIterator src, dst;
     dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     for (auto i = series.begin(); i!=series.end(); i++) {
+        if (i!=series.begin() && (*i)->parallel) {
+            chart->Error.Error((*i)->file_pos.start,
+                               "Attribute 'parallel' can only be specified in the first "
+                               "element in a pipe series. Ignoring it in subsequent ones.");
+        }
         if ((*i)->content.size()) {
             if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
                 chart->Error.Error((*i)->file_pos.start, "Only single boxes (and not box series) can be collapsed to a block arrow.", 
@@ -1976,6 +1981,8 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
         //and collect left and right if needed
         ret = (*i)->PostParseProcess(hide, src, dst, number, top_level); //ret is an arcblockarrow if we need to collapse
     }
+    //parallel flag can be either on the series or on the first element
+    parallel |= (*series.begin())->parallel;
     //src and dst can be NoEntity here if none of the series specified a left or a right entity
     //Go through and use content to adjust to content
     if (*src==chart->NoEntity) 
@@ -2213,9 +2220,10 @@ double ArcBoxSeries::Height(AreaList &cover)
     overall_box.mainline = b.y;
     const double &offset = main_style.shadow.offset.second;
     if (offset)
-        cover += overall_box + overall_box.CreateShifted(XY(offset, offset));
+        cover = overall_box + overall_box.CreateShifted(XY(offset, offset));
     else
-        cover += overall_box;
+        cover = overall_box;
+    cover = cover.CreateExpand(chart->compressGap/2);
     return yPos + total_height + offset + chart->emphVGapOutside;
 }
 
@@ -2461,6 +2469,11 @@ ArcPipeSeries* ArcPipeSeries::AddFollowWithAttributes(ArcPipe*f, AttributeList *
                                "Attribute 'line.radius' can only be specified in the first "
                                "element in a pipe series. Ignoring it in subsequent ones.");
         }
+        if (f->parallel) {
+            chart->Error.Error(f->file_pos.start,
+                               "Attribute 'parallel' can only be specified in the first "
+                               "element in a pipe series. Ignoring it in subsequent ones.");
+        }
         //Use the style of the first box in the series as a base
         MscStyle s = (*series.begin())->style;
         //Override with the line type specified (if any)
@@ -2530,6 +2543,9 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     chart->PostParseProcessArcList(hide, content, true, content_left, content_right, number, top_level);
+
+    //parallel flag can be either on the series or on the first element
+    parallel |= (*series.begin())->parallel;
 
     //Check that all pipe segments are fully specified, non-overlapping and sort them
 
@@ -2970,6 +2986,8 @@ double ArcPipeSeries::Height(AreaList &cover)
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
+    //Expand cover, but not content
+    cover = cover.CreateExpand(chart->compressGap/2);
     //Add content to cover (may "come out" from pipe)
     cover += content_cover;
     //If we have valid content, set mainline to that of the content
@@ -3238,7 +3256,7 @@ double ArcDivider::Height(AreaList &cover)
         area.mainline += Range(wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
         area.mainline += Range(centerline-charheight/2, centerline+charheight/2);
-    cover += area;
+    cover = area.CreateExpand(chart->compressGap/2);
     return height;
 }
 
@@ -3344,6 +3362,7 @@ double ArcParallel::Height(AreaList &cover)
         heights.push_back(height);
         cover += cover_block;
     }
+    //Do not expand cover, it has already been expanded
     return height;
 }
 
@@ -3670,10 +3689,21 @@ void CommandEntity::Width(EntityDistanceMap &distances)
             (*i)->right_ent= chart->FindWhoIsShowingInsteadOf(j_ent, false);
             (*i)->left_offset = dist[(*(*i)->left_ent)->index].first += expand; 
             (*i)->right_offset = dist[(*(*i)->right_ent)->index].second += expand; 
-
-            //Insert a requirement between left_ent and right_ent, so that our width will fit (e.g., long text)
-            distances.Insert((*(*i)->left_ent)->index, (*(*i)->right_ent)->index,
-                             (*(*i)->itr)->maxwidth - (*i)->left_offset - (*i)->right_offset);
+            //If this is a group entity containing only one element, ensure its label fit
+            if ((*i)->left_ent == (*i)->right_ent) {
+                if (dist[(*(*i)->left_ent)->index].first < (*(*i)->itr)->maxwidth/2) {
+                    dist[(*(*i)->left_ent)->index].first = (*(*i)->itr)->maxwidth/2;
+                    (*i)->left_offset = (*(*i)->itr)->maxwidth/2;
+                }
+                if (dist[(*(*i)->right_ent)->index].second < (*(*i)->itr)->maxwidth/2) {
+                    dist[(*(*i)->right_ent)->index].second = (*(*i)->itr)->maxwidth/2;
+                    (*i)->right_offset = (*(*i)->itr)->maxwidth/2;
+                }
+            } else {
+                //Insert a requirement between left_ent and right_ent, so that our width will fit (e.g., long text)
+                distances.Insert((*(*i)->left_ent)->index, (*(*i)->right_ent)->index,
+                                 (*(*i)->itr)->maxwidth - (*i)->left_offset - (*i)->right_offset);
+            }
         }
     }
     if (dist.size()) {
@@ -3722,8 +3752,9 @@ double CommandEntity::Height(AreaList &cover)
     if (!hei.Spans()) return height = 0; //if no headings show
     //Ensure overall startpos is zero
     ShiftBy(-hei.from + chart->headingVGapAbove);
+    cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));
+    cover = cover.CreateExpand(chart->compressGap/2);
     return height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
-
 }
 
 void CommandEntity::ShiftBy(double y)
@@ -3912,8 +3943,8 @@ double CommandEmpty::Height(AreaList &cover)
     if (!valid) return 0;
     yPos = 0;
     const XY wh = parsed_label.getTextWidthHeight();
-    Contour a = Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y);
-    cover += a;
+    Area a = Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y);
+    cover = a.CreateExpand(chart->compressGap/2);
     return wh.y + EMPTY_MARGIN_Y*2;
 }
 
