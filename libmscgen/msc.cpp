@@ -838,6 +838,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
 {
     cover.clear();
     double y = 0;
+    double y_bottom = 0;
     //Zero-height arcs shall be positioned to the same place
     //as the first non-zero height arc below them (so that
     //if that arc is compressed up, they are not _below_
@@ -848,9 +849,9 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
     for (ArcList::iterator i = from; i!=to; i++) {
         AreaList arc_cover;
         double h = (*i)->Height(arc_cover);
-        _ASSERT(h>=arc_cover.GetBoundingBox().y.till);
-        double y_bottom = ceil(y)+h;
-        arc_cover = arc_cover.CreateExpand(compressGap/2);
+        //increase h, if Expand psuhed outer boundary. This ensures that we
+        //maintain a compressGap/2 amount of space between elements even without compress
+        h = std::max(h, arc_cover.GetBoundingBox().y.till);
         double touchpoint = y;
         if ((*i)->IsCompressed()) {
             //if arc is of zero height, just collect it.
@@ -864,6 +865,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
             //further below than the original height of the arcs above would have dictated.
             //Since we do compression, we pick the smallest of the two values.
             y = std::min(y, new_y);
+            _ASSERT(y>=0);
         }
         touchpoint = floor(touchpoint+0.5);
         y = ceil(y);
@@ -874,7 +876,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
         //Shift the arc in question to its place
         (*i)->ShiftBy(y);
         arc_cover.Shift(XY(0,y));
-
+        y_bottom = std::max(y_bottom, y+h);
         //If we are parallel draw the rest of the block in one go
         if ((*i)->IsParallel()) {
             //kill the mainline of the last arc (in "i")
@@ -888,7 +890,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
         cover += arc_cover;
         y = y_bottom;
     }
-    return y;
+    return y_bottom;
 }
 
 //This one places a list (arcs) at start_y (which is supposed to be

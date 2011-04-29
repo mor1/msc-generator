@@ -230,7 +230,7 @@ MscLineAttr &MscLineAttr::operator +=(const MscLineAttr&a)
     if (a.type.first) type = a.type;
     if (a.color.first) color = a.color;
     if (a.width.first) width = a.width;
-    if (a.corner.first) radius = a.corner;
+    if (a.corner.first) corner = a.corner;
     if (a.radius.first) radius = a.radius;
     return *this;
 };

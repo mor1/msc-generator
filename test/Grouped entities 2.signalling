@@ -1,8 +1,8 @@
-a [label=weak, weak], col {b[label=normal], c [label=strong, strong];},
+a [label=weak, weak], col [collapsed=yes] {b[label=normal], c [label=strong, strong];},
 coll {aa[label=weak, weak],bb[label=normal];}, cc[label=strong, strong],
 e[show=no];
 {
-      --: Arrows {
+      --: Arrows [collapsed=yes]{
             a->b-c:solid line with\_subscript;
             b<=c:double line;
             >b:dotted line;
@@ -11,7 +11,7 @@ e[show=no];
             a->b: Weak [weak];
             b->c: Strong [strong];
       };
-      ==: Empty boxes {
+      ==: Empty boxes [collapsed=arrow]{
             {a--a: Solid;}
             {b==b: Double;}
             {c..c: Dotted;};
@@ -26,6 +26,7 @@ e[show=no];
 } {
       vertical -> at e+: All the way down...[makeroom=yes];
 };
+a--a: aa;
 ---: Separator;
 pipe aa--bb: Solid pipe;
 pipe b==bb: Double pipe {
