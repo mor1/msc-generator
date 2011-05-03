@@ -79,17 +79,33 @@ public:
 class EntityDistanceMap
 {
 public:
+    //This contains entity pairs and the distance needed between them
+    //They are not necessarily neighbouring entities
     std::map<IPair, double, IPairComp> pairs;
+    //These two contain space requirements on the left and right side of an
+    //entity. These are folded into "pairs" using the CombineLeftRightToPair_*
+    //functions.
     std::map<unsigned, double> left;
     std::map<unsigned, double> right;
+    //This contain a list of distance pairs on the right side of an entity.
+    //The "first" of the pair contains a distance on the right side of the entity,
+    //while the 'second" of the pair contains a distance on the left side of the next
+    //entity. They are used when a box has to be drawn between these two entities.
+    //The CopyBoxSizeToPair() fn adds the "first" and "second" of each list element,
+    //takes the maximum and inserts this value as a pair between the two neighbouring
+    //entity.
+    //QueryBoxSide finds the list element for an entity where the left or the right
+    //(second or first, resp) is the biggest.
     std::map<unsigned, std::list<std::pair<double, double>>> box_side;
 
+    //Use DISTANCE_LEFT or DISTANCE_RIGHT as second param to insert into 'left' or 'right'
+    //Use two nonnegative values (entity indexes) if you want to insert into 'pairs'
     void Insert(unsigned, int, double);
     double Query(unsigned, int) const;
     void InsertBoxSide(unsigned, double, double);
     std::pair<double, double> QueryBoxSide(unsigned, bool left) const;
     void CopyBoxSideToPair(double gap);
-    void ClearBoxSizde() {box_side.clear();}
+    void ClearBoxSize() {box_side.clear();}
     void CombineLeftRightToPair_Sum(double gap);
     void CombineLeftRightToPair_Max(double gap);
     void CombineLeftRightToPair_Single(double gap);

@@ -304,97 +304,97 @@ CPRays::iterator CPRays::search_lowest_coverage(iterator loc, int &coverage) con
 //be collected by CorssPointStore::Process4Combine as startpoints for walks
 void CPRays::Process4Combine(int &seq_num, int coverage, int min_coverage) const
 {
-	//For regular unions or intersects we split the radian to ranges of coverage
-	//for union coverage is sufficient if any one contour covers an area.
-	//for intersects all of them have to cover it.
-	//
-	//Example:      1\    ->2,,     .=area covered by contour 1
-	//              ..\  /,,,,,     ,=area covered by contour 2
-	//              ...\|,,,,,,     :=area covered by contour 3 and 2
-	//              ....o----->3
-	//              .../|\:::::     For unions one (clockwise) range will be 2(outgoing)->2(incoming)
-	//              ../ |,\::::       and another is from 1(out)->1(in). The two ranges get different seq_nums.
-	//             1<- 2|,,\3::       (So if we started on 2(in) (immeditately switching to 2(out)), we will not
-	//                                 stop when coming through 1(in), but will continue on 1(out) until we get
-	//                                 back here again on 2(in)). Note that (incoming(3) will have switch_to==-1
-	//                                indicating that if we come this way, we shall drop points we collected so far.
-	//                              For intersects only 3(out)->3(in) range will be had.
-	// An x(out)->y(in) range selected will result in y(in) be designated a cp switching to edge x.
+    //For regular unions or intersects we split the radian to ranges of coverage
+    //for union coverage is sufficient if any one contour covers an area.
+    //for intersects all of them have to cover it.
+    //
+    //Example:      1\    ->2,,     .=area covered by contour 1
+    //              ..\  /,,,,,     ,=area covered by contour 2
+    //              ...\|,,,,,,     :=area covered by contour 3 and 2
+    //              ....o----->3
+    //              .../|\:::::     For unions one (clockwise) range will be 2(outgoing)->2(incoming)
+    //              ../ |,\::::       and another is from 1(out)->1(in). The two ranges get different seq_nums.
+    //             1<- 2|,,\3::       (So if we started on 2(in) (immeditately switching to 2(out)), we will not
+    //                                 stop when coming through 1(in), but will continue on 1(out) until we get
+    //                                 back here again on 2(in)). Note that (incoming(3) will have switch_to==-1
+    //                                indicating that if we come this way, we shall drop points we collected so far.
+    //                              For intersects only 3(out)->3(in) range will be had.
+    // An x(out)->y(in) range selected will result in y(in) be designated a cp switching to edge x.
 
-	iterator start_from = begin();
-	iterator A_from;
-	int counted = 0;
-	//Walk to first ray after the one establishing below minimum coverage after angle 0
-	if (!search_min_coverage(start_from, A_from, counted, coverage, min_coverage, true))
-		return; //never happens -> this is a crosspoint not needed, all switch_action will remain ERROR
+    iterator start_from = begin();
+    iterator A_from;
+    int counted = 0;
+    //Walk to first ray after the one establishing below minimum coverage after angle 0
+    if (!search_min_coverage(start_from, A_from, counted, coverage, min_coverage, true))
+        return; //never happens -> this is a crosspoint not needed, all switch_action will remain ERROR
 
-	//Cylce through sections of good coverage
-	counted = 0;
-	do {
-		//First find, the beginning of the range with sufficient coverage
-		iterator A_to;
-		if (!search_min_coverage(A_from, A_to, counted, coverage, min_coverage, false))
-			break; //no more ranges above minimum coverage
-		iterator B_from = A_to;
-		iterator B_to;
-		//Now find the end of the range
-		if (!search_min_coverage(B_from, B_to, counted, coverage, min_coverage, true))
-			_ASSERT(0); //we must find one
+    //Cylce through sections of good coverage
+    counted = 0;
+    do {
+        //First find, the beginning of the range with sufficient coverage
+        iterator A_to;
+        if (!search_min_coverage(A_from, A_to, counted, coverage, min_coverage, false))
+            break; //no more ranges above minimum coverage
+        iterator B_from = A_to;
+        iterator B_to;
+        //Now find the end of the range
+        if (!search_min_coverage(B_from, B_to, counted, coverage, min_coverage, true))
+            _ASSERT(0); //we must find one
 
-		//Now we have a set of rays (A) [A_from, A_to) pointing to the same direction collectively making coverage
-		//to go from below the minimum up to at least the minimum.
-		//Another set of rays (B) [B_from, B_to) coming after (A) will take the coverage below minimum again.
-		//Basically we can say the result contour will have a vertex here with (B) as incoming edge and (A) as outgoing.
+        //Now we have a set of rays (A) [A_from, A_to) pointing to the same direction collectively making coverage
+        //to go from below the minimum up to at least the minimum.
+        //Another set of rays (B) [B_from, B_to) coming after (A) will take the coverage below minimum again.
+        //Basically we can say the result contour will have a vertex here with (B) as incoming edge and (A) as outgoing.
 
-		//First We set all incoming cp's sequence number to the same seq number. So that if the Walk started at this cp
-		//if we hit this cp again, we could stop the walk, based on equal sequence numbers
-		//we need to do it as a do-while since A_from can be == B_to, in which case we need to mark all rays
-		//also, they may wrap, so incrementing shall be modulo rays.size()
-		iterator ii=A_from;
-		do {
+        //First We set all incoming cp's sequence number to the same seq number. So that if the Walk started at this cp
+        //if we hit this cp again, we could stop the walk, based on equal sequence numbers
+        //we need to do it as a do-while since A_from can be == B_to, in which case we need to mark all rays
+        //also, they may wrap, so incrementing shall be modulo rays.size()
+        iterator ii=A_from;
+        do {
             ii->seq_num = seq_num;
-			inc(ii);
-		} while (ii!=B_to);
-		++seq_num;
+            inc(ii);
+        } while (ii!=B_to);
+        ++seq_num;
 
-		//Now set the "switch_to" in all the incoming edges in (B) to one of the outgoing edges in (A)
-		//If the same edge can be found among the outgoing ones, then mark switch_action with IGNORE
-		//IGNORE will result in an invalid cp, meaning it will not be added to any polyline (but will be checked for stop condition)
-		//We mark only one of the incoming edges as a crosspoint we can start at
-		//Find an outgoing
-		iterator an_outgoing;
-		for (an_outgoing = A_from; an_outgoing!=A_to; inc(an_outgoing))
-			if (!an_outgoing->incoming) break;
-		_ASSERT(an_outgoing!=A_to);
+        //Now set the "switch_to" in all the incoming edges in (B) to one of the outgoing edges in (A)
+        //If the same edge can be found among the outgoing ones, then mark switch_action with IGNORE
+        //IGNORE will result in an invalid cp, meaning it will not be added to any polyline (but will be checked for stop condition)
+        //We mark only one of the incoming edges as a crosspoint we can start at
+        //Find an outgoing
+        iterator an_outgoing;
+        for (an_outgoing = A_from; an_outgoing!=A_to; inc(an_outgoing))
+            if (!an_outgoing->incoming) break;
+        _ASSERT(an_outgoing!=A_to);
 
-		bool did_start = false;
-		for (iterator i=B_from; i!=B_to; inc(i))
-			if (i->incoming) {
-				//search for this incoming edge among the outgoing ones
-				iterator j=A_from;
-				for (j=A_from; j!=A_to; inc(j))
+        bool did_start = false;
+        for (iterator i=B_from; i!=B_to; inc(i))
+            if (i->incoming) {
+                //search for this incoming edge among the outgoing ones
+                iterator j=A_from;
+                for (j=A_from; j!=A_to; inc(j))
                     if (&j->bycont==&i->bycont && j->vertex==i->vertex && !j->incoming) break;
-				if (j!=A_to)         //the outgoing ray corresponding to this incoming ray is in (A)
-					i->switch_action = Ray::IGNORE;
-				else {               //not found, just pick an arbitrary outgoing edge
-					i->switch_to = an_outgoing;
+                if (j!=A_to)         //the outgoing ray corresponding to this incoming ray is in (A)
+                    i->switch_action = Ray::IGNORE;
+                else {               //not found, just pick an arbitrary outgoing edge
+                    i->switch_to = an_outgoing;
                     i->switch_action = Ray::SWITCH;
-					if (!did_start) {
-						i->can_start_here = true;
-						did_start = true;
-					}
-				}
-			}
-		//if we did not insert a cp that we can start at, change all IGNORE values to DROP,
-        //so they get dropped entirely and not even inserted into CrosspointStore
-		if (!did_start)
-			for (iterator i=B_from; i!=B_to; inc(i))
-                if (i->incoming && i->switch_action == Ray::IGNORE)
-					i->switch_action = Ray::DROP;
+                    if (!did_start) {
+                        i->can_start_here = true;
+                        did_start = true;
+                    }
+                }
+            }
+            //if we did not insert a cp that we can start at, change all IGNORE values to DROP,
+            //so they get dropped entirely and not even inserted into CrosspointStore
+            if (!did_start)
+                for (iterator i=B_from; i!=B_to; inc(i))
+                    if (i->incoming && i->switch_action == Ray::IGNORE)
+                        i->switch_action = Ray::DROP;
 
-		//start a new cycle after (B)
-		A_from = B_to;
-	} while(1);
+        //start a new cycle after (B)
+        A_from = B_to;
+    } while(1);
 }
 
 //Copy the processed crosspoints from the set to the bycont, where they are sorted by <contour,edge,pos>.
@@ -402,34 +402,34 @@ void CPRays::Process4Combine(int &seq_num, int coverage, int min_coverage) const
 //Fill in startpoints with incoming rays marked as can_start_here
 void CPSet::Process4Combine(bool doUnion, std::vector<CPOnEdge> &startpoints) const
 {
-	_ASSERT(byconts);
-	startpoints.clear();
-	int seq_num = 0;
+    _ASSERT(byconts);
+    startpoints.clear();
+    int seq_num = 0;
 
     //Cylce through the crosspoints
-	for (auto iCP = begin(); iCP!=end(); iCP++) {
+    for (auto iCP = begin(); iCP!=end(); iCP++) {
         //If union, pick the angle ranges covered by at least one contour
         //If intersect, pick angle ranges covered by all of the contours
         iCP->second.Process4Combine(seq_num, iCP->first.coverage_at_0_angle,
                                     doUnion ? 1 : num_of_polygons);
 
-		//Now we have all the rays in the current cp marked as to which one to switch to
-		//Add elements to crosspointbyconts and to the startpoints array
+        //Now we have all the rays in the current cp marked as to which one to switch to
+        //Add elements to crosspointbyconts and to the startpoints array
         for (auto i=iCP->second.begin(); i!=iCP->second.end(); i++)
             if (i->incoming) {
-				switch (i->switch_action) {
-				case Ray::SWITCH: //add cp and fill in the edge&pos to switch to
-					if (i->can_start_here)
+                switch (i->switch_action) {
+                case Ray::SWITCH: //add cp and fill in the edge&pos to switch to
+                    if (i->can_start_here)
                         startpoints.push_back(CPOnEdge(iCP, i));
                     /*fallthrough*/
-				case Ray::IGNORE: //ignore this cp on a walk: we continue on the edge we came. But check if walk has to stop here
-				case Ray::ERROR: //Indicate that this edge was a dead end
+                case Ray::IGNORE: //ignore this cp on a walk: we continue on the edge we came. But check if walk has to stop here
+                case Ray::ERROR: //Indicate that this edge was a dead end
                     i->bycont.Add(CPOnEdge(iCP, i));
                 case Ray::DROP:
-					break;
-				}
-			}
-	}
+                    break;
+                }
+            }
+    }
 }
 
 
@@ -581,7 +581,7 @@ Contour::Contour(const XY &c, double radius_x, double radius_y, double tilt_deg,
     if (radius_y==0) radius_y = radius_x;
     Edge edge(c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
     XY end = edge.GetEllipseData().Radian2Point(deg2rad(d_deg));
-	boundingBox = edge.CalculateBoundingBox(end);
+    boundingBox = edge.CalculateBoundingBox(end);
     push_back(edge);
     if (edge.GetStart().test_equal(end)) return; //full circle
     Edge edge2(end);
@@ -598,8 +598,8 @@ Contour &Contour::operator =(const Block &b)
     push_back(Edge(XY(b.x.till, b.y.from)));
     push_back(Edge(b.LowerRight()));
     push_back(Edge(XY(b.x.from, b.y.till)));
-	for (int i=0; i<size(); i++)
-		at(i).CalculateBoundingBox(at_next(i).start);
+    for (int i=0; i<size(); i++)
+        at(i).CalculateBoundingBox(at_next(i).start);
     return *this;
 }
 
@@ -642,9 +642,9 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
                     if (edge) *edge = epp;
                     return WI_ON_VERTEX;
                 } else {
-					if (pos) *pos = po[1];
-					return WI_ON_EDGE; // on an edge, but not vertex
-				}
+                    if (pos) *pos = po[1];
+                    return WI_ON_EDGE; // on an edge, but not vertex
+                }
             }
             if (y[1] > p.y) count ++;
             //fallthrough
@@ -655,27 +655,27 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
                     if (edge) *edge = epp;
                     return WI_ON_VERTEX;
                 } else {
-					if (pos) *pos = po[0];
-					return WI_ON_EDGE; // on an edge, but not vertex
-				}
+                    if (pos) *pos = po[0];
+                    return WI_ON_EDGE; // on an edge, but not vertex
+                }
             }
             if (y[0] > p.y) count ++;
             break;
         case -1:
             if ((test_smaller(p.y, at(e).GetStart().y) && test_smaller(at(epp).GetStart().y, p.y)) ||
                 (test_smaller(at(e).GetStart().y, p.y) && test_smaller(p.y, at(epp).GetStart().y))) {
-				if (pos) *pos = (p.y-at(e).GetStart().y)/(at(epp).GetStart().y-at(e).GetStart().y);
-				return WI_ON_EDGE; //goes through p
-			}
+                if (pos) *pos = (p.y-at(e).GetStart().y)/(at(epp).GetStart().y-at(e).GetStart().y);
+                return WI_ON_EDGE; //goes through p
+            }
             //we have tested that at(e) is not equal to p, so no need to test for that here
             if (test_equal(at(epp).GetStart().y, p.y)) {
                 if (edge) *edge = epp;
                 return WI_ON_VERTEX; //on vertex
             }
-		case 0:
+        case 0:
             break;
-		default:
-			_ASSERT(0);
+        default:
+            _ASSERT(0);
         }
     }
     return count&1 ? WI_INSIDE : WI_OUTSIDE; //even is out
@@ -689,8 +689,8 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
 //if q is almost equal to a or b, we return false;
 inline bool really_between04_warp (double q, double a, double b)
 {
-	if (a<b) return test_smaller(q,b) && !test_smaller(q,a);
-	return test_smaller(a,q) || test_smaller(q,b);
+    if (a<b) return test_smaller(q,b) && !test_smaller(q,a);
+    return test_smaller(a,q) || test_smaller(q,b);
 }
 
 //Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A
@@ -700,8 +700,8 @@ Contour::result_t Contour::CheckContainmentHelper(const Contour &b) const
     int edge;
     result_t retval = A_INSIDE_B;
     for (int i=0; i<size(); i++) {
-		double pos;
-		const XY p = at(i).GetStart();
+        double pos;
+        const XY p = at(i).GetStart();
         //if we are a single ellipsis, use our center point, else use a vertex
         switch (b.IsWithin(p, &edge, &pos)) {
         default:
@@ -709,21 +709,21 @@ Contour::result_t Contour::CheckContainmentHelper(const Contour &b) const
         case WI_INSIDE:  return A_INSIDE_B;
         case WI_OUTSIDE: return OVERLAP;
         case WI_ON_VERTEX:
-			pos = 0; //if we are on b's vertex, this is the right pos for that edge
+            pos = 0; //if we are on b's vertex, this is the right pos for that edge
         case WI_ON_EDGE:
-			const double one_prev = angle(p, XY(p.x, -100),   PrevTangentPoint(i, 0));
-			const double one_next = angle(p, XY(p.x, -100),   NextTangentPoint(i, 0));
-			const double two_prev = angle(p, XY(p.x, -100), b.PrevTangentPoint(edge, pos));
-			const double two_next = angle(p, XY(p.x, -100), b.NextTangentPoint(edge, pos));
-			if (really_between04_warp(one_prev, two_next, two_prev) ||
-				really_between04_warp(one_next, two_next, two_prev)) return A_INSIDE_B;
-			if (really_between04_warp(two_prev, one_next, one_prev) ||
-				really_between04_warp(two_next, one_next, one_prev)) return B_INSIDE_A;
-			if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
-			if (test_equal(one_next, two_prev) && test_equal(one_prev, two_next)) break; //SAME opposite dir - do another edge
-			return APART;
+            const double one_prev = angle(p, XY(p.x, -100),   PrevTangentPoint(i, 0));
+            const double one_next = angle(p, XY(p.x, -100),   NextTangentPoint(i, 0));
+            const double two_prev = angle(p, XY(p.x, -100), b.PrevTangentPoint(edge, pos));
+            const double two_next = angle(p, XY(p.x, -100), b.NextTangentPoint(edge, pos));
+            if (really_between04_warp(one_prev, two_next, two_prev) ||
+                really_between04_warp(one_next, two_next, two_prev)) return A_INSIDE_B;
+            if (really_between04_warp(two_prev, one_next, one_prev) ||
+                really_between04_warp(two_next, one_next, one_prev)) return B_INSIDE_A;
+            if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
+            if (test_equal(one_next, two_prev) && test_equal(one_prev, two_next)) break; //SAME opposite dir - do another edge
+            return APART;
         }
-	}
+    }
     //All points were on a vertex equal in one of the directions
     return SAME;
 }
@@ -827,12 +827,12 @@ void Contour::AppendDuringWalk(const Edge &edge)
 void Contour::Walk4Combine(const CPOnEdge &startpoint)
 {
     clear();
-	//current will point to an incoming ray at a crosspoint
-	CPPointer current(startpoint);
+    //current will point to an incoming ray at a crosspoint
+    CPPointer current(startpoint);
     if (!current.iCP->second.iRay->valid) //we have already passed over this startpoint
-		return;
+        return;
     //do a walk from the current crosspoint, until we get back here
-	const int sn_finish = current.iCP->second.iRay->seq_num;
+    const int sn_finish = current.iCP->second.iRay->seq_num;
     do {
         //Mark the incoming ray as DONE
         if (!current.IsAtVertex())
@@ -846,7 +846,7 @@ void Contour::Walk4Combine(const CPOnEdge &startpoint)
             clear();
             return;
         }
-		//a can be IGNORE, then we do nothing
+        //a can be IGNORE, then we do nothing
         current.StepToNext(); //now current points either to a vertex or to an incoming ray again
     } while (current.IsAtVertex() || current.iCP->second.iRay->seq_num != sn_finish);
 }
@@ -952,7 +952,7 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
     //With union we may have holes, but only one surface
     //With intersect (and substract), we can have multiple surfaces, but no holes
     //...or also, we may have just holes (e.g., substracting a larger area from a smaller one)
-    if (doUnion && result.size()>1) 
+    if (doUnion && result.size()>1)
         result.erase(++result.begin(), result.end()); //TODO: THis is a bad fix!!
     if (doUnion)
         _ASSERT(result.size()<=1);
@@ -1034,47 +1034,47 @@ struct node;
 class node_list : public std::list<node>
 {
 public:
-	void insert_tree(Contour &&p, bool hole);
-	void Convert(bool hole, int counter, Contour::untangle_t rule, ContourList &result);
+    void insert_tree(Contour &&p, bool hole);
+    void Convert(bool hole, int counter, Contour::untangle_t rule, ContourList &result);
 };
 
 struct node {
-	bool ishole;
-	Contour contour;
-	node_list inside_me;
-	node(Contour &&p, bool hole) : contour(p), ishole(hole) {}
-	node(node &&n) : contour(std::move(n.contour)), ishole(n.ishole), inside_me(std::move(n.inside_me)) {}
+    bool ishole;
+    Contour contour;
+    node_list inside_me;
+    node(Contour &&p, bool hole) : contour(p), ishole(hole) {}
+    node(node &&n) : contour(std::move(n.contour)), ishole(n.ishole), inside_me(std::move(n.inside_me)) {}
 };
 
 void node_list::insert_tree(Contour &&p, bool hole)
 {
-	node n(std::move(p), hole);
-	iterator in_what;
-	bool was = false;
-	for (auto i = begin(); i!=end(); /*none*/)
-		switch (n.contour.CheckContainment(i->contour)) {
-		case Contour::SAME: _ASSERT(0);
-		case Contour::A_INSIDE_B:
-			_ASSERT(!was);
-			in_what = i;
+    node n(std::move(p), hole);
+    iterator in_what;
+    bool was = false;
+    for (auto i = begin(); i!=end(); /*none*/)
+        switch (n.contour.CheckContainment(i->contour)) {
+        case Contour::SAME: _ASSERT(0);
+        case Contour::A_INSIDE_B:
+            _ASSERT(!was);
+            in_what = i;
             was = true;
-			i=end(); //skip the rest: nothing can be in us, if we are in someone
-			break;
-		case Contour::APART:
-			i++;
-			break;
-		case Contour::B_INSIDE_A:
-			if (i==begin()) {
-				n.inside_me.splice(n.inside_me.end(), *this, i);
-				i = begin();
-			} else {
-				n.inside_me.splice(n.inside_me.end(), *this, i--);
-				i++;
-			}
-	}
-	node_list *to_be_added_to;
-	if (was) in_what->inside_me.insert_tree(std::move(n.contour), hole);
-	else push_back(std::move(n));
+            i=end(); //skip the rest: nothing can be in us, if we are in someone
+            break;
+        case Contour::APART:
+            i++;
+            break;
+        case Contour::B_INSIDE_A:
+            if (i==begin()) {
+                n.inside_me.splice(n.inside_me.end(), *this, i);
+                i = begin();
+            } else {
+                n.inside_me.splice(n.inside_me.end(), *this, i--);
+                i++;
+            }
+        }
+    node_list *to_be_added_to;
+    if (was) in_what->inside_me.insert_tree(std::move(n.contour), hole);
+    else push_back(std::move(n));
 }
 
 
@@ -1088,30 +1088,30 @@ void node_list::insert_tree(Contour &&p, bool hole)
 //And vice versa for holes=false
 void node_list::Convert(bool hole, int counter, Contour::untangle_t rule, ContourList &result)
 {
-	for (auto i=begin(); i!=end(); i++) {
-		int new_counter;
-		bool include;
-		//for winding and expand we decrease if it is a hole
-		if (rule != Contour::EVENODD_RULE && i->ishole) new_counter = counter-1;
-		else new_counter = counter+1;
-		switch (rule) {
-		case Contour::WINDING_RULE: include = new_counter!=0; break;
+    for (auto i=begin(); i!=end(); i++) {
+        int new_counter;
+        bool include;
+        //for winding and expand we decrease if it is a hole
+        if (rule != Contour::EVENODD_RULE && i->ishole) new_counter = counter-1;
+        else new_counter = counter+1;
+        switch (rule) {
+        case Contour::WINDING_RULE: include = new_counter!=0; break;
         case Contour::XOR_RULE:
-		case Contour::EVENODD_RULE: include = new_counter%2==1; break;
-		case Contour::EXPAND_RULE:  include = new_counter>=1; break;
-		}
-		if (hole != include) {
-			//Either we collect holes and shall not include this part->we shall include a hole
-			//or we collect surfaces and we shall include this part->we shall include a surface
-			ContourWithHoles p(std::move(i->contour));
-			i->inside_me.Convert(!hole, new_counter, rule, p.holes);
-			result.append(std::move(p));
-		} else {
-			//Either we collect holes and shall include this part->we shall not include this, maybe its children
-			//or we collect surfaces and we shall not include this part->we shall not include this, maybe its children
-			i->inside_me.Convert(hole, new_counter, rule, result);
-		}
-	}
+        case Contour::EVENODD_RULE: include = new_counter%2==1; break;
+        case Contour::EXPAND_RULE:  include = new_counter>=1; break;
+        }
+        if (hole != include) {
+            //Either we collect holes and shall not include this part->we shall include a hole
+            //or we collect surfaces and we shall include this part->we shall include a surface
+            ContourWithHoles p(std::move(i->contour));
+            i->inside_me.Convert(!hole, new_counter, rule, p.holes);
+            result.append(std::move(p));
+        } else {
+            //Either we collect holes and shall include this part->we shall not include this, maybe its children
+            //or we collect surfaces and we shall not include this part->we shall not include this, maybe its children
+            i->inside_me.Convert(hole, new_counter, rule, result);
+        }
+    }
 }
 
 
@@ -1232,7 +1232,7 @@ const Block &Contour::CalculateBoundingBox()
 //If the edge to insert starts at the last point, we replace the last edge to it.
 //(makes sense if we replace a straight edge to a curve or vice versa)
 //If the last edge is a curve, we anyway replace the edge to be inserted.
-//If we insert a curve, which does not 
+//If we insert a curve, which does not
 bool Contour::AddAnEdge(const Edge &edge)
 {
     XY dum1[8];
@@ -1263,7 +1263,7 @@ bool Contour::AddAnEdge(const Edge &edge)
     //check if edge->end is crossing any existing edges
     ret.CalculateBoundingBox(); //needed by crossing
     for (int i = 0; i<ret.size()-num_to_check-1; i++)
-        for (int j = ret.size()-num_to_check-1; j<ret.size(); j++) 
+        for (int j = ret.size()-num_to_check-1; j<ret.size(); j++)
             if (Edge::Crossing(ret[i], ret.at_next(i).GetStart(), ret[j], ret.at_next(j).GetStart(), dum1, dum2, dum2))
                 return false;
     //OK, we can have these edges inserted
@@ -1311,31 +1311,31 @@ void Contour::RotateAround(const XY&c, double cos, double sin, double radian)
 //////////////////////////////////Contour::Expand implementation
 
 typedef struct {
-	bool valid;
-	Edge s;        //two endpoint of original edge expanded by gap
-	XY   e;
-	int  substitue;//if orig_s->e needs to be removed, try this
-	bool separate; //true if it is a circle that became detached (used only if valid==false)
-	Edge res;
-	int  next;     //holds the index of edge with which res is a crosspoint (for optimization)
+    bool valid;
+    Edge s;        //two endpoint of original edge expanded by gap
+    XY   e;
+    int  substitue;//if orig_s->e needs to be removed, try this
+    bool separate; //true if it is a circle that became detached (used only if valid==false)
+    Edge res;
+    int  next;     //holds the index of edge with which res is a crosspoint (for optimization)
 } EdgeXY;
 
 int next_edgexy(const std::vector<EdgeXY> &edges, int i)
 {
-	int j = i;
-	do {
-		j = (j+1)%edges.size();
-	} while (!edges[j].valid && j!=i);
-	return edges[j].valid ? j : -1;
+    int j = i;
+    do {
+        j = (j+1)%edges.size();
+    } while (!edges[j].valid && j!=i);
+    return edges[j].valid ? j : -1;
 }
 
 int prev_edgexy(const std::vector<EdgeXY> &edges, int i)
 {
-	int j = i;
-	do {
-		j = (j-1+edges.size())%edges.size();
-	} while (!edges[j].valid && j!=i);
-	return edges[j].valid ? j : -1;
+    int j = i;
+    do {
+        j = (j-1+edges.size())%edges.size();
+    } while (!edges[j].valid && j!=i);
+    return edges[j].valid ? j : -1;
 }
 
 //TODO Fix Expand to deal with expanding counterclockwise curvy edges
@@ -1345,7 +1345,8 @@ void Contour::Expand(double gap, ContourList &res) const
         res.append(*this);
         return;
     }
-    if (size()==0 || boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap) return;
+    if (size()==0 || boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap)
+        return;
 
     if (size()==1) {
         _ASSERT(!at(0).IsStraight());
@@ -1355,140 +1356,140 @@ void Contour::Expand(double gap, ContourList &res) const
         return;
     }
 
-	static std::vector<EdgeXY> edges;
-	edges.resize(size());
+    static std::vector<EdgeXY> edges;
+    edges.resize(size());
 
-	//calculate 2 points for each angle (expand the vertices)
-	int current_size = 0, num_separate = 0;
-	for (int i=0; i<size(); i++) {
-		edges[i].valid = at(i).ExpandEdge(gap, at_next(i).start, edges[i].s, edges[i].e);
-		edges[i].substitue = -1;
-		edges[i].next = -1;
-		if (edges[i].valid) current_size++;
-	}
-	if (current_size==0)
-		return; //empty - all edges were removed by expand (e.g., circles with too small radius and gap<0)
+    //calculate 2 points for each angle (expand the vertices)
+    int current_size = 0, num_separate = 0;
+    for (int i=0; i<size(); i++) {
+        edges[i].valid = at(i).ExpandEdge(gap, at_next(i).start, edges[i].s, edges[i].e);
+        edges[i].substitue = -1;
+        edges[i].next = -1;
+        if (edges[i].valid) current_size++;
+    }
+    if (current_size==0)
+        return; //empty - all edges were removed by expand (e.g., circles with too small radius and gap<0)
 
-	bool once_more;
-	//Now remove edges that got reversed as long as there are none such
-	//From now on edges[].s and edges[].e will not change. The new crosspoints will be in edges[].res
-	do {
-		once_more = false;
-		//calculate the new vertices
-		int prev = prev_edgexy(edges, 0);
-		for (int i=0; i<size(); i++) {
-			if (!edges[i].valid) continue;
-			if (edges[prev].next == i) {
-				prev = i;
-				continue; //no need to re-calculate again
-			}
-			switch (edges[prev].s.CombineExpandedEdges(edges[prev].e, edges[i].s, edges[i].e, edges[i].res, edges[prev].res)) {
-			case 1:  //Expanded edges cross at a single point: the normal case
-				edges[prev].next = i;
-				edges[i].substitue = -1;  //no substitute, that is only if edges[prev] and edges[i] are parallel
-				prev = i;
-				continue;
-			case -2: //We combine two segments of the same ellipse
-				//Drop the second and modify the endpoint of the first
-				edges[i].valid = false;
-				edges[i].separate = false;
-				edges[prev].substitue = -1;
-				edges[prev].s.e = edges[i].s.e;
-				//keep prev as is
-				current_size--;
-				once_more = true;
-				continue;
-			case -1: //We combine two parallel edges.
-				//This can be if we removed an edge from between them. 
-                //We need to keep only one of them, but yet we do not know which. 
+    bool once_more;
+    //Now remove edges that got reversed as long as there are none such
+    //From now on edges[].s and edges[].e will not change. The new crosspoints will be in edges[].res
+    do {
+        once_more = false;
+        //calculate the new vertices
+        int prev = prev_edgexy(edges, 0);
+        for (int i=0; i<size(); i++) {
+            if (!edges[i].valid) continue;
+            if (edges[prev].next == i) {
+                prev = i;
+                continue; //no need to re-calculate again
+            }
+            switch (edges[prev].s.CombineExpandedEdges(edges[prev].e, edges[i].s, edges[i].e, edges[i].res, edges[prev].res)) {
+            case 1:  //Expanded edges cross at a single point: the normal case
+                edges[prev].next = i;
+                edges[i].substitue = -1;  //no substitute, that is only if edges[prev] and edges[i] are parallel
+                prev = i;
+                continue;
+            case -2: //We combine two segments of the same ellipse
+                //Drop the second and modify the endpoint of the first
+                edges[i].valid = false;
+                edges[i].separate = false;
+                edges[prev].substitue = -1;
+                edges[prev].s.e = edges[i].s.e;
+                //keep prev as is
+                current_size--;
+                once_more = true;
+                continue;
+            case -1: //We combine two parallel edges.
+                //This can be if we removed an edge from between them.
+                //We need to keep only one of them, but yet we do not know which.
                 //Since edges[prev] is already there, we skip adding edges[i], but
-				//mark edges[prev] with i as a potential substitute.
-				edges[prev].substitue = i;
-				edges[i].valid = false;
-				edges[i].separate = false;
-				//keep prev as is
-				current_size--;
-				once_more = true;
-				continue;
-			case 0: //A circle not matching: either edges[prev] and/or edges[i] are curvy and they do not cross
-				//if edges[i] is curvy, mark it, keep prev unchanged and continue
-				int n;
-				if (!edges[i].s.IsStraight())
-					n = i;
-				else { //edges[i] is line: remove edges[prev] and re-do it from there
-					n = prev;
-					prev = prev_edgexy(edges, prev); //what was the last valid node before that
-				}
-				edges[n].valid = false;
-				if (edges[n].separate = edges[n].s.GetSpan()>M_PI)
-					num_separate++;
-				current_size--;
-				once_more = true;
-				continue;
-			}
-			_ASSERT(0); //should not flow here
-		}
-		if (current_size<=1) break; //all edges gone (but there may be separate)
-		//remove edges that changed direction compared to original
-		int i = next_edgexy(edges,size()-1);
-		_ASSERT(i>=0);
-		while(1) {
-			int after = next_edgexy(edges, i);
-			//detect if there have been any changes here
-			const int situ = edges[i].res.IsOppositeDir(edges[after].res.start, edges[i].s, edges[i].e);
-			if (situ>0) {
-				//edge changed direction: we shall skip it
-				if (edges[i].substitue == -1) { //no substitute exists: remove this edge
-					edges[i].valid = false;
-					edges[i].separate = situ==2;  //original edge spanned > 180, keep it as separate
-					current_size--;
-				} else {
-					//there is a substitute, leave these
-					edges[edges[i].substitue].valid = true;
-					edges[i].valid = false;
-					edges[i].separate = situ==2;  //original edge spanned > 180, keep it as separate
-					//There were no valid edges between i and edges[i].substitute
-					//the problem now is that the next valid edge after i (hence after substitute)
-					//has its .res set to the crosspoint with i and not with substitute, so we need to
-					//skip that edge for now
-					if (after <= i) break;  //we are done
-					after = next_edgexy(edges, after);
-					//Even so the crosspoint with the edge previous to i is still not OK, so we need
-					//to do another pass
-				}
-				once_more = true;
-			}
-			if (after <= i) break;
-			i = after;
-		}
-	} while (once_more && current_size>1);
+                //mark edges[prev] with i as a potential substitute.
+                edges[prev].substitue = i;
+                edges[i].valid = false;
+                edges[i].separate = false;
+                //keep prev as is
+                current_size--;
+                once_more = true;
+                continue;
+            case 0: //A circle not matching: either edges[prev] and/or edges[i] are curvy and they do not cross
+                //if edges[i] is curvy, mark it, keep prev unchanged and continue
+                int n;
+                if (!edges[i].s.IsStraight())
+                    n = i;
+                else { //edges[i] is line: remove edges[prev] and re-do it from there
+                    n = prev;
+                    prev = prev_edgexy(edges, prev); //what was the last valid node before that
+                }
+                edges[n].valid = false;
+                if (edges[n].separate = edges[n].s.GetSpan()>M_PI)
+                    num_separate++;
+                current_size--;
+                once_more = true;
+                continue;
+            }
+            _ASSERT(0); //should not flow here
+        }
+        if (current_size<=1) break; //all edges gone (but there may be separate)
+        //remove edges that changed direction compared to original
+        int i = next_edgexy(edges,size()-1);
+        _ASSERT(i>=0);
+        while(1) {
+            int after = next_edgexy(edges, i);
+            //detect if there have been any changes here
+            const int situ = edges[i].res.IsOppositeDir(edges[after].res.start, edges[i].s, edges[i].e);
+            if (situ>0) {
+                //edge changed direction: we shall skip it
+                if (edges[i].substitue == -1) { //no substitute exists: remove this edge
+                    edges[i].valid = false;
+                    edges[i].separate = situ==2;  //original edge spanned > 180, keep it as separate
+                    current_size--;
+                } else {
+                    //there is a substitute, leave these
+                    edges[edges[i].substitue].valid = true;
+                    edges[i].valid = false;
+                    edges[i].separate = situ==2;  //original edge spanned > 180, keep it as separate
+                    //There were no valid edges between i and edges[i].substitute
+                    //the problem now is that the next valid edge after i (hence after substitute)
+                    //has its .res set to the crosspoint with i and not with substitute, so we need to
+                    //skip that edge for now
+                    if (after <= i) break;  //we are done
+                    after = next_edgexy(edges, after);
+                    //Even so the crosspoint with the edge previous to i is still not OK, so we need
+                    //to do another pass
+                }
+                once_more = true;
+            }
+            if (after <= i) break;
+            i = after;
+        }
+    } while (once_more && current_size>1);
 
-	//copy resulting contour to res
-	if (current_size) {
-		ContourWithHoles result;
-		int i = next_edgexy(edges,size()-1);
-		while(1) {
-			result.push_back(edges[i].res);
-			int next = next_edgexy(edges, i);
-			if (next <= i) break;
-			i = next;
-		}
-		if (result.size()>1 || !result[0].IsStraight()) {
-			if (result.size()==1)
-				result[0].SetEllipseToFull();
-			result.CalculateBoundingBox();  //also calculates bounding boxes of edges
-			if (SAME==result.Untangle(res, EXPAND_RULE))
-				res.append(result);        //expanded contour is not tangled, just add it
-		}
-	}
-	if (num_separate)
-		for (int i=0; i<size(); i++) {
-			if (edges[i].valid || !edges[i].separate) continue;
-			Contour b;
-			b.push_back(edges[i].s);
-			b.begin()->SetEllipseToFull();
-			res += b;
-		}
+    //copy resulting contour to res
+    if (current_size) {
+        ContourWithHoles result;
+        int i = next_edgexy(edges,size()-1);
+        while(1) {
+            result.push_back(edges[i].res);
+            int next = next_edgexy(edges, i);
+            if (next <= i) break;
+            i = next;
+        }
+        if (result.size()>1 || !result[0].IsStraight()) {
+            if (result.size()==1)
+                result[0].SetEllipseToFull();
+            result.CalculateBoundingBox();  //also calculates bounding boxes of edges
+            if (SAME==result.Untangle(res, EXPAND_RULE))
+                res.append(result);        //expanded contour is not tangled, just add it
+        }
+    }
+    if (num_separate)
+        for (int i=0; i<size(); i++) {
+            if (edges[i].valid || !edges[i].separate) continue;
+            Contour b;
+            b.push_back(edges[i].s);
+            b.begin()->SetEllipseToFull();
+            res += b;
+        }
 }
 
 ContourList Contour::CreateExpand(double gap) const

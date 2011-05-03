@@ -1,14 +1,15 @@
 #if !defined(CONTOUR_BASICS_H)
 #define CONTOUR_BASICS_H
 
-#ifndef _ASSERT
-#define  _ASSERT(A)
-#endif
-
 #include <cfloat>
 #include <utility>
+#include <cassert>
 
 using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
+
+#ifndef _ASSERT
+#define  _ASSERT(A) 
+#endif
 
 #define CONTOUR_INFINITY DBL_MAX
 //other helpers
@@ -43,7 +44,7 @@ public:
     XY     Rotate90CW() const             {return XY(-y, x);}
     XY     Rotate90CCW() const            {return XY(y, -x);}
 	void   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos;}
-	void   RotateAround(const XY&c, double cos, double sin) 
+	void   RotateAround(const XY&c, double cos, double sin)
 	    {double X=x-c.x, Y=y-c.y; x=X*cos-Y*sin+c.x; y=X*sin+Y*cos+c.y;}
     XY &   SwapXY()                       {std::swap(x,y); return *this;}
     XY &   Round()                        {x = floor(x+.5); y=floor(y+.5); return *this;}
