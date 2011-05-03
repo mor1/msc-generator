@@ -222,12 +222,13 @@ void MscCanvas::SetLineAttr(MscLineAttr line)
 
 void MscCanvas::SetDash(MscLineAttr line, double pattern_offset)
 {
+    int num;
+    const double * const pattern = line.DashPattern(num);
+    pattern_offset = num ? fmod(pattern_offset, pattern[num]) : 0;
     if (fake_dash) {
         cairo_set_dash(cr, NULL, 0, 0); 
         fake_dash_offset = pattern_offset;
-    } else if (line.type.first) {
-        int num;
-        const double * const pattern = line.DashPattern(num);
+    } else if (line.type.first && !fake_dash) {
         cairo_set_dash(cr, pattern, num, pattern_offset); 
     }
 }

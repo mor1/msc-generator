@@ -2084,18 +2084,16 @@ void ArcBoxSeries::Width(EntityDistanceMap &distances)
         right_space_inside = max(def_margin, right_space_inside);
     }
 
+    //Check box_side requirements
+    const std::pair<double, double> l_tmp = d.QueryBoxSide((*src)->index-1, false); 
+    const std::pair<double, double> r_tmp = d.QueryBoxSide((*dst)->index,   true); 
+    left_space_inside  = std::max(left_space_inside,  l_tmp.second);
+    right_space_inside = std::max(right_space_inside, r_tmp.first);
+
     //add gap and linewidth
     max_width += 2*chart->emphVGapInside;
     left_space =  left_space_inside +  chart->emphVGapInside + overall_style.line.LineWidth();
     right_space = right_space_inside + chart->emphVGapInside + overall_style.line.LineWidth();
-
-    //Check box_side requirements
-    const std::pair<double, double> l_tmp = d.QueryBoxSide((*src)->index, true); //left req
-    const std::pair<double, double> r_tmp = d.QueryBoxSide((*dst)->index, false); //left req
-    if (left_space_inside < l_tmp.second) left_space += l_tmp.second - left_space_inside;
-    if (right_space_inside < r_tmp.first) right_space += r_tmp.first - right_space_inside;
-    d.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
-    d.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
 
     //convert the side requirements to pairwise distances
     d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
@@ -2109,6 +2107,8 @@ void ArcBoxSeries::Width(EntityDistanceMap &distances)
     //Add side distances
     distances.Insert((*src)->index, DISTANCE_LEFT, left_space);
     distances.Insert((*dst)->index, DISTANCE_RIGHT, right_space);
+    distances.InsertBoxSide((*src)->index-1, l_tmp.first, left_space);
+    distances.InsertBoxSide((*dst)->index, right_space, r_tmp.second);
     distances += d;
 }
 
@@ -2542,7 +2542,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
     //Postparse the content;
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
-    chart->PostParseProcessArcList(hide, content, true, content_left, content_right, number, top_level);
+    chart->PostParseProcessArcList(hide, content, false, content_left, content_right, number, top_level);
 
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
@@ -3943,7 +3943,7 @@ double CommandEmpty::Height(AreaList &cover)
     if (!valid) return 0;
     yPos = 0;
     const XY wh = parsed_label.getTextWidthHeight();
-    Area a = Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y);
+    Area a = Area(Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y));
     cover = a.CreateExpand(chart->compressGap/2);
     return wh.y + EMPTY_MARGIN_Y*2;
 }

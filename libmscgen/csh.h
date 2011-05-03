@@ -1,16 +1,17 @@
 #if !defined(CSH_H)
 #define CSH_H
 
-#ifndef _ASSERT
-#define  _ASSERT(A)
-#endif
-
+#include <cassert>
 #include<vector>
 #include<list>
 #include<string>
 #include<set>
 #include<map>
 #include<stack>
+
+#ifndef _ASSERT
+#define  _ASSERT(A) 
+#endif
 
 
 struct CshPos

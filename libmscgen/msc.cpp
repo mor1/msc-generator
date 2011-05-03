@@ -88,9 +88,9 @@ double EntityDistanceMap::Query(unsigned e1, int e2) const
 //This is useful for arc elements (especially entity commands) that cover multiple disjoint
 //areas (the shown entities) some of which can fall into a box around them, some of them
 //can fall outside.
-void EntityDistanceMap::InsertBoxSide(unsigned e, double r, double l)
+void EntityDistanceMap::InsertBoxSide(unsigned e, double l, double r)
 {
-    box_side[e].push_back(std::pair<double, double>(r, l));
+    box_side[e].push_back(std::pair<double, double>(l, r));
 }
 
 //query the maximum boxside distance between e and e+1. left is true if we are interested
@@ -101,7 +101,7 @@ std::pair<double, double> EntityDistanceMap::QueryBoxSide(unsigned e, bool left)
     if (l == box_side.end() || l->second.size()==0) return std::pair<double, double>(0,0);
     auto hit = l->second.begin();
     for (auto i = l->second.begin(); i!=l->second.end(); i++)
-        if ((left && i->second > hit->second) || (!left && i->first > hit->first))
+        if ((!left && i->second > hit->second) || (left && i->first > hit->first))
             hit = i;
     return *hit;
 }
@@ -817,7 +817,8 @@ void Msc::DrawEntityLines(double y, double height,
                 const XY offset(fmod(vline.width.second/2,1),0);
                 const XY magic(0,0);  //HACK needed in windows: 0,1
                 const XY start = up+offset-magic;
-                canvas->Line(start, down+offset, vline, start.y); //last param is dash_offset
+                //last param is dash_offset. Cairo falls back to image surface if this is not zero ???
+                canvas->Line(start, down+offset, vline, 0 /*start.y*/); 
             }
             up.y = down.y;
         }
@@ -885,7 +886,8 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
             //Place blocks, always compress the first (forceCompress=true)
             //Use 0 instead of y if you want the element after "parallel" to completely
             //ignore the "parallel" element (and potentially be above it)
-            return PlaceListUnder(++i, to, y_bottom, y /* or 0 */, cover, true);
+            const double bottom_of_list = PlaceListUnder(++i, to, y_bottom, y /* or 0 */, cover, true);
+            return std::max(y_bottom, bottom_of_list);
         }
         cover += arc_cover;
         y = y_bottom;

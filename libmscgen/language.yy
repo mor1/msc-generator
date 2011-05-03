@@ -382,6 +382,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     $$ = $2;
     //Do not pop context, as the missing scope_close would have done
     msc.Error.Error(MSC_POS(@3).start, "Missing '}'.");
+    msc.Error.Error(MSC_POS(@1).start, MSC_POS(@3).start, "Here is the corresponding '{'.");
   #endif
 }
             | scope_open arclist_maybe_no_semicolon
@@ -393,6 +394,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     $$ = $2;
     //Do not pop context, as the missing scope_close would have done
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing '}'.");
+    msc.Error.Error(MSC_POS(@1).start, MSC_POS(@2).end.NextChar(), "Here is the corresponding '{'.");
   #endif
 };
 
@@ -405,6 +407,7 @@ arclist_maybe_no_semicolon : arclist
     if ($2) ($1)->Append($2);
     $$ = $1;
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing ';'.");
+    msc.Error.Error(MSC_POS(@2).start, MSC_POS(@2).end.NextChar(), "Here is the beginning of the command as I understood it.");
   #endif
 }
             | arc_with_parallel
@@ -414,6 +417,7 @@ arclist_maybe_no_semicolon : arclist
   #else
     $$ = (new ArcList)->Append($1); /* New list */
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing ';'.");
+    msc.Error.Error(MSC_POS(@1).start, MSC_POS(@1).end.NextChar(), "Here is the beginning of the command as I understood it.");
   #endif
 };
 

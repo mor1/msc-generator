@@ -9,7 +9,8 @@ Two helpers needed:
  Allow new function only for metafiles
 
 
-PLANNED in 3.1
+PLANNED in 3.3
+FIX: What is the problem with ex37??? in GNU
 CHANGE: Switched to cairo 1.10 and the new pixman after summer.
    - Bug1: hints drawing into popubox
    - Bug2: EMF re-scaling
@@ -43,9 +44,8 @@ ADD: Context menu to editor (track one, tracking mode, find, replace, Style expl
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.1
-FIX: What is the problem with ex37??? in GNU
-FIX: Why image overlay in vline rose???
-Done
+FIXED: Dashed entity line now never falls back to image
+FIXED: Box sizing now fixed on the left side
 ADDED: New styles for designs
 FIXED: Why box_collapse_arrow & entity collapse in grouped entities2.signalling
 FIXED: Entity has margin and indicator
