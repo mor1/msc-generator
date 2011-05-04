@@ -120,3 +120,9 @@ defdesign Dinand {
       defstyle arrow [arrow.midtype=dot];
       defstyle blockarrow, box_collapsed_arrow [arrow.midtype=dot, fill.gradient=down];
 };
+defdesign thick_lines {
+    defstyle arrow, blockarrow, vertical, pipe, box, emptybox, divider [line.width=2];
+    defstyle box_collapsed, box_collapsed_arrow, entity, entitygroup, entitygroup_collapsed [line.width=2];
+    defstyle entity, entitygroup_collapsed [vline.width=2];
+    defstyle weak [line.width=1, vline.width=1];
+};

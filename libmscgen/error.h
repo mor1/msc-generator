@@ -98,13 +98,13 @@ public:
     void Warning(file_line linenum, const std::string &s, const std::string &once="")
         {Add(linenum, linenum, s, once, false);}
     void Warning(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once="")
-        {Add(linenum, linenum_ord, s, once, false);}
+        {Add(linenum, linenum_ord, "("+s+")", once, false);}
     void Warning(const Attribute &a, bool atValue, const std::string &s, const std::string &once="")
         {Add(a, atValue, s, once, false);}
     void Error(file_line linenum, const std::string &s, const std::string &once="")
         {Add(linenum, linenum, s, once, true);}
     void Error(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once="")
-        {Add(linenum, linenum_ord, s, once, true);}
+        {Add(linenum, linenum_ord, "("+s+")", once, true);}
     void Error(const Attribute &a, bool atValue, const std::string &s, const std::string &once="")
         {Add(a, atValue, s, once, true);}
 
