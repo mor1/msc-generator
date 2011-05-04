@@ -1,0 +1,94 @@
+defdesign rose {
+    defcolor yellow="255,255,207", red="168,0,54", faint_red="red,128";
+    defstyle entity [text.format="\u\mu(10)\md(10)\ml(12)\mr(8)"];
+    defstyle entity [line.color=red, fill.color=yellow, vline.type=dashed, vline.color=red];
+    defstyle arrow, blockarrow [arrow.type=line, arrow.color=red, line.color=red];
+    defstyle divider [line.color=red];
+    defstyle emptybox, vertical [line.color=red, fill.color=yellow];
+    defstyle pipe [line.color=red];
+    defstyle weak [line.color=faint_red, vline.color=faint_red, arrow.color=faint_red, text.color="black,128"];
+};
+defdesign mild_yellow {
+    defcolor yellow ="255,255,196";
+    defstyle divider [line.width=3, text.format="\b"];
+    defstyle box, pipe, vertical [fill.color=yellow];
+    hscale = auto, compress = yes;
+};
+defdesign omegapple {
+    defcolor rose="194,10,80", rose2="210,63,122", yellow="252,243,152";
+    defcolor faint_rose="225,133,168";
+    defstyle emptybox, vertical [fill.color=yellow, fill.gradient=down];
+    defstyle arrow, blockarrow[line.color=rose, line.radius=0, line.width=2, arrow.color=rose];
+    defstyle => [arrow.size=normal];
+    defstyle divider [line.color=rose];
+    defstyle entity[text.color=white, text.format="\b\mu(10)\md(10)\ml(12)\mr(8)",
+                    line.width=2, line.color=rose2, line.radius=10,
+                    fill.color=rose, fill.gradient=down];
+    defstyle pipe [fill.color=faint_rose, fill.gradient=down, line.color=black,
+                   text.format="\b", text.color=rose];
+    defstyle weak [line.color=faint_rose, vline.color=faint_rose, arrow.color=faint_rose];
+    hscale=auto;
+};
+defdesign qsd {
+      defstyle entity, pipe, box, emptybox, blockarrow, vertical [shadow.offset=4, shadow.blur=2];
+      defstyle entity [text.format="\u\mu(6)\md(6)\ml(6)\mr(6)"];
+      defstyle entity [vline.type=dashed];
+      defstyle >, >> [arrow.type=line];
+      hscale=auto;
+};
+defdesign modern_blue {
+      defcolor blue="82,123,198", lblue="215,224,242";
+      defstyle entity [text.color=white, text.format="\mu(6)\ml(6)\mr(6)\md(6)"];
+      defstyle entity [fill.color=blue, line.color=blue, line.radius=5];
+      defstyle entity, emptybox, pipe, blockarrow, vertical [shadow.offset=4, shadow.blur=6];
+      defstyle arrow, blockarrow [line.width=2];
+      defstyle >, >> [arrow.type=line];
+      defstyle => [arrow.size=normal];
+      defstyle box, pipe, vertical [text.format="\b", fill.color=lblue];
+      defstyle entity [vline.color=gray];
+};
+defdesign round_green {
+      defcolor green="161,207,169";
+      defcolor brown="165,132,88", lbrown="232,204,180";
+      defstyle arrow, entity, box, emptybox [line.radius=7];
+      defstyle entity [fill.color=green, line.color=green];
+      defstyle entity [text.format="\mu(6)\ml(6)\mr(6)\md(6)"];
+      defstyle entity [vline.color=gray, vline.type=dashed];
+      defstyle emptybox, blockarrow [fill.color=lbrown, line.color=brown];
+      defstyle >, >> [arrow.type=line];
+      defstyle box, pipe, vertical [line.width=2, line.color=green];
+};
+defdesign green_earth {
+      defcolor green="87,139,119", lgray="240,240,240";
+      defstyle entity [fill.color=green, line.color=green];
+      defstyle entity [text.format="\mu(6)\ml(6)\mr(6)\md(6)\b", text.color=white];
+      defstyle entity [vline.color=gray, vline.type=dashed];
+      defstyle emptybox, pipe, blockarrow, vertical [shadow.offset=4, shadow.blur=6];
+      defstyle emptybox [line.width=2];
+      defstyle arrow, blockarrow [line.width=2];
+      defstyle >, >> [arrow.type=line];
+      defstyle => [arrow.size=normal];
+      defstyle box, pipe, vertical [line.width=2, line.color=gray, fill.color=lgray];
+      defstyle box, pipe, vertical, ---, ... [text.format="\b"];
+      defstyle weak [text.color="200,200,200", text.format="\mn(14)", line.width=1];
+      defstyle strong [text.format="\mn(18)", line.width=3];
+};
+defdesign Dinand {
+      hscale=auto, compress=yes, numbering=yes;
+      defcolor light_green="205,255,215", lgreen = light_green;
+      defcolor light_red="250,185,175", lred = light_red;
+      defcolor light_yellow="255,255,160", lyellow = light_yellow;
+      defcolor light_blue="171,219,255", lblue = light_blue;
+
+      defstyle lgreen, light_green [fill.color=lgreen];
+      defstyle lred, light_red [fill.color=lred];
+      defstyle lyellow, light_yellow [fill.color=lyellow];
+      defstyle lblue, light_blue [fill.color=lblue];
+
+      defstyle entity [fill.color=lgray, fill.gradient=up, vline.color=lgray];
+      defstyle box [fill.gradient=down, text.color = "125, 125, 125"];
+      defstyle vertical [fill.gradient=down];
+      defstyle emptybox [fill.gradient=none, text.color=black];
+      defstyle arrow [arrow.midtype=dot];
+      defstyle blockarrow [arrow.midtype=dot, fill.gradient=down];
+};
