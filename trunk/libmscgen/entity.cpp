@@ -43,7 +43,7 @@ void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
         _ASSERT(*ei != chart->NoEntity);
         if (!(*i)->defining) {
             chart->Error.Error((*i)->file_pos.start, "Cannot make an already existing entity part of a group.", 
-                               " Entity remains outside this group.");
+                               "Entity remains outside this group.");
             chart->Error.Error((*ei)->file_pos, (*i)->file_pos.start, "Entity '" + (*ei)->name + "' was defined here.");
         } else {
             //if parent is already set this is a grandchilren
