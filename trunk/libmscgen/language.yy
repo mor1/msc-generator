@@ -128,7 +128,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
-       TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE TOK_BYE
+       TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK__NEVER__HAPPENS
 %union
 {
@@ -181,7 +181,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
-                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE
+                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE 
+                   TOK_ACTIVATE TOK_DEACTIVATE
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
@@ -199,7 +200,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
 %destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
-%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE
+%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
 
 %%
 
@@ -862,7 +863,7 @@ arc:           arcrel
     free($1);
 }
 
-entity_command_prefixes: TOK_HIDE | TOK_SHOW;
+entity_command_prefixes: TOK_HIDE | TOK_SHOW | TOK_ACTIVATE | TOK_DEACTIVATE;
 
 optlist:     opt
 {
@@ -2439,7 +2440,8 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_PIPE |
                        TOK_VERTICAL | TOK_COMMAND_PARALLEL |
                        TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
-                       TOK_COMMAND_MARK | TOK_AT | TOK_SHOW | TOK_HIDE | TOK_BYE
+                       TOK_COMMAND_MARK | TOK_AT | TOK_SHOW | TOK_HIDE |
+                       TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}

@@ -9,17 +9,13 @@ Two helpers needed:
  Allow new function only for metafiles
 
 
-PLANNED in 3.3
+PLANNED in 3.5
 FIX: What is the problem with ex37??? in GNU
 CHANGE: Switched to cairo 1.10 and the new pixman after summer.
    - Bug1: hints drawing into popubox
    - Bug2: EMF re-scaling
 ADD: shadow to arrows and labels
 ADD: Comments to arcs (leftside, rightside, bubble)
-Activate package
-	ADD: message lost
-	ADD: Add entity create/destroy
-	Entity activate/deactivate
 ADD: Expand parallel behaviour
 	- add valign={top, center, bottom} attribute
 	- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
@@ -43,7 +39,14 @@ ADD: Style and color explorer (show what a style or color contains at any place 
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
-In 3.1
+In 3.3
+ADD: message lost
+ADD: Add entity create/destroy
+ADDDED: Entity activate/deactivate
+FIX: Entity attributes does not get hinted well
+FIX: Make all examples compile with full active entities
+
+In 3.2
 FIXED: Dashed entity line now never falls back to image
 FIXED: Box sizing now fixed on the left side
 ADDED: New styles for designs

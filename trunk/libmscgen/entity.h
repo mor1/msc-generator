@@ -5,21 +5,41 @@
 #include "style.h"
 #include "contour_area.h"
 
+class EEntityStatus {
+public:
+    enum E {SHOW_OFF, SHOW_ON, SHOW_ACTIVE_ON, SHOW_ACTIVE_OFF};
+private:
+    E status;
+public:
+    EEntityStatus(E e) : status(e) {}
+    EEntityStatus() : status(SHOW_OFF) {}
+    bool IsOn() const {return status==SHOW_ON||status==SHOW_ACTIVE_ON;}
+    bool IsActive() const {return status==SHOW_ACTIVE_OFF||status==SHOW_ACTIVE_ON;}
+    EEntityStatus& Show(bool on) {status = on ? (IsOn() ? status : status==SHOW_OFF ? SHOW_ON : SHOW_ACTIVE_ON) : (!IsOn() ? status : status==SHOW_ON ? SHOW_OFF : SHOW_ACTIVE_OFF); return *this;}
+    EEntityStatus& Activate(bool on) {status = on ? (IsActive() ? status : status==SHOW_OFF ? SHOW_ACTIVE_OFF : SHOW_ACTIVE_ON) : (!IsActive() ? status : status==SHOW_ACTIVE_OFF ? SHOW_OFF : SHOW_ON); return *this;}
+    bool operator ==(EEntityStatus o) const {return status == o.status;}
+    bool operator ==(E o) const {return status == o;}
+    EEntityStatus& operator =(E o) {status=o; return *this;} 
+};
+
 class EntityStatusMap
 {
 public:
-	typedef enum {SHOW_OFF, SHOW_ON, ACTIVE, ACTIVE_OFF} EStatus;
+	
 protected:
-    DoubleMap<MscStyle> styleStatus;   //style of the entity line at and beyond a position
-    DoubleMap<EStatus>  showStatus;    //tells if the entity is turned on or off or active
+    DoubleMap<MscStyle>      styleStatus;   //style of the entity line at and beyond a position
+    DoubleMap<EEntityStatus> showStatus;    //tells if the entity is turned on or off or active
 public:
-    explicit EntityStatusMap(const MscStyle &def) : styleStatus(def), showStatus(SHOW_OFF) {}
+    explicit EntityStatusMap(const MscStyle &def) : styleStatus(def), showStatus(EEntityStatus::SHOW_OFF) {}
     void ApplyStyle(double pos, const MscStyle &style) {styleStatus.Add(pos, style);}
     void ApplyStyle(Range pos, const MscStyle &style) {styleStatus.Add(pos, style);}
-    void SetStatus(double pos, EStatus status) {showStatus.Set(pos, status);}
+    void SetStatus(double pos, EEntityStatus status) {showStatus.Set(pos, status);}
     const MscStyle &GetStyle(double pos) const {return *styleStatus.Get(pos);}
-    EStatus GetStatus(double pos) const {return *showStatus.Get(pos);}
-	double Till(double pos) const {return std::min(showStatus.Till(pos), styleStatus.Till(pos));}
+    EEntityStatus GetStatus(double pos) const {return *showStatus.Get(pos);}
+    double ShowTill(double pos) const {return showStatus.Till(pos);}
+    double StyleTill(double pos) const {return styleStatus.Till(pos);}
+    double ShowFrom(double pos) const {return showStatus.From(pos);}
+    double StyleFrom(double pos) const {return styleStatus.From(pos);}
 };
 
 class Msc;
@@ -40,7 +60,7 @@ public:
     EntityStatusMap  status;   // contains vertical line status & type & color
     MscStyle         running_style;  //Used during PostParse process to make EntityDef::style's fully specified
     double           maxwidth;       //Used during PostParse process to collect the maximum width of the entity
-    bool             shown;          //Used during Height process to see if it is shown
+    EEntityStatus    running_shown;  //Used during Height process to see if it is shown
 
     string           parent_name;    //tells if we are part of an entity group
     std::set<string> children_names; //if we are an entity group, tells who are within us
@@ -114,7 +134,9 @@ public:
     triplet<bool,string,file_line> rel;
     triplet<bool,bool,file_line>   collapsed;
     std::pair<bool,bool>           show;
+    std::pair<bool,bool>           active;
     bool                           show_is_explicit; //"show" comes from user text
+    bool                           active_is_explicit; //"active" comes from user attribute text
 
     EIterator                      itr;         //this is set during PostParse, points to the entity
     MscStyle                       style;       //this is finalized during PostParse

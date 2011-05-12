@@ -109,8 +109,10 @@ EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
     pos.first = false;
     pos.second = 0; //field 'pos.second' is used even if no such attribute
     rel.first = false;
-    show.second = show.first = true; //if no attributes, we are ON
+    show.second = show.first = true;        //if no attributes, we are ON if defined
+    active.first = true; active.second = false; //if no attributes, we are not active if defined
     show_is_explicit = false;
+    active_is_explicit = false;
     style.Empty();
     collapsed.first = false;
 }
@@ -171,6 +173,14 @@ bool EntityDef::AddAttribute(const Attribute& a)
         show_is_explicit = true;
         return true;
     }
+    if (a.Is("active")) {
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        // MSC_ATTR_CLEAR is handled above
+        active.second = a.yes;
+        active.first = true;
+        active_is_explicit = true;
+        return true;
+    }
     if (a.Is("color")) {
         bool was = false;
         // MSC_ATTR_CLEAR is handled by individual attributes below
@@ -205,8 +215,9 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
 {
     EIterator i = chart->AllEntities.Find_by_Name(name);
     if (*i != chart->NoEntity) {
-        // Existing entity: kill auto-assumed "show=on"
+        // Existing entity: kill auto-assumed "show=on" and "active=no"
         show.first = false;
+        active.first = false;
         // Leave show_explicit as false
     } else {
         //indicate that this EntityDef created the Entity
@@ -396,7 +407,8 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "collapsed", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true); //no arrow, solid numbering compress side
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true); //no arrow, solid numbering compress side
     style.AttributeNames(csh);
 
 }
@@ -410,7 +422,8 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
     if (CaseInsensitiveEqual(attr,"label")) {
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"show") || CaseInsensitiveEqual(attr,"collapsed")) {
+    if (CaseInsensitiveEqual(attr,"show") || CaseInsensitiveEqual(attr,"collapsed")
+        || CaseInsensitiveEqual(attr,"active")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
@@ -423,7 +436,7 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true); //no arrow, solid numbering compress side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true); //no arrow, solid numbering compress side
     if (style.AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -496,8 +509,14 @@ void EntityDef::PostPosProcess(double dummy)
         if ((*itr)->children_names.size()) 
             TrackableElement::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);        
     }
-    if (show.first)
-        (*itr)->status.SetStatus(yPos, show.second ? EntityStatusMap::SHOW_ON : EntityStatusMap::SHOW_OFF);
+    const EEntityStatus old_status = (*itr)->status.GetStatus(yPos);
+    EEntityStatus new_status = old_status;
+    if (show.first) 
+        new_status.Show(show.second);
+    if (active.first)
+        new_status.Activate(active.second);
+    if (new_status != old_status)
+        (*itr)->status.SetStatus(yPos, new_status); 
     (*itr)->status.ApplyStyle(yPos, style);
     //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {
     //    if (shown)

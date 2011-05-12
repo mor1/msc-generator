@@ -204,8 +204,9 @@ class DoubleMap : public std::map<double, element>
 public:
     using std::map<double, element>::operator[];   //indicate to two-stage (dependent) name lookup
     using std::map<double, element>::upper_bound;  //that we want these names (not dependent on "element")
-    using std::map<double, element>::begin;        //looked up only at instantiation time (from base class)
-    using std::map<double, element>::end;          //and not during template compilation (searched in global scope).
+    using std::map<double, element>::lower_bound;  //looked up only at instantiation time (from base class)
+    using std::map<double, element>::begin;        //and not during template compilation (searched in global scope).
+    using std::map<double, element>::end;          
 
     DoubleMap() {};
     DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
@@ -216,6 +217,7 @@ public:
     void Add(const Range &r, const element&e); //assumes element has operator +=
     const element* Get(double pos) const {auto i=upper_bound(pos); return i==begin()?NULL:&(--i)->second;}
     double Till(double pos) const {auto i=upper_bound(pos); return i==end()?CONTOUR_INFINITY:i->first;}
+    double From(double pos) const {auto i=--lower_bound(pos); return i==end()?-CONTOUR_INFINITY:i->first;}
 };
 
 template <class element>

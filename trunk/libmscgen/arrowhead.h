@@ -96,12 +96,12 @@ public:
     //tells what range of the entity line is covered by the arrowhead
     Area EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //Returns a clip contour covering the arrowhead and the rest of the chart (both sides)
-    Area ClipForLine(XY xy, bool forward, bool bidir, MscArrowEnd which, const Block &total,
+    Area ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
                      const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //Returns a contour covering the arrowhead
-    Area Cover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
+    Area Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which) const;
     //This actually draws an arrowhead
-    void Draw(XY xy, bool forward, bool bidir, MscArrowEnd which, MscCanvas *) const;
+    void Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, MscCanvas *) const;
 
 //functions for block arrow heads
     //The characteristic size of arrowhead
@@ -116,11 +116,13 @@ public:
     double getBigMargin(Area text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const;
     //tells how much the arrow (overall) extends above or below sy and dy
     double bigYExtent(bool bidir, bool multisegment) const;
-    Area BigCoverOne(double x, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
-    Area BigCover(std::vector<double> xPos, double sy, double dy, bool bidir, int no_segment=-1) const;
-    Area BigEntityLineCover(const std::vector<double> &xPos, double sy, double dy, bool bidir,
+    Area BigCoverOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
+    Area BigCover(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, 
+                  bool bidir, int no_segment=-1) const;
+    Area BigEntityLineCover(const std::vector<double> &xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
                             const std::vector<MscLineAttr> *lines, const Block &total) const;
-    void BigDraw(const std::vector<double> &xPos, double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
+    void BigDraw(const std::vector<double> &xPos, std::vector<double> act_size, 
+                 double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
                  const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscCanvas *canvas,
                  const Area *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
 };

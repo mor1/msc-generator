@@ -248,6 +248,8 @@ do {                                                \
 (?i:yes)       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 (?i:show)      yylval_param->str = strdup(yytext); return TOK_SHOW;
 (?i:hide)      yylval_param->str = strdup(yytext); return TOK_HIDE;
+(?i:activate)  yylval_param->str = strdup(yytext); return TOK_ACTIVATE;
+(?i:deactivate) yylval_param->str= strdup(yytext); return TOK_DEACTIVATE;
 (?i:bye)       yylval_param->str = strdup(yytext); return TOK_BYE;
 
 \.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
