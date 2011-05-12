@@ -1,0 +1,21 @@
+hscale=auto, compress=yes;
+{
+a->b: solid [arrow.type=solid];
+a->b: empty[arrow.type=empty];
+a->b: line[arrow.type=line];
+a->b: half[arrow.type=half];
+a->b: sharp[arrow.type=sharp];
+a->b: empty_sharp[arrow.type=empty_sharp];
+} {
+c->d: double[arrow.type=double];
+c->d: triple_empty[arrow.type=triple_empty];
+c->d: double_line[arrow.type=double_line];
+c->d: triple_half[arrow.type=triple_half];
+c->d: double [arrow.type=empty, arrow.xmul=1.5];
+c->d: double [arrow.type=double, arrow.xmul=1.5, arrow.ymul=0.7];
+};
+a->b-c-d: \pldiamond [arrow.midtype=diamond];
+a->b-c-d: \plempty_diamond [arrow.midtype=empty_diamond];
+a->b-c-d: \pldot [arrow.midtype=dot];
+a->b-c-d: \plempty_dot [arrow.midtype=empty_dot];
+
