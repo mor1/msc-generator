@@ -17,7 +17,7 @@ bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p);
 struct MscStyle
 {
     MscLineAttr line, vline;
-    MscFillAttr fill;
+    MscFillAttr fill, vfill;
     MscShadowAttr shadow;
     ArrowHead arrow;
     StringFormat text;
@@ -29,11 +29,11 @@ struct MscStyle
 
     StyleType type;
 
-    bool f_line, f_vline, f_fill, f_shadow, f_text, f_solid, f_numbering, f_compress, f_side, f_indicator;
+    bool f_line, f_vline, f_fill, f_vfill, f_shadow, f_text, f_solid, f_numbering, f_compress, f_side, f_indicator;
     ArrowHead::ArcType f_arrow;
 
     MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
-    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co, bool si, bool i);
+    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co, bool si, bool i, bool vf);
     void Empty();
     MscStyle &operator +=(const MscStyle &toadd);
     MscStyle operator +(const MscStyle &toadd) const

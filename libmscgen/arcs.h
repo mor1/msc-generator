@@ -177,6 +177,7 @@ protected:
 
     mutable XY xy_s, xy_e, wh; //arrow parameters
     mutable double sx, dx;     //text parameters
+    mutable double src_act;
 public:
     ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
         Msc *msc, const MscStyle &, double ys);
@@ -206,6 +207,7 @@ protected:
     mutable double sx, dx;     //xpos of two final arrowheads (sx can be > dx)
     mutable double sx_text, dx_text, cx_text; //xpos for text display (sorted)
     mutable std::vector<double> xPos; //positions sorted
+    mutable std::vector<double> act_size;  //activation size sorted
     mutable std::vector<DoublePair> margins; //margins sorted
     mutable Area text_cover;   //so that we can hide entity lines in PostPosProcess - not used by ArcBigArrow
     mutable double centerline; //y offset of line compared to yPos

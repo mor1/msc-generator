@@ -350,7 +350,8 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
 
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
-"defcolor", "defdesign", "vertical", "mark", "show", "hide", "bye", ""};
+"defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
+"bye", ""};
 
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
@@ -360,7 +361,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 
 static const char attr_names[][ENUM_STRING_LEN] =
 {"compress", "color", "label", "number", "indicator", "collapsed", 
-"pos", "relative", "show", "makeroom", "side", "offset", "solid",
+"pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
@@ -933,7 +934,8 @@ bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam p)
     ah.size.second = MSC_ARROWS_INVALID;
     MscShadowAttr shadow;
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
-    ah.BigDraw(xPos, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, canvas);
+    std::vector<double> active(2,0.);
+    ah.BigDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, canvas);
     canvas->UnClip();
     return true;
 }

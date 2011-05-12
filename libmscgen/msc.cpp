@@ -138,21 +138,37 @@ void EntityDistanceMap::CombineLeftRightToPair_Sum(double gap)
 
 //If there is X on the right side of e1 and Y on the e1+1 entity
 //convert these to a distance of max(X,Y)+gap between e1 and e1+1
-void EntityDistanceMap::CombineLeftRightToPair_Max(double gap)
+//if, however the entity that we have selected via max() above was active,
+//add active size to the distance
+void EntityDistanceMap::CombineLeftRightToPair_Max(double gap, double act_size)
 {
     std::map<unsigned, double>::iterator i, j;
-    for(i=right.begin(); i!=right.end(); ) {
-        unsigned index = i->first;
+    for(i=right.begin(); i!=right.end(); i++) {
+        double my_right = i->second;
+        if (was_activated.find(i->first) != was_activated.end())
+            my_right += act_size;
+        const unsigned index = i->first;
+        double next_left = 0;
         j = left.find(index+1);
-        if (j == left.end()) {
-            i++;
-            continue;
+        if (j != left.end()) {
+            next_left = j->second;
+            if (was_activated.find(j->first) != was_activated.end())
+                next_left += act_size;
+            left.erase(j);
         }
-        double requirement = max(i->second,j->second) + gap;
-        right.erase(i++);
-        left.erase(j);
+        const double requirement = std::max(my_right, next_left) + gap; 
         Insert(index, index+1, requirement);
     }
+    right.clear();
+    //Add distances for whatever remained in "left"
+    for(i=left.begin(); i!=left.end(); i++) {
+        double my_left = i->second;
+        if (was_activated.find(i->first) != was_activated.end())
+            my_left += act_size;
+        const unsigned index = i->first;
+        Insert(index-1, index, my_left + gap);
+    }
+    left.clear();
 }
 
 //If there is X on the right side of e1 and nothing on the left side of e1+1
@@ -237,6 +253,7 @@ Msc::Msc() :
     arcVGapBelow = 3;
     discoVgap = 5;
     nudgeSize = 4;
+    activeEntitySize = 14;
     compressGap = 2;
     hscaleAutoXGap = 5;
     trackFrameWidth = 4;
@@ -790,7 +807,7 @@ void Msc::PostParseProcess()
 
     //Set all entity's shown to false, to avoid accidentally showing them via (heading;) before definition
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++)
-        (*i)->shown = false;
+        (*i)->running_shown = EEntityStatus::SHOW_OFF; //not shown not active
 
     //Traverse Arc tree and perform post-parse processing
     Numbering number; //starts at a single level from 1
@@ -807,20 +824,62 @@ void Msc::DrawEntityLines(double y, double height,
     //"to" is not included!!
     canvas->ClipInverse(HideELinesArea);
     while(from != to) {
+        const EntityStatusMap & status= (*from)->status;
         XY up(XCoord(from), y);
         XY down(up.x, y);
         const double till = y+height;
-        while (up.y < till) {
-            down.y = min((*from)->status.Till(up.y), till);
-            if ((*from)->status.GetStatus(up.y)) {
-                const MscLineAttr &vline = (*from)->status.GetStyle(up.y).vline;
+        for (/*none*/; up.y < till; up.y = down.y) {
+            const double show_till = status.ShowTill(up.y);
+            const double style_till = status.StyleTill(up.y);
+            down.y = std::min(std::min(show_till, style_till), till);
+            //we are turned off below -> do nothing
+            if (!status.GetStatus(up.y).IsOn())
+                continue;
+            if (status.GetStatus(up.y).IsActive()) {
+                const double show_from = status.ShowFrom(up.y);
+                const double style_from = status.StyleFrom(up.y);
+                Block outer_edge;
+                //if we may start an active rectangle here...
+                if (!status.GetStatus(show_from).IsActive() || !status.GetStatus(show_from).IsOn()) 
+                    outer_edge.y.from = up.y;
+                //...or an active rectangle may have started earlier
+                else
+                    outer_edge.y.from = std::max(show_from, 0.);
+                outer_edge.y.till = std::min(show_till, total.y);
+                outer_edge.x.from = up.x - activeEntitySize/2; 
+                outer_edge.x.till = up.x + activeEntitySize/2;
+                Block clip(XY(0,0), total);
+                bool doClip = false;
+                if (outer_edge.y.from < up.y) {
+                    clip.y.from = up.y;
+                    doClip = true;
+                }
+                if (outer_edge.y.till > down.y) {
+                    clip.y.till = down.y;
+                    doClip = true;
+                }
+                MscLineAttr vline = status.GetStyle(up.y).vline;  //creates a copy
+                const MscFillAttr &vfill = status.GetStyle(up.y).vfill;
+                outer_edge.Expand(-vline.LineWidth()/2);
+                vline.radius.second = std::max(vline.radius.second-vline.LineWidth()/2, 0.);
+                Contour cont_line = vline.CreateRectangle(outer_edge);
+                outer_edge.Expand(-vline.LineWidth()/2+vline.width.second/2);
+                vline.radius.second = std::max(vline.radius.second-vline.LineWidth()/2+vline.width.second/2, 0.);
+                Contour cont_fill = vline.CreateRectangle(outer_edge);
+                if (doClip)
+                    canvas->Clip(clip);
+                canvas->Fill(cont_fill, vfill);
+                canvas->Line(cont_line, vline);
+                if (doClip)
+                    canvas->UnClip();
+            } else {
+                const MscLineAttr &vline = status.GetStyle(up.y).vline;
                 const XY offset(fmod(vline.width.second/2,1),0);
                 const XY magic(0,0);  //HACK needed in windows: 0,1
                 const XY start = up+offset-magic;
                 //last param is dash_offset. Cairo falls back to image surface if this is not zero ???
                 canvas->Line(start, down+offset, vline, 0 /*start.y*/); 
             }
-            up.y = down.y;
         }
         from++;
     }
@@ -829,6 +888,10 @@ void Msc::DrawEntityLines(double y, double height,
 
 void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
 {
+    //Indicate active and showing entities
+    for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
+        if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
+            distances.was_activated.insert ((*i)->index);
     for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
         (*i)->Width(distances);
 }
@@ -981,12 +1044,15 @@ void Msc::CalculateWidthHeight(void)
     if (Arcs.size()==0) return;
     if (total.y == 0) {
         //start with width calculation, that is used by many elements
+        //First reset running shown of entities, this will be used during Width() pass
+        for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
+            (*i)->running_shown = EEntityStatus::SHOW_OFF;
         EntityDistanceMap distances;
         //Add distance for arcs,
         //needed for hscale=auto, but also for entity width calculation
         WidthArcList(Arcs, distances);
         if (hscale<0) {
-            distances.CombineLeftRightToPair_Max(hscaleAutoXGap);
+            distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
             distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
             distances.CopyBoxSideToPair(hscaleAutoXGap);
 

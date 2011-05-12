@@ -97,6 +97,8 @@ public:
     //QueryBoxSide finds the list element for an entity where the left or the right
     //(second or first, resp) is the biggest.
     std::map<unsigned, std::list<std::pair<double, double>>> box_side;
+    //contains a set of entities that were active at any time while this map is used
+    std::set<unsigned> was_activated;
 
     //Use DISTANCE_LEFT or DISTANCE_RIGHT as second param to insert into 'left' or 'right'
     //Use two nonnegative values (entity indexes) if you want to insert into 'pairs'
@@ -107,7 +109,7 @@ public:
     void CopyBoxSideToPair(double gap);
     void ClearBoxSize() {box_side.clear();}
     void CombineLeftRightToPair_Sum(double gap);
-    void CombineLeftRightToPair_Max(double gap);
+    void CombineLeftRightToPair_Max(double gap, double act_size);
     void CombineLeftRightToPair_Single(double gap);
     EntityDistanceMap &operator +=(const EntityDistanceMap &d);
     string Print();
@@ -148,6 +150,8 @@ public:
     int discoVgap;
     /** Nudge size */
     int nudgeSize;
+    /** The width of entity activation bars **/
+    int activeEntitySize;
     /** Size of gap at compress. We expand by half of it */
     int compressGap;
     /** Size of gap at hscale=auto */

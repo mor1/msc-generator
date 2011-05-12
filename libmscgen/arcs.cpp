@@ -575,14 +575,15 @@ ArcBase* ArcSelfArrow::PostParseProcess(bool hide, EIterator &left, EIterator &r
     if (we_disappear) //now indicator must be true, see above
         return new ArcIndicator(chart, src, indicator_style, file_pos);
     //We do not disappear and need not hide
+    src_act = (*src)->running_shown.IsActive() ? chart->activeEntitySize/2 : 0;
     return this;
 }
 
 void ArcSelfArrow::Width(EntityDistanceMap &distances)
 {
     if (!valid) return;
-    distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375));
-    distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x);
+    distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
+    distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
 
 double ArcSelfArrow::Height(AreaList &cover)
@@ -599,8 +600,8 @@ double ArcSelfArrow::Height(AreaList &cover)
     sx = 0;
 
     double y = chart->arcVGapAbove;
-    area = parsed_label.Cover(sx, dx, y);
-    area += Block(dx, ceil(dx+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
+    area = parsed_label.Cover(sx, dx-src_act, y);
+    area += Block(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
     area.mainline = Range(y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
 
     cover = area.CreateExpand(chart->compressGap/2);
@@ -613,10 +614,16 @@ void ArcSelfArrow::PostPosProcess(double autoMarker)
     ArcArrow::PostPosProcess(autoMarker);
 
     //Check if the entity involved is actually turned on.
-    if (!(*src)->status.GetStatus(yPos)) {
+    if (!(*src)->status.GetStatus(yPos).IsOn()) {
         string sss;
         sss << "Entity '" << (*src)->name << "' is";
         sss << " turned off, but referenced here.";
+        chart->Error.Warning(file_pos.start, sss, "It will look strange.");
+    }
+    if ((src_act>0) != (*src)->status.GetStatus(yPos).IsActive()) {
+        string sss;
+        sss << "Entity '" << (*src)->name << "' is";
+        sss << " activated/deactivated in a parallel block causing conflict here.";
         chart->Error.Warning(file_pos.start, sss, "It will look strange.");
     }
 }
@@ -626,21 +633,21 @@ void ArcSelfArrow::Draw()
     if (!valid) return;
     double y = yPos + chart->arcVGapAbove;
 
-    parsed_label.Draw(chart->GetCanvas(), sx, dx, y);
+    parsed_label.Draw(chart->GetCanvas(), sx, dx-src_act, y);
     y += xy_s.y;
 
     if (style.line.radius.second < 0) {
         //draw an arc
-        chart->GetCanvas()->Line(Edge(XY(dx, y+YSize), wh.x, wh.y/2, 0, 270, 90), style.line);
+        chart->GetCanvas()->Line(Edge(XY(dx+src_act, y+YSize), wh.x, wh.y/2, 0, 270, 90), style.line);
     } else {
         //draw (part of) a rounded rectangle
-        chart->GetCanvas()->Clip(dx, chart->total.x, 0, chart->total.y);
+        chart->GetCanvas()->Clip(dx+src_act, chart->total.x, 0, chart->total.y);
         chart->GetCanvas()->Line(Block(XY(0, y), XY(dx,y)+wh), style.line);
         chart->GetCanvas()->UnClip();
     }
     //draw arrowheads
-    style.arrow.Draw(XY(dx, y+2*YSize), false, isBidir(), MSC_ARROW_END, chart->GetCanvas());
-    style.arrow.Draw(XY(dx, y        ), true,  isBidir(), MSC_ARROW_START, chart->GetCanvas());
+    style.arrow.Draw(XY(dx+src_act, y+2*YSize), 0, false, isBidir(), MSC_ARROW_END, chart->GetCanvas());
+    style.arrow.Draw(XY(dx+src_act, y        ), 0, true,  isBidir(), MSC_ARROW_START, chart->GetCanvas());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -861,6 +868,13 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
         _ASSERT(middle[iii] != chart->ActiveEntities.end());
     }
 
+    //record what entities are active at the arrow
+    act_size.clear();
+    act_size.reserve(2+middle.size());
+    act_size.push_back((*src)->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
+    for (int iiii = 0; iiii<middle.size(); iiii++) 
+        act_size.push_back((*middle[iiii])->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
+    act_size.push_back((*dst)->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
     //Insert a small extra spacing for the arrow line
     if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
         parsed_label.AddSpacing(0, style.line.LineWidth()+
@@ -875,18 +889,19 @@ void ArcDirArrow::Width(EntityDistanceMap &distances)
     DoublePair end = style.arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.line);
     DoublePair start = style.arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.line);
     distances.Insert((*src)->index, (*dst)->index,
-                     end.first + start.second + parsed_label.getTextWidthHeight().x);
+                     end.first + start.second + parsed_label.getTextWidthHeight().x +
+                     *act_size.begin() + *act_size.rbegin());
     //Add distances for arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
-    distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, start.second);
-    distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, end.first);
+    distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, start.second + *act_size.begin());
+    distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, end.first    + *act_size.rbegin());
 
     if (middle.size()==0) return;
     EntityDistanceMap d;
     for (int i=0; i<middle.size(); i++) {
         DoublePair mid = style.arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.line);
-        distances.Insert((*middle[i])->index, DISTANCE_LEFT, mid.first);
-        distances.Insert((*middle[i])->index, DISTANCE_RIGHT, mid.second);
+        distances.Insert((*middle[i])->index, DISTANCE_LEFT,  mid.first  + act_size[i+1]);
+        distances.Insert((*middle[i])->index, DISTANCE_RIGHT, mid.second + act_size[i+1]);
     }
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     distances += d;
@@ -956,25 +971,28 @@ double ArcDirArrow::Height(AreaList &cover)
     }
     xPos.push_back(dx);
     margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_END, style.line));
+    const double s_act = *act_size.begin();
+    const double d_act = *act_size.rbegin();
     if (sx>=dx) {
         std::reverse(xPos.begin(), xPos.end());
         std::reverse(margins.begin(), margins.end());
         std::reverse(segment_lines.begin(), segment_lines.end());
         std::reverse(segment_types.begin(), segment_types.end());
+        std::reverse(act_size.begin(), act_size.end());
     }
     //prepare clip_area
-    Block total(sx, dx, 0, y+lw_max);
-    clip_area  = style.arrow.ClipForLine(XY(sx, y), sx<dx, isBidir(), MSC_ARROW_START,
+    Block total(sx+s_act, dx+d_act, 0, y+lw_max);
+    clip_area  = style.arrow.ClipForLine(XY(sx, y), s_act, sx<dx, isBidir(), MSC_ARROW_START,
                                          total, *segment_lines.begin(), *segment_lines.begin());
-    clip_area *= style.arrow.ClipForLine(XY(dx, y), sx<dx, isBidir(), MSC_ARROW_END,
+    clip_area *= style.arrow.ClipForLine(XY(dx, y), d_act, sx<dx, isBidir(), MSC_ARROW_END,
                                          total, *segment_lines.rbegin(), *segment_lines.rbegin());
     for (unsigned i=0; i<middle.size(); i++)
-        clip_area *= style.arrow.ClipForLine(XY(chart->XCoord(middle[i]), y), sx<dx, isBidir(), MSC_ARROW_MIDDLE,
-                                             total, segment_lines[i], segment_lines[i+1]);
+        clip_area *= style.arrow.ClipForLine(XY(chart->XCoord(middle[i]), y), act_size[i+1],
+                                             sx<dx, isBidir(), MSC_ARROW_MIDDLE, total, segment_lines[i], segment_lines[i+1]);
 
     //Add arrowheads and line segments to cover
     for (int i=0; i<xPos.size(); i++)
-        area += style.arrow.Cover(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i));
+        area += style.arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i));
     for (int i=0; i<xPos.size()-1; i++) {
         const double lw2 = ceil(segment_lines[i].LineWidth()/2);
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
@@ -1015,7 +1033,7 @@ void ArcDirArrow::CheckSegmentOrder(double y)
     std::vector<string> ss;
     int earliest = -1;
     for (int i = 0; i<temp.size(); i++)
-        if (!(*temp[i])->status.GetStatus(y) &&
+        if (!(*temp[i])->status.GetStatus(y).IsOn() &&
             (*temp[i])->name != LSIDE_ENT_STR &&
             (*temp[i])->name != RSIDE_ENT_STR) {
             ss.push_back("'" + (*temp[i])->name + "'");
@@ -1062,9 +1080,12 @@ void ArcDirArrow::Draw()
     /* Draw the line */
     //all the entities this (potentially multi-segment arrow visits)
     const double y = yPos+centerline;  //should be integer
+    const int mul = (sx<dx) ? 1 : -1;
     if (chart->GetCanvas()->NeedsArrowFix()) {
         for (unsigned i=0; i<xPos.size()-1; i++)
-            chart->GetCanvas()->Line(XY(xPos[i]+margins[i].second, y), XY(xPos[i+1]-margins[i+1].first, y), segment_lines[i]);
+            chart->GetCanvas()->Line(XY(xPos[i  ]+margins[i  ].second+act_size[i  ]*mul, y), 
+                                     XY(xPos[i+1]-margins[i+1].first -act_size[i+1]*mul, y), 
+                                     segment_lines[i]);
     } else {
         chart->GetCanvas()->Clip(clip_area);
         for (unsigned i=0; i<xPos.size()-1; i++)
@@ -1074,7 +1095,7 @@ void ArcDirArrow::Draw()
     }
     /* Now the arrow heads */
     for (unsigned i=0; i<xPos.size(); i++)
-        style.arrow.Draw(XY(xPos[i], y), sx<dx, isBidir(), WhichArrow(i), chart->GetCanvas());
+        style.arrow.Draw(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i), chart->GetCanvas());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1169,11 +1190,21 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
 
     Area tcov = parsed_label.Cover(0, twh.x, max_lw/2);
     const bool fw = (*src)->index < (*dst)->index;
+    //kill entity activate indication from entities where this arrow does not segment (e.g., dot)
+    if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_START)) act_size[0] = 0;
+    if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_END)) *act_size.rbegin() = 0;
+    if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_MIDDLE)) 
+        for (int i=1; i<act_size.size()-1; i++)
+            act_size[i] = 0;
+
     const DoublePair start = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_START, dy-sy);
     const DoublePair end   = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_END, dy-sy);
+    //entity line thickness (due to activate) at src and dst
+    const double src_act = *act_size.begin();
+    const double dst_act = *act_size.rbegin();
 
-    distances.Insert((fw ? *src : *dst)->index, DISTANCE_LEFT, start.first);
-    distances.Insert((fw ? *dst : *src)->index, DISTANCE_RIGHT, end.second);
+    distances.Insert((fw ? *src : *dst)->index, DISTANCE_LEFT, start.first + (fw ? src_act : dst_act));
+    distances.Insert((fw ? *dst : *src)->index, DISTANCE_RIGHT, end.second + (fw ? dst_act : src_act));
 
     //Collect iterators and distances into arrays
     std::vector<EIterator> iterators;
@@ -1191,17 +1222,19 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
     if (!fw) {
         std::reverse(iterators.begin(), iterators.end());
         std::reverse(margins.begin(), margins.end());
+        std::reverse(act_size.begin(), act_size.end());
     }
     for (int i=0; i<iterators.size()-1; i++) {
         //if neighbours
         if ((*iterators[i])->index + 1 == (*iterators[i+1])->index) {
             distances.Insert((*iterators[i])->index, (*iterators[i+1])->index,
-                             margins[i].second+margins[i+1].first + 3);
+                             margins[i].second+margins[i+1].first + 3 +
+                             act_size[i  ] + act_size[i+1]);
         } else {
             distances.Insert((*iterators[i  ])->index,   (*iterators[i  ])->index+1,
-                             margins[i].second + 3);
+                             margins[i].second + 3 + act_size[i]);
             distances.Insert((*iterators[i+1])->index-1, (*iterators[i+1])->index  ,
-                             margins[i+1].first + 3);
+                             margins[i+1].first + 3 + act_size[i+1]);
         }
     }
 
@@ -1226,7 +1259,8 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
          segment_lines[stext].LineWidth();
     dm = style.arrow.getBigMargin(tcov, 0, dy-sy, false, fw, isBidir(), WhichArrow(dtext)) +
          segment_lines[dtext-1].LineWidth();
-    distances.Insert((*iterators[stext])->index, (*iterators[dtext])->index, sm + twh.x + dm);
+    distances.Insert((*iterators[stext])->index, (*iterators[dtext])->index, 
+        sm + twh.x + dm + act_size[stext] +act_size[dtext]);
 }
 
 
@@ -1251,17 +1285,17 @@ double ArcBigArrow::Height(AreaList &cover)
     //note that stext and dtext note indexes with indexes ordered from
     //left to right, not in the original order of them, so we adjust here
     if (sx < dx) {
-        sx_text = xPos[stext] + sm;
-        dx_text = xPos[dtext] - dm;
+        sx_text = xPos[stext] + sm + act_size[stext];
+        dx_text = xPos[dtext] - dm - act_size[dtext];
         cx_text = (xPos[stext] + xPos[dtext])/2;
     } else {
-        sx_text = xPos[xPos.size()-1-stext] + sm;
-        dx_text = xPos[xPos.size()-1-dtext] - dm;
+        sx_text = xPos[xPos.size()-1-stext] + sm + act_size[xPos.size()-1-stext];
+        dx_text = xPos[xPos.size()-1-dtext] - dm - act_size[xPos.size()-1-dtext];
         cx_text = (xPos[xPos.size()-1-stext] + xPos[xPos.size()-1-dtext])/2;
     }
     label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     //use += to keep arc and other params of area
-    area = style.arrow.BigCover(xPos, sy, dy, isBidir());
+    area = style.arrow.BigCover(xPos, act_size, sy, dy, isBidir());
     area.arc = this;
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
@@ -1288,14 +1322,14 @@ void ArcBigArrow::PostPosProcess(double autoMarker)
         controls.push_back(MSC_CONTROL_COLLAPSE);        
     }
     ArcArrow::PostPosProcess(autoMarker); //Skip ArcDirArrow
-    chart->HideEntityLines(style.arrow.BigEntityLineCover(xPos, sy, dy, isBidir(), &segment_lines,
+    chart->HideEntityLines(style.arrow.BigEntityLineCover(xPos, act_size, sy, dy, isBidir(), &segment_lines,
         Block(XY(0,0), chart->total)));
 }
 
 void ArcBigArrow::Draw()
 {
     if (!valid) return;
-    style.arrow.BigDraw(xPos, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, chart->GetCanvas(), &label_cover);
+    style.arrow.BigDraw(xPos, act_size, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, chart->GetCanvas(), &label_cover);
     parsed_label.Draw(chart->GetCanvas(), sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
         DrawIndicator(XY(cx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside+ind_off), chart->GetCanvas());
@@ -1658,7 +1692,8 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
 	//Generate area
     auto ypos_tmp = ypos;
     std::swap(ypos_tmp[0], ypos_tmp[1]);
-    area = style.arrow.BigCover(ypos_tmp, xpos-width/2, xpos+width/2, isBidir());
+    std::vector<double> act_size(2, 0);
+    area = style.arrow.BigCover(ypos_tmp, act_size, xpos-width/2, xpos+width/2, isBidir());
     area.SwapXY();
     //Expand area and add us to chart's all covers list
     ArcArrow::PostPosProcess(autoMarker);
@@ -1676,7 +1711,8 @@ void ArcVerticalArrow::Draw()
     const Area lab = parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
                                         xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
                                         -1, true);
-    style.arrow.BigDraw(ypos, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill,
+    std::vector<double> act_size(2,0);
+    style.arrow.BigDraw(ypos, act_size, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill,
                         NULL, chart->GetCanvas(), &lab,
                         style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
     parsed_label.Draw(chart->GetCanvas(), min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
@@ -2006,7 +2042,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
 
     //if box spans a single entity and both ends have changed, 
     //we kill this box 
-    const bool we_diappear = sub1==sub2 && sub1!=src && sub2!=dst;
+    const bool we_diappear = *sub1==*sub2 && sub1!=src && sub2!=dst;
     if (we_diappear && !(*sub1)->running_style.indicator.second) 
         return NULL;
         
@@ -2096,7 +2132,7 @@ void ArcBoxSeries::Width(EntityDistanceMap &distances)
     right_space = right_space_inside + chart->emphVGapInside + overall_style.line.LineWidth();
 
     //convert the side requirements to pairwise distances
-    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap, chart->activeEntitySize/2);
     d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
     d.CopyBoxSideToPair(chart->hscaleAutoXGap);
 
@@ -2798,7 +2834,7 @@ void ArcPipeSeries::Width(EntityDistanceMap &distances)
     distances += d_pipe;
 
     //Finally add the requirements of the content
-    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap);
+    d.CombineLeftRightToPair_Max(chart->hscaleAutoXGap, chart->activeEntitySize/2);
     d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
     d.CopyBoxSideToPair(chart->hscaleAutoXGap);
     distances += d;
@@ -3450,6 +3486,7 @@ string CommandEntity::Print(int ident) const
 //rel;                 //THis is used only in AddAttributeList
 //collapsed;           //THis is used only in AddAttributeList
 //show;                //the latter shall overwrite the former one
+//active;              //the latter shall overwrite the former one
 //show_is_explicit;    //ignore, This is only used in ApplyPrefix which is only called during parse
 //itr;                 //this is set during PostParse, ignore
 //style;               //this is finalized during PostParse, combine latter into former
@@ -3468,6 +3505,8 @@ void CommandEntity::AppendToEntities(const EntityDefList &e)
             (*i2)->style += (*i)->style;
             if ((*i)->show.first) 
                 (*i2)->show = (*i)->show;
+            if ((*i)->active.first) 
+                (*i2)->active = (*i)->active;
         }
     }
 }
@@ -3494,7 +3533,11 @@ CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 			(*i)->show.first = true;	
 			(*i)->show.second = CaseInsensitiveEqual(prefix, "show");
             (*i)->show_is_explicit = true; //prefix of a grouped entity will not impact inner ones with prefix
-		}
+		} else if (CaseInsensitiveEqual(prefix, "activate") || CaseInsensitiveEqual(prefix, "deactivate")) {
+            if ((*i)->active_is_explicit) continue;
+			(*i)->active.first = true;	
+			(*i)->active.second = CaseInsensitiveEqual(prefix, "activate");
+        }
     }
     return this;
 }
@@ -3560,9 +3603,11 @@ ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &
     }
     //Next apply the style changes of this command to the running style of the entities
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        EIterator j_ent = (*i_def)->itr;
+        const EIterator j_ent = (*i_def)->itr;
         //Make the style of the entitydef fully specified using the accumulated style info in Entity
         (*j_ent)->running_style += (*i_def)->style;  //(*i)->style is a partial style here specified by the user
+        if ((*i_def)->active.first)
+            (*j_ent)->running_shown.Activate((*i_def)->active.second);
     }
     //Now remove grouped entities (we have handled style and show for them)
     //and calculate shown status for non-grouped ones
@@ -3575,11 +3620,12 @@ ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &
             //It can get drawn because we 1) said show=yes, or
             //2) because it is on, we mention it (without show=yes) and it is
             //a full heading.
-            (*i_def)->shown = ((*i_def)->show.second && (*i_def)->show.first) || (full_heading && (*j_ent)->shown);
+            (*i_def)->shown = ((*i_def)->show.second && (*i_def)->show.first) 
+                              || (full_heading && (*j_ent)->running_shown.IsOn());
             //Adjust the running status of the entity, this is valid *after* this command. 
             //This is just for the Height process knwos whch entity is on/off
             if ((*i_def)->show.first)
-                (*j_ent)->shown = (*i_def)->show.second;
+                (*j_ent)->running_shown.Show((*i_def)->show.second);
             if ((*i_def)->shown) {
                 explicitly_listed.insert(*(*i_def)->itr);
                 //Update the style of the entitydef
@@ -3594,7 +3640,7 @@ ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &
     //Only do this for children (non-grouped entities)
     if (full_heading)
         for (auto i = chart->AllEntities.begin(); i!=chart->AllEntities.end(); i++) {
-            if (!(*i)->shown) continue;
+            if (!(*i)->running_shown.IsOn()) continue;
             if ((*i)->children_names.size()) continue;
             if (explicitly_listed.find(*i) != explicitly_listed.end()) continue;
             EntityDef *e = new EntityDef((*i)->name.c_str(), chart);
@@ -3718,6 +3764,17 @@ void CommandEntity::Width(EntityDistanceMap &distances)
                 distances.Insert(d->first, DISTANCE_RIGHT, d->second.second);
                 distances.Insert(d_next->first, DISTANCE_LEFT, d_next->second.first);
             }
+        }
+    }
+    //Now add some distances for activation (only for non-grouped or collapsed entities)
+    for (auto i = entities.begin(); i!=entities.end(); i++) {
+        if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
+            if ((*i)->show.first) 
+                (*(*i)->itr)->running_shown.Show((*i)->show.second);
+            if ((*i)->active.first) 
+                (*(*i)->itr)->running_shown.Activate((*i)->active.second);
+            if ((*(*i)->itr)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
+                distances.was_activated.insert((*(*i)->itr)->index);
         }
     }
 }

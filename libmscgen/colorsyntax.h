@@ -84,8 +84,10 @@
      TOK_AT = 300,
      TOK_SHOW = 301,
      TOK_HIDE = 302,
-     TOK_BYE = 303,
-     TOK__NEVER__HAPPENS = 304
+     TOK_ACTIVATE = 303,
+     TOK_DEACTIVATE = 304,
+     TOK_BYE = 305,
+     TOK__NEVER__HAPPENS = 306
    };
 #endif
 /* Tokens.  */
@@ -134,8 +136,10 @@
 #define TOK_AT 300
 #define TOK_SHOW 301
 #define TOK_HIDE 302
-#define TOK_BYE 303
-#define TOK__NEVER__HAPPENS 304
+#define TOK_ACTIVATE 303
+#define TOK_DEACTIVATE 304
+#define TOK_BYE 305
+#define TOK__NEVER__HAPPENS 306
 
 
 
@@ -169,7 +173,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 173 "colorsyntax.h"
+#line 177 "colorsyntax.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
