@@ -164,7 +164,7 @@ int CCshRichEditCtrl::FindPreviousLineIdent(long lStart, long *lEnd)
 	ConvertPosToLineCol(lStart, startline, startcol);
 	for (int line = startline; line>0; line--) {
 		CString strLine;
-		int nLineLength = GetLineString(line, strLine);
+		/*int nLineLength =*/ GetLineString(line, strLine);
 		int ident = FirstNonWhitespaceIdent(strLine);
 		if (ident == -1) continue;
 		//if we are in the heading whitespace of the initial line jump to previous line
@@ -341,7 +341,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
             if (item->state != HINT_ITEM_SELECTED) return FALSE;
             if (pMsg->wParam == '.') {
                 //expand only till the next dot in the hint
-                int pos = m_csh.hintedStringPos.last_pos - m_csh.hintedStringPos.first_pos;
+                unsigned pos = m_csh.hintedStringPos.last_pos - m_csh.hintedStringPos.first_pos;
                 pos = item->plain.find_first_of('.', pos);
                 if (pos != string::npos) {
                     ReplaceHintedString(item->plain.substr(0, pos).c_str(), false);
@@ -399,7 +399,7 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		return FALSE; //let RicheditCtrl insert the }
 	}
 	if (pMsg->wParam == VK_TAB) {
-		const bool shift = GetKeyState(VK_SHIFT) & 0x8000;
+		const bool shift = bool(GetKeyState(VK_SHIFT) & 0x8000);
 		//if no selection, just insert/remove spaces up to the next/prev tab stop
 		if (lStart == lEnd) {
 			int ident;
@@ -532,7 +532,7 @@ void CCshRichEditCtrl::UpdateText(const char *text, CHARRANGE &cr, bool preventN
 }
 
 //retuns true if the past and new m_csh.hintedStringPos overlap
-bool  CCshRichEditCtrl::UpdateCsh(bool force)
+bool CCshRichEditCtrl::UpdateCsh(bool force)
 {
 	if (m_bCshUpdateInProgress) return false;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -540,7 +540,7 @@ bool  CCshRichEditCtrl::UpdateCsh(bool force)
 	//Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
 	if (!pApp->m_bDoCshProcessing && !force) return false;
 	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
-    bool ret;
+    bool ret = false;
 
 	SetRedraw(false);
 	//long eventMask = GetEventMask();
@@ -926,7 +926,6 @@ void CEditorBar::OnSetFocus(CWnd* pOldWnd)
 
 BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 {
-	UINT nID = LOWORD(wParam);
 	HWND hWndCtrl = (HWND)lParam;
 	int nCode = HIWORD(wParam);
 	if (hWndCtrl != m_ctrlEditor) return CDockablePane::OnCommand(wParam, lParam);
@@ -961,7 +960,7 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
 	return TRUE;
 }
 
-void CEditorBar::OnSelChange(NMHDR *pNotifyStruct, LRESULT *result) 
+void CEditorBar::OnSelChange(NMHDR * /*pNotifyStruct*/, LRESULT *result) 
 {
     if (m_ctrlEditor.IsCshUpdateInProgress() || m_bSuspendNotifications) {
         m_totalLenAtPreviousSelChange = m_ctrlEditor.GetTextLength();
@@ -1022,7 +1021,7 @@ void CEditorBar::OnEditRepeat()
 		TextNotFound(m_sLastFindString);
 }
 
-LRESULT CEditorBar::OnFindReplaceMessage(WPARAM wParam, LPARAM lParam)
+LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 {
 
 	CFindReplaceDialog* pFindReplace = CFindReplaceDialog::GetNotifier(lParam);
@@ -1198,7 +1197,7 @@ long CEditorBar::FindAndSelect(DWORD dwFlags, FINDTEXTEX& ft)
 	return index;
 }
 
-void CEditorBar::TextNotFound(LPCTSTR lpszFind)
+void CEditorBar::TextNotFound(LPCTSTR /*lpszFind*/)
 {
 	ASSERT_VALID(this);
 	m_bFirstSearch = TRUE;

@@ -66,6 +66,7 @@ protected:
     static double baseDotSize;
     static double arrowSizePercentage[6];
 public:
+    enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
     MscLineAttr                   line;
     std::pair<bool, MscArrowSize> size;
     std::pair<bool, double>       xmul;
@@ -73,7 +74,6 @@ public:
     std::pair<bool, MscArrowType> endType;
     std::pair<bool, MscArrowType> midType;
     std::pair<bool, MscArrowType> startType;
-    enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
 
     explicit ArrowHead(ArcType t=ANY) : type(t), size(true, MSC_ARROW_SMALL), xmul(true, 1), ymul(true, 1),
         endType(true, MSC_ARROW_SOLID), midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}

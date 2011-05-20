@@ -115,7 +115,7 @@ BOOL CChartData::Load(const CString &fileName, BOOL reportError)
 		if (reportError) Ex.ReportError();
 		return FALSE;
 	}
-	length = infile.GetLength();
+	length = unsigned(infile.GetLength());
 	if (length>0) {
 		buff = (char*)malloc(length+1);
 		if (buff == NULL) return FALSE;
@@ -302,7 +302,7 @@ unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {
 bool CDrawingChartData::IsErrorInFile(unsigned num, bool oWarnings) const 
 {
     if (GetErrorNum(oWarnings)>num && num>=0)
-        return GetMsc()->Error.GetErrorLoc(num, oWarnings).file == GetMsc()->Error.Files.size()-1;
+        return GetMsc()->Error.GetErrorLoc(num, oWarnings).file == int(GetMsc()->Error.Files.size())-1;
     else
         return false;
 }
@@ -345,7 +345,7 @@ CSize CDrawingChartData::GetSize() const
 {
 	XY offset, size;
 	GetMsc()->GetPagePosition(int(m_page)-1, offset, size);
-    return CSize(GetMsc()->total.x, size.y + GetMsc()->copyrightTextHeight);
+    return CSize(int(GetMsc()->total.x), int(size.y + GetMsc()->copyrightTextHeight));
 }
 
 double CDrawingChartData::GetPageYShift() const
@@ -369,7 +369,7 @@ double CDrawingChartData::GetHeadingSize() const
     return GetMsc()->headingSize;
 }
 
-void CDrawingChartData::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const
+void CDrawingChartData::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &) const
 {
     CompileIfNeeded();
     if (m_msc->SetOutputWin32(MscCanvas::WIN, hdc, x_scale, y_scale, int(m_page)-1)) {
@@ -422,7 +422,7 @@ TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
 	CompileIfNeeded();
 	if (m_page>0)
-		point.y += m_msc->yPageStart[m_page];
+		point.y += LONG(m_msc->yPageStart[m_page]);
     const Area *area = m_msc->AllCovers.InWhichFromBack(XY(point.x, point.y));
 	if (area==NULL) return NULL;
 	return area->arc;
@@ -525,7 +525,7 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
             m_data->m_msc->CloseOutput();
             m_cache_EMF = CloseEnhMetaFile(hdc);
         }
-        CRect full(0,0, m_data->GetSize().cx*x_scale, m_data->GetSize().cy*y_scale);
+        CRect full(0,0, int(m_data->GetSize().cx*x_scale), int(m_data->GetSize().cy*y_scale));
         PlayEnhMetaFile(hdc, m_cache_EMF, &full);
         break;
     }

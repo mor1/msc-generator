@@ -59,7 +59,7 @@ protected:
 public:
 	//No constructor sets the bounding Box!!!
     Edge() : straight(true) {}
-    explicit Edge(const XY &xy) : start(xy), straight(true) {}
+    explicit Edge(const XY &xy) : straight(true), start(xy)  {}
     Edge(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
 
     //But all methods assume bounding Box is OK!!!
@@ -85,10 +85,10 @@ public:
     bool GetClockWise() const {_ASSERT(!straight); return clockwise_arc;}
 
     //Gives the intersecting points of AB and MN
-    static int Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
+    static unsigned Crossing(const Edge &A, const XY &B, const Edge &M, const XY &N,
                         XY r[], double pos_ab[], double pos_mn[]);
     //Tells at what x pos this->B crosses the horizontal line at y, rets the number of crosses
-    int    CrossingVertical(double x, const XY &B, double y[], double pos[], bool forward[]) const;
+    unsigned CrossingVertical(double x, const XY &B, double y[], double pos[], bool forward[]) const;
     //Removes the part of the edge or curve before point p. Assumes p lies on us. pos must match p
     Edge&  SetStart(const XY &p, double pos);
     //Removes the part of the edge or curve after point p. Assumes p lies on us.
@@ -105,9 +105,9 @@ public:
     void   Path(cairo_t *cr, const XY &next, bool reverse=false) const;
 
     //Helpers for expand
-	bool   ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const;
-	int    CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, Edge &res_prev) const;
-	int    IsOppositeDir(const XY &B, const Edge &M, const XY &N) const;
+    bool   ExpandEdge(double gap, const XY&next, Edge &r1, XY &r2) const;
+    int    CombineExpandedEdges(const XY&B, const Edge&M, const XY&N, Edge &res, Edge &res_prev) const;
+    int    IsOppositeDir(const XY &B, const Edge &M, const XY &N) const;
 
     //helpers for offsetbelow
     static double offsetbelow_straight_straight(const XY &A, const XY &B, const XY &M, const XY &N, double &touchpoint);
@@ -140,15 +140,15 @@ inline bool Edge::operator < (const Edge& p) const
 
 inline double Edge::GetSpan() const
 {
-	_ASSERT(!straight);
+    _ASSERT(!straight);
     if (full_circle) return 2*M_PI;
-	if (clockwise_arc) {
-		if (s<e) return e-s;
-		else return e-s+2*M_PI;
-	} else {
-		if (s>e) return s-e;
-		else return s-e+2*M_PI;
-	}
+    if (clockwise_arc) {
+        if (s<e) return e-s;
+        else return e-s+2*M_PI;
+    } else {
+        if (s>e) return s-e;
+        else return s-e+2*M_PI;
+    }
 }
 
 inline XY Edge::PrevTangentPoint(double pos, const Edge &prev_vertex) const
@@ -206,7 +206,7 @@ public:
     using std::map<double, element>::upper_bound;  //that we want these names (not dependent on "element")
     using std::map<double, element>::lower_bound;  //looked up only at instantiation time (from base class)
     using std::map<double, element>::begin;        //and not during template compilation (searched in global scope).
-    using std::map<double, element>::end;          
+    using std::map<double, element>::end;
 
     DoubleMap() {};
     DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));

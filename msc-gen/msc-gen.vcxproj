@@ -79,8 +79,8 @@
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level1</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <WarningLevel>Level2</WarningLevel>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cairo.lib;Msimg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -99,8 +99,8 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level1</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <WarningLevel>Level2</WarningLevel>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cairo.lib;Msimg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -121,7 +121,7 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level1</WarningLevel>
+      <WarningLevel>Level2</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>

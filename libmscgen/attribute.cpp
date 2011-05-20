@@ -21,7 +21,7 @@
 #include "msc.h"
 
 
-int CaseInsensitiveCommonPrefixLen(const char *a, const char *b)
+unsigned CaseInsensitiveCommonPrefixLen(const char *a, const char *b)
 {
     if (a==NULL || b==NULL) return 0;
     unsigned i=0;
@@ -63,19 +63,23 @@ bool CaseInsensitiveEndsWith(const char *base, const char *a)
 string Attribute::Print(int ident) const
 {
     string s(ident*2,' ');
-    s << name << "=";
+    s << name ;
     switch (type) {
-        case MSC_ATTR_STRING:
-            s << value;
-            break;
-
-        case MSC_ATTR_NUMBER:
-            s << number;
-            break;
-
-        case MSC_ATTR_BOOL:
-            s << (yes?"yes":"no");
-            break;
+    case MSC_ATTR_STYLE:
+        s << " (style)";
+        break;
+    case MSC_ATTR_CLEAR:
+        s << "=";
+        break;
+    case MSC_ATTR_STRING:
+        s << "=" << value;
+        break;
+    case MSC_ATTR_NUMBER:
+        s << "=" << number;
+        break;
+    case MSC_ATTR_BOOL:
+        s << "=" << (yes?"yes":"no");
+        break;
     };
     return s;
 };
@@ -103,6 +107,12 @@ bool Attribute::CheckType(MscAttrType t, MscError &error) const
     string ss;
     ss << "Value for '" << name << "' ";
     switch (t) {
+    case MSC_ATTR_STYLE:
+        error.Error(*this, true, "Expecting a style here instead of an attribute.");
+        break;
+    case MSC_ATTR_CLEAR:
+        error.Error(*this, true, "I expect no value for attribute '" + name + "'.");
+        break;
     case MSC_ATTR_STRING:
         if (type != MSC_ATTR_STYLE)
             return true;
@@ -140,6 +150,8 @@ void Attribute::InvalidValueError(const string &candidates, MscError &error) con
     case MSC_ATTR_STRING: s << value; break;
     case MSC_ATTR_BOOL:   s << (yes?"yes":"no"); break;
     case MSC_ATTR_NUMBER: s << number; break;
+    default:
+        _ASSERT(0);
     }
     s.append("' for attribute '").append(name);
     s.append("'. Use '").append(candidates).append("'. Ignoring attribute.");
@@ -193,7 +205,7 @@ template<> const char EnumEncapsulator<MscCornerType>::names[][ENUM_STRING_LEN] 
 
 MscLineAttr::MscLineAttr() :
     type(true, LINE_SOLID), color(true, MscColorType(0,0,0)), width(true, 1.),
-    corner(true, CORNER_NONE), radius(true, 0)
+    radius(true, 0), corner(true, CORNER_NONE)
 {
 }
 
@@ -221,8 +233,8 @@ const double * MscLineAttr::DashPattern(int &num) const
     case LINE_DASHED: num = 2; return dash_dashed;
     case LINE_LONG_DASHED: num = 2; return dash_long_dashed;
     case LINE_DASH_DOT: num = 4; return dash_dash_dot;
+    default: num = 0; return dash_solid;
     }
-    num = 0; return dash_solid;
 }
 
 MscLineAttr &MscLineAttr::operator +=(const MscLineAttr&a)
@@ -394,7 +406,7 @@ bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
     return false;
 }
 
-string MscLineAttr::Print(int ident) const
+string MscLineAttr::Print(int) const
 {
     string ss = "line(";
     if (type.first) ss << " type:" << PrintEnum(type.second);
@@ -602,7 +614,7 @@ bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
     return false;
 }
 
-string MscFillAttr::Print(int ident) const
+string MscFillAttr::Print(int) const
 {
     string ss = "fill(";
     if (color.first) ss << " color:" << color.second.Print();
@@ -717,7 +729,7 @@ bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
 }
 
 
-string MscShadowAttr::Print(int ident) const
+string MscShadowAttr::Print(int) const
 {
     string ss = "shadow(";
     if (color.first) ss << " color:" << color.second.Print();

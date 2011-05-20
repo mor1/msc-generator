@@ -88,7 +88,7 @@ public:
     bool IsCompressed() const {return compress;}
     double GetPos() const {return yPos;}
     //Get an (ordered) list of entities that this arrow/box touches
-    virtual MscDirType GetToucedEntities(EntityList &el) const {return MSC_DIR_INDETERMINATE;}
+    virtual MscDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
 
     //Adding attributes and helpers for color syntax highlighting and hinting
     virtual ArcBase* AddAttributeList(AttributeList *);
@@ -102,9 +102,9 @@ public:
 
     //These functions are called recursively for all arcs in this order
     /* This is called after parsing and adding attributes. Entity order and collapse/expand is already known here */
-    virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level) {return this;}
+    virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     /* This fills in distances for hscale=auto mechanism */
-    virtual void Width(EntityDistanceMap &distances) {}
+    virtual void Width(EntityDistanceMap &distances);
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
     virtual double Height(AreaList &cover) = 0;
@@ -115,6 +115,10 @@ public:
     /* This will actually draw the arc */
     virtual void Draw() = 0;
 };
+
+inline ArcBase* ArcBase::PostParseProcess(bool, EIterator &, EIterator &, Numbering &, bool) {return this;}
+inline void ArcBase::Width(EntityDistanceMap &) {}
+
 
 typedef PtrList<ArcBase> ArcList;
 
@@ -223,7 +227,7 @@ public:
     virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);
-    MscArrowEnd WhichArrow(int i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
+    MscArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
     virtual void ShiftBy(double y);
     void CheckSegmentOrder(double y);
     virtual void PostPosProcess(double autoMarker);
@@ -270,7 +274,7 @@ struct VertXPos {
         POS_RIGHT_BY, POS_RIGHT_SIDE} pos;
     VertXPos(Msc&m, const char *e1, file_line_range e1l, const char *e2, file_line_range e2l, postype p=POS_AT);
     VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p=POS_AT);
-    explicit VertXPos(Msc&m, postype p=POS_AT);
+    explicit VertXPos(Msc&m);
 };
 
 class ArcVerticalArrow : public ArcArrow
@@ -325,7 +329,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
-    virtual double Height(AreaList &cover) {return 0;} //will never be called
+    virtual double Height(AreaList &/*cover*/) {return 0;} //will never be called
     virtual void ShiftBy(double y);
     virtual void Draw() {} //will never be called
 };
@@ -376,7 +380,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual double Height(AreaList &cover) {return 0;} //will never be called
+    virtual double Height(AreaList &/*cover*/) {return 0;} //will never be called
     virtual void ShiftBy(double y);
     void DrawPipe(bool topSideFill, bool topSideLine, bool backSide, bool shadow,
                   bool text, double next_lw, int drawing_variant);
@@ -455,7 +459,7 @@ public:
     ArcCommand(MscArcType t, Msc *msc) : ArcBase(t, msc) {};
     bool AddAttribute(const Attribute &) {return false;}
     string Print(int ident=0) const;
-    virtual double Height(AreaList &cover) {return 0;}
+    virtual double Height(AreaList &/*cover*/) {return 0;}
     virtual void Draw() {}
 };
 

@@ -61,19 +61,19 @@ public:
 
 //Options
 	bool m_Pedantic;
-	BOOL m_Warnings;
-	BOOL m_bPB_Editing;
-	BOOL m_bPB_Embedded;
+	bool m_Warnings;
+	bool m_bPB_Editing;
+	bool m_bPB_Embedded;
 	CString m_ChartSourcePreamble;
 	CString m_SetOfDesigns;
 	CString m_CopyrightText;
-	BOOL m_bAlwaysOpen;
-    BOOL m_bDoCshProcessing;
-	BOOL m_bShowCsh;
-    BOOL m_bShowCshErrors;
-    BOOL m_bShowCshErrorsInWindow;
+	bool m_bAlwaysOpen;
+    bool m_bDoCshProcessing;
+	bool m_bShowCsh;
+    bool m_bShowCshErrors;
+    bool m_bShowCshErrorsInWindow;
 	int m_nCshScheme;
-	BOOL m_bSmartIdent;
+	bool m_bSmartIdent;
 	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
 	COLORREF m_trackFillColor;
 	COLORREF m_trackLineColor;

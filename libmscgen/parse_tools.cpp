@@ -215,8 +215,8 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
     //replace tokens in string. We assume
     //-each toke appears only once
     //-replaced strings will not be mistaken for a a token
-    for (int i=0; i<tokArrayLen; i++) {
-        int pos = 0;
+    for (unsigned i=0; i<tokArrayLen; i++) {
+        unsigned pos = 0;
         //Search for the current token
         pos = msg.find(tokens[i].first, pos);
         //continue if not found
@@ -230,7 +230,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         //special comment for unexpected symbols
         //special handling for numbers and strings
         if (i>tokArrayLen-5) {
-            int exppos = msg.find("expecting");
+            unsigned exppos = msg.find("expecting");
             //If we replace what was unexpected, use actual token text
             if (pos < exppos) {
                 if (i==tokArrayLen-1)
@@ -250,7 +250,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         //replace token
         msg.replace(pos, tokens[i].first.length(), ins);
     }
-    int pos = msg.rfind("', '");
+    unsigned pos = msg.rfind("', '");
     if (pos != string::npos) {
         msg.erase(pos+1, 1);
         msg.insert(pos+1, " or");

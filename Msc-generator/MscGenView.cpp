@@ -39,7 +39,7 @@
 #endif
 
 //This is a temporary function to test the contour_* library
-void test_geo(cairo_t *cr, int x, int y, bool clicked) 
+void test_geo(cairo_t *cr, int x, int y, bool /*clicked*/) 
 {
 	static Area tri, boxhole, cooomplex, cooomplex2, cooomplex3, custom;
 	if (boxhole.IsEmpty()) {
@@ -330,7 +330,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	return DoPreparePrinting(pInfo);
 }
 
-void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
+void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 {
 	// extra initialization before printing
 }
@@ -366,13 +366,13 @@ void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 	// cleanup after printing
 }
 
-void CMscGenView::OnRButtonUp(UINT nFlags, CPoint point)
+void CMscGenView::OnRButtonUp(UINT /*nFlags*/, CPoint point)
 {
 	ClientToScreen(&point);
 	OnContextMenu(this, point);
 }
 
-void CMscGenView::OnContextMenu(CWnd* pWnd, CPoint point)
+void CMscGenView::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 {
 	theApp.GetContextMenuManager()->ShowPopupMenu(IDR_POPUP_EDIT, point.x, point.y, this, TRUE);
 }
@@ -412,7 +412,7 @@ CMscGenDoc* CMscGenView::GetDocument() const // non-debug version is inline
 
 // CMscGenView message handlers
 
-BOOL CMscGenView::OnEraseBkgnd(CDC *pDC)
+BOOL CMscGenView::OnEraseBkgnd(CDC * /*pDC*/)
 {
 	if (!m_DeleteBkg) return false;
 	m_DeleteBkg = false;
@@ -433,7 +433,7 @@ void CMscGenView::InvalidateBlock(const Block &b)
 	////Shift so that we are in page coordinates
 	////then scale to device units
 	////then shift by the scroll position
-    CRect r(b.x.from*scale-1, b.y.from*scale-1, b.x.till*scale+1, b.y.till*scale+1);
+    CRect r(int(b.x.from*scale-1), int(b.y.from*scale-1), int(b.x.till*scale+1), int(b.y.till*scale+1));
 	//InvalidateRect(&r);
     Invalidate();
 }
@@ -493,7 +493,7 @@ void CMscGenView::OnDraw(CDC* pDC)
         clip = total;
 	} else {
         x_scale = y_scale = pDoc->m_zoom/100.0;
-		total = CRect(CPoint(0, 0), CPoint(m_size.cx*x_scale, m_size.cy*y_scale));
+		total = CRect(CPoint(0, 0), CPoint(int(m_size.cx*x_scale), int(m_size.cy*y_scale)));
 		pDC->GetClipBox(&clip);
     }
     CPoint upper = GetScrollPosition();
@@ -527,7 +527,7 @@ void CMscGenView::OnInitialUpdate()
 	if (!m_pDropTarget) m_DropTarget.Register(this);
 }
 
-void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
+void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
@@ -556,8 +556,8 @@ void CMscGenView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	if (pDoc->IsInPlaceActive() && !SizeEmpty(m_size)) {
 		CRect pos;
 		pDoc->GetItemPosition(&pos);
-		pos.right = pos.left + m_size.cx*m_stretch_x;
-		pos.bottom = pos.top + m_size.cy*m_stretch_y;
+		pos.right = pos.left + int(m_size.cx*m_stretch_x);
+		pos.bottom = pos.top + int(m_size.cy*m_stretch_y);
 		pDoc->RequestPositionChange(pos);
 	}
 	Invalidate();
@@ -594,7 +594,7 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 		CRect client;
 		GetClientRect(client);
 		//scoll 10% of the view height (zDelta can be negative for up)
-		const int amount = client.Height()*0.1*zDelta/WHEEL_DELTA;
+		const int amount = int(client.Height()*0.1*zDelta/WHEEL_DELTA);
 		CPoint pos = GetScrollPosition();
 		pos.y -= amount;
 		if (pos.y<0) pos.y = 0;
@@ -606,14 +606,14 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	}
 
 	//Change zoom, but keep point under mouse stationary
-	unsigned zoom = pDoc->m_zoom*(1+float(zDelta)/WHEEL_DELTA/10);  //10% per wheel tick
+	unsigned zoom = unsigned(pDoc->m_zoom*(1+float(zDelta)/WHEEL_DELTA/10));  //10% per wheel tick
 	if (zoom < 10) zoom = 10;
 	if (zoom > 10000) zoom = 10000;
 	if (zoom == pDoc->m_zoom) 
 		return TRUE;
 	CPoint pos = GetDeviceScrollPosition() + pt;
-	pos.x = double(pos.x)/pDoc->m_zoom * zoom;
-	pos.y = double(pos.y)/pDoc->m_zoom * zoom;
+	pos.x = int(double(pos.x)/pDoc->m_zoom * zoom);
+	pos.y = int(double(pos.y)/pDoc->m_zoom * zoom);
 	pos -= pt;
 	if (pos.x < 0) pos.x = 0;
 	if (pos.y < 0) pos.y = 0;
@@ -643,7 +643,7 @@ void CMscGenView::ResyncScrollSize(void)
 	}
 }
 
-void CMscGenView::OnSize(UINT nType, int cx, int cy)
+void CMscGenView::OnSize(UINT /*nType*/, int cx, int cy)
 { 
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
@@ -674,8 +674,8 @@ void CMscGenView::ResetAspectRatioInPlace(void)
 	double oldArea = double(sizeOld.cx) * double(sizeOld.cy);
 	double newArea =  double(sizeNew.cx) * double(sizeNew.cy);
 	double scale = sqrt(oldArea / newArea); //Existing scale from Chart area to Client Area
-	sizeNew.cx *= scale/2;
-	sizeNew.cy *= scale/2;
+	sizeNew.cx *= int(scale/2);
+	sizeNew.cy *= int(scale/2);
 	//Keep centerpoint
 	CRect newPos(oldPos.CenterPoint()-sizeNew, oldPos.CenterPoint()+sizeNew);
 	pDoc->RequestPositionChange(newPos);
@@ -767,8 +767,8 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
 	//take zooming into account.
-	point.x = point.x*100./pDoc->m_zoom;
-	point.y = point.y*100./pDoc->m_zoom;
+	point.x = int(point.x*100./pDoc->m_zoom);
+	point.y = int(point.y*100./pDoc->m_zoom);
 	pDoc->UpdateTrackRects(point);
 	m_hoverPoint = point;
 }
@@ -792,8 +792,8 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
 	//then take zooming into account.
-	point.x = point.x*100./pDoc->m_zoom;
-	point.y = point.y*100./pDoc->m_zoom;
+	point.x = int(point.x*100./pDoc->m_zoom);
+	point.y = int(point.y*100./pDoc->m_zoom);
     for (auto i = pDoc->m_controlsShowing.begin(); i!=pDoc->m_controlsShowing.end(); i++)
         if (i->first.IsWithin(XY(point.x, point.y))==WI_INSIDE)
             if (i->second)
@@ -806,7 +806,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
 			pDoc->StartFadingAll(NULL);
-			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, delay_before_fade);
+			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, int(delay_before_fade));
 			pDoc->HighLightArc(arc);
 			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 			ASSERT(pApp != NULL);
@@ -831,8 +831,8 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
 	//then take zooming into account.
-	point.x = point.x*100./pDoc->m_zoom;
-	point.y = point.y*100./pDoc->m_zoom;
+	point.x = int(point.x*100./pDoc->m_zoom);
+	point.y = int(point.y*100./pDoc->m_zoom);
 
     //If the click is on an element that has controls, activate the first one
 	TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
@@ -903,7 +903,7 @@ void CMscGenView::OnDropFiles(HDROP hDropInfo)
 	CScrollView::OnDropFiles(hDropInfo);
 }
 
-DROPEFFECT CMscGenView::OnDragEnter(COleDataObject* pDataObject, DWORD dwKeyState, CPoint point)
+DROPEFFECT CMscGenView::OnDragEnter(COleDataObject* pDataObject, DWORD /*dwKeyState*/, CPoint /*point*/)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
@@ -916,7 +916,7 @@ DROPEFFECT CMscGenView::OnDragEnter(COleDataObject* pDataObject, DWORD dwKeyStat
 	return m_nDropEffect;
 }
 
-DROPEFFECT CMscGenView::OnDragOver(COleDataObject* pDataObject, DWORD dwKeyState, CPoint point)
+DROPEFFECT CMscGenView::OnDragOver(COleDataObject* /*pDataObject*/, DWORD /*dwKeyState*/, CPoint /*point*/)
 {
 	return m_nDropEffect;
 }
@@ -926,7 +926,7 @@ void CMscGenView::OnDragLeave()
 	m_nDropEffect = DROPEFFECT_NONE;
 }
 
-BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT dropEffect, CPoint point)
+BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT /*dropEffect*/, CPoint /*point*/)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);

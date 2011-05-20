@@ -142,7 +142,7 @@ protected:
 public:
     Label(const string &s, MscCanvas *c , const StringFormat &f)
         {AddText(s,c,f);}
-    explicit Label(MscCanvas *c) {}
+    Label() {}
     void Set(const string &s, MscCanvas *c, const StringFormat &f) {clear(); AddText(s,c,f);}
     void AddSpacing(unsigned line, double spacing);
     operator std::string() const;

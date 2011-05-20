@@ -10,14 +10,14 @@ class Msc;
 class NumberingStyleFragment {
 public:
     typedef enum {ARABIC, ROMAN_UPPER, ROMAN_LOWER, ABC_UPPER, ABC_LOWER} ENumberingStyle;
+    ENumberingStyle type;
     std::string     pre;
     std::string     post;
-    ENumberingStyle type;
 
     explicit NumberingStyleFragment(ENumberingStyle t=ARABIC, std::string pr="", std::string po=""): type(t), pre(pr), post(po) {}
     static bool Parse(Msc *, file_line linenum, const char *text, std::vector<NumberingStyleFragment> &result);
     std::string Print(int n) const;
-    int Input(const std::string &number, int &value);
+    unsigned Input(const std::string &number, int &value);
     static bool FindReplaceNumberFormatToken(std::string &text, file_line l, int pos=0);
 };
 
@@ -33,7 +33,7 @@ public:
     Numbering() : decrementOnAddingLevels(false) {values.push_back(1);}
     int &Last(void) {return values[values.size()-1];}
     const int &Last(void) const {return values[values.size()-1];}
-    void SetSize(int n);
+    void SetSize(unsigned n);
     Numbering& operator ++() {++Last(); decrementOnAddingLevels=false; return *this;}
     Numbering& operator --() {--Last(); return *this;}
 };
@@ -51,7 +51,7 @@ public:
     const NumberingStyleFragment &Last(void) const {return elements[elements.size()-1];}
     void Reset() {pre.clear(); post.clear(); startAt=0; elements.clear(); elements.push_back(NumberingStyleFragment());}
     int Size(void) const {return startAt + elements.size();}
-    void CopyShifted(const NumberingStyle &ns, int start=0);
+    void CopyShifted(const NumberingStyle &ns, unsigned start=0);
     int Apply(const std::vector<NumberingStyleFragment> &nsfs);
     void Push(const NumberingStyleFragment &nf) {elements.push_back(nf);}
     void Push(const std::vector<NumberingStyleFragment> &nsfs) {elements.insert(elements.end(), nsfs.begin(), nsfs.end());}

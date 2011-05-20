@@ -68,7 +68,7 @@ public:
     CDrawingChartData m_ChartSerializedIn; //Any chart serialized in is stored here
 
 	// Zoom related 
-	int m_zoom; //In percentage. 100 is normal
+	unsigned m_zoom; //In percentage. 100 is normal
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
 	// Track mode related
 	bool m_bTrackMode; //True if mouse is tracked over arcs

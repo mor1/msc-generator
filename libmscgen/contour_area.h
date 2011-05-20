@@ -83,9 +83,9 @@ class ContourWithHoles : public Contour
     friend class ContourList;
     friend class Area;
     friend class node_list;
-	//hide these - do not implement the one with degrees 
-    void Rotate(double degrees) {} 
-	void RotateAround(const XY&c, double degrees) {}
+	//hide these - do not implement the one with degrees
+    void Rotate(double /*degrees*/) {}
+    void RotateAround(const XY& /*c*/, double /*degrees*/) {}
 protected:
     ContourList holes;
     ContourWithHoles() {};
@@ -179,7 +179,7 @@ public:
     void Line2(cairo_t *cr) const;
     void Fill(cairo_t *cr) const {ContourList::Path(cr, true); cairo_fill(cr);}
     void Fill2(cairo_t *cr, int r=255, int g=255, int b=255) const;
-    
+
 };
 
 class AreaList
@@ -191,7 +191,7 @@ public:
     AreaList() {boundingBox.MakeInvalid(); mainline.MakeInvalid();}
     AreaList(const Area &area) {boundingBox.MakeInvalid(); mainline.MakeInvalid(); operator+=(area);}
     AreaList(Area &&area) {boundingBox.MakeInvalid(); mainline.MakeInvalid(); operator+=(std::move(area));}
-    AreaList(AreaList &&al) : boundingBox(al.boundingBox), mainline(al.mainline), cover(std::move(al.cover)) {}
+    AreaList(AreaList &&al) : cover(std::move(al.cover)), boundingBox(al.boundingBox), mainline(al.mainline) {}
     const std::list<Area> &GetCover() const {return cover;}
     void clear() {boundingBox.MakeInvalid(); mainline.MakeInvalid(); cover.clear();}
     void swap(AreaList &o) {cover.swap(o.cover); std::swap(boundingBox, o.boundingBox); std::swap(mainline, o.mainline);}
@@ -415,7 +415,7 @@ inline double Area::OffsetBelow(const Contour &below, double &touchpoint, double
 inline double Area::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
-    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
+    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom())
         if (below.mainline.from - mainline.till < offset) {
             offset = below.mainline.from - mainline.till;
             touchpoint = mainline.till;
@@ -437,7 +437,7 @@ inline double AreaList::OffsetBelow(const Area &below, double &touchpoint, doubl
 {
     if (offset < below.GetBoundingBox().y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.GetBoundingBox().x)) return offset;
-    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
+    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom())
         if (below.mainline.from - mainline.till < offset) {
             offset = below.mainline.from - mainline.till;
             touchpoint = mainline.till;
@@ -450,7 +450,7 @@ inline double AreaList::OffsetBelow(const Area &below, double &touchpoint, doubl
 inline double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, double offset, bool bMainline) const
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
-    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom()) 
+    if (bMainline && mainline.HasValidTill() && below.mainline.HasValidFrom())
         if (below.mainline.from - mainline.till < offset) {
             offset = below.mainline.from - mainline.till;
             touchpoint = mainline.till;

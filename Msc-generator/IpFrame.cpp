@@ -125,7 +125,7 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 		return FALSE;
 	}
 	CString strToolBarName;
-	bool bNameValid = strToolBarName.LoadString(IDS_TOOLBAR_STANDARD);
+	BOOL bNameValid = strToolBarName.LoadString(IDS_TOOLBAR_STANDARD);
 	ASSERT(bNameValid);
 	m_wndToolBar.SetWindowText(strToolBarName);
 

@@ -172,7 +172,6 @@ bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p
             return CshHintGraphicCallbackForArrows(canvas, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
         else return false;
     }
-    const double xx = 0.7;
     std::vector<double> xPos(2); 
     xPos[0] = 0;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.7;
@@ -342,6 +341,8 @@ XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
     case MSC_ARROW_DOT_EMPTY:
         xy.x = xy.y = baseDotSize*sizePercentage/100;
         break;
+    default:
+        _ASSERT(0);
     }
     if (xmul.first) xy.x *= xmul.second;
     if (ymul.first) xy.y *= ymul.second;
@@ -365,6 +366,8 @@ double ArrowHead::getTriWidth(bool bidir, MscArrowEnd which) const
     case MSC_ARROW_TRIPLE:
     case MSC_ARROW_TRIPLE_EMPTY:
         return w/3;
+    default:
+        _ASSERT(0);
     }
     return w;
 }
@@ -378,7 +381,7 @@ double ArrowHead::getTriWidth(bool bidir, MscArrowEnd which) const
  * If forLine is true, we return how much of the arrow line the arrowhead covers
  * If false, we return how much the text margin should be from the entity line
  */
-DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const
+DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &) const
 {
     DoublePair ret(0,0);
     const MscArrowType t = GetType(bidir, which);
@@ -403,7 +406,7 @@ DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, con
         //Now see if we put the value to the right of first/second
         if (bidir && (which==MSC_ARROW_MIDDLE))
             ret.second = ret.first;
-        else if (!forward ^ which==MSC_ARROW_START) //if reverse or start, but not if both
+        else if ( (!forward) ^ (which==MSC_ARROW_START)) //if reverse or start, but not if both
             ret.swap();
         break;
 
@@ -422,25 +425,30 @@ Contour diamond(XY xy, XY wh)
     wh.x = fabs(wh.x);
     wh.y = fabs(wh.y);
     Contour poly(xy.x, xy.y-wh.y, xy.x, xy.y+wh.y, xy.x+wh.x, xy.y);
-    if (!poly.AddAnEdge(Edge(XY(xy.x-wh.x, xy.y))))
+    if (!poly.AddAnEdge(Edge(XY(xy.x-wh.x, xy.y)))) {
         _ASSERT(0);
+    }
     return poly;
 }
 
 /** Return the Y range for which the entity line shall not be drawn
  */
-Area ArrowHead::EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const
+Area ArrowHead::EntityLineCover(XY xy, bool /*forward*/, bool bidir, MscArrowEnd which) const
 {
     XY wh = getWidthHeight(bidir, which);
     Area ret;
     switch(GetType(bidir, which)) {
     case MSC_ARROW_DIAMOND_EMPTY:
+    case MSC_ARROW_DIAMOND:
         ret = diamond(xy, wh);
         break;
 
     case MSC_ARROW_DOT_EMPTY:
+    case MSC_ARROW_DOT:
         ret = Contour(xy, wh.x, wh.y);
         break;
+    default:
+        break; //No other arrow type covers the entity line
     }
     return ret;
 }
@@ -545,6 +553,8 @@ Area ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir, Ms
         r = area.GetBoundingBox().x;
         area = Contour(Block(r, total.y)) - area;
         break;
+    default:
+        _ASSERT(0);
     }
     if (r.from==r.till) 
         area = total;
@@ -627,6 +637,8 @@ Area ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, MscArrow
     case MSC_ARROW_DOT_EMPTY:
         area = Contour(xy, wh.x, wh.y);
         break;
+    default:
+        _ASSERT(0);
     }
     if (line.LineWidth()>1)
         area = area.CreateExpand(line.LineWidth()/2);
@@ -713,6 +725,8 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
         canvas->LineOpen(tri1, line);
         if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->LineOpen(tri2, line);
         break;
+    default:
+        _ASSERT(0);
     }
     if (MSC_ARROW_IS_HALF(GetType(bidir, which))) 
         canvas->UnClip();
@@ -996,7 +1010,7 @@ Area ArrowHead::BigCoverOne(double x, double act_size, double sy, double dy, boo
 }
 
 //if no_segment==-1 return the cover for all segments, if not, return only one segment (if we have multiple)
-Area ArrowHead::BigCover(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, bool bidir, int no_segment) const
+Area ArrowHead::BigCover(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, bool bidir, int /*no_segment*/) const
 {
     Area area;
     const bool forward = xPos[0] < xPos[1];
@@ -1011,7 +1025,7 @@ Area ArrowHead::BigCover(std::vector<double> xPos, std::vector<double> act_size,
 
     //set up variables for mid-points
     DoublePair mid_xx = getBigWidthsForBody(forward, bidir, MSC_ARROW_MIDDLE, dy-sy);
-    for (int i=1; i<xPos.size()-1; i++) {
+    for (unsigned i=1; i<xPos.size()-1; i++) {
         area += BigCoverOne(xPos[i], act_size[i], sy, dy, forward, bidir, MSC_ARROW_MIDDLE);
         if (segment) {
             double to_x = xPos[i] - mid_xx.first - act_size[i];
@@ -1034,7 +1048,7 @@ Area ArrowHead::BigEntityLineCover(const std::vector<double> &xPos, std::vector<
     const Area area = BigCover(xPos, act_size, sy, dy, bidir);
     Area ret;
     if (xPos.size()>2 && bigDoesSegment(bidir, MSC_ARROW_MIDDLE) && lines) {
-        for (int i=0; i<xPos.size()-1; i++) {
+        for (unsigned i=0; i<xPos.size()-1; i++) {
             if (!lines->at(i).IsDoubleOrTriple()) continue;
             Block this_segment(Range(xPos[i], xPos[i+1]), total.y);
             if (i==0) {
@@ -1059,11 +1073,11 @@ void ArrowHead::BigDraw(const std::vector<double> &xPos, std::vector<double> act
                         double sy, double dy, bool bidir,
                         const MscShadowAttr &shadow, const MscFillAttr &fill,
                         const std::vector<MscLineAttr> *lines, MscCanvas *canvas,
-                        const Area *clip, bool shadow_x_neg, bool shadow_y_neg) const
+                        const Area * /*clip*/, bool shadow_x_neg, bool shadow_y_neg) const
 {
     const Area area = BigCover(xPos, act_size, sy, dy, bidir);
     if (xPos.size()>2 && bigDoesSegment(bidir, MSC_ARROW_MIDDLE) && lines) {
-        for (int i=0; i<xPos.size()-1; i++) {
+        for (unsigned i=0; i<xPos.size()-1; i++) {
             Block this_segment(Range(xPos[i], xPos[i+1]), canvas->GetExtents().y);
             if (i==0) {
                 if (xPos[0]<xPos[1]) this_segment.x.from = canvas->GetExtents().x.from;
@@ -1092,7 +1106,7 @@ void ArrowHead::BigDraw(const std::vector<double> &xPos, std::vector<double> act
             const XY center(0, (dy+sy)/2);
             const XY wh(x_off, (dy-sy)/2);
             const Contour contour = t==MSC_ARROW_DOT_EMPTY ? Contour(center, wh.x, wh.y) : diamond(center, wh);
-            for (int i=1; i<xPos.size()-1; i++)
+            for (unsigned i=1; i<xPos.size()-1; i++)
                 canvas->Line(contour.CreateShifted(XY(xPos[i], 0)), line);
         }
         //if (clip) msc->UnClip();

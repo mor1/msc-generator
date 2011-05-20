@@ -119,7 +119,7 @@ BOOL CScaleDlg::OnInitDialog( )
     GetDlgItem(IDC_EDIT_Y)->EnableWindow(m_selected==3);
     GetDlgItem(IDC_EDIT_XY_X)->EnableWindow(m_selected==4);
     GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
-	bool a = CDialog::OnInitDialog();
+	BOOL a = CDialog::OnInitDialog();
 	return a;
 }
 
@@ -325,7 +325,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
 		CString design;
 		unsigned page;
 		ar >> design;
-        unsigned file_version = -1;
+        unsigned file_version = 0;
 		if (design != NEW_VERSION_STRING) {
 			//Old file format
 			ar >> page;
@@ -382,7 +382,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
             ar >> c;
             chart.SetVersion(a,b,c);
             ar >> force_arc_size;
-            for (int i=0; i<force_arc_size; i++) {
+            for (unsigned i=0; i<force_arc_size; i++) {
                 ArcSignature as;
                 ar >> as.file_pos.start.file;
                 ar >> as.file_pos.start.line;
@@ -396,7 +396,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
             //Fallthrough
         case 2:  //since v3.1
             ar >> force_entity_size;
-            for (int i=0; i<force_entity_size; i++) {
+            for (unsigned i=0; i<force_entity_size; i++) {
                 CString s; unsigned b;
                 ar >> s;
                 ar >> b;
@@ -423,7 +423,7 @@ void CMscGenDoc::DeleteContents()
 BOOL CMscGenDoc::CanCloseFrame(CFrameWnd* pFrame) 
 {
 	m_bAttemptingToClose = true;
-	bool ret = COleServerDocEx::CanCloseFrame(pFrame);
+	BOOL ret = COleServerDocEx::CanCloseFrame(pFrame);
 	m_bAttemptingToClose = false;
 	return ret;
 }
@@ -635,7 +635,7 @@ void CMscGenDoc::OnFileExport()
             break;
         }
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_OPTION", scale.m_selected);
-        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_SCALE", scale.m_scale*1000);
+        AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_SCALE", int(scale.m_scale*1000));
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_X", scale.m_x);
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_Y", scale.m_y);
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_X", scale.m_xy_x);
@@ -907,7 +907,7 @@ void CMscGenDoc::DoViewNexterror(bool next)
 	else StartFadingAll(NULL);
 
     //exit if we do not know the location of the error
-    if (cursel >= pOutputView->error_pos.size() || cursel<0) return;
+    if (cursel >= int(pOutputView->error_pos.size()) || cursel<0) return;
     if (pOutputView->error_pos[cursel].first < 0) return;
 
     //Jump to that pos in editor
@@ -1041,17 +1041,17 @@ void CMscGenDoc::SetZoom(int zoom)
 	}
     CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
     if (pWnd)
-        pWnd->SetSplitSize(m_ChartShown.GetHeadingSize()*double(m_zoom)/100.);
+        pWnd->SetSplitSize(unsigned(m_ChartShown.GetHeadingSize()*double(m_zoom)/100.));
 }
 
 void CMscGenDoc::OnViewZoomin()
 {
-	SetZoom(m_zoom*1.1);
+	SetZoom(int(m_zoom*1.1));
 }
 
 void CMscGenDoc::OnViewZoomout()
 {
-	SetZoom(m_zoom/1.1);
+	SetZoom(int(m_zoom/1.1));
 }
 
 void CMscGenDoc::OnDesignZoom()
@@ -1120,9 +1120,9 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 
 			//See which dimension is limiting
 			if (double(y)/double(x) > double(pView->m_size.cy)/double(pView->m_size.cx)) 
-				zoom = double(x)/double(pView->m_size.cx)*100.;
+				zoom = unsigned(double(x)/double(pView->m_size.cx)*100.);
 			else 
-				zoom = double(y)/double(pView->m_size.cy)*100.;
+				zoom = unsigned(double(y)/double(pView->m_size.cy)*100.);
 			if (zoom > 100) zoom = 100;
 			SetZoom(zoom);
 			//If not fullscreen, adjust window size, too
@@ -1150,7 +1150,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			if (view.right-view.left > zoom*pView->m_size.cx/100 + 1) break;
 			//adjust zoom if there is not enough space
 			if (zoom*pView->m_size.cx/100 + 1 > x)
-				zoom = (x-1)*100./pView->m_size.cx;
+				zoom = unsigned((x-1)*100./pView->m_size.cx);
 			SetZoom(zoom);
 			//If not fullscreen, adjust window size, too
 			if (!pWnd->IsFullScreen()) {
@@ -1162,7 +1162,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			}
 			break;
 		case CMscGenDoc::ZOOM_WIDTH:
-			zoom = (view.right-view.left)*100./pView->m_size.cx;
+			zoom = unsigned((view.right-view.left)*100./pView->m_size.cx);
 			if (zoom>150) zoom = 150;
 			SetZoom(zoom);
 			break;
@@ -1674,7 +1674,7 @@ void CMscGenDoc::OnHelpHelp()
 	char buff[1024]; 
 	GetModuleFileName(NULL, buff, 1024);
 	std::string dir(buff);
-	int pos = dir.find_last_of('\\');
+	unsigned pos = dir.find_last_of('\\');
 	ASSERT(pos!=std::string::npos);
 	string cmdLine = "\"" + dir.substr(0,pos) + "\\msc-gen.chm\"";
 

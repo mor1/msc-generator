@@ -32,6 +32,8 @@ void ContourList::assign(std::vector<Edge> &&v, bool winding)
     case Contour::A_IS_EMPTY: //empty result okay
     case Contour::OVERLAP:    //result is already in *this
         break;
+    default:
+        _ASSERT(0);
     }
 }
 
@@ -46,6 +48,8 @@ void ContourList::assign(const std::vector<Edge> &v, bool winding)
     case Contour::A_IS_EMPTY: //empty result okay
     case Contour::OVERLAP:    //result is already in *this
         break;
+    default:
+        _ASSERT(0);
     }
 }
 
@@ -65,6 +69,10 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
     ContourWithHoles current_blob = p;
     for (auto i=begin(); i!=end(); /*none*/) {
         ContourList res;
+        int a=0, b=3;
+        if (current_blob.size()==1 && current_blob[0].IsFullCircle()) {
+            std::swap(a,b);
+        }
         const Contour::result_t ret = i->Add(current_blob, res);
         switch (ret) {
         default:
@@ -73,9 +81,11 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
         case Contour::B_INSIDE_A:              //blob is inside i
         case Contour::A_INSIDE_B:              //i is fully covered by blob, delete it
         case Contour::SAME:                    //outer hull is same, holes may be modified
-            if (res.size()==0)
+            if (res.size()==0) {
                 _ASSERT(0);
-            current_blob.swap(*res.begin());   //update blob with a positive union
+            } else {
+                current_blob.swap(*res.begin());   //update blob with a positive union
+            }
             //fallthrough: now delete i
         case Contour::A_IS_EMPTY:
             erase(i++);

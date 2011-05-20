@@ -463,7 +463,7 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	return TRUE;
 }
 
-void CMainFrame::OnSetFocus(CWnd* pOldWnd) 
+void CMainFrame::OnSetFocus(CWnd* /*pOldWnd*/) 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -606,7 +606,7 @@ void CMainFrame::OnButtonAutoSplit()
         CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
         m_bAutoSplit = true;
         if (pDoc)
-            SetSplitSize(pDoc->m_ChartShown.GetHeadingSize()*pDoc->m_zoom/100.);
+            SetSplitSize(unsigned(pDoc->m_ChartShown.GetHeadingSize()*pDoc->m_zoom/100.));
     } else {
         //turn it off
         switch (m_wndSplitter.GetRowCount()) {
@@ -640,7 +640,7 @@ void CMainFrame::SetSplitSize(unsigned coord)
     if (!m_bAutoSplit) return;
     //CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
     //if (pDoc) coord = double(coord)*pDoc->m_zoom/100.;
-    int prev, dummy;
+    int prev=0, dummy;
     CSize orig_pos(0,0);
     switch (m_wndSplitter.GetRowCount()) {
     case 1: 
@@ -648,7 +648,6 @@ void CMainFrame::SetSplitSize(unsigned coord)
         CMscGenView *pView = dynamic_cast<CMscGenView *>(m_wndSplitter.GetPane(0,0));
         if (pView) orig_pos = pView->GetScrollPosition();
         m_wndSplitter.SplitRow(coord); 
-        prev = 0; 
         }
         break;
     case 2: 

@@ -9,7 +9,7 @@ class Attribute;
 class file_line
 {
 public:
-    unsigned file;
+    int file;
     unsigned line;
     unsigned col;
     file_line() {MakeInvalid();}

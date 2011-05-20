@@ -109,7 +109,7 @@ void CExternalEditor::Start(CString filename)
 		pApp->m_pWndEditor->SetReadOnly();
 }
 
-void CExternalEditor::JumpToLine(unsigned line, unsigned col)
+void CExternalEditor::JumpToLine(unsigned line, unsigned /*col*/)
 {
 	if (line==0) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -208,11 +208,11 @@ void CExternalEditor::Stop(EStopEditor force)
 			struct window_search search;
 			search.processId = m_ProcessId;
 			EnumWindows(EnumWindowsProcFindTopWindowByProcess, (LPARAM)&search);
-			int ii = search.hWnd_result.size();
+			search.hWnd_result.size();
 			for (std::list<HWND>::iterator i=search.hWnd_result.begin(); i!=search.hWnd_result.end(); i++) 
 				if (::IsWindow(*i)) {
 					char buff[1024];
-					int len = ::GetWindowText(*i, buff, sizeof(buff)); 
+					::GetWindowText(*i, buff, sizeof(buff)); 
 					if (strstr(buff, "signalling")!=NULL) {
 						::SetForegroundWindow(*i);
 						::SendMessage(*i, WM_CLOSE, 0, 0); 

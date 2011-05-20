@@ -25,7 +25,7 @@
 
 #define FADE_TIMER 30
 
-inline CSize ScaleSize(const CSize &s, double z) {return CSize(s.cx*z, s.cy*z);}
+inline CSize ScaleSize(const CSize &s, double z) {return CSize(int(s.cx*z), int(s.cy*z));}
 inline bool SizeEmpty(const CSize &s) {return s.cx==0 || s.cy==0;}
 
 class CMscGenView : public CScrollView

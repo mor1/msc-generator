@@ -132,7 +132,6 @@ int do_main(const std::list<std::string> &args, const char *designs,
     MscCanvas::OutputType oOutType=MscCanvas::PNG;
     string                oOutputFile;
     string                oInputFile;
-    bool                  oPrint = false;
     bool                  oWarning = true;
     bool                  oCshize = false;
     int                   oX = -1;
@@ -287,7 +286,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                                                opt_pos_range, value.c_str()));
                 else
                     msc.AddAttribute(Attribute(name.c_str(), value.c_str(), opt_pos_range,
-                                               opt_pos_range, name.c_str()));
+                                               opt_pos_range));
             }
         } else
             if (oInputFile=="")
