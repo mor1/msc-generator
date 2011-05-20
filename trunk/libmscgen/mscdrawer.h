@@ -203,7 +203,7 @@ inline void MscCanvas::Clip(const Area &area) {cairo_save(cr); area.Path(cr); ca
 
 
 inline void MscCanvas::Fill(const XY &s, const XY &d, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
-inline void MscCanvas::Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
+inline void MscCanvas::Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill) {Fill(line.CreateRectangle(Block(s, d)), fill);}
 //void MscCanvas:: Fill(const Block &b, const MscFillAttr &fill); //Not inline
 inline void MscCanvas::Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill) {Clip(b, line); Fill(b, fill); UnClip();}
 //void MscCanvas::Fill(const EllipseData &ellipse, const MscFillAttr &fill); //Not inline

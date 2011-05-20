@@ -188,7 +188,7 @@ public:
     EIterator EntityMinMaxByPos(EIterator i, EIterator j, bool min) const;
     EIterator EntityMinByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, true);}
     EIterator EntityMaxByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, false);}
-    EIterator FindAllocEntity(const char *, file_line_range, bool*validptr=NULL);
+    EIterator FindAllocEntity(const char *, file_line_range);
     EIterator FindLeftRightDescendant(EIterator, bool left, bool stop_at_collapsed);
     EIterator FindActiveParentEntity(EIterator);
     EIterator FindWhoIsShowingInsteadOf(EIterator, bool left);
@@ -225,7 +225,7 @@ public:
     void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
     double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
     double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y,
-                          double top_y, const AreaList &area_top, 
+                          double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(void);

@@ -27,7 +27,7 @@ template <class T>
         return s;
     };
 
-int CaseInsensitiveCommonPrefixLen(const char *a, const char *b);
+unsigned CaseInsensitiveCommonPrefixLen(const char *a, const char *b);
 int CaseInsensitiveBeginsWith(const char *a, const char *b);
 inline int CaseInsensitiveBeginsWith(const string &a, const char *b)
     {return CaseInsensitiveBeginsWith(a.c_str(), b);}
@@ -100,7 +100,7 @@ bool Convert(string name, Enum &a) {
     unsigned i;
     EnumEncapsulator<Enum> dummy(a);
     for(i=0; i<name.length(); i++)
-        name[i] = tolower(name[i]);
+        name[i] = char(tolower(name[i]));
     for (i=1; EnumEncapsulator<Enum>::names[i][0]; i++)
         if (name == EnumEncapsulator<Enum>::names[i]){
             a = Enum(i);
@@ -160,17 +160,17 @@ class Attribute
         mutable bool    error;
 
         Attribute(const char*a, const char *s, file_line_range l, file_line_range v) :
-            error(false), linenum_attr(l), linenum_value(v), name(a),
-            type(s?MSC_ATTR_STRING:MSC_ATTR_CLEAR), value(s?s:"") {}
+            type(s?MSC_ATTR_STRING:MSC_ATTR_CLEAR), name(a), value(s?s:""),
+            linenum_attr(l), linenum_value(v), error(false) {}
         Attribute(const char*a, double n, file_line_range l, file_line_range v, const char *s) :
-            error(false), linenum_attr(l), linenum_value(v), name(a),
-            type(MSC_ATTR_NUMBER), number(n), value(s) {}
+            type(MSC_ATTR_NUMBER), name(a), value(s), number(n),
+            linenum_attr(l), linenum_value(v), error(false)  {}
         Attribute(const char*a, bool b, file_line_range l, file_line_range v, const char *s) :
-            error(false), linenum_attr(l), linenum_value(v), name(a),
-            type(MSC_ATTR_BOOL), yes(b), value(s) {}
+            type(MSC_ATTR_BOOL), name(a), value(s), yes(b),
+            linenum_attr(l), linenum_value(v), error(false) {}
         Attribute(const char*a, file_line_range l) :
-            error(false), linenum_attr(l), linenum_value(l),
-            type(MSC_ATTR_STYLE), name(a) {}
+            type(MSC_ATTR_STYLE), name(a),
+            linenum_attr(l), linenum_value(l), error(false) {}
 
         string Print(int ident=0) const;
         bool Is(const char *a) const
@@ -230,8 +230,8 @@ public:
     MscLineAttr();
     MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}
     MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
-    MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, int r) :
-        type(true, t), color(true, c), width(true, w), corner(true, ct), radius(true, r) {}
+    MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, double r) :
+        type(true, t), color(true, c), width(true, w), radius(true, r), corner(true, ct) {}
     void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;}
     bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;}
     void MakeComplete();

@@ -29,7 +29,7 @@ std::string file_line::Print()
 
 unsigned MscError::AddFile(const string &filename)
 {
-    for (int i=0; i<Files.size(); i++)
+    for (unsigned i=0; i<Files.size(); i++)
         if (Files[i] == filename) return i;
     Files.push_back(filename);
     return Files.size()-1;
@@ -103,7 +103,7 @@ string MscError::Print(bool oWarnings) const
 {
     string a;
     const std::vector<ErrorElement> &store = get_store(oWarnings);
-    for (int i = 0; i<store.size(); i++)
+    for (unsigned i = 0; i<store.size(); i++)
         a.append(store[i].text).append("\n");
     return a;
 }

@@ -215,8 +215,6 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return NON_ESCAPE;
     }
 
-    const unsigned remaining = strlen(input);
-
     //First check for two-or three character escapes not taking an argument
     switch (input[1]) {
 	case 0:      //End of string (string ends with single '\'), replace to quoted version
@@ -534,7 +532,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             return FORMATTING_OK;
         }
         //OK, now we know we have a valid escape with a non-empty parameter, digest number
-        int local_pos = 0;
+        unsigned local_pos = 0;
         double val = 0;
         while (parameter.length()>local_pos && parameter[local_pos]>='0' && parameter[local_pos]<='9') {
             val = val*10 + parameter[local_pos]-'0';
@@ -622,7 +620,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 {
     if (text==NULL) return;
-    int pos=0;
+    unsigned pos=0;
     StringFormat sf;
     while (pos<strlen(text)) {
         MscColorSyntaxType color = COLOR_NORMAL;
@@ -674,7 +672,7 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
     //   we know that the linenum parameter points to the opening quotation mark
     //   so we increment it at the beginning - for cases #1 and #2 it does not matter
     linenum.col++;
-    int pos=0;
+    unsigned pos=0;
     string replaceto;
     StringFormat sf;
     string ignoreText = ignore?" Ignoring it.":"";
@@ -682,6 +680,8 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
         unsigned length;
         file_line beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, basic, msc, &linenum, ignore)) {
+        case FORMATTING_OK:
+            break; //do nothing, just replace as below
         case INVALID_ESCAPE:
             if (ignore) break;  //replaceto is empty here, we will remove the bad escape
             //fallthrough, if we do not ignore: this will set replaceto to the bad escape
@@ -886,6 +886,7 @@ string StringFormat::Print() const
 
     if (ident.first)
         switch (ident.second) {
+        default:
         case MSC_IDENT_LEFT:   ret << "\\pl"; break;
         case MSC_IDENT_CENTER: ret << "\\pc"; break;
         case MSC_IDENT_RIGHT:  ret << "\\pr"; break;
@@ -959,7 +960,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         string tmp = a.value;
         if (tmp.length()==0) return true;
 
-        StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, NULL, this, TEXT_FORMAT);
+        StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, this, true, TEXT_FORMAT);
 
         StringFormat sf(tmp);
         RemovePosEscapes(tmp);
@@ -992,10 +993,11 @@ bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p
     const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
     double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
-    for (int i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
+    for (unsigned i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
         double x1 = floor(HINT_GRAPHIC_SIZE_X*sizePercentage[i]/100.+0.5);
         double x2 = floor(HINT_GRAPHIC_SIZE_X*0.2);
         switch (t) {
+        default:
         case MSC_IDENT_LEFT: x1 = x2+x1; break;
         case MSC_IDENT_CENTER: x2 = floor(HINT_GRAPHIC_SIZE_X*0.5)-x1/2; x1 = x1+x2; break;
         case MSC_IDENT_RIGHT: x2 = floor(HINT_GRAPHIC_SIZE_X*0.8); x1 = x2-x1; break;
@@ -1106,7 +1108,7 @@ double StringFormat::getFragmentWidth(const string &s, MscCanvas *canvas) const
     if (canvas->individual_chars) {
         double advance = 0;
         char tmp_stirng[2] = "a";
-        for (int i=0; i<s.length(); i++) {
+        for (unsigned i=0; i<s.length(); i++) {
             tmp_stirng[0] = s[i];
             cairo_text_extents(canvas->GetContext(), tmp_stirng, &te);
             advance += te.x_advance;
@@ -1289,7 +1291,7 @@ void ParsedLine::Draw(XY xy, MscCanvas *canvas, bool isRotated) const
 unsigned Label::AddText(const string &input, MscCanvas *canvas, StringFormat format)
 {
     size_t pos = 0, line_start = 0;
-    unsigned length;
+    unsigned length=0;
     while (pos < input.length()) {
         //find next new line
         while (pos < input.length()) {
@@ -1334,8 +1336,8 @@ XY Label::getTextWidthHeight(int line) const
 {
     XY xy(0,0);
     if (size()==0) return xy;
-    if (line!=-1) {
-        if (size()<=line) return xy;
+    if (line>=0) {
+        if (size()<=unsigned(line)) return xy;
         xy = at(line).getWidthHeight();
         if (line == 0)  //First line
             xy.y += at(0).startFormat.textVGapAbove.second;

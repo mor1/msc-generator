@@ -73,7 +73,7 @@
 /* yyerror
  *  Error handling function.  Do nothing for CSH
  */
-void yyerror(YYLTYPE*loc, Csh &csh, void *yyscanner, const char *str)
+void yyerror(YYLTYPE* /*loc*/, Csh & /*csh*/, void * /*yyscanner*/, const char * /*str*/)
 {}
 
 #else
@@ -181,7 +181,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
-                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE 
+                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE
                    TOK_ACTIVATE TOK_DEACTIVATE
 %type <stringlist> tok_stringlist
 
@@ -1238,9 +1238,9 @@ tok_stringlist : string
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_STYLENAME);
         $$ = new std::list<string>;
-        if (($1) == "emphasis")
+        if (strcmp($1, "emphasis")==0)
             ($$)->push_back("box");
-        else if (($1) == "emptyemphasis")
+        else if (strcmp($1, "emptyemphasis")==0)
             ($$)->push_back("emptybox");
         else ($$)->push_back($1);
   #else
@@ -1255,9 +1255,9 @@ tok_stringlist : string
         csh.AddCSH(@2, COLOR_COMMA);
         csh.AddCSH(@3, COLOR_STYLENAME);
         $$ = $1;
-        if (($3) == "emphasis")
+        if (strcmp($3, "emphasis")==0)
             ($$)->push_back("box");
-        else if (($3) == "emptyemphasis")
+        else if (strcmp($3, "emptyemphasis")==0)
             ($$)->push_back("emptybox");
         else ($$)->push_back($3);
   #else
@@ -1792,6 +1792,8 @@ vertxpos: TOK_AT entity_string
     csh.AddCSH(@3, COLOR_SYMBOL);
   #else
     switch ($3) {
+    default:
+        _ASSERT(0);
     case MSC_EMPH_SOLID:
         $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_BY);
         break;
@@ -2460,6 +2462,7 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
     switch ($1) {
     case MSC_ARC_DIVIDER:  $$ = strdup("---"); break;
     case MSC_ARC_DISCO:    $$ = strdup("..."); break;
+    default: _ASSERT(0);
     }
 }
        | TOK_EMPH
@@ -2469,6 +2472,7 @@ symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
     case MSC_EMPH_DASHED: $$ = strdup("++"); break;
     case MSC_EMPH_DOTTED: $$ = strdup(".."); break;
     case MSC_EMPH_DOUBLE: $$ = strdup("=="); break;
+    default: _ASSERT(0);
     }
 };
 

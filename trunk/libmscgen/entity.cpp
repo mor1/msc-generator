@@ -22,12 +22,13 @@
 
 template class PtrList<Entity>;
 
-Entity::Entity(const string &n, const string &l, const string &ol, 
+Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const MscStyle &entity_style, const file_line &fp,
-    bool coll) :
-    maxwidth(0), running_style(entity_style),
-    name(n), orig_label(ol), label(l), collapsed(coll),
-    pos(p), pos_exp(pe), index(0), status(entity_style), file_pos(fp)
+               bool coll) :
+    name(n), label(l), orig_label(ol), file_pos(fp), pos(p), pos_exp(pe),
+    index(0), status(entity_style),
+    running_style(entity_style), maxwidth(0), running_shown(EEntityStatus::SHOW_OFF),
+    collapsed(coll)
 {
 }
 
@@ -42,7 +43,7 @@ void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
         EIterator ei = chart->AllEntities.Find_by_Name((*i)->name);
         _ASSERT(*ei != chart->NoEntity);
         if (!(*i)->defining) {
-            chart->Error.Error((*i)->file_pos.start, "Cannot make an already existing entity part of a group.", 
+            chart->Error.Error((*i)->file_pos.start, "Cannot make an already existing entity part of a group.",
                                "Entity remains outside this group.");
             chart->Error.Error((*ei)->file_pos, (*i)->file_pos.start, "Entity '" + (*ei)->name + "' was defined here.");
         } else {
@@ -59,7 +60,7 @@ void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
         for (auto i=children->begin(); i!=children->end(); i++) {
             EIterator ei = chart->AllEntities.Find_by_Name((*i)->name);
             _ASSERT(*ei != chart->NoEntity);
-            if ((*i)->defining) 
+            if ((*i)->defining)
                 (*ei)->pos = min_pos;
         }
     }
@@ -103,7 +104,7 @@ void EntityList::SortByPosExp(void)
 
 EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
     style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
-    parsed_label(msc->GetCanvas()), defining(false)
+    defining(false)
 {
     label.first = false;
     pos.first = false;
@@ -238,7 +239,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
             CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
             if (ce==NULL || ce->IsFullHeading())
                 chart->Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
-            else 
+            else
                 ce->MoveMyEntityDefsAfter(children);  //ce is emptied out of all EntityDefs
         }
         delete ch;
@@ -247,14 +248,14 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
     bool make_collapsed = false;
     //Check that we apply certain attributes the right way for grouped entities
     if (children && children->size()) {
-        if (pos.first || rel.first) 
-            chart->Error.Error(pos.first ? pos.third : rel.third, 
+        if (pos.first || rel.first)
+            chart->Error.Error(pos.first ? pos.third : rel.third,
                                "The position of grouped entities is derived from its member entities.",
                                " Ignoring attribute.");
         pos.first = rel.first = false;
         //We start fiddling with collapsed.second.
         //It will have a meaning from now on even if collapsed.first is false
-        if (collapsed.first) 
+        if (collapsed.first)
             make_collapsed = collapsed.second;
         else
             collapsed.second = false;
@@ -284,9 +285,9 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
                     s += "' in attribute 'relative'. Ignoring attriute.";
                     chart->Error.Error(rel.third, s);
                 } else {
-                    //Entity *e = new Entity(rel.second, rel.second, rel.second, 
+                    //Entity *e = new Entity(rel.second, rel.second, rel.second,
                     //                       chart->GetEntityMaxPos()+1,
-                    //                       chart->Contexts.back().styles["entity"], 
+                    //                       chart->Contexts.back().styles["entity"],
                     //                       rel.third, false);
                     //chart->AllEntities.Append(e);
                     EntityDef *ed = new EntityDef(rel.second.c_str(), chart);
@@ -297,7 +298,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
                 }
             } else if ((*j)->children_names.size()) {
                 //the entity in the "relative" attribute is a grouped one
-                if (!pos.first) 
+                if (!pos.first)
                     chart->Error.Error(rel.third, "Cannot put an entity exactly onto a grouped entity. Specify the 'pos' attribute.",
                                        " Ignoring attribute.");
                 else if (pos.second==0)
@@ -333,7 +334,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         const char *style_name;
         if (children && children->size()) //we are group entity
             style_name = make_collapsed ? "entitygroup_collapsed" : "entitygroup";
-        else 
+        else
             style_name = "entity";
 
         //create a fully specified string format for potential \s() \f() \c() and \mX() in label
@@ -363,9 +364,9 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         //Add to entity list
         chart->AllEntities.Append(e);
     } else {
-        file_line p(-1,0,0);
+        file_line p;
         // An existing entity. Disallow attributes that change drawing positions
-        if (label.first && label.second != (*i)->label) 
+        if (label.first && label.second != (*i)->label)
             chart->Error.Error(p = label.third,
                              "Cannot change the label of an entity after declaration. Keeping old label :'"
                              + (*i)->orig_label + "'.");
@@ -457,7 +458,7 @@ string EntityDef::Print(int ident) const
 //returns how wide the entity is, not including its shadow
 double EntityDef::Width() const
 {
-    double inner = parsed_label.getTextWidthHeight().x; 
+    double inner = parsed_label.getTextWidthHeight().x;
     if ((*itr)->children_names.size() && style.indicator.second && (*itr)->collapsed)
         inner = std::max(inner, indicator_size.x + 2*chart->emphVGapInside);
     const double width = ceil(style.line.LineWidth()*2 + inner);
@@ -472,15 +473,15 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
         const double x = chart->XCoord((*itr)->pos); //integer
         if ((*itr)->children_names.size() && style.indicator.second)
             indicator_ypos_offset = wh.y + lw;
-        else 
+        else
             indicator_ypos_offset = -1;
         const double width = Width();
         const double indicator_height = (indicator_ypos_offset > 0) ? indicator_size.y + chart->emphVGapInside: 0;
         const double height = ceil(chart->headingVGapAbove + wh.y + indicator_height + chart->headingVGapBelow + 2*lw);
 
         //do not include shadow in anything... but the returned height (uses for non-compressed placement)
-        outer_edge = Block(x-ceil(width/2), x+ceil(width/2), 
-                           chart->headingVGapAbove /*- indicator_height*/, 
+        outer_edge = Block(x-ceil(width/2), x+ceil(width/2),
+                           chart->headingVGapAbove /*- indicator_height*/,
                            height - chart->headingVGapBelow /*-indicator_height*/);
     } else {
         indicator_ypos_offset = -1;
@@ -506,17 +507,17 @@ void EntityDef::PostPosProcess(double dummy)
 {
     if (shown && !hidden) {
         chart->HideEntityLines(outer_edge);
-        if ((*itr)->children_names.size()) 
-            TrackableElement::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);        
+        if ((*itr)->children_names.size())
+            TrackableElement::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);
     }
     const EEntityStatus old_status = (*itr)->status.GetStatus(yPos);
     EEntityStatus new_status = old_status;
-    if (show.first) 
+    if (show.first)
         new_status.Show(show.second);
     if (active.first)
         new_status.Activate(active.second);
     if (new_status != old_status)
-        (*itr)->status.SetStatus(yPos, new_status); 
+        (*itr)->status.SetStatus(yPos, new_status);
     (*itr)->status.ApplyStyle(yPos, style);
     //if (((*itr)->status.GetStatus(yPos)!=EntityStatusMap::SHOW_OFF) != shown) {
     //    if (shown)
@@ -538,7 +539,7 @@ void EntityDef::Draw()
     MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
     line2.radius.second = std::min(std::min(outer_edge.y.Spans()/2 - lw, outer_edge.x.Spans()/2 - lw),
                                     line2.radius.second);
-    if (line2.radius.second>0) 
+    if (line2.radius.second>0)
         line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
     b.Expand(-line2.width.second/2.);
     chart->GetCanvas()->Shadow(b, style.line, style.shadow);
@@ -557,7 +558,7 @@ void EntityDef::Draw()
     parsed_label.Draw(chart->GetCanvas(), b2.x.from, b2.x.till, b2.y.from + lw/2);
     //Draw indicator
     if (indicator_ypos_offset > 0)
-        DrawIndicator(XY(outer_edge.CenterPoint().x, outer_edge.y.from + indicator_ypos_offset), 
+        DrawIndicator(XY(outer_edge.CenterPoint().x, outer_edge.y.from + indicator_ypos_offset),
                       chart->GetCanvas());
 }
 

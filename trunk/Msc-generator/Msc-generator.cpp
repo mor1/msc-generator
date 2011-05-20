@@ -75,7 +75,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 
 BOOL CAboutDlg::OnInitDialog( ) 
 {
-	bool a = CDialog::OnInitDialog();
+	BOOL a = CDialog::OnInitDialog();
 	m_btnLink.SetURL(_T("http://msc-generator.sourceforge.net"));
 	m_btnLink.SetTooltip(_T("Visit the Msc-generator site"));
 	m_btnLink.SizeToContent();
@@ -357,7 +357,7 @@ BOOL CMscGenApp::InitInstance()
 	//Read options from the registry
 	ReadRegistryValues(false);
 	//Start process that checks if we are the latest version
-	CWinThread* check_thread  = AfxBeginThread(&CheckVersionFreshness, NULL);
+	/*CWinThread* check_thread =*/ AfxBeginThread(&CheckVersionFreshness, NULL);
 
 	// App was launched with /Embedding or /Automation switch.
 	// Run app as automation server.
@@ -735,7 +735,7 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 	char buff[1024]; 
 	GetModuleFileName(NULL, buff, 1024);
 	std::string dir(buff);
-	int pos = dir.find_last_of('\\');
+	unsigned pos = dir.find_last_of('\\');
 	ASSERT(pos!=std::string::npos);
 	CString designlib_filename = dir.substr(0,pos).append("\\").append(fileName).c_str();
 
@@ -747,11 +747,10 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 	CString msg;
 	CFileFind finder;
 	bool errors = false;
-	bool bFound = finder.FindFile(designlib_filename);
+	BOOL bFound = finder.FindFile(designlib_filename);
     if (!bFound) return 1;
 	while (bFound) {
 		bFound = finder.FindNextFile();
-		bool designlib_pedantic = true;
 		CDrawingChartData data;
 		if (data.Load(finder.GetFilePath(), false)) {
 			unsigned num = data.GetErrorNum(true);
@@ -759,7 +758,7 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 				msg.Append("Problems in design file: ");
 				msg.Append(finder.GetFileName());
 				msg.Append("\n");
-				for (int i=0; i<num; i++) {
+				for (unsigned i=0; i<num; i++) {
 					msg.Append(data.GetErrorText(i, true));
 					msg.Append("\n");
 				}
@@ -806,7 +805,7 @@ void CVersionDlg::DoDataExchange(CDataExchange* pDX)
 
 BOOL CVersionDlg::OnInitDialog( ) 
 {
-	bool ret = CDialog::OnInitDialog();
+	BOOL ret = CDialog::OnInitDialog();
 	m_btnLink.SetURL(_T("https://sourceforge.net/projects/msc-generator/"));
 	m_btnLink.SetTooltip(_T("Download from SourceForge"));
 	m_btnLink.SizeToContent();

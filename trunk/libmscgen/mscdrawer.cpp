@@ -63,7 +63,7 @@
  */
 
 MscCanvas::MscCanvas(cairo_t *context, OutputType ot, double scale_sh, const Block &size) : 
-    cr(context), outType(ot), scale_for_shadows(scale_sh), extents(size)
+    scale_for_shadows(scale_sh), cr(context), outType(ot), extents(size)
 {
     fake_dash_offset = 0;
 
@@ -147,7 +147,6 @@ void MscCanvas::Clip(const Block &b, const MscLineAttr &line)
 void MscCanvas::ClipInverse(const Area &area)
 {
     cairo_save(cr);
-    double x1, x2, y1, y2;
     Block outer = area.GetBoundingBox();
     outer += GetExtents();
     outer.Expand(1);
@@ -250,7 +249,7 @@ void MscCanvas::Text(XY xy, const string &s, bool isRotated)
     }
     if (individual_chars) {
         char tmp_stirng[2] = "a";
-        for (int i=0; i<s.length(); i++) {
+        for (unsigned i=0; i<s.length(); i++) {
             tmp_stirng[0] = s[i];
             cairo_show_text(cr, tmp_stirng);
         }
@@ -539,6 +538,9 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
                                pattern, num, pos, offset, false); break;
         case CORNER_BEVEL: fakeDashedLine(XY(b.x.from, b.y.from-r2), XY(b.x.from+r2, b.y.from), 
                                pattern, num, pos, offset); break;
+        case CORNER_NONE:
+        case CORNER_NOTE: break;
+        default: _ASSERT(0);
         }
         fakeDashedLine(XY(b.x.from+r2, b.y.from), XY(b.x.till-r1, b.y.from), pattern, num, pos, offset);
         //upper right corner
@@ -548,6 +550,8 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
         case CORNER_NOTE: 
         case CORNER_BEVEL: fakeDashedLine(XY(b.x.till-r1, b.y.from), XY(b.x.till, b.y.from+r1), 
                                pattern, num, pos, offset); break;
+        case CORNER_NONE: break;
+        default: _ASSERT(0);
         }
         fakeDashedLine(XY(b.x.till, b.y.from+r1), XY(b.x.till, b.y.till-r2), pattern, num, pos, offset);
         //lower right corner
@@ -556,6 +560,9 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
                                pattern, num, pos, offset, false); break;
         case CORNER_BEVEL: fakeDashedLine(XY(b.x.till, b.y.till-r2), XY(b.x.till-r2, b.y.till), 
                                pattern, num, pos, offset); break;
+        case CORNER_NONE:
+        case CORNER_NOTE: break;
+        default: _ASSERT(0);
         }
         fakeDashedLine(XY(b.x.till-r2, b.y.till), XY(b.x.from+r2, b.y.till), pattern, num, pos, offset);
         //lower left corner
@@ -564,6 +571,9 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
                                pattern, num, pos, offset, false);
         case CORNER_BEVEL: fakeDashedLine(XY(b.x.from-r2, b.y.till), XY(b.x.from, b.y.till-r2), 
                                pattern, num, pos, offset); break;
+        case CORNER_NONE:
+        case CORNER_NOTE: break;
+        default: _ASSERT(0);
         }
         fakeDashedLine(XY(b.x.from, b.y.till-r2), XY(b.x.from, b.y.from+r2), pattern, num, pos, offset);
     }
@@ -578,11 +588,7 @@ void MscCanvas::singleLine(const Contour &c, const MscLineAttr &line, bool open)
             c.Path(cr);
         cairo_stroke(cr);
     } else {
-        int num, pos = 0;
-        const double *pattern;
-        double offset;
-        pattern = line.DashPattern(num);
-        for (int i=0; i<c.size()-(open?1:0); i++) 
+        for (unsigned i=0; i<c.size()-(open?1:0); i++) 
             if (c.GetEdge(i).IsStraight())
                 singleLine(c.GetEdge(i).GetStart(), c.GetEdge((i+1)%c.size()).GetStart(), line);
             else {
@@ -941,6 +947,9 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
         MscColorType color = fill.color.second;
         MscColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
         switch(fill.gradient.second) {
+        default:
+            _ASSERT(0);
+            break;
         case GRADIENT_OUT:
             fakeRadialGrad(color, color2, b.CenterPoint(), max_extent, 0, fake_gradients, true);
             break;
@@ -962,9 +971,9 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
         case GRADIENT_BUTTON:
             double step = (b.y.till-b.y.from)/100;
             fakeLinearGrad(color.Lighter(0.66), color.Lighter(0.35), 
-                b.UpperLeft(), b.LowerRight()-XY(0, step*66), false, fake_gradients*0.34);
+                b.UpperLeft(), b.LowerRight()-XY(0, step*66), false, unsigned(fake_gradients*0.34));
             fakeLinearGrad(color.Lighter(0.16), color, 
-                b.UpperLeft()+XY(0, step*34), b.LowerRight(), false, fake_gradients*0.66);
+                b.UpperLeft()+XY(0, step*34), b.LowerRight(), false, unsigned(fake_gradients*0.66));
             break;
         }
         UnClip();
@@ -1026,16 +1035,18 @@ void MscCanvas::Shadow(const Area &area, const MscShadowAttr &shadow, bool shado
     outer.Shift(XY(shadow_x_neg?-shadow.offset.second:shadow.offset.second, shadow_y_neg?-shadow.offset.second:shadow.offset.second));
     MscColorType color = shadow.color.second;
     if (shadow.blur.second>0) {
-        const int steps = floor(std::min(shadow.blur.second, shadow.offset.second)*scale_for_shadows + 0.5);
+        const unsigned steps = unsigned(std::min(shadow.blur.second, shadow.offset.second)*scale_for_shadows + 0.5);
         const double transp_step = double(color.a)/(steps+1);
         double alpha = 0;
-        for (int i=0; i<steps; i++) {
+        for (unsigned i=0; i<steps; i++) {
             inner = outer.CreateExpand(-1/scale_for_shadows);
-            if (inner.IsEmpty() && outer.GetBoundingBox().x.Spans()>2 && outer.GetBoundingBox().y.Spans()>2) 
+            if (inner.IsEmpty() && outer.GetBoundingBox().x.Spans()>2 && outer.GetBoundingBox().y.Spans()>2) {
                 _ASSERT(0);
+            }
+
             outer -= inner;
             alpha += transp_step;
-            color.a = alpha;
+            color.a = (unsigned char)alpha;
             if (fake_shadows)
                 SetColor(MscColorType(color).FlattenAlpha());
             else
@@ -1074,8 +1085,8 @@ void MscCanvas::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
  */
 
 MscBase::MscBase() :
-    total(0,0), copyrightTextHeight(0),
-    outFile(NULL), surface(NULL), context(NULL), canvas(NULL)
+    outFile(NULL), surface(NULL), context(NULL), canvas(NULL),
+    total(0,0), copyrightTextHeight(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, win32_dc(NULL), save_hdc(NULL)
 #endif
@@ -1118,6 +1129,8 @@ void MscBase::SetLowLevelParams(MscCanvas::OutputType ot)
         if(!GetVersionEx ((OSVERSIONINFO *) &osvi) || osvi.dwMajorVersion<=5) 
             fake_scale=100;
 #endif
+    default:
+        break;
     }
 }
 
@@ -1130,10 +1143,10 @@ void MscBase::GetPagePosition(int page, XY &offset, XY &size) const
     if (page<=-1) {
         size.y = total.y;
         offset.y = 0;
-    } else if (page>=yPageStart.size()) { //too large page
+    } else if (unsigned(page)>=yPageStart.size()) { //too large page
         size.y = 0; //nothing drawn
         offset.y = total.y;
-    } else if (page==yPageStart.size()-1) { //last page
+    } else if (unsigned(page)==yPageStart.size()-1) { //last page
         size.y = total.y - yPageStart[page];
         offset.y = yPageStart[page];
     } else {
@@ -1166,8 +1179,8 @@ bool MscBase::SetOutput(MscCanvas::OutputType ot, double x_scale, double y_scale
         fileName = fn;
         if (page>=0) {
             char num[3]="00";
-            num[0] = '0'+page/10;
-            num[1] = '0'+page%10;
+            num[0] = char('0'+page/10);
+            num[1] = char('0'+page%10);
             fileName.insert(fn.find_last_of('.'), num);
         }
         if (ot==MscCanvas::EMF || ot==MscCanvas::WMF)
@@ -1187,23 +1200,23 @@ bool MscBase::SetOutput(MscCanvas::OutputType ot, double x_scale, double y_scale
         return false;
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
     case MscCanvas::PNG:
-        surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24, size.x, size.y);
+        surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24, int(size.x), int(size.y));
         break;
 #endif
 #ifdef CAIRO_HAS_PS_SURFACE
     case MscCanvas::EPS:
-        surface = cairo_ps_surface_create_for_stream(write_func, outFile, size.x, size.y);
+        surface = cairo_ps_surface_create_for_stream(write_func, outFile, int(size.x), int(size.y));
         cairo_ps_surface_set_eps(surface, true);
         break;
 #endif
 #ifdef CAIRO_HAS_PDF_SURFACE
     case MscCanvas::PDF:
-        surface = cairo_pdf_surface_create_for_stream(write_func, outFile, size.x, size.y);
+        surface = cairo_pdf_surface_create_for_stream(write_func, outFile, int(size.x), int(size.y));
         break;
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
     case MscCanvas::SVG:
-        surface = cairo_svg_surface_create_for_stream(write_func, outFile, size.x, size.y);
+        surface = cairo_svg_surface_create_for_stream(write_func, outFile, int(size.x), int(size.y));
         break;
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
@@ -1351,7 +1364,7 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
                       HANDLETABLE *lpHTable,  // metafile handle table
                       METARECORD *lpMFR,      // metafile record
                       int nObj,               // count of objects
-                      LPARAM lpClientData     // optional data
+                      LPARAM /*lpClientData*/ // optional data
                      )
 {
     bool b=true;
@@ -1359,7 +1372,7 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
     if (lpMFR->rdFunction == META_EXTTEXTOUT) {
         EXTTO* pTO = ( EXTTO* )(&lpMFR->rdParm[0]);
         unsigned len = pTO->toSTRLEN;
-        for (int i=0; i<len; i++)
+        for (unsigned i=0; i<len; i++)
             buff[i] = pTO->string[i] + 29;
         buff[len]=0;
         ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, buff, len, NULL);
@@ -1431,7 +1444,7 @@ HMETAFILE MscBase::CloseOutputRetainHandleWMF()
     if (wasMetaFile) {
         HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
         RECT r;
-        SetRect(&r, 0, 0, total.x, total.y);
+        SetRect(&r, 0, 0, int(total.x), int(total.y));
         HDC hdc = CreateMetaFile(NULL);
         PaintEMFonWMFdc(hemf, hdc, r, true);
         DeleteEnhMetaFile(hemf);
@@ -1484,7 +1497,7 @@ void MscBase::CloseOutput()
                 if (save_hdc) { //Opened via SetOutputWin32()
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
                     RECT r;
-                    SetRect(&r, 0, 0, total.x, total.y);
+                    SetRect(&r, 0, 0, int(total.x), int(total.y));
                     PaintEMFonWMFdc(hemf, save_hdc, r, true);
                     DeleteEnhMetaFile(hemf);
                     save_hdc = NULL;

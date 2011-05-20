@@ -28,9 +28,9 @@ MscStyle::MscStyle(StyleType tt) : type(tt)
 
 MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
                    bool so, bool nu, bool co, bool si, bool i, bool vf) :
-    type(tt), f_arrow(a), f_text(t), f_line(l), f_vline(vl), f_fill(f), f_vfill(vf),
-    f_shadow(s), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
-    f_indicator(i), arrow(a)
+    arrow(a), type(tt), f_line(l), f_vline(vl), f_fill(f), f_vfill(vf), f_shadow(s),
+    f_text(t), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
+    f_indicator(i), f_arrow(a)
 {
     solid.first=so;
     solid.second = 128;
@@ -209,7 +209,6 @@ bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
     const MscSideType t = (MscSideType)(int)p;
-    const double xx = 0.7;
     std::vector<double> xPos(2); 
     xPos[0] = t==SIDE_LEFT ? 0 : HINT_GRAPHIC_SIZE_X*0.3;
     xPos[1] = t==SIDE_LEFT ? HINT_GRAPHIC_SIZE_X*0.7 : HINT_GRAPHIC_SIZE_X;
@@ -275,7 +274,7 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
 
 }
 
-string MscStyle::Print(int ident) const
+string MscStyle::Print(int) const
 {
     string s = "style:(";
     if (f_line) s.append(line.Print());

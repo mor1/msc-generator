@@ -51,7 +51,7 @@ std::string NumberingStyleFragment::Print(int n) const
             }
         }
         if (type == ROMAN_LOWER)
-            for (int i = 0; i<ret.length(); i++)
+            for (unsigned i = 0; i<ret.length(); i++)
                 ret[i] += 'a' - 'A';
     }
     if (n<0) return '-'+ret;
@@ -93,11 +93,11 @@ bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text
 //Reads in a string value and converts it to int
 //Returns how many characters it could not understand at the end (0 = fully OK)
 //At a complete error, it leaves value unchanged
-int NumberingStyleFragment::Input(const std::string &number, int &value)
+unsigned NumberingStyleFragment::Input(const std::string &number, int &value)
 {
     if (number.length()==0) return 0; //OK, but do not set the value
-    int num=0;
-    int pos=0;
+    unsigned num=0;
+    unsigned pos=0;
     if (type==ARABIC) {
         goto out;
     } else if (type == ABC_LOWER || type == ABC_UPPER) {
@@ -150,7 +150,7 @@ bool NumberingStyleFragment::FindReplaceNumberFormatToken(string &text, file_lin
                            "a", "a", "a", "A", "A", "A"};
 
     for (int i=0; formats[i]!=NULL; i++) {
-        int pos2 = text.find(formats[i], pos);
+        unsigned pos2 = text.find(formats[i], pos);
         if (pos2 == string::npos) continue;
         l.col += strlen(formats[i]);
         string esc("\\" ESCAPE_STRING_NUMBERFORMAT);
@@ -161,7 +161,7 @@ bool NumberingStyleFragment::FindReplaceNumberFormatToken(string &text, file_lin
     return false;
 }
 
-void Numbering::SetSize(int n)
+void Numbering::SetSize(unsigned n)
 {
     if (n==0) return;
     if (n > values.size()) {
@@ -173,10 +173,10 @@ void Numbering::SetSize(int n)
     decrementOnAddingLevels = false;
 }
 
-void NumberingStyle::CopyShifted(const NumberingStyle &ns, int start)
+void NumberingStyle::CopyShifted(const NumberingStyle &ns, unsigned start)
 {
     elements.clear();
-    for (int i = start; i<ns.elements.size(); i++)
+    for (unsigned i = start; i<ns.elements.size(); i++)
         elements.push_back(ns.elements[i]);
     if (elements.size() == 0) //too much shift
         elements.push_back(NumberingStyleFragment());
@@ -195,7 +195,7 @@ int NumberingStyle::Apply(const std::vector<NumberingStyleFragment> &nsfs)
 std::string NumberingStyle::Print(const Numbering &n) const
 {
     std::string ret;
-    for (int i = 0; i<elements.size(); i++) {
+    for (unsigned i = 0; i<elements.size(); i++) {
         int num=1;
         if (n.values.size() > startAt + i)
             num = n.values[startAt+i];

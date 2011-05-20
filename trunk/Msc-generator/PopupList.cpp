@@ -91,8 +91,7 @@ CSize CHintListBox::SetHintsToCurrent()
     ResetContent();
     int added = 0;
     for (auto i=m_current_hints.begin(); i!=m_current_hints.end(); i++) {
-        int index = AddString((LPCSTR)&*i);
-
+        AddString((LPCSTR)&*i);
         if (i->x_size > m_current_size.cx)
             m_current_size.cx = i->x_size;
         if (added<MAX_HINT_LISTBOX_LEN)
@@ -123,7 +122,6 @@ void CHintListBox::SetStringUnderCursor(const char *uc)
 {
     if (GetCount()==0) return;
     int i;
-    CshHintItemSelectionState sel_type;
     int smaller = -1;  //the last one that is still smaller and selectable
     if (uc && uc[0]) {
         for (i=0; i<GetCount(); i++) {
@@ -243,7 +241,7 @@ int CHintListBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
     CshHint *item2 = (CshHint*)lpCompareItemStruct->itemData2;
     //selectable items come first
     if (item1->selectable == item2->selectable) {
-        int j=0;
+        unsigned j=0;
         while (j<item1->plain.length() && j<item2->plain.length() && 
                toupper(item1->plain[j]) == toupper(item2->plain[j])) j++;
         if (j==item1->plain.length() && j==item2->plain.length()) 

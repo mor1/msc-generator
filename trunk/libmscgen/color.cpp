@@ -39,10 +39,10 @@ MscColorType::MscColorType(const string&text)
         fb *= 255;
         fa *= 255;
     }
-    r = fr;
-    g = fg;
-    b = fb;
-    if (db==4) a = fa;
+    r = (unsigned char)fr;
+    g = (unsigned char)fg;
+    b = (unsigned char)fb;
+    if (db==4) a = (unsigned char)fa;
     else a = 255;
     valid = true;
 }

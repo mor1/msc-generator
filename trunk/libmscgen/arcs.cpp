@@ -113,7 +113,7 @@ using namespace std;
 //template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
-    TrackableElement(msc), type(t), valid(true), compress(false), parallel(false)
+    TrackableElement(msc), valid(true), compress(false), parallel(false), type(t)
 {
     if (msc) compress = msc->Contexts.back().compress;
     had_add_attr_list = false;
@@ -199,7 +199,7 @@ ArcIndicator::ArcIndicator(Msc *chart, const MscStyle &st, const file_line_range
 }
 
 ArcIndicator::ArcIndicator(Msc *chart, EIterator s, const MscStyle &st, const file_line_range &l) : 
-    ArcBase(MSC_ARC_INDICATOR, chart), src(s), dst(s), style(st)
+    ArcBase(MSC_ARC_INDICATOR, chart), style(st), src(s), dst(s)
 {
     AddAttributeList(NULL);
     SetLineEnd(l);
@@ -221,7 +221,7 @@ bool ArcIndicator::Combine(const ArcIndicator *o)
     return false;
 }
 
-double ArcIndicator::GetXCoord() const 
+double ArcIndicator::GetXCoord() const
 {
     return (chart->XCoord((*src)->pos)+chart->XCoord((*dst)->pos))/2;
 }
@@ -235,7 +235,7 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-double ArcIndicator::Height(AreaList &cover) 
+double ArcIndicator::Height(AreaList &cover)
 {
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
@@ -243,7 +243,7 @@ double ArcIndicator::Height(AreaList &cover)
     cover = area.CreateExpand(chart->compressGap/2);
     cover.mainline += b.y;
     return b.y.till + chart->emphVGapOutside;
-} 
+}
 
 void ArcIndicator::Draw() 
 {
@@ -255,8 +255,8 @@ void ArcIndicator::Draw()
 
 //Take numbering style from the current context
 ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
-    ArcBase(t, msc), style(s), numberingStyle(msc->Contexts.back().numberingStyle),
-    parsed_label(msc->GetCanvas()), concrete_number(-1)
+    ArcBase(t, msc), concrete_number(-1), style(s),
+    numberingStyle(msc->Contexts.back().numberingStyle)
 {
     style.type = STYLE_ARC;
     //If style does not contain a numbering setting, apply the value of the
@@ -310,6 +310,8 @@ const MscStyle *ArcLabelled::GetRefinementStyle(MscArcType t) const
         return NULL; /*Do nothing */
     case MSC_ARC_BIG:
         return NULL; /*Do nothing */
+    case MSC_ARC_BIG_BIDIR:
+        return NULL; /*Do nothing */
     case MSC_EMPH_SOLID:
         return &chart->Contexts.back().styles["--"];
     case MSC_EMPH_DASHED:
@@ -324,8 +326,9 @@ const MscStyle *ArcLabelled::GetRefinementStyle(MscArcType t) const
         return &chart->Contexts.back().styles["---"];
     case MSC_ARC_DISCO:
         return &chart->Contexts.back().styles["..."];
+    default:
+        return NULL;
     };
-    return NULL;
 }
 
 ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
@@ -404,7 +407,7 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         }
         //We have a string as number - it may be a roman number or abc
         int num;
-        int off = chart->Contexts.back().numberingStyle.Last().Input(a.value, num);
+        unsigned off = chart->Contexts.back().numberingStyle.Last().Input(a.value, num);
         //off is how many characters we could not understand at the end of a.value
         if (off == a.value.length()) {
             //No characters understood
@@ -474,7 +477,7 @@ string ArcLabelled::Print(int ident) const
 //This assigns a running number to the label and 
 //fills the "compress" member from the style.
 //Strictly to be called by descendants
-ArcBase *ArcLabelled::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase *ArcLabelled::PostParseProcess(bool /*hide*/, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
@@ -525,10 +528,10 @@ ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
                            Msc *msc, const MscStyle &st, double ys) :
     ArcArrow(t, msc, st), YSize(ys)
 {
-    src = chart->FindAllocEntity(s, sl, &valid);
+    src = chart->FindAllocEntity(s, sl);
 }
 
-ArcArrow * ArcSelfArrow::AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l)
+ArcArrow * ArcSelfArrow::AddSegment(MscArcType, const char * /*m*/, file_line_range /*ml*/, file_line_range l)
 {
     if (!valid) return this; //display error only once
     chart->Error.Error(l.start, "Cannot add further segments to arrow pointing to the same entity. Ignoring arrow.");
@@ -656,8 +659,8 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc, bool fw, const MscStyle &st) :
     ArcArrow(t, msc, st), linenum_src(sl.start), linenum_dst(dl.start), specified_as_forward(fw)
 {
-    src = chart->FindAllocEntity(s, sl, &valid);
-    dst = chart->FindAllocEntity(d, dl, &valid);
+    src = chart->FindAllocEntity(s, sl);
+    dst = chart->FindAllocEntity(d, dl);
     modifyFirstLineSpacing = true;
     segment_types.push_back(t);
 };
@@ -676,7 +679,7 @@ ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabell
     }
 }
 
-ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l)
+ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range /*l*/)
 {
     if (!valid) return this;
     EIterator mid;
@@ -721,7 +724,7 @@ ArcBase *ArcDirArrow::AddAttributeList(AttributeList *l)
     style.Empty();
     ArcArrow::AddAttributeList(l);
     save += style;
-    for (int i=0; i<segment_types.size(); i++) {
+    for (unsigned i=0; i<segment_types.size(); i++) {
         const MscStyle *refinement = GetRefinementStyle(segment_types[i]);
         if (refinement) {
             segment_lines.push_back(chart->Contexts.back().styles["arrow"].line);
@@ -788,7 +791,7 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
         EntityList e(false);
         ss << "Multi-segment arrow specified as ";
         e.push_back(*src);
-        for (int f = 0; f<middle.size(); f++)
+        for (unsigned f = 0; f<middle.size(); f++)
              e.push_back(*(middle[f]));
         e.push_back(*dst);
         if (!dir) e.reverse();
@@ -847,7 +850,7 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
 
     //Find the visible parent of each middle point and remove it if equals to
     //an end or to any other middle visible parent
-    for (int ii = 0; ii<middle.size(); ii++) {
+    for (unsigned ii = 0; ii<middle.size(); ii++) {
         sub = chart->FindActiveParentEntity(middle[ii]);
         if (middle[ii] == sub) continue;
         //if the replacement parent equals to an end, delete it
@@ -858,12 +861,12 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
             ii++;
             continue;
         }
-        for (int jj=0; jj<ii; jj++) 
+        for (unsigned jj=0; jj<ii; jj++) 
             if (middle[jj] == sub) goto erase;
         middle[ii] = sub;
     }
     //Replace middle[] values to point to ActiveEntities
-    for (int iii = 0; iii<middle.size(); iii++) {
+    for (unsigned iii = 0; iii<middle.size(); iii++) {
         middle[iii] = chart->ActiveEntities.Find_by_Ptr(*middle[iii]);
         _ASSERT(middle[iii] != chart->ActiveEntities.end());
     }
@@ -872,7 +875,7 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
     act_size.clear();
     act_size.reserve(2+middle.size());
     act_size.push_back((*src)->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
-    for (int iiii = 0; iiii<middle.size(); iiii++) 
+    for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
         act_size.push_back((*middle[iiii])->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
     act_size.push_back((*dst)->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
     //Insert a small extra spacing for the arrow line
@@ -898,7 +901,7 @@ void ArcDirArrow::Width(EntityDistanceMap &distances)
 
     if (middle.size()==0) return;
     EntityDistanceMap d;
-    for (int i=0; i<middle.size(); i++) {
+    for (unsigned i=0; i<middle.size(); i++) {
         DoublePair mid = style.arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.line);
         distances.Insert((*middle[i])->index, DISTANCE_LEFT,  mid.first  + act_size[i+1]);
         distances.Insert((*middle[i])->index, DISTANCE_RIGHT, mid.second + act_size[i+1]);
@@ -907,13 +910,13 @@ void ArcDirArrow::Width(EntityDistanceMap &distances)
     distances += d;
 }
 
-MscArrowEnd ArcDirArrow::WhichArrow(int i)
+MscArrowEnd ArcDirArrow::WhichArrow(unsigned i)
 {
     //in xPos (may not be filled up yet, index 0 will be the src and indes xpos.size()-1 will be dest
     //in between there will be middle.size() number of middle arrows.
     //"i" here is an index that will be used for xPos.
     if (i>0 && i<middle.size()+1) return MSC_ARROW_MIDDLE;
-    if ((i==0) == (*src)->index  <  (*dst)->index) return MSC_ARROW_START;
+    if ((i==0) == ((*src)->index  <  (*dst)->index)) return MSC_ARROW_START;
     return MSC_ARROW_END;
 }
 
@@ -926,7 +929,7 @@ double ArcDirArrow::Height(AreaList &cover)
     dx = chart->XCoord(dst);
 
     double lw_max = style.line.LineWidth();
-    for (int i=0; i<segment_lines.size(); i++)
+    for (unsigned i=0; i<segment_lines.size(); i++)
         lw_max = std::max(lw_max, segment_lines[i].LineWidth());
     const XY xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
     const XY xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START);
@@ -941,7 +944,6 @@ double ArcDirArrow::Height(AreaList &cover)
     const XY text_wh = parsed_label.getTextWidthHeight();
     if (text_wh.y) {
         double firstLineHeight = parsed_label.getTextWidthHeight(0).y;
-        double furtherLinesHeight = parsed_label.getTextWidthHeight().y - firstLineHeight;
 
         //Determine coverage for the text (or draw it if we already draw)
         if (sx<dx) {
@@ -965,7 +967,7 @@ double ArcDirArrow::Height(AreaList &cover)
     margins.clear(); margins.reserve(2+middle.size());
     xPos.push_back(sx);
     margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_START, style.line));
-    for (int i=0; i<middle.size(); i++) {
+    for (unsigned i=0; i<middle.size(); i++) {
         xPos.push_back(chart->XCoord(middle[i]));
         margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_MIDDLE, style.line));
     }
@@ -991,9 +993,9 @@ double ArcDirArrow::Height(AreaList &cover)
                                              sx<dx, isBidir(), MSC_ARROW_MIDDLE, total, segment_lines[i], segment_lines[i+1]);
 
     //Add arrowheads and line segments to cover
-    for (int i=0; i<xPos.size(); i++)
+    for (unsigned i=0; i<xPos.size(); i++)
         area += style.arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i));
-    for (int i=0; i<xPos.size()-1; i++) {
+    for (unsigned i=0; i<xPos.size()-1; i++) {
         const double lw2 = ceil(segment_lines[i].LineWidth()/2);
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
         area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
@@ -1032,7 +1034,7 @@ void ArcDirArrow::CheckSegmentOrder(double y)
     }
     std::vector<string> ss;
     int earliest = -1;
-    for (int i = 0; i<temp.size(); i++)
+    for (unsigned i = 0; i<temp.size(); i++)
         if (!(*temp[i])->status.GetStatus(y).IsOn() &&
             (*temp[i])->name != LSIDE_ENT_STR &&
             (*temp[i])->name != RSIDE_ENT_STR) {
@@ -1045,7 +1047,7 @@ void ArcDirArrow::CheckSegmentOrder(double y)
             sss << "Entity" << ss[0] << " is";
         else {
             sss << "Entities ";
-            for(int i=0; i<ss.size()-2; i++)
+            for(unsigned i=0; i<ss.size()-2; i++)
                 sss << ss[i] << ", ";
             sss << ss[ss.size()-2] << " and " << ss[ss.size()-1] << " are";
         }
@@ -1135,8 +1137,9 @@ const MscStyle *ArcBigArrow::GetRefinementStyle(MscArcType t) const
     case MSC_ARC_DOUBLE:
     case MSC_ARC_DOUBLE_BIDIR:
         return &chart->Contexts.back().styles["block=>"];
+    default:
+        return NULL;
     }
-    return NULL;
 }
 
 
@@ -1175,7 +1178,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
     //sy and dy are at the midline of the line around the body.
     //We ensure that the outer edge of the body falls on an integer value
     double max_lw = style.line.LineWidth();
-    for (int i=0; i<segment_lines.size(); i++)
+    for (unsigned i=0; i<segment_lines.size(); i++)
         max_lw = std::max(max_lw, segment_lines[i].LineWidth());
     const double aH = ceil(style.arrow.bigYExtent(isBidir(), middle.size()>0));
     XY twh = parsed_label.getTextWidthHeight();
@@ -1194,7 +1197,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
     if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_START)) act_size[0] = 0;
     if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_END)) *act_size.rbegin() = 0;
     if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_MIDDLE)) 
-        for (int i=1; i<act_size.size()-1; i++)
+        for (unsigned i=1; i<act_size.size()-1; i++)
             act_size[i] = 0;
 
     const DoublePair start = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_START, dy-sy);
@@ -1212,7 +1215,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
     margins.reserve(2+middle.size()); margins.clear();
     iterators.push_back(src);
     margins.push_back(start);
-    for (int i=0; i<middle.size(); i++) {
+    for (unsigned i=0; i<middle.size(); i++) {
         iterators.push_back(middle[i]);
         margins.push_back(style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_MIDDLE, dy-sy));
     }
@@ -1224,7 +1227,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
         std::reverse(margins.begin(), margins.end());
         std::reverse(act_size.begin(), act_size.end());
     }
-    for (int i=0; i<iterators.size()-1; i++) {
+    for (unsigned i=0; i<iterators.size()-1; i++) {
         //if neighbours
         if ((*iterators[i])->index + 1 == (*iterators[i+1])->index) {
             distances.Insert((*iterators[i])->index, (*iterators[i+1])->index,
@@ -1278,7 +1281,7 @@ double ArcBigArrow::Height(AreaList &cover)
     //prepare xPos (margins were already done in Width)
     xPos.clear(); xPos.reserve(2+middle.size());
     xPos.push_back(sx);
-    for (int i=0; i<middle.size(); i++)
+    for (unsigned i=0; i<middle.size(); i++)
         xPos.push_back(chart->XCoord(middle[i]));
     xPos.push_back(dx);
     //calculate text margings
@@ -1342,8 +1345,8 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l,
 {
     valid = true;
     pos = p;
-    entity1 = m.FindAllocEntity(e1, e1l, &valid);
-    if (pos == POS_CENTER) entity2 = m.FindAllocEntity(e2, e2l, &valid);
+    entity1 = m.FindAllocEntity(e1, e1l);
+    if (pos == POS_CENTER) entity2 = m.FindAllocEntity(e2, e2l);
     else {
         entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
         _ASSERT(entity2 != m.AllEntities.end());
@@ -1354,12 +1357,12 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p)
 {
     valid = true;
     pos = p;
-    entity1 = m.FindAllocEntity(e1, e1l, &valid);
+    entity1 = m.FindAllocEntity(e1, e1l);
     entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
     _ASSERT(entity2 != m.AllEntities.end());
 }
 
-VertXPos::VertXPos(Msc&m, postype p)
+VertXPos::VertXPos(Msc&m)
 {
     valid = true;
     entity1 = m.AllEntities.Find_by_Ptr(m.NoEntity);
@@ -1369,7 +1372,7 @@ VertXPos::VertXPos(Msc&m, postype p)
 }
 
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc) :
-    ArcArrow(t, msc, msc->Contexts.back().styles["vertical"]), ypos(2), pos(*msc)
+    ArcArrow(t, msc, msc->Contexts.back().styles["vertical"]), pos(*msc), ypos(2)
 {
     if (s) src = s;
     if (d) dst = d;
@@ -1413,12 +1416,14 @@ ArcVerticalArrow* ArcVerticalArrow::AddXpos(VertXPos *p)
         style += chart->Contexts.back().styles["vertical.."]; break;
     case MSC_EMPH_DOUBLE:
         style += chart->Contexts.back().styles["vertical=="]; break;
+    default:
+        break;
     }
     return this;
 }
 
 
-ArcArrow *ArcVerticalArrow::AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l)
+ArcArrow *ArcVerticalArrow::AddSegment(MscArcType, const char * /*m*/, file_line_range /*ml*/, file_line_range l)
 {
     if (!valid) return this; //display error only once
     chart->Error.Error(l.start, "Cannot add further segments to vertical arrow. Ignoring it.");
@@ -1586,7 +1591,7 @@ void ArcVerticalArrow::Width(EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-double ArcVerticalArrow::Height(AreaList &cover)
+double ArcVerticalArrow::Height(AreaList &)
 {
     return 0;
 }
@@ -1748,10 +1753,10 @@ bool ArcSignature::operator == (const ArcSignature&o) const
 ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
-    content(NULL), drawEntityLines(true), collapsed(BOX_COLLAPSE_EXPAND)
+    collapsed(BOX_COLLAPSE_EXPAND), drawEntityLines(true), content(NULL)
 {
-    src = chart->FindAllocEntity(s, sl, &valid);
-    dst = chart->FindAllocEntity(d, dl, &valid);
+    src = chart->FindAllocEntity(s, sl);
+    dst = chart->FindAllocEntity(d, dl);
 
     //If both src and dst specified, order them
     if (*src!=chart->NoEntity && *dst!=chart->NoEntity)
@@ -1767,7 +1772,7 @@ const ArcSignature* ArcBox::GetSignature() const
 }
 
 ArcBoxSeries::ArcBoxSeries(ArcBox *first) : 
-    ArcBase(MSC_EMPH_SOLID, first->chart), drawing_variant(1), series(true)
+    ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
 {
     series.Append(first);
 }
@@ -1867,6 +1872,8 @@ bool CshHintGraphicCallbackForBoxCollapsed(MscCanvas *canvas, CshHintGraphicPara
         return CshHintGraphicCallbackForYesNo(canvas, CshHintGraphicParam(0));
     case BOX_COLLAPSE_BLOCKARROW:
         return CshHintGraphicCallbackForSide(canvas, CshHintGraphicParam(int(SIDE_LEFT)));
+    default:
+        _ASSERT(0);
     } 
     return true;
 }
@@ -1993,7 +2000,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
     compress = (*series.begin())->compress;
 //    parallel = (*series.begin())->parallel;
 
-    ArcBase *ret;
+    ArcBase *ret = this;
     EIterator src, dst;
     dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -2430,6 +2437,7 @@ ArcPipe::ArcPipe(ArcBox *box) :
     ArcLabelled(box->type, box->chart, box->chart->Contexts.back().styles["pipe"]),
     src(box->src), dst(box->dst), drawEntityLines(false)
 {
+    delete box;
     switch (type) {
     case MSC_EMPH_SOLID:
         style += chart->Contexts.back().styles["pipe--"]; break;
@@ -2439,11 +2447,13 @@ ArcPipe::ArcPipe(ArcBox *box) :
         style += chart->Contexts.back().styles["pipe.."]; break;
     case MSC_EMPH_DOUBLE:
         style += chart->Contexts.back().styles["pipe=="]; break;
+    default:
+        _ASSERT(0);
     }
 }
 
 ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
-    ArcBase(MSC_EMPH_SOLID, first->chart), drawing_variant(1), series(true)
+    ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
 {
     series.Append(first);
 }
@@ -2878,6 +2888,7 @@ double ArcPipeSeries::Height(AreaList &cover)
         switch (side) {
         case SIDE_RIGHT: (*i)->dx_text -= radius; break;
         case SIDE_LEFT:  (*i)->sx_text += radius; break;
+        default: _ASSERT(0);
         }
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
         // omit text cover for pipes if the pipe is fully opaque,
@@ -3191,8 +3202,8 @@ void ArcPipeSeries::Draw()
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
-    nudge(t==MSC_COMMAND_NUDGE), extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0),
-    wide(false)
+    nudge(t==MSC_COMMAND_NUDGE), wide(false),
+    extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0)
 {
 }
 
@@ -3455,12 +3466,12 @@ bool CommandEntity::AddAttribute(const Attribute &)
     return false;
 }
 
-void CommandEntity::AttributeNames(Csh &csh)
+void CommandEntity::AttributeNames(Csh &)
 {
     return;
 }
 
-bool CommandEntity::AttributeValues(const std::string attr, Csh &csh)
+bool CommandEntity::AttributeValues(const std::string, Csh &)
 {
     return false;
 }
@@ -3503,9 +3514,9 @@ void CommandEntity::AppendToEntities(const EntityDefList &e)
             entities.Append(*i);
         } else {
             (*i2)->style += (*i)->style;
-            if ((*i)->show.first) 
+            if ((*i)->show.first)
                 (*i2)->show = (*i)->show;
-            if ((*i)->active.first) 
+            if ((*i)->active.first)
                 (*i2)->active = (*i)->active;
         }
     }
@@ -3561,7 +3572,7 @@ void CommandEntity::ApplyShowToChildren(const string &name, bool show)
     }
 }
 
-ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number,
+ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &,
                                      bool top_level)
 {
     if (!valid) return NULL;
@@ -3849,17 +3860,17 @@ bool CommandNewpage::AddAttribute(const Attribute &)
     return false;
 }
 
-void CommandNewpage::AttributeNames(Csh &csh)
+void CommandNewpage::AttributeNames(Csh &)
 {
 
 }
 
-bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
+bool CommandNewpage::AttributeValues(const std::string, Csh &)
 {
     return false;
 }
 
-double CommandNewpage::Height(AreaList &cover)
+double CommandNewpage::Height(AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
@@ -3869,7 +3880,7 @@ double CommandNewpage::Height(AreaList &cover)
     return 0;
 }
 
-void CommandNewpage::PostPosProcess(double autoMarker)
+void CommandNewpage::PostPosProcess(double)
 {
     if (!valid) return;
     chart->yPageStart.push_back(yPos);
@@ -3877,7 +3888,7 @@ void CommandNewpage::PostPosProcess(double autoMarker)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-double CommandNewBackground::Height(AreaList &cover)
+double CommandNewBackground::Height(AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
@@ -3887,14 +3898,14 @@ double CommandNewBackground::Height(AreaList &cover)
     return 0;
 }
 
-void CommandNewBackground::PostPosProcess(double autoMarker)
+void CommandNewBackground::PostPosProcess(double)
 {
     if (!valid) return;
     chart->Background[yPos] = fill;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-ArcBase* CommandNumbering::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* CommandNumbering::PostParseProcess(bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool /*top_level*/)
 {
     if (!valid) return NULL;
     if (hide) hidden = true;
@@ -3916,7 +3927,7 @@ CommandMark::CommandMark(const char *m, file_line_range ml, Msc *msc) :
     if (i != chart->Markers.end()) {
         string msg = "Marker '"+name+"' has already been defined at line ";
         msg << i->second.first.line;
-        if (i->second.first.file != chart->current_file)
+        if (i->second.first.file != int(chart->current_file))
             msg << " (in input '" + chart->Error.Files[i->second.first.file] + "')";
         msg.append(". Keeping old definition.");
 		chart->Error.Error(file_pos.start, msg);
@@ -3955,7 +3966,7 @@ bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-double CommandMark::Height(AreaList &cover)
+double CommandMark::Height(AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
@@ -3977,8 +3988,7 @@ void CommandMark::ShiftBy(double y)
 #define EMPTY_MARGIN_X 50
 #define EMPTY_MARGIN_Y 5
 
-CommandEmpty::CommandEmpty(Msc *msc) :
-    ArcCommand(MSC_COMMAND_EMPTY, msc), parsed_label(msc->GetCanvas())
+CommandEmpty::CommandEmpty(Msc *msc) : ArcCommand(MSC_COMMAND_EMPTY, msc)
 {
     StringFormat format;
     format.Default();

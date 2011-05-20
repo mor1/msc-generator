@@ -35,7 +35,7 @@ class CExternalEditor : CWnd {
 public:
 	CExternalEditor(CMscGenDoc *pDoc);
 	bool CanStart() const {return ::IsWindow(m_hWnd);}
-	BOOL Init() {return Create(NULL, "hidden window for external editor", 0, CRect(), AfxGetMainWnd(), 0);}
+	bool Init() {return Create(NULL, "hidden window for external editor", 0, CRect(), AfxGetMainWnd(), 0);}
 	void Start(CString filename = "");
 	void Restart(EStopEditor force);
 	bool IsRunning() const {return m_ProcessId!=0;}

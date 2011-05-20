@@ -138,7 +138,7 @@ void COutputViewBar::ShowCompilationErrors(const CDrawingChartData &chart)
     compilation_errors.clear();
 	unsigned num = chart.GetErrorNum(pApp->m_Warnings);
     error_pos.resize(num);
-	for (int i=0; i<num; i++) {
+	for (unsigned i=0; i<num; i++) {
         compilation_errors.push_back(chart.GetErrorText(i, pApp->m_Warnings));
         m_wndOutput.AddString(*compilation_errors.rbegin());
         if (chart.IsErrorInFile(i, pApp->m_Warnings)) {

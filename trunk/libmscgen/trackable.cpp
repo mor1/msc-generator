@@ -30,9 +30,9 @@ TrackableElement::TrackableElement(Msc *m) : chart(m),
 
 
 TrackableElement::TrackableElement(const TrackableElement&o) :
-    hidden(o.hidden), linenum_final(o.linenum_final), area(o.area), yPos(o.yPos),
-    area_draw(o.area_draw), draw_is_different(o.draw_is_different),
-    area_draw_is_frame(o.area_draw_is_frame), chart(o.chart),
+    chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
+    area(o.area), yPos(o.yPos), area_draw(o.area_draw),
+    draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
     controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
@@ -106,6 +106,9 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
         cairo_set_line_width(cr, 2);
         rect.Line(cr);
         switch (*j) {
+        default:
+            _ASSERT(0);
+            break;
         case MSC_CONTROL_EXPAND:
         case MSC_CONTROL_COLLAPSE:
             cairo_set_line_width(cr, (control_size.x+control_size.y)/10);
@@ -141,7 +144,7 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
 MscControlType TrackableElement::WhichControl(const XY &xy)
 {
     if (control_location.IsWithin(xy)!=WI_INSIDE) return MSC_CONTROL_INVALID;
-    return controls[(xy.y - control_location.y.from)/control_size.y];
+    return controls[unsigned((xy.y - control_location.y.from)/control_size.y)];
 }
 
 

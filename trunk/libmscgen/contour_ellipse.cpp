@@ -196,7 +196,7 @@ unsigned solve_degree4(const double m_afCoeff[5], double afRoot[4])
     kResolve[0] = -afCoeff[3]*afCoeff[3]*afCoeff[0] +
         4.0f*afCoeff[2]*afCoeff[0]-afCoeff[1]*afCoeff[1];
     double afResolveRoot[3];
-    int iResolveCount = solve_degree3(kResolve, afResolveRoot);
+    /*int iResolveCount = */ solve_degree3(kResolve, afResolveRoot);
     double fY = afResolveRoot[0];
 
     unsigned num = 0;
@@ -374,11 +374,11 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
 
 //take the (at most)
 int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
-                                const quadratic_xy_t &one, const quadratic_xy_t &two, XY p[]) const
+                                const quadratic_xy_t &one, const quadratic_xy_t &/*two*/, XY p[]) const
 {
     // Adjustment for quadratics to allow for relative error testing.
     //const double fNorm_one = one.A*one.A + 2.0f*one.B*one.B + one.C*one.C;
-    const double fNorm_two = two.A*two.A + 2.0f*two.B*two.B + two.C*two.C;
+    //const double fNorm_two = two.A*two.A + 2.0f*two.B*two.B + two.C*two.C;
 
     //go through all solutions of y, find corresponding x
     XY points[8];
@@ -456,7 +456,7 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
 	if (tilt>=2*M_PI) tilt-=2*M_PI;
     if (test_equal(fmod(tilt, M_PI) ,0)) {
 		tilted = false;
-	} else 
+	} else
         if (test_equal(fmod(tilt, M_PI), M_PI/2)) {
         tilted = false;
         std::swap(radius1, radius2);
@@ -695,25 +695,26 @@ XY EllipseData::Tangent(double radian, bool next) const
 
 bool EllipseData::Expand(double gap)
 {
-	radius1+=gap;
-	if (!test_smaller(0,radius1)) return false;
-	radius2+=gap;
-	if (!test_smaller(0,radius2)) return false;
-	return true;
+    radius1+=gap;
+    if (!test_smaller(0,radius1)) return false;
+    radius2+=gap;
+    if (!test_smaller(0,radius2)) return false;
+    return true;
 }
 
 double EllipseData::OffsetBelow(const EllipseData&) const
 {
-	return 0;
+    return 0;
 }
 
-double EllipseData::OffsetBelow(const XY&A, const XY&B) const
+double EllipseData::OffsetBelow(const XY&, const XY&) const
 {
-	return 0;
+
+    return 0;
 }
 
-double EllipseData::OffsetAbove(const XY&A, const XY&B) const
+double EllipseData::OffsetAbove(const XY&, const XY&) const
 {
-	return 0;
+    return 0;
 }
 

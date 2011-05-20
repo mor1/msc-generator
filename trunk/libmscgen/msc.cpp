@@ -39,7 +39,7 @@ using namespace std;
 //we only increase if xdist is bigger.
 void EntityDistanceMap::Insert(unsigned e1, int e2, double xdist)
 {
-    if (e1==e2) return;
+    if (int(e1)==e2) return;
     if (e2==DISTANCE_LEFT) {
         std::map<unsigned, double>::iterator i = left.find(e1);
         if (i!=left.end() && i->second >= xdist) return;
@@ -61,7 +61,7 @@ void EntityDistanceMap::Insert(unsigned e1, int e2, double xdist)
 //requirements for these entities.
 double EntityDistanceMap::Query(unsigned e1, int e2) const
 {
-    if (e1==e2) return 0;
+    if (int(e1)==e2) return 0;
     if (e2==DISTANCE_LEFT) {
         auto i = left.find(e1);
         if (i==left.end()) return 0;
@@ -325,7 +325,7 @@ EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const
 };
 
 /* Finds an entity in AllEntities. If not found, it creates one */
-EIterator Msc::FindAllocEntity(const char *e, file_line_range l, bool*validptr)
+EIterator Msc::FindAllocEntity(const char *e, file_line_range l)
 {
     if (e==NULL) {
         _ASSERT (AllEntities.Find_by_Ptr(NoEntity) != AllEntities.end());
@@ -674,7 +674,8 @@ MscDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, Msc
             if (dir == MSC_DIR_INDETERMINATE) dir = dir2;
             else if (dir != dir2) dir = MSC_DIR_BIDIR;
             break;
-        /*Nothing for MSC_DIR_INDETERMIATE*/
+        case MSC_DIR_INDETERMINATE:
+            break;
         }
         //merge the two lists
         for (auto ei2 = el2.begin(); ei2!=el2.end(); ei2++) 
@@ -837,7 +838,6 @@ void Msc::DrawEntityLines(double y, double height,
                 continue;
             if (status.GetStatus(up.y).IsActive()) {
                 const double show_from = status.ShowFrom(up.y);
-                const double style_from = status.StyleFrom(up.y);
                 Block outer_edge;
                 //if we may start an active rectangle here...
                 if (!status.GetStatus(show_from).IsActive() || !status.GetStatus(show_from).IsOn()) 
@@ -1184,7 +1184,7 @@ void Msc::DrawPageBreaks()
     StringFormat format;
     format.Default();
     format.Apply("\\pr\\-");
-    Label label(canvas);
+    Label label;
     for (unsigned page=1; page<yPageStart.size(); page++) {
         char text[20];
         const double y = yPageStart[page];

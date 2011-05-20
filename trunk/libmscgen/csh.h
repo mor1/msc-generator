@@ -10,7 +10,7 @@
 #include<stack>
 
 #ifndef _ASSERT
-#define  _ASSERT(A) 
+#define  _ASSERT(A)
 #endif
 
 
@@ -170,7 +170,7 @@ struct CshHint {
     mutable int ul_x, ul_y, br_x, br_y;     //Size of the rectange shown in list box
     mutable CshHintItemSelectionState state; //will show if this hint is selected or not
     CshHint(const std::string &d, CshHintType t, bool s = true, CshHintGraphicCallback c=NULL, CshHintGraphicParam p=NULL)  : 
-        decorated(d), type(t), selectable(s), keep(false), callback(c), param(p) {}
+        decorated(d), type(t), selectable(s), callback(c), param(p), keep(false) {}
     void swap(CshHint &o);
     bool operator < (const CshHint &o) const {if (type==o.type) return decorated<o.decorated; return type<o.type;}
     bool operator ==(const CshHint &o) const {return type == o.type && decorated == o.decorated;}
@@ -217,7 +217,7 @@ public:
     void AddCSH_StyleOrAttrName(CshPos&pos, const char *name);
     void AddCSH_EntityName(CshPos&pos, const char *name);
     void ParseText(const char *input, unsigned len, int cursor_p, int scheme);
-    void AddErrorsToCsh() {for (int i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);}
+    void AddErrorsToCsh() {for (unsigned i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);}
     MscColorSyntaxType GetCshAt(int pos);
 
     void PushContext(bool empty=false);

@@ -240,24 +240,24 @@ string Cshize(const char *input, unsigned len, const CshListType &cshList, int c
         lastState = i->second;
     }
     //replace "\n" to "\\n"
-    int pos = ret.find("\n");
+    unsigned pos = ret.find("\n");
     while (pos != string::npos) {
         ret.replace(pos, 1, "\377n");
         pos = ret.find("\n", pos+2);
     }
-    //add escape for {[;#" if they are not yet escaped
-    pos = ret.find_first_of("{[;#\\\"");
+    //add escape for {}[];#" if they are not yet escaped
+    pos = ret.find_first_of("{}[];#\\\"");
     while (pos != string::npos) {
         int pos2 = pos-1;
         while (pos2>=0 && ret[pos2]=='\\') pos2--;
         //if odd number of \s
         if ((pos-pos2)%2)
             ret.insert(pos, "\\");
-        pos = ret.find_first_of("{[;#\\\"", pos+2);
+        pos = ret.find_first_of("{}[];#\\\"", pos+2);
     }
     //replace octal 277 back to '\'
-    for (pos = ret.length()-1; pos>=0; pos--)
-        if (ret[pos]=='\377') ret[pos] = '\\';
+    for (int ipos = int(ret.length())-1; ipos>=0; ipos--)
+        if (ret[ipos]=='\377') ret[ipos] = '\\';
 
     //make it a label msc-generator can draw
     string preamble = "hscale=auto;[_wide=yes]:\\pl";
@@ -563,7 +563,7 @@ void CshContext::SetPlain()
     StyleNames.insert("strong");
 }
 
-Csh::Csh() : hintStatus(HINT_NONE), cursor_pos(-1), was_partial(false)
+Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), cursor_pos(-1)
 {
     Design plain;
     plain.Reset();
@@ -617,8 +617,9 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht,
         hintType = ht;
         hintAttrName = a_name?a_name:"";
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
 //Checks if the cursor is between the two ranges (but one char after the firts) and if so, it applies
@@ -646,12 +647,16 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
         case CURSOR_AT_BEGINNING:
         case CURSOR_IN:
             return false;
+        default:
+            break;
         }
     } else switch (CursorIn(one.last_pos+1, lookahead.first_pos-1)) {
         case CURSOR_AFTER:
         case CURSOR_BEFORE:
         case CURSOR_AT_END:
             return false;
+        default:
+            break;
         }
     hintStatus = HINT_LOCATED;
     hintsForcedOnly = false;
@@ -892,7 +897,7 @@ void Csh::AddDesignsToHints()
         Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
 }
 
-bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
     MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_ROUND, 1);
@@ -920,10 +925,9 @@ bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam p)
     return true;
 }
 
-bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
-    const double xx = 0.7;
     std::vector<double> xPos(2); 
     xPos[0] = HINT_GRAPHIC_SIZE_X*0.2;
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.8;
@@ -957,12 +961,9 @@ void Csh::AddDesignOptionsToHints()
     Msc::AttributeNames(*this, true);
 }
 
-bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
-    const int size = HINT_GRAPHIC_SIZE_Y-2;
-    const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
-    const int off_y = 1;
     MscColorType color(128, 64, 64);
     canvas->Clip(EllipseData(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.6));
     canvas->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
@@ -1008,10 +1009,10 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
     StringFormat f;
     f.Default();
     if (format==NULL) format = &f;
-    Label label(canvas);
+    Label label;
     CshHint start("", HINT_ENTITY); //empty start
-    int start_len=0;
-    int start_counter;
+    unsigned start_len=0;
+    unsigned start_counter=0;
     for (auto i=Hints.begin(); i!=Hints.end(); /*none*/) {
         label.Set(i->decorated, canvas, *format);
         i->plain = label;
@@ -1020,9 +1021,9 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
             Hints.erase(i++);
             continue;
         }
-        int dot_pos;
+        unsigned dot_pos;
         if (compact_same) {
-            int len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), uc.c_str());
+            unsigned len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), uc.c_str());
             dot_pos = i->plain.find('.', len);
             if (start_len) {
                 if (dot_pos != string::npos) {
@@ -1045,8 +1046,8 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
                 }
                 Label label2(start.decorated, canvas, *format);
                 XY xy = label2.getTextWidthHeight();
-                start.x_size = xy.x;
-                start.y_size = xy.y;
+                start.x_size = int(xy.x);
+                start.y_size = int(xy.y);
                 start.state = HINT_ITEM_NOT_SELECTED;
                 Hints.insert(start);
                 start_len = 0;
@@ -1063,8 +1064,8 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
         }
         //OK, either we do no compacting or this one is not even a candidate for compacting
         XY xy = label.getTextWidthHeight();
-        i->x_size = xy.x;
-        i->y_size = xy.y;
+        i->x_size = int(xy.x);
+        i->y_size = int(xy.y);
         i->state = HINT_ITEM_NOT_SELECTED;
         i++;
     }
@@ -1078,8 +1079,8 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
         }
         Label label2(start.decorated, canvas, *format);
         XY xy = label2.getTextWidthHeight();
-        start.x_size = xy.x;
-        start.y_size = xy.y;
+        start.x_size = int(xy.x);
+        start.y_size = int(xy.y);
         start.state = HINT_ITEM_NOT_SELECTED;
         Hints.insert(start);
     }

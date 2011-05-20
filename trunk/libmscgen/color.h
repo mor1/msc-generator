@@ -26,13 +26,13 @@ public:
 //    MscColorType &operator +=(const MscColorType &c);
     MscColorType operator +(const MscColorType &c) const;
     MscColorType Lighter(double p) const
-        {return MscColorType(r+p*(255-r), g+p*(255-g), b+p*(255-b), a);}
+        {return MscColorType((unsigned char)(r+p*(255-r)), (unsigned char)(g+p*(255-g)), (unsigned char)(b+p*(255-b)), (unsigned char)a);}
     MscColorType Darker(double p) const
-        {return MscColorType(r*(1-p), g*(1-p), b*(1-p), a);}
+        {return MscColorType((unsigned char)(r*(1-p)), (unsigned char)(g*(1-p)), (unsigned char)(b*(1-p)), (unsigned char)a);}
     MscColorType MoreTransparent(double p) const
-        {return MscColorType(r, g, b, a*(1-p));}
+        {return MscColorType(r, g, b, (unsigned char)(a*(1-p)));}
     MscColorType MoreOpaque(double p) const
-        {return MscColorType(r, g, b, a+p*(255-a));}
+        {return MscColorType(r, g, b, (unsigned char)(a+p*(255-a)));}
 	MscColorType FlattenAlpha(void) const
 	    {return MscColorType(int(255-r)*(255-a)/255+r, int(255-g)*(255-a)/255+g, int(255-b)*(255-a)/255+b);}
 };
