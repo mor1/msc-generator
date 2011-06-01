@@ -950,7 +950,9 @@ BOOL CEditorBar::OnCommand(WPARAM wParam, LPARAM lParam)
             else {
                 CString str;
                 m_ctrlEditor.GetTextRange(s-2,s-1, str);
-                if (str[0]!='_' && !isalnum(str[0])) till_cursor_only = true;
+                //Non-ANSI characters make isalnum to throw an assert
+                if (str[0]<0 || (str[0]!='_' && !isalnum(str[0]))) 
+                    till_cursor_only = true;
             }
             m_ctrlEditor.StartHintMode(till_cursor_only);
         }
