@@ -589,7 +589,7 @@ void MscCanvas::singleLine(const Contour &c, const MscLineAttr &line, bool open)
         cairo_stroke(cr);
     } else {
         for (unsigned i=0; i<c.size()-(open?1:0); i++) 
-            if (c.GetEdge(i).IsStraight())
+            if (c.GetEdge(i).GetType() == EDGE_STRAIGHT)
                 singleLine(c.GetEdge(i).GetStart(), c.GetEdge((i+1)%c.size()).GetStart(), line);
             else {
                 const Edge &edge = c.GetEdge(i);
@@ -618,7 +618,7 @@ void MscCanvas::singleLine(const Area&cl, const MscLineAttr &line)
 void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
 {
     _ASSERT(line.IsComplete());
-    if (edge.IsStraight()) return;
+    if (edge.GetType() == EDGE_STRAIGHT) return;
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     SetLineAttr(line);
     const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
@@ -749,12 +749,10 @@ void MscCanvas::LineOpen(const Contour &c, const MscLineAttr &line)
     SetLineAttr(line);
     const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
     if (line.IsDoubleOrTriple()) {
-        ContourList cl;
-        c.Expand(spacing, cl);
+        ContourList cl = c.CreateExpand(spacing);
         if (!cl.IsEmpty())
             singleLine(*const_cast<const ContourList*>(&cl)->begin(), line, true);
-        cl.clear();
-        c.Expand(-spacing, cl);
+        cl = c.CreateExpand(-spacing);
         if (!cl.IsEmpty())
             singleLine(*const_cast<const ContourList*>(&cl)->begin(), line, true);
     } 

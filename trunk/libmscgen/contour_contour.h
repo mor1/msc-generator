@@ -6,7 +6,7 @@
 #include "contour_edge.h"
 
 class ContourList;
-struct CPOnEdge;
+class ContourHelper;
 
 //inside of contour is to the right as we go through: counterclockwise pointlists contain the "outside"
 //never degenerate - always has actual area
@@ -15,9 +15,8 @@ struct CPOnEdge;
 //always goes in clockwise direction - except internally
 class Contour : protected std::vector<Edge>
 {
-    friend struct Ray;
-    friend class CPsByContour;
-	friend class CPSet;
+    friend class ContourHelper;
+
     friend class ContourList; //to access the (std::vector<Edge> &&) constructor & GetInverse
 	friend class node_list;   //to access CheckContainment
     explicit Contour(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
@@ -37,8 +36,6 @@ protected:
     result_t CheckContainment(const Contour &b) const;
     bool CalculateClockwise() const;
     void AppendDuringWalk(const Edge &);
-	void Walk4Combine(const CPOnEdge &startpoint);
-	static void Walk4Untangle(const CPOnEdge &startpoint, ContourList &surfaces, ContourList &holes);
     bool PostWalk();
     result_t UnionIntersect(const Contour &b, ContourList &result, bool doUnion) const;
     result_t Union(const Contour &b, ContourList &result) const {return UnionIntersect(b, result, true);}
@@ -54,10 +51,13 @@ protected:
     Edge       &at_prev(int i)       {return at(prev(i));}
     const Edge &at_prev(int i) const {return at(prev(i));}
 
-    void RotateAround(const XY&c, double cos, double sin, double radian);
+    void Rotate(double cos, double sin, double radian) {for (int i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
+    void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
+    void RotateAround(const XY&c, double cos, double sin, double radian) {for (int i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
 
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
+    void Expand(EExpandType type, double gap, ContourList &res) const;
 public:
     Contour() {boundingBox.MakeInvalid();}
     Contour(Contour &&p) {swap(p);}
@@ -86,18 +86,16 @@ public:
     unsigned  size() const {return std::vector<Edge>::size();}
     bool IsEmpty() const {return std::vector<Edge>::size()==0;}
     const Edge &GetEdge(int edge) const {return at(edge);}
+    bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).start));}
     bool AddAnEdge(const Edge &edge);
     bool OpenHere(const XY &xy);
 
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (unsigned i=0; i<size(); i++) at(i).Shift(xy);}
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return std::move(a);}
-    void Rotate(double cos, double sin, double radian);
-    void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
     Contour& SwapXY() {boundingBox.SwapXY(); for (unsigned i=0; i<size(); i++) at(i).SwapXY(); *this = CreateInverse(); return *this;}
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
 
-    void Expand(double gap, ContourList &res) const;
-    ContourList CreateExpand(double gap) const;
+    ContourList CreateExpand(double gap, EExpandType type=EXPAND_MITER) const;
     Contour CreateWithLastEdge(unsigned i) const;
     void Path(cairo_t *cr, bool inverse=false) const;
     void PathOpen(cairo_t *cr) const;

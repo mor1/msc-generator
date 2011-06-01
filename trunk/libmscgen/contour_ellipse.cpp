@@ -397,6 +397,7 @@ int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
                 num_tmp++;
         }
     }
+    if (num_tmp==0) return 0;
     // now we have max 8 points, where at most 4 are distinct
     int num = 1;
     p[0] = points[0];
@@ -693,13 +694,14 @@ XY EllipseData::Tangent(double radian, bool next) const
         return conv_to_real_space(XY(x+y, y-x));
 }
 
-bool EllipseData::Expand(double gap)
+int EllipseData::Expand(double gap)
 {
+    int ret = 1;
     radius1+=gap;
-    if (!test_smaller(0,radius1)) return false;
+    if (!test_smaller(0,radius1)) ret--;
     radius2+=gap;
-    if (!test_smaller(0,radius2)) return false;
-    return true;
+    if (!test_smaller(0,radius2)) ret--;
+    return ret;
 }
 
 double EllipseData::OffsetBelow(const EllipseData&) const

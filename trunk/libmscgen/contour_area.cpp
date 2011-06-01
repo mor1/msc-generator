@@ -70,7 +70,7 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
     for (auto i=begin(); i!=end(); /*none*/) {
         ContourList res;
         int a=0, b=3;
-        if (current_blob.size()==1 && current_blob[0].IsFullCircle()) {
+        if (current_blob.size()==1 && current_blob[0].GetType()==EDGE_FULL_CIRCLE) {
             std::swap(a,b);
         }
         const Contour::result_t ret = i->Add(current_blob, res);
@@ -149,11 +149,11 @@ ContourList &ContourList::operator ^= (const ContourWithHoles &p)
 }
 
 
-void ContourList::Expand(double gap, ContourList &result) const
+void ContourList::Expand(EExpandType et, double gap, ContourList &result) const
 {
     for (auto i=begin(); i!=end(); i++) {
         ContourList res;
-        i->Expand(gap, res);
+        i->Expand(et, gap, res);
         result += res;
     }
 }
@@ -289,11 +289,11 @@ Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, ContourList &
     return ret;
 }
 
-void ContourWithHoles::Expand(double gap, ContourList &res) const
+void ContourWithHoles::Expand(EExpandType et, double gap, ContourList &res) const
 {
-    Contour::Expand(gap, res);
+    Contour::Expand(et, gap, res);
     ContourList tmp;
-    holes.Expand(-gap, tmp);
+    holes.Expand(et, -gap, tmp);
     res -= tmp;
 }
 
@@ -306,7 +306,7 @@ is_within_t Area::IsWithin(const XY & p) const
     return WI_OUTSIDE;
 }
 
-Area Area::CreateExpand(double gap) const
+Area Area::CreateExpand(double gap, EExpandType et) const
 {
     Area result;
     if (gap == 0) return (result = *this);  //always return result->compiler optimizes
@@ -314,7 +314,7 @@ Area Area::CreateExpand(double gap) const
     result.mainline = mainline;
     result.mainline.from -= gap;
     result.mainline.from += gap;
-    ContourList::Expand(gap, result);
+    ContourList::Expand(et, gap, result);
     return result;
 }
 
@@ -383,12 +383,12 @@ void Area::Fill2(cairo_t *cr, int r, int g, int b) const
 }
 
 
-AreaList AreaList::CreateExpand(double gap) const
+AreaList AreaList::CreateExpand(double gap, EExpandType et) const
 {
     if (!gap) return *this;
     AreaList al;
     for (auto i=cover.begin(); i!=cover.end(); i++)
-        al += i->CreateExpand(gap);
+        al += i->CreateExpand(gap, et);
     return al;
 }
 

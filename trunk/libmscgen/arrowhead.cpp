@@ -366,8 +366,6 @@ double ArrowHead::getTriWidth(bool bidir, MscArrowEnd which) const
     case MSC_ARROW_TRIPLE:
     case MSC_ARROW_TRIPLE_EMPTY:
         return w/3;
-    default:
-        _ASSERT(0);
     }
     return w;
 }
@@ -425,7 +423,7 @@ Contour diamond(XY xy, XY wh)
     wh.x = fabs(wh.x);
     wh.y = fabs(wh.y);
     Contour poly(xy.x, xy.y-wh.y, xy.x, xy.y+wh.y, xy.x+wh.x, xy.y);
-    if (!poly.AddAnEdge(Edge(XY(xy.x-wh.x, xy.y)))) {
+    if (!poly.AddPoint(XY(xy.x-wh.x, xy.y))) {
         _ASSERT(0);
     }
     return poly;
