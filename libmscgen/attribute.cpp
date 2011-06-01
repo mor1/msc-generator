@@ -429,31 +429,30 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
     default: 
         return Contour(x1, x2, y1, y2);
     case CORNER_ROUND:
-        ret.AddAnEdge(Edge(XY(x1+r, y1)));
+        ret.AddAnEdge(Edge(XY(x1+r, y1), XY(x2-r, y1)));
         ret.AddAnEdge(Edge(XY(x2-r, y1+r), r, r, 0, 270, 360));
-        ret.AddAnEdge(Edge(XY(x2, y2-r)));
+        ret.AddAnEdge(Edge(XY(x2, y1+r), XY(x2, y2-r)));
         ret.AddAnEdge(Edge(XY(x2-r, y2-r), r, r, 0,   0,  90));
-        ret.AddAnEdge(Edge(XY(x1+r, y2)));
+        ret.AddAnEdge(Edge(XY(x2-r, y2), XY(x1+r, y2)));
         ret.AddAnEdge(Edge(XY(x1+r, y2-r), r, r, 0,  90, 180));
-        ret.AddAnEdge(Edge(XY(x1, y1+r)));
+        ret.AddAnEdge(Edge(XY(x1, y2-r), XY(x1, y1+r)));
         ret.AddAnEdge(Edge(XY(x1+r, y1+r), r, r, 0, 180, 270));
         break;
     case CORNER_BEVEL:
-        ret.AddAnEdge(Edge(XY(x1+r, y1)));
-        ret.AddAnEdge(Edge(XY(x2-r, y1)));
-        ret.AddAnEdge(Edge(XY(x2, y1+r)));
-        ret.AddAnEdge(Edge(XY(x2, y2-r)));
-        ret.AddAnEdge(Edge(XY(x2-r, y2)));
-        ret.AddAnEdge(Edge(XY(x1+r, y2)));
-        ret.AddAnEdge(Edge(XY(x1, y2-r)));
-        ret.AddAnEdge(Edge(XY(x1, y1+r)));
+        ret.AddAnEdge(Edge(XY(x1+r, y1), XY(x2-r, y1)));
+        ret.AddPoint(XY(x2, y1+r));
+        ret.AddPoint(XY(x2, y2-r));
+        ret.AddPoint(XY(x2-r, y2));
+        ret.AddPoint(XY(x1+r, y2));
+        ret.AddPoint(XY(x1, y2-r));
+        ret.AddPoint(XY(x1, y1+r));
         break;
     case CORNER_NOTE:
-        ret.AddAnEdge(Edge(XY(x1, y1)));
-        ret.AddAnEdge(Edge(XY(x2-r, y1)));
-        ret.AddAnEdge(Edge(XY(x2, y1+r)));
-        ret.AddAnEdge(Edge(XY(x2, y2)));
-        ret.AddAnEdge(Edge(XY(x1, y2)));
+        ret.AddAnEdge(Edge(XY(x1, y1), XY(x2-r, y1)));
+        ret.AddPoint(XY(x2-r, y1));
+        ret.AddPoint(XY(x2, y1+r));
+        ret.AddPoint(XY(x2, y2));
+        ret.AddPoint(XY(x1, y2));
         break;
     }
     return ret;

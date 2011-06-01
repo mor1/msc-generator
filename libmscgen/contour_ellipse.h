@@ -20,7 +20,7 @@ struct quadratic_xy_t;
 class EllipseData
 {
     friend struct quadratic_xy_t;
-    friend class Edge;
+    friend class EdgeFullCircle;
 protected:
     XY     center;
     double radius1, radius2;
@@ -71,7 +71,7 @@ public:
                          XY r[], double radian_us[], double pos_b[]) const;
     int CrossingVertical(double x, double y[], double radian[]) const;
 
-    bool Expand(double gap);
+    int Expand(double gap); //returns -1 if completely disappear, 0 if degrades to line, 1 if OK
 	void TransformForDrawing(cairo_t *cr) const;
 
 	//return a positive number if the two can be moved closer together
