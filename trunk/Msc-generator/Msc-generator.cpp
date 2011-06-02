@@ -547,12 +547,12 @@ void CMscGenApp::OnEditPreferences()
 			ReplaceTAB(m_DefaultText);
 			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
 		}
-		if (optionDlg.m_bSmartIdent != m_bSmartIdent) 
+		if ((bool)optionDlg.m_bSmartIdent != m_bSmartIdent) 
 			WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_bSmartIdent = optionDlg.m_bSmartIdent);
 
 		bool recompile = (m_Pedantic != (bool)optionDlg.m_Pedantic) ||
-			(m_bPB_Editing != optionDlg.m_bPB_Editing) ||
-			(m_bPB_Embedded != optionDlg.m_bPB_Embedded);
+			(m_bPB_Editing != (bool)optionDlg.m_bPB_Editing) ||
+			(m_bPB_Embedded != (bool)optionDlg.m_bPB_Embedded);
 
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, m_Pedantic = optionDlg.m_Pedantic);
 		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, m_Warnings = optionDlg.m_Warnings);

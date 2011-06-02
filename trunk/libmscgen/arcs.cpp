@@ -1668,7 +1668,7 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
     if (width==0)
         width = Label("M", chart->GetCanvas(), style.text).getTextWidthHeight().y;
     width = ceil(width + 2*lw + 2*chart->emphVGapInside);
-    width += fmod(width, 2); //width is even integer now: the distance from outer edge to outer edge
+    width += fmod_negative_safe(width, 2.); //width is even integer now: the distance from outer edge to outer edge
 
     const double aw = style.arrow.bigYExtent(isBidir(), false)/2;
     xpos = chart->XCoord(pos.entity1);

@@ -259,17 +259,21 @@ void ContourHelper::Process4Combine(bool doUnion)
         //find first ray group after which coverage is below requirement
         if (!GoToCoverage(CP, coverage_after_rg, coverage_req, false, ray_group))
             continue; //never happens -> this is a crosspoint not needed, all switch_action will remain ERROR
-        unsigned started_at_ray_group = ray_group;
-        do {
-            started_at_ray_group ;
+        const unsigned original_started_at_ray_group = ray_group;
+        while(1) {
+            const unsigned started_at_ray_group = ray_group; //==the previous "ray_group_end" if not the first pass of while-cycle
             //find first ray group after which coverage is above reauirement
             if (!GoToCoverage(CP, coverage_after_rg, coverage_req, true, ray_group))
                 break; //OK, we are done
             //find the group after which takes the coverage below reauirement
-            unsigned ray_group_begin = ray_group;
+            const unsigned ray_group_begin = ray_group;
+            //if the new ray_group_begin moved over the original_started_at_ray_group, we are done
+            if ((CP.size()-original_started_at_ray_group+ray_group_begin)%CP.size() < (CP.size()-original_started_at_ray_group+started_at_ray_group)%CP.size())
+                break;
             if (!GoToCoverage(CP, coverage_after_rg, coverage_req, false, ray_group)) {
                 _ASSERT(0); //we must find one
             }
+            const unsigned ray_group_end = ray_group;
             //Now we know that coverage is above the required between ray_group_begin and ray_group.
             //First we set all incoming ray's sequence number in the whole range to the same seq number. 
             //This way if the a Walk starts at this cp, if we hit this cp again, we can stop the walk, 
@@ -281,7 +285,7 @@ void ContourHelper::Process4Combine(bool doUnion)
                 for (unsigned u=0; u<CP[i].size(); u++)
                     if (CP[i][u]->incoming)
                         CP[i][u]->seq_num = seq_num;
-                if (i==ray_group) break;
+                if (i==ray_group_end) break;
                 i = (i+1)%CP.size();
             };
 
@@ -297,8 +301,8 @@ void ContourHelper::Process4Combine(bool doUnion)
             _ASSERT(an_outgoing < CP[ray_group_begin].size());
 
             bool did_start = false;
-            for (unsigned i=0; i<CP[ray_group].size(); i++) {
-                Ray &ray = *CP[ray_group][i];
+            for (unsigned i=0; i<CP[ray_group_end].size(); i++) {
+                Ray &ray = *CP[ray_group_end][i];
                 if (ray.incoming) {
                     //search for this incoming edge among the outgoing rays in ray_group_begin 
                     unsigned the_outgoing;
@@ -324,7 +328,9 @@ void ContourHelper::Process4Combine(bool doUnion)
                 } /* if incoming */
             } /* for through the ray group's incoming rays*/
             seq_num++;
-        } while (ray_group > started_at_ray_group);
+            if (original_started_at_ray_group == ray_group_end) 
+                break; //we have just completed a full scan
+        } //while through regions of sufficient coverage
     } /* while cycle through the crosspoints */
 }
 
@@ -1150,7 +1156,8 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
         //if an edge could not meet both its neighbour, isolate it as a separate circle
         //if an edge could not meet only one of its neighbour, add a joining line
         for (unsigned i = 0; i<r.size(); i++) 
-            if (what_insert[r.prev(i)] == -1 && what_insert[r.next(i)] == -1) {
+            if (what_insert[r.prev(i)] == -1 && what_insert[i] == -1) {
+                separate.push_back(r[i]);
                 what_insert.erase(what_insert.begin()+i);
                 to_insert.erase(to_insert.begin()+i);
                 r.erase(r.begin()+i);
@@ -1180,10 +1187,18 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
     }
     if (separate.size())
         for (unsigned i=0; i<separate.size(); i++) {
+            if (separate[i].type==EDGE_STRAIGHT) continue;
             Contour b;
             separate[i].SetFullCircle();
-            b.push_back(separate[i]);
-            res += b;
+            if (!separate[i].GetClockWise()) {
+                EdgeArc tmp;
+                tmp.CopyInverseToMe(separate[i]);
+                b.push_back(tmp);
+                res -= b;
+            } else {
+                b.push_back(separate[i]);
+                res += b;
+            }
         }
 }
 
