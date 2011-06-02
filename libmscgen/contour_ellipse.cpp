@@ -257,8 +257,8 @@ unsigned solve_degree4(const double m_afCoeff[5], double afRoot[4])
 //arc-length in the clockwise dir (msc space!) from s to e
 inline double radianspan(double s, double e)
 {
-    s = fmod(s, 2*M_PI);
-    e = fmod(e, 2*M_PI);
+    s = fmod_negative_safe(s, 2*M_PI);
+    e = fmod_negative_safe(e, 2*M_PI);
     if (s<=e) return e-s;
     return 2*M_PI - (s-e);
 }
@@ -455,10 +455,10 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
 	else
 		tilt = radian;
 	if (tilt>=2*M_PI) tilt-=2*M_PI;
-    if (test_equal(fmod(tilt, M_PI) ,0)) {
+    if (test_equal(fmod_negative_safe(tilt, M_PI) ,0)) {
 		tilted = false;
 	} else
-        if (test_equal(fmod(tilt, M_PI), M_PI/2)) {
+        if (test_equal(fmod_negative_safe(tilt, M_PI), M_PI/2)) {
         tilted = false;
         std::swap(radius1, radius2);
     } else if (tilted) { //already tilted and remains so
@@ -471,7 +471,7 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
         sintilt = sin;
     }
     const double new_tilt = tilted ? tilt : 0;
-    return fmod(radian-(new_tilt-old_tilt), 2*M_PI);
+    return fmod_negative_safe(radian-(new_tilt-old_tilt), 2*M_PI);
 	_ASSERT((tilt>=0 && tilt<2*M_PI) || !tilted);
 }
 

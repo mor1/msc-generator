@@ -11,6 +11,8 @@
 #include "cairo.h"
 #include "contour_basics.h"
 
+//an fmod, that always return a value in [0..b] even if a<0
+template<typename real> real fmod_negative_safe(real a, real b) {_ASSERT(b>0); return a>=0 ? fmod(a, b) : b - fmod(-a, b);}
 
 //helper class for ellipsis intersection calculation
 struct quadratic_xy_t;
@@ -163,7 +165,7 @@ inline bool between01_adjust(double &n)
 
 inline double deg2rad(double degree) 
 {
-	return degree==360 ? M_PI*2 : fmod(degree, 360)*M_PI/180;
+	return degree==360 ? M_PI*2 : fmod_negative_safe(degree, 360.)*M_PI/180;
 }
 
 bool crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);

@@ -223,7 +223,7 @@ void MscCanvas::SetDash(MscLineAttr line, double pattern_offset)
 {
     int num;
     const double * const pattern = line.DashPattern(num);
-    pattern_offset = num ? fmod(pattern_offset, pattern[num]) : 0;
+    pattern_offset = num ? fmod_negative_safe(pattern_offset, pattern[num]) : 0;
     if (fake_dash) {
         cairo_set_dash(cr, NULL, 0, 0); 
         fake_dash_offset = pattern_offset;
@@ -478,7 +478,7 @@ void MscCanvas::singleLine(const XY &s, const XY &d, const MscLineAttr &line)
         const double *pattern;
         double offset;
         pattern = line.DashPattern(num);
-        offset = fmod(fake_dash_offset, pattern[num]);
+        offset = fmod_negative_safe(fake_dash_offset, pattern[num]);
         while (offset>=pattern[pos]) offset -= pattern[pos++];
         fakeDashedLine(s, d, pattern, num, pos, offset);
         fake_dash_offset = offset;
@@ -508,7 +508,7 @@ void MscCanvas::singleLine(const XY &c, double r1, double r2, double tilt,
         const double *pattern;
         double offset;
         pattern = line.DashPattern(num);
-        offset = fmod(fake_dash_offset, pattern[num]);
+        offset = fmod_negative_safe(fake_dash_offset, pattern[num]);
         while (offset>=pattern[pos]) offset -= pattern[pos++];
         fakeDashedLine(c, r1, r2, tilt, s, e, pattern, num, pos, offset, reverse);
         fake_dash_offset = offset;

@@ -462,7 +462,7 @@ double EntityDef::Width() const
     if ((*itr)->children_names.size() && style.indicator.second && (*itr)->collapsed)
         inner = std::max(inner, indicator_size.x + 2*chart->emphVGapInside);
     const double width = ceil(style.line.LineWidth()*2 + inner);
-    return width + fmod(width, 2); //always return an even number
+    return width + fmod_negative_safe(width, 2.); //always return an even number
 }
 
 Range EntityDef::Height(AreaList &cover, const EntityDefList &children)

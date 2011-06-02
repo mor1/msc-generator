@@ -25,17 +25,6 @@
 
 //////////////////Helper functions
 
-//an fmod that always return value strictly in [0..mod)
-inline double pos_fmod(double orig, double mod)
-{
-    _ASSERT(mod>0);
-    double ret = orig>=0 ? fmod(orig, mod) : mod - fmod(-orig, mod);
-    if (ret == mod) return 0;
-    _ASSERT(ret>=0 && ret<mod);
-    return ret;
-}
-
-
 //returns -1 if a==b
 //returns -2 if a==c
 //returns -3 if b==c
@@ -465,7 +454,7 @@ bool EdgeArc::radianbetween(double r) const
 {
     _ASSERT(type!=EDGE_STRAIGHT);
     if (type==EDGE_FULL_CIRCLE) return true;
-    r = pos_fmod(r, 2*M_PI);
+    r = fmod_negative_safe(r, 2*M_PI);
     if (clockwise_arc) {
         if (s<e) return s<=r && r<=e;
         else return r>=s || r<=e;
@@ -499,7 +488,7 @@ double EdgeArc::pos2radian(double r) const
 double EdgeArc::radian2pos(double r) const
 {
     _ASSERT(type!=EDGE_STRAIGHT);
-    r = pos_fmod(r, 2*M_PI);
+    r = fmod_negative_safe(r, 2*M_PI);
     if (type==EDGE_FULL_CIRCLE)
         return EdgeFullCircle::radian2pos(r);
     if (test_equal(s,e)) return 0;
@@ -606,7 +595,7 @@ double EdgeArc::GetRadianMidPoint() const
     if (type==EDGE_FULL_CIRCLE) return M_PI;
     if (e==s) return s;
     if (clockwise_arc == (s<e)) return (s+e)/2;
-    return fmod((s+e)/2+M_PI, 2*M_PI);
+    return fmod_negative_safe((s+e)/2+M_PI, 2*M_PI);
 }
 
 //This must ensure that we do not return pos values that are very close to 0 or 1
@@ -649,7 +638,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
 		    } else if (!test_smaller(loc_other[num], 1))  //if close or above to 1 skip
 			    continue;
             //OK add as a crosspoint
-            r[ret] = r[num];
+            r[ret] = loc_r[num];
             pos_my[ret] = loc_my[num];
             pos_other[ret] = loc_other[num];
             ret ++;

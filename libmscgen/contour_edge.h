@@ -109,8 +109,8 @@ protected:
     EdgeFullCircle(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0);
 
     //Convert between pos (0..1) and coordinates
-    double pos2radian(double r) const {return fmod(clockwise_arc ? s+r*2*M_PI : s-r*2*M_PI, 2*M_PI);}
-    double radian2pos(double r) const {return fmod(clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/(2*M_PI), 1);}
+    double pos2radian(double r) const {return fmod_negative_safe(clockwise_arc ? s+r*2*M_PI : s-r*2*M_PI, 2*M_PI);}
+    double radian2pos(double r) const {return fmod_negative_safe(clockwise_arc ? (r-s)/(2*M_PI) : (s-r)/(2*M_PI), 1.);}
 
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
