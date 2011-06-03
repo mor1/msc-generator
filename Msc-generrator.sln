@@ -12,8 +12,21 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "msc-gen", "msc-gen\msc-gen.vcxproj", "{8D98EBE1-4C46-4F05-ACDA-390B5BA33631}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{05B289DB-80BA-4F95-9A3A-A065E2549189}"
+	ProjectSection(SolutionItems) = preProject
+		Local.testsettings = Local.testsettings
+		Msc-generrator.vsmdi = Msc-generrator.vsmdi
+		TraceAndTestImpact.testsettings = TraceAndTestImpact.testsettings
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ContourTest", "ContourTest\ContourTest.vcxproj", "{E683FDEA-86A9-49BE-B913-E7E42B1315B0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B412BADD-A6EB-4B7B-9D16-9633E65CB1FB} = {B412BADD-A6EB-4B7B-9D16-9633E65CB1FB}
+	EndProjectSection
 EndProject
 Global
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = Msc-generrator.vsmdi
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
 		OptDebug|Win32 = OptDebug|Win32
@@ -41,6 +54,12 @@ Global
 		{8D98EBE1-4C46-4F05-ACDA-390B5BA33631}.OptDebug|Win32.Build.0 = OptDebug|Win32
 		{8D98EBE1-4C46-4F05-ACDA-390B5BA33631}.Release|Win32.ActiveCfg = Release|Win32
 		{8D98EBE1-4C46-4F05-ACDA-390B5BA33631}.Release|Win32.Build.0 = Release|Win32
+		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Debug|Win32.Build.0 = Debug|Win32
+		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.OptDebug|Win32.ActiveCfg = Debug|Win32
+		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.OptDebug|Win32.Build.0 = Debug|Win32
+		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|Win32.ActiveCfg = Release|Win32
+		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
