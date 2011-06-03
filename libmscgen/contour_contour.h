@@ -51,9 +51,9 @@ protected:
     Edge       &at_prev(int i)       {return at(prev(i));}
     const Edge &at_prev(int i) const {return at(prev(i));}
 
-    void Rotate(double cos, double sin, double radian) {for (int i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
+    void Rotate(double cos, double sin, double radian) {for (unsigned i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
-    void RotateAround(const XY&c, double cos, double sin, double radian) {for (int i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
+    void RotateAround(const XY&c, double cos, double sin, double radian) {for (unsigned i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
 
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
