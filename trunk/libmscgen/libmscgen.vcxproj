@@ -214,6 +214,7 @@
     <ClCompile Include="parse_tools.cpp" />
     <ClCompile Include="stringparse.cpp" />
     <ClCompile Include="style.cpp" />
+    <ClCompile Include="contour_test.cpp" />
     <ClCompile Include="trackable.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -241,6 +242,7 @@
     <ClInclude Include="parse_tools.h" />
     <ClInclude Include="stringparse.h" />
     <ClInclude Include="style.h" />
+    <ClInclude Include="contour_test.h" />
     <ClInclude Include="trackable.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>

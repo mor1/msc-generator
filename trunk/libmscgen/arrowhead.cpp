@@ -366,8 +366,9 @@ double ArrowHead::getTriWidth(bool bidir, MscArrowEnd which) const
     case MSC_ARROW_TRIPLE:
     case MSC_ARROW_TRIPLE_EMPTY:
         return w/3;
+    default:
+        return w;
     }
-    return w;
 }
 
 

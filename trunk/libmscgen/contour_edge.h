@@ -177,10 +177,10 @@ public:
     int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
 
     //Removes the part of the edge before point p. Assumes p lies on us. Invalidates BoundingBox!!!
-    EdgeArc& SetStart(const XY &p, double pos, bool keep_full_circle=false);
-    EdgeArc& SetStart(const XY &p, bool keep_full_circle=false) {return SetStart(p, type==EDGE_STRAIGHT?0:radian2pos(ell.Point2Radian(p)), keep_full_circle);}
+    EdgeArc& SetStartStrict(const XY &p, double pos, bool keep_full_circle=false);
+    EdgeArc& SetStartLiberal(const XY &p, bool keep_full_circle=false);
     //Removes the part of the edge after point p. Assumes p lies on us. Invalidates BoundingBox!!!
-    EdgeArc& SetEnd(const XY &p, bool keep_full_circle=false);
+    EdgeArc& SetEndLiberal(const XY &p, bool keep_full_circle=false);
     //calculates bb 
     const Block& CalculateBoundingBox();
     //check if "next" is a direct continuation of "this". If yes combine "next" into "this" and return true
@@ -232,26 +232,8 @@ inline XY EdgeArc::NextTangentPoint(double pos, const Edge &next_vertex) const
     return ell.Tangent(pos2radian(pos), clockwise_arc);
 }
 
-//Removes the part of the edge or curve before point p. Assumes p lies on us.
-inline EdgeArc& EdgeArc::SetStart(const XY &p, double pos, bool keep_full_circle)
-{
-    start = p;
-    if (type==EDGE_STRAIGHT) {
-        EdgeStraight::CalculateBoundingBox();
-        return *this;
-    }
-    const double r = pos2radian(pos);
-    _ASSERT(radianbetween(r));
-    if (type==EDGE_FULL_CIRCLE && !(test_equal(s,r) && keep_full_circle)) {
-        e = s;
-        type = EDGE_ARC;
-    } 
-    s = r;
-    CalculateBoundingBox();
-    return *this;
-}
 //Removes the part of the edge or curve after point p. Assumes p lies on us.
-inline EdgeArc& EdgeArc::SetEnd(const XY &p, bool keep_full_circle)
+inline EdgeArc& EdgeArc::SetEndLiberal(const XY &p, bool keep_full_circle)
 {
     end = p;
     if (type==EDGE_STRAIGHT) {
