@@ -725,6 +725,7 @@ inline bool test_arc_end(const XY &a, double x, double y)
 //is below y).
 int EdgeArc::CrossingVertical(double x, double y[], double pos[], bool forward[]) const
 {
+    if (type == EDGE_STRAIGHT) return EdgeStraight::CrossingVertical(x, y, pos, forward);
     int num = EdgeFullCircle::CrossingVertical(x, y, pos, forward);
     if (num<=0 || type!=EDGE_ARC) return num;
     //if the crosspoints are at the end of the segments, we check for left and rightward crossing.

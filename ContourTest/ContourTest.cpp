@@ -149,7 +149,7 @@ int _tmain(int argc, _TCHAR* argv[])
     cooomplex2 *= Contour(XY(300,101), 100, 50);
 	Area cooomplex3 = cooomplex2;
 
-    double x=214, y=610;
+    double x=150, y=250;
 	std::vector<XY> v;
 	v.push_back(XY( 50, 200));
 	v.push_back(XY(x, y));
@@ -158,16 +158,42 @@ int _tmain(int argc, _TCHAR* argv[])
 	v.push_back(XY(100, 300));
 	v.push_back(XY(x, y));
 	v.push_back(XY( 90, 300));
-//	custom = v;
+	custom = v;
+    Draw(8, custom);
 
-//	Area circle = Contour(XY(200, 200), 60, 30, 30);
-//	Area circle2= Contour(XY(x, y), 60, 30, abs(x-y));
-//	//Area circle2= Contour(XY(339, 103), 60, 30, 150);
-//	//Area circle2= Contour(XY(337, 103), 60, 30, 150);
-//	//Contour circle2(XY(200,200), 60, 30, 150);
-//	//Contour box(x-30, x+30, y-20, y+20);
-//	//circle += Contour(200,300, 170,190);
-//	//circle2 += Contour(x,x+100, y+15,y+30);
+	Area custom2;
+
+    x=214, y=610;
+	v.clear();
+	v.push_back(XY( 50, 200));
+	v.push_back(XY(x, y));
+	v.push_back(XY( 50, 300));
+	v.push_back(XY(x+30, y+40));
+	v.push_back(XY(100, 300));
+	v.push_back(XY(x, y));
+	v.push_back(XY( 90, 300));
+    custom = v;
+
+    x=220, y=610;
+	v.clear();
+	v.push_back(XY( 50, 200));
+	v.push_back(XY(x, y));
+	v.push_back(XY( 50, 300));
+	v.push_back(XY(x+30, y+40));
+	v.push_back(XY(100, 300));
+	v.push_back(XY(x, y));
+	v.push_back(XY( 90, 300));
+    custom2 = v;
+    Draw(9, custom, custom2);
+
+	Area circle = Contour(XY(200, 200), 60, 30, 30);
+	Area circle2= Contour(XY(x, y), 60, 30, abs(x-y));
+	//Area circle2= Contour(XY(339, 103), 60, 30, 150);
+	//Area circle2= Contour(XY(337, 103), 60, 30, 150);
+	//Contour circle2(XY(200,200), 60, 30, 150);
+	//Contour box(x-30, x+30, y-20, y+20);
+	//circle += Contour(200,300, 170,190);
+	//circle2 += Contour(x,x+100, y+15,y+30);
 //
 //	Area boxhole2 = Contour(110, 200, 80, 120);
 //	boxhole2 -= Contour(120, 190, 90, 110);
