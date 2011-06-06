@@ -34,14 +34,15 @@ struct Ray
     RayAngle angle;
     XY       xy;
     //values used during any walk (both untangle and combine)
-    mutable bool valid;
+    bool valid;
     //playground below for combine
     mutable unsigned seq_num; //same seq num as where we started a walk indicates a stopping criteria
     mutable std::pair<unsigned, unsigned> switch_to; //indices of another ray for this cp
     mutable enum switch_action_t {IGNORE, ERROR, SWITCH} switch_action;
     mutable bool can_start_here;
-    Ray(const XY &point, unsigned c, unsigned v, double p, bool i, const RayAngle &a) : 
-        xy(point), contour(c), vertex(v), pos(p), incoming(i), angle(a), switch_action(ERROR) {}
+    Ray(const XY &point, unsigned c, unsigned v, double p, bool i, const RayAngle &a) :
+        contour(c), vertex(v), pos(p), incoming(i), angle(a), xy(point),
+        valid(true), switch_action(ERROR) {}
 };
 
 struct RayPointer {
@@ -61,7 +62,7 @@ struct XY2
     bool operator < (const XY2&o) const {return xy.test_smaller(o.xy);}
 };
 
-typedef std::vector<Ray> RayCollection;    
+typedef std::vector<Ray> RayCollection;
 typedef std::vector<std::vector<RayCollection::iterator>> RayArray;
 
 //If pos is equal, we put incoming as smaller than outgoing
@@ -107,7 +108,7 @@ void ContourHelper::AddCrosspoint(const XY &xy, unsigned c1, unsigned v1, double
     //In allrays even indexed positions are incoming edges, odd positions are outgoing ones
     if (p1==0)  //avoid pos==0 and incoming
         AllRays.push_back(Ray(xy, c1, v1, p1, true,  Contours[c1]->at_prev(v1).Angle(true,  xy, 1)));
-    else 
+    else
         AllRays.push_back(Ray(xy, c1, v1, p1, true,  Contours[c1]->at(v1).Angle(true,  xy, p1)));
     if (p1==1) //avoid pos==1 and outgoing
         AllRays.push_back(Ray(xy, c1, v1, p1, false, Contours[c1]->at_next(v1).Angle(false, xy, 0)));
@@ -115,7 +116,7 @@ void ContourHelper::AddCrosspoint(const XY &xy, unsigned c1, unsigned v1, double
         AllRays.push_back(Ray(xy, c1, v1, p1, false, Contours[c1]->at(v1).Angle(false, xy, p1)));
     if (p2==0)  //avoid pos==0 and incoming
         AllRays.push_back(Ray(xy, c2, v2, p2, true,  Contours[c2]->at_prev(v2).Angle(true,  xy, 1)));
-    else 
+    else
         AllRays.push_back(Ray(xy, c2, v2, p2, true,  Contours[c2]->at(v2).Angle(true,  xy, p2)));
     if (p2==2) //avoid pos==1 and outgoing
         AllRays.push_back(Ray(xy, c2, v2, p2, false, Contours[c2]->at_next(v2).Angle(false, xy, 0)));
@@ -123,7 +124,7 @@ void ContourHelper::AddCrosspoint(const XY &xy, unsigned c1, unsigned v1, double
         AllRays.push_back(Ray(xy, c2, v2, p2, false, Contours[c2]->at(v2).Angle(false, xy, p2)));
 }
 
-unsigned ContourHelper::FindCrosspoints() 
+unsigned ContourHelper::FindCrosspoints()
 {
     XY r[4];
     double one_pos[4], two_pos[4];
@@ -153,7 +154,7 @@ unsigned ContourHelper::FindCrosspoints()
 
     //Allocate Raysbycontour
     RaysByContour.resize(Contours.size());
-    for (auto i = 0; i<RaysByContour.size(); i++)
+    for (unsigned i = 0; i<RaysByContour.size(); i++)
         RaysByContour[i].resize(Contours[i]->size());
 
     //Add rays to both indexes
@@ -191,7 +192,7 @@ unsigned ContourHelper::FindCrosspoints()
     return ret;
 }
 
-//If "above" is true, go to the ray group *after* which coverage becomes >=cov_needed, 
+//If "above" is true, go to the ray group *after* which coverage becomes >=cov_needed,
 //else go to the ray group *after* which coverage becomes < cov_needed
 //coverage after ray group "i" is "cov_now"
 //return false if coverage never becomes "cov_needed"
@@ -209,7 +210,7 @@ bool ContourHelper::GoToCoverage(const RayArray &ra, unsigned &cov_now, unsigned
     return true;
 }
 
-unsigned ContourHelper::FindRayOnEdge(const Ray &ray) const 
+unsigned ContourHelper::FindRayOnEdge(const Ray &ray) const
 {
     int p;
     for (p=RaysByContour[ray.contour][ray.vertex].size()-1; p>=0; p--)
@@ -222,7 +223,7 @@ unsigned ContourHelper::FindRayOnEdge(const Ray &ray) const
 //Copy the processed crosspoints from the set to the bycont, where they are sorted by <contour,edge,pos>.
 //(each contour has its own bycont).
 //Fill in startrays with incoming rays marked as can_start_here
-void ContourHelper::Process4Combine(bool doUnion) 
+void ContourHelper::Process4Combine(bool doUnion)
 {
     unsigned seq_num = 0;
     //If union, pick the angle ranges covered by at least one contour
@@ -248,7 +249,7 @@ void ContourHelper::Process4Combine(bool doUnion)
         // An x(out)->y(in) range selected will result in y(in) be designated a cp switching to edge x.
         //
         //A <ray group> is a set of rays (incoming/outgoing mixed) with the same angle.
-        //Supposedly these rays have another common crosspoint besides the current one 
+        //Supposedly these rays have another common crosspoint besides the current one
         //(since they lie on one another)
 
         const RayArray &CP = iCP->second;
@@ -257,7 +258,6 @@ void ContourHelper::Process4Combine(bool doUnion)
         unsigned coverage_after_rg = iCP->first.coverage_before_0_minusinf;
         //coverage_before_0_minusinf actually shows coverage after the last ray group
         //(which is of number CP.size()-1)
-        bool had = false;
         //find first ray group after which coverage is below requirement
         if (!GoToCoverage(CP, coverage_after_rg, coverage_req, false, ray_group))
             continue; //never happens -> this is a crosspoint not needed, all switch_action will remain ERROR
@@ -277,8 +277,8 @@ void ContourHelper::Process4Combine(bool doUnion)
             }
             const unsigned ray_group_end = ray_group;
             //Now we know that coverage is above the required between ray_group_begin and ray_group.
-            //First we set all incoming ray's sequence number in the whole range to the same seq number. 
-            //This way if the a Walk starts at this cp, if we hit this cp again, we can stop the walk, 
+            //First we set all incoming ray's sequence number in the whole range to the same seq number.
+            //This way if the a Walk starts at this cp, if we hit this cp again, we can stop the walk,
             //based on equal sequence numbers.
             //RA indexes may wrap, so incrementing shall be modulo
 
@@ -292,7 +292,7 @@ void ContourHelper::Process4Combine(bool doUnion)
             };
 
             //Now set the "switch_to" in all the incoming edges in (ray_group) to one of the outgoing edges in (ray_group_begin)
-            //If the same edge of the same contour and vertex can be found among the rays of ray_group and ray_group_begin, 
+            //If the same edge of the same contour and vertex can be found among the rays of ray_group and ray_group_begin,
             //then instead of the above, just mark switch_action with IGNORE: we will remain on the same contour
             //IGNORE will result in an invalid cp, meaning it will not be added to any polyline (but will be checked for stop condition)
             //We mark only one of the incoming edges as a crosspoint we can start at
@@ -306,7 +306,7 @@ void ContourHelper::Process4Combine(bool doUnion)
             for (unsigned i=0; i<CP[ray_group_end].size(); i++) {
                 Ray &ray = *CP[ray_group_end][i];
                 if (ray.incoming) {
-                    //search for this incoming edge among the outgoing rays in ray_group_begin 
+                    //search for this incoming edge among the outgoing rays in ray_group_begin
                     unsigned the_outgoing;
                     for (the_outgoing=0; the_outgoing<CP[ray_group_begin].size(); the_outgoing++) {
                         const Ray &ray2 = *CP[ray_group_begin][the_outgoing];
@@ -326,11 +326,11 @@ void ContourHelper::Process4Combine(bool doUnion)
                             //Add this ray to startpoints
                             StartRays.push_back(RayPointer(ray.contour, ray.vertex, FindRayOnEdge(ray)));
                         }
-                    } 
+                    }
                 } /* if incoming */
             } /* for through the ray group's incoming rays*/
             seq_num++;
-            if (original_started_at_ray_group == ray_group_end) 
+            if (original_started_at_ray_group == ray_group_end)
                 break; //we have just completed a full scan
         } //while through regions of sufficient coverage
     } /* while cycle through the crosspoints */
@@ -340,11 +340,11 @@ void ContourHelper::StepOutgoing2Incoming(RayPointer &p) const
 {
     p.cp_index++;
     _ASSERT(p.cp_index>=0);
-    if (RaysByContour[p.contour][p.vertex].size()<=p.cp_index) {
+    if (RaysByContour[p.contour][p.vertex].size()<=unsigned(p.cp_index)) {
         //we are last cp on an edge, next point is the vertex
         p.vertex = (p.vertex+1)%Contours[p.contour]->size();
         p.cp_index = -1;
-    }             
+    }
 }
 
 inline RayPointer ContourHelper::RayToPointer(const Ray &outgoing) const
@@ -352,7 +352,7 @@ inline RayPointer ContourHelper::RayToPointer(const Ray &outgoing) const
     return RayPointer(outgoing.contour, outgoing.vertex, FindRayOnEdge(outgoing));
 }
 
-inline std::pair<unsigned, unsigned> ContourHelper::FindRayInCP(const RayArray &CP, const Ray*ray) 
+inline std::pair<unsigned, unsigned> ContourHelper::FindRayInCP(const RayArray &CP, const Ray*ray)
 {
     std::pair<unsigned, unsigned> rai; //as _R_ay_A_rray _i_ndex
     for (rai.first=0; rai.first<CP.size(); rai.first++)
@@ -370,14 +370,14 @@ inline std::pair<unsigned, unsigned> ContourHelper::FindRayInCP(const RayArray &
 inline bool ContourHelper::FindPreviousValidRayInCP(const RayArray &CP, std::pair<unsigned, unsigned> &rai) const
 {
     const std::pair<unsigned, unsigned> rai_started = rai; //as _R_ay_A_rray _i_ndex
-    
+
     do {
         //we always try to find a valid ray in the current ray group first
         for (rai.second=0; rai.second<CP[rai.first].size(); rai.second++)
             if (CP[rai.first][rai.second]->valid) return true;
         //OK, no more valid rays in the current ray group
         //decrement ray group
-        if (rai.first>0) 
+        if (rai.first>0)
             --rai.first;
         else
             rai.first = CP.size()-1;
@@ -402,7 +402,7 @@ void ContourHelper::Walk4Combine(Contour &result)
     } while (!RaysByContour[current.contour][current.vertex][current.cp_index]->valid);
 
     //do a walk from the current crosspoint, until we get back here
-    const int sn_finish = RaysByContour[current.contour][current.vertex][current.cp_index]->seq_num;
+    const unsigned sn_finish = RaysByContour[current.contour][current.vertex][current.cp_index]->seq_num;
     do {
         //here "current" points to an incoming ray
         if (current.cp_index>=0) { //we are at a crosspoint, not a vertex
@@ -427,7 +427,7 @@ void ContourHelper::Walk4Combine(Contour &result)
                 current = RayToPointer(outgoing);
                 //Append a point
                 Edge edge(Contours[outgoing.contour]->at(outgoing.vertex));
-                edge.SetStart(outgoing.xy, outgoing.pos, true);
+                edge.SetStartStrict(outgoing.xy, outgoing.pos, true);
                 result.AppendDuringWalk(edge);
                 break;
             }
@@ -437,9 +437,9 @@ void ContourHelper::Walk4Combine(Contour &result)
             //in the sense that we are at pos==0 at the beginning of the edge
             //so we do not modify current here
         }
-        //Now find the next cp and corresponding incoming ray 
+        //Now find the next cp and corresponding incoming ray
         StepOutgoing2Incoming(current);
-    } while (current.cp_index<0 || 
+    } while (current.cp_index<0 ||
              RaysByContour[current.contour][current.vertex][current.cp_index]->seq_num != sn_finish);
 }
 
@@ -447,7 +447,7 @@ bool ContourHelper::Combine(bool doUnion, ContourList &surfaces, ContourList &ho
 {
     if (FindCrosspoints())
         Process4Combine(doUnion); // Process each cp and determine if it is relevant to us or not
-    if (GetStartRayNo()==0) 
+    if (GetStartRayNo()==0)
         return false; //two contours do not touch, determine their relative position
 
     while (GetStartRayNo()) {
@@ -455,6 +455,7 @@ bool ContourHelper::Combine(bool doUnion, ContourList &surfaces, ContourList &ho
         Walk4Combine(walk);
 		//If we have abandoned this polyline, do not perform the processing below: start with another polyline
         if (!walk.PostWalk()) continue;
+        _ASSERT(walk.IsSane());
         if (walk.CalculateClockwise())
             surfaces.append(walk);
         else
@@ -483,7 +484,7 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
             continue;
         }
         Ray *incoming = &*RaysByContour[current.contour][current.vertex][current.cp_index];
-        Ray *outgoing; 
+        Ray *outgoing;
         _ASSERT(incoming->valid);
         const RayArray &CP = RaysByCP[incoming->xy];
         do {
@@ -493,7 +494,7 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
             std::pair<unsigned, unsigned> rai = FindRayInCP(CP, incoming);
             if (!FindPreviousValidRayInCP(CP, rai)) {
                 //not found a ray different from the one we arrived on.
-                //This can only be a valid situation if 
+                //This can only be a valid situation if
                 //1. we started the walk with "incoming"
                 //2. then found an incoming ray and started a recursive walk
                 //3. the recursive walk ended with "incoming"..
@@ -503,7 +504,7 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
                 //that would violate #1 above.
                 //(If we already collected vertices we cannot arrive back on the same
                 //ray from a recursive walk, so #3 cannot be true either.)
-                _ASSERT(walk.size()==0); 
+                _ASSERT(walk.size()==0);
                 //Otherwise all is OK, we invalidated "incoming" and are done with this CP
                 return;
             }
@@ -511,7 +512,7 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
             if (!outgoing->incoming) break; //if we are really outgoing, continue walk
             //incoming ray: start a new walk recursively
             Walk4Untangle(RayToPointer(*outgoing), surfaces, holes);
-            //We re-try "incoming" if there are still rays left in the CP, we can generate 
+            //We re-try "incoming" if there are still rays left in the CP, we can generate
             //perhaps a new contour. If not, then "FindPreviousValidRayInCP" will return false
             //and we simply exit.
             incoming->valid = true;
@@ -522,14 +523,15 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
         current = RayToPointer(*outgoing);
         //Append point
         Edge edge(Contours[outgoing->contour]->at(outgoing->vertex));
-        edge.SetStart(outgoing->xy, outgoing->pos, true);
+        edge.SetStartStrict(outgoing->xy, outgoing->pos, true);
         walk.AppendDuringWalk(edge);
         //Go to next cp or vertex on the edge
         StepOutgoing2Incoming(current); //now current points either to a vertex or to an incoming ray again
         //We continue if in a vertex or if we have not reached back to the starting crosspoint
-    } while (current.cp_index<0 || 
+    } while (current.cp_index<0 ||
         !RaysByContour[current.contour][current.vertex][current.cp_index]->xy.test_equal(finish->xy));
     if (!walk.PostWalk()) return;
+    _ASSERT(walk.IsSane());
     if (walk.CalculateClockwise())
         surfaces.append(std::move(walk));
     else
@@ -854,17 +856,72 @@ bool Contour::PostWalk()
     if (size()==0) return false;
 
     //we checked above it is curvy. We assert that this is a full circle
-    if (size()==1) 
-        at(0).SetFullCircle();  
-    else 
+    if (size()==1)
+        at(0).SetFullCircle();
+    else
         //go around and set "end" value. This was not known previously
-        for (unsigned i=0; i<size(); i++) 
-            at(i).SetEnd(at_next(i).GetStart(), true);
+        for (unsigned i=0; i<size(); i++)
+            at(i).SetEndLiberal(at_next(i).GetStart(), true);
     //compute the bounding box
-    for (unsigned i=0; i<size(); i++) 
+    for (unsigned i=0; i<size(); i++)
         boundingBox += at(i).GetBoundingBox();
     return true;
 }
+
+bool Contour::IsSane() const
+{
+    if (size()==0) return true;
+    if (size()==1)
+        return at(0).GetType() == EDGE_FULL_CIRCLE;
+    for (unsigned u=0; u<size(); u++)
+        if (at(u).GetStart().test_equal(at(u).GetEnd()))  //we do not tolerate full circles either
+            return false;
+    if (size()==2 && at(0).GetType()==EDGE_STRAIGHT && at(1).GetType()==EDGE_STRAIGHT)
+        return false;
+    return true;
+}
+
+//returns true if we were sane.
+//returns false if changes were needed
+bool Contour::Sanitize()
+{
+    bool ret = true;
+    if (size()==0) return true;
+    if (size()==1) {
+        if (at(0).GetType() == EDGE_FULL_CIRCLE) return true;
+        goto clear;
+    }
+    for (unsigned u=0; u<size(); /*nope*/)
+        if (at(u).GetType()!=EDGE_FULL_CIRCLE && at(u).GetStart().test_equal(at(u).GetEnd())) {
+            erase(begin()+u);
+            ret = false;
+        } else
+            u++;
+    switch (size()) {
+    case 0: return false;
+    case 1:
+        if (at(0).GetType() == EDGE_FULL_CIRCLE) return true;
+        goto clear;
+    case 2:
+        if (at(0).GetType()==EDGE_STRAIGHT && at(1).GetType()==EDGE_STRAIGHT)
+            goto clear;
+        /*fallthrough*/
+    default:
+        //ensure we have no FULL_CIRCLE and edges connect
+        for (unsigned u=0; u<size(); u++)
+            if (at(u).GetType()==EDGE_FULL_CIRCLE)
+                goto clear;
+            else if (!at(u).GetEnd().test_equal(at_next(u).GetStart()))
+                goto clear;
+    }
+    CalculateBoundingBox();
+    return ret;
+clear:
+    clear();
+    return false;
+}
+
+
 
 //Does a union or intersection of two poligons, byconts the result in "result"
 //- For union "result" will be one bounding contour, its "holes" may have zero or more elements
@@ -886,7 +943,7 @@ Contour::result_t Contour::UnionIntersect(const Contour &b, ContourList &result,
     ContourHelper helper(*this, b);
     ContourList holes;
 
-    if (!helper.Combine(doUnion, result, holes)) 
+    if (!helper.Combine(doUnion, result, holes))
         return CheckContainment(b); //two contours do not touch, determine their relative position
 
     //With union we may have holes, but only one surface
@@ -1033,18 +1090,29 @@ Contour::result_t Contour::DoXor(const Contour &b, ContourList &result) const
 //- OVERLAP if there were intersections (or is counterclockwise) and they are placed in result
 Contour::result_t Contour::Untangle(ContourList &result, untangle_t rule) const
 {
-    if (size()==0) return A_IS_EMPTY;
-
-    ContourHelper helper(*this);
+    Contour tmp(*this);
+    const bool original = tmp.Sanitize();
+    if (tmp.size()==0)
+        return OVERLAP; //an empty "result" is the untangled version
+    ContourHelper helper(tmp);
     ContourList holes;
 
     if (!helper.Untangle(result, holes)) {
-        if (CalculateClockwise())
-            return SAME;
-        //no crosspoints, but counterclockwise
-        if (rule != EXPAND_RULE)
-            result.append(CreateInverse());
-		return OVERLAP;
+        if (original) {
+            if (CalculateClockwise()) return SAME;
+            //no crosspoints, but counterclockwise
+            //in case of EXPAND_RULE, we ignore holes: we return an empty result.
+            if (rule != EXPAND_RULE)
+                result.append(CreateInverse());
+            return OVERLAP;
+        } else {
+            if (tmp.CalculateClockwise())
+                result.append(std::move(tmp));
+            else if (rule != EXPAND_RULE)
+                result.append(tmp.CreateInverse());
+            /*in case you add code here: tmp is destroyed by move!*/
+            return OVERLAP;
+        }
     }
 
     //Now place resulting contours into each other properly
@@ -1139,12 +1207,12 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
         res.append(std::move(r));
         return;
     }
-    
+
     //Expand all the edges
     for (unsigned i = 0; i<r.size(); i++)
         r[i].Expand(gap);
 
-    //Kill those edges, that 
+    //Kill those edges, that
     XY dum1[9]; //8 plus one
     double dum2[8], dum3[8];
     std::vector<Edge> separate;
@@ -1159,8 +1227,8 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
             //if so, remove this edge
             if (c_prev && c_next) {
                 EdgeArc e = r[i];
-                e.SetStart(dum1[0]);
-                e.SetEnd(dum1[1]);
+                e.SetStartLiberal(dum1[0]);
+                e.SetEndLiberal(dum1[1]);
                 if (r[i].IsOppositeDir(e)) {
                     nice_join[r.prev(i)] = false;
                     r.erase(r.begin()+i);
@@ -1168,7 +1236,7 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
                     nice_join.erase(nice_join.begin()+i);
                     was = true;
                 }
-            } 
+            }
         }
     } while (was);
 
@@ -1178,17 +1246,27 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
     //0: do not insert anything
     //1: insert to_insert[i] after r[i]
     //-1: r[i] does not cross r[i+1]
-    std::vector<int> what_insert(r.size(), -1); 
+    std::vector<int> what_insert(r.size(), -1);
     do {
         was = false;
-        for (unsigned i = 0; i<r.size(); i++) 
-            if (what_insert[i]==-1) 
+        //save original first
+        EdgeArc saved0 = r[0];
+        //cycle but skip the last
+        for (unsigned i = 0; i<r.size()-1; i++)
+            if (what_insert[i]==-1)
                 what_insert[i] = r[i].CombineExpandedEdges(r.at_next(i), nice_join[i] ? type : EXPAND_MITER,
                 o[i].GetStart(), to_insert[i]);
+        //do the last using the original first as next
+        if (what_insert[r.size()-1]==-1) {
+            what_insert[r.size()-1] = r[r.size()-1].CombineExpandedEdges(saved0, nice_join[r.size()-1] ? type : EXPAND_MITER,
+            o[r.size()-1].GetStart(), to_insert[r.size()-1]);
+            r[0].SetStartLiberal(saved0.GetStart());
+        }
+
         //Now handle edges that could not meet
         //if an edge could not meet both its neighbour, isolate it as a separate circle
         //if an edge could not meet only one of its neighbour, add a joining line
-        for (unsigned i = 0; i<r.size(); i++) 
+        for (unsigned i = 0; i<r.size(); i++)
             if (what_insert[r.prev(i)] == -1 && what_insert[i] == -1) {
                 separate.push_back(r[i]);
                 what_insert.erase(what_insert.begin()+i);
@@ -1200,12 +1278,12 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
             }
     } while (was);
     //Now we only have edges that can not meet only one of their neighbours: add line
-    for (unsigned i = 0; i<r.size(); i++) 
-        if (what_insert[i]==-1) 
+    for (unsigned i = 0; i<r.size(); i++)
+        if (what_insert[i]==-1)
             to_insert[i] = Edge(r[i].GetStart(), r.at_next(i).GetEnd());
     //Now insert edged
-    for (unsigned i = 0, j = 0; i<r.size(); i++, j++) 
-        if (what_insert[j]!=0) 
+    for (unsigned i = 0, j = 0; i<r.size(); i++, j++)
+        if (what_insert[j]!=0)
             r.insert(r.begin()+(i++), to_insert[j]);
 
     //OK, now untangle
@@ -1264,7 +1342,7 @@ void Contour::Path(cairo_t *cr, bool inverse) const
             at(i).Path(cr, true);
     else
         for (unsigned i = 0; i<size(); i++)
-            at(i).Path(cr); 
+            at(i).Path(cr);
     cairo_close_path(cr);
 }
 

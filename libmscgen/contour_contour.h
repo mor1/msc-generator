@@ -37,6 +37,8 @@ protected:
     bool CalculateClockwise() const;
     void AppendDuringWalk(const Edge &);
     bool PostWalk();
+    bool IsSane() const;
+    bool Sanitize();
     result_t UnionIntersect(const Contour &b, ContourList &result, bool doUnion) const;
     result_t Union(const Contour &b, ContourList &result) const {return UnionIntersect(b, result, true);}
     result_t Intersect(const Contour &b, ContourList &result) const {return UnionIntersect(b, result, false);}
@@ -83,7 +85,7 @@ public:
     const Block &CalculateBoundingBox();
     void swap(Contour &b) {std::vector<Edge>::swap(b); std::swap(boundingBox, b.boundingBox);}
     void clear() {std::vector<Edge>::clear(); boundingBox.MakeInvalid();}
-    unsigned  size() const {return std::vector<Edge>::size();}
+    unsigned size() const {return std::vector<Edge>::size();}
     bool IsEmpty() const {return std::vector<Edge>::size()==0;}
     const Edge &GetEdge(int edge) const {return at(edge);}
     bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).start));}

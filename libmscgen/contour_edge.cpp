@@ -118,7 +118,7 @@ void EdgeStraight::SwapXY()
 //crossing points that result in a pos value close to 1 are ignored
 //In case AB is the same (or lies on the same line) as MN, the two endpoint of the common
 //sections are returned (if they overlap or touch)
-unsigned EdgeStraight::Crossing(const EdgeStraight &o, XY r[], 
+unsigned EdgeStraight::Crossing(const EdgeStraight &o, XY r[],
                                 double pos_my[], double pos_other[]) const
 {
     if (!test_zero((end-start).PerpProduct(o.end-o.start))) {
@@ -189,7 +189,7 @@ unsigned EdgeStraight::Crossing(const EdgeStraight &o, XY r[],
 }
 
 //returns -1 if the edge is a straight line exactly on x
-int EdgeStraight::CrossingVertical(double x, double y[], 
+int EdgeStraight::CrossingVertical(double x, double y[],
                                         double pos[], bool forward[]) const
 {
     if ((start.x >= x && end.x < x) ||      //we cross leftward
@@ -205,7 +205,7 @@ int EdgeStraight::CrossingVertical(double x, double y[],
 
 }
 
-bool EdgeStraight::CheckAndCombine(const EdgeStraight &next) 
+bool EdgeStraight::CheckAndCombine(const EdgeStraight &next)
 {
     const double a = angle(start, end, next.end);
     if (test_zero(a) || test_equal(a,2)) {
@@ -238,9 +238,9 @@ double EdgeStraight::OffsetBelow(const EdgeStraight &M, double &touchpoint) cons
     const double x2 = std::min(maxAB, maxMN);
     if (start.x == end.x) {
         touchpoint = std::max(start.y, end.y);
-        if (M.GetStart().x == M.GetEnd().x) 
+        if (M.GetStart().x == M.GetEnd().x)
             return std::min(M.GetStart().y, M.GetEnd().y) - std::max(start.y, end.y); //here all x coordinates must be the same
-        return (M.GetEnd().y-M.GetStart().y)/(M.GetEnd().x-M.GetStart().x)*(start.x-M.GetStart().x) + M.GetStart().y - 
+        return (M.GetEnd().y-M.GetStart().y)/(M.GetEnd().x-M.GetStart().x)*(start.x-M.GetStart().x) + M.GetStart().y -
                std::max(start.y, end.y);
     }
     if (M.GetStart().x == M.GetEnd().x) {
@@ -261,9 +261,9 @@ double EdgeStraight::OffsetBelow(const EdgeStraight &M, double &touchpoint) cons
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-EdgeFullCircle::EdgeFullCircle(const XY &c, double radius_x, 
+EdgeFullCircle::EdgeFullCircle(const XY &c, double radius_x,
                                double radius_y, double tilt_deg, double s_deg) :
-    ell(c, radius_x, radius_y, tilt_deg), clockwise_arc(true), s(deg2rad(s_deg))
+    ell(c, radius_x, radius_y, tilt_deg), s(deg2rad(s_deg)), clockwise_arc(true)
 {
     type = EDGE_FULL_CIRCLE;
     end = start = ell.Radian2Point(s);
@@ -289,7 +289,7 @@ void EdgeFullCircle::RotateAround(const XY&c, double cos, double sin, double rad
 }
 
 
-void EdgeFullCircle::CopyInverseToMe(const EdgeFullCircle &B) 
+void EdgeFullCircle::CopyInverseToMe(const EdgeFullCircle &B)
 {
     EdgeStraight::CopyInverseToMe(B);
     if (type!=EDGE_STRAIGHT) {
@@ -298,7 +298,7 @@ void EdgeFullCircle::CopyInverseToMe(const EdgeFullCircle &B)
         s = B.s;
     }
 }
- 
+
 bool EdgeFullCircle::operator ==(const EdgeFullCircle& o) const
 {
     if (!EdgeStraight::operator==(o)) return false;
@@ -365,7 +365,7 @@ unsigned EdgeFullCircle::Crossing(const EdgeFullCircle &o, XY r[], double pos_my
             ret++;
         }
         return ret;
-    } 
+    }
     //Two full cicrles
     num = ell.CrossingEllipse(o.ell, loc_r, loc_my, loc_other);
     if (num == -1) { //two equal ellipses, s may be different
@@ -408,7 +408,7 @@ int EdgeFullCircle::CrossingVertical(double x, double y[], double pos[], bool fo
     return num;
 }
 
-//calculates bb 
+//calculates bb
 const Block& EdgeFullCircle::CalculateBoundingBox()
 {
     //For full circles we add all extremes
@@ -430,7 +430,7 @@ const Block& EdgeFullCircle::CalculateBoundingBox()
 void EdgeFullCircle::Path(cairo_t *cr, bool reverse) const
 {
     cairo_save(cr);
-    ell.TransformForDrawing(cr);    
+    ell.TransformForDrawing(cr);
     if (reverse) {
         if (clockwise_arc)
             cairo_arc_negative(cr, 0, 0, 1, s+2*M_PI, s);
@@ -558,7 +558,7 @@ RayAngle EdgeArc::Angle(bool incoming, const XY &p, double pos) const
     if (test_equal(ret.angle, 4)) ret.angle = 0;
     switch (triangle_dir(p, xy, ell.GetCenter())) {
         case CLOCKWISE:
-            ret.curve = +1; break;   
+            ret.curve = +1; break;
         case COUNTERCLOCKWISE:
             ret.curve = -1; break;
         default:
@@ -607,7 +607,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
     if (!boundingBox.Overlaps(o.boundingBox, SMALL_NUM))
         return 0;
     if (type!=EDGE_ARC) {
-        if (o.type!=EDGE_ARC) 
+        if (o.type!=EDGE_ARC)
             return EdgeFullCircle::Crossing(o, r, pos_my, pos_other);
         return o.Crossing(*this, r, pos_other, pos_my);
     }
@@ -648,12 +648,12 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
     //here "this" is an arc and "o" is either an arc or a full circle
     XY loc_r[8];
     double loc_my[8], loc_other[8];
-    unsigned num = ell.CrossingEllipse(o.ell, loc_r, loc_my, loc_other);
+    int num = ell.CrossingEllipse(o.ell, loc_r, loc_my, loc_other);
     if (num == -1) { //two equal ellipses, determine joint section (if any)
         if (o.type!=EDGE_ARC) { //if other is full circle, the two poins are "s" and "e"
             r[0] = start;
             pos_my[0] = 0;
-            pos_other[0] = o.radian2pos(s); 
+            pos_other[0] = o.radian2pos(s);
             //we do not report "e", as its pos==1
             return 1;
         }
@@ -790,6 +790,47 @@ int EdgeArc::CrossingVertical(double x, double y[], double pos[], bool forward[]
     return num;
 }
 
+//Removes the part of the edge or curve before point p. Assumes p lies on us.
+EdgeArc& EdgeArc::SetStartStrict(const XY &p, double pos, bool keep_full_circle)
+{
+    start = p;
+    if (type==EDGE_STRAIGHT) {
+        EdgeStraight::CalculateBoundingBox();
+        return *this;
+    }
+    const double r = pos2radian(pos);
+    _ASSERT(radianbetween(r));
+    if (type==EDGE_FULL_CIRCLE && !(test_equal(s,r) && keep_full_circle)) {
+        e = s;
+        type = EDGE_ARC;
+    }
+    s = r;
+    CalculateBoundingBox();
+    return *this;
+}
+
+//Removes the part of the edge or curve before point p. Does not assumes p lies on us,
+//this can be used to extend an edge
+//We do not check if an arc wraps or not!!!
+EdgeArc& EdgeArc::SetStartLiberal(const XY &p, bool keep_full_circle)
+{
+    start = p;
+    if (type==EDGE_STRAIGHT) {
+        EdgeStraight::CalculateBoundingBox();
+        return *this;
+    }
+    const double r = ell.Point2Radian(p);
+    if (type==EDGE_FULL_CIRCLE && !(test_equal(s,r) && keep_full_circle)) {
+        e = s;
+        type = EDGE_ARC;
+    }
+    s = r;
+    CalculateBoundingBox();
+    return *this;
+}
+
+
+
 //Calculates the bounding box _without adding the endpoint_, !!!
 const Block& EdgeArc::CalculateBoundingBox()
 {
@@ -807,10 +848,10 @@ const Block& EdgeArc::CalculateBoundingBox()
 bool EdgeArc::CheckAndCombine(const EdgeArc &next)
 {
     //if next is a degenerate (zero length) arc, we just skip that
-    if (next.start.test_equal(next.end)) 
+    if (next.type != EDGE_FULL_CIRCLE && next.start.test_equal(next.end))
         return true;
     if ((type==EDGE_STRAIGHT) != (next.type==EDGE_STRAIGHT)) return false;
-    if (type==EDGE_STRAIGHT) 
+    if (type==EDGE_STRAIGHT)
         return EdgeStraight::CheckAndCombine(next);
     //OK, now we are both curvy edges
     if (ell != next.ell) return false;
@@ -872,7 +913,7 @@ void EdgeArc::Path(cairo_t *cr, bool reverse) const
 
 //return false if curvy edge disappears
 //Destroys bounding box!!!
-bool EdgeArc::Expand(double gap) 
+bool EdgeArc::Expand(double gap)
 {
 	if (type!=EDGE_STRAIGHT) {
         const EllipseData old_ell(ell);
@@ -894,7 +935,7 @@ bool EdgeArc::Expand(double gap)
             ell.Expand(gap>0 ? rad : -rad);
             start = ell.Radian2Point(s);
             end = ell.Radian2Point(e);
-            //and then move remaining 
+            //and then move remaining
             gap = (gap>0) ? gap-rad : gap+rad;
             type = EDGE_STRAIGHT;
         }
@@ -949,7 +990,7 @@ int EdgeArc::CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, Edge
     XY cp;
     if (M.type == EDGE_STRAIGHT) {
         if (type == EDGE_STRAIGHT) {
-            if (0==crossing_line_line(start, end, M.start, M.end, cp))
+            if (!crossing_line_line(start, end, M.start, M.end, cp))
                 return -1;
         } else {
             XY r[8];
@@ -976,14 +1017,14 @@ int EdgeArc::CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, Edge
         _ASSERT(cp.x>-1000000 && cp.x<10000000);
     }
 
-    //We get here if the two edges join "normally" 
+    //We get here if the two edges join "normally"
     //"cp" contains their crosspoint
     switch (et) {
     default:
         _ASSERT(0);
     case EXPAND_MITER:
-        SetEnd(cp);
-        M.SetStart(cp);
+        SetEndLiberal(cp);
+        M.SetStartLiberal(cp);
         return false;
     case EXPAND_BEVEL:
         res.type = EDGE_STRAIGHT;
@@ -993,8 +1034,8 @@ int EdgeArc::CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, Edge
     case EXPAND_ROUND:
         _ASSERT(test_equal((old-end).length(), (old-M.start).length()));
         res = Edge(old, (old-end).length()); //full circle
-        res.SetStart(end);
-        res.SetEnd(M.start);
+        res.SetStartLiberal(end);
+        res.SetEndLiberal(M.start);
         return true;
     }
 }
