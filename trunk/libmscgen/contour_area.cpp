@@ -21,26 +21,13 @@
 
 /////////////////////////////////////////  ContourList implementation
 
-void ContourList::assign(std::vector<Edge> &&v, bool winding)
+void ContourList::assign(const std::vector<XY> &v, bool winding)
 {
     clear();
-    Contour tmp(std::move(v));
-    tmp.CalculateBoundingBox();
-    switch (tmp.Untangle(*this, winding ? Contour::WINDING_RULE : Contour::EVENODD_RULE)) {
-    case Contour::SAME:       //just insert tmp
-        append(std::move(tmp));
-    case Contour::A_IS_EMPTY: //empty result okay
-    case Contour::OVERLAP:    //result is already in *this
-        break;
-    default:
-        _ASSERT(0);
-    }
-}
-
-void ContourList::assign(const std::vector<Edge> &v, bool winding)
-{
-    clear();
-    Contour tmp(v);
+    if (v.size()<2) return;
+    Contour tmp;
+    for (unsigned i=0; i<v.size(); i++)
+        tmp.push_back(Edge(v[i], v[(i+1)%v.size()]));
     tmp.CalculateBoundingBox();
     switch (tmp.Untangle(*this, winding ? Contour::WINDING_RULE : Contour::EVENODD_RULE)) {
     case Contour::SAME:       //just insert tmp

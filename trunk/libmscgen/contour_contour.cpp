@@ -58,7 +58,7 @@ struct XY2
     XY xy;
     mutable unsigned coverage_before_0_minusinf;
     XY2(const XY &p) : xy(p), coverage_before_0_minusinf(0) {}
-    bool operator < (const XY2&o) const {return xy < o.xy;}
+    bool operator < (const XY2&o) const {return xy.test_smaller(o.xy);}
 };
 
 typedef std::vector<Ray> RayCollection;    
@@ -84,6 +84,8 @@ protected:
     unsigned FindRayOnEdge(const Ray &ray) const;
     void StepOutgoing2Incoming(RayPointer &p) const;
     RayPointer RayToPointer(const Ray &outgoing) const;
+    static std::pair<unsigned, unsigned> FindRayInCP(const RayArray &CP, const Ray*ray);
+    bool FindPreviousValidRayInCP(const RayArray &CP, std::pair<unsigned, unsigned> &rai) const;
     unsigned GetStartRayNo() const {return StartRays.size();}
 
     //main functions
@@ -350,6 +352,41 @@ inline RayPointer ContourHelper::RayToPointer(const Ray &outgoing) const
     return RayPointer(outgoing.contour, outgoing.vertex, FindRayOnEdge(outgoing));
 }
 
+inline std::pair<unsigned, unsigned> ContourHelper::FindRayInCP(const RayArray &CP, const Ray*ray) 
+{
+    std::pair<unsigned, unsigned> rai; //as _R_ay_A_rray _i_ndex
+    for (rai.first=0; rai.first<CP.size(); rai.first++)
+        for (rai.second=0; rai.second<CP[rai.first].size(); rai.second++)
+            if (&*CP[rai.first][rai.second] == ray) return rai;
+    _ASSERT(0); //should have found it
+    return rai; //supress warnings
+}
+
+//finds a valid ray in this crosspoint searching
+//-first the current ray group
+//-then the ray groups counterclockwise
+//assumes the current ray is marked invalid
+//returns false if no valid ray left in the whole crosspoint
+inline bool ContourHelper::FindPreviousValidRayInCP(const RayArray &CP, std::pair<unsigned, unsigned> &rai) const
+{
+    const std::pair<unsigned, unsigned> rai_started = rai; //as _R_ay_A_rray _i_ndex
+    
+    do {
+        //we always try to find a valid ray in the current ray group first
+        for (rai.second=0; rai.second<CP[rai.first].size(); rai.second++)
+            if (CP[rai.first][rai.second]->valid) return true;
+        //OK, no more valid rays in the current ray group
+        //decrement ray group
+        if (rai.first>0) 
+            --rai.first;
+        else
+            rai.first = CP.size()-1;
+    } while (rai.first != rai_started.first);
+    rai = rai_started;
+    return false;
+}
+
+
 //Walk around the contours starting from startpoint and follow the
 //switch_action bycontd for each incoming ray. This is used for union and intersect (and substract)
 void ContourHelper::Walk4Combine(Contour &result)
@@ -426,6 +463,7 @@ bool ContourHelper::Combine(bool doUnion, ContourList &surfaces, ContourList &ho
     return true;
 }
 
+
 //Walk around the contours starting from the last startray, which is an incoming ray
 //At each incoming ray we see if the (clockwise) previous ray (which is not yet done) is outgoing.
 //if so go there, if not, start a walk there recursively. Collect the results in surfaces and holes.
@@ -449,43 +487,36 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
         _ASSERT(incoming->valid);
         const RayArray &CP = RaysByCP[incoming->xy];
         do {
-            std::pair<unsigned, unsigned> rai, rai2;
+            //Mark incoming ray as DONE - so it is not selected any more
+            incoming->valid = false;
             //search previous ray around the crosspoint, which is still valid
-            //start by locating "incoming"
-            for (rai.first=0; rai.first<CP.size(); rai.first++)
-                for (rai.second=0; rai.second<CP[rai.first].size(); rai.second++)
-                    if (&*CP[rai.first][rai.second] == incoming) goto found;
-            _ASSERT(0); //should have found it
-        found:
-            rai2 = rai;
-            do {
-                //decrement rai
-                if (rai.second>0) rai.second--;
-                else if (rai.first>0) 
-                    rai.second = CP[--rai.first].size()-1;
-                else
-                    rai.second = CP[rai.first = CP.size()-1].size()-1;
-            } while (!CP[rai.first][rai.second]->valid && rai!=rai2);
-            _ASSERT(rai!=rai2); //found a ray different from the one we arrived on.
+            std::pair<unsigned, unsigned> rai = FindRayInCP(CP, incoming);
+            if (!FindPreviousValidRayInCP(CP, rai)) {
+                //not found a ray different from the one we arrived on.
+                //This can only be a valid situation if 
+                //1. we started the walk with "incoming"
+                //2. then found an incoming ray and started a recursive walk
+                //3. the recursive walk ended with "incoming"..
+                //4. ..but we do not know it and re-set incoming->valid to true
+                //5. and there are no more rays left
+                //In short, we cannot have any vertices collected in "walk", because
+                //that would violate #1 above.
+                //(If we already collected vertices we cannot arrive back on the same
+                //ray from a recursive walk, so #3 cannot be true either.)
+                _ASSERT(walk.size()==0); 
+                //Otherwise all is OK, we invalidated "incoming" and are done with this CP
+                return;
+            }
             outgoing = &*CP[rai.first][rai.second];
             if (!outgoing->incoming) break; //if we are really outgoing, continue walk
             //incoming ray: start a new walk recursively
             Walk4Untangle(RayToPointer(*outgoing), surfaces, holes);
-            //if our initial incoming ray is still valid, try it again
-            if (incoming->valid)
-                continue;
-            //If the walk above also touched the current incoming ray,
-            //we give up and generate no contour from this walk (apart from the
-            //ones geenrated by the walk above). THis can only happen when
-            //we have not yet collected any vertices and walk.size()==0.
-            //(Since any outgoing ray leading to our incoming one in "current"
-            //would be invalidated if we had colleced any vertices and no other
-            //walk could then reach "current" to invalidate it)
-            _ASSERT(walk.size()==0);
-            return;
+            //We re-try "incoming" if there are still rays left in the CP, we can generate 
+            //perhaps a new contour. If not, then "FindPreviousValidRayInCP" will return false
+            //and we simply exit.
+            incoming->valid = true;
         } while (1);
-        //Mark the incoming and outgoing ray as DONE
-        incoming->valid = false;
+        //Mark the outgoing ray as DONE
         outgoing->valid = false;
         //Switch to outgoing ray;
         current = RayToPointer(*outgoing);
@@ -495,8 +526,9 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
         walk.AppendDuringWalk(edge);
         //Go to next cp or vertex on the edge
         StepOutgoing2Incoming(current); //now current points either to a vertex or to an incoming ray again
+        //We continue if in a vertex or if we have not reached back to the starting crosspoint
     } while (current.cp_index<0 || 
-             &*RaysByContour[current.contour][current.vertex][current.cp_index] != finish);
+        !RaysByContour[current.contour][current.vertex][current.cp_index]->xy.test_equal(finish->xy));
     if (!walk.PostWalk()) return;
     if (walk.CalculateClockwise())
         surfaces.append(std::move(walk));
@@ -509,6 +541,7 @@ bool ContourHelper::Untangle(ContourList &surfaces, ContourList &holes)
     //We will first find all the crossing points between the two contours
     if (!FindCrosspoints())
         return false;
+    //Cycle through all crosspoints and start a walk at each ray not yet touched
     //Cycle through all crosspoints and start a walk at each ray not yet touched
     for (auto i = AllRays.begin(); i!=AllRays.end(); i++)
         if (i->incoming && i->valid)

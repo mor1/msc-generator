@@ -24,8 +24,7 @@ public:
     explicit ContourList(const Contour &p);
     explicit ContourList(ContourWithHoles &&p);
     explicit ContourList(Contour &&p);
-    explicit ContourList(std::vector<Edge> &&v) {assign(std::move(v));}
-    explicit ContourList(const std::vector<Edge> &v) {assign(v);}
+    explicit ContourList(const std::vector<XY> &v) {assign(v);}
     ContourList(ContourList &&p) {swap(p);}
 
     const_iterator begin() const {return std::list<ContourWithHoles>::begin();}
@@ -36,12 +35,10 @@ public:
     void append(const ContourList &p) {boundingBox += p.GetBoundingBox(); insert(end(), p.begin(), p.end());}
     void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
     void clear() {std::list<ContourWithHoles>::clear(); boundingBox.MakeInvalid();}
-    void assign(std::vector<Edge> &&v, bool winding=true);
-    void assign(const std::vector<Edge> &v, bool winding=true);
+    void assign(const std::vector<XY> &v, bool winding=true);
     bool operator <(const ContourList &b) const;
     bool operator ==(const ContourList &b) const;
-    ContourList &operator =(std::vector<Edge> &&v) {assign(std::move(v)); return *this;}
-    ContourList &operator =(const std::vector<Edge> &v) {assign(v); return *this;}
+    ContourList &operator =(const std::vector<XY> &v) {assign(v); return *this;}
 
     ContourList &operator = (ContourList &&a) {swap(a); return *this;}
     bool IsEmpty() const {return size()==0;}
@@ -142,12 +139,10 @@ public:
     const_iterator end() const {return std::list<ContourWithHoles>::end();}
     void clear() {ContourList::clear(); mainline.MakeInvalid();}
     void swap(Area &a);
-    void assign(std::vector<Edge> &&v) {ContourList::assign(std::move(v));}
-    void assign(const std::vector<Edge> &v) {ContourList::assign(v);}
+    void assign(const std::vector<XY> &v) {ContourList::assign(v);}
     bool operator <(const Area &b) const;
     bool operator ==(const Area &b) const;
-    Area &operator =(std::vector<Edge> &&v) {assign(std::move(v)); return *this;}
-    Area &operator =(const std::vector<Edge> &v) {assign(v); return *this;}
+    Area &operator =(const std::vector<XY> &v) {assign(v); return *this;}
     Area &operator =(Contour &&v) {clear(); append(std::move(v)); return *this;}
     Area &operator =(const Contour &v) {clear(); append(v); return *this;}
     Area &operator += (const Area &b);
