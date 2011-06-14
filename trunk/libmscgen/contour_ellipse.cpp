@@ -328,14 +328,17 @@ void get_bezout_determinant (const quadratic_xy_t &one, const quadratic_xy_t & t
 }
 
 //finds a crosspoint of two infinite lines defined by AB and MN
-bool crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r)
+//rets LINE_CROSSING_PARALLEL if parallel
+//rets LINE_CROSSING_OUTSIDE if the crosspoint is outside M-N.
+//rets LINE_CROSSING_INSIDE if the crosspoint is within (M-N). (We assume in calling function that it is inside A-B, too.)
+ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r)
 {
 	const double perp = (B-A).PerpProduct(N-M);
-    if (test_zero(perp)) return false;
+    if (test_zero(perp)) return LINE_CROSSING_PARALLEL;
     //They are not parallel (and none of them are degenerate)
     const double t = (B-A).PerpProduct(A-M) / perp;
     r = M + (N-M)*t;
-    return true;
+    return between01_approximate_inclusive(t) ? LINE_CROSSING_INSIDE : LINE_CROSSING_OUTSIDE;
 }
 
 //refines the location of a point using crosspoints of tangents
@@ -363,7 +366,7 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         //We operate on the assumption that the intersection of two tangents is closer to the
         //intersection of the ellipses
         XY p_new;
-        if (crossing_line_line(A1, A2, B1, B2, p_new) == 0)
+        if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL)
             return false; //no intersection. Lines are parallel two ellipses, we drop this
         if (test_zero((p-p_new).length()))
             return true; //no improvement, exit

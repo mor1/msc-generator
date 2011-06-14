@@ -538,6 +538,7 @@ void ContourHelper::Walk4Untangle(RayPointer current, ContourList &surfaces, Con
         holes.append(walk.CreateInverse());
 }
 
+//returns true if there is something to untangle and results are placed in "surfaces" an "holes"
 bool ContourHelper::Untangle(ContourList &surfaces, ContourList &holes)
 {
     //We will first find all the crossing points between the two contours
@@ -615,7 +616,8 @@ Contour Contour::CreateInverse() const
 }
 
 //in p* return the number of vertex or edge we have fallen on if result is such
-is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
+//if strict is false, any point that is even _close_ to an edge will snap to the edge
+is_within_t Contour::IsWithin(XY p, int *edge, double *pos, bool strict) const
 {
     if (size()==0 || boundingBox.IsWithin(p)==WI_OUTSIDE) return WI_OUTSIDE;
 
@@ -636,7 +638,8 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
         bool forward[2];
         switch (at(e).CrossingVertical(p.x, y, po, forward)) {
         case 2:
-            if (y[1] == p.y) {  //on an edge, we are _not_ approximate here
+            if ((strict && y[1] == p.y) ||  //on an edge, we are _not_ approximate here
+                (!strict&& test_equal(y[1], p.y))) {  //on an edge, we are approximate here
                 //we have tested that at(e) is not equal to p, so no need to test for that here
                 if (test_equal(at(e).GetEnd().x, p.x)) {
                     if (edge) *edge = next(e);
@@ -649,7 +652,8 @@ is_within_t Contour::IsWithin(XY p, int *edge, double *pos) const
             if (y[1] > p.y) count ++;
             //fallthrough
         case 1:
-            if (y[0] == p.y) {  //on an e
+            if ((strict && y[0] == p.y) ||  //on an edge, we are _not_ approximate here
+                (!strict&& test_equal(y[0], p.y))) {  //on an edge, we are approximate here
                 //we have tested that at(e) is not equal to p, so no need to test for that here
                 if (test_equal(at(e).GetEnd().x, p.x)) {
                     if (edge) *edge = next(e);
@@ -702,7 +706,7 @@ Contour::result_t Contour::CheckContainmentHelper(const Contour &b) const
         double pos;
         const XY p = at(i).GetStart();
         //if we are a single ellipsis, use our center point, else use a vertex
-        switch (b.IsWithin(p, &edge, &pos)) {
+        switch (b.IsWithin(p, &edge, &pos, /*strict=*/false)) {
         default:
             _ASSERT(0);
         case WI_INSIDE:  return A_INSIDE_B;
@@ -714,9 +718,9 @@ Contour::result_t Contour::CheckContainmentHelper(const Contour &b) const
             const double one_next = angle(p, XY(p.x, -100),   NextTangentPoint(i, 0));
             const double two_prev = angle(p, XY(p.x, -100), b.PrevTangentPoint(edge, pos));
             const double two_next = angle(p, XY(p.x, -100), b.NextTangentPoint(edge, pos));
-            if (really_between04_warp(one_prev, two_next, two_prev) ||
+            if (really_between04_warp(one_prev, two_next, two_prev) &&
                 really_between04_warp(one_next, two_next, two_prev)) return A_INSIDE_B;
-            if (really_between04_warp(two_prev, one_next, one_prev) ||
+            if (really_between04_warp(two_prev, one_next, one_prev) &&
                 really_between04_warp(two_next, one_next, one_prev)) return B_INSIDE_A;
             if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
             if (test_equal(one_next, two_prev) && test_equal(one_prev, two_next)) break; //SAME opposite dir - do another edge
@@ -1189,7 +1193,6 @@ bool OpenHere(const XY &)
 //////////////////////////////////Contour::Expand implementation
 
 
-
 void Contour::Expand(EExpandType type, double gap, ContourList &res) const
 {
     if (gap==0) {
@@ -1212,71 +1215,103 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
     for (unsigned i = 0; i<r.size(); i++)
         r[i].Expand(gap);
 
-    //Kill those edges, that
-    XY dum1[9]; //8 plus one
-    double dum2[8], dum3[8];
-    std::vector<Edge> separate;
-    std::vector<bool> nice_join(r.size(), true);
-    bool was;
-    do {
-        was = false;
-        for (unsigned i = 0; i<r.size(); i++) {
-            const bool c_prev = r[i].Crossing(r.at_prev(i), dum1,   dum2, dum3);
-            const bool c_next = r[i].Crossing(r.at_next(i), dum1+1, dum2, dum3);
-            //check if the crossing of the edge before and after us changed dir
-            //if so, remove this edge
-            if (c_prev && c_next) {
-                EdgeArc e = r[i];
-                e.SetStartLiberal(dum1[0]);
-                e.SetEndLiberal(dum1[1]);
-                if (r[i].IsOppositeDir(e)) {
-                    nice_join[r.prev(i)] = false;
-                    r.erase(r.begin()+i);
-                    o.erase(o.begin()+i);
-                    nice_join.erase(nice_join.begin()+i);
-                    was = true;
-                }
-            }
+    //Adjust those curvy edges, that changed direction
+    for (unsigned i = 0; i<r.size(); i++) {
+        if (r[i].type==EDGE_STRAIGHT) continue;
+        XY dum1[8]; 
+        double pos_w_prev[8], pos_w_next[8], dum3[8];
+        EdgeArc e = r[i];
+        e.SetFullCircle();
+        const unsigned c_prev = e.Crossing(r.at_prev(i), dum1, pos_w_prev, dum3);
+        const unsigned c_next = e.Crossing(r.at_next(i), dum1, pos_w_next, dum3);
+        //check if the crossing of the edge before and after us changed dir
+        //if so, flip clockwise (which will not be impacted or considered in CombineExpandedEdges below
+        if (c_prev && c_next) {
+            //find closest of the crosspoints
+            const double rad_w_prev = e.FindRadianOfClosestPos(c_prev, pos_w_prev, r[i].GetRadianS());
+            const double rad_w_next = e.FindRadianOfClosestPos(c_next, pos_w_next, r[i].GetRadianE());
+            r[i].UpdateClockWise(rad_w_prev, rad_w_next);
         }
-    } while (was);
+    }
 
     //Now try to combine edges
-    std::vector<Edge> to_insert(r.size());
-    //below codes are:
-    //0: do not insert anything
-    //1: insert to_insert[i] after r[i]
-    //-1: r[i] does not cross r[i+1]
-    std::vector<int> what_insert(r.size(), -1);
+    //below codes mean for r[i] and r[i+1]
+    //-2: two arc of the same ellipses
+    //-1: two parallel lines
+    //0: New crosspoint is OK, no problem (both in case of expand and shrink)
+    //non-zero: The two edges are parallel
+    //  1: r[i] is straight and should be extended to cross_point[i], while r[i+1] is an arc
+    //     and a straight line should be added from cross_point[i] to r[i+1].start
+    //  2: r[i+1] is a straight and should be extended to cross_point[i], while r[i] is an arc
+    //     and a straight line should be added from r[i].end to cross_point[i] 
+    //  3: both are arcs and two straight lines shall be added to cross_point[i]
+    std::vector<EdgeArc::EExpandCPType> cross_type(r.size(), EdgeArc::PARALLEL_LINES);
+    std::vector<XY> cross_point(r.size());
+    //std::vector<Edge> separate; //here we collect full circles that got separated
+    bool was;
     do {
         was = false;
         //save original first
         EdgeArc saved0 = r[0];
         //cycle but skip the last
         for (unsigned i = 0; i<r.size()-1; i++)
-            if (what_insert[i]==-1)
-                what_insert[i] = r[i].CombineExpandedEdges(r.at_next(i), nice_join[i] ? type : EXPAND_MITER,
-                o[i].GetStart(), to_insert[i]);
+            //TODO: Use the original expanded edges to calculate crosspoints, since 
+            //if you move prev, it can become degenerate
+            if (cross_type[i]==EdgeArc::PARALLEL_LINES)
+                cross_type[i] = r[i].FindExpandedEdgesCP(r.at_next(i), o[i].GetStart(), cross_point[i]);
         //do the last using the original first as next
-        if (what_insert[r.size()-1]==-1) {
-            what_insert[r.size()-1] = r[r.size()-1].CombineExpandedEdges(saved0, nice_join[r.size()-1] ? type : EXPAND_MITER,
-            o[r.size()-1].GetStart(), to_insert[r.size()-1]);
-            r[0].SetStartLiberal(saved0.GetStart());
-        }
+        const unsigned l = r.size()-1;
+        if (cross_type[l]==EdgeArc::PARALLEL_LINES) 
+            cross_type[l] = r[l].FindExpandedEdgesCP(saved0, o[l].GetStart(), cross_point[l]);
 
         //Now handle edges that could not meet
         //if an edge could not meet both its neighbour, isolate it as a separate circle
         //if an edge could not meet only one of its neighbour, add a joining line
-        for (unsigned i = 0; i<r.size(); i++)
-            if (what_insert[r.prev(i)] == -1 && what_insert[i] == -1) {
-                separate.push_back(r[i]);
-                what_insert.erase(what_insert.begin()+i);
-                to_insert.erase(to_insert.begin()+i);
+        for (unsigned i = 0; i<r.size(); i++) {
+            _ASSERT(cross_type[i]!=-2);
+            if (cross_type[r.prev(i)] == EdgeArc::PARALLEL_LINES && cross_type[i] == EdgeArc::PARALLEL_LINES) {
+                //separate.push_back(r[i]);
+                cross_type.erase(cross_type.begin()+i);
+                cross_point.erase(cross_point.begin()+i);
                 r.erase(r.begin()+i);
                 o.erase(o.begin()+i);
-                nice_join.erase(nice_join.begin()+i);
                 was = true;
             }
     } while (was);
+
+    //OK, now we have all the info we need to know on what to do
+    switch (type) {
+    default:
+        _ASSERT(0);
+    case EXPAND_MITER:
+        for (unsigned i = 0; i<r.size(); i++) {
+            //TODO for circles this changes
+            XY new_start = r[i].GetStart();
+            XY new_end =   r[i].GetEnd();
+            if (cross_type[r.prev(i)]==0 || cross_type[r.prev(i)]==2) 
+                new_start = cross_point[r.prev(i)];
+            if (cross_type[i]==0 || cross_type[i]==1) 
+                new_end = cross_point[i];
+            r[i].SetStartEnd(new_start, new_end);
+        }
+        break;
+    case EXPAND_BEVEL:
+    for (unsigned i = 0, j = 0; i<r.size(); i++, j++)
+        //must separate 0 results to shrink and expand ones
+        if (what_insert[j]!=0)
+            r.insert(r.begin()+(i++), to_insert[j]);
+        res.type = EDGE_STRAIGHT;
+        res.start = end;
+        res.end = M.start;
+        return true;
+    case EXPAND_ROUND:
+        _ASSERT(test_equal((old-end).length(), (old-M.start).length()));
+        res = Edge(old, (old-end).length()); //full circle
+        res.SetStartLiberal(end);
+        res.SetEndLiberal(M.start);
+        return true;
+    }
+
     //Now we only have edges that can not meet only one of their neighbours: add line
     for (unsigned i = 0; i<r.size(); i++)
         if (what_insert[i]==-1)
@@ -1296,21 +1331,21 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
         if (SAME==r.Untangle(res, EXPAND_RULE))
             res.append(r);        //expanded contour is not tangled, just add it
     }
-    if (separate.size())
-        for (unsigned i=0; i<separate.size(); i++) {
-            if (separate[i].type==EDGE_STRAIGHT) continue;
-            Contour b;
-            separate[i].SetFullCircle();
-            if (!separate[i].GetClockWise()) {
-                EdgeArc tmp;
-                tmp.CopyInverseToMe(separate[i]);
-                b.push_back(tmp);
-                res -= b;
-            } else {
-                b.push_back(separate[i]);
-                res += b;
-            }
+    //Now add separate circles, if they do not overlap with result
+    for (unsigned i=0; i<separate.size(); i++) {
+        if (separate[i].type==EDGE_STRAIGHT) continue;
+        Contour b;
+        separate[i].SetFullCircle();
+        if (!separate[i].GetClockWise()) {
+            EdgeArc tmp;
+            tmp.CopyInverseToMe(separate[i]);
+            b.push_back(tmp);
+            res -= b;
+        } else {
+            b.push_back(separate[i]);
+            res += b;
         }
+    }
 }
 
 ContourList Contour::CreateExpand(double gap, EExpandType et) const

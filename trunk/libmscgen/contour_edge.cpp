@@ -568,6 +568,47 @@ RayAngle EdgeArc::Angle(bool incoming, const XY &p, double pos) const
     return ret;
 };
 
+//the radian difference between two radians
+inline double radian_diff_abs(double a, double b) 
+{
+    _ASSERT(0<=a && a<2*M_PI);
+    _ASSERT(0<=b && b<2*M_PI);
+    return std::min(fabs(a-b), a>b ? 2*M_PI-(a-b) : 2*M_PI-(b-a));
+}
+
+
+//pos lists a series of pos values. We find the one that is closest to
+//"rad", which is in radians. We return the radian.
+double EdgeArc::FindRadianOfClosestPos(unsigned num, double pos[], double rad)
+{
+    _ASSERT(type!=EDGE_STRAIGHT);
+    double ret=-1, diff=10;
+    for (unsigned i=0; i<num; i++) {
+        const double radian = pos2radian(pos[i]);
+        const double d = radian_diff_abs(rad, radian);
+        if (d < diff) {
+            diff = d;
+            ret = radian;
+        }
+    }
+    return ret;
+}
+
+//flip clockwise if new_s and new_e would be an arc of opposite dir
+//ret true if we did so
+bool EdgeArc::UpdateClockWise(double new_s, double new_e)
+{
+    //check which is the smallest diff: s<->new_s plus e<->new_e or the other
+    if (radian_diff_abs(s, new_s) + radian_diff_abs(e, new_e) <=
+        radian_diff_abs(e, new_s) + radian_diff_abs(s, new_e))
+        return false;
+    clockwise_arc = !clockwise_arc;
+    return true;
+}
+
+
+
+
 bool EdgeArc::operator ==(const EdgeArc& o) const
 {
     if (!EdgeFullCircle::operator==(o)) return false;
@@ -977,68 +1018,168 @@ int find_closest(int num, const double r[], double p, bool larger)
 }
 
 //"this" and "M" are two expanded edges
-//"old" is their old intersection point, before expansion
-//if "et" is MITER, we find the crosspoint of them and modify the two edges
-//if "et" is ROUND, we add a circle to join them (placed in "res")
-//if "et" is BEVEL, we add a line to join them (placed in "res")
-//return 1 if there is something in "res"
-//return 0 if there is nothing is "res"
-//return -1 if the two expanded edges does not meet whatsoever
-
-int EdgeArc::CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, EdgeArc &res)
+//"oldcp" is their old intersection point, before expansion
+//in "newcp" we return their new crosspoint
+//The whole logic of this function assumes EXPAND_MITER, but this is called for all types of
+//expansions to see how two edges relate.
+//return value is
+//SAME_ELLIPSIS: two arc of the same ellipses (no cp returned, radians not checked)
+//PARALLEL_LINES: two parallel lines (can happen only if an edge was removed from between, no cp returned)
+//CP_REAL: The two edges actually cross (between "start" and "end")
+//CP_EXTENDED: The two edges do not meet but their extension does
+//In the below cases neither the two edges nor their expanded version meet. We will have to add
+//line segments to fix this. There are 4 situations how this can happen.
+//Three variants refer to spiky vertices, like the one below
+//..|           The dots mean the inside of the contour. "o" marks the vertex.
+//...\          Here we got an arc in "this" (counterclockwise)
+//....-         And an edge in "M" (from right to left)
+//<----o        This is a CP_ADD_LINE_ME situation.
+//CP_ADD_LINE_OTHER: "this" is straight and should be extended to "newxp", while "M" is an arc
+//     and a straight line should be added from "newcp" to M.start.
+//CP_ADD_LINE_ME: "M" is a straight and should be extended to "newxp", while "this" is an arc
+//     and a straight line should be added from "this"->end to "newcp" 
+//CP_ADD_LINE_BOTH: both "M" and "this" are arcs and two straight lines shall be added (as above)
+//If the vertex is spiky to the inside, like the below:
+//    ^...           Here we have a straight "this" from left to right.
+//    |....          And a clockwise arc in "M".
+//     \...          In this case a straight line shall be added from 
+//      -...         "this"->end to "M".start.
+//--->---o...
+//............
+//NO_CP_ADD_LINE: represents the situ above. No cp is returned in CP.
+EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const
 {
-    XY cp;
+    const double parallel_join_multipiler = 5;
     if (M.type == EDGE_STRAIGHT) {
         if (type == EDGE_STRAIGHT) {
-            if (!crossing_line_line(start, end, M.start, M.end, cp))
-                return -1;
+            switch (crossing_line_line(start, end, M.start, M.end, newcp)) {
+            default: _ASSERT(0);
+            case LINE_CROSSING_PARALLEL: return PARALLEL_LINES;
+            case LINE_CROSSING_OUTSIDE: return CP_EXTENDED;
+            case LINE_CROSSING_INSIDE: return CP_REAL;
+            }
         } else {
             XY r[8];
             double radian_us[8], pos_M[8];
             int num = ell.CrossingStraight(M.start, M.end, r, radian_us, pos_M);
-            int pos = find_closest(num, radian_us, e, !clockwise_arc);
-            if (pos==-1) return -1;
-            cp = r[pos];
+            if (!num) {
+                const XY tangent = PrevTangentPoint(1, M);  //We use prev-tangent so as not to take the next edge, second param is dummy
+                if (crossing_line_line(tangent, end, M.start, M.end, newcp) == LINE_CROSSING_PARALLEL) {
+                    //OK we are parallel
+                    const double dist = (end-M.start).length() * parallel_join_multipiler;
+                    const double mlen = (M.end-M.start).length();
+                    newcp = M.start + (M.start-M.end)/mlen*dist;
+                }
+                return CP_ADD_LINE_ME;
+            } else {
+                int pos = find_closest(num, radian_us, e, !clockwise_arc);
+                newcp = r[pos];
+                _ASSERT(newcp.x>-1000000 && newcp.x<10000000);
+                if (radianbetween(radian_us[pos]) && between01_approximate_inclusive(pos_M[pos]))
+                    return CP_REAL;
+                return CP_EXTENDED;
+            }
         }
     } else {
         XY r[8];
-        double radian_us[8], radian_M[8];
-        int num;
-        if (type == EDGE_STRAIGHT)
-            num = M.ell.CrossingStraight(start, end, r, radian_M, radian_us);
-        else {
-            if (ell == M.ell) return false; //we combine two segments of the same ellipse - all must be OK
-            num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
+        if (type == EDGE_STRAIGHT) {
+            double pos_us[8], radian_M[8];
+            int num = M.ell.CrossingStraight(start, end, r, radian_M, pos_us);
+            if (!num) {
+                const XY tangent = M.NextTangentPoint(0, M);  //We use next-tangent so as not to take the next edge, second param is dummy
+                if (crossing_line_line(tangent, M.start, start, end, newcp) == LINE_CROSSING_PARALLEL) {
+                    //OK we are parallel
+                    const double dist = (end-M.start).length() * parallel_join_multipiler;
+                    const double len = (end-start).length();
+                    newcp = start + (start-end)/len*dist;
+                }
+                return CP_ADD_LINE_OTHER;
+            }
+            int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
+            newcp = r[pos];
+            _ASSERT(newcp.x>-1000000 && newcp.x<10000000);
+            if (M.radianbetween(radian_M[pos]) && between01_approximate_inclusive(pos_us[pos]))
+                return CP_REAL;
+            return CP_EXTENDED;
+        } else {
+            if (ell == M.ell) return SAME_ELLIPSIS; //we combine two segments of the same ellipse - all must be OK
+            double radian_us[8], radian_M[8];
+            int num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
+            if (!num) {
+                const XY tangent1 = PrevTangentPoint(1, M);  
+                const XY tangent2 = M.NextTangentPoint(0, M);
+                if (crossing_line_line(tangent1, end, tangent2, M.start, newcp) == LINE_CROSSING_PARALLEL) {
+                    //OK we are parallel
+                    const double dist = (end-M.start).length() * parallel_join_multipiler;
+                    const double len = (end-tangent1).length();
+                    newcp = (end+M.start)/2 + (end-tangent1)/len*dist;
+                }
+                return CP_ADD_LINE_BOTH;
+            }
+            int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
+            newcp = r[pos];
+            _ASSERT(newcp.x>-1000000 && newcp.x<10000000);
+            if (M.radianbetween(radian_M[pos]) && radianbetween(radian_us[pos]))
+                return CP_REAL;
+            return CP_EXTENDED;
         }
-        int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
-        //arc does not intersect with a straight edge: add line
-        if (pos == -1) return -1;
-        cp = r[pos];
-        _ASSERT(cp.x>-1000000 && cp.x<10000000);
-    }
-
-    //We get here if the two edges join "normally"
-    //"cp" contains their crosspoint
-    switch (et) {
-    default:
-        _ASSERT(0);
-    case EXPAND_MITER:
-        SetEndLiberal(cp);
-        M.SetStartLiberal(cp);
-        return false;
-    case EXPAND_BEVEL:
-        res.type = EDGE_STRAIGHT;
-        res.start = end;
-        res.end = M.start;
-        return true;
-    case EXPAND_ROUND:
-        _ASSERT(test_equal((old-end).length(), (old-M.start).length()));
-        res = Edge(old, (old-end).length()); //full circle
-        res.SetStartLiberal(end);
-        res.SetEndLiberal(M.start);
-        return true;
     }
 }
+
+//int EdgeArc::CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, EdgeArc &res)
+//{
+//    XY cp;
+//    if (M.type == EDGE_STRAIGHT) {
+//        if (type == EDGE_STRAIGHT) {
+//            if (!crossing_line_line(start, end, M.start, M.end, cp))
+//                return -1;
+//        } else {
+//            XY r[8];
+//            double radian_us[8], pos_M[8];
+//            int num = ell.CrossingStraight(M.start, M.end, r, radian_us, pos_M);
+//            int pos = find_closest(num, radian_us, e, !clockwise_arc);
+//            if (pos==-1) return -1;
+//            cp = r[pos];
+//        }
+//    } else {
+//        XY r[8];
+//        double radian_us[8], radian_M[8];
+//        int num;
+//        if (type == EDGE_STRAIGHT)
+//            num = M.ell.CrossingStraight(start, end, r, radian_M, radian_us);
+//        else {
+//            if (ell == M.ell) return false; //we combine two segments of the same ellipse - all must be OK
+//            num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
+//        }
+//        int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
+//        //arc does not intersect with a straight edge: add line
+//        if (pos == -1) return -1;
+//        cp = r[pos];
+//        _ASSERT(cp.x>-1000000 && cp.x<10000000);
+//    }
+//
+//    //We get here if the two edges join "normally"
+//    //"cp" contains their crosspoint
+//    switch (et) {
+//    default:
+//        _ASSERT(0);
+//    case EXPAND_MITER:
+//        SetEndLiberal(cp);
+//        M.SetStartLiberal(cp);
+//        return false;
+//    case EXPAND_BEVEL:
+//        res.type = EDGE_STRAIGHT;
+//        res.start = end;
+//        res.end = M.start;
+//        return true;
+//    case EXPAND_ROUND:
+//        _ASSERT(test_equal((old-end).length(), (old-M.start).length()));
+//        res = Edge(old, (old-end).length()); //full circle
+//        res.SetStartLiberal(end);
+//        res.SetEndLiberal(M.start);
+//        return true;
+//    }
+//}
 
 
 inline bool radbw(double r, double s, double e)
@@ -1053,25 +1194,25 @@ inline bool radbw(double r, double s, double e)
 //return 1, if they lie in the opposite dir or if start~~end
 //return 2, if *this is a circle, the direction has changed,
 //   but the M curve span more than 180 degrees
-int Edge::IsOppositeDir(const EdgeArc &M) const
-{
-	if (start.test_equal(end)) return 1;
-	if (type==EDGE_STRAIGHT) {
-		if (fabs(start.x-end.x) > fabs(start.y-end.y))
-			return (start.x<end.x) != (M.start.x<M.end.x);
-		else
-			return (start.y<end.y) != (M.start.y<M.end.y);
-	}
-    //exception: if any is exactly 180 degrees, we return same direction
-    if (fabs(s-e) == M_PI || fabs(M.s-M.e) == M_PI) return 0;
-	const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
-	const bool dir_M = (M.e>M.s && (M.e-M.s)<M_PI) || (M.s>M.e && (M.s-M.e)>=M_PI);
-    if (dir_us == dir_M) return 0;
-	//OK, dir has changed on a curyv edge
-	//Now see, if the original s->e was more than 180 degrees
-	return M.GetSpan()>M_PI ? 2 : 1;
-}
-
+//int Edge::IsOppositeDir(const EdgeArc &M) const
+//{
+//	if (start.test_equal(end)) return 1;
+//	if (type==EDGE_STRAIGHT) {
+//		if (fabs(start.x-end.x) > fabs(start.y-end.y))
+//			return (start.x<end.x) != (M.start.x<M.end.x);
+//		else
+//			return (start.y<end.y) != (M.start.y<M.end.y);
+//	}
+//    //exception: if any is exactly 180 degrees, we return same direction
+//    if (fabs(s-e) == M_PI || fabs(M.s-M.e) == M_PI) return 0;
+//	const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
+//	const bool dir_M = (M.e>M.s && (M.e-M.s)<M_PI) || (M.s>M.e && (M.s-M.e)>=M_PI);
+//    if (dir_us == dir_M) return 0;
+//	//OK, dir has changed on a curyv edge
+//	//Now see, if the original s->e was more than 180 degrees
+//	return M.GetSpan()>M_PI ? 2 : 1;
+//}
+//
 #define CURVY_OFFSET_BELOW_GRANULARIRY 5
 
 double EdgeArc::offsetbelow_curvy_straight(const EdgeStraight &M, bool straight_is_up, double &touchpoint) const
