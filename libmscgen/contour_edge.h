@@ -138,6 +138,7 @@ public:
 
 class EdgeArc : public EdgeFullCircle {
 protected:
+    friend class Contour;
     double  e;           //supposedly between [0..2pi), if s==e, either empty or full circle
 
     //Convert between pos (0..1) and coordinates
@@ -149,6 +150,9 @@ protected:
     void   removebeforepoint_curvy(const XY &p);
     void   removeafterpoin_curvy(const XY &p);
     double offsetbelow_curvy_straight(const EdgeStraight &M, bool straight_is_up, double &touchpoint) const;
+    
+    double FindRadianOfClosestPos(unsigned num, double pos[], double rad);
+    bool UpdateClockWise(double new_s, double new_e);
 public:
     EdgeArc() : EdgeFullCircle() {};
     EdgeArc(const XY &s, const XY &e) : EdgeFullCircle(s, e) {}
@@ -190,8 +194,11 @@ public:
 
     //Helpers for expand
     bool Expand(double gap);
-    int  CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, EdgeArc &res);
-    int  IsOppositeDir(const EdgeArc &M) const;
+    typedef enum {SAME_ELLIPSIS, PARALLEL_LINES, CP_REAL, CP_EXTENDED, 
+                  CP_ADD_LINE_ME, CP_ADD_LINE_OTHER, CP_ADD_LINE_BOTH,
+                  NO_CP_ADD_LINE} EExpandCPType;
+    EExpandCPType FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const;
+    int  SetStartEndForExpand(const XY &S, const XY &E) const;
 
     //Helper for offsetbelow
     double OffsetBelow(const EdgeArc &M, double &touchpoint) const;

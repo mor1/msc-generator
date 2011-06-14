@@ -126,6 +126,8 @@ struct Block {
         {return XY(x.from, y.till);}
     XY CenterPoint(void) const
         {return XY(x.MidPoint(), y.MidPoint());}
+    XY Spans(void) const 
+        {return XY(x.Spans(), y.Spans());}
     is_within_t IsWithin(const XY &p) const {
         if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
         if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;

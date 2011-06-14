@@ -56,10 +56,6 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
     ContourWithHoles current_blob = p;
     for (auto i=begin(); i!=end(); /*none*/) {
         ContourList res;
-        int a=0, b=3;
-        if (current_blob.size()==1 && current_blob[0].GetType()==EDGE_FULL_CIRCLE) {
-            std::swap(a,b);
-        }
         const Contour::result_t ret = i->Add(current_blob, res);
         switch (ret) {
         default:

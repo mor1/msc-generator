@@ -31,7 +31,7 @@ public:
     typedef enum {OVERLAP, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART} result_t;
 	typedef enum {WINDING_RULE, EVENODD_RULE, EXPAND_RULE, XOR_RULE} untangle_t;
 protected:
-    is_within_t   IsWithin(XY p, int *edge=NULL, double *pos=NULL) const;
+    is_within_t IsWithin(XY p, int *edge=NULL, double *pos=NULL, bool strict=true) const;
     result_t CheckContainmentHelper(const Contour &b) const;
     result_t CheckContainment(const Contour &b) const;
     bool CalculateClockwise() const;

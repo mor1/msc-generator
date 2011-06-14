@@ -155,10 +155,15 @@ inline bool between01(double r)
     return r>=0 && r<=1;
 }
 
+inline bool between01_approximate_inclusive(double r)
+{
+    return !(test_smaller(r, 0) || test_smaller(1, r));
+}
+
 inline bool between01_adjust(double &n) 
 {
 	if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
-		return 0;
+		return false;
 	if (!test_smaller(0,n)) n=0; //if n~=0;
 	return true;
 }
@@ -168,7 +173,9 @@ inline double deg2rad(double degree)
 	return degree==360 ? M_PI*2 : fmod_negative_safe(degree, 360.)*M_PI/180;
 }
 
-bool crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
+typedef enum {LINE_CROSSING_PARALLEL, LINE_CROSSING_INSIDE, LINE_CROSSING_OUTSIDE} ELineCrossingType;
+
+ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
 double point2pos_straight(const XY &M, const XY&N, const XY &p);
 
 

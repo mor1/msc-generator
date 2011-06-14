@@ -29,28 +29,31 @@ cairo_status_t write_func4test(void * closure, const unsigned char *data, unsign
         return CAIRO_STATUS_WRITE_ERROR;
 }
 
-class Context 
+class CairoContext 
 {
     FILE *outFile;
     cairo_surface_t *surface;
     cairo_t *cr;
     const double x;
-    void Draw(const Area& area, bool shifted, int other=0);
 public:
-    Context(unsigned i, const XY &size);
-    ~Context();
-    void Draw1(const Area& area, bool other=false) {Draw(area, false, other?1:0);}
-    void Draw2(const Area& area) {Draw(area, true, 2);}
+    CairoContext(unsigned i, const XY &size, const char *text=NULL, bool two=true, int sub=-1);
+    ~CairoContext();
+    void Draw(const Area& area, bool shifted, double r, double g, double b, bool fill);
+    void Draw1(const Area& area, bool other=false) {Draw(area, false, other?1:0, other?0:1, 0, true);}
+    void Draw2(const Area& area) {Draw(area, true, 0,0,1, true);}
 };
 
-Context::Context(unsigned i, const XY &size) : x(size.x)
+CairoContext::CairoContext(unsigned i, const XY &size, const char *text, bool two, int sub) : x(two?size.x:0)
 {
     static char fileName[40];
-    sprintf(fileName, "test%03d.png", i);
+    if (sub>=0) 
+        sprintf(fileName, "test%03d_%03d.png", i, sub);
+    else
+        sprintf(fileName, "test%03d.png", i);
     outFile=NULL;
     surface=NULL;
     cr=NULL;
-    surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, int(2*size.x), int(size.y));
+    surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, int(two?2*size.x:size.x), int(size.y));
     cairo_status_t st;
     st = cairo_surface_status(surface);
     if (st != CAIRO_STATUS_SUCCESS) goto error;
@@ -60,6 +63,11 @@ Context::Context(unsigned i, const XY &size) : x(size.x)
     cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_rectangle(cr, 0, 0, int(2*size.x), int(size.y));
     cairo_fill(cr);
+    if (text) {
+        cairo_set_source_rgb(cr, 0,0,0);
+        cairo_move_to(cr, 5,15);
+        cairo_show_text(cr, text);
+    }
     outFile = fopen(fileName, "wb");
     if (outFile) return;
         
@@ -72,7 +80,7 @@ error:
     cr=NULL;
 }
 
-Context::~Context() 
+CairoContext::~CairoContext() 
 {
     if (cr) cairo_destroy(cr);
     if (outFile && surface) 
@@ -82,48 +90,78 @@ Context::~Context()
         fclose(outFile);
 };
 
-void Context::Draw(const Area& area, bool shifted, int other) 
+void CairoContext::Draw(const Area& area, bool shifted, double r, double g, double b, bool fill) 
 {
     if (!cr) return;
     if (shifted)
         cairo_translate(cr,x,0);
-    switch (other) {
-        case 0: cairo_set_source_rgba(cr, 1, 0, 0, 0.2); break;
-        case 1: cairo_set_source_rgba(cr, 0, 1, 0, 0.2); break;
-        case 2: cairo_set_source_rgba(cr, 0, 0, 1, 0.2); break;
+    if (fill) {
+        cairo_set_source_rgba(cr, r, g, b, 0.2); 
+        area.Fill(cr);
     }
-    area.Fill(cr);
-    switch (other) {
-        case 0: cairo_set_source_rgb(cr, 1, 0, 0); break;
-        case 1: cairo_set_source_rgb(cr, 0, 1, 0); break;
-        case 2: cairo_set_source_rgb(cr, 0, 0, 1); break;
-    }
+    cairo_set_source_rgb(cr, r, g, b); 
     area.Line2(cr);
     if (shifted)
         cairo_translate(cr,-x,0);
 }
 
-void Draw(unsigned i, const Area area1, const Area area2, const Area area3)
+void Draw(unsigned i, const Area area1, const Area area2, const Area area3, const char *text=NULL)
 {
     Block b = area1.GetBoundingBox();
     b += area2.GetBoundingBox();
     b += area3.GetBoundingBox();
-    Context c(i, b.LowerRight()+XY(10,10));
+    CairoContext c(i, b.LowerRight()+XY(10,10), text);
     c.Draw1(area1);
     c.Draw1(area2, true);
     c.Draw2(area3);
 }
 
-inline void Draw(unsigned i, const Area area1, const Area area2) {Draw(i, area1, Area(), area2);}
-inline void Draw(unsigned i, const Area area1) {Draw(i, Area(), Area(), area1);}
+inline void Draw(unsigned i, const Area area1, const Area area2, const char *text=NULL) {Draw(i, area1, Area(), area2, text);}
+inline void Draw(unsigned i, const Area area1, const char *text=NULL) {Draw(i, Area(), Area(), area1, text);}
 
-void DrawExpand(unsigned i, const Area area1, double from = -20, double to = 20, double step=4)
+void DrawExpand(unsigned i, const Area area1, bool manyfile=true, bool singlefile=true, double step=4)
 {
-    Context context(i, area1.GetBoundingBox().LowerRight()+XY(to,to));
-    bool other=false;
-    for (double d=from; d<to; d+=step) {
-        context.Draw1(area1.CreateExpand(d), other);
-        other = !other;
+    CairoContext *context;
+    if (singlefile) 
+        context = new CairoContext(i, area1.GetBoundingBox().LowerRight()+area1.GetBoundingBox().Spans(), false);
+    const unsigned NUM=3;
+    const double r[NUM] = {1,0,0};
+    const double g[NUM] = {0,1,0};
+    const double b[NUM] = {0,0,1};
+    unsigned num=0;
+    double gap = -step;
+    bool shrinking = true;
+    double max_gap;
+    //first we find how small we can shrink it (until it disappears),
+    //then we do an expand phase to the same extent
+    while(shrinking || gap>=0) {
+        Area a = area1.CreateExpand(gap);
+        if (a.IsEmpty() && shrinking) {
+            max_gap = gap *= -1;
+            shrinking = false;
+            continue;
+        }
+        if (singlefile) {
+            if (gap==0)
+                context->Draw(a, false, 0, 0, 0, false);
+            else
+                context->Draw(a, false, r[num%NUM], g[num%NUM], b[num%NUM], false);
+        }
+        num++;
+        gap-=step;
+    }
+    if (singlefile) 
+        delete context;
+    if (manyfile) {
+        unsigned num2=0;
+        for (gap = -max_gap; gap<=max_gap; gap+=step) {
+            char buff[400];
+            sprintf(buff, "Inner expanded by %g", gap);
+            CairoContext context2(i, area1.GetBoundingBox().LowerRight()*2, buff, false, int(num2));
+            context2.Draw(area1.CreateExpand(gap+step), false, r[num2%2],     g[num2%2],     b[num2%2],    true);
+            context2.Draw(area1.CreateExpand(gap),      false, r[(num2+1)%2], g[(num2+1)%2], b[(num2+1)%2], true);
+            num2++;
+        }
     }
 }
 
