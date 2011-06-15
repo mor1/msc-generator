@@ -198,7 +198,7 @@ public:
                   CP_ADD_LINE_ME, CP_ADD_LINE_OTHER, CP_ADD_LINE_BOTH,
                   NO_CP_ADD_LINE} EExpandCPType;
     EExpandCPType FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const;
-    int  SetStartEndForExpand(const XY &S, const XY &E) const;
+    void SetStartEndForExpand(const XY &S, const XY &E);
 
     //Helper for offsetbelow
     double OffsetBelow(const EdgeArc &M, double &touchpoint) const;

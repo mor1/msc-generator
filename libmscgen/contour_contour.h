@@ -15,36 +15,41 @@ class ContourHelper;
 //always goes in clockwise direction - except internally
 class Contour : protected std::vector<Edge>
 {
-    friend class ContourHelper;
-
-    friend class ContourList; //to access the (std::vector<Edge> &&) constructor & GetInverse
-	friend class node_list;   //to access CheckContainment
-    explicit Contour(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
-    explicit Contour(const std::vector<Edge> &v) : std::vector<Edge>(v) {} //leave boundingBox!!
-    double do_offsetbelow(const Contour &below, double &touchpoint) const;
-protected:
-    Block  boundingBox;
-
-    Contour CreateInverse() const;
-
 public:
     typedef enum {OVERLAP, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART} result_t;
-	typedef enum {WINDING_RULE, EVENODD_RULE, EXPAND_RULE, XOR_RULE} untangle_t;
-protected:
-    is_within_t IsWithin(XY p, int *edge=NULL, double *pos=NULL, bool strict=true) const;
+	typedef enum {WINDING_NONZERO, WINDING_EVENODD, WINDING_POSITIVE} winding_rule_t;
+	typedef enum {COMBINE_UNION, COMBINE_INTERSECT, COMBINE_XOR} combine_t;
+
+private:
+    friend class ContourHelper;
     result_t CheckContainmentHelper(const Contour &b) const;
+    result_t UnionIntersectXor(const Contour &b, ContourList &result, combine_t doUnion) const;
+    double do_offsetbelow(const Contour &below, double &touchpoint) const;
+
+protected:
+    friend class ContourList; //to access the (std::vector<Edge> &&) constructor & GetInverse
+	friend class node_list;   //to access CheckContainment
+
+    Block  boundingBox;
+    explicit Contour(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
+    explicit Contour(const std::vector<Edge> &v) : std::vector<Edge>(v) {} //leave boundingBox!!
+
+    Contour CreateInverse() const;
+    Contour CreateWithLastEdge(unsigned i) const;
+    const Block &CalculateBoundingBox();
+
+    is_within_t IsWithin(XY p, int *edge=NULL, double *pos=NULL, bool strict=true) const;
     result_t CheckContainment(const Contour &b) const;
     bool CalculateClockwise() const;
     void AppendDuringWalk(const Edge &);
     bool PostWalk();
     bool IsSane() const;
     bool Sanitize();
-    result_t UnionIntersect(const Contour &b, ContourList &result, bool doUnion) const;
-    result_t Union(const Contour &b, ContourList &result) const {return UnionIntersect(b, result, true);}
-    result_t Intersect(const Contour &b, ContourList &result) const {return UnionIntersect(b, result, false);}
-    result_t Substract(const Contour &b, ContourList &result) const {return UnionIntersect(b.CreateInverse(), result, false);}
-    result_t DoXor(const Contour &b, ContourList &result) const;
-	result_t Untangle(ContourList &result, untangle_t rule) const;
+    result_t Union(const Contour &b, ContourList &result) const {return UnionIntersectXor(b, result, COMBINE_UNION);}
+    result_t Intersect(const Contour &b, ContourList &result) const {return UnionIntersectXor(b, result, COMBINE_INTERSECT);}
+    result_t Substract(const Contour &b, ContourList &result) const {return UnionIntersectXor(b.CreateInverse(), result, COMBINE_INTERSECT);}
+    result_t Xor(const Contour &b, ContourList &result) const {return UnionIntersectXor(b, result, COMBINE_XOR);}
+	result_t Untangle(ContourList &result, winding_rule_t rule) const;
 
     int next(int vertex) const {return (vertex+1)%size();}
     int prev(int vertex) const {return (vertex-1+size())%size();}
@@ -60,6 +65,8 @@ protected:
 
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
     void Expand(EExpandType type, double gap, ContourList &res) const;
+    ContourList CreateExpand(double gap, EExpandType type=EXPAND_MITER) const;
+    double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 public:
     Contour() {boundingBox.MakeInvalid();}
     Contour(Contour &&p) {swap(p);}
@@ -82,7 +89,6 @@ public:
     XY NextTangentPoint(int edge, double pos) const {return at(edge).NextTangentPoint(pos, at_next(edge));}
 
     const Block &GetBoundingBox() const {return boundingBox;}
-    const Block &CalculateBoundingBox();
     void swap(Contour &b) {std::vector<Edge>::swap(b); std::swap(boundingBox, b.boundingBox);}
     void clear() {std::vector<Edge>::clear(); boundingBox.MakeInvalid();}
     unsigned size() const {return std::vector<Edge>::size();}
@@ -90,18 +96,14 @@ public:
     const Edge &GetEdge(int edge) const {return at(edge);}
     bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).start));}
     bool AddAnEdge(const Edge &edge);
-    bool OpenHere(const XY &xy);
 
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (unsigned i=0; i<size(); i++) at(i).Shift(xy);}
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return std::move(a);}
     Contour& SwapXY() {boundingBox.SwapXY(); for (unsigned i=0; i<size(); i++) at(i).SwapXY(); *this = CreateInverse(); return *this;}
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
 
-    ContourList CreateExpand(double gap, EExpandType type=EXPAND_MITER) const;
-    Contour CreateWithLastEdge(unsigned i) const;
     void Path(cairo_t *cr, bool inverse=false) const;
     void PathOpen(cairo_t *cr) const;
-    double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 };
 
 inline bool Contour::operator <(const Contour &b) const
