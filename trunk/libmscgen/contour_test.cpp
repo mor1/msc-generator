@@ -273,6 +273,8 @@ void contour_test(void)
 	cooomplex2.RotateAround(XY(350,100), 39);
     Draw(13, cooomplex3, cooomplex2);
 
+    huhu.CreateExpand(-12);
+
     DrawExpand(14, later);
     DrawExpand(15, cooomplex);
     DrawExpand(16, huhu);

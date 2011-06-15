@@ -1126,6 +1126,41 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
     }
 }
 
+
+void EdgeArc::SetStartEndForExpand(const XY &S, const XY &E) 
+{
+    double new_s, new_e;
+    if (type!=EDGE_STRAIGHT) {
+        new_s = ell.Point2Radian(S);
+        if (S.test_equal(E)) 
+            new_e = new_s;
+        else 
+            new_e = ell.Point2Radian(E);
+    }
+    switch (type) {
+    case EDGE_ARC:
+        //check if direction has changed
+        //start with an exception: if any is exactly 180 degrees, we assume same direction
+        //(thus we test the rest only if none is exactly 180 degrees)
+        if (fabs(s-e) != M_PI && fabs(new_s-new_e) != M_PI) {
+            const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
+            const bool dir_M = (new_e>new_s && (new_e-new_s)<M_PI) || (new_s>new_e && (new_s-new_e)>=M_PI);
+            if (dir_us != dir_M) 
+                clockwise_arc = !clockwise_arc;
+        }
+        /* Falltherough */
+    case EDGE_FULL_CIRCLE:
+        //for full circle we assume dir has not changed
+        s = new_s;
+        e = new_e;
+        type = S.test_equal(E) ? EDGE_FULL_CIRCLE : EDGE_ARC;
+    case EDGE_STRAIGHT:
+        break;
+    }
+    start = S;
+    end = E;
+}
+
 //int EdgeArc::CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, EdgeArc &res)
 //{
 //    XY cp;
