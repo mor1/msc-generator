@@ -17,7 +17,7 @@ class Contour : protected std::vector<Edge>
 {
 public:
     typedef enum {OVERLAP, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART} result_t;
-	typedef enum {WINDING_NONZERO, WINDING_EVENODD, WINDING_POSITIVE} winding_rule_t;
+	typedef enum {WINDING_NONZERO, WINDING_EVENODD, WINDING_NONNEGATIVE} winding_rule_t;
 	typedef enum {COMBINE_UNION, COMBINE_INTERSECT, COMBINE_XOR} combine_t;
 
 private:
@@ -28,7 +28,7 @@ private:
 
 protected:
     friend class ContourList; //to access the (std::vector<Edge> &&) constructor & GetInverse
-	friend class node_list;   //to access CheckContainment
+	friend class untangle_node_list;   //to access Split
 
     Block  boundingBox;
     explicit Contour(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
@@ -49,6 +49,7 @@ protected:
     result_t Intersect(const Contour &b, ContourList &result) const {return UnionIntersectXor(b, result, COMBINE_INTERSECT);}
     result_t Substract(const Contour &b, ContourList &result) const {return UnionIntersectXor(b.CreateInverse(), result, COMBINE_INTERSECT);}
     result_t Xor(const Contour &b, ContourList &result) const {return UnionIntersectXor(b, result, COMBINE_XOR);}
+    result_t Split(const Contour &b, ContourList &intersect, ContourList &left_of_me, ContourList &left_of_b) const;
 	result_t Untangle(ContourList &result, winding_rule_t rule) const;
 
     int next(int vertex) const {return (vertex+1)%size();}
@@ -65,7 +66,6 @@ protected:
 
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
     void Expand(EExpandType type, double gap, ContourList &res) const;
-    ContourList CreateExpand(double gap, EExpandType type=EXPAND_MITER) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 public:
     Contour() {boundingBox.MakeInvalid();}
@@ -101,6 +101,7 @@ public:
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return std::move(a);}
     Contour& SwapXY() {boundingBox.SwapXY(); for (unsigned i=0; i<size(); i++) at(i).SwapXY(); *this = CreateInverse(); return *this;}
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
+    ContourList CreateExpand(double gap, EExpandType type=EXPAND_MITER) const;
 
     void Path(cairo_t *cr, bool inverse=false) const;
     void PathOpen(cairo_t *cr) const;
