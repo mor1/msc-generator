@@ -220,6 +220,7 @@ unsigned ContourHelper::FindCrosspoints()
 inline bool ContourHelper::IsCoverageToInclude(unsigned cov, Contour::combine_t type) const
 {
     switch (type) {
+    default: _ASSERT(0); /*fallthrough*/
     case Contour::COMBINE_INTERSECT: return cov>=Contours.size();
     case Contour::COMBINE_UNION:     return cov>=1;
     case Contour::COMBINE_XOR:       return cov%2==1;
@@ -470,8 +471,13 @@ void ContourHelper::Walk4Combine(Contour &result)
         //here "current" points to an incoming ray
         if (current.cp_index>=0) { //we are at a crosspoint, not a vertex
             const Ray &incoming = AllRays[RaysByContour[current.contour][current.vertex][current.cp_index]];
-            //Mark the incoming ray as DONE
+            //Mark the incoming ray (and all start rays its entire ray group) as DONE
             incoming.valid = false;
+            for (auto i = StartRays.begin(); i!=StartRays.end(); i++) {
+                const Ray &r = AllRays[RaysByContour[i->contour][i->vertex][i->cp_index]];
+                if (r.valid && r.xy.test_equal(incoming.xy) && r.angle.IsSimilar(incoming.angle))
+                    r.valid = false;
+            }
             switch (incoming.switch_action) {
             case Ray::ERROR:
                 _ASSERT(0);
@@ -1014,103 +1020,146 @@ Contour::result_t Contour::UnionIntersectXor(const Contour &b, ContourList &resu
     return OVERLAP;
 }
 
+//Splits the two contours into three parts: an intersect, a "this" minus "b" and a "b" minus "this"
+Contour::result_t Contour::Split(const Contour &b, ContourList &intersect, ContourList &left_of_me, ContourList &left_of_b) const
+{
+    if (size()==0) return b.size() ? A_IS_EMPTY : BOTH_EMPTY;
+    if (b.size()==0) return B_IS_EMPTY;
+    if (!boundingBox.Overlaps(b.boundingBox)) return APART;
+
+    result_t ret = Intersect(b, intersect);
+    if (ret!=OVERLAP) return ret;
+    Substract(b, left_of_me);
+    b.Substract(*this, left_of_b);
+    return OVERLAP;
+}
+
 
 
 //This is a DAG of contours (holes or srufaces) 
-//Two types of edges defined: a "child" edge between A->B means that A fully contains B;
-//a "parent" edge means B=>A the opposite.
+//An edge between A->B means that A fully contains B
 
 struct untangle_node 
 {
+    ContourWithHoles contour;
     std::list<std::list<untangle_node>::iterator> children;
-    std::list<std::list<untangle_node>::iterator> parents;
-    int my;
+    std::list<untangle_node>::iterator            parent;
+    int coverage;  //shows how many arounds we have (in addition to "parent")
+    untangle_node(ContourWithHoles &&p, int c) : contour(std::move(p)), coverage(c) {}
 };
 
-struct node;
-class node_list : public std::list<node>
+class untangle_node_list : public std::list<untangle_node>
 {
 public:
-    void insert_tree(Contour &&p, bool hole);
-    void Convert(bool hole, int counter, Contour::untangle_t rule, ContourList &result);
+    void insert_node(ContourWithHoles &&p, int c) {push_back(untangle_node(std::move(p), c));}
+    void Convert(Contour::winding_rule_t rule, ContourList &result);
 };
 
-struct node {
-    bool ishole;
-    Contour contour;
-    node_list inside_me;
-    node(Contour &&p, bool hole) : ishole(hole), contour(p)  {}
-    node(node &&n) : ishole(n.ishole), contour(std::move(n.contour)), inside_me(std::move(n.inside_me)) {}
-};
-
-void node_list::insert_tree(Contour &&p, bool hole)
+void untangle_node_list::Convert(Contour::winding_rule_t rule, ContourList &result) 
 {
-    node n(std::move(p), hole);
-    iterator in_what;
-    bool was = false;
-    for (auto i = begin(); i!=end(); /*none*/) {
-        ContourList res;
-        switch (n.contour.Intersect(i->contour, res)) {
-        default:
-        case Contour::SAME: _ASSERT(0);
-        case Contour::A_INSIDE_B:
-            _ASSERT(!was);
-            in_what = i;
-            was = true;
-            i=end(); //skip the rest: nothing can be in us, if we are in someone
-            break;
-        case Contour::APART:
-            i++;
-            break;
-        case Contour::B_INSIDE_A:
-            if (i==begin()) {
-                n.inside_me.splice(n.inside_me.end(), *this, i);
-                i = begin();
-            } else {
-                n.inside_me.splice(n.inside_me.end(), *this, i--);
-                i++;
+    //Go through the list pairwise and
+    //if <earlier> is fully in <later> move <later> just before <earlier> & continue
+    //if <earlier> overlaps <later>, split them into parts and move all parts to the end
+    bool changed;
+    do {
+        changed = false;
+        for (auto i1 = begin(); i1!=end(); /*nope*/) {
+            for (auto i2 = ++iterator(i1); i2!=end(); /*nope*/) {
+                ContourList intersect, left_of_i1, left_of_i2;
+                switch (i1->contour.Split(i2->contour, intersect, left_of_i1, left_of_i2)) {
+                case Contour::OVERLAP:
+                    for (ContourList::iterator j = intersect.begin(); j!=intersect.end(); j++)
+                        insert_node(std::move(*j), i1->coverage + i2->coverage);
+                    for (ContourList::iterator j = left_of_i1.begin(); j!=left_of_i1.end(); j++)
+                        insert_node(std::move(*j), i1->coverage);
+                    for (ContourList::iterator j = left_of_i2.begin(); j!=left_of_i2.end(); j++)
+                        insert_node(std::move(*j), i2->coverage);
+                    erase(i2);
+                    erase(i1++);
+                    changed=true;
+                    goto next;
+                case Contour::B_INSIDE_A:
+                    splice(++iterator(i1), *this, i2++);
+                    changed=true;
+                    continue;
+                default:
+                    i2++;
+                }
+            }
+            i1++;
+            next:   ;
+        }
+    } while(changed);
+
+    //Now we have partial ordering all contained nodes are later than their parents
+    //and there are no overlapping ones (except for full containment)
+    result.clear();
+    ContourList Dummy;
+    for (auto i1=begin(); i1!=end(); i1++) {
+        //search for a parent
+        auto i2 = i1;
+        while (i2 != begin()) {
+            i2--;
+            if (i1->contour.Intersect(i2->contour, Dummy) == Contour::B_INSIDE_A) {
+                i1->coverage += i2->coverage;
+                break;
             }
         }
-    if (was) in_what->inside_me.insert_tree(std::move(n.contour), hole);
-    else push_back(std::move(n));
-}
-
-
-//This is a set of surfaces with surfaces contaied within
-//counter counts the paths around us.
-//for winding rules, positive surfaces increment it, negative surfaces decrement it, if nonzero, we include
-//for evenodd rules, any path increments it, if odd, we include
-//for expand, positive surfaces increment it, negative surfaces decrement it, if one, we include
-//We also do a technical trick. Hole contains if we are inside a surface and we shall list holes.
-//if so, we simply surfaces we need to include based on the criterion above (but process their children).
-//And vice versa for holes=false
-void node_list::Convert(bool hole, int counter, Contour::untangle_t rule, ContourList &result)
-{
-    for (auto i=begin(); i!=end(); i++) {
-        int new_counter;
         bool include;
-        //for winding and expand we decrease if it is a hole
-        if (rule != Contour::EVENODD_RULE && i->ishole) new_counter = counter-1;
-        else new_counter = counter+1;
         switch (rule) {
-        case Contour::WINDING_RULE: include = new_counter!=0; break;
-        case Contour::XOR_RULE:
-        case Contour::EVENODD_RULE: include = new_counter%2==1; break;
-        case Contour::EXPAND_RULE:  include = new_counter>=1; break;
+        case Contour::WINDING_NONZERO:     include = i1->coverage!=0; break;
+        case Contour::WINDING_EVENODD:     include = i1->coverage%2==1; break;
+        case Contour::WINDING_NONNEGATIVE: include = i1->coverage>=0; break;
         }
-        if (hole != include) {
-            //Either we collect holes and shall not include this part->we shall include a hole
-            //or we collect surfaces and we shall include this part->we shall include a surface
-            ContourWithHoles p(std::move(i->contour));
-            i->inside_me.Convert(!hole, new_counter, rule, p.holes);
-            result.append(std::move(p));
-        } else {
-            //Either we collect holes and shall include this part->we shall not include this, maybe its children
-            //or we collect surfaces and we shall not include this part->we shall not include this, maybe its children
-            i->inside_me.Convert(hole, new_counter, rule, result);
-        }
+        if (include)
+            result += i1->contour;
+        else 
+            result -= i1->contour;
     }
 }
+
+//
+//struct node {
+//    bool ishole;
+//    Contour contour;
+//    node_list inside_me;
+//    node(Contour &&p, bool hole) : ishole(hole), contour(p)  {}
+//    node(node &&n) : ishole(n.ishole), contour(std::move(n.contour)), inside_me(std::move(n.inside_me)) {}
+//};
+//
+//void node_list::insert_tree(Contour &&p, bool hole)
+//{
+//    node n(std::move(p), hole);
+//    iterator in_what;
+//    bool was = false;
+//    for (auto i = begin(); i!=end(); /*none*/) {
+//        ContourList res;
+//        switch (n.contour.Intersect(i->contour, res)) {
+//        default:
+//        case Contour::SAME: _ASSERT(0);
+//        case Contour::A_INSIDE_B:
+//            _ASSERT(!was);
+//            in_what = i;
+//            was = true;
+//            i=end(); //skip the rest: nothing can be in us, if we are in someone
+//            break;
+//        case Contour::APART:
+//            i++;
+//            break;
+//        case Contour::B_INSIDE_A:
+//            if (i==begin()) {
+//                n.inside_me.splice(n.inside_me.end(), *this, i);
+//                i = begin();
+//            } else {
+//                n.inside_me.splice(n.inside_me.end(), *this, i--);
+//                i++;
+//            }
+//        }
+//    if (was) in_what->inside_me.insert_tree(std::move(n.contour), hole);
+//    else push_back(std::move(n));
+//}
+
+
 
 //Checks if the contour touches itself and splits it into multiple pieces, using the winding rule
 //Any point on the plane is part of the result, if a ray from it to infinity statisfies this rule:
@@ -1135,13 +1184,13 @@ Contour::result_t Contour::Untangle(ContourList &result, winding_rule_t rule) co
             if (CalculateClockwise()) return SAME;
             //no crosspoints, but counterclockwise
             //in case of WINDING_POSITIVE, we ignore holes: we return an empty result.
-            if (rule != WINDING_POSITIVE)
+            if (rule != WINDING_NONNEGATIVE)
                 result.append(CreateInverse());
             return OVERLAP;
         } else {
             if (tmp.CalculateClockwise())
                 result.append(std::move(tmp));
-            else if (rule != WINDING_POSITIVE)
+            else if (rule != WINDING_NONNEGATIVE)
                 result.append(tmp.CreateInverse());
             /*Note in case you add code here: tmp was destroyed by "move" above!*/
             return OVERLAP;
@@ -1149,14 +1198,14 @@ Contour::result_t Contour::Untangle(ContourList &result, winding_rule_t rule) co
     }
 
     //Now place resulting contours into each other properly
-    node_list nl;
+    untangle_node_list nl;
 	for (auto i = result.begin(); i!=result.end(); i++)
-        nl.insert_tree(std::move(*i), false);
+        nl.insert_node(std::move(*i), +1);
 	for (auto i = holes.begin(); i!=holes.end(); i++)
-        nl.insert_tree(std::move(*i), true);
+        nl.insert_node(std::move(*i), -1);
     result.clear();
 	//Now nl_ok contains a lot of untangled surfaces and holes neatly arranged
-	nl.Convert(false, 0, rule, result);
+	nl.Convert(rule, result);
     return OVERLAP;
 }
 
@@ -1211,12 +1260,6 @@ bool Contour::AddAnEdge(const Edge &edge)
     //OK, we can have these edges inserted
     swap(ret);
     return true;
-}
-
-bool OpenHere(const XY &)
-{
-    _ASSERT(0); //Add Openhere to Contour
-    return false;
 }
 
 //////////////////////////////////Contour::Expand implementation
@@ -1337,7 +1380,7 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
         r2[0].SetFullCircle();
     //OK, now untangle
     r2.CalculateBoundingBox();  //also calculates bounding boxes of edges
-    if (r2.size()==1 || SAME==r2.Untangle(res, WINDING_POSITIVE))
+    if (r2.size()==1 || SAME==r2.Untangle(res, WINDING_NONNEGATIVE))
         res.append(r2);        //expanded contour is not tangled, just add it
 }
 

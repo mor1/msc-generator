@@ -29,7 +29,7 @@ void ContourList::assign(const std::vector<XY> &v, bool winding)
     for (unsigned i=0; i<v.size(); i++)
         tmp.push_back(Edge(v[i], v[(i+1)%v.size()]));
     tmp.CalculateBoundingBox();
-    switch (tmp.Untangle(*this, winding ? Contour::WINDING_RULE : Contour::EVENODD_RULE)) {
+    switch (tmp.Untangle(*this, winding ? Contour::WINDING_NONZERO : Contour::WINDING_EVENODD)) {
     case Contour::SAME:       //just insert tmp
         append(std::move(tmp));
     case Contour::A_IS_EMPTY: //empty result okay
@@ -124,7 +124,7 @@ ContourList &ContourList::operator ^= (const ContourWithHoles &p)
     ContourList result;
     for (auto i=begin(); i!=end(); i++) {
         ContourList res;
-        i->DoXor(p, res);
+        i->Xor(p, res);
         result.append(std::move(res));
     }
     swap(result);
@@ -243,7 +243,7 @@ Contour::result_t ContourWithHoles::Sub(const ContourWithHoles &p, ContourList &
 
 Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, ContourList &res) const
 {
-    const Contour::result_t ret = DoXor(p, res);
+    const Contour::result_t ret = Xor(p, res);
     switch (ret) {
     default:
         _ASSERT(0);

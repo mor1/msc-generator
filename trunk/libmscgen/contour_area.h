@@ -18,6 +18,7 @@ protected:
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
     iterator begin() {return std::list<ContourWithHoles>::begin();}
     iterator end() {return std::list<ContourWithHoles>::end();}
+    friend class untangle_node_list;
 public:
     ContourList();
     explicit ContourList(const ContourWithHoles &p);
