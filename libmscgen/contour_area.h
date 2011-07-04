@@ -13,6 +13,7 @@ class ContourList : protected std::list<ContourWithHoles>
 {
     friend class ContourWithHoles;
     friend class Contour;
+    friend class ContourHelper;
 protected:
     Block boundingBox;
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section, bool add) const;
