@@ -243,7 +243,7 @@ Contour::result_t ContourWithHoles::Sub(const ContourWithHoles &p, ContourList &
 
 Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, ContourList &res) const
 {
-    const Contour::result_t ret = Xor(p, res);
+    const Contour::result_t ret = Contour::Xor(p, res);
     switch (ret) {
     default:
         _ASSERT(0);

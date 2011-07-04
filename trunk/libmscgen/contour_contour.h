@@ -17,18 +17,19 @@ class Contour : protected std::vector<Edge>
 {
 public:
     typedef enum {OVERLAP, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART} result_t;
-	typedef enum {WINDING_NONZERO, WINDING_EVENODD, WINDING_NONNEGATIVE} winding_rule_t;
-	typedef enum {COMBINE_UNION, COMBINE_INTERSECT, COMBINE_XOR} combine_t;
+protected:
+    typedef enum {COMBINE_UNION, COMBINE_INTERSECT, COMBINE_XOR, 
+                  WINDING_NONZERO, WINDING_EVENODD, WINDING_NONNEGATIVE} operation_t;
 
 private:
     friend class ContourHelper;
     result_t CheckContainmentHelper(const Contour &b) const;
-    result_t UnionIntersectXor(const Contour &b, ContourList &result, combine_t doUnion) const;
+    result_t UnionIntersectXor(const Contour &b, ContourList &result, operation_t operation) const;
+	result_t Untangle(ContourList &result, operation_t rule) const;
     double do_offsetbelow(const Contour &below, double &touchpoint) const;
 
 protected:
     friend class ContourList; //to access the (std::vector<Edge> &&) constructor & GetInverse
-	friend class untangle_node_list;   //to access Split
 
     Block  boundingBox;
     explicit Contour(std::vector<Edge> &&v) {std::vector<Edge>::swap(v);} //leave boundingBox!!
@@ -49,8 +50,7 @@ protected:
     result_t Intersect(const Contour &b, ContourList &result) const {return UnionIntersectXor(b, result, COMBINE_INTERSECT);}
     result_t Substract(const Contour &b, ContourList &result) const {return UnionIntersectXor(b.CreateInverse(), result, COMBINE_INTERSECT);}
     result_t Xor(const Contour &b, ContourList &result) const {return UnionIntersectXor(b, result, COMBINE_XOR);}
-    result_t Split(const Contour &b, ContourList &intersect, ContourList &left_of_me, ContourList &left_of_b) const;
-	result_t Untangle(ContourList &result, winding_rule_t rule) const;
+    result_t Untangle(ContourList &result, bool nonzero=true) const {return Untangle(result, nonzero?WINDING_NONZERO:WINDING_EVENODD);}
 
     int next(int vertex) const {return (vertex+1)%size();}
     int prev(int vertex) const {return (vertex-1+size())%size();}
