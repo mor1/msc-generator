@@ -31,7 +31,7 @@
 #include <string>
 #include <cmath>
 #include <utility>
-#include "contour_area.h"
+#include "area.h"
 
 
 #ifdef _DEBUG

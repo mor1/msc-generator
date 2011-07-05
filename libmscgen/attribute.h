@@ -6,7 +6,7 @@
 #include <list>
 #include "color.h"
 #include "csh.h"
-#include "contour_area.h"
+#include "area.h"
 
 using std::string;
 

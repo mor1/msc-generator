@@ -21,7 +21,7 @@
 #include <map>
 #include <set>
 #include <stack>
-#include "contour_area.h"
+#include "contour_contours.h"
 
 //"cp" means crosspoint from here
 
@@ -147,7 +147,7 @@ public:
     ContourHelper(const std::vector<const Contour*> &c, bool s=false) : ContourPointers(c.size()), with_self(c.size()<=1 || s) {for (unsigned u=0;u<c.size();u++) ContourPointers[u]=c[u];}
     ContourHelper(unsigned size, const Contour c[], bool s=false) : ContourPointers(size), with_self(size<=1 || s) {for (unsigned u=0;u<size;u++) ContourPointers[u]=c+u;}
     ContourHelper(unsigned size, const Contour *const c[], bool s=false) : ContourPointers(size), with_self(size<=1 || s) {for (unsigned u=0;u<size;u++) ContourPointers[u]=c[u];}
-    bool DoIt(Contour::operation_t type, ContourList &result);
+    bool DoIt(Contour::operation_t type, Contours &result);
 };
 
 //returns the head of the strict list 
@@ -658,7 +658,7 @@ void ContourHelper::Walk(RayPointer start, Contour &result)
     } while (current.at_vertex || Rays[current.index].seq_num != sn_finish);
 }
 
-bool ContourHelper::DoIt(Contour::operation_t type, ContourList &result)
+bool ContourHelper::DoIt(Contour::operation_t type, Contours &result)
 {
     //Find and evaluate crosspoints
     if (FindCrosspoints()) 
@@ -667,7 +667,7 @@ bool ContourHelper::DoIt(Contour::operation_t type, ContourList &result)
         return false; //two contours do not touch, determine their relative position
 
     //Walk while we have eligible starting points
-    ContourList holes;
+    Contours holes;
     while (StartRays.size()) {
         ContourWithHoles walk; //static: we keep allocated memory between calls for performance
         Walk(RayPointer(*StartRays.rbegin()), walk);
@@ -680,24 +680,25 @@ bool ContourHelper::DoIt(Contour::operation_t type, ContourList &result)
         if (walk.CalculateClockwise())
             result.append(walk);
         else
-            holes.append(walk.CreateInverse());
+            holes.append(ContourWithHoles(walk.CreateInverse()));
     }
     
     //Post-process holes   
     switch (type) {
     case Contour::COMBINE_UNION:    
         //With union we may have holes, but only one surface
-        _ASSERT(result.size()<=1); 
-        if (holes.size() && result.size())  //if we got only holes & no surfaces, we return empty "result"
-            result.begin()->holes.swap(holes);
+        _ASSERT(result.content.size()<=1); 
+        if (!holes.IsEmpty() && !result.IsEmpty())  //if we got only holes & no surfaces, we return empty "result"
+            result.content.begin()->holes.swap(holes);
         break;
     case Contour::COMBINE_INTERSECT:
         //With intersect (and substract), we can have multiple surfaces, but no holes
         //...or also, we may have just holes (e.g., substracting a larger area from a smaller one) ??? We assume this does not happen
-        _ASSERT(holes.size()==0 /* || results.size()==0 */); 
+        _ASSERT(holes.IsEmpty() /* || results.size()==0 */); 
         break;
     case Contour::COMBINE_XOR: 
-        //With XOR, we shall see
+        //With XOR, we shall not have holes
+        _ASSERT(holes.IsEmpty());
         break;
     case Contour::WINDING_NONZERO:     
     case Contour::WINDING_EVENODD:     
@@ -1095,7 +1096,7 @@ clear:
 //B_INSIDE_A: b is fully inside *this. (ignoring clockwiseness).
 //SAME: The two contours are actually the same (ignoring clockwiseness).
 //APART: The two contours are apart. (ignoring clockwiseness).
-Contour::result_t Contour::UnionIntersectXor(const Contour &b, ContourList &result, operation_t type) const
+Contour::result_t Contour::UnionIntersectXor(const Contour &b, Contours &result, operation_t type) const
 {
     if (size()==0) return b.size() ? A_IS_EMPTY : BOTH_EMPTY;
     if (b.size()==0) return B_IS_EMPTY;
@@ -1119,9 +1120,9 @@ Contour::result_t Contour::UnionIntersectXor(const Contour &b, ContourList &resu
 //- A_IS_EMPTY, if we are empty  (nothing is added to surfaces or holes)
 //- SAME, if we are already untangled (nothing is added to surfaces or holes)
 //- OVERLAP if there were intersections (or is counterclockwise) and they are placed in result
-Contour::result_t Contour::Untangle(ContourList &result, operation_t rule) const
+Contour::result_t Contour::Untangle(Contours &result, operation_t rule) const
 {
-    Contour tmp(*this);
+    ContourWithHoles tmp(*this);
     const bool original = tmp.Sanitize();
     if (tmp.size()==0)
         return OVERLAP; //an empty "result" is the untangled version
@@ -1133,14 +1134,14 @@ Contour::result_t Contour::Untangle(ContourList &result, operation_t rule) const
         //no crosspoints, but counterclockwise
         //in case of WINDING_NONNEGATIVE, we ignore holes: we return an empty result.
         if (rule != WINDING_NONNEGATIVE)
-            result.append(CreateInverse());
+            result.append(ContourWithHoles(CreateInverse()));
         return OVERLAP;
     } else {
         //Here we did make changes in Sanitize() above, so we return OVERLAP in any case
         if (tmp.CalculateClockwise())
             result.append(std::move(tmp));
         else if (rule != WINDING_NONNEGATIVE)
-            result.append(tmp.CreateInverse());
+            result.append(ContourWithHoles(tmp.CreateInverse()));
         /*Note in case you add code here: tmp was destroyed by "move" above!*/
         return OVERLAP;
     }
@@ -1202,10 +1203,10 @@ bool Contour::AddAnEdge(const Edge &edge)
 //////////////////////////////////Contour::Expand implementation
 
 
-void Contour::Expand(EExpandType type, double gap, ContourList &res) const
+void Contour::Expand(EExpandType type, double gap, Contours &res) const
 {
     if (gap==0) {
-        res.append(*this);
+        res.append(ContourWithHoles(*this));
         return;
     }
     if (size()==0 || boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap)
@@ -1216,7 +1217,7 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
     if (size()==1) {
         _ASSERT(at(0).GetType()==EDGE_FULL_CIRCLE);
         if (!r[0].Expand(gap)) return; //full circle disappeared, we return empty "res"
-        res.append(std::move(r));
+        res.append(std::move(ContourWithHoles(r)));
         return;
     }
 
@@ -1235,7 +1236,7 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
         cross_type[i] = r[i].FindExpandedEdgesCP(r.at_next(i), o[i].GetStart(), cross_point[i]);
 
     //OK, now adjust the edges and/or insert additional ones
-    Contour r2;
+    ContourWithHoles r2;
     r2.reserve(size()*3);
     switch (type) {
     default:
@@ -1321,9 +1322,9 @@ void Contour::Expand(EExpandType type, double gap, ContourList &res) const
         res.append(r2);        //expanded contour is not tangled, just add it
 }
 
-ContourList Contour::CreateExpand(double gap, EExpandType et) const
+Contours Contour::CreateExpand(double gap, EExpandType et) const
 {
-    ContourList cl;
+    Contours cl;
     Expand(et, gap, cl);
     return cl;
 }

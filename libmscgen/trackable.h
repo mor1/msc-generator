@@ -6,8 +6,8 @@
 #include <cmath>
 #include <utility>
 #include "error.h" //for file_line
-#include "contour_area.h" //for Area
-#include "style.h"  //for style
+#include "area.h"  //for Area
+#include "style.h" //for style
 
 typedef enum {
     MSC_CONTROL_INVALID,

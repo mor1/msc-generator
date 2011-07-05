@@ -2192,7 +2192,7 @@ double ArcBoxSeries::Height(AreaList &cover)
             if (i==series.begin() && radius != CORNER_NONE && radius>0) {
                 //Funnily shaped box, prevent content from hitting it
                 Block b(sx, dx, y, lw+y+radius*4);
-                limit += Contour(Block(sx, dx, 0, y+lw+main_style.line.radius.second)) -
+                limit += Contours(Block(sx, dx, 0, y+lw+main_style.line.radius.second)) -=
                             main_style.line.CreateRectangle(b);
                 if (main_style.line.corner.second == CORNER_NOTE) {
                     const double r = radius + main_style.line.RadiusIncMul()*lw/2 -
@@ -2211,7 +2211,7 @@ double ArcBoxSeries::Height(AreaList &cover)
             Block b(sx, dx, 0, y);
             MscLineAttr limiter_line(main_style.line);
             limiter_line.radius.second += chart->compressGap;
-            const Area bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -
+            const Area bottom = Contours(Block(sx, dx, limiter_line.radius.second+1, y+1)) -=
                             limiter_line.CreateRectangle(b);
             double tp;
             double off = content_cover.OffsetBelow(bottom, tp);
