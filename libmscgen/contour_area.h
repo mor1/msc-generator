@@ -154,7 +154,7 @@ public:
     Area &operator += (const Contour &b) {ContourList::operator+=(b); return *this;}
     Area &operator *= (const Contour &b) {ContourList::operator*=(b); return *this;}
     Area &operator -= (const Contour &b) {ContourList::operator-=(b); return *this;}
-    Area &operator ^= (const Contour &b) {ContourList::operator-=(b); return *this;}
+    Area &operator ^= (const Contour &b) {ContourList::operator^=(b); return *this;}
 
     bool IsEmpty() const {return size()==0;}
     const Block &GetBoundingBox(void) const {return boundingBox;}

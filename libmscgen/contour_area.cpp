@@ -349,6 +349,14 @@ Area &Area::operator -= (const Area &b)
     return *this;
 }
 
+Area &Area::operator ^= (const Area &b)
+{
+    ContourList::operator^=(b);
+    //No change to mainlines
+    if (arc==NULL) arc = b.arc;
+    return *this;
+}
+
 void Area::Fill2(cairo_t *cr, int r, int g, int b) const
 {
     if (size()==0) return;

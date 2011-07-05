@@ -172,8 +172,8 @@ void DrawExpand(unsigned i, const Area area1, bool manyfile=true, bool singlefil
 void contour_test(void)
 {
     Area tri = Contour(XY(50,90), XY(100,60), XY(40,20));
-	Draw(0, tri, Contour(30,50,60,70), tri + Contour(30,50,60,70));
-    tri +=  Contour(30,50,60,70);
+	Draw(0, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
+    tri +=  Contour(30,70,60,70);
 
 	Area boxhole = Contour(130,170,60,70);
 	boxhole += Contour(160,170,60,140);
@@ -195,7 +195,7 @@ void contour_test(void)
     const Area later = cooomplex2;
 
 	Area custom = cooomplex2;
-	Draw(5, cooomplex2, cooomplex2.CreateShifted(XY(15,15)), cooomplex2 + cooomplex2.CreateShifted(XY(15,15)));
+	Draw(5, cooomplex2, cooomplex2.CreateShifted(XY(15,15)), cooomplex2 ^ cooomplex2.CreateShifted(XY(15,15)));
     cooomplex2 += cooomplex2.CreateShifted(XY(15,15));
 	
     cooomplex2.Shift(XY(200,0));
@@ -212,7 +212,7 @@ void contour_test(void)
 	
     cooomplex2.ClearHoles();
 
-	Draw(7, cooomplex2, Contour(XY(300,101), 100, 50), cooomplex2 * Contour(XY(300,101), 100, 50));
+	Draw(7, cooomplex2, Contour(XY(300,101), 100, 50), cooomplex2 ^ Contour(XY(300,101), 100, 50));
     cooomplex2 *= Contour(XY(300,101), 100, 50);
 	Area cooomplex3 = cooomplex2;
 
