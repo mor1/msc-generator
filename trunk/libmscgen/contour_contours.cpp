@@ -17,15 +17,15 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <cassert>
-#include "contour_area.h"
+#include "contour_contours.h"
 
-/////////////////////////////////////////  ContourList implementation
+/////////////////////////////////////////  Contours implementation
 
-void ContourList::assign(const std::vector<XY> &v, bool winding)
+void Contours::assign(const std::vector<XY> &v, bool winding)
 {
     clear();
     if (v.size()<2) return;
-    Contour tmp;
+    ContourWithHoles tmp;
     for (unsigned i=0; i<v.size(); i++)
         tmp.push_back(Edge(v[i], v[(i+1)%v.size()]));
     tmp.CalculateBoundingBox();
@@ -40,22 +40,22 @@ void ContourList::assign(const std::vector<XY> &v, bool winding)
     }
 }
 
-void ContourList::SwapXY()
+void Contours::SwapXY()
 {
-    for (auto i=begin(); i!=end(); i++)
+    for (auto i=content.begin(); i!=content.end(); i++)
         i->SwapXY();
     boundingBox.SwapXY();
 }
 
-ContourList &ContourList::operator += (const ContourWithHoles &p)
+Contours &Contours::operator += (const ContourWithHoles &p)
 {
     if (!boundingBox.Overlaps(p.GetBoundingBox())) {
         append(p);
         return *this;
     }
     ContourWithHoles current_blob = p;
-    for (auto i=begin(); i!=end(); /*none*/) {
-        ContourList res;
+    for (auto i=content.begin(); i!=content.end(); /*none*/) {
+        Contours res;
         const Contour::result_t ret = i->Add(current_blob, res);
         switch (ret) {
         default:
@@ -64,14 +64,14 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
         case Contour::B_INSIDE_A:              //blob is inside i
         case Contour::A_INSIDE_B:              //i is fully covered by blob, delete it
         case Contour::SAME:                    //outer hull is same, holes may be modified
-            if (res.size()==0) {
+            if (res.IsEmpty()) {
                 _ASSERT(0);
             } else {
-                current_blob.swap(*res.begin());   //update blob with a positive union
+                current_blob.swap(*res.content.begin());   //update blob with a positive union
             }
             //fallthrough: now delete i
         case Contour::A_IS_EMPTY:
-            erase(i++);
+            content.erase(i++);
             break;
         case Contour::APART:   //go to next in queue, no holes to add, keep blob as was
             i++;
@@ -85,15 +85,15 @@ ContourList &ContourList::operator += (const ContourWithHoles &p)
     return *this;
 }
 
-ContourList &ContourList::operator *= (const ContourWithHoles &p)
+Contours &Contours::operator *= (const ContourWithHoles &p)
 {
     if (!boundingBox.Overlaps(p.boundingBox)) {
         clear();
         return *this;
     }
-    ContourList result;
-    for (auto i=begin(); i!=end(); i++) {
-        ContourList res;
+    Contours result;
+    for (auto i=content.begin(); i!=content.end(); i++) {
+        Contours res;
         i->Mul(p, res);
         result.append(std::move(res));
     }
@@ -101,13 +101,13 @@ ContourList &ContourList::operator *= (const ContourWithHoles &p)
     return *this;
 }
 
-ContourList &ContourList::operator -= (const ContourWithHoles &p)
+Contours &Contours::operator -= (const ContourWithHoles &p)
 {
     if (!boundingBox.Overlaps(p.boundingBox))
         return *this;
-    ContourList result;
-    for (auto i=begin(); i!=end(); i++) {
-        ContourList res;
+    Contours result;
+    for (auto i=content.begin(); i!=content.end(); i++) {
+        Contours res;
         i->Sub(p, res);
         result.append(std::move(res));
     }
@@ -115,15 +115,47 @@ ContourList &ContourList::operator -= (const ContourWithHoles &p)
     return *this;
 }
 
-ContourList &ContourList::operator ^= (const ContourWithHoles &p)
+Contours &Contours::operator ^= (const ContourWithHoles &p)
 {
     if (!boundingBox.Overlaps(p.boundingBox)) {
         append(p);
         return *this;
     }
-    ContourList result;
-    for (auto i=begin(); i!=end(); i++) {
-        ContourList res;
+
+    ContourWithHoles current_blob = p;
+    for (auto i=content.begin(); i!=content.end(); /*none*/) {
+        Contours res;
+        const Contour::result_t ret = i->Xor(current_blob, res);
+        switch (ret) {
+        default:
+            _ASSERT(0);
+        case Contour::OVERLAP:                 //real XOR with an existing surface
+        case Contour::B_INSIDE_A:              //blob is inside i
+        case Contour::A_INSIDE_B:              //i is fully covered by blob, delete it
+        case Contour::SAME:                    //outer hull is same, holes may be modified
+            if (res.IsEmpty()) {
+                _ASSERT(0);
+            } else {
+                current_blob.swap(*res.content.begin());   //update blob with a positive union
+            }
+            //fallthrough: now delete i
+        case Contour::A_IS_EMPTY:
+            content.erase(i++);
+            break;
+        case Contour::APART:   //go to next in queue, no holes to add, keep blob as was
+            i++;
+            break;
+        case Contour::B_IS_EMPTY:  //empty blob means empty b
+        case Contour::BOTH_EMPTY:  //oh my
+            return *this;
+        }
+    }
+    append(std::move(current_blob)); //this extends bounding box appropriately
+    return *this;
+
+
+    for (auto i=content.begin(); i!=content.end(); i++) {
+        Contours res;
         i->Xor(p, res);
         result.append(std::move(res));
     }
@@ -132,16 +164,16 @@ ContourList &ContourList::operator ^= (const ContourWithHoles &p)
 }
 
 
-void ContourList::Expand(EExpandType et, double gap, ContourList &result) const
+void Contours::Expand(EExpandType et, double gap, Contours &result) const
 {
-    for (auto i=begin(); i!=end(); i++) {
-        ContourList res;
+    for (auto i=content.begin(); i!=content.end(); i++) {
+        Contours res;
         i->Expand(et, gap, res);
         result += res;
     }
 }
 
-Contour::result_t ContourWithHoles::Add(const ContourWithHoles &p, ContourList &res) const
+Contour::result_t ContourWithHoles::Add(const ContourWithHoles &p, Contours &res) const
 {
     const Contour::result_t ret = Union(p, res);
     switch (ret) {
@@ -158,26 +190,26 @@ Contour::result_t ContourWithHoles::Add(const ContourWithHoles &p, ContourList &
         break;
     case A_INSIDE_B:
         res.append(p);
-        res.rbegin()->holes -= *this;
+        res.content.rbegin()->holes -= *this;
         break;
     case B_INSIDE_A:
     case SAME:
         res.append(*this);
-        res.rbegin()->holes -= p;
+        res.content.rbegin()->holes -= p;
         break;
     case OVERLAP:
-        if (holes.size())
-            res.rbegin()->holes += (holes - p);
-        if (p.holes.size())
-            res.rbegin()->holes += (p.holes - *this);
-        if (holes.size() && p.holes.size())
-            res.rbegin()->holes += (holes * p.holes);
+        if (holes.content.size())
+            res.content.rbegin()->holes += (holes - p);
+        if (p.holes.content.size())
+            res.content.rbegin()->holes += (p.holes - *this);
+        if (holes.content.size() && p.holes.content.size())
+            res.content.rbegin()->holes += (holes * p.holes);
         break;
     }
     return ret;
 }
 
-Contour::result_t ContourWithHoles::Mul(const ContourWithHoles &p, ContourList &res) const
+Contour::result_t ContourWithHoles::Mul(const ContourWithHoles &p, Contours &res) const
 {
     const Contour::result_t ret = Intersect(p, res);
     switch (ret) {
@@ -189,26 +221,26 @@ Contour::result_t ContourWithHoles::Mul(const ContourWithHoles &p, ContourList &
     case APART:
         break; //empty
     case A_INSIDE_B:
-        res.append((Contour)(*this)); //append only surface, no holes
-		if (holes.size() || p.holes.size())
+        res.append(ContourWithHoles((Contour)(*this))); //append only surface, no holes
+		if (holes.content.size() || p.holes.content.size())
 			res -= (holes + p.holes);
         break;
     case B_INSIDE_A:
-        res.append((Contour)p); //append only surface, no holes
+        res.append(ContourWithHoles((Contour)p)); //append only surface, no holes
         //fallthrough
     case OVERLAP:
-        if (holes.size() || p.holes.size())
+        if (holes.content.size() || p.holes.content.size())
             res -= (holes + p.holes);
         break;
     case SAME:
-        res.append(*this);
-        res.rbegin()->holes += p.holes;
+        res.append(ContourWithHoles((Contour)(*this))); //append only surface, no holes
+        res.content.rbegin()->holes += p.holes;
         break;
     }
     return ret;
 }
 
-Contour::result_t ContourWithHoles::Sub(const ContourWithHoles &p, ContourList &res) const
+Contour::result_t ContourWithHoles::Sub(const ContourWithHoles &p, Contours &res) const
 {
     const Contour::result_t ret = Substract(p, res);
     switch (ret) {
@@ -227,7 +259,7 @@ Contour::result_t ContourWithHoles::Sub(const ContourWithHoles &p, ContourList &
         break;
     case B_INSIDE_A:
         res.append(*this);
-        res.rbegin()->holes += p;
+        res.content.rbegin()->holes += p;
         break;
     case SAME:
         res = p.holes;
@@ -241,7 +273,7 @@ Contour::result_t ContourWithHoles::Sub(const ContourWithHoles &p, ContourList &
     return ret;
 }
 
-Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, ContourList &res) const
+Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, Contours &res) const
 {
     const Contour::result_t ret = Contour::Xor(p, res);
     switch (ret) {
@@ -259,128 +291,25 @@ Contour::result_t ContourWithHoles::Xor(const ContourWithHoles &p, ContourList &
         break;
     case A_INSIDE_B:
         res.append(p);
-        res.rbegin()->holes ^= *this;
+        res.content.rbegin()->holes ^= *this;
         break;
     case B_INSIDE_A:
         res.append(*this);
-        res.rbegin()->holes ^= p;
+        res.content.rbegin()->holes ^= p;
         break;
     case OVERLAP:
-        res -= holes+p.holes;
+        res ^= holes; 
+        res ^= p.holes;
         break;
     }
     return ret;
 }
 
-void ContourWithHoles::Expand(EExpandType et, double gap, ContourList &res) const
+void ContourWithHoles::Expand(EExpandType et, double gap, Contours &res) const
 {
     Contour::Expand(et, gap, res);
-    ContourList tmp;
+    Contours tmp;
     holes.Expand(et, -gap, tmp);
     res -= tmp;
 }
-
-is_within_t Area::IsWithin(const XY & p) const
-{
-    for (auto i=begin(); i!=end(); i++) {
-        is_within_t ret = i->IsWithin(p);
-        if (ret != WI_OUTSIDE) return ret;
-    }
-    return WI_OUTSIDE;
-}
-
-Area Area::CreateExpand(double gap, EExpandType et) const
-{
-    Area result;
-    if (gap == 0) return (result = *this);  //always return result->compiler optimizes
-    result.arc = arc;
-    result.mainline = mainline;
-    result.mainline.from -= gap;
-    result.mainline.from += gap;
-    ContourList::Expand(et, gap, result);
-    return result;
-}
-
-void Area::Line2(cairo_t *cr) const
-{
-    //surface boundaries with existing pen - solid line hopefully
-    ContourList::Path(cr, true, true);
-    cairo_stroke(cr);
-    //hole boundaries with dashed pen
-    double dash[] = {2, 2};
-    cairo_save(cr);
-    cairo_set_dash(cr, dash, 2, 0);
-    ContourList::Path(cr, true, false);
-    cairo_stroke(cr);
-    cairo_restore(cr);
-}
-
-void Area::swap(Area &a)
-{
-    std::swap(arc, a.arc);
-    std::swap(mainline, a.mainline);
-    ContourList::swap(a);
-}
-
-Area &Area::operator += (const Area &b)
-{
-    ContourList::operator+=(b);
-    mainline += b.mainline;
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
-
-Area &Area::operator *= (const Area &b)
-{
-    ContourList::operator*=(b);
-    mainline *= b.mainline;
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
-
-Area &Area::operator -= (const Area &b)
-{
-    ContourList::operator-=(b);
-    //if any of our from or till falls into g's mainline, act.
-    if (b.mainline.IsWithin(mainline.from)) mainline.from=b.mainline.till;
-    if (b.mainline.IsWithin(mainline.till)) mainline.till=b.mainline.from;
-    //we may end up being invalid (=empty) (=till<from);
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
-
-Area &Area::operator ^= (const Area &b)
-{
-    ContourList::operator^=(b);
-    //No change to mainlines
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
-
-void Area::Fill2(cairo_t *cr, int r, int g, int b) const
-{
-    if (size()==0) return;
-    int rr=r/size();
-    int gg=g/size();
-    int bb=b/size();
-    for (auto i = begin(); i!=end(); i++) {
-        cairo_set_source_rgb(cr, r/255., g/255., b/255.);
-        i->Path(cr, false, true);
-        cairo_fill(cr);
-        r-=rr;
-        g-=gg;
-        b-=bb;
-    }
-}
-
-
-AreaList AreaList::CreateExpand(double gap, EExpandType et) const
-{
-    if (!gap) return *this;
-    AreaList al;
-    for (auto i=cover.begin(); i!=cover.end(); i++)
-        al += i->CreateExpand(gap, et);
-    return al;
-}
-
 

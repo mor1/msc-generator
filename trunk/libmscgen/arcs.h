@@ -6,7 +6,7 @@
 #include "entity.h"
 #include "numbering.h"
 #include "csh.h"
-#include "contour_area.h"
+#include "area.h"
 
 typedef enum
 {

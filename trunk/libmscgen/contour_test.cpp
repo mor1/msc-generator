@@ -17,7 +17,7 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <string>
-#include "contour_area.h"
+#include "area.h"
 #include "contour_test.h"
 
 cairo_status_t write_func4test(void * closure, const unsigned char *data, unsigned length)
@@ -175,29 +175,33 @@ void contour_test(void)
 	Draw(0, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
     tri +=  Contour(30,70,60,70);
 
+    Draw(1, tri, tri.CreateShifted(XY(15, 15)), tri ^ tri.CreateShifted(XY(15, 15)));
+
 	Area boxhole = Contour(130,170,60,70);
 	boxhole += Contour(160,170,60,140);
 	boxhole += Contour(130,140,60,140);
 	boxhole += Contour(130,170,130,140);
-    Draw(1, boxhole, Contour(148,153, 85, 115), boxhole + Contour(148,153, 85, 115));
+    Draw(2, boxhole, Contour(148,153, 85, 115), boxhole + Contour(148,153, 85, 115));
     boxhole+=Contour(148,153, 85, 115);
 
 	Area cooomplex;
-    Draw(2, boxhole, tri, boxhole + tri);
+    Draw(3, boxhole, tri, boxhole + tri);
     cooomplex=boxhole+tri;
 
 	Area cooomplex2 = Contour(110, 200, 80, 120);
-    Draw(3, cooomplex2, Contour(120, 190, 90, 110), cooomplex2 - Contour(120, 190, 90, 110));
+    Draw(4, cooomplex2, Contour(120, 190, 90, 110), cooomplex2 - Contour(120, 190, 90, 110));
     cooomplex2 -= Contour(120, 190, 90, 110);
 
-    Draw(4, cooomplex2, cooomplex, cooomplex2 + cooomplex);
+    Draw(5, boxhole, cooomplex2, boxhole ^ cooomplex2);
+    
+    Draw(6, cooomplex2, cooomplex, cooomplex2 + cooomplex);
 	cooomplex2 += cooomplex;
     const Area later = cooomplex2;
 
 	Area custom = cooomplex2;
-	Draw(5, cooomplex2, cooomplex2.CreateShifted(XY(15,15)), cooomplex2 ^ cooomplex2.CreateShifted(XY(15,15)));
+	Draw(7, cooomplex2, cooomplex2.CreateShifted(XY(15,15)), cooomplex2 ^ cooomplex2.CreateShifted(XY(15,15)));
     cooomplex2 += cooomplex2.CreateShifted(XY(15,15));
-	
+	return;
     cooomplex2.Shift(XY(200,0));
 	custom. Shift(XY(200,0));
     

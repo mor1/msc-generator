@@ -78,13 +78,16 @@
     <ClCompile Include="contour_ellipse.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_area.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="trackable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="contour_test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="contour_contours.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="area.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -164,10 +167,13 @@
     <ClInclude Include="contour_ellipse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_area.h">
+    <ClInclude Include="contour_test.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_test.h">
+    <ClInclude Include="contour_contours.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="area.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

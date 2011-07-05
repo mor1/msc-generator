@@ -2,7 +2,7 @@
 #define ARROWHEAD_H
 #include <vector>
 #include "attribute.h"
-#include "contour_area.h"
+#include "area.h"
 
 typedef enum {
     //Both big and small arrows

@@ -3,7 +3,7 @@
 
 #include "trackable.h"
 #include "style.h"
-#include "contour_area.h"
+#include "area.h"
 
 class EEntityStatus {
 public:

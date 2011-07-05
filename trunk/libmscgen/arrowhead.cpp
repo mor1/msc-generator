@@ -543,14 +543,14 @@ Area ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir, Ms
     case MSC_ARROW_DIAMOND_EMPTY:
         area = diamond(xy, wh);
         r = area.GetBoundingBox().x;
-        area = Contour(Block(r, total.y)) - area;
+        area = Area(Block(r, total.y)) - area;
         break;
 
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
         area = Contour(xy, wh.x, wh.y);
         r = area.GetBoundingBox().x;
-        area = Contour(Block(r, total.y)) - area;
+        area = Area(Block(r, total.y)) - area;
         break;
     default:
         _ASSERT(0);
