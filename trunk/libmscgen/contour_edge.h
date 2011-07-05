@@ -45,8 +45,8 @@ typedef enum {EDGE_STRAIGHT, EDGE_FULL_CIRCLE, EDGE_ARC} EEdgeType;
 typedef enum {EXPAND_MITER, EXPAND_ROUND, EXPAND_BEVEL} EExpandType;
 
 struct RayAngle {
-    double angle;
-    double curve;
+    double angle;  //the false angle [0..4], each integer corresponds to 90 degrees
+    double curve;  //the curvature of the angle, 0 is straight
     RayAngle() {};
     explicit RayAngle(double a, double b=0) : angle(a), curve(b) {}
     bool IsSimilar(const RayAngle&o) const {return test_equal(angle, o.angle) && test_equal(curve, o.curve);}
