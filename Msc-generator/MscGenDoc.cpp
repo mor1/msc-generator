@@ -1583,7 +1583,7 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	StartFadingAll(arc); 
     //re-add those controls which are under mouse
     for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
-        if (i->first.IsWithin(XY(mouse.x, mouse.y)) == WI_INSIDE)
+        if (inside(i->first.IsWithin(XY(mouse.x, mouse.y))))
             AddTrackArc(i->second, TrackedArc::CONTROL);
     if (arc && arc->GetControls().size()) 
         AddTrackArc(arc, TrackedArc::CONTROL);

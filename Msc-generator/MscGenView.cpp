@@ -634,7 +634,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	point.x = int(point.x*100./pDoc->m_zoom);
 	point.y = int(point.y*100./pDoc->m_zoom);
     for (auto i = pDoc->m_controlsShowing.begin(); i!=pDoc->m_controlsShowing.end(); i++)
-        if (i->first.IsWithin(XY(point.x, point.y))==WI_INSIDE)
+        if (inside(i->first.IsWithin(XY(point.x, point.y))))
             if (i->second)
                 if (pDoc->OnControlClicked(i->second, i->second->WhichControl(XY(point.x, point.y))))
                     return; //Chart and "i" is no longer valid pDoc->m_trackArc and m_controlsShown are empty

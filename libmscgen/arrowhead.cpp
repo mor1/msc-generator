@@ -423,11 +423,11 @@ Contour diamond(XY xy, XY wh)
 {
     wh.x = fabs(wh.x);
     wh.y = fabs(wh.y);
-    Contour poly(xy.x, xy.y-wh.y, xy.x, xy.y+wh.y, xy.x+wh.x, xy.y);
-    if (!poly.AddPoint(XY(xy.x-wh.x, xy.y))) {
-        _ASSERT(0);
-    }
-    return poly;
+    XY points[] = {XY(xy.x,      xy.y-wh.y), 
+                   XY(xy.x+wh.x, xy.y     ), 
+                   XY(xy.x,      xy.y+wh.y), 
+                   XY(xy.x-wh.x, xy.y     )};
+    return Contour(points, 4);
 }
 
 /** Return the Y range for which the entity line shall not be drawn

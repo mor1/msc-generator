@@ -2,11 +2,11 @@
 #define CONTOUR_XAREA_H
 
 #include <list>
-#include "contour_contours.h"
+#include "contour.h"
 
 class TrackableElement;
 //plus it has additional stuff, such as arc, drawtype, findtype and mainline
-class Area : public Contours
+class Area : public Contour
 {
     friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
 public:
@@ -14,54 +14,51 @@ public:
     Range                     mainline;
 
     explicit Area(TrackableElement *a=NULL) : arc(a) {mainline.MakeInvalid();}
-    Area(const Contour &p, TrackableElement *a=NULL) : Contours(std::move(p)), arc(a) {mainline.MakeInvalid();}
-    Area(Contour &&p, TrackableElement *a=NULL) : Contours(p), arc(a) {mainline.MakeInvalid();}
-    Area(const Contours &cl, TrackableElement *a=NULL) : Contours(cl), arc(a) {mainline.MakeInvalid();}
-    Area(Contours &&cl, TrackableElement *a=NULL) : Contours(std::move(cl)), arc(a) {mainline.MakeInvalid();}
+    Area(const Contour &cl, TrackableElement *a=NULL) : Contour(cl), arc(a) {mainline.MakeInvalid();}
+    Area(Contour &&cl, TrackableElement *a=NULL) : Contour(std::move(cl)), arc(a) {mainline.MakeInvalid();}
+    Area(const Block &b, TrackableElement *a=NULL) : Contour(b), arc(a) {mainline.MakeInvalid();}
 
-    void clear() {Contours::clear(); mainline.MakeInvalid();}
+    void clear() {Contour::clear(); mainline.MakeInvalid();}
     void swap(Area &a);
-    void assign(const std::vector<XY> &v) {Contours::assign(v);}
+    void assign(const std::vector<XY> &v, bool winding=true)  {Contour::assign(v); mainline.MakeInvalid();}
+    void assign(const XY v[], unsigned size, bool winding=true)  {Contour::assign(v, size); mainline.MakeInvalid();}
+    template<unsigned size> void assign(const XY v[size], bool winding=true) {assign (v, size, winding);}
+    void assign(const std::vector<Edge> &v, bool winding=true)  {Contour::assign(v); mainline.MakeInvalid();}
+    void assign(const Edge v[], unsigned size, bool winding=true)  {Contour::assign(v, size); mainline.MakeInvalid();}
     bool operator <(const Area &b) const;
     bool operator ==(const Area &b) const;
-    Area &operator =(const std::vector<XY> &v) {assign(v); return *this;}
-    Area &operator =(const Contour &a) {Contours::operator=(a); mainline.MakeInvalid(); return *this;}
-    Area &operator =(Contour &&a) {Contours::operator=(std::move(a)); mainline.MakeInvalid(); return *this;}
-    Area &operator =(const Contours &a) {Contours::operator=(a); mainline.MakeInvalid(); return *this;}
-    Area &operator =(Contours &&a) {Contours::operator=(std::move(a)); mainline.MakeInvalid(); return *this;}
+    Area &operator =(const Block &a) {Contour::operator=(a); mainline.MakeInvalid(); return *this;}
+    Area &operator =(const Contour &a) {Contour::operator=(a); mainline.MakeInvalid(); return *this;}
+    Area &operator =(Contour &&a) {Contour::operator=(std::move(a)); mainline.MakeInvalid(); return *this;}
     
-    Area &operator += (const Area &b);
-    Area &operator *= (const Area &b);
-    Area &operator -= (const Area &b);
-    Area &operator ^= (const Area &b);
-    Area &operator += (const Contours &b) {Contours::operator+=(b); return *this;}
-    Area &operator *= (const Contours &b) {Contours::operator*=(b); return *this;}
-    Area &operator -= (const Contours &b) {Contours::operator-=(b); return *this;}
-    Area &operator ^= (const Contours &b) {Contours::operator^=(b); return *this;}
-    Area &operator += (const Contour &b) {Contours::operator+=(b); return *this;}
-    Area &operator *= (const Contour &b) {Contours::operator*=(b); return *this;}
-    Area &operator -= (const Contour &b) {Contours::operator-=(b); return *this;}
-    Area &operator ^= (const Contour &b) {Contours::operator^=(b); return *this;}
+    Area &operator += (const Area &b) {Contour::operator+=(b); mainline+=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator *= (const Area &b) {Contour::operator*=(b); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator -= (const Area &b) {Contour::operator+=(b); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator ^= (const Area &b) {Contour::operator+=(b);                       if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator += (Area &&b) {Contour::operator+=(std::move(b)); mainline+=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator *= (Area &&b) {Contour::operator*=(std::move(b)); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator -= (Area &&b) {Contour::operator+=(std::move(b)); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator ^= (Area &&b) {Contour::operator+=(std::move(b));                       if (arc==NULL) arc = b.arc; return *this;}
 
-    void Shift(XY xy) {Contours::Shift(xy); mainline.Shift(xy.y);}
+    Area operator + (const Area &p) const {return Area(*this)+=p;}
+    Area operator * (const Area &p) const {return Area(*this)*=p;}
+    Area operator - (const Area &p) const {return Area(*this)-=p;} 
+    Area operator ^ (const Area &p) const {return Area(*this)^=p;}
+    Area operator + (Area &&p) const {return Area(*this)+=std::move(p);}
+    Area operator * (Area &&p) const {return Area(*this)*=std::move(p);}
+    Area operator - (Area &&p) const {return Area(*this)-=std::move(p);}
+    Area operator ^ (Area &&p) const {return Area(*this)^=std::move(p);}
+
+    void Shift(XY xy) {Contour::Shift(xy); mainline.Shift(xy.y);}
     Area CreateShifted(const XY & xy) const {Area a(*this); a.Shift(xy); return std::move(a);}
-    void Rotate(double degrees) {Contours::Rotate(degrees);}
-    void RotateAround(const XY&c, double degrees) {Contours::RotateAround(c, degrees);}
-    void SwapXY() {Contours::SwapXY(); mainline.MakeInvalid();}
-    void VerticalCrossSection(double x, DoubleMap<bool> &section) const {DoVerticalCrossSection(x, section, true);}
+    void Rotate(double degrees) {Contour::Rotate(degrees);}
+    void RotateAround(const XY&c, double degrees) {Contour::RotateAround(c, degrees);}
+    void SwapXY() {Contour::SwapXY(); mainline.MakeInvalid();}
 
     Area CreateExpand(double gap, EExpandType et=EXPAND_MITER) const;
-	void ClearHoles() {Contours::ClearHoles();}
+	void ClearHoles() {Contour::ClearHoles();}
 
-    //double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline = true) const;
-
-    void Path(cairo_t *cr) const {Contours::Path(cr, true);}
-    void Line(cairo_t *cr) const {Contours::Path(cr, true); cairo_stroke(cr);}
-    void Line2(cairo_t *cr) const;
-    void Fill(cairo_t *cr) const {Contours::Path(cr, true); cairo_fill(cr);}
-    void Fill2(cairo_t *cr, int r=255, int g=255, int b=255) const;
-
 };
 
 class AreaList
@@ -91,8 +88,8 @@ public:
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
 
-    const Area *InWhich(const XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (i->IsWithin(p)!=WI_OUTSIDE) return &*i; return NULL;}
-    const Area *InWhichFromBack(const XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (i->IsWithin(p)!=WI_OUTSIDE) return &*i; return NULL;}
+    const Area *InWhich(const XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
+    const Area *InWhichFromBack(const XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
     void InvalidateMainLine() {mainline.MakeInvalid(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.MakeInvalid();}
 };
 
@@ -101,13 +98,13 @@ public:
 inline bool Area::operator <(const Area &b) const
 {
     if (mainline!=b.mainline) return mainline<b.mainline;
-    return Contours::operator<(b);
+    return Contour::operator<(b);
 }
 
 inline bool Area::operator ==(const Area &b) const
 {
     if (mainline!=b.mainline) return false;
-    return Contours::operator==(b);
+    return Contour::operator==(b);
 }
 
 inline double Area::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
@@ -119,7 +116,7 @@ inline double Area::OffsetBelow(const Area &below, double &touchpoint, double of
             touchpoint = mainline.till;
         }
     if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;
-    return Contours::OffsetBelow(below, touchpoint, offset);
+    return Contour::OffsetBelow(below, touchpoint, offset);
 }
 
 inline double AreaList::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
@@ -150,37 +147,5 @@ inline double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, d
             offset = std::min(offset, i->OffsetBelow(*j, touchpoint, offset, bMainline));
     return offset;
 }
-
-
-inline Area operator + (const Area &a, const Contour &p)  {return Area(a)+=p;}
-inline Area operator * (const Area &a, const Contour &p)  {return Area(a)*=p;}
-inline Area operator - (const Area &a, const Contour &p)  {return Area(a)-=p;}
-inline Area operator ^ (const Area &a, const Contour &p)  {return Area(a)^=p;}
-inline Area operator + (Area &&a, const Contour &p)  {return a+=p;}
-inline Area operator * (Area &&a, const Contour &p)  {return a*=p;}
-inline Area operator - (Area &&a, const Contour &p)  {return a-=p;}
-inline Area operator ^ (Area &&a, const Contour &p)  {return a^=p;}
-
-inline Area operator + (const Contour &p, const Area &a)  {return Area(p, a.arc)+=a;}
-inline Area operator * (const Contour &p, const Area &a)  {return Area(p, a.arc)*=a;}
-inline Area operator - (const Contour &p, const Area &a)  {return Area(p, a.arc)-=a;}
-inline Area operator ^ (const Contour &p, const Area &a)  {return Area(p, a.arc)^=a;}
-inline Area operator + (Contour &&p, const Area &a)  {return Area(std::move(p), a.arc)+=a;}
-inline Area operator * (Contour &&p, const Area &a)  {return Area(std::move(p), a.arc)*=a;}
-inline Area operator - (Contour &&p, const Area &a)  {return Area(std::move(p), a.arc)-=a;}
-inline Area operator ^ (Contour &&p, const Area &a)  {return Area(std::move(p), a.arc)^=a;}
-
-inline Area operator + (const Area &a1, const Area &a2)  {return Area(a1)+=a2;}
-inline Area operator * (const Area &a1, const Area &a2)  {return Area(a1)*=a2;}
-inline Area operator - (const Area &a1, const Area &a2)  {return Area(a1)-=a2;}
-inline Area operator ^ (const Area &a1, const Area &a2)  {return Area(a1)^=a2;}
-inline Area operator + (Area &&a1, const Area &a2)  {return a1+=a2;}
-inline Area operator * (Area &&a1, const Area &a2)  {return a1*=a2;}
-inline Area operator - (Area &&a1, const Area &a2)  {return a1-=a2;}
-inline Area operator ^ (Area &&a1, const Area &a2)  {return a1^=a2;}
-inline Area operator + (const Area &a1, Area &&a2)  {return a2+=a1;}
-inline Area operator * (const Area &a1, Area &&a2)  {return a2*=a1;}
-//inline Area operator - (const Area &a1, Area &&a2)  {return std::move(a2-=a1);} NONE!
-inline Area operator ^ (const Area &a1, Area &&a2)  {return a2^=a1;}
 
 #endif //CONTOUR_XAREA_H

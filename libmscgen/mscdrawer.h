@@ -88,8 +88,9 @@ protected:
     void singleLine(const XY &s, const XY &d, const MscLineAttr &line);
     void singleLine(const XY &c, double r1, double r2, double tilt, double s, double e, const MscLineAttr &line, bool reverse=false);
     void singleLine(const Block &, const MscLineAttr &line);
-    void singleLine(const Contour &, const MscLineAttr &line, bool open);
-    void singleLine(const Contours&, const MscLineAttr &line);
+    void singleLine(const SimpleContour&, const MscLineAttr &line, bool open=false);
+    void singleLine(const ContourWithHoles &contour, const MscLineAttr &line);
+    void singleLine(const Contour&, const MscLineAttr &line);
 
 
 friend class StringFormat; //for all sorts of text manipulation
@@ -120,8 +121,7 @@ public:
     void Clip(const Block &b, const MscLineAttr &line);
     void Clip(const EllipseData &ellipse);
     void Clip(const Contour &area);
-    void Clip(const Contours &area);
-    void ClipInverse(const Contours &area);
+    void ClipInverse(const Contour &area);
     void UnClip() {cairo_restore(cr);}
     void Transform_Rotate90(double s, double d, bool clockwise);
     void Transform_SwapXY();
@@ -131,16 +131,15 @@ public:
     void Line(const Edge& edge, const MscLineAttr &line);
     void Line(const XY &s, const XY &d, const MscLineAttr &line, double pattern_offset=0);
     void Line(const Block &b, const MscLineAttr &line);
-    void Line(const Contour &contour, const MscLineAttr &line);
-    void Line(const Contours &area, const MscLineAttr &line);
+    void Line(const Contour &area, const MscLineAttr &line);
     void LineOpen(const Contour &contour, const MscLineAttr &line);  //an arbitrary contour, but not its last edge
     void Fill(const XY &s, const XY &d, const MscFillAttr &fill);
     void Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill);
     void Fill(const Block &b, const MscFillAttr &fill);
     void Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill);
     void Fill(const EllipseData &ellipse, const MscFillAttr &fill);
-    void Fill(const Contour &contour, const MscFillAttr &fill);
-    void Fill(const Contours &area, const MscFillAttr &fill);
+    void Fill(const SimpleContour &contour, const MscFillAttr &fill);
+    void Fill(const Contour &area, const MscFillAttr &fill);
     void Shadow(const Block &b, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false) {Shadow(b, MscLineAttr(), shadow, shadow_x_neg, shadow_y_neg);}
     void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
     void Shadow(const Area &area, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
@@ -200,7 +199,6 @@ inline void MscCanvas::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.f
 //inline void MscCanvas::Clip(const Block &b, const MscLineAttr &line); not inline
 //void Clip(const EllipseData &ellipse); not inline
 inline void MscCanvas::Clip(const Contour &area) {cairo_save(cr); area.Path(cr); cairo_clip(cr);}
-inline void MscCanvas::Clip(const Contours &area) {cairo_save(cr); area.Path(cr, false, true); cairo_clip(cr);}
 
 
 inline void MscCanvas::Fill(const XY &s, const XY &d, const MscFillAttr &fill) {Fill(Block(s, d), fill);}
@@ -209,7 +207,6 @@ inline void MscCanvas::Fill(const XY &s, const XY &d, const MscLineAttr &line, c
 inline void MscCanvas::Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill) {Clip(b, line); Fill(b, fill); UnClip();}
 //void MscCanvas::Fill(const EllipseData &ellipse, const MscFillAttr &fill); //Not inline
 inline void MscCanvas::Fill(const Contour &area, const MscFillAttr &fill) {Clip(area); Fill(area.GetBoundingBox(), fill); UnClip();}
-inline void MscCanvas::Fill(const Contours &area, const MscFillAttr &fill) {Clip(area); Fill(area.GetBoundingBox(), fill); UnClip();}
 
 
 #endif

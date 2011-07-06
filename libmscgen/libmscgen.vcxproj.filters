@@ -69,9 +69,6 @@
     <ClCompile Include="numbering.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_contour.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="contour_edge.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -84,10 +81,13 @@
     <ClCompile Include="contour_test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="contour_contours.cpp">
+    <ClCompile Include="area.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="area.cpp">
+    <ClCompile Include="contour.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="contour_simple.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -158,9 +158,6 @@
     <ClInclude Include="contour_basics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_contour.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="contour_edge.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -170,10 +167,13 @@
     <ClInclude Include="contour_test.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="contour_contours.h">
+    <ClInclude Include="area.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="area.h">
+    <ClInclude Include="contour.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="contour_simple.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
