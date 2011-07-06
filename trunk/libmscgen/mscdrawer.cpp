@@ -144,7 +144,7 @@ void MscCanvas::Clip(const Block &b, const MscLineAttr &line)
     cairo_clip(cr);
 }
 
-void MscCanvas::ClipInverse(const Contours &area)
+void MscCanvas::ClipInverse(const Contour &area)
 {
     cairo_save(cr);
     Block outer = area.GetBoundingBox();
@@ -152,7 +152,7 @@ void MscCanvas::ClipInverse(const Contours &area)
     outer.Expand(1);
     cairo_rectangle(cr, outer.x.from, outer.y.from, outer.x.Spans(), outer.y.Spans());
     cairo_new_sub_path(cr);
-    area.Contours::Path(cr, true);
+    area.Contour::Path(cr, true);
     cairo_clip(cr);
 }
 
@@ -579,7 +579,7 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
     }
 }
 
-void MscCanvas::singleLine(const Contour &c, const MscLineAttr &line, bool open)
+void MscCanvas::singleLine(const SimpleContour &c, const MscLineAttr &line, bool open)
 {
     if (line.IsContinuous() || !fake_dash) {
         if (open)
@@ -599,11 +599,24 @@ void MscCanvas::singleLine(const Contour &c, const MscLineAttr &line, bool open)
     }
 }
 
-void MscCanvas::singleLine(const Contours&cl, const MscLineAttr &line)
+void MscCanvas::singleLine(const ContourWithHoles &contour, const MscLineAttr &line)
 {
-    for (auto i=cl.GetContent().begin(); i!=cl.GetContent().end(); i++) {
-        singleLine(static_cast<const Contour&>(*i), line, false);
-        if (i->HasHoles()) singleLine(i->GetHoles(), line);
+    singleLine(contour, line, false);
+    for (auto i = contour.holes.begin(); i!=contour.holes.end(); i++)
+        singleLine(*i, line);
+}
+
+
+void MscCanvas::singleLine(const Contour&cl, const MscLineAttr &line)
+{
+    singleLine(static_cast<const ContourWithHoles&>(cl), line, false);
+    for (auto j = cl.holes.begin(); j!=cl.holes.end(); j++)
+        singleLine(*j, line);
+
+    for (auto i=cl.further.begin(); i!=cl.further.end(); i++) {
+        singleLine(*i, line, false);
+        for (auto j = i->holes.begin(); j!=i->holes.end(); j++)
+            singleLine(*j, line);
     }
 }
 
@@ -717,36 +730,21 @@ void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
         singleLine(c, line);
 }
 
-void MscCanvas::Line(const Contours &area, const MscLineAttr &line)
-{
-    _ASSERT(line.IsComplete());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    if (area.IsEmpty()) return;
-    SetLineAttr(line);
-    const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
-    if (line.IsDoubleOrTriple()) {
-        singleLine(area.CreateExpand(spacing), line);
-        singleLine(area.CreateExpand(-spacing), line);
-    } 
-    if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
-    if (!line.IsDouble()) 
-        singleLine(area, line);
-}
-
 void MscCanvas::LineOpen(const Contour &c, const MscLineAttr &line)
 {
     _ASSERT(line.IsComplete());
+    _ASSERT(!c.holes.size() && !c.further.size());
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     if (c.IsEmpty()) return;
     SetLineAttr(line);
     const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
     if (line.IsDoubleOrTriple()) {
-        Contours cl = c.CreateExpand(spacing);
+        Contour cl = c.CreateExpand(spacing);
         if (!cl.IsEmpty())
-            singleLine(*const_cast<const Contours*>(&cl)->GetContent().begin(), line, true);
+            singleLine(cl, line, true);
         cl = c.CreateExpand(-spacing);
         if (!cl.IsEmpty())
-            singleLine(*const_cast<const Contours*>(&cl)->GetContent().begin(), line, true);
+            singleLine(cl, line, true);
     } 
     if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
     if (!line.IsDouble()) 

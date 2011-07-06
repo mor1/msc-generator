@@ -55,7 +55,7 @@ struct RayAngle {
 
 class EdgeStraight
 {
-    friend class Contour;
+    friend class SimpleContour;
     friend class EdgeArc;
     friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///TODO: remove
 protected:
@@ -74,7 +74,7 @@ protected:
     bool operator ==(const EdgeStraight& p) const {return type==p.type && start==p.start && end==p.end;}
     bool operator < (const EdgeStraight& p) const {return type!=p.type ? type<p.type : start==p.start ? end<p.end : start<p.start;}
 
-    void CopyInverseToMe(const EdgeStraight &B) {start=B.end; end=B.start; boundingBox=B.boundingBox; type=B.type;}
+    void Invert() {std::swap(start, end);}
     RayAngle Angle(bool incoming) const {return RayAngle(incoming ? angle(end, XY(end.x+100, end.y), start) : angle(start, XY(start.x+100, start.y), end));}
 
     //Gives the intersecting points of me and another straight edge
@@ -115,7 +115,7 @@ protected:
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY() {EdgeStraight::SwapXY(); if (type!=EDGE_STRAIGHT) {ell.SwapXY(); clockwise_arc=!clockwise_arc; s = s==0 ? s : 2*M_PI - s;}}
-    void CopyInverseToMe(const EdgeFullCircle &B);
+    void Invert() {EdgeStraight::Invert(); clockwise_arc = !clockwise_arc;}
 
     bool operator ==(const EdgeFullCircle& p) const;
     bool operator < (const EdgeFullCircle& p) const;
@@ -138,7 +138,7 @@ public:
 
 class EdgeArc : public EdgeFullCircle {
 protected:
-    friend class Contour;
+    friend class SimpleContour;
     double  e;           //supposedly between [0..2pi), if s==e, either empty or full circle
 
     //Convert between pos (0..1) and coordinates
@@ -160,7 +160,7 @@ public:
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY() {EdgeFullCircle::SwapXY(); if (type==EDGE_ARC) e = e==0 ? e : 2*M_PI - e;}
-    void CopyInverseToMe(const EdgeArc &B) {EdgeFullCircle::CopyInverseToMe(B); if (type==EDGE_ARC) {s=B.e; e=B.s;}}
+    void Invert() {EdgeFullCircle::Invert(); if (type==EDGE_ARC) std::swap(s, e);}
     RayAngle Angle(bool incoming, const XY &p, double pos) const;
     void SetFullCircle() {_ASSERT(type!=EDGE_STRAIGHT); type = EDGE_FULL_CIRCLE; end=start; e=s; CalculateBoundingBox();}
     bool operator ==(const EdgeArc& p) const;

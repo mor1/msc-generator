@@ -18,7 +18,7 @@
 */
 #include <string>
 #include "area.h"
-#include "contour_test.h"
+#include "contour.h"
 
 cairo_status_t write_func4test(void * closure, const unsigned char *data, unsigned length)
 {
@@ -38,9 +38,9 @@ class CairoContext
 public:
     CairoContext(unsigned i, const XY &size, const char *text=NULL, bool two=true, int sub=-1);
     ~CairoContext();
-    void Draw(const Area& area, bool shifted, double r, double g, double b, bool fill);
-    void Draw1(const Area& area, bool other=false) {Draw(area, false, other?1:0, other?0:1, 0, true);}
-    void Draw2(const Area& area) {Draw(area, true, 0,0,1, true);}
+    void Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill);
+    void Draw1(const Contour& area, bool other=false) {Draw(area, false, other?1:0, other?0:1, 0, true);}
+    void Draw2(const Contour& area) {Draw(area, true, 0,0,1, true);}
 };
 
 CairoContext::CairoContext(unsigned i, const XY &size, const char *text, bool two, int sub) : x(two?size.x:0)
@@ -90,7 +90,7 @@ CairoContext::~CairoContext()
         fclose(outFile);
 };
 
-void CairoContext::Draw(const Area& area, bool shifted, double r, double g, double b, bool fill) 
+void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill) 
 {
     if (!cr) return;
     if (shifted)
@@ -105,7 +105,7 @@ void CairoContext::Draw(const Area& area, bool shifted, double r, double g, doub
         cairo_translate(cr,-x,0);
 }
 
-void Draw(unsigned i, const Area area1, const Area area2, const Area area3, const char *text=NULL)
+void Draw(unsigned i, const Contour area1, const Contour area2, const Contour area3, const char *text=NULL)
 {
     Block b = area1.GetBoundingBox();
     b += area2.GetBoundingBox();
@@ -116,10 +116,10 @@ void Draw(unsigned i, const Area area1, const Area area2, const Area area3, cons
     c.Draw2(area3);
 }
 
-inline void Draw(unsigned i, const Area area1, const Area area2, const char *text=NULL) {Draw(i, area1, Area(), area2, text);}
-inline void Draw(unsigned i, const Area area1, const char *text=NULL) {Draw(i, Area(), Area(), area1, text);}
+inline void Draw(unsigned i, const Contour area1, const Contour area2, const char *text=NULL) {Draw(i, area1, Contour(), area2, text);}
+inline void Draw(unsigned i, const Contour area1, const char *text=NULL) {Draw(i, Contour(), Contour(), area1, text);}
 
-void DrawExpand(unsigned i, const Area area1, bool manyfile=true, bool singlefile=true, double step=4)
+void DrawExpand(unsigned i, const Contour area1, bool manyfile=true, bool singlefile=true, double step=4)
 {
     CairoContext *context;
     if (singlefile) 
@@ -135,7 +135,7 @@ void DrawExpand(unsigned i, const Area area1, bool manyfile=true, bool singlefil
     //first we find how small we can shrink it (until it disappears),
     //then we do an expand phase to the same extent
     while(shrinking || gap>=0) {
-        Area a = area1.CreateExpand(gap);
+        Contour a = area1.CreateExpand(gap);
         if (a.IsEmpty() && shrinking) {
             max_gap = gap *= -1;
             shrinking = false;
@@ -171,24 +171,24 @@ void DrawExpand(unsigned i, const Area area1, bool manyfile=true, bool singlefil
 
 void contour_test(void)
 {
-    Area tri = Contour(XY(50,90), XY(100,60), XY(40,20));
+    Contour tri = Contour(XY(50,90), XY(100,60), XY(40,20));
 	Draw(0, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
     tri +=  Contour(30,70,60,70);
 
     Draw(1, tri, tri.CreateShifted(XY(15, 15)), tri ^ tri.CreateShifted(XY(15, 15)));
 
-	Area boxhole = Contour(130,170,60,70);
+	Contour boxhole = Contour(130,170,60,70);
 	boxhole += Contour(160,170,60,140);
 	boxhole += Contour(130,140,60,140);
 	boxhole += Contour(130,170,130,140);
     Draw(2, boxhole, Contour(148,153, 85, 115), boxhole + Contour(148,153, 85, 115));
     boxhole+=Contour(148,153, 85, 115);
 
-	Area cooomplex;
+	Contour cooomplex;
     Draw(3, boxhole, tri, boxhole + tri);
     cooomplex=boxhole+tri;
 
-	Area cooomplex2 = Contour(110, 200, 80, 120);
+	Contour cooomplex2 = Contour(110, 200, 80, 120);
     Draw(4, cooomplex2, Contour(120, 190, 90, 110), cooomplex2 - Contour(120, 190, 90, 110));
     cooomplex2 -= Contour(120, 190, 90, 110);
 
@@ -196,12 +196,12 @@ void contour_test(void)
     
     Draw(6, cooomplex2, cooomplex, cooomplex2 + cooomplex);
 	cooomplex2 += cooomplex;
-    const Area later = cooomplex2;
+    const Contour later = cooomplex2;
 
-	Area custom = cooomplex2;
+	Contour custom = cooomplex2;
 	Draw(7, cooomplex2, cooomplex2.CreateShifted(XY(15,15)), cooomplex2 ^ cooomplex2.CreateShifted(XY(15,15)));
     cooomplex2 += cooomplex2.CreateShifted(XY(15,15));
-	return;
+
     cooomplex2.Shift(XY(200,0));
 	custom. Shift(XY(200,0));
     
@@ -212,80 +212,79 @@ void contour_test(void)
 		cooomplex += Contour(200+i*20, 215+i*20, 200, 190+num_y*20);
 	for (int j=0; j<num_y; j++)
 		cooomplex += Contour(200, 190+num_x*20, 200+j*20, 215+j*20);
-    Draw(6, cooomplex);
+    Draw(8, cooomplex);
 	
     cooomplex2.ClearHoles();
 
-	Draw(7, cooomplex2, Contour(XY(300,101), 100, 50), cooomplex2 ^ Contour(XY(300,101), 100, 50));
+	Draw(9, cooomplex2, Contour(XY(300,101), 100, 50), cooomplex2 ^ Contour(XY(300,101), 100, 50));
     cooomplex2 *= Contour(XY(300,101), 100, 50);
-	Area cooomplex3 = cooomplex2;
+	Contour cooomplex3 = cooomplex2;
 
     double x=150, y=250;
-	std::vector<XY> v;
-	v.push_back(XY( 50, 200));
-	v.push_back(XY(x, y));
-	v.push_back(XY( 50, 300));
-	v.push_back(XY(x+30, y+40));
-	v.push_back(XY(100, 300));
-	v.push_back(XY(x, y));
-	v.push_back(XY( 90, 300));
-	custom = v;
-    Draw(8, custom);
+    const XY v1[] = {XY( 50, 200),
+	                XY(x, y),
+	                XY( 50, 300),
+	                XY(x+30, y+40),
+	                XY(100, 300),
+	                XY(x, y),
+                    XY( 90, 300)};
+	custom = v1;
+    Draw(10, custom);
 
-	Area custom2;
+	Contour custom2;
 
     x=214, y=610;
-	v.clear();
-	v.push_back(XY( 50, 200));
-	v.push_back(XY(x, y));
-	v.push_back(XY( 50, 300));
-	v.push_back(XY(x+30, y+40));
-	v.push_back(XY(100, 300));
-	v.push_back(XY(x, y));
-	v.push_back(XY( 90, 300));
-    custom = v;
+    const XY v2[] = {XY( 50, 200),
+	                XY(x, y),
+	                XY( 50, 300),
+	                XY(x+30, y+40),
+	                XY(100, 300),
+	                XY(x, y),
+                    XY( 90, 300)};
+    custom = v2;
 
     x=220, y=610;
-	v.clear();
-	v.push_back(XY( 50, 200));
-	v.push_back(XY(x, y));
-	v.push_back(XY( 50, 300));
-	v.push_back(XY(x+30, y+40));
-	v.push_back(XY(100, 300));
-	v.push_back(XY(x, y));
-	v.push_back(XY( 90, 300));
-    custom2 = v;
-    Draw(9, custom, custom2);
+    const XY v3[] = {XY( 50, 200),
+	                XY(x, y),
+	                XY( 50, 300),
+	                XY(x+30, y+40),
+	                XY(100, 300),
+	                XY(x, y),
+                    XY( 90, 300)};
+    custom2 = v3;
+    Draw(11, custom, custom2);
 
-	Area circle = Contour(XY(200, 200), 60, 30, 30);
-    Draw(10, circle, Contour(200,300, 170,190), circle + Contour(200,300, 170,190));
+	Contour circle = Contour(XY(200, 200), 60, 30, 30);
+    Draw(12, circle, Contour(200,300, 170,190), circle + Contour(200,300, 170,190));
 	circle += Contour(200,300, 170,190);
     
-	Area circle2= Contour(XY(x, y), 60, 30, abs(x-y));
-    Area circle3 = circle2;
-    Draw(11, circle2, Contour(x,x+100, y+15,y+30), circle2 + Contour(x,x+100, y+15,y+30));
+	Contour circle2= Contour(XY(x, y), 60, 30, abs(x-y));
+    Contour circle3 = circle2;
+    Draw(13, circle2, Contour(x,x+100, y+15,y+30), circle2 + Contour(x,x+100, y+15,y+30));
     circle2 += Contour(x,x+100, y+15,y+30);
 
-	Area boxhole2 = Contour(110, 200, 80, 120);
+	Contour boxhole2 = Contour(110, 200, 80, 120);
 	boxhole2 -= Contour(120, 190, 90, 110);
-	Area huhu = boxhole2;
+	Contour huhu = boxhole2;
 	huhu.ClearHoles();
-    Draw(12, huhu, Contour(XY(130,101), 30,20), huhu * Contour(XY(130,101), 30,20));
+    Draw(14, huhu, Contour(XY(130,101), 30,20), huhu + Contour(XY(130,101), 30,20));
+    
+    Draw(15, huhu, Contour(XY(130,101), 30,20), huhu * Contour(XY(130,101), 30,20));
 	huhu *= Contour(XY(130,101), 30,20);
     
 	cooomplex2 = cooomplex3;
 	cooomplex2.RotateAround(XY(350,100), 39);
-    Draw(13, cooomplex3, cooomplex2);
+    Draw(16, cooomplex3, cooomplex2);
 
     huhu.CreateExpand(-12);
 
-    DrawExpand(14, later);
-    DrawExpand(15, cooomplex);
-    DrawExpand(16, huhu);
-    DrawExpand(17, cooomplex2);
+    DrawExpand(17, later);
+    DrawExpand(18, cooomplex);
+    DrawExpand(19, huhu);
+    DrawExpand(20, cooomplex2);
 
-    //Area aaa(cooomplex2.begin()->GetHoles());
-    //Area bexp=aaa, bexp2;
+    //Contour aaa(cooomplex2.begin()->GetHoles());
+    //Contour bexp=aaa, bexp2;
     //auto i = aaa.begin();
     //bexp += *i;
     //bexp += *++i;
@@ -300,8 +299,8 @@ void contour_test(void)
     //bexp2 += *++i;
     //bexp.RotateAround(XY(300,100), x-y);
     //bexp2.RotateAround(XY(300,100), x-y);
-    //Area bexpp = bexp.CreateExpand((x-y)/10.).Shift(XY(0,100));
-    //Area bexpp2 = bexp2.CreateExpand((x-y)/10.).Shift(XY(0,100));
+    //Contour bexpp = bexp.CreateExpand((x-y)/10.).Shift(XY(0,100));
+    //Contour bexpp2 = bexp2.CreateExpand((x-y)/10.).Shift(XY(0,100));
     //bexp += bexp2;
     //bexp.Shift(XY(0,100));
 	//bexpp.Line2(cr);

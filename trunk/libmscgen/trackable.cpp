@@ -143,7 +143,7 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
 
 MscControlType TrackableElement::WhichControl(const XY &xy)
 {
-    if (control_location.IsWithin(xy)!=WI_INSIDE) return MSC_CONTROL_INVALID;
+    if (!inside(control_location.IsWithin(xy))) return MSC_CONTROL_INVALID;
     return controls[unsigned((xy.y - control_location.y.from)/control_size.y)];
 }
 

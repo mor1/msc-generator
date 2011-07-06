@@ -1392,7 +1392,7 @@ void Label::CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, doubl
         }
         //Draw line of text
         if (area)
-            *area += Contour(Block(xy, xy+wh)); //TODO: Make this finer if there are smaller text or italics...
+            *area += Block(xy, xy+wh); //TODO: Make this finer if there are smaller text or italics...
         else if (canvas)
             at(i).Draw(xy, canvas, isRotated);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +

@@ -2192,7 +2192,7 @@ double ArcBoxSeries::Height(AreaList &cover)
             if (i==series.begin() && radius != CORNER_NONE && radius>0) {
                 //Funnily shaped box, prevent content from hitting it
                 Block b(sx, dx, y, lw+y+radius*4);
-                limit += Contours(Block(sx, dx, 0, y+lw+main_style.line.radius.second)) -=
+                limit += Contour(Block(sx, dx, 0, y+lw+main_style.line.radius.second)) -=
                             main_style.line.CreateRectangle(b);
                 if (main_style.line.corner.second == CORNER_NOTE) {
                     const double r = radius + main_style.line.RadiusIncMul()*lw/2 -
@@ -2211,7 +2211,7 @@ double ArcBoxSeries::Height(AreaList &cover)
             Block b(sx, dx, 0, y);
             MscLineAttr limiter_line(main_style.line);
             limiter_line.radius.second += chart->compressGap;
-            const Area bottom = Contours(Block(sx, dx, limiter_line.radius.second+1, y+1)) -=
+            const Area bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -=
                             limiter_line.CreateRectangle(b);
             double tp;
             double off = content_cover.OffsetBelow(bottom, tp);
@@ -2921,7 +2921,7 @@ double ArcPipeSeries::Height(AreaList &cover)
     //now y contains the bottommost pixel of the pipe itself
     total_height = y = ceil(y);
     //Now set the y coordinate in all segments
-    //Also calculate the Contours that will be used for drawing
+    //Also calculate the Contour that will be used for drawing
     double max_offset = 0;
     for (auto i = series.begin(); i!=series.end(); i++) {
         const double ilw = (*i)->style.line.LineWidth();
@@ -2988,8 +2988,8 @@ double ArcPipeSeries::Height(AreaList &cover)
 
                 //for shaodow we add
                 (*i)->pipe_shadow += forw_end;
-                (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line).GetFirst();
-                (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill).GetFirst();
+                (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line);
+                (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill);
                 (*i)->pipe_hole_curve = Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0,
                                                 side == SIDE_RIGHT ? 270 : 90,
                                                 side == SIDE_RIGHT ? 90 : 270);
@@ -3027,7 +3027,7 @@ double ArcPipeSeries::Height(AreaList &cover)
         //merge shadows of connected previous segment to ours
         if ((*i)->pipe_connect_back) {
             auto i_neigh = i; i_neigh--;
-            (*i_neigh)->pipe_shadow = ((*i)->pipe_shadow + (*i_neigh)->pipe_shadow).GetFirst();
+            (*i_neigh)->pipe_shadow = ((*i)->pipe_shadow + (*i_neigh)->pipe_shadow);
             (*i)->pipe_shadow.clear();
         }
     }
@@ -3134,7 +3134,7 @@ void ArcPipe::DrawPipe(bool topSideFill, bool topSideLine, bool backSide,
         Contour clip(x, style.side.second == SIDE_LEFT ? chart->total.x : 0, 0, chart->total.y);
         if (style.line.radius.second>0 && pipe_connect_forw) {
             const XY c(x, pipe_block.y.MidPoint());
-            clip = (clip-Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2)).GetFirst();
+            clip -= Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2);
         }
         chart->GetCanvas()->Clip(clip);
         if (!style.line.IsDoubleOrTriple() || drawing_variant==0)

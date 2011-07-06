@@ -19,7 +19,7 @@
 #include <cassert>
 #include "area.h"
 
-/////////////////////////////////////////  Contours implementation
+/////////////////////////////////////////  Contour implementation
 
 Area Area::CreateExpand(double gap, EExpandType et) const
 {
@@ -29,65 +29,17 @@ Area Area::CreateExpand(double gap, EExpandType et) const
     result.mainline = mainline;
     result.mainline.from -= gap;
     result.mainline.from += gap;
-    Contours::Expand(et, gap, result);
+    Contour::Expand(et, gap, result);
     return result;
-}
-
-void Area::Line2(cairo_t *cr) const
-{
-    //surface boundaries with existing pen - solid line hopefully
-    Contours::Path(cr, true, true);
-    cairo_stroke(cr);
-    //hole boundaries with dashed pen
-    double dash[] = {2, 2};
-    cairo_save(cr);
-    cairo_set_dash(cr, dash, 2, 0);
-    Contours::Path(cr, true, false);
-    cairo_stroke(cr);
-    cairo_restore(cr);
 }
 
 void Area::swap(Area &a)
 {
     std::swap(arc, a.arc);
     std::swap(mainline, a.mainline);
-    Contours::swap(a);
+    Contour::swap(a);
 }
 
-Area &Area::operator += (const Area &b)
-{
-    Contours::operator+=(b);
-    mainline += b.mainline;
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
-
-Area &Area::operator *= (const Area &b)
-{
-    Contours::operator*=(b);
-    mainline *= b.mainline;
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
-
-Area &Area::operator -= (const Area &b)
-{
-    Contours::operator-=(b);
-    //if any of our from or till falls into g's mainline, act.
-    if (b.mainline.IsWithin(mainline.from)) mainline.from=b.mainline.till;
-    if (b.mainline.IsWithin(mainline.till)) mainline.till=b.mainline.from;
-    //we may end up being invalid (=empty) (=till<from);
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
-
-Area &Area::operator ^= (const Area &b)
-{
-    Contours::operator^=(b);
-    //No change to mainlines
-    if (arc==NULL) arc = b.arc;
-    return *this;
-}
 
 AreaList AreaList::CreateExpand(double gap, EExpandType et) const
 {

@@ -288,17 +288,6 @@ void EdgeFullCircle::RotateAround(const XY&c, double cos, double sin, double rad
     }
 }
 
-
-void EdgeFullCircle::CopyInverseToMe(const EdgeFullCircle &B)
-{
-    EdgeStraight::CopyInverseToMe(B);
-    if (type!=EDGE_STRAIGHT) {
-        ell = B.ell;
-        clockwise_arc = !B.clockwise_arc;
-        s = B.s;
-    }
-}
-
 bool EdgeFullCircle::operator ==(const EdgeFullCircle& o) const
 {
     if (!EdgeStraight::operator==(o)) return false;
@@ -757,7 +746,7 @@ inline bool test_arc_end(const XY &a, double x, double y)
 }
 
 
-//Where does an edge or arc corss a vertical line? (for the purposes of Contour::IsWithin)
+//Where does an edge or arc corss a vertical line? (for the purposes of SimpleContour::IsWithin)
 //1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
 //2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
 //in short: we include the endpoint with the smaller x coordinate

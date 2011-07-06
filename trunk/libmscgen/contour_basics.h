@@ -53,7 +53,8 @@ public:
     XY &   Scale(const XY &sc)            {x*=sc.x; y*=sc.y; return *this;}
 };
 
-typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX} is_within_t;
+typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX, WI_IN_HOLE} is_within_t;
+inline bool inside(is_within_t t) {return t!=WI_OUTSIDE && t!=WI_IN_HOLE;}
 
 //Structs for compress mechanism
 struct Range {
@@ -69,6 +70,10 @@ struct Range {
         {if (from>a) from=a; if (till<a) till=a; return *this;}
     Range &operator+=(const Range &a)
         {if (from>a.from) from=a.from; if (till<a.till) till=a.till; return *this;}
+    Range &operator-=(const Range &a) {
+        if (a.IsWithin(from)) from=a.till;
+        if (a.IsWithin(till)) till=a.from;
+        return *this;}
     Range &operator*=(const Range &a)
         {if (from<a.from) from=a.from; if (till>a.till) till=a.till; return *this;}
     is_within_t IsWithin(double p) const {
