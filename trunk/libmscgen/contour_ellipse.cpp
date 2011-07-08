@@ -526,7 +526,7 @@ double EllipseData::RotateAround(const XY&c, double cos, double sin, double radi
 void EllipseData::SwapXY()
 {
     center.SwapXY();
-    if (tilt==0)
+    if (!tilted || tilt==0)
         std::swap(radius1, radius2);
     else
         tilt = M_PI/2 - tilt; //mirror on 45 degrees

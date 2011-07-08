@@ -464,7 +464,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
         res = *this;
         return;
     }
-    if (size()==0 || boundingBox.x.Spans() < -2*gap || boundingBox.y.Spans() < -2*gap)
+    const double shrink_by = clockwise ? -gap : gap;
+    if (size()==0 || boundingBox.x.Spans() < 2*shrink_by || boundingBox.y.Spans() < 2*shrink_by)
         return;
 
     SimpleContour r(*this);
@@ -577,7 +578,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
         res = std::move(r2);
         return;
     }
-    res.Operation(Contour::WINDING_NONNEGATIVE, std::move(r2));
+    res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
 }
 
 SimpleContour SimpleContour::CreateWithLastEdge(unsigned i) const

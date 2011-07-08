@@ -114,7 +114,7 @@ protected:
 
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
-    void SwapXY() {EdgeStraight::SwapXY(); if (type!=EDGE_STRAIGHT) {ell.SwapXY(); clockwise_arc=!clockwise_arc; s = s==0 ? s : 2*M_PI - s;}}
+    void SwapXY() {EdgeStraight::SwapXY(); if (type!=EDGE_STRAIGHT) {ell.SwapXY(); clockwise_arc=!clockwise_arc; s = s<M_PI/2 ? M_PI/2-s : 2.5*M_PI - s;}}
     void Invert() {EdgeStraight::Invert(); clockwise_arc = !clockwise_arc;}
 
     bool operator ==(const EdgeFullCircle& p) const;
@@ -159,7 +159,7 @@ public:
     EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
-    void SwapXY() {EdgeFullCircle::SwapXY(); if (type==EDGE_ARC) e = e==0 ? e : 2*M_PI - e;}
+    void SwapXY() {EdgeFullCircle::SwapXY(); if (type==EDGE_ARC) e = e<M_PI/2 ? M_PI/2-e : 2.5*M_PI - e;}
     void Invert() {EdgeFullCircle::Invert(); if (type==EDGE_ARC) std::swap(s, e);}
     RayAngle Angle(bool incoming, const XY &p, double pos) const;
     void SetFullCircle() {_ASSERT(type!=EDGE_STRAIGHT); type = EDGE_FULL_CIRCLE; end=start; e=s; CalculateBoundingBox();}

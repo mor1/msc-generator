@@ -46,10 +46,17 @@ public:
 CairoContext::CairoContext(unsigned i, const XY &size, const char *text, bool two, int sub) : x(two?size.x:0)
 {
     static char fileName[40];
+    if (sub<0 && i>999) {
+        if (i<=9999) {sub = i%10; i/=10;}
+        else if (i<=99999) {sub = i%100; i/=100;}
+        else if (i<=999999) {sub = i%1000; i/=1000;}
+        else if (i<=9999999) {sub = i%10000; i/=10000;}
+        else _ASSERT(0);
+    }
     if (sub>=0) 
-        sprintf(fileName, "test%03d_%03d.png", i, sub);
+        sprintf(fileName, "test%d_%03d.png", i, sub);
     else
-        sprintf(fileName, "test%03d.png", i);
+        sprintf(fileName, "test%d.png", i);
     outFile=NULL;
     surface=NULL;
     cr=NULL;
@@ -172,34 +179,37 @@ void DrawExpand(unsigned i, const Contour area1, bool manyfile=true, bool single
 void contour_test(void)
 {
     Contour tri = Contour(XY(50,90), XY(100,60), XY(40,20));
-	Draw(0, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
+	Draw(100, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
     tri +=  Contour(30,70,60,70);
 
-    Draw(1, tri, tri.CreateShifted(XY(15, 15)), tri ^ tri.CreateShifted(XY(15, 15)));
+    Draw(101, tri, tri.CreateShifted(XY(15, 15)), tri ^ tri.CreateShifted(XY(15, 15)));
 
 	Contour boxhole = Contour(130,170,60,70);
 	boxhole += Contour(160,170,60,140);
 	boxhole += Contour(130,140,60,140);
 	boxhole += Contour(130,170,130,140);
-    Draw(2, boxhole, Contour(148,153, 85, 115), boxhole + Contour(148,153, 85, 115));
+    Draw(102, boxhole, Contour(148,153, 85, 115), boxhole + Contour(148,153, 85, 115));
     boxhole+=Contour(148,153, 85, 115);
 
 	Contour cooomplex;
-    Draw(3, boxhole, tri, boxhole + tri);
+    Draw(103, boxhole, tri, boxhole + tri);
     cooomplex=boxhole+tri;
 
 	Contour cooomplex2 = Contour(110, 200, 80, 120);
-    Draw(4, cooomplex2, Contour(120, 190, 90, 110), cooomplex2 - Contour(120, 190, 90, 110));
+    Draw(104, cooomplex2, Contour(120, 190, 90, 110), cooomplex2 - Contour(120, 190, 90, 110));
     cooomplex2 -= Contour(120, 190, 90, 110);
 
-    Draw(5, boxhole, cooomplex2, boxhole ^ cooomplex2);
+    Draw(1051, boxhole, cooomplex2, boxhole + cooomplex2, "ADD");
+    Draw(1052, boxhole, cooomplex2, boxhole * cooomplex2, "MUL");
+    Draw(1053, boxhole, cooomplex2, boxhole ^ cooomplex2, "XOR");
+    Draw(1054, boxhole, cooomplex2, boxhole - cooomplex2, "SUB");
     
-    Draw(6, cooomplex2, cooomplex, cooomplex2 + cooomplex);
+    Draw(106, cooomplex2, cooomplex, cooomplex2 + cooomplex);
 	cooomplex2 += cooomplex;
     const Contour later = cooomplex2;
 
 	Contour custom = cooomplex2;
-	Draw(7, cooomplex2, cooomplex2.CreateShifted(XY(15,15)), cooomplex2 ^ cooomplex2.CreateShifted(XY(15,15)));
+	Draw(107, cooomplex2, cooomplex2.CreateShifted(XY(15,15)), cooomplex2 ^ cooomplex2.CreateShifted(XY(15,15)));
     cooomplex2 += cooomplex2.CreateShifted(XY(15,15));
 
     cooomplex2.Shift(XY(200,0));
@@ -212,11 +222,18 @@ void contour_test(void)
 		cooomplex += Contour(200+i*20, 215+i*20, 200, 190+num_y*20);
 	for (int j=0; j<num_y; j++)
 		cooomplex += Contour(200, 190+num_x*20, 200+j*20, 215+j*20);
-    Draw(8, cooomplex);
+    Draw(108, cooomplex);
 	
     cooomplex2.ClearHoles();
 
-	Draw(9, cooomplex2, Contour(XY(300,101), 100, 50), cooomplex2 ^ Contour(XY(300,101), 100, 50));
+	Draw(109, cooomplex2, Contour(XY(300,101), 100, 50), cooomplex2 ^ Contour(XY(300,101), 100, 50));
+    Draw(110, tri, tri.CreateSwapXYd()); 
+    Draw(1101, boxhole, boxhole.CreateSwapXYd()); 
+    Draw(1102, cooomplex, cooomplex.CreateSwapXYd()); 
+    Draw(1103, Contour(XY(300,101), 100, 50), Contour(XY(300,101), 100, 50).CreateSwapXYd());
+    Draw(1110, cooomplex2 ^ Contour(XY(300,101), 100, 50), (cooomplex2 ^ Contour(XY(300,101), 100, 50)).CreateSwapXYd());
+
+
     cooomplex2 *= Contour(XY(300,101), 100, 50);
 	Contour cooomplex3 = cooomplex2;
 
@@ -229,7 +246,7 @@ void contour_test(void)
 	                XY(x, y),
                     XY( 90, 300)};
 	custom = v1;
-    Draw(10, custom);
+    Draw(111, custom);
 
 	Contour custom2;
 
@@ -252,36 +269,41 @@ void contour_test(void)
 	                XY(x, y),
                     XY( 90, 300)};
     custom2 = v3;
-    Draw(11, custom, custom2);
+    Draw(112, custom, custom2);
 
 	Contour circle = Contour(XY(200, 200), 60, 30, 30);
-    Draw(12, circle, Contour(200,300, 170,190), circle + Contour(200,300, 170,190));
+    Draw(113, circle, Contour(200,300, 170,190), circle + Contour(200,300, 170,190));
 	circle += Contour(200,300, 170,190);
     
 	Contour circle2= Contour(XY(x, y), 60, 30, abs(x-y));
     Contour circle3 = circle2;
-    Draw(13, circle2, Contour(x,x+100, y+15,y+30), circle2 + Contour(x,x+100, y+15,y+30));
+    Draw(114, circle2, Contour(x,x+100, y+15,y+30), circle2 + Contour(x,x+100, y+15,y+30));
     circle2 += Contour(x,x+100, y+15,y+30);
 
 	Contour boxhole2 = Contour(110, 200, 80, 120);
 	boxhole2 -= Contour(120, 190, 90, 110);
 	Contour huhu = boxhole2;
 	huhu.ClearHoles();
-    Draw(14, huhu, Contour(XY(130,101), 30,20), huhu + Contour(XY(130,101), 30,20));
+    Draw(115, huhu, Contour(XY(130,101), 30,20), huhu + Contour(XY(130,101), 30,20));
     
-    Draw(15, huhu, Contour(XY(130,101), 30,20), huhu * Contour(XY(130,101), 30,20));
+    Draw(116, huhu, Contour(XY(130,101), 30,20), huhu * Contour(XY(130,101), 30,20));
 	huhu *= Contour(XY(130,101), 30,20);
     
 	cooomplex2 = cooomplex3;
 	cooomplex2.RotateAround(XY(350,100), 39);
-    Draw(16, cooomplex3, cooomplex2);
+    Draw(117, cooomplex3, cooomplex2);
 
-    huhu.CreateExpand(-12);
+    cooomplex3.CreateExpand(-8);
 
-    DrawExpand(17, later);
-    DrawExpand(18, cooomplex);
-    DrawExpand(19, huhu);
-    DrawExpand(20, cooomplex2);
+//    return;
+
+    Contour box = Contour(10, 110, 10, 110) - Contour(30, 40, 30, 80) - Contour(80, 90, 30, 80);
+    DrawExpand(129, box, false);
+    DrawExpand(130, later, false);
+    DrawExpand(131, cooomplex, false);
+    DrawExpand(132, huhu, false);
+    DrawExpand(133, cooomplex3, false);
+    DrawExpand(134, cooomplex2, false);
 
     //Contour aaa(cooomplex2.begin()->GetHoles());
     //Contour bexp=aaa, bexp2;
