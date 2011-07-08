@@ -647,7 +647,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
         int num = ell.CrossingStraight(o.start, o.end, loc_r, loc_my, loc_other);
         int ret = 0;
         for (num--; num>=0; num--) {
-            if (!radianbetween(loc_my[num])) continue;
+            //if (!radianbetween(loc_my[num])) continue;
 		    //for curves, convert to position from radian
             loc_my[num] = radian2pos(loc_my[num]);
 		    //now loc_XY is a position [0..1] indicate on edge
@@ -1131,12 +1131,15 @@ void EdgeArc::SetStartEndForExpand(const XY &S, const XY &E)
         //check if direction has changed
         //start with an exception: if any is exactly 180 degrees, we assume same direction
         //(thus we test the rest only if none is exactly 180 degrees)
-        if (fabs(s-e) != M_PI && fabs(new_s-new_e) != M_PI) {
-            const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
-            const bool dir_M = (new_e>new_s && (new_e-new_s)<M_PI) || (new_s>new_e && (new_s-new_e)>=M_PI);
-            if (dir_us != dir_M) 
-                clockwise_arc = !clockwise_arc;
-        }
+        //if (fabs(s-e) != M_PI && fabs(new_s-new_e) != M_PI) {
+        //    const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
+        //    const bool dir_M = (new_e>new_s && (new_e-new_s)<M_PI) || (new_s>new_e && (new_s-new_e)>=M_PI);
+        //    if (dir_us != dir_M) 
+        //        clockwise_arc = !clockwise_arc;
+        //}
+        if (radian_diff_abs(e, new_e) + radian_diff_abs(s, new_s) >
+            radian_diff_abs(e, new_s) + radian_diff_abs(s, new_e))
+            clockwise_arc = !clockwise_arc;
         /* Falltherough */
     case EDGE_FULL_CIRCLE:
         //for full circle we assume dir has not changed

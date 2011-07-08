@@ -39,7 +39,6 @@ class ContourList : protected std::list<ContourWithHoles>
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const;
     double OffsetBelow(const ContourList &below, double &touchpoint, double offset) const;
-    void Expand(EExpandType type, double gap, Contour &res) const;
 
     void Path(cairo_t *cr) const;
     void Path(cairo_t *cr, bool clockwiseonly) const;
@@ -106,9 +105,14 @@ protected:
 class Contour : public ContourWithHoles
 {
     friend class SimpleContour;
+    friend class ContourWithHoles;
     friend class ContoursHelper;
-    typedef enum {COMBINE_UNION, COMBINE_INTERSECT, COMBINE_XOR, 
-                  WINDING_NONZERO, WINDING_EVENODD, WINDING_NONNEGATIVE} operation_t;
+    typedef enum {POSITIVE_UNION=0, POSITIVE_INTERSECT, POSITIVE_XOR, 
+                  WINDING_RULE_NONZERO, WINDING_RULE_EVENODD, 
+                  EXPAND_POSITIVE,
+                  NEGATIVE_UNION, NEGATIVE_INTERSECT, NEGATIVE_XOR,
+                  EXPAND_NEGATIVE,} operation_t;
+    static bool is_positive(operation_t t) {return t<=EXPAND_POSITIVE;}
     ContourList further;
     Block boundingBox;
 protected:
@@ -127,13 +131,17 @@ protected:
     void append(ContourWithHoles &&p)  {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); ContourWithHoles::assign(std::move(p));} else {boundingBox+=p.GetBoundingBox(); further.append(std::move(p));}}
 
     void Invert() {ContourWithHoles::Invert(); if (further.size()) further.Invert();}
-    void Rotate(double cos, double sin, double radian) {ContourWithHoles::Rotate(cos, sin, radian); if (further.size()) further.Rotate(cos, sin, radian);}
-    void RotateAround(const XY&c, double cos, double sin, double radian) {ContourWithHoles::RotateAround(c, cos, sin, radian); if (further.size()) further.RotateAround(c, cos, sin, radian);}
+    Contour CreateInverse() const {Contour tmp(*this); tmp.Invert(); return tmp;}
+    void Rotate(double cos, double sin, double radian) {ContourWithHoles::Rotate(cos, sin, radian); boundingBox = ContourWithHoles::GetBoundingBox(); if (further.size()) {further.Rotate(cos, sin, radian); boundingBox += further.GetBoundingBox();}}
+    void RotateAround(const XY&c, double cos, double sin, double radian) {ContourWithHoles::RotateAround(c, cos, sin, radian); boundingBox = ContourWithHoles::GetBoundingBox(); if (further.size()) {further.RotateAround(c, cos, sin, radian); boundingBox += further.GetBoundingBox();}}
 
     void Operation(operation_t type, const Contour &c1);
+    void Operation(operation_t type, Contour &&c1);
     void Operation(operation_t type, const Contour &c1, const Contour &c2);
+    void Operation(operation_t type, const Contour &c1, Contour &&c2);
+    void Operation(operation_t type, Contour &&c1, Contour &&c2);
 
-    void Expand(EExpandType type, double gap, Contour &res) const {ContourWithHoles::Expand(type, gap, res); if (further.size()) {Contour tmp; further.Expand(type, gap, tmp); res += tmp;} _ASSERT(IsSane()); }
+    void Expand(EExpandType type, double gap, Contour &res) const;
 public:
     Contour() {boundingBox.MakeInvalid();}
     Contour(double sx, double dx, double sy, double dy) : ContourWithHoles(sx, dx, sy, dy) {boundingBox = ContourWithHoles::GetBoundingBox();}
@@ -175,9 +183,9 @@ public:
     void ClearHoles() {holes.clear(); for (auto i = further.begin(); i!=further.end(); i++) i->holes.clear();}
     bool IsSane() const;
 
-    is_within_t IsWithin(const XY &p) const {is_within_t ret = ContourWithHoles::IsWithin(p); if (ret!=WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
-    void Shift(const XY &xy) {ContourWithHoles::Shift(xy); if (further.size()) further.Shift(xy);}
-    void SwapXY() {ContourWithHoles::SwapXY(); if (further.size()) further.SwapXY();}
+    is_within_t IsWithin(const XY &p) const {is_within_t ret = ContourWithHoles::IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
+    void Shift(const XY &xy) {ContourWithHoles::Shift(xy); if (further.size()) further.Shift(xy); boundingBox.Shift(xy);}
+    void SwapXY() {ContourWithHoles::SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY();}
 	void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
     void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
 
@@ -186,14 +194,14 @@ public:
 	Contour CreateRotated(double degrees) {Contour a(*this); a.Rotate(degrees); return a;}
     Contour CreateRotatedAround(const XY&c, double degrees) {Contour a(*this); a.RotateAround(c, degrees); return a;}
 
-    Contour &operator += (const Contour &a);
-    Contour &operator += (Contour &&a);  
-    Contour &operator *= (const Contour &a);
-    //Contour &operator *= (Contour &&a);  //no benefit
-    Contour &operator -= (const Contour &a);
-    Contour &operator -= (Contour &&a);  
-    Contour &operator ^= (const Contour &a);
-    Contour &operator ^= (Contour &&a);  
+    Contour &operator += (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, a); return *this;}
+    Contour &operator += (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}  
+    Contour &operator *= (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, *this, a); return *this;}
+    Contour &operator *= (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, *this, std::move(a)); return *this;}  
+    Contour &operator -= (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, a.CreateInverse()); return *this;}
+    Contour &operator -= (Contour &&a)      {a.Invert(); Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}  
+    Contour &operator ^= (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_XOR : NEGATIVE_XOR, *this, a); return *this;}
+    Contour &operator ^= (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_XOR : NEGATIVE_XOR, *this, std::move(a)); return *this;}
 
     Contour operator + (const Contour &p) const {return Contour(*this)+=p;}
     Contour operator * (const Contour &p) const {return Contour(*this)*=p;}
@@ -271,113 +279,26 @@ inline void ContourList::RotateAround(const XY&c, double cos, double sin, double
 
 inline void ContourWithHoles::Expand(EExpandType type, double gap, Contour &res) const 
 {
+    if (size()==0) return;
+    if (gap==0) {res.clear(); static_cast<ContourWithHoles&>(res) = *this; return;}
     SimpleContour::Expand(type, gap, res); 
-    if (holes.size()) {
-        Contour tmp; 
-        holes.Expand(type, gap, tmp); 
-        res *= tmp; //holes are already inversed
+    if (holes.size()==0 || res.IsEmpty()) return;
+    Contour tmp; 
+    for (auto i=holes.begin(); i!=holes.end(); i++) {
+        i->Expand(type, gap, tmp);
+        //in case "i" is an actual holes, it is are already inversed, adding is the right op
+        res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
+        res += std::move(tmp); 
+        tmp.clear();
     }
 }
 
 ///////Contour///////////////////////////////////////
 
-inline Contour &Contour::operator += (const Contour &a)
-{
-    if (boundingBox.Overlaps(a.GetBoundingBox()))
-        Operation(COMBINE_UNION, *this, a);
-    else if (a.IsEmpty())
-        return *this;
-    else if (IsEmpty())
-        operator = (a);
-    else {
-        further.append(static_cast<const ContourWithHoles&>(a));
-        further.append(a.further);
-        boundingBox += a.boundingBox;
-    }
-    return *this;
-}
-
-inline Contour &Contour::operator += (Contour &&a)
-{
-    _ASSERT(!a.IsEmpty());
-    if (boundingBox.Overlaps(a.GetBoundingBox()))
-        Operation(COMBINE_UNION, *this, a);
-    else if (a.IsEmpty())
-        return *this;
-    else if (IsEmpty())
-        operator = (std::move(a));
-    else {
-        boundingBox += a.boundingBox;
-        further.append(std::move(a.further));
-        further.append(static_cast<ContourWithHoles&&>(a));
-    }
-    return *this;
-}
-
-inline Contour &Contour::operator *= (const Contour &a)
-{
-    if (boundingBox.Overlaps(a.GetBoundingBox()))
-        Operation(COMBINE_INTERSECT, *this, a);
-    else 
-        clear();
-    return *this;
-}
-
-inline Contour &Contour::operator -= (const Contour &a)
-{
-    if (boundingBox.Overlaps(a.boundingBox)) {
-        Contour b(a);
-        b.Invert();
-        Operation(COMBINE_INTERSECT, *this, b);
-    }
-    return *this;
-}
-
-inline Contour &Contour::operator -= (Contour &&a)
-{
-    if (boundingBox.Overlaps(a.boundingBox)) {
-        a.Invert();
-        Operation(COMBINE_INTERSECT, *this, a);
-    }
-    return *this;
-}
-
-inline Contour &Contour::operator ^= (const Contour &a)
-{
-    if (boundingBox.Overlaps(a.GetBoundingBox()))
-        Operation(COMBINE_XOR, *this, a);
-    else if (a.IsEmpty())
-        return *this;
-    else if (IsEmpty())
-        operator = (a);
-    else {
-        further.append(static_cast<const ContourWithHoles&>(a));
-        further.append(a.further);
-        boundingBox += a.boundingBox;
-    }
-    return *this;
-}
-
-inline Contour &Contour::operator ^= (Contour &&a)
-{
-    if (boundingBox.Overlaps(a.GetBoundingBox()))
-        Operation(COMBINE_XOR, *this, a);
-    else if (a.IsEmpty())
-        return *this;
-    else if (IsEmpty())
-        operator = (std::move(a));
-    else {
-        boundingBox += a.boundingBox;
-        further.append(std::move(a.further));
-        further.append(static_cast<ContourWithHoles&&>(a));
-    }
-    return *this;
-}
-
 inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
 {
     is_within_t ret = SimpleContour::IsWithin(p);
-    if (ret!=WI_INSIDE) return ret;
+    if (ret!=WI_INSIDE || holes.size()==0) return ret;
     ret = holes.IsWithin(p);
     switch (ret) {
     case WI_INSIDE: return WI_IN_HOLE;
@@ -386,5 +307,23 @@ inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
     default: return ret;
     }
 }
+
+inline void Contour::Expand(double gap, EExpandType et) 
+{
+    if (gap) {
+        Contour res; 
+        Expand(et, gap, res); 
+        swap(res);
+    }
+}
+
+inline Contour Contour::CreateExpand(double gap, EExpandType et) const 
+{
+    if (!gap) return *this; 
+    Contour res; 
+    Expand(et, gap, res); 
+    return res;
+}
+
 
 #endif //CONTOUR_CONTOURS_H
