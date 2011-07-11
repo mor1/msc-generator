@@ -22,7 +22,7 @@
 #include <set>
 #include <stack>
 #include "contour.h"
-
+#include "contour_test.h"
 
 ///////////////////////////// SimpleContour
 
@@ -357,9 +357,11 @@ bool SimpleContour::IsSane() const
     if (size()==0) return true;
     if (size()==1)
         return at(0).GetType() == EDGE_FULL_CIRCLE;
-    for (unsigned u=0; u<size(); u++)
+    for (unsigned u=0; u<size(); u++) {
         if (at(u).GetStart().test_equal(at(u).GetEnd()))  //we do not tolerate full circles either
             return false;
+        if (!at(u).IsSane()) return false;
+    }
     if (size()==2 && at(0).GetType()==EDGE_STRAIGHT && at(1).GetType()==EDGE_STRAIGHT)
         return false;
     return true;
@@ -578,6 +580,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
         res = std::move(r2);
         return;
     }
+    if (ContourTestDebug) {
+        const_cast<Block&>(r2.GetBoundingBox()) = static_cast<ContourWithHoles&>(r2).GetBoundingBox();
+        Draw(ContourTestDebug*100, r2);
+        ContourTestDebug++;
+    };
     res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
 }
 

@@ -17,4 +17,13 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "contour.h"
+
+extern unsigned ContourTestDebug;
+extern unsigned ContourTestDebugMinor;
+
+void Draw(unsigned i, const Contour area1, const Contour area2, const Contour area3, const char *text=NULL);
+void Draw(unsigned i, const Contour area1, const Contour area2, const char *text=NULL);
+void Draw(unsigned i, const Contour area1, const char *text=NULL);
+
 void contour_test(void);

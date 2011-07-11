@@ -146,6 +146,7 @@ struct Block {
     Block &Shift(const XY &a)
         {x.Shift(a.x); y.Shift(a.y); return *this;}
     Block &Expand(double a) {x.Expand(a); y.Expand(a); return *this;}
+    Block CreateExpand(double a) const {Block b(*this); b.Expand(a); return b;}
     Block &SwapXY() {std::swap(x,y); return *this;}
     Block & Round()       {x.Round(); y.Round(); return *this;}
     Block & RoundUp()     {x.RoundUp(); y.RoundUp(); return *this;}

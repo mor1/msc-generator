@@ -72,7 +72,7 @@ protected:
 
     is_within_t IsWithin(XY p, int *edge=NULL, double *pos=NULL, bool strict=true) const;
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (unsigned i=0; i<size(); i++) at(i).Shift(xy);}
-    void SwapXY() {boundingBox.SwapXY(); for (unsigned i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise;}
+    void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (unsigned i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise;}
     void Rotate(double cos, double sin, double radian) {for (unsigned i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (unsigned i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
 
