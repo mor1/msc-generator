@@ -114,7 +114,6 @@ protected:
 
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
-    void SwapXY() {EdgeStraight::SwapXY(); if (type!=EDGE_STRAIGHT) {ell.SwapXY(); clockwise_arc=!clockwise_arc; s = s<M_PI/2 ? M_PI/2-s : 2.5*M_PI - s;}}
     void Invert() {EdgeStraight::Invert(); clockwise_arc = !clockwise_arc;}
 
     bool operator ==(const EdgeFullCircle& p) const;
@@ -153,13 +152,16 @@ protected:
     
     double FindRadianOfClosestPos(unsigned num, double pos[], double rad);
     bool UpdateClockWise(double new_s, double new_e);
+    void SwapXYcurvy();
+    int CrossingVerticalCurvy(double x, double y[], double pos[], bool forward[]) const;
 public:
     EdgeArc() : EdgeFullCircle() {};
     EdgeArc(const XY &s, const XY &e) : EdgeFullCircle(s, e) {}
     EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
+    bool IsSane() const;
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
-    void SwapXY() {EdgeFullCircle::SwapXY(); if (type==EDGE_ARC) e = e<M_PI/2 ? M_PI/2-e : 2.5*M_PI - e;}
+    void SwapXY() {EdgeStraight::SwapXY(); if (type!=EDGE_STRAIGHT) SwapXYcurvy();}
     void Invert() {EdgeFullCircle::Invert(); if (type==EDGE_ARC) std::swap(s, e);}
     RayAngle Angle(bool incoming, const XY &p, double pos) const;
     void SetFullCircle() {_ASSERT(type!=EDGE_STRAIGHT); type = EDGE_FULL_CIRCLE; end=start; e=s; CalculateBoundingBox();}
@@ -169,6 +171,7 @@ public:
 	double GetSpan() const;
     double GetRadianE() const {_ASSERT(type==EDGE_ARC); return e;}
     double GetRadianMidPoint() const;
+    XY Pos2Point(double pos) const;
 
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
     XY     PrevTangentPoint(double pos, const EdgeArc &prev_vertex) const;
@@ -178,8 +181,11 @@ public:
     //Gives the intersecting points of me and another straight edge
     unsigned Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos_other[]) const;
     //Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
-    int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
-
+    int CrossingVertical(double x, double y[], double pos[], bool forward[]) const {
+        if (type == EDGE_STRAIGHT) return EdgeStraight::CrossingVertical(x, y, pos, forward);
+        if (test_smaller(x, boundingBox.x.from) || test_smaller(boundingBox.x.till, x)) return 0;
+        return CrossingVerticalCurvy(x, y, pos, forward);
+    }
     //Removes the part of the edge before point p. Assumes p lies on us. Invalidates BoundingBox!!!
     EdgeArc& SetStartStrict(const XY &p, double pos, bool keep_full_circle=false);
     EdgeArc& SetStartLiberal(const XY &p, bool keep_full_circle=false);

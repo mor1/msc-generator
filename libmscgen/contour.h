@@ -180,6 +180,7 @@ public:
     const Block &GetBoundingBox(void) const {return boundingBox;}
     //bool AddAnEdge(const Edge &edge) {SimpleContour::AddAnEdge(edge);}
     //bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).GetStart()));}
+    Contour GetNth(unsigned n);
     void ClearHoles() {holes.clear(); for (auto i = further.begin(); i!=further.end(); i++) i->holes.clear();}
     bool IsSane() const;
 

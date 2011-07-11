@@ -15,6 +15,12 @@
     {
         "Entry"
         {
+        "MsmKey" = "8:_033EF4C8351B4903B869FC277F473473"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_0C0487C0D406475788D189FF07354D88"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -39,19 +45,13 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_533FDAF0469B474C9D0791B6E0A18F2F"
+        "MsmKey" = "8:_474F5A4C661E4842B0AAB11188869C8B"
         "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_533FDAF0469B474C9D0791B6E0A18F2F"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_5E74AD2E634947448D7258FE8E030CB8"
+        "MsmKey" = "8:_474F5A4C661E4842B0AAB11188869C8B"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -277,7 +277,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -377,7 +377,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -503,7 +503,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{9A5B56A3-A5FD-462A-8224-D836325B486B}"
-        "PackageCode" = "8:{4221050D-0909-45E6-9AB1-2CD1A1D23352}"
+        "PackageCode" = "8:{922E1AF2-68F7-4BBC-81AE-1D62B3C527F6}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -1968,11 +1968,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_533FDAF0469B474C9D0791B6E0A18F2F"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_033EF4C8351B4903B869FC277F473473"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
                 "Properties"
                 {
                 }
@@ -1982,11 +1982,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_5E74AD2E634947448D7258FE8E030CB8"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_474F5A4C661E4842B0AAB11188869C8B"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
                 "Properties"
                 {
                 }

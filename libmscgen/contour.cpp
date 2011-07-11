@@ -18,6 +18,7 @@
 */
 #include <cassert>
 #include "contour.h"
+#include "contour_test.h"
 
 //////ContourList/////////////////
 
@@ -171,6 +172,15 @@ struct RayPointer {
     explicit RayPointer(unsigned i) : at_vertex(false), index(i) {}
 };
 
+//to store info for walk backtracing
+struct walk_data {
+    unsigned rays_size;       //what was the size of the rays array before chosing
+    unsigned result_size;     //what was the size of the resulting contour before choosing
+    unsigned chosen_outgoing; //which ray did we choose last time
+    walk_data(unsigned s, unsigned s2, unsigned c) : 
+        rays_size(s), result_size(s2), chosen_outgoing(c) {}
+};
+
 //for post-processing
 struct node
 {
@@ -232,7 +242,8 @@ protected:
     void EvaluateCrosspoints(Contour::operation_t type) const; //Fills in switch actions and StartRays
     //helpers for walking
     void Advance(RayPointer &p, bool forward) const;
-    void InvalidateAllInRayGroupOf(unsigned ray) const;
+    void MarkAllInRayGroupOf(unsigned ray, bool valid) const;
+    void RevalidateAllAfter(std::vector<unsigned> &ray_array, unsigned from) const;
     void Walk(RayPointer start, SimpleContour &result) const;
     //helper for post-processing
     node *ContoursHelper::InsertContour(std::list<node> *list, node &&n) const; 
@@ -376,6 +387,7 @@ unsigned ContoursHelper::FindContourHead(const SimpleContour *c) const
 //return true if we could add (no duplication)
 bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, unsigned v, double p, bool i, const RayAngle &a)
 {
+    _ASSERT(c->at(v).Pos2Point(p).test_equal(point));
     Rays.push_back(Ray(point, m_c, c, v, p, i, a));
     //link in to the loose lists
     const unsigned index = Rays.size()-1;
@@ -409,7 +421,7 @@ void ContoursHelper::AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour 
         AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at_prev(v2).Angle(true,  xy, 1));
     else
         AddCrosspointHelper(xy, m_c2, c2, v2, p2, true,  c2->at(v2).Angle(true,  xy, p2));
-    if (p2==2) //avoid pos==1 and outgoing
+    if (p2==1) //avoid pos==1 and outgoing
         AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at_next(v2).Angle(false, xy, 0));
     else
         AddCrosspointHelper(xy, m_c2, c2, v2, p2, false, c2->at(v2).Angle(false, xy, p2));
@@ -652,7 +664,7 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy, const ContourWithHoles *cwh
         //do nothing for -1 or 0 returns
         for (int f=0; f<num; f++)
             if (test_smaller(xy.x, x[f])) {
-                if (fw[f]) ret++;
+                if (fw[f]) ret++;    //fw is inverse due to Edge::SwapXY above
                 else ret--;
             }
     }
@@ -880,27 +892,40 @@ void ContoursHelper::Advance(RayPointer &p, bool forward) const
     }
 }
 
-//Marks all rays in the ray group of "ray" as invalid
-void ContoursHelper::InvalidateAllInRayGroupOf(unsigned ray) const
-{
+//Marks all rays in the ray group of "ray" as in "valid"
+void ContoursHelper::MarkAllInRayGroupOf(unsigned ray, bool valid) const{
     //walk forward 
     unsigned u = ray;
     do {
-        Rays[u].valid = false;
+        Rays[u].valid = valid;
         u = Rays[u].link_in_cp.next;
     } while (Rays[ray].angle.IsSimilar(Rays[u].angle));
     //walk backward
     u = ray;
     do {
-        Rays[u].valid = false;
+        Rays[u].valid = valid;
         u = Rays[u].link_in_cp.prev;
     } while (Rays[ray].angle.IsSimilar(Rays[u].angle));
 }
+
+void ContoursHelper::RevalidateAllAfter(std::vector<unsigned> &ray_array, unsigned from) const
+{
+    if (from >= ray_array.size()) return;
+    for (unsigned u = from; u<ray_array.size(); u++)
+        MarkAllInRayGroupOf(ray_array[u], true);
+    ray_array.resize(from);
+}
+
 
 //Walk around the contours starting from startpoint and follow the
 //switch_action bycontd for each incoming ray. This is used for union and intersect (and substract)
 void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
 {
+    std::vector<unsigned> ray_array;
+    std::vector<walk_data> wdata;
+    ray_array.reserve(200);
+    wdata.reserve(200);
+
     result.clear();
     //current will point to an incoming ray at a crosspoint
     _ASSERT(start.index<Rays.size() && !start.at_vertex && Rays[start.index].valid);
@@ -924,15 +949,39 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
             const Ray &ray = Rays[current.index];  //ray on which we arrive
             _ASSERT(forward == ray.incoming);
             //Mark the incoming ray (and all incoming rays its entire ray group) as DONE
-            InvalidateAllInRayGroupOf(current.index);
-            if (ray.switch_to < 0) {
-                //_ASSERT(0);
-                result.clear();
-                return;
+            MarkAllInRayGroupOf(current.index, false);
+            ray_array.push_back(current.index);
+            int switch_to = ray.switch_to;
+            if (switch_to < 0) {
+                //backtrack to last position
+                do {
+                    if (wdata.size()==0) {
+                        //cannot backtrace: give up
+                        //_ASSERT(0);
+                        result.clear();
+                        return;
+                    }
+                    _ASSERT(ray_array.size()>wdata.rbegin()->rays_size);
+                    _ASSERT(result.size()>wdata.rbegin()->result_size);
+                    RevalidateAllAfter(ray_array, wdata.rbegin()->rays_size);
+                    result.resize(wdata.rbegin()->result_size);
+                    const unsigned last_chosen = wdata.rbegin()->chosen_outgoing;
+                    wdata.pop_back();
+                    switch_to = Rays[last_chosen].link_in_cp.next; //next to pick
+                    //if next to pick is another ray group, we need to backtrace one more
+                } while (!Rays[switch_to].angle.IsSimilar(Rays[switch_to].angle));
+                //OK here, wdata, ray_array are restored to correct size
+                //switch_to shows next alternative to try
+                //we even removed this backtrace from wdata, if there are more
+                //rays to choose from, we will re-add them below
             }
             //Now switch to outgoing ray
-            current.index = Rays[current.index].switch_to;
+            current.index = switch_to;
             const Ray &next_ray = Rays[current.index];
+            //check if this was the only choice (exclude case when we did a backtrace)
+            if (next_ray.angle.IsSimilar(Rays[next_ray.link_in_cp.next].angle)) 
+                //no, let us save a backtrace point
+                wdata.push_back(walk_data(ray_array.size(), result.size(), switch_to));
             forward = !next_ray.incoming;  //fw may change if we need to walk on an incoming ray
             //Append a point
             if (forward) {
@@ -945,6 +994,14 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
                 edge.SetStartStrict(next_ray.xy, 1-next_ray.pos, true);
                 result.AppendDuringWalk(edge);
             }
+        }
+        if (ContourTestDebug>0) {
+            if (C2) {
+                Draw(ContourTestDebug*100+ContourTestDebugMinor, *C1, *C2, Contour(result));
+            } else {
+                Draw(ContourTestDebug*100+ContourTestDebugMinor, *C1, Contour(result));
+            }
+            ContourTestDebugMinor++;
         }
         //Now find the next cp and corresponding incoming ray
         Advance(current, forward);
@@ -1065,7 +1122,11 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
         }
         _ASSERT(C1->IsSane() && C2->IsSane());
     }
-    std::list<node> list;   
+    std::list<node> list;
+    if (ContourTestDebug) {
+        ContourTestDebug++;
+        ContourTestDebugMinor = 1;
+    }
     if (Rays.size()) {
         //evaluate crosspoints
         EvaluateCrosspoints(type); // Process each cp and determine if it is relevant to us or not
@@ -1170,6 +1231,15 @@ void Contour::assign(const Edge v[], unsigned size, bool winding)
         Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, tmp2);
     }
 }
+
+Contour Contour::GetNth(unsigned n)
+{
+    if (n==0) return Contour(*static_cast<ContourWithHoles*>(this));
+    for (auto i = further.begin(); i!=further.end(); i++)
+        if (!--n) return Contour(*i);
+    return Contour();
+}
+
 
 bool Contour::IsSane() const
 {

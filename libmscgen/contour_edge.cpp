@@ -384,19 +384,6 @@ unsigned EdgeFullCircle::Crossing(const EdgeFullCircle &o, XY r[], double pos_my
     return num;
 }
 
-//Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
-int EdgeFullCircle::CrossingVertical(double x, double y[], double pos[], bool forward[]) const
-{
-	if (test_smaller(x, boundingBox.x.from) || test_smaller(boundingBox.x.till, x))
-		return 0;
-    int num = ell.CrossingVertical(x, y, pos);
-    for (int i=0; i<num; i++) {
-		pos[i] = radian2pos(pos[i]);
-        forward[i] = y[i] == std::min(y[0], y[1]);
-    }
-    return num;
-}
-
 //calculates bb
 const Block& EdgeFullCircle::CalculateBoundingBox()
 {
@@ -506,6 +493,22 @@ EdgeArc::EdgeArc(const XY &c, double radius_x, double radius_y, double tilt_deg,
     CalculateBoundingBox();
 }
 
+bool EdgeArc::IsSane() const
+{
+    switch(type) {
+    case EDGE_ARC:
+        if (!ell.Radian2Point(e).test_equal(end)) return false;
+    case EDGE_FULL_CIRCLE:
+        if (!ell.Radian2Point(s).test_equal(start)) return false;
+    case EDGE_STRAIGHT:
+        if (boundingBox.IsWithin(start) == WI_OUTSIDE || 
+            boundingBox.IsWithin(end) == WI_OUTSIDE) return false;
+    }
+    return true;
+}
+
+
+
 void EdgeArc::Rotate(double cos, double sin, double radian)
 {
     EdgeStraight::Rotate(cos, sin, radian);
@@ -516,6 +519,7 @@ void EdgeArc::Rotate(double cos, double sin, double radian)
             e += turn; if (e>2*M_PI) e-= 2*M_PI;
         }
     }
+    _ASSERT(IsSane());
 }
 
 void EdgeArc::RotateAround(const XY&c, double cos, double sin, double radian)
@@ -528,6 +532,7 @@ void EdgeArc::RotateAround(const XY&c, double cos, double sin, double radian)
             e += turn; if (e>2*M_PI) e-= 2*M_PI;
         }
     }
+    _ASSERT(IsSane());
 }
 
 //In angle1 return the angle (in false angles in [0..4]) of a tangent to this edge at pos
@@ -596,6 +601,21 @@ bool EdgeArc::UpdateClockWise(double new_s, double new_e)
 }
 
 
+void EdgeArc::SwapXYcurvy() 
+{
+    _ASSERT(type!=EDGE_STRAIGHT);
+    ell.SwapXY(); 
+    clockwise_arc=!clockwise_arc; 
+    if (ell.IsTilted()) {
+        s = s==0 ? 0 : 2*M_PI-s;
+        e = e==0 ? 0 : 2*M_PI-e;
+    } else {
+        s = s<M_PI/2 ? M_PI/2-s : 2.5*M_PI - s;
+        e = e<M_PI/2 ? M_PI/2-e : 2.5*M_PI - e;
+    }
+    _ASSERT(IsSane());
+};
+    
 
 
 bool EdgeArc::operator ==(const EdgeArc& o) const
@@ -627,6 +647,22 @@ double EdgeArc::GetRadianMidPoint() const
     if (clockwise_arc == (s<e)) return (s+e)/2;
     return fmod_negative_safe((s+e)/2+M_PI, 2*M_PI);
 }
+
+XY EdgeArc::Pos2Point(double pos) const 
+{
+    _ASSERT(pos>=-0 && pos<=1);
+    switch (type) {
+    case EDGE_STRAIGHT:
+        return start + (end-start)*pos;
+    case EDGE_FULL_CIRCLE:
+        return ell.Radian2Point(pos*2*M_PI+s);
+    case EDGE_ARC:
+        return ell.Radian2Point(pos2radian(pos));
+    }
+    _ASSERT(0);
+    return XY();
+}
+
 
 //This must ensure that we do not return pos values that are very close to 0 or 1
 //such values are to be rounded to 0 or 1 and in that case exatly the endpoint of the arc
@@ -679,29 +715,38 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
     XY loc_r[8];
     double loc_my[8], loc_other[8];
     int num = ell.CrossingEllipse(o.ell, loc_r, loc_my, loc_other);
-    if (num == -1) { //two equal ellipses, determine joint section (if any)
-        if (o.type!=EDGE_ARC) { //if other is full circle, the two poins are "s" and "e"
-            r[0] = start;
-            pos_my[0] = 0;
-            pos_other[0] = o.radian2pos(s);
-            //we do not report "e", as its pos==1
-            return 1;
+    if (num==0) return 0;
+    if (num>0) {
+        //Now we have the radian(s) in loc_my & loc_other.
+        //Convert to xy and pos (for both arcs) & return
+        for (int i=0; i<num; i++) {
+            r[i] = ell.Radian2Point(loc_my[i]);
+            pos_my[i] = radian2pos(loc_my[i]);
+            pos_other[i] = o.radian2pos(loc_other[i]);
+            if (!test_smaller(pos_my[i], 1) || !test_smaller(pos_other[i], 1) ||
+                 test_smaller(pos_my[i], 0) ||  test_smaller(pos_other[i], 0)) {
+                if (i==num-1) return num-1;
+                loc_my[0] = loc_my[1]; //can only be if num==2, i==1
+                i=-1; num=1;
+            }
         }
-        //here two arcs. Find intersection of them
-        if (radianbetween(o.s)) {
-            loc_my[0] = o.s;
-            if (radianbetween(o.e))
-                loc_my[1] = o.e;
-            else
-                if (o.radianbetween(s))
-                    loc_my[1] = s;
-                else
-                    if (o.radianbetween(e))
-                        loc_my[1] = e;
-                    else
-                        num = 1;
-        } else if (radianbetween(o.e)) {
-            loc_my[0] = o.e;
+        return num;
+    }
+
+    //num==-1 => two equal ellipses, determine joint section (if any)
+    if (o.type!=EDGE_ARC) { //if other is full circle, the two poins are "s" and "e"
+        r[0] = start;
+        pos_my[0] = 0;
+        pos_other[0] = o.radian2pos(s);
+        //we do not report "e", as its pos==1
+        return 1;
+    }
+    //here two arcs. Find intersection of them
+    if (radianbetween(o.s)) {
+        loc_my[0] = o.s;
+        if (radianbetween(o.e))
+            loc_my[1] = o.e;
+        else
             if (o.radianbetween(s))
                 loc_my[1] = s;
             else
@@ -709,31 +754,32 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
                     loc_my[1] = e;
                 else
                     num = 1;
-        } else if (o.radianbetween(s)) {
-            loc_my[0] = s;
+    } else if (radianbetween(o.e)) {
+        loc_my[0] = o.e;
+        if (o.radianbetween(s))
+            loc_my[1] = s;
+        else
             if (o.radianbetween(e))
                 loc_my[1] = e;
             else
                 num = 1;
-        } else if (o.radianbetween(e)) {
-            loc_my[0] = e;
+    } else if (o.radianbetween(s)) {
+        loc_my[0] = s;
+        if (o.radianbetween(e))
+            loc_my[1] = e;
+        else
             num = 1;
-        } else
-            return 0;
-        if (num == -1) //we have not changed num above
-            num = (loc_my[0] == loc_my[1]) ? 1 : 2;
-    }
-    //Now we have the radian(s) in loc_my (but nothing in loc_other).
-    //Convert to xy and pos (for both arcs) & return
-    for (int i=0; i<num; i++) {
+    } else if (o.radianbetween(e)) {
+        loc_my[0] = e;
+        num = 1;
+    } else
+        return 0;
+    if (num == -1) //we have not changed num above
+        num = (loc_my[0] == loc_my[1]) ? 1 : 2;
+    for (unsigned i=0; i<num; i++) {
         r[i] = ell.Radian2Point(loc_my[i]);
         pos_my[i] = radian2pos(loc_my[i]);
-        pos_other[i] = o.radian2pos(loc_my[i]);
-        if (!test_smaller(pos_my[i],1) || !test_smaller(pos_other[i], 1)) {
-            if (i==num-1) return num-1;
-            loc_my[0] = loc_my[1]; //can only be if num==2, i==1
-            i=-1; num=1;
-        }
+        pos_other[i] = o.radian2pos(loc_my[i]); //loc_my contains good radians for "o", too
     }
     return num;
 }
@@ -749,43 +795,47 @@ inline bool test_arc_end(const XY &a, double x, double y)
 //Where does an edge or arc corss a vertical line? (for the purposes of SimpleContour::IsWithin)
 //1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
 //2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
-//in short: we include the endpoint with the smaller x coordinate
+//in short: we include the endpoint with the larger x coordinate
 //returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a vertical line.
 //in forward we return true if the line at x is crossed from left to right (so inside of contour
 //is below y).
-int EdgeArc::CrossingVertical(double x, double y[], double pos[], bool forward[]) const
+int EdgeArc::CrossingVerticalCurvy(double x, double y[], double pos[], bool forward[]) const
 {
-    if (type == EDGE_STRAIGHT) return EdgeStraight::CrossingVertical(x, y, pos, forward);
-    int num = EdgeFullCircle::CrossingVertical(x, y, pos, forward);
-    if (num<=0 || type!=EDGE_ARC) return num;
+    _ASSERT(type!=EDGE_STRAIGHT);
+    int num = ell.CrossingVertical(x, y, pos);  //pos here is in radian
+    if (num<=0) return 0;
     //if the crosspoints are at the end of the segments, we check for left and rightward crossing.
     if (num==1) { //just touch
+        if (type==EDGE_FULL_CIRCLE) return 0;
 		//we return a cp only if the cp is one of the endpoints, in which case the rules below apply
-        //if the centerpoint is left of x and a1==s it is the beginning of a leftward edge  => include
-        //if the centerpoint is left of x and a1==e it is the end of a rightward edge       => include
-        //if the centerpoint is left of x and a1==s it is the beginning of a rightward edge => exclude
-        //if the centerpoint is left of x and a1==e it is the end of a leftward edge        => exclude
+        //now, we touch a vertical line with either start or end of an arc
+        //if center is left of x, we touch the larger end (both clockwise and cclockwise)
 		if (ell.GetCenter().x >= x)
 			return 0;
         if (test_arc_end(start, x, y[0])) {
 			y[0] = start.y;
 			pos[0] = 0;
-            forward[0] = false;
+            forward[0] = !clockwise_arc;
 			return 1;
 		}
 		if (test_arc_end(end, x, y[0])) {
 			y[0] = end.y;
 			pos[0] = 1;
-            forward[0] = true;
+            forward[0] = clockwise_arc;
 			return 1;
 		}
         //not close to any endpoint: touching is not valid then
 		return 0;
 	}
+    if (type==EDGE_FULL_CIRCLE) {
+        for (int i=0; i<2; i++) {
+            pos[i] = radian2pos(pos[i]);
+            forward[i] = (y[i] == std::min(y[0], y[1])) == clockwise_arc;
+        }
+        return num;
+    }
     num = 0;
     for (int i=0; i<2; i++) {
-        //recalculate radians. "pos" now contains a position assuming a full circle
-        pos[i] = EdgeFullCircle::pos2radian(pos[i]);
         //if r == s (start) and forward tangent is left of x, it is the beginning of a leftward edge => include
         //if r == e (B)     and backwardtangent is left of x, it is the end of a rightward edge      => include
         //else exclude
@@ -797,25 +847,23 @@ int EdgeArc::CrossingVertical(double x, double y[], double pos[], bool forward[]
         //and then we see if this is a leftward or rightward edge
         if (test_equal(pos[i], s)) {                      //OK we treat this as a crosspoint
             if (test_arc_end(start, x, y[i]) &&           //but if *exactly* on the startpoint...
-                ell.Tangent(s, clockwise_arc).x > x)      //...and fw tangent to the left: exclude
+                ell.Tangent(s, clockwise_arc).x > x)      //...and fw tangent to the right: exclude
                 continue;
 			y[num] = start.y;
 			pos[num] = 0;
-            forward[num++] = false;
-			continue;
         } else if (test_equal(pos[i], e)) {               //OK we treat this as a crosspoint
             if (test_arc_end(end, x, y[i]) &&             //but if *exactly* on the endpoint...
-                ell.Tangent(e, !clockwise_arc).x > x)     //...and bw tangent to the left: exclude
+                ell.Tangent(e, !clockwise_arc).x > x)     //...and bw tangent to the right: exclude
                 continue;
 			y[num] = end.y;
 			pos[num] = 1;
-            forward[num++] = true;
-			continue;
-        } else if (!radianbetween(pos[i]))  //exclude also, if not close to end and not between s&e
-            continue;
-        y[num] = y[i]; //include
-		pos[num] = radian2pos(pos[i]);
-        forward[num++] = y[i] == std::min(y[0], y[1]);
+        } else if (radianbetween(pos[i])) { //include, if not close to end but between s&e
+            y[num] = y[i]; 
+            pos[num] = radian2pos(pos[i]);
+        } else 
+            continue; //exclude
+        forward[num] = (y[i] == std::min(y[0], y[1])) == clockwise_arc;            
+        num++;
     }
     return num;
 }
@@ -830,6 +878,7 @@ EdgeArc& EdgeArc::SetStartStrict(const XY &p, double pos, bool keep_full_circle)
     }
     const double r = pos2radian(pos);
     _ASSERT(radianbetween(r));
+    _ASSERT(ell.Radian2Point(r).test_equal(p));
     if (type==EDGE_FULL_CIRCLE && !(test_equal(s,r) && keep_full_circle)) {
         e = s;
         type = EDGE_ARC;
@@ -1064,7 +1113,7 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
                 int pos = find_closest(num, radian_us, e, !clockwise_arc);
                 newcp = r[pos];
                 _ASSERT(newcp.x>-1000000 && newcp.x<10000000);
-                if (radianbetween(radian_us[pos]) && between01_approximate_inclusive(pos_M[pos]))
+                if (radianbetween(radian_us[pos]) || between01_approximate_inclusive(pos_M[pos]))
                     return CP_REAL;
                 return CP_EXTENDED;
             }
@@ -1087,7 +1136,7 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
             newcp = r[pos];
             _ASSERT(newcp.x>-1000000 && newcp.x<10000000);
-            if (M.radianbetween(radian_M[pos]) && between01_approximate_inclusive(pos_us[pos]))
+            if (M.radianbetween(radian_M[pos]) || between01_approximate_inclusive(pos_us[pos]))
                 return CP_REAL;
             return CP_EXTENDED;
         } else {
@@ -1108,7 +1157,7 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
             newcp = r[pos];
             _ASSERT(newcp.x>-1000000 && newcp.x<10000000);
-            if (M.radianbetween(radian_M[pos]) && radianbetween(radian_us[pos]))
+            if (M.radianbetween(radian_M[pos]) || radianbetween(radian_us[pos]))
                 return CP_REAL;
             return CP_EXTENDED;
         }
