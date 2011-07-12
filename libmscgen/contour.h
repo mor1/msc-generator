@@ -289,7 +289,6 @@ inline void ContourWithHoles::Expand(EExpandType type, double gap, Contour &res)
         i->Expand(type, gap, tmp);
         //in case "i" is an actual holes, it is are already inversed, adding is the right op
         res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
-        res += std::move(tmp); 
         tmp.clear();
     }
 }

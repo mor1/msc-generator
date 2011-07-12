@@ -36,6 +36,7 @@ public:
     XY     operator /=(double scale)      {x/=scale; y/=scale; return *this;}
     double PerpProduct(XY B) const        {return x*B.y - y*B.x;}        //This is this(T) * B
     double length(void) const             {return sqrt(x*x+y*y);}
+    double length_sqr(void) const         {return x*x+y*y;}
     bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
     XY	   operator -() const             {return XY(-x, -y);}
     bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
