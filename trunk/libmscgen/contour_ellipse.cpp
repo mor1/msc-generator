@@ -350,7 +350,7 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         XY c1 =   conv_to_circle_space(p);
         XY c2 = B.conv_to_circle_space(p);
         const double closeness = sqr(c1.length()-1) + sqr(c2.length()-1);
-        if (test_zero(closeness))
+        if (closeness<1e-30)
             return true;
         const double r1 = circle_space_point2radian_curvy(c1);
         const double r2 = circle_space_point2radian_curvy(c2);
@@ -368,7 +368,7 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         XY p_new;
         if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL)
             return false; //no intersection. Lines are parallel two ellipses, we drop this
-        if (test_zero((p-p_new).length()))
+        if ((p-p_new).length_sqr()<1e-30)
             return true; //no improvement, exit
         p = p_new;
     }

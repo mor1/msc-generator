@@ -368,18 +368,14 @@ unsigned EdgeFullCircle::Crossing(const EdgeFullCircle &o, XY r[], double pos_my
         return 2;
     }
     //Now we have the radian(s) in loc_my and loc_other. Convert to xy and pos & return
+    unsigned numnum = 0;
     for (int i=0; i<num; i++) {
-        r[i] = ell.Radian2Point(loc_my[i]);
-        pos_my[i] = radian2pos(loc_my[i]);
-        pos_other[i] = radian2pos(loc_other[i]);
-        if (!test_smaller(pos_my[i],1) || !test_smaller(pos_other[i], 1)) {
-            //this crosspoint is of pos==1, we skip it
-            if (i==num-1) return num-1;
-            //if we skip, we copy next crosspoint to index of 0
-            loc_my[0] = loc_my[1]; //can only be if num==2, i==1
-            loc_other[0] = loc_other[1]; //can only be if num==2, i==1
-            i=-1; num=1;
-        }
+        r[numnum] = loc_r[i];
+        pos_my[numnum] = radian2pos(loc_my[i]);
+        pos_other[numnum] = o.radian2pos(loc_other[i]);
+        if (!test_smaller(pos_my[i],1) || !test_smaller(pos_other[i], 1)) 
+            continue;
+        numnum++;
     }
     return num;
 }
@@ -507,6 +503,18 @@ bool EdgeArc::IsSane() const
     return true;
 }
 
+bool EdgeArc::IsSaneNoBoundingBox() const
+{
+    switch(type) {
+    case EDGE_ARC:
+        if (!ell.Radian2Point(e).test_equal(end)) return false;
+    case EDGE_FULL_CIRCLE:
+        if (!ell.Radian2Point(s).test_equal(start)) return false;
+    case EDGE_STRAIGHT:
+        break;
+    }
+    return true;
+}
 
 
 void EdgeArc::Rotate(double cos, double sin, double radian)
@@ -565,9 +573,8 @@ RayAngle EdgeArc::Angle(bool incoming, const XY &p, double pos) const
 //the radian difference between two radians
 inline double radian_diff_abs(double a, double b) 
 {
-    _ASSERT(0<=a && a<2*M_PI);
-    _ASSERT(0<=b && b<2*M_PI);
-    return std::min(fabs(a-b), a>b ? 2*M_PI-(a-b) : 2*M_PI-(b-a));
+    _ASSERT(std::min(fabs(a-b), fabs(a>b ? 2*M_PI-(a-b) : 2*M_PI-(b-a)))<2*M_PI);
+    return std::min(fabs(a-b), fabs(a>b ? 2*M_PI-(a-b) : 2*M_PI-(b-a)));
 }
 
 
@@ -613,7 +620,6 @@ void EdgeArc::SwapXYcurvy()
         s = s<M_PI/2 ? M_PI/2-s : 2.5*M_PI - s;
         e = e<M_PI/2 ? M_PI/2-e : 2.5*M_PI - e;
     }
-    _ASSERT(IsSane());
 };
     
 
@@ -655,7 +661,7 @@ XY EdgeArc::Pos2Point(double pos) const
     case EDGE_STRAIGHT:
         return start + (end-start)*pos;
     case EDGE_FULL_CIRCLE:
-        return ell.Radian2Point(pos*2*M_PI+s);
+        return ell.Radian2Point(s + pos*(clockwise_arc ? 2*M_PI : -2*M_PI));
     case EDGE_ARC:
         return ell.Radian2Point(pos2radian(pos));
     }
@@ -707,6 +713,8 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
             r[ret] = loc_r[num];
             pos_my[ret] = loc_my[num];
             pos_other[ret] = loc_other[num];
+            _ASSERT(Pos2Point(pos_my[ret]).test_equal(r[ret]));
+            _ASSERT(o.Pos2Point(pos_other[ret]).test_equal(r[ret]));
             ret ++;
         }
         return ret;
@@ -720,15 +728,27 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
         //Now we have the radian(s) in loc_my & loc_other.
         //Convert to xy and pos (for both arcs) & return
         for (int i=0; i<num; i++) {
-            r[i] = ell.Radian2Point(loc_my[i]);
+            r[i] = loc_r[i];
             pos_my[i] = radian2pos(loc_my[i]);
             pos_other[i] = o.radian2pos(loc_other[i]);
             if (!test_smaller(pos_my[i], 1) || !test_smaller(pos_other[i], 1) ||
                  test_smaller(pos_my[i], 0) ||  test_smaller(pos_other[i], 0)) {
-                if (i==num-1) return num-1;
+                if (i==num-1) {
+                    num--; 
+                    break;
+                }
                 loc_my[0] = loc_my[1]; //can only be if num==2, i==1
+                loc_other[0] = loc_other[1];
+                loc_r[0] = loc_r[1];
                 i=-1; num=1;
+            } else {
+                if (!test_smaller(0, pos_my[i])) pos_my[i] = 0;
+                if (!test_smaller(0, pos_other[i])) pos_other[i] = 0; //snap to zero
             }
+        }
+        for (unsigned u=0; u<num; u++) {
+            _ASSERT(Pos2Point(pos_my[u]).test_equal(r[u]));
+            _ASSERT(o.Pos2Point(pos_other[u]).test_equal(r[u]));
         }
         return num;
     }
@@ -744,42 +764,54 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
     //here two arcs. Find intersection of them
     if (radianbetween(o.s)) {
         loc_my[0] = o.s;
-        if (radianbetween(o.e))
+        loc_r[0] = o.start;
+        if (radianbetween(o.e)) {
             loc_my[1] = o.e;
-        else
-            if (o.radianbetween(s))
+            loc_r[1] = o.end;
+        } else
+            if (o.radianbetween(s)) {
                 loc_my[1] = s;
-            else
-                if (o.radianbetween(e))
+                loc_r[1] = start;
+            } else
+                if (o.radianbetween(e)) {
                     loc_my[1] = e;
-                else
+                    loc_r[1] = end;
+                } else
                     num = 1;
     } else if (radianbetween(o.e)) {
         loc_my[0] = o.e;
-        if (o.radianbetween(s))
+        loc_r[0] = o.end;
+        if (o.radianbetween(s)) {
             loc_my[1] = s;
-        else
-            if (o.radianbetween(e))
+            loc_r[1] = start;
+        } else
+            if (o.radianbetween(e)) {
                 loc_my[1] = e;
-            else
+                loc_r[1] = end;
+            } else
                 num = 1;
     } else if (o.radianbetween(s)) {
         loc_my[0] = s;
-        if (o.radianbetween(e))
+        loc_r[0] = start;
+        if (o.radianbetween(e)) {
             loc_my[1] = e;
-        else
+            loc_r[1] = end;
+        } else
             num = 1;
     } else if (o.radianbetween(e)) {
         loc_my[0] = e;
+        loc_r[0] = end;
         num = 1;
     } else
         return 0;
     if (num == -1) //we have not changed num above
         num = (loc_my[0] == loc_my[1]) ? 1 : 2;
     for (unsigned i=0; i<num; i++) {
-        r[i] = ell.Radian2Point(loc_my[i]);
+        r[i] = loc_r[i];
         pos_my[i] = radian2pos(loc_my[i]);
         pos_other[i] = o.radian2pos(loc_my[i]); //loc_my contains good radians for "o", too
+        _ASSERT(Pos2Point(pos_my[i]).test_equal(r[i]));
+        _ASSERT(o.Pos2Point(pos_other[i]).test_equal(r[i]));
     }
     return num;
 }
@@ -815,13 +847,13 @@ int EdgeArc::CrossingVerticalCurvy(double x, double y[], double pos[], bool forw
         if (test_arc_end(start, x, y[0])) {
 			y[0] = start.y;
 			pos[0] = 0;
-            forward[0] = !clockwise_arc;
+            forward[0] = true;  //always from left to right with endpouints
 			return 1;
 		}
 		if (test_arc_end(end, x, y[0])) {
 			y[0] = end.y;
 			pos[0] = 1;
-            forward[0] = clockwise_arc;
+            forward[0] = true;  //always from left to right with endpouints
 			return 1;
 		}
         //not close to any endpoint: touching is not valid then
@@ -941,7 +973,8 @@ bool EdgeArc::CheckAndCombine(const EdgeArc &next)
         return true; //we keep what we are
     if (type==EDGE_FULL_CIRCLE) {
         //start and s remain (must be equal to next.start)
-        _ASSERT(test_equal(s,next.s) && start.test_equal(next.start));
+        if (!test_equal(s,next.s) || !start.test_equal(next.start))
+            return false;
         clockwise_arc = next.clockwise_arc;
         e = next.e;
         end = next.end;
@@ -1200,6 +1233,22 @@ void EdgeArc::SetStartEndForExpand(const XY &S, const XY &E)
     }
     start = S;
     end = E;
+}
+
+bool EdgeArc::IsOpposite(const XY &S, const XY &E) const
+{
+	if (start.test_equal(end)) return false;
+	if (S.test_equal(E)) return false;
+	if (type==EDGE_STRAIGHT) {
+		if (fabs(start.x-end.x) > fabs(start.y-end.y))
+			return (start.x<end.x) != (S.x<E.x);
+		else
+			return (start.y<end.y) != (S.y<E.y);
+	}
+    const double new_s = ell.Point2Radian(S);
+    const double new_e = ell.Point2Radian(E);
+    return radian_diff_abs(e, new_e) + radian_diff_abs(s, new_s) >
+           radian_diff_abs(e, new_s) + radian_diff_abs(s, new_e);
 }
 
 //int EdgeArc::CombineExpandedEdges(EdgeArc&M, EExpandType et, const XY &old, EdgeArc &res)

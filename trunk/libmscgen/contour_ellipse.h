@@ -123,6 +123,7 @@ inline double circle_space_point2radian_curvy(XY p)
 {
     double r = asin(p.y/p.length()); //calc angle normalized to 1
     if (p.x<0) r = M_PI - r;         //between 90 and 270 degrees
+    if (test_zero(r)) r=0;           //round very small negative values
     if (r<0) r += 2*M_PI;            //if between -90 and 0 degrees
     return r;
 }

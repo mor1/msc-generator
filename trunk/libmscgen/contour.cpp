@@ -438,9 +438,12 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
     for (unsigned u1 = 1; u1<i->size(); u1++)
         for (unsigned u2 = 0; u2<u1; u2++) {
             const unsigned n = i->at(u1).Crossing(i->at(u2), r, one_pos, two_pos);
-            for (unsigned k=0; k<n;k++)
+            for (unsigned k=0; k<n;k++) {
                 //main_clockwise values are dummy
+                _ASSERT(i->at(u1).Pos2Point(one_pos[k]).test_equal(r[k]));
+                _ASSERT(i->at(u2).Pos2Point(two_pos[k]).test_equal(r[k]));
                 AddCrosspoint(r[k], bool(), &*i, u1, one_pos[k], bool(), &*i, u2, two_pos[k]);
+            }
             ret += n;
         }
     return ret;
@@ -952,7 +955,7 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
             MarkAllInRayGroupOf(current.index, false);
             ray_array.push_back(current.index);
             int switch_to = ray.switch_to;
-            if (switch_to < 0) {
+            if (switch_to < 0 || !Rays[switch_to].valid) {
                 //backtrack to last position
                 do {
                     if (wdata.size()==0) {
@@ -961,8 +964,8 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
                         result.clear();
                         return;
                     }
-                    _ASSERT(ray_array.size()>wdata.rbegin()->rays_size);
-                    _ASSERT(result.size()>wdata.rbegin()->result_size);
+                    _ASSERT(ray_array.size()>=wdata.rbegin()->rays_size);
+                    _ASSERT(result.size()>=wdata.rbegin()->result_size);
                     RevalidateAllAfter(ray_array, wdata.rbegin()->rays_size);
                     result.resize(wdata.rbegin()->result_size);
                     const unsigned last_chosen = wdata.rbegin()->chosen_outgoing;
@@ -977,6 +980,7 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
             }
             //Now switch to outgoing ray
             current.index = switch_to;
+            MarkAllInRayGroupOf(current.index, false);
             const Ray &next_ray = Rays[current.index];
             //check if this was the only choice (exclude case when we did a backtrace)
             if (next_ray.angle.IsSimilar(Rays[next_ray.link_in_cp.next].angle)) 
@@ -986,7 +990,9 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
             //Append a point
             if (forward) {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
+                _ASSERT(edge.IsSaneNoBoundingBox());
                 edge.SetStartStrict(next_ray.xy, next_ray.pos, true);
+                _ASSERT(edge.IsSaneNoBoundingBox());
                 result.AppendDuringWalk(edge);
             } else {
                 Edge edge(next_ray.contour->at(next_ray.vertex));
@@ -1103,6 +1109,15 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
         _ASSERT(type != Contour::NEGATIVE_XOR);
         if (C1->IsEmpty()) {
             result.clear();
+            return;
+        }
+        //fast path: if single surface, no holes and no crosspoints
+        if (C1->further.size()==0 && C1->holes.size()==0 && Rays.size()==0) {
+            if (const_C1) result = *C1;
+            else result = std::move(*C1);
+            result.CalculateClockwise();
+            if (!IsCoverageToInclude(result.clockwise ? 1 : -1, type))
+                result.clear();
             return;
         }
     } else {

@@ -42,7 +42,7 @@ inline double angle_degrees(double angle) {
 }
 
 typedef enum {EDGE_STRAIGHT, EDGE_FULL_CIRCLE, EDGE_ARC} EEdgeType;
-typedef enum {EXPAND_MITER, EXPAND_ROUND, EXPAND_BEVEL} EExpandType;
+typedef enum {EXPAND_MITER, EXPAND_ROUND, EXPAND_BEVEL, EXPAND_ROUND_HOLES, EXPAND_BEVEL_HOLES} EExpandType;
 
 struct RayAngle {
     double angle;  //the false angle [0..4], each integer corresponds to 90 degrees
@@ -159,6 +159,7 @@ public:
     EdgeArc(const XY &s, const XY &e) : EdgeFullCircle(s, e) {}
     EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
     bool IsSane() const;
+    bool IsSaneNoBoundingBox() const;
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY() {EdgeStraight::SwapXY(); if (type!=EDGE_STRAIGHT) SwapXYcurvy();}
@@ -205,6 +206,7 @@ public:
                   NO_CP_ADD_LINE} EExpandCPType;
     EExpandCPType FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const;
     void SetStartEndForExpand(const XY &S, const XY &E);
+    bool IsOpposite(const XY &S, const XY &E) const;
 
     //Helper for offsetbelow
     double OffsetBelow(const EdgeArc &M, double &touchpoint) const;

@@ -232,7 +232,9 @@ void contour_test(void)
     Draw(1053, boxhole, cooomplex2, boxhole ^ cooomplex2, "XOR");
     Draw(1054, boxhole, cooomplex2, boxhole - cooomplex2, "SUB");
 
-    DrawIsinside(1051, boxhole + cooomplex2);
+    Contour variable = boxhole + cooomplex2;
+    DrawIsinside(1055, variable);
+
     
     Draw(106, cooomplex2, cooomplex, cooomplex2 + cooomplex);
 	cooomplex2 += cooomplex;
@@ -344,17 +346,32 @@ void contour_test(void)
     DrawIsinside(1176, partxy, 2, "Rotated");
     DrawIsinside(1177, spartxy, 2, "Rotated");
 
-    Contour box = Contour(10, 110, 10, 110) - Contour(30, 40, 30, 80) - Contour(80, 90, 30, 80);
-    DrawExpand(129, EXPAND_MITER, box, false);
-    DrawExpand(130, EXPAND_MITER, later, false);
-    DrawExpand(131, EXPAND_BEVEL, later, false);
-    DrawExpand(132, EXPAND_ROUND, later, false);
-    DrawExpand(133, EXPAND_MITER, cooomplex, false);
-    DrawExpand(134, EXPAND_MITER, huhu, false);
-    DrawExpand(135, EXPAND_MITER, cooomplex3, false);
-    DrawExpand(136, EXPAND_MITER, cooomplex2, false);
+    variable.ClearHoles();
+    variable.CreateExpand(-4, EXPAND_MITER);
+    spart.CreateExpand(-8);
 
-    DrawExpand(137, EXPAND_ROUND, part, false);
+    const XY forexpbevel[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
+        XY(150,160), XY(100,160)};
+
+    DrawExpand(123, EXPAND_BEVEL, Contour(forexpbevel), false);
+    DrawExpand(122, EXPAND_ROUND, Contour(forexpbevel), false);
+
+    Contour box = Contour(10, 110, 10, 110) - Contour(30, 40, 30, 80) - Contour(80, 90, 30, 80);
+    DrawExpand(124, EXPAND_MITER, box, false, "box with miter");
+    DrawExpand(125, EXPAND_ROUND, box, false, "box with round");
+    DrawExpand(126, EXPAND_BEVEL, box, false, "box with bevel");
+    DrawExpand(127, EXPAND_MITER, variable, false, "boxhole with miter");
+    DrawExpand(128, EXPAND_ROUND, variable, false, "boxhole with round");
+    DrawExpand(129, EXPAND_BEVEL, variable, false, "boxhole with bevel");
+    DrawExpand(130, EXPAND_MITER, later, false, "later with miter");
+    DrawExpand(131, EXPAND_BEVEL, later, false, "later with bevel");
+    DrawExpand(132, EXPAND_ROUND, later, false, "later with round");
+    DrawExpand(133, EXPAND_MITER, cooomplex, false, "complex with miter");
+    DrawExpand(134, EXPAND_MITER, huhu, false, "huhu with miter");
+    DrawExpand(135, EXPAND_MITER, cooomplex3, false, "complex3 with miter");
+    DrawExpand(136, EXPAND_MITER, cooomplex2, false, "rounded complex3 with miter");
+
+    DrawExpand(137, EXPAND_ROUND, part, false, "part with round");
 
     //ContourTestDebug = 200;
     //Draw(1181, part.CreateExpand(-8));
@@ -366,20 +383,27 @@ void contour_test(void)
     Contour form4 = Contour(0, 100, 0, 50) - Contour(XY(0, 25), 10, 35) + Contour(XY(100, 25), 10, 35);
     Contour form5 = Contour(0, 100, 0, 50) - Contour(XY(0, 15), 15) - Contour(XY(0, 40), 10);
 
-    DrawExpand(140, EXPAND_MITER, form1, false);
-    DrawExpand(141, EXPAND_MITER, form2, false);
-    DrawExpand(142, EXPAND_MITER, form3, false);
-    DrawExpand(143, EXPAND_MITER, form4, false);
-    DrawExpand(144, EXPAND_MITER, form5, false);
+    DrawExpand(140, EXPAND_MITER, form1, false, "pipe with miter");
+    DrawExpand(141, EXPAND_MITER, form2, false, "reverse pipe with miter");
+    DrawExpand(142, EXPAND_MITER, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(143, EXPAND_MITER, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(144, EXPAND_MITER, form5, false, "two inverse circles with miter");
     
-    Contour lohere1 = Contour(XY(0,0), 50) + Contour(XY(50,0), 50) + 
-                      Contour(XY(0,50), 50) + Contour(XY(50,50), 50);
+    Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25) + 
+                      Contour(XY(25,75), 25) + Contour(XY(75,75), 25);
 
     Contour lohere2 = Contour(0,100, 0,100) + lohere1;
     Contour lohere3 = Contour(0,100, 0,100) - lohere1;
     Contour lohere4 = Contour(0,100, 0,100) +
                       Contour(XY(0,0), 50) - Contour(XY(50,0), 50) + 
                       Contour(XY(0,50), 50) - Contour(XY(50,50), 50);
+
+    Draw(1491, lohere1);
+    Draw(1492, lohere2);
+    Draw(1493, lohere3);
+    Draw(1494, lohere4);
+
+    return;
 
     DrawExpand(150, EXPAND_MITER, lohere1, false);
     DrawExpand(151, EXPAND_MITER, lohere2, false);
