@@ -203,7 +203,7 @@ public:
     bool Expand(double gap);
     typedef enum {SAME_ELLIPSIS, PARALLEL_LINES, CP_REAL, CP_EXTENDED, 
                   CP_ADD_LINE_ME, CP_ADD_LINE_OTHER, CP_ADD_LINE_BOTH,
-                  NO_CP_ADD_LINE} EExpandCPType;
+                  NO_CP_ADD_LINE, DEGENERATE} EExpandCPType;
     EExpandCPType FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const;
     void SetStartEndForExpand(const XY &S, const XY &E);
     bool IsOpposite(const XY &S, const XY &E) const;

@@ -504,40 +504,42 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
         cross_type[i] = r[i].FindExpandedEdgesCP(r.at_next(i), o[i].GetStart(), cross_point[i]);
 
     //now kill the ones that changed direction
-    unsigned prev_size;
-    do {
-        prev_size = r.size();
-        XY tmp_point;
-        EdgeArc::EExpandCPType tmp_type;
-        //Kill edges if they have good crosspoints with both prev and next
-        //.. and if the new endpoins that we will use below are in reverse order 
-        //     than the originals
-        //.. and the prev has a good cp with next
-        for (unsigned i = 0; i<r.size(); /*nope*/) {
-            if (cross_type[r.prev(i)] == EdgeArc::CP_REAL || cross_type[r.prev(i)]==EdgeArc::CP_EXTENDED)
-                if (cross_type[i] == EdgeArc::CP_REAL || cross_type[i]==EdgeArc::CP_EXTENDED) {
-                    const XY & new_s = (type == EXPAND_MITER || cross_type[r.prev(i)] == EdgeArc::CP_REAL) ? 
-                                  cross_point[r.prev(i)] : r[i].GetStart();
-                    const XY & new_e = (type == EXPAND_MITER || cross_type[i] == EdgeArc::CP_REAL) ? 
-                                  cross_point[i] : r[i].GetEnd();
-                    //if (r[i].IsOpposite(new_s, new_e)) {
-                    //this should work for arcs converted to straight edges...
-                    if (r[i].IsOpposite(cross_point[r.prev(i)], cross_point[i])) {
-                        tmp_type = r.at_prev(i).FindExpandedEdgesCP(r.at_next(i), o.at_prev(i).GetStart(), tmp_point);
-                        if (tmp_type == EdgeArc::CP_REAL || tmp_type==EdgeArc::CP_EXTENDED) {
-                            cross_type[r.prev(i)] = tmp_type;
-                            cross_point[r.prev(i)]= tmp_point;
-                            r.erase(r.begin()+i);
-                            o.erase(o.begin()+i);
-                            cross_type.erase(cross_type.begin()+i);
-                            cross_point.erase(cross_point.begin()+i);
-                            continue;
+    if (type == EXPAND_MITER) {   //for bevel and round we check this after inserting bevel & round
+        unsigned prev_size;
+        do {
+            prev_size = r.size();
+            XY tmp_point;
+            EdgeArc::EExpandCPType tmp_type;
+            //Kill edges if they have good crosspoints with both prev and next
+            //.. and if the new endpoins that we will use below are in reverse order 
+            //     than the originals
+            //.. and the prev has a good cp with next
+            for (unsigned i = 0; i<r.size(); /*nope*/) {
+                if (cross_type[r.prev(i)] == EdgeArc::CP_REAL || cross_type[r.prev(i)]==EdgeArc::CP_EXTENDED)
+                    if (cross_type[i] == EdgeArc::CP_REAL || cross_type[i]==EdgeArc::CP_EXTENDED) {
+                        const XY & new_s = (type == EXPAND_MITER || cross_type[r.prev(i)] == EdgeArc::CP_REAL) ? 
+                            cross_point[r.prev(i)] : r[i].GetStart();
+                        const XY & new_e = (type == EXPAND_MITER || cross_type[i] == EdgeArc::CP_REAL) ? 
+                            cross_point[i] : r[i].GetEnd();
+                        //if (r[i].IsOpposite(new_s, new_e)) {
+                        //this should work for arcs converted to straight edges...
+                        if (r[i].IsOpposite(cross_point[r.prev(i)], cross_point[i])) {
+                            tmp_type = r.at_prev(i).FindExpandedEdgesCP(r.at_next(i), o.at_prev(i).GetStart(), tmp_point);
+                            if (tmp_type == EdgeArc::CP_REAL || tmp_type==EdgeArc::CP_EXTENDED) {
+                                cross_type[r.prev(i)] = tmp_type;
+                                cross_point[r.prev(i)]= tmp_point;
+                                r.erase(r.begin()+i);
+                                o.erase(o.begin()+i);
+                                cross_type.erase(cross_type.begin()+i);
+                                cross_point.erase(cross_point.begin()+i);
+                                continue;
+                            }
                         }
                     }
-                }
-            i++;
-        }
-    } while (prev_size != r.size());
+                    i++;
+            }
+        } while (prev_size != r.size());
+    }
 
     //OK, now adjust the edges and/or insert additional ones
     Contour r2;
@@ -553,7 +555,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
             case EdgeArc::CP_REAL:           
             case EdgeArc::CP_EXTENDED:       
             case EdgeArc::CP_ADD_LINE_ME:    new_start = cross_point[r.prev(i)]; break;
-            case EdgeArc::SAME_ELLIPSIS:     _ASSERT(0); /*fallthrough*/
+            case EdgeArc::DEGENERATE:        _ASSERT(0); /*fallthrough*/
+            case EdgeArc::SAME_ELLIPSIS:     
             case EdgeArc::PARALLEL_LINES:    
             case EdgeArc::CP_ADD_LINE_OTHER:
             case EdgeArc::CP_ADD_LINE_BOTH:
@@ -563,6 +566,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
             case EdgeArc::CP_REAL:           
             case EdgeArc::CP_EXTENDED:       
             case EdgeArc::CP_ADD_LINE_OTHER: new_end = cross_point[i]; break;
+            case EdgeArc::DEGENERATE:        _ASSERT(0); /*fallthrough*/
             case EdgeArc::SAME_ELLIPSIS:     /* can happen if a circle disappeared */
             case EdgeArc::PARALLEL_LINES:    /* can happen if a circle disappeared */
             case EdgeArc::CP_ADD_LINE_ME:
@@ -582,15 +586,18 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
             case EdgeArc::CP_ADD_LINE_ME:    
                 r2.push_back(EdgeArc(new_end, cross_point[i])); 
                 break;
+            case EdgeArc::CP_ADD_LINE_OTHER:  
+                r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart()));
+                break;
             case EdgeArc::CP_ADD_LINE_BOTH:  
                 r2.push_back(EdgeArc(new_end, cross_point[i]));
                 r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart())); 
                 break;
             case EdgeArc::SAME_ELLIPSIS: 
+            case EdgeArc::DEGENERATE:        
                 _ASSERT(0); /*fallthrough*/
             case EdgeArc::CP_REAL:           
             case EdgeArc::CP_EXTENDED:       
-            case EdgeArc::CP_ADD_LINE_OTHER: 
                 break; /*list all values to avoid warnings*/
             }
         }
@@ -599,6 +606,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
     case EXPAND_ROUND:   //... placed here just to silence warningd
     case EXPAND_BEVEL_HOLES:
     case EXPAND_ROUND_HOLES:
+        enum EEdgeType {EXISTING, EXISTING_CHANGED_DIR, INSERTED};
+        std::vector<EEdgeType> edge_type;  edge_type.reserve(200);
+        std::vector<int> edge_orig;        edge_orig.reserve(200);
         for (unsigned i = 0; i<r.size(); i++) {
             XY new_start = r[i].GetStart();
             XY new_end =   r[i].GetEnd();
@@ -606,10 +616,14 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
                 new_start = cross_point[r.prev(i)]; 
             if (cross_type[i] == EdgeArc::CP_REAL)
                 new_end = cross_point[i];
-            const bool changed_dir = r[i].IsOpposite(new_start, new_end); //see later
+            const bool changed_dir = r[i].IsOpposite(new_start, new_end); 
             r[i].SetStartEndForExpand(new_start, new_end);
             r2.push_back(r[i]);
+            edge_type.push_back(changed_dir ? EXISTING_CHANGED_DIR : EXISTING);
+            edge_orig.push_back(i);
             if (cross_type[i] == EdgeArc::CP_REAL) continue; //no need to insert
+            edge_type.push_back(INSERTED);
+            edge_orig.push_back(-1);
             if (type==EXPAND_BEVEL_HOLES || 
                 o[i].GetEnd() != o.at_next(i).GetStart()) //a missing edge
                 r2.push_back(Edge(new_end, r.at_next(i).GetStart()));  //insert line
@@ -632,34 +646,51 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
                 r2.rbegin()->SetStartLiberal(new_end);  //these keep clockwise
                 r2.rbegin()->SetEndLiberal(r.at_next(i).GetStart());
             }
-            //now check if r[i] had its points reversed compared to original r[i]
-            //This can only happen if r[prev(i)] had a REAL_CP with r[i], or else we
-            //would have used r[i].start and r[i].end which are in the same order 
-            //as o[i].start and o[i].end
-            //If so, check if r[prev(i)] has a good (real or extended) CP with 
-            //the edge we have just inserted (bevel or round).
-            //If so, remove r[i] from r2.
-            if (changed_dir && 0) {
-                XY tmp_point;
-                EdgeArc::EExpandCPType tmp_type;
-                tmp_type = r.at(prev(i)).FindExpandedEdgesCP(*r2.rbegin(), o.at_prev(i).GetEnd(), tmp_point);
+        }
+        //Now check all inserted edge.
+        //If any neighbouring original edge has changed direction and the 
+        //inserted edge has a good cp with the edge beyond the neighbour that 
+        //changed dir, skip the neighbour that changed dir.
+        for (unsigned u = 0; u<r2.size(); u++) {
+            if (edge_type[u]!=INSERTED) continue;
+            XY tmp_point;
+            EdgeArc::EExpandCPType tmp_type;
+            //first check out the original edge before the inserted one
+            const unsigned prev = r2.prev(u);
+            if (edge_type[prev] == EXISTING_CHANGED_DIR) {
+                const unsigned prevprev = r2.prev(prev);
+                tmp_type = r2[prevprev].FindExpandedEdgesCP(r2[u], o[edge_orig[prev]].GetEnd(), tmp_point);
                 if (tmp_type == EdgeArc::CP_REAL || tmp_type==EdgeArc::CP_EXTENDED) {
-                    //erase r[i]
-                    r2.erase(r2.begin()+r2.size()-2);
                     //set the inserted bevel/round to end in cp
-                    r2.rbegin()->SetStartLiberal(tmp_point);
-                    //if we already inserted r[prev(i)]
-                    if (i>0) 
-                        r2[r2.size()-2].SetEndLiberal(tmp_point);
-                    else {
-                        //else modify these, so that the right point is used
-                        cross_point[r.prev(i)] = tmp_point;
-                        cross_type [r.prev(i)] = EdgeArc::CP_REAL;
-                    }
+                    r2[u].SetStartLiberal(tmp_point);
+                    r2[prevprev].SetEndLiberal(tmp_point);
+                    //erase "prev"
+                    r2.erase(r2.begin()+prev);
+                    edge_type.erase(edge_type.begin()+prev);
+                    edge_orig.erase(edge_orig.begin()+prev);
+                    //update "u"
+                    if (prev<u) u--; //this way u was >=1, can decrement
+                    //else u==0 && prev==size()-1 => "u" can remain
+                }
+            }
+            //now do the same for the original edge *after* the inserted one
+            const unsigned next = r2.next(u);
+            if (edge_type[next] == EXISTING_CHANGED_DIR) {
+                const unsigned nextnext = r2.next(next);
+                tmp_type = r2[u].FindExpandedEdgesCP(r2[nextnext], o[edge_orig[next]].GetStart(), tmp_point);
+                if (tmp_type == EdgeArc::CP_REAL || tmp_type==EdgeArc::CP_EXTENDED) {
+                    //set the inserted bevel/round to end in cp
+                    r2[u].SetEndLiberal(tmp_point);
+                    r2[nextnext].SetStartLiberal(tmp_point);
+                    //erase "next"
+                    r2.erase(r2.begin()+next);
+                    edge_type.erase(edge_type.begin()+next);
+                    edge_orig.erase(edge_orig.begin()+next);
+                    //update "u"
+                    if (next<u) u--; //this way u was >=1, can decrement
                 }
             }
         }
-        break;
     }
     r2.Sanitize();
     if (r2.size()==0) return;

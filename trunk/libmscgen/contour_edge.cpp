@@ -806,14 +806,17 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
         return 0;
     if (num == -1) //we have not changed num above
         num = (loc_my[0] == loc_my[1]) ? 1 : 2;
+    unsigned res_num = 0;
     for (unsigned i=0; i<num; i++) {
-        r[i] = loc_r[i];
-        pos_my[i] = radian2pos(loc_my[i]);
-        pos_other[i] = o.radian2pos(loc_my[i]); //loc_my contains good radians for "o", too
-        _ASSERT(Pos2Point(pos_my[i]).test_equal(r[i]));
-        _ASSERT(o.Pos2Point(pos_other[i]).test_equal(r[i]));
+        if (loc_my[i]==e || loc_my[i]==o.e) continue; //do not return pos==1 cps
+        r[res_num] = loc_r[i];
+        pos_my[res_num] = radian2pos(loc_my[i]);
+        pos_other[res_num] = o.radian2pos(loc_my[i]); //loc_my contains good radians for "o", too
+        _ASSERT(Pos2Point(pos_my[res_num]).test_equal(r[res_num]));
+        _ASSERT(o.Pos2Point(pos_other[res_num]).test_equal(r[res_num]));
+        res_num++;
     }
-    return num;
+    return res_num;
 }
 
 //test if the end of an arc equals to a point or not
@@ -1034,22 +1037,23 @@ bool EdgeArc::Expand(double gap)
             start = ell.Radian2Point(s);
             if (type==EDGE_ARC) end = ell.Radian2Point(e);
             return true;
+        case 0:
         case -1: //completely disappeared
             return false;
-        case 0:  //degenerates to line
-            if (type==EDGE_FULL_CIRCLE)
-                return false; //start==end here, we do not return such a straight edge
-            //if ellipse becomes too small, fall through to below and replace it with a straight line
-            //Now decrease just up to the point od getting degenerate
-            const double rad = std::min(old_ell.GetRadius1(), old_ell.GetRadius2());
-            _ASSERT(rad<fabs(gap));
-            ell = old_ell;
-            ell.Expand(gap>0 ? rad : -rad);
-            start = ell.Radian2Point(s);
-            end = ell.Radian2Point(e);
-            //and then move remaining
-            gap = (gap>0) ? gap-rad : gap+rad;
-            type = EDGE_STRAIGHT;
+        //case 0:  //degenerates to line
+        //    if (type==EDGE_FULL_CIRCLE)
+        //        return false; //start==end here, we do not return such a straight edge
+        //    //if ellipse becomes too small, fall through to below and replace it with a straight line
+        //    //Now decrease just up to the point od getting degenerate
+        //    const double rad = std::min(old_ell.GetRadius1(), old_ell.GetRadius2());
+        //    _ASSERT(rad<fabs(gap));
+        //    ell = old_ell;
+        //    ell.Expand(gap>0 ? rad : -rad);
+        //    start = ell.Radian2Point(s);
+        //    end = ell.Radian2Point(e);
+        //    //and then move remaining
+        //    gap = (gap>0) ? gap-rad : gap+rad;
+        //    type = EDGE_STRAIGHT;
         }
 	}
     const double length = (end-start).length();
@@ -1118,8 +1122,10 @@ int find_closest(int num, const double r[], double p, bool larger)
 //--->---o...
 //............
 //NO_CP_ADD_LINE: represents the situ above. No cp is returned in CP.
+//DEGENERATE: One of the edges have start==end
 EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const
 {
+    if (start==end || M.start==M.end) return DEGENERATE;
     const double parallel_join_multipiler = 5;
     if (M.type == EDGE_STRAIGHT) {
         if (type == EDGE_STRAIGHT) {
@@ -1162,7 +1168,7 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
                     //OK we are parallel
                     const double dist = (end-M.start).length() * parallel_join_multipiler;
                     const double len = (end-start).length();
-                    newcp = start + (start-end)/len*dist;
+                    newcp = end + (end-start)/len*dist;
                 }
                 return CP_ADD_LINE_OTHER;
             }
