@@ -816,7 +816,7 @@ DoublePair ArrowHead::getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd 
         break;
     case MSC_ARROW_DOT:
         //The same ellipse as will be drawn, but 90 degree rotated, so we can use CrossingVertical
-        const EllipseData e(XY(0, 0), body_height/2 + wh.y, wh.x, 0);    
+        const contour::EllipseData e(XY(0, 0), body_height/2 + wh.y, wh.x, 0);    
         double x[2], r[2];
         e.CrossingVertical(body_height/2, x, r);
         ret.first = fabs(x[0]); //visible part towards the body, any cp would do x[0]==-x[1]

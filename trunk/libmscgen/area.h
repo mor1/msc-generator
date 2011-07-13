@@ -4,6 +4,19 @@
 #include <list>
 #include "contour.h"
 
+using contour::XY;
+using contour::Range;
+using contour::Block;
+using contour::Edge;
+using contour::Contour;
+
+using contour::DoubleMap;
+using contour::fmod_negative_safe;
+
+using contour::EXPAND_MITER;
+using contour::EXPAND_BEVEL;
+using contour::EXPAND_ROUND;
+
 class TrackableElement;
 //plus it has additional stuff, such as arc, drawtype, findtype and mainline
 class Area : public Contour
@@ -55,7 +68,7 @@ public:
     void RotateAround(const XY&c, double degrees) {Contour::RotateAround(c, degrees);}
     void SwapXY() {Contour::SwapXY(); mainline.MakeInvalid();}
 
-    Area CreateExpand(double gap, EExpandType et=EXPAND_MITER) const;
+    Area CreateExpand(double gap, contour::EExpandType et=EXPAND_MITER) const;
 	void ClearHoles() {Contour::ClearHoles();}
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline = true) const;
@@ -83,7 +96,7 @@ public:
     AreaList &Shift(XY xy) {for (auto i=cover.begin(); i!=cover.end(); i++) i->Shift(xy); mainline.Shift(xy.y); boundingBox.Shift(xy); return *this;}
     const Block& GetBoundingBox() const {return boundingBox;}
 
-    AreaList CreateExpand(double gap, EExpandType et=EXPAND_MITER) const;
+    AreaList CreateExpand(double gap, contour::EExpandType et=EXPAND_MITER) const;
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;

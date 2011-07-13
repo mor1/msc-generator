@@ -11,6 +11,8 @@ using namespace std::rel_ops;  //so that we have != and <= and >= etc from only 
 #define  _ASSERT(A) 
 #endif
 
+namespace contour {
+
 #define CONTOUR_INFINITY DBL_MAX
 //other helpers
 static const double SMALL_NUM = 1e-10; //avoid division overflow
@@ -40,8 +42,8 @@ public:
     bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
     XY	   operator -() const             {return XY(-x, -y);}
     bool   operator <(const XY& p) const  {return x!=p.x ? x<p.x : y<p.y;}
-    bool   test_equal(const XY& p) const  {return ::test_equal(x, p.x) && ::test_equal(y, p.y);}
-    bool   test_smaller(const XY& p) const{return ::test_equal(x, p.x) ? ::test_smaller(y, p.y) : ::test_smaller(x, p.x);}
+    bool   test_equal(const XY& p) const  {return contour::test_equal(x, p.x) && contour::test_equal(y, p.y);}
+    bool   test_smaller(const XY& p) const{return contour::test_equal(x, p.x) ? contour::test_smaller(y, p.y) : contour::test_smaller(x, p.x);}
     XY     Rotate90CW() const             {return XY(-y, x);}
     XY     Rotate90CCW() const            {return XY(y, -x);}
 	void   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos;}
@@ -156,5 +158,7 @@ struct Block {
     Block & RoundCloser() {x.RoundCloser(); y.RoundCloser(); return *this;}
     Block & Scale(const XY &sc) {x.Scale(sc.x); y.Scale(sc.y); return *this;}
 };
+
+} //namespace 
 
 #endif //CONTOUR_BASICS_H

@@ -4,6 +4,8 @@
 #include <list>
 #include "contour_simple.h"
 
+namespace contour {
+
 class ContourWithHoles;
 
 class ContourList : protected std::list<ContourWithHoles>
@@ -42,6 +44,8 @@ class ContourList : protected std::list<ContourWithHoles>
 
     void Path(cairo_t *cr) const;
     void Path(cairo_t *cr, bool clockwiseonly) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const;
 };
 
 
@@ -98,6 +102,8 @@ protected:
     void Expand(EExpandType type, double gap, Contour &res) const;
     void Path(cairo_t *cr) const {SimpleContour::Path(cr); if (holes.size()) holes.Path(cr);}
     void Path(cairo_t *cr, bool clockwiseonly) const {SimpleContour::Path(cr, clockwiseonly); if (holes.size()) holes.Path(cr, clockwiseonly);}
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const {SimpleContour::PathDashed(cr, pattern, num); if (holes.size()) holes.PathDashed(cr, pattern, num);}
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const {SimpleContour::PathDashed(cr, pattern, num, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, clockwiseonly);}
 };
 
 //This can contain multiple positive contours and holes
@@ -220,6 +226,8 @@ public:
 
     void Path(cairo_t *cr) const {ContourWithHoles::Path(cr); if (further.size()) further.Path(cr);}
     void Path(cairo_t *cr, bool clockwiseonly) const {ContourWithHoles::Path(cr, clockwiseonly); if (further.size()) further.Path(cr,clockwiseonly);}
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const {ContourWithHoles::PathDashed(cr, pattern, num); if (further.size()) further.PathDashed(cr, pattern, num);}    
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const {ContourWithHoles::PathDashed(cr, pattern, num, clockwiseonly); if (further.size()) further.PathDashed(cr, pattern, num,clockwiseonly);}
     void Line(cairo_t *cr) const {Contour::Path(cr); cairo_stroke(cr);}
     void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, false); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, true); cairo_stroke(cr); cairo_restore(cr);}
     void Fill(cairo_t *cr) const {Contour::Path(cr); cairo_fill(cr);}
@@ -324,6 +332,8 @@ inline Contour Contour::CreateExpand(double gap, EExpandType et) const
     Expand(et, gap, res); 
     return res;
 }
+
+} //namespace
 
 
 #endif //CONTOUR_CONTOURS_H

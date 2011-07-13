@@ -27,8 +27,8 @@ class EntityStatusMap
 public:
 	
 protected:
-    DoubleMap<MscStyle>      styleStatus;   //style of the entity line at and beyond a position
-    DoubleMap<EEntityStatus> showStatus;    //tells if the entity is turned on or off or active
+    contour::DoubleMap<MscStyle>      styleStatus;   //style of the entity line at and beyond a position
+    contour::DoubleMap<EEntityStatus> showStatus;    //tells if the entity is turned on or off or active
 public:
     explicit EntityStatusMap(const MscStyle &def) : styleStatus(def), showStatus(EEntityStatus::SHOW_OFF) {}
     void ApplyStyle(double pos, const MscStyle &style) {styleStatus.Add(pos, style);}

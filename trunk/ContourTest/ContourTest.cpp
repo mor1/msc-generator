@@ -6,5 +6,5 @@
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-    contour_test();
+    contour::contour_test();
 }

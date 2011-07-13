@@ -878,7 +878,7 @@ void Msc::DrawEntityLines(double y, double height,
                 const XY magic(0,0);  //HACK needed in windows: 0,1
                 const XY start = up+offset-magic;
                 //last param is dash_offset. Cairo falls back to image surface if this is not zero ???
-                canvas->Line(start, down+offset, vline, 0 /*start.y*/); 
+                canvas->Line(start, down+offset, vline); 
             }
         }
         from++;

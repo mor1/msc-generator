@@ -19,6 +19,8 @@
 
 #include "contour.h"
 
+namespace contour {
+
 extern unsigned ContourTestDebug;
 extern unsigned ContourTestDebugMinor;
 
@@ -27,3 +29,5 @@ void Draw(unsigned i, const Contour area1, const Contour area2, const char *text
 void Draw(unsigned i, const Contour area1, const char *text=NULL);
 
 void contour_test(void);
+
+} //namespace

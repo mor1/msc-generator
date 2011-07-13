@@ -114,7 +114,7 @@ cairo_line_cap_t MscCanvas::SetLineCap(cairo_line_cap_t t)
 }
 
 
-void MscCanvas::Clip(const EllipseData &ellipse)
+void MscCanvas::Clip(const contour::EllipseData &ellipse)
 {
     cairo_save(cr);
     cairo_save(cr);
@@ -216,20 +216,17 @@ void MscCanvas::SetLineAttr(MscLineAttr line)
     if (line.width.first)
         cairo_set_line_width(cr, line.width.second);
     if (line.type.first)
-        SetDash(line, 0);
+        SetDash(line);
 }
 
-void MscCanvas::SetDash(MscLineAttr line, double pattern_offset)
+void MscCanvas::SetDash(MscLineAttr line)
 {
-    int num;
+    unsigned num;
     const double * const pattern = line.DashPattern(num);
-    pattern_offset = num ? fmod_negative_safe(pattern_offset, pattern[num]) : 0;
-    if (fake_dash) {
+    if (fake_dash) 
         cairo_set_dash(cr, NULL, 0, 0); 
-        fake_dash_offset = pattern_offset;
-    } else if (line.type.first && !fake_dash) {
-        cairo_set_dash(cr, pattern, num, pattern_offset); 
-    }
+    else if (line.type.first && !fake_dash) 
+        cairo_set_dash(cr, pattern, num, 0); 
 }
 
 void MscCanvas::SetFontFace(const char*face, bool italics, bool bold)
@@ -258,7 +255,7 @@ void MscCanvas::Text(XY xy, const string &s, bool isRotated)
     }
 }
 
-void MscCanvas::ArcPath(const EllipseData &ell, double s_rad, double e_rad, bool reverse)
+void MscCanvas::ArcPath(const contour::EllipseData &ell, double s_rad, double e_rad, bool reverse)
 {
     cairo_save (cr);
     ell.TransformForDrawing(cr);
@@ -338,327 +335,52 @@ void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy, const 
 
 ////////////////////// Line routines
 
-
-//Draw dashed/dotted line
-//assume color and linewidth are set correctly. We also assume cairo dash is set to continuous: we fake dash here
-//The pattern contains lengths of alternating on/off segments, num contains the number of elements in pattern
-//pos shows which pattern element we shall start at, offset shows at which point. We return updated versions of these
-void MscCanvas::fakeDashedLine(const XY &s, const XY &d, const double pattern[], int num, int &pos, double &offset)
-{
-    _ASSERT(num);
-    _ASSERT(offset<pattern[pos]);
-    const double len = sqrt((d.x-s.x)*(d.x-s.x) + (d.y-s.y)*(d.y-s.y));
-    const double ddx = (d.x-s.x)/len;
-    const double ddy = (d.y-s.y)/len;
-    double processed = 0;
-    double x = s.x, y = s.y;  
-    cairo_new_path(cr);
-    if (offset) {
-        if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
-            if (pos%2==0) {//start with drawn
-                cairo_move_to(cr, s.x, s.y);
-                cairo_line_to(cr, d.x, d.y);
-                cairo_stroke(cr);
-            }
-            offset += len;
-            return;
-        }
-        if (pos%2==0) cairo_move_to(cr, x, y);
-        x += (pattern[pos]-offset)*ddx;
-        y += (pattern[pos]-offset)*ddy;
-        if (pos%2==0) cairo_line_to(cr, x, y);
-        processed += pattern[pos]-offset;
-        pos = (pos+1)%num;
-    }
-
-    while(processed+pattern[pos] <= len) {
-        if (pos%2==0) cairo_move_to(cr, x, y);
-        x += pattern[pos]*ddx;
-        y += pattern[pos]*ddy;
-        if (pos%2==0) cairo_line_to(cr, x, y);
-        processed += pattern[pos];
-        pos = (pos+1)%num;
-    }
-
-    offset = len - processed;
-    if (pos%2==0 && !test_zero(offset)) {
-        cairo_move_to(cr, x, y);
-        cairo_line_to(cr, d.x, d.y); 
-    }
-    cairo_stroke(cr);
-}
-
-//Draw dashed/dotted line
-//assume color and linewidth are set correctly. We also assume cairo dash is set to continuous: we fake dash here
-//The pattern contains lengths of alternating on/off segments, num contains the number of elements in pattern
-//pos shows which pattern element we shall start at, offset shows at which point. We return updated versions of these
-void MscCanvas::fakeDashedLine(const XY &c, double r1, double r2, double tilt, double s, double e, 
-                               const double pattern[], int num, int &pos, double &offset, bool reverse)
-{
-    _ASSERT(num);
-    _ASSERT(offset<pattern[pos]);
-    if (r2<=0 || r1<=0) return;
-
-    cairo_new_path(cr);
-    cairo_save(cr);
-    cairo_translate(cr, c.x, c.y);
-    if (tilt)
-        cairo_rotate(cr, tilt);
-    cairo_scale(cr, r1, r2);
-
-    if (reverse) {
-        if (s<e) s += 2*M_PI; //ensure s is larger than e (assume e and s between [0, 2PI])
-    } else {
-        if (e<s) e += 2*M_PI; //ensure e is larger than s
-    }
-    //TODO Do proper ellipse arc length calculations
-    const double avg_r = (r1+r2)/2;
-    const double len = fabs(s-e)*avg_r; 
-    const double inc_s = s<e ? 1/avg_r : -1/avg_r;
-    double processed = 0;
-    if (offset) {
-        if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
-            offset += len;
-            if (pos%2==0) {//start with drawn
-                cairo_new_sub_path(cr);
-                if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, e);
-                else cairo_arc(cr, 0, 0, 1., s, e);
-                cairo_restore(cr);
-                cairo_stroke(cr);
-            } else
-                cairo_restore(cr);
-            return;
-        }
-        const double new_s = s + inc_s*(pattern[pos]-offset);
-        if (pos%2==0) {
-            cairo_new_sub_path(cr);
-            if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, new_s);
-            else cairo_arc(cr, 0, 0, 1., s, new_s);
-        }
-        s = new_s;
-        processed += pattern[pos]-offset;
-        pos = (pos+1)%num;
-    }
-
-    while (processed+pattern[pos] <= len) {
-        const double new_s = s + inc_s*pattern[pos];
-        if (pos%2==0) {
-            cairo_new_sub_path(cr);
-            if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, new_s);
-            else cairo_arc(cr, 0, 0, 1., s, new_s);
-        }
-        s = new_s;
-        processed += pattern[pos];
-        pos = (pos+1)%num;
-    }
-
-    offset = len - processed;
-    if (pos%2==0 && !test_zero(offset)) {
-        cairo_new_sub_path(cr);
-        if (reverse) cairo_arc_negative(cr, 0, 0, 1., s, e);
-        else cairo_arc(cr, 0, 0, 1., s, e);
-    }
-    cairo_restore(cr);
-    cairo_stroke(cr);
-}
-
-//Draw a line, but ignore if a double line is proscribed by line.
-//However, if the surface requires faking dashes, do them. 
-//Assume Color and Width (and Dash if we do not fake it) are already set in cairo context
-//line and arc version honour fake_dash_offset
-void MscCanvas::singleLine(const XY &s, const XY &d, const MscLineAttr &line)
-{
-    if (line.IsContinuous() || !fake_dash) {
-        cairo_new_path(cr);
-        cairo_move_to(cr, s.x, s.y); 
-        cairo_line_to(cr, d.x, d.y);
-        cairo_stroke(cr);
-    } else {
-        int num, pos=0;
-        const double *pattern;
-        double offset;
-        pattern = line.DashPattern(num);
-        offset = fmod_negative_safe(fake_dash_offset, pattern[num]);
-        while (offset>=pattern[pos]) offset -= pattern[pos++];
-        fakeDashedLine(s, d, pattern, num, pos, offset);
-        fake_dash_offset = offset;
-        while(num>0) fake_dash_offset += pattern[--num];
-    }
-}
-
-//line and arc version honour fake_dash_offset
-void MscCanvas::singleLine(const XY &c, double r1, double r2, double tilt, 
-                           double s, double e, const MscLineAttr &line, bool reverse)
-{
-    if (line.IsContinuous() || !fake_dash) {
-        cairo_new_path(cr);
-        cairo_save (cr);
-        cairo_translate (cr, c.x, c.y);
-        if (tilt)
-            cairo_rotate(cr, tilt);
-        cairo_scale (cr, r1, r2);
-        if (reverse)
-            cairo_arc_negative(cr, 0., 0., 1., s, e);
-        else
-            cairo_arc(cr, 0., 0., 1., s, e);
-        cairo_restore (cr);
-        cairo_stroke(cr);
-    } else {
-        int num, pos = 0;
-        const double *pattern;
-        double offset;
-        pattern = line.DashPattern(num);
-        offset = fmod_negative_safe(fake_dash_offset, pattern[num]);
-        while (offset>=pattern[pos]) offset -= pattern[pos++];
-        fakeDashedLine(c, r1, r2, tilt, s, e, pattern, num, pos, offset, reverse);
-        fake_dash_offset = offset;
-        while(num>0) fake_dash_offset += pattern[--num];
-    }
-}
-
 void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
 {
-    if (line.IsContinuous() || !fake_dash) {
+    unsigned num=0;
+    if (line.IsContinuous() || !fake_dash) 
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
-        cairo_stroke(cr);
-    } else {
-        int num, pos = 0;
-        const double *pattern;
-        double offset = 0;
-        pattern = line.DashPattern(num);
-        //r1 is used for the upper left corner, r2 for the other three
-        const double r1 = (line.corner.second == CORNER_ROUND ||
-                           line.corner.second == CORNER_BEVEL ||
-                           line.corner.second == CORNER_NOTE) ?
-                           std::min(std::min(fabs(b.x.Spans())/2, fabs(b.y.Spans())/2), line.radius.second) : 0;
-        const double r2 = line.corner.second == CORNER_NOTE ? 0 : r1;
-        //upper left corner
-        if (r2>0) switch (line.corner.second) {
-        case CORNER_ROUND: fakeDashedLine(XY(b.x.from+r2, b.y.from+r2), r2, r2, 0, 2.*M_PI/2., 3.*M_PI/2., 
-                               pattern, num, pos, offset, false); break;
-        case CORNER_BEVEL: fakeDashedLine(XY(b.x.from, b.y.from-r2), XY(b.x.from+r2, b.y.from), 
-                               pattern, num, pos, offset); break;
-        case CORNER_NONE:
-        case CORNER_NOTE: break;
-        default: _ASSERT(0);
-        }
-        fakeDashedLine(XY(b.x.from+r2, b.y.from), XY(b.x.till-r1, b.y.from), pattern, num, pos, offset);
-        //upper right corner
-        if (r1>0) switch (line.corner.second) {
-        case CORNER_ROUND: fakeDashedLine(XY(b.x.till-r1, b.y.from+r1), r1, r1, 0, 3.*M_PI/2., 4.*M_PI/2., 
-                               pattern, num, pos, offset, false); break;
-        case CORNER_NOTE: 
-        case CORNER_BEVEL: fakeDashedLine(XY(b.x.till-r1, b.y.from), XY(b.x.till, b.y.from+r1), 
-                               pattern, num, pos, offset); break;
-        case CORNER_NONE: break;
-        default: _ASSERT(0);
-        }
-        fakeDashedLine(XY(b.x.till, b.y.from+r1), XY(b.x.till, b.y.till-r2), pattern, num, pos, offset);
-        //lower right corner
-        if (r2>0) switch (line.corner.second) {
-        case CORNER_ROUND: fakeDashedLine(XY(b.x.till-r2, b.y.till-r2), r2, r2, 0, 0.*M_PI/2., 1.*M_PI/2., 
-                               pattern, num, pos, offset, false); break;
-        case CORNER_BEVEL: fakeDashedLine(XY(b.x.till, b.y.till-r2), XY(b.x.till-r2, b.y.till), 
-                               pattern, num, pos, offset); break;
-        case CORNER_NONE:
-        case CORNER_NOTE: break;
-        default: _ASSERT(0);
-        }
-        fakeDashedLine(XY(b.x.till-r2, b.y.till), XY(b.x.from+r2, b.y.till), pattern, num, pos, offset);
-        //lower left corner
-        if (r2>0) switch (line.corner.second) {
-        case CORNER_ROUND: fakeDashedLine(XY(b.x.from+r2, b.y.till-r2), r2, r2, 0, 1.*M_PI/2., 2.*M_PI/2., 
-                               pattern, num, pos, offset, false);
-        case CORNER_BEVEL: fakeDashedLine(XY(b.x.from-r2, b.y.till), XY(b.x.from, b.y.till-r2), 
-                               pattern, num, pos, offset); break;
-        case CORNER_NONE:
-        case CORNER_NOTE: break;
-        default: _ASSERT(0);
-        }
-        fakeDashedLine(XY(b.x.from, b.y.till-r2), XY(b.x.from, b.y.from+r2), pattern, num, pos, offset);
-    }
+    else 
+        line.CreateRectangle(b).PathDashed(cr, line.DashPattern(num), num);
+    cairo_stroke(cr);
 }
-
-void MscCanvas::singleLine(const SimpleContour &c, const MscLineAttr &line, bool open)
-{
-    if (line.IsContinuous() || !fake_dash) {
-        if (open)
-            c.PathOpen(cr);
-        else
-            c.Path(cr);
-        cairo_stroke(cr);
-    } else {
-        for (unsigned i=0; i<c.size()-(open?1:0); i++) 
-            if (c.GetEdge(i).GetType() == EDGE_STRAIGHT)
-                singleLine(c.GetEdge(i).GetStart(), c.GetEdge((i+1)%c.size()).GetStart(), line);
-            else {
-                const Edge &edge = c.GetEdge(i);
-                singleLine(edge.GetEllipseData().GetCenter(), edge.GetEllipseData().GetRadius1(), edge.GetEllipseData().GetRadius2(), 
-                    edge.GetEllipseData().GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
-            }
-    }
-}
-
-void MscCanvas::singleLine(const ContourWithHoles &contour, const MscLineAttr &line)
-{
-    singleLine(contour, line, false);
-    for (auto i = contour.holes.begin(); i!=contour.holes.end(); i++)
-        singleLine(*i, line);
-}
-
 
 void MscCanvas::singleLine(const Contour&cl, const MscLineAttr &line)
 {
-    singleLine(static_cast<const ContourWithHoles&>(cl), line, false);
-    for (auto j = cl.holes.begin(); j!=cl.holes.end(); j++)
-        singleLine(*j, line);
-
-    for (auto i=cl.further.begin(); i!=cl.further.end(); i++) {
-        singleLine(*i, line, false);
-        for (auto j = i->holes.begin(); j!=i->holes.end(); j++)
-            singleLine(*j, line);
-    }
+    unsigned num=0;
+    if (line.IsContinuous() || !fake_dash) 
+        cl.Path(cr);
+    else 
+        cl.PathDashed(cr, line.DashPattern(num), num);
+    cairo_stroke(cr);
 }
 
 void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
 {
     _ASSERT(line.IsComplete());
-    if (edge.GetType() == EDGE_STRAIGHT) return;
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    SetLineAttr(line);
-    const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
-    const EllipseData &ell = edge.GetEllipseData();
-    if (line.IsDoubleOrTriple()) {
-        singleLine(ell.GetCenter(), ell.GetRadius1()-spacing, ell.GetRadius2()-spacing, 
-            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
-        singleLine(ell.GetCenter(), ell.GetRadius1()+spacing, ell.GetRadius2()+spacing, 
-            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
-    } 
-    if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
-    if (!line.IsDouble()) 
-        singleLine(ell.GetCenter(), ell.GetRadius1(), ell.GetRadius2(), 
-            ell.GetTilt(), edge.GetRadianS(), edge.GetRadianE(), line, !edge.GetClockWise());
-}
-
-void MscCanvas::Line(const XY &s, const XY &d, const MscLineAttr &line, double pattern_offset)
-{
-    _ASSERT(line.IsComplete());
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     SetLineAttr(line);
     const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
     if (line.IsDoubleOrTriple()) {
-        const double len = sqrt((d.x-s.x)*(d.x-s.x) + (d.y-s.y)*(d.y-s.y));
-        const double DX = (s.y-d.y)/len*spacing;
-        const double DY = (s.x-d.x)/len*spacing;
-        SetDash(line, pattern_offset);
-        singleLine(s+XY(DX, -DY), d+XY(DX, -DY), line);
-        SetDash(line, pattern_offset);
-        singleLine(s-XY(DX, -DY), d-XY(DX, -DY), line);
+        Edge e = edge;
+        e.Expand(spacing);
+        e.Path(cr);
+        cairo_stroke(cr);
+        e.Expand(-2*spacing);
+        e.Path(cr);
+        cairo_stroke(cr);
     } 
-    if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
-    if (!line.IsDouble())  {
-        SetDash(line, pattern_offset);
-        singleLine(s, d, line);
+    if (line.IsTriple()) {
+        cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        edge.Path(cr);
+        cairo_stroke(cr);
+    }
+    if (!line.IsContinuous()) {
+        unsigned num=0;
+        int pos = 0;
+        double offset;
+        edge.PathDashed(cr, line.DashPattern(num), num, pos, offset);
+        cairo_stroke(cr);
     }
 }
 
@@ -739,16 +461,21 @@ void MscCanvas::LineOpen(const Contour &c, const MscLineAttr &line)
     SetLineAttr(line);
     const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
     if (line.IsDoubleOrTriple()) {
-        Contour cl = c.CreateExpand(spacing);
-        if (!cl.IsEmpty())
-            singleLine(cl, line, true);
-        cl = c.CreateExpand(-spacing);
-        if (!cl.IsEmpty())
-            singleLine(cl, line, true);
+        c.CreateExpand( spacing).PathOpen(cr);
+        cairo_stroke(cr);
+        c.CreateExpand(-spacing).PathOpen(cr);
+        cairo_stroke(cr);
     } 
-    if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
-    if (!line.IsDouble()) 
-        singleLine(c, line, true);
+    if (line.IsTriple()) {
+        cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        c.PathOpen(cr);
+        cairo_stroke(cr);
+    }
+    if (!line.IsContinuous()) {
+        unsigned num=0;
+        c.PathOpenDashed(cr, line.DashPattern(num), num);
+        cairo_stroke(cr);
+    }
 }
 
 ////The first element in the list is the overall contour, the remaining ones are disjoint ones
@@ -991,16 +718,6 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till);
         cairo_fill(cr);
     }
-}
-
-void MscCanvas::Fill(const EllipseData &ellipse, const MscFillAttr &fill)
-{
-    Clip(ellipse);
-    XY dummy;
-    Block b(ellipse.GetExtreme(0, dummy), ellipse.GetExtreme(1, dummy),
-            ellipse.GetExtreme(2, dummy), ellipse.GetExtreme(3, dummy));
-    Fill(b, fill);
-    UnClip();
 }
 
 ////////////////////// Shadow routines

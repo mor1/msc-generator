@@ -24,6 +24,9 @@
 #include "contour.h"
 #include "contour_test.h"
 
+
+namespace contour {
+
 ///////////////////////////// SimpleContour
 
 //Do not create degenerate triangles.
@@ -190,12 +193,18 @@ SimpleContour::result_t SimpleContour::CheckContainmentHelper(const SimpleContou
             double two_next = angle(p, XY(p.x, -100), b.NextTangentPoint(edge, pos));
             if (!  clockwise) std::swap(one_prev, one_next); //make angles as if clockwise
             if (!b.clockwise) std::swap(two_prev, two_next); //make angles as if clockwise
+
+            //if both the same, we continue: this vertex is non-decisive
+            if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
+
+            //if values are too close it is dangerous, we look for other vertices
+            if (test_equal(one_prev, one_next)) break;
+            if (test_equal(two_prev, two_next)) break;
+
             if (really_between04_warp(one_prev, two_next, two_prev) &&
                 really_between04_warp(one_next, two_next, two_prev)) return A_INSIDE_B;
             if (really_between04_warp(two_prev, one_next, one_prev) &&
                 really_between04_warp(two_next, one_next, one_prev)) return B_INSIDE_A;
-            if (test_equal(one_prev, two_prev) && test_equal(one_next, two_next)) break; //SAME - do another edge
-            if (test_equal(one_next, two_prev) && test_equal(one_prev, two_next)) break; //SAME opposite dir - do another edge
             return APART;
         }
     }
@@ -208,9 +217,21 @@ SimpleContour::result_t SimpleContour::CheckContainmentHelper(const SimpleContou
 //clockwiseness fully honored
 SimpleContour::result_t SimpleContour::CheckContainment(const SimpleContour &other) const
 {
-    //special case of two full ellipses beging the same - not caught otherwise
-    if (size()==1 && other.size()==1 && at(0) == other.at(0))
-        return SAME;
+    //special case of two full ellipses touching - not caught otherwise
+    if (size()==1 && other.size()==1 && at(0).GetStart() == other.at(0).GetStart()) {
+        if (at(0).ell==other[0].ell) return SAME;
+        //if one of the centers is in the other ellipses then x_INSIDE_y
+        if (inside(IsWithin(other[0].ell.GetCenter())) || 
+            inside(other.IsWithin(at(0).ell.GetCenter()))) {
+                //the center closer to the touchpoint will be inside
+                if ((at(0).ell.GetCenter()-at(0).GetStart()).length() <
+                    (other[0].ell.GetCenter()-at(0).GetStart()).length())
+                    return A_INSIDE_B;
+                else
+                    return B_INSIDE_A;
+        }
+        return APART;
+    }
     result_t this_in_other = CheckContainmentHelper(other);
     if (this_in_other != OVERLAP) return this_in_other;
     switch (other.CheckContainmentHelper(*this)) {
@@ -316,9 +337,15 @@ void SimpleContour::AppendDuringWalk(const Edge &edge)
 bool SimpleContour::PostWalk()
 {
     boundingBox.MakeInvalid();
+
     //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
     if (size()>1 && at(0).GetStart().test_equal(at(size()-1).GetStart()))
         pop_back();
+
+    //set "end" values. Not known previously
+    for (unsigned i=0; i<size(); i++)
+        at(i).SetEndLiberal(at_next(i).GetStart(), true);
+
     //Also, the beginning point (at(0]) can fall on an edge
     //if both the last and the first edge are straight and are in-line
     //such as when two side-by-side rectangles are merged
@@ -328,6 +355,7 @@ bool SimpleContour::PostWalk()
         if (at(size()-1).CheckAndCombine(at(0)))
             erase(begin());
     }
+
     //also two semi-circles combined should give a single edge (a circle)
     if (size()==2 && at(0).GetType()!=EDGE_STRAIGHT && at(1).GetType()!=EDGE_STRAIGHT)
         if (at(0).CheckAndCombine(at(1)))
@@ -342,13 +370,11 @@ bool SimpleContour::PostWalk()
     //we checked above it is curvy. We assert that this is a full circle
     if (size()==1)
         at(0).SetFullCircle();
-    else
-        //go around and set "end" value. This was not known previously
-        for (unsigned i=0; i<size(); i++)
-            at(i).SetEndLiberal(at_next(i).GetStart(), true);
+    
     //compute the bounding box & clockwise
     CalculateBoundingBox();
     CalculateClockwise();
+    _ASSERT(IsSane());
     return true;
 }
 
@@ -742,6 +768,33 @@ void SimpleContour::PathOpen(cairo_t *cr) const
         at(i).Path(cr);
 }
 
+void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num) const
+{
+    if (size()==0 || cr==NULL) return;
+    if (num<2) {
+        Path(cr);
+        return;
+    }
+    double offset = 0;
+    int pos = 0;
+    for (unsigned i = 0; i<size(); i++)
+        at(i).PathDashed(cr, pattern, num, pos, offset);
+}
+
+void SimpleContour::PathOpenDashed(cairo_t *cr, const double pattern[], unsigned num) const
+{
+    if (size()==0 || cr==NULL) return;
+    if (num<2) {
+        PathOpen(cr);
+        return;
+    }
+    double offset = 0;
+    int pos = 0;
+    for (unsigned i = 0; i<size()-1; i++)
+        at(i).PathDashed(cr, pattern, num, pos, offset);
+}
+
+
 double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpoint) const
 {
     double offset = CONTOUR_INFINITY;
@@ -767,3 +820,5 @@ void SimpleContour::DoVerticalCrossSection(double x, DoubleMap<bool> &section) c
             section.Set(y[j], forward[j] == clockwise);
     }
 }
+
+} //namespace
