@@ -21,7 +21,7 @@
 
 /////////////////////////////////////////  Contour implementation
 
-Area Area::CreateExpand(double gap, EExpandType et) const
+Area Area::CreateExpand(double gap, contour::EExpandType et) const
 {
     Area result;
     if (gap == 0) return (result = *this);  //always return result->compiler optimizes
@@ -41,7 +41,7 @@ void Area::swap(Area &a)
 }
 
 
-AreaList AreaList::CreateExpand(double gap, EExpandType et) const
+AreaList AreaList::CreateExpand(double gap, contour::EExpandType et) const
 {
     if (!gap) return *this;
     AreaList al;

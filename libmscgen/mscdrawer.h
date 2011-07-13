@@ -68,15 +68,10 @@ protected:
     const OutputType outType;
     const Block      extents;
 
-    void ArcPath(const EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
+    void ArcPath(const contour::EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void RectanglePath(double sx, double dx, double sy, double dy);
     void RectanglePath(double sx, double dx, double sy, double dy, const MscLineAttr &line);
-
-    void fakeDashedLine(const XY &s, const XY &d, 
-                        const double pattern[], int num, int &pos, double &offset);
-    void fakeDashedLine(const XY &c, double r1, double r2, double tilt, double s, double e,
-                        const double pattern[], int num, int &pos, double &offset, bool reverse);
 
     void linearGradient(MscColorType from, MscColorType to, const XY &s, const XY &d, MscGradientType type);
     void fakeLinearGrad(MscColorType from, MscColorType to, const XY &s, const XY &d, bool dir_is_x, unsigned steps);
@@ -85,11 +80,7 @@ protected:
     void fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, double outer_radius, double inner_radius,
                         unsigned steps, bool rectangle, double rad_from=0, double rad_to=2*M_PI);
 
-    void singleLine(const XY &s, const XY &d, const MscLineAttr &line);
-    void singleLine(const XY &c, double r1, double r2, double tilt, double s, double e, const MscLineAttr &line, bool reverse=false);
     void singleLine(const Block &, const MscLineAttr &line);
-    void singleLine(const SimpleContour&, const MscLineAttr &line, bool open=false);
-    void singleLine(const ContourWithHoles &contour, const MscLineAttr &line);
     void singleLine(const Contour&, const MscLineAttr &line);
 
 
@@ -98,7 +89,7 @@ friend class ArcBox;  //for exotic line joints
 friend class ArcPipe;  //for exotic line joints
     void SetColor(MscColorType);
     void SetLineAttr(MscLineAttr);
-    void SetDash(MscLineAttr, double pattern_offset=0);
+    void SetDash(MscLineAttr);
     void SetFontFace(const char*face, bool italics, bool bold);
     void SetFontSize(double size) {cairo_set_font_size (cr, size);}
     double textWidth(const string &s);
@@ -119,7 +110,7 @@ public:
     void Clip(const XY &s, const XY &d, const MscLineAttr &line);
     void Clip(const Block &b);
     void Clip(const Block &b, const MscLineAttr &line);
-    void Clip(const EllipseData &ellipse);
+    void Clip(const contour::EllipseData &ellipse);
     void Clip(const Contour &area);
     void ClipInverse(const Contour &area);
     void UnClip() {cairo_restore(cr);}
@@ -129,7 +120,7 @@ public:
     void UnTransform() {cairo_restore(cr);}
 
     void Line(const Edge& edge, const MscLineAttr &line);
-    void Line(const XY &s, const XY &d, const MscLineAttr &line, double pattern_offset=0);
+    void Line(const XY &s, const XY &d, const MscLineAttr &line) {Line(Edge(s, d), line);}
     void Line(const Block &b, const MscLineAttr &line);
     void Line(const Contour &area, const MscLineAttr &line);
     void LineOpen(const Contour &contour, const MscLineAttr &line);  //an arbitrary contour, but not its last edge
@@ -137,8 +128,6 @@ public:
     void Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill);
     void Fill(const Block &b, const MscFillAttr &fill);
     void Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill);
-    void Fill(const EllipseData &ellipse, const MscFillAttr &fill);
-    void Fill(const SimpleContour &contour, const MscFillAttr &fill);
     void Fill(const Contour &area, const MscFillAttr &fill);
     void Shadow(const Block &b, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false) {Shadow(b, MscLineAttr(), shadow, shadow_x_neg, shadow_y_neg);}
     void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);

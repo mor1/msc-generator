@@ -10,6 +10,7 @@
 
 #include "contour_ellipse.h"
 
+namespace contour {
 
 //TODO: XXX redo comment below
 //An edge of a contour. (edges are directed)
@@ -87,6 +88,7 @@ protected:
     bool   CheckAndCombine(const EdgeStraight &next);
     //assumes cairo position is at start (or at end if reverse is true)
     void   Path(cairo_t *cr, bool reverse=false) const;
+    void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const;
 
     //helpers for offsetbelow
     double OffsetBelow(const EdgeStraight &M, double &touchpoint) const;
@@ -154,6 +156,7 @@ protected:
     bool UpdateClockWise(double new_s, double new_e);
     void SwapXYcurvy();
     int CrossingVerticalCurvy(double x, double y[], double pos[], bool forward[]) const;
+    void PathDashedCurvy(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const;
 public:
     EdgeArc() : EdgeFullCircle() {};
     EdgeArc(const XY &s, const XY &e) : EdgeFullCircle(s, e) {}
@@ -198,6 +201,9 @@ public:
     bool   CheckAndCombine(const EdgeArc &next);
     //assumes cairo position is at start (or at end if reverse is true)
     void   Path(cairo_t *cr, bool reverse=false) const;
+    void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const
+        {if (type==EDGE_STRAIGHT) EdgeStraight::PathDashed(cr, pattern, num, pos, offset, reverse);
+        else PathDashedCurvy(cr, pattern, num, pos, offset, reverse);}
 
     //Helpers for expand
     bool Expand(double gap);
@@ -332,5 +338,7 @@ void DoubleMap<element>::Add(const Range &r, const element& e)
             h->second += e;
     }
 }
+
+} //namespace
 
 #endif //CONTOUR_EDGE_H

@@ -5,6 +5,10 @@
 #include <list>
 #include "contour_edge.h"
 
+
+namespace contour {
+
+
 class Contour;
 
 //inside of contour is to the right as we go through: counterclockwise pointlists contain the "outside"
@@ -93,6 +97,12 @@ public:
             Path(cr);
     }
     void PathOpen(cairo_t *cr) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const {
+        if (clockwise==clockwiseonly) 
+            PathDashed(cr, pattern, num);
+    }
+    void PathOpenDashed(cairo_t *cr, const double pattern[], unsigned num) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const
@@ -118,5 +128,7 @@ inline double SimpleContour::OffsetBelow(const SimpleContour &below, double &tou
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
     return do_offsetbelow(below, touchpoint);
 }
+
+} //namespace
 
 #endif //CONTOUR_CONTOUR_H

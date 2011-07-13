@@ -247,7 +247,7 @@ public:
     double TripleSpacing() const     {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.5:2.0);}
     double TripleMiddleWidth() const {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.0:1.0);}
     double LineWidth() const {_ASSERT(type.first && width.first); return width.second * LineWidthMultiplier(type.second);}
-    const double * DashPattern(int &num) const;
+    const double * DashPattern(unsigned &num) const;
     double RadiusIncMul() const {_ASSERT(type.first); return ::RadiusIncMultiplier(corner.second);}
 
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
@@ -255,7 +255,7 @@ public:
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 
-    Contour CreateRectangle(double x1, double x2, double y1, double y2) const;
+    Contour CreateRectangle(double x1, double x2, double y1, double y2) const;  
     Contour CreateRectangle(const XY &s, const XY &d) const {return CreateRectangle(s.x, d.x, s.y, d.y);}
     Contour CreateRectangle(const Block &b) const {return CreateRectangle(b.x.from, b.x.till, b.y.from, b.y.till);}
 

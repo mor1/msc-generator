@@ -20,6 +20,8 @@
 #include "area.h"
 #include "contour.h"
 
+namespace contour {
+
 unsigned ContourTestDebug = 0;
 unsigned ContourTestDebugMinor = 0;
 
@@ -141,7 +143,7 @@ void DrawExpand(unsigned i, EExpandType et, const Contour area1, bool manyfile=t
 {
     CairoContext *context;
     if (singlefile) 
-        context = new CairoContext(i, area1.GetBoundingBox().CreateExpand(40), false);
+        context = new CairoContext(i, area1.GetBoundingBox().CreateExpand(100), false);
     const unsigned NUM=3;
     const double r[NUM] = {1,0,0};
     const double g[NUM] = {0,1,0};
@@ -206,7 +208,7 @@ void DrawIsinside(unsigned i, const Contour &a, double gap=5, const char *text=N
 
 void contour_test(void)
 {
-    /* Excluded for speed 
+    /* Excluded for speed */
     Contour tri = Contour(XY(50,90), XY(100,60), XY(40,20));
 	Draw(100, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
     tri +=  Contour(30,70,60,70);
@@ -409,8 +411,13 @@ void contour_test(void)
     /* End of exclusion for speed */
     //Works up to here
 
-    Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25) + 
-                      Contour(XY(25,75), 25) + Contour(XY(75,75), 25);
+    Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25);
+    Draw(2181, lohere1);
+    lohere1 += Contour(XY(25,75), 25);
+    Draw(2182, lohere1);
+    lohere1 += Contour(XY(75,75), 25);
+    Draw(2183, lohere1);
+
 
     Contour lohere2 = Contour(0,100, 0,100) + lohere1;
     Contour lohere3 = Contour(0,100, 0,100) - lohere1;
@@ -418,17 +425,20 @@ void contour_test(void)
                       Contour(XY(0,0), 50) - Contour(XY(50,0), 50) + 
                       Contour(XY(0,50), 50) - Contour(XY(50,50), 50);
 
-    Draw(1691, lohere1);
-    Draw(1692, lohere2);
-    Draw(1693, lohere3);
-    Draw(1694, lohere4);
+    Contour lohere5 = lohere3.GetNth(0);
 
-    return;
+    Draw(2190, lohere1);
+    Draw(2191, lohere2);
+    Draw(2192, lohere3);
+    Draw(2193, lohere4);
+    Draw(2194, lohere5);
 
     DrawExpand(250, EXPAND_MITER, lohere1, false);
     DrawExpand(251, EXPAND_MITER, lohere2, false);
     DrawExpand(252, EXPAND_MITER, lohere3, false);
     DrawExpand(253, EXPAND_MITER, lohere4, false);
+    DrawExpand(254, EXPAND_MITER, lohere5, false);
+
     DrawExpand(260, EXPAND_BEVEL, lohere1, false);
     DrawExpand(261, EXPAND_BEVEL, lohere2, false);
     DrawExpand(262, EXPAND_BEVEL, lohere3, false);
@@ -528,3 +538,5 @@ void contour_test(void)
 //	//	cairo_show_text(cr, buff);
 //	//}
 }
+
+} //namespace

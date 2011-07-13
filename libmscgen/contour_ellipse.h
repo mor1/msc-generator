@@ -11,6 +11,8 @@
 #include "cairo.h"
 #include "contour_basics.h"
 
+namespace contour {
+
 //an fmod, that always return a value in [0..b] even if a<0
 template<typename real> real fmod_negative_safe(real a, real b) {_ASSERT(b>0); return a>=0 ? fmod(a, b) : b - fmod(-a, b);}
 
@@ -178,6 +180,8 @@ typedef enum {LINE_CROSSING_PARALLEL, LINE_CROSSING_INSIDE, LINE_CROSSING_OUTSID
 
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
 double point2pos_straight(const XY &M, const XY&N, const XY &p);
+
+} //namespace
 
 
 #endif //CONTOUR_ELLIPSE_H

@@ -22,6 +22,9 @@
 
 //////ContourList/////////////////
 
+namespace contour {
+
+
 bool ContourList::operator <(const ContourList &b) const
 {
     if (boundingBox != b.boundingBox) return boundingBox<b.boundingBox;
@@ -92,6 +95,18 @@ void ContourList::Path(cairo_t *cr, bool clockwiseonly) const
 {
     for (auto i=begin(); i!=end(); i++) 
         i->Path(cr, clockwiseonly);
+}
+
+void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num) const
+{
+    for (auto i=begin(); i!=end(); i++) 
+        i->PathDashed(cr, pattern, num);
+}
+
+void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const 
+{
+    for (auto i=begin(); i!=end(); i++) 
+        i->PathDashed(cr, pattern, num, clockwiseonly);
 }
 
 
@@ -1309,3 +1324,4 @@ void Contour::Expand(EExpandType type, double gap, Contour &res) const
     _ASSERT(IsSane()); 
 }
 
+} //namespace

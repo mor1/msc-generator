@@ -22,6 +22,7 @@
 #include <algorithm>
 #include "contour_edge.h"
 
+namespace contour {
 
 //////////////////Helper functions
 
@@ -224,6 +225,54 @@ void EdgeStraight::Path(cairo_t *cr, bool reverse) const
         cairo_line_to(cr, end.x, end.y);
 }
 
+//Path a dashed/dotted line
+//We also assume cairo dash is set to continuous: we fake dash here
+//The pattern contains lengths of alternating on/off segments, num contains the number of elements in pattern
+//pos shows which pattern element we shall start at, offset shows at which point. We return updated versions of these
+void EdgeStraight::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse) const
+{
+    _ASSERT(num);
+    _ASSERT(offset<pattern[pos]);
+    const XY & s = reverse ? end : start;
+    const XY & d = reverse ? start : end;
+    const double len = sqrt((d.x-s.x)*(d.x-s.x) + (d.y-s.y)*(d.y-s.y));
+    const double ddx = (d.x-s.x)/len;
+    const double ddy = (d.y-s.y)/len;
+    double processed = 0;
+    double x = s.x, y = s.y;  
+    cairo_new_path(cr);
+    if (offset) {
+        if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
+            if (pos%2==0) {//start with drawn
+                cairo_move_to(cr, s.x, s.y);
+                cairo_line_to(cr, d.x, d.y);
+            }
+            offset += len;
+            return;
+        }
+        if (pos%2==0) cairo_move_to(cr, x, y);
+        x += (pattern[pos]-offset)*ddx;
+        y += (pattern[pos]-offset)*ddy;
+        if (pos%2==0) cairo_line_to(cr, x, y);
+        processed += pattern[pos]-offset;
+        pos = (pos+1)%num;
+    }
+
+    while(processed+pattern[pos] <= len) {
+        if (pos%2==0) cairo_move_to(cr, x, y);
+        x += pattern[pos]*ddx;
+        y += pattern[pos]*ddy;
+        if (pos%2==0) cairo_line_to(cr, x, y);
+        processed += pattern[pos];
+        pos = (pos+1)%num;
+    }
+
+    offset = len - processed;
+    if (pos%2==0 && fabs(offset)>1e-10) {
+        cairo_move_to(cr, x, y);
+        cairo_line_to(cr, d.x, d.y); 
+    }
+}
 
 
 //Returns how much MN can be shifted up to bump into AB
@@ -491,28 +540,20 @@ EdgeArc::EdgeArc(const XY &c, double radius_x, double radius_y, double tilt_deg,
 
 bool EdgeArc::IsSane() const
 {
-    switch(type) {
-    case EDGE_ARC:
-        if (!ell.Radian2Point(e).test_equal(end)) return false;
-    case EDGE_FULL_CIRCLE:
-        if (!ell.Radian2Point(s).test_equal(start)) return false;
-    case EDGE_STRAIGHT:
-        if (boundingBox.IsWithin(start) == WI_OUTSIDE || 
-            boundingBox.IsWithin(end) == WI_OUTSIDE) return false;
-    }
+    if (!IsSaneNoBoundingBox()) return false;
+    if (boundingBox.IsWithin(start) == WI_OUTSIDE || 
+        boundingBox.IsWithin(end) == WI_OUTSIDE) return false;
     return true;
 }
 
 bool EdgeArc::IsSaneNoBoundingBox() const
 {
-    switch(type) {
-    case EDGE_ARC:
+    if (type == EDGE_ARC) 
         if (!ell.Radian2Point(e).test_equal(end)) return false;
-    case EDGE_FULL_CIRCLE:
+    if (type == EDGE_FULL_CIRCLE)
+        if (!end.test_equal(start)) return false;
+    if (type != EDGE_STRAIGHT)
         if (!ell.Radian2Point(s).test_equal(start)) return false;
-    case EDGE_STRAIGHT:
-        break;
-    }
     return true;
 }
 
@@ -1026,6 +1067,69 @@ void EdgeArc::Path(cairo_t *cr, bool reverse) const
     }
 }
 
+void EdgeArc::PathDashedCurvy(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse) const
+{
+    _ASSERT(num);
+    _ASSERT(offset<pattern[pos]);
+    cairo_new_path(cr);
+    cairo_save(cr);
+    ell.TransformForDrawing(cr);
+    double local_s = s, local_e = e;
+    if (reverse) {
+        if (local_s<local_e) local_s += 2*M_PI; //ensure local_s is larger than local_e (assume local_e and local_s between [0, 2PI])
+    } else {
+        if (local_e<local_s) local_e += 2*M_PI; //ensure local_e is larger than local_s
+    }
+    //TODO Do proper ellipse arc length calculations
+    const double avg_r = (ell.GetRadius1()+ell.GetRadius1())/2;
+    const double len = fabs(local_s-local_e)*avg_r; 
+    const double inc_s = local_s<local_e ? 1/avg_r : -1/avg_r;
+    double processed = 0;
+    if (offset) {
+        if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
+            offset += len;
+            if (pos%2==0) {//start with drawn
+                cairo_new_sub_path(cr);
+                if (reverse) cairo_arc_negative(cr, 0, 0, 1., local_s, local_e);
+                else cairo_arc(cr, 0, 0, 1., local_s, local_e);
+                cairo_restore(cr);
+            } else
+                cairo_restore(cr);
+            return;
+        }
+        const double new_s = local_s + inc_s*(pattern[pos]-offset);
+        if (pos%2==0) {
+            cairo_new_sub_path(cr);
+            if (reverse) cairo_arc_negative(cr, 0, 0, 1., local_s, new_s);
+            else cairo_arc(cr, 0, 0, 1., local_s, new_s);
+        }
+        local_s = new_s;
+        processed += pattern[pos]-offset;
+        pos = (pos+1)%num;
+    }
+
+    while (processed+pattern[pos] <= len) {
+        const double new_s = local_s + inc_s*pattern[pos];
+        if (pos%2==0) {
+            cairo_new_sub_path(cr);
+            if (reverse) cairo_arc_negative(cr, 0, 0, 1., local_s, new_s);
+            else cairo_arc(cr, 0, 0, 1., local_s, new_s);
+        }
+        local_s = new_s;
+        processed += pattern[pos];
+        pos = (pos+1)%num;
+    }
+
+    offset = len - processed;
+    if (pos%2==0 && !test_zero(offset)) {
+        cairo_new_sub_path(cr);
+        if (reverse) cairo_arc_negative(cr, 0, 0, 1., local_s, local_e);
+        else cairo_arc(cr, 0, 0, 1., local_s, local_e);
+    }
+    cairo_restore(cr);
+}
+
+
 //return false if curvy edge disappears
 //Destroys bounding box!!!
 bool EdgeArc::Expand(double gap)
@@ -1036,6 +1140,7 @@ bool EdgeArc::Expand(double gap)
         case 1: //ell remained an ellipse
             start = ell.Radian2Point(s);
             if (type==EDGE_ARC) end = ell.Radian2Point(e);
+            else end = start; //full circle
             return true;
         case 0:
         case -1: //completely disappeared
@@ -1417,3 +1522,5 @@ double Edge::OffsetBelow(const EdgeArc &o, double &touchpoint) const
     }
     return ret;
 }
+
+} //namespace

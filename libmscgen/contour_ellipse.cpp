@@ -50,6 +50,7 @@
 #include <algorithm>
 #include "contour_ellipse.h"
 
+namespace contour {
 
 //////////////////Helper functions
 
@@ -725,3 +726,4 @@ double EllipseData::OffsetAbove(const XY&, const XY&) const
     return 0;
 }
 
+} //namespace

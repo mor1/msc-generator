@@ -219,7 +219,7 @@ void MscLineAttr::MakeComplete()
 }
 
 
-const double * MscLineAttr::DashPattern(int &num) const
+const double * MscLineAttr::DashPattern(unsigned &num) const
 {
     //last number is sum of the ones before
     static const double dash_dotted[]={2, 2, 4};
