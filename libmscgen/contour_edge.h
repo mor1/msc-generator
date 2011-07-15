@@ -43,7 +43,7 @@ inline double angle_degrees(double angle) {
 }
 
 typedef enum {EDGE_STRAIGHT, EDGE_FULL_CIRCLE, EDGE_ARC} EEdgeType;
-typedef enum {EXPAND_MITER, EXPAND_ROUND, EXPAND_BEVEL, EXPAND_ROUND_HOLES, EXPAND_BEVEL_HOLES} EExpandType;
+typedef enum {EXPAND_MITER, EXPAND_ROUND, EXPAND_BEVEL, EXPAND_MITER_ROUND, EXPAND_MITER_BEVEL, EXPAND_MITER_SQUARE} EExpandType;
 
 struct RayAngle {
     double angle;  //the false angle [0..4], each integer corresponds to 90 degrees

@@ -392,6 +392,7 @@ void contour_test(void)
     Contour form4 = Contour(0, 100, 0, 50) - Contour(XY(0, 25), 10, 35) + Contour(XY(100, 25), 10, 35);
     Contour form5 = Contour(0, 100, 0, 50) - Contour(XY(0, 15), 15) - Contour(XY(0, 40), 10);
 
+    
     DrawExpand(160, EXPAND_MITER, form1, false, "pipe with miter");
     DrawExpand(161, EXPAND_MITER, form2, false, "reverse pipe with miter");
     DrawExpand(162, EXPAND_MITER, form3, false, "pipe with bigger circle with miter");
@@ -407,7 +408,25 @@ void contour_test(void)
     DrawExpand(182, EXPAND_ROUND, form3, false, "pipe with bigger circle with miter");
     DrawExpand(183, EXPAND_ROUND, form4, false, "reverse pipe with bigger circle with miter");
     DrawExpand(184, EXPAND_ROUND, form5, false, "two inverse circles with miter");
-    
+
+    DrawExpand(185, EXPAND_MITER_BEVEL, form1, false, "pipe with miter");
+    DrawExpand(186, EXPAND_MITER_BEVEL, form2, false, "reverse pipe with miter");
+    DrawExpand(187, EXPAND_MITER_BEVEL, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(188, EXPAND_MITER_BEVEL, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(189, EXPAND_MITER_BEVEL, form5, false, "two inverse circles with miter");
+
+    DrawExpand(190, EXPAND_MITER_ROUND, form1, false, "pipe with miter");
+    DrawExpand(191, EXPAND_MITER_ROUND, form2, false, "reverse pipe with miter");
+    DrawExpand(192, EXPAND_MITER_ROUND, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(193, EXPAND_MITER_ROUND, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(194, EXPAND_MITER_ROUND, form5, false, "two inverse circles with miter");
+
+    DrawExpand(195, EXPAND_MITER_SQUARE, form1, false, "pipe with miter");
+    DrawExpand(196, EXPAND_MITER_SQUARE, form2, false, "reverse pipe with miter");
+    DrawExpand(197, EXPAND_MITER_SQUARE, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(198, EXPAND_MITER_SQUARE, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(199, EXPAND_MITER_SQUARE, form5, false, "two inverse circles with miter");
+
     /* End of exclusion for speed */
     //Works up to here
 
@@ -419,7 +438,11 @@ void contour_test(void)
     Draw(2183, lohere1);
 
 
-    Contour lohere2 = Contour(0,100, 0,100) + lohere1;
+    Draw(2184, Contour(0,100, 0,100), lohere1, Contour(0,100, 0,100) + lohere1);
+    Draw(2185, Contour(0,100, 0,100), lohere1, Contour(0,100, 0,100) - lohere1);
+
+    Contour lohere2 = Contour(XY(100,100), 100) - Contour(XY(140,100), 120);
+
     Contour lohere3 = Contour(0,100, 0,100) - lohere1;
     Contour lohere4 = Contour(0,100, 0,100) +
                       Contour(XY(0,0), 50) - Contour(XY(50,0), 50) + 
@@ -428,7 +451,7 @@ void contour_test(void)
     Contour lohere5 = lohere3.GetNth(0);
 
     Draw(2190, lohere1);
-    Draw(2191, lohere2);
+    Draw(2191, Contour(XY(100,100), 100), Contour(XY(140,100), 120), lohere2);
     Draw(2192, lohere3);
     Draw(2193, lohere4);
     Draw(2194, lohere5);
@@ -443,10 +466,13 @@ void contour_test(void)
     DrawExpand(261, EXPAND_BEVEL, lohere2, false);
     DrawExpand(262, EXPAND_BEVEL, lohere3, false);
     DrawExpand(263, EXPAND_BEVEL, lohere4, false);
+    DrawExpand(264, EXPAND_BEVEL, lohere5, false);
+
     DrawExpand(270, EXPAND_ROUND, lohere1, false);
     DrawExpand(271, EXPAND_ROUND, lohere2, false);
     DrawExpand(272, EXPAND_ROUND, lohere3, false);
     DrawExpand(273, EXPAND_ROUND, lohere4, false);
+    DrawExpand(274, EXPAND_ROUND, lohere4, false);
     
 
     DrawExpand(280, EXPAND_MITER, Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);

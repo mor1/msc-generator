@@ -350,7 +350,7 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
     while (--max_itr>=0) {
         XY c1 =   conv_to_circle_space(p);
         XY c2 = B.conv_to_circle_space(p);
-        const double closeness = sqr(c1.length()-1) + sqr(c2.length()-1);
+        const double closeness = fabs(c1.length()-1) + fabs(c2.length()-1);
         if (closeness<1e-30)
             return true;
         const double r1 = circle_space_point2radian_curvy(c1);
@@ -369,6 +369,33 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         XY p_new;
         if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL)
             return false; //no intersection. Lines are parallel two ellipses, we drop this
+        if ((p-p_new).length_sqr()<1e-30)
+            return true; //no improvement, exit
+        p = p_new;
+    }
+    return true;
+}
+
+//refines the location of a point using crosspoints of tangents
+bool EllipseData::refine_point(const XY &A, const XY &B, XY &p) const
+{
+    int max_itr = 32;
+    XY p_orig = p;
+    while (--max_itr>=0) {
+        XY c1 =   conv_to_circle_space(p);
+        const double closeness = fabs(c1.length()-1);
+        if (closeness<1e-30)
+            return true;
+        const double r1 = circle_space_point2radian_curvy(c1);
+        const XY A1 =   conv_to_real_space(XY(cos(r1)        , sin(r1)        ));
+        //A1 is a point on the ellipse closest to p
+        const XY A2 =   conv_to_real_space(XY(cos(r1)+sin(r1), sin(r1)-cos(r1)));
+        //Now A1-A2 is a tangent of the ellipse
+        //We operate on the assumption that the intersection of two tangents is closer to the
+        //intersection of the ellipses
+        XY p_new;
+        if (crossing_line_line(A1, A2, A, B, p_new) == LINE_CROSSING_PARALLEL)
+            return true; //no intersection. We must be done...
         if ((p-p_new).length_sqr()<1e-30)
             return true; //no improvement, exit
         p = p_new;
@@ -611,7 +638,10 @@ int EllipseData::CrossingEllipse(const EllipseData &B, XY r[], double radian_us[
 //returns [0..1] if p is on MN, other value if not
 double point2pos_straight(const XY &M, const XY&N, const XY &p)
 {
-    if (M==N) return p==M ? 0 : -1;
+    if (M.test_equal(N)) {
+        _ASSERT(M.test_equal(p));
+        return 0;
+    }
     if (fabs(M.x-N.x) > fabs(M.y-N.y)) {
         double t = (p.x-M.x)/(N.x-M.x);
         if (test_equal(p.y, M.y + (N.y-M.y)*t)) return t;
@@ -619,19 +649,20 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p)
         double t = (p.y-M.y)/(N.y-M.y);
         if (test_equal(p.x, M.x + (N.x-M.x)*t)) return t;
     }
+    _ASSERT(0);
     return -1;
 }
 
 int EllipseData::CrossingStraight(const XY &A, const XY &B,
   	                          XY *r, double *radian_us, double *pos_b) const
 {
-    XY M = conv_to_circle_space(A);
-    XY N = conv_to_circle_space(B);
+    const XY M = conv_to_circle_space(A);
+    const XY N = conv_to_circle_space(B);
 
     //See circle intersection with a line specificed by two points
     //http://mathworld.wolfram.com/Circle-LineIntersection.html
     double D = M.PerpProduct(N);
-    XY d = N-M;
+    const XY d = N-M;
     double disc = d.length()*d.length() - D*D;
     if (disc<0) {
         //no intersection, check if it almost touches
@@ -640,11 +671,10 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B,
         else return 0;
     }
 
-    XY v(d.x*sqrt(disc), fabs(d.y)*sqrt(disc));
-    if (d.y<0) v.x = -v.x;
-    XY f(D*d.y, -D*d.x);
+    const XY v((d.y<0 ? -d.x : d.x)*sqrt(disc), fabs(d.y)*sqrt(disc));
+    const XY f(D*d.y, -D*d.x);
     int num;
-    if (test_zero(fabs(v.x)+fabs(v.y))) { //only touch
+    if (test_zero(disc)) { //only touch
         r[0] = f/d.length()/d.length();
         num = 1;
     } else {
@@ -654,9 +684,11 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B,
         num = 2;
     }
 
+
     for (int i=0; i<num; i++) {
-        radian_us[i] = circle_space_point2radian_curvy(r[i]);
         r[i] = conv_to_real_space(r[i]);
+        refine_point(A, B, r[i]);
+        radian_us[i] = Point2Radian(r[i]);
         //special case: horizontal line
         if (A.y==B.y) r[i].y = A.y;
         if (A.x==B.x) r[i].x = A.x;

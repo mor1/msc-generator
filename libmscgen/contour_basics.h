@@ -54,6 +54,7 @@ public:
     XY &   RoundUp()                      {x = ceil(x); y=ceil(y); return *this;}
     XY &   RoundDown()                    {x = floor(x); y=floor(y); return *this;}
     XY &   Scale(const XY &sc)            {x*=sc.x; y*=sc.y; return *this;}
+    XY &   Normalize()                    {const double l = length(); if (l) {x/=l; y/=l;} return *this;}
 };
 
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX, WI_IN_HOLE} is_within_t;
