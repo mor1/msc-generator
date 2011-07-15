@@ -16,6 +16,8 @@ using contour::fmod_negative_safe;
 using contour::EXPAND_MITER;
 using contour::EXPAND_BEVEL;
 using contour::EXPAND_ROUND;
+using contour::EXPAND_MITER_BEVEL;
+using contour::EXPAND_MITER_ROUND;
 
 class TrackableElement;
 //plus it has additional stuff, such as arc, drawtype, findtype and mainline
@@ -68,7 +70,9 @@ public:
     void RotateAround(const XY&c, double degrees) {Contour::RotateAround(c, degrees);}
     void SwapXY() {Contour::SwapXY(); mainline.MakeInvalid();}
 
-    Area CreateExpand(double gap, contour::EExpandType et=EXPAND_MITER) const;
+    Area CreateExpand(double gap, contour::EExpandType et4pos=EXPAND_MITER_ROUND, contour::EExpandType et4neg=EXPAND_MITER_ROUND) const;
+    Area &Expand(double gap, contour::EExpandType et4pos=EXPAND_MITER_ROUND, contour::EExpandType et4neg=EXPAND_MITER_ROUND)
+         {Contour::Expand(gap, et4pos, et4neg); mainline.Expand(gap); return *this;}
 	void ClearHoles() {Contour::ClearHoles();}
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline = true) const;

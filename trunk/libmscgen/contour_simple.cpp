@@ -485,6 +485,26 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
 
 //////////////////////////////////SimpleContour::Expand implementation
 
+Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise)
+{
+    XY center = old;
+    double radius = (start-old).length();
+    if (!test_equal(radius, (end-old).length())) {
+        center = (start+end)/2;
+        radius = (start-center).length();
+    }
+    Edge edge(center, radius);
+    //We do not know if the resulting contour will be clockwise or not
+    //But, if we use the clockwiseness of the original contour, we are safe
+    //since for positive originals we will keep only positive results,
+    //so if we miss and we will be part of a negative contour, that 
+    //will get dropped anyway. (Likewise for negative orgiginals.)
+    if (!clockwise) edge.Invert();
+    edge.SetStartLiberal(start);  //these keep clockwise
+    edge.SetEndLiberal(end);
+    return edge;
+}
+
 
 void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
 {
@@ -504,9 +524,6 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
         res = std::move(r);
         return;
     }
-
-    if (type == EXPAND_ROUND) type = (clockwise && gap>0) ? EXPAND_ROUND_HOLES : EXPAND_MITER;
-    else if (type == EXPAND_BEVEL) type = (clockwise && gap>0) ? EXPAND_BEVEL_HOLES : EXPAND_MITER;
 
     //Expand all the edges
     for (unsigned i = 0; i<r.size(); i++) 
@@ -530,7 +547,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
         cross_type[i] = r[i].FindExpandedEdgesCP(r.at_next(i), o[i].GetStart(), cross_point[i]);
 
     //now kill the ones that changed direction
-    if (type == EXPAND_MITER) {   //for bevel and round we check this after inserting bevel & round
+    if (type == EXPAND_MITER ||
+        type == EXPAND_MITER_ROUND ||
+        type == EXPAND_MITER_BEVEL) {   //for bevel and round we check this after inserting bevel & round
         unsigned prev_size;
         do {
             prev_size = r.size();
@@ -574,13 +593,16 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
     default:
         _ASSERT(0);
     case EXPAND_MITER:
+    case EXPAND_MITER_ROUND:
+    case EXPAND_MITER_BEVEL:
+    case EXPAND_MITER_SQUARE:
         for (unsigned i = 0; i<r.size(); i++) {
             XY new_start = r[i].GetStart();
             XY new_end =   r[i].GetEnd();
             switch (cross_type[r.prev(i)]) {
+            case EdgeArc::CP_ADD_LINE_ME:    if (type != EXPAND_MITER) break; /*else fallthrough*/
             case EdgeArc::CP_REAL:           
-            case EdgeArc::CP_EXTENDED:       
-            case EdgeArc::CP_ADD_LINE_ME:    new_start = cross_point[r.prev(i)]; break;
+            case EdgeArc::CP_EXTENDED:       new_start = cross_point[r.prev(i)]; break;
             case EdgeArc::DEGENERATE:        _ASSERT(0); /*fallthrough*/
             case EdgeArc::SAME_ELLIPSIS:     
             case EdgeArc::PARALLEL_LINES:    
@@ -589,9 +611,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
             case EdgeArc::NO_CP_ADD_LINE:    break; /*list all values to avoid warnings*/
             }
             switch (cross_type[i]) {
+            case EdgeArc::CP_ADD_LINE_OTHER: if (type != EXPAND_MITER) break; /*else fallthrough*/
             case EdgeArc::CP_REAL:           
-            case EdgeArc::CP_EXTENDED:       
-            case EdgeArc::CP_ADD_LINE_OTHER: new_end = cross_point[i]; break;
+            case EdgeArc::CP_EXTENDED:       new_end = cross_point[i]; break;
             case EdgeArc::DEGENERATE:        _ASSERT(0); /*fallthrough*/
             case EdgeArc::SAME_ELLIPSIS:     /* can happen if a circle disappeared */
             case EdgeArc::PARALLEL_LINES:    /* can happen if a circle disappeared */
@@ -599,39 +621,109 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
             case EdgeArc::CP_ADD_LINE_BOTH:
             case EdgeArc::NO_CP_ADD_LINE:    break; /*list all values to avoid warnings*/
             }
-            _ASSERT(r[i].IsSaneNoBoundingBox());
-            r[i].SetStartEndForExpand(new_start, new_end);
-            _ASSERT(r[i].IsSaneNoBoundingBox());
-            r2.push_back(r[i]);
-            //Now see if we need to add a line
-            switch (cross_type[i]) {
-            case EdgeArc::NO_CP_ADD_LINE:    
-            case EdgeArc::PARALLEL_LINES:    
-                r2.push_back(EdgeArc(new_end, r.at_next(i).GetStart())); 
-                break;
-            case EdgeArc::CP_ADD_LINE_ME:    
-                r2.push_back(EdgeArc(new_end, cross_point[i])); 
-                break;
-            case EdgeArc::CP_ADD_LINE_OTHER:  
-                r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart()));
-                break;
-            case EdgeArc::CP_ADD_LINE_BOTH:  
-                r2.push_back(EdgeArc(new_end, cross_point[i]));
-                r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart())); 
-                break;
-            case EdgeArc::SAME_ELLIPSIS: 
-            case EdgeArc::DEGENERATE:        
-                _ASSERT(0); /*fallthrough*/
-            case EdgeArc::CP_REAL:           
-            case EdgeArc::CP_EXTENDED:       
-                break; /*list all values to avoid warnings*/
+            if (!new_start.test_equal(new_end)) {
+                //insert existin edge (updated)
+                _ASSERT(r[i].IsSaneNoBoundingBox());
+                r[i].SetStartEndForExpand(new_start, new_end);
+                _ASSERT(r[i].IsSaneNoBoundingBox());
+                r2.push_back(r[i]);
+            } else {
+                //existing edge got degenerate 
+                cross_point[i] = new_end = new_start; //use this from now on
+            }
+            //Now see if we need to add a line, circle or square
+            switch (type) {
+            case EXPAND_MITER:
+                switch (cross_type[i]) {
+                case EdgeArc::NO_CP_ADD_LINE:    
+                case EdgeArc::PARALLEL_LINES:    
+                    r2.push_back(EdgeArc(new_end, r.at_next(i).GetStart())); 
+                    break;
+                case EdgeArc::CP_ADD_LINE_ME:    
+                    r2.push_back(EdgeArc(new_end, cross_point[i])); 
+                    break;
+                case EdgeArc::CP_ADD_LINE_OTHER:  
+                    r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart()));
+                    break;
+                case EdgeArc::CP_ADD_LINE_BOTH:  
+                    r2.push_back(EdgeArc(new_end, cross_point[i]));
+                    r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart())); 
+                    break;
+                case EdgeArc::SAME_ELLIPSIS: 
+                case EdgeArc::DEGENERATE:        
+                    _ASSERT(0); /*fallthrough*/
+                case EdgeArc::CP_REAL:           
+                case EdgeArc::CP_EXTENDED:       
+                    break; /*list all values to avoid warnings*/
+                }
+                break; //MITER
+            case EXPAND_MITER_ROUND:
+                switch (cross_type[i]) {
+                case EdgeArc::CP_ADD_LINE_ME:    
+                case EdgeArc::CP_ADD_LINE_OTHER:  
+                case EdgeArc::CP_ADD_LINE_BOTH:  
+                case EdgeArc::NO_CP_ADD_LINE:    
+                case EdgeArc::PARALLEL_LINES:    
+                    r2.push_back(CreateRoundForExpand(new_end, r.at_next(i).GetStart(), 
+                                                      o[i].GetEnd(), clockwise ^ (gap<0)));
+                    break;
+                case EdgeArc::SAME_ELLIPSIS: 
+                case EdgeArc::DEGENERATE:        
+                    _ASSERT(0); /*fallthrough*/
+                case EdgeArc::CP_REAL:           
+                case EdgeArc::CP_EXTENDED:       
+                    break; /*list all values to avoid warnings*/
+                }
+                break; //ROUND
+            case EXPAND_MITER_BEVEL:
+                switch (cross_type[i]) {
+                case EdgeArc::CP_ADD_LINE_ME:    
+                case EdgeArc::CP_ADD_LINE_OTHER:  
+                case EdgeArc::CP_ADD_LINE_BOTH:  
+                case EdgeArc::NO_CP_ADD_LINE:    
+                case EdgeArc::PARALLEL_LINES:    
+                    r2.push_back(EdgeArc(new_end, r.at_next(i).GetStart())); 
+                    break;
+                case EdgeArc::SAME_ELLIPSIS: 
+                case EdgeArc::DEGENERATE:        
+                    _ASSERT(0); /*fallthrough*/
+                case EdgeArc::CP_REAL:           
+                case EdgeArc::CP_EXTENDED:       
+                    break; /*list all values to avoid warnings*/
+                }
+                break; //ROUND
+            case EXPAND_MITER_SQUARE:
+                switch (cross_type[i]) {
+                case EdgeArc::SAME_ELLIPSIS: 
+                case EdgeArc::DEGENERATE:        
+                    _ASSERT(0); /*fallthrough*/
+                case EdgeArc::CP_REAL:           
+                case EdgeArc::CP_EXTENDED:       
+                    break; /*list all values to avoid warnings*/
+                case EdgeArc::CP_ADD_LINE_ME:    
+                case EdgeArc::CP_ADD_LINE_OTHER:  
+                case EdgeArc::CP_ADD_LINE_BOTH:  
+                case EdgeArc::NO_CP_ADD_LINE:    
+                case EdgeArc::PARALLEL_LINES:    
+                    const XY &next_start = r.at_next(i).GetStart();
+                    const double dist = (new_end - next_start).length();
+                    //NextTangent(x, 1) and PrevTangent(x, 0) uses next and prev edges, resp.
+                    //We need the tangent of x there, so we take the other dir and invert
+                    const XY first_tangent = PrevTangentPoint(i, 1);
+                    const XY first = new_end - (first_tangent - new_end).Normalize()*dist;
+                    const XY second_tangent = NextTangentPoint(next(i), 0);
+                    const XY second = next_start - (second_tangent - next_start).Normalize()*dist;
+                    r2.push_back(EdgeArc(new_end, first)); 
+                    r2.push_back(EdgeArc(first, second)); 
+                    r2.push_back(EdgeArc(second, next_start)); 
+                    break;
+                }
+                break; //SQUARE
             }
         }
         break;
-    case EXPAND_BEVEL:   //should have been avoided above, ...
-    case EXPAND_ROUND:   //... placed here just to silence warningd
-    case EXPAND_BEVEL_HOLES:
-    case EXPAND_ROUND_HOLES:
+    case EXPAND_BEVEL:   
+    case EXPAND_ROUND:   
         enum EEdgeType {EXISTING, EXISTING_CHANGED_DIR, INSERTED};
         std::vector<EEdgeType> edge_type;  edge_type.reserve(200);
         std::vector<int> edge_orig;        edge_orig.reserve(200);
@@ -642,36 +734,25 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
                 new_start = cross_point[r.prev(i)]; 
             if (cross_type[i] == EdgeArc::CP_REAL)
                 new_end = cross_point[i];
-            const bool changed_dir = r[i].IsOpposite(new_start, new_end); 
-            r[i].SetStartEndForExpand(new_start, new_end);
-            r2.push_back(r[i]);
-            edge_type.push_back(changed_dir ? EXISTING_CHANGED_DIR : EXISTING);
-            edge_orig.push_back(i);
+            if (!new_start.test_equal(new_end)) {
+                const bool changed_dir = r[i].IsOpposite(new_start, new_end); 
+                r[i].SetStartEndForExpand(new_start, new_end);
+                r2.push_back(r[i]);
+                edge_type.push_back(changed_dir ? EXISTING_CHANGED_DIR : EXISTING);
+                edge_orig.push_back(i);
+            } else {
+                //existing edge got degenerate 
+                cross_point[i] = new_end = new_start; //use this from now on
+            }
             if (cross_type[i] == EdgeArc::CP_REAL) continue; //no need to insert
             edge_type.push_back(INSERTED);
             edge_orig.push_back(-1);
-            if (type==EXPAND_BEVEL_HOLES || 
+            if (type==EXPAND_BEVEL || 
                 o[i].GetEnd() != o.at_next(i).GetStart()) //a missing edge
                 r2.push_back(Edge(new_end, r.at_next(i).GetStart()));  //insert line
-            else {
-                const double radius = (new_end-o[i].GetEnd()).length();
-                const double radius2 = (r.at_next(i).GetStart()-o[i].GetEnd()).length();
-                if (test_equal(radius, radius2)) 
-                    r2.push_back(Edge(o[i].GetEnd(), radius));  //insert circle
-                else {
-                    const XY center = (new_end+r.at_next(i).GetStart())/2;
-                    const double radius3 = (new_end-center).length();
-                    r2.push_back(Edge(center, radius3));  //insert circle
-                }
-                //We do not know if the resulting contour will be clockwise or not
-                //But, if we use the clockwiseness of the original contour, we are safe
-                //since for positive originals we will keep only positive results,
-                //so if we miss and we will be part of a negative contour, that 
-                //will get dropped anyway. (Likewise for negative orgiginals.)
-                if (!clockwise) r2.rbegin()->Invert();
-                r2.rbegin()->SetStartLiberal(new_end);  //these keep clockwise
-                r2.rbegin()->SetEndLiberal(r.at_next(i).GetStart());
-            }
+            else 
+                r2.push_back(CreateRoundForExpand(new_end, r.at_next(i).GetStart(), 
+                                                  o[i].GetEnd(), clockwise ^ (gap<0)));  //circle
         }
         //Now check all inserted edge.
         //If any neighbouring original edge has changed direction and the 

@@ -99,7 +99,7 @@ protected:
     //Call these for both us and the holes (except for OffsetBelow)
     void DoVerticalCrossSection(double x, DoubleMap<bool> &section) const {SimpleContour::DoVerticalCrossSection(x, section); if (holes.size()) holes.DoVerticalCrossSection(x, section);}
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const {return SimpleContour::OffsetBelow(below, touchpoint, offset);}
-    void Expand(EExpandType type, double gap, Contour &res) const;
+    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const;
     void Path(cairo_t *cr) const {SimpleContour::Path(cr); if (holes.size()) holes.Path(cr);}
     void Path(cairo_t *cr, bool clockwiseonly) const {SimpleContour::Path(cr, clockwiseonly); if (holes.size()) holes.Path(cr, clockwiseonly);}
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const {SimpleContour::PathDashed(cr, pattern, num); if (holes.size()) holes.PathDashed(cr, pattern, num);}
@@ -147,7 +147,7 @@ protected:
     void Operation(operation_t type, const Contour &c1, Contour &&c2);
     void Operation(operation_t type, Contour &&c1, Contour &&c2);
 
-    void Expand(EExpandType type, double gap, Contour &res) const;
+    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const;
 public:
     Contour() {boundingBox.MakeInvalid();}
     Contour(double sx, double dx, double sy, double dy) : ContourWithHoles(sx, dx, sy, dy) {boundingBox = ContourWithHoles::GetBoundingBox();}
@@ -221,8 +221,8 @@ public:
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {ContourWithHoles::DoVerticalCrossSection(x, section); if (further.size()) further.DoVerticalCrossSection(x, section);}
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const {return SimpleContour::OffsetBelow(below, touchpoint, offset);}
-    void Expand(double gap, EExpandType et=EXPAND_MITER);
-    Contour CreateExpand(double gap, EExpandType et=EXPAND_MITER) const;
+    void Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND);
+    Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND) const;
 
     void Path(cairo_t *cr) const {ContourWithHoles::Path(cr); if (further.size()) further.Path(cr);}
     void Path(cairo_t *cr, bool clockwiseonly) const {ContourWithHoles::Path(cr, clockwiseonly); if (further.size()) further.Path(cr,clockwiseonly);}
@@ -284,23 +284,6 @@ inline void ContourList::RotateAround(const XY&c, double cos, double sin, double
     }
 }
 
-///////ContourWithHoles///////////////////////////////////////
-
-inline void ContourWithHoles::Expand(EExpandType type, double gap, Contour &res) const 
-{
-    if (size()==0) return;
-    if (gap==0) {res.clear(); static_cast<ContourWithHoles&>(res) = *this; return;}
-    SimpleContour::Expand(type, gap, res); 
-    if (holes.size()==0 || res.IsEmpty()) return;
-    Contour tmp; 
-    for (auto i=holes.begin(); i!=holes.end(); i++) {
-        i->Expand(type, gap, tmp);
-        //in case "i" is an actual holes, it is are already inversed, adding is the right op
-        res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
-        tmp.clear();
-    }
-}
-
 ///////Contour///////////////////////////////////////
 
 inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
@@ -316,20 +299,20 @@ inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
     }
 }
 
-inline void Contour::Expand(double gap, EExpandType et) 
+inline void Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg) 
 {
     if (gap) {
         Contour res; 
-        Expand(et, gap, res); 
+        Expand(et4pos, et4neg, gap, res); 
         swap(res);
     }
 }
 
-inline Contour Contour::CreateExpand(double gap, EExpandType et) const 
+inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType et4neg) const 
 {
     if (!gap) return *this; 
     Contour res; 
-    Expand(et, gap, res); 
+    Expand(et4pos, et4neg, gap, res); 
     return res;
 }
 

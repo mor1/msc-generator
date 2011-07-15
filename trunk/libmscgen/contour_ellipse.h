@@ -41,6 +41,7 @@ protected:
     int  refine_crosspoints(int num_y, double y[], const EllipseData &b,
                             const quadratic_xy_t &one, const quadratic_xy_t &two, XY p[]) const;
     bool refine_point(const EllipseData &B, XY &p) const;
+    bool refine_point(const XY &A, const XY &B, XY &p) const;
     void transpose_curvy_non_tilted();
 	void calculate_extremes();
 	double add_to_tilt(double cos, double sin, double radian);

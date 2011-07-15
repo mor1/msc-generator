@@ -450,8 +450,8 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
     XY r[4];
     double one_pos[4], two_pos[4];
     //We ignore the holes for now, just calculate where i crosses itself
-    for (unsigned u1 = 1; u1<i->size(); u1++)
-        for (unsigned u2 = 0; u2<u1; u2++) {
+    for (unsigned u1 = 2; u1<i->size(); u1++)
+        for (unsigned u2 = 0; u2<u1-1; u2++) {
             const unsigned n = i->at(u1).Crossing(i->at(u2), r, one_pos, two_pos);
             for (unsigned k=0; k<n;k++) {
                 //main_clockwise values are dummy
@@ -1208,6 +1208,21 @@ bool ContourWithHoles::IsSane(bool shouldbehole) const
     return true;
 }
 
+void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const 
+{
+    if (size()==0) return;
+    if (gap==0) {res.clear(); static_cast<ContourWithHoles&>(res) = *this; return;}
+    SimpleContour::Expand(GetClockWise() && gap>0 ? type4positive : type4negative, gap, res); 
+    if (holes.size()==0 || res.IsEmpty()) return;
+    Contour tmp; 
+    for (auto i=holes.begin(); i!=holes.end(); i++) {
+        i->Expand(type4positive, type4negative, gap, tmp);
+        //in case "i" is an actual holes, it is are already inversed, adding is the right op
+        res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
+        tmp.clear();
+    }
+}
+
 
 /////////////////////////////////////////  Contour implementation
 
@@ -1311,13 +1326,13 @@ void Contour::Operation(operation_t type, Contour &&c1, Contour &&c2)
     h.Do(type, *this);
 }
 
-void Contour::Expand(EExpandType type, double gap, Contour &res) const 
+void Contour::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const 
 {
-    ContourWithHoles::Expand(type, gap, res); 
+    ContourWithHoles::Expand(type4positive, type4negative, gap, res); 
     if (further.size()==0) return; 
     Contour tmp; 
     for (auto i = further.begin(); i!=further.end(); i++) {
-        i->Expand(type, gap, tmp); 
+        i->Expand(type4positive, type4negative, gap, tmp); 
         res += std::move(tmp);
         tmp.clear();
     } 

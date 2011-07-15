@@ -740,6 +740,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
 		    if (!test_smaller(0, loc_my[num])) { //if close to 0 snap it there
 			    loc_my[num] = 0;
 			    loc_r[num] = start;
+                loc_other[num] = point2pos_straight(o.start, o.end, start);
 		    } else if (!test_smaller(loc_my[num], 1))  //if close or above to 1 skip
 			    continue;
 		    //test if loc_other
@@ -748,6 +749,8 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
 		    if (!test_smaller(0, loc_other[num])) { //if close to 0 snap it there
 			    loc_other[num] = 0;
 			    loc_r[num] = o.start;
+                loc_my[num] = radian2pos(ell.Point2Radian(o.start));
+                if (test_zero(loc_my[num])) loc_my[num] = 0; 
 		    } else if (!test_smaller(loc_other[num], 1))  //if close or above to 1 skip
 			    continue;
             //OK add as a crosspoint
@@ -1230,7 +1233,7 @@ int find_closest(int num, const double r[], double p, bool larger)
 //DEGENERATE: One of the edges have start==end
 EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const
 {
-    if (start==end || M.start==M.end) return DEGENERATE;
+    if (start.test_equal(end) || M.start.test_equal(M.end)) return DEGENERATE;
     const double parallel_join_multipiler = 5;
     if (M.type == EDGE_STRAIGHT) {
         if (type == EDGE_STRAIGHT) {

@@ -21,15 +21,14 @@
 
 /////////////////////////////////////////  Contour implementation
 
-Area Area::CreateExpand(double gap, contour::EExpandType et) const
+Area Area::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpandType et4neg) const
 {
     Area result;
     if (gap == 0) return (result = *this);  //always return result->compiler optimizes
     result.arc = arc;
     result.mainline = mainline;
-    result.mainline.from -= gap;
-    result.mainline.from += gap;
-    Contour::Expand(et, gap, result);
+    result.mainline.Expand(gap);
+    Contour::Expand(et4pos, et4neg, gap, result);
     return result;
 }
 
