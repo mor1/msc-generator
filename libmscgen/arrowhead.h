@@ -2,7 +2,7 @@
 #define ARROWHEAD_H
 #include <vector>
 #include "attribute.h"
-#include "area.h"
+#include "contour.h"
 
 typedef enum {
     //Both big and small arrows
@@ -37,6 +37,7 @@ inline bool MSC_ARROW_OK_FOR_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_
 inline bool MSC_ARROW_IS_DOUBLE(MscArrowType t) {return t>=MSC_ARROW_DOUBLE && t<=MSC_ARROW_DOUBLE_HALF;}
 inline bool MSC_ARROW_IS_TRIPLE(MscArrowType t) {return t>=MSC_ARROW_TRIPLE && t<=MSC_ARROW_TRIPLE_HALF;}
 inline bool MSC_ARROW_IS_HALF(MscArrowType t) {return t==MSC_ARROW_HALF || t==MSC_ARROW_DOUBLE_HALF || t==MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_IS_LINE(MscArrowType t) {return t==MSC_ARROW_LINE || t==MSC_ARROW_DOUBLE_LINE || t==MSC_ARROW_TRIPLE_LINE;}
 inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(MscArrowType t) {return t>0 && (t<=MSC_ARROW_SHARP_EMPTY || t>=MSC_ARROW_EMPTY_INV);}
 
 typedef enum {
@@ -93,13 +94,13 @@ public:
     double getTriWidth(bool bidir, MscArrowEnd which) const;
     //tells how much of the arrow line is covered by the arrowhead for text margin (on both sides of the entity line)
     DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const;
-    //tells what range of the entity line is covered by the arrowhead
-    Area EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
+    //tells what area of the entity line is covered by the arrowhead
+    Contour EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
     //Returns a clip contour covering the arrowhead and the rest of the chart (both sides)
-    Area ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
-                     const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
+    Contour ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
+                        const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //Returns a contour covering the arrowhead
-    Area Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which) const;
+    Contour Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which) const;
     //This actually draws an arrowhead
     void Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, MscCanvas *) const;
 
@@ -113,18 +114,18 @@ public:
     //tells the full width of the arrowhead (on both sides of the entity line) for ArcBigArrow::Width()
     DoublePair getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
     //Determines how much margin is needed for a text with this cover
-    double getBigMargin(Area text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const;
+    double getBigMargin(Contour text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const;
     //tells how much the arrow (overall) extends above or below sy and dy
     double bigYExtent(bool bidir, bool multisegment) const;
-    Area BigCoverOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
-    Area BigCover(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, 
-                  bool bidir, int no_segment=-1) const;
-    Area BigEntityLineCover(const std::vector<double> &xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
-                            const std::vector<MscLineAttr> *lines, const Block &total) const;
+    Contour BigCoverOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
+    Contour BigCover(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, 
+                     bool bidir, int no_segment=-1) const;
+    Contour BigEntityLineCover(const std::vector<double> &xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
+                               const std::vector<MscLineAttr> *lines, const Block &total) const;
     void BigDraw(const std::vector<double> &xPos, std::vector<double> act_size, 
                  double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
                  const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscCanvas *canvas,
-                 const Area *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
+                 const Contour *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
 };
 
 #endif //ARROWHEAD_H

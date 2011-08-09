@@ -6,7 +6,22 @@
 #include <list>
 #include "color.h"
 #include "csh.h"
-#include "area.h"
+#include "contour.h"
+
+using contour::XY;
+using contour::Range;
+using contour::Block;
+using contour::Edge;
+using contour::Contour;
+
+using contour::DoubleMap;
+using contour::fmod_negative_safe;
+
+using contour::EXPAND_MITER;
+using contour::EXPAND_BEVEL;
+using contour::EXPAND_ROUND;
+using contour::EXPAND_MITER_BEVEL;
+using contour::EXPAND_MITER_ROUND;
 
 using std::string;
 
@@ -259,7 +274,7 @@ public:
     Contour CreateRectangle(const XY &s, const XY &d) const {return CreateRectangle(s.x, d.x, s.y, d.y);}
     Contour CreateRectangle(const Block &b) const {return CreateRectangle(b.x.from, b.x.till, b.y.from, b.y.till);}
 
-    DoublePair CalculateTextMargin(Area textCover, double rect_top) const; 
+    DoublePair CalculateTextMargin(Contour textCover, double rect_top) const; 
 };
 
 typedef enum {

@@ -1364,7 +1364,7 @@ XY Label::getTextWidthHeight(int line) const
     return xy;
 };
 
-void Label::CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Area *area) const
+void Label::CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const
 {
     if (size()==0) return;
     XY xy;

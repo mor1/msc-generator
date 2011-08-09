@@ -40,12 +40,12 @@ void Area::swap(Area &a)
 }
 
 
-AreaList AreaList::CreateExpand(double gap, contour::EExpandType et) const
+AreaList AreaList::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpandType et4neg) const
 {
     if (!gap) return *this;
     AreaList al;
     for (auto i=cover.begin(); i!=cover.end(); i++)
-        al += i->CreateExpand(gap, et);
+        al += i->CreateExpand(gap, et4pos, et4neg);
     return al;
 }
 

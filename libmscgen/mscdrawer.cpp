@@ -133,11 +133,11 @@ void MscCanvas::Clip(const Block &b, const MscLineAttr &line)
         const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
         const double r = line.radius.second + (line.IsDouble() ? - line.width.second/2 : spacing * RadiusIncMultiplier(CORNER_NOTE)); //expand radius
         //Add main body as a closed path
-        (Contour(b) - Block(b.x.till-r, b.x.till, b.y.from, b.y.from+r)).Path(cr);
+        (Contour(b) - Block(b.x.till-r, b.x.till, b.y.from, b.y.from+r)).Path(cr, true);
         const double r1 = line.radius.second - (line.IsDouble() ? spacing *2 + line.width.second/2: spacing *(1-RadiusIncMultiplier(CORNER_NOTE))); 
         const double r2 = spacing * (line.IsDouble() ? 1./RadiusIncMultiplier(CORNER_NOTE) - 1. : - 1);
         //Add little triangle as a path
-        Contour(XY(b.x.till-r1, b.y.from+r2),XY(b.x.till-r1, b.y.from+r1), XY(b.x.till-r2, b.y.from+r1)).Path(cr);
+        Contour(XY(b.x.till-r1, b.y.from+r2),XY(b.x.till-r1, b.y.from+r1), XY(b.x.till-r2, b.y.from+r1)).Path(cr, true);
     } else {
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
     }
@@ -153,7 +153,10 @@ void MscCanvas::ClipInverse(const Contour &area)
     cairo_rectangle(cr, outer.x.from, outer.y.from, outer.x.Spans(), outer.y.Spans());
     cairo_new_sub_path(cr);
     area.Contour::Path(cr, true);
+    cairo_fill_rule_t old = cairo_get_fill_rule(cr);
+    cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
     cairo_clip(cr);
+    cairo_set_fill_rule(cr, old);
 }
 
 //rotates such that a 
@@ -340,8 +343,10 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
     unsigned num=0;
     if (line.IsContinuous() || !fake_dash) 
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
-    else 
-        line.CreateRectangle(b).PathDashed(cr, line.DashPattern(num), num);
+    else {
+        const double *pattern = line.DashPattern(num);
+        line.CreateRectangle(b).PathDashed(cr, pattern, num, true);
+    }
     cairo_stroke(cr);
 }
 
@@ -349,9 +354,11 @@ void MscCanvas::singleLine(const Contour&cl, const MscLineAttr &line)
 {
     unsigned num=0;
     if (line.IsContinuous() || !fake_dash) 
-        cl.Path(cr);
-    else 
-        cl.PathDashed(cr, line.DashPattern(num), num);
+        cl.Path(cr, false);
+    else {
+        const double *pattern = line.DashPattern(num);
+        cl.PathDashed(cr, pattern, num, false);
+    }
     cairo_stroke(cr);
 }
 
@@ -364,22 +371,26 @@ void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
     if (line.IsDoubleOrTriple()) {
         Edge e = edge;
         e.Expand(spacing);
-        e.Path(cr);
+        cairo_move_to(cr, e.GetStart().x, e.GetStart().y);
+        e.PathTo(cr);
         cairo_stroke(cr);
         e.Expand(-2*spacing);
-        e.Path(cr);
+        cairo_move_to(cr, e.GetStart().x, e.GetStart().y);
+        e.PathTo(cr);
         cairo_stroke(cr);
+        if (line.IsTriple()) 
+            cairo_set_line_width(cr,  line.TripleMiddleWidth());
     } 
-    if (line.IsTriple()) {
-        cairo_set_line_width(cr,  line.TripleMiddleWidth());
-        edge.Path(cr);
+    if (line.IsContinuous()) {
+        cairo_move_to(cr, edge.GetStart().x, edge.GetStart().y);
+        edge.PathTo(cr);
         cairo_stroke(cr);
-    }
-    if (!line.IsContinuous()) {
+    } else {
         unsigned num=0;
+        const double *pattern = line.DashPattern(num);
         int pos = 0;
         double offset;
-        edge.PathDashed(cr, line.DashPattern(num), num, pos, offset);
+        edge.PathDashed(cr, pattern, num, pos, offset);
         cairo_stroke(cr);
     }
 }
@@ -420,7 +431,9 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
         } else {
             const double r = line.radius.second;
             singleLine(b, line);
-            LineOpen(Contour(XY(b.x.till, b.y.from+r), XY(b.x.till-r, b.y.from+r), XY(b.x.till-r, b.y.from)), line);
+            const Contour note(XY(b.x.till, b.y.from+r), XY(b.x.till-r, b.y.from+r), XY(b.x.till-r, b.y.from));
+            note[0][2].visible = false;
+            Line(note, line);
         }
         if (line.IsDouble()) {
             const double r1 = line.radius.second - 2*spacing;
@@ -450,32 +463,6 @@ void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
     if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
     if (!line.IsDouble()) 
         singleLine(c, line);
-}
-
-void MscCanvas::LineOpen(const Contour &c, const MscLineAttr &line)
-{
-    _ASSERT(line.IsComplete());
-    _ASSERT(!c.holes.size() && !c.further.size());
-	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
-    if (c.IsEmpty()) return;
-    SetLineAttr(line);
-    const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
-    if (line.IsDoubleOrTriple()) {
-        c.CreateExpand( spacing).PathOpen(cr);
-        cairo_stroke(cr);
-        c.CreateExpand(-spacing).PathOpen(cr);
-        cairo_stroke(cr);
-    } 
-    if (line.IsTriple()) {
-        cairo_set_line_width(cr,  line.TripleMiddleWidth());
-        c.PathOpen(cr);
-        cairo_stroke(cr);
-    }
-    if (!line.IsContinuous()) {
-        unsigned num=0;
-        c.PathOpenDashed(cr, line.DashPattern(num), num);
-        cairo_stroke(cr);
-    }
 }
 
 ////The first element in the list is the overall contour, the remaining ones are disjoint ones

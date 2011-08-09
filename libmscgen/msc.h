@@ -134,7 +134,7 @@ public:
     std::string                   copyrightText;
     LineToArcMapType              AllArcs;
     AreaList                      AllCovers;
-    Area                          HideELinesArea;
+    Contour                       HideELinesHere;
 
     /** Gap at the bottom of the page for lengthening entity lines */
     int chartTailGap;
@@ -215,8 +215,8 @@ public:
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
-    void HideEntityLines(const Contour &area) {HideELinesArea += area;}
-    void HideEntityLines(const Block &area) {HideELinesArea += Contour(area);}
+    void HideEntityLines(const Contour &area) {HideELinesHere += area;}
+    void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
 
     void DrawEntityLines(double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(double y, double height)

@@ -3,7 +3,6 @@
 
 #include "trackable.h"
 #include "style.h"
-#include "area.h"
 
 class EEntityStatus {
 public:
