@@ -87,7 +87,7 @@ protected:
     //check if "next" is a direct continuation of "this". If yes combine "next" into "this" and return true
     bool   CheckAndCombine(const EdgeStraight &next);
     //assumes cairo position is at start (or at end if reverse is true)
-    void   Path(cairo_t *cr, bool reverse=false) const;
+    void   PathTo(cairo_t *cr) const {cairo_line_to(cr, end.x, end.y);}
     void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const;
 
     //helpers for offsetbelow
@@ -129,7 +129,7 @@ protected:
     //calculates bb 
     const Block& CalculateBoundingBox();
     //assumes cairo position is at start (or at end if reverse is true)
-    void   Path(cairo_t *cr, bool reverse=false) const;
+    void   PathTo(cairo_t *cr) const;
 public:
     const EllipseData &GetEllipseData() const {_ASSERT(type!=EDGE_STRAIGHT); return ell;}
     bool GetClockWise() const {_ASSERT(type!=EDGE_STRAIGHT); return clockwise_arc;}
@@ -138,8 +138,16 @@ public:
 };
 
 class EdgeArc : public EdgeFullCircle {
+public:
+    typedef enum {DEGENERATE, SAME_ELLIPSIS, 
+                  CP_REAL, CP_EXTENDED, 
+                  NO_CP_CONVERGE, NO_CP_PARALLEL} EExpandCPType;
+    static bool HasCP(EExpandCPType t) {return t==CP_REAL || t==CP_EXTENDED;}
+    mutable bool visible;
+
 protected:
     friend class SimpleContour;
+    friend class ContoursHelper;
     double  e;           //supposedly between [0..2pi), if s==e, either empty or full circle
 
     //Convert between pos (0..1) and coordinates
@@ -157,39 +165,19 @@ protected:
     void SwapXYcurvy();
     int CrossingVerticalCurvy(double x, double y[], double pos[], bool forward[]) const;
     void PathDashedCurvy(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const;
-public:
-    EdgeArc() : EdgeFullCircle() {};
-    EdgeArc(const XY &s, const XY &e) : EdgeFullCircle(s, e) {}
-    EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
-    bool IsSane() const;
-    bool IsSaneNoBoundingBox() const;
+
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY() {EdgeStraight::SwapXY(); if (type!=EDGE_STRAIGHT) SwapXYcurvy();}
     void Invert() {EdgeFullCircle::Invert(); if (type==EDGE_ARC) std::swap(s, e);}
     RayAngle Angle(bool incoming, const XY &p, double pos) const;
     void SetFullCircle() {_ASSERT(type!=EDGE_STRAIGHT); type = EDGE_FULL_CIRCLE; end=start; e=s; CalculateBoundingBox();}
-    bool operator ==(const EdgeArc& p) const;
-    bool operator < (const EdgeArc& p) const;
-
-	double GetSpan() const;
-    double GetRadianE() const {_ASSERT(type==EDGE_ARC); return e;}
-    double GetRadianMidPoint() const;
-    XY Pos2Point(double pos) const;
 
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
-    XY     PrevTangentPoint(double pos, const EdgeArc &prev_vertex) const;
+    XY     PrevTangentPoint(double pos) const;
     //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
-    XY     NextTangentPoint(double pos, const EdgeArc &next_vertex) const;
+    XY     NextTangentPoint(double pos) const;
 
-    //Gives the intersecting points of me and another straight edge
-    unsigned Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos_other[]) const;
-    //Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
-    int CrossingVertical(double x, double y[], double pos[], bool forward[]) const {
-        if (type == EDGE_STRAIGHT) return EdgeStraight::CrossingVertical(x, y, pos, forward);
-        if (test_smaller(x, boundingBox.x.from) || test_smaller(boundingBox.x.till, x)) return 0;
-        return CrossingVerticalCurvy(x, y, pos, forward);
-    }
     //Removes the part of the edge before point p. Assumes p lies on us. Invalidates BoundingBox!!!
     EdgeArc& SetStartStrict(const XY &p, double pos, bool keep_full_circle=false);
     EdgeArc& SetStartLiberal(const XY &p, bool keep_full_circle=false);
@@ -199,23 +187,46 @@ public:
     const Block& CalculateBoundingBox();
     //check if "next" is a direct continuation of "this". If yes combine "next" into "this" and return true
     bool   CheckAndCombine(const EdgeArc &next);
-    //assumes cairo position is at start (or at end if reverse is true)
-    void   Path(cairo_t *cr, bool reverse=false) const;
-    void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const
-        {if (type==EDGE_STRAIGHT) EdgeStraight::PathDashed(cr, pattern, num, pos, offset, reverse);
-        else PathDashedCurvy(cr, pattern, num, pos, offset, reverse);}
-
+    void   PathToCurvy(cairo_t *cr) const;
     //Helpers for expand
-    bool Expand(double gap);
-    typedef enum {SAME_ELLIPSIS, PARALLEL_LINES, CP_REAL, CP_EXTENDED, 
-                  CP_ADD_LINE_ME, CP_ADD_LINE_OTHER, CP_ADD_LINE_BOTH,
-                  NO_CP_ADD_LINE, DEGENERATE} EExpandCPType;
     EExpandCPType FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const;
     void SetStartEndForExpand(const XY &S, const XY &E);
     bool IsOpposite(const XY &S, const XY &E) const;
 
     //Helper for offsetbelow
     double OffsetBelow(const EdgeArc &M, double &touchpoint) const;
+
+
+public:
+    EdgeArc() : EdgeFullCircle(), visible(true) {};
+    EdgeArc(const XY &s, const XY &e) : EdgeFullCircle(s, e), visible(true) {}
+    EdgeArc(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
+    bool operator ==(const EdgeArc& p) const;
+    bool operator < (const EdgeArc& p) const;
+    bool IsSane() const;
+    bool IsSaneNoBoundingBox() const;
+
+    double GetSpan() const;
+    double GetRadianE() const {_ASSERT(type==EDGE_ARC); return e;}
+    double GetRadianMidPoint() const;
+    XY Pos2Point(double pos) const;
+
+    bool Expand(double gap);
+    //Gives the intersecting points of me and another straight edge
+    unsigned Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos_other[]) const;
+    //Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
+    int CrossingVertical(double x, double y[], double pos[], bool forward[]) const {
+        if (type == EDGE_STRAIGHT) return EdgeStraight::CrossingVertical(x, y, pos, forward);
+        if (test_smaller(x, boundingBox.x.from) || test_smaller(boundingBox.x.till, x)) return 0;
+        return CrossingVerticalCurvy(x, y, pos, forward);
+    }
+    void   PathTo(cairo_t *cr) const 
+        {if (type==EDGE_STRAIGHT) EdgeStraight::PathTo(cr);
+        else if (type==EDGE_FULL_CIRCLE) EdgeFullCircle::PathTo(cr); else PathToCurvy(cr);}
+    void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const
+        {if (type==EDGE_STRAIGHT) EdgeStraight::PathDashed(cr, pattern, num, pos, offset, reverse);
+        else PathDashedCurvy(cr, pattern, num, pos, offset, reverse);}
+
 };
 
 typedef EdgeArc Edge;
@@ -233,24 +244,22 @@ inline double EdgeArc::GetSpan() const
     }
 }
 
-inline XY EdgeArc::PrevTangentPoint(double pos, const Edge &prev_vertex) const
+inline XY EdgeArc::PrevTangentPoint(double pos) const
 {
-    //we are at a vertex, or at a crosspoint at a vertex
-    if (pos <= 0)
-        return prev_vertex.PrevTangentPoint(1, prev_vertex); //second parameter will be ignored
-    if (type==EDGE_STRAIGHT)
-        return start;
-    return ell.Tangent(pos2radian(pos), !clockwise_arc);
+    if (type!=EDGE_STRAIGHT)
+        return ell.Tangent(pos2radian(pos), !clockwise_arc);
+    if (pos>0.5)
+        return start*2-end;
+    return start;
 }
 
-inline XY EdgeArc::NextTangentPoint(double pos, const Edge &next_vertex) const
+inline XY EdgeArc::NextTangentPoint(double pos) const
 {
-    if (pos>=1)
-        return next_vertex.NextTangentPoint(0, next_vertex); //second parameter will be ignored
-    if (type==EDGE_STRAIGHT)
-        return next_vertex.start;
-    //calc tangent for curvy edges
-    return ell.Tangent(pos2radian(pos), clockwise_arc);
+    if (type!=EDGE_STRAIGHT)
+        return ell.Tangent(pos2radian(pos), clockwise_arc);
+    if (pos<=0.5)
+        return end*2-start;
+    return end;
 }
 
 //Removes the part of the edge or curve after point p. Assumes p lies on us.

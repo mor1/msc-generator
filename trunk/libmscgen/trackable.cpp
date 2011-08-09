@@ -24,7 +24,7 @@ TrackableElement::TrackableElement(Msc *m) : chart(m),
     draw_is_different(false), area_draw_is_frame(false),
     indicator_style(m->Contexts.back().styles["indicator"])
 {
-    area_draw.arc = area.arc = this;
+    area.arc = this;
     control_location.MakeInvalid();
 }
 
@@ -36,7 +36,6 @@ TrackableElement::TrackableElement(const TrackableElement&o) :
     controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
-    area_draw.arc = this;
 }
 
 void TrackableElement::SetLineEnd(file_line_range l, bool f)
@@ -98,8 +97,8 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
     s_rect.offset.second = 5;
     s_rect.blur.second = 5;
     for (auto j = controls.begin(); j!=controls.end(); j++) {
-        Area rect = l_rect.CreateRectangle(-control_size.x/2.1, control_size.x/2.1, 
-                                                -control_size.y/2.1, control_size.y/2.1);
+        Contour rect = l_rect.CreateRectangle(-control_size.x/2.1, control_size.x/2.1, 
+                                              -control_size.y/2.1, control_size.y/2.1);
         cairo_set_source_rgb(cr, 1,1,1);
         rect.Fill(cr);
         cairo_set_source_rgb(cr, 0,0,0);

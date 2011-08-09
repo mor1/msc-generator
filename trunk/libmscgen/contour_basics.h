@@ -113,7 +113,7 @@ struct Block {
         x(std::min(ul.x, dr.x),std::max(ul.x, dr.x)), y(std::min(ul.y, dr.y),std::max(ul.y, dr.y)) {}
     Block(const Range &X, const Range &Y) : x(X), y(Y) {}
     void MakeInvalid() {x.MakeInvalid(); y.MakeInvalid();}
-    bool IsInvalid() const {return x.IsInvalid() && y.IsInvalid();}
+    bool IsInvalid() const {return x.IsInvalid() || y.IsInvalid();}
     //operator required for set ordering
     //this improves performance when checking overlaps (lower blocks later)
     bool operator <(const struct Block &b) const {

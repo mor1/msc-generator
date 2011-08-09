@@ -85,28 +85,28 @@ double ContourList::OffsetBelow(const ContourList &below, double &touchpoint, do
     return offset;
 }
 
-void ContourList::Path(cairo_t *cr) const
+void ContourList::Path(cairo_t *cr, bool show_hidden) const
 {
     for (auto i=begin(); i!=end(); i++) 
-        i->Path(cr);
+        i->Path(cr,show_hidden);
 }
 
-void ContourList::Path(cairo_t *cr, bool clockwiseonly) const
+void ContourList::Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const
 {
     for (auto i=begin(); i!=end(); i++) 
-        i->Path(cr, clockwiseonly);
+        i->Path(cr, show_hidden, clockwiseonly);
 }
 
-void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num) const
+void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
 {
     for (auto i=begin(); i!=end(); i++) 
-        i->PathDashed(cr, pattern, num);
+        i->PathDashed(cr, pattern, num, show_hidden);
 }
 
-void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const 
+void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const 
 {
     for (auto i=begin(); i!=end(); i++) 
-        i->PathDashed(cr, pattern, num, clockwiseonly);
+        i->PathDashed(cr, pattern, num, show_hidden, clockwiseonly);
 }
 
 
@@ -1276,15 +1276,6 @@ void Contour::assign(const Edge v[], unsigned size, bool winding)
         Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, tmp2);
     }
 }
-
-Contour Contour::GetNth(unsigned n)
-{
-    if (n==0) return Contour(*static_cast<ContourWithHoles*>(this));
-    for (auto i = further.begin(); i!=further.end(); i++)
-        if (!--n) return Contour(*i);
-    return Contour();
-}
-
 
 bool Contour::IsSane() const
 {

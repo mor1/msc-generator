@@ -123,7 +123,6 @@ public:
     void Line(const XY &s, const XY &d, const MscLineAttr &line) {Line(Edge(s, d), line);}
     void Line(const Block &b, const MscLineAttr &line);
     void Line(const Contour &area, const MscLineAttr &line);
-    void LineOpen(const Contour &contour, const MscLineAttr &line);  //an arbitrary contour, but not its last edge
     void Fill(const XY &s, const XY &d, const MscFillAttr &fill);
     void Fill(const XY &s, const XY &d, const MscLineAttr &line, const MscFillAttr &fill);
     void Fill(const Block &b, const MscFillAttr &fill);
@@ -187,7 +186,7 @@ inline void MscCanvas::Clip(const XY &s, const XY &d, const MscLineAttr &line) {
 inline void MscCanvas::Clip(const Block &b) {cairo_save(cr); RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till); cairo_clip(cr);}
 //inline void MscCanvas::Clip(const Block &b, const MscLineAttr &line); not inline
 //void Clip(const EllipseData &ellipse); not inline
-inline void MscCanvas::Clip(const Contour &area) {cairo_save(cr); area.Path(cr); cairo_clip(cr);}
+inline void MscCanvas::Clip(const Contour &area) {cairo_save(cr); area.Path(cr, true); cairo_clip(cr);}
 
 
 inline void MscCanvas::Fill(const XY &s, const XY &d, const MscFillAttr &fill) {Fill(Block(s, d), fill);}

@@ -216,15 +216,6 @@ bool EdgeStraight::CheckAndCombine(const EdgeStraight &next)
     return false;
 }
 
-//the cairo cursor is assumed to be at the "start" (or "end" if "reverse");
-void EdgeStraight::Path(cairo_t *cr, bool reverse) const
-{
-    if (reverse)
-        cairo_line_to(cr, start.x, start.y);
-    else
-        cairo_line_to(cr, end.x, end.y);
-}
-
 //Path a dashed/dotted line
 //We also assume cairo dash is set to continuous: we fake dash here
 //The pattern contains lengths of alternating on/off segments, num contains the number of elements in pattern
@@ -447,22 +438,15 @@ const Block& EdgeFullCircle::CalculateBoundingBox()
     return EdgeStraight::CalculateBoundingBox();
 }
 
-//assumes cairo position is at start (or at end if reverse is true)
-void EdgeFullCircle::Path(cairo_t *cr, bool reverse) const
+//assumes cairo position is at start
+void EdgeFullCircle::PathTo(cairo_t *cr) const
 {
     cairo_save(cr);
     ell.TransformForDrawing(cr);
-    if (reverse) {
-        if (clockwise_arc)
-            cairo_arc_negative(cr, 0, 0, 1, s+2*M_PI, s);
-        else
-            cairo_arc(cr, 0, 0, 1, s+2*M_PI, s);
-    } else {
-        if (clockwise_arc)
-            cairo_arc(cr, 0, 0, 1, s, s+2*M_PI);
-        else
-            cairo_arc_negative(cr, 0, 0, 1, s, s+2*M_PI);
-    }
+    if (clockwise_arc)
+        cairo_arc(cr, 0, 0, 1, s, s+2*M_PI);
+    else
+        cairo_arc_negative(cr, 0, 0, 1, s, s+2*M_PI);
     cairo_restore(cr);
 }
 
@@ -527,14 +511,15 @@ double EdgeArc::radian2pos(double r) const
 }
 
 EdgeArc::EdgeArc(const XY &c, double radius_x, double radius_y, double tilt_deg,double s_deg, double d_deg) :
-    EdgeFullCircle(c, radius_x, radius_y, tilt_deg, s_deg), e(deg2rad(d_deg))
+    EdgeFullCircle(c, radius_x, radius_y, tilt_deg, s_deg), e(deg2rad(d_deg)),
+    visible(true)
 {
     if (d_deg==360) {
         e = 0;
         type = (s==0) ? EDGE_FULL_CIRCLE : EDGE_ARC;
     } else
         type = EDGE_ARC;
-    start = ell.Radian2Point(e);
+    end = ell.Radian2Point(e);
     CalculateBoundingBox();
 }
 
@@ -1043,31 +1028,16 @@ bool EdgeArc::CheckAndCombine(const EdgeArc &next)
     return true;
 }
 
-void EdgeArc::Path(cairo_t *cr, bool reverse) const
+//Assumes cairo cursor is at "start"
+void EdgeArc::PathToCurvy(cairo_t *cr) const
 {
-    switch (type) {
-    case EDGE_STRAIGHT:
-        EdgeStraight::Path(cr, reverse);
-        return;
-    case EDGE_FULL_CIRCLE:
-        EdgeFullCircle::Path(cr, reverse);
-        return;
-    case EDGE_ARC:
-        cairo_save(cr);
-        ell.TransformForDrawing(cr);
-        if (reverse) {
-            if (clockwise_arc)
-                cairo_arc_negative(cr, 0, 0, 1, e, s);
-            else
-                cairo_arc(cr, 0, 0, 1, e, s);
-        } else {
-            if (clockwise_arc)
-                cairo_arc(cr, 0, 0, 1, s, e);
-            else
-                cairo_arc_negative(cr, 0, 0, 1, s, e);
-        }
-        cairo_restore(cr);
-    }
+    cairo_save(cr);
+    ell.TransformForDrawing(cr);
+    if (clockwise_arc)
+        cairo_arc(cr, 0, 0, 1, s, e);
+    else
+        cairo_arc_negative(cr, 0, 0, 1, s, e);
+    cairo_restore(cr);
 }
 
 void EdgeArc::PathDashedCurvy(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse) const
@@ -1206,31 +1176,17 @@ int find_closest(int num, const double r[], double p, bool larger)
 //The whole logic of this function assumes EXPAND_MITER, but this is called for all types of
 //expansions to see how two edges relate.
 //return value is
+//DEGENERATE: One of the edges have start==end
+//  "newcp" is undefined on return
 //SAME_ELLIPSIS: two arc of the same ellipses (no cp returned, radians not checked)
-//PARALLEL_LINES: two parallel lines (can happen only if an edge was removed from between, no cp returned)
+//  "newcp" is undefined on return
 //CP_REAL: The two edges actually cross (between "start" and "end")
 //CP_EXTENDED: The two edges do not meet but their extension does
-//In the below cases neither the two edges nor their expanded version meet. We will have to add
-//line segments to fix this. There are 4 situations how this can happen.
-//Three variants refer to spiky vertices, like the one below
-//..|           The dots mean the inside of the contour. "o" marks the vertex.
-//...\          Here we got an arc in "this" (counterclockwise)
-//....-         And an edge in "M" (from right to left)
-//<----o        This is a CP_ADD_LINE_ME situation.
-//CP_ADD_LINE_OTHER: "this" is straight and should be extended to "newxp", while "M" is an arc
-//     and a straight line should be added from "newcp" to M.start.
-//CP_ADD_LINE_ME: "M" is a straight and should be extended to "newxp", while "this" is an arc
-//     and a straight line should be added from "this"->end to "newcp" 
-//CP_ADD_LINE_BOTH: both "M" and "this" are arcs and two straight lines shall be added (as above)
-//If the vertex is spiky to the inside, like the below:
-//    ^...           Here we have a straight "this" from left to right.
-//    |....          And a clockwise arc in "M".
-//     \...          In this case a straight line shall be added from 
-//      -...         "this"->end to "M".start.
-//--->---o...
-//............
-//NO_CP_ADD_LINE: represents the situ above. No cp is returned in CP.
-//DEGENERATE: One of the edges have start==end
+//NO_CP_CONVERGE: Not even the extension of the two edges meet, but a linear extrapolation does
+//  "newcp" is the convergence point: can be reached by adding linear segments
+//NO_CP_PARALLEL: Either the two edges are parallel or their linear extrapolation
+//  "newcp" is a calculated convergence point: can be reached by adding linear segments
+
 EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const
 {
     if (start.test_equal(end) || M.start.test_equal(M.end)) return DEGENERATE;
@@ -1239,7 +1195,7 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
         if (type == EDGE_STRAIGHT) {
             switch (crossing_line_line(start, end, M.start, M.end, newcp)) {
             default: _ASSERT(0);
-            case LINE_CROSSING_PARALLEL: return PARALLEL_LINES;
+            case LINE_CROSSING_PARALLEL: return NO_CP_PARALLEL;
             case LINE_CROSSING_OUTSIDE: return CP_EXTENDED;
             case LINE_CROSSING_INSIDE: return CP_REAL;
             }
@@ -1248,14 +1204,14 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             double radian_us[8], pos_M[8];
             int num = ell.CrossingStraight(M.start, M.end, r, radian_us, pos_M);
             if (!num) {
-                const XY tangent = PrevTangentPoint(1, M);  //We use prev-tangent so as not to take the next edge, second param is dummy
-                if (crossing_line_line(tangent, end, M.start, M.end, newcp) == LINE_CROSSING_PARALLEL) {
-                    //OK we are parallel
-                    const double dist = (end-M.start).length() * parallel_join_multipiler;
-                    const double mlen = (M.end-M.start).length();
-                    newcp = M.start + (M.start-M.end)/mlen*dist;
-                }
-                return CP_ADD_LINE_ME;
+                const XY tangent = NextTangentPoint(1.0);  
+                if (crossing_line_line(end, tangent, M.start, M.end, newcp) != LINE_CROSSING_PARALLEL) 
+                    return NO_CP_CONVERGE;
+                //if we are parallel, calculate a conv point
+                const double dist = (end-M.start).length() * parallel_join_multipiler;
+                const double mlen = (M.end-M.start).length();
+                newcp = M.start + (M.start-M.end)/mlen*dist;
+                return NO_CP_PARALLEL;
             } else {
                 int pos = find_closest(num, radian_us, e, !clockwise_arc);
                 newcp = r[pos];
@@ -1271,14 +1227,14 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             double pos_us[8], radian_M[8];
             int num = M.ell.CrossingStraight(start, end, r, radian_M, pos_us);
             if (!num) {
-                const XY tangent = M.NextTangentPoint(0, M);  //We use next-tangent so as not to take the next edge, second param is dummy
-                if (crossing_line_line(tangent, M.start, start, end, newcp) == LINE_CROSSING_PARALLEL) {
-                    //OK we are parallel
-                    const double dist = (end-M.start).length() * parallel_join_multipiler;
-                    const double len = (end-start).length();
-                    newcp = end + (end-start)/len*dist;
-                }
-                return CP_ADD_LINE_OTHER;
+                const XY tangent = M.PrevTangentPoint(0.0);  
+                if (crossing_line_line(tangent, M.start, start, end, newcp) != LINE_CROSSING_PARALLEL) 
+                    return NO_CP_CONVERGE;
+                //if we are parallel, calculate a conv point
+                const double dist = (end-M.start).length() * parallel_join_multipiler;
+                const double len = (end-start).length();
+                newcp = end + (end-start)/len*dist;
+                return NO_CP_PARALLEL;
             }
             int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
             newcp = r[pos];
@@ -1291,15 +1247,15 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             double radian_us[8], radian_M[8];
             int num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
             if (!num) {
-                const XY tangent1 = PrevTangentPoint(1, M);  
-                const XY tangent2 = M.NextTangentPoint(0, M);
-                if (crossing_line_line(tangent1, end, tangent2, M.start, newcp) == LINE_CROSSING_PARALLEL) {
-                    //OK we are parallel
-                    const double dist = (end-M.start).length() * parallel_join_multipiler;
-                    const double len = (end-tangent1).length();
-                    newcp = (end+M.start)/2 + (end-tangent1)/len*dist;
-                }
-                return CP_ADD_LINE_BOTH;
+                const XY tangent1 = PrevTangentPoint(1.0);  
+                const XY tangent2 = M.NextTangentPoint(0.0);
+                if (crossing_line_line(tangent1, end, tangent2, M.start, newcp) != LINE_CROSSING_PARALLEL) 
+                    return NO_CP_CONVERGE;
+                //if we are parallel, calculate a conv point
+                const double dist = (end-M.start).length() * parallel_join_multipiler;
+                const double len = (end-tangent1).length();
+                newcp = (end+M.start)/2 + (end-tangent1)/len*dist;
+                return NO_CP_PARALLEL;
             }
             int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
             newcp = r[pos];

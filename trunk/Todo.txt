@@ -46,6 +46,11 @@ ADDDED: Entity activate/deactivate
 FIX: Entity attributes does not get hinted well
 FIX: Make all examples compile with full active entities
 
+CHANGE: reduce friends to Contour
+CHANGE: add hidden lines to contour and creation as an open line.
+	add access to edges, too.
+
+
 In 3.2
 FIXED: Dashed entity line now never falls back to image
 FIXED: Box sizing now fixed on the left side

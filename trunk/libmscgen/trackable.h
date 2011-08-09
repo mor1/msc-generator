@@ -29,7 +29,7 @@ protected:
     bool   linenum_final;      //true if file_pos below is the final value
     Area   area;               //The area covered by the element...
     double yPos;               //...drawn at this point
-    Area   area_draw;          //The area to draw when highlighting the element
+    Contour area_draw;         //The area to draw when highlighting the element
     bool   draw_is_different;  //True is area_draw is different from area
     bool   area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
     std::vector<MscControlType> 
@@ -45,7 +45,7 @@ public:
     void SetLineEnd(file_line_range l, bool f=true);
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const {return area;};
-    const Area &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
+    const Contour &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     virtual void PostPosProcess(double);

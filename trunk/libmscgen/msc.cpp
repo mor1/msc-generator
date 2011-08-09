@@ -823,7 +823,7 @@ void Msc::DrawEntityLines(double y, double height,
 {
     //No checking of iterators!! Call with caution
     //"to" is not included!!
-    canvas->ClipInverse(HideELinesArea);
+    canvas->ClipInverse(HideELinesHere);
     while(from != to) {
         const EntityStatusMap & status= (*from)->status;
         XY up(XCoord(from), y);
@@ -1040,7 +1040,7 @@ void Msc::CalculateWidthHeight(void)
 {
     yPageStart.clear();
     yPageStart.push_back(0);
-    HideELinesArea.clear();
+    HideELinesHere.clear();
     if (Arcs.size()==0) return;
     if (total.y == 0) {
         //start with width calculation, that is used by many elements

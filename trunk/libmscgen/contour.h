@@ -13,39 +13,41 @@ class ContourList : protected std::list<ContourWithHoles>
     friend class ContourWithHoles;
     friend class Contour;
     friend class ContoursHelper;
-    friend class MscCanvas;
     Block boundingBox;
 
     ContourList() {boundingBox.MakeInvalid();}
 
-    bool operator < (const ContourList &p) const;
-    bool operator ==(const ContourList &p) const;
 
     void append(const ContourWithHoles &p);
     void append(ContourWithHoles &&p);
     void append(const ContourList &p) {boundingBox += p.GetBoundingBox(); insert(end(), p.begin(), p.end());}
     void append(ContourList &&p) {boundingBox += p.GetBoundingBox(); splice(end(), p);}
-    void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
-    void clear() {std::list<ContourWithHoles>::clear(); boundingBox.MakeInvalid();}
 
-    bool IsEmpty() const {return size()==0;}
-    const Block &GetBoundingBox(void) const {return boundingBox;}
     void Invert();
 
-    is_within_t IsWithin(XY p) const;
     void Shift(const XY &xy);
     void SwapXY();
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
-    
-    void DoVerticalCrossSection(double x, DoubleMap<bool> &section) const;
+
+public:    
+    const ContourWithHoles & operator[](unsigned i) const;
+    void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
+    void clear() {std::list<ContourWithHoles>::clear(); boundingBox.MakeInvalid();}
+    unsigned size() const {return std::list<ContourWithHoles>::size();}
+    bool operator < (const ContourList &p) const;
+    bool operator ==(const ContourList &p) const;
+    bool IsEmpty() const {return size()==0;}
+    const Block &GetBoundingBox(void) const {return boundingBox;}
+    is_within_t IsWithin(XY p) const;
+    void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const;
     double OffsetBelow(const ContourList &below, double &touchpoint, double offset) const;
 
-    void Path(cairo_t *cr) const;
-    void Path(cairo_t *cr, bool clockwiseonly) const;
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const;
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const;
+    void Path(cairo_t *cr, bool show_hidden) const;
+    void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 };
 
 
@@ -60,10 +62,7 @@ protected:
     ContourList holes;
     ContourWithHoles() {};
     ContourWithHoles(const SimpleContour &p) : SimpleContour(p) {}
-public:
-    ContourWithHoles(ContourWithHoles &&p) : SimpleContour(std::move(p)), holes(std::move(p.holes)) {}  //for list
 protected: 
-    friend class MscCanvas;
     ContourWithHoles(double sx, double dx, double sy, double dy) : SimpleContour(sx, dx, sy, dy) {}
     ContourWithHoles(const Block &b) : SimpleContour(b) {}
     ContourWithHoles(XY a, XY b, XY c) : SimpleContour(a,b,c) {}
@@ -79,31 +78,36 @@ protected:
     ContourWithHoles &operator = (SimpleContour &&a) {SimpleContour::swap(a); holes.clear(); return *this;}
     ContourWithHoles &operator = (ContourWithHoles &&a) {if (this!=&a) swap(a); return *this;}
 
-    void swap(ContourWithHoles &b) {holes.swap(b.holes); SimpleContour::swap(b);}
-    bool operator < (const ContourWithHoles &p) const {return SimpleContour::operator==(p) ? holes < p.holes : SimpleContour::operator<(p);}
-    bool operator ==(const ContourWithHoles &p) const {return SimpleContour::operator==(p) && holes == p.holes;}
-
-    bool HasHoles() const {return !holes.IsEmpty();}
-    const Block &GetBoundingBox(void) const {return SimpleContour::GetBoundingBox();}
     void Invert() {SimpleContour::Invert(); if (holes.size()) holes.Invert();}
-    bool IsSane(bool shouldbehole=false) const;
-
-    is_within_t IsWithin(const XY &p) const;
     void Shift(const XY &xy) {SimpleContour::Shift(xy); if (holes.size()) holes.Shift(xy);}
     void SwapXY() {SimpleContour::SwapXY(); if (holes.size()) holes.SwapXY();}
     void Rotate(double cos, double sin, double radian)
         {SimpleContour::Rotate(cos, sin, radian); if (holes.size()) holes.Rotate(cos, sin, radian);}
     void RotateAround(const XY&c, double cos, double sin, double radian)
         {SimpleContour::RotateAround(c, cos, sin, radian); if (holes.size()) holes.RotateAround(c, cos, sin, radian);}
+    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const;
+
+public:
+    ContourWithHoles(ContourWithHoles &&p) : SimpleContour(std::move(p)), holes(std::move(p.holes)) {}  //for list
+    void swap(ContourWithHoles &b) {holes.swap(b.holes); SimpleContour::swap(b);}
+    bool operator < (const ContourWithHoles &p) const {return SimpleContour::operator==(p) ? holes < p.holes : SimpleContour::operator<(p);}
+    bool operator ==(const ContourWithHoles &p) const {return SimpleContour::operator==(p) && holes == p.holes;}
+
+    bool IsSane(bool shouldbehole=false) const;
+
+    is_within_t IsWithin(const XY &p) const;
+    bool HasHoles() const {return !holes.IsEmpty();}
+    const ContourList &Holes() const {return holes;}
+    const Block &GetBoundingBox(void) const {return SimpleContour::GetBoundingBox();}
 
     //Call these for both us and the holes (except for OffsetBelow)
-    void DoVerticalCrossSection(double x, DoubleMap<bool> &section) const {SimpleContour::DoVerticalCrossSection(x, section); if (holes.size()) holes.DoVerticalCrossSection(x, section);}
+    void VerticalCrossSection(double x, DoubleMap<bool> &section) const {SimpleContour::VerticalCrossSection(x, section); if (holes.size()) holes.VerticalCrossSection(x, section);}
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const {return SimpleContour::OffsetBelow(below, touchpoint, offset);}
-    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const;
-    void Path(cairo_t *cr) const {SimpleContour::Path(cr); if (holes.size()) holes.Path(cr);}
-    void Path(cairo_t *cr, bool clockwiseonly) const {SimpleContour::Path(cr, clockwiseonly); if (holes.size()) holes.Path(cr, clockwiseonly);}
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const {SimpleContour::PathDashed(cr, pattern, num); if (holes.size()) holes.PathDashed(cr, pattern, num);}
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const {SimpleContour::PathDashed(cr, pattern, num, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, clockwiseonly);}
+
+    void Path(cairo_t *cr, bool show_hidden) const {SimpleContour::Path(cr, show_hidden); if (holes.size()) holes.Path(cr, show_hidden);}
+    void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {SimpleContour::Path(cr, show_hidden, clockwiseonly); if (holes.size()) holes.Path(cr, show_hidden, clockwiseonly);}
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {SimpleContour::PathDashed(cr, pattern, num, show_hidden); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden);}
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {SimpleContour::PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
 };
 
 //This can contain multiple positive contours and holes
@@ -122,17 +126,6 @@ class Contour : public ContourWithHoles
     ContourList further;
     Block boundingBox;
 protected:
-    friend class MscCanvas;
-    Contour(const ContourWithHoles &p) : ContourWithHoles(p) {boundingBox = ContourWithHoles::GetBoundingBox();}
-    Contour(const SimpleContour &p) : ContourWithHoles(p) {boundingBox = ContourWithHoles::GetBoundingBox();}
-    Contour(ContourWithHoles &&p) : ContourWithHoles(std::move(p)) {boundingBox = ContourWithHoles::GetBoundingBox();}
-    Contour(SimpleContour &&p) : ContourWithHoles(std::move(p)) {boundingBox = ContourWithHoles::GetBoundingBox();}
-
-    Contour &operator = (const SimpleContour &a) {ContourWithHoles::operator=(a); further.clear(); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
-    Contour &operator = (SimpleContour &&a) {ContourWithHoles::operator=(std::move(a)); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
-    Contour &operator = (const ContourWithHoles &a) {ContourWithHoles::operator=(a); further.clear(); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
-    Contour &operator = (ContourWithHoles &&a) {ContourWithHoles::operator=(std::move(a)); further.clear(); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
-
     void append(const ContourWithHoles &p) {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); ContourWithHoles::assign(p);} else {boundingBox+=p.GetBoundingBox(); further.append(p);}}
     void append(ContourWithHoles &&p)  {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); ContourWithHoles::assign(std::move(p));} else {boundingBox+=p.GetBoundingBox(); further.append(std::move(p));}}
 
@@ -156,21 +149,29 @@ public:
     Contour(double ax, double ay, double bx, double by, double cx, double cy) : ContourWithHoles(ax, ay, bx, by, cx, cy) {boundingBox = ContourWithHoles::GetBoundingBox();}
     Contour(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360) : 
         ContourWithHoles (c, radius_x, radius_y, tilt_deg, s_deg, d_deg) {boundingBox = ContourWithHoles::GetBoundingBox();}
-    explicit Contour(const std::vector<XY> &v) {assign(v);}
-    explicit Contour(const XY v[], unsigned size) {assign(v, size);}
-    template<unsigned size> explicit Contour(const XY (&v)[size]) {assign (v, size);}
-    explicit Contour(const std::vector<Edge> &v) {assign(v);}
-    explicit Contour(const Edge v[], unsigned size) {assign(v, size);}
-    template<unsigned size> explicit Contour(const Edge (&v)[size]) {assign (v, size);}
-    Contour(Contour &&p) {swap(p);}
+    Contour(const std::vector<XY> &v, bool winding=true) {assign(v, winding);}
+    Contour(const XY v[], unsigned size, bool winding=true) {assign (v, size, winding);}
+    template<unsigned size> Contour(const XY (&v)[size], bool winding=true) {assign (v, size, winding);}
+    Contour(const std::vector<Edge> &v, bool winding=true) {assign (v, winding);}
+    Contour(const Edge v[], unsigned size, bool winding=true) {assign (v, size, winding);}
+    template<unsigned size> Contour(const Edge (&v)[size], bool winding=true) {assign (v, size, winding);}
+
+    Contour(const ContourWithHoles &p) : ContourWithHoles(p) {boundingBox = ContourWithHoles::GetBoundingBox();}
+    Contour(const SimpleContour &p) : ContourWithHoles(p) {boundingBox = ContourWithHoles::GetBoundingBox();}
+    Contour(ContourWithHoles &&p) : ContourWithHoles(std::move(p)) {boundingBox = ContourWithHoles::GetBoundingBox();}
+    Contour(SimpleContour &&p) : ContourWithHoles(std::move(p)) {boundingBox = ContourWithHoles::GetBoundingBox();}
 
     Contour &operator = (const Block &a) {SimpleContour::operator=(a); further.clear(); boundingBox = a; return *this;}
-    Contour &operator = (const std::vector<XY> &v) {assign(v); return *this;}
-    Contour &operator = (const std::vector<Edge> &v) {assign(v); return *this;}
-    template<unsigned size> Contour &operator = (const XY (&v)[size]) {assign (v, size); return *this;}
-    template<unsigned size> Contour &operator = (const Edge (&v)[size]) {assign (v, size);  return *this;}
+    Contour &operator = (const SimpleContour &a) {ContourWithHoles::operator=(a); further.clear(); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
+    Contour &operator = (SimpleContour &&a) {ContourWithHoles::operator=(std::move(a)); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
+    Contour &operator = (const ContourWithHoles &a) {ContourWithHoles::operator=(a); further.clear(); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
+    Contour &operator = (ContourWithHoles &&a) {ContourWithHoles::operator=(std::move(a)); further.clear(); boundingBox = ContourWithHoles::GetBoundingBox(); return *this;}
+
+    bool operator < (const Contour &p) const {return ContourWithHoles::operator==(p) ? further < p.further: SimpleContour::operator<(p);}
+    bool operator ==(const Contour &p) const {return ContourWithHoles::operator==(p) && further == p.further;}
 
     void swap(Contour &a) {ContourWithHoles::swap(a); further.swap(a.further); std::swap(boundingBox, a.boundingBox);}
+    unsigned size() const {if (ContourWithHoles::size()) return further.size()+1; return 0;}
     void clear() {ContourWithHoles::clear(); further.clear(); boundingBox.MakeInvalid();}
     void assign(const std::vector<XY> &v, bool winding=true);
     void assign(const XY v[], unsigned size, bool winding=true);
@@ -179,14 +180,11 @@ public:
     void assign(const Edge v[], unsigned size, bool winding=true);
     template<unsigned size> void assign(const Edge (&v)[size], bool winding=true) {assign (v, size, winding);}
     
-    bool operator < (const Contour &p) const {return ContourWithHoles::operator==(p) ? further < p.further: SimpleContour::operator<(p);}
-    bool operator ==(const Contour &p) const {return ContourWithHoles::operator==(p) && further == p.further;}
-
     bool IsEmpty() const {return ContourWithHoles::IsEmpty();}
     const Block &GetBoundingBox(void) const {return boundingBox;}
     //bool AddAnEdge(const Edge &edge) {SimpleContour::AddAnEdge(edge);}
     //bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).GetStart()));}
-    Contour GetNth(unsigned n);
+    const ContourWithHoles &operator[](unsigned n) const {if (n==0) return *this; return further[n-1];}
     void ClearHoles() {holes.clear(); for (auto i = further.begin(); i!=further.end(); i++) i->holes.clear();}
     bool IsSane() const;
 
@@ -219,18 +217,18 @@ public:
     Contour operator - (Contour &&p) const {return Contour(*this)-=std::move(p);}
     Contour operator ^ (Contour &&p) const {return Contour(*this)^=std::move(p);}
 
-    void VerticalCrossSection(double x, DoubleMap<bool> &section) const {ContourWithHoles::DoVerticalCrossSection(x, section); if (further.size()) further.DoVerticalCrossSection(x, section);}
+    void VerticalCrossSection(double x, DoubleMap<bool> &section) const {ContourWithHoles::VerticalCrossSection(x, section); if (further.size()) further.VerticalCrossSection(x, section);}
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const {return SimpleContour::OffsetBelow(below, touchpoint, offset);}
     void Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND);
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND) const;
 
-    void Path(cairo_t *cr) const {ContourWithHoles::Path(cr); if (further.size()) further.Path(cr);}
-    void Path(cairo_t *cr, bool clockwiseonly) const {ContourWithHoles::Path(cr, clockwiseonly); if (further.size()) further.Path(cr,clockwiseonly);}
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const {ContourWithHoles::PathDashed(cr, pattern, num); if (further.size()) further.PathDashed(cr, pattern, num);}    
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const {ContourWithHoles::PathDashed(cr, pattern, num, clockwiseonly); if (further.size()) further.PathDashed(cr, pattern, num,clockwiseonly);}
-    void Line(cairo_t *cr) const {Contour::Path(cr); cairo_stroke(cr);}
+    void Path(cairo_t *cr, bool show_hidden) const {ContourWithHoles::Path(cr, show_hidden); if (further.size()) further.Path(cr, show_hidden);}
+    void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {ContourWithHoles::Path(cr, show_hidden, clockwiseonly); if (further.size()) further.Path(cr, show_hidden, clockwiseonly);}
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {ContourWithHoles::PathDashed(cr, pattern, num, show_hidden); if (further.size()) further.PathDashed(cr, pattern, num, show_hidden);}    
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {ContourWithHoles::PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (further.size()) further.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
+    void Line(cairo_t *cr) const {Contour::Path(cr, false); cairo_stroke(cr);}
     void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, false); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, true); cairo_stroke(cr); cairo_restore(cr);}
-    void Fill(cairo_t *cr) const {Contour::Path(cr); cairo_fill(cr);}
+    void Fill(cairo_t *cr) const {Contour::Path(cr, true); cairo_fill(cr);}
 };
 
 
@@ -246,6 +244,13 @@ inline void ContourList::append(ContourWithHoles &&p)
     if (p.IsEmpty()) return;
     boundingBox += p.GetBoundingBox(); 
     std::list<ContourWithHoles>::push_back(std::move(p));
+}
+
+inline const ContourWithHoles & ContourList::operator[](unsigned i) const 
+{
+    const_iterator itr = begin(); 
+    while (i>0) i--, itr++;
+    return *itr;
 }
 
 

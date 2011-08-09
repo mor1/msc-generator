@@ -138,7 +138,7 @@ class Label : public std::vector<ParsedLine>
     using std::vector<ParsedLine>::at;
 protected:
     unsigned AddText(const string &s, MscCanvas *canvas, StringFormat);
-    void CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Area *area) const;
+    void CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const;
 public:
     Label(const string &s, MscCanvas *c , const StringFormat &f)
         {AddText(s,c,f);}
@@ -148,7 +148,7 @@ public:
     operator std::string() const;
 
     XY getTextWidthHeight(int line=-1) const;
-    Area Cover(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {Area a; CoverOrDraw(NULL, sx, dx, y, cx, isRotated, &a); return a;}
+    Contour Cover(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {Contour a; CoverOrDraw(NULL, sx, dx, y, cx, isRotated, &a); return a;}
     void Draw(MscCanvas *canvas, double sx, double dx, double y, double cx=-1, bool isRotated=false) const {CoverOrDraw(canvas, sx, dx, y, cx, isRotated, NULL);}
 };
 

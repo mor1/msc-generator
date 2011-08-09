@@ -213,9 +213,9 @@ protected:
     mutable std::vector<double> xPos; //positions sorted
     mutable std::vector<double> act_size;  //activation size sorted
     mutable std::vector<DoublePair> margins; //margins sorted
-    mutable Area text_cover;   //so that we can hide entity lines in PostPosProcess - not used by ArcBigArrow
+    mutable Contour text_cover;   //so that we can hide entity lines in PostPosProcess - not used by ArcBigArrow
     mutable double centerline; //y offset of line compared to yPos
-    mutable Area clip_area;
+    mutable Contour clip_area;
 public:
     ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc, bool fw, const MscStyle &);
@@ -244,7 +244,7 @@ protected:
     mutable double ind_off;   //if we draw an indicator inside, this is its y offset from top of text
     mutable int stext, dtext; //filled by Width: index the two entity in xPos between which the text spans (sorted)
     mutable double sm, dm;    //filled by Width: margin (left and right) for text
-    mutable Area label_cover;
+    mutable Contour label_cover;
 public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);
     ArcBigArrow(const EntityList &, bool bidir, const ArcLabelled &al, const ArcSignature *s);
@@ -316,7 +316,7 @@ protected:
 
     mutable double height, height_w_lower_line;
     mutable double sx_text, dx_text, y_text;  //label placement
-    mutable Area text_cover;
+    mutable Contour text_cover;
 public:
     //Constructor to construct the first box/pipe in a series
     ArcBox(MscArcType t, const char *s, file_line_range sl,
@@ -367,12 +367,12 @@ protected:
     mutable bool pipe_connect_back, pipe_connect_forw; //true if connects to neighbour pipe in pipe series
     mutable double left_space, right_space;  //how much do we expand beyond src/dst. Include lw and shadow
     mutable double sx_text, dx_text, y_text;  //label placement
-    mutable Area text_cover;
+    mutable Contour text_cover;
     mutable Block pipe_block;   //representative rectangle of pipe                    ____
     //These below correspond to the body of the pipe (skewed rectangle with curves): (____(
-    mutable Area pipe_shadow, pipe_body_line, pipe_whole_line, pipe_body_fill;
-    mutable Area pipe_hole_fill, pipe_hole_line;    //These refer to the hole __
-    mutable Edge pipe_hole_curve;                   //                        _()
+    mutable Contour pipe_shadow, pipe_body_line, pipe_whole_line, pipe_body_fill;
+    mutable Contour pipe_hole_fill, pipe_hole_line;    //These refer to the hole __
+    mutable Contour pipe_hole_curve;                   //                        _()
 public:
     //Constructor to construct the first box/pipe in a series
     ArcPipe(ArcBox *box);
@@ -421,7 +421,7 @@ protected:
 
     mutable double centerline, height;
     mutable double text_margin, line_margin;
-    mutable Area text_cover;
+    mutable Contour text_cover;
 public:
     ArcDivider(MscArcType t, Msc *msc);
     bool AddAttribute(const Attribute &);

@@ -17,7 +17,6 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <string>
-#include "area.h"
 #include "contour.h"
 
 namespace contour {
@@ -281,7 +280,7 @@ void contour_test(void)
 	                XY(100, 300),
 	                XY(x, y),
                     XY( 90, 300)};
-	custom = v1;
+	custom.assign(v1);
     Draw(111, custom);
 
 	Contour custom2;
@@ -294,7 +293,7 @@ void contour_test(void)
 	                XY(100, 300),
 	                XY(x, y),
                     XY( 90, 300)};
-    custom = v2;
+    custom.assign(v2);
 
     x=220, y=610;
     const XY v3[] = {XY( 50, 200),
@@ -304,7 +303,7 @@ void contour_test(void)
 	                XY(100, 300),
 	                XY(x, y),
                     XY( 90, 300)};
-    custom2 = v3;
+    custom2.assign(v3);
     Draw(112, custom, custom2);
 
 	Contour circle = Contour(XY(200, 200), 60, 30, 30);
@@ -332,8 +331,8 @@ void contour_test(void)
 
 	cooomplex2 = cooomplex3;
 	cooomplex2.RotateAround(XY(350,100), 39);
-    Contour part = cooomplex2.GetNth(1);
-    Contour spart = cooomplex3.GetNth(1);
+    Contour part = cooomplex2[1];
+    Contour spart = cooomplex3[1];
     DrawExpand(135, EXPAND_MITER, part, false);
 
     Draw(117, cooomplex3, cooomplex2, "SwapXY");
@@ -448,7 +447,7 @@ void contour_test(void)
                       Contour(XY(0,0), 50) - Contour(XY(50,0), 50) + 
                       Contour(XY(0,50), 50) - Contour(XY(50,50), 50);
 
-    Contour lohere5 = lohere3.GetNth(0);
+    Contour lohere5 = lohere3[0];
 
     Draw(2190, lohere1);
     Draw(2191, Contour(XY(100,100), 100), Contour(XY(140,100), 120), lohere2);

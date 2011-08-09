@@ -850,20 +850,21 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
 
     //Find the visible parent of each middle point and remove it if equals to
     //an end or to any other middle visible parent
-    for (unsigned ii = 0; ii<middle.size(); ii++) {
+    for (unsigned ii = 0; ii<middle.size(); /*nope*/) {
         sub = chart->FindActiveParentEntity(middle[ii]);
-        if (middle[ii] == sub) continue;
-        //if the replacement parent equals to an end, delete it
-        //sub now is an iterator to AllEntities, src and dst is to ActiveEntities
-        if (*sub == *src || *sub == *dst) {
-            erase:
-            middle.erase(middle.begin()+ii);
-            ii++;
-            continue;
+        if (middle[ii] != sub) {
+            //if the replacement parent equals to an end, delete it
+            //sub now is an iterator to AllEntities, src and dst is to ActiveEntities
+            if (*sub == *src || *sub == *dst) {
+                erase:
+                middle.erase(middle.begin()+ii);
+                continue;
+            }
+            for (unsigned jj=0; jj<ii; jj++) 
+                if (middle[jj] == sub) goto erase;
+            middle[ii] = sub;
         }
-        for (unsigned jj=0; jj<ii; jj++) 
-            if (middle[jj] == sub) goto erase;
-        middle[ii] = sub;
+        ii++;
     }
     //Replace middle[] values to point to ActiveEntities
     for (unsigned iii = 0; iii<middle.size(); iii++) {
@@ -2251,7 +2252,6 @@ double ArcBoxSeries::Height(AreaList &cover)
             //Make a frame, add it to the already added label
             (*i)->area_draw = (*i)->area.CreateExpand(chart->trackFrameWidth) - (*i)->area;
             (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
-            (*i)->area_draw.arc = *i;
             (*i)->draw_is_different = true;
             (*i)->area_draw_is_frame = true;
         } else {
@@ -2978,7 +2978,7 @@ double ArcPipeSeries::Height(AreaList &cover)
             //we clear the holes: no need
             (*i)->pipe_hole_fill.clear();
             (*i)->pipe_hole_line.clear();
-            (*i)->pipe_hole_curve = Edge(); //wont draw anything
+            (*i)->pipe_hole_curve.clear();
         } else {
             //No connection, we draw this end, too
             if (rad.x>0) {
@@ -2990,7 +2990,7 @@ double ArcPipeSeries::Height(AreaList &cover)
                 (*i)->pipe_shadow += forw_end;
                 (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line);
                 (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill);
-                (*i)->pipe_hole_curve = Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0,
+                (*i)->pipe_hole_curve = Contour(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0,
                                                 side == SIDE_RIGHT ? 270 : 90,
                                                 side == SIDE_RIGHT ? 90 : 270);
             } else {
@@ -3001,7 +3001,7 @@ double ArcPipeSeries::Height(AreaList &cover)
                 //we clear the holes: no need, body will draw the line we need
                 (*i)->pipe_hole_fill.clear();
                 (*i)->pipe_hole_line.clear();
-                (*i)->pipe_hole_curve = Edge(); //wont draw anything
+                (*i)->pipe_hole_curve.clear(); //wont draw anything
             }
             (*i)->area = (*i)->pipe_shadow;
             if (content.size() && (*i)->style.solid.second < 255)
@@ -3013,7 +3013,6 @@ double ArcPipeSeries::Height(AreaList &cover)
             //Make a frame, add it to the already added label
             (*i)->area_draw -= (*i)->area;
             (*i)->area_draw += (*i)->text_cover.CreateExpand(chart->trackExpandBy);
-            (*i)->area_draw.arc = *i;
             (*i)->area_draw_is_frame = true;
             (*i)->draw_is_different = true;
         }
@@ -3875,7 +3874,6 @@ double CommandNewpage::Height(AreaList &)
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
     area_draw = b;
-    area_draw.mainline = b.y;
     draw_is_different = true; //area is empty - never find this
     return 0;
 }
@@ -3893,7 +3891,6 @@ double CommandNewBackground::Height(AreaList &)
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
     area_draw = b;
-    area_draw.mainline = b.y;
     draw_is_different = true; //area is empty - never find this
     return 0;
 }
@@ -3971,7 +3968,6 @@ double CommandMark::Height(AreaList &)
     if (!valid) return 0;
     Block b(0, chart->total.x, offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
     area_draw = b;
-    area_draw.mainline = b.y;
     draw_is_different = true; //area is empty - never find this
     return 0;
 }

@@ -438,7 +438,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             Edge(XY(x1+r, y2-r), r, r, 0,  90, 180),
             Edge(XY(x1, y2-r), XY(x1, y1+r)),
             Edge(XY(x1+r, y1+r), r, r, 0, 180, 270)};
-        return Contour(edges, 8);
+        return Contour(edges);
         }
     case CORNER_BEVEL:
         {
@@ -451,7 +451,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             XY(x1+r, y2),
             XY(x1, y2-r),
             XY(x1, y1+r)};
-        return Contour(points, 8);
+        return Contour(points);
         }
     case CORNER_NOTE:
         {
@@ -461,7 +461,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             XY(x2, y1+r),
             XY(x2, y2),
             XY(x1, y2)};
-        return Contour(points, 5);
+        return Contour(points);
         }
     }
 }
@@ -472,7 +472,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
 //This is at least lineWidth() (if radius==0)
 //return first contains the left margin and second the right one
 //This one assumes that the radius corresponds to the inner edge
-DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top) const
+DoublePair MscLineAttr::CalculateTextMargin(Contour textCover, double rect_top) const
 {
     DoublePair ret(0,0);
     if (textCover.IsEmpty()) return ret;
@@ -490,14 +490,14 @@ DoublePair MscLineAttr::CalculateTextMargin(Area textCover, double rect_top) con
 
     double off, tp;
     //left margin
-    Area a = Contour(0, inner.x.MidPoint(), inner.y.from-1, inner.y.till+1) - inner_area;
+    Contour a = Contour(0, inner.x.MidPoint(), inner.y.from-1, inner.y.till+1) - inner_area;
     a.Rotate(90);
-    off = a.OffsetBelow(textCover, tp, CONTOUR_INFINITY, false);
+    off = a.OffsetBelow(textCover, tp, CONTOUR_INFINITY);
     ret.first = left_right.from - off;
     //right margin
     a = Contour(inner.x.MidPoint(), inner.x.till+lw, inner.y.from-1, inner.y.till+1) - inner_area;
     a.Rotate(90);
-    off = textCover.OffsetBelow(a, tp, CONTOUR_INFINITY, false);
+    off = textCover.OffsetBelow(a, tp, CONTOUR_INFINITY);
     ret.second = inner.x.till-off-left_right.till + lw;
     return ret;
 }

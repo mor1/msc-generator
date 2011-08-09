@@ -67,8 +67,8 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
 SimpleContour &SimpleContour::operator =(const Block &b)
 {
     clear();
+    if (b.IsInvalid() || !test_smaller(b.x.from, b.x.till) || !test_smaller(b.y.from, b.y.till)) return *this;
     boundingBox = b;
-    if (b.IsInvalid()) return *this;
     push_back(Edge(b.UpperLeft(), XY(b.x.till, b.y.from)));
     push_back(Edge(XY(b.x.till, b.y.from), b.LowerRight()));
     push_back(Edge(b.LowerRight(), XY(b.x.from, b.y.till)));
@@ -90,7 +90,7 @@ void SimpleContour::Invert()
 //if strict is false, any point that is even _close_ to an edge will snap to the edge
 //for counterclockwise contours, 'inside' is mean to be the limited space enclosed by
 //the contour
-is_within_t SimpleContour::IsWithin(XY p, int *edge, double *pos, bool strict) const
+is_within_t SimpleContour::IsWithin(XY p, unsigned *edge, double *pos, bool strict) const
 {
     if (size()==0 || boundingBox.IsWithin(p)==WI_OUTSIDE) return WI_OUTSIDE;
 
@@ -174,7 +174,7 @@ inline bool really_between04_warp (double q, double a, double b)
 //It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
 SimpleContour::result_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 {
-    int edge;
+    unsigned edge;
     for (unsigned i=0; i<size(); i++) {
         double pos;
         const XY p = at(i).GetStart();
@@ -249,15 +249,15 @@ void SimpleContour::CalculateClockwise()
     //determine if this is clockwise.
     if (size()>2) {
         double angles = 0;
-        XY prev = at(0).PrevTangentPoint(0, at_prev(0));
+        XY prev = PrevTangentPoint(0, 0.0);
         for (unsigned i=0; i<size(); i++)
             if (at(i).GetType() == EDGE_STRAIGHT) {
 				_ASSERT(!at(i).GetStart().test_equal(at_next(i).GetStart()));
                 angles += angle_degrees(angle(at(i).GetStart(), at_next(i).GetStart(), prev));
                 prev = at(i).GetStart();
             } else {
-                angles += angle_degrees(angle(at(i).GetStart(), at(i).NextTangentPoint(0, at_next(i)), prev));
-                prev = at(i).PrevTangentPoint(1, at_prev(i));
+                angles += angle_degrees(angle(at(i).GetStart(), NextTangentPoint(i, 0.0), prev));
+                prev = PrevTangentPoint(i, 1.0);
                 if (at(i).GetClockWise()) {
                     if (at(i).GetRadianS()<at(i).GetRadianE()) angles -=       (at(i).GetRadianE()-at(i).GetRadianS())*(180./M_PI);
                     else                                       angles -= 360 - (at(i).GetRadianS()-at(i).GetRadianE())*(180./M_PI);
@@ -485,7 +485,7 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
 
 //////////////////////////////////SimpleContour::Expand implementation
 
-Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise)
+Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise)
 {
     XY center = old;
     double radius = (start-old).length();
@@ -543,8 +543,10 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
     //Now find how and where expanded edges meet and how
     std::vector<EdgeArc::EExpandCPType> cross_type (r.size());
     std::vector<XY>                     cross_point(r.size());
-    for (unsigned i = 0; i<r.size(); i++)
+    for (unsigned i = 0; i<r.size(); i++) {
         cross_type[i] = r[i].FindExpandedEdgesCP(r.at_next(i), o[i].GetStart(), cross_point[i]);
+        _ASSERT(cross_type[i] != EdgeArc::DEGENERATE);
+    }
 
     //now kill the ones that changed direction
     if (type == EXPAND_MITER ||
@@ -587,7 +589,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
     }
 
     //OK, now adjust the edges and/or insert additional ones
-    Contour r2;
+    Contour res_before_untangle;
+    ContourWithHoles &r2 = res_before_untangle;
     r2.reserve(size()*3);
     switch (type) {
     default:
@@ -597,143 +600,54 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
     case EXPAND_MITER_BEVEL:
     case EXPAND_MITER_SQUARE:
         for (unsigned i = 0; i<r.size(); i++) {
-            XY new_start = r[i].GetStart();
-            XY new_end =   r[i].GetEnd();
-            switch (cross_type[r.prev(i)]) {
-            case EdgeArc::CP_ADD_LINE_ME:    if (type != EXPAND_MITER) break; /*else fallthrough*/
-            case EdgeArc::CP_REAL:           
-            case EdgeArc::CP_EXTENDED:       new_start = cross_point[r.prev(i)]; break;
-            case EdgeArc::DEGENERATE:        _ASSERT(0); /*fallthrough*/
-            case EdgeArc::SAME_ELLIPSIS:     
-            case EdgeArc::PARALLEL_LINES:    
-            case EdgeArc::CP_ADD_LINE_OTHER:
-            case EdgeArc::CP_ADD_LINE_BOTH:
-            case EdgeArc::NO_CP_ADD_LINE:    break; /*list all values to avoid warnings*/
-            }
-            switch (cross_type[i]) {
-            case EdgeArc::CP_ADD_LINE_OTHER: if (type != EXPAND_MITER) break; /*else fallthrough*/
-            case EdgeArc::CP_REAL:           
-            case EdgeArc::CP_EXTENDED:       new_end = cross_point[i]; break;
-            case EdgeArc::DEGENERATE:        _ASSERT(0); /*fallthrough*/
-            case EdgeArc::SAME_ELLIPSIS:     /* can happen if a circle disappeared */
-            case EdgeArc::PARALLEL_LINES:    /* can happen if a circle disappeared */
-            case EdgeArc::CP_ADD_LINE_ME:
-            case EdgeArc::CP_ADD_LINE_BOTH:
-            case EdgeArc::NO_CP_ADD_LINE:    break; /*list all values to avoid warnings*/
-            }
+            XY new_start = EdgeArc::HasCP(cross_type[r.prev(i)]) ? cross_point[r.prev(i)] : r[i].GetStart();
+            XY new_end   = EdgeArc::HasCP(cross_type[i])         ? cross_point[i]         : r[i].GetEnd();
+
             if (!new_start.test_equal(new_end)) {
                 //insert existin edge (updated)
-                _ASSERT(r[i].IsSaneNoBoundingBox());
                 r[i].SetStartEndForExpand(new_start, new_end);
-                _ASSERT(r[i].IsSaneNoBoundingBox());
                 r2.push_back(r[i]);
             } else {
-                //existing edge got degenerate 
+                //existing edge got degenerate, do not insert
                 cross_point[i] = new_end = new_start; //use this from now on
             }
             //Now see if we need to add a line, circle or square
-            switch (type) {
-            case EXPAND_MITER:
-                switch (cross_type[i]) {
-                case EdgeArc::NO_CP_ADD_LINE:    
-                case EdgeArc::PARALLEL_LINES:    
-                    r2.push_back(EdgeArc(new_end, r.at_next(i).GetStart())); 
-                    break;
-                case EdgeArc::CP_ADD_LINE_ME:    
-                    r2.push_back(EdgeArc(new_end, cross_point[i])); 
-                    break;
-                case EdgeArc::CP_ADD_LINE_OTHER:  
-                    r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart()));
-                    break;
-                case EdgeArc::CP_ADD_LINE_BOTH:  
+            if (!EdgeArc::HasCP(cross_type[i])) 
+                switch (type) {
+                case EXPAND_MITER:
                     r2.push_back(EdgeArc(new_end, cross_point[i]));
                     r2.push_back(EdgeArc(cross_point[i], r.at_next(i).GetStart())); 
-                    break;
-                case EdgeArc::SAME_ELLIPSIS: 
-                case EdgeArc::DEGENERATE:        
-                    _ASSERT(0); /*fallthrough*/
-                case EdgeArc::CP_REAL:           
-                case EdgeArc::CP_EXTENDED:       
-                    break; /*list all values to avoid warnings*/
-                }
-                break; //MITER
-            case EXPAND_MITER_ROUND:
-                switch (cross_type[i]) {
-                case EdgeArc::CP_ADD_LINE_ME:    
-                case EdgeArc::CP_ADD_LINE_OTHER:  
-                case EdgeArc::CP_ADD_LINE_BOTH:  
-                case EdgeArc::NO_CP_ADD_LINE:    
-                case EdgeArc::PARALLEL_LINES:    
+                    break; 
+                case EXPAND_MITER_ROUND:
                     r2.push_back(CreateRoundForExpand(new_end, r.at_next(i).GetStart(), 
-                                                      o[i].GetEnd(), clockwise ^ (gap<0)));
+                        o[i].GetEnd(), clockwise ^ (gap<0)));
                     break;
-                case EdgeArc::SAME_ELLIPSIS: 
-                case EdgeArc::DEGENERATE:        
-                    _ASSERT(0); /*fallthrough*/
-                case EdgeArc::CP_REAL:           
-                case EdgeArc::CP_EXTENDED:       
-                    break; /*list all values to avoid warnings*/
-                }
-                break; //ROUND
-            case EXPAND_MITER_BEVEL:
-                switch (cross_type[i]) {
-                case EdgeArc::CP_ADD_LINE_ME:    
-                case EdgeArc::CP_ADD_LINE_OTHER:  
-                case EdgeArc::CP_ADD_LINE_BOTH:  
-                case EdgeArc::NO_CP_ADD_LINE:    
-                case EdgeArc::PARALLEL_LINES:    
+                case EXPAND_MITER_BEVEL:
                     r2.push_back(EdgeArc(new_end, r.at_next(i).GetStart())); 
                     break;
-                case EdgeArc::SAME_ELLIPSIS: 
-                case EdgeArc::DEGENERATE:        
-                    _ASSERT(0); /*fallthrough*/
-                case EdgeArc::CP_REAL:           
-                case EdgeArc::CP_EXTENDED:       
-                    break; /*list all values to avoid warnings*/
-                }
-                break; //ROUND
-            case EXPAND_MITER_SQUARE:
-                switch (cross_type[i]) {
-                case EdgeArc::SAME_ELLIPSIS: 
-                case EdgeArc::DEGENERATE:        
-                    _ASSERT(0); /*fallthrough*/
-                case EdgeArc::CP_REAL:           
-                case EdgeArc::CP_EXTENDED:       
-                    break; /*list all values to avoid warnings*/
-                case EdgeArc::CP_ADD_LINE_ME:    
-                case EdgeArc::CP_ADD_LINE_OTHER:  
-                case EdgeArc::CP_ADD_LINE_BOTH:  
-                case EdgeArc::NO_CP_ADD_LINE:    
-                case EdgeArc::PARALLEL_LINES:    
+                case EXPAND_MITER_SQUARE:
                     const XY &next_start = r.at_next(i).GetStart();
-                    const double dist = (new_end - next_start).length();
-                    //NextTangent(x, 1) and PrevTangent(x, 0) uses next and prev edges, resp.
-                    //We need the tangent of x there, so we take the other dir and invert
-                    const XY first_tangent = PrevTangentPoint(i, 1);
-                    const XY first = new_end - (first_tangent - new_end).Normalize()*dist;
-                    const XY second_tangent = NextTangentPoint(next(i), 0);
-                    const XY second = next_start - (second_tangent - next_start).Normalize()*dist;
+                    const double dist = (new_end - next_start).length()/2;
+                    const XY first_tangent = r[i].NextTangentPoint(1.0);
+                    const XY first = new_end + (first_tangent - new_end).Normalize()*dist;
+                    const XY second_tangent = r.at_next(i).PrevTangentPoint(0.0);
+                    const XY second = next_start + (second_tangent - next_start).Normalize()*dist;
                     r2.push_back(EdgeArc(new_end, first)); 
                     r2.push_back(EdgeArc(first, second)); 
                     r2.push_back(EdgeArc(second, next_start)); 
                     break;
                 }
-                break; //SQUARE
-            }
         }
-        break;
+        break; //EXPAND_MITER_*
     case EXPAND_BEVEL:   
     case EXPAND_ROUND:   
         enum EEdgeType {EXISTING, EXISTING_CHANGED_DIR, INSERTED};
         std::vector<EEdgeType> edge_type;  edge_type.reserve(200);
         std::vector<int> edge_orig;        edge_orig.reserve(200);
         for (unsigned i = 0; i<r.size(); i++) {
-            XY new_start = r[i].GetStart();
-            XY new_end =   r[i].GetEnd();
-            if (cross_type[r.prev(i)] == EdgeArc::CP_REAL)
-                new_start = cross_point[r.prev(i)]; 
-            if (cross_type[i] == EdgeArc::CP_REAL)
-                new_end = cross_point[i];
+            XY new_start = cross_type[r.prev(i)] == EdgeArc::CP_REAL ? cross_point[r.prev(i)] : r[i].GetStart();
+            XY new_end =   cross_type[i] == EdgeArc::CP_REAL         ? cross_point[i]         : r[i].GetEnd();
+
             if (!new_start.test_equal(new_end)) {
                 const bool changed_dir = r[i].IsOpposite(new_start, new_end); 
                 r[i].SetStartEndForExpand(new_start, new_end);
@@ -803,78 +717,50 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
     if (r2.size()==0) return;
     if (r2.size()==1) 
         r2[0].SetFullCircle();
-    //OK, now untangle
+    //OK, now untangle - use 'res_before_untangle' instead of r2
     static_cast<SimpleContour&>(r2).CalculateBoundingBox();  //also calculates bounding boxes of edges
-    r2.boundingBox = static_cast<SimpleContour&>(r2).boundingBox; //copy to outer
-    if (r2.size()==1) {
-        res = std::move(r2);
+    res_before_untangle.boundingBox = static_cast<SimpleContour&>(res_before_untangle).boundingBox; //copy to outer
+    if (r2.size()==1) {  //only one edge
+        res = std::move(res_before_untangle);
         return;
     }
     if (ContourTestDebug) {
-        const_cast<Block&>(r2.GetBoundingBox()) = static_cast<ContourWithHoles&>(r2).GetBoundingBox();
-        Draw(ContourTestDebug*100, r2);
+        const_cast<Block&>(res_before_untangle.GetBoundingBox()) = static_cast<ContourWithHoles&>(res_before_untangle).GetBoundingBox();
+        Draw(ContourTestDebug*100, res_before_untangle);
         ContourTestDebug++;
     };
-    res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
+    res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(res_before_untangle));
 }
 
-SimpleContour SimpleContour::CreateWithLastEdge(unsigned i) const
-{
-    //if i is degenerate or already the last edge, return a copy of us
-    if (size()==0 || i>=size()-1) return *this;
-    SimpleContour ret;
-    ret.reserve(size());
-    for (unsigned j = 0; j<size(); j++)
-        ret.push_back(at((i+1+j)%size()));
-    ret.boundingBox = boundingBox;
-    return ret;
-}
-
-
-void SimpleContour::Path(cairo_t *cr) const
+void SimpleContour::Path(cairo_t *cr, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
+    bool closed = true;
     cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
     for (unsigned i = 0; i<size(); i++)
-        at(i).Path(cr);
-    cairo_close_path(cr);
+        if (show_hidden || at(i).visible) 
+            at(i).PathTo(cr);
+        else {
+            cairo_move_to(cr, at(i).GetEnd().x, at(i).GetEnd().y);
+            closed = false;
+        }
+    if (closed)
+        cairo_close_path(cr);
 }
 
-//Do not close the path or include the last edge (even if curvy)
-void SimpleContour::PathOpen(cairo_t *cr) const
-{
-    if (size()==0 || cr==NULL) return;
-    cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
-    for (unsigned i = 0; i<size()-1; i++)
-        at(i).Path(cr);
-}
-
-void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num) const
+void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
     if (num<2) {
-        Path(cr);
+        Path(cr, show_hidden);
         return;
     }
     double offset = 0;
     int pos = 0;
     for (unsigned i = 0; i<size(); i++)
-        at(i).PathDashed(cr, pattern, num, pos, offset);
+        if (at(i).visible) 
+            at(i).PathDashed(cr, pattern, num, pos, offset);
 }
-
-void SimpleContour::PathOpenDashed(cairo_t *cr, const double pattern[], unsigned num) const
-{
-    if (size()==0 || cr==NULL) return;
-    if (num<2) {
-        PathOpen(cr);
-        return;
-    }
-    double offset = 0;
-    int pos = 0;
-    for (unsigned i = 0; i<size()-1; i++)
-        at(i).PathDashed(cr, pattern, num, pos, offset);
-}
-
 
 double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpoint) const
 {
@@ -891,7 +777,7 @@ double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpo
     return offset;
 }
 
-void SimpleContour::DoVerticalCrossSection(double x, DoubleMap<bool> &section) const
+void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) const
 {
     double y[2], pos[2];
     bool forward[2];

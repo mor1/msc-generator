@@ -28,7 +28,6 @@ private:
     result_t CheckContainmentHelper(const SimpleContour &b) const;
     double do_offsetbelow(const SimpleContour &below, double &touchpoint) const;
 
-    SimpleContour CreateWithLastEdge(unsigned i) const;
     const Block &CalculateBoundingBox();
 
     friend class ContoursHelper; //For walk related memebers
@@ -45,9 +44,11 @@ private:
     const Edge &at_prev(int i) const {return at(prev(i));}
 
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
-	XY PrevTangentPoint(int edge, double pos) const {return at(edge).PrevTangentPoint(pos, at_prev(edge));}
+	XY PrevTangentPoint(int edge, double pos) const 
+        {return (test_smaller(0, pos) ? at(edge) : at_prev(edge)).PrevTangentPoint(test_smaller(0, pos) ? pos : 1);}
     //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
-    XY NextTangentPoint(int edge, double pos) const {return at(edge).NextTangentPoint(pos, at_next(edge));}
+    XY NextTangentPoint(int edge, double pos) const
+        {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
 protected:
     friend class ContourList;
@@ -63,46 +64,49 @@ protected:
     SimpleContour &operator =(const Block &b);
     SimpleContour &operator =(SimpleContour &&p) {if (this!=&p) swap(p);  return *this;}
     SimpleContour &operator =(const SimpleContour &p) {if (this!=&p) {if (p.size()) {std::vector<Edge>::operator=(p); boundingBox=p.boundingBox;} else clear();} return *this;}
-
-    bool operator < (const SimpleContour &b) const;
-    bool operator ==(const SimpleContour &b) const;
-    void swap(SimpleContour &b) {std::vector<Edge>::swap(b); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise);}
-    void clear() {std::vector<Edge>::clear(); boundingBox.MakeInvalid();}
+    Edge &operator[](unsigned edge) {return at(edge);}
+    Edge *operator[](const XY &p) {unsigned edge; is_within_t r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;}
 
     bool AddAnEdge(const Edge &edge);
     void Invert();
 
     result_t CheckContainment(const SimpleContour &b) const;
 
-    is_within_t IsWithin(XY p, int *edge=NULL, double *pos=NULL, bool strict=true) const;
+    is_within_t IsWithin(XY p, unsigned *edge=NULL, double *pos=NULL, bool strict=true) const;
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (unsigned i=0; i<size(); i++) at(i).Shift(xy);}
     void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (unsigned i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise;}
     void Rotate(double cos, double sin, double radian) {for (unsigned i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (unsigned i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
 
-    void DoVerticalCrossSection(double x, DoubleMap<bool> &section) const;
-    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const;
-    void Expand(EExpandType type, double gap, Contour &res) const;
+    static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
 
 public:
+    bool operator < (const SimpleContour &b) const;
+    bool operator ==(const SimpleContour &b) const;
+    void swap(SimpleContour &b) {std::vector<Edge>::swap(b); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise);}
+    void clear() {std::vector<Edge>::clear(); boundingBox.MakeInvalid();}
+
     unsigned size() const {return std::vector<Edge>::size();}
     const Block &GetBoundingBox() const {return boundingBox;}
     bool GetClockWise() const {return clockwise;}
     bool IsEmpty() const {return std::vector<Edge>::size()==0;}
     bool IsSane() const;
-    const Edge &GetEdge(int edge) const {return at(edge);}
-    void Path(cairo_t *cr) const;
-    void Path(cairo_t *cr, bool clockwiseonly) const {
+    const Edge &operator[](unsigned edge) const {return at(edge);}
+
+    void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
+    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const;
+    void Expand(EExpandType type, double gap, Contour &res) const;
+
+    void Path(cairo_t *cr, bool show_hidden) const;
+    void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {
         if (clockwise==clockwiseonly) 
-            Path(cr);
+            Path(cr, show_hidden);
     }
-    void PathOpen(cairo_t *cr) const;
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num) const;
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool clockwiseonly) const {
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {
         if (clockwise==clockwiseonly) 
-            PathDashed(cr, pattern, num);
+            PathDashed(cr, pattern, num, show_hidden);
     }
-    void PathOpenDashed(cairo_t *cr, const double pattern[], unsigned num) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const
