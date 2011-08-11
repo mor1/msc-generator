@@ -423,7 +423,10 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
 {
     if (!radius.first || radius.second<=0 || !corner.first) 
         return Contour(x1, x2, y1, y2);
-    const double r = std::min(std::min(fabs(x1-x2)/2, fabs(y1-y2)/2), radius.second);
+    Contour ret;
+    const double r = radius.second;
+    _ASSERT(fabs(x1-x2)/2 > r || corner.second==CORNER_NONE);
+    _ASSERT(fabs(y1-y2)/2 > r || corner.second==CORNER_NONE);
     switch (corner.second) {
     default: 
         return Contour(x1, x2, y1, y2);
@@ -438,7 +441,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             Edge(XY(x1+r, y2-r), r, r, 0,  90, 180),
             Edge(XY(x1, y2-r), XY(x1, y1+r)),
             Edge(XY(x1+r, y1+r), r, r, 0, 180, 270)};
-        return Contour(edges);
+        ret.assign_dont_check(edges);
         }
     case CORNER_BEVEL:
         {
@@ -451,7 +454,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             XY(x1+r, y2),
             XY(x1, y2-r),
             XY(x1, y1+r)};
-        return Contour(points);
+        ret.assign_dont_check(points);
         }
     case CORNER_NOTE:
         {
@@ -461,10 +464,45 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             XY(x2, y1+r),
             XY(x2, y2),
             XY(x1, y2)};
-        return Contour(points);
+        ret.assign_dont_check(points);
         }
     }
+    return ret;
 }
+
+//b is the midline box of a note style rectangle. line contains a valid, positive radius
+//ret[0] will be the body and ret[1] will be the triangle
+Contour MscLineAttr::NoteFill(const Block &b) const
+{
+    _ASSERT(corner.second==CORNER_NOTE);
+    if (!IsDoubleOrTriple()) 
+        return CreateRectangle(b);
+    Block bb(b);
+    MscLineAttr line2(*this);
+    if (IsDouble()) {
+        bb.Expand(-line2.Spacing());
+        line2.Expand(-line2.Spacing());
+    }
+    const XY c2[] = {XY(b.x.till - line2.radius.second, b.y.from + line2.radius.second),
+                     XY(b.x.till - line2.radius.second, b.y.from),
+                     XY(b.x.till                      , b.y.from + line2.radius.second)};
+    if (IsTriple()) {
+        bb.Expand(-line2.Spacing());
+        line2.Expand(-line2.Spacing());
+    }
+    const double r = line2.radius.second + 2*line2.width.second;
+    const XY c1[] = {b.UpperLeft(), 
+                     XY(b.x.till - r, b.y.from), 
+                     XY(b.x.till - r, b.y.from + r), 
+                     XY(b.x.till    , b.y.from + r), 
+                     b.LowerRight(),
+                     b.LowerLeft()};
+    Contour ret;
+    ret.assign_dont_check(c1);
+    ret.append_dont_check(c2);
+    return ret;
+}
+
 
 //This assumes that we draw a rectangle at outer edge y position rect_top 
 //with the corner specified in "this".

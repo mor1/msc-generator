@@ -180,6 +180,20 @@ public:
     void assign(const Edge v[], unsigned size, bool winding=true);
     template<unsigned size> void assign(const Edge (&v)[size], bool winding=true) {assign (v, size, winding);}
     
+    void assign_dont_check(const std::vector<XY> &v) {SimpleContour::assign_dont_check(v); boundingBox = SimpleContour::boundingBox;}
+    void assign_dont_check(const XY v[], unsigned size)  {SimpleContour::assign_dont_check(v, size); boundingBox = SimpleContour::boundingBox;}
+    template<unsigned size> void assign_dont_check(const XY (&v)[size]) {assign_dont_check (v, size);}
+    void assign_dont_check(const std::vector<Edge> &v)  {SimpleContour::assign_dont_check(v); boundingBox = SimpleContour::boundingBox;}
+    void assign_dont_check(const Edge v[], unsigned size)  {SimpleContour::assign_dont_check(v, size); boundingBox = SimpleContour::boundingBox;}
+    template<unsigned size> void assign_dont_check(const Edge (&v)[size]) {assign_dont_check (v, size);}
+
+    void append_dont_check(const std::vector<XY> &v) {ContourWithHoles tmp; tmp.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    void append_dont_check(const XY v[], unsigned size) {ContourWithHoles tmp; tmp.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    template<unsigned size> void append_dont_check(const XY (&v)[size]) {append_dont_check (v, size);}
+    void append_dont_check(const std::vector<Edge> &v) {ContourWithHoles tmp; tmp.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    void append_dont_check(const Edge v[], unsigned size) {ContourWithHoles tmp; tmp.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));}
+    template<unsigned size> void append_dont_check(const Edge (&v)[size]) {append_dont_check (v, size);}
+
     bool IsEmpty() const {return ContourWithHoles::IsEmpty();}
     const Block &GetBoundingBox(void) const {return boundingBox;}
     //bool AddAnEdge(const Edge &edge) {SimpleContour::AddAnEdge(edge);}

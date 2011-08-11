@@ -378,6 +378,43 @@ bool SimpleContour::PostWalk()
     return true;
 }
 
+void SimpleContour::assign_dont_check(const std::vector<XY> &v)
+{
+    clear();
+    if (v.size()<2) return;
+    for (unsigned i=0; i<v.size(); i++)
+        push_back(Edge(v[i], v[(i+1)%v.size()]));
+    CalculateBoundingBox();
+}
+
+void SimpleContour::assign_dont_check(const XY v[], unsigned size)
+{
+    clear();
+    if (size < 2) return;
+    for (unsigned i=0; i<size; i++)
+        push_back(Edge(v[i], v[(i+1)%size]));
+    CalculateBoundingBox();
+}
+
+void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
+{
+    clear();
+    if (v.size()<2) return;
+    static_cast<std::vector<Edge>*>(this)->operator=(v);
+    if (Sanitize()) 
+        CalculateBoundingBox();
+}
+
+void SimpleContour::assign_dont_check(const Edge v[], unsigned size)
+{
+    clear();
+    if (size < 2) return;
+    for (unsigned i=0; i<size; i++)
+        SimpleContour::push_back(v[i]);
+    if (Sanitize()) 
+        CalculateBoundingBox();
+}
+
 bool SimpleContour::IsSane() const
 {
     if (size()==0) return true;

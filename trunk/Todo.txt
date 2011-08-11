@@ -45,10 +45,7 @@ ADD: Add entity create/destroy
 ADDDED: Entity activate/deactivate
 FIX: Entity attributes does not get hinted well
 FIX: Make all examples compile with full active entities
-
-CHANGE: reduce friends to Contour
-CHANGE: add hidden lines to contour and creation as an open line.
-	add access to edges, too.
+CHANGE: Create an order in CreateRectangle - do it at one place
 
 
 In 3.2
