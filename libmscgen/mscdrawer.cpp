@@ -128,19 +128,10 @@ void MscCanvas::Clip(const Block &b, const MscLineAttr &line)
 {
     _ASSERT(line.IsComplete());
     cairo_save(cr);
-    if (line.corner.second == CORNER_NOTE && line.IsDoubleOrTriple()) {
-        //spacing from the line midpoint to the midpoint of the outer line of a double/triple line
-        const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
-        const double r = line.radius.second + (line.IsDouble() ? - line.width.second/2 : spacing * RadiusIncMultiplier(CORNER_NOTE)); //expand radius
-        //Add main body as a closed path
-        (Contour(b) - Block(b.x.till-r, b.x.till, b.y.from, b.y.from+r)).Path(cr, true);
-        const double r1 = line.radius.second - (line.IsDouble() ? spacing *2 + line.width.second/2: spacing *(1-RadiusIncMultiplier(CORNER_NOTE))); 
-        const double r2 = spacing * (line.IsDouble() ? 1./RadiusIncMultiplier(CORNER_NOTE) - 1. : - 1);
-        //Add little triangle as a path
-        Contour(XY(b.x.till-r1, b.y.from+r2),XY(b.x.till-r1, b.y.from+r1), XY(b.x.till-r2, b.y.from+r1)).Path(cr, true);
-    } else {
+    if (line.corner.second == CORNER_NOTE && line.IsDoubleOrTriple()) 
+        line.NoteFill(b).Path(cr, true);
+    else
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
-    }
     cairo_clip(cr);
 }
 
@@ -367,7 +358,7 @@ void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
     _ASSERT(line.IsComplete());
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     SetLineAttr(line);
-    const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
+    const double spacing = line.Spacing();
     if (line.IsDoubleOrTriple()) {
         Edge e = edge;
         e.Expand(spacing);
@@ -401,16 +392,20 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     if (b.IsInvalid()) return;
     SetLineAttr(line);
-    const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
-    if (line.corner.second!=CORNER_NOTE || line.radius.second==0) {
+    const double spacing = line.Spacing();
+    const double lw = line.LineWidth();
+    const double lw_small = line.width.second;
+    const double r = std::max(0., std::min(std::min(b.x.Spans()/2 - lw, line.radius.second), b.y.Spans()/2 - lw));
+    if (line.corner.second!=CORNER_NOTE || r==0) {
         if (line.IsDoubleOrTriple()) {
             Block bb(b);
             MscLineAttr line2(line);
+            line2.radius.second = r;
             bb.Expand(spacing);
-            if (line2.radius.second>0) line2.radius.second += spacing * line2.RadiusIncMul();
+            line2.Expand(spacing);
             singleLine(bb, line2);
             bb.Expand(-2*spacing);
-            line2.radius.second -= 2*spacing * line2.RadiusIncMul(); //negative radius is handled as 0 by singleLine
+            line2.Expand(-2*spacing);
             singleLine(bb, line2);
         } 
         if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
@@ -421,31 +416,15 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
         if (line.IsDoubleOrTriple()) {
             Block bb(b);
             MscLineAttr line2(line);
-            bb.Expand(spacing);
-            line2.radius.second += spacing * (line.IsDouble() ? -RadiusIncMultiplier(CORNER_NOTE) : RadiusIncMultiplier(CORNER_NOTE));
+            line2.radius.second = r;
+            singleLine(line2.NoteFill(bb)[0], line2);
+            bb.Expand(line2.Spacing());
+            line2.Expand(line2.Spacing());
             singleLine(bb, line2);
-            bb.Expand(-2*spacing);
-            const double r = line.radius.second - spacing * (line.IsDouble() ? 1 : 0); 
-            Area inner = Contour(bb) - Contour(bb.x.till-r, bb.x.till, bb.y.from, bb.y.from+r);
-            singleLine(inner, line);
-        } else {
-            const double r = line.radius.second;
+        } 
+        if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        if (!line.IsDouble()) 
             singleLine(b, line);
-            const Contour note(XY(b.x.till, b.y.from+r), XY(b.x.till-r, b.y.from+r), XY(b.x.till-r, b.y.from));
-            note[0][2].visible = false;
-            Line(note, line);
-        }
-        if (line.IsDouble()) {
-            const double r1 = line.radius.second - 2*spacing;
-            const double r2 = spacing / RadiusIncMultiplier(CORNER_NOTE);
-            singleLine(Contour(XY(b.x.till-r1, b.y.from+r2),XY(b.x.till-r1, b.y.from+r1), XY(b.x.till-r2, b.y.from+r1)), line);
-        } else if (line.IsTriple()) {
-            MscLineAttr line2(line);
-            line2.type.second = LINE_SOLID;
-            if (line.type.second == LINE_TRIPLE_THICK)
-                line2.width.second *= 2;
-            Line(b, line2);
-        }
     }
 }
 
@@ -455,7 +434,7 @@ void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     if (c.IsEmpty()) return;
     SetLineAttr(line);
-    const double spacing = line.IsDouble() ? line.DoubleSpacing() : line.IsTriple() ? line.TripleSpacing() : 0;
+    const double spacing = line.Spacing();
     if (line.IsDoubleOrTriple()) {
         singleLine(c.CreateExpand(spacing), line);
         singleLine(c.CreateExpand(-spacing), line);

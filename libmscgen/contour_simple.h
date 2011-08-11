@@ -86,6 +86,13 @@ public:
     void swap(SimpleContour &b) {std::vector<Edge>::swap(b); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise);}
     void clear() {std::vector<Edge>::clear(); boundingBox.MakeInvalid();}
 
+    void assign_dont_check(const std::vector<XY> &v);
+    void assign_dont_check(const XY v[], unsigned size);
+    template<unsigned size> void assign_dont_check(const XY (&v)[size]) {assign_dont_check (v, size);}
+    void assign_dont_check(const std::vector<Edge> &v);
+    void assign_dont_check(const Edge v[], unsigned size);
+    template<unsigned size> void assign_dont_check(const Edge (&v)[size]) {assign_dont_check (v, size);}
+
     unsigned size() const {return std::vector<Edge>::size();}
     const Block &GetBoundingBox() const {return boundingBox;}
     bool GetClockWise() const {return clockwise;}

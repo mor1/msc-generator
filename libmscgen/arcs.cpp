@@ -2189,21 +2189,26 @@ double ArcBoxSeries::Height(AreaList &cover)
         AreaList content_cover = (*i)->text_cover;
         if ((*i)->content.size()) {
             const double &radius = main_style.line.radius.second;
-            Area limit = (*i)->text_cover;
-            if (i==series.begin() && radius != CORNER_NONE && radius>0) {
+            Contour limit = (*i)->text_cover;
+            if (i==series.begin() && main_style.line.corner.second != CORNER_NONE && radius>0) {
                 //Funnily shaped box, prevent content from hitting it
-                Block b(sx, dx, y, lw+y+radius*4);
-                limit += Contour(Block(sx, dx, 0, y+lw+main_style.line.radius.second)) -=
-                            main_style.line.CreateRectangle(b);
+                Block b(sx, dx, y, y + std::max(lw+radius*4, dx-sx));
+                Contour form;
                 if (main_style.line.corner.second == CORNER_NOTE) {
-                    const double r = radius + main_style.line.RadiusIncMul()*lw/2 -
-                        (main_style.line.IsDouble() ? main_style.line.DoubleSpacing() : 0);
-                    limit += Contour(b.x.till-r, b.y.from, b.x.till-r, b.y.from+r,
-                                        b.x.till, b.y.from+r);
-                }
+                    if (main_style.line.IsDoubleOrTriple())
+                        form = main_style.line.NoteFill(b)[0];
+                    else {
+                        MscLineAttr tmp_line(main_style.line);
+                        tmp_line.type.second = LINE_DOUBLE;
+                        tmp_line.width.second = 0;
+                        form = tmp_line.NoteFill(b)[0];
+                    }
+                } else //BEVEL and ROUND
+                    form = main_style.line.CreateRectangle(b);
+                limit += Contour(sx, dx, 0, y+lw+main_style.line.radius.second) - form;
             }
             y = chart->PlaceListUnder((*i)->content.begin(), (*i)->content.end(),
-                                        y+th, y, limit, compress, &content_cover);  //no extra margin below text
+                                        y+th, y, Area(std::move(limit)), compress, &content_cover);  //no extra margin below text
         } else {
             y += th; //no content, just add textheight
         }
@@ -2242,7 +2247,7 @@ double ArcBoxSeries::Height(AreaList &cover)
     total_height = y + lw - yPos;
     Block b(sx-lw, dx+lw, yPos, yPos + total_height);
     MscLineAttr line_for_outer_edge = main_style.line;
-    line_for_outer_edge.radius.second += lw * main_style.line.RadiusIncMul();
+    line_for_outer_edge.Expand(lw);
     Area overall_box = line_for_outer_edge.CreateRectangle(b);
     // now we have all geometries correct, now calculate areas and covers
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -2342,16 +2347,16 @@ void ArcBoxSeries::PostPosProcess(double autoMarker)
         MscLineAttr line = main_style.line;  //We will vary the radius, so we need a copy
         line.radius.second = std::min(std::min(b.y.Spans()/2 - lw, b.x.Spans()/2 - lw), line.radius.second);
         //The radius specified in style.line will be that of the inner edge of the line
-        if (line.radius.second > 0)
-            line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
-        Area hide = line.CreateRectangle(b);
-        line.radius.second -= lw * line.RadiusIncMul(); //now it is appropriate for the inner edge
-        hide -= line.CreateRectangle(b.Expand(-lw));
-
+        line.Expand(lw); //now it is appropriate for the outer edge
+        Contour hide = line.CreateRectangle(b);
         if (main_style.line.corner.second == CORNER_NOTE) {
-            const double r = main_style.line.radius.second + main_style.line.RadiusIncMul()*lw/2 -
-                                (main_style.line.IsDouble() ? main_style.line.DoubleSpacing() : 0);
-            hide += Contour(b.UpperRight()+XY(0,r), b.UpperRight()+XY(-r,0), b.UpperRight()+XY(-r,r));
+            line.Expand(-lw/2);
+            b.Expand(-lw/2); //now the midpoint of the line
+            hide -= line.NoteFill(b)[0];  //this is the midpoint of the inner triangle
+        } else {
+            line.Expand(-lw); //now it is appropriate for the inner edge
+            b.Expand(-lw);
+            hide -= line.CreateRectangle(b);
         }
         chart->HideEntityLines(hide);
     }
@@ -2369,15 +2374,14 @@ void ArcBoxSeries::Draw()
     Block r(src_x - left_space, dst_x + right_space, yPos, yPos+total_height); //The outer edge of the lines
     line.radius.second = std::min(std::min(r.y.Spans()/2 - lw, r.x.Spans()/2 - lw), line.radius.second);
     //The radius specified in style.line will be that of the inner edge of the line
-    if (line.radius.second > 0)
-        line.radius.second += lw * line.RadiusIncMul(); //now it is appropriate for the outer edge
+    line.Expand(lw); //now it is appropriate for the outer edge
     //First draw the shadow.
     r.Expand(-line.width.second/2.);
-    line.radius.second -= line.width.second/2. * line.RadiusIncMul();
+    line.Expand(-line.width.second/2.);
     chart->GetCanvas()->Shadow(r, line, main_style.shadow);
     //Do a clip region for the overall box (for round corners)
     //at half a linewidth from the inner edge (use the width of a single line!)
-    line.radius.second -= (lw-line.width.second) * line.RadiusIncMul();
+    line.Expand(-lw+line.width.second);
     r.Expand(-lw+line.width.second);
     chart->GetCanvas()->Clip(r, line);
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -2408,7 +2412,7 @@ void ArcBoxSeries::Draw()
     chart->GetCanvas()->UnClip();
     //shring to the inner edge
     r.Expand(-line.width.second/2.);
-    line.radius.second -= line.width.second/2. * line.RadiusIncMul();
+    line.Expand(-line.width.second/2.);
     //Draw box lines - Cycle only for subsequent boxes
     for (auto i = ++series.begin(); i!=series.end(); i++) {
         const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
@@ -2417,7 +2421,7 @@ void ArcBoxSeries::Draw()
     }
     //Finally draw the overall line around the box, expand to midpoint of line
     r.Expand(lw/2);
-    line.radius.second += (lw/2)  * line.RadiusIncMul();
+    line.Expand(lw/2);
     chart->GetCanvas()->Line(r, line);
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -3136,27 +3140,28 @@ void ArcPipe::DrawPipe(bool topSideFill, bool topSideLine, bool backSide,
             clip -= Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2);
         }
         chart->GetCanvas()->Clip(clip);
+        const double spacing = style.line.Spacing();
         if (!style.line.IsDoubleOrTriple() || drawing_variant==0)
             chart->GetCanvas()->Line(pipe_body_line, style.line); //basic variant, in case of double & triple, lines cross
         else if (style.line.IsDouble()) {
             chart->GetCanvas()->SetLineAttr(style.line);
             if (drawing_variant==1) { //advanced: lines do not cross
-                chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(style.line.DoubleSpacing()), style.line);
-                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-style.line.DoubleSpacing()), style.line);
-                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-style.line.DoubleSpacing()), style.line);
+                chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line);
+                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing), style.line);
+                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);
             } else { //very advanced: proper double line joint
-                chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(style.line.DoubleSpacing()), style.line); //outer
-                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-style.line.DoubleSpacing()) -
-                                  pipe_hole_line.CreateExpand(style.line.DoubleSpacing()), style.line);  //inner body
-                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-style.line.DoubleSpacing()), style.line); //inner hole
+                chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line); //outer
+                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing) -
+                                  pipe_hole_line.CreateExpand(spacing), style.line);  //inner body
+                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line); //inner hole
             }
         } else if (style.line.IsTriple()) {
             chart->GetCanvas()->SetLineAttr(style.line);
             //here variant 1 and 2 result in the same
-            chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(style.line.TripleSpacing()), style.line);  //outer
-            chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-style.line.TripleSpacing()) -
-                                pipe_hole_line.CreateExpand(style.line.TripleSpacing()), style.line);  //inner body
-            chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-style.line.TripleSpacing()), style.line);   //inner hole
+            chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line);  //outer
+            chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing) -
+                                pipe_hole_line.CreateExpand(spacing), style.line);  //inner body
+            chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);   //inner hole
             cairo_set_line_width(chart->GetCanvas()->GetContext(), style.line.TripleMiddleWidth());
             chart->GetCanvas()->singleLine(pipe_body_line, style.line); //middle line
         }

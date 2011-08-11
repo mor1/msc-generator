@@ -1230,51 +1230,36 @@ void Contour::assign(const std::vector<XY> &v, bool winding)
 {
     clear();
     if (v.size()<2) return;
-    SimpleContour tmp;
-    for (unsigned i=0; i<v.size(); i++)
-        tmp.push_back(Edge(v[i], v[(i+1)%v.size()]));
-    tmp.CalculateBoundingBox();
-    Contour tmp2(std::move(tmp));
-    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, tmp2);
+    Contour tmp;
+    tmp.assign_dont_check(v);
+    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
 }
 
 void Contour::assign(const XY v[], unsigned size, bool winding)
 {
     clear();
     if (size < 2) return;
-    SimpleContour tmp;
-    for (unsigned i=0; i<size; i++)
-        tmp.push_back(Edge(v[i], v[(i+1)%size]));
-    tmp.CalculateBoundingBox();
-    Contour tmp2(std::move(tmp));
-    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, tmp2);
+    Contour tmp;
+    tmp.assign_dont_check(v, size);
+    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
 }
 
 void Contour::assign(const std::vector<Edge> &v, bool winding)
 {
     clear();
     if (v.size()<2) return;
-    SimpleContour tmp;
-    static_cast<std::vector<Edge>*>(&tmp)->operator=(v);
-    if (tmp.Sanitize()) {
-        tmp.CalculateBoundingBox();
-        Contour tmp2(std::move(tmp));
-        Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, tmp2);
-    }
+    Contour tmp;
+    tmp.assign_dont_check(v);
+    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
 }
 
 void Contour::assign(const Edge v[], unsigned size, bool winding)
 {
     clear();
     if (size < 2) return;
-    SimpleContour tmp;
-    for (unsigned i=0; i<size; i++)
-        tmp.push_back(v[i]);
-    if (tmp.Sanitize()) {
-        tmp.CalculateBoundingBox();
-        Contour tmp2(std::move(tmp));
-        Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, tmp2);
-    }
+    Contour tmp;
+    tmp.assign_dont_check(v, size);
+    Operation(winding ? Contour::WINDING_RULE_NONZERO : Contour::WINDING_RULE_EVENODD, std::move(tmp));
 }
 
 bool Contour::IsSane() const
