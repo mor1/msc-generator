@@ -94,6 +94,7 @@ static void usage()
 "             Any chart design can be specified here, taking precedence over the\n"
 "             design specified in the input file.\n"
 " -l          Display program licence and exit.\n"
+" -h          Display this help and exit.\n"
 "\n"
 "Msc-generator version %s, Copyright (C) 2008-9 Zoltan Turanyi,\n"
 "Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
@@ -249,6 +250,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
             }
         } else if (*i == "-l") {
             licence();
+            return EXIT_SUCCESS;
+        } else if (*i == "-h") {
+            usage();
             return EXIT_SUCCESS;
         } else if (*i == "-Wno") {
             oWarning = false;

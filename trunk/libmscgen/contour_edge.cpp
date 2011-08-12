@@ -413,7 +413,7 @@ unsigned EdgeFullCircle::Crossing(const EdgeFullCircle &o, XY r[], double pos_my
         r[numnum] = loc_r[i];
         pos_my[numnum] = radian2pos(loc_my[i]);
         pos_other[numnum] = o.radian2pos(loc_other[i]);
-        if (!test_smaller(pos_my[i],1) || !test_smaller(pos_other[i], 1)) 
+        if (!test_smaller(pos_my[i],1) || !test_smaller(pos_other[i], 1))
             continue;
         numnum++;
     }
@@ -511,8 +511,8 @@ double EdgeArc::radian2pos(double r) const
 }
 
 EdgeArc::EdgeArc(const XY &c, double radius_x, double radius_y, double tilt_deg,double s_deg, double d_deg) :
-    EdgeFullCircle(c, radius_x, radius_y, tilt_deg, s_deg), e(deg2rad(d_deg)),
-    visible(true)
+    EdgeFullCircle(c, radius_x, radius_y, tilt_deg, s_deg), visible(true),
+    e(deg2rad(d_deg))
 {
     if (d_deg==360) {
         e = 0;
@@ -526,14 +526,14 @@ EdgeArc::EdgeArc(const XY &c, double radius_x, double radius_y, double tilt_deg,
 bool EdgeArc::IsSane() const
 {
     if (!IsSaneNoBoundingBox()) return false;
-    if (boundingBox.IsWithin(start) == WI_OUTSIDE || 
+    if (boundingBox.IsWithin(start) == WI_OUTSIDE ||
         boundingBox.IsWithin(end) == WI_OUTSIDE) return false;
     return true;
 }
 
 bool EdgeArc::IsSaneNoBoundingBox() const
 {
-    if (type == EDGE_ARC) 
+    if (type == EDGE_ARC)
         if (!ell.Radian2Point(e).test_equal(end)) return false;
     if (type == EDGE_FULL_CIRCLE)
         if (!end.test_equal(start)) return false;
@@ -597,7 +597,7 @@ RayAngle EdgeArc::Angle(bool incoming, const XY &p, double pos) const
 };
 
 //the radian difference between two radians
-inline double radian_diff_abs(double a, double b) 
+inline double radian_diff_abs(double a, double b)
 {
     _ASSERT(std::min(fabs(a-b), fabs(a>b ? 2*M_PI-(a-b) : 2*M_PI-(b-a)))<2*M_PI);
     return std::min(fabs(a-b), fabs(a>b ? 2*M_PI-(a-b) : 2*M_PI-(b-a)));
@@ -634,11 +634,11 @@ bool EdgeArc::UpdateClockWise(double new_s, double new_e)
 }
 
 
-void EdgeArc::SwapXYcurvy() 
+void EdgeArc::SwapXYcurvy()
 {
     _ASSERT(type!=EDGE_STRAIGHT);
-    ell.SwapXY(); 
-    clockwise_arc=!clockwise_arc; 
+    ell.SwapXY();
+    clockwise_arc=!clockwise_arc;
     if (ell.IsTilted()) {
         s = s==0 ? 0 : 2*M_PI-s;
         e = e==0 ? 0 : 2*M_PI-e;
@@ -647,7 +647,7 @@ void EdgeArc::SwapXYcurvy()
         e = e<M_PI/2 ? M_PI/2-e : 2.5*M_PI - e;
     }
 };
-    
+
 
 
 bool EdgeArc::operator ==(const EdgeArc& o) const
@@ -680,7 +680,7 @@ double EdgeArc::GetRadianMidPoint() const
     return fmod_negative_safe((s+e)/2+M_PI, 2*M_PI);
 }
 
-XY EdgeArc::Pos2Point(double pos) const 
+XY EdgeArc::Pos2Point(double pos) const
 {
     _ASSERT(pos>=-0 && pos<=1);
     switch (type) {
@@ -735,7 +735,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
 			    loc_other[num] = 0;
 			    loc_r[num] = o.start;
                 loc_my[num] = radian2pos(ell.Point2Radian(o.start));
-                if (test_zero(loc_my[num])) loc_my[num] = 0; 
+                if (test_zero(loc_my[num])) loc_my[num] = 0;
 		    } else if (!test_smaller(loc_other[num], 1))  //if close or above to 1 skip
 			    continue;
             //OK add as a crosspoint
@@ -763,7 +763,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
             if (!test_smaller(pos_my[i], 1) || !test_smaller(pos_other[i], 1) ||
                  test_smaller(pos_my[i], 0) ||  test_smaller(pos_other[i], 0)) {
                 if (i==num-1) {
-                    num--; 
+                    num--;
                     break;
                 }
                 loc_my[0] = loc_my[1]; //can only be if num==2, i==1
@@ -775,7 +775,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
                 if (!test_smaller(0, pos_other[i])) pos_other[i] = 0; //snap to zero
             }
         }
-        for (unsigned u=0; u<num; u++) {
+        for (unsigned u=0; u<unsigned(num); u++) {
             _ASSERT(Pos2Point(pos_my[u]).test_equal(r[u]));
             _ASSERT(o.Pos2Point(pos_other[u]).test_equal(r[u]));
         }
@@ -836,7 +836,7 @@ unsigned EdgeArc::Crossing(const EdgeArc &o, XY r[], double pos_my[], double pos
     if (num == -1) //we have not changed num above
         num = (loc_my[0] == loc_my[1]) ? 1 : 2;
     unsigned res_num = 0;
-    for (unsigned i=0; i<num; i++) {
+    for (unsigned i=0; i<unsigned(num); i++) {
         if (loc_my[i]==e || loc_my[i]==o.e) continue; //do not return pos==1 cps
         r[res_num] = loc_r[i];
         pos_my[res_num] = radian2pos(loc_my[i]);
@@ -922,11 +922,11 @@ int EdgeArc::CrossingVerticalCurvy(double x, double y[], double pos[], bool forw
 			y[num] = end.y;
 			pos[num] = 1;
         } else if (radianbetween(pos[i])) { //include, if not close to end but between s&e
-            y[num] = y[i]; 
+            y[num] = y[i];
             pos[num] = radian2pos(pos[i]);
-        } else 
+        } else
             continue; //exclude
-        forward[num] = (y[i] == std::min(y[0], y[1])) == clockwise_arc;            
+        forward[num] = (y[i] == std::min(y[0], y[1])) == clockwise_arc;
         num++;
     }
     return num;
@@ -1187,7 +1187,7 @@ int find_closest(int num, const double r[], double p, bool larger)
 //NO_CP_PARALLEL: Either the two edges are parallel or their linear extrapolation
 //  "newcp" is a calculated convergence point: can be reached by adding linear segments
 
-EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const
+EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, XY &newcp) const
 {
     if (start.test_equal(end) || M.start.test_equal(M.end)) return DEGENERATE;
     const double parallel_join_multipiler = 5;
@@ -1204,8 +1204,8 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             double radian_us[8], pos_M[8];
             int num = ell.CrossingStraight(M.start, M.end, r, radian_us, pos_M);
             if (!num) {
-                const XY tangent = NextTangentPoint(1.0);  
-                if (crossing_line_line(end, tangent, M.start, M.end, newcp) != LINE_CROSSING_PARALLEL) 
+                const XY tangent = NextTangentPoint(1.0);
+                if (crossing_line_line(end, tangent, M.start, M.end, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
                 const double dist = (end-M.start).length() * parallel_join_multipiler;
@@ -1227,8 +1227,8 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             double pos_us[8], radian_M[8];
             int num = M.ell.CrossingStraight(start, end, r, radian_M, pos_us);
             if (!num) {
-                const XY tangent = M.PrevTangentPoint(0.0);  
-                if (crossing_line_line(tangent, M.start, start, end, newcp) != LINE_CROSSING_PARALLEL) 
+                const XY tangent = M.PrevTangentPoint(0.0);
+                if (crossing_line_line(tangent, M.start, start, end, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
                 const double dist = (end-M.start).length() * parallel_join_multipiler;
@@ -1247,9 +1247,9 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
             double radian_us[8], radian_M[8];
             int num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
             if (!num) {
-                const XY tangent1 = PrevTangentPoint(1.0);  
+                const XY tangent1 = PrevTangentPoint(1.0);
                 const XY tangent2 = M.NextTangentPoint(0.0);
-                if (crossing_line_line(tangent1, end, tangent2, M.start, newcp) != LINE_CROSSING_PARALLEL) 
+                if (crossing_line_line(tangent1, end, tangent2, M.start, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
                 const double dist = (end-M.start).length() * parallel_join_multipiler;
@@ -1268,14 +1268,14 @@ EdgeArc::EExpandCPType EdgeArc::FindExpandedEdgesCP(const EdgeArc&M, const XY &o
 }
 
 
-void EdgeArc::SetStartEndForExpand(const XY &S, const XY &E) 
+void EdgeArc::SetStartEndForExpand(const XY &S, const XY &E)
 {
     double new_s, new_e;
     if (type!=EDGE_STRAIGHT) {
         new_s = ell.Point2Radian(S);
-        if (S.test_equal(E)) 
+        if (S.test_equal(E))
             new_e = new_s;
-        else 
+        else
             new_e = ell.Point2Radian(E);
     }
     switch (type) {
@@ -1286,7 +1286,7 @@ void EdgeArc::SetStartEndForExpand(const XY &S, const XY &E)
         //if (fabs(s-e) != M_PI && fabs(new_s-new_e) != M_PI) {
         //    const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
         //    const bool dir_M = (new_e>new_s && (new_e-new_s)<M_PI) || (new_s>new_e && (new_s-new_e)>=M_PI);
-        //    if (dir_us != dir_M) 
+        //    if (dir_us != dir_M)
         //        clockwise_arc = !clockwise_arc;
         //}
         if (radian_diff_abs(e, new_e) + radian_diff_abs(s, new_s) >

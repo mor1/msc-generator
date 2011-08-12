@@ -43,9 +43,12 @@ In 3.3
 ADD: message lost
 ADD: Add entity create/destroy
 ADDDED: Entity activate/deactivate
+CHANGED: Create an order in CreateRectangle - do it at one place
 FIX: Entity attributes does not get hinted well
 FIX: Make all examples compile with full active entities
-CHANGE: Create an order in CreateRectangle - do it at one place
+FIX: Box drawing suchks
+FIX: Pipe draws vertical line
+FIX: test1.signalling fails
 
 
 In 3.2

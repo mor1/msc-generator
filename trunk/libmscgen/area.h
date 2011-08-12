@@ -20,17 +20,19 @@ public:
 
     void clear() {Contour::clear(); mainline.MakeInvalid();}
     void swap(Area &a);
-    void assign(const std::vector<contour::XY> &v, bool winding=true)  {Contour::assign(v); mainline.MakeInvalid();}
-    void assign(const contour::XY v[], unsigned size, bool winding=true)  {Contour::assign(v, size); mainline.MakeInvalid();}
-    template<unsigned size> void assign(const contour::XY v[size], bool winding=true) {assign (v, size, winding);}
-    void assign(const std::vector<contour::Edge> &v, bool winding=true)  {Contour::assign(v); mainline.MakeInvalid();}
-    void assign(const contour::Edge v[], unsigned size, bool winding=true)  {Contour::assign(v, size); mainline.MakeInvalid();}
+    void assign(const std::vector<contour::XY> &v, bool winding=true)  {Contour::assign(v, winding); mainline.MakeInvalid();}
+    void assign(const contour::XY v[], unsigned size, bool winding=true)  {Contour::assign(v, size, winding); mainline.MakeInvalid();}
+    template<unsigned SIZE> void assign(const contour::XY v[SIZE], bool winding=true) {assign (v, SIZE, winding);}
+    void assign(const std::vector<contour::Edge> &v, bool winding=true)  {Contour::assign(v, winding); mainline.MakeInvalid();}
+    void assign(const contour::Edge v[], unsigned size, bool winding=true)  {Contour::assign(v, size, winding); mainline.MakeInvalid();}
+    template<unsigned SIZE> void assign(const contour::Edge v[SIZE], bool winding=true) {assign (v, SIZE, winding);}
+
     bool operator <(const Area &b) const;
     bool operator ==(const Area &b) const;
     Area &operator =(const contour::Block &a) {Contour::operator=(a); mainline.MakeInvalid(); return *this;}
     Area &operator =(const Contour &a) {Contour::operator=(a); mainline.MakeInvalid(); return *this;}
     Area &operator =(Contour &&a) {Contour::operator=(std::move(a)); mainline.MakeInvalid(); return *this;}
-    
+
     Area &operator += (const Area &b) {Contour::operator+=(b); mainline+=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
     Area &operator *= (const Area &b) {Contour::operator*=(b); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
     Area &operator -= (const Area &b) {Contour::operator+=(b); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
@@ -42,7 +44,7 @@ public:
 
     Area operator + (const Area &p) const {return Area(*this)+=p;}
     Area operator * (const Area &p) const {return Area(*this)*=p;}
-    Area operator - (const Area &p) const {return Area(*this)-=p;} 
+    Area operator - (const Area &p) const {return Area(*this)-=p;}
     Area operator ^ (const Area &p) const {return Area(*this)^=p;}
     Area operator + (Area &&p) const {return Area(*this)+=std::move(p);}
     Area operator * (Area &&p) const {return Area(*this)*=std::move(p);}

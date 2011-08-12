@@ -2186,7 +2186,7 @@ double ArcBoxSeries::Height(AreaList &cover)
         //Advance label height
         double th = (*i)->parsed_label.getTextWidthHeight().y;
         //Position arrows if any under the label
-        AreaList content_cover = (*i)->text_cover;
+        AreaList content_cover = Area((*i)->text_cover);
         if ((*i)->content.size()) {
             const double &radius = main_style.line.radius.second;
             Contour limit = (*i)->text_cover;

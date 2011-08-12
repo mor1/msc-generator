@@ -394,7 +394,6 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
     SetLineAttr(line);
     const double spacing = line.Spacing();
     const double lw = line.LineWidth();
-    const double lw_small = line.width.second;
     const double r = std::max(0., std::min(std::min(b.x.Spans()/2 - lw, line.radius.second), b.y.Spans()/2 - lw));
     if (line.corner.second!=CORNER_NOTE || r==0) {
         if (line.IsDoubleOrTriple()) {
