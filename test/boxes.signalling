@@ -1,0 +1,64 @@
+a, b, c, d, e;
+
+defstyle -- [line.type=solid];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=dash_dotted];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=double];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+
+defstyle -- [line.width=5];
+
+defstyle -- [line.type=solid];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=dash_dotted];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=double];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];

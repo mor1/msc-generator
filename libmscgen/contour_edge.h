@@ -82,7 +82,7 @@ protected:
     unsigned Crossing(const EdgeStraight &A, XY r[], double pos_my[], double pos_other[]) const;
     //Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
     int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
-    //calculates bb 
+    //calculates bb
     const Block& CalculateBoundingBox() {boundingBox.MakeInvalid(); boundingBox += start; boundingBox += end; return boundingBox;}
     //check if "next" is a direct continuation of "this". If yes combine "next" into "this" and return true
     bool   CheckAndCombine(const EdgeStraight &next);
@@ -126,7 +126,7 @@ protected:
     //Tells at what x pos this edge crosses the horizontal line at y, rets the number of crosses
     int CrossingVertical(double x, double y[], double pos[], bool forward[]) const;
 
-    //calculates bb 
+    //calculates bb
     const Block& CalculateBoundingBox();
     //assumes cairo position is at start (or at end if reverse is true)
     void   PathTo(cairo_t *cr) const;
@@ -139,8 +139,8 @@ public:
 
 class EdgeArc : public EdgeFullCircle {
 public:
-    typedef enum {DEGENERATE, SAME_ELLIPSIS, 
-                  CP_REAL, CP_EXTENDED, 
+    typedef enum {DEGENERATE, SAME_ELLIPSIS,
+                  CP_REAL, CP_EXTENDED,
                   NO_CP_CONVERGE, NO_CP_PARALLEL} EExpandCPType;
     static bool HasCP(EExpandCPType t) {return t==CP_REAL || t==CP_EXTENDED;}
     mutable bool visible;
@@ -159,7 +159,7 @@ protected:
     void   removebeforepoint_curvy(const XY &p);
     void   removeafterpoin_curvy(const XY &p);
     double offsetbelow_curvy_straight(const EdgeStraight &M, bool straight_is_up, double &touchpoint) const;
-    
+
     double FindRadianOfClosestPos(unsigned num, double pos[], double rad);
     bool UpdateClockWise(double new_s, double new_e);
     void SwapXYcurvy();
@@ -183,13 +183,13 @@ protected:
     EdgeArc& SetStartLiberal(const XY &p, bool keep_full_circle=false);
     //Removes the part of the edge after point p. Assumes p lies on us. Invalidates BoundingBox!!!
     EdgeArc& SetEndLiberal(const XY &p, bool keep_full_circle=false);
-    //calculates bb 
+    //calculates bb
     const Block& CalculateBoundingBox();
     //check if "next" is a direct continuation of "this". If yes combine "next" into "this" and return true
     bool   CheckAndCombine(const EdgeArc &next);
     void   PathToCurvy(cairo_t *cr) const;
     //Helpers for expand
-    EExpandCPType FindExpandedEdgesCP(const EdgeArc&M, const XY &oldcp, XY &newcp) const;
+    EExpandCPType FindExpandedEdgesCP(const EdgeArc&M, XY &newcp) const;
     void SetStartEndForExpand(const XY &S, const XY &E);
     bool IsOpposite(const XY &S, const XY &E) const;
 
@@ -220,7 +220,7 @@ public:
         if (test_smaller(x, boundingBox.x.from) || test_smaller(boundingBox.x.till, x)) return 0;
         return CrossingVerticalCurvy(x, y, pos, forward);
     }
-    void   PathTo(cairo_t *cr) const 
+    void   PathTo(cairo_t *cr) const
         {if (type==EDGE_STRAIGHT) EdgeStraight::PathTo(cr);
         else if (type==EDGE_FULL_CIRCLE) EdgeFullCircle::PathTo(cr); else PathToCurvy(cr);}
     void   PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse=false) const
@@ -271,7 +271,7 @@ inline EdgeArc& EdgeArc::SetEndLiberal(const XY &p, bool keep_full_circle)
         return *this;
     }
     const double r = ell.Point2Radian(p);
-    if (type==EDGE_FULL_CIRCLE && !(test_equal(s,r) && keep_full_circle)) 
+    if (type==EDGE_FULL_CIRCLE && !(test_equal(s,r) && keep_full_circle))
         type = EDGE_ARC;
     e = r;
     CalculateBoundingBox();

@@ -30,7 +30,7 @@ class ContourList : protected std::list<ContourWithHoles>
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
 
-public:    
+public:
     const ContourWithHoles & operator[](unsigned i) const;
     void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
     void clear() {std::list<ContourWithHoles>::clear(); boundingBox.MakeInvalid();}
@@ -62,12 +62,12 @@ protected:
     ContourList holes;
     ContourWithHoles() {};
     ContourWithHoles(const SimpleContour &p) : SimpleContour(p) {}
-protected: 
+protected:
     ContourWithHoles(double sx, double dx, double sy, double dy) : SimpleContour(sx, dx, sy, dy) {}
     ContourWithHoles(const Block &b) : SimpleContour(b) {}
     ContourWithHoles(XY a, XY b, XY c) : SimpleContour(a,b,c) {}
     ContourWithHoles(double ax, double ay, double bx, double by, double cx, double cy) : SimpleContour(ax, ay, bx, by, cx, cy) {}
-    ContourWithHoles(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360) : 
+    ContourWithHoles(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360) :
         SimpleContour (c, radius_x, radius_y, tilt_deg, s_deg, d_deg) {}
 
     void assign(const SimpleContour &a) {SimpleContour::operator=(a); holes.clear();}
@@ -117,8 +117,8 @@ class Contour : public ContourWithHoles
     friend class SimpleContour;
     friend class ContourWithHoles;
     friend class ContoursHelper;
-    typedef enum {POSITIVE_UNION=0, POSITIVE_INTERSECT, POSITIVE_XOR, 
-                  WINDING_RULE_NONZERO, WINDING_RULE_EVENODD, 
+    typedef enum {POSITIVE_UNION=0, POSITIVE_INTERSECT, POSITIVE_XOR,
+                  WINDING_RULE_NONZERO, WINDING_RULE_EVENODD,
                   EXPAND_POSITIVE,
                   NEGATIVE_UNION, NEGATIVE_INTERSECT, NEGATIVE_XOR,
                   EXPAND_NEGATIVE,} operation_t;
@@ -147,14 +147,14 @@ public:
     Contour(const Block &b) : ContourWithHoles(b), boundingBox(b) {}
     Contour(XY a, XY b, XY c) : ContourWithHoles(a,b,c) {boundingBox = ContourWithHoles::GetBoundingBox();}
     Contour(double ax, double ay, double bx, double by, double cx, double cy) : ContourWithHoles(ax, ay, bx, by, cx, cy) {boundingBox = ContourWithHoles::GetBoundingBox();}
-    Contour(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360) : 
+    Contour(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360) :
         ContourWithHoles (c, radius_x, radius_y, tilt_deg, s_deg, d_deg) {boundingBox = ContourWithHoles::GetBoundingBox();}
     Contour(const std::vector<XY> &v, bool winding=true) {assign(v, winding);}
     Contour(const XY v[], unsigned size, bool winding=true) {assign (v, size, winding);}
-    template<unsigned size> Contour(const XY (&v)[size], bool winding=true) {assign (v, size, winding);}
+    template<unsigned SIZE> Contour(const XY (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
     Contour(const std::vector<Edge> &v, bool winding=true) {assign (v, winding);}
     Contour(const Edge v[], unsigned size, bool winding=true) {assign (v, size, winding);}
-    template<unsigned size> Contour(const Edge (&v)[size], bool winding=true) {assign (v, size, winding);}
+    template<unsigned SIZE> Contour(const Edge (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
 
     Contour(const ContourWithHoles &p) : ContourWithHoles(p) {boundingBox = ContourWithHoles::GetBoundingBox();}
     Contour(const SimpleContour &p) : ContourWithHoles(p) {boundingBox = ContourWithHoles::GetBoundingBox();}
@@ -175,24 +175,24 @@ public:
     void clear() {ContourWithHoles::clear(); further.clear(); boundingBox.MakeInvalid();}
     void assign(const std::vector<XY> &v, bool winding=true);
     void assign(const XY v[], unsigned size, bool winding=true);
-    template<unsigned size> void assign(const XY (&v)[size], bool winding=true) {assign (v, size, winding);}
+    template<unsigned SIZE> void assign(const XY (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
     void assign(const std::vector<Edge> &v, bool winding=true);
     void assign(const Edge v[], unsigned size, bool winding=true);
-    template<unsigned size> void assign(const Edge (&v)[size], bool winding=true) {assign (v, size, winding);}
-    
+    template<unsigned SIZE> void assign(const Edge (&v)[SIZE], bool winding=true) {assign (v, SIZE, winding);}
+
     void assign_dont_check(const std::vector<XY> &v) {SimpleContour::assign_dont_check(v); boundingBox = SimpleContour::boundingBox;}
     void assign_dont_check(const XY v[], unsigned size)  {SimpleContour::assign_dont_check(v, size); boundingBox = SimpleContour::boundingBox;}
-    template<unsigned size> void assign_dont_check(const XY (&v)[size]) {assign_dont_check (v, size);}
+    template<unsigned SIZE> void assign_dont_check(const XY (&v)[SIZE]) {assign_dont_check (v, SIZE);}
     void assign_dont_check(const std::vector<Edge> &v)  {SimpleContour::assign_dont_check(v); boundingBox = SimpleContour::boundingBox;}
     void assign_dont_check(const Edge v[], unsigned size)  {SimpleContour::assign_dont_check(v, size); boundingBox = SimpleContour::boundingBox;}
-    template<unsigned size> void assign_dont_check(const Edge (&v)[size]) {assign_dont_check (v, size);}
+    template<unsigned SIZE> void assign_dont_check(const Edge (&v)[SIZE]) {assign_dont_check (v, SIZE);}
 
     void append_dont_check(const std::vector<XY> &v) {ContourWithHoles tmp; tmp.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
     void append_dont_check(const XY v[], unsigned size) {ContourWithHoles tmp; tmp.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));}
-    template<unsigned size> void append_dont_check(const XY (&v)[size]) {append_dont_check (v, size);}
+    template<unsigned SIZE> void append_dont_check(const XY (&v)[SIZE]) {append_dont_check (v, SIZE);}
     void append_dont_check(const std::vector<Edge> &v) {ContourWithHoles tmp; tmp.assign_dont_check(v); if (!tmp.IsEmpty()) append(std::move(tmp));}
     void append_dont_check(const Edge v[], unsigned size) {ContourWithHoles tmp; tmp.assign_dont_check(v, size); if (!tmp.IsEmpty()) append(std::move(tmp));}
-    template<unsigned size> void append_dont_check(const Edge (&v)[size]) {append_dont_check (v, size);}
+    template<unsigned SIZE> void append_dont_check(const Edge (&v)[SIZE]) {append_dont_check (v, SIZE);}
 
     bool IsEmpty() const {return ContourWithHoles::IsEmpty();}
     const Block &GetBoundingBox(void) const {return boundingBox;}
@@ -214,17 +214,17 @@ public:
     Contour CreateRotatedAround(const XY&c, double degrees) {Contour a(*this); a.RotateAround(c, degrees); return a;}
 
     Contour &operator += (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, a); return *this;}
-    Contour &operator += (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}  
+    Contour &operator += (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}
     Contour &operator *= (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, *this, a); return *this;}
-    Contour &operator *= (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, *this, std::move(a)); return *this;}  
+    Contour &operator *= (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, *this, std::move(a)); return *this;}
     Contour &operator -= (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, a.CreateInverse()); return *this;}
-    Contour &operator -= (Contour &&a)      {a.Invert(); Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}  
+    Contour &operator -= (Contour &&a)      {a.Invert(); Operation(clockwise || a.clockwise ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}
     Contour &operator ^= (const Contour &a) {Operation(clockwise || a.clockwise ? POSITIVE_XOR : NEGATIVE_XOR, *this, a); return *this;}
     Contour &operator ^= (Contour &&a)      {Operation(clockwise || a.clockwise ? POSITIVE_XOR : NEGATIVE_XOR, *this, std::move(a)); return *this;}
 
     Contour operator + (const Contour &p) const {return Contour(*this)+=p;}
     Contour operator * (const Contour &p) const {return Contour(*this)*=p;}
-    Contour operator - (const Contour &p) const {return Contour(*this)-=p;} 
+    Contour operator - (const Contour &p) const {return Contour(*this)-=p;}
     Contour operator ^ (const Contour &p) const {return Contour(*this)^=p;}
     Contour operator + (Contour &&p) const {return Contour(*this)+=std::move(p);}
     Contour operator * (Contour &&p) const {return Contour(*this)*=std::move(p);}
@@ -238,7 +238,7 @@ public:
 
     void Path(cairo_t *cr, bool show_hidden) const {ContourWithHoles::Path(cr, show_hidden); if (further.size()) further.Path(cr, show_hidden);}
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {ContourWithHoles::Path(cr, show_hidden, clockwiseonly); if (further.size()) further.Path(cr, show_hidden, clockwiseonly);}
-    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {ContourWithHoles::PathDashed(cr, pattern, num, show_hidden); if (further.size()) further.PathDashed(cr, pattern, num, show_hidden);}    
+    void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {ContourWithHoles::PathDashed(cr, pattern, num, show_hidden); if (further.size()) further.PathDashed(cr, pattern, num, show_hidden);}
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {ContourWithHoles::PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (further.size()) further.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
     void Line(cairo_t *cr) const {Contour::Path(cr, false); cairo_stroke(cr);}
     void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, false); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, true); cairo_stroke(cr); cairo_restore(cr);}
@@ -246,23 +246,23 @@ public:
 };
 
 
-inline void ContourList::append(const ContourWithHoles &p) 
+inline void ContourList::append(const ContourWithHoles &p)
 {
     if (p.IsEmpty()) return;
-    boundingBox += p.GetBoundingBox(); 
+    boundingBox += p.GetBoundingBox();
     std::list<ContourWithHoles>::push_back(p);
 }
 
-inline void ContourList::append(ContourWithHoles &&p) 
+inline void ContourList::append(ContourWithHoles &&p)
 {
     if (p.IsEmpty()) return;
-    boundingBox += p.GetBoundingBox(); 
+    boundingBox += p.GetBoundingBox();
     std::list<ContourWithHoles>::push_back(std::move(p));
 }
 
-inline const ContourWithHoles & ContourList::operator[](unsigned i) const 
+inline const ContourWithHoles & ContourList::operator[](unsigned i) const
 {
-    const_iterator itr = begin(); 
+    const_iterator itr = begin();
     while (i>0) i--, itr++;
     return *itr;
 }
@@ -272,7 +272,7 @@ inline is_within_t ContourList::IsWithin(XY p) const
 {
     is_within_t ret = boundingBox.IsWithin(p);
     if (ret==WI_OUTSIDE) return WI_OUTSIDE;
-    for (auto i = begin(); i!=end(); i++) 
+    for (auto i = begin(); i!=end(); i++)
         if (WI_OUTSIDE != (ret=i->IsWithin(p))) return ret; //we also return IN_HOLE
     return WI_OUTSIDE;
 }
@@ -318,20 +318,20 @@ inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
     }
 }
 
-inline void Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg) 
+inline void Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg)
 {
     if (gap) {
-        Contour res; 
-        Expand(et4pos, et4neg, gap, res); 
+        Contour res;
+        Expand(et4pos, et4neg, gap, res);
         swap(res);
     }
 }
 
-inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType et4neg) const 
+inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType et4neg) const
 {
-    if (!gap) return *this; 
-    Contour res; 
-    Expand(et4pos, et4neg, gap, res); 
+    if (!gap) return *this;
+    Contour res;
+    Expand(et4pos, et4neg, gap, res);
     return res;
 }
 

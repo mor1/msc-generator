@@ -43,6 +43,7 @@ void EntityDistanceMap::Insert(unsigned e1, int e2, double xdist)
     if (e2==DISTANCE_LEFT) {
         std::map<unsigned, double>::iterator i = left.find(e1);
         if (i!=left.end() && i->second >= xdist) return;
+        _ASSERT(e1>0);
         left[e1] = xdist;
     } else if (e2==DISTANCE_RIGHT) {
         std::map<unsigned, double>::iterator i = right.find(e1);
@@ -166,7 +167,8 @@ void EntityDistanceMap::CombineLeftRightToPair_Max(double gap, double act_size)
         if (was_activated.find(i->first) != was_activated.end())
             my_left += act_size;
         const unsigned index = i->first;
-        Insert(index-1, index, my_left + gap);
+        if (index>0)  //ignore distances left of noentity
+            Insert(index-1, index, my_left + gap);
     }
     left.clear();
 }

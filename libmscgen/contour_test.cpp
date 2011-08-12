@@ -60,7 +60,7 @@ CairoContext::CairoContext(unsigned i, const Block &pl, const char *text, bool t
         else if (i<=99999) {sub = i%100; i/=100;}
         else if (i<=999999) {sub = i%1000; i/=1000;}
         else if (i<=9999999) {sub = i%10000; i/=10000;}
-        else _ASSERT(0);
+        else {_ASSERT(0);}
     }
     if (sub>=0) 
         sprintf(fileName, "test%d_%03d.png", i, sub);
@@ -142,7 +142,7 @@ void DrawExpand(unsigned i, EExpandType et, const Contour area1, bool manyfile=t
 {
     CairoContext *context;
     if (singlefile) 
-        context = new CairoContext(i, area1.GetBoundingBox().CreateExpand(100), false);
+        context = new CairoContext(i, area1.GetBoundingBox().CreateExpand(100), NULL, false);
     const unsigned NUM=3;
     const double r[NUM] = {1,0,0};
     const double g[NUM] = {0,1,0};
