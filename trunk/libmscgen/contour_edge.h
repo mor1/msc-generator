@@ -207,7 +207,7 @@ public:
     bool IsSaneNoBoundingBox() const;
 
     double GetSpan() const;
-    double GetRadianE() const {_ASSERT(type==EDGE_ARC); return e;}
+    double GetRadianE() const {_ASSERT(type!=EDGE_STRAIGHT); return type==EDGE_ARC ? e : s;}
     double GetRadianMidPoint() const;
     XY Pos2Point(double pos) const;
 
@@ -248,7 +248,7 @@ inline XY EdgeArc::PrevTangentPoint(double pos) const
 {
     if (type!=EDGE_STRAIGHT)
         return ell.Tangent(pos2radian(pos), !clockwise_arc);
-    if (pos>0.5)
+    if (pos<=0.5)
         return start*2-end;
     return start;
 }
@@ -257,7 +257,7 @@ inline XY EdgeArc::NextTangentPoint(double pos) const
 {
     if (type!=EDGE_STRAIGHT)
         return ell.Tangent(pos2radian(pos), clockwise_arc);
-    if (pos<=0.5)
+    if (pos>0.5)
         return end*2-start;
     return end;
 }

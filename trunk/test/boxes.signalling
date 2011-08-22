@@ -1,5 +1,7 @@
 a, b, c, d, e;
 
+defstyle emptybox, box [fill.color=lgray];
+
 defstyle -- [line.type=solid];
 
 a--b: Box [line.corner=bevel];

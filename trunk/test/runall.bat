@@ -1,6 +1,6 @@
 @echo off
 for %%a IN (*.signalling) DO (
     echo %%a
-    msc-gen "%%a" -T png 
+    ..\Debug\msc-gen "%%a" -T png -s=4
 )
 pause

@@ -877,7 +877,11 @@ void ContoursHelper::Advance(RayPointer &p, bool forward) const
 {
     if (p.at_vertex) {  //we are at a vertex
         if (forward) {
-            if (Rays[p.index].vertex == p.vertex) {  //Ok, upcoming edge has a crosspoint
+            //Check if upcoming edge has a crosspoint
+            //Note: either we have a cp mid-edge (pos!=0) or at the startpoint of the edge.
+            //In the latter case the cp is recorded with pos==0 for the next edge
+            if ((Rays[p.index].vertex == p.vertex) ||
+                (Rays[p.index].pos == 0.0 && Rays[p.index].vertex == Rays[p.index].contour->next(p.vertex))) {  
                 _ASSERT(Rays[p.index].incoming);
                 p.at_vertex = false;
                 //p.index remains, p.vertex is ignored
@@ -959,7 +963,8 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
     do {
         //here "current" points to an incoming ray
         if (current.at_vertex) { //we are at a vertex
-            if (forward)
+            if (forward) 
+                //TODO: What if vertex is a full circle??
                 result.AppendDuringWalk(Rays[current.index].contour->at(current.vertex));
             else {
                 Edge edge(Rays[current.index].contour->at_prev(current.vertex));
