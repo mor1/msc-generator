@@ -519,7 +519,7 @@ DoublePair MscLineAttr::CalculateTextMargin(Contour textCover, double rect_top) 
     //create a path at the inner edge of the rectangle 
     XY lr = textCover.GetBoundingBox().LowerRight();
     Block inner(lw, radius.second*3, rect_top+lw, rect_top+lw +lr.y+radius.second*2);
-    Area inner_area = CreateRectangle(inner); //the radius we have in the style luckily corresponds to the inner edge
+    Contour inner_area = CreateRectangle(inner); //the radius we have in the style luckily corresponds to the inner edge
     if (corner.second == CORNER_NOTE)
         inner_area -= Contour(inner.x.till-radius.second, inner.y.from, inner.x.till-radius.second, 
                               inner.y.from+radius.second, inner.x.till, inner.y.from+radius.second);

@@ -521,7 +521,7 @@ public:
     int     length;
 
     CommandNumbering(Msc *msc, EAction a, int l=0)
-        : ArcCommand(MSC_COMMAND_NUMBERING, msc), action(a), length(l) {if (l) action = EAction(action | SIZE);}
+        : ArcCommand(MSC_COMMAND_NUMBERING, msc), action(a), length(l) {if (l) action = EAction(action | SIZE); AddAttributeList(NULL);}
     virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
 };
 

@@ -62,6 +62,7 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
     push_back(edge);
     if (edge.GetType()==EDGE_FULL_CIRCLE) return; //full circle
     push_back(Edge(edge.GetEnd(), edge.GetStart()));
+    rbegin()->visible = false;
 }
 
 SimpleContour &SimpleContour::operator =(const Block &b)
@@ -251,11 +252,15 @@ void SimpleContour::CalculateClockwise()
         double angles = 0;
         XY prev = PrevTangentPoint(0, 0.0);
         for (unsigned i=0; i<size(); i++)
-            if (at(i).GetType() == EDGE_STRAIGHT) {
+            switch (at(i).GetType()) {
+            case EDGE_STRAIGHT:
 				_ASSERT(!at(i).GetStart().test_equal(at_next(i).GetStart()));
                 angles += angle_degrees(angle(at(i).GetStart(), at_next(i).GetStart(), prev));
                 prev = at(i).GetStart();
-            } else {
+                break;
+            case EDGE_FULL_CIRCLE:
+                //continue; //do nothing
+            case EDGE_ARC:
                 angles += angle_degrees(angle(at(i).GetStart(), NextTangentPoint(i, 0.0), prev));
                 prev = PrevTangentPoint(i, 1.0);
                 if (at(i).GetClockWise()) {
@@ -421,7 +426,8 @@ bool SimpleContour::IsSane() const
     if (size()==1)
         return at(0).GetType() == EDGE_FULL_CIRCLE;
     for (unsigned u=0; u<size(); u++) {
-        if (at(u).GetStart().test_equal(at(u).GetEnd()))  //we do not tolerate full circles either
+        if (at(u).GetStart().test_equal(at(u).GetEnd()) && 
+            at(u).GetType() != EDGE_FULL_CIRCLE)  
             return false;
         if (!at(u).IsSane()) return false;
     }

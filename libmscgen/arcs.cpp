@@ -1192,7 +1192,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
     sy = chart->arcVGapAbove + aH + max_lw/2;
     dy = ceil(sy + max_lw/2 + twh.y + chart->emphVGapInside*2 + max_lw) - max_lw/2;
 
-    Area tcov = parsed_label.Cover(0, twh.x, max_lw/2);
+    const Contour tcov = parsed_label.Cover(0, twh.x, max_lw/2);
     const bool fw = (*src)->index < (*dst)->index;
     //kill entity activate indication from entities where this arrow does not segment (e.g., dot)
     if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_START)) act_size[0] = 0;
@@ -1649,7 +1649,7 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
 
     const double lw = style.line.LineWidth();
     const XY twh = parsed_label.getTextWidthHeight();
-    Area text_cover = parsed_label.Cover(0, twh.x, lw/2);
+    const Contour text_cover = parsed_label.Cover(0, twh.x, lw/2);
 
     const double sm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, true, style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_START);
     const double dm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, false, style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_END);
@@ -1714,7 +1714,7 @@ void ArcVerticalArrow::Draw()
     else
         chart->GetCanvas()->Transform_Rotate90(ypos[0], ypos[1], true);
     //Draw background
-    const Area lab = parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+    const Contour lab = parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
                                         xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
                                         -1, true);
     std::vector<double> act_size(2,0);
@@ -2101,7 +2101,7 @@ void ArcBoxSeries::Width(EntityDistanceMap &distances)
         double width = (*i)->parsed_label.getTextWidthHeight().x;
         //calculated margins (only for first segment) and save them
         if (i==series.begin()) {
-            const Area tcov = (*i)->parsed_label.Cover(0, width, overall_style.line.LineWidth()+chart->emphVGapInside);
+            const Contour tcov = (*i)->parsed_label.Cover(0, width, overall_style.line.LineWidth()+chart->emphVGapInside);
             DoublePair margins = overall_style.line.CalculateTextMargin(tcov, 0);
             width += margins.first + margins.second;
             (*i)->sx_text = margins.first;
@@ -2214,11 +2214,11 @@ double ArcBoxSeries::Height(AreaList &cover)
         }
         if (i==--series.end() && main_style.line.corner.second != CORNER_NONE && main_style.line.radius.second>0) {
             //Funnily shaped box, prevent it content from hitting the bottom of the content
-            Block b(sx, dx, 0, y);
             MscLineAttr limiter_line(main_style.line);
             limiter_line.radius.second += chart->compressGap;
-            const Area bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -=
-                            limiter_line.CreateRectangle(b);
+            Block b(sx, dx, -limiter_line.radius.second*2, y);
+            const Contour bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -=
+                                   limiter_line.CreateRectangle(b);
             double tp;
             double off = content_cover.OffsetBelow(bottom, tp);
             if (off>0 && compress) y-=off;
@@ -2245,10 +2245,10 @@ double ArcBoxSeries::Height(AreaList &cover)
     } /* for cycle through segments */
     //Final advance of linewidth, the inner edge (y) is on integer
     total_height = y + lw - yPos;
-    Block b(sx-lw, dx+lw, yPos, yPos + total_height);
     MscLineAttr line_for_outer_edge = main_style.line;
     line_for_outer_edge.Expand(lw);
-    Area overall_box = line_for_outer_edge.CreateRectangle(b);
+    Block b(sx-lw, dx+lw, -line_for_outer_edge.radius.second*2, yPos + total_height);
+    Area overall_box(line_for_outer_edge.CreateRectangle(b), this);
     // now we have all geometries correct, now calculate areas and covers
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->area = Contour(sx-lw, dx+lw, (*i)->yPos, (*i)->yPos + (*i)->height_w_lower_line) * overall_box;
@@ -2622,7 +2622,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
         return NULL;
     }
     if (series.size()>1) {
-        for (auto i = ++series.begin(); i!=--series.end(); i++) {
+        for (auto i = series.begin(); i!=--series.end(); i++) {
             auto i_next = i; i_next++;
 
             if (*(*i_next)->src == chart->NoEntity) (*i_next)->src = (*i)->dst;
@@ -2867,7 +2867,7 @@ double ArcPipeSeries::Height(AreaList &cover)
     //Also calcualte all x positioning
     double lowest_label_bottom = 0;
     double lowest_opaque_label_bottom = 0;
-    Area label_covers;
+    Area label_covers(this);
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
     const MscSideType side = (*series.begin())->style.side.second;
     const double radius = (*series.begin())->style.line.radius.second;
@@ -2987,7 +2987,7 @@ double ArcPipeSeries::Height(AreaList &cover)
             //No connection, we draw this end, too
             if (rad.x>0) {
                 (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2.);
-                (*i)->pipe_whole_line = (*i)->pipe_body_line + Area(forw_end.CreateExpand(gap_for_line));
+                (*i)->pipe_whole_line = (*i)->pipe_body_line + forw_end.CreateExpand(gap_for_line);
                 (*i)->pipe_body_line -= forw_end.CreateExpand(gap_for_line);
 
                 //for shaodow we add
@@ -4011,7 +4011,7 @@ double CommandEmpty::Height(AreaList &cover)
     if (!valid) return 0;
     yPos = 0;
     const XY wh = parsed_label.getTextWidthHeight();
-    Area a = Area(Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y));
+    const Area a(Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y), this);
     cover = a.CreateExpand(chart->compressGap/2);
     return wh.y + EMPTY_MARGIN_Y*2;
 }

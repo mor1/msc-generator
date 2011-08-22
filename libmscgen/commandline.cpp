@@ -163,24 +163,21 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 msc.Error.Error(opt_pos, "Invalid x size, it should be between [10..200000]. Using native size.");
                 oX = -1;
             }
-        }
-        if (i->at(0) == '-' && i->at(1) == 'y') {
+        } else if (i->at(0) == '-' && i->at(1) == 'y') {
             if (i->at(2) != '=' || sscanf(i->c_str()+3, "%d", &oY)!=1)
                 msc.Error.Error(opt_pos, "Missing size after '-y='. Using native size.");
             else if (oY<10 || oY>200000) {
                 msc.Error.Error(opt_pos, "Invalid y size, it should be between [10..200000]. Using native size.");
                 oY = -1;
             }
-        }
-        if (i->at(0) == '-' && i->at(1) == 's') {
+        } else if (i->at(0) == '-' && i->at(1) == 's') {
             if (i->at(2) != '=' || sscanf(i->c_str()+3, "%lf", &oScale)!=1)
                 msc.Error.Error(opt_pos, "Missing scale after '-s='. Using native size.");
             else if (oScale<=0.001 || oScale>100) {
                 msc.Error.Error(opt_pos, "Invalid scale, it should be between [0.001..100]. Ignoring it.");
                 oScale = 0;
             }
-        }
-        if (*i == "-o") {
+        } else if (*i == "-o") {
             if (i==--args.end()) {
                 msc.Error.Error(opt_pos,
                                 "Missing output filename after '-o'.");

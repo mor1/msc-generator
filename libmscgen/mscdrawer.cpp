@@ -395,35 +395,41 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
     const double spacing = line.Spacing();
     const double lw = line.LineWidth();
     const double r = std::max(0., std::min(std::min(b.x.Spans()/2 - lw, line.radius.second), b.y.Spans()/2 - lw));
+    MscLineAttr line2(line);
+    line2.radius.second = r;
     if (line.corner.second!=CORNER_NOTE || r==0) {
         if (line.IsDoubleOrTriple()) {
             Block bb(b);
-            MscLineAttr line2(line);
-            line2.radius.second = r;
             bb.Expand(spacing);
             line2.Expand(spacing);
             singleLine(bb, line2);
-            bb.Expand(-2*spacing);
-            line2.Expand(-2*spacing);
+            bb = b;
+            line2.radius.second = r;
+            bb.Expand(-spacing);
+            line2.Expand(-spacing);
             singleLine(bb, line2);
         } 
-        if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        if (line.IsTriple()) {
+            cairo_set_line_width(cr,  line.TripleMiddleWidth());
+            line2.radius.second = r;
+        }
         if (!line.IsDouble()) 
-            singleLine(b, line);
+            singleLine(b, line2);
     } else {
         //Draw note
         if (line.IsDoubleOrTriple()) {
             Block bb(b);
-            MscLineAttr line2(line);
-            line2.radius.second = r;
             singleLine(line2.NoteFill(bb)[0], line2);
             bb.Expand(line2.Spacing());
             line2.Expand(line2.Spacing());
             singleLine(bb, line2);
         } 
-        if (line.IsTriple()) cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        if (line.IsTriple()) {
+            cairo_set_line_width(cr,  line.TripleMiddleWidth());
+            line2.radius.second = r;
+        }
         if (!line.IsDouble()) 
-            singleLine(b, line);
+            singleLine(b, line2);
     }
 }
 
