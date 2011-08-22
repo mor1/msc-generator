@@ -36,18 +36,18 @@ private:
     bool PostWalk();
     bool Sanitize();
 
-    int next(int vertex) const {return (vertex+1)%size();}
-    int prev(int vertex) const {return (vertex-1+size())%size();}
-    Edge       &at_next(int i)       {return at(next(i));}
-    const Edge &at_next(int i) const {return at(next(i));}
-    Edge       &at_prev(int i)       {return at(prev(i));}
-    const Edge &at_prev(int i) const {return at(prev(i));}
+    unsigned next(unsigned vertex) const {return (vertex+1)%size();}
+    unsigned prev(unsigned vertex) const {return (vertex-1+size())%size();}
+    Edge       &at_next(unsigned i)       {return at(next(i));}
+    const Edge &at_next(unsigned i) const {return at(next(i));}
+    Edge       &at_prev(unsigned i)       {return at(prev(i));}
+    const Edge &at_prev(unsigned i) const {return at(prev(i));}
 
     //returns a point on the line of a tangent at "pos", the point being towards the start of curve/edge.
-	XY PrevTangentPoint(int edge, double pos) const 
+    XY PrevTangentPoint(unsigned edge, double pos) const
         {return (test_smaller(0, pos) ? at(edge) : at_prev(edge)).PrevTangentPoint(test_smaller(0, pos) ? pos : 1);}
     //returns a point on the line of a tangent at "pos", the point being towards the end of curve/edge.
-    XY NextTangentPoint(int edge, double pos) const
+    XY NextTangentPoint(unsigned edge, double pos) const
         {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
 protected:
@@ -106,12 +106,12 @@ public:
 
     void Path(cairo_t *cr, bool show_hidden) const;
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {
-        if (clockwise==clockwiseonly) 
+        if (clockwise==clockwiseonly)
             Path(cr, show_hidden);
     }
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {
-        if (clockwise==clockwiseonly) 
+        if (clockwise==clockwiseonly)
             PathDashed(cr, pattern, num, show_hidden);
     }
 };
