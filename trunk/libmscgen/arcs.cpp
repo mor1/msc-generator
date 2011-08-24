@@ -2171,6 +2171,7 @@ double ArcBoxSeries::Height(AreaList &cover)
     const double dx = chart->XCoord((*series.begin())->dst) + right_space - lw;
 
     double y = chart->emphVGapOutside;
+    yPos = y;
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->yPos = y;
         // y now points to the *top* of the line of the top edge of this box
@@ -2192,20 +2193,9 @@ double ArcBoxSeries::Height(AreaList &cover)
             Contour limit = (*i)->text_cover;
             if (i==series.begin() && main_style.line.corner.second != CORNER_NONE && radius>0) {
                 //Funnily shaped box, prevent content from hitting it
-                Block b(sx, dx, y, y + std::max(lw+radius*4, dx-sx));
-                Contour form;
-                if (main_style.line.corner.second == CORNER_NOTE) {
-                    if (main_style.line.IsDoubleOrTriple())
-                        form = main_style.line.NoteFill(b)[0];
-                    else {
-                        MscLineAttr tmp_line(main_style.line);
-                        tmp_line.type.second = LINE_DOUBLE;
-                        tmp_line.width.second = 0;
-                        form = tmp_line.NoteFill(b)[0];
-                    }
-                } else //BEVEL and ROUND
-                    form = main_style.line.CreateRectangle(b);
-                limit += Contour(sx, dx, 0, y+lw+main_style.line.radius.second) - form;
+                const Block b(sx-lw/2, dx+lw/2, y+lw/2, y + std::max(lw+radius*4, dx-sx)); //at midpoint of line
+                limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+radius) - 
+                         main_style.line.CreateRectangle_InnerEdge(b);
             }
             y = chart->PlaceListUnder((*i)->content.begin(), (*i)->content.end(),
                                         y+th, y, Area(std::move(limit)), compress, &content_cover);  //no extra margin below text
@@ -2216,9 +2206,9 @@ double ArcBoxSeries::Height(AreaList &cover)
             //Funnily shaped box, prevent it content from hitting the bottom of the content
             MscLineAttr limiter_line(main_style.line);
             limiter_line.radius.second += chart->compressGap;
-            Block b(sx, dx, -limiter_line.radius.second*2, y);
-            const Contour bottom = Contour(Block(sx, dx, limiter_line.radius.second+1, y+1)) -=
-                                   limiter_line.CreateRectangle(b);
+            const Block b(sx-lw/2, dx+lw/2, -limiter_line.radius.second*2, y);
+            const Contour bottom = Contour(sx-lw/2, dx+lw/2, limiter_line.radius.second+1, y+1) -
+                                   limiter_line.CreateRectangle_InnerEdge(b);
             double tp;
             double off = content_cover.OffsetBelow(bottom, tp);
             if (off>0 && compress) y-=off;
@@ -2245,10 +2235,9 @@ double ArcBoxSeries::Height(AreaList &cover)
     } /* for cycle through segments */
     //Final advance of linewidth, the inner edge (y) is on integer
     total_height = y + lw - yPos;
-    MscLineAttr line_for_outer_edge = main_style.line;
-    line_for_outer_edge.Expand(lw);
-    Block b(sx-lw, dx+lw, -line_for_outer_edge.radius.second*2, yPos + total_height);
-    Area overall_box(line_for_outer_edge.CreateRectangle(b), this);
+
+    Block b(sx-lw/2, dx+lw/2, yPos /*was: -main_style.line.radius.second*2*/, yPos + total_height);
+    Area overall_box(main_style.line.CreateRectangle_OuterEdge(b), this);
     // now we have all geometries correct, now calculate areas and covers
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->area = Contour(sx-lw, dx+lw, (*i)->yPos, (*i)->yPos + (*i)->height_w_lower_line) * overall_box;
@@ -2337,28 +2326,23 @@ void ArcBoxSeries::PostPosProcess(double autoMarker)
             chart->HideEntityLines(r);
         }
     
+
+    //update the style so that it's radius is not bigger than it can be
+    const_cast<double&>(main_style.line.radius.second) = std::min(std::min(
+        total_height, 
+        dst_x + right_space - src_x + left_space), 
+        main_style.line.radius.second);
+
     //hide the entity lines under the labels
     for (auto i = series.begin(); i!=series.end(); i++) 
         chart->HideEntityLines((*i)->text_cover);
     //hide top and bottom line if double
     if (main_style.line.IsDoubleOrTriple()) {
-        Block b(src_x - left_space, dst_x + right_space,
-                yPos, yPos+total_height); //The outer edge of the lines
-        MscLineAttr line = main_style.line;  //We will vary the radius, so we need a copy
-        line.radius.second = std::min(std::min(b.y.Spans()/2 - lw, b.x.Spans()/2 - lw), line.radius.second);
-        //The radius specified in style.line will be that of the inner edge of the line
-        line.Expand(lw); //now it is appropriate for the outer edge
-        Contour hide = line.CreateRectangle(b);
-        if (main_style.line.corner.second == CORNER_NOTE) {
-            line.Expand(-lw/2);
-            b.Expand(-lw/2); //now the midpoint of the line
-            hide -= line.NoteFill(b)[0];  //this is the midpoint of the inner triangle
-        } else {
-            line.Expand(-lw); //now it is appropriate for the inner edge
-            b.Expand(-lw);
-            hide -= line.CreateRectangle(b);
-        }
-        chart->HideEntityLines(hide);
+        Block b(src_x - left_space + lw/2, dst_x + right_space - lw/2,
+                yPos + lw/2, yPos+total_height - lw/2); //The midpoint of the lines
+        //The radius specified in style.line will be that of the midpoint of the line
+        chart->HideEntityLines(main_style.line.CreateRectangle_OuterEdge(b) - 
+                               main_style.line.CreateRectangle_InnerEdge(b));
     }
 }
 
@@ -2370,20 +2354,15 @@ void ArcBoxSeries::Draw()
     const double lw = main_style.line.LineWidth();
     const double src_x = chart->XCoord((*series.begin())->src);
     const double dst_x = chart->XCoord((*series.begin())->dst);
-    MscLineAttr line = main_style.line;  //We will vary the radius, so we need a copy
-    Block r(src_x - left_space, dst_x + right_space, yPos, yPos+total_height); //The outer edge of the lines
-    line.radius.second = std::min(std::min(r.y.Spans()/2 - lw, r.x.Spans()/2 - lw), line.radius.second);
-    //The radius specified in style.line will be that of the inner edge of the line
-    line.Expand(lw); //now it is appropriate for the outer edge
+    //The midpoint of the lines
+    const Block r(src_x - left_space + lw/2, dst_x + right_space - lw/2, 
+                  yPos + lw/2, yPos+total_height - lw/2); 
+    //The radius specified in main_style.line will be that of the midpoint of the line
     //First draw the shadow.
-    r.Expand(-line.width.second/2.);
-    line.Expand(-line.width.second/2.);
-    chart->GetCanvas()->Shadow(r, line, main_style.shadow);
-    //Do a clip region for the overall box (for round corners)
+    chart->GetCanvas()->Shadow(r, main_style.line, main_style.shadow);
+    //Do a clip region for the overall box (for round/bevel/note corners)
     //at half a linewidth from the inner edge (use the width of a single line!)
-    line.Expand(-lw+line.width.second);
-    r.Expand(-lw+line.width.second);
-    chart->GetCanvas()->Clip(r, line);
+    chart->GetCanvas()->Clip(main_style.line.CreateRectangle_ForFill(r));
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Overall rule for background fill:
         //for single line borders we fill up to the middle of the border
@@ -2410,19 +2389,14 @@ void ArcBoxSeries::Draw()
             chart->DrawEntityLines((*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
     }
     chart->GetCanvas()->UnClip();
-    //shring to the inner edge
-    r.Expand(-line.width.second/2.);
-    line.Expand(-line.width.second/2.);
     //Draw box lines - Cycle only for subsequent boxes
     for (auto i = ++series.begin(); i!=series.end(); i++) {
         const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
         const XY magic(1,0);  //XXX needed in windows
         chart->GetCanvas()->Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.line);
     }
-    //Finally draw the overall line around the box, expand to midpoint of line
-    r.Expand(lw/2);
-    line.Expand(lw/2);
-    chart->GetCanvas()->Line(r, line);
+    //Finally draw the overall line around the box
+    chart->GetCanvas()->Line(r, main_style.line);
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->parsed_label.Draw(chart->GetCanvas(), (*i)->sx_text, (*i)->dx_text, (*i)->y_text);

@@ -418,8 +418,10 @@ string MscLineAttr::Print(int) const
 //This one does not assume anything about wether the resulting rectange should be the
 //outer edge or inner edge of the line - just uses the radius value and coordinates
 //as they are.
-//For CORNER_NOTE it creates the outer edge
-Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2) const
+//"this->radius" corresponds to the radius at the middle of the line
+//"x1, x2, y1, y2" corresponds to the midline -> this is what is returned
+//For CORNER_NOTE it creates the outer line only 
+Contour MscLineAttr::CreateRectangle_Midline(double x1, double x2, double y1, double y2) const
 {
     if (!radius.first || radius.second<=0 || !corner.first) 
         return Contour(x1, x2, y1, y2);
@@ -442,6 +444,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             Edge(XY(x1, y2-r), XY(x1, y1+r)),
             Edge(XY(x1+r, y1+r), r, r, 0, 180, 270)};
         ret.assign_dont_check(edges);
+        break;
         }
     case CORNER_BEVEL:
         {
@@ -455,6 +458,7 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             XY(x1, y2-r),
             XY(x1, y1+r)};
         ret.assign_dont_check(points);
+        break;
         }
     case CORNER_NOTE:
         {
@@ -465,43 +469,74 @@ Contour MscLineAttr::CreateRectangle(double x1, double x2, double y1, double y2)
             XY(x2, y2),
             XY(x1, y2)};
         ret.assign_dont_check(points);
+        break;
         }
     }
     return ret;
 }
 
-//b is the midline box of a note style rectangle. line contains a valid, positive radius
-//ret[0] will be the body and ret[1] will be the triangle
-Contour MscLineAttr::NoteFill(const Block &b) const
+//This one considers linewidth and returns the middle of the inner line (for double or triple)
+//It assumes double or triple lines.
+//"this->radius" corresponds to the radius at the middle of the line
+//"x1, x2, y1, y2" corresponds to the midline 
+//For CORNER_NOTE it creates the inner line and the triangle
+//(//ret[0] will be the body and ret[1] will be the triangle)
+Contour MscLineAttr::CreateRectangle_ForFill_Note(double x1, double x2, double y1, double y2) const
 {
-    _ASSERT(corner.second==CORNER_NOTE);
-    if (!IsDoubleOrTriple()) 
-        return CreateRectangle(b);
-    Block bb(b);
+    _ASSERT(IsComplete());
+    _ASSERT(corner.second == CORNER_NOTE);
+    _ASSERT(IsDoubleOrTriple());
+    Block bb(x1, x2, y1, y2);
     MscLineAttr line2(*this);
     if (IsDouble()) {
         bb.Expand(-line2.Spacing());
         line2.Expand(-line2.Spacing());
     }
-    const XY c2[] = {XY(b.x.till - line2.radius.second, b.y.from + line2.radius.second),
-                     XY(b.x.till - line2.radius.second, b.y.from),
-                     XY(b.x.till                      , b.y.from + line2.radius.second)};
+    const XY c2[] = {XY(bb.x.till - line2.radius.second, bb.y.from + line2.radius.second),
+                     XY(bb.x.till - line2.radius.second, bb.y.from),
+                     XY(bb.x.till                      , bb.y.from + line2.radius.second)};
     if (IsTriple()) {
         bb.Expand(-line2.Spacing());
         line2.Expand(-line2.Spacing());
     }
     const double r = line2.radius.second + 2*line2.width.second;
-    const XY c1[] = {b.UpperLeft(), 
-                     XY(b.x.till - r, b.y.from), 
-                     XY(b.x.till - r, b.y.from + r), 
-                     XY(b.x.till    , b.y.from + r), 
-                     b.LowerRight(),
-                     b.LowerLeft()};
+    const XY c1[] = {bb.UpperLeft(), 
+                     XY(bb.x.till - r, bb.y.from), 
+                     XY(bb.x.till - r, bb.y.from + r), 
+                     XY(bb.x.till    , bb.y.from + r), 
+                     bb.LowerRight(),
+                     bb.LowerLeft()};
     Contour ret;
     ret.assign_dont_check(c1);
     ret.append_dont_check(c2);
     return ret;
 }
+
+//This one considers linewidth and returns the inner edge of the inner line 
+//"this->radius" corresponds to the radius at the middle of the line
+//"x1, x2, y1, y2" corresponds to the midline 
+//For CORNER_NOTE it creates the inner line only
+Contour MscLineAttr::CreateRectangle_InnerEdge_Note(double x1, double x2, double y1, double y2) const
+{
+    _ASSERT(IsComplete());
+    _ASSERT(corner.second == CORNER_NOTE);
+    Block bb(x1, x2, y1, y2);
+    MscLineAttr line2(*this);
+    const double lw2 = line2.LineWidth()/2;
+    bb.Expand(-lw2);
+    line2.Expand(-lw2);
+    const double r = line2.radius.second + 2*line2.width.second;
+    const XY c1[] = {bb.UpperLeft(), 
+                     XY(bb.x.till - r, bb.y.from), 
+                     XY(bb.x.till - r, bb.y.from + r), 
+                     XY(bb.x.till    , bb.y.from + r), 
+                     bb.LowerRight(),
+                     bb.LowerLeft()};
+    Contour ret;
+    ret.assign_dont_check(c1);
+    return ret;
+}
+
 
 
 //This assumes that we draw a rectangle at outer edge y position rect_top 
@@ -509,7 +544,7 @@ Contour MscLineAttr::NoteFill(const Block &b) const
 //And checks how much margin the text needs form the _outer_edge_ of the rectangle
 //This is at least lineWidth() (if radius==0)
 //return first contains the left margin and second the right one
-//This one assumes that the radius corresponds to the inner edge
+//This one assumes that the radius corresponds to the midline
 DoublePair MscLineAttr::CalculateTextMargin(Contour textCover, double rect_top) const
 {
     DoublePair ret(0,0);
@@ -517,12 +552,9 @@ DoublePair MscLineAttr::CalculateTextMargin(Contour textCover, double rect_top) 
     const double lw = LineWidth();
     if (radius.second <= LineWidth()) return DoublePair(lw, lw);
     //create a path at the inner edge of the rectangle 
-    XY lr = textCover.GetBoundingBox().LowerRight();
-    Block inner(lw, radius.second*3, rect_top+lw, rect_top+lw +lr.y+radius.second*2);
-    Contour inner_area = CreateRectangle(inner); //the radius we have in the style luckily corresponds to the inner edge
-    if (corner.second == CORNER_NOTE)
-        inner_area -= Contour(inner.x.till-radius.second, inner.y.from, inner.x.till-radius.second, 
-                              inner.y.from+radius.second, inner.x.till, inner.y.from+radius.second);
+    const XY lr = textCover.GetBoundingBox().LowerRight();
+    const Block inner(lw/2, radius.second*3, rect_top+lw/2, rect_top+lw/2 +lr.y+radius.second*2);
+    const Contour inner_area = CreateRectangle_InnerEdge(inner); //the radius we have in the style luckily corresponds to the line midpoint
     const Range left_right = textCover.GetBoundingBox().x;
     textCover.Rotate(90);
 

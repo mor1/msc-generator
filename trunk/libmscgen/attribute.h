@@ -236,6 +236,9 @@ typedef enum {
 inline double RadiusIncMultiplier(MscCornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL || t==CORNER_NOTE ? tan(22.5*M_PI/180) : 0;}
 
 class MscLineAttr {
+protected:
+    Contour CreateRectangle_ForFill_Note(double x1, double x2, double y1, double y2) const;  
+    Contour CreateRectangle_InnerEdge_Note(double x1, double x2, double y1, double y2) const;  
 public:
     std::pair<bool, MscLineType>   type;
     std::pair<bool, MscColorType>  color;
@@ -270,13 +273,63 @@ public:
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 
-    Contour CreateRectangle(double x1, double x2, double y1, double y2) const;  
-    Contour CreateRectangle(const XY &s, const XY &d) const {return CreateRectangle(s.x, d.x, s.y, d.y);}
-    Contour CreateRectangle(const Block &b) const {return CreateRectangle(b.x.from, b.x.till, b.y.from, b.y.till);}
-    Contour NoteFill(const Block &b) const;
+    //This one does not assume anything about wether the resulting rectange should be the
+    //outer edge or inner edge of the line - just uses the radius value and coordinates
+    //as they are.
+    //"this->radius" corresponds to the radius at the middle of the line
+    //"x1, x2, y1, y2" corresponds to the midline -> this is what is returned
+    //For CORNER_NOTE it creates the outer line only 
+    Contour CreateRectangle_Midline(double x1, double x2, double y1, double y2) const;  
+    Contour CreateRectangle_Midline(const XY &s, const XY &d) const {return CreateRectangle_Midline(s.x, d.x, s.y, d.y);}
+    Contour CreateRectangle_Midline(const Block &b) const {return CreateRectangle_Midline(b.x.from, b.x.till, b.y.from, b.y.till);}
+    
+    //This one considers linewidth and returns the outer edge of the line
+    //"this->radius" corresponds to the radius at the middle of the line
+    //"x1, x2, y1, y2" corresponds to the midline 
+    //For CORNER_NOTE it creates the outer line only 
+    Contour CreateRectangle_OuterEdge(double x1, double x2, double y1, double y2) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(x1-lw2, x2+lw2, y1-lw2, y2+lw2);}
+    Contour CreateRectangle_OuterEdge(const XY &s, const XY &d) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(s.x-lw2, d.x+lw2, s.y-lw2, d.y+lw2);}
+    Contour CreateRectangle_OuterEdge(const Block &b) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(b.x.from-lw2, b.x.till+lw2, b.y.from-lw2, b.y.till+lw2);}
+    
+    //This one considers linewidth and returns the middle of the inner line (for double or triple)
+    //(or the middle of the line for single)
+    //"this->radius" corresponds to the radius at the middle of the line
+    //For CORNER_NOTE it creates the inner line and the triangle
+    //(//ret[0] will be the body and ret[1] will be the triangle)
+    Contour CreateRectangle_ForFill(double x1, double x2, double y1, double y2) const;  
+    Contour CreateRectangle_ForFill(const XY &s, const XY &d) const {return CreateRectangle_ForFill(s.x, d.x, s.y, d.y);}
+    Contour CreateRectangle_ForFill(const Block &b) const {return CreateRectangle_ForFill(b.x.from, b.x.till, b.y.from, b.y.till);}
+    
+    //This one considers linewidth and returns the inner edge of the inner line 
+    //"this->radius" corresponds to the radius at the middle of the line
+    //For CORNER_NOTE it creates the inner line only
+    Contour CreateRectangle_InnerEdge(double x1, double x2, double y1, double y2) const;  
+    Contour CreateRectangle_InnerEdge(const XY &s, const XY &d) const {return CreateRectangle_InnerEdge(s.x, d.x, s.y, d.y);}
+    Contour CreateRectangle_InnerEdge(const Block &b) const {return CreateRectangle_InnerEdge(b.x.from, b.x.till, b.y.from, b.y.till);}
 
     DoublePair CalculateTextMargin(Contour textCover, double rect_top) const; 
 };
+
+
+inline Contour MscLineAttr::CreateRectangle_ForFill(double x1, double x2, double y1, double y2) const
+{
+    if (!IsDoubleOrTriple()) 
+        return CreateRectangle_Midline(x1, x2, y1, y2);
+    if (corner.second != CORNER_NOTE) { //We have double or triple line here
+        const double s = Spacing();
+        return CreateRectangle_Midline(x1+s, x2-s, y1+s, y2-s);
+    }
+    return CreateRectangle_ForFill_Note(x1, x2, y1, y2);    
+}
+
+inline Contour MscLineAttr::CreateRectangle_InnerEdge(double x1, double x2, double y1, double y2) const
+{
+    if (corner.second == CORNER_NOTE) 
+        return CreateRectangle_InnerEdge_Note(x1, x2, y1, y2);    
+    const double lw2 = LineWidth()/2;
+    return CreateRectangle_Midline(x1+lw2, x2-lw2, y1+lw2, y2-lw2);
+}
+
 
 typedef enum {
     GRADIENT_INVALID = 0,

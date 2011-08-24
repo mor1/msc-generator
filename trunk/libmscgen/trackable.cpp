@@ -97,8 +97,8 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
     s_rect.offset.second = 5;
     s_rect.blur.second = 5;
     for (auto j = controls.begin(); j!=controls.end(); j++) {
-        Contour rect = l_rect.CreateRectangle(-control_size.x/2.1, control_size.x/2.1, 
-                                              -control_size.y/2.1, control_size.y/2.1);
+        Contour rect = l_rect.CreateRectangle_Midline(-control_size.x/2.1, control_size.x/2.1, 
+                                                      -control_size.y/2.1, control_size.y/2.1);
         cairo_set_source_rgb(cr, 1,1,1);
         rect.Fill(cr);
         cairo_set_source_rgb(cr, 0,0,0);
