@@ -834,6 +834,7 @@ void Msc::DrawEntityLines(double y, double height,
         for (/*none*/; up.y < till; up.y = down.y) {
             const double show_till = status.ShowTill(up.y);
             const double style_till = status.StyleTill(up.y);
+            const MscStyle &style = status.GetStyle(up.y);
             down.y = std::min(std::min(show_till, style_till), till);
             //we are turned off below -> do nothing
             if (!status.GetStatus(up.y).IsOn())
@@ -860,27 +861,20 @@ void Msc::DrawEntityLines(double y, double height,
                     clip.y.till = down.y;
                     doClip = true;
                 }
-                MscLineAttr vline = status.GetStyle(up.y).vline;  //creates a copy
-                const MscFillAttr &vfill = status.GetStyle(up.y).vfill;
-                outer_edge.Expand(-vline.LineWidth()/2);
-                vline.radius.second = std::max(vline.radius.second-vline.LineWidth()/2, 0.);
-                Contour cont_line = vline.CreateRectangle(outer_edge);
-                outer_edge.Expand(-vline.LineWidth()/2+vline.width.second/2);
-                vline.radius.second = std::max(vline.radius.second-vline.LineWidth()/2+vline.width.second/2, 0.);
-                Contour cont_fill = vline.CreateRectangle(outer_edge);
+                outer_edge.Expand(-style.vline.LineWidth()/2);  //From now on this is the midpoint of the line, as it should be
+               
                 if (doClip)
                     canvas->Clip(clip);
-                canvas->Fill(cont_fill, vfill);
-                canvas->Line(cont_line, vline);
+                canvas->Fill(style.vline.CreateRectangle_ForFill(outer_edge), style.vfill);
+                canvas->Line(style.vline.CreateRectangle_Midline(outer_edge), style.vline);
                 if (doClip)
                     canvas->UnClip();
             } else {
-                const MscLineAttr &vline = status.GetStyle(up.y).vline;
-                const XY offset(fmod_negative_safe(vline.width.second/2, 1.),0);
+                const XY offset(fmod_negative_safe(style.vline.width.second/2, 1.),0);
                 const XY magic(0,0);  //HACK needed in windows: 0,1
                 const XY start = up+offset-magic;
                 //last param is dash_offset. Cairo falls back to image surface if this is not zero ???
-                canvas->Line(start, down+offset, vline); 
+                canvas->Line(start, down+offset, style.vline); 
             }
         }
         from++;

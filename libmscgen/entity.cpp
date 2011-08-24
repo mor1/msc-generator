@@ -495,10 +495,10 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
         outer_edge.y.from = top - chart->headingVGapAbove - ceil(wh.y + lw);
         outer_edge.y.till = bottom + chart->headingVGapBelow + lw;
     }
-    area = style.line.CreateRectangle(outer_edge);
+    area = style.line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
     area.arc = this;
     //Add shadow to outer_edge and place that to cover
-    cover += Contour(Block(outer_edge) += Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)));
+    cover += Contour(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge);
     cover.mainline += outer_edge.y;
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }

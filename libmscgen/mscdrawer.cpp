@@ -129,7 +129,7 @@ void MscCanvas::Clip(const Block &b, const MscLineAttr &line)
     _ASSERT(line.IsComplete());
     cairo_save(cr);
     if (line.corner.second == CORNER_NOTE && line.IsDoubleOrTriple()) 
-        line.NoteFill(b).Path(cr, true);
+        line.CreateRectangle_ForFill(b).Path(cr, true);  //notefill shrinks by Spacing()
     else
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
     cairo_clip(cr);
@@ -336,7 +336,7 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
     else {
         const double *pattern = line.DashPattern(num);
-        line.CreateRectangle(b).PathDashed(cr, pattern, num, true);
+        line.CreateRectangle_Midline(b).PathDashed(cr, pattern, num, true);
     }
     cairo_stroke(cr);
 }
@@ -399,15 +399,11 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
     line2.radius.second = r;
     if (line.corner.second!=CORNER_NOTE || r==0) {
         if (line.IsDoubleOrTriple()) {
-            Block bb(b);
-            bb.Expand(spacing);
             line2.Expand(spacing);
-            singleLine(bb, line2);
-            bb = b;
+            singleLine(b.CreateExpand(spacing), line2);
             line2.radius.second = r;
-            bb.Expand(-spacing);
             line2.Expand(-spacing);
-            singleLine(bb, line2);
+            singleLine(b.CreateExpand(-spacing), line2);
         } 
         if (line.IsTriple()) {
             cairo_set_line_width(cr,  line.TripleMiddleWidth());
@@ -417,19 +413,30 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
             singleLine(b, line2);
     } else {
         //Draw note
-        if (line.IsDoubleOrTriple()) {
-            Block bb(b);
-            singleLine(line2.NoteFill(bb)[0], line2);
-            bb.Expand(line2.Spacing());
-            line2.Expand(line2.Spacing());
-            singleLine(bb, line2);
-        } 
         if (line.IsTriple()) {
-            cairo_set_line_width(cr,  line.TripleMiddleWidth());
+            //draw inner line
+            singleLine(line2.CreateRectangle_ForFill(b)[0], line2);
+            //draw outer line
+            line2.Expand(spacing);
+            singleLine(line2.CreateRectangle_Midline(b.CreateExpand(spacing)), line2);
             line2.radius.second = r;
+            //prepare for middle line
+            cairo_set_line_width(cr,  line.TripleMiddleWidth());
+        } 
+        if (line.IsDouble()) {
+            //draw inner line + triangle
+            singleLine(line2.CreateRectangle_ForFill(b), line2);
+            //draw outer line
+            line2.radius.second = r;
+            line2.Expand(spacing);
+            singleLine(b.CreateExpand(spacing), line2);
+        } else {
+            //for triple and single line
+            singleLine(line2.CreateRectangle_Midline(b), line2);
+            const Contour tri(b.x.till-r, b.y.from, b.x.till, b.y.from+r, b.x.till-r, b.y.from+r);
+            tri[0][0].visible = false;
+            singleLine(tri, line);
         }
-        if (!line.IsDouble()) 
-            singleLine(b, line2);
     }
 }
 
@@ -750,7 +757,7 @@ void MscCanvas::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
     if (shadow.offset.second==0) return;
 	if (!shadow.color.second.valid || shadow.color.second.a==0) return;
     //For now just call the other Shadow Routine
-    Shadow(line.CreateRectangle(b), shadow, shadow_x_neg, shadow_y_neg);
+    Shadow(line.CreateRectangle_OuterEdge(b), shadow, shadow_x_neg, shadow_y_neg);
     return;
 }
 
