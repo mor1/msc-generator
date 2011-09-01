@@ -161,18 +161,14 @@ void TrackableElement::DrawIndicator(XY pos, MscCanvas *canvas)
 {
     if (canvas==NULL) return;
 
-    MscLineAttr line = indicator_style.line;
-    Block area = GetIndicatorCover(pos);
-    canvas->Shadow(area, line, indicator_style.shadow);
-    area.Expand(-line.LineWidth()+line.width.second/2);
-    line.radius.second -= line.LineWidth()-line.width.second/2;
-    canvas->Fill(area, line, indicator_style.fill);
-    area.Expand(line.LineWidth()/2-line.width.second/2);
-    line.radius.second += line.LineWidth()/2-line.width.second/2;
-    canvas->Line(area, line);
+    const Block area = GetIndicatorCover(pos);
+    canvas->Shadow(area, indicator_style.line, indicator_style.shadow);
+    canvas->Fill(area, indicator_style.line, indicator_style.fill);
+    canvas->Line(area, indicator_style.line);
 
     cairo_save(canvas->GetContext());
     cairo_set_line_cap(canvas->GetContext(), CAIRO_LINE_CAP_ROUND);
+    MscLineAttr line(indicator_style.line);
     line.width.second = area.y.Spans()/4;
     line.type.second = LINE_SOLID;
     pos.y += indicator_size.y/2;

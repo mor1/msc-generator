@@ -426,9 +426,7 @@ Contour MscLineAttr::CreateRectangle_Midline(double x1, double x2, double y1, do
     if (!radius.first || radius.second<=0 || !corner.first) 
         return Contour(x1, x2, y1, y2);
     Contour ret;
-    const double r = radius.second;
-    _ASSERT(fabs(x1-x2)/2 > r || corner.second==CORNER_NONE);
-    _ASSERT(fabs(y1-y2)/2 > r || corner.second==CORNER_NONE);
+    const double r = SaneRadius(x1, x2, y1, y2);
     switch (corner.second) {
     default: 
         return Contour(x1, x2, y1, y2);
@@ -487,28 +485,39 @@ Contour MscLineAttr::CreateRectangle_ForFill_Note(double x1, double x2, double y
     _ASSERT(corner.second == CORNER_NOTE);
     _ASSERT(IsDoubleOrTriple());
     Block bb(x1, x2, y1, y2);
-    MscLineAttr line2(*this);
-    if (IsDouble()) {
-        bb.Expand(-line2.Spacing());
-        line2.Expand(-line2.Spacing());
-    }
-    const XY c2[] = {XY(bb.x.till - line2.radius.second, bb.y.from + line2.radius.second),
-                     XY(bb.x.till - line2.radius.second, bb.y.from),
-                     XY(bb.x.till                      , bb.y.from + line2.radius.second)};
-    if (IsTriple()) {
-        bb.Expand(-line2.Spacing());
-        line2.Expand(-line2.Spacing());
-    }
-    const double r = line2.radius.second + 2*line2.width.second;
-    const XY c1[] = {bb.UpperLeft(), 
-                     XY(bb.x.till - r, bb.y.from), 
-                     XY(bb.x.till - r, bb.y.from + r), 
-                     XY(bb.x.till    , bb.y.from + r), 
-                     bb.LowerRight(),
-                     bb.LowerLeft()};
+    const double s = Spacing();
+    const double r1 = radius.second;
+    const double r2 = std::max(0., r1 - s*::RadiusIncMultiplier(corner.second));
+    const double r3 = r2 + 2*width.second;
     Contour ret;
-    ret.assign_dont_check(c1);
-    ret.append_dont_check(c2);
+    if (IsDouble()) {
+        bb.Expand(-s);
+        const XY c2[] = {XY(bb.x.till - r2, bb.y.from + r2),
+                         XY(bb.x.till - r2, bb.y.from),
+                         XY(bb.x.till     , bb.y.from + r2)};
+        const XY c1[] = {bb.UpperLeft(), 
+                         XY(bb.x.till - r3, bb.y.from), 
+                         XY(bb.x.till - r3, bb.y.from + r3), 
+                         XY(bb.x.till     , bb.y.from + r3), 
+                         bb.LowerRight(),
+                         bb.LowerLeft()};
+        ret.assign_dont_check(c1);
+        ret.append_dont_check(c2);
+    } else {
+        //IsTriple()
+        const XY c2[] = {XY(bb.x.till - r1, bb.y.from + r1),
+                         XY(bb.x.till - r1, bb.y.from),
+                         XY(bb.x.till     , bb.y.from + r1)};
+        bb.Expand(-s);
+        const XY c1[] = {bb.UpperLeft(), 
+                         XY(bb.x.till - r1, bb.y.from), 
+                         XY(bb.x.till - r1, bb.y.from + r1), 
+                         XY(bb.x.till     , bb.y.from + r1), 
+                         bb.LowerRight(),
+                         bb.LowerLeft()};
+        ret.assign_dont_check(c1);
+        ret.append_dont_check(c2);
+    }
     return ret;
 }
 

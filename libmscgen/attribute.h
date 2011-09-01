@@ -265,7 +265,9 @@ public:
     double TripleMiddleWidth() const {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.0:1.0);}
     double LineWidth() const {_ASSERT(type.first && width.first); return width.second * LineWidthMultiplier(type.second);}
     //double RadiusIncMul() const {_ASSERT(type.first); return ::RadiusIncMultiplier(corner.second);}
-    void Expand(double gap) {_ASSERT(IsComplete()); if (radius.second>0 && corner.second != CORNER_NONE) radius.second += gap*::RadiusIncMultiplier(corner.second);}
+    MscLineAttr& Expand(double gap) {_ASSERT(IsComplete()); if (radius.second>0 && corner.second != CORNER_NONE) radius.second = std::max(0., radius.second + gap*::RadiusIncMultiplier(corner.second)); return *this;}
+    double SaneRadius(double x1, double x2, double y1, double y2) const {return std::max(0., std::min(radius.second, std::min(fabs(x2-x1), fabs(y2-y1))/2));}
+    double SaneRadius(const Block &b) const {return SaneRadius(b.x.from, b.x.till, b.y.from, b.y.till);}
     const double * DashPattern(unsigned &num) const;
 
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
@@ -317,7 +319,7 @@ inline Contour MscLineAttr::CreateRectangle_ForFill(double x1, double x2, double
         return CreateRectangle_Midline(x1, x2, y1, y2);
     if (corner.second != CORNER_NOTE) { //We have double or triple line here
         const double s = Spacing();
-        return CreateRectangle_Midline(x1+s, x2-s, y1+s, y2-s);
+        return MscLineAttr(*this).Expand(-s).CreateRectangle_Midline(x1+s, x2-s, y1+s, y2-s);
     }
     return CreateRectangle_ForFill_Note(x1, x2, y1, y2);    
 }
