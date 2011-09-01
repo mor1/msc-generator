@@ -35,12 +35,12 @@ public:
 
     Area &operator += (const Area &b) {Contour::operator+=(b); mainline+=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
     Area &operator *= (const Area &b) {Contour::operator*=(b); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator -= (const Area &b) {Contour::operator+=(b); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator ^= (const Area &b) {Contour::operator+=(b);                       if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator -= (const Area &b) {Contour::operator-=(b); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator ^= (const Area &b) {Contour::operator^=(b);                       if (arc==NULL) arc = b.arc; return *this;}
     Area &operator += (Area &&b) {Contour::operator+=(std::move(b)); mainline+=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
     Area &operator *= (Area &&b) {Contour::operator*=(std::move(b)); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator -= (Area &&b) {Contour::operator+=(std::move(b)); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator ^= (Area &&b) {Contour::operator+=(std::move(b));                       if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator -= (Area &&b) {Contour::operator-=(std::move(b)); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator ^= (Area &&b) {Contour::operator^=(std::move(b));                       if (arc==NULL) arc = b.arc; return *this;}
 
     Area operator + (const Area &p) const {return Area(*this)+=p;}
     Area operator * (const Area &p) const {return Area(*this)*=p;}

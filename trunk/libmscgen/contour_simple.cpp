@@ -389,7 +389,7 @@ void SimpleContour::assign_dont_check(const std::vector<XY> &v)
     if (v.size()<2) return;
     for (unsigned i=0; i<v.size(); i++)
         push_back(Edge(v[i], v[(i+1)%v.size()]));
-    CalculateBoundingBox();
+    Sanitize();  //includes CalculateBoundingBox();
 }
 
 void SimpleContour::assign_dont_check(const XY v[], unsigned size)
@@ -398,7 +398,7 @@ void SimpleContour::assign_dont_check(const XY v[], unsigned size)
     if (size < 2) return;
     for (unsigned i=0; i<size; i++)
         push_back(Edge(v[i], v[(i+1)%size]));
-    CalculateBoundingBox();
+    Sanitize();  //includes CalculateBoundingBox();
 }
 
 void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
@@ -406,8 +406,7 @@ void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
     clear();
     if (v.size()<2) return;
     static_cast<std::vector<Edge>*>(this)->operator=(v);
-    if (Sanitize())
-        CalculateBoundingBox();
+    Sanitize();  //includes CalculateBoundingBox();
 }
 
 void SimpleContour::assign_dont_check(const Edge v[], unsigned size)
@@ -416,8 +415,7 @@ void SimpleContour::assign_dont_check(const Edge v[], unsigned size)
     if (size < 2) return;
     for (unsigned i=0; i<size; i++)
         SimpleContour::push_back(v[i]);
-    if (Sanitize())
-        CalculateBoundingBox();
+    Sanitize();  //includes CalculateBoundingBox();
 }
 
 bool SimpleContour::IsSane() const
@@ -462,11 +460,9 @@ bool SimpleContour::Sanitize()
             goto clear;
         /*fallthrough*/
     default:
-        //ensure we have no FULL_CIRCLE and edges connect
+        //ensure that edges connect
         for (unsigned u=0; u<size(); u++)
-            if (at(u).GetType()==EDGE_FULL_CIRCLE)
-                goto clear;
-            else if (!at(u).GetEnd().test_equal(at_next(u).GetStart()))
+            if (!at(u).GetEnd().test_equal(at_next(u).GetStart()))
                 goto clear;
     }
     CalculateBoundingBox();

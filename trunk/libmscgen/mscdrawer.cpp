@@ -393,8 +393,7 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
     if (b.IsInvalid()) return;
     SetLineAttr(line);
     const double spacing = line.Spacing();
-    const double lw = line.LineWidth();
-    const double r = std::max(0., std::min(std::min(b.x.Spans()/2 - lw, line.radius.second), b.y.Spans()/2 - lw));
+    const double r = line.SaneRadius(b);
     MscLineAttr line2(line);
     line2.radius.second = r;
     if (line.corner.second!=CORNER_NOTE || r==0) {
@@ -419,8 +418,8 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
             //draw outer line
             line2.Expand(spacing);
             singleLine(line2.CreateRectangle_Midline(b.CreateExpand(spacing)), line2);
-            line2.radius.second = r;
             //prepare for middle line
+            line2.radius.second = r;
             cairo_set_line_width(cr,  line.TripleMiddleWidth());
         } 
         if (line.IsDouble()) {

@@ -2236,7 +2236,10 @@ double ArcBoxSeries::Height(AreaList &cover)
     //Final advance of linewidth, the inner edge (y) is on integer
     total_height = y + lw - yPos;
 
-    Block b(sx-lw/2, dx+lw/2, yPos /*was: -main_style.line.radius.second*2*/, yPos + total_height);
+    Block b(sx-lw/2, dx+lw/2, yPos+lw/2, yPos + total_height - lw/2);  //The midpoint of us
+    //update the style so that it's radius is not bigger than it can be
+    const_cast<double&>(main_style.line.radius.second) = main_style.line.SaneRadius(b);
+    
     Area overall_box(main_style.line.CreateRectangle_OuterEdge(b), this);
     // now we have all geometries correct, now calculate areas and covers
     for (auto i = series.begin(); i!=series.end(); i++) {
@@ -2326,13 +2329,6 @@ void ArcBoxSeries::PostPosProcess(double autoMarker)
             chart->HideEntityLines(r);
         }
     
-
-    //update the style so that it's radius is not bigger than it can be
-    const_cast<double&>(main_style.line.radius.second) = std::min(std::min(
-        total_height, 
-        dst_x + right_space - src_x + left_space), 
-        main_style.line.radius.second);
-
     //hide the entity lines under the labels
     for (auto i = series.begin(); i!=series.end(); i++) 
         chart->HideEntityLines((*i)->text_cover);
@@ -2399,7 +2395,7 @@ void ArcBoxSeries::Draw()
     chart->GetCanvas()->Line(r, main_style.line);
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->parsed_label.Draw(chart->GetCanvas(), (*i)->sx_text, (*i)->dx_text, (*i)->y_text);
+        (*i)->parsed_label.Draw(chart->GetCanvas(), (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
         if ((*i)->content.size())
             chart->DrawArcList((*i)->content);
         //if (i==follow.begin()) {

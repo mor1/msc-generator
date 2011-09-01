@@ -40,15 +40,26 @@ ADD: Context menu to editor (track one, tracking mode, find, replace, Style expl
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
 In 3.3
-ADD: message lost
-ADD: Add entity create/destroy
 ADDDED: Entity activate/deactivate
 CHANGED: Create an order in CreateRectangle - do it at one place
+FIXED: Box drawing suchks
+FIXED: Pipe draws vertical line
+FIXED: test1.signalling fails
+
+ADD: message lost
+ADD: Add entity create/destroy
+ADD: vertical ellipsys
 FIX: Entity attributes does not get hinted well
 FIX: Make all examples compile with full active entities
-FIX: Box drawing suchks
-FIX: Pipe draws vertical line
-FIX: test1.signalling fails
+FIX: Entity activation after declaration should start at the bottom of the entity heading
+FIX: why cannot I defstyle entity [active=yes]?
+FIX: A collapsed group entity activated just draws a line (but gaps are kept)
+FIX: Block arrows ->a-> should keep gap if a is active
+FIX: labels should keep gap if a->b:aaa is between two active entities
+FIX: Pipes should be wider if entity is active
+FIX: Diamond and dot arrowheads at end are drawn badly
+FIX: the indicator inside a collapsed block arrow should have more space below it
+FIX: add shadow to the indicator for certain styles
 
 
 In 3.2
