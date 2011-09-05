@@ -51,12 +51,12 @@ ADD: Add entity create/destroy
 ADD: vertical ellipsys
 FIX: Entity attributes does not get hinted well
 FIX: Make all examples compile with full active entities
-FIX: Entity activation after declaration should start at the bottom of the entity heading
 FIX: why cannot I defstyle entity [active=yes]?
 FIX: A collapsed group entity activated just draws a line (but gaps are kept)
 FIX: Block arrows ->a-> should keep gap if a is active
 FIX: labels should keep gap if a->b:aaa is between two active entities
 FIX: Pipes should be wider if entity is active
+FIX: if box radius is decreased due to low height, recalc label position
 FIX: Diamond and dot arrowheads at end are drawn badly
 FIX: the indicator inside a collapsed block arrow should have more space below it
 FIX: add shadow to the indicator for certain styles

@@ -964,7 +964,6 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
         //here "current" points to an incoming ray
         if (current.at_vertex) { //we are at a vertex
             if (forward) 
-                //TODO: What if vertex is a full circle??
                 result.AppendDuringWalk(Rays[current.index].contour->at(current.vertex));
             else {
                 Edge edge(Rays[current.index].contour->at_prev(current.vertex));

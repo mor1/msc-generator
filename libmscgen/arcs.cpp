@@ -2964,9 +2964,11 @@ double ArcPipeSeries::Height(AreaList &cover)
                 (*i)->pipe_shadow += forw_end;
                 (*i)->pipe_hole_line = forw_end.CreateExpand(gap_for_line);
                 (*i)->pipe_hole_fill = forw_end.CreateExpand(gap_for_fill);
-                (*i)->pipe_hole_curve = Contour(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0,
-                                                side == SIDE_RIGHT ? 270 : 90,
-                                                side == SIDE_RIGHT ? 90 : 270);
+                const Edge hole_line[2] = {Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 90, 270), 
+                                           Edge(cd, rad.x+gap_for_line, rad.y+gap_for_line, 0, 270, 90)};
+                (*i)->pipe_hole_curve.assign_dont_check(hole_line);
+                //this is only half of the hole ellipsos
+                (*i)->pipe_hole_curve[0][side == SIDE_RIGHT ? 0 : 1].visible = false;
             } else {
                 //just chop off from fill and line
                 (*i)->pipe_body_fill -= Block(Range(cd.x, cd.x), (*i)->pipe_block.y).Expand(gap_for_fill);
@@ -3117,20 +3119,24 @@ void ArcPipe::DrawPipe(bool topSideFill, bool topSideLine, bool backSide,
             chart->GetCanvas()->SetLineAttr(style.line);
             if (drawing_variant==1) { //advanced: lines do not cross
                 chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line);
-                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing), style.line);
                 chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);
+                chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_MITER);
+                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing), style.line);
             } else { //very advanced: proper double line joint
                 chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line); //outer
+                chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_MITER);
+                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line); //inner hole
                 chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing) -
                                   pipe_hole_line.CreateExpand(spacing), style.line);  //inner body
-                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line); //inner hole
             }
         } else if (style.line.IsTriple()) {
             chart->GetCanvas()->SetLineAttr(style.line);
             //here variant 1 and 2 result in the same
             chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line);  //outer
+            chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_MITER);
             chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing) -
                                 pipe_hole_line.CreateExpand(spacing), style.line);  //inner body
+            chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
             chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);   //inner hole
             cairo_set_line_width(chart->GetCanvas()->GetContext(), style.line.TripleMiddleWidth());
             chart->GetCanvas()->singleLine(pipe_body_line, style.line); //middle line
