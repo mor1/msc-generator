@@ -184,9 +184,9 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
 void MscStyle::AttributeNames(Csh &csh) const
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"vline.color", "vline.type", "vline.width", "vline.radius", ""};
+    {"", "vline.color", "vline.type", "vline.width", "vline.radius", "vline.corner", ""};
     static const char names2[][ENUM_STRING_LEN] =
-    {"vfill.color", "vfill.color2", "vfill.gradient", ""};
+    {"", "vfill.color", "vfill.color2", "vfill.gradient", ""};
 
     if (f_line) MscLineAttr::AttributeNames(csh);
     if (f_fill) MscFillAttr::AttributeNames(csh);

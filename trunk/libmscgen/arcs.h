@@ -467,7 +467,6 @@ class CommandEntity : public ArcCommand
 {
 protected:
     EntityDefList entities;
-    EntityDefList parent_entities;
     bool full_heading;
     double height;
 public:
@@ -482,6 +481,8 @@ public:
     void ApplyShowToChildren(const string &name, bool show);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
+    EntityDef* FindAddEntityDefForEntity(const string &entity, const file_line_range &l);
+    EEntityStatus GetCombinedStatus(const std::set<string>& children) const;
     virtual ArcBase* PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(EntityDistanceMap &distances);
     virtual double Height(AreaList &cover);

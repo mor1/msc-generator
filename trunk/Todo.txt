@@ -45,21 +45,28 @@ CHANGED: Create an order in CreateRectangle - do it at one place
 FIXED: Box drawing suchks
 FIXED: Pipe draws vertical line
 FIXED: test1.signalling fails
+FIXED: Make all examples compile with full active entities
+FIXED: A collapsed group entity activated just draws a line (but gaps are kept)
+FIXED: Three-layered nested entities do not draw, due to stupid listing with string
 
 ADD: message lost
 ADD: Add entity create/destroy
 ADD: vertical ellipsys
 FIX: Entity attributes does not get hinted well
-FIX: Make all examples compile with full active entities
+
 FIX: why cannot I defstyle entity [active=yes]?
-FIX: A collapsed group entity activated just draws a line (but gaps are kept)
+FIX: Triple bevel changes size when size limited.
+
+FIX: make arrows keep more space from the entity line (esp. dbl line block arrows)
 FIX: Block arrows ->a-> should keep gap if a is active
 FIX: labels should keep gap if a->b:aaa is between two active entities
 FIX: Pipes should be wider if entity is active
 FIX: if box radius is decreased due to low height, recalc label position
-FIX: Diamond and dot arrowheads at end are drawn badly
+FIX: Diamond and dot arrowheads at end are drawn badly for block arrows
+FIX: Diamond and dot normal arrowheads do not align with middle of entity line
 FIX: the indicator inside a collapsed block arrow should have more space below it
 FIX: add shadow to the indicator for certain styles
+FIX: test1.signalling
 
 
 In 3.2

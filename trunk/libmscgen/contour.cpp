@@ -59,14 +59,8 @@ double ContourList::OffsetBelow(const SimpleContour &below, double &touchpoint, 
 {
     if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
     if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;
-    for (auto i = begin(); i!=end(); i++) {
-        double off, tp;
-        off = i->OffsetBelow(below, tp, offset);
-        if (off < offset) {
-            offset = off;
-            touchpoint = tp;
-        }
-    }
+    for (auto i = begin(); i!=end(); i++) 
+        offset = i->OffsetBelow(below, touchpoint, offset);
     return offset;
 }
 
@@ -75,14 +69,8 @@ double ContourList::OffsetBelow(const ContourList &below, double &touchpoint, do
     if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
     if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;
     for (auto i = begin(); i!=end(); i++)
-        for (auto j = below.begin(); j!=below.end(); j++) {
-            double off, tp;
-            off = i->OffsetBelow(*j, tp, offset);
-            if (off < offset) {
-                offset = off;
-                touchpoint = tp;
-            }
-        }
+        for (auto j = below.begin(); j!=below.end(); j++) 
+            offset = i->OffsetBelow(*j, touchpoint, offset);
     return offset;
 }
 

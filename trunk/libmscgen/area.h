@@ -133,7 +133,7 @@ inline double AreaList::OffsetBelow(const Area &below, double &touchpoint, doubl
             touchpoint = mainline.till;
         }
     for (auto i = cover.begin(); i!=cover.end(); i++)
-        offset = std::min(offset, i->OffsetBelow(below, touchpoint, offset, bMainline));
+        offset = i->OffsetBelow(below, touchpoint, offset, bMainline);
     return offset;
 }
 
@@ -148,7 +148,7 @@ inline double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, d
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
     for (auto i = cover.begin(); i!=cover.end(); i++)
         for (auto j = below.cover.begin(); j!=below.cover.end(); j++)
-            offset = std::min(offset, i->OffsetBelow(*j, touchpoint, offset, bMainline));
+            offset = i->OffsetBelow(*j, touchpoint, offset, bMainline);
     return offset;
 }
 

@@ -26,7 +26,7 @@ private:
     bool   clockwise;
 
     result_t CheckContainmentHelper(const SimpleContour &b) const;
-    double do_offsetbelow(const SimpleContour &below, double &touchpoint) const;
+    double do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
     const Block &CalculateBoundingBox();
 
@@ -101,7 +101,7 @@ public:
     const Edge &operator[](unsigned edge) const {return at(edge);}
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
-    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const;
+    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     void Expand(EExpandType type, double gap, Contour &res) const;
 
     void Path(cairo_t *cr, bool show_hidden) const;
@@ -137,7 +137,7 @@ inline double SimpleContour::OffsetBelow(const SimpleContour &below, double &tou
 {
     if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
-    return do_offsetbelow(below, touchpoint);
+    return do_offsetbelow(below, touchpoint, offset);
 }
 
 } //namespace

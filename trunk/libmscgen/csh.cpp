@@ -366,8 +366,10 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
 "line.color", "line.type", "line.width", "line.corner", "line.radius", 
-"vline.color", "vline.type", "vline.width",
-"fill.color", "fill.color2", "fill.gradient", "shadow.color", "shadow.offset", "shadow.blur", ""};
+"vline.color", "vline.type", "vline.width", "vline.radius", "vline.corner",
+"fill.color", "fill.color2", "fill.gradient", 
+"vfill.color", "vfill.color2", "vfill.gradient",
+"shadow.color", "shadow.offset", "shadow.blur", ""};
 
 int find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
 {

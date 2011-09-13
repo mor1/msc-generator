@@ -3523,11 +3523,11 @@ CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 			if ((*i)->show_is_explicit) continue;	
 			(*i)->show.first = true;	
 			(*i)->show.second = CaseInsensitiveEqual(prefix, "show");
-            (*i)->show_is_explicit = true; //prefix of a grouped entity will not impact inner ones with prefix
 		} else if (CaseInsensitiveEqual(prefix, "activate") || CaseInsensitiveEqual(prefix, "deactivate")) {
             if ((*i)->active_is_explicit) continue;
 			(*i)->active.first = true;	
 			(*i)->active.second = CaseInsensitiveEqual(prefix, "activate");
+            (*i)->active.third = (*i)->file_pos.start;
         }
     }
     return this;
@@ -3552,6 +3552,94 @@ void CommandEntity::ApplyShowToChildren(const string &name, bool show)
     }
 }
 
+
+//Adds and entitydef for "entity" uses running_show and running_style
+EntityDef* CommandEntity::FindAddEntityDefForEntity(const string &entity, const file_line_range &l)
+{
+    //find if already have a def for this
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+        if ((*i_def)->name == entity) return *i_def;
+    const EIterator jj_ent = chart->AllEntities.Find_by_Name(entity);
+    _ASSERT(*jj_ent != chart->NoEntity);
+    EntityDef *ed = new EntityDef(entity.c_str(), chart);
+    ed->itr = jj_ent;
+    ed->style = (*jj_ent)->running_style;
+    ed->file_pos = l;
+    ed->show.first = ed->active.first = false;
+    entities.Append(ed);
+    return ed;
+}
+
+//return active if any of the children are active and ON if any of them are ON
+//go recursive all the way deep - ignore the "running_shown" of parents
+EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children) const
+{
+    EEntityStatus ret = EEntityStatus::SHOW_OFF;
+    for (auto s = children.begin(); s!=children.end(); s++) {
+        auto i = chart->AllEntities.Find_by_Name(*s);
+        _ASSERT(*i != chart->NoEntity);
+        EEntityStatus es;
+        if ((*i)->children_names.size()) es = GetCombinedStatus((*i)->children_names);
+        else es = (*i)->running_shown;
+        if (es.IsActive()) ret.Activate(true);
+        if (es.IsOn()) ret.Show(true);
+    }
+    return ret;
+}
+
+/* The following rules apply.
+ * Each entity we can possibly have is represented in chart->AllEntities and is of
+ * class Entity. 
+ * Each time we name an entity in an entity command, we allocate an EntityDef object.
+ * If the "defining" member is true this mention of the entity was used to define the
+ * entity. If it is false, this mention of the entity is a subsequent one.
+ * An entity can have zero or one EntityDefs with defining=true (zero if the entity
+ * was implicitly defined via e.g., an arrow definition).
+ * When an entity is mentioned in an entity command any (or all) of the three things
+ * can be done: turn it on/off, activate/deactivate it or change the style. An entity
+ * that is on can be turned on again, in which case we draw an entity heading of it.
+ * Similar, the heading command draws an entity heading for all entities that are currently
+ * on. This is emulated by adding EntityDefs for such entities with show set to on.
+ *
+ * During the PostParse process we keep up-to date the "running_show" and "running_style"
+ * members of the entities. (Memmbers of class "Entity".) These are used by arrows, etc.
+ * to find out if certain entities are on/off or active, etc.
+ * In addition, we store the "running_style" and "running_show" in every EntityDef, as well;
+ * and then in the PosPos process, when x and y coordinates are already set, we copy them
+ * to Entity::status, so that when we draw entity lines we know what to draw at what 
+ * coordinate. The entity headings are drawn based on the EntityDef::style member.
+ *
+ * The EntityDef::draw_heading member tells if a heading should be drawn for this heading
+ * at this point. The "show" and "active" members tell if there was "show" or "active"
+ * attributes set (perhaps via show/hide/activate/deactivate commands). If so, the
+ * "show_is_explicit"/"active_is_explicit" are set. (This is used to prevent overwriting
+ * an explicitly written [show=yes/no] with a "show" command. Thus 'show aaa [show=no]' 
+ * will result in show=false. Otherwise any newly defined entitydef
+ * has show set to true and active set to false - the default for newly defined entities.
+
+ * The algorithm here is the following.
+ *
+ * 0. Merge entitydefs corresponding to the same entity. (They are in the same order 
+ *    as in the source file, so copying merging "active", "show" and "style" is enough,
+ *    since all other attributes can only be used at definition, which can be the first 
+ *    one only.)
+ * 1. Apply the style elements specified by the user to the entity's "running_style"
+ * 2. If a grouped entity is listed with show=yes/no, we copy this attribute to all of its
+ *    listed children (unless they also have an explicit show attribute, which overrides that
+ *    of the group). We also prepend any unlisted children and copy the attribute.
+ *    At the same time, we remove the show attribute from the grouped entities.
+ *    This will result in that if a grouped entity is turned on or off all of its 
+ *    children (and their children, too) will get turned on or off, as well.
+ * 3. Apply all listed entities show and active attributes to "running_show" & "draw_heading"
+ * 4. Update the "running_shown" of all parents based on the status of leaf children,
+ *    if any change, add a corresponding entitydef (if needed)
+ * 5. If we are a heading command, add entities where running_show indicates shown
+ * 6. Order the listed entities such that parents come first and their children after
+ * 7. Set "draw_heading" of the children of collapsed parents to false
+ * 8. For those that draw a heading, update "left" and "right", process label & record max width
+ */
+
+//TODO: What if multiple entitydefs are present for the same entity? We should merge them
 ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &,
                                      bool top_level)
 {
@@ -3560,132 +3648,130 @@ ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &
     if (full_heading && !top_level)
         chart->Error.Warning(file_pos.start, "The command 'heading' is specified "
                              "inside a parallel block. May display incorrectly.");
-    set<Entity*> explicitly_listed;
-    //Remove show on/off attribute from grouped entities
+
+    //0. First merge entitydefs of the same entity, so that we have at most one for each entity.
+    for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) {
+        //find first entity of this name
+        EntityDef *ed = FindAddEntityDefForEntity((*i_def)->name, file_pos); //second param dummy, we never add here
+        if (ed == *i_def) i_def++; 
+        else {
+            //OK, "ed" is an EntityDef before i_def, combine them.
+            _ASSERT(!(*i_def)->defining);
+            //show_is_explicit and active_is_explicit makes no role beyond this, so ignore
+            if ((*i_def)->show.first) 
+                ed->show = (*i_def)->show;
+            if ((*i_def)->active.first) 
+                ed->active = (*i_def)->active;
+            ed->style += (*i_def)->style;
+            //Ok, delete i_def
+            entities.erase(i_def++);
+        }
+    }
+    
+    //1. Then apply the style changes of this command to the running style of the entities
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        EIterator j_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
+        const EIterator j_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
         (*i_def)->itr = j_ent;
+        //Make the style of the entitydef fully specified using the accumulated style info in Entity
+        (*j_ent)->running_style += (*i_def)->style;  //(*i)->style is a partial style here specified by the user
+    }
+    //2. Copy show on/off attribute from grouped entities to their children
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
+        const Entity *ent = *(*i_def)->itr;
         //if the entity is a grouped entity with a show/hide attribute, 
         //add an entitydef to our list for those children, who have no entitidefs
         //yet in the list. For those children, who have, just set show attribute
         //if not set yet
-        if ((*i_def)->show.first && (*j_ent)->children_names.size()) { 
-            for (auto ss = (*j_ent)->children_names.begin(); ss!=(*j_ent)->children_names.end(); ss++) {
-                auto ii_def = entities.begin();
-                for (/*none*/ ; ii_def != entities.end(); ii_def++) 
-                    if ((*ii_def)->name == *ss) {
-                        if (!(*ii_def)->show.first) 
-                            (*ii_def)->show = (*i_def)->show;
-                        break;
-                    }
-                if (ii_def == entities.end()) {
-                    EIterator jj_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
-                    EntityDef *ed = new EntityDef(ss->c_str(), chart);
-                    ed->show = (*i_def)->show;
-                    ed->file_pos = (*i_def)->file_pos; 
-                    ed->itr = jj_ent;
-                    ed->style = (*jj_ent)->running_style;
-                    ed->parsed_label.Set((*jj_ent)->label, chart->GetCanvas(), ed->style.text);
-                    entities.Append(ed);
-                }
-            }
-            (*i_def)->show.first = false;
-        }
+        //new entitydefs are added to the end of the list - and get processed for further 
+        //children
+        if ((*i_def)->show.first && ent->children_names.size()) 
+            for (auto ss = ent->children_names.begin(); ss!=ent->children_names.end(); ss++) 
+                FindAddEntityDefForEntity(*ss, (*i_def)->file_pos)->show = (*i_def)->show;
     }
-    //Next apply the style changes of this command to the running style of the entities
+    //3. 
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        const EIterator j_ent = (*i_def)->itr;
-        //Make the style of the entitydef fully specified using the accumulated style info in Entity
-        (*j_ent)->running_style += (*i_def)->style;  //(*i)->style is a partial style here specified by the user
-        if ((*i_def)->active.first)
-            (*j_ent)->running_shown.Activate((*i_def)->active.second);
+        Entity *ent = *(*i_def)->itr;
+        //Decide, if this entitydef will draw a heading or not
+        //It can get drawn because we 1) said show=yes, or
+        //2) because it is on, we mention it (without show=yes) and it is
+        //a full heading.
+        (*i_def)->draw_heading = ((*i_def)->show.second && (*i_def)->show.first) 
+                                 || (full_heading && ent->running_shown.IsOn());
+        //Adjust the running status of the entity, this is valid *after* this command. 
+        //This is just for the Height process knwos whch entity is on/off
+        if ((*i_def)->show.first)
+            ent->running_shown.Show((*i_def)->show.second);
+        //Update the style of the entitydef
+        (*i_def)->style = ent->running_style;	 //(*i)->style now become the full style to use from this point
+        //reflect any "active" attribute in the running_shown variable 
+        if ((*i_def)->active.first) 
+            ent->running_shown.Activate((*i_def)->active.second);
     }
-    //Now remove grouped entities (we have handled style and show for them)
-    //and calculate shown status for non-grouped ones
-    for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) 
-        if ((*(*i_def)->itr)->children_names.size()) {
-            entities.erase(i_def++);
-        } else {
-            EIterator j_ent = (*i_def)->itr;
-            //Decide, if this entitydef will show an entity or not
-            //It can get drawn because we 1) said show=yes, or
-            //2) because it is on, we mention it (without show=yes) and it is
-            //a full heading.
-            (*i_def)->shown = ((*i_def)->show.second && (*i_def)->show.first) 
-                              || (full_heading && (*j_ent)->running_shown.IsOn());
-            //Adjust the running status of the entity, this is valid *after* this command. 
-            //This is just for the Height process knwos whch entity is on/off
-            if ((*i_def)->show.first)
-                (*j_ent)->running_shown.Show((*i_def)->show.second);
-            if ((*i_def)->shown) {
-                explicitly_listed.insert(*(*i_def)->itr);
-                //Update the style of the entitydef
-                (*i_def)->style = (*j_ent)->running_style;	 //(*i)->style now become the full style to use from this point
-                (*i_def)->parsed_label.Set((*j_ent)->label, chart->GetCanvas(), (*i_def)->style.text);
-            }
-            i_def++; //cycle to next in for-cycle
+    //4. Now we are guaranteed to have all leaf children's runnin_shown status right.
+    //However, we can have parents, whose child(ren) changed status and we need to update that
+    //We will need to add EntityDefs here for such parents (so they update status in PostPos, too)
+    for (auto j_ent = chart->AllEntities.begin(); j_ent != chart->AllEntities.end(); j_ent++) {
+        if ((*j_ent)->children_names.size()==0) continue;
+        EEntityStatus es_new = GetCombinedStatus((*j_ent)->children_names);
+        EEntityStatus es_old = (*j_ent)->running_shown;
+        if (es_old == es_new) continue;
+        //ok, shown status has changed, add/lookup entitydef
+        EntityDef *ed = FindAddEntityDefForEntity((*j_ent)->name, this->file_pos);
+        if (es_new.IsOn() != es_old.IsOn()) {
+            ed->show.first = true;
+            ed->show.second = es_new.IsOn();
         }
+        if (es_new.IsActive() != es_old.IsActive()) {
+            ed->active.first = true;
+            ed->active.second = es_new.IsActive();
+        }
+        (*j_ent)->running_shown = es_new;
+    }
 
-    //A "heading" command, we have to draw all entities that are on
+    //5. A "heading" command, we have to draw all entities that are on
     //for these we create additional EntityDefs and append them to entities
     //Only do this for children (non-grouped entities)
     if (full_heading)
         for (auto i = chart->AllEntities.begin(); i!=chart->AllEntities.end(); i++) {
             if (!(*i)->running_shown.IsOn()) continue;
             if ((*i)->children_names.size()) continue;
-            if (explicitly_listed.find(*i) != explicitly_listed.end()) continue;
-            EntityDef *e = new EntityDef((*i)->name.c_str(), chart);
-            //fill in all values necessary
-            e->itr = i;
-            e->file_pos = file_pos; //use the file_pos of the CommandEntity
-            e->style = (*i)->running_style;
-            e->parsed_label.Set((*i)->label, chart->GetCanvas(), e->style.text);
-            e->shown = true;
-            entities.Append(e);
+            EntityDef *ed = FindAddEntityDefForEntity((*i)->name, this->file_pos); //use the file_pos of the CommandEntity
+            ed->draw_heading = true;
         }
-    //At this point the list contains all non-grouped entities with show=yes
+
+    //6. Order the list (lousy bubblesort)
+    //any descendant should come after any of their anscestors, but we can only compare
+    //direct parent-child, so we go through the list until we see change
+    bool changed;
+    do {
+        changed = false;
+        for (auto i_def = ++entities.begin(); i_def != entities.end(); i_def++) 
+            for (auto i_def2 = entities.begin(); i_def2 != i_def; i_def2++) 
+                if ((*(*i_def2)->itr)->parent_name == (*i_def)->name) {
+                    std::swap(*i_def, *i_def2);
+                    changed = true;
+                }
+    } while (changed);
+
+    //At this point the list contains all entities that 
+    //- is mentioned by the user (style or status change)
+    //- shall be shown a heading due to heading command
+    //- has a parent (ancestor) or children (descendant) in the above mentioned two categories
     //Collapse is not considered yet, we will do it below
 
-    //Now add parents to the list for those children that are visible
-    //Maintain reverse ordering: parents later, children earlier in the list
-    std::list<pair<string, file_line_range>> sl;
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        if (!(*i_def)->shown) continue;
-        const string &myparent = (*(*i_def)->itr)->parent_name;
-        if (myparent.length()==0) continue;
-        auto si = sl.begin();
-        for(/*nope*/; si!=sl.end(); si++) 
-            if (si->first == myparent) break;
-        if (si != sl.end()) continue;
-        si = sl.begin();
-        while (si != sl.end() && !chart->IsMyParentEntity(myparent, si->first)) si++;
-        sl.insert(si, pair<string, file_line_range>(myparent, (*i_def)->file_pos));
-    }
-    //Now add an entitydef for each parent (whith shown=yes) and reverse order
-    for (auto i = sl.begin(); i!=sl.end(); i++) {
-        EntityDef *e = new EntityDef(i->first.c_str(), chart);
-        //fill in all values necessary
-        e->itr = chart->AllEntities.Find_by_Name(i->first);
-        e->file_pos = i->second;
-        e->style = (*e->itr)->running_style;
-        e->parsed_label.Set((*e->itr)->label, chart->GetCanvas(), e->style.text);
-        e->shown = true;
-        entities.Prepend(e);
-    }
-
-    //Finally prune the list: remove those that shall not be displayed due to collapse
-    for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) 
+    //7. Finally prune the list: do not show those that shall not be displayed due to collapse
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
         if (chart->FindActiveParentEntity((*i_def)->itr) != (*i_def)->itr) 
-            entities.erase(i_def++);
-        else
-            i_def++;
-    //Now we have all entities among "entities" that will show here
+            (*i_def)->draw_heading = false;
+
+    //8. At last we have all entities among "entities" that will show here/change status or style
     //Go through them and update left, right and the entities' maxwidth
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        if (!(*i_def)->shown) continue;
-        left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf((*i_def)->itr, true));
-        right = chart->EntityMaxByPos(right, chart->FindWhoIsShowingInsteadOf((*i_def)->itr, false));
+        if (!(*i_def)->draw_heading) continue;
         const EIterator ei = (*i_def)->itr;
+        left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf(ei, true));
+        right = chart->EntityMaxByPos(right, chart->FindWhoIsShowingInsteadOf(ei, false));
+        (*i_def)->parsed_label.Set((*ei)->label, chart->GetCanvas(), (*ei)->running_style.text);
         double w = (*i_def)->Width();
         if ((*ei)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
     }
@@ -3709,7 +3795,7 @@ void CommandEntity::Width(EntityDistanceMap &distances)
     //"full_heading" not even checked here
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
         //Take entity height into account or draw it if show=on was added
-        if (!(*i)->shown) continue;
+        if (!(*i)->draw_heading) continue;
         if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
             const double halfsize = (*(*i)->itr)->maxwidth/2;
             const unsigned index = (*(*i)->itr)->index;
@@ -3784,11 +3870,11 @@ double CommandEntity::Height(AreaList &cover)
 
     //We go backwards, so that contained entities get calculated first
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
-        if (!(*i)->shown) continue;
+        if (!(*i)->draw_heading) continue;
         //Collect who is my children in this list
         EntityDefList edl(false);
         for (auto ii = entities.rbegin(); !(ii==entities.rend()); ii++) 
-            if (*ii != *i && chart->IsMyParentEntity((*ii)->name, (*i)->name))
+            if ((*ii)->draw_heading && *ii != *i && chart->IsMyParentEntity((*ii)->name, (*i)->name))
                 edl.Append(*ii);
         //EntityDef::Height places children entities to yPos==0
         //Grouped entities may start at negative yPos.
@@ -3829,7 +3915,7 @@ void CommandEntity::Draw()
 {
     if (!valid) return;
     for (auto i = entities.begin(); i!=entities.end(); i++)
-        if ((*i)->shown)
+        if ((*i)->draw_heading)
             (*i)->Draw();
 }
 

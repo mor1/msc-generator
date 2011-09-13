@@ -41,15 +41,15 @@ public:
     const Block &GetBoundingBox(void) const {return boundingBox;}
     is_within_t IsWithin(XY p) const;
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
-    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const;
-    double OffsetBelow(const ContourList &below, double &touchpoint, double offset) const;
+    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
+    double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
+    double OffsetBelow(const ContourList &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
     void Path(cairo_t *cr, bool show_hidden) const;
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 };
-
 
 //this contains a list of non-overlapping contours as holes
 class ContourWithHoles : public SimpleContour
@@ -102,7 +102,7 @@ public:
 
     //Call these for both us and the holes (except for OffsetBelow)
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {SimpleContour::VerticalCrossSection(x, section); if (holes.size()) holes.VerticalCrossSection(x, section);}
-    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const {return SimpleContour::OffsetBelow(below, touchpoint, offset);}
+    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const {return SimpleContour::OffsetBelow(below, touchpoint, offset);}
 
     void Path(cairo_t *cr, bool show_hidden) const {SimpleContour::Path(cr, show_hidden); if (holes.size()) holes.Path(cr, show_hidden);}
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {SimpleContour::Path(cr, show_hidden, clockwiseonly); if (holes.size()) holes.Path(cr, show_hidden, clockwiseonly);}
@@ -116,6 +116,7 @@ class Contour : public ContourWithHoles
 {
     friend class SimpleContour;
     friend class ContourWithHoles;
+    friend class ContourList;
     friend class ContoursHelper;
     typedef enum {POSITIVE_UNION=0, POSITIVE_INTERSECT, POSITIVE_XOR,
                   WINDING_RULE_NONZERO, WINDING_RULE_EVENODD,
@@ -232,7 +233,8 @@ public:
     Contour operator ^ (Contour &&p) const {return Contour(*this)^=std::move(p);}
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {ContourWithHoles::VerticalCrossSection(x, section); if (further.size()) further.VerticalCrossSection(x, section);}
-    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const {return SimpleContour::OffsetBelow(below, touchpoint, offset);}
+    double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
+    double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     void Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND);
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND) const;
 
@@ -303,6 +305,13 @@ inline void ContourList::RotateAround(const XY&c, double cos, double sin, double
     }
 }
 
+inline double ContourList::OffsetBelow(const Contour &below, double &touchpoint, double offset) const
+{
+    if (below.further.size())
+        offset = OffsetBelow(below.further, touchpoint, offset);
+    return OffsetBelow(static_cast<const SimpleContour &>(below), touchpoint, offset);
+}
+
 ///////Contour///////////////////////////////////////
 
 inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
@@ -316,6 +325,23 @@ inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
     case WI_OUTSIDE: return WI_INSIDE;
     default: return ret;
     }
+}
+
+inline double Contour::OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const 
+{
+    if (further.size()) 
+        offset = further.OffsetBelow(below, touchpoint, offset);
+    return SimpleContour::OffsetBelow(below, touchpoint, offset);
+}
+
+inline double Contour::OffsetBelow(const Contour &below, double &touchpoint, double offset) const 
+{
+    if (further.size()) 
+        offset = further.OffsetBelow(below, touchpoint, offset);
+    if (below.further.size())
+        for (auto i = below.further.begin(); i!=below.further.end(); i++)
+            offset = OffsetBelow(*i, touchpoint, offset);
+    return SimpleContour::OffsetBelow((const SimpleContour&)below, touchpoint, offset);
 }
 
 inline void Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg)

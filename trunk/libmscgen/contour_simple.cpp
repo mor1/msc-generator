@@ -795,16 +795,19 @@ void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num
             at(i).PathDashed(cr, pattern, num, pos, offset);
 }
 
-double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpoint) const
+//True for all of the OffsetBelow() functions (except Edge:: ones):
+//if the "offset" received is not changed (did not find a smaller one), "touchpoint" is also 
+//left unchanged
+double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset) const
 {
-    double offset = CONTOUR_INFINITY;
+    double tp = 0;
     for (unsigned i = 0; i<size(); i++)
         for (unsigned j = 0; j<below.size(); j++)
             if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
-                double tp, off = at(i).OffsetBelow(below.at(j), tp);
+                double off = at(i).OffsetBelow(below.at(j), tp);
                 if (off < offset) {
-                    touchpoint = tp;
                     offset = off;
+                    touchpoint = tp;
                 }
             }
     return offset;

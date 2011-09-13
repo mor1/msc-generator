@@ -104,18 +104,17 @@ void EntityList::SortByPosExp(void)
 
 EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
     style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
-    defining(false)
+    defining(false), draw_heading(false),
+    label(false, "", file_line()),
+    pos(false, 0, file_line()),                    //field 'pos.second' is used even if no such attribute
+    rel(false, "", file_line()),
+    collapsed(false, false, file_line()),
+    active(true, false, file_line()),              //if no attributes, we are not active if defined
+    show(true, true)                               //if no attributes, we are ON if defined
 {
-    label.first = false;
-    pos.first = false;
-    pos.second = 0; //field 'pos.second' is used even if no such attribute
-    rel.first = false;
-    show.second = show.first = true;        //if no attributes, we are ON if defined
-    active.first = true; active.second = false; //if no attributes, we are not active if defined
     show_is_explicit = false;
     active_is_explicit = false;
     style.Empty();
-    collapsed.first = false;
 }
 
 bool EntityDef::AddAttribute(const Attribute& a)
@@ -179,6 +178,7 @@ bool EntityDef::AddAttribute(const Attribute& a)
         // MSC_ATTR_CLEAR is handled above
         active.second = a.yes;
         active.first = true;
+        active.third = a.linenum_attr.start;
         active_is_explicit = true;
         return true;
     }
@@ -253,6 +253,10 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
                                "The position of grouped entities is derived from its member entities.",
                                " Ignoring attribute.");
         pos.first = rel.first = false;
+        if (active.first && active_is_explicit) 
+            chart->Error.Error(active.third, "You cannot directly activate or deactivate a grouped entity.",
+                               "The active/inactive state of grouped entities is derived from its member entities. Ignoring attribute.");
+        active.first = active_is_explicit = false;
         //We start fiddling with collapsed.second.
         //It will have a meaning from now on even if collapsed.first is false
         if (collapsed.first)
@@ -498,14 +502,15 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
     area = style.line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
     area.arc = this;
     //Add shadow to outer_edge and place that to cover
-    cover += Contour(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge);
-    cover.mainline += outer_edge.y;
+    Area my_cover(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge, this);
+    my_cover.mainline += outer_edge.y;
+    cover += std::move(my_cover);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
 void EntityDef::PostPosProcess(double dummy)
 {
-    if (shown && !hidden) {
+    if (draw_heading && !hidden) {
         chart->HideEntityLines(outer_edge);
         if ((*itr)->children_names.size())
             TrackableElement::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);
