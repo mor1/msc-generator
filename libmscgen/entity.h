@@ -109,7 +109,7 @@ template <class T1, class T2, class T3> struct triplet
     T2 second;
     T3 third;
 //  triplet() : first(T1()), second(T2(), third(T3()) {}
-//  triplet(const T1& x, const T2& y, const T3& z) : first(x), second(y), third(z) {}
+    triplet(const T1& x, const T2& y, const T3& z) : first(x), second(y), third(z) {}
 //  template <class U, class V, class W>
 //    triplet (const triplet<U,V,W> &p) : first(p.first), second(p.second), third(p.third) { }
 };
@@ -133,7 +133,7 @@ public:
     triplet<bool,string,file_line> rel;
     triplet<bool,bool,file_line>   collapsed;
     std::pair<bool,bool>           show;
-    std::pair<bool,bool>           active;
+    triplet<bool,bool,file_line>   active;
     bool                           show_is_explicit; //"show" comes from user text
     bool                           active_is_explicit; //"active" comes from user attribute text
 
@@ -141,7 +141,7 @@ public:
     MscStyle                       style;       //this is finalized during PostParse
     Label                          parsed_label;//this is finalized during PostParse
 	bool                           defining;    //true if this is the first entityDef for this entity = this entityDef created the entity (set in AddAttrList)
-    bool                           shown;       //true if in CommandEntity::Height we decided to show this entity
+    bool                           draw_heading;//true if in CommandEntity::Height we decided to draw heading of this entity
 
     mutable EIterator left_ent, right_ent;      //for a grouped entity the left & right active entity (but in AllEntities)
     mutable double left_offset, right_offset;   //for a groupe entity the offset from them (of outer edge of contained entity)

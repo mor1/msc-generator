@@ -284,8 +284,8 @@ double EdgeStraight::OffsetBelow(const EdgeStraight &M, double &touchpoint) cons
                std::max(start.y, end.y);
     }
     if (M.GetStart().x == M.GetEnd().x) {
-        touchpoint = std::max(M.GetStart().y, M.GetEnd().y);
-        return std::min(M.GetStart().y,M.GetEnd().y) - ((start.y-end.y)/(start.x-end.x)*(M.GetStart().x-start.x) + start.y);
+        touchpoint = (start.y-end.y)/(start.x-end.x)*(M.GetStart().x-start.x) + start.y;
+        return std::min(M.GetStart().y,M.GetEnd().y) - touchpoint;
     }
     const double y1 = ((start.y-end.y)/(start.x-end.x)*(x1-start.x) + start.y);
     const double y2 = ((start.y-end.y)/(start.x-end.x)*(x2-start.x) + start.y);

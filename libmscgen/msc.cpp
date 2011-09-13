@@ -796,18 +796,20 @@ void Msc::PostParseProcess()
     const_cast<double&>((*rside)->pos) = rightmost + MARGIN;
     ActiveEntities.SortByPos();
 
-    //Add the Auto generated entities to the list of entities
-    //Add them to the the first arc if it is an EntityCommand,
-    //Otherwise, generate a new entity command as first arc
-    ArcList::iterator i = Arcs.begin();
-    if (i == Arcs.end()) return; //we cannot have autogen entities either.
-    if ((*i)->type != MSC_COMMAND_ENTITY) {
-        CommandEntity *ce = new CommandEntity(new EntityDefList, this);
-        ce->AddAttributeList(NULL);
-        i = Arcs.insert(i, ce);
-    }
-    dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
+    if (Arcs.size()==0) return;
 
+    if (AutoGenEntities.size()) {
+        //Add the Auto generated entities to the list of entities
+        //Add them to the the first arc if it is an EntityCommand,
+        //Otherwise, generate a new entity command as first arc
+        ArcList::iterator i = Arcs.begin();
+        if ((*i)->type != MSC_COMMAND_ENTITY) {
+            CommandEntity *ce = new CommandEntity(new EntityDefList, this);
+            ce->AddAttributeList(NULL);
+            i = Arcs.insert(i, ce);
+        }
+        dynamic_cast<CommandEntity*>(*i)->AppendToEntities(AutoGenEntities);
+    }
     //Set all entity's shown to false, to avoid accidentally showing them via (heading;) before definition
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++)
         (*i)->running_shown = EEntityStatus::SHOW_OFF; //not shown not active
