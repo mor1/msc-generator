@@ -1160,7 +1160,7 @@ void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs)
 
 void Msc::DrawCopyrightText(MscCanvas &canvas, int page)
 {
-    if (total.x==0 || page>yPageStart.size()-1) return;
+    if (total.x==0 || page+1 > int(yPageStart.size())) return;
     StringFormat sf;
     sf.Default();
     Label label(copyrightText, &canvas, sf);

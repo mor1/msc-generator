@@ -346,7 +346,7 @@ CSize CDrawingChartData::GetSize() const
     const Msc &msc = *GetMsc();
     CSize ret(int(msc.total.x), int(msc.copyrightTextHeight));
     if (m_page==0) 
-        ret.cy = int(msc.total.y);
+        ret.cy = int(msc.total.y + msc.copyrightTextHeight);
     else if (m_page < msc.yPageStart.size()) 
         ret.cy = int(msc.yPageStart[m_page] - msc.yPageStart[m_page-1] + msc.copyrightTextHeight);
     else if (m_page == msc.yPageStart.size()) 
