@@ -48,22 +48,24 @@ FIXED: test1.signalling fails
 FIXED: Make all examples compile with full active entities
 FIXED: A collapsed group entity activated just draws a line (but gaps are kept)
 FIXED: Three-layered nested entities do not draw, due to stupid listing with string
+FIXED: Entity attributes does not get hinted well
+FIXED: triple-half, double half arrowheads should have the line extended to line
+FIXED: --- with no label;
+FIXED: make arrows keep more space from the entity line (esp. dbl line block arrows)
+FIXED: Diamond and dot arrowheads at end are drawn badly for block arrows
+FIXED: Diamond and dot normal arrowheads do not align with middle of entity line
+FIXED: Block arrows ->a-> should keep gap if a is active
+CANCELLED: why cannot I defstyle entity [active=yes]? (Because it is not a style attr. Now we give error.)
+FIXED: MscCanvas and MscBase and Msc
 
 ADD: message lost
-ADD: Add entity create/destroy
-ADD: vertical ellipsys
-FIX: Entity attributes does not get hinted well
+ADD: symbol circle/box/cross/text [marker] at vertxpos [xsize, ysize, rotate, style];
 
-FIX: why cannot I defstyle entity [active=yes]?
 FIX: Triple bevel changes size when size limited.
-
-FIX: make arrows keep more space from the entity line (esp. dbl line block arrows)
-FIX: Block arrows ->a-> should keep gap if a is active
+FIX: Block arrowheads
 FIX: labels should keep gap if a->b:aaa is between two active entities
 FIX: Pipes should be wider if entity is active
 FIX: if box radius is decreased due to low height, recalc label position
-FIX: Diamond and dot arrowheads at end are drawn badly for block arrows
-FIX: Diamond and dot normal arrowheads do not align with middle of entity line
 FIX: the indicator inside a collapsed block arrow should have more space below it
 FIX: add shadow to the indicator for certain styles
 FIX: test1.signalling

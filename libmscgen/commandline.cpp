@@ -379,24 +379,23 @@ int do_main(const std::list<std::string> &args, const char *designs,
         msc.CompleteParse(oOutType, true);
 
         //Determine scaling
-        double x_scale = 1;
-        double y_scale = 1;
+        XY scale(1., 1.);
         if (oX>0 || oY>0) {
             if (oScale)
                 msc.Error.Error(opt_pos, "Conflicting scaing options. Use either -s or one/both of -x/-y. Using no scaling.");
             else if (oX>0 && oY>0) {
-                x_scale = double(oX)/double(msc.total.x);
-                y_scale = double(oY)/double(msc.total.y);
+                scale.x = double(oX)/double(msc.total.x);
+                scale.y = double(oY)/double(msc.total.y);
             } else if (oX>0)
-                y_scale = x_scale = double(oX)/double(msc.total.x);
+                scale.x = scale.y = double(oX)/double(msc.total.x);
             else if (oY>0)
-                x_scale = y_scale = double(oY)/double(msc.total.y);
+                scale.x = scale.y = double(oY)/double(msc.total.y);
         } else if (oScale)
-            x_scale = y_scale = oScale;
+            scale.x = scale.y = oScale;
 
         std::cerr << msc.Error.Print(oWarning);
         //Now cycle through pages and write them to individual files
-        msc.DrawToOutput(oOutType, x_scale, y_scale, oOutputFile);
+        msc.DrawToOutput(oOutType, scale, oOutputFile);
     }
 
     free(input);

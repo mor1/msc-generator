@@ -181,11 +181,11 @@ string ArcBase::PrintType(void) const
     return arcnames[int(type)-1];
 }
 
-void ArcBase::PostPosProcess(double autoMarker)
+void ArcBase::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     _ASSERT(had_add_attr_list);
     if (valid) 
-        TrackableElement::PostPosProcess(autoMarker);
+        TrackableElement::PostPosProcess(canvas, autoMarker);
     else if (!file_pos.IsInvalid())
         chart->AllArcs[file_pos] = this; //Do this even if we are invalid
 }
@@ -235,7 +235,7 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-double ArcIndicator::Height(AreaList &cover)
+double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover)
 {
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
@@ -245,10 +245,10 @@ double ArcIndicator::Height(AreaList &cover)
     return b.y.till + chart->emphVGapOutside;
 }
 
-void ArcIndicator::Draw() 
+void ArcIndicator::Draw(MscCanvas &canvas) 
 {
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
-    DrawIndicator(XY(x, yPos), chart->GetCanvas());
+    DrawIndicator(XY(x, yPos), &canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -477,7 +477,7 @@ string ArcLabelled::Print(int ident) const
 //This assigns a running number to the label and 
 //fills the "compress" member from the style.
 //Strictly to be called by descendants
-ArcBase *ArcLabelled::PostParseProcess(bool /*hide*/, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool top_level)
+ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool /*hide*/, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
@@ -506,7 +506,7 @@ ArcBase *ArcLabelled::PostParseProcess(bool /*hide*/, EIterator &/*left*/, EIter
         //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
         StringFormat::AddNumbering(label, num, pre_num_post);
     }
-    parsed_label.Set(label, chart->GetCanvas(), style.text);
+    parsed_label.Set(label, &canvas, style.text);
     return this;
 }
 
@@ -554,13 +554,13 @@ string ArcSelfArrow::Print(int ident) const
     return ss;
 };
 
-ArcBase* ArcSelfArrow::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     if (chart->ErrorIfEntityGrouped(src, (*src)->file_pos)) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
     const EIterator substitute = chart->FindActiveParentEntity(src);
     const bool we_disappear = src != substitute; //src is not visible -> we disappear, too
@@ -582,14 +582,14 @@ ArcBase* ArcSelfArrow::PostParseProcess(bool hide, EIterator &left, EIterator &r
     return this;
 }
 
-void ArcSelfArrow::Width(EntityDistanceMap &distances)
+void ArcSelfArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
 
-double ArcSelfArrow::Height(AreaList &cover)
+double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -611,10 +611,10 @@ double ArcSelfArrow::Height(AreaList &cover)
     return area.GetBoundingBox().y.till + chart->arcVGapBelow;
 }
 
-void ArcSelfArrow::PostPosProcess(double autoMarker)
+void ArcSelfArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(autoMarker);
+    ArcArrow::PostPosProcess(canvas, autoMarker);
 
     //Check if the entity involved is actually turned on.
     if (!(*src)->status.GetStatus(yPos).IsOn()) {
@@ -631,26 +631,26 @@ void ArcSelfArrow::PostPosProcess(double autoMarker)
     }
 }
 
-void ArcSelfArrow::Draw()
+void ArcSelfArrow::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     double y = yPos + chart->arcVGapAbove;
 
-    parsed_label.Draw(chart->GetCanvas(), sx, dx-src_act, y);
+    parsed_label.Draw(&canvas, sx, dx-src_act, y);
     y += xy_s.y;
 
     if (style.line.radius.second < 0) {
         //draw an arc
-        chart->GetCanvas()->Line(Edge(XY(dx+src_act, y+YSize), wh.x, wh.y/2, 0, 270, 90), style.line);
+        canvas.Line(Edge(XY(dx+src_act, y+YSize), wh.x, wh.y/2, 0, 270, 90), style.line);
     } else {
         //draw (part of) a rounded rectangle
-        chart->GetCanvas()->Clip(dx+src_act, chart->total.x, 0, chart->total.y);
-        chart->GetCanvas()->Line(Block(XY(0, y), XY(dx,y)+wh), style.line);
-        chart->GetCanvas()->UnClip();
+        canvas.Clip(dx+src_act, chart->total.x, 0, chart->total.y);
+        canvas.Line(Block(XY(0, y), XY(dx,y)+wh), style.line);
+        canvas.UnClip();
     }
     //draw arrowheads
-    style.arrow.Draw(XY(dx+src_act, y+2*YSize), 0, false, isBidir(), MSC_ARROW_END, chart->GetCanvas());
-    style.arrow.Draw(XY(dx+src_act, y        ), 0, true,  isBidir(), MSC_ARROW_START, chart->GetCanvas());
+    style.arrow.Draw(XY(dx+src_act, y+2*YSize), 0, false, isBidir(), MSC_ARROW_END, style.line, style.line, &canvas);
+    style.arrow.Draw(XY(dx+src_act, y        ), 0, true,  isBidir(), MSC_ARROW_START, style.line, style.line, &canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -766,7 +766,7 @@ string ArcDirArrow::Print(int ident) const
 #define ARROW_TEXT_VSPACE_ABOVE 1
 #define ARROW_TEXT_VSPACE_BELOW 1
 
-ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     bool error = false;
@@ -813,7 +813,7 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
     no_problem:
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
     //Save our left and right (as specified by the user)
     const EIterator our_left =  chart->EntityMinByPos(src, dst);
@@ -875,10 +875,10 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
     //record what entities are active at the arrow
     act_size.clear();
     act_size.reserve(2+middle.size());
-    act_size.push_back((*src)->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
+    act_size.push_back(std::max(0., (*src)->GetRunningWidth(chart->activeEntitySize)/2));
     for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
-        act_size.push_back((*middle[iiii])->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
-    act_size.push_back((*dst)->running_shown.IsActive() ? chart->activeEntitySize/2 : 0);
+        act_size.push_back(std::max(0., (*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2));
+    act_size.push_back(std::max(0., (*src)->GetRunningWidth(chart->activeEntitySize)/2));
     //Insert a small extra spacing for the arrow line
     if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
         parsed_label.AddSpacing(0, style.line.LineWidth()+
@@ -886,9 +886,15 @@ ArcBase *ArcDirArrow::PostParseProcess(bool hide, EIterator &left, EIterator &ri
     return this;
 }
 
-void ArcDirArrow::Width(EntityDistanceMap &distances)
+void ArcDirArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+
+    //Here we have a valid canvas, so we adjust act_size
+    if (canvas.HasImprecisePositioning())
+        for (auto i = act_size.begin(); i!=act_size.end(); i++)
+            *i = floor(*i);
+
     //we lie about us being forward (we do not check), so we know which of first/second to use
     DoublePair end = style.arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.line);
     DoublePair start = style.arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.line);
@@ -921,7 +927,7 @@ MscArrowEnd ArcDirArrow::WhichArrow(unsigned i)
     return MSC_ARROW_END;
 }
 
-double ArcDirArrow::Height(AreaList &cover)
+double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -984,7 +990,7 @@ double ArcDirArrow::Height(AreaList &cover)
         std::reverse(act_size.begin(), act_size.end());
     }
     //prepare clip_area
-    Block total(sx+s_act, dx+d_act, 0, y+lw_max);
+    Block total(sx + (sx<dx ? s_act : -s_act), dx - (sx<dx ? d_act : -d_act), 0, y+lw_max);
     clip_area  = style.arrow.ClipForLine(XY(sx, y), s_act, sx<dx, isBidir(), MSC_ARROW_START,
                                          total, *segment_lines.begin(), *segment_lines.begin());
     clip_area *= style.arrow.ClipForLine(XY(dx, y), d_act, sx<dx, isBidir(), MSC_ARROW_END,
@@ -995,7 +1001,8 @@ double ArcDirArrow::Height(AreaList &cover)
 
     //Add arrowheads and line segments to cover
     for (unsigned i=0; i<xPos.size(); i++)
-        area += style.arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i));
+        area += style.arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i),
+        segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)]);
     for (unsigned i=0; i<xPos.size()-1; i++) {
         const double lw2 = ceil(segment_lines[i].LineWidth()/2);
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
@@ -1058,10 +1065,10 @@ void ArcDirArrow::CheckSegmentOrder(double y)
 }
 
 
-void ArcDirArrow::PostPosProcess(double autoMarker)
+void ArcDirArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(autoMarker);
+    ArcArrow::PostPosProcess(canvas, autoMarker);
     CheckSegmentOrder(yPos+centerline);
     //Exclude the areas covered by the text from entity lines
     chart->HideEntityLines(text_cover);
@@ -1075,30 +1082,32 @@ void ArcDirArrow::PostPosProcess(double autoMarker)
     }
 }
 
-void ArcDirArrow::Draw()
+void ArcDirArrow::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     if (parsed_label.getTextWidthHeight().y)
-        parsed_label.Draw(chart->GetCanvas(), sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text);
+        parsed_label.Draw(&canvas, sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text);
     /* Draw the line */
     //all the entities this (potentially multi-segment arrow visits)
     const double y = yPos+centerline;  //should be integer
     const int mul = (sx<dx) ? 1 : -1;
-    if (chart->GetCanvas()->NeedsArrowFix()) {
+    if (canvas.NeedsArrowFix()) {
         for (unsigned i=0; i<xPos.size()-1; i++)
-            chart->GetCanvas()->Line(XY(xPos[i  ]+margins[i  ].second+act_size[i  ]*mul, y), 
-                                     XY(xPos[i+1]-margins[i+1].first -act_size[i+1]*mul, y), 
-                                     segment_lines[i]);
+            canvas.Line(XY(xPos[i  ]+margins[i  ].second+act_size[i  ]*mul, y), 
+                        XY(xPos[i+1]-margins[i+1].first -act_size[i+1]*mul, y), 
+                        segment_lines[i]);
     } else {
-        chart->GetCanvas()->Clip(clip_area);
+        canvas.Clip(clip_area);
         for (unsigned i=0; i<xPos.size()-1; i++)
-            chart->GetCanvas()->Line(XY(xPos[i], y), XY(xPos[i+1], y), segment_lines[i]);
+            canvas.Line(XY(xPos[i], y), XY(xPos[i+1], y), segment_lines[i]);
             //chart->Line(XY(xPos[i]+margins[i].second, y), XY(xPos[i+1]-margins[i+1].first, y), style.line);
-        chart->GetCanvas()->UnClip();
+        canvas.UnClip();
     }
     /* Now the arrow heads */
     for (unsigned i=0; i<xPos.size(); i++)
-        style.arrow.Draw(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i), chart->GetCanvas());
+        style.arrow.Draw(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i), 
+                         segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)],
+                         &canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1162,17 +1171,17 @@ string ArcBigArrow::Print(int ident) const
     return ArcDirArrow::Print(ident);
 }
 
-ArcBase* ArcBigArrow::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
-    ArcBase *ret = ArcDirArrow::PostParseProcess(hide, left, right, number, top_level);
+    ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, top_level);
     //Finally copy the line attribute to the arrow, as well (arrow.line.* attributes are annulled here)
     style.arrow.line = style.line;
     return ret;
 }
 
-void ArcBigArrow::Width(EntityDistanceMap &distances)
+void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     //Set sy and dy
@@ -1188,7 +1197,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
         twh.y += indicator_size.y;
         twh.x = std::max(twh.x, indicator_size.x);
     } 
-    twh.y = std::max(twh.y, Label("M", chart->GetCanvas(), style.text).getTextWidthHeight().y);
+    twh.y = std::max(twh.y, Label("M", &canvas, style.text).getTextWidthHeight().y);
     sy = chart->arcVGapAbove + aH + max_lw/2;
     dy = ceil(sy + max_lw/2 + twh.y + chart->emphVGapInside*2 + max_lw) - max_lw/2;
 
@@ -1268,7 +1277,7 @@ void ArcBigArrow::Width(EntityDistanceMap &distances)
 }
 
 
-double ArcBigArrow::Height(AreaList &cover)
+double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -1316,7 +1325,7 @@ void ArcBigArrow::ShiftBy(double y)
     ArcArrow::ShiftBy(y); //Skip ArcDirArrow
 }
 
-void ArcBigArrow::PostPosProcess(double autoMarker)
+void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     CheckSegmentOrder(yPos + centerline);
@@ -1325,18 +1334,19 @@ void ArcBigArrow::PostPosProcess(double autoMarker)
         controls.push_back(MSC_CONTROL_EXPAND);        
         controls.push_back(MSC_CONTROL_COLLAPSE);        
     }
-    ArcArrow::PostPosProcess(autoMarker); //Skip ArcDirArrow
-    chart->HideEntityLines(style.arrow.BigEntityLineCover(xPos, act_size, sy, dy, isBidir(), &segment_lines,
-        Block(XY(0,0), chart->total)));
+    ArcArrow::PostPosProcess(canvas, autoMarker); //Skip ArcDirArrow
+    const Block total(XY(0,0), chart->total);
+    const Contour outer_line = style.arrow.BigEntityLineCover(xPos, act_size, sy, dy, isBidir(), &segment_lines, total);
+    chart->HideEntityLines(outer_line);
 }
 
-void ArcBigArrow::Draw()
+void ArcBigArrow::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
-    style.arrow.BigDraw(xPos, act_size, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, chart->GetCanvas(), &label_cover);
-    parsed_label.Draw(chart->GetCanvas(), sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
+    style.arrow.BigDraw(xPos, act_size, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, &canvas, &label_cover);
+    parsed_label.Draw(&canvas, sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
-        DrawIndicator(XY(cx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside+ind_off), chart->GetCanvas());
+        DrawIndicator(XY(cx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside+ind_off), &canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1474,7 +1484,7 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
 }
 
 
-ArcBase* ArcVerticalArrow::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level)
 {
     if (!valid) return NULL; 
@@ -1514,7 +1524,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(bool hide, EIterator &left, EIterato
     if (error) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
     left = chart->EntityMinByPos(left, pos.entity1);
     right = chart->EntityMaxByPos(right, pos.entity1);
@@ -1550,7 +1560,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(bool hide, EIterator &left, EIterato
     return this;
 }
 
-void ArcVerticalArrow::Width(EntityDistanceMap &distances)
+void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     //No extra space requirement
@@ -1560,7 +1570,7 @@ void ArcVerticalArrow::Width(EntityDistanceMap &distances)
     const double lw = style.line.LineWidth();
     double width = twh.y;
     if (width==0)
-        width = Label("M", chart->GetCanvas(), style.text).getTextWidthHeight().y;
+        width = Label("M", &canvas, style.text).getTextWidthHeight().y;
     width += 2*lw + 2*chart->hscaleAutoXGap;
 
     const double aw =style.arrow.bigYExtent(isBidir(), false);
@@ -1592,7 +1602,7 @@ void ArcVerticalArrow::Width(EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-double ArcVerticalArrow::Height(AreaList &)
+double ArcVerticalArrow::Height(MscCanvas &canvas, AreaList &)
 {
     return 0;
 }
@@ -1602,10 +1612,10 @@ void ArcVerticalArrow::ShiftBy(double y)
     yPos += y;
 }
 
-void ArcVerticalArrow::PostPosProcess(double autoMarker)
+void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(autoMarker);
+    ArcArrow::PostPosProcess(canvas, autoMarker);
 	//area is empty here, so we will have to add our stuff to chart->AllCovers later in this function
 
     //Here we are sure markers are OK
@@ -1667,7 +1677,7 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
     //calculate xpos and width
     width = twh.y;
     if (width==0)
-        width = Label("M", chart->GetCanvas(), style.text).getTextWidthHeight().y;
+        width = Label("M", &canvas, style.text).getTextWidthHeight().y;
     width = ceil(width + 2*lw + 2*chart->emphVGapInside);
     width += fmod_negative_safe(width, 2.); //width is even integer now: the distance from outer edge to outer edge
 
@@ -1702,28 +1712,28 @@ void ArcVerticalArrow::PostPosProcess(double autoMarker)
     area = style.arrow.BigCover(ypos_tmp, act_size, xpos-width/2, xpos+width/2, isBidir());
     area.SwapXY();
     //Expand area and add us to chart's all covers list
-    ArcArrow::PostPosProcess(autoMarker);
+    ArcArrow::PostPosProcess(canvas, autoMarker);
 }
 
 
-void ArcVerticalArrow::Draw()
+void ArcVerticalArrow::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     if (style.side.second == SIDE_LEFT)
-        chart->GetCanvas()->Transform_Rotate90(xpos-width/2, xpos+width/2, false);
+        canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
     else
-        chart->GetCanvas()->Transform_Rotate90(ypos[0], ypos[1], true);
+        canvas.Transform_Rotate90(ypos[0], ypos[1], true);
     //Draw background
     const Contour lab = parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
                                         xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
                                         -1, true);
     std::vector<double> act_size(2,0);
     style.arrow.BigDraw(ypos, act_size, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill,
-                        NULL, chart->GetCanvas(), &lab,
+                        NULL, &canvas, &lab,
                         style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
-    parsed_label.Draw(chart->GetCanvas(), min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+    parsed_label.Draw(&canvas, min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
                       xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);
-    chart->GetCanvas()->UnTransform();
+    canvas.UnTransform();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1941,7 +1951,7 @@ string ArcBoxSeries::Print(int ident) const
     return ss;
 }
 
-ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
     if (collapsed == BOX_COLLAPSE_BLOCKARROW) {
@@ -1962,9 +1972,9 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
             std::reverse(el.begin(), el.end());
         ArcBigArrow *ret = new ArcBigArrow(el, dir == MSC_DIR_BIDIR, *this, GetSignature());
         ret->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
-        return ret->PostParseProcess(hide, left, right, number, top_level);
+        return ret->PostParseProcess(canvas, hide, left, right, number, top_level);
     }
-    ArcLabelled::PostParseProcess(hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
     //Add numbering, if needed
     EIterator left_content = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     EIterator right_content = left_content;
@@ -1975,8 +1985,8 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
         if (style.numbering.second && label.length()!=0)
             number.decrementOnAddingLevels = true;
         const bool hide_i = hide || (collapsed!=BOX_COLLAPSE_EXPAND);
-        chart->PostParseProcessArcList(hide_i, content, false, 
-                          left_content, right_content, number, top_level);
+        chart->PostParseProcessArcList(canvas, hide_i, content, false, 
+                                       left_content, right_content, number, top_level);
         //If we are collapsed, but not hidden and "indicator" attribute is set, 
         //then add an indicator to the end of the list (which will have only elements
         //with zero height here, the rest removed themselves due to hide_i==true
@@ -1993,7 +2003,7 @@ ArcBase* ArcBox::PostParseProcess(bool hide, EIterator &left, EIterator &right,
     return this;
 }
 
-ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level)
 {
     if (!valid || series.size()==0) return NULL;
@@ -2023,7 +2033,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
         }
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
-        ret = (*i)->PostParseProcess(hide, src, dst, number, top_level); //ret is an arcblockarrow if we need to collapse
+        ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level); //ret is an arcblockarrow if we need to collapse
     }
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
@@ -2086,7 +2096,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(bool hide, EIterator &left, EIterator &r
 }
 
 //will only be called for the first box of a multi-segment box series
-void ArcBoxSeries::Width(EntityDistanceMap &distances)
+void ArcBoxSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     const MscStyle &overall_style = (*series.begin())->style;
@@ -2097,7 +2107,7 @@ void ArcBoxSeries::Width(EntityDistanceMap &distances)
     double max_width = 0; //the widest label plus margins
     for (auto i = series.begin(); i!=series.end(); i++) {
         if ((*i)->content.size())
-            chart->WidthArcList(((*i)->content), d);
+            chart->WidthArcList(canvas, ((*i)->content), d);
         double width = (*i)->parsed_label.getTextWidthHeight().x;
         //calculated margins (only for first segment) and save them
         if (i==series.begin()) {
@@ -2156,7 +2166,7 @@ void ArcBoxSeries::Width(EntityDistanceMap &distances)
     distances += d;
 }
 
-double ArcBoxSeries::Height(AreaList &cover)
+double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     //A few explanations of the variables exact meaning
@@ -2197,7 +2207,7 @@ double ArcBoxSeries::Height(AreaList &cover)
                 limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+radius) - 
                          main_style.line.CreateRectangle_InnerEdge(b);
             }
-            y = chart->PlaceListUnder((*i)->content.begin(), (*i)->content.end(),
+            y = chart->PlaceListUnder(canvas, (*i)->content.begin(), (*i)->content.end(),
                                         y+th, y, Area(std::move(limit)), compress, &content_cover);  //no extra margin below text
         } else {
             y += th; //no content, just add textheight
@@ -2287,7 +2297,7 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcBoxSeries::PostPosProcess(double autoMarker)
+void ArcBoxSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     //For boxes we always add the background cover first then the content
@@ -2311,9 +2321,9 @@ void ArcBoxSeries::PostPosProcess(double autoMarker)
                     _ASSERT(0); //should not happen here
                     break;
                 }
-            (*i)->ArcLabelled::PostPosProcess(autoMarker);
+            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
             if ((*i)->content.size()) 
-                chart->PostPosProcessArcList((*i)->content, autoMarker);
+                chart->PostPosProcessArcList(canvas, (*i)->content, autoMarker);
         }
 
     //Hide entity lines during the lines inside the box
@@ -2342,7 +2352,7 @@ void ArcBoxSeries::PostPosProcess(double autoMarker)
     }
 }
 
-void ArcBoxSeries::Draw()
+void ArcBoxSeries::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
@@ -2355,10 +2365,10 @@ void ArcBoxSeries::Draw()
                   yPos + lw/2, yPos+total_height - lw/2); 
     //The radius specified in main_style.line will be that of the midpoint of the line
     //First draw the shadow.
-    chart->GetCanvas()->Shadow(r, main_style.line, main_style.shadow);
+    canvas.Shadow(r, main_style.line, main_style.shadow);
     //Do a clip region for the overall box (for round/bevel/note corners)
     //at half a linewidth from the inner edge (use the width of a single line!)
-    chart->GetCanvas()->Clip(main_style.line.CreateRectangle_ForFill(r));
+    canvas.Clip(main_style.line.CreateRectangle_ForFill(r));
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Overall rule for background fill:
         //for single line borders we fill up to the middle of the border
@@ -2379,25 +2389,25 @@ void ArcBoxSeries::Draw()
         else
             dy += (*next)->style.line.width.second/2.;
         //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
-        chart->GetCanvas()->Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
+        canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
         //if there are contained entities, draw entity lines, strictly from inside of line
         if ((*i)->content.size() && (*i)->collapsed==BOX_COLLAPSE_EXPAND && (*i)->drawEntityLines)
-            chart->DrawEntityLines((*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
+            chart->DrawEntityLines(canvas, (*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
     }
-    chart->GetCanvas()->UnClip();
+    canvas.UnClip();
     //Draw box lines - Cycle only for subsequent boxes
     for (auto i = ++series.begin(); i!=series.end(); i++) {
         const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
         const XY magic(1,0);  //XXX needed in windows
-        chart->GetCanvas()->Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.line);
+        canvas.Line(XY(r.x.from, y)-magic, XY(r.x.till, y), (*i)->style.line);
     }
     //Finally draw the overall line around the box
-    chart->GetCanvas()->Line(r, main_style.line);
+    canvas.Line(r, main_style.line);
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->parsed_label.Draw(chart->GetCanvas(), (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
+        (*i)->parsed_label.Draw(&canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
         if ((*i)->content.size())
-            chart->DrawArcList((*i)->content);
+            chart->DrawArcList(canvas, (*i)->content);
         //if (i==follow.begin()) {
         //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
         //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
@@ -2551,18 +2561,18 @@ struct pipe_compare
     }
 };
 
-ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &right,
+ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                         Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
 
     //Add numbering, if needed 
     for (auto i = series.begin(); i!=series.end(); i++) 
-        (*i)->PostParseProcess(hide, left, right, number, top_level);
+        (*i)->PostParseProcess(canvas, hide, left, right, number, top_level);
     //Postparse the content;
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
-    chart->PostParseProcessArcList(hide, content, false, content_left, content_right, number, top_level);
+    chart->PostParseProcessArcList(canvas, hide, content, false, content_left, content_right, number, top_level);
 
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
@@ -2759,12 +2769,12 @@ ArcBase* ArcPipeSeries::PostParseProcess(bool hide, EIterator &left, EIterator &
 }
 
 //will only be called for the first box of a multi-segment box series
-void ArcPipeSeries::Width(EntityDistanceMap &distances)
+void ArcPipeSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     EntityDistanceMap d, d_pipe;
     if (content.size())
-        chart->WidthArcList(content, d);
+        chart->WidthArcList(canvas, content, d);
 
     const MscSideType side = (*series.begin())->style.side.second;
     const double radius = (*series.begin())->style.line.radius.second;
@@ -2824,7 +2834,7 @@ void ArcPipeSeries::Width(EntityDistanceMap &distances)
     distances += d;
 }
 
-double ArcPipeSeries::Height(AreaList &cover)
+double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     //Collect cover information from labels and linewidth, so compression of content arrows can be done
@@ -2869,7 +2879,7 @@ double ArcPipeSeries::Height(AreaList &cover)
         // in that case content can be drawn at same position as label - opaque pipe will cover anyway
         double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
         if (y == (*i)->y_text && content.size()==0)
-            y += Label("M", chart->GetCanvas(), (*i)->style.text).getTextWidthHeight().y;
+            y += Label("M", &canvas, (*i)->style.text).getTextWidthHeight().y;
         if ((*i)->style.solid.second < 255) {
             label_covers += (*i)->text_cover;
             lowest_label_bottom = std::max(lowest_label_bottom, y);
@@ -2886,7 +2896,7 @@ double ArcPipeSeries::Height(AreaList &cover)
     //Calculate the Height of the content
     AreaList content_cover;
     if (content.size())
-        y = ceil(chart->PlaceListUnder(content.begin(), content.end(), ceil(y),
+        y = ceil(chart->PlaceListUnder(canvas, content.begin(), content.end(), ceil(y),
                                         lowest_line_bottom, label_covers, false, &content_cover));
     //now y contains the bottom of the content arrows (if any),
     //adjust if an opaque pipe's label was not yet considered in y
@@ -3049,7 +3059,7 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcPipeSeries::PostPosProcess(double autoMarker)
+void ArcPipeSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     //For pipes we first add those covers to chart->AllCovers that are not fully opaque,
@@ -3058,12 +3068,12 @@ void ArcPipeSeries::PostPosProcess(double autoMarker)
     //(this is because search is backwards and this arrangement fits the visual best
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.solid.second < 255)
-            (*i)->ArcLabelled::PostPosProcess(autoMarker);
+            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
     if (content.size())
-        chart->PostPosProcessArcList(content, autoMarker);
+        chart->PostPosProcessArcList(canvas, content, autoMarker);
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.solid.second == 255)
-            (*i)->ArcLabelled::PostPosProcess(autoMarker);
+            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
     for (auto i = series.begin(); i!=series.end(); i++)
         chart->HideEntityLines((*i)->pipe_shadow);
 }
@@ -3073,13 +3083,13 @@ void ArcPipeSeries::PostPosProcess(double autoMarker)
 //backside is the small oval visible form the back of the pipe
 //this->yPos is the outer edge of the top line
 //this->left_space and right_space includes linewidth
-void ArcPipe::DrawPipe(bool topSideFill, bool topSideLine, bool backSide, 
+void ArcPipe::DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bool backSide, 
                        bool shadow, bool text, double next_lw, 
                        int drawing_variant)
 {
     if (shadow) {
         //Shadow under the whole pipe
-        chart->GetCanvas()->Shadow(pipe_shadow, style.shadow);
+        canvas.Shadow(pipe_shadow, style.shadow);
     }
     if (backSide) {
         //The back of the main pipe
@@ -3087,73 +3097,73 @@ void ArcPipe::DrawPipe(bool topSideFill, bool topSideLine, bool backSide,
         //backside is always filled fully opaque
         fill.color.second.a = 255;
         fill.color2.second.a = 255;
-        chart->GetCanvas()->Fill(pipe_body_fill, fill);
+        canvas.Fill(pipe_body_fill, fill);
         //the back of the small ellipsis visible from the side
         if (fill.gradient.second == GRADIENT_UP)
             fill.gradient.second = GRADIENT_DOWN;
         else if (fill.gradient.second == GRADIENT_DOWN)
             fill.gradient.second = GRADIENT_UP;
-        chart->GetCanvas()->Fill(pipe_hole_fill, fill);
+        canvas.Fill(pipe_hole_fill, fill);
         //Draw the backside line
-        chart->GetCanvas()->Line(pipe_hole_curve, style.line);
+        canvas.Line(pipe_hole_curve, style.line);
     }
     if (topSideFill) {
         //apply the transparency of the solid attribute
         MscFillAttr fill = style.fill;
         fill.color.second.a = unsigned(style.solid.second) * unsigned(fill.color.second.a) / 255;
-        chart->GetCanvas()->Fill(pipe_body_fill, fill);
+        canvas.Fill(pipe_body_fill, fill);
     }
     if (topSideLine) {
-        cairo_line_join_t t = chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
+        cairo_line_join_t t = canvas.SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
         const double x = style.side.second == SIDE_RIGHT ? pipe_block.x.till : pipe_block.x.from;
         Contour clip(x, style.side.second == SIDE_LEFT ? chart->total.x : 0, 0, chart->total.y);
         if (style.line.radius.second>0 && pipe_connect_forw) {
             const XY c(x, pipe_block.y.MidPoint());
             clip -= Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2);
         }
-        chart->GetCanvas()->Clip(clip);
+        canvas.Clip(clip);
         const double spacing = style.line.Spacing();
         if (!style.line.IsDoubleOrTriple() || drawing_variant==0)
-            chart->GetCanvas()->Line(pipe_body_line, style.line); //basic variant, in case of double & triple, lines cross
+            canvas.Line(pipe_body_line, style.line); //basic variant, in case of double & triple, lines cross
         else if (style.line.IsDouble()) {
-            chart->GetCanvas()->SetLineAttr(style.line);
+            canvas.SetLineAttr(style.line);
             if (drawing_variant==1) { //advanced: lines do not cross
-                chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line);
-                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);
-                chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_MITER);
-                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing), style.line);
+                canvas.singleLine(pipe_whole_line.CreateExpand(spacing), style.line);
+                canvas.singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);
+                canvas.SetLineJoin(CAIRO_LINE_JOIN_MITER);
+                canvas.singleLine(pipe_body_line.CreateExpand(-spacing), style.line);
             } else { //very advanced: proper double line joint
-                chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line); //outer
-                chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_MITER);
-                chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line); //inner hole
-                chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing) -
+                canvas.singleLine(pipe_whole_line.CreateExpand(spacing), style.line); //outer
+                canvas.SetLineJoin(CAIRO_LINE_JOIN_MITER);
+                canvas.singleLine(pipe_hole_line.CreateExpand(-spacing), style.line); //inner hole
+                canvas.singleLine(pipe_body_line.CreateExpand(-spacing) -
                                   pipe_hole_line.CreateExpand(spacing), style.line);  //inner body
             }
         } else if (style.line.IsTriple()) {
-            chart->GetCanvas()->SetLineAttr(style.line);
+            canvas.SetLineAttr(style.line);
             //here variant 1 and 2 result in the same
-            chart->GetCanvas()->singleLine(pipe_whole_line.CreateExpand(spacing), style.line);  //outer
-            chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_MITER);
-            chart->GetCanvas()->singleLine(pipe_body_line.CreateExpand(-spacing) -
+            canvas.singleLine(pipe_whole_line.CreateExpand(spacing), style.line);  //outer
+            canvas.SetLineJoin(CAIRO_LINE_JOIN_MITER);
+            canvas.singleLine(pipe_body_line.CreateExpand(-spacing) -
                                 pipe_hole_line.CreateExpand(spacing), style.line);  //inner body
-            chart->GetCanvas()->SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
-            chart->GetCanvas()->singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);   //inner hole
-            cairo_set_line_width(chart->GetCanvas()->GetContext(), style.line.TripleMiddleWidth());
-            chart->GetCanvas()->singleLine(pipe_body_line, style.line); //middle line
+            canvas.SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
+            canvas.singleLine(pipe_hole_line.CreateExpand(-spacing), style.line);   //inner hole
+            cairo_set_line_width(canvas.GetContext(), style.line.TripleMiddleWidth());
+            canvas.singleLine(pipe_body_line, style.line); //middle line
         }
-        chart->GetCanvas()->UnClip();
-        chart->GetCanvas()->SetLineJoin(t);
+        canvas.UnClip();
+        canvas.SetLineJoin(t);
     }
     if (text)
-        parsed_label.Draw(chart->GetCanvas(), sx_text, dx_text, y_text);
+        parsed_label.Draw(&canvas, sx_text, dx_text, y_text);
 }
 
-void ArcPipeSeries::Draw()
+void ArcPipeSeries::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     //First shadows
     for (auto i = series.begin(); i!=series.end(); i++)
-        (*i)->DrawPipe(false, false, false, true, false, 0, drawing_variant);  //dummy 0
+        (*i)->DrawPipe(canvas, false, false, false, true, false, 0, drawing_variant);  //dummy 0
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Dont draw the topside fill
         //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
@@ -3161,12 +3171,12 @@ void ArcPipeSeries::Draw()
         //Do not draw text
         auto i_next = i; i_next++;
         const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
-        (*i)->DrawPipe(false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
+        (*i)->DrawPipe(canvas, false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
         if (content.size() && (*i)->drawEntityLines)
-            chart->DrawEntityLines(yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
+            chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
     }
     if (content.size())
-        chart->DrawArcList(content);
+        chart->DrawArcList(canvas, content);
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Draw the topside fill only if the pipe is not fully transparent.
         //Draw the topside line in any case
@@ -3174,7 +3184,7 @@ void ArcPipeSeries::Draw()
         //Draw the text
         auto i_next = i; i_next++;
         const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
-        (*i)->DrawPipe((*i)->style.solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
+        (*i)->DrawPipe(canvas, (*i)->style.solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
     }
 }
 
@@ -3212,11 +3222,11 @@ bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
     return false;
 }
 
-ArcBase* ArcDivider::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
     if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER)) {
         string ss;
@@ -3227,7 +3237,7 @@ ArcBase* ArcDivider::PostParseProcess(bool hide, EIterator &left, EIterator &rig
     return this;
 }
 
-void ArcDivider::Width(EntityDistanceMap &distances)
+void ArcDivider::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
@@ -3247,7 +3257,7 @@ void ArcDivider::Width(EntityDistanceMap &distances)
         distances.Insert(lside_index, rside_index, width);
 }
 
-double ArcDivider::Height(AreaList &cover)
+double ArcDivider::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -3260,7 +3270,7 @@ double ArcDivider::Height(AreaList &cover)
     }
     double y = wide ? 0 : chart->arcVGapAbove;
     y += extra_space;
-    const double charheight = Label("M", chart->GetCanvas(), style.text).getTextWidthHeight().y;
+    const double charheight = Label("M", &canvas, style.text).getTextWidthHeight().y;
 
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;
@@ -3295,7 +3305,7 @@ void ArcDivider::ShiftBy(double y)
     ArcLabelled::ShiftBy(y);
 }
 
-void ArcDivider::PostPosProcess(double autoMarker)
+void ArcDivider::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
 	//If there is a vline in the current style, add that to entitylines
@@ -3308,23 +3318,23 @@ void ArcDivider::PostPosProcess(double autoMarker)
 
     if (!nudge)
         chart->HideEntityLines(text_cover);
-    ArcLabelled::PostPosProcess(autoMarker);
+    ArcLabelled::PostPosProcess(canvas, autoMarker);
 }
 
-void ArcDivider::Draw()
+void ArcDivider::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     if (nudge) return;
-    parsed_label.Draw(chart->GetCanvas(), text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove));
+    parsed_label.Draw(&canvas, text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove));
     //determine widest extent for coverage at the centerline+-style.line.LineWidth()/2;
     const double lw2 = ceil(style.line.LineWidth()/2.);
     Block b(line_margin, chart->total.x-line_margin, yPos + centerline - lw2, yPos + centerline + lw2);
     Range r = (text_cover * b).GetBoundingBox().x;
     if (r.IsInvalid())
-        chart->GetCanvas()->Line(XY(line_margin, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
+        canvas.Line(XY(line_margin, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
     else {
-        chart->GetCanvas()->Line(XY(line_margin, yPos + centerline), XY(r.from-chart->emphVGapInside, yPos + centerline), style.line);
-        chart->GetCanvas()->Line(XY(r.till+chart->emphVGapInside, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
+        canvas.Line(XY(line_margin, yPos + centerline), XY(r.from-chart->emphVGapInside, yPos + centerline), style.line);
+        canvas.Line(XY(r.till+chart->emphVGapInside, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
     }
 }
 
@@ -3353,29 +3363,29 @@ string ArcParallel::Print(int ident) const
     return ss;
 };
 
-ArcBase* ArcParallel::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcParallel::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     at_top_level = top_level;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
-        chart->PostParseProcessArcList(hide, **i, false, left, right, number, false);
+        chart->PostParseProcessArcList(canvas, hide, **i, false, left, right, number, false);
     if (hide) return NULL;
     return this;
 }
 
-void ArcParallel::Width(EntityDistanceMap &distances)
+void ArcParallel::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     EntityDistanceMap d;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
-        chart->WidthArcList(**i, d);
+        chart->WidthArcList(canvas, **i, d);
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
     d.CopyBoxSideToPair(chart->hscaleAutoXGap);
     distances += d;
 }
 
-double ArcParallel::Height(AreaList &cover)
+double ArcParallel::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     heights.clear();
@@ -3384,7 +3394,7 @@ double ArcParallel::Height(AreaList &cover)
     for (auto i=blocks.begin(); i != blocks.end(); i++) {
         AreaList cover_block;
         //Each parallel block is compressed without regard to the others
-        double h = chart->HeightArcList((*i)->begin(), (*i)->end(), cover_block);
+        double h = chart->HeightArcList(canvas, (*i)->begin(), (*i)->end(), cover_block);
         height = std::max(height, h);
         heights.push_back(height);
         cover += cover_block;
@@ -3401,22 +3411,22 @@ void ArcParallel::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcParallel::PostPosProcess(double autoMarker)
+void ArcParallel::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcBase::PostPosProcess(autoMarker);
+    ArcBase::PostPosProcess(canvas, autoMarker);
     int n=0;
     //For automarker, give the bottom of the largest of previous blocks
     for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PostPosProcessArcList(*(*i),
+        chart->PostPosProcessArcList(canvas, *(*i),
             n>0 && heights[n-1]>0 ? yPos + heights[n-1] : autoMarker);
 }
 
-void ArcParallel::Draw()
+void ArcParallel::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->DrawArcList(*(*i));
+        chart->DrawArcList(canvas, *(*i));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -3640,7 +3650,7 @@ EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children)
  */
 
 //TODO: What if multiple entitydefs are present for the same entity? We should merge them
-ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &right, Numbering &,
+ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &,
                                      bool top_level)
 {
     if (!valid) return NULL;
@@ -3771,7 +3781,7 @@ ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &
         const EIterator ei = (*i_def)->itr;
         left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf(ei, true));
         right = chart->EntityMaxByPos(right, chart->FindWhoIsShowingInsteadOf(ei, false));
-        (*i_def)->parsed_label.Set((*ei)->label, chart->GetCanvas(), (*ei)->running_style.text);
+        (*i_def)->parsed_label.Set((*ei)->label, &canvas, (*ei)->running_style.text);
         double w = (*i_def)->Width();
         if ((*ei)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
     }
@@ -3785,7 +3795,7 @@ ArcBase* CommandEntity::PostParseProcess(bool hide, EIterator &left, EIterator &
 //be drawn as containing other entities.
 //Since parents are in the beginning of the list, we will go and add distances from the back
 //and use the added distances later in the cycle when processing parents
-void CommandEntity::Width(EntityDistanceMap &distances)
+void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid || hidden) return;
     //Add distances for entity heading
@@ -3856,7 +3866,7 @@ void CommandEntity::Width(EntityDistanceMap &distances)
     }
 }
 
-double CommandEntity::Height(AreaList &cover)
+double CommandEntity::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid || hidden) return height=0;
     Range hei(0,0);
@@ -3899,24 +3909,24 @@ void CommandEntity::ShiftBy(double y)
     ArcCommand::ShiftBy(y);
 }
 
-void CommandEntity::PostPosProcess(double autoMarker)
+void CommandEntity::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcCommand::PostPosProcess(autoMarker);
+    ArcCommand::PostPosProcess(canvas, autoMarker);
     for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->PostPosProcess(autoMarker);
+        (*i)->PostPosProcess(canvas, autoMarker);
     if (height>0 && !hidden) {
         if (chart->headingSize == 0) chart->headingSize = yPos + height;
         chart->headingSize = std::min(chart->headingSize, yPos + height);
     }
 }
 
-void CommandEntity::Draw()
+void CommandEntity::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     for (auto i = entities.begin(); i!=entities.end(); i++)
         if ((*i)->draw_heading)
-            (*i)->Draw();
+            (*i)->Draw(canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -3936,7 +3946,7 @@ bool CommandNewpage::AttributeValues(const std::string, Csh &)
     return false;
 }
 
-double CommandNewpage::Height(AreaList &)
+double CommandNewpage::Height(MscCanvas &canvas, AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
@@ -3945,7 +3955,7 @@ double CommandNewpage::Height(AreaList &)
     return 0;
 }
 
-void CommandNewpage::PostPosProcess(double)
+void CommandNewpage::PostPosProcess(MscCanvas &canvas, double)
 {
     if (!valid) return;
     chart->yPageStart.push_back(yPos);
@@ -3953,7 +3963,7 @@ void CommandNewpage::PostPosProcess(double)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-double CommandNewBackground::Height(AreaList &)
+double CommandNewBackground::Height(MscCanvas &canvas, AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
@@ -3962,14 +3972,14 @@ double CommandNewBackground::Height(AreaList &)
     return 0;
 }
 
-void CommandNewBackground::PostPosProcess(double)
+void CommandNewBackground::PostPosProcess(MscCanvas &canvas, double)
 {
     if (!valid) return;
     chart->Background[yPos] = fill;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-ArcBase* CommandNumbering::PostParseProcess(bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool /*top_level*/)
+ArcBase* CommandNumbering::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool /*top_level*/)
 {
     if (!valid) return NULL;
     if (hide) hidden = true;
@@ -4030,7 +4040,7 @@ bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-double CommandMark::Height(AreaList &)
+double CommandMark::Height(MscCanvas &canvas, AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
@@ -4053,22 +4063,22 @@ void CommandMark::ShiftBy(double y)
 
 CommandEmpty::CommandEmpty(Msc *msc) : ArcCommand(MSC_COMMAND_EMPTY, msc)
 {
+}
+
+void CommandEmpty::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+{
+    if (!valid) return;
     StringFormat format;
     format.Default();
     format.Apply("\\pc\\mu(10)\\md(10)\\ml(10)\\mr(10)\\c(255,255,255)\\b\\i");
-    parsed_label.Set(string("\\i\\bEmpty chart"), chart->GetCanvas(), format);
-}
-
-void CommandEmpty::Width(EntityDistanceMap &distances)
-{
-    if (!valid) return;
+    parsed_label.Set(string("\\i\\bEmpty chart"), &canvas, format);
     const unsigned lside_index = (*chart->ActiveEntities.Find_by_Name(LSIDE_ENT_STR))->index;
     const unsigned rside_index = (*chart->ActiveEntities.Find_by_Name(RSIDE_ENT_STR))->index;
     const double width = parsed_label.getTextWidthHeight().x + 2*EMPTY_MARGIN_X;
     distances.Insert(lside_index, rside_index, width);
 }
 
-double CommandEmpty::Height(AreaList &cover)
+double CommandEmpty::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -4078,7 +4088,7 @@ double CommandEmpty::Height(AreaList &cover)
     return wh.y + EMPTY_MARGIN_Y*2;
 }
 
-void CommandEmpty::Draw()
+void CommandEmpty::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
     const double width  = parsed_label.getTextWidthHeight().x;
@@ -4099,7 +4109,7 @@ void CommandEmpty::Draw()
     Block b(XY((chart->total.x-width)/2 , yPos+EMPTY_MARGIN_Y),
             XY((chart->total.x+width)/2 , yPos+EMPTY_MARGIN_Y+height));
 
-    chart->GetCanvas()->Shadow(b, line, shadow);
-    chart->GetCanvas()->Fill(b, line, fill);
-    chart->GetCanvas()->Line(b, line);
+    canvas.Shadow(b, line, shadow);
+    canvas.Fill(b, line, fill);
+    canvas.Line(b, line);
 }

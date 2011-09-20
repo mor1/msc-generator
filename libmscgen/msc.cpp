@@ -241,9 +241,9 @@ string EntityDistanceMap::Print()
 //"AutoGenEntities" is not, as its contents will be inserted into an
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
-    AllEntities(true), ActiveEntities(false),
-    AutoGenEntities(false),
-    Arcs(true)
+    AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
+    Arcs(true),
+    total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
     selfArrowYSize = 12;
@@ -261,9 +261,12 @@ Msc::Msc() :
     trackFrameWidth = 4;
     trackExpandBy = 2;
 
+    hscale = 1;
     pedantic=false;
     ignore_designs = false;
 
+    current_file = Error.AddFile("[config]");
+    
     //Add topmost style and color sets (global context), all empty now
     Contexts.push_back(Context());
 
@@ -272,17 +275,16 @@ Msc::Msc() :
     //Apply "plain" design
     SetDesign("plain", true);
 
-    std::set<string> children_names;
     //Add virtual entities
     Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, -1001,
-                                Contexts.back().styles["entity"], file_line(), false);
+                                Contexts.back().styles["entity"], file_line(current_file, 0), false);
     AllEntities.Append(entity);
     NoEntity = *AllEntities.begin();
     entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, -1000,
-                        Contexts.back().styles["entity"], file_line(), false);
+                        Contexts.back().styles["entity"], file_line(current_file, 0), false);
     AllEntities.Append(entity);
     entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 10000,
-                        Contexts.back().styles["entity"], file_line(), false);
+                        Contexts.back().styles["entity"], file_line(current_file, 0), false);
     AllEntities.Append(entity);
 }
 
@@ -694,7 +696,7 @@ string Msc::Print(int ident) const
     return s;
 }
 
-void Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
+void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
@@ -716,7 +718,7 @@ void Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
             arcs.erase(j);
             continue; //i remains at this very same CommandEntity!
         }
-        ArcBase *replace = (*i)->PostParseProcess(hide, left, right, number, top_level);
+        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level);
         //Do not add an ArcIndicator, if previous thing was also an ArcIndicator on the same entity
         ArcIndicator *ai = dynamic_cast<ArcIndicator*>(replace);
         if (ai && i!=arcs.begin()) {
@@ -732,7 +734,7 @@ void Msc::PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators,
     }
 }
 
-void Msc::PostParseProcess()
+void Msc::PostParseProcess(MscCanvas &canvas)
 {
     //remove those entities from "force_entity_collapse" which are not defined as entities
     for (auto i = force_entity_collapse.begin(); i!=force_entity_collapse.end(); /*nope*/)
@@ -819,15 +821,16 @@ void Msc::PostParseProcess()
     EIterator dummy1, dummy2;
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
-    PostParseProcessArcList(false, Arcs, true, dummy1, dummy2, number, true);
+    PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true);
 }
 
-void Msc::DrawEntityLines(double y, double height,
+void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
                           EIterator from, EIterator to)
 {
     //No checking of iterators!! Call with caution
     //"to" is not included!!
-    canvas->ClipInverse(HideELinesHere);
+    canvas.ClipInverse(HideELinesHere);
+    double act_size = canvas.HasImprecisePositioning() ? floor(activeEntitySize/2) : activeEntitySize/2;
     while(from != to) {
         const EntityStatusMap & status= (*from)->status;
         XY up(XCoord(from), y);
@@ -851,8 +854,8 @@ void Msc::DrawEntityLines(double y, double height,
                 else
                     outer_edge.y.from = std::max(show_from, 0.);
                 outer_edge.y.till = std::min(show_till, total.y);
-                outer_edge.x.from = up.x - activeEntitySize/2; 
-                outer_edge.x.till = up.x + activeEntitySize/2;
+                outer_edge.x.from = up.x - act_size; 
+                outer_edge.x.till = up.x + act_size;
                 Block clip(XY(0,0), total);
                 bool doClip = false;
                 if (outer_edge.y.from < up.y) {
@@ -866,37 +869,36 @@ void Msc::DrawEntityLines(double y, double height,
                 outer_edge.Expand(-style.vline.LineWidth()/2);  //From now on this is the midpoint of the line, as it should be
                
                 if (doClip)
-                    canvas->Clip(clip);
-                canvas->Fill(style.vline.CreateRectangle_ForFill(outer_edge), style.vfill);
-                canvas->Line(style.vline.CreateRectangle_Midline(outer_edge), style.vline);
+                    canvas.Clip(clip);
+                canvas.Fill(style.vline.CreateRectangle_ForFill(outer_edge), style.vfill);
+                canvas.Line(style.vline.CreateRectangle_Midline(outer_edge), style.vline);
                 if (doClip)
-                    canvas->UnClip();
+                    canvas.UnClip();
             } else {
-                const XY offset(fmod_negative_safe(style.vline.width.second/2, 1.),0);
-                const XY magic(0,0);  //HACK needed in windows: 0,1
-                const XY start = up+offset-magic;
+                const double offset = 0; //canvas->HasImprecisePositioning() ? 0 : fmod_negative_safe(style.vline.width.second/2, 1.);
+                const XY start = up+XY(offset,0);
                 //last param is dash_offset. Cairo falls back to image surface if this is not zero ???
-                canvas->Line(start, down+offset, style.vline); 
+                canvas.Line(start, down+XY(offset,0), style.vline); 
             }
         }
         from++;
     }
-    canvas->UnClip();
+    canvas.UnClip();
 }
 
-void Msc::WidthArcList(ArcList &arcs, EntityDistanceMap &distances)
+void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances)
 {
     //Indicate active and showing entities
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert ((*i)->index);
     for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
-        (*i)->Width(distances);
+        (*i)->Width(canvas, distances);
 }
 
 //Draws a full list starting at position==0
 //We always place each element on an integer coordinates
-double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover)
+double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover)
 {
     cover.clear();
     double y = 0;
@@ -910,7 +912,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
 
     for (ArcList::iterator i = from; i!=to; i++) {
         AreaList arc_cover;
-        double h = (*i)->Height(arc_cover);
+        double h = (*i)->Height(canvas, arc_cover);
         //increase h, if Expand psuhed outer boundary. This ensures that we
         //maintain a compressGap/2 amount of space between elements even without compress
         h = std::max(h, arc_cover.GetBoundingBox().y.till);
@@ -947,7 +949,7 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
             //Place blocks, always compress the first (forceCompress=true)
             //Use 0 instead of y if you want the element after "parallel" to completely
             //ignore the "parallel" element (and potentially be above it)
-            const double bottom_of_list = PlaceListUnder(++i, to, y_bottom, y /* or 0 */, cover, true);
+            const double bottom_of_list = PlaceListUnder(canvas, ++i, to, y_bottom, y /* or 0 */, cover, true);
             return std::max(y_bottom, bottom_of_list);
         }
         cover += arc_cover;
@@ -968,13 +970,13 @@ double Msc::HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList
 //No matter what input parameters we get we always place the list at an integer
 //y coordinate
 //If ret_cover is not null, we return the rsulting cover of the list at the pos where placed
-double Msc::PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y,
+double Msc::PlaceListUnder(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, double start_y,
                            double top_y, const AreaList &area_top, bool forceCompress,
                            AreaList *ret_cover)
 {
     if (from==to) return 0;
     AreaList cover;
-    double h = HeightArcList(from, to, cover);
+    double h = HeightArcList(canvas, from, to, cover);
     double touchpoint;
     double new_start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     //if we shifted up, apply shift only if compess is on
@@ -1034,7 +1036,7 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 
 
 //Calculate total.x and y. Ensure they are integers
-void Msc::CalculateWidthHeight(void)
+void Msc::CalculateWidthHeight(MscCanvas &canvas)
 {
     yPageStart.clear();
     yPageStart.push_back(0);
@@ -1048,7 +1050,7 @@ void Msc::CalculateWidthHeight(void)
         EntityDistanceMap distances;
         //Add distance for arcs,
         //needed for hscale=auto, but also for entity width calculation
-        WidthArcList(Arcs, distances);
+        WidthArcList(canvas, Arcs, distances);
         if (hscale<0) {
             distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
             distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
@@ -1101,20 +1103,20 @@ void Msc::CalculateWidthHeight(void)
         }
         StringFormat sf;
         sf.Default();
-        XY crTexSize = Label(copyrightText, canvas, sf).getTextWidthHeight().RoundUp();
+        XY crTexSize = Label(copyrightText, &canvas, sf).getTextWidthHeight().RoundUp();
         if (total.x<crTexSize.x) total.x = crTexSize.x;
 
         copyrightTextHeight = crTexSize.y;
         AreaList cover;
-        total.y = HeightArcList(Arcs.begin(), Arcs.end(), cover) + chartTailGap;
+        total.y = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover) + chartTailGap;
         total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
     }
 }
 
-void Msc::PostPosProcessArcList(ArcList &arcs, double autoMarker)
+void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
-        (*j)->PostPosProcess(autoMarker);
+        (*j)->PostPosProcess(canvas, autoMarker);
 }
 
 void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
@@ -1122,15 +1124,15 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 
     //Allocate (non-sized) output object and assign it to the chart
     //From this point on, the chart sees xy dimensions
-    SetOutput(ot);
+    MscCanvas canvas(ot);
 
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
-    PostParseProcess(); 
+    PostParseProcess(canvas); 
 
     //Calculate chart size
-    CalculateWidthHeight();
+    CalculateWidthHeight(canvas);
 
     //If the chart ended up empty we may want to display something
     if (total.y <= chartTailGap && avoidEmpty) {
@@ -1139,44 +1141,36 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
         hscale = -1;
         //Redo calculations
         total.x = total.y = 0;
-        CalculateWidthHeight();
+        CalculateWidthHeight(canvas);
         //Luckily Width and DrawCover calls do not generate error messages,
         //So Errors collected so far are OK even after redoing this
     }
 
     //A final step of prcessing, checking for additional drawing warnings
-    PostPosProcessArcList(Arcs, -1);
-    CloseOutput();
-
+    PostPosProcessArcList(canvas, Arcs, -1);
     Error.Sort();
 }
 
-void Msc::DrawArcList(ArcList &arcs)
+void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs)
 {
     for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
-        (*i)->Draw();
+        (*i)->Draw(canvas);
 }
 
 
-void Msc::DrawCopyrightText(int page)
+void Msc::DrawCopyrightText(MscCanvas &canvas, int page)
 {
-    if (total.x==0 || !canvas) return;
-    XY size, dummy;
-    GetPagePosition(page, dummy, size);
+    if (total.x==0 || page>yPageStart.size()-1) return;
     StringFormat sf;
     sf.Default();
-    Label label(copyrightText, canvas, sf);
-    if (white_background) {
-        MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
-        canvas->Fill(Block(XY(0,size.y), XY(total.x,size.y+label.getTextWidthHeight().y)), fill_bkg);
-    }
-    label.Draw(canvas, 0, total.x, size.y);
+    Label label(copyrightText, &canvas, sf);
+    label.Draw(&canvas, 0, total.x, page<=-1 ? total.y : yPageStart[page+1]);
 }
 
-void Msc::DrawPageBreaks()
+void Msc::DrawPageBreaks(MscCanvas &canvas)
 {
     if (yPageStart.size()<=1) return;
-    if (total.y==0 || !canvas) return;
+    if (total.y==0) return;
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
@@ -1187,66 +1181,70 @@ void Msc::DrawPageBreaks()
         char text[20];
         const double y = yPageStart[page];
         XY d;
-        canvas->Line(XY(0, y), XY(total.x, y), line);
+        canvas.Line(XY(0, y), XY(total.x, y), line);
         sprintf(text, "page %d", page);
-        label.Set(text, canvas, format);
-        label.Draw(canvas, 0, total.x, y-label.getTextWidthHeight().y);
+        label.Set(text, &canvas, format);
+        label.Draw(&canvas, 0, total.x, y-label.getTextWidthHeight().y);
     }
 }
 
-void Msc::Draw(bool pageBreaks)
+void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
 {
-    if (total.y == 0 || !canvas) return;
+    if (total.y == 0) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
 	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
-	canvas->Line(XY(0,0), XY(1,0), marker);
-	canvas->Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
+	canvas.Line(XY(0,0), XY(1,0), marker);
+	canvas.Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
 	//draw background
-    MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
-    double y = 0;
-	map<double, MscFillAttr>::iterator i = Background.begin();
-    while (i!=Background.end()) {
-        if (i->first != y) {
-            if (y!=0 || white_background)
-                canvas->Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
+    if (Background.size()) {
+        MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
+        fill_bkg += Background.begin()->second;
+        double y = Background.begin()->first;
+	    for (auto i = ++Background.begin(); i!=Background.end(); i++) {
+            canvas.Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
+            fill_bkg += i->second;
             y = i->first;
         }
-        fill_bkg += i->second;
-        if (white_background && fill_bkg.color.second.a == 0)
-            fill_bkg.color.second = MscColorType(255,255,255);
-        i++;
-    }
-    if (y < total.y) {
-        if (y!=0 || white_background)
-            canvas->Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
+        if (y < total.y) 
+            canvas.Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
     }
 	//Draw page breaks
     if (pageBreaks)
-        DrawPageBreaks();
+        DrawPageBreaks(canvas);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
-    DrawEntityLines(0, total.y);
-    DrawArcList(Arcs);
+    DrawEntityLines(canvas, 0, total.y);
+    DrawArcList(canvas, Arcs);
     //cairo_set_source_rgb(cr, 0, 0, 1);
     //cairo_set_line_width(cr,2);
     //HideELinesArea.Line(cr);
 }
 
-void Msc::DrawToOutput(MscCanvas::OutputType ot, double x_scale, double y_scale, const string &fn)
+void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn)
 {
     if (yPageStart.size()<=1) {
-        SetOutput(ot, x_scale, y_scale, fn, -1);
-        Draw(false);
-        PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
-        DrawCopyrightText();
-        CloseOutput();
+        MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale);
+        switch (canvas.Status()) {
+        case MscCanvas::ERR_FILE: Error.Error(file_line(0, 0), "Could not open file '" + fn + "'."); return;
+        case MscCanvas::ERR_PARAM: Error.Error(file_line(0, 0), "Internal param problem when opening canvas."); return;
+        case MscCanvas::ERR_CANVAS: Error.Error(file_line(0, 0), "Could not open canvas."); return;
+        case MscCanvas::ERR_DONE: Error.Error(file_line(0, 0), "Whops, internal error."); return;
+        }
+        Draw(canvas, false);
+        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
+        DrawCopyrightText(canvas);
         return;
     }
     for (unsigned page=0; page<yPageStart.size(); page++) {
-        SetOutput(ot, x_scale, y_scale, fn, page);
-        Draw(false);
-        PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
-        DrawCopyrightText(page);
-        CloseOutput();
+        MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale, &yPageStart, page);
+        switch (canvas.Status()) {
+        case MscCanvas::ERR_FILE: Error.Error(file_line(0, 0), "Could not open file '" + fn + "'."); return;
+        case MscCanvas::ERR_PARAM: Error.Error(file_line(0, 0), "Internal param problem when opening canvas."); return;
+        case MscCanvas::ERR_CANVAS: Error.Error(file_line(0, 0), "Could not open canvas."); return;
+        case MscCanvas::ERR_DONE: Error.Error(file_line(0, 0), "Whops, internal error."); return;
+        }
+        Draw(canvas, false);
+        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
+        DrawCopyrightText(canvas, page);
     }
 }
 

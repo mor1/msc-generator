@@ -206,11 +206,11 @@ bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscAr
         canvas->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
     if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
         canvas->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    Area clip = ah.ClipForLine(xy, 0, true, false, MSC_ARROW_END, canvas->GetExtents(), eLine, eLine);
+    Area clip = ah.ClipForLine(xy, 0, true, false, MSC_ARROW_END, Block(XY(0,0), canvas->GetSize()), eLine, eLine);
     canvas->Clip(clip);
     canvas->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), xy, ah.line);
     canvas->UnClip();
-    ah.Draw(xy, 0, true, false, MSC_ARROW_END, canvas);
+    ah.Draw(xy, 0, true, false, MSC_ARROW_END, ah.line, ah.line, canvas);
     canvas->UnClip();
     return true;
 }
@@ -515,10 +515,10 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
         break;
 
     case MSC_ARROW_TRIPLE_HALF:
-        half_offset.x += wh.x/2;
+        //half_offset.x += wh.x/2;
         //Fallthrough
     case MSC_ARROW_DOUBLE_HALF:
-        half_offset.x += wh.x/2;
+        //half_offset.x += wh.x/2;
         //Fallthrough
     case MSC_ARROW_HALF: /* Unfilled half */
         area = Contour(xy+act+wh+half_offset, xy+act+half_offset, xy+act + XY(wh.x, 0)+half_offset);
@@ -568,7 +568,8 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
 }
 
 
-Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which) const
+Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which,
+                         const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
 {
     XY act(act_size, 0);
     XY wh = getWidthHeight(bidir, which);
@@ -651,8 +652,13 @@ Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, MscAr
  * x,y is the tip of the arrow
  * which is 0 for destination, 1 for middle, 2 for source end of arrow
  */
-void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, MscCanvas *canvas) const
+void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, 
+                     const MscLineAttr &mainline_left, const MscLineAttr &mainline_right, 
+                     MscCanvas *canvas) const
 {
+    const MscArrowType arrow_type = GetType(bidir, which);
+    if (arrow_type == MSC_ARROW_NONE) return;
+
     XY act(act_size, 0);
     XY wh = getWidthHeight(bidir, which);
     double w = getTriWidth(bidir, which);
@@ -667,7 +673,27 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
     std::swap(wh.x, w);
     //wh now contains the triangle size, w the size of the entire stuff (same for all,but DOUBLE & TRIPLE)
 
-    MscFillAttr fill(line.color.second, GRADIENT_NONE);
+    //do filled ones
+    if (arrow_type == MSC_ARROW_TRIPLE || arrow_type == MSC_ARROW_DOUBLE ||
+        arrow_type == MSC_ARROW_SOLID  || arrow_type == MSC_ARROW_SHARP ||
+        arrow_type == MSC_ARROW_DIAMOND|| arrow_type == MSC_ARROW_DOT) {
+        const MscFillAttr fill(line.color.second, GRADIENT_NONE);
+        canvas->Fill(Cover(xy, act_size, forward_orig, bidir, which, mainline_left, mainline_right), fill);
+        return;
+    }
+
+    const double lw2 = line.LineWidth()/2;
+    //Do closed line ones
+    if (arrow_type == MSC_ARROW_TRIPLE_EMPTY || arrow_type == MSC_ARROW_DOUBLE_EMPTY ||
+        arrow_type == MSC_ARROW_EMPTY        || arrow_type == MSC_ARROW_SHARP_EMPTY ||
+        arrow_type == MSC_ARROW_DIAMOND_EMPTY|| arrow_type == MSC_ARROW_DOT_EMPTY) {
+        Contour cover = Cover(xy, act_size, forward_orig, bidir, which, mainline_left, mainline_right);
+        if (!canvas->HasImprecisePositioning())
+            cover.Expand(-lw2);
+        canvas->Line(cover, line);
+        return;
+    }
+
     Contour tri1, tri2, tri_sharp1, tri_sharp2;
     if (forward) {
         tri1 = Contour(xy+act + wh - XY(0, wh.y) - XY(0, wh.y), xy+act, xy+act+wh);
@@ -680,42 +706,31 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
         tri_sharp1 = Contour(xy+act+wh, xy+act+XY(wh.x*SHARP_MUL_2, 0), xy+act + wh - XY(0, wh.y) - XY(0, wh.y));
         tri_sharp2 = Contour(xy-act-wh, xy-act-XY(wh.x*SHARP_MUL_2, 0), xy-act - wh + XY(0, wh.y) + XY(0, wh.y));
     }
-
-    const MscArrowType arrow_type = GetType(bidir, which);
+    //Shrink by linewidth so that the above contours are outer edge
+    if (!canvas->HasImprecisePositioning()) {
+        tri1.Expand(-lw2);
+        tri2.Expand(-lw2);
+        tri_sharp1.Expand(-lw2);
+        tri_sharp2.Expand(-lw2);
+    }
 
     if (MSC_ARROW_IS_LINE(arrow_type) || MSC_ARROW_IS_HALF(arrow_type)) {
         tri1[0][2].visible = false;
         tri2[0][2].visible = false;
     }
 
-    if (MSC_ARROW_IS_HALF(arrow_type)) {
-        Block ext = canvas->GetExtents();
-        ext.y.from = xy.y;
-        canvas->Clip(ext);
+    //for double or triple arrows, second and third line should be shorter, so that 
+    //they do not extend to the middle of a double line
+    if (arrow_type == MSC_ARROW_DOUBLE_HALF || arrow_type == MSC_ARROW_TRIPLE_HALF) {
+        Block ext1(XY(0,0), canvas->GetSize());
+        Block ext2 = ext1;
+        ext1.y.from = xy.y + mainline_left.Spacing();
+        ext2.y.from = xy.y + mainline_right.Spacing();
+        ext1.x.till = ext2.x.from = xy.x;
+        canvas->Clip(Contour(ext1)+Contour(ext2));
     }
-
     switch(arrow_type)
     {
-    case MSC_ARROW_NONE:
-        break;
-    case MSC_ARROW_TRIPLE:
-    case MSC_ARROW_DOUBLE:
-    case MSC_ARROW_SOLID: /* Filled */
-    case MSC_ARROW_SHARP: /* Filled */
-    case MSC_ARROW_DIAMOND:
-    case MSC_ARROW_DOT:
-        canvas->Fill(Cover(xy, act_size, forward_orig, bidir, which), fill);
-        break;
-
-    case MSC_ARROW_TRIPLE_EMPTY:
-    case MSC_ARROW_DOUBLE_EMPTY:
-    case MSC_ARROW_EMPTY: /* Non-Filled */
-    case MSC_ARROW_SHARP_EMPTY: /* Non-Filled */
-    case MSC_ARROW_DIAMOND_EMPTY:
-    case MSC_ARROW_DOT_EMPTY:
-        canvas->Line(Cover(xy, act_size, forward_orig, bidir, which), line);
-        break;
-
     case MSC_ARROW_TRIPLE_LINE:
     case MSC_ARROW_TRIPLE_HALF:
         canvas->Line(tri1.CreateShifted(XY(wh.x, 0)), line);
@@ -726,8 +741,15 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
         canvas->Line(tri1.CreateShifted(XY(wh.x/2, 0)), line);
         if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->Line(tri2.CreateShifted(XY(-wh.x/2, 0)), line);
         /*Fallthrough*/
+        if (arrow_type == MSC_ARROW_DOUBLE_HALF || arrow_type == MSC_ARROW_TRIPLE_HALF)
+            canvas->UnClip();
     case MSC_ARROW_LINE: /* Two lines */
     case MSC_ARROW_HALF: /* Unfilled half */
+        if (MSC_ARROW_IS_HALF(arrow_type)) {
+            Block ext(XY(0,0), canvas->GetSize());
+            ext.y.from = xy.y;
+            canvas->Clip(ext);
+        }
         canvas->Line(tri1, line);
         if (bidir && (which==MSC_ARROW_MIDDLE)) canvas->Line(tri2, line);
         break;
@@ -791,11 +813,14 @@ XY ArrowHead::getBigWidthHeight(bool bidir, MscArrowEnd which) const
 DoublePair ArrowHead::getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd which, double body_height) const
 {
     XY wh = getBigWidthHeight(bidir, which);
+    const double lw2 = line.LineWidth()/2;
     DoublePair ret(0,0);
     const MscArrowType t = GetType(bidir, which);
     switch(t) {
     default:
     case MSC_ARROW_NONE:
+    case MSC_ARROW_DIAMOND:
+    case MSC_ARROW_DOT:
     case MSC_ARROW_DIAMOND_EMPTY:
     case MSC_ARROW_DOT_EMPTY:
         break;
@@ -805,29 +830,18 @@ DoublePair ArrowHead::getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd 
     case MSC_ARROW_LINE: 
     case MSC_ARROW_HALF: 
     case MSC_ARROW_EMPTY_INV: /* Inverse small triangle */
-    case MSC_ARROW_STRIPES:
     case MSC_ARROW_TRIANGLE_STRIPES:
-        ret.first = wh.x;
+        //wh.x -= lw2;
+    case MSC_ARROW_STRIPES:
+        ret.first += wh.x;
         if ((bidir || t== MSC_ARROW_EMPTY_INV) && which == MSC_ARROW_MIDDLE)
             ret.second = ret.first;
         break;
     case MSC_ARROW_SHARP: /* Sharp triangle */
+        //wh.x -= lw2;
         ret.first = wh.x - wh.x*(wh.y/(wh.y+body_height/2));
         if (bidir && which == MSC_ARROW_MIDDLE)
             ret.second=ret.first;
-        break;
-
-    case MSC_ARROW_DIAMOND:
-        ret.first = wh.x*wh.y/(body_height/2+wh.y); //visible part towards the body
-        ret.second = which==MSC_ARROW_MIDDLE ? ret.first : wh.x;
-        break;
-    case MSC_ARROW_DOT:
-        //The same ellipse as will be drawn, but 90 degree rotated, so we can use CrossingVertical
-        const contour::EllipseData e(XY(0, 0), body_height/2 + wh.y, wh.x, 0);    
-        double x[2], r[2];
-        e.CrossingVertical(body_height/2, x, r);
-        ret.first = fabs(x[0]); //visible part towards the body, any cp would do x[0]==-x[1]
-        ret.second = which==MSC_ARROW_MIDDLE ? ret.first : wh.x;
         break;
     }
     if (!forward ^ (which==MSC_ARROW_START)) //if reverse or start, but not if both
@@ -916,14 +930,19 @@ double ArrowHead::bigYExtent(bool bidir, bool multisegment) const
 Contour ArrowHead::BigCoverOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const
 {
     if (which == MSC_ARROW_START) forward = !forward;
+    const double lw2 = line.LineWidth()/2;
     const XY wh = getBigWidthHeight(bidir, which);
-    const double x_off = forward ? - wh.x : wh.x;
+          double x_off = forward ? - wh.x : wh.x;
     const double x_act = forward ? -act_size : act_size;
     const double mid_y = (sy+dy)/2;
     Contour area;
     switch(GetType(bidir, which)) {
-    default:
     case MSC_ARROW_NONE: 
+        if (which == MSC_ARROW_MIDDLE) 
+            area = Block(x-act_size, x+act_size, sy, dy);
+        else
+            area = Block(x, x+x_act, sy, dy);
+    default:
         break;
     
         //all these below draw a triangle
@@ -931,27 +950,34 @@ Contour ArrowHead::BigCoverOne(double x, double act_size, double sy, double dy, 
     case MSC_ARROW_LINE: 
     case MSC_ARROW_EMPTY: /* wh.y is zero here */
     case MSC_ARROW_SHARP_EMPTY: /* wh.y is zero here */
+        sy -= lw2; dy += lw2; x_off += forward ? -lw2 : lw2;
         area += Contour(x+x_act, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
         if (bidir && which == MSC_ARROW_MIDDLE)
             area += Contour(x-x_act, mid_y, x-x_act-x_off, sy-wh.y, x-x_act-x_off, dy+wh.y);
+        area.Expand(-lw2);
         break;
 
     case MSC_ARROW_SHARP:
+        sy -= lw2; dy += lw2; x_off += forward ? -lw2 : lw2;
         area += Contour(x+x_act                  , mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
         area -= Contour(x+x_act+x_off*SHARP_MUL_2, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
         if (bidir && which == MSC_ARROW_MIDDLE) {
             area += Contour(x-x_act                  , mid_y, x-x_act-x_off, sy-wh.y, x-x_act-x_off, dy+wh.y);
             area -= Contour(x-x_act-x_off*SHARP_MUL_2, mid_y, x-x_act-x_off, sy-wh.y, x-x_act-x_off, dy+wh.y);
         }
+        area.Expand(-lw2);
         break;
 
     case MSC_ARROW_HALF: 
+        sy -= lw2; dy += lw2; x_off += forward ? -lw2 : lw2;
         area += Contour(x+x_act, sy, x+x_act+x_off, dy, x+x_act+x_off, sy);
         if (bidir && which == MSC_ARROW_MIDDLE)
             area += Contour(x-x_act, sy, x-x_act-x_off, sy, x-x_act-x_off, dy);
+        area.Expand(-lw2);
         break;
 
     case MSC_ARROW_EMPTY_INV:
+        sy += lw2; dy -= lw2; x_off += forward ? -lw2 : lw2;
         area += Contour(x+x_act+x_off, mid_y, x+x_act+x_off, sy, x+x_act, sy);
         area += Contour(x+x_act+x_off, mid_y, x+x_act+x_off, dy, x+x_act, dy);
         if (which == MSC_ARROW_MIDDLE) {
@@ -962,10 +988,12 @@ Contour ArrowHead::BigCoverOne(double x, double act_size, double sy, double dy, 
                 area += Contour(x-x_act, mid_y, x-x_act-x_off, sy, x-x_act-x_off, dy);
             }
         }
+        area.Expand(+lw2);
         break;
 
     case MSC_ARROW_DIAMOND_EMPTY: /* wh.y is zero here */
         if (which==MSC_ARROW_MIDDLE) break;
+        area = Block(x, x+x_act, sy, dy);
         /* Fallthrough */
     case MSC_ARROW_DIAMOND:
         area += Contour(x-wh.x, mid_y, x, sy-wh.y, x, dy+wh.y) + Contour(x+wh.x, mid_y, x, sy-wh.y, x, dy+wh.y);
@@ -973,6 +1001,7 @@ Contour ArrowHead::BigCoverOne(double x, double act_size, double sy, double dy, 
 
     case MSC_ARROW_DOT_EMPTY: /* wh.y is zero here */
         if (which==MSC_ARROW_MIDDLE) break;
+        area = Block(x, x+x_act, sy, dy);
         /* Fallthrough */
     case MSC_ARROW_DOT:
         area += Contour(XY(x, mid_y), wh.x, (dy-sy)/2 + wh.y);    
@@ -987,6 +1016,7 @@ Contour ArrowHead::BigCoverOne(double x, double act_size, double sy, double dy, 
         }
         break;
     case MSC_ARROW_TRIANGLE_STRIPES:
+        sy -= lw2; dy += lw2; x_off += forward ? -lw2 : lw2;
         Area a1;
         a1 += Contour(x+x_off/6.*0, x+x_off/6.*1, sy, dy);
         a1 += Contour(x+x_off/6.*2, x+x_off/6.*4, sy, dy);
@@ -1011,6 +1041,7 @@ Contour ArrowHead::BigCoverOne(double x, double act_size, double sy, double dy, 
             a2.Shift(XY(-x_act,0));
             area += a2;
         }
+        area.Expand(-lw2);
     }
     return area;
 }
@@ -1065,12 +1096,12 @@ Contour ArrowHead::BigEntityLineCover(const std::vector<double> &xPos, std::vect
                 else this_segment.x.from = total.x.from;
             }
             const Area local_area = area * this_segment;
-            const double gap = lines->at(i).LineWidth()/2-lines->at(i).width.second/2;
-            ret += local_area.CreateExpand(gap) - local_area.CreateExpand(-gap);
+            const double gap = lines->at(i).Spacing();
+            ret += local_area.CreateExpand(gap);
         }
     } else if (!line.IsDoubleOrTriple()) {
-        const double gap = line.LineWidth()/2-line.width.second/2;
-        ret = area.CreateExpand(gap) - area.CreateExpand(-gap);
+        const double gap = line.Spacing();
+        ret = area.CreateExpand(gap);
     }
     return ret;
 }
@@ -1084,13 +1115,13 @@ void ArrowHead::BigDraw(const std::vector<double> &xPos, std::vector<double> act
     const Contour area = BigCover(xPos, act_size, sy, dy, bidir);
     if (xPos.size()>2 && bigDoesSegment(bidir, MSC_ARROW_MIDDLE) && lines) {
         for (unsigned i=0; i<xPos.size()-1; i++) {
-            Block this_segment(Range(xPos[i], xPos[i+1]), canvas->GetExtents().y);
+            Block this_segment(xPos[i], xPos[i+1], 0, canvas->GetSize().y);
             if (i==0) {
-                if (xPos[0]<xPos[1]) this_segment.x.from = canvas->GetExtents().x.from;
-                else this_segment.x.till = canvas->GetExtents().x.till;
+                if (xPos[0]<xPos[1]) this_segment.x.from = 0;
+                else this_segment.x.till = canvas->GetSize().x;
             } else if (i==xPos.size()-1) {
-                if (xPos[0]<xPos[1]) this_segment.x.till = canvas->GetExtents().x.till;
-                else this_segment.x.from = canvas->GetExtents().x.from;
+                if (xPos[0]<xPos[1]) this_segment.x.till = canvas->GetSize().x;
+                else this_segment.x.from = 0;
             }
             const Area local_area = area * this_segment;
             const double gap = lines->at(i).LineWidth()/2-lines->at(i).width.second/2;

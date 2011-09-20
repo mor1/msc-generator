@@ -100,9 +100,11 @@ public:
     Contour ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
                         const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //Returns a contour covering the arrowhead
-    Contour Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which) const;
+    Contour Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which,
+                  const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //This actually draws an arrowhead
-    void Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, MscCanvas *) const;
+    void Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, 
+              const MscLineAttr &mainline_left, const MscLineAttr &mainline_right, MscCanvas *) const;
 
 //functions for block arrow heads
     //The characteristic size of arrowhead

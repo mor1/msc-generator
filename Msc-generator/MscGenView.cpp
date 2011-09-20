@@ -187,7 +187,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 
     CSize orig_size = data.GetSize(); //This one compiles
 	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
-    data.DrawToWindow(pDC->m_hDC, scale, scale, pInfo->m_rectDraw);
+    data.DrawToWindow(pDC->m_hDC, scale, scale);
 
 	//CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 	//HENHMETAFILE hemf = data.GetEMF(true);
@@ -288,32 +288,23 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
     clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
 	//This is the destination surface
-	cairo_surface_t *surface = cairo_win32_surface_create(*pDC);
-	cairo_t *cr = cairo_create(surface);
-    cairo_scale(cr, x_scale, y_scale);
-    //cairo_rectangle(cr, clip.left, clip.top, clip.right, clip.bottom);
-    //cairo_clip(cr);
-    cairo_set_line_width(cr, 1);
-    MscCanvas canvas(cr, MscCanvas::WIN, sqrt(x_scale*y_scale), Block(0,0,m_size.cx, m_size.cy));
+    MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, XY(m_size.cx, m_size.cy), 0, XY(x_scale, y_scale));
+    cairo_set_line_width(canvas.GetContext(), 1);
 	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
         if (i->what == TrackedArc::TRACKRECT) {
-            cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                      GetGValue(pApp->m_trackFillColor)/255., 
-		                              GetBValue(pApp->m_trackFillColor)/255., 
-                                      GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Fill(cr);
-	        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
-                                      GetGValue(pApp->m_trackLineColor)/255., 
-		                              GetBValue(pApp->m_trackLineColor)/255., 
-                                      GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Line(cr);
+            cairo_set_source_rgba(canvas.GetContext(), GetRValue(pApp->m_trackFillColor)/255., 
+                                                       GetGValue(pApp->m_trackFillColor)/255., 
+                                                       GetBValue(pApp->m_trackFillColor)/255., 
+                                                       GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
+            i->arc->GetAreaToDraw().Fill(canvas.GetContext());
+	        cairo_set_source_rgba(canvas.GetContext(), GetRValue(pApp->m_trackLineColor)/255., 
+                                                       GetGValue(pApp->m_trackLineColor)/255., 
+                                                       GetBValue(pApp->m_trackLineColor)/255., 
+                                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
+            i->arc->GetAreaToDraw().Line(canvas.GetContext());
         } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls) 
             i->arc->DrawControls(&canvas, i->fade_value);
     }
-
-	//Cleanup
-	cairo_destroy(cr);
-	cairo_surface_destroy(surface);
 }
 
 

@@ -117,11 +117,15 @@ public:
 
 /////////////////////////////////////////////////////////////////////
 
-class Msc : public MscBase {
+class Msc {
 public:
     typedef std::pair<file_line, double> MarkerType;
     typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
             LineToArcMapType;
+
+    MscError     Error;
+    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
+
     EntityList                    AllEntities;
     EntityList                    ActiveEntities;
     Entity                       *NoEntity;
@@ -135,31 +139,37 @@ public:
     LineToArcMapType              AllArcs;
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
+    std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
+    XY     total;                //Total size of the chart (minus copyright)
+    double copyrightTextHeight;  //Y size of the copyright text calculated
+    double headingSize;          //Y size of first heading row collected during PostPosProcess(?)
+
+    //These below should have an integer value for nice drawing
     /** Gap at the bottom of the page for lengthening entity lines */
-    int chartTailGap;
+    double chartTailGap;
     /** Self Pointing arc Y size. */
-    int selfArrowYSize;
+    double selfArrowYSize;
     /** Vertical gap above and below headings */
-    int headingVGapAbove, headingVGapBelow;
+    double headingVGapAbove, headingVGapBelow;
     /** Vertical gap above and below emph boxes */
-    int emphVGapOutside, emphVGapInside;
+    double emphVGapOutside, emphVGapInside;
     /** Vertical gap above and below arcs */
-    int arcVGapAbove, arcVGapBelow;
+    double arcVGapAbove, arcVGapBelow;
     /* How much extra space above and below a discontinuity line (...) */
-    int discoVgap;
+    double discoVgap;
     /** Nudge size */
-    int nudgeSize;
+    double nudgeSize;
     /** The width of entity activation bars **/
-    int activeEntitySize;
+    double activeEntitySize;
     /** Size of gap at compress. We expand by half of it */
-    int compressGap;
+    double compressGap;
     /** Size of gap at hscale=auto */
-    int hscaleAutoXGap;
+    double hscaleAutoXGap;
     /* Width of the frames used for tracking boxes on screen */
-    int trackFrameWidth;
+    double trackFrameWidth;
     /* How much do we expand tracking covers */
-    int trackExpandBy;
+    double trackExpandBy;
 
     /* Parse Options */
     double       hscale;     /** Relative xsize, -1 is auto **/
@@ -171,9 +181,7 @@ public:
     EntityCollapseCatalog force_entity_collapse; //these entities must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse;    //These boxes must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse_instead; //These should be kept from force_box_collapse
-    //Size of first heading row collected during PostPosProcess(?)
-    double       headingSize;
-
+    
     Msc();
 
     void AddStandardDesigns(void);
@@ -206,9 +214,9 @@ public:
 
     void ParseText(const char *input, const char *filename);
 
-    void PostParseProcessArcList(bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
+    void PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
-    void PostParseProcess();
+    void PostParseProcess(MscCanvas &canvas);
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 
     virtual string Print(int ident=0) const;
@@ -218,25 +226,25 @@ public:
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
 
-    void DrawEntityLines(double y, double height, EIterator from, EIterator to);
-    void DrawEntityLines(double y, double height)
-         {DrawEntityLines(y, height, ActiveEntities.begin(), ActiveEntities.end());}
+    void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
+    void DrawEntityLines(MscCanvas &canvas, double y, double height)
+         {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
-    void WidthArcList(ArcList &arcs, EntityDistanceMap &distances);
-    double HeightArcList(ArcList::iterator from, ArcList::iterator to, AreaList &cover);
-    double PlaceListUnder(ArcList::iterator from, ArcList::iterator to, double start_y,
+    void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
+    double HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover);
+    double PlaceListUnder(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, double start_y,
                           double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
-    void CalculateWidthHeight(void);
-    void PostPosProcessArcList(ArcList &arcs, double autoMarker);
+    void CalculateWidthHeight(MscCanvas &canvas);
+    void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
 
     void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
-    void DrawArcList(ArcList &arcs);
-    void Draw(bool pageBreaks);
-    void DrawCopyrightText(int page=-1);
-    void DrawPageBreaks();
-    void DrawToOutput(MscCanvas::OutputType, double x_scale, double y_scale, const string &);
+    void DrawArcList(MscCanvas &canvas, ArcList &arcs);
+    void Draw(MscCanvas &canvas, bool pageBreaks);
+    void DrawCopyrightText(MscCanvas &canvas, int page=-1);
+    void DrawPageBreaks(MscCanvas &canvas);
+    void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &);
 };
 
 
