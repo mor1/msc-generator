@@ -1204,11 +1204,11 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     const Contour tcov = parsed_label.Cover(0, twh.x, max_lw/2);
     const bool fw = (*src)->index < (*dst)->index;
     //kill entity activate indication from entities where this arrow does not segment (e.g., dot)
-    if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_START)) act_size[0] = 0;
-    if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_END)) *act_size.rbegin() = 0;
-    if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_MIDDLE)) 
-        for (unsigned i=1; i<act_size.size()-1; i++)
-            act_size[i] = 0;
+    //if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_START)) act_size[0] = 0;
+    //if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_END)) *act_size.rbegin() = 0;
+    //if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_MIDDLE)) 
+    //    for (unsigned i=1; i<act_size.size()-1; i++)
+    //        act_size[i] = 0;
 
     const DoublePair start = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_START, dy-sy);
     const DoublePair end   = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_END, dy-sy);
@@ -1307,8 +1307,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
         cx_text = (xPos[xPos.size()-1-stext] + xPos[xPos.size()-1-dtext])/2;
     }
     label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
-    //use += to keep arc and other params of area
-    area = style.arrow.BigCover(xPos, act_size, sy, dy, isBidir());
+    area = style.arrow.BigOuterLine(xPos, act_size, sy, dy, isBidir(), &segment_lines, false);
     area.arc = this;
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
@@ -1336,7 +1335,7 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     }
     ArcArrow::PostPosProcess(canvas, autoMarker); //Skip ArcDirArrow
     const Block total(XY(0,0), chart->total);
-    const Contour outer_line = style.arrow.BigEntityLineCover(xPos, act_size, sy, dy, isBidir(), &segment_lines, total);
+    const Contour outer_line = style.arrow.BigOuterLine(xPos, act_size, sy, dy, isBidir(), &segment_lines, true);
     chart->HideEntityLines(outer_line);
 }
 
@@ -1709,7 +1708,7 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     auto ypos_tmp = ypos;
     std::swap(ypos_tmp[0], ypos_tmp[1]);
     std::vector<double> act_size(2, 0);
-    area = style.arrow.BigCover(ypos_tmp, act_size, xpos-width/2, xpos+width/2, isBidir());
+    area = style.arrow.BigOuterLine(ypos_tmp, act_size, xpos-width/2, xpos+width/2, isBidir(), NULL, false);
     area.SwapXY();
     //Expand area and add us to chart's all covers list
     ArcArrow::PostPosProcess(canvas, autoMarker);

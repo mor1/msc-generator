@@ -57,18 +57,22 @@ FIXED: Diamond and dot normal arrowheads do not align with middle of entity line
 FIXED: Block arrows ->a-> should keep gap if a is active
 CANCELLED: why cannot I defstyle entity [active=yes]? (Because it is not a style attr. Now we give error.)
 FIXED: MscCanvas and MscBase and Msc
+FIXED: Block arrowheads draw well
 
-ADD: message lost
-ADD: symbol circle/box/cross/text [marker] at vertxpos [xsize, ysize, rotate, style];
-
+FIX: Block arrow space for sharp - take linewidth into account
+FIX: Line segment stuff not copied to all segments
 FIX: Triple bevel changes size when size limited.
-FIX: Block arrowheads
 FIX: labels should keep gap if a->b:aaa is between two active entities
 FIX: Pipes should be wider if entity is active
 FIX: if box radius is decreased due to low height, recalc label position
 FIX: the indicator inside a collapsed block arrow should have more space below it
 FIX: add shadow to the indicator for certain styles
 FIX: test1.signalling
+
+ADD: message lost
+ADD: mark centerline
+ADD: symbol circle/box/cross/text [marker] at vertxpos [xsize, ysize, rotate, style];
+
 
 
 In 3.2

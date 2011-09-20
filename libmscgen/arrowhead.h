@@ -66,6 +66,8 @@ protected:
     static double baseDiamondSize;
     static double baseDotSize;
     static double arrowSizePercentage[6];
+
+    static double CalcTriangleExpansion(double x, double y, bool symmetric, double lw2);
 public:
     enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
     MscLineAttr                   line;
@@ -119,11 +121,10 @@ public:
     double getBigMargin(Contour text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const;
     //tells how much the arrow (overall) extends above or below sy and dy
     double bigYExtent(bool bidir, bool multisegment) const;
-    Contour BigCoverOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
-    Contour BigCover(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, 
-                     bool bidir, int no_segment=-1) const;
-    Contour BigEntityLineCover(const std::vector<double> &xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
-                               const std::vector<MscLineAttr> *lines, const Block &total) const;
+    Contour BigMidLineOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
+    Contour BigMidLine(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, bool bidir) const;
+    Contour BigOuterLine(const std::vector<double> &xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
+                         const std::vector<MscLineAttr> *lines, bool spacing_only) const;
     void BigDraw(const std::vector<double> &xPos, std::vector<double> act_size, 
                  double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
                  const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscCanvas *canvas,
