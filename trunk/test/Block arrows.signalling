@@ -1,4 +1,6 @@
 hscale = auto;
+activate a,b,c;
+defstyle blockarrow [line.width=1];
 defstyle blockarrow [arrow.type=diamond];
 block a->b-c  : aaaaaaaaaaaaaaaaaaaaaaa;
 block a<=>b-c : aaaaaaaaaaaaaaaaa;
@@ -29,6 +31,9 @@ block a<=>b-c : aaaaaaaaaaaaaaaaa;
 defstyle blockarrow [arrow.type=sharp];
 block a->b-c  : aaaaaaaaaaaaaaaaaaaaaaa;
 block a<=>b-c : aaaaaaaaaaaaaaaaa;
-defstyle blockarrow [arrow.type=empty_sharp];
+defstyle blockarrow [arrow.type=stripes];
+block a->b-c  : aaaaaaaaaaaaaaaaaaaaaaa;
+block a<=>b-c : aaaaaaaaaaaaaaaaa;
+defstyle blockarrow [arrow.type=triangle_stripes];
 block a->b-c  : aaaaaaaaaaaaaaaaaaaaaaa;
 block a<=>b-c : aaaaaaaaaaaaaaaaa;

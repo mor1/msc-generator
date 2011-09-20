@@ -111,8 +111,8 @@ public:
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
     double GetHeadingSize() const;
-    void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip) const;
-	void DrawToWMF(HDC hdc, bool pageBreaks) const;
+    void DrawToWindow(HDC hdc, double x_scale=1.0, double y_scale=1.0) const;
+	void DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks) const;
 	void DrawToFile(const char* fileName, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
 	TrackableElement *GetArcByCoordinate(CPoint point) const;

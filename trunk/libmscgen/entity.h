@@ -58,8 +58,8 @@ public:
     unsigned         index;    // counts entities left to right
     EntityStatusMap  status;   // contains vertical line status & type & color
     MscStyle         running_style;  //Used during PostParse process to make EntityDef::style's fully specified
-    double           maxwidth;       //Used during PostParse process to collect the maximum width of the entity
     EEntityStatus    running_shown;  //Used during Height process to see if it is shown
+    double           maxwidth;       //Used during PostParse process to collect the maximum width of the entity
 
     string           parent_name;    //tells if we are part of an entity group
     std::set<string> children_names; //if we are an entity group, tells who are within us
@@ -68,7 +68,7 @@ public:
     Entity(const string &n, const string &l, const string &ol, double p, double pe,
            const MscStyle &entity_style, const file_line &fp, bool coll);
     void AddChildrenList(const EntityDefList *children, Msc *chart);
-    virtual ~Entity() {};
+    double GetRunningWidth(double activeEntitySize) const;
     string Print(int ident = 0) const;
 };
 
@@ -158,8 +158,8 @@ public:
     double Width() const;
     Range Height(AreaList &cover, const EntityDefList &edl);
     void ShiftBy(double y) {TrackableElement::ShiftBy(y); outer_edge.Shift(XY(0,y));}
-    virtual void PostPosProcess(double);
-    void Draw();
+    virtual void PostPosProcess(MscCanvas &, double);
+    void Draw(MscCanvas &);
 };
 
 

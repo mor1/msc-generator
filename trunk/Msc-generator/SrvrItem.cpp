@@ -119,7 +119,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
     CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
-	chart.DrawToWMF(pDC->m_hDC, pApp->m_bPB_Embedded);
+	chart.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded);
 	return TRUE;
 }
 

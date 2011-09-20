@@ -233,6 +233,7 @@ protected:
     unsigned FindCrosspointsHelper(bool m_c1, const ContourWithHoles *cwh, bool m_c2, const ContourList *cs);
     unsigned FindCrosspointsHelper(bool m_c1, const ContourList *c1, bool m_c2, const ContourList *c2);
     unsigned FindCrosspoints();  //fills in Rays and the linked lists
+    static bool OperationWithAnEmpty(Contour::operation_t type, bool clockwise);
     //helpers for rating crosspoints
     static bool IsCoverageToInclude(int cov, Contour::operation_t type);
     unsigned FindRayGroupEnd(unsigned from, int &coverage, unsigned abort_at1, unsigned abort_at2) const;
@@ -1117,6 +1118,14 @@ void ContoursHelper::ConvertNode(Contour::operation_t type, std::list<node> &&li
     }
 }
 
+//Returns true if a two-operand operation with an empty contour shall return the
+//contour and false if an empty contour.
+inline bool ContoursHelper::OperationWithAnEmpty(Contour::operation_t type, bool clockwise)
+{
+    //if the sole non-empty contoutr is to be included, we return this
+    return IsCoverageToInclude(clockwise ? 1 : 0, type);
+}
+
 void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
 {
     //"result" may be the same as "C1" or "C2"!!!
@@ -1142,7 +1151,7 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
         }
     } else {
         if (C1->IsEmpty()) {
-            if (C2->IsEmpty() || Contour::is_positive(type) != C2->clockwise) {
+            if (C2->IsEmpty() || !OperationWithAnEmpty(type, C2->clockwise)) {
                 result.clear();
                 return;
             }
@@ -1150,9 +1159,12 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
             else result = std::move(*C2);
             return;
         }
-        if (C2->IsEmpty() || Contour::is_positive(type) != C1->clockwise) {
-            if (const_C1) result = *C1;
-            else result = std::move(*C1);
+        if (C2->IsEmpty()) {
+            if (OperationWithAnEmpty(type, C1->clockwise)) {
+                if (const_C1) result = *C1;
+                else result = std::move(*C1);
+            } else 
+                result.clear();
             return;
         }
         _ASSERT(C1->IsSane() && C2->IsSane());

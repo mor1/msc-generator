@@ -48,7 +48,7 @@ public:
     const Contour &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
-    virtual void PostPosProcess(double);
+    virtual void PostPosProcess(MscCanvas &, double);
     void DrawControls(MscCanvas*, double size);
     MscControlType WhichControl(const XY &xy);
 

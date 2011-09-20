@@ -48,8 +48,13 @@ class MscCanvas
 public:
     //WMF does the same as EMF, but uses features only that can be in WMFs
     typedef enum {PNG, EPS, PDF, SVG, EMF, WMF, WIN} OutputType;
+    typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_PARAM, ERR_DONE} ErrorType;
 protected:
-    /* Low-level options needed at drawing */
+    /* Low-level options */
+    bool         white_background; /* Draw a white background */
+    double       fake_scale; /*final rendering should be scaled like this */
+    unsigned	 fallback_resolution; /* for cairo WMF backends */
+    bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
     bool         use_text_path;  /* Use cairo_text_path() instead of cairo_show_text (windows metafile & truetype font problem)*/
     bool         use_text_path_rotated; /* Use text path() on rotated text */
     bool         individual_chars; /* Each character is drawn one by one */
@@ -59,14 +64,26 @@ protected:
     bool         fake_dash; /* Do not use cairo dash, mimic them with individual dashes */
     bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
     bool         needs_arrow_fix; /*Cannot do the convex clipping for arrowheads */
+    bool         imprecise_positioning; /*EMF/WMF has trouble doing lines on 0.5 boundaries*/
     
     /* Status of fake dashes */
     double       fake_dash_offset;
 
     /* Context data */
-    cairo_t * const  cr;
+    string      fileName;
+    FILE*       outFile;
+
+    cairo_surface_t *surface;
+    cairo_t         *cr;
     const OutputType outType;
-    const Block      extents;
+    const XY         total; //the full chart area (in unscaled chart coordinates, all pages) excluding copyright
+    ErrorType        status;
+    bool             candraw;
+
+    void SetLowLevelParams(MscCanvas::OutputType ot);
+    void GetPagePosition(const std::vector<double> *yPageStart, int page, XY &offset, XY &size) const;
+    ErrorType CreateSurface(const XY &size); 
+    ErrorType CreateContextFromSurface(OutputType, XY scale, XY origSize, XY origOffset, double copyrightTextHeight);
 
     void ArcPath(const contour::EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
@@ -96,11 +113,26 @@ friend class ArcPipe;  //for exotic line joints
     void Text(XY p, const string &s, bool isRotated);
 
 public:
-    MscCanvas(cairo_t *context, OutputType ot, double scale_sh, const Block &size);
+    MscCanvas(OutputType ot);
+    MscCanvas(OutputType, const XY &tot, double copyrightTextHeight, const string &fn, const XY &scale=XY(1.,1.),
+              const std::vector<double> *yPageStart=NULL, int page=-1);
+    ErrorType Status() const {return status;}
+#ifdef CAIRO_HAS_WIN32_SURFACE
+    HDC win32_dc, save_hdc;
+    MscCanvas(OutputType, HDC hdc, const XY &tot=XY(0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
+              const std::vector<double> *yPageStart=NULL, int page=-1);
+    HENHMETAFILE CloseOutputRetainHandleEMF();
+    HMETAFILE CloseOutputRetainHandleWMF();
+#endif
+    void PrepareForCopyrightText();
+    void CloseOutput();
+    ~MscCanvas() {if (status==ERR_OK) CloseOutput();}
+
     OutputType GetOutputType() const {return outType;}
     cairo_t *GetContext() const {return cr;}
-    const Block &GetExtents() const {return extents;}
+    const XY &GetSize() const {return total;}
     bool NeedsArrowFix() const {return needs_arrow_fix;}
+    bool HasImprecisePositioning() const {return imprecise_positioning;}
 
     cairo_line_join_t SetLineJoin(cairo_line_join_t t);
     cairo_line_cap_t SetLineCap(cairo_line_cap_t t);
@@ -131,49 +163,6 @@ public:
     void Shadow(const Block &b, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false) {Shadow(b, MscLineAttr(), shadow, shadow_x_neg, shadow_y_neg);}
     void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
     void Shadow(const Area &area, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
-};
-
-// Base class for Mscs that can draw themselves
-class MscBase
-{
-  protected:
-    string      fileName;
-    FILE*       outFile;
-
-    /* Low-level options needed at context creation */
-    bool         white_background; /* Draw a white background */
-    double       fake_scale; /*final rendering should be scaled like this */
-    unsigned	 fallback_resolution; /* for cairo WMF backends */
-    bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
-
-    cairo_surface_t *surface;
-    cairo_t         *context;
-    MscCanvas       *canvas;
-
-    void SetLowLevelParams(MscCanvas::OutputType ot);
-    bool CreateContextAndCanvasFromSurface(MscCanvas::OutputType, XY scale, XY origSize, XY origOffset);
-  public:
-    MscBase();
-    MscCanvas *GetCanvas() {return canvas;}
-    void GetPagePosition(int page, XY &offset, XY &size) const;
-    bool SetOutput(MscCanvas::OutputType, double x_scale=1.0, double y_scale=1.0, const string &fn=string(), int page=-1);
-#ifdef CAIRO_HAS_WIN32_SURFACE
-    HDC win32_dc, save_hdc;
-    bool SetOutputWin32(MscCanvas::OutputType, HDC hdc, double x_scale=1.0, double y_scale=1.0, int page=-1);
-    HENHMETAFILE CloseOutputRetainHandleEMF();
-    HMETAFILE CloseOutputRetainHandleWMF();
-#endif
-    void PrepareForCopyrightText();
-    void CloseOutput();
-
-    MscError     Error;
-    unsigned     current_file;  /* The number of the file under parsing, plus the error location */
-    /** The total width & height of the drawing and the height of the bottom copyright text (all to be calculated) */
-    XY total;
-    double copyrightTextHeight;
-	/** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
-    std::vector<double> yPageStart;
-
 };
 
 //A number, which is larger than any chart, but small enough for contour to make no mistakes

@@ -70,6 +70,16 @@ void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
         running_style += chart->Contexts.back().styles[collapsed?"collapsed_entity":"expanded_entity"];
 }
 
+//returns the width of the entityline taking active status into account
+//relies on running_shown, running_style into account
+//use this during the PostParseProcess
+//returns 0 if no entity line (turned off)
+double Entity::GetRunningWidth(double activeEntitySize) const
+{
+    if (!running_shown.IsOn()) return 0;
+    if (running_shown.IsActive()) return activeEntitySize;
+    return running_style.vline.LineWidth();
+}
 
 string Entity::Print(int ident) const
 {
@@ -508,7 +518,7 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
-void EntityDef::PostPosProcess(double dummy)
+void EntityDef::PostPosProcess(MscCanvas &canvas, double dummy)
 {
     if (draw_heading && !hidden) {
         chart->HideEntityLines(outer_edge);
@@ -532,11 +542,11 @@ void EntityDef::PostPosProcess(double dummy)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
-    TrackableElement::PostPosProcess(dummy);
+    TrackableElement::PostPosProcess(canvas, dummy);
 }
 
 
-void EntityDef::Draw()
+void EntityDef::Draw(MscCanvas &canvas)
 {
     const double lw = style.line.LineWidth();
 
@@ -547,23 +557,23 @@ void EntityDef::Draw()
     if (line2.radius.second>0)
         line2.radius.second += lw-line2.width.second/2.;  //expand to outer edge
     b.Expand(-line2.width.second/2.);
-    chart->GetCanvas()->Shadow(b, style.line, style.shadow);
+    canvas.Shadow(b, style.line, style.shadow);
     if (style.fill.color.first && style.fill.color.second.valid) {
         b.Expand(-lw+style.line.width.second);
         line2.radius.second += -lw+style.line.width.second; //only decreases radius
-        chart->GetCanvas()->Fill(b, style.line, style.fill);
+        canvas.Fill(b, style.line, style.fill);
     }
     Block b2(outer_edge);
     b2.Expand(-lw/2);
     line2 = style.line;
     line2.radius.second -= lw/2;
-    chart->GetCanvas()->Line(b2, style.line);
+    canvas.Line(b2, style.line);
 
     //Draw text
-    parsed_label.Draw(chart->GetCanvas(), b2.x.from, b2.x.till, b2.y.from + lw/2);
+    parsed_label.Draw(&canvas, b2.x.from, b2.x.till, b2.y.from + lw/2);
     //Draw indicator
     if (indicator_ypos_offset > 0)
         DrawIndicator(XY(outer_edge.CenterPoint().x, outer_edge.y.from + indicator_ypos_offset),
-                      chart->GetCanvas());
+                      &canvas);
 }
 
