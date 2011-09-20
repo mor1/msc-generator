@@ -1045,8 +1045,8 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     if (total.y == 0) {
         //start with width calculation, that is used by many elements
         //First reset running shown of entities, this will be used during Width() pass
-        for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
-            (*i)->running_shown = EEntityStatus::SHOW_OFF;
+        //for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
+        //    (*i)->running_shown = EEntityStatus::SHOW_OFF;
         EntityDistanceMap distances;
         //Add distance for arcs,
         //needed for hscale=auto, but also for entity width calculation
