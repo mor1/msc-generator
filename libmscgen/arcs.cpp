@@ -720,20 +720,18 @@ ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range 
 ArcBase *ArcDirArrow::AddAttributeList(AttributeList *l)
 {
     //Save the style, empty it, collect all modifications and apply those to segments, too
+    //This will work even if we are a BigArrow
     MscStyle save(style);
     style.Empty();
     ArcArrow::AddAttributeList(l);
-    save += style;
     for (unsigned i=0; i<segment_types.size(); i++) {
-        const MscStyle *refinement = GetRefinementStyle(segment_types[i]);
-        if (refinement) {
-            segment_lines.push_back(chart->Contexts.back().styles["arrow"].line);
+        segment_lines.push_back(save.line);
+        const MscStyle * const refinement = GetRefinementStyle(segment_types[i]);
+        if (refinement) 
             *segment_lines.rbegin() += refinement->line;
-            *segment_lines.rbegin() += style.line;
-        } else {
-            segment_lines.push_back(save.line);
-        }
+        *segment_lines.rbegin() += style.line;
     }
+    save += style;
     style = save;
     return this;
 }
@@ -1210,14 +1208,16 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     //    for (unsigned i=1; i<act_size.size()-1; i++)
     //        act_size[i] = 0;
 
-    const DoublePair start = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_START, dy-sy);
-    const DoublePair end   = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_END, dy-sy);
-    //entity line thickness (due to activate) at src and dst
-    const double src_act = *act_size.begin();
+    const DoublePair start = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_START, dy-sy, 
+        segment_lines[fw ? 0 : segment_lines.size()-1], segment_lines[fw ? 0 : segment_lines.size()-1]);
+    const DoublePair end   = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_END, dy-sy,
+        segment_lines[fw ? segment_lines.size()-1 : 0], segment_lines[fw ? segment_lines.size()-1 : 0]);
     const double dst_act = *act_size.rbegin();
 
-    distances.Insert((fw ? *src : *dst)->index, DISTANCE_LEFT, start.first + (fw ? src_act : dst_act));
-    distances.Insert((fw ? *dst : *src)->index, DISTANCE_RIGHT, end.second + (fw ? dst_act : src_act));
+    //distances.Insert((fw ? *src : *dst)->index, DISTANCE_LEFT, start.first + (fw ? src_act : dst_act));
+    //distances.Insert((fw ? *dst : *src)->index, DISTANCE_RIGHT, end.second + (fw ? dst_act : src_act));
+    distances.Insert((*src)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, (fw ? start.first : start.second) + *act_size.begin() );
+    distances.Insert((*dst)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, (fw ? end.second  : end.first   ) + *act_size.rbegin());
 
     //Collect iterators and distances into arrays
     std::vector<EIterator> iterators;
@@ -1227,7 +1227,9 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     margins.push_back(start);
     for (unsigned i=0; i<middle.size(); i++) {
         iterators.push_back(middle[i]);
-        margins.push_back(style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_MIDDLE, dy-sy));
+        const DoublePair mid = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_MIDDLE, dy-sy,
+                               segment_lines[fw ? i : segment_lines.size()-1 - i], segment_lines[fw ? i+1 : segment_lines.size()-2 - i]);
+        margins.push_back(mid);
     }
     iterators.push_back(dst);
     margins.push_back(end);
@@ -1268,9 +1270,11 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
         dtext = iterators.size()-1;
     }
     //calculate text margin. segment_lines is now ordered from smaller x to larger x
-    sm = style.arrow.getBigMargin(tcov, 0, dy-sy, true, fw, isBidir(), WhichArrow(stext)) +
+    sm = style.arrow.getBigMargin(tcov, 0, dy-sy, true, fw, isBidir(), WhichArrow(stext),
+                                  segment_lines[stext],  segment_lines[stext]) +
          segment_lines[stext].LineWidth();
-    dm = style.arrow.getBigMargin(tcov, 0, dy-sy, false, fw, isBidir(), WhichArrow(dtext)) +
+    dm = style.arrow.getBigMargin(tcov, 0, dy-sy, false, fw, isBidir(), WhichArrow(dtext),
+                                  segment_lines[dtext-1],  segment_lines[dtext-1]) +
          segment_lines[dtext-1].LineWidth();
     distances.Insert((*iterators[stext])->index, (*iterators[dtext])->index, 
         sm + twh.x + dm + act_size[stext] +act_size[dtext]);
@@ -1311,6 +1315,10 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
     area.arc = this;
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
+
+    //due to thick lines we can extend above y==0. Shift down to avoid it
+    if (area.GetBoundingBox().y.from < chart->arcVGapAbove)
+        ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
     cover = area.CreateExpand(chart->compressGap/2);
     return centerline*2 - chart->arcVGapAbove + chart->arcVGapBelow + style.shadow.offset.second;
 }
@@ -1318,6 +1326,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
 void ArcBigArrow::ShiftBy(double y)
 {
     if (!valid) return;
+    centerline += y;
     sy += y;
     dy += y;
     label_cover.Shift(XY(0,y));
@@ -1342,7 +1351,7 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 void ArcBigArrow::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
-    style.arrow.BigDraw(xPos, act_size, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, &canvas, &label_cover);
+    style.arrow.BigDraw(xPos, act_size, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, canvas, &label_cover);
     parsed_label.Draw(&canvas, sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
         DrawIndicator(XY(cx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside+ind_off), &canvas);
@@ -1660,8 +1669,8 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     const XY twh = parsed_label.getTextWidthHeight();
     const Contour text_cover = parsed_label.Cover(0, twh.x, lw/2);
 
-    const double sm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, true, style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_START);
-    const double dm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, false, style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_END);
+    const double sm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, true,  style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_START, style.line, style.line);
+    const double dm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, false, style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_END,   style.line, style.line);
     const double ss = style.arrow.getBigWidthHeight(isBidir(), MSC_ARROW_START).x;
     const double ds = style.arrow.getBigWidthHeight(isBidir(), MSC_ARROW_END).x;
 
@@ -1728,7 +1737,7 @@ void ArcVerticalArrow::Draw(MscCanvas &canvas)
                                         -1, true);
     std::vector<double> act_size(2,0);
     style.arrow.BigDraw(ypos, act_size, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill,
-                        NULL, &canvas, &lab,
+                        NULL, canvas, &lab,
                         style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
     parsed_label.Draw(&canvas, min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
                       xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);
