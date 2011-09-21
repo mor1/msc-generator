@@ -116,18 +116,21 @@ public:
     //tells how much of the arrow body is covered by the arrowhead (on both sides of the entity line)
     DoublePair getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
     //tells the full width of the arrowhead (on both sides of the entity line) for ArcBigArrow::Width()
-    DoublePair getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
+    DoublePair getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd which, double body_height,
+                                    const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //Determines how much margin is needed for a text with this cover
-    double getBigMargin(Contour text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which) const;
+    double getBigMargin(Contour text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which,
+                        const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //tells how much the arrow (overall) extends above or below sy and dy
     double bigYExtent(bool bidir, bool multisegment) const;
     Contour BigMidLineOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
-    Contour BigMidLine(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, bool bidir) const;
+    Contour BigMidLine(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
+                       const std::vector<MscLineAttr> *lines) const;
     Contour BigOuterLine(const std::vector<double> &xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
                          const std::vector<MscLineAttr> *lines, bool spacing_only) const;
     void BigDraw(const std::vector<double> &xPos, std::vector<double> act_size, 
                  double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
-                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscCanvas *canvas,
+                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscCanvas &canvas,
                  const Contour *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
 };
 

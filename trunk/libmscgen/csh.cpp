@@ -941,7 +941,7 @@ bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam)
     MscShadowAttr shadow;
     MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
     std::vector<double> active(2,0.);
-    ah.BigDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, canvas);
+    ah.BigDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, *canvas);
     canvas->UnClip();
     return true;
 }

@@ -58,9 +58,11 @@ FIXED: Block arrows ->a-> should keep gap if a is active
 CANCELLED: why cannot I defstyle entity [active=yes]? (Because it is not a style attr. Now we give error.)
 FIXED: MscCanvas and MscBase and Msc
 FIXED: Block arrowheads draw well
+FIXED: Block arrow space for sharp - take linewidth into account: add line formatting to big calls
+FIXED: Line segment stuff not copied to all segments
+FIXED: Why block arrows compress badly?
 
-FIX: Block arrow space for sharp - take linewidth into account
-FIX: Line segment stuff not copied to all segments
+FIX: stripes with thick lines should expand...
 FIX: Triple bevel changes size when size limited.
 FIX: labels should keep gap if a->b:aaa is between two active entities
 FIX: Pipes should be wider if entity is active
