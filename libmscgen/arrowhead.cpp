@@ -185,7 +185,8 @@ bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p
     MscShadowAttr shadow;
     MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
     std::vector<double> active(2,0.);
-    ah.BigDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, false, shadow, fill, NULL, *canvas);
+    ah.BigCalculateAndDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, 
+                           true, false, fill, shadow, *canvas);
     canvas->UnClip();
     return true;
 }
@@ -837,7 +838,7 @@ DoublePair ArrowHead::getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd 
         break;
     case MSC_ARROW_TRIANGLE_STRIPES:
         {
-            const Range x = BigMidLineOne(0, 0, 0, body_height, forward, bidir, which).GetBoundingBox().x;
+            const Range x = BigContourOneEntity(0, 0, 0, body_height, forward, bidir, which).GetBoundingBox().x;
             ret.first = fabs(x.from);
             ret.second = fabs(x.till);
             return ret;
@@ -863,7 +864,7 @@ DoublePair ArrowHead::getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd
     switch (t) {
     case MSC_ARROW_SHARP:
         {
-            const Contour cov = BigMidLineOne(0, 0, 0, body_height, forward, bidir, which);
+            const Contour cov = BigContourOneEntity(0, 0, 0, body_height, forward, bidir, which);
             Block block = cov.GetBoundingBox().CreateExpand(1);
             block.x.till = 0;
             Block bb = (cov * block).CreateExpand(mainline_left.LineWidth()/2).GetBoundingBox();
@@ -911,7 +912,8 @@ bool ArrowHead::bigDoesSegment(bool bidir, MscArrowEnd which) const
 //left tells us if we need the left or right margin for the text
 //forward tells us if the arrow is like -> or like <-
 //bidir and which further specifies which arrowhead to use
-//sy and dy tells us where is the text drawn (should be equal to the y aspect of the bounding box of text_cover)
+//sy and dy tells us where is the outer line of the line
+//(should be equal to the y aspect of the bounding box of text_cover + plus two linewidths
 double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which,
                                const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
 {
@@ -919,7 +921,7 @@ double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool le
     const double asize = left ? tmp.second : -tmp.first;
     if (asize == 0) return 0; //no margin for no arrowhead
     Contour arrow_head = Contour(asize, left ? -MSC_BIG_COORD : MSC_BIG_COORD, -MSC_BIG_COORD, +MSC_BIG_COORD) -
-        BigMidLineOne(0, 0, sy, dy, forward, bidir, which);
+        BigContourOneEntity(0, 0, sy, dy, forward, bidir, which);
     //TODO: above we should shrink the arrowhead by lw2
     const Range left_right = text_cover.GetBoundingBox().x;
     text_cover.Rotate(90);
@@ -967,7 +969,7 @@ inline double ArrowHead::CalcTriangleExpansion(double x, double y, bool symmetri
 }
 
 //Draw one arrowhead. If bidir and solid, we draw both
-Contour ArrowHead::BigMidLineOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const
+Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const
 {
     if (which == MSC_ARROW_START) forward = !forward;
     const double lw2 = line.LineWidth()/2;
@@ -1088,25 +1090,24 @@ Contour ArrowHead::BigMidLineOne(double x, double act_size, double sy, double dy
     return area;
 }
 
-//if no_segment==-1 return the cover for all segments, if not, return only one segment (if we have multiple)
-Contour ArrowHead::BigMidLine(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
-                              const std::vector<MscLineAttr> *lines) const
+//returns the outer line of the block arrow, each segment in a separate
+//Contour. If mid-arrow does not segment only one Contour is returned
+Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, double sy, double dy, bool forward, bool bidir, 
+                              std::vector<Contour> &result) const
 {
     Contour area;
-    const bool forward = xPos[0] < xPos[1];
     const MscArrowEnd i_begin = forward ? MSC_ARROW_START : MSC_ARROW_END;
     const MscArrowEnd i_end   = forward ? MSC_ARROW_END : MSC_ARROW_START;
-    std::sort(xPos.begin(), xPos.end()); //from left to right
 
     const bool segment = bigDoesSegment(bidir, MSC_ARROW_MIDDLE);
     //draw leftmost arrowhead
-    area += BigMidLineOne(xPos[0], act_size[0], sy, dy, forward, bidir, i_begin);
+    area += BigContourOneEntity(xPos[0], act_size[0], sy, dy, forward, bidir, i_begin);
     double from_x = xPos[0] + getBigWidthsForBody(forward, bidir, i_begin, dy-sy).second + act_size[0];
 
     //set up variables for mid-points
     DoublePair mid_xx = getBigWidthsForBody(forward, bidir, MSC_ARROW_MIDDLE, dy-sy);
     for (unsigned i=1; i<xPos.size()-1; i++) {
-        area += BigMidLineOne(xPos[i], act_size[i], sy, dy, forward, bidir, MSC_ARROW_MIDDLE);
+        area += BigContourOneEntity(xPos[i], act_size[i], sy, dy, forward, bidir, MSC_ARROW_MIDDLE);
         if (segment) {
             double to_x = xPos[i] - mid_xx.first - act_size[i];
             area += Block(from_x, to_x, sy, dy);
@@ -1114,22 +1115,15 @@ Contour ArrowHead::BigMidLine(std::vector<double> xPos, std::vector<double> act_
         }
     }
     //draw rightmost arrowhead
-    area += BigMidLineOne(xPos[xPos.size()-1], act_size[act_size.size()-1], sy, dy, forward, bidir, i_end);
+    area += BigContourOneEntity(xPos[xPos.size()-1], act_size[act_size.size()-1], sy, dy, forward, bidir, i_end);
     double to_x = xPos[xPos.size()-1] - getBigWidthsForBody(forward, bidir, i_end, dy-sy).first - act_size[act_size.size()-1];
     area += Block(from_x, to_x, sy, dy);
 
-    return area;
-}
+    //Now split this into segments
 
-Contour ArrowHead::BigOuterLine(const std::vector<double> &xPos, std::vector<double> act_size, 
-                                double sy, double dy, bool bidir,
-                                const std::vector<MscLineAttr> *lines, bool spacing_only) const
-{
-    const Contour area = BigMidLine(xPos, act_size, sy, dy, bidir, lines);
-    Block total = area.GetBoundingBox();
-    total.Expand(1000); //max total linewith is surely smaller than this
-    Contour ret;
-    if (xPos.size()>2 && bigDoesSegment(bidir, MSC_ARROW_MIDDLE) && lines) {
+    if (xPos.size()>2 && segment) {
+        result.reserve(xPos.size()-1);
+        Block total = area.GetBoundingBox();
         for (unsigned i=0; i<xPos.size()-1; i++) {
             Block this_segment(Range(xPos[i], xPos[i+1]), total.y);
             if (i==0) {
@@ -1139,58 +1133,52 @@ Contour ArrowHead::BigOuterLine(const std::vector<double> &xPos, std::vector<dou
                 if (xPos[0]<xPos[1]) this_segment.x.till = total.x.till;
                 else this_segment.x.from = total.x.from;
             }
-            const Contour local_area = area * this_segment;
-            const double gap = spacing_only ? lines->at(i).Spacing() : lines->at(i).LineWidth()/2;
-            ret += local_area.CreateExpand(gap);
+            result.push_back(area * this_segment);
         }
-    } else {
-        const double gap = spacing_only ? line.Spacing() : line.LineWidth()/2;
-        ret = area.CreateExpand(gap);
-    }
-    return ret;
+    } else
+        result.push_back(area);
+    return area;
 }
 
-void ArrowHead::BigDraw(const std::vector<double> &xPos, std::vector<double> act_size, 
-                        double sy, double dy, bool bidir,
-                        const MscShadowAttr &shadow, const MscFillAttr &fill,
-                        const std::vector<MscLineAttr> *lines, MscCanvas &canvas,
-                        const Contour * /*clip*/, bool shadow_x_neg, bool shadow_y_neg) const
+void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
+                 const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
+                 bool shadow_x_neg, bool shadow_y_neg) const
 {
-    const Contour area = BigMidLine(xPos, act_size, sy, dy, bidir, lines);
-    if (xPos.size()>2 && bigDoesSegment(bidir, MSC_ARROW_MIDDLE) && lines) {
-        for (unsigned i=0; i<xPos.size()-1; i++) {
-            Block this_segment(xPos[i], xPos[i+1], 0, canvas.GetSize().y);
-            if (i==0) {
-                if (xPos[0]<xPos[1]) this_segment.x.from = 0;
-                else this_segment.x.till = canvas.GetSize().x;
-            } else if (i==xPos.size()-1) {
-                if (xPos[0]<xPos[1]) this_segment.x.till = canvas.GetSize().x;
-                else this_segment.x.from = 0;
-            }
-            const Area local_area = area * this_segment;
-            const double gap = lines->at(i).LineWidth()/2-lines->at(i).width.second/2;
-            canvas.Shadow(local_area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
-            canvas.Fill  (local_area.CreateExpand(-gap), fill);
-            canvas.Line  (local_area, lines->at(i));
-        }
-    } else {
-        const double gap = line.LineWidth()/2-line.width.second/2;
-        canvas.Shadow(area.CreateExpand( gap), shadow, shadow_x_neg, shadow_y_neg);
-        canvas.Fill  (area.CreateExpand(-gap), fill);
-        canvas.Line  (area, line);
-        const MscArrowType t = GetType(bidir, MSC_ARROW_MIDDLE);
-        //if we have empty_dot or empty_diamond middle arrow types, draw them in addition
-        //..but clip the drawing area, so that text is not disturbed
-        //if (clip) msc->ClipInverse(*clip);
-        if (xPos.size()>2 && (t==MSC_ARROW_DOT_EMPTY ||t==MSC_ARROW_DIAMOND_EMPTY)) {
-            const double x_off = getBigWidthHeight(bidir, MSC_ARROW_MIDDLE).x;
-            const XY center(0, (dy+sy)/2);
-            const XY wh(x_off, (dy-sy)/2);
-            const Contour contour = t==MSC_ARROW_DOT_EMPTY ? Contour(center, wh.x, wh.y) : diamond(center, wh);
-            for (unsigned i=1; i<xPos.size()-1; i++)
-                canvas.Line(contour.CreateShifted(XY(xPos[i], 0)), line);
-        }
-        //if (clip) msc->UnClip();
+    
+    for (unsigned i=0; i<result.size(); i++) {
+        const MscLineAttr &l = lines ? lines->at(i) : line;
+        const double gap = l.LineWidth()/2-lines->at(i).width.second/2;
+        const Contour midline = result[i].CreateExpand(-l.LineWidth()/2);
+        canvas.Shadow(midline, shadow, shadow_x_neg, shadow_y_neg);
+        canvas.Fill  (midline.CreateExpand(-l.Spacing()), fill); 
+        canvas.Line  (midline, l);
     }
 }
+void ArrowHead::BigDrawEmptyMid(const std::vector<double> &xPos, double sy, double dy, 
+                                MscCanvas &canvas, const Contour *clip) const
+{
+    //if we have empty_dot or empty_diamond middle arrow types, draw them in addition
+    //..but clip the drawing area, so that text is not disturbed
+    if (xPos.size()<=2 || (midType.second!=MSC_ARROW_DOT_EMPTY && midType.second==MSC_ARROW_DIAMOND_EMPTY)) 
+        return;
+    if (clip) canvas.ClipInverse(*clip);
+    const double x_off = getBigWidthHeight(false, MSC_ARROW_MIDDLE).x;
+    const XY center(0, (dy+sy)/2);
+    const double lw2 = line.LineWidth()/2;
+    const XY wh(x_off - lw2, (dy-sy)/2 - lw2);
+    const Contour contour = midType.second==MSC_ARROW_DOT_EMPTY ? Contour(center, wh.x, wh.y) : diamond(center, wh);
+    for (unsigned i=1; i<xPos.size()-1; i++)
+        canvas.Line(contour.CreateShifted(XY(xPos[i], 0)), line);
+    if (clip) canvas.UnClip();
+}
 
+void ArrowHead::BigCalculateAndDraw(const std::vector<double> &xPos, const std::vector<double> &act_size, 
+                                    double sy, double dy, bool forward, bool bidir,
+                                    const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
+                                    const Contour *clip, bool shadow_x_neg, bool shadow_y_neg) const
+{
+    std::vector<Contour> cont;
+    BigContour(xPos, act_size, sy, dy, forward, bidir, cont);
+    BigDrawFromContour(cont, NULL, fill, shadow, canvas, shadow_x_neg, shadow_y_neg);
+    BigDrawEmptyMid(xPos, sy, dy, canvas, clip);
+}

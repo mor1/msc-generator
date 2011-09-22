@@ -245,6 +245,7 @@ protected:
     mutable int stext, dtext; //filled by Width: index the two entity in xPos between which the text spans (sorted)
     mutable double sm, dm;    //filled by Width: margin (left and right) for text
     mutable Contour label_cover;
+    mutable std::vector<Contour> outer_contours; //the outer line of all segments
 public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);
     ArcBigArrow(const EntityList &, bool bidir, const ArcLabelled &al, const ArcSignature *s);
@@ -287,6 +288,7 @@ protected:
     mutable std::vector<double> ypos; //calculate them in PostPosProcess
     mutable double sy_text, dy_text;
     mutable double xpos, width;
+    mutable std::vector<Contour> outer_contours;
 public:
     ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc);
     ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);

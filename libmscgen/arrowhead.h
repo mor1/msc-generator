@@ -123,15 +123,18 @@ public:
                         const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     //tells how much the arrow (overall) extends above or below sy and dy
     double bigYExtent(bool bidir, bool multisegment) const;
-    Contour BigMidLineOne(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
-    Contour BigMidLine(std::vector<double> xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
-                       const std::vector<MscLineAttr> *lines) const;
-    Contour BigOuterLine(const std::vector<double> &xPos, std::vector<double> act_size, double sy, double dy, bool bidir,
-                         const std::vector<MscLineAttr> *lines, bool spacing_only) const;
-    void BigDraw(const std::vector<double> &xPos, std::vector<double> act_size, 
-                 double sy, double dy, bool bidir,  const MscShadowAttr &shadow,
-                 const MscFillAttr &fill, const std::vector<MscLineAttr> *lines, MscCanvas &canvas,
-                 const Contour *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
+    Contour BigContourOneEntity(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
+    Contour BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, double sy, double dy, bool forward, bool bidir,
+                       std::vector<Contour> &result) const;
+    void BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
+                 const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
+                 bool shadow_x_neg=false, bool shadow_y_neg=false) const;
+    void BigDrawEmptyMid(const std::vector<double> &xPos, double sy, double dy, 
+                         MscCanvas &canvas, const Contour *clip=NULL) const;
+    void BigCalculateAndDraw(const std::vector<double> &xPos, const std::vector<double> &act_size, 
+                             double sy, double dy, bool forward, bool bidir,
+                             const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
+                             const Contour *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
 };
 
 #endif //ARROWHEAD_H

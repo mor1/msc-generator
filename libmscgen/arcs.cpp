@@ -1311,7 +1311,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
         cx_text = (xPos[xPos.size()-1-stext] + xPos[xPos.size()-1-dtext])/2;
     }
     label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
-    area = style.arrow.BigOuterLine(xPos, act_size, sy, dy, isBidir(), &segment_lines, false);
+    area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), outer_contours);
     area.arc = this;
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
@@ -1330,6 +1330,8 @@ void ArcBigArrow::ShiftBy(double y)
     sy += y;
     dy += y;
     label_cover.Shift(XY(0,y));
+    for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
+        i->Shift(XY(0,y));
     ArcArrow::ShiftBy(y); //Skip ArcDirArrow
 }
 
@@ -1343,15 +1345,14 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
         controls.push_back(MSC_CONTROL_COLLAPSE);        
     }
     ArcArrow::PostPosProcess(canvas, autoMarker); //Skip ArcDirArrow
-    const Block total(XY(0,0), chart->total);
-    const Contour outer_line = style.arrow.BigOuterLine(xPos, act_size, sy, dy, isBidir(), &segment_lines, true);
-    chart->HideEntityLines(outer_line);
+    for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
+    chart->HideEntityLines(*i);
 }
 
 void ArcBigArrow::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
-    style.arrow.BigDraw(xPos, act_size, sy, dy, isBidir(), style.shadow, style.fill, &segment_lines, canvas, &label_cover);
+    style.arrow.BigDrawFromContour(outer_contours, &segment_lines, style.fill, style.shadow, canvas, &label_cover);
     parsed_label.Draw(&canvas, sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
         DrawIndicator(XY(cx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside+ind_off), &canvas);
@@ -1662,7 +1663,11 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
         return;
     }
 
-    if (style.side.second == SIDE_RIGHT)
+    const bool forward = ypos[0] < ypos[1];
+
+    //if (style.side.second == SIDE_RIGHT)
+    //    swap(ypos[0], ypos[1]);
+    if (!forward)
         swap(ypos[0], ypos[1]);
 
     const double lw = style.line.LineWidth();
@@ -1674,10 +1679,10 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     const double ss = style.arrow.getBigWidthHeight(isBidir(), MSC_ARROW_START).x;
     const double ds = style.arrow.getBigWidthHeight(isBidir(), MSC_ARROW_END).x;
 
-    if (sm + twh.x + dm  > fabs(ypos[0]-ypos[1]))
+    if (sm + twh.x + dm  > ypos[1]-ypos[0])
         chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
                                  "May look strange.");
-    if (ss+ds > fabs(ypos[0]-ypos[1])) {
+    if (ss+ds > ypos[1]-ypos[0]) {
         chart->Error.Warning(file_pos.start, "Size of vertical element is too small to draw arrowheads. Ignoring it.");
         valid = false;
     }
@@ -1706,19 +1711,21 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     width -= lw; //not necessarily integer, the distance from midline to midline
 
     if (style.side.second == SIDE_LEFT) {
-        sy_text = std::min(ypos[0], ypos[1])+sm;
-        dy_text = std::max(ypos[0], ypos[1])-dm;
+        sy_text = ypos[0]+forward ? sm : dm;
+        dy_text = ypos[1]-forward ? dm : sm;
     } else {
-        sy_text = std::max(ypos[0], ypos[1])-sm;
-        dy_text = std::min(ypos[0], ypos[1])+dm;
+        sy_text = ypos[1]-forward ? sm : dm;
+        dy_text = ypos[0]+forward ? dm : sm;
     }
 
 	//Generate area
-    auto ypos_tmp = ypos;
-    std::swap(ypos_tmp[0], ypos_tmp[1]);
     std::vector<double> act_size(2, 0);
-    area = style.arrow.BigOuterLine(ypos_tmp, act_size, xpos-width/2, xpos+width/2, isBidir(), NULL, false);
+    //use inverse of forward, swapXY will do the job
+    area = style.arrow.BigContour(ypos, act_size, xpos-width/2, xpos+width/2, !
+                                  forward, isBidir(), outer_contours);
     area.SwapXY();
+    for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
+        i->SwapXY();
     //Expand area and add us to chart's all covers list
     ArcArrow::PostPosProcess(canvas, autoMarker);
 }
@@ -1736,10 +1743,10 @@ void ArcVerticalArrow::Draw(MscCanvas &canvas)
                                         xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
                                         -1, true);
     std::vector<double> act_size(2,0);
-    style.arrow.BigDraw(ypos, act_size, xpos-width/2, xpos+width/2, isBidir(), style.shadow, style.fill,
-                        NULL, canvas, &lab,
-                        style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
-    parsed_label.Draw(&canvas, min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+    style.arrow.BigDrawFromContour(outer_contours, NULL, style.fill, style.shadow, canvas,
+                                   style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
+    //We skip BigDrawEmptyMid. as there can not be mid-stops
+    parsed_label.Draw(&canvas, min(sy_text, dy_text), max(sy_text, dy_text),
                       xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);
     canvas.UnTransform();
 }
