@@ -39,6 +39,7 @@ inline bool MSC_ARROW_IS_TRIPLE(MscArrowType t) {return t>=MSC_ARROW_TRIPLE && t
 inline bool MSC_ARROW_IS_HALF(MscArrowType t) {return t==MSC_ARROW_HALF || t==MSC_ARROW_DOUBLE_HALF || t==MSC_ARROW_TRIPLE_HALF;}
 inline bool MSC_ARROW_IS_LINE(MscArrowType t) {return t==MSC_ARROW_LINE || t==MSC_ARROW_DOUBLE_LINE || t==MSC_ARROW_TRIPLE_LINE;}
 inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(MscArrowType t) {return t>0 && (t<=MSC_ARROW_SHARP_EMPTY || t>=MSC_ARROW_EMPTY_INV);}
+inline bool MSC_ARROW_IS_SYMMETRIC(MscArrowType t) {return t==MSC_ARROW_NONE || (MSC_ARROW_DIAMOND<=t && t<=MSC_ARROW_DOT_EMPTY);}
 
 typedef enum {
     MSC_ARROWS_INVALID = 0,
@@ -67,7 +68,6 @@ protected:
     static double baseDotSize;
     static double arrowSizePercentage[6];
 
-    static double CalcTriangleExpansion(double x, double y, bool symmetric, double lw2);
 public:
     enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
     MscLineAttr                   line;
@@ -88,8 +88,9 @@ public:
     static bool AttributeValues(const std::string &attr, Csh &csh, ArcType t);
     //tells what sort of MscArrowType should be drawn
     MscArrowType GetType(bool bidir, MscArrowEnd which) const;
+    MscArrowType GetType(bool forward, bool bidir, MscArrowEnd which, bool left) const;
 
-//functions for normal (small) arrowheads
+    //functions for normal (small) arrowheads
     //tells how wide and high a specific arrowhead
     XY getWidthHeight(bool bidir, MscArrowEnd which) const;
     //tells how wide a triangle is (=above for simple arrowheads, differs for DOUBLE and TRIPLE ones)
@@ -110,21 +111,24 @@ public:
 
 //functions for block arrow heads
     //The characteristic size of arrowhead
-    XY getBigWidthHeight(bool bidir, MscArrowEnd which) const;
-    //Returns true if this type of arrow will segment a big arrow as midtype
-    bool bigDoesSegment(bool bidir, MscArrowEnd which) const;
-    //tells how much of the arrow body is covered by the arrowhead (on both sides of the entity line)
-    DoublePair getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd which, double body_height) const;
+    XY getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) const;
+    //tells how much of the arrow body is covered by the arrowhead
+    //double getBigWidthsForBody(bool bidir, MscArrowType type, MscArrowEnd which, 
+    //                           double body_height, double act_size, const MscLineAttr &ltype) const;
     //tells the full width of the arrowhead (on both sides of the entity line) for ArcBigArrow::Width()
-    DoublePair getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd which, double body_height,
-                                    const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
+    double getBigWidthsForSpace(bool bidir, MscArrowType type, MscArrowEnd which, 
+                                double body_height, double act_size, const MscLineAttr &ltype) const;
     //Determines how much margin is needed for a text with this cover
-    double getBigMargin(Contour text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which,
-                        const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
+    double getBigMargin(Contour text_cover, double sy, double dy, bool margin_side_is_left, 
+                        bool bidir, MscArrowType type, const MscLineAttr &ltype) const;
     //tells how much the arrow (overall) extends above or below sy and dy
-    double bigYExtent(bool bidir, bool multisegment) const;
-    Contour BigContourOneEntity(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const;
-    Contour BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, double sy, double dy, bool forward, bool bidir,
+    double bigYExtent(bool bidir, bool forward=true, const std::vector<MscLineAttr> *lines=NULL) const;
+    Contour BigContourOneEntity(double x, double act_size, double sy, double dy, bool bidir,
+                                MscArrowType type, MscArrowEnd which, const MscLineAttr &ltype, 
+                                bool left, double *body_margin=NULL) const;
+    Contour BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
+                       double sy, double dy, bool forward, bool bidir, 
+                       const std::vector<MscLineAttr> *lines, 
                        std::vector<Contour> &result) const;
     void BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
                  const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,

@@ -283,6 +283,28 @@ MscArrowType ArrowHead::GetType(bool bidir, MscArrowEnd which) const
     return MSC_ARROW_NONE;
 }
 
+//"forward" is true if arrow is from left to right
+//"left" is true if we are interested in the arrow to draw to the left side of the entity line
+//for symmetric types (dot) this gives the same irrespective of "left"
+//this can return MSC_ARROW_INVALID for start and end arrows (outside part)
+MscArrowType ArrowHead::GetType(bool forward, bool bidir, MscArrowEnd which, bool left) const
+{
+    MscArrowType ret = GetType(bidir, which);
+    if (MSC_ARROW_IS_SYMMETRIC(ret)) return ret;
+    switch (which) {
+    case MSC_ARROW_START: 
+        return forward == left ? MSC_ARROW_INVALID : ret;
+    case MSC_ARROW_MIDDLE:
+        if (bidir) return ret;
+        return forward == left ? ret : MSC_ARROW_NONE;
+    case MSC_ARROW_END:
+        return forward == left ? ret : MSC_ARROW_INVALID;
+    }
+    _ASSERT(0);
+    return MSC_ARROW_NONE;
+}
+
+
 XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
 {
     XY xy;
@@ -762,20 +784,21 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
 }
 
 //For largely internal use - characteristic size of the big arrowheads
-XY ArrowHead::getBigWidthHeight(bool bidir, MscArrowEnd which) const
+XY ArrowHead::getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) const
 {
     static const double sizes[] = {3, 5, 10, 15, 25, 35};
+    const XY lw(ltype.LineWidth(), ltype.LineWidth());
     XY ret(0,0);
-    switch(GetType(bidir, which)) {
+    switch(type) {
     case MSC_ARROW_NONE:
     default:
         break;
     case MSC_ARROW_SOLID: /* Normal triangle */
     case MSC_ARROW_LINE: /* Normal Triangle */
-        ret = XY(2*sizes[size.second], sizes[size.second]);
+        ret = XY(2*sizes[size.second], sizes[size.second])+lw*2;
         break;
     case MSC_ARROW_SHARP: /* Sharp triangle */
-        ret = XY(SHARP_MUL_1*2*sizes[size.second], sizes[size.second]);
+        ret = XY(SHARP_MUL_1*2*sizes[size.second], sizes[size.second]) + lw*2;
         break;
     case MSC_ARROW_SHARP_EMPTY: /* Small triangle, no "serifs" */
     case MSC_ARROW_EMPTY: /* Small triangle, no "serifs" */
@@ -785,17 +808,17 @@ XY ArrowHead::getBigWidthHeight(bool bidir, MscArrowEnd which) const
         break;
     case MSC_ARROW_DIAMOND_EMPTY:
     case MSC_ARROW_DOT_EMPTY:
-        ret.x = 2*sizes[size.second];
+        ret.x = 2*sizes[size.second]+lw.x*2;
         break;
     case MSC_ARROW_DOT:
     case MSC_ARROW_DIAMOND:
-        ret = XY(2*sizes[size.second], sizes[size.second]);
+        ret = XY(2*sizes[size.second], sizes[size.second])+lw*2;
         break;
     case MSC_ARROW_STRIPES:
-        ret = XY(sizes[size.second]*2, 0);
+        ret = XY(sizes[size.second]*2+5*lw.x, 0);
         break;
     case MSC_ARROW_TRIANGLE_STRIPES:
-        ret = XY(sizes[size.second]*2*1.2, 0);
+        ret = XY(sizes[size.second]*2*1.2+5*lw.x, 0);
         break;
     }
     if (xmul.first) ret.x *= xmul.second;
@@ -803,131 +826,48 @@ XY ArrowHead::getBigWidthHeight(bool bidir, MscArrowEnd which) const
     return ret;
 }
 
-/* return value:
- * - first is the extent on the left side of the entity line
- * - second is the extent on the right side of the entity line
- * (extent means, how long the body of the arrow shall be drawn)
- * formard is true if the start entiry of the arrow is left from its destination (like -> and not like <-)
- * if which is start, we swap the two values (as we should, to get the above)
- * body_height contains the height of the text within
- */
-DoublePair ArrowHead::getBigWidthsForBody(bool forward, bool bidir, MscArrowEnd which, double body_height) const
-{
-    XY wh = getBigWidthHeight(bidir, which);
-    const double lw2 = line.LineWidth()/2;
-    DoublePair ret(0,0);
-    const MscArrowType t = GetType(bidir, which);
-    switch(t) {
-    default:
-    case MSC_ARROW_NONE:
-    case MSC_ARROW_DIAMOND:
-    case MSC_ARROW_DOT:
-    case MSC_ARROW_DIAMOND_EMPTY:
-    case MSC_ARROW_DOT_EMPTY:
-        break;
-    case MSC_ARROW_SOLID: 
-    case MSC_ARROW_EMPTY: 
-    case MSC_ARROW_SHARP_EMPTY: /* Small triangle, no "serifs" */
-    case MSC_ARROW_LINE: 
-    case MSC_ARROW_HALF: 
-    case MSC_ARROW_EMPTY_INV: /* Inverse small triangle */
-    case MSC_ARROW_STRIPES:
-        ret.first += wh.x;
-        if ((bidir || t== MSC_ARROW_EMPTY_INV) && which == MSC_ARROW_MIDDLE)
-            ret.second = ret.first;
-        break;
-    case MSC_ARROW_TRIANGLE_STRIPES:
-        {
-            const Range x = BigContourOneEntity(0, 0, 0, body_height, forward, bidir, which).GetBoundingBox().x;
-            ret.first = fabs(x.from);
-            ret.second = fabs(x.till);
-            return ret;
-        }
-        break;
-    case MSC_ARROW_SHARP: /* Sharp triangle */
-        ret.first = wh.x*SHARP_MUL_2;
-        if (bidir && which == MSC_ARROW_MIDDLE)
-            ret.second=ret.first;
-        break;
-    }
-    if (!forward ^ (which==MSC_ARROW_START)) //if reverse or start, but not if both
-        ret.swap();
-    return ret;
-}
-
 //The values returned here are used to determine spacing between entities
-DoublePair ArrowHead::getBigWidthsForSpace(bool forward, bool bidir, MscArrowEnd which, double body_height,
-                                           const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
+//the value returned counts from the midline of the entity line
+double ArrowHead::getBigWidthsForSpace(bool bidir, MscArrowType type, MscArrowEnd which, 
+                                       double body_height, double act_size, const MscLineAttr &ltype) const
 {
-    const MscArrowType t = GetType(bidir, which);
-    DoublePair ret(getBigWidthHeight(bidir, which).x,0);
-    switch (t) {
-    case MSC_ARROW_SHARP:
-        {
-            const Contour cov = BigContourOneEntity(0, 0, 0, body_height, forward, bidir, which);
-            Block block = cov.GetBoundingBox().CreateExpand(1);
-            block.x.till = 0;
-            Block bb = (cov * block).CreateExpand(mainline_left.LineWidth()/2).GetBoundingBox();
-            ret.first = bb.IsInvalid() ? 0 : fabs(bb.x.from);
-            block.x.till = cov.GetBoundingBox().x.till + 1;
-            block.x.from = 0;
-            bb = (cov * block).CreateExpand(mainline_right.LineWidth()/2).GetBoundingBox();
-            ret.second = bb.IsInvalid() ? 0 : fabs(bb.x.till);
-            return ret;
-        }
-        break;
-    case MSC_ARROW_DOT_EMPTY:
-    case MSC_ARROW_DIAMOND_EMPTY:
-        ret.swap();
-        break;
+    switch (type) {
+    //case MSC_ARROW_SHARP:
+    //    {
+    //        //create an arrowhead |<-
+    //        const Contour cov = BigContourOneEntity(0, 0, 0, body_height, bidir, type, which, ltype, false);
+    //        Block block = cov.GetBoundingBox();
+    //        return block.IsInvalid() ? 0 : block.x.till;
+    //    }
     default:
-        return getBigWidthsForBody(forward, bidir, which, body_height);
-    }
-
-    return ret;
-}
-
-bool ArrowHead::bigDoesSegment(bool bidir, MscArrowEnd which) const
-{
-    switch(GetType(bidir, which)) {
-    default:
-        case MSC_ARROW_SOLID: 
-        case MSC_ARROW_EMPTY: 
-        case MSC_ARROW_EMPTY_INV: 
-        case MSC_ARROW_LINE: 
-        case MSC_ARROW_HALF: 
-        case MSC_ARROW_STRIPES:
-        case MSC_ARROW_TRIANGLE_STRIPES:
-            return true;
-        case MSC_ARROW_NONE:
-        case MSC_ARROW_DIAMOND:
-        case MSC_ARROW_DIAMOND_EMPTY:
-        case MSC_ARROW_DOT:
-        case MSC_ARROW_DOT_EMPTY:
-            return false;
+        return act_size+getBigWidthHeight(type, ltype).x;
     }
 }
 
 //Determines the margin of the text (from the entity line). Can be negative
-//left tells us if we need the left or right margin for the text
-//forward tells us if the arrow is like -> or like <-
-//bidir and which further specifies which arrowhead to use
-//sy and dy tells us where is the outer line of the line
+//"margin_side_is_left" tells us if we need the left or right margin for the text
+//"type" tells us what type of arrowhead do we have on the side of the text pointed by "left"
+//   (this type will be either a segmenting (non-symmetric) arrowhead or the start/end head)
+//sy and dy tells us where is the outer line of the body
 //(should be equal to the y aspect of the bounding box of text_cover + plus two linewidths
-double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool left, bool forward, bool bidir, MscArrowEnd which,
-                               const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
+double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool margin_side_is_left, 
+                               bool bidir, MscArrowType type, const MscLineAttr &ltype) const
 {
-    DoublePair tmp = getBigWidthsForBody(forward, bidir, which, dy-sy);
-    const double asize = left ? tmp.second : -tmp.first;
-    if (asize == 0) return 0; //no margin for no arrowhead
-    Contour arrow_head = Contour(asize, left ? -MSC_BIG_COORD : MSC_BIG_COORD, -MSC_BIG_COORD, +MSC_BIG_COORD) -
-        BigContourOneEntity(0, 0, sy, dy, forward, bidir, which);
-    //TODO: above we should shrink the arrowhead by lw2
+    if (type == MSC_ARROW_NONE) return 0;
+    double asize;
+    Contour arrow_head = BigContourOneEntity(0, 0, sy, dy, bidir, type, MSC_ARROW_END, ltype, !margin_side_is_left, &asize);
+    Block b = arrow_head.GetBoundingBox().CreateExpand(1);
+    if (margin_side_is_left) 
+        arrow_head += Block(asize, b.x.till, sy, dy); //add arrow block
+    else
+        arrow_head += Block(b.x.from, -asize, sy, dy);
+    arrow_head.Expand(-ltype.LineWidth());
+    arrow_head = Contour(b) - arrow_head;
     const Range left_right = text_cover.GetBoundingBox().x;
     text_cover.Rotate(90);
     arrow_head.Rotate(90);
     double off, tp;
-    if (!left) {
+    if (!margin_side_is_left) {
         off = text_cover.OffsetBelow(arrow_head, tp, CONTOUR_INFINITY);
         //now off is negative and smaller than tp, which is probably negative, too
         return -left_right.till-off;
@@ -938,53 +878,53 @@ double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool le
     }
 }
 
-double ArrowHead::bigYExtent(bool bidir, bool multisegment) const
+//if lines == NULL, we assume there are no middle arrowheads (single segment) and "this->line" is the
+//line type
+//else we use the linewidths in "lines" to estimate top height, except if mid arrowhead is not segmenting
+//we assume "lines" is ordered in increasing x coordinate. "forward" tells us if the arrow is -> or <-
+double ArrowHead::bigYExtent(bool bidir, bool forward, const std::vector<MscLineAttr> *lines) const
 {
-    double ret = getBigWidthHeight(bidir, MSC_ARROW_START).y;
-    ret = std::max(ret, getBigWidthHeight(bidir, MSC_ARROW_END).y);
-    if (multisegment)
-        ret = std::max(ret, getBigWidthHeight(bidir, MSC_ARROW_MIDDLE).y);
+    if (lines==NULL || lines->size()==0 || MSC_ARROW_IS_SYMMETRIC(midType.second)) {
+        const double h = std::max(getBigWidthHeight(startType.second, line).y, getBigWidthHeight(endType.second, line).y);
+        if (lines==NULL || lines->size()==0) return h;
+        return std::max(h, getBigWidthHeight(midType.second, line).y);
+    }
+    double ret = 0;
+    for (unsigned i=0; i<lines->size(); i++) {
+        MscArrowEnd t_left = MSC_ARROW_MIDDLE, t_right = MSC_ARROW_MIDDLE;
+        if (i==0) 
+            t_left = forward ? MSC_ARROW_START : MSC_ARROW_END;
+        if (i==lines->size()) 
+            t_right = forward ? MSC_ARROW_END : MSC_ARROW_START;
+        
+        const MscArrowType tt_left = GetType(forward, bidir, t_left, false);
+        const MscArrowType tt_right = GetType(forward, bidir, t_right, true);
+
+        const double h_left = getBigWidthHeight(tt_left, lines->at(i)).y;
+        const double h_right = getBigWidthHeight(tt_right, lines->at(i)).y;
+
+        ret = std::max(ret, std::max(h_left, h_right));
+    }
     return ret;
 }
 
 
-//if "symmetric" is true we have a triangle like ">", where y is the total height
-//if "symmetric" is false, we have a triangle like "_\" where y is the natural height
-//this returns how much the tip of the arrow moves to the x direction if the arrow is expanded by lw2
-//the return value has the same sign as "x", which can be negative
-inline double ArrowHead::CalcTriangleExpansion(double x, double y, bool symmetric, double lw2) 
+//Draw one arrowhead. either on the left or the right side of the entity line
+Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, double dy, bool bidir,
+                                       MscArrowType type, MscArrowEnd which, const MscLineAttr &ltype, 
+                                       bool left, double *body_margin) const
 {
-    _ASSERT(contour::test_positive(y));
-    _ASSERT(!contour::test_zero(x));
-    if (symmetric) {
-        const double sina2 = (y/2+2*lw2)/sqrt(x*x + y*y);
-        const double atl = lw2/sina2;
-        return x<0 ? -atl : atl;
-    } else {
-        //for alpha in(-pi/2, pi/2) we have tan(a/2) = tan(a)/(1+sqrt(1+tan(a)^2))
-        const double tana = y/x;
-        const double tana2 = tana / (1 + sqrt(1+tana*tana));
-        return lw2/tana;
-    }
-}
-
-//Draw one arrowhead. If bidir and solid, we draw both
-Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, double dy, bool forward, bool bidir, MscArrowEnd which) const
-{
-    if (which == MSC_ARROW_START) forward = !forward;
-    const double lw2 = line.LineWidth()/2;
-    const XY wh = getBigWidthHeight(bidir, which);
-          double x_off = forward ? - wh.x : wh.x;
-    const double x_act = forward ? -act_size : act_size;
+    const double lw2 = ltype.LineWidth()/2;
+    const XY wh = getBigWidthHeight(type, ltype);
+          double x_off = left ? - wh.x : wh.x;
+    const double x_act = left ? -act_size : act_size;
     const double mid_y = (sy+dy)/2;
     Contour area;
-    switch(GetType(bidir, which)) {
-    case MSC_ARROW_NONE: 
-        if (which == MSC_ARROW_MIDDLE) 
-            area = Block(x-act_size, x+act_size, sy, dy);
-        //else
-        //    area = Block(x, x+x_act, sy, dy);
+    double ret_body_margin = 0;
+    switch(type) {
     default:
+    case MSC_ARROW_NONE: 
+        ret_body_margin = act_size;
         break;
     
         //all these below draw a triangle
@@ -992,49 +932,27 @@ Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, dou
     case MSC_ARROW_LINE: 
     case MSC_ARROW_EMPTY: /* wh.y is zero here */
     case MSC_ARROW_SHARP_EMPTY: /* wh.y is zero here */
-        {
-            const double x_adj = CalcTriangleExpansion(x_off, 2*wh.y+dy-sy, true, lw2);
-            area += Contour(x+x_act+x_adj, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
-            if (bidir && which == MSC_ARROW_MIDDLE)
-                area += Contour(x-x_act-x_adj, mid_y, x-x_act-x_off, sy-wh.y, x-x_act-x_off, dy+wh.y);
-        }
+        area = Contour(x+x_act, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
+        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
         break;
 
     case MSC_ARROW_SHARP:
-        {
-            const double x_adj = CalcTriangleExpansion(x_off, 2*wh.y+dy-sy, true, lw2);
-            area += Contour(x+x_act+x_adj            , mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
-            area -= Contour(x+x_act+x_off*SHARP_MUL_2, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
-            if (bidir && which == MSC_ARROW_MIDDLE) {
-                area += Contour(x-x_act-x_adj            , mid_y, x-x_act-x_off, sy-wh.y, x-x_act-x_off, dy+wh.y);
-                area -= Contour(x-x_act-x_off*SHARP_MUL_2, mid_y, x-x_act-x_off, sy-wh.y, x-x_act-x_off, dy+wh.y);
-            }
-        }
+        area = Contour(x+x_act                   , mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
+        area -= Contour(x+x_act+x_off*SHARP_MUL_2, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
+        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x*SHARP_MUL_2;
         break;
 
     case MSC_ARROW_HALF: 
-        {
-            const double x_adj = CalcTriangleExpansion(x_off, dy-sy, false, lw2);
-            area += Contour(x+x_act+x_adj, sy, x+x_act+x_off, dy, x+x_act+x_off, sy);
-            if (bidir && which == MSC_ARROW_MIDDLE)
-                area += Contour(x-x_act-x_adj, sy, x-x_act-x_off, sy, x-x_act-x_off, dy);
-        }
+        area = Contour(x+x_act, sy, x+x_act+x_off, dy, x+x_act+x_off, sy);
+        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
         break;
 
     case MSC_ARROW_EMPTY_INV:
-        {
-            const double x_adj = CalcTriangleExpansion(x_off, (dy-sy)/2, false, lw2);
-            area  = Contour(x+x_act+x_off, mid_y, x+x_act+x_off, sy, x+x_act+x_adj, sy);
-            area += Contour(x+x_act+x_off, mid_y, x+x_act+x_off, dy, x+x_act+x_adj, dy);
-            if (which == MSC_ARROW_MIDDLE) {
-                if (bidir) {
-                    area += Contour(x-x_act-x_off, mid_y, x-x_act-x_off, sy, x-x_act-x_adj, sy);
-                    area += Contour(x-x_act-x_off, mid_y, x-x_act-x_off, dy, x-x_act-x_adj, dy);
-                } else {
-                    area += Contour(x-x_act, mid_y, x-x_act-x_off, sy, x-x_act-x_off, dy);
-                }
-            }
-        }
+        area  = Contour(x+x_act+x_off, mid_y, x+x_act+x_off, sy, x+x_act, sy);
+        area += Contour(x+x_act+x_off, mid_y, x+x_act+x_off, dy, x+x_act, dy);
+        if (which == MSC_ARROW_MIDDLE && !bidir) 
+            area += Contour(x-x_act, mid_y, x-x_act-x_off, sy, x-x_act-x_off, dy);
+        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
         break;
 
     case MSC_ARROW_DIAMOND_EMPTY: /* wh.y is zero here */
@@ -1054,90 +972,87 @@ Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, dou
         break;
 
     case MSC_ARROW_STRIPES:
-        area += Contour(x+x_act+x_off/5.*0, x+x_act+x_off/5.*1, sy, dy);
+        area = Contour(x+x_act+x_off/5.*0, x+x_act+x_off/5.*1, sy, dy);
         area += Contour(x+x_act+x_off/5.*2, x+x_act+x_off/5.*4, sy, dy);
-        if (bidir && which == MSC_ARROW_MIDDLE) {
-            area += Contour(x-x_act-x_off/5.*0, x-x_act-x_off/5.*1, sy, dy);
-            area += Contour(x-x_act-x_off/5.*2, x-x_act-x_off/5.*4, sy, dy);
-        }
+        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
         break;
     case MSC_ARROW_TRIANGLE_STRIPES:
-        Contour a1;
-        a1 += Contour(x+x_off/6.*0, x+x_off/6.*1, sy, dy);
-        a1 += Contour(x+x_off/6.*2, x+x_off/6.*4, sy, dy);
-        a1 += Contour(x+x_off/6.*5, x+x_off/6.*6, sy, dy);
-        a1 -= Contour(XY(x+x_off/6.*1, mid_y), XY(x+x_off/6.*0, sy), XY(x+x_off/6.*0, dy));
-        a1 += Contour(XY(x+x_off/6.*2, mid_y), XY(x+x_off/6.*1, sy), XY(x+x_off/6.*1, dy));
-        a1 -= Contour(XY(x+x_off/6.*3, mid_y), XY(x+x_off/6.*2, sy), XY(x+x_off/6.*2, dy));
-        a1 += Contour(XY(x+x_off/6.*5, mid_y), XY(x+x_off/6.*4, sy), XY(x+x_off/6.*4, dy));
-        a1 -= Contour(XY(x+x_off/6.*6, mid_y), XY(x+x_off/6.*5, sy), XY(x+x_off/6.*5, dy));
-        a1.Shift(XY(x_act, 0));
-        area += a1;
-        if (bidir && which == MSC_ARROW_MIDDLE) {
-            Contour a2;
-            a2 += Contour(x-x_off/6.*0, x-x_off/6.*1, sy, dy);
-            a2 += Contour(x-x_off/6.*2, x-x_off/6.*4, sy, dy);
-            a2 += Contour(x-x_off/6.*5, x-x_off/6.*6, sy, dy);
-            a2 -= Contour(XY(x-x_off/6.*1, mid_y), XY(x-x_off/6.*0, sy), XY(x-x_off/6.*0, dy));
-            a2 += Contour(XY(x-x_off/6.*2, mid_y), XY(x-x_off/6.*1, sy), XY(x-x_off/6.*1, dy));
-            a2 -= Contour(XY(x-x_off/6.*3, mid_y), XY(x-x_off/6.*2, sy), XY(x-x_off/6.*2, dy));
-            a2 += Contour(XY(x-x_off/6.*5, mid_y), XY(x-x_off/6.*4, sy), XY(x-x_off/6.*4, dy));
-            a2 -= Contour(XY(x-x_off/6.*6, mid_y), XY(x-x_off/6.*5, sy), XY(x-x_off/6.*5, dy));
-            a2.Shift(XY(-x_act,0));
-            area += a2;
-        }
+        area  = Contour(x+x_act+x_off/6.*0, x+x_act+x_off/6.*1, sy, dy);
+        area += Contour(x+x_act+x_off/6.*2, x+x_act+x_off/6.*4, sy, dy);
+        area += Contour(x+x_act+x_off/6.*5, x+x_act+x_off/6.*6, sy, dy);
+        area -= Contour(XY(x+x_act+x_off/6.*1, mid_y), XY(x+x_act+x_off/6.*0, sy), XY(x+x_act+x_off/6.*0, dy));
+        area += Contour(XY(x+x_act+x_off/6.*2, mid_y), XY(x+x_act+x_off/6.*1, sy), XY(x+x_act+x_off/6.*1, dy));
+        area -= Contour(XY(x+x_act+x_off/6.*3, mid_y), XY(x+x_act+x_off/6.*2, sy), XY(x+x_act+x_off/6.*2, dy));
+        area += Contour(XY(x+x_act+x_off/6.*5, mid_y), XY(x+x_act+x_off/6.*4, sy), XY(x+x_act+x_off/6.*4, dy));
+        area -= Contour(XY(x+x_act+x_off/6.*6, mid_y), XY(x+x_act+x_off/6.*5, sy), XY(x+x_act+x_off/6.*5, dy));
+        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
     }
+    if (body_margin) *body_margin = ret_body_margin;
     return area;
 }
 
 //returns the outer line of the block arrow, each segment in a separate
 //Contour. If mid-arrow does not segment only one Contour is returned
-Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, double sy, double dy, bool forward, bool bidir, 
+Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
+                              double sy, double dy, bool forward, bool bidir, 
+                              const std::vector<MscLineAttr> *lines,
                               std::vector<Contour> &result) const
 {
-    Contour area;
-    const MscArrowEnd i_begin = forward ? MSC_ARROW_START : MSC_ARROW_END;
-    const MscArrowEnd i_end   = forward ? MSC_ARROW_END : MSC_ARROW_START;
+    Contour area_overall, area_segment;
+    const bool segment = !MSC_ARROW_IS_SYMMETRIC(GetType(bidir,MSC_ARROW_MIDDLE)) && xPos.size()>2;
+    const MscArrowEnd e_left  = forward ? MSC_ARROW_START : MSC_ARROW_END;
+    const MscArrowType t_left_end  = GetType(bidir, e_left);
+    const MscLineAttr *ltype_current = (segment && lines) ? &*lines->begin() : &line;
 
-    const bool segment = bigDoesSegment(bidir, MSC_ARROW_MIDDLE);
     //draw leftmost arrowhead
-    area += BigContourOneEntity(xPos[0], act_size[0], sy, dy, forward, bidir, i_begin);
-    double from_x = xPos[0] + getBigWidthsForBody(forward, bidir, i_begin, dy-sy).second + act_size[0];
+    double from_x;
+    area_segment = BigContourOneEntity(xPos[0], act_size[0], sy, dy, bidir, 
+                                       t_left_end, e_left, *ltype_current, false, &from_x);
+    from_x = xPos[0] + from_x;
 
     //set up variables for mid-points
-    DoublePair mid_xx = getBigWidthsForBody(forward, bidir, MSC_ARROW_MIDDLE, dy-sy);
-    for (unsigned i=1; i<xPos.size()-1; i++) {
-        area += BigContourOneEntity(xPos[i], act_size[i], sy, dy, forward, bidir, MSC_ARROW_MIDDLE);
-        if (segment) {
-            double to_x = xPos[i] - mid_xx.first - act_size[i];
-            area += Block(from_x, to_x, sy, dy);
-            from_x = xPos[i] + mid_xx.second + act_size[i];
-        }
+    if (midType.second != MSC_ARROW_NONE)
+        for (unsigned i=1; i<xPos.size()-1; i++) {
+            MscArrowType type = GetType(forward, bidir, MSC_ARROW_MIDDLE, true);
+            //draw left side of the entity line
+            double right_margin; 
+            area_segment += BigContourOneEntity(xPos[i], act_size[i], sy, dy, bidir, 
+                                                type, MSC_ARROW_MIDDLE, *ltype_current, true, &right_margin);
+            //draw body that connects them
+            area_segment += Block(from_x, xPos[i] - right_margin, sy, dy);
+
+            //calculate next linewidth
+            if (segment && lines && lines->size()>i)
+                ltype_current  = &lines->at(i);
+
+            area_overall += area_segment;
+            //if we are segmented, add us to result
+            if (segment) 
+                result.push_back(std::move(area_segment));
+            area_segment.clear();
+
+            //if segmented, draw arrowhead at right side of entity line
+            if (segment) {
+                type = GetType(forward, bidir, MSC_ARROW_MIDDLE, false); //overwrite
+                area_segment = BigContourOneEntity(xPos[i], act_size[i], sy, dy, bidir, 
+                                                   type, MSC_ARROW_MIDDLE, *ltype_current, false, &from_x);
+                //calculate from_x
+                from_x = xPos[i] + from_x;
+            }
     }
     //draw rightmost arrowhead
-    area += BigContourOneEntity(xPos[xPos.size()-1], act_size[act_size.size()-1], sy, dy, forward, bidir, i_end);
-    double to_x = xPos[xPos.size()-1] - getBigWidthsForBody(forward, bidir, i_end, dy-sy).first - act_size[act_size.size()-1];
-    area += Block(from_x, to_x, sy, dy);
-
-    //Now split this into segments
-
-    if (xPos.size()>2 && segment) {
-        result.reserve(xPos.size()-1);
-        Block total = area.GetBoundingBox();
-        for (unsigned i=0; i<xPos.size()-1; i++) {
-            Block this_segment(Range(xPos[i], xPos[i+1]), total.y);
-            if (i==0) {
-                if (xPos[0]<xPos[1]) this_segment.x.from = total.x.from;
-                else this_segment.x.till = total.x.till;
-            } else if (i==xPos.size()-1) {
-                if (xPos[0]<xPos[1]) this_segment.x.till = total.x.till;
-                else this_segment.x.from = total.x.from;
-            }
-            result.push_back(area * this_segment);
-        }
-    } else
-        result.push_back(area);
-    return area;
+    const MscArrowEnd e_right = forward ? MSC_ARROW_END : MSC_ARROW_START;
+    const MscArrowType t_right_end = GetType(bidir, e_right);
+    double right_margin;
+    area_segment += BigContourOneEntity(*xPos.rbegin(), *act_size.rbegin(), sy, dy, bidir, 
+                                        t_right_end, e_right, *ltype_current, true, &right_margin);
+    area_segment += Block(from_x, *xPos.rbegin() - right_margin, sy, dy);
+    area_overall += area_segment;
+    if (segment) 
+        result.push_back(std::move(area_segment));
+    else
+        result.push_back(area_overall);
+    return area_overall;
 }
 
 void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
@@ -1162,7 +1077,7 @@ void ArrowHead::BigDrawEmptyMid(const std::vector<double> &xPos, double sy, doub
     if (xPos.size()<=2 || (midType.second!=MSC_ARROW_DOT_EMPTY && midType.second==MSC_ARROW_DIAMOND_EMPTY)) 
         return;
     if (clip) canvas.ClipInverse(*clip);
-    const double x_off = getBigWidthHeight(false, MSC_ARROW_MIDDLE).x;
+    const double x_off = getBigWidthHeight(midType.second, line).x;
     const XY center(0, (dy+sy)/2);
     const double lw2 = line.LineWidth()/2;
     const XY wh(x_off - lw2, (dy-sy)/2 - lw2);
@@ -1178,7 +1093,7 @@ void ArrowHead::BigCalculateAndDraw(const std::vector<double> &xPos, const std::
                                     const Contour *clip, bool shadow_x_neg, bool shadow_y_neg) const
 {
     std::vector<Contour> cont;
-    BigContour(xPos, act_size, sy, dy, forward, bidir, cont);
+    BigContour(xPos, act_size, sy, dy, forward, bidir, NULL, cont);
     BigDrawFromContour(cont, NULL, fill, shadow, canvas, shadow_x_neg, shadow_y_neg);
     BigDrawEmptyMid(xPos, sy, dy, canvas, clip);
 }
