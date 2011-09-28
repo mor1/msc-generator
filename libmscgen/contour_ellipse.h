@@ -174,7 +174,7 @@ inline bool between01_adjust(double &n)
 
 inline double deg2rad(double degree) 
 {
-	return degree==360 ? M_PI*2 : fmod_negative_safe(degree, 360.)*M_PI/180;
+	return fmod_negative_safe(degree, 360.)*M_PI/180;
 }
 
 typedef enum {LINE_CROSSING_PARALLEL, LINE_CROSSING_INSIDE, LINE_CROSSING_OUTSIDE} ELineCrossingType;

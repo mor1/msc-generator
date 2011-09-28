@@ -835,7 +835,7 @@ void ContoursHelper::EvaluateCrosspoints(Contour::operation_t type) const
             //and leave the "switch" to of ray groups in between on "error"
             //(An optimization can be that if a ray in <start_from, start_to> continues as one ray in <end_from, end_to>
             // then we just set that ray to IGNORE. Now such situations will result in an added vertex, later removed by
-            // EdgeArc::CheckAndCombine().)
+            // Edge::CheckAndCombine().)
             for (unsigned i = start_from; i!=start_to; i = Rays[i].link_in_cp.next)
                 Rays[i].switch_to = end_from;
             for (unsigned i = end_from; i!=end_to; i = Rays[i].link_in_cp.next)

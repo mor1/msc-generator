@@ -1185,10 +1185,11 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     //Set sy and dy
     //sy and dy are at the midline of the line around the body.
     //We ensure that the outer edge of the body falls on an integer value
+    const bool fw = (*src)->index < (*dst)->index;
     double max_lw = style.line.LineWidth();
     for (unsigned i=0; i<segment_lines.size(); i++)
         max_lw = std::max(max_lw, segment_lines[i].LineWidth());
-    const double aH = ceil(style.arrow.bigYExtent(isBidir(), middle.size()>0));
+    const double aH = ceil(style.arrow.bigYExtent(isBidir(), fw, &segment_lines));
     XY twh = parsed_label.getTextWidthHeight();
     ind_off = twh.y;
     if (sig && style.indicator.second) {
@@ -1196,87 +1197,94 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
         twh.x = std::max(twh.x, indicator_size.x);
     } 
     twh.y = std::max(twh.y, Label("M", &canvas, style.text).getTextWidthHeight().y);
-    sy = chart->arcVGapAbove + aH + max_lw/2;
-    dy = ceil(sy + max_lw/2 + twh.y + chart->emphVGapInside*2 + max_lw) - max_lw/2;
+    sy = chart->arcVGapAbove + aH;
+    dy = ceil(sy + twh.y + chart->emphVGapInside*2 + 2*max_lw);
 
-    const Contour tcov = parsed_label.Cover(0, twh.x, max_lw/2);
-    const bool fw = (*src)->index < (*dst)->index;
-    //kill entity activate indication from entities where this arrow does not segment (e.g., dot)
-    //if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_START)) act_size[0] = 0;
-    //if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_END)) *act_size.rbegin() = 0;
-    //if (style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_MIDDLE)) 
-    //    for (unsigned i=1; i<act_size.size()-1; i++)
-    //        act_size[i] = 0;
-
-    const DoublePair start = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_START, dy-sy, 
-        segment_lines[fw ? 0 : segment_lines.size()-1], segment_lines[fw ? 0 : segment_lines.size()-1]);
-    const DoublePair end   = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_END, dy-sy,
-        segment_lines[fw ? segment_lines.size()-1 : 0], segment_lines[fw ? segment_lines.size()-1 : 0]);
-    const double dst_act = *act_size.rbegin();
-
-    //distances.Insert((fw ? *src : *dst)->index, DISTANCE_LEFT, start.first + (fw ? src_act : dst_act));
-    //distances.Insert((fw ? *dst : *src)->index, DISTANCE_RIGHT, end.second + (fw ? dst_act : src_act));
-    distances.Insert((*src)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, (fw ? start.first : start.second) + *act_size.begin() );
-    distances.Insert((*dst)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, (fw ? end.second  : end.first   ) + *act_size.rbegin());
-
-    //Collect iterators and distances into arrays
-    std::vector<EIterator> iterators;
-    iterators.reserve(2+middle.size());
-    margins.reserve(2+middle.size()); margins.clear();
-    iterators.push_back(src);
-    margins.push_back(start);
-    for (unsigned i=0; i<middle.size(); i++) {
-        iterators.push_back(middle[i]);
-        const DoublePair mid = style.arrow.getBigWidthsForSpace(fw, isBidir(), MSC_ARROW_MIDDLE, dy-sy,
-                               segment_lines[fw ? i : segment_lines.size()-1 - i], segment_lines[fw ? i+1 : segment_lines.size()-2 - i]);
-        margins.push_back(mid);
-    }
-    iterators.push_back(dst);
-    margins.push_back(end);
-    //Sort to make them increasing - direction does not count
+    std::vector<unsigned> indexes;
+    indexes.reserve(2+middle.size());
+    indexes.push_back((*src)->index);
+    for (unsigned i=0; i<middle.size(); i++) 
+        indexes.push_back((*middle[i])->index);
+    indexes.push_back((*dst)->index);
+    //Sort to make them be from left to right
     if (!fw) {
-        std::reverse(iterators.begin(), iterators.end());
-        std::reverse(margins.begin(), margins.end());
+        std::reverse(indexes.begin(), indexes.end());
         std::reverse(act_size.begin(), act_size.end());
     }
-    for (unsigned i=0; i<iterators.size()-1; i++) {
+
+    const MscArrowEnd e_left  = fw ? MSC_ARROW_START : MSC_ARROW_END;
+    const MscArrowType t_left_end  = style.arrow.GetType(isBidir(), e_left);
+    const MscArrowEnd e_right = fw ? MSC_ARROW_END : MSC_ARROW_START;
+    const MscArrowType t_right_end = style.arrow.GetType(isBidir(), e_right);
+
+    const double sp_left_end = style.arrow.getBigWidthsForSpace(
+                                    isBidir(), t_left_end, e_left, dy-sy, 
+                                    *act_size.begin(), *segment_lines.begin());
+    const double sp_right_end = style.arrow.getBigWidthsForSpace(
+                                    isBidir(), t_right_end, e_right, dy-sy, 
+                                    *act_size.rbegin(), *segment_lines.rbegin());
+
+    distances.Insert(*indexes.begin(), DISTANCE_RIGHT, sp_left_end);
+    distances.Insert(*indexes.rbegin(), DISTANCE_LEFT, sp_right_end);
+
+
+    //Collect iterators and distances into arrays
+    margins.reserve(2+middle.size()); margins.clear();
+    margins.push_back(DoublePair(0, sp_left_end));
+    for (unsigned i=0; i<middle.size(); i++) {
+        DoublePair mid;
+        const MscArrowType t_left  = style.arrow.GetType(fw, isBidir(), MSC_ARROW_MIDDLE, true);
+        const MscArrowType t_right = style.arrow.GetType(fw, isBidir(), MSC_ARROW_MIDDLE, false);
+        mid.first = style.arrow.getBigWidthsForSpace(
+                                    isBidir(), t_left, MSC_ARROW_MIDDLE, dy-sy, 
+                                    act_size[i+1], segment_lines[i]);
+        mid.second = style.arrow.getBigWidthsForSpace(
+                                    isBidir(), t_right, MSC_ARROW_MIDDLE, dy-sy, 
+                                    act_size[i+1], segment_lines[i+1]);
+        margins.push_back(mid);
+    }
+    margins.push_back(DoublePair(sp_right_end, 0));
+
+    for (unsigned i=0; i<indexes.size()-1; i++) {
         //if neighbours
-        if ((*iterators[i])->index + 1 == (*iterators[i+1])->index) {
-            distances.Insert((*iterators[i])->index, (*iterators[i+1])->index,
-                             margins[i].second+margins[i+1].first + 3 +
-                             act_size[i  ] + act_size[i+1]);
+        if (indexes[i] + 1 == indexes[i+1]) {
+            distances.Insert(indexes[i], indexes[i+1],
+                             margins[i].second + margins[i+1].first + chart->compressGap);
         } else {
-            distances.Insert((*iterators[i  ])->index,   (*iterators[i  ])->index+1,
-                             margins[i].second + 3 + act_size[i]);
-            distances.Insert((*iterators[i+1])->index-1, (*iterators[i+1])->index  ,
-                             margins[i+1].first + 3 + act_size[i+1]);
+            distances.Insert(indexes[i], indexes[i] + 1,
+                             margins[i].second + chart->compressGap);
+            distances.Insert(indexes[i+1]-1, indexes[i+1],
+                             margins[i+1].first + chart->compressGap);
         }
     }
 
     //Determine if there are multiple segments, if so add text into the appropriate one
-    if (middle.size()>0 && style.arrow.bigDoesSegment(isBidir(), MSC_ARROW_MIDDLE)) {
+    if (middle.size()>0 && !MSC_ARROW_IS_SYMMETRIC(style.arrow.midType.second)) {
         unsigned index;
         switch (style.text.GetIdent()) {
 		default:
         case MSC_IDENT_LEFT:   index = 0; break;
-        case MSC_IDENT_CENTER: index = iterators.size()/2-1; break;
-        case MSC_IDENT_RIGHT:  index = iterators.size()-2; break;
+        case MSC_IDENT_CENTER: index = indexes.size()/2-1; break;
+        case MSC_IDENT_RIGHT:  index = indexes.size()-2; break;
         }
         stext = index;
         dtext = index+1;
     } else {
         //if no segments, then span the whole arrow.
         stext = 0;
-        dtext = iterators.size()-1;
+        dtext = indexes.size()-1;
     }
     //calculate text margin. segment_lines is now ordered from smaller x to larger x
-    sm = style.arrow.getBigMargin(tcov, 0, dy-sy, true, fw, isBidir(), WhichArrow(stext),
-                                  segment_lines[stext],  segment_lines[stext]) +
-         segment_lines[stext].LineWidth();
-    dm = style.arrow.getBigMargin(tcov, 0, dy-sy, false, fw, isBidir(), WhichArrow(dtext),
-                                  segment_lines[dtext-1],  segment_lines[dtext-1]) +
-         segment_lines[dtext-1].LineWidth();
-    distances.Insert((*iterators[stext])->index, (*iterators[dtext])->index, 
+    const Contour tcov = parsed_label.Cover(0, twh.x, chart->emphVGapInside + max_lw);
+    const MscArrowType s_type = style.arrow.GetType(fw, isBidir(), WhichArrow(stext), true);
+    const MscArrowType d_type = style.arrow.GetType(fw, isBidir(), WhichArrow(dtext), false);
+
+
+    sm = style.arrow.getBigMargin(tcov, 0, dy-sy, true, isBidir(), s_type,
+                                  segment_lines[stext]);
+    dm = style.arrow.getBigMargin(tcov, 0, dy-sy, false, isBidir(), d_type,
+                                  segment_lines[stext]);
+    distances.Insert(indexes[stext], indexes[dtext], 
         sm + twh.x + dm + act_size[stext] +act_size[dtext]);
 }
 
@@ -1311,7 +1319,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
         cx_text = (xPos[xPos.size()-1-stext] + xPos[xPos.size()-1-dtext])/2;
     }
     label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
-    area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), outer_contours);
+    area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, outer_contours);
     area.arc = this;
     //set mainline - not much dependent on main line with
     area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
@@ -1672,12 +1680,14 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 
     const double lw = style.line.LineWidth();
     const XY twh = parsed_label.getTextWidthHeight();
-    const Contour text_cover = parsed_label.Cover(0, twh.x, lw/2);
+    const Contour text_cover = parsed_label.Cover(0, twh.x, lw);
 
-    const double sm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, true,  style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_START, style.line, style.line);
-    const double dm = style.arrow.getBigMargin(text_cover, lw/2, twh.y+lw, false, style.side.second == SIDE_LEFT, isBidir(), MSC_ARROW_END,   style.line, style.line);
-    const double ss = style.arrow.getBigWidthHeight(isBidir(), MSC_ARROW_START).x;
-    const double ds = style.arrow.getBigWidthHeight(isBidir(), MSC_ARROW_END).x;
+    const double sm = style.arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.side.second == SIDE_LEFT,  
+                                               isBidir(), style.arrow.startType.second, style.line);
+    const double dm = style.arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.side.second != SIDE_LEFT, 
+                                               isBidir(), style.arrow.endType.second, style.line);
+    const double ss = style.arrow.getBigWidthHeight(style.arrow.startType.second, style.line).x;
+    const double ds = style.arrow.getBigWidthHeight(style.arrow.endType.second, style.line).x;
 
     if (sm + twh.x + dm  > ypos[1]-ypos[0])
         chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
@@ -1722,7 +1732,7 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     std::vector<double> act_size(2, 0);
     //use inverse of forward, swapXY will do the job
     area = style.arrow.BigContour(ypos, act_size, xpos-width/2, xpos+width/2, !
-                                  forward, isBidir(), outer_contours);
+                                  forward, isBidir(), NULL, outer_contours);
     area.SwapXY();
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
         i->SwapXY();
