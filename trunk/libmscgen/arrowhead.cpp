@@ -853,15 +853,17 @@ double ArrowHead::getBigWidthsForSpace(bool bidir, MscArrowType type, MscArrowEn
 double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool margin_side_is_left, 
                                bool bidir, MscArrowType type, const MscLineAttr &ltype) const
 {
-    if (type == MSC_ARROW_NONE) return 0;
+    const double lw = ltype.LineWidth();
+    if (type == MSC_ARROW_NONE) return lw;
     double asize;
-    Contour arrow_head = BigContourOneEntity(0, 0, sy, dy, bidir, type, MSC_ARROW_END, ltype, !margin_side_is_left, &asize);
+    Contour arrow_head = BigContourOneEntity(0, 0, sy, dy, bidir, type, MSC_ARROW_END, 
+                                             ltype, !margin_side_is_left, &asize);
     Block b = arrow_head.GetBoundingBox().CreateExpand(1);
     if (margin_side_is_left) 
-        arrow_head += Block(asize, b.x.till, sy, dy); //add arrow block
+        arrow_head += Block(asize, b.x.till+lw+1, sy, dy); //add arrow block
     else
-        arrow_head += Block(b.x.from, -asize, sy, dy);
-    arrow_head.Expand(-ltype.LineWidth());
+        arrow_head += Block(b.x.from-lw-1, -asize, sy, dy);
+    arrow_head.Expand(-lw);
     arrow_head = Contour(b) - arrow_head;
     const Range left_right = text_cover.GetBoundingBox().x;
     text_cover.Rotate(90);
