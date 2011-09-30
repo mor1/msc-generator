@@ -21,14 +21,15 @@
 
 /////////////////////////////////////////  Contour implementation
 
-Area Area::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpandType et4neg) const
+Area Area::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpandType et4neg,
+                        double miter_limit_positive, double miter_limit_negative) const
 {
     Area result;
     if (gap == 0) return (result = *this);  //always return result->compiler optimizes
     result.arc = arc;
     result.mainline = mainline;
     result.mainline.Expand(gap);
-    Contour::Expand(et4pos, et4neg, gap, result);
+    Contour::Expand(et4pos, et4neg, gap, result, miter_limit_positive, miter_limit_negative);
     return result;
 }
 
@@ -40,7 +41,8 @@ void Area::swap(Area &a)
 }
 
 
-AreaList AreaList::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpandType et4neg) const
+AreaList AreaList::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpandType et4neg,
+                                double miter_limit_positive, double miter_limit_negative) const
 {
     if (!gap) return *this;
     AreaList al;

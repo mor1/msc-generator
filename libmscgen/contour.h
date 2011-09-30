@@ -85,7 +85,8 @@ protected:
         {SimpleContour::Rotate(cos, sin, radian); if (holes.size()) holes.Rotate(cos, sin, radian);}
     void RotateAround(const XY&c, double cos, double sin, double radian)
         {SimpleContour::RotateAround(c, cos, sin, radian); if (holes.size()) holes.RotateAround(c, cos, sin, radian);}
-    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const;
+    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res, 
+                double miter_limit_positive, double miter_limit_negative) const;
 
 public:
     ContourWithHoles(ContourWithHoles &&p) : SimpleContour(std::move(p)), holes(std::move(p.holes)) {}  //for list
@@ -141,7 +142,8 @@ protected:
     void Operation(operation_t type, const Contour &c1, Contour &&c2);
     void Operation(operation_t type, Contour &&c1, Contour &&c2);
 
-    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const;
+    void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
+                double miter_limit_positive, double miter_limit_negative) const;
 public:
     Contour() {boundingBox.MakeInvalid();}
     Contour(double sx, double dx, double sy, double dy) : ContourWithHoles(sx, dx, sy, dy) {boundingBox = ContourWithHoles::GetBoundingBox();}
@@ -235,8 +237,10 @@ public:
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {ContourWithHoles::VerticalCrossSection(x, section); if (further.size()) further.VerticalCrossSection(x, section);}
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
-    void Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND);
-    Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND) const;
+    void Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
+                double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX);
+    Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
+                         double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
 
     void Path(cairo_t *cr, bool show_hidden) const {ContourWithHoles::Path(cr, show_hidden); if (further.size()) further.Path(cr, show_hidden);}
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {ContourWithHoles::Path(cr, show_hidden, clockwiseonly); if (further.size()) further.Path(cr, show_hidden, clockwiseonly);}
@@ -344,20 +348,22 @@ inline double Contour::OffsetBelow(const Contour &below, double &touchpoint, dou
     return SimpleContour::OffsetBelow((const SimpleContour&)below, touchpoint, offset);
 }
 
-inline void Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg)
+inline void Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg,
+                            double miter_limit_positive, double miter_limit_negative)
 {
     if (gap) {
         Contour res;
-        Expand(et4pos, et4neg, gap, res);
+        Expand(et4pos, et4neg, gap, res, miter_limit_positive, miter_limit_negative);
         swap(res);
     }
 }
 
-inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType et4neg) const
+inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType et4neg,
+                                     double miter_limit_positive, double miter_limit_negative) const
 {
     if (!gap) return *this;
     Contour res;
-    Expand(et4pos, et4neg, gap, res);
+    Expand(et4pos, et4neg, gap, res, miter_limit_positive, miter_limit_negative);
     return res;
 }
 

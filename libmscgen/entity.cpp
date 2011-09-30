@@ -479,7 +479,7 @@ double EntityDef::Width() const
     return width + fmod_negative_safe(width, 2.); //always return an even number
 }
 
-Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
+Range EntityDef::Height(Area &cover, const EntityDefList &children)
 {
     const XY wh = parsed_label.getTextWidthHeight();
     const double lw = style.line.LineWidth();
@@ -514,7 +514,7 @@ Range EntityDef::Height(AreaList &cover, const EntityDefList &children)
     //Add shadow to outer_edge and place that to cover
     Area my_cover(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge, this);
     my_cover.mainline += outer_edge.y;
-    cover += std::move(my_cover);
+    cover = std::move(my_cover);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
