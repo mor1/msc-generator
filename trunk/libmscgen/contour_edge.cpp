@@ -139,6 +139,16 @@ void Edge::SwapXY()
     start.SwapXY();
     end.SwapXY();
     boundingBox.SwapXY();
+    if (type==STRAIGHT) return;
+    ell.SwapXY();
+    clockwise_arc=!clockwise_arc;
+    if (ell.IsTilted()) {
+        s = s==0 ? 0 : 2*M_PI-s;
+        e = e==0 ? 0 : 2*M_PI-e;
+    } else {
+        s = s<M_PI/2 ? M_PI/2-s : 2.5*M_PI - s;
+        e = e<M_PI/2 ? M_PI/2-e : 2.5*M_PI - e;
+    }
 }
 
 
@@ -715,11 +725,15 @@ bool Edge::radianbetween(double r) const
 //convert from pos [0..1] to actual radian. Guaranteed between [0..2pi)
 double Edge::pos2radian(double r) const
 {
+    if (test_zero(r)) return s;
+    if (test_equal(r,1)) return e;
     _ASSERT(type!=STRAIGHT);
     _ASSERT(0<=r && r<=1);
     if (type==FULL_CIRCLE) {
-        const double a = r*2*M_PI+s;
-        if (a>=2*M_PI) return a-2*M_PI;
+        double a = clockwise_arc ? s+r*2*M_PI : s-r*2*M_PI ;
+        if (a>=2*M_PI) a -= 2*M_PI;
+        if (a<0) a += 2*M_PI;
+        _ASSERT(0<=a && a<2*M_PI);
         return a;
     }
     double ret;
@@ -1070,7 +1084,12 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
         if (type == STRAIGHT) {
             switch (crossing_line_line(start, end, M.start, M.end, newcp)) {
             default: _ASSERT(0);
-            case LINE_CROSSING_PARALLEL: return NO_CP_PARALLEL;
+            case LINE_CROSSING_PARALLEL: 
+                if (end.test_equal(M.start)) {
+                    newcp = end;
+                    return CP_REAL;
+                }
+                return NO_CP_PARALLEL;
             case LINE_CROSSING_OUTSIDE: return CP_EXTENDED;
             case LINE_CROSSING_INSIDE: return CP_REAL;
             }

@@ -815,10 +815,10 @@ XY ArrowHead::getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) con
         ret = XY(2*sizes[size.second], sizes[size.second])+lw*2;
         break;
     case MSC_ARROW_STRIPES:
-        ret = XY(sizes[size.second]*2+5*lw.x, 0);
+        ret = XY(4*sizes[size.second]/6+5*lw.x+5*ltype.width.second+2, 0);
         break;
     case MSC_ARROW_TRIANGLE_STRIPES:
-        ret = XY(sizes[size.second]*2*1.2+5*lw.x, 0);
+        ret = XY(6*sizes[size.second]/6+5*lw.x+5*ltype.width.second+2, 0);
         break;
     }
     if (xmul.first) ret.x *= xmul.second;
@@ -831,14 +831,10 @@ XY ArrowHead::getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) con
 double ArrowHead::getBigWidthsForSpace(bool bidir, MscArrowType type, MscArrowEnd which, 
                                        double body_height, double act_size, const MscLineAttr &ltype) const
 {
-    switch (type) {
-    //case MSC_ARROW_SHARP:
-    //    {
-    //        //create an arrowhead |<-
-    //        const Contour cov = BigContourOneEntity(0, 0, 0, body_height, bidir, type, which, ltype, false);
-    //        Block block = cov.GetBoundingBox();
-    //        return block.IsInvalid() ? 0 : block.x.till;
-    //    }
+    switch(type) {
+    case MSC_ARROW_STRIPES:
+    case MSC_ARROW_TRIANGLE_STRIPES:
+        return act_size+getBigWidthHeight(type, ltype).x + ltype.LineWidth();
     default:
         return act_size+getBigWidthHeight(type, ltype).x;
     }
@@ -859,10 +855,14 @@ double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool ma
     Contour arrow_head = BigContourOneEntity(0, 0, sy, dy, bidir, type, MSC_ARROW_END, 
                                              ltype, !margin_side_is_left, &asize);
     Block b = arrow_head.GetBoundingBox().CreateExpand(1);
-    if (margin_side_is_left) 
-        arrow_head += Block(asize, b.x.till+lw+1, sy, dy); //add arrow block
-    else
-        arrow_head += Block(b.x.from-lw-1, -asize, sy, dy);
+    const double max = std::max(asize, std::max(fabs(b.x.from), fabs(b.x.till)))+1+100*lw;
+    if (margin_side_is_left) {
+        arrow_head += Block(asize, max, sy, dy); //add arrow block
+        b.x.till = max-lw-1;
+    } else {
+        arrow_head += Block(-max, -asize, sy, dy);
+        b.x.from = -max+lw+1;
+    }
     arrow_head.Expand(-lw);
     arrow_head = Contour(b) - arrow_head;
     const Range left_right = text_cover.GetBoundingBox().x;
@@ -935,18 +935,18 @@ Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, dou
     case MSC_ARROW_EMPTY: /* wh.y is zero here */
     case MSC_ARROW_SHARP_EMPTY: /* wh.y is zero here */
         area = Contour(x+x_act, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
-        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
+        ret_body_margin = act_size + wh.x;
         break;
 
     case MSC_ARROW_SHARP:
         area = Contour(x+x_act                   , mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
         area -= Contour(x+x_act+x_off*SHARP_MUL_2, mid_y, x+x_act+x_off, sy-wh.y, x+x_act+x_off, dy+wh.y);
-        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x*SHARP_MUL_2;
+        ret_body_margin = act_size + wh.x*SHARP_MUL_2;
         break;
 
     case MSC_ARROW_HALF: 
         area = Contour(x+x_act, sy, x+x_act+x_off, dy, x+x_act+x_off, sy);
-        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
+        ret_body_margin = act_size + wh.x;
         break;
 
     case MSC_ARROW_EMPTY_INV:
@@ -954,7 +954,7 @@ Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, dou
         area += Contour(x+x_act+x_off, mid_y, x+x_act+x_off, dy, x+x_act, dy);
         if (which == MSC_ARROW_MIDDLE && !bidir) 
             area += Contour(x-x_act, mid_y, x-x_act-x_off, sy, x-x_act-x_off, dy);
-        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
+        ret_body_margin = act_size + wh.x;
         break;
 
     case MSC_ARROW_DIAMOND_EMPTY: /* wh.y is zero here */
@@ -974,20 +974,46 @@ Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, dou
         break;
 
     case MSC_ARROW_STRIPES:
-        area = Contour(x+x_act+x_off/5.*0, x+x_act+x_off/5.*1, sy, dy);
-        area += Contour(x+x_act+x_off/5.*2, x+x_act+x_off/5.*4, sy, dy);
-        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
+        {
+            //first box is LW+(a+line.width)+LW big
+            //second box is LW+(3*a+2*line.width)+LW big
+            //with a line.width+1 space in between and after the second box
+            //wh.x equals to the sum of the above, which is 4*a+4*LW+5*l.width.
+            //"a" depends on arrowhead size
+            const double l = left ? -ltype.width.second : ltype.width.second;
+            const double sp = left ? l-1 : l+1;
+            const double lw = left ? -lw2*2 : lw2*2;
+            const double a = (x_off - 4*lw - 3*l - 2*sp)/4;
+            area = Contour(x+x_act, x+x_act+2*lw+a+l, sy, dy);
+            area += Contour(x+x_act+2*lw+a+l+sp, x+x_act+4*lw+4*a+3*l+sp, sy, dy);
+            ret_body_margin = act_size + wh.x;
+        }
         break;
     case MSC_ARROW_TRIANGLE_STRIPES:
-        area  = Contour(x+x_act+x_off/6.*0, x+x_act+x_off/6.*1, sy, dy);
-        area += Contour(x+x_act+x_off/6.*2, x+x_act+x_off/6.*4, sy, dy);
-        area += Contour(x+x_act+x_off/6.*5, x+x_act+x_off/6.*6, sy, dy);
-        area -= Contour(XY(x+x_act+x_off/6.*1, mid_y), XY(x+x_act+x_off/6.*0, sy), XY(x+x_act+x_off/6.*0, dy));
-        area += Contour(XY(x+x_act+x_off/6.*2, mid_y), XY(x+x_act+x_off/6.*1, sy), XY(x+x_act+x_off/6.*1, dy));
-        area -= Contour(XY(x+x_act+x_off/6.*3, mid_y), XY(x+x_act+x_off/6.*2, sy), XY(x+x_act+x_off/6.*2, dy));
-        area += Contour(XY(x+x_act+x_off/6.*5, mid_y), XY(x+x_act+x_off/6.*4, sy), XY(x+x_act+x_off/6.*4, dy));
-        area -= Contour(XY(x+x_act+x_off/6.*6, mid_y), XY(x+x_act+x_off/6.*5, sy), XY(x+x_act+x_off/6.*5, dy));
-        ret_body_margin = act_size + getBigWidthHeight(type, ltype).x;
+        {
+            //same spacing as above, but there is an indentation of size "a"
+            //also total width is "2*a" wider
+            const double l = left ? -ltype.width.second : ltype.width.second;
+            const double sp = left ? l-1 : l+1;
+            const double lw = left ? -lw2*2 : lw2*2;
+            const double a = (x_off - 4*lw - 3*l - 2*sp)/6;
+            const double sh = 2*a;
+            double xx = x+x_act;
+            Contour h1 = Contour(xx, xx+2*lw+a+l, sy, dy);
+            h1 += Contour(XY(xx+2*lw+a+l,sy), XY(xx+2*lw+a+l,dy), XY(xx+2*lw+a+l+sh, mid_y));
+            h1 -= Contour(XY(xx,sy), XY(xx,dy), XY(xx+sh, mid_y));
+            xx += 2*lw+a+l+sp;
+            Contour h2 = Contour(xx, xx+2*lw+3*a+2*l, sy, dy);
+            h2 += Contour(XY(xx+2*lw+3*a+2*l,sy), XY(xx+2*lw+3*a+2*l,dy), XY(xx+2*lw+3*a+2*l+sh, mid_y));
+            h2 -= Contour(XY(xx,sy), XY(xx,dy), XY(xx+sh, mid_y));
+            area = h1;
+            area += h2;
+            xx += 2*lw+3*a+2*l+sp;
+            //x+x_act+x_off is supposedly == xx+sh
+            area += Contour(XY(xx, sy), XY(x+x_act+x_off, sy), XY(x+x_act+x_off, mid_y));
+            area += Contour(XY(xx, dy), XY(x+x_act+x_off, dy), XY(x+x_act+x_off, mid_y));
+            ret_body_margin = act_size + wh.x;
+        }
     }
     if (body_margin) *body_margin = ret_body_margin;
     return area;

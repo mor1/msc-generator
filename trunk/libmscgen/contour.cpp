@@ -1225,15 +1225,17 @@ bool ContourWithHoles::IsSane(bool shouldbehole) const
     return true;
 }
 
-void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const
+void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res, 
+                              double miter_limit_positive, double miter_limit_negative) const
 {
     if (size()==0) return;
     if (gap==0) {res.clear(); static_cast<ContourWithHoles&>(res) = *this; return;}
-    SimpleContour::Expand(GetClockWise() && gap>0 ? type4positive : type4negative, gap, res);
+    SimpleContour::Expand(GetClockWise() && gap>0 ? type4positive : type4negative, gap, res, 
+                          GetClockWise() && gap>0 ? miter_limit_positive : miter_limit_negative);
     if (holes.size()==0 || res.IsEmpty()) return;
     Contour tmp;
     for (auto i=holes.begin(); i!=holes.end(); i++) {
-        i->Expand(type4positive, type4negative, gap, tmp);
+        i->Expand(type4positive, type4negative, gap, tmp, miter_limit_positive, miter_limit_negative);
         //in case "i" is an actual holes, it is are already inversed, adding is the right op
         res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
         tmp.clear();
@@ -1319,13 +1321,14 @@ void Contour::Operation(operation_t type, Contour &&c1, Contour &&c2)
     h.Do(type, *this);
 }
 
-void Contour::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res) const
+void Contour::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
+                     double miter_limit_positive, double miter_limit_negative) const
 {
-    ContourWithHoles::Expand(type4positive, type4negative, gap, res);
+    ContourWithHoles::Expand(type4positive, type4negative, gap, res, miter_limit_positive, miter_limit_negative);
     if (further.size()==0) return;
     Contour tmp;
     for (auto i = further.begin(); i!=further.end(); i++) {
-        i->Expand(type4positive, type4negative, gap, tmp);
+        i->Expand(type4positive, type4negative, gap, tmp, miter_limit_positive, miter_limit_negative);
         res += std::move(tmp);
         tmp.clear();
     }

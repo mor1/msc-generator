@@ -89,6 +89,8 @@ public:
     double GetPos() const {return yPos;}
     //Get an (ordered) list of entities that this arrow/box touches
     virtual MscDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
+    //expands the contour to a cover used for compress
+    Area GetCover4Compress(const Area &a) const;
 
     //Adding attributes and helpers for color syntax highlighting and hinting
     virtual ArcBase* AddAttributeList(AttributeList *);

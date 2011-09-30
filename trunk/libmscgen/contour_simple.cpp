@@ -544,8 +544,11 @@ Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const X
     return edge;
 }
 
-
-void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
+//miter_limit tells us that with EXPAND_MITER_* how long the miter 
+//edges can be in terms of the "gap"
+//E.g., miter_limit=2 says they can be as long as 2*gap
+//the rest is cut away with a bevel-like edge
+void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double miter_limit) const
 {
     if (gap==0) {
         res = *this;
@@ -623,6 +626,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
     Contour res_before_untangle;
     ContourWithHoles &r2 = res_before_untangle;
     r2.reserve(size()*3);
+    const double gap_limit = fabs(miter_limit) < DBL_MAX ? fabs(gap)*fabs(miter_limit) : DBL_MAX;
     switch (type) {
     default:
         _ASSERT(0);
@@ -634,16 +638,38 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res) const
             XY new_start = Edge::HasCP(cross_type[r.prev(i)]) ? cross_point[r.prev(i)] : r[i].GetStart();
             XY new_end   = Edge::HasCP(cross_type[i])         ? cross_point[i]         : r[i].GetEnd();
 
+            //if we are a too sharp miter, we limit its length
+            if (cross_type[r.prev(i)] == Edge::CP_EXTENDED && 
+                   (new_start-r[i].GetStart()).length() > gap_limit)
+                new_start = r[i].GetStart() + (new_start-r[i].GetStart()).Normalize()*gap_limit;
+            bool need_miter_limit_bevel = false;
+            if (cross_type[i] == Edge::CP_EXTENDED && 
+                   (new_end-r[i].GetEnd()).length() > gap_limit) {
+                new_end = r[i].GetEnd() + (new_end-r[i].GetEnd()).Normalize()*gap_limit;
+                need_miter_limit_bevel = true;
+            }
+            _ASSERT(new_start.length() < 10000);
+            _ASSERT(new_end.length() < 10000);
+
             if (!new_start.test_equal(new_end)) {
                 //insert existin edge (updated)
-                r[i].SetStartEndForExpand(new_start, new_end);
-                r2.push_back(r[i]);
+                Edge tmp = r[i];
+                tmp.SetStartEndForExpand(new_start, new_end);
+                r2.push_back(tmp);
             } else {
                 //existing edge got degenerate, do not insert
                 cross_point[i] = new_end = new_start; //use this from now on
             }
-            //Now see if we need to add a line, circle or square
-            if (!Edge::HasCP(cross_type[i]))
+            if (Edge::HasCP(cross_type[i])) {
+                if (need_miter_limit_bevel) {
+                    const XY bevel_end = r.at_next(i).GetStart() + 
+                        (cross_point[i]-r.at_next(i).GetStart()).Normalize()*gap_limit;
+                    _ASSERT(bevel_end.length() < 10000);
+                    if (!bevel_end.test_equal(new_end))
+                        r2.push_back(Edge(new_end, bevel_end));
+                }
+            } else 
+                //no natural crosspoint: see if we need to add a line, circle or square
                 switch (type) {
                 default:
                     _ASSERT(0);

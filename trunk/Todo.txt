@@ -61,8 +61,10 @@ FIXED: Block arrowheads draw well
 FIXED: Block arrow space for sharp - take linewidth into account: add line formatting to big calls
 FIXED: Line segment stuff not copied to all segments
 FIXED: Why block arrows compress badly?
+FIXED: stripes with thick lines should expand...
 
-FIX: stripes with thick lines should expand...
+FIX: Too much compress after adding MITER_LIMIT
+FIX: Regression problems in contour
 FIX: Triple bevel changes size when size limited.
 FIX: labels should keep gap if a->b:aaa is between two active entities
 FIX: Pipes should be wider if entity is active

@@ -119,6 +119,14 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     had_add_attr_list = false;
 }
 
+inline Area ArcBase::GetCover4Compress(const Area &a) const
+{
+    return a.CreateExpand(chart->compressGap/2, 
+                         contour::EXPAND_MITER_SQUARE, 
+                         contour::EXPAND_MITER_SQUARE, 
+                         1, 1);
+}
+
 //l can be an empty list
 ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 {
@@ -240,7 +248,7 @@ double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover)
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
     area = b;
-    cover = area.CreateExpand(chart->compressGap/2);
+    cover = GetCover4Compress(area);
     cover.mainline += b.y;
     return b.y.till + chart->emphVGapOutside;
 }
@@ -607,7 +615,7 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover)
     area += Block(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
     area.mainline = Range(y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
 
-    cover = area.CreateExpand(chart->compressGap/2);
+    cover = GetCover4Compress(area);
     return area.GetBoundingBox().y.till + chart->arcVGapBelow;
 }
 
@@ -1009,7 +1017,7 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover)
     lw_max = std::max(lw_max, chart->nudgeSize+1.0);
     //set mainline - not much dependent on main line with
     area.mainline = Range(y - lw_max/2, y + lw_max/2);
-    cover = area.CreateExpand(chart->compressGap/2);
+    cover = GetCover4Compress(area);
     return std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
 }
 
@@ -1327,7 +1335,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
     //due to thick lines we can extend above y==0. Shift down to avoid it
     if (area.GetBoundingBox().y.from < chart->arcVGapAbove)
         ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
-    cover = area.CreateExpand(chart->compressGap/2);
+    cover = GetCover4Compress(area);
     return centerline*2 - chart->arcVGapAbove + chart->arcVGapBelow + style.shadow.offset.second;
 }
 
@@ -1686,13 +1694,15 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
                                                isBidir(), style.arrow.startType.second, style.line);
     const double dm = style.arrow.getBigMargin(text_cover, 0, twh.y+2*lw, style.side.second != SIDE_LEFT, 
                                                isBidir(), style.arrow.endType.second, style.line);
-    const double ss = style.arrow.getBigWidthHeight(style.arrow.startType.second, style.line).x;
-    const double ds = style.arrow.getBigWidthHeight(style.arrow.endType.second, style.line).x;
+    const double ss = style.arrow.getBigWidthsForSpace(isBidir(), style.arrow.startType.second, MSC_ARROW_START, 
+                                                       twh.y+2*lw, 0, style.line);
+    const double ds = style.arrow.getBigWidthsForSpace(isBidir(), style.arrow.endType.second, MSC_ARROW_END, 
+                                                       twh.y+2*lw, 0, style.line);
 
     if (sm + twh.x + dm  > ypos[1]-ypos[0])
         chart->Error.Warning(file_pos.start, "Size of vertical element is smaller than needed for text.",
                                  "May look strange.");
-    if (ss+ds > ypos[1]-ypos[0]) {
+    if (ss+ds+chart->compressGap > ypos[1]-ypos[0]) {
         chart->Error.Warning(file_pos.start, "Size of vertical element is too small to draw arrowheads. Ignoring it.");
         valid = false;
     }
@@ -2295,10 +2305,9 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover)
     overall_box.mainline = b.y;
     const double &offset = main_style.shadow.offset.second;
     if (offset)
-        cover = overall_box + overall_box.CreateShifted(XY(offset, offset));
+        cover = GetCover4Compress(overall_box + overall_box.CreateShifted(XY(offset, offset)));
     else
-        cover = overall_box;
-    cover = cover.CreateExpand(chart->compressGap/2);
+        cover = GetCover4Compress(overall_box);
     return yPos + total_height + offset + chart->emphVGapOutside;
 }
 
@@ -2932,6 +2941,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
     //Now set the y coordinate in all segments
     //Also calculate the Contour that will be used for drawing
     double max_offset = 0;
+    Area pipe_body_cover(this);
     for (auto i = series.begin(); i!=series.end(); i++) {
         const double ilw = (*i)->style.line.LineWidth();
 
@@ -3030,9 +3040,9 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
         //now determine the cover to be used for placement
         const double offset = (*i)->style.shadow.offset.second;
         if (offset)
-            cover += (*i)->pipe_shadow + (*i)->pipe_shadow.CreateShifted(XY(offset, offset));
+            pipe_body_cover += (*i)->pipe_shadow + (*i)->pipe_shadow.CreateShifted(XY(offset, offset));
         else
-            cover += (*i)->pipe_shadow;
+            pipe_body_cover += (*i)->pipe_shadow;
         max_offset = std::max(max_offset, offset);
         //merge shadows of connected previous segment to ours
         if ((*i)->pipe_connect_back) {
@@ -3044,7 +3054,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
     //Expand cover, but not content
-    cover = cover.CreateExpand(chart->compressGap/2);
+    cover = GetCover4Compress(pipe_body_cover);
     //Add content to cover (may "come out" from pipe)
     cover += content_cover;
     //If we have valid content, set mainline to that of the content
@@ -3290,7 +3300,7 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover)
         Block b(0, chart->total.x, 0, chart->nudgeSize);
         area = b;
         area.mainline=b.y;
-        cover+=area;
+        cover = GetCover4Compress(area);
         return chart->nudgeSize;
     }
     double y = wide ? 0 : chart->arcVGapAbove;
@@ -3318,7 +3328,7 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover)
         area.mainline += Range(wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
         area.mainline += Range(centerline-charheight/2, centerline+charheight/2);
-    cover = area.CreateExpand(chart->compressGap/2);
+    cover = GetCover4Compress(area);
     return height;
 }
 
@@ -3915,14 +3925,15 @@ double CommandEntity::Height(MscCanvas &canvas, AreaList &cover)
         //Grouped entities may start at negative yPos.
         //We collect here the maximum extent
         //Note: Height() also adds the cover to the entitydef's area
-        hei += (*i)->Height(cover, edl); 
+        Area entity_cover;
+        hei += (*i)->Height(entity_cover, edl); 
+        cover += GetCover4Compress(entity_cover);
         area += (*i)->GetAreaToSearch();
     }
     if (!hei.Spans()) return height = 0; //if no headings show
     //Ensure overall startpos is zero
     ShiftBy(-hei.from + chart->headingVGapAbove);
     cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));
-    cover = cover.CreateExpand(chart->compressGap/2);
     return height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
 }
 
@@ -4109,7 +4120,7 @@ double CommandEmpty::Height(MscCanvas &canvas, AreaList &cover)
     yPos = 0;
     const XY wh = parsed_label.getTextWidthHeight();
     const Area a(Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y), this);
-    cover = a.CreateExpand(chart->compressGap/2);
+    cover = GetCover4Compress(a);
     return wh.y + EMPTY_MARGIN_Y*2;
 }
 

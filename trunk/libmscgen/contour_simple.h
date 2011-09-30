@@ -102,7 +102,7 @@ public:
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
-    void Expand(EExpandType type, double gap, Contour &res) const;
+    void Expand(EExpandType type, double gap, Contour &res, double miter_limit/*=DBL_MAX*/) const;
 
     void Path(cairo_t *cr, bool show_hidden) const;
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {

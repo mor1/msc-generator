@@ -156,7 +156,7 @@ public:
     virtual string Print(int ident=0) const;
 
     double Width() const;
-    Range Height(AreaList &cover, const EntityDefList &edl);
+    Range Height(Area &cover, const EntityDefList &edl);
     void ShiftBy(double y) {TrackableElement::ShiftBy(y); outer_edge.Shift(XY(0,y));}
     virtual void PostPosProcess(MscCanvas &, double);
     void Draw(MscCanvas &);

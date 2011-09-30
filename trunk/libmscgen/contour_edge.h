@@ -42,7 +42,14 @@ inline double angle_degrees(double angle) {
     return (angle>=2) ? 360 - acos(angle-3)*(180./M_PI) : acos(1-angle)*(180./M_PI);
 }
 
-typedef enum {EXPAND_MITER, EXPAND_ROUND, EXPAND_BEVEL, EXPAND_MITER_ROUND, EXPAND_MITER_BEVEL, EXPAND_MITER_SQUARE} EExpandType;
+typedef enum {
+    EXPAND_MITER, //continue edges until they meet, if they dont add two segments
+    EXPAND_MITER_ROUND, //continue edges until they meet, if they dont add circle
+    EXPAND_MITER_BEVEL, //continue edges until they meet, if they dont cut directly
+    EXPAND_MITER_SQUARE, //continue edges until they meet, if they dont add square
+    EXPAND_ROUND, //add circle
+    EXPAND_BEVEL, //cut directly
+} EExpandType;
 
 struct RayAngle {
     double angle;  //the false angle [0..4], each integer corresponds to 90 degrees

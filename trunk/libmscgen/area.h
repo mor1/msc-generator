@@ -57,9 +57,11 @@ public:
     void RotateAround(const contour::XY&c, double degrees) {Contour::RotateAround(c, degrees);}
     void SwapXY() {Contour::SwapXY(); mainline.MakeInvalid();}
 
-    Area CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND) const;
-    Area &Expand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND)
-         {Contour::Expand(gap, et4pos, et4neg); mainline.Expand(gap); return *this;}
+    Area CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
+                      double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
+    Area &Expand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
+                 double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX)
+         {Contour::Expand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative); mainline.Expand(gap); return *this;}
 	void ClearHoles() {Contour::ClearHoles();}
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline = true) const;
@@ -87,7 +89,8 @@ public:
     AreaList &Shift(contour::XY xy) {for (auto i=cover.begin(); i!=cover.end(); i++) i->Shift(xy); mainline.Shift(xy.y); boundingBox.Shift(xy); return *this;}
     const contour::Block& GetBoundingBox() const {return boundingBox;}
 
-    AreaList CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND) const;
+    AreaList CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
+                          double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
