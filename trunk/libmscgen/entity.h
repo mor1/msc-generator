@@ -18,13 +18,13 @@ public:
     EEntityStatus& Activate(bool on) {status = on ? (IsActive() ? status : status==SHOW_OFF ? SHOW_ACTIVE_OFF : SHOW_ACTIVE_ON) : (!IsActive() ? status : status==SHOW_ACTIVE_OFF ? SHOW_OFF : SHOW_ON); return *this;}
     bool operator ==(EEntityStatus o) const {return status == o.status;}
     bool operator ==(E o) const {return status == o;}
-    EEntityStatus& operator =(E o) {status=o; return *this;} 
+    EEntityStatus& operator =(E o) {status=o; return *this;}
 };
 
 class EntityStatusMap
 {
 public:
-	
+
 protected:
     contour::DoubleMap<MscStyle>      styleStatus;   //style of the entity line at and beyond a position
     contour::DoubleMap<EEntityStatus> showStatus;    //tells if the entity is turned on or off or active
@@ -140,7 +140,7 @@ public:
     EIterator                      itr;         //this is set during PostParse, points to the entity
     MscStyle                       style;       //this is finalized during PostParse
     Label                          parsed_label;//this is finalized during PostParse
-	bool                           defining;    //true if this is the first entityDef for this entity = this entityDef created the entity (set in AddAttrList)
+    bool                           defining;    //true if this is the first entityDef for this entity = this entityDef created the entity (set in AddAttrList)
     bool                           draw_heading;//true if in CommandEntity::Height we decided to draw heading of this entity
 
     mutable EIterator left_ent, right_ent;      //for a grouped entity the left & right active entity (but in AllEntities)

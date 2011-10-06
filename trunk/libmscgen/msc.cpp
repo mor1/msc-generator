@@ -1228,6 +1228,7 @@ void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &
         case MscCanvas::ERR_PARAM: Error.Error(file_line(0, 0), "Internal param problem when opening canvas."); return;
         case MscCanvas::ERR_CANVAS: Error.Error(file_line(0, 0), "Could not open canvas."); return;
         case MscCanvas::ERR_DONE: Error.Error(file_line(0, 0), "Whops, internal error."); return;
+        default: break;
         }
         Draw(canvas, false);
         canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
@@ -1241,6 +1242,7 @@ void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &
         case MscCanvas::ERR_PARAM: Error.Error(file_line(0, 0), "Internal param problem when opening canvas."); return;
         case MscCanvas::ERR_CANVAS: Error.Error(file_line(0, 0), "Could not open canvas."); return;
         case MscCanvas::ERR_DONE: Error.Error(file_line(0, 0), "Whops, internal error."); return;
+        default: break;
         }
         Draw(canvas, false);
         canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()

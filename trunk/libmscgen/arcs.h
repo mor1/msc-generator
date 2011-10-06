@@ -333,9 +333,9 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
-    virtual double Height(MscCanvas &canvas, AreaList &/*cover*/) {return 0;} //will never be called
+    virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;} //will never be called
     virtual void ShiftBy(double y);
-    virtual void Draw(MscCanvas &canvas) {} //will never be called
+    virtual void Draw(MscCanvas &/*canvas*/) {} //will never be called
 };
 
 class ArcBoxSeries : public ArcBase
@@ -384,11 +384,11 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual double Height(MscCanvas &canvas, AreaList &/*cover*/) {return 0;} //will never be called
+    virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;} //will never be called
     virtual void ShiftBy(double y);
     void DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bool backSide, bool shadow,
                   bool text, double next_lw, int drawing_variant);
-    virtual void Draw(MscCanvas &canvas) {} //will never be called
+    virtual void Draw(MscCanvas &/*canvas*/) {} //will never be called
 };
 
 class ArcPipeSeries : public ArcBase
@@ -463,8 +463,8 @@ public:
     ArcCommand(MscArcType t, Msc *msc) : ArcBase(t, msc) {};
     bool AddAttribute(const Attribute &) {return false;}
     string Print(int ident=0) const;
-    virtual double Height(MscCanvas &canvas, AreaList &/*cover*/) {return 0;}
-    virtual void Draw(MscCanvas &canvas) {}
+    virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;}
+    virtual void Draw(MscCanvas &/*canvas*/) {}
 };
 
 class CommandEntity : public ArcCommand

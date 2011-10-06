@@ -592,7 +592,7 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
 
 
 Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which,
-                         const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
+                         const MscLineAttr &/*mainline_left*/, const MscLineAttr &/*mainline_right*/) const
 {
     XY act(act_size, 0);
     XY wh = getWidthHeight(bidir, which);
@@ -828,8 +828,8 @@ XY ArrowHead::getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) con
 
 //The values returned here are used to determine spacing between entities
 //the value returned counts from the midline of the entity line
-double ArrowHead::getBigWidthsForSpace(bool bidir, MscArrowType type, MscArrowEnd which, 
-                                       double body_height, double act_size, const MscLineAttr &ltype) const
+double ArrowHead::getBigWidthsForSpace(bool /*bidir*/, MscArrowType type, MscArrowEnd /*which*/, 
+                                       double /*body_height*/, double act_size, const MscLineAttr &ltype) const
 {
     switch(type) {
     case MSC_ARROW_STRIPES:
@@ -1090,7 +1090,6 @@ void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vect
     
     for (unsigned i=0; i<result.size(); i++) {
         const MscLineAttr &l = lines ? lines->at(i) : line;
-        const double gap = l.LineWidth()/2-l.width.second/2;
         const Contour midline = result[i].CreateExpand(-l.LineWidth()/2);
         canvas.Shadow(midline, shadow, shadow_x_neg, shadow_y_neg);
         canvas.Fill  (midline.CreateExpand(-l.Spacing()), fill); 
