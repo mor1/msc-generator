@@ -54,7 +54,7 @@ void TrackableElement::ShiftBy(double y)
     control_location.y += y;
 }
 
-void TrackableElement::PostPosProcess(MscCanvas &canvas, double)
+void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/, double)
 {
     if (!area.IsEmpty()&& !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,

@@ -27,8 +27,8 @@ Entity::Entity(const string &n, const string &l, const string &ol,
                bool coll) :
     name(n), label(l), orig_label(ol), file_pos(fp), pos(p), pos_exp(pe),
     index(0), status(entity_style),
-    running_style(entity_style), maxwidth(0), running_shown(EEntityStatus::SHOW_OFF),
-    collapsed(coll)
+    running_style(entity_style), running_shown(EEntityStatus::SHOW_OFF),
+    maxwidth(0), collapsed(coll)
 {
 }
 
@@ -112,18 +112,20 @@ void EntityList::SortByPosExp(void)
     PtrList<Entity>::sort(SmallerByPosExp);
 }
 
-EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc), name(s),
-    style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
-    defining(false), draw_heading(false),
+EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc),
+    name(s),
     label(false, "", file_line()),
     pos(false, 0, file_line()),                    //field 'pos.second' is used even if no such attribute
     rel(false, "", file_line()),
     collapsed(false, false, file_line()),
+    show(true, true),                              //if no attributes, we are ON if defined
     active(true, false, file_line()),              //if no attributes, we are not active if defined
-    show(true, true)                               //if no attributes, we are ON if defined
+    show_is_explicit(false),
+    active_is_explicit(false),
+    style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
+    defining(false),
+    draw_heading(false)
 {
-    show_is_explicit = false;
-    active_is_explicit = false;
     style.Empty();
 }
 
@@ -263,7 +265,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
                                "The position of grouped entities is derived from its member entities.",
                                " Ignoring attribute.");
         pos.first = rel.first = false;
-        if (active.first && active_is_explicit) 
+        if (active.first && active_is_explicit)
             chart->Error.Error(active.third, "You cannot directly activate or deactivate a grouped entity.",
                                "The active/inactive state of grouped entities is derived from its member entities. Ignoring attribute.");
         active.first = active_is_explicit = false;

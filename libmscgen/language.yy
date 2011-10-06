@@ -1226,7 +1226,7 @@ styledef : tok_stringlist full_arcattrlist
         AttributeList::iterator j=($2)->begin();
         while (j!=($2)->end()) {
            if (!style.AddAttribute(**j, &msc))
-               msc.Error.Error(**j, "Attribute '" + (*j)->name + "' is not applicable to styles. Ignoring it.");
+               msc.Error.Error(**j, false, "Attribute '" + (*j)->name + "' is not applicable to styles. Ignoring it.");
            j++;
         }
         msc.Contexts.back().styles[*i] = style;

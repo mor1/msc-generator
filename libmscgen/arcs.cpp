@@ -243,7 +243,7 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover)
+double ArcIndicator::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     yPos = chart->emphVGapOutside;
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
@@ -594,14 +594,14 @@ ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     return this;
 }
 
-void ArcSelfArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void ArcSelfArrow::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
     if (!valid) return;
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
 
-double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover)
+double ArcSelfArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -937,7 +937,7 @@ MscArrowEnd ArcDirArrow::WhichArrow(unsigned i)
     return MSC_ARROW_END;
 }
 
-double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover)
+double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -1301,7 +1301,7 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 }
 
 
-double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover)
+double ArcBigArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -1631,7 +1631,7 @@ void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-double ArcVerticalArrow::Height(MscCanvas &canvas, AreaList &)
+double ArcVerticalArrow::Height(MscCanvas &/*canvas*/, AreaList &)
 {
     return 0;
 }
@@ -3276,7 +3276,7 @@ ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &l
     return this;
 }
 
-void ArcDivider::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void ArcDivider::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
@@ -3834,7 +3834,7 @@ ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
 //be drawn as containing other entities.
 //Since parents are in the beginning of the list, we will go and add distances from the back
 //and use the added distances later in the cycle when processing parents
-void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void CommandEntity::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
     if (!valid || hidden) return;
     //Add distances for entity heading
@@ -3905,7 +3905,7 @@ void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     }
 }
 
-double CommandEntity::Height(MscCanvas &canvas, AreaList &cover)
+double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     if (!valid || hidden) return height=0;
     Range hei(0,0);
@@ -3986,7 +3986,7 @@ bool CommandNewpage::AttributeValues(const std::string, Csh &)
     return false;
 }
 
-double CommandNewpage::Height(MscCanvas &canvas, AreaList &)
+double CommandNewpage::Height(MscCanvas &/*canvas*/, AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
@@ -3995,7 +3995,7 @@ double CommandNewpage::Height(MscCanvas &canvas, AreaList &)
     return 0;
 }
 
-void CommandNewpage::PostPosProcess(MscCanvas &canvas, double)
+void CommandNewpage::PostPosProcess(MscCanvas &/*canvas*/, double)
 {
     if (!valid) return;
     chart->yPageStart.push_back(yPos);
@@ -4003,7 +4003,7 @@ void CommandNewpage::PostPosProcess(MscCanvas &canvas, double)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-double CommandNewBackground::Height(MscCanvas &canvas, AreaList &)
+double CommandNewBackground::Height(MscCanvas &/*canvas*/, AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
@@ -4012,14 +4012,14 @@ double CommandNewBackground::Height(MscCanvas &canvas, AreaList &)
     return 0;
 }
 
-void CommandNewBackground::PostPosProcess(MscCanvas &canvas, double)
+void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/, double)
 {
     if (!valid) return;
     chart->Background[yPos] = fill;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-ArcBase* CommandNumbering::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool /*top_level*/)
+ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool /*top_level*/)
 {
     if (!valid) return NULL;
     if (hide) hidden = true;
@@ -4080,7 +4080,7 @@ bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-double CommandMark::Height(MscCanvas &canvas, AreaList &)
+double CommandMark::Height(MscCanvas &/*canvas*/, AreaList &)
 {
     if (!valid) return 0;
     Block b(0, chart->total.x, offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
@@ -4118,7 +4118,7 @@ void CommandEmpty::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     distances.Insert(lside_index, rside_index, width);
 }
 
-double CommandEmpty::Height(MscCanvas &canvas, AreaList &cover)
+double CommandEmpty::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;

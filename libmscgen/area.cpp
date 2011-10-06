@@ -47,7 +47,7 @@ AreaList AreaList::CreateExpand(double gap, contour::EExpandType et4pos, contour
     if (!gap) return *this;
     AreaList al;
     for (auto i=cover.begin(); i!=cover.end(); i++)
-        al += i->CreateExpand(gap, et4pos, et4neg);
+        al += i->CreateExpand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative);
     return al;
 }
 
