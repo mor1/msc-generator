@@ -421,12 +421,14 @@ string MscLineAttr::Print(int) const
 //"this->radius" corresponds to the radius at the middle of the line
 //"x1, x2, y1, y2" corresponds to the midline -> this is what is returned
 //For CORNER_NOTE it creates the outer line only 
-Contour MscLineAttr::CreateRectangle_Midline(double x1, double x2, double y1, double y2) const
+Contour MscLineAttr::CreateRectangle_Midline(double x1, double x2, double y1, double y2, double r) const
 {
-    if (!radius.first || radius.second<=0 || !corner.first) 
+    if (r==-1 && radius.first) 
+        r = radius.second;
+    if (r<=0 || !corner.first) 
         return Contour(x1, x2, y1, y2);
     Contour ret;
-    const double r = SaneRadius(x1, x2, y1, y2);
+    r = std::min(r, MaxRadius(x1, x2, y1, y2));
     switch (corner.second) {
     default: 
         return Contour(x1, x2, y1, y2);

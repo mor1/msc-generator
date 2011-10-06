@@ -943,8 +943,8 @@ Edge& Edge::SetStartLiberal(const XY &p, bool keep_full_circle)
 }
 
 
-//Checks if this edge and next can be combined into a single edge
-//if so, also update this to be the combined edge
+//Checks if this edge and "next" can be combined into a single edge
+//if so, also update "this" to be the combined edge & return true
 bool Edge::CheckAndCombine(const Edge &next)
 {
     //if next is a degenerate (zero length) arc, we just skip that

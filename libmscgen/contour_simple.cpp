@@ -322,10 +322,9 @@ void SimpleContour::AppendDuringWalk(const Edge &edge)
     if (size()>0 && edge.GetStart().test_equal(rbegin()->GetStart()))
         if (rbegin()->GetType() != Edge::FULL_CIRCLE)
             pop_back();
-    //check if current_xy falls on the same line as the previous two
-    if (size()>=2 && at(size()-2).CheckAndCombine(at(size()-1)))
-        at(size()-1) = edge; //if so overwrite last
-    else
+    //check if "edge" is a direct continuation of the last edge and can be combined
+    //if not, append "edge"
+    if (size()==0 || !rbegin()->CheckAndCombine(edge))
         push_back(edge);
     _ASSERT(at(size()-1).IsSaneNoBoundingBox());
 };
@@ -593,7 +592,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     //now kill the ones that changed direction
     if (type == EXPAND_MITER ||
         type == EXPAND_MITER_ROUND ||
-        type == EXPAND_MITER_BEVEL) {   //for bevel and round we check this after inserting bevel & round
+        type == EXPAND_MITER_BEVEL ||
+        type == EXPAND_MITER_SQUARE) {   //for bevel and round we check this after inserting bevel & round
         unsigned prev_size;
         do {
             prev_size = r.size();
@@ -725,14 +725,19 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 r2.push_back(Edge(new_end, r.at_next(i).GetStart()));  //insert line
             else
                 r2.push_back(CreateRoundForExpand(new_end, r.at_next(i).GetStart(),
-                                                  o[i].GetEnd(), clockwise ^ (gap<0)));  //circle
+                                                  o[i].GetEnd(), gap>0));  //circle
         }
         //Now check all inserted edge.
         //If any neighbouring original edge has changed direction and the
         //inserted edge has a good cp with the edge beyond the neighbour that
         //changed dir, skip the neighbour that changed dir.
+        bool all_orig_changed_dir = true;
         for (unsigned u = 0; u<r2.size(); u++) {
-            if (edge_type[u]!=INSERTED) continue;
+            if (edge_type[u]!=INSERTED) {
+                if (edge_type[u]!=EXISTING_CHANGED_DIR)
+                    all_orig_changed_dir = false;
+                continue;
+            }
             XY tmp_point;
             Edge::EExpandCPType tmp_type;
             //first check out the original edge before the inserted one
@@ -771,6 +776,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 }
             }
         }
+        if (all_orig_changed_dir) return; 
     }
     r2.Sanitize();
     if (r2.size()==0) return;

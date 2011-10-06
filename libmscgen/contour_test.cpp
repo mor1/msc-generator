@@ -207,7 +207,7 @@ void DrawIsinside(unsigned i, const Contour &a, double gap=5, const char *text=N
 
 void contour_test(void)
 {
-    /* Excluded for speed */
+    /* Excluded for speed 
     Contour tri = Contour(XY(50,90), XY(100,60), XY(40,20));
 	Draw(100, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
     tri +=  Contour(30,70,60,70);
@@ -370,9 +370,9 @@ void contour_test(void)
     DrawExpand(133, EXPAND_MITER, DBL_MAX, cooomplex, false, "complex with miter");
     DrawExpand(134, EXPAND_MITER, DBL_MAX, huhu, false, "huhu with miter");
 
-    DrawExpand(135, EXPAND_MITER, DBL_MAX, part, false, "part with round");
+    DrawExpand(135, EXPAND_MITER, DBL_MAX, part, false, "part with miter");
     DrawExpand(136, EXPAND_ROUND, DBL_MAX, part, false, "part with round");
-    DrawExpand(137, EXPAND_BEVEL, DBL_MAX, part, false, "part with round");
+    DrawExpand(137, EXPAND_BEVEL, DBL_MAX, part, true, "part with bevel");
 
     DrawExpand(138, EXPAND_MITER, DBL_MAX, spart, false, "spart with round");
     DrawExpand(139, EXPAND_ROUND, DBL_MAX, spart, false, "spart with round");
@@ -455,46 +455,47 @@ void contour_test(void)
     Draw(2193, lohere4);
     Draw(2194, lohere5);
 
+    Contour lohere6 = lohere3[1];
+    Draw(2195, lohere6);
+    
     DrawExpand(250, EXPAND_MITER, DBL_MAX,lohere1, false);
     DrawExpand(251, EXPAND_MITER, DBL_MAX,lohere2, false);
     DrawExpand(252, EXPAND_MITER, DBL_MAX,lohere3, false);
     DrawExpand(253, EXPAND_MITER, DBL_MAX,lohere4, false);
     DrawExpand(254, EXPAND_MITER, DBL_MAX,lohere5, false);
+    DrawExpand(255, EXPAND_MITER, DBL_MAX,lohere6, false);
 
     DrawExpand(260, EXPAND_BEVEL, DBL_MAX,lohere1, false);
     DrawExpand(261, EXPAND_BEVEL, DBL_MAX,lohere2, false);
     DrawExpand(262, EXPAND_BEVEL, DBL_MAX,lohere3, false);
     DrawExpand(263, EXPAND_BEVEL, DBL_MAX,lohere4, false);
     DrawExpand(264, EXPAND_BEVEL, DBL_MAX,lohere5, false);
+    DrawExpand(265, EXPAND_BEVEL, DBL_MAX,lohere6, false);
 
     DrawExpand(270, EXPAND_ROUND, DBL_MAX,lohere1, false);
     DrawExpand(271, EXPAND_ROUND, DBL_MAX,lohere2, false);
     DrawExpand(272, EXPAND_ROUND, DBL_MAX,lohere3, false);
     DrawExpand(273, EXPAND_ROUND, DBL_MAX,lohere4, false);
-    DrawExpand(274, EXPAND_ROUND, DBL_MAX,lohere4, false);
-    
+    DrawExpand(274, EXPAND_ROUND, DBL_MAX,lohere5, false);
+    DrawExpand(275, EXPAND_ROUND, DBL_MAX,lohere6, false);
 
-    (Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130)).CreateExpand(-16, EXPAND_MITER, EXPAND_MITER, DBL_MAX, DBL_MAX);
-
-
-    DrawExpand(280, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);
-    DrawExpand(281, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 20), false);
-    DrawExpand(282, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), false);
-    
+    DrawExpand(350, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);
+    DrawExpand(351, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 20), false);
+    DrawExpand(352, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), false);
 
     Contour rombusz = Contour(40,80,40,80).CreateRotatedAround(XY(60,60),45);
-    DrawExpand(283, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + rombusz, false);
-    DrawExpand(284, EXPAND_MITER, DBL_MAX,rombusz +rombusz.CreateShifted(XY(40,0)), false);
+    DrawExpand(353, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + rombusz, false);
+    DrawExpand(354, EXPAND_MITER, DBL_MAX,rombusz +rombusz.CreateShifted(XY(40,0)), false);
 
     Contour concave = Contour(0,40,0,100) - Contour(0,20,30,60) + Contour(XY(20,45), 15);
-    DrawExpand(285, EXPAND_MITER, DBL_MAX,concave, false);
+    DrawExpand(355, EXPAND_MITER, DBL_MAX,concave, false);
 
     Contour triangle(XY(0,0), XY(100,10), XY(0,20));
-    DrawExpand(286, EXPAND_MITER, DBL_MAX, triangle, false);
-    DrawExpand(287, EXPAND_MITER, 1.2, triangle, false);
-    DrawExpand(288, EXPAND_MITER, 2, triangle, false);
-    DrawExpand(289, EXPAND_MITER, 1, triangle, false);
-    DrawExpand(290, EXPAND_MITER, 0, triangle, false);
+    DrawExpand(356, EXPAND_MITER, DBL_MAX, triangle, false);
+    DrawExpand(357, EXPAND_MITER, 1.2, triangle, false);
+    DrawExpand(358, EXPAND_MITER, 2, triangle, false);
+    DrawExpand(359, EXPAND_MITER, 1, triangle, false);
+    DrawExpand(360, EXPAND_MITER, 0, triangle, false);
 
 
 

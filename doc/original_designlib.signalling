@@ -35,7 +35,7 @@ defdesign omegapple {
                     fill.color=rose, fill.gradient=down];
     defstyle pipe [fill.color=faint_rose, fill.gradient=down, line.color=black,
                    text.format="\b", text.color=rose];
-    defstyle entitygroup [box, line.type=dashed, text.format="\pc\b", text.color=rose, 
+    defstyle entitygroup [box, line.type=dashed, text.format="\pc\b", text.color=rose,
                           line.color=rose];
     defstyle entitygroup_collapsed [entity, line.radius=10, text.format="\md(0)"];
     defstyle box_collapsed [emptybox];
@@ -46,7 +46,7 @@ defdesign omegapple {
 };
 defdesign qsd {
       defstyle entity, pipe, box, emptybox, blockarrow, vertical, box_collapsed_arrow, box_collapsed,
-               entitygroup_collapsed [shadow.offset=4, shadow.blur=2];
+               entitygroup_collapsed, indicator [shadow.offset=4, shadow.blur=2];
       defstyle entity [text.format="\u\mu(6)\md(6)\ml(6)\mr(6)"];
       defstyle entitygroup_collapsed [text.format="\md(0)"];
       defstyle entity [vline.type=dashed];
@@ -64,7 +64,7 @@ defdesign modern_blue {
       defstyle box, pipe, vertical [text.format="\b", fill.color=lblue];
       defstyle entity [vline.color=gray];
 
-      defstyle entitygroup [box, line.type=dashed, text.format="\pc\b", text.color=blue, 
+      defstyle entitygroup [box, line.type=dashed, text.format="\pc\b", text.color=blue,
                            line.color=blue];
       defstyle entitygroup_collapsed [entity, line.radius=5, text.format="\md(0)"];
       defstyle box_collapsed [emptybox];
@@ -84,6 +84,7 @@ defdesign round_green {
          [fill.color=lbrown, line.color=brown];
       defstyle >, >> [arrow.type=line];
       defstyle box, pipe, vertical, entitygroup [line.width=2, line.color=green];
+      defstyle indicator [line.corner = round, line.radius=2];
 };
 defdesign green_earth {
       defcolor green="87,139,119", lgray="240,240,240";

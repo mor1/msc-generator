@@ -154,7 +154,7 @@ Block TrackableElement::GetIndicatorCover(const XY &pos)
 {
     Block b(pos.x-indicator_size.x/2, pos.x+indicator_size.x/2,
             pos.y, pos.y+indicator_size.y);
-    return b.Expand(indicator_style.line.LineWidth()/2);
+    return b.Expand(indicator_style.line.LineWidth());
 }
 
 void TrackableElement::DrawIndicator(XY pos, MscCanvas *canvas)

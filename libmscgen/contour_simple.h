@@ -36,8 +36,8 @@ private:
     bool PostWalk();
     bool Sanitize();
 
-    unsigned next(unsigned vertex) const {return (vertex+1)%size();}
-    unsigned prev(unsigned vertex) const {return (vertex-1+size())%size();}
+    unsigned next(unsigned vertex) const {return size()<=1 ? 0 : (vertex+1)%size();}
+    unsigned prev(unsigned vertex) const {return size()<=1 ? 0 : (vertex-1+size())%size();}
     Edge       &at_next(unsigned i)       {return at(next(i));}
     const Edge &at_next(unsigned i) const {return at(next(i));}
     Edge       &at_prev(unsigned i)       {return at(prev(i));}

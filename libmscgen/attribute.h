@@ -266,7 +266,9 @@ public:
     double LineWidth() const {_ASSERT(type.first && width.first); return width.second * LineWidthMultiplier(type.second);}
     //double RadiusIncMul() const {_ASSERT(type.first); return ::RadiusIncMultiplier(corner.second);}
     MscLineAttr& Expand(double gap) {_ASSERT(IsComplete()); if (radius.second>0 && corner.second != CORNER_NONE) radius.second = std::max(0., radius.second + gap*::RadiusIncMultiplier(corner.second)); return *this;}
-    double SaneRadius(double x1, double x2, double y1, double y2) const {return std::max(0., std::min(radius.second, std::min(fabs(x2-x1), fabs(y2-y1))/2));}
+    //the box here is the midline 
+    double MaxRadius(double x1, double x2, double y1, double y2) const {return std::max(0., std::min(fabs(x2-x1), fabs(y2-y1)-LineWidth())/2);}
+    double SaneRadius(double x1, double x2, double y1, double y2) const {return std::max(0., std::min(radius.second, MaxRadius(x1, x2, y1, y2)));}
     double SaneRadius(const Block &b) const {return SaneRadius(b.x.from, b.x.till, b.y.from, b.y.till);}
     const double * DashPattern(unsigned &num) const;
 
@@ -281,7 +283,7 @@ public:
     //"this->radius" corresponds to the radius at the middle of the line
     //"x1, x2, y1, y2" corresponds to the midline -> this is what is returned
     //For CORNER_NOTE it creates the outer line only 
-    Contour CreateRectangle_Midline(double x1, double x2, double y1, double y2) const;  
+    Contour CreateRectangle_Midline(double x1, double x2, double y1, double y2, double r = -1) const;  
     Contour CreateRectangle_Midline(const XY &s, const XY &d) const {return CreateRectangle_Midline(s.x, d.x, s.y, d.y);}
     Contour CreateRectangle_Midline(const Block &b) const {return CreateRectangle_Midline(b.x.from, b.x.till, b.y.from, b.y.till);}
     
@@ -289,9 +291,9 @@ public:
     //"this->radius" corresponds to the radius at the middle of the line
     //"x1, x2, y1, y2" corresponds to the midline 
     //For CORNER_NOTE it creates the outer line only 
-    Contour CreateRectangle_OuterEdge(double x1, double x2, double y1, double y2) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(x1-lw2, x2+lw2, y1-lw2, y2+lw2);}
-    Contour CreateRectangle_OuterEdge(const XY &s, const XY &d) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(s.x-lw2, d.x+lw2, s.y-lw2, d.y+lw2);}
-    Contour CreateRectangle_OuterEdge(const Block &b) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(b.x.from-lw2, b.x.till+lw2, b.y.from-lw2, b.y.till+lw2);}
+    Contour CreateRectangle_OuterEdge(double x1, double x2, double y1, double y2) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(x1-lw2, x2+lw2, y1-lw2, y2+lw2, radius.second+lw2*::RadiusIncMultiplier(corner.second));}
+    Contour CreateRectangle_OuterEdge(const XY &s, const XY &d) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(s.x-lw2, d.x+lw2, s.y-lw2, d.y+lw2, radius.second+lw2*::RadiusIncMultiplier(corner.second));}
+    Contour CreateRectangle_OuterEdge(const Block &b) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(b.x.from-lw2, b.x.till+lw2, b.y.from-lw2, b.y.till+lw2, radius.second+lw2*::RadiusIncMultiplier(corner.second));}
     
     //This one considers linewidth and returns the middle of the inner line (for double or triple)
     //(or the middle of the line for single)

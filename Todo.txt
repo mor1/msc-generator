@@ -62,21 +62,21 @@ FIXED: Block arrow space for sharp - take linewidth into account: add line forma
 FIXED: Line segment stuff not copied to all segments
 FIXED: Why block arrows compress badly?
 FIXED: stripes with thick lines should expand...
-
-FIX: Too much compress after adding MITER_LIMIT
-FIX: Regression problems in contour
-FIX: Triple bevel changes size when size limited.
-FIX: labels should keep gap if a->b:aaa is between two active entities
-FIX: Pipes should be wider if entity is active
-FIX: if box radius is decreased due to low height, recalc label position
-FIX: the indicator inside a collapsed block arrow should have more space below it
-FIX: add shadow to the indicator for certain styles
-FIX: test1.signalling
+CHANGED: Rewritten Edge into a single class
+FIXED: Regression problems in contour
+FIXED: labels should keep gap if a->b:aaa is between two active entities
+CANCELLED: Pipes should be wider if entity is active
+CANCELLED: if box radius is decreased due to low height, recalc label position
+FIXED: the indicator inside a collapsed block arrow should have more space below it
+FIXED: add shadow to the indicator for certain styles
+FIXED: test1.signalling
 
 ADD: message lost
 ADD: mark centerline
 ADD: symbol circle/box/cross/text [marker] at vertxpos [xsize, ysize, rotate, style];
-
+FIX: Regression Bugs in Contour Expand still remain...
+FIX: Too much compress after adding MITER_LIMIT
+FIX: Triple bevel changes size when size limited.
 
 
 In 3.2
