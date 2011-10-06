@@ -1090,7 +1090,7 @@ void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vect
     
     for (unsigned i=0; i<result.size(); i++) {
         const MscLineAttr &l = lines ? lines->at(i) : line;
-        const double gap = l.LineWidth()/2-lines->at(i).width.second/2;
+        const double gap = l.LineWidth()/2-l.width.second/2;
         const Contour midline = result[i].CreateExpand(-l.LineWidth()/2);
         canvas.Shadow(midline, shadow, shadow_x_neg, shadow_y_neg);
         canvas.Fill  (midline.CreateExpand(-l.Spacing()), fill); 

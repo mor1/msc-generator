@@ -474,7 +474,7 @@ double EntityDef::Width() const
 {
     double inner = parsed_label.getTextWidthHeight().x;
     if ((*itr)->children_names.size() && style.indicator.second && (*itr)->collapsed)
-        inner = std::max(inner, indicator_size.x + 2*chart->emphVGapInside);
+        inner = std::max(inner, GetIndiactorSize().x + 2*chart->emphVGapInside);
     const double width = ceil(style.line.LineWidth()*2 + inner);
     return width + fmod_negative_safe(width, 2.); //always return an even number
 }
@@ -486,12 +486,12 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     if (children.size()==0) {
         const double x = chart->XCoord((*itr)->pos); //integer
         if ((*itr)->children_names.size() && style.indicator.second)
-            indicator_ypos_offset = wh.y + lw;
+            indicator_ypos_offset = wh.y + lw + chart->emphVGapInside;
         else
             indicator_ypos_offset = -1;
         const double width = Width();
-        const double indicator_height = (indicator_ypos_offset > 0) ? indicator_size.y + chart->emphVGapInside: 0;
-        const double height = ceil(chart->headingVGapAbove + wh.y + indicator_height + chart->headingVGapBelow + 2*lw);
+        const double indicator_height = (indicator_ypos_offset > 0) ? GetIndiactorSize().y + 2*chart->emphVGapInside : 0;
+        const double height = ceil(chart->headingVGapAbove + wh.y + indicator_height + 2*lw + chart->headingVGapBelow);
 
         //do not include shadow in anything... but the returned height (uses for non-compressed placement)
         outer_edge = Block(x-ceil(width/2), x+ceil(width/2),

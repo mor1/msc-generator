@@ -115,6 +115,7 @@ public:
 //holes are always within one of the contours
 class Contour : public ContourWithHoles
 {
+    friend void contour_test(void);
     friend class SimpleContour;
     friend class ContourWithHoles;
     friend class ContourList;
@@ -123,7 +124,7 @@ class Contour : public ContourWithHoles
                   WINDING_RULE_NONZERO, WINDING_RULE_EVENODD,
                   EXPAND_POSITIVE,
                   NEGATIVE_UNION, NEGATIVE_INTERSECT, NEGATIVE_XOR,
-                  EXPAND_NEGATIVE,} operation_t;
+                  EXPAND_NEGATIVE} operation_t;
     static bool is_positive(operation_t t) {return t<=EXPAND_POSITIVE;}
     ContourList further;
     Block boundingBox;
@@ -131,7 +132,7 @@ protected:
     void append(const ContourWithHoles &p) {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); ContourWithHoles::assign(p);} else {boundingBox+=p.GetBoundingBox(); further.append(p);}}
     void append(ContourWithHoles &&p)  {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); ContourWithHoles::assign(std::move(p));} else {boundingBox+=p.GetBoundingBox(); further.append(std::move(p));}}
 
-    void Invert() {ContourWithHoles::Invert(); if (further.size()) further.Invert();}
+    void Invert();
     Contour CreateInverse() const {Contour tmp(*this); tmp.Invert(); return tmp;}
     void Rotate(double cos, double sin, double radian) {ContourWithHoles::Rotate(cos, sin, radian); boundingBox = ContourWithHoles::GetBoundingBox(); if (further.size()) {further.Rotate(cos, sin, radian); boundingBox += further.GetBoundingBox();}}
     void RotateAround(const XY&c, double cos, double sin, double radian) {ContourWithHoles::RotateAround(c, cos, sin, radian); boundingBox = ContourWithHoles::GetBoundingBox(); if (further.size()) {further.RotateAround(c, cos, sin, radian); boundingBox += further.GetBoundingBox();}}

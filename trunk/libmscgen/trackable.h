@@ -37,6 +37,7 @@ protected:
     Block  control_location;   //Top-left corner of controls
     const MscStyle 
            indicator_style;  //The one to be used if we need to replace this with an indicator
+    XY GetIndiactorSize() const {const double a = indicator_style.shadow.offset.second+indicator_style.line.LineWidth()*2; return indicator_size+XY(a,a);}
 
 public:
     file_line_range file_pos;

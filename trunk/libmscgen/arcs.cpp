@@ -245,10 +245,14 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
 
 double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover)
 {
+    yPos = chart->emphVGapOutside;
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
     area = b;
-    cover = GetCover4Compress(area);
+    Contour tmp = area;
+    if (style.shadow.offset.second>0)
+        tmp += area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
+    cover = GetCover4Compress(std::move(tmp));
     cover.mainline += b.y;
     return b.y.till + chart->emphVGapOutside;
 }
@@ -884,7 +888,7 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     act_size.push_back(std::max(0., (*src)->GetRunningWidth(chart->activeEntitySize)/2));
     for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
         act_size.push_back(std::max(0., (*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2));
-    act_size.push_back(std::max(0., (*src)->GetRunningWidth(chart->activeEntitySize)/2));
+    act_size.push_back(std::max(0., (*dst)->GetRunningWidth(chart->activeEntitySize)/2));
     //Insert a small extra spacing for the arrow line
     if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
         parsed_label.AddSpacing(0, style.line.LineWidth()+
@@ -1228,10 +1232,10 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     //We ensure that the outer edge of the body falls on an integer value
     const double aH = ceil(style.arrow.bigYExtent(isBidir(), fw, &segment_lines));
     XY twh = parsed_label.getTextWidthHeight();
-    ind_off = twh.y;
+    ind_off = twh.y + chart->emphVGapInside;
     if (sig && style.indicator.second) {
-        twh.y += indicator_size.y;
-        twh.x = std::max(twh.x, indicator_size.x);
+        twh.y += GetIndiactorSize().y + chart->emphVGapInside;
+        twh.x = std::max(twh.x, GetIndiactorSize().x + 2*chart->emphVGapInside);
     } 
     twh.y = std::max(twh.y, Label("M", &canvas, style.text).getTextWidthHeight().y);
     sy = chart->arcVGapAbove + aH;
@@ -1368,10 +1372,10 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 void ArcBigArrow::Draw(MscCanvas &canvas)
 {
     if (!valid) return;
-    style.arrow.BigDrawFromContour(outer_contours, &segment_lines, style.fill, style.shadow, canvas, &label_cover);
+    style.arrow.BigDrawFromContour(outer_contours, &segment_lines, style.fill, style.shadow, canvas);
     parsed_label.Draw(&canvas, sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
-        DrawIndicator(XY(cx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside+ind_off), &canvas);
+        DrawIndicator(XY(cx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside+ind_off), &canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
