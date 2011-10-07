@@ -1386,8 +1386,11 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l,
     valid = true;
     pos = p;
     entity1 = m.FindAllocEntity(e1, e1l);
-    if (pos == POS_CENTER) entity2 = m.FindAllocEntity(e2, e2l);
-    else {
+    e1line = e1l;
+    if (pos == POS_CENTER) {
+        entity2 = m.FindAllocEntity(e2, e2l);
+        e2line = e2l;
+    } else {
         entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
         _ASSERT(entity2 != m.AllEntities.end());
     }
@@ -1398,6 +1401,7 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p)
     valid = true;
     pos = p;
     entity1 = m.FindAllocEntity(e1, e1l);
+    e1line = e1l;
     entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
     _ASSERT(entity2 != m.AllEntities.end());
 }
@@ -1410,6 +1414,23 @@ VertXPos::VertXPos(Msc&m)
     entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
     _ASSERT(entity2 != m.AllEntities.end());
 }
+
+double VertXPos::CalculatePos(Msc &chart, double aw, double width) const
+{
+    double xpos = chart.XCoord(entity1);
+    const double gap = chart.hscaleAutoXGap;
+    switch (pos) {
+    default:
+    case VertXPos::POS_AT: break;
+    case VertXPos::POS_CENTER:      xpos = (xpos + chart.XCoord(entity2))/2; break;
+    case VertXPos::POS_LEFT_BY:     xpos -= width/2 + aw + gap; break;
+    case VertXPos::POS_RIGHT_BY:    xpos += width/2 + aw + gap; break;
+    case VertXPos::POS_LEFT_SIDE:   xpos -= width/2 + gap; break;
+    case VertXPos::POS_RIGHT_SIDE:  xpos += width/2 + gap; break;
+    };
+    return xpos;
+}
+
 
 ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc) :
     ArcArrow(t, msc, msc->Contexts.back().styles["vertical"]), pos(*msc), ypos(2)
@@ -1719,18 +1740,7 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     width += fmod_negative_safe(width, 2.); //width is even integer now: the distance from outer edge to outer edge
 
     const double aw = style.arrow.bigYExtent(isBidir(), false)/2;
-    xpos = chart->XCoord(pos.entity1);
-    const double gap = chart->hscaleAutoXGap;
-    switch (pos.pos) {
-    default:
-    case VertXPos::POS_AT: break;
-    case VertXPos::POS_CENTER:      xpos = (xpos + chart->XCoord(pos.entity2))/2; break;
-    case VertXPos::POS_LEFT_BY:     xpos -= width/2 + aw + gap; break;
-    case VertXPos::POS_RIGHT_BY:    xpos += width/2 + aw + gap; break;
-
-    case VertXPos::POS_LEFT_SIDE:   xpos -= width/2 + gap; break;
-    case VertXPos::POS_RIGHT_SIDE:  xpos += width/2 + gap; break;
-    };
+    xpos = pos.CalculatePos(*chart, aw, width);
     xpos = floor(xpos + offset + 0.5); //xpos is integer now: the centerline of arrow
     width -= lw; //not necessarily integer, the distance from midline to midline
 
@@ -4153,3 +4163,434 @@ void CommandEmpty::Draw(MscCanvas &canvas)
     canvas.Fill(b, line, fill);
     canvas.Line(b, line);
 }
+
+/////////////////////////////////////////////////////////////////
+CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
+    ArcCommand(MSC_COMMAND_HSPACE, msc), format(msc->Contexts.back().text),
+    space(0)
+{
+    if (enp==NULL) {
+        valid=false;
+        return;
+    }
+    if (enp->src.length()) {
+        src = chart->FindAllocEntity(enp->src.c_str(), enp->sline);
+        sline = enp->sline;
+    } else
+        src = chart->AllEntities.Find_by_Name(LSIDE_ENT_STR);
+    if (enp->dst.length()) {
+        dst = chart->FindAllocEntity(enp->dst.c_str(), enp->dline);
+        dline = enp->dline;
+    } else
+        dst = chart->AllEntities.Find_by_Name(RSIDE_ENT_STR);
+    delete enp;
+}
+
+bool CommandHSpace::AddAttribute(const Attribute &a)
+{
+    if (a.Is("label")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        label = a.value;
+        return true;
+    }
+    if (a.Is("space")) {
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        space = a.number;
+        return true;
+    }
+    if (format.AddAttribute(a, chart, STYLE_ARC)) return true;
+    return ArcCommand::AddAttribute(a);
+}
+
+void CommandHSpace::AttributeNames(Csh &csh)
+{
+    ArcCommand::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
+    StringFormat::AttributeNames(csh);
+}
+
+bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"label")) {
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"space")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (StringFormat::AttributeValues(attr, csh)) return true;
+    if (ArcCommand::AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/, 
+    EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+{
+    if (!valid) return NULL;
+    //Give error if user specified groupe entities
+    if (chart->ErrorIfEntityGrouped(src, sline.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(dst, sline.start)) return NULL;
+    //check if src and dst has disappeared, also make src&dst point to 
+    //chart->AllActiveEntities
+    src = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(src));
+    dst = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(dst));
+    //we keep ourselves even if src/dst has disappeared
+    return this; 
+}
+
+
+void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+{
+    if (!valid) return;
+    double dist = space;
+    if (label.length())
+        dist += Label(label, &canvas, format).getTextWidthHeight().x;
+    if (dist<0) 
+        chart->Error.Error(file_pos.start, "The horizontal space specified is negative. Ignoring it.");
+    else 
+        distances.Insert((*src)->index, (*dst)->index, dist);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
+
+CommandVSpace::CommandVSpace(Msc*msc)  : ArcCommand(MSC_COMMAND_VSPACE, msc),
+    format(msc->Contexts.back().text), space(0), compressable(false)
+{
+}
+
+bool CommandVSpace::AddAttribute(const Attribute &a)
+{
+    if (a.Is("label")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        label = a.value;
+        return true;
+    }
+    if (a.Is("space")) {
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        space = a.number;
+        return true;
+    }
+    if (a.Is("compressable")) {
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        space = a.yes;
+        return true;
+    }
+    if (format.AddAttribute(a, chart, STYLE_ARC)) return true;
+    return ArcCommand::AddAttribute(a);
+}
+
+void CommandVSpace::AttributeNames(Csh &csh)
+{
+    ArcCommand::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compressable", HINT_ATTR_NAME));
+    StringFormat::AttributeNames(csh);
+}
+
+bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"label")) {
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"space")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"compressable")) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        return true;
+    }
+    if (StringFormat::AttributeValues(attr, csh)) return true;
+    if (ArcCommand::AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+double CommandVSpace::Height(MscCanvas &canvas, AreaList &cover)
+{
+    double dist = space;
+    if (label.length())
+        dist += Label(label, &canvas, format).getTextWidthHeight().y;
+    if (dist<0) 
+        chart->Error.Error(file_pos.start, "The vertical space specified is negative. Ignoring it.");
+    if (dist<=0) 
+        return 0;
+    if (!compressable) {
+        area = Block(0, chart->total.x, 0, dist);
+        cover = GetCover4Compress(area);
+    }
+    return dist;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
+
+ExtVertXPos::ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p) : 
+VertXPos(*p), side_line(sl)
+{
+    if (!valid) {
+        side = BAD_SIDE;
+        return;
+    }
+    if (CaseInsensitiveEqual(s, "left"))
+        side = LEFT;
+    else if (CaseInsensitiveEqual(s, "center"))
+        side = CENTER;
+    else if (CaseInsensitiveEqual(s, "right"))
+        side = RIGHT;
+    else 
+        side = BAD_SIDE;
+}
+
+
+CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp, 
+                const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) : 
+    ArcCommand(MSC_COMMAND_SYMBOL, msc), 
+    style(chart->Contexts.back().styles["symbol"]),
+    hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)), 
+    hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)), 
+    vpos(enp ? *enp : NamePair(NULL, file_line_range(), NULL, file_line_range())),
+    xsize(false, 0), ysize(false, 0)
+{
+    if (CaseInsensitiveEqual(symbol, "arc"))
+        symbol_type = ARC;
+    else if (CaseInsensitiveEqual(symbol, "rectangle"))
+        symbol_type = RECTANGLE;
+    else {
+        valid = false;
+        return;
+    }
+}
+
+bool CommandSymbol::AddAttribute(const Attribute &a)
+{
+    if (a.Is("xsize")) {
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        xsize.first = true;
+        xsize.second = a.number;
+        return true;
+    }
+    if (a.Is("ysize")) {
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        ysize.first = true;
+        ysize.second = a.number;
+        return true;
+    }
+    if (style.AddAttribute(a, chart)) return true;
+    return ArcCommand::AddAttribute(a);
+}
+
+void CommandSymbol::AttributeNames(Csh &csh)
+{
+    ArcCommand::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
+    Design().styles["symbol"].AttributeNames(csh);
+}
+
+bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"xsize")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"ysize")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (ArcCommand::AttributeValues(attr, csh)) return true;
+    if (Design().styles["symbol"].AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+{
+    if (!valid) return NULL;
+    if (vpos.src.length()) {
+        std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(vpos.src);
+        if (i == chart->Markers.end()) {
+            chart->Error.Error(file_pos.start, "Cannot find marker '" + vpos.src + "'."
+                " Ignoring symbol.");
+            return NULL;
+        }
+    }
+    if (vpos.dst.length()) {
+        std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(vpos.dst);
+        if (i == chart->Markers.end()) {
+            chart->Error.Error(file_pos.start, "Cannot find marker '" + vpos.dst + "'."
+                " Ignoring symbol.");
+            return NULL;
+        }
+    }
+    if (hpos1.side == ExtVertXPos::BAD_SIDE) {
+        chart->Error.Error(hpos1.side_line.start, "Invalid horizontal position designator. Ignoring symbol.", "Use 'left', 'right' or 'center'.");
+        return NULL;
+    }
+    if (hpos2.side == ExtVertXPos::BAD_SIDE) {
+        chart->Error.Error(hpos2.side_line.start, "Invalid horizontal position designator. Ignoring symbol.", "Use 'left', 'right' or 'center'.");
+        return NULL;
+    }
+    _ASSERT(hpos1.side != ExtVertXPos::NONE);
+    if (hpos1.side == hpos2.side) {
+        chart->Error.Error(hpos2.side_line.start, "You cannot specify the same horizontal position designator twice. Ignoring symbol.");
+        chart->Error.Error(hpos1.side_line.start, hpos2.side_line.start, "Here is the first designator.");
+        return NULL;
+    }
+    if (chart->ErrorIfEntityGrouped(hpos1.entity1, hpos1.e1line.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(hpos1.entity2, hpos1.e2line.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(hpos2.entity1, hpos2.e1line.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(hpos2.entity2, hpos2.e2line.start)) return NULL;
+    if (hide) return NULL;
+
+    hpos1.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos1.entity1));
+    hpos1.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos1.entity2));
+    hpos2.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos2.entity1));
+    hpos2.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos2.entity2));
+
+    if (hpos1.side > hpos2.side) std::swap(hpos1, hpos2);
+    if (hpos2.side == ExtVertXPos::NONE && xsize.first == false) {
+        xsize.first = true;
+        xsize.second = 10; //default size;
+    }
+    if ((vpos.dst.length() || vpos.src.length()) && ysize.first == false) {
+        ysize.first = true;
+        ysize.second = 10; //default size;
+    }
+    return false;
+}
+
+void CommandSymbol::Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*/)
+{
+}
+
+double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
+{
+    //Calculate x positions
+    const double off = 10;
+    const double lw = style.line.LineWidth();
+    double x1 = hpos1.CalculatePos(*chart, off);
+    switch (hpos2.side) {
+    case ExtVertXPos::NONE:
+        switch (hpos1.side) {
+        case ExtVertXPos::LEFT:
+            outer_edge.x.from = x1;
+            outer_edge.x.till = x1 + xsize.second;
+            break;
+        case ExtVertXPos::RIGHT:
+            outer_edge.x.from = x1 - xsize.second;
+            outer_edge.x.till = x1;
+            break;
+        case ExtVertXPos::CENTER:
+            outer_edge.x.from = x1 - xsize.second/2;
+            outer_edge.x.till = x1 + xsize.second/2;
+            break;
+        default:
+            _ASSERT(0);
+            break;
+        }
+        break;
+    case ExtVertXPos::RIGHT:
+        outer_edge.x.till = hpos2.CalculatePos(*chart, off);
+        if (hpos1.side == ExtVertXPos::LEFT)
+            outer_edge.x.from = x1;
+        else //can only be center
+            outer_edge.x.from = 2*x1 - outer_edge.x.till;
+        break;
+    case ExtVertXPos::CENTER:
+        //here hpos1 can only be LEFT
+        outer_edge.x.from = x1;
+        outer_edge.x.till = 2*hpos2.CalculatePos(*chart, off) - x1;
+        break;
+    default:
+        _ASSERT(0);
+        break;
+    }
+    outer_edge.x.Expand(lw/2);
+    //if no markers were specified, we draw it here and assign room
+    //else we are done here
+    if (vpos.src.length() || vpos.dst.length()) {
+        outer_edge.y.MakeInvalid();
+        return 0;
+    }
+    outer_edge.y.from = chart->arcVGapAbove;
+    outer_edge.y.till = chart->arcVGapAbove + ysize.second;
+    outer_edge.y.Expand(lw/2);
+
+    CalculateAreaFromOuterEdge();
+
+    if (style.shadow.offset.second) 
+        cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
+    else 
+        cover = area;
+    return outer_edge.y.till + style.shadow.offset.second + chart->arcVGapBelow;
+}
+
+void CommandSymbol::ShiftBy(double y) 
+{
+    ArcCommand::ShiftBy(y);
+    if (outer_edge.y.IsInvalid()) return;
+    outer_edge.y.Shift(y);
+}
+
+void CommandSymbol::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
+{
+    if (!outer_edge.y.IsInvalid()) return;
+    //We used markers, caculate "area" and "outer_edge.y" now
+    if (vpos.src.length()) 
+        outer_edge.y.from = chart->Markers.find(vpos.src)->second.second;
+    if (vpos.dst.length()) 
+        outer_edge.y.till = chart->Markers.find(vpos.dst)->second.second;
+
+    if (vpos.src.length()==0) 
+        outer_edge.y.from = outer_edge.y.till - ysize.second;
+    if (vpos.dst.length()==0) 
+        outer_edge.y.till = outer_edge.y.from + ysize.second;
+
+    if (outer_edge.y.from > outer_edge.y.till) 
+        std::swap(outer_edge.y.from, outer_edge.y.till);
+    else if (outer_edge.y.from == outer_edge.y.till)
+        outer_edge.y.Expand(ysize.second/2);
+
+    outer_edge.y.Expand(style.line.LineWidth()/2);
+
+    CalculateAreaFromOuterEdge();
+}
+
+void CommandSymbol::CalculateAreaFromOuterEdge()
+{
+    switch (symbol_type) {
+        case ARC:
+            area = Contour(outer_edge.CenterPoint(), outer_edge.x.Spans()/2,
+                           outer_edge.y.Spans()/2);
+            break;
+        case RECTANGLE:
+            area = style.line.CreateRectangle_OuterEdge(outer_edge);
+    }
+    area.arc = this;
+}
+
+void CommandSymbol::Draw(MscCanvas &canvas)
+{
+
+    switch (symbol_type) {
+        case ARC:
+            canvas.Shadow(area, style.shadow);
+            canvas.Fill(area.CreateExpand(-style.line.LineWidth()/2-style.line.Spacing()), 
+                        style.fill); 
+            canvas.Line(area.CreateExpand(-style.line.LineWidth()/2), style.line); 
+            break;
+        case RECTANGLE:
+            //canvas operations on blocks take the midpoint
+            const Block mid = outer_edge.CreateExpand(-style.line.LineWidth()/2);
+            canvas.Shadow(mid, style.line, style.shadow);
+            canvas.Fill(mid, style.line, style.fill);
+            canvas.Line(mid, style.line);
+            break;
+    }
+}
+

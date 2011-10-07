@@ -44,6 +44,9 @@ typedef enum
     MSC_COMMAND_NUMBERING,
     MSC_COMMAND_MARK,
     MSC_COMMAND_EMPTY,
+    MSC_COMMAND_HSPACE,
+    MSC_COMMAND_VSPACE,
+    MSC_COMMAND_SYMBOL,
 
     MSC_ARC_INDICATOR
 } MscArcType;
@@ -268,6 +271,7 @@ public:
 struct VertXPos {
     bool valid;
     EIterator entity1, entity2;
+    file_line_range e1line, e2line;
     /** AT is at the entity
      ** CENTER is between the two entities
      ** BY is immediately at the line, but not overlapping it
@@ -278,6 +282,7 @@ struct VertXPos {
     VertXPos(Msc&m, const char *e1, file_line_range e1l, const char *e2, file_line_range e2l, postype p=POS_AT);
     VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p=POS_AT);
     explicit VertXPos(Msc&m);
+    double CalculatePos(Msc &m, double gap, double width=0) const;
 };
 
 class ArcVerticalArrow : public ArcArrow
@@ -550,6 +555,82 @@ public:
     CommandEmpty(Msc *msc);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual void Draw(MscCanvas &canvas);
+};
+
+class NamePair
+{
+public:
+    const string src, dst;
+    file_line_range sline, dline;
+    NamePair(const char *s, const file_line_range &sl, 
+                   const char *d, const file_line_range &dl) :
+        src(s ? s : ""), dst(d ? d : ""), sline(sl), dline(dl) {delete s; delete d;}
+};
+
+class CommandHSpace : public ArcCommand
+{
+protected:
+    EIterator src, dst;
+    file_line_range sline, dline;
+    StringFormat format;
+    string label;
+    double space;
+public:
+    CommandHSpace(Msc*, const NamePair*);
+    virtual bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+};
+
+class CommandVSpace : public ArcCommand
+{
+protected:
+    StringFormat format;
+    string label;
+    double space;
+    bool compressable;
+public:
+    CommandVSpace(Msc*);
+    virtual bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual double Height(MscCanvas &canvas, AreaList &cover);
+};
+
+class ExtVertXPos : public VertXPos
+{
+public: 
+    enum {LEFT=0, CENTER=1, RIGHT=2, NONE=3, BAD_SIDE} side;
+    file_line_range side_line; 
+    explicit ExtVertXPos(Msc&m) : VertXPos(m), side(NONE) {}
+    ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p);
+};
+
+class CommandSymbol : public ArcCommand
+{
+protected:
+    typedef enum {ARC, RECTANGLE} SymbolType;
+    SymbolType              symbol_type;
+    MscStyle                style;
+    ExtVertXPos             hpos1, hpos2;
+    const NamePair          vpos;
+    std::pair<bool, double> xsize, ysize;
+    mutable Block outer_edge;
+public:
+    CommandSymbol(Msc*, const char *symbol, const NamePair *enp, 
+                  const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2);
+    virtual bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual void ShiftBy(double y);
+    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    void CalculateAreaFromOuterEdge();
     virtual void Draw(MscCanvas &canvas);
 };
 

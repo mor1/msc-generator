@@ -244,6 +244,9 @@ do {                                                \
 (?i:parallel)  yylval_param->str = strdup(yytext); return TOK_COMMAND_PARALLEL;
 (?i:vertical)  yylval_param->str = strdup(yytext); return TOK_VERTICAL;
 (?i:at)        yylval_param->str = strdup(yytext); return TOK_AT;
+(?i:left)      yylval_param->str = strdup(yytext); return TOK_AT_POS;
+(?i:center)    yylval_param->str = strdup(yytext); return TOK_AT_POS;
+(?i:right)     yylval_param->str = strdup(yytext); return TOK_AT_POS;
 (?i:no)        yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 (?i:yes)       yylval_param->str = strdup(yytext); return TOK_BOOLEAN;
 (?i:show)      yylval_param->str = strdup(yytext); return TOK_SHOW;
@@ -251,6 +254,9 @@ do {                                                \
 (?i:activate)  yylval_param->str = strdup(yytext); return TOK_ACTIVATE;
 (?i:deactivate) yylval_param->str= strdup(yytext); return TOK_DEACTIVATE;
 (?i:bye)       yylval_param->str = strdup(yytext); return TOK_BYE;
+(?i:vspace)    yylval_param->str = strdup(yytext); return TOK_COMMAND_VSPACE;
+(?i:hspace)    yylval_param->str = strdup(yytext); return TOK_COMMAND_HSPACE;
+(?i:symbol)    yylval_param->str = strdup(yytext); return TOK_COMMAND_SYMBOL;
 
 \.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
 ---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
