@@ -128,7 +128,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_COMMAND_HEADING TOK_COMMAND_NUDGE TOK_COMMAND_NEWPAGE
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
-       TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
+       TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
+       TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL
        TOK__NEVER__HAPPENS
 %union
 {
@@ -149,11 +150,14 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
+    CHAR_IF_CSH(ExtVertXPos)      *extvertxpos;
+    CHAR_IF_CSH(NamePair)         *entityrel;
     std::list<std::string>        *stringlist;
 };
 
 %type <msc>        msc
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
+                   symbol_command symbol_command_no_attr
 %type <arcvertarrow> vertrel_no_xpos
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcbox>     boxrel first_box
@@ -173,7 +177,10 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_SPECIAL_ARC TOK_EMPH
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
+%type <extvertxpos> extvertxpos
+%type <entityrel>  entityrel
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
+                   full_arcattrlist_with_label_or_number
 %type <str>        entity_command_prefixes
                    entity_string reserved_word_string string symbol_string colon_string
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING
@@ -181,26 +188,30 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
                    TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
                    TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
-                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE
+                   TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE
                    TOK_ACTIVATE TOK_DEACTIVATE
+                   TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
 %destructor {if (!C_S_H) delete $$;} vertrel_no_xpos
 %destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
+%destructor {if (!C_S_H) delete $$;} symbol_command symbol_command_no_attr
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} boxrel first_box box_list first_pipe pipe_list pipe_list_no_content
 %destructor {if (!C_S_H) delete $$;} parallel
 %destructor {if (!C_S_H) delete $$;} top_level_arclist arclist arclist_maybe_no_semicolon braced_arclist optlist
 %destructor {if (!C_S_H) delete $$;} entity first_entity entitylist
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
+%destructor {if (!C_S_H) delete $$;} full_arcattrlist_with_label_or_number
 %destructor {free($$);}  entity_string reserved_word_string string symbol_string
 %destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
 %destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
 %destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
-%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
+%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
+%destructor {free($$);}  TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL
 
 %%
 
@@ -862,6 +873,86 @@ arc:           arcrel
   #endif
     free($1);
 }
+              | symbol_command
+              | TOK_COMMAND_HSPACE entityrel full_arcattrlist_with_label_or_number
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        CommandHSpace::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
+        CommandHSpace::AttributeValues(csh.hintAttrName, csh);
+  #else
+    $$ = (new CommandHSpace(&msc, $2))->AddAttributeList($3);
+  #endif
+    free($1);
+}
+
+              | TOK_COMMAND_VSPACE full_arcattrlist_with_label_or_number
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        CommandHSpace::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
+        CommandHSpace::AttributeValues(csh.hintAttrName, csh);
+  #else
+    $$ = (new CommandVSpace(&msc))->AddAttributeList($2);
+  #endif
+    free($1);
+};
+
+full_arcattrlist_with_label_or_number: full_arcattrlist_with_label
+            | TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_ATTRVALUE);
+  #else
+    AttributeList *al = new AttributeList;
+    al->Append(new Attribute("space", atof($1), MSC_POS(@1), MSC_POS(@1), $1));
+    $$ = al;
+  #endif
+    free($1);
+}
+            | TOK_NUMBER full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_ATTRVALUE);
+  #else
+    ($2)->Append(new Attribute("space", atof($1), MSC_POS(@1), MSC_POS(@1), $1));
+    $$ = $2;
+  #endif
+    free($1);
+};
+
+entityrel: entity_string TOK_DASH
+{
+  #ifdef C_S_H_IS_COMPILED
+
+  #else
+    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+  #endif
+    free($1);
+}
+           | TOK_DASH entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+
+  #else
+    $$ = new NamePair(NULL, file_line_range(), $2, MSC_POS(@2));
+  #endif
+    free($2);
+}
+           | entity_string TOK_DASH entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+
+  #else
+    $$ = new NamePair($1, MSC_POS(@1), $3, MSC_POS(@3));
+  #endif
+    free($1);
+    free($3);
+};
 
 entity_command_prefixes: TOK_HIDE | TOK_SHOW | TOK_ACTIVATE | TOK_DEACTIVATE;
 
@@ -2189,6 +2280,69 @@ relation_to_cont : relation_to | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
 relation_from_cont : relation_from | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
 relation_bidir_cont : relation_bidir | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
 
+extvertxpos: TOK_AT_POS vertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    $$ = new ExtVertXPos($1, MSC_POS(@1), $2);
+  #endif
+    free($1);
+};
+
+symbol_command_no_attr: TOK_COMMAND_SYMBOL string entityrel extvertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    $$ = new CommandSymbol(&msc, $2, $3, $4, NULL);
+  #endif
+    free($1);
+    free($2);
+}
+                | TOK_COMMAND_SYMBOL string entityrel extvertxpos extvertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    $$ = new CommandSymbol(&msc, $2, $3, $4, $5);
+  #endif
+    free($1);
+    free($2);
+}
+                | TOK_COMMAND_SYMBOL string extvertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    $$ = new CommandSymbol(&msc, $2, NULL, $3, NULL);
+  #endif
+    free($1);
+    free($2);
+}
+                | TOK_COMMAND_SYMBOL string extvertxpos extvertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    $$ = new CommandSymbol(&msc, $2, NULL, $3, $4);
+  #endif
+    free($1);
+    free($2);
+};
+
+symbol_command: symbol_command_no_attr
+                | symbol_command_no_attr full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        CommandSymbol::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
+        CommandSymbol::AttributeValues(csh.hintAttrName, csh);
+  #else
+    $$ = ($1)->AddAttributeList($2);
+  #endif
+};
 
 colon_string: TOK_COLON_QUOTED_STRING
 {

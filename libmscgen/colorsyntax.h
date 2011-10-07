@@ -82,12 +82,16 @@
      TOK_COMMAND_PARALLEL = 298,
      TOK_VERTICAL = 299,
      TOK_AT = 300,
-     TOK_SHOW = 301,
-     TOK_HIDE = 302,
-     TOK_ACTIVATE = 303,
-     TOK_DEACTIVATE = 304,
-     TOK_BYE = 305,
-     TOK__NEVER__HAPPENS = 306
+     TOK_AT_POS = 301,
+     TOK_SHOW = 302,
+     TOK_HIDE = 303,
+     TOK_ACTIVATE = 304,
+     TOK_DEACTIVATE = 305,
+     TOK_BYE = 306,
+     TOK_COMMAND_VSPACE = 307,
+     TOK_COMMAND_HSPACE = 308,
+     TOK_COMMAND_SYMBOL = 309,
+     TOK__NEVER__HAPPENS = 310
    };
 #endif
 /* Tokens.  */
@@ -134,12 +138,16 @@
 #define TOK_COMMAND_PARALLEL 298
 #define TOK_VERTICAL 299
 #define TOK_AT 300
-#define TOK_SHOW 301
-#define TOK_HIDE 302
-#define TOK_ACTIVATE 303
-#define TOK_DEACTIVATE 304
-#define TOK_BYE 305
-#define TOK__NEVER__HAPPENS 306
+#define TOK_AT_POS 301
+#define TOK_SHOW 302
+#define TOK_HIDE 303
+#define TOK_ACTIVATE 304
+#define TOK_DEACTIVATE 305
+#define TOK_BYE 306
+#define TOK_COMMAND_VSPACE 307
+#define TOK_COMMAND_HSPACE 308
+#define TOK_COMMAND_SYMBOL 309
+#define TOK__NEVER__HAPPENS 310
 
 
 
@@ -149,7 +157,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 134 "language.yy"
+#line 135 "language.yy"
 
     char                          *str;
     CHAR_IF_CSH(Msc)              *msc;
@@ -168,12 +176,14 @@ typedef union YYSTYPE
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
+    CHAR_IF_CSH(ExtVertXPos)      *extvertxpos;
+    CHAR_IF_CSH(NamePair)         *entityrel;
     std::list<std::string>        *stringlist;
 
 
 
 /* Line 1676 of yacc.c  */
-#line 177 "colorsyntax.h"
+#line 187 "colorsyntax.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
