@@ -4167,7 +4167,7 @@ void CommandEmpty::Draw(MscCanvas &canvas)
 /////////////////////////////////////////////////////////////////
 CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
     ArcCommand(MSC_COMMAND_HSPACE, msc), format(msc->Contexts.back().text),
-    space(0)
+    label(false, string()), space(false, 0)
 {
     if (enp==NULL) {
         valid=false;
@@ -4191,12 +4191,14 @@ bool CommandHSpace::AddAttribute(const Attribute &a)
     if (a.Is("label")) {
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""
-        label = a.value;
+        label.first = true;
+        label.second = a.value;
         return true;
     }
     if (a.Is("space")) {
         if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
-        space = a.number;
+        space.first = true;
+        space.second = a.number;
         return true;
     }
     if (format.AddAttribute(a, chart, STYLE_ARC)) return true;
@@ -4229,6 +4231,10 @@ ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
 {
     if (!valid) return NULL;
+    if (!label.first && !space.first) {
+        chart->Error.Error(file_pos.start, "You must specify either a numeric space or a lable for the hspace command.");
+        return NULL;
+    }
     //Give error if user specified groupe entities
     if (chart->ErrorIfEntityGrouped(src, sline.start)) return NULL;
     if (chart->ErrorIfEntityGrouped(dst, sline.start)) return NULL;
@@ -4244,9 +4250,9 @@ ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
 void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    double dist = space;
-    if (label.length())
-        dist += Label(label, &canvas, format).getTextWidthHeight().x;
+    double dist = space.second; //0 if not specified by user
+    if (label.second.length())
+        dist += Label(label.second, &canvas, format).getTextWidthHeight().x;
     if (dist<0) 
         chart->Error.Error(file_pos.start, "The horizontal space specified is negative. Ignoring it.");
     else 
@@ -4257,7 +4263,8 @@ void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 //////////////////////////////////////////////////////////////////////////////////
 
 CommandVSpace::CommandVSpace(Msc*msc)  : ArcCommand(MSC_COMMAND_VSPACE, msc),
-    format(msc->Contexts.back().text), space(0), compressable(false)
+    format(msc->Contexts.back().text), label(false, string()), 
+    space(false, 0), compressable(false)
 {
 }
 
@@ -4266,17 +4273,19 @@ bool CommandVSpace::AddAttribute(const Attribute &a)
     if (a.Is("label")) {
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""
-        label = a.value;
+        label.first = true;
+        label.second = a.value;
         return true;
     }
     if (a.Is("space")) {
         if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
-        space = a.number;
+        space.first = true;
+        space.second = a.number;
         return true;
     }
     if (a.Is("compressable")) {
         if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
-        space = a.yes;
+        compressable = a.yes;
         return true;
     }
     if (format.AddAttribute(a, chart, STYLE_ARC)) return true;
@@ -4311,11 +4320,22 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
+ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/, 
+    EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+{
+    if (!valid) return NULL;
+    if (!label.first && !space.first) {
+        chart->Error.Error(file_pos.start, "You must specify either a numeric space or a lable for the vspace command.");
+        return NULL;
+    }
+    return this;
+}
+
 double CommandVSpace::Height(MscCanvas &canvas, AreaList &cover)
 {
-    double dist = space;
-    if (label.length())
-        dist += Label(label, &canvas, format).getTextWidthHeight().y;
+    double dist = space.second;
+    if (label.second.length())
+        dist += Label(label.second, &canvas, format).getTextWidthHeight().y;
     if (dist<0) 
         chart->Error.Error(file_pos.start, "The vertical space specified is negative. Ignoring it.");
     if (dist<=0) 
@@ -4457,11 +4477,11 @@ ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIter
         xsize.first = true;
         xsize.second = 10; //default size;
     }
-    if ((vpos.dst.length() || vpos.src.length()) && ysize.first == false) {
+    if (!(vpos.dst.length() || vpos.src.length()) && ysize.first == false) {
         ysize.first = true;
         ysize.second = 10; //default size;
     }
-    return false;
+    return this;
 }
 
 void CommandSymbol::Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*/)
@@ -4576,7 +4596,6 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
 
 void CommandSymbol::Draw(MscCanvas &canvas)
 {
-
     switch (symbol_type) {
         case ARC:
             canvas.Shadow(area, style.shadow);

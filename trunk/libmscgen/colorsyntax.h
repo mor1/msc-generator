@@ -177,7 +177,7 @@ typedef union YYSTYPE
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
     CHAR_IF_CSH(ExtVertXPos)      *extvertxpos;
-    CHAR_IF_CSH(NamePair)         *entityrel;
+    CHAR_IF_CSH(NamePair)         *namerel;
     std::list<std::string>        *stringlist;
 
 

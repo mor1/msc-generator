@@ -459,6 +459,9 @@ void Design::Reset()
     style.line.width.second = 2;
     styles["indicator"] = style;
 
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false); //only line fill and shadow
+    styles["symbol"] = style;
+
     style = MscStyle(STYLE_STYLE); //has everything, but is empty
     MscLineAttr line(MscColorType(150,150,150));
     style.line += line;;
@@ -467,7 +470,7 @@ void Design::Reset()
     style.text.SetColor(line.color.second);
 	style.text.Apply("\\i");
     styles["weak"] = style;
-
+    
     style.Empty();
     line.Empty();
     line.width.first = true;
