@@ -197,6 +197,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
     std::pair<string,string>("TOK_COMMAND_PARALLEL", "'parallel'"),
     std::pair<string,string>("TOK_VERTICAL", "'vertical'"),
     std::pair<string,string>("TOK_AT", "'at'"),
+    std::pair<string,string>("TOK_AT_POS", "'left', 'right' or 'center'"),
     std::pair<string,string>("TOK_SHOW", "'show'"),
     std::pair<string,string>("TOK_HIDE", "'hide'"),
     std::pair<string,string>("TOK_BYE", "'bye'"),

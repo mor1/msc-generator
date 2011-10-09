@@ -565,7 +565,7 @@ public:
     file_line_range sline, dline;
     NamePair(const char *s, const file_line_range &sl, 
                    const char *d, const file_line_range &dl) :
-        src(s ? s : ""), dst(d ? d : ""), sline(sl), dline(dl) {delete s; delete d;}
+        src(s ? s : ""), dst(d ? d : ""), sline(sl), dline(dl) {}
 };
 
 class CommandHSpace : public ArcCommand
@@ -574,8 +574,8 @@ protected:
     EIterator src, dst;
     file_line_range sline, dline;
     StringFormat format;
-    string label;
-    double space;
+    std::pair<bool, string> label;
+    std::pair<bool, double> space;
 public:
     CommandHSpace(Msc*, const NamePair*);
     virtual bool AddAttribute(const Attribute &);
@@ -589,14 +589,15 @@ class CommandVSpace : public ArcCommand
 {
 protected:
     StringFormat format;
-    string label;
-    double space;
+    std::pair<bool, string> label;
+    std::pair<bool, double> space;
     bool compressable;
 public:
     CommandVSpace(Msc*);
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual double Height(MscCanvas &canvas, AreaList &cover);
 };
 

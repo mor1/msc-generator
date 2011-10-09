@@ -151,7 +151,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
     CHAR_IF_CSH(ExtVertXPos)      *extvertxpos;
-    CHAR_IF_CSH(NamePair)         *entityrel;
+    CHAR_IF_CSH(NamePair)         *namerel;
     std::list<std::string>        *stringlist;
 };
 
@@ -178,7 +178,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
 %type <extvertxpos> extvertxpos
-%type <entityrel>  entityrel
+%type <namerel>     entityrel markerrel
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
                    full_arcattrlist_with_label_or_number
 %type <str>        entity_command_prefixes
@@ -887,7 +887,32 @@ arc:           arcrel
   #endif
     free($1);
 }
-
+              | TOK_COMMAND_HSPACE entityrel
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_KEYWORD, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<label>", HINT_KEYWORD, false));
+        csh.hintStatus = HINT_READY;
+    }
+    csh.AddCSH_ErrorAfter(@1, "Missing either a number or a label.");
+  #else
+    $$ = new CommandHSpace(&msc, $2); //Will trigger an error: either label or space attr is needed
+  #endif
+    free($1);
+}
+              | TOK_COMMAND_HSPACE
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF);
+    csh.AddCSH_ErrorAfter(@1, "Missing an entity.");
+  #else
+    $$ = NULL;
+  #endif
+    free($1);
+}
               | TOK_COMMAND_VSPACE full_arcattrlist_with_label_or_number
 {
   #ifdef C_S_H_IS_COMPILED
@@ -898,6 +923,21 @@ arc:           arcrel
         CommandHSpace::AttributeValues(csh.hintAttrName, csh);
   #else
     $$ = (new CommandVSpace(&msc))->AddAttributeList($2);
+  #endif
+    free($1);
+}
+              | TOK_COMMAND_VSPACE
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_KEYWORD, false));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<label>", HINT_KEYWORD, false));
+        csh.hintStatus = HINT_READY;
+    }
+    csh.AddCSH_ErrorAfter(@1, "Missing either a number or a label.");
+  #else
+    $$ = new CommandVSpace(&msc); //will result in an error, since label or space attribute is needed
   #endif
     free($1);
 };
@@ -928,7 +968,9 @@ full_arcattrlist_with_label_or_number: full_arcattrlist_with_label
 entityrel: entity_string TOK_DASH
 {
   #ifdef C_S_H_IS_COMPILED
-
+    csh.AddCSH(@1, COLOR_ENTITYNAME);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
   #endif
@@ -937,22 +979,82 @@ entityrel: entity_string TOK_DASH
            | TOK_DASH entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    csh.AddCSH(@2, COLOR_ENTITYNAME);
+    csh.CheckEntityHintAt(@1);
   #else
     $$ = new NamePair(NULL, file_line_range(), $2, MSC_POS(@2));
   #endif
     free($2);
 }
+           | TOK_DASH
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    csh.CheckEntityHintAt(@1);
+    csh.CheckEntityHintAfter(@1, yylloc, yychar==YYEOF);
+  #else
+    $$ = NULL;
+  #endif
+}
            | entity_string TOK_DASH entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-
+    csh.AddCSH(@1, COLOR_ENTITYNAME);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    csh.AddCSH(@3, COLOR_ENTITYNAME);
   #else
     $$ = new NamePair($1, MSC_POS(@1), $3, MSC_POS(@3));
   #endif
     free($1);
     free($3);
 };
+
+markerrel: entity_string TOK_DASH
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_MARKERNAME);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_MARKER);
+  #else
+    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+  #endif
+    free($1);
+}
+           | TOK_DASH entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    csh.AddCSH(@2, COLOR_MARKERNAME);
+    csh.CheckHintAt(@1, HINT_MARKER);
+  #else
+    $$ = new NamePair(NULL, file_line_range(), $2, MSC_POS(@2));
+  #endif
+    free($2);
+}
+           | TOK_DASH
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_SYMBOL);
+    csh.CheckHintAt(@1, HINT_MARKER);
+    csh.CheckHintAfter(@1, yylloc, yychar==YYEOF, HINT_MARKER);
+  #else
+    $$ = NULL;
+  #endif
+}
+           | entity_string TOK_DASH entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_MARKERNAME);
+    csh.AddCSH(@2, COLOR_SYMBOL);
+    csh.AddCSH(@3, COLOR_MARKERNAME);
+  #else
+    $$ = new NamePair($1, MSC_POS(@1), $3, MSC_POS(@3));
+  #endif
+    free($1);
+    free($3);
+};
+
 
 entity_command_prefixes: TOK_HIDE | TOK_SHOW | TOK_ACTIVATE | TOK_DEACTIVATE;
 
@@ -2290,20 +2392,24 @@ extvertxpos: TOK_AT_POS vertxpos
     free($1);
 };
 
-symbol_command_no_attr: TOK_COMMAND_SYMBOL string entityrel extvertxpos
+symbol_command_no_attr: TOK_COMMAND_SYMBOL string markerrel extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+        csh.AddCSH(@2, COLOR_KEYWORD);
   #else
     $$ = new CommandSymbol(&msc, $2, $3, $4, NULL);
   #endif
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL string entityrel extvertxpos extvertxpos
+                | TOK_COMMAND_SYMBOL string markerrel extvertxpos extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+        csh.AddCSH(@2, COLOR_KEYWORD);
   #else
     $$ = new CommandSymbol(&msc, $2, $3, $4, $5);
   #endif
@@ -2314,6 +2420,8 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL string entityrel extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+        csh.AddCSH(@2, COLOR_KEYWORD);
   #else
     $$ = new CommandSymbol(&msc, $2, NULL, $3, NULL);
   #endif
@@ -2324,6 +2432,8 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL string entityrel extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+        csh.AddCSH(@2, COLOR_KEYWORD);
   #else
     $$ = new CommandSymbol(&msc, $2, NULL, $3, $4);
   #endif

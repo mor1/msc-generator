@@ -139,6 +139,7 @@ typedef enum {
     HINT_ATTR_VALUE,
     HINT_ENTITY,
     HINT_MARKER,
+    HINT_KEYWORD,
     HINT_LINE_START
 } CshHintType;
 
