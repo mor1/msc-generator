@@ -27,6 +27,8 @@ enum tristate {no=0, yes, invert};
 #define ESCAPE_CHAR_NUMBERFORMAT ((char)2)
 #define ESCAPE_STRING_NUMBERFORMAT "\x02"
 
+bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p);
+
 //This class stores string formatting (bold, color, fontsize, etc.)
 //Contrary to other attribute types its default constructor contains an empty set
 //A chart->defaultStringFormat value is used whenever applied to a context

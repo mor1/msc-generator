@@ -240,7 +240,7 @@ public:
     void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
 
     void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
-    void DrawArcList(MscCanvas &canvas, ArcList &arcs);
+    void DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pass);
     void Draw(MscCanvas &canvas, bool pageBreaks);
     void DrawCopyrightText(MscCanvas &canvas, int page=-1);
     void DrawPageBreaks(MscCanvas &canvas);

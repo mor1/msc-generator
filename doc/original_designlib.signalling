@@ -10,7 +10,7 @@ defdesign rose {
     defstyle emptybox, vertical [line.color=red, fill.color=yellow];
     defstyle box_collapsed [emptybox];
     defstyle box_collapsed_arrow [blockarrow];
-    defstyle indicator [line.color=red, fill.color=yellow];
+    defstyle indicator, symbol [line.color=red, fill.color=yellow];
     defstyle pipe [line.color=red];
     defstyle weak [line.color=faint_red, vline.color=faint_red, arrow.color=faint_red, text.color="black,128"];
 };
@@ -26,8 +26,8 @@ defdesign mild_yellow {
 defdesign omegapple {
     defcolor rose="194,10,80", rose2="210,63,122", yellow="252,243,152";
     defcolor faint_rose="225,133,168";
-    defstyle emptybox, vertical, indicator [fill.color=yellow, fill.gradient=down];
-    defstyle arrow, blockarrow[line.color=rose, line.radius=0, line.width=2, arrow.color=rose];
+    defstyle emptybox, vertical, indicator, symbol [fill.color=yellow, fill.gradient=down];
+    defstyle arrow, blockarrow [line.color=rose, line.radius=0, line.width=2, arrow.color=rose];
     defstyle => [arrow.size=normal];
     defstyle divider [line.color=rose];
     defstyle entity[text.color=white, text.format="\b\mu(10)\md(10)\ml(12)\mr(8)",
@@ -46,7 +46,7 @@ defdesign omegapple {
 };
 defdesign qsd {
       defstyle entity, pipe, box, emptybox, blockarrow, vertical, box_collapsed_arrow, box_collapsed,
-               entitygroup_collapsed, indicator [shadow.offset=4, shadow.blur=2];
+               entitygroup_collapsed, indicator, symbol [shadow.offset=4, shadow.blur=2];
       defstyle entity [text.format="\u\mu(6)\md(6)\ml(6)\mr(6)"];
       defstyle entitygroup_collapsed [text.format="\md(0)"];
       defstyle entity [vline.type=dashed];
@@ -84,11 +84,11 @@ defdesign round_green {
          [fill.color=lbrown, line.color=brown];
       defstyle >, >> [arrow.type=line];
       defstyle box, pipe, vertical, entitygroup [line.width=2, line.color=green];
-      defstyle indicator [line.corner = round, line.radius=2];
+      defstyle indicator, symbol [line.corner = round, line.radius=2];
 };
 defdesign green_earth {
       defcolor green="87,139,119", lgray="240,240,240";
-      defstyle entity, entitygroup_collapsed [fill.color=green, line.color=green];
+      defstyle entity, entitygroup_collapsed, symbol [fill.color=green, line.color=green];
       defstyle entity, entitygroup_collapsed [text.format="\mu(6)\ml(6)\mr(6)\md(6)\b", text.color=white];
       defstyle entitygroup_collapsed [text.format="\md(0)"];
       defstyle entity [vline.color=gray, vline.type=dashed];
@@ -122,7 +122,7 @@ defdesign Dinand {
       defstyle blockarrow, box_collapsed_arrow [arrow.midtype=dot, fill.gradient=down];
 };
 defdesign thick_lines {
-    defstyle arrow, blockarrow, vertical, pipe, box, emptybox, divider [line.width=2];
+    defstyle arrow, blockarrow, vertical, pipe, box, emptybox, divider, symbol, indicator [line.width=2];
     defstyle box_collapsed, box_collapsed_arrow, entity, entitygroup, entitygroup_collapsed [line.width=2];
     defstyle entity, entitygroup_collapsed [vline.width=2];
     defstyle weak [line.width=1, vline.width=1];

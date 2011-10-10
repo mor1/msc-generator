@@ -31,7 +31,7 @@ IDD_POPUPLIST DIALOGEX 0, 0, 320, 201
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CLIPCHILDREN | WS_BORDER
 FONT 8, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
-    LISTBOX         IDC_LIST2,0,0,306,187,LBS_SORT | LBS_OWNERDRAWVARIABLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LISTBOX         IDC_LIST2,0,0,306,187,LBS_OWNERDRAWVARIABLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_SCALE DIALOGEX 0, 0, 262, 125
@@ -691,8 +691,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,3,3,0
- PRODUCTVERSION 3,3,3,0
+ FILEVERSION 3,3,4,0
+ PRODUCTVERSION 3,3,4,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -709,12 +709,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "3.3.3.0"
+            VALUE "FileVersion", "3.3.4.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "3.3.3.0"
+            VALUE "ProductVersion", "3.3.4.0"
         END
     END
     BLOCK "VarFileInfo"

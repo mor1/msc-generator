@@ -113,7 +113,8 @@ using namespace std;
 //template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
-    TrackableElement(msc), valid(true), compress(false), parallel(false), type(t)
+    TrackableElement(msc), valid(true), compress(false), parallel(false), 
+    draw_pass(DEFAULT), type(t)
 {
     if (msc) compress = msc->Contexts.back().compress;
     had_add_attr_list = false;
@@ -137,6 +138,10 @@ ArcBase* ArcBase::AddAttributeList(AttributeList *l)
     delete l;
     return this;
 }
+
+template<> const char EnumEncapsulator<ArcBase::DrawPassType>::names[][ENUM_STRING_LEN] =
+    {"invalid", "before_entity_lines", "default"};
+
 
 bool ArcBase::AddAttribute(const Attribute &a)
 {
@@ -168,8 +173,7 @@ void ArcBase::AttributeNames(Csh &csh)
 bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"compress")||
-        CaseInsensitiveEqual(attr,"parallel")||
-        CaseInsensitiveEqual(attr,"indicator")) {
+        CaseInsensitiveEqual(attr,"parallel")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "yes", HINT_ATTR_VALUE));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "no", HINT_ATTR_VALUE));
         return true;
@@ -257,8 +261,9 @@ double ArcIndicator::Height(MscCanvas &/*canvas*/, AreaList &cover)
     return b.y.till + chart->emphVGapOutside;
 }
 
-void ArcIndicator::Draw(MscCanvas &canvas) 
+void ArcIndicator::Draw(MscCanvas &canvas, DrawPassType pass) 
 {
+    if (pass!=draw_pass) return;
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     DrawIndicator(XY(x, yPos), &canvas);
 }
@@ -443,6 +448,12 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
                           "Try '\\^' inside a label for superscript.");
         return true;
     }
+    if (a.Is("draw_time")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
+        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
+        return true;
+    }
     if (style.AddAttribute(a, chart))
         return true;
     if (ArcBase::AddAttribute(a)) return true;
@@ -456,6 +467,7 @@ void ArcLabelled::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "number", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
     csh.AddStylesToHints();
 }
 
@@ -472,6 +484,11 @@ bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"draw_time")) {
+        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE);
         return true;
     }
     if (ArcBase::AttributeValues(attr, csh)) return true;
@@ -643,9 +660,10 @@ void ArcSelfArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     }
 }
 
-void ArcSelfArrow::Draw(MscCanvas &canvas)
+void ArcSelfArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     double y = yPos + chart->arcVGapAbove;
 
     parsed_label.Draw(&canvas, sx, dx-src_act, y);
@@ -1092,9 +1110,10 @@ void ArcDirArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     }
 }
 
-void ArcDirArrow::Draw(MscCanvas &canvas)
+void ArcDirArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     if (parsed_label.getTextWidthHeight().y)
         parsed_label.Draw(&canvas, sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text);
     /* Draw the line */
@@ -1369,9 +1388,10 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     chart->HideEntityLines(*i);
 }
 
-void ArcBigArrow::Draw(MscCanvas &canvas)
+void ArcBigArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     style.arrow.BigDrawFromContour(outer_contours, &segment_lines, style.fill, style.shadow, canvas);
     parsed_label.Draw(&canvas, sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
@@ -1415,10 +1435,11 @@ VertXPos::VertXPos(Msc&m)
     _ASSERT(entity2 != m.AllEntities.end());
 }
 
-double VertXPos::CalculatePos(Msc &chart, double aw, double width) const
+double VertXPos::CalculatePos(Msc &chart, double width, double aw) const
 {
     double xpos = chart.XCoord(entity1);
     const double gap = chart.hscaleAutoXGap;
+    if (aw<0) aw = gap;
     switch (pos) {
     default:
     case VertXPos::POS_AT: break;
@@ -1740,7 +1761,7 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     width += fmod_negative_safe(width, 2.); //width is even integer now: the distance from outer edge to outer edge
 
     const double aw = style.arrow.bigYExtent(isBidir(), false)/2;
-    xpos = pos.CalculatePos(*chart, aw, width);
+    xpos = pos.CalculatePos(*chart, width, aw);
     xpos = floor(xpos + offset + 0.5); //xpos is integer now: the centerline of arrow
     width -= lw; //not necessarily integer, the distance from midline to midline
 
@@ -1765,9 +1786,10 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 }
 
 
-void ArcVerticalArrow::Draw(MscCanvas &canvas)
+void ArcVerticalArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     if (style.side.second == SIDE_LEFT)
         canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
     else
@@ -2400,9 +2422,10 @@ void ArcBoxSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
     }
 }
 
-void ArcBoxSeries::Draw(MscCanvas &canvas)
+void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
     const MscStyle &main_style = (*series.begin())->style;
     const double lw = main_style.line.LineWidth();
@@ -2455,7 +2478,7 @@ void ArcBoxSeries::Draw(MscCanvas &canvas)
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->parsed_label.Draw(&canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
         if ((*i)->content.size())
-            chart->DrawArcList(canvas, (*i)->content);
+            chart->DrawArcList(canvas, (*i)->content, pass);
         //if (i==follow.begin()) {
         //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
         //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
@@ -3207,9 +3230,10 @@ void ArcPipe::DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bo
         parsed_label.Draw(&canvas, sx_text, dx_text, y_text);
 }
 
-void ArcPipeSeries::Draw(MscCanvas &canvas)
+void ArcPipeSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     //First shadows
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->DrawPipe(canvas, false, false, false, true, false, 0, drawing_variant);  //dummy 0
@@ -3225,7 +3249,7 @@ void ArcPipeSeries::Draw(MscCanvas &canvas)
             chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
     }
     if (content.size())
-        chart->DrawArcList(canvas, content);
+        chart->DrawArcList(canvas, content, pass);
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Draw the topside fill only if the pipe is not fully transparent.
         //Draw the topside line in any case
@@ -3370,9 +3394,10 @@ void ArcDivider::PostPosProcess(MscCanvas &canvas, double autoMarker)
     ArcLabelled::PostPosProcess(canvas, autoMarker);
 }
 
-void ArcDivider::Draw(MscCanvas &canvas)
+void ArcDivider::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     if (nudge) return;
     parsed_label.Draw(&canvas, text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove));
     //determine widest extent for coverage at the centerline+-style.line.LineWidth()/2;
@@ -3471,11 +3496,11 @@ void ArcParallel::PostPosProcess(MscCanvas &canvas, double autoMarker)
             n>0 && heights[n-1]>0 ? yPos + heights[n-1] : autoMarker);
 }
 
-void ArcParallel::Draw(MscCanvas &canvas)
+void ArcParallel::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
     for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->DrawArcList(canvas, *(*i));
+        chart->DrawArcList(canvas, *(*i), pass);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -3971,9 +3996,10 @@ void CommandEntity::PostPosProcess(MscCanvas &canvas, double autoMarker)
     }
 }
 
-void CommandEntity::Draw(MscCanvas &canvas)
+void CommandEntity::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     for (auto i = entities.begin(); i!=entities.end(); i++)
         if ((*i)->draw_heading)
             (*i)->Draw(canvas);
@@ -4049,12 +4075,8 @@ CommandMark::CommandMark(const char *m, file_line_range ml, Msc *msc) :
 {
     map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
     if (i != chart->Markers.end()) {
-        string msg = "Marker '"+name+"' has already been defined at line ";
-        msg << i->second.first.line;
-        if (i->second.first.file != int(chart->current_file))
-            msg << " (in input '" + chart->Error.Files[i->second.first.file] + "')";
-        msg.append(". Keeping old definition.");
-		chart->Error.Error(file_pos.start, msg);
+		chart->Error.Error(ml.start, "Marker '"+name+"' has already been defined. Keeping old definition.");
+        chart->Error.Error(i->second.first,  ml.start, "Location of previous definition.");
         valid = false;
         return;
     }
@@ -4138,9 +4160,10 @@ double CommandEmpty::Height(MscCanvas &/*canvas*/, AreaList &cover)
     return wh.y + EMPTY_MARGIN_Y*2;
 }
 
-void CommandEmpty::Draw(MscCanvas &canvas)
+void CommandEmpty::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     const double width  = parsed_label.getTextWidthHeight().x;
     const double height = parsed_label.getTextWidthHeight().y;
     MscLineAttr line;
@@ -4401,6 +4424,12 @@ bool CommandSymbol::AddAttribute(const Attribute &a)
         ysize.second = a.number;
         return true;
     }
+    if (a.Is("draw_time")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
+        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
+        return true;
+    }
     if (style.AddAttribute(a, chart)) return true;
     return ArcCommand::AddAttribute(a);
 }
@@ -4410,6 +4439,7 @@ void CommandSymbol::AttributeNames(Csh &csh)
     ArcCommand::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
     Design().styles["symbol"].AttributeNames(csh);
 }
 
@@ -4421,6 +4451,11 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"ysize")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"draw_time")) {
+        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE);
         return true;
     }
     if (ArcCommand::AttributeValues(attr, csh)) return true;
@@ -4455,7 +4490,10 @@ ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIter
         chart->Error.Error(hpos2.side_line.start, "Invalid horizontal position designator. Ignoring symbol.", "Use 'left', 'right' or 'center'.");
         return NULL;
     }
-    _ASSERT(hpos1.side != ExtVertXPos::NONE);
+    if (hpos1.side == ExtVertXPos::NONE) {
+        chart->Error.Error(hpos1.side_line.start, "You need to specify at least one horizontal position designator. Ignoring symbol.", "Use 'left at', 'right at' or 'center at'.");
+        return NULL;
+    }
     if (hpos1.side == hpos2.side) {
         chart->Error.Error(hpos2.side_line.start, "You cannot specify the same horizontal position designator twice. Ignoring symbol.");
         chart->Error.Error(hpos1.side_line.start, hpos2.side_line.start, "Here is the first designator.");
@@ -4491,9 +4529,8 @@ void CommandSymbol::Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*
 double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     //Calculate x positions
-    const double off = 10;
     const double lw = style.line.LineWidth();
-    double x1 = hpos1.CalculatePos(*chart, off);
+    double x1 = hpos1.CalculatePos(*chart);
     switch (hpos2.side) {
     case ExtVertXPos::NONE:
         switch (hpos1.side) {
@@ -4515,7 +4552,7 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
         }
         break;
     case ExtVertXPos::RIGHT:
-        outer_edge.x.till = hpos2.CalculatePos(*chart, off);
+        outer_edge.x.till = hpos2.CalculatePos(*chart);
         if (hpos1.side == ExtVertXPos::LEFT)
             outer_edge.x.from = x1;
         else //can only be center
@@ -4524,7 +4561,7 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
     case ExtVertXPos::CENTER:
         //here hpos1 can only be LEFT
         outer_edge.x.from = x1;
-        outer_edge.x.till = 2*hpos2.CalculatePos(*chart, off) - x1;
+        outer_edge.x.till = 2*hpos2.CalculatePos(*chart) - x1;
         break;
     default:
         _ASSERT(0);
@@ -4594,8 +4631,9 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
     area.arc = this;
 }
 
-void CommandSymbol::Draw(MscCanvas &canvas)
+void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
 {
+    if (pass!=draw_pass) return;
     switch (symbol_type) {
         case ARC:
             canvas.Shadow(area, style.shadow);
