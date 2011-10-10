@@ -70,10 +70,11 @@ CANCELLED: if box radius is decreased due to low height, recalc label position
 FIXED: the indicator inside a collapsed block arrow should have more space below it
 FIXED: add shadow to the indicator for certain styles
 FIXED: test1.signalling
+ADDED: symbol circle/box [marker] at vertxpos [xsize, ysize, style];
 
+ADD: symbol cross/text [marker] at vertxpos [rotate];
 ADD: message lost
 ADD: mark centerline
-ADD: symbol circle/box/cross/text [marker] at vertxpos [xsize, ysize, rotate, style];
 FIX: Regression Bugs in Contour Expand still remain...
 FIX: Too much compress after adding MITER_LIMIT
 FIX: Triple bevel changes size when size limited.

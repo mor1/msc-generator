@@ -201,7 +201,7 @@ template<> const char EnumEncapsulator<MscLineType>::names[][ENUM_STRING_LEN] =
      "double", "triple", "triple_thick", ""};
 
 template<> const char EnumEncapsulator<MscCornerType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", "round", "bevel", "note"""};
+    {"invalid", "none", "round", "bevel", "note", ""};
 
 MscLineAttr::MscLineAttr() :
     type(true, LINE_SOLID), color(true, MscColorType(0,0,0)), width(true, 1.),

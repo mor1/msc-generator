@@ -42,6 +42,7 @@ typedef enum
     COLOR_COLORNAME,
     COLOR_COLORDEF,
     COLOR_MARKERNAME,
+    COLOR_MARKERNAME_PARTIAL,
     COLOR_OPTIONNAME,
     COLOR_OPTIONNAME_PARTIAL,
     COLOR_ATTRNAME,
@@ -131,6 +132,7 @@ public:
 typedef enum {
     HINT_NONE,     //No hint identified yet
     HINT_LOCATED,  //We have located the type and location, but hints need filling
+    HINT_FILLING,  //We have located the type and location and are in the process of adding hints
     HINT_READY     //We have a complete set of hints ready (may be empty)
 } CshHintStatus;
 
@@ -201,6 +203,7 @@ public:
     CshHintStatus                     hintStatus;      //indicates if a lower level rule has anything to indicate
     CshPos                            hintedStringPos; //contains the actual text the hints refer to (can be the cursor only)
     std::string                       hintAttrName;    //in case of an ATTR_VALUE show the name of the attribute
+    bool                              addMarkersAtEnd;
     //Input parameters to the hint lookup process
     std::set<std::string> ForbiddenStyles; //Styles we never offer as hints (e.g., ->)
     int                   cshScheme;       //What color shceme is used by the app now (to format hints)
@@ -217,6 +220,8 @@ public:
     void AddCSH_AttrValue(CshPos& pos, const char *value, const char *name);
     void AddCSH_StyleOrAttrName(CshPos&pos, const char *name);
     void AddCSH_EntityName(CshPos&pos, const char *name);
+    void AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name);
+    void AddCSH_SymbolName(CshPos&pos, const char *name);
     void ParseText(const char *input, unsigned len, int cursor_p, int scheme);
     void AddErrorsToCsh() {for (unsigned i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);}
     MscColorSyntaxType GetCshAt(int pos);
@@ -263,5 +268,10 @@ public:
 
 void CshParse(Csh &csh, const char *buff, unsigned len);
 
+//returns -1 if txt is ""
+//returns 0 if txt is not in coll
+//returns 1 if txt is a prefix of something in coll, but not equals anything
+//returns 2 if txt equals to something in coll
+int FindPrefix(const std::set<std::string> &coll, const char *txt);
 
 #endif

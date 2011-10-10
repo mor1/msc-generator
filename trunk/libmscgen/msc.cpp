@@ -955,6 +955,9 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
         cover += arc_cover;
         y = y_bottom;
     }
+    //position any remaining zero-heright items at the bottom
+    while (first_zero_height != to)
+        (*first_zero_height++)->ShiftBy(y);
     return y_bottom;
 }
 
@@ -1151,10 +1154,10 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
     Error.Sort();
 }
 
-void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs)
+void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pass)
 {
     for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
-        (*i)->Draw(canvas);
+        (*i)->Draw(canvas, pass);
 }
 
 
@@ -1211,9 +1214,10 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks(canvas);
+    DrawArcList(canvas, Arcs, ArcBase::BEFORE_ENTITY_LINES);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
     DrawEntityLines(canvas, 0, total.y);
-    DrawArcList(canvas, Arcs);
+    DrawArcList(canvas, Arcs, ArcBase::DEFAULT);
     //cairo_set_source_rgb(cr, 0, 0, 1);
     //cairo_set_line_width(cr,2);
     //HideELinesArea.Line(cr);

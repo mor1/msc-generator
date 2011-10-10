@@ -177,8 +177,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_SPECIAL_ARC TOK_EMPH
 %type <attrib>     arcattr
 %type <vertxpos>   vertxpos
-%type <extvertxpos> extvertxpos
-%type <namerel>     entityrel markerrel
+%type <extvertxpos> extvertxpos extvertxpos_no_string
+%type <namerel>    entityrel markerrel_no_string
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
                    full_arcattrlist_with_label_or_number
 %type <str>        entity_command_prefixes
@@ -229,10 +229,10 @@ msc_with_bye: msc
 msc:
 {
   #ifdef C_S_H_IS_COMPILED
+    csh.AddLineBeginToHints();
     csh.hintStatus = HINT_READY;
     csh.hintType = HINT_LINE_START;
     csh.hintsForcedOnly = true;
-    csh.AddLineBeginToHints();
   #else
     //no action for empty file
   #endif
@@ -511,10 +511,10 @@ arc_with_parallel: arc
 	    csh.AddLineBeginToHints(false);
 	    csh.hintStatus = HINT_READY;
 	} else if (csh.CheckHintBetween(@1, @2, HINT_LINE_START)) {
+        csh.AddLineBeginToHints(false);
         csh.hintStatus = HINT_READY;
         csh.hintType = HINT_LINE_START;
         csh.hintsForcedOnly = true;
-        csh.AddLineBeginToHints(false);
     }
   #else
     if ($2) {
@@ -968,7 +968,8 @@ full_arcattrlist_with_label_or_number: full_arcattrlist_with_label
 entityrel: entity_string TOK_DASH
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_ENTITYNAME);
+    csh.AddCSH_EntityName(@1, $1);
+    csh.CheckEntityHintAt(@1);
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
@@ -980,8 +981,8 @@ entityrel: entity_string TOK_DASH
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
-    csh.AddCSH(@2, COLOR_ENTITYNAME);
-    csh.CheckEntityHintAt(@1);
+    csh.AddCSH_EntityName(@2, $2);
+    csh.CheckEntityHintAt(@2);
   #else
     $$ = new NamePair(NULL, file_line_range(), $2, MSC_POS(@2));
   #endif
@@ -991,7 +992,6 @@ entityrel: entity_string TOK_DASH
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
-    csh.CheckEntityHintAt(@1);
     csh.CheckEntityHintAfter(@1, yylloc, yychar==YYEOF);
   #else
     $$ = NULL;
@@ -1000,21 +1000,48 @@ entityrel: entity_string TOK_DASH
            | entity_string TOK_DASH entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_ENTITYNAME);
+    csh.AddCSH_EntityName(@1, $1);
+    csh.CheckEntityHintAt(@1);
     csh.AddCSH(@2, COLOR_SYMBOL);
-    csh.AddCSH(@3, COLOR_ENTITYNAME);
+    csh.AddCSH_EntityName(@3, $3);
+    csh.CheckEntityHintAt(@3);
   #else
     $$ = new NamePair($1, MSC_POS(@1), $3, MSC_POS(@3));
   #endif
     free($1);
     free($3);
+}
+           | entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_EntityName(@1, $1);
+    csh.CheckEntityHintAt(@1);
+  #else
+    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+  #endif
+    free($1);
 };
 
-markerrel: entity_string TOK_DASH
+//markerrel: markerrel_no_string
+//        | entity_string
+//{
+//  #ifdef C_S_H_IS_COMPILED
+//    csh.AddCSH(@1, COLOR_MARKERNAME);
+//    csh.CheckHintAt(@1, HINT_MARKER);
+//  #else
+//    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+//  #endif
+//    free($1);
+//};
+
+
+
+markerrel_no_string: entity_string TOK_DASH
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
     csh.AddCSH(@2, COLOR_SYMBOL);
+    csh.CheckHintAt(@1, HINT_MARKER);
     csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_MARKER);
   #else
     $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
@@ -1026,7 +1053,7 @@ markerrel: entity_string TOK_DASH
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_SYMBOL);
     csh.AddCSH(@2, COLOR_MARKERNAME);
-    csh.CheckHintAt(@1, HINT_MARKER);
+    csh.CheckHintAt(@2, HINT_MARKER);
   #else
     $$ = new NamePair(NULL, file_line_range(), $2, MSC_POS(@2));
   #endif
@@ -1046,15 +1073,16 @@ markerrel: entity_string TOK_DASH
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_MARKERNAME);
+    csh.CheckHintAt(@1, HINT_MARKER);
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.AddCSH(@3, COLOR_MARKERNAME);
+    csh.CheckHintAt(@3, HINT_MARKER);
   #else
     $$ = new NamePair($1, MSC_POS(@1), $3, MSC_POS(@3));
   #endif
     free($1);
     free($3);
 };
-
 
 entity_command_prefixes: TOK_HIDE | TOK_SHOW | TOK_ACTIVATE | TOK_DEACTIVATE;
 
@@ -2040,6 +2068,20 @@ vertxpos: TOK_AT entity_string
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing an entity name.");
   #endif
     free($1);
+}
+         | entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    if (CaseInsensitiveBeginsWith("at", $1) && csh.cursor_pos == (@1).last_pos)
+        csh.AddCSH(@1, COLOR_KEYWORD_PARTIAL);
+    if (csh.CheckHintAt(@1, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    $$ = NULL;
+  #endif
+    free($1);
 };
 
 
@@ -2382,63 +2424,251 @@ relation_to_cont : relation_to | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
 relation_from_cont : relation_from | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
 relation_bidir_cont : relation_bidir | TOK_DASH {$$=MSC_ARC_UNDETERMINED_SEGMENT;};
 
-extvertxpos: TOK_AT_POS vertxpos
+extvertxpos: extvertxpos_no_string
+             | entity_string
 {
   #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH_ExtvxposDesignatorName(@1, $1);
+    if (csh.hintStatus != HINT_READY &&
+        csh.CheckHintAt(@1, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_LEFT)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_CENTER)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.hintStatus = HINT_FILLING;
+    }
   #else
-    $$ = new ExtVertXPos($1, MSC_POS(@1), $2);
+    $$ = NULL;
   #endif
     free($1);
 };
 
-symbol_command_no_attr: TOK_COMMAND_SYMBOL string markerrel extvertxpos
+extvertxpos_no_string: TOK_AT_POS vertxpos
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_ExtvxposDesignatorName(@1, $1);
+
+  #else
+    $$ = new ExtVertXPos($1, MSC_POS(@1), $2);
+  #endif
+    free($1);
+}
+             | TOK_AT_POS
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH_ExtvxposDesignatorName(@1, $1);
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "at", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    $$ = NULL;
+  #endif
+    free($1);
+};
+
+
+symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
         csh.AddCSH(@2, COLOR_KEYWORD);
+    else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
+             CaseInsensitiveBeginsWith("rectangle", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+    if (csh.hintStatus != HINT_READY &&
+        csh.CheckHintAfterPlusOne(@4, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_LEFT)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_CENTER)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.hintStatus = HINT_FILLING;
+    }
   #else
     $$ = new CommandSymbol(&msc, $2, $3, $4, NULL);
   #endif
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL string markerrel extvertxpos extvertxpos
+                | TOK_COMMAND_SYMBOL entity_string markerrel_no_string extvertxpos extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
         csh.AddCSH(@2, COLOR_KEYWORD);
+    else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
+             CaseInsensitiveBeginsWith("rectangle", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
   #else
     $$ = new CommandSymbol(&msc, $2, $3, $4, $5);
   #endif
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL string extvertxpos
+                | TOK_COMMAND_SYMBOL entity_string extvertxpos_no_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
         csh.AddCSH(@2, COLOR_KEYWORD);
+    else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
+             CaseInsensitiveBeginsWith("rectangle", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+    if (csh.hintStatus != HINT_READY &&
+        csh.CheckHintAfterPlusOne(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_LEFT)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_CENTER)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.hintStatus = HINT_FILLING;
+    }
   #else
     $$ = new CommandSymbol(&msc, $2, NULL, $3, NULL);
   #endif
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL string extvertxpos extvertxpos
+                | TOK_COMMAND_SYMBOL entity_string extvertxpos_no_string extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
         csh.AddCSH(@2, COLOR_KEYWORD);
+    else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
+             CaseInsensitiveBeginsWith("rectangle", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+    csh.CheckHintBetween(@2, @3, HINT_MARKER);
   #else
     $$ = new CommandSymbol(&msc, $2, NULL, $3, $4);
   #endif
     free($1);
     free($2);
+}
+                | TOK_COMMAND_SYMBOL entity_string markerrel_no_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+        csh.AddCSH(@2, COLOR_KEYWORD);
+    else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
+             CaseInsensitiveBeginsWith("rectangle", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+    if (csh.hintStatus != HINT_READY &&
+        csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_LEFT)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_CENTER)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    $$ = new CommandSymbol(&msc, $2, $3, NULL, NULL);
+  #endif
+    free($1);
+    free($2);
+}
+                | TOK_COMMAND_SYMBOL entity_string entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+        csh.AddCSH(@2, COLOR_KEYWORD);
+    else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
+             CaseInsensitiveBeginsWith("rectangle", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+    if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
+    else if (csh.hintStatus != HINT_READY &&
+        csh.CheckHintAtAndBefore(@2, @3, HINT_MARKER)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
+                               CshHintGraphicParam(MSC_IDENT_LEFT)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
+                               CshHintGraphicParam(MSC_IDENT_CENTER)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true,
+                               CshHintGraphicCallbackForTextIdent,
+                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    $$ = new CommandSymbol(&msc, $2, NULL, NULL, NULL);
+  #endif
+    free($1);
+    free($2);
+    free($3);
+}
+                | TOK_COMMAND_SYMBOL entity_string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+        csh.AddCSH(@2, COLOR_KEYWORD);
+    else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
+             CaseInsensitiveBeginsWith("rectangle", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+    if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
+    else if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_MARKER)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_LEFT)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "center", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_CENTER)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "right", HINT_KEYWORD, true, 
+                               CshHintGraphicCallbackForTextIdent, 
+                               CshHintGraphicParam(MSC_IDENT_RIGHT)));
+        csh.hintStatus = HINT_READY;
+
+    }
+  #else
+    $$ = new CommandSymbol(&msc, $2, NULL, NULL, NULL);
+  #endif
+    free($1);
+    free($2);
+}
+                | TOK_COMMAND_SYMBOL
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    msc.Error.Error(MSC_POS(@1).end, "Missing a symbol type.", "Use 'arc' or 'rectangle'.");
+    $$ = NULL;
+  #endif
+    free($1);
 };
 
 symbol_command: symbol_command_no_attr
@@ -2709,8 +2939,9 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_NEWPAGE | TOK_COMMAND_BIG | TOK_COMMAND_PIPE |
                        TOK_VERTICAL | TOK_COMMAND_PARALLEL |
                        TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
-                       TOK_COMMAND_MARK | TOK_AT | TOK_SHOW | TOK_HIDE |
-                       TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE
+                       TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |
+                       TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |
+                       TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}

@@ -74,12 +74,16 @@ struct ArcSignature {
 
 class ArcBase : public TrackableElement
 {
+public:
+    typedef enum {INVALID, BEFORE_ENTITY_LINES, DEFAULT} DrawPassType;
+private:
     bool had_add_attr_list; //TODO: debug only, remove
 protected:
     bool valid;        /* If false, then construction failed, arc does not exist */
     bool at_top_level; /* if at top level by PostParseProcess() */
     bool compress;     /* if compress mechanism is on for this arc */
     bool parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
+    DrawPassType draw_pass;
 public:
     const MscArcType type;
 
@@ -118,7 +122,7 @@ public:
     /* This goes through the tree once more for drawing warnings that need height. */
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     /* This will actually draw the arc */
-    virtual void Draw(MscCanvas &canvas) = 0;
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass) = 0;
 };
 
 inline ArcBase* ArcBase::PostParseProcess(MscCanvas &, bool, EIterator &, EIterator &, Numbering &, bool) {return this;}
@@ -142,7 +146,7 @@ public:
     virtual MscDirType GetToucedEntities(class EntityList &el) const;
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
     virtual double Height(MscCanvas &canvas, AreaList &cover);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class ArcLabelled : public ArcBase
@@ -197,7 +201,7 @@ public:
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 
@@ -236,7 +240,7 @@ public:
     virtual void ShiftBy(double y);
     void CheckSegmentOrder(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class ArcBigArrow : public ArcDirArrow
@@ -265,7 +269,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 struct VertXPos {
@@ -282,7 +286,7 @@ struct VertXPos {
     VertXPos(Msc&m, const char *e1, file_line_range e1l, const char *e2, file_line_range e2l, postype p=POS_AT);
     VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p=POS_AT);
     explicit VertXPos(Msc&m);
-    double CalculatePos(Msc &m, double gap, double width=0) const;
+    double CalculatePos(Msc &m, double width=0, double gap=-1) const;
 };
 
 class ArcVerticalArrow : public ArcArrow
@@ -308,7 +312,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class ArcBox : public ArcLabelled
@@ -340,7 +344,7 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;} //will never be called
     virtual void ShiftBy(double y);
-    virtual void Draw(MscCanvas &/*canvas*/) {} //will never be called
+    virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {} //will never be called
 };
 
 class ArcBoxSeries : public ArcBase
@@ -362,7 +366,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class ArcPipe : public ArcLabelled
@@ -393,7 +397,7 @@ public:
     virtual void ShiftBy(double y);
     void DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bool backSide, bool shadow,
                   bool text, double next_lw, int drawing_variant);
-    virtual void Draw(MscCanvas &/*canvas*/) {} //will never be called
+    virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {} //will never be called
 };
 
 class ArcPipeSeries : public ArcBase
@@ -416,7 +420,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 
@@ -441,7 +445,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class ArcParallel : public ArcBase
@@ -459,7 +463,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class ArcCommand : public ArcBase
@@ -469,7 +473,7 @@ public:
     bool AddAttribute(const Attribute &) {return false;}
     string Print(int ident=0) const;
     virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;}
-    virtual void Draw(MscCanvas &/*canvas*/) {}
+    virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {}
 };
 
 class CommandEntity : public ArcCommand
@@ -497,7 +501,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class CommandNewpage : public ArcCommand
@@ -555,7 +559,7 @@ public:
     CommandEmpty(Msc *msc);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover);
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 class NamePair
@@ -632,7 +636,7 @@ public:
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
-    virtual void Draw(MscCanvas &canvas);
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
 #endif //ARCS_H

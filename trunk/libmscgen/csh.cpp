@@ -70,6 +70,7 @@ void MscInitializeCshAppearanceList(void)
     l[0][COLOR_ENTITYNAME].        SetColor(  0, 50,  0); l[0][COLOR_ENTITYNAME].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_ENTITYNAME_FIRST].  SetColor(  0,  0,  0); l[0][COLOR_ENTITYNAME_FIRST].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_MARKERNAME].        SetColor(  0,  0, 50); l[0][COLOR_MARKERNAME].effects = COLOR_FLAG_BOLD;
+    l[0][COLOR_MARKERNAME_PARTIAL].SetColor( 25, 25, 50); l[0][COLOR_MARKERNAME_PARTIAL].effects = COLOR_FLAG_BOLD;
     l[0][COLOR_ATTRVALUE].         SetColor(  0,  0,  0); l[0][COLOR_ATTRVALUE].effects = 0;
     l[0][COLOR_COLORDEF].          SetColor(  0,  0,  0); l[0][COLOR_COLORDEF].effects = 0;
     l[0][COLOR_LABEL_TEXT].        SetColor(  0,  0,  0); l[0][COLOR_LABEL_TEXT].effects = 0;
@@ -97,6 +98,7 @@ void MscInitializeCshAppearanceList(void)
     l[1][COLOR_ENTITYNAME].        SetColor(200,  0,  0); l[1][COLOR_ENTITYNAME].effects = COLOR_FLAG_BOLD;
     l[1][COLOR_ENTITYNAME_FIRST].  SetColor(200,  0,  0); l[1][COLOR_ENTITYNAME_FIRST].effects = COLOR_FLAG_BOLD|COLOR_FLAG_UNDERLINE;
     l[1][COLOR_MARKERNAME].        SetColor(  0,200,  0); l[1][COLOR_MARKERNAME].effects = COLOR_FLAG_BOLD;
+    l[1][COLOR_MARKERNAME_PARTIAL].SetColor( 50,200, 50); l[1][COLOR_MARKERNAME_PARTIAL].effects = COLOR_FLAG_BOLD;
     l[1][COLOR_ATTRVALUE].         SetColor(  0,  0,200); l[1][COLOR_ATTRVALUE].effects = 0;
     l[1][COLOR_COLORDEF].          SetColor(  0,  0,200); l[1][COLOR_COLORDEF].effects = 0;
     l[1][COLOR_LABEL_TEXT].        SetColor(  0,  0,  0); l[1][COLOR_LABEL_TEXT].effects = 0;
@@ -123,7 +125,8 @@ void MscInitializeCshAppearanceList(void)
     l[2][COLOR_COLORNAME].         SetColor(128,  0,  0); l[2][COLOR_COLORNAME].effects = 0;
     l[2][COLOR_ENTITYNAME].        SetColor(200,  0,  0); l[2][COLOR_ENTITYNAME].effects = COLOR_FLAG_BOLD;
     l[2][COLOR_ENTITYNAME_FIRST].  SetColor(200,  0,  0); l[2][COLOR_ENTITYNAME_FIRST].effects = COLOR_FLAG_BOLD|COLOR_FLAG_UNDERLINE;
-    l[3][COLOR_MARKERNAME].        SetColor(  0,255,  0); l[2][COLOR_MARKERNAME].effects = COLOR_FLAG_BOLD;
+    l[2][COLOR_MARKERNAME].        SetColor(  0,255,  0); l[2][COLOR_MARKERNAME].effects = COLOR_FLAG_BOLD;
+    l[2][COLOR_MARKERNAME_PARTIAL].SetColor( 50,255, 50); l[2][COLOR_MARKERNAME_PARTIAL].effects = COLOR_FLAG_BOLD;
     l[2][COLOR_ATTRVALUE].         SetColor(  0,  0,255); l[2][COLOR_ATTRVALUE].effects = 0;
     l[2][COLOR_COLORDEF].          SetColor(  0,  0,255); l[2][COLOR_COLORDEF].effects = 0;
     l[2][COLOR_LABEL_TEXT].        SetColor(  0,200,  0); l[2][COLOR_LABEL_TEXT].effects = 0;
@@ -151,6 +154,7 @@ void MscInitializeCshAppearanceList(void)
     l[3][COLOR_ENTITYNAME].        SetColor(  0, 50,  0); l[3][COLOR_ENTITYNAME].effects = COLOR_FLAG_BOLD;
     l[3][COLOR_ENTITYNAME_FIRST].  SetColor(  0,  0,  0); l[3][COLOR_ENTITYNAME_FIRST].effects = COLOR_FLAG_BOLD|COLOR_FLAG_UNDERLINE;
     l[3][COLOR_MARKERNAME].        SetColor(  0,  0, 50); l[3][COLOR_MARKERNAME].effects = COLOR_FLAG_BOLD;
+    l[3][COLOR_MARKERNAME_PARTIAL].SetColor( 25, 25, 50); l[3][COLOR_MARKERNAME_PARTIAL].effects = COLOR_FLAG_BOLD;
     l[3][COLOR_ATTRVALUE].         SetColor(  0,  0,  0); l[3][COLOR_ATTRVALUE].effects = 0;
     l[3][COLOR_COLORDEF].          SetColor(  0,  0,  0); l[3][COLOR_COLORDEF].effects = 0;
     l[3][COLOR_LABEL_TEXT].        SetColor(  0,  0,  0); l[3][COLOR_LABEL_TEXT].effects = 0;
@@ -351,7 +355,7 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
-"bye", ""};
+"bye", "hspace", "vspace", "symbol", ""};
 
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
@@ -360,7 +364,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "text.color", "text.format", "text.ident", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
-{"compress", "color", "label", "number", "indicator", "collapsed", 
+{"draw_time", "compress", "color", "label", "number", "indicator", "collapsed", 
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
@@ -369,7 +373,15 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "vline.color", "vline.type", "vline.width", "vline.radius", "vline.corner",
 "fill.color", "fill.color2", "fill.gradient", 
 "vfill.color", "vfill.color2", "vfill.gradient",
-"shadow.color", "shadow.offset", "shadow.blur", ""};
+"shadow.color", "shadow.offset", "shadow.blur", 
+"compressable", "xsize", "ysize", "space", ""};
+
+static const char symbol_names[][ENUM_STRING_LEN] =
+{"arc", "rectangle", ""};
+
+static const char extvxpos_designator_names[][ENUM_STRING_LEN] =
+{"left", "right", "center", ""};
+
 
 int find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
 {
@@ -491,6 +503,49 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     was_partial = true;
 }
 
+//This is called when a string is after the keyword "symbol"
+// we give KEYWORD or KEYWORD_PARTIAL for full or partial matches
+// and STYLE for no matched
+//All-in-all partial matches are only given if the cursor is just after the
+//string in question. In this case we also store the partial match in
+// Csh::partial_at_cursor_pos
+void Csh::AddCSH_SymbolName(CshPos&pos, const char *name)
+{
+    int match_result = find_opt_attr_name(name, symbol_names);
+    if (pos.last_pos == cursor_pos && match_result == 1) {
+        AddCSH(pos, COLOR_KEYWORD_PARTIAL);
+        partial_at_cursor_pos.first_pos = pos.first_pos;
+        partial_at_cursor_pos.last_pos = pos.last_pos;
+        partial_at_cursor_pos.color = COLOR_KEYWORD;
+        was_partial = true;
+        return;
+    }
+    if (match_result == 2) {
+        AddCSH(pos, COLOR_KEYWORD);
+        return;
+    }
+    //if no keyword match, we assume an entityname
+}
+
+void Csh::AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name)
+{
+    int match_result = find_opt_attr_name(name, extvxpos_designator_names);
+    if (pos.last_pos == cursor_pos && match_result == 1) {
+        AddCSH(pos, COLOR_KEYWORD_PARTIAL);
+        partial_at_cursor_pos.first_pos = pos.first_pos;
+        partial_at_cursor_pos.last_pos = pos.last_pos;
+        partial_at_cursor_pos.color = COLOR_KEYWORD;
+        was_partial = true;
+        return;
+    }
+    if (match_result == 2) {
+        AddCSH(pos, COLOR_KEYWORD);
+        return;
+    }
+    //if no keyword match, we assume an entityname
+}
+
+
 bool CshHintGraphicCallbackForMarkers(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
@@ -535,15 +590,18 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
     Hints.clear();
 
     CshParse(*this, input, len);
-    if (hintStatus==HINT_LOCATED && hintType==HINT_MARKER) {
+    if (addMarkersAtEnd) {
+        hintStatus = HINT_FILLING;
         for (auto i=MarkerNames.begin(); i!=MarkerNames.end(); i++)
             AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForMarkers));
         hintStatus = HINT_READY;
     }
-    if (hintStatus!=HINT_READY || Hints.size()==0)
-        return;
+    if (hintStatus == HINT_FILLING) hintStatus = HINT_READY;
     //Take one from first, since RichEditCtrel works that way
     --hintedStringPos.first_pos;
+    _ASSERT(hintStatus==HINT_READY || Hints.size()==0);
+    if (hintStatus!=HINT_READY || Hints.size()==0)
+        return;
     //Find the plain text for all hints <-- What was this??
 }
 
@@ -565,7 +623,7 @@ void CshContext::SetPlain()
     StyleNames.insert("strong");
 }
 
-Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), cursor_pos(-1)
+Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1)
 {
     Design plain;
     plain.Reset();
@@ -617,6 +675,8 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht,
         hintStatus = HINT_LOCATED;
         hintsForcedOnly = false;
         hintType = ht;
+        if (ht==HINT_MARKER)
+            addMarkersAtEnd = true;
         hintAttrName = a_name?a_name:"";
         return true;
     default:
@@ -633,6 +693,8 @@ bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintT
         hintStatus = HINT_LOCATED;
         hintsForcedOnly = false;
         hintType = ht;
+        if (ht==HINT_MARKER)
+            addMarkersAtEnd = true;
         hintAttrName = a_name?a_name:"";
         return true;
     }
@@ -663,6 +725,8 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
     hintStatus = HINT_LOCATED;
     hintsForcedOnly = false;
     hintType = ht;
+    if (ht==HINT_MARKER)
+        addMarkersAtEnd = true;
     hintAttrName = a_name?a_name:"";
     return true;
 }
@@ -733,6 +797,8 @@ bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType
     hintStatus = HINT_LOCATED;
     hintsForcedOnly = false;
     hintType = ht;
+    if (ht==HINT_MARKER)
+        addMarkersAtEnd = true;
     hintAttrName = a_name?a_name:"";
     CshCursorRelPosType in_two = CursorIn(two);
     if (in_two==CURSOR_AT_END || in_two==CURSOR_BEFORE)
@@ -760,6 +826,8 @@ bool Csh::CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name)
     hintStatus = HINT_LOCATED;
     hintsForcedOnly = false;
     hintType = ht;
+    if (ht==HINT_MARKER)
+        addMarkersAtEnd = true;
     hintAttrName = a_name?a_name:"";
     hintedStringPos = one;
     return true;
@@ -778,7 +846,7 @@ bool Csh::CheckHintLocated(CshHintType ht, const CshPos &location_to_check)
     if (!location_to_check.IsWithin(hintedStringPos) && 
         (hintedStringPos.first_pos<=hintedStringPos.last_pos || !location_to_check.IsWithin(hintedStringPos.last_pos)))
         return false;
-    hintStatus = HINT_READY;
+    hintStatus = HINT_FILLING;
     return true;
 }
 
@@ -807,6 +875,7 @@ bool CshHintGraphicCallbackForAttributeNames(MscCanvas *canvas, CshHintGraphicPa
 
 void Csh::AddToHints(CshHint &&h) 
 {
+    if (hintStatus == HINT_READY) return; //we add no more
     if (h.callback==NULL && h.type == HINT_ATTR_NAME) {
         h.callback = CshHintGraphicCallbackForAttributeNames;
         h.param = NULL; 
@@ -1087,4 +1156,22 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
         start.state = HINT_ITEM_NOT_SELECTED;
         Hints.insert(start);
     }
+}
+
+//returns -1 if txt is ""
+//returns 0 if txt is not in coll
+//returns 1 if txt is a prefix of something in coll, but not equals anything
+//returns 2 if txt equals to something in coll
+int FindPrefix(const std::set<std::string> &coll, const char *txt)
+{
+    if (txt == NULL || txt[0]==0) return -1;
+    unsigned ret = 0;
+    const unsigned len = strlen(txt);
+    for (auto i = coll.begin(); i!=coll.end(); i++) {
+        if (len > i->length()) continue;
+        if (strncmp(i->c_str(), txt, len)) continue;
+        if (len == i->length()) return 2;
+        ret = 1;
+    }
+    return ret;
 }
