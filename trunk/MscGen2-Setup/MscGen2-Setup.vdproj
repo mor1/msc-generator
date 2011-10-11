@@ -51,6 +51,18 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_9138153F710B4F2C80E817D02249F7D2"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_9138153F710B4F2C80E817D02249F7D2"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_9A89BFC4BEBF45EFB4374ED2BE2E1924"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -59,12 +71,6 @@
         {
         "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
         "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_C804DA5AF5C7404CAD342A3F181103FB"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -87,13 +93,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_FF8AC4F1332F4DC9A9E4E5BB759E83C8"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_FF8AC4F1332F4DC9A9E4E5BB759E83C8"
+        "MsmKey" = "8:_FC1880DD8D2946E4A70FE95BC92AABEF"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -277,7 +277,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -377,7 +377,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -503,7 +503,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{7E2B0E34-6E09-4D5D-A4C1-E6749A6D4F5C}"
-        "PackageCode" = "8:{DB8D2F0D-3790-41EB-9C96-E462893E8F6B}"
+        "PackageCode" = "8:{20F40E16-C219-45EC-B1B5-A46FF5FA277F}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -1968,11 +1968,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_C804DA5AF5C7404CAD342A3F181103FB"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_9138153F710B4F2C80E817D02249F7D2"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
                 "Properties"
                 {
                 }
@@ -1982,11 +1982,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_FF8AC4F1332F4DC9A9E4E5BB759E83C8"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_FC1880DD8D2946E4A70FE95BC92AABEF"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
                 "Properties"
                 {
                 }

@@ -1217,7 +1217,9 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
     DrawArcList(canvas, Arcs, ArcBase::BEFORE_ENTITY_LINES);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
     DrawEntityLines(canvas, 0, total.y);
+    DrawArcList(canvas, Arcs, ArcBase::AFTER_ENTITY_LINES);
     DrawArcList(canvas, Arcs, ArcBase::DEFAULT);
+    DrawArcList(canvas, Arcs, ArcBase::AFTER_DEFAULT);
     //cairo_set_source_rgb(cr, 0, 0, 1);
     //cairo_set_line_width(cr,2);
     //HideELinesArea.Line(cr);

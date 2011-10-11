@@ -403,6 +403,10 @@ BOOL CMscGenApp::InitInstance()
 	// Enable drag/drop open
 	m_pMainWnd->DragAcceptFiles();
 
+    //Set focus to Internal editor, if any
+    if (IsInternalEditorRunning() && m_pWndEditor->IsVisible())
+		m_pWndEditor->m_ctrlEditor.SetFocus();
+
 	return TRUE;
 }
 
