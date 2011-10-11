@@ -140,7 +140,7 @@ ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 }
 
 template<> const char EnumEncapsulator<ArcBase::DrawPassType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "before_entity_lines", "default"};
+    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", ""};
 
 
 bool ArcBase::AddAttribute(const Attribute &a)
@@ -161,6 +161,12 @@ bool ArcBase::AddAttribute(const Attribute &a)
         parallel = a.yes;
         return true;
     }
+    if (a.Is("draw_time")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
+        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
+        return true;
+    }
     return false;
 }
 
@@ -168,6 +174,7 @@ void ArcBase::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
 }
 
 bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
@@ -176,6 +183,11 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
         CaseInsensitiveEqual(attr,"parallel")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "yes", HINT_ATTR_VALUE));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "no", HINT_ATTR_VALUE));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"draw_time")) {
+        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE);
         return true;
     }
     return false;
@@ -1857,6 +1869,7 @@ ArcBoxSeries::ArcBoxSeries(ArcBox *first) :
     ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
 {
     series.Append(first);
+    draw_pass = first->draw_pass;
 }
 
 
@@ -2089,7 +2102,12 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
         if (i!=series.begin() && (*i)->parallel) {
             chart->Error.Error((*i)->file_pos.start,
                                "Attribute 'parallel' can only be specified in the first "
-                               "element in a pipe series. Ignoring it in subsequent ones.");
+                               "element in a box series. Ignoring it in subsequent ones.");
+        }
+        if (i!=series.begin() && (*i)->draw_pass!=DEFAULT) {
+            chart->Error.Error((*i)->file_pos.start,
+                               "Attribute 'draw_time' can only be specified in the first "
+                               "element in a box series. Ignoring it in subsequent ones.");
         }
         if ((*i)->content.size()) {
             if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW && series.size()>1) {
@@ -2462,8 +2480,12 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
         //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
         canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
         //if there are contained entities, draw entity lines, strictly from inside of line
-        if ((*i)->content.size() && (*i)->collapsed==BOX_COLLAPSE_EXPAND && (*i)->drawEntityLines)
-            chart->DrawEntityLines(canvas, (*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
+        if ((*i)->content.size()) {
+            chart->DrawArcList(canvas, (*i)->content, BEFORE_ENTITY_LINES);
+            if ((*i)->collapsed==BOX_COLLAPSE_EXPAND && (*i)->drawEntityLines)
+                chart->DrawEntityLines(canvas, (*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
+            chart->DrawArcList(canvas, (*i)->content, AFTER_ENTITY_LINES);
+        }
     }
     canvas.UnClip();
     //Draw box lines - Cycle only for subsequent boxes
@@ -2477,13 +2499,16 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->parsed_label.Draw(&canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
-        if ((*i)->content.size())
-            chart->DrawArcList(canvas, (*i)->content, pass);
+        if ((*i)->content.size()) 
+            chart->DrawArcList(canvas, (*i)->content, DEFAULT);
         //if (i==follow.begin()) {
         //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
         //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
         //}
     }
+    for (auto i = series.begin(); i!=series.end(); i++) 
+        if ((*i)->content.size()) 
+            chart->DrawArcList(canvas, (*i)->content, AFTER_DEFAULT);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -2712,6 +2737,11 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
                     if (chart->EntityMaxByPos(prev_dst, loc_src) != loc_src) 
                         chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previousl one. It may not look so good.",
                         "Encapsulate one in the other if you want that effect.");
+                }
+                if (i!=series.begin() && (*i)->draw_pass!=DEFAULT) {
+                    chart->Error.Error((*i)->file_pos.start,
+                        "Attribute 'draw_time' can only be specified in the first "
+                        "element in a pipe series. Ignoring it in subsequent ones.");
                 }
                 i++;
             }
@@ -3245,11 +3275,16 @@ void ArcPipeSeries::Draw(MscCanvas &canvas, DrawPassType pass)
         auto i_next = i; i_next++;
         const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
         (*i)->DrawPipe(canvas, false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
-        if (content.size() && (*i)->drawEntityLines)
-            chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
     }
-    if (content.size())
-        chart->DrawArcList(canvas, content, pass);
+    if (content.size()) {
+        chart->DrawArcList(canvas, content, BEFORE_ENTITY_LINES);
+        for (auto i = series.begin(); i!=series.end(); i++) 
+            if ((*i)->drawEntityLines)
+                chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
+        chart->DrawArcList(canvas, content, AFTER_ENTITY_LINES);
+        chart->DrawArcList(canvas, content, DEFAULT);
+        chart->DrawArcList(canvas, content, AFTER_DEFAULT);
+    }
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Draw the topside fill only if the pipe is not fully transparent.
         //Draw the topside line in any case
@@ -4424,7 +4459,7 @@ bool CommandSymbol::AddAttribute(const Attribute &a)
         ysize.second = a.number;
         return true;
     }
-    if (a.Is("draw_time")) {
+    if (a.Is("draw_time")) {  //We add this even though it is in ArcBase::AddAttribute, but ArcCommand::AddAttribute does not call that
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
         a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
@@ -4439,7 +4474,6 @@ void CommandSymbol::AttributeNames(Csh &csh)
     ArcCommand::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
     Design().styles["symbol"].AttributeNames(csh);
 }
 
@@ -4451,11 +4485,6 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"ysize")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"draw_time")) {
-        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE);
         return true;
     }
     if (ArcCommand::AttributeValues(attr, csh)) return true;
@@ -4574,9 +4603,8 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
         outer_edge.y.MakeInvalid();
         return 0;
     }
-    outer_edge.y.from = chart->arcVGapAbove;
-    outer_edge.y.till = chart->arcVGapAbove + ysize.second;
-    outer_edge.y.Expand(lw/2);
+    outer_edge.y.from = 0;
+    outer_edge.y.till = lw + ysize.second;
 
     CalculateAreaFromOuterEdge();
 
@@ -4584,7 +4612,7 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
     else 
         cover = area;
-    return outer_edge.y.till + style.shadow.offset.second + chart->arcVGapBelow;
+    return outer_edge.y.till + style.shadow.offset.second;
 }
 
 void CommandSymbol::ShiftBy(double y) 

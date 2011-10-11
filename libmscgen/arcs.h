@@ -75,7 +75,7 @@ struct ArcSignature {
 class ArcBase : public TrackableElement
 {
 public:
-    typedef enum {INVALID, BEFORE_ENTITY_LINES, DEFAULT} DrawPassType;
+    typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT} DrawPassType;
 private:
     bool had_add_attr_list; //TODO: debug only, remove
 protected:
