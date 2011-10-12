@@ -83,8 +83,8 @@ protected:
 
 public:
     mutable bool visible;
-    Edge() : type(STRAIGHT) {boundingBox.MakeInvalid();}
-    Edge(const XY &s, const XY &e) : type(STRAIGHT), start(s), end(e), boundingBox(s, e) {}
+    Edge() : type(STRAIGHT), visible(true) {boundingBox.MakeInvalid();}
+    Edge(const XY &s, const XY &e) : type(STRAIGHT), start(s), end(e), boundingBox(s, e), visible(true) {}
     Edge(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
 
     EEdgeType GetType() const {return type;}

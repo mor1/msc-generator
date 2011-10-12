@@ -1349,18 +1349,12 @@ double ArcBigArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     for (unsigned i=0; i<middle.size(); i++)
         xPos.push_back(chart->XCoord(middle[i]));
     xPos.push_back(dx);
+    if (sx > dx) 
+        std::reverse(xPos.begin(), xPos.end());
     //calculate text margings
-    //note that stext and dtext note indexes with indexes ordered from
-    //left to right, not in the original order of them, so we adjust here
-    if (sx < dx) {
-        sx_text = xPos[stext] + sm + act_size[stext];
-        dx_text = xPos[dtext] - dm - act_size[dtext];
-        cx_text = (xPos[stext] + xPos[dtext])/2;
-    } else {
-        sx_text = xPos[xPos.size()-1-stext] + sm + act_size[xPos.size()-1-stext];
-        dx_text = xPos[xPos.size()-1-dtext] - dm - act_size[xPos.size()-1-dtext];
-        cx_text = (xPos[xPos.size()-1-stext] + xPos[xPos.size()-1-dtext])/2;
-    }
+    sx_text = xPos[stext] + sm + act_size[stext];
+    dx_text = xPos[dtext] - dm - act_size[dtext];
+    cx_text = (xPos[stext] + xPos[dtext])/2;
     label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, outer_contours);
     area.arc = this;
@@ -1778,17 +1772,17 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     width -= lw; //not necessarily integer, the distance from midline to midline
 
     if (style.side.second == SIDE_LEFT) {
-        sy_text = ypos[0]+forward ? sm : dm;
-        dy_text = ypos[1]-forward ? dm : sm;
+        sy_text = ypos[0] + (forward ? sm : dm);
+        dy_text = ypos[1] - (forward ? dm : sm);
     } else {
-        sy_text = ypos[1]-forward ? sm : dm;
-        dy_text = ypos[0]+forward ? dm : sm;
+        sy_text = ypos[1] - (forward ? sm : dm);
+        dy_text = ypos[0] + (forward ? dm : sm);
     }
 
 	//Generate area
     std::vector<double> act_size(2, 0);
     //use inverse of forward, swapXY will do the job
-    area = style.arrow.BigContour(ypos, act_size, xpos-width/2, xpos+width/2, !
+    area = style.arrow.BigContour(ypos, act_size, xpos-width/2, xpos+width/2, 
                                   forward, isBidir(), NULL, outer_contours);
     area.SwapXY();
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
@@ -1802,17 +1796,19 @@ void ArcVerticalArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
     if (pass!=draw_pass) return;
+
+    //Draw background
+    std::vector<double> act_size(2,0);
+    style.arrow.BigDrawFromContour(outer_contours, NULL, style.fill, style.shadow, canvas,
+                                   style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
+
     if (style.side.second == SIDE_LEFT)
         canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
     else
         canvas.Transform_Rotate90(ypos[0], ypos[1], true);
-    //Draw background
-    const Contour lab = parsed_label.Cover(min(ypos[0], ypos[1]), max(ypos[0], ypos[1]),
+    const Contour lab = parsed_label.Cover(ypos[0], ypos[1],
                                         xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
                                         -1, true);
-    std::vector<double> act_size(2,0);
-    style.arrow.BigDrawFromContour(outer_contours, NULL, style.fill, style.shadow, canvas,
-                                   style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
     //We skip BigDrawEmptyMid. as there can not be mid-stops
     parsed_label.Draw(&canvas, min(sy_text, dy_text), max(sy_text, dy_text),
                       xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);

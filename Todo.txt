@@ -78,7 +78,7 @@ ADD: mark centerline
 FIX: Regression Bugs in Contour Expand still remain...
 FIX: Too much compress after adding MITER_LIMIT
 FIX: Triple bevel changes size when size limited.
-
+FIX: examples. Missing lines ???
 
 In 3.2
 FIXED: Dashed entity line now never falls back to image
