@@ -553,7 +553,6 @@ void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &po
         const double ddy = (d.y-s.y)/len;
         double processed = 0;
         double x = s.x, y = s.y;  
-        cairo_new_path(cr);
         if (offset) {
             if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
                 if (pos%2==0) {//start with drawn
@@ -588,7 +587,6 @@ void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &po
         return;
     }
     //curvy
-    cairo_new_path(cr);
     cairo_save(cr);
     ell.TransformForDrawing(cr);
     double local_s = s, local_e = e;
