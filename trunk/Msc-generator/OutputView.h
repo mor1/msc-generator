@@ -20,7 +20,7 @@ class COutputList : public CListBox
 public:
 	COutputList();
 
-// Implementation
+    // Implementation
 public:
 	virtual ~COutputList();
 
@@ -35,10 +35,16 @@ public:
 	COutputViewBar();
 
 // Attributes
-	CFont m_Font;
+	//CFont m_Font;
+protected:
+	CMFCTabCtrl	m_wndTabs;
+
 	COutputList m_wndOutput;
+	COutputList m_wndOutputHints;
     std::list<CString> compilation_errors;
     std::vector<std::pair<int, int>> error_pos;
+    std::list<CString> compilation_errors_hint;
+    std::vector<std::pair<int, int>> error_pos_hint;
 
 protected:
 	void AdjusrHorzScroll(CListBox& wndListBox);
@@ -49,12 +55,13 @@ public:
     void ShowCompilationErrors(const CDrawingChartData &chart);
     void ShowCshErrors(const std::list<CString> &errors, 
                        const std::vector<std::pair<int, int>> &err_pos);
+    bool NextError(bool next);
+    bool GetCurrentErrorLine(int &line, int &col);
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
-
 
 	DECLARE_MESSAGE_MAP()
 };

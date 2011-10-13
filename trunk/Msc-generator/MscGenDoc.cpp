@@ -896,23 +896,14 @@ void CMscGenDoc::DoViewNexterror(bool next)
 	if (!pOutputView) return;
 
 	//Move to next error
-	int maxsel = pOutputView->m_wndOutput.GetCount();
-	if (maxsel == LB_ERR || maxsel==0) return; //no error
-	int cursel = pOutputView->m_wndOutput.GetCurSel();
-	cursel = (cursel + (next ? 1 : -1) + maxsel) % maxsel;
-	pOutputView->m_wndOutput.SetCurSel(cursel);
+    int line, col;
+    if (!pOutputView->NextError(next)) return;
+    if (!pOutputView->GetCurrentErrorLine(line, col)) return;
 
     //Turn tracking off
 	if (m_bTrackMode) SetTrackMode(false);
 	else StartFadingAll(NULL);
 
-    //exit if we do not know the location of the error
-    if (cursel >= int(pOutputView->error_pos.size()) || cursel<0) return;
-    if (pOutputView->error_pos[cursel].first < 0) return;
-
-    //Jump to that pos in editor
-    int line = pOutputView->error_pos[cursel].first;
-    int col = pOutputView->error_pos[cursel].second;
     //Jump in the internal and external editors
     if (pApp->IsInternalEditorRunning()) 
         pApp->m_pWndEditor->m_ctrlEditor.JumpToLine(line, col);
@@ -930,10 +921,8 @@ void CMscGenDoc::OnSelChange()
 	ASSERT(pApp != NULL);
 	COutputViewBar *pOutputView = pApp->m_pWndOutputView;
 	if (!pOutputView) return;
-	int sel = pOutputView->m_wndOutput.GetCurSel();
-	if (sel == LB_ERR) return;
-	int line = m_ChartShown.GetErrorLine(sel, pApp->m_Warnings);
-	int col =  m_ChartShown.GetErrorCol(sel, pApp->m_Warnings);
+    int line, col;
+    if (!pOutputView->GetCurrentErrorLine(line, col)) return;
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.JumpToLine(line, col);
 	if (m_ExternalEditor.IsRunning())

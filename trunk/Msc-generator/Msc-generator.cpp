@@ -259,6 +259,12 @@ CMscGenApp::CMscGenApp()
 {
 	m_bHiColorIcons = TRUE;
 
+	// replace application ID string below with unique ID string; recommended
+	// format for string is CompanyName.ProductName.SubProduct.VersionInformation
+    char buff[200];
+    sprintf(buff, "Msc-generator-%s", VersionText());
+	SetAppID(buff);
+
 	// Place all significant initialization in InitInstance
 	m_pWndOutputView = 0;
 	m_pWndEditor = 0;
@@ -296,7 +302,6 @@ BOOL CMscGenApp::InitInstance()
 	InitCommonControlsEx(&InitCtrls);
 
 	CWinAppEx::InitInstance();
-	AfxInitRichEdit();
 
 	// Initialize OLE libraries
 	if (!AfxOleInit())
@@ -304,13 +309,17 @@ BOOL CMscGenApp::InitInstance()
 		AfxMessageBox(IDP_OLE_INIT_FAILED);
 		return FALSE;
 	}
-	// Standard initialization
+    
+    EnableTaskbarInteraction(FALSE);
+
+	// AfxInitRichEdit2() is required to use RichEdit control	
+	AfxInitRichEdit2();
+    
+    // Standard initialization
 	// If you are not using these features and wish to reduce the size
 	// of your final executable, you should remove from the following
 	// the specific initialization routines you do not need
 	// Change the registry key under which our settings are stored
-	// TODO: You should modify this string to be something appropriate
-	// such as the name of your company or organization
 	SetRegistryKey(_T("Zoltan Turanyi"));
 	LoadStdProfileSettings(9);  // Load standard INI file options (including MRU)
 
@@ -346,13 +355,13 @@ BOOL CMscGenApp::InitInstance()
 		// Note: SDI applications register server objects only if /Embedding
 		//   or /Automation is present on the command line
 
-	// Enable DDE Execute open
-	EnableShellOpen();
-	RegisterShellFileTypes(TRUE);
-
 	// Parse command line for standard shell commands, DDE, file open
 	CCommandLineInfo cmdInfo;
 	ParseCommandLine(cmdInfo);
+
+	// Enable DDE Execute open
+	EnableShellOpen();
+	RegisterShellFileTypes(TRUE);
 
 	//Read options from the registry
 	ReadRegistryValues(false);
@@ -408,6 +417,14 @@ BOOL CMscGenApp::InitInstance()
 		m_pWndEditor->m_ctrlEditor.SetFocus();
 
 	return TRUE;
+}
+
+int CMscGenApp::ExitInstance()
+{
+	//TODO: handle additional resources you may have added
+	AfxOleTerm(FALSE);
+
+	return CWinAppEx::ExitInstance();
 }
 
 
