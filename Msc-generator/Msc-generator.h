@@ -48,13 +48,14 @@ public:
 // Overrides
 public:
 	virtual BOOL InitInstance();
+    int ExitInstance();
 
 // Implementation
 	COleTemplateServer m_server; // Server object for document creation
 	UINT               m_nAppLook;
 	BOOL			   m_bHiColorIcons;
-	COutputViewBar    *m_pWndOutputView;
-	CEditorBar        *m_pWndEditor;
+	COutputViewBar    *m_pWndOutputView;  //shortcut to the error window
+	CEditorBar        *m_pWndEditor;      //shortcut to the internal editor
 
 //Status 
 	bool m_bFullScreenViewMode; //we were opened by "ViewFullScreen OLE verb"
