@@ -739,7 +739,6 @@ void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy, const 
         cairo_close_path(cr);
         break;
     case CORNER_BEVEL:
-        cairo_new_path(cr);
         cairo_move_to(cr, sx+r, sy);
         cairo_line_to(cr, dx-r, sy);
         cairo_line_to(cr, dx, sy+r);
@@ -751,7 +750,6 @@ void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy, const 
         cairo_close_path(cr);
         break;
     case CORNER_NOTE:
-        cairo_new_path(cr);
         cairo_move_to(cr, sx, sy);
         cairo_line_to(cr, dx-r, sy);
         cairo_line_to(cr, dx, sy+r);

@@ -1,15 +1,19 @@
-msc=Dinand {
+msc=Dinand;
 background.color=white;
 UE [label="\bUE"],
-RGW [lblue, label="\bRGW\n\-WLAN AP\n802.1X authenticator"],
+RGW [label="\bRGW\n\-WLAN AP\n802.1X authenticator"];
+Fixed: Fixed operator [lblue, fill.gradient=down]{
 AN [lblue, label="\bAN"],
 BNG [lblue, label="\bBNG\n\-PEP\nDHCP server"],
 PCF [lblue, label="\bBPCF\n\-PDP"],
-NASS [lblue, label="\bBBF AAA"],
+NASS [lblue, label="\bBBF AAA"];
+};
+Mobile: Mobile operator [lyellow, fill.gradient=down] {
 PDN [lyellow, label="\bPDN-GW\n\-PCEF"],
 PCRF [lyellow, label="\bPCRF"],
 AAA [lyellow, label="\b3GPP AAA"],
 ANDSF [lyellow, label="\bANDSF"];
+};
 
 ++:Local attach and access authentication [lyellow]{
 
@@ -19,7 +23,11 @@ ANDSF [lyellow, label="\bANDSF"];
     block RGW->BNG-NASS-AAA: Diameter/Radius (EAP-AKA) [lyellow, number=yes];
     AAA--AAA: \c(red)Make UE\noffload decision\ndefault APN=NO;
     block AAA->NASS: Diameter/Radius (EAP-AKA)\n\-EAP-Success, NAI, \c(red)offload decision [lyellow, number=yes];
+    mark top [offset=-5];
     NASS--NASS: Store\nUE context;
+    mark bottom [offset=+5];
+    symbol arc top-bottom center at NASS [xsize=120, fill.color=none,
+         line.width=4, line.color=red, draw_time=after_default];
     block NASS->RGW: Diameter/Radius (EAP-AKA)\n\-EAP-Success [lyellow, number=yes];
     block RGW->UE: 802.1X (EAPoL)\n\-EAP-Success [lyellow, number=yes];
 };
@@ -36,19 +44,15 @@ block UE<->ANDSF: Downloading of rules to UE [lred];
 };
 
 pipe BNG--PDN:GTP tunnel [number=no]{
-            UE->RGW-BNG-PDN-> [strong, number=yes]: \prUser data packet;
-    };
-
-}
-
-++: IP session setup [lyellow] {
-    UE->RGW-BNG: DHCP Request\n\c(red)\-local APN;
-    BNG--BNG: Allocate IP@;
-    UE<-RGW-BNG: DHCP Ack\n\c(red)\-local address;
+    UE->RGW-BNG-PDN-> [strong, number=yes]: \prUser data packet;
+    UE->RGW-BNG-PDN-> [strong];
+    UE->RGW-BNG-PDN-> [strong];
 };
-
-
-UE->RGW-BNG-> [strong, number=yes]: \prUser data packet (offloaded);
-
-
-}
+{
+symbol arc center at UE-RGW [xsize=5, ysize=5, fill.color=black];
+vspace 5;
+symbol arc center at UE-RGW [xsize=5, ysize=5, fill.color=black];
+vspace 5;
+symbol arc center at UE-RGW [xsize=5, ysize=5, fill.color=black];
+vspace 5;
+};
