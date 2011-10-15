@@ -207,7 +207,7 @@ bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscAr
         canvas->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
     if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
         canvas->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    Area clip = ah.ClipForLine(xy, 0, true, false, MSC_ARROW_END, Block(XY(0,0), canvas->GetSize()), eLine, eLine);
+    Contour clip = ah.ClipForLine(xy, 0, true, false, MSC_ARROW_END, Block(XY(0,0), canvas->GetSize()), eLine, eLine);
     canvas->Clip(clip);
     canvas->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), xy, ah.line);
     canvas->UnClip();
@@ -566,14 +566,14 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
     case MSC_ARROW_DIAMOND_EMPTY:
         area = diamond(xy, wh);
         r = area.GetBoundingBox().x;
-        area = Area(Block(r, total.y)) - area;
+        area = Contour(Block(r, total.y)) - area;
         break;
 
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
         area = Contour(xy, wh.x, wh.y);
         r = area.GetBoundingBox().x;
-        area = Area(Block(r, total.y)) - area;
+        area = Contour(Block(r, total.y)) - area;
         break;
     default:
         _ASSERT(0);

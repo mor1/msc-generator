@@ -546,18 +546,18 @@ void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &po
     _ASSERT(num);
     _ASSERT(offset<pattern[pos]);
     if (type == STRAIGHT) {
-        const XY & s = reverse ? end : start;
-        const XY & d = reverse ? start : end;
-        const double len = sqrt((d.x-s.x)*(d.x-s.x) + (d.y-s.y)*(d.y-s.y));
-        const double ddx = (d.x-s.x)/len;
-        const double ddy = (d.y-s.y)/len;
+        const XY & fr = reverse ? end : start;
+        const XY & to = reverse ? start : end;
+        const double len = sqrt((to.x-fr.x)*(to.x-fr.x) + (to.y-fr.y)*(to.y-fr.y));
+        const double ddx = (to.x-fr.x)/len;
+        const double ddy = (to.y-fr.y)/len;
         double processed = 0;
-        double x = s.x, y = s.y;  
+        double x = fr.x, y = fr.y;  
         if (offset) {
             if (pattern[pos]-offset > len) { //remaining segment is shorter than the entire length
                 if (pos%2==0) {//start with drawn
-                    cairo_move_to(cr, s.x, s.y);
-                    cairo_line_to(cr, d.x, d.y);
+                    cairo_move_to(cr, fr.x, fr.y);
+                    cairo_line_to(cr, to.x, to.y);
                 }
                 offset += len;
                 return;
@@ -582,7 +582,7 @@ void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &po
         offset = len - processed;
         if (pos%2==0 && fabs(offset)>1e-10) {
             cairo_move_to(cr, x, y);
-            cairo_line_to(cr, d.x, d.y); 
+            cairo_line_to(cr, to.x, to.y); 
         }
         return;
     }

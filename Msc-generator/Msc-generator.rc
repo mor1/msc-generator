@@ -289,6 +289,13 @@ IDR_SRVR_INPLACE_256    BITMAP                  "res\\IToolbar256.bmp"
 IDR_TOOLBAR_MAINFRAME   BITMAP                  "res\\mainfram.bmp"
 IDR_TOOLBAR_SRVR_INPLACE BITMAP                  "res\\srvr_inp.bmp"
 IDR_DESIGNBAR           BITMAP                  "res\\toolbar1.bmp"
+IDR_SRVR_INPLACE_257    BITMAP                  "res\\bmp00001.bmp"
+IDB_WRITESMALL          BITMAP                  "res\\writesmall.bmp"
+IDB_WRITELARGE          BITMAP                  "res\\writelarge.bmp"
+IDB_MAIN                BITMAP                  "res\\main.bmp"
+IDB_FILESMALL           BITMAP                  "res\\filesmall.bmp"
+IDB_FILELARGE           BITMAP                  "res\\filelarge.bmp"
+IDB_BUTTONS             BITMAP                  "res\\buttons.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -741,6 +748,14 @@ BEGIN
 0x7245, 0x6f72, 0x2d72, 0x726f, 0x6569, 0x746e, 0x6465, "\000" 
     0
 END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Ribbon
+//
+
+IDR_RIBBON              RT_RIBBON_XML           "res\\ribbon.mfcribbon-ms"
 
 
 /////////////////////////////////////////////////////////////////////////////

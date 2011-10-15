@@ -7,6 +7,12 @@
 #define IDR_SRVR_INPLACE_256            5
 #define IDR_SRVR_EMBEDDED               6
 #define IDP_OLE_INIT_FAILED             100
+#define IDB_WRITESMALL                  110
+#define IDB_WRITELARGE                  111
+#define IDB_MAIN                        112
+#define IDB_BUTTONS                     113
+#define IDB_FILELARGE                   114
+#define IDB_FILESMALL                   115
 #define IDR_POPUP_EDIT                  119
 #define IDS_STATUS_PANE1                122
 #define IDS_STATUS_PANE2                123
@@ -32,8 +38,10 @@
 #define ID_VIEW_APPLOOK_OFF_2007_SILVER 217
 #define ID_VIEW_APPLOOK_OFF_2007_AQUA   218
 #define IDS_EDIT_MENU                   306
+#define IDR_RIBBON                      307
 #define IDR_DESIGNBAR                   310
 #define IDD_POPUPLIST                   311
+#define IDR_SRVR_INPLACE_257            311
 #define IDD_DIALOG_VERSION              313
 #define IDR_HTML1                       314
 #define IDD_DIALOG1                     315
@@ -121,6 +129,9 @@
 #define ID_VIEW_SHOWELEMENTCONTROLS32863 32863
 #define ID_VIEW_SHOWELEMENTCONTROLS32864 32864
 #define ID_VIEW_S                       32866
+#define ID_BUTTON9                      32874
+#define ID_BUTTON10                     32875
+#define ID_COMBO5                       32892
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -129,7 +140,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        316
-#define _APS_NEXT_COMMAND_VALUE         32867
+#define _APS_NEXT_COMMAND_VALUE         32893
 #define _APS_NEXT_CONTROL_VALUE         1031
 #define _APS_NEXT_SYMED_VALUE           315
 #endif
