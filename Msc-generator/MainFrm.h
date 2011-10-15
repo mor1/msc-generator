@@ -45,10 +45,10 @@ public:
 	CMFCStatusBar     m_wndStatusBar;
 protected:  
     friend class CMscGenSplitterWnd;
-	CMFCMenuBar       m_wndMenuBar;
-	CMFCToolBar       m_wndToolBar;
-	CMFCToolBar       m_wndDesignBar;
-	CMFCToolBarImages m_UserImages;
+	CMFCRibbonBar     m_wndRibbonBar;
+	CMFCRibbonApplicationButton m_MainButton;
+	CMFCToolBarImages m_PanelImages;
+	//CMFCRibbonStatusBar  m_wndStatusBar;
 	COutputViewBar    m_wndOutputView;
 	CEditorBar        m_ctrlEditor;
     bool m_bAutoSplit;         //True if autosplit mode is on
@@ -56,9 +56,6 @@ protected:
 
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
-	afx_msg void OnViewCustomize();
-	afx_msg LRESULT OnToolbarCreateNew(WPARAM wp, LPARAM lp);
-	afx_msg LRESULT OnToolbarReset(WPARAM wp, LPARAM lp);
 	afx_msg void OnApplicationLook(UINT id);
 	afx_msg void OnUpdateApplicationLook(CCmdUI* pCmdUI);
 	afx_msg void OnUpdateButtonAutoSplit(CCmdUI *pCmdUI);
@@ -68,7 +65,6 @@ public:
 	virtual BOOL OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext);
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	virtual BOOL LoadFrame(UINT nIDResource, DWORD dwDefaultStyle = WS_OVERLAPPEDWINDOW | FWS_ADDTOTITLE, CWnd* pParentWnd = NULL, CCreateContext* pContext = NULL);
-	        void OnUpdateFrameMenu(HMENU hMenuAlt);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	        BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnViewFullScreen();
@@ -86,6 +82,17 @@ public:
 #endif
 
     afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
+
+    bool FillDesignComboBox(const char *current, bool updateComboContent);
+    afx_msg void OnDesignDesign(); //design combo box changes
+    afx_msg void OnUpdateDesignDesign(CCmdUI *pCmdUI);
+    void FillPageComboBox(int no_pages, int page);
+	afx_msg void OnDesignPage(); //page combo box changes
+    afx_msg void OnUpdateDesignPage(CCmdUI *pCmdUI);
+    void FillZoomComboBox(int zoom);
+	afx_msg void OnDesignZoom();                             //user changed zoom combo
+    afx_msg void OnViewZoomin();                             //zoom in 10%
+	afx_msg void OnViewZoomout();                            //zoom out 10%
 };
 
 

@@ -124,16 +124,11 @@ public:
 	afx_msg void OnViewPreverror();           //User steps back in errors
 	afx_msg void OnSelChange();               //Another error is selected
 
-	afx_msg void OnDesignDesign(); //design combo box changes
-	afx_msg void OnDesignPage(); //page combo box changes
-    afx_msg void OnUpdateDesignPage(CCmdUI *pCmdUI);
-    afx_msg void OnUpdateDesignDesign(CCmdUI *pCmdUI);
+	void ChangeDesign(const char *design);
+    void ChangePage(unsigned page);
 
 	//Zoom functions
 			void SetZoom(int zoom=0);                        //Update views with new zoom factor. ==0 means just reset toolbar
-	afx_msg void OnViewZoomin();                             //zoom in 10%
-	afx_msg void OnViewZoomout();                            //zoom out 10%
-	afx_msg void OnDesignZoom();                             //user changed zoom combo
 			void ArrangeViews(EZoomMode mode);               //Automatically adjust zoom and window size
 			void ArrangeViews() {ArrangeViews(m_ZoomMode);}  //Automatically adjust zoom and window size using existng zoom mode (if any)
 	afx_msg void OnViewZoomnormalize();                      //Automatically adjust zoom and window size: overview mode
