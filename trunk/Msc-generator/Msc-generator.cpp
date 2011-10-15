@@ -454,71 +454,6 @@ void CMscGenApp::SaveCustomState()
 {
 }
 
-bool CMscGenApp::FillDesignDesignCombo(const char *current, bool updateComboContent) {
-	//ok now designs contains a set of of designs, preable contains a concatenation of designlib text
-	//Add the list of designs to the combo boxes
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
-	POSITION p = list.GetHeadPosition();
-	bool ret=true;
-	while (p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		if (updateComboContent || combo->GetCount()==0) {
-			combo->RemoveAllItems();
-			if (m_SetOfDesigns.GetLength()) {
-				combo->AddItem("(use chart-defined)");
-				combo->AddItem("plain");
-				int pos = 0;
-				while (m_SetOfDesigns.GetLength()>pos) {
-					int pos2 = m_SetOfDesigns.Find(' ', pos);
-					if (pos2==-1) pos2 = m_SetOfDesigns.GetLength();
-					if (pos2>pos && m_SetOfDesigns.Mid(pos, pos2-pos).CompareNoCase("plain")!=0)
-						combo->AddItem(m_SetOfDesigns.Mid(pos, pos2-pos));
-					pos = pos2+1;
-				}	
-			} else {
-				combo->AddItem("-(only plain is available)-");
-			}
-		}
-		//restore the selection to the given style if it can be found
-		int index = (current==NULL || current[0]==0) ? 0 : combo->FindItem(current);
-		ret = (index != CB_ERR);
-		combo->SelectItem(ret?index:0);
-	}
-	return ret;
-}
-
-void CMscGenApp::FillDesignPageCombo(int no_pages, int page)
-{
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_PAGE, list);
-
-	POSITION p = list.GetHeadPosition();
-	while(p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		if (!combo) continue;
-        if (no_pages<2) combo->EnableWindow(false);
-		if (no_pages == 1 && combo->GetCount() == 1) continue;
-		//If the combo shows different number of pages then we have, update the combo
-		if (no_pages+1 != combo->GetCount()) {
-			combo->RemoveAllItems();
-			//Fill combo list with the appropriate number of pages
-			if (no_pages > 1) {
-                combo->AddItem("(all)", 0);
-                CString str;
-				for (int i=1; i<=no_pages; i++) {
-					str.Format("%d", i);
-					combo->AddItem(str, i);
-				}
-            } else {
-                combo->AddItem("(page)", 0);
-            }
-			combo->SetDropDownHeight(250);
-		}
-		//Set the index to the current page
-		combo->SelectItem(page, TRUE);
-	} 
-}
 
 void CMscGenApp::OnEditPreferences()
 {
@@ -724,7 +659,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
     //fills m_ChartSourcePreamble and m_SetOfDesigns
 	if (1==ReadDesigns(reportProblem, "designlib.signalling")) //designlib.signalling not found in install dir
 	    ReadDesigns(reportProblem, "original_designlib.signalling"); //use original_designlib.signalling 
-	FillDesignDesignCombo("", true);
+	//FillDesignDesignCombo("", true);
 	m_CopyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
 		              "http://msc-generator.sourceforge.net ";
 	m_CopyrightText.Append(VersionText());

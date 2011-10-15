@@ -56,15 +56,23 @@ const UINT uiLastUserToolBarId = uiFirstUserToolBarId + iMaxUserToolbars - 1;
 
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_CREATE()
-	ON_COMMAND(ID_VIEW_CUSTOMIZE, OnViewCustomize)
 	ON_COMMAND(ID_VIEW_FULL_SCREEN, OnViewFullScreen)
 	ON_COMMAND(ID_BUTTON_AUTO_SPLIT, OnButtonAutoSplit)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_AUTO_SPLIT, OnUpdateButtonAutoSplit)
 //	ON_REGISTERED_MESSAGE(AFX_WM_CREATETOOLBAR, &CMainFrame::OnToolbarCreateNew)
-	ON_REGISTERED_MESSAGE(AFX_WM_RESETTOOLBAR, OnToolbarReset)
-	ON_COMMAND_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnApplicationLook)
-	ON_UPDATE_COMMAND_UI_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_OFF_2007_AQUA, &CMainFrame::OnUpdateApplicationLook)
+	ON_COMMAND_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_WINDOWS_7, &CMainFrame::OnApplicationLook)
+	ON_UPDATE_COMMAND_UI_RANGE(ID_VIEW_APPLOOK_WIN_2000, ID_VIEW_APPLOOK_WINDOWS_7, &CMainFrame::OnUpdateApplicationLook)
     ON_WM_ACTIVATE()
+	ON_COMMAND(ID_DESIGN_ZOOM, OnDesignZoom)
+	ON_CBN_SELENDOK(ID_DESIGN_ZOOM, OnDesignZoom)
+	ON_COMMAND(ID_DESIGN_PAGE, OnDesignPage)
+	ON_CBN_SELENDOK(ID_DESIGN_PAGE, OnDesignPage)
+	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignPage)
+	ON_COMMAND(ID_DESIGN_DESIGN, OnDesignDesign)
+	ON_CBN_SELENDOK(ID_DESIGN_DESIGN, OnDesignDesign)
+	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignDesign)
+	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
+	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -100,49 +108,11 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// set the visual manager and style based on persisted value
 	OnApplicationLook(theApp.m_nAppLook);
 
-	if (!m_wndMenuBar.Create(this))
-	{
-		TRACE0("Failed to create menubar\n");
-		return -1;      // fail to create
-	}
-
-	m_wndMenuBar.SetPaneStyle(m_wndMenuBar.GetPaneStyle() | CBRS_SIZE_DYNAMIC | CBRS_TOOLTIPS | CBRS_FLYBY);
+	m_wndRibbonBar.Create(this);
+	m_wndRibbonBar.LoadFromResource(IDR_RIBBON);
 
 	// prevent the menu bar from taking the focus on activation
 	CMFCPopupMenu::SetForceMenuFocus(FALSE);
-
-	if (!m_wndToolBar.CreateEx(this, TBSTYLE_FLAT, WS_CHILD | WS_VISIBLE | CBRS_TOP | CBRS_GRIPPER | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_DYNAMIC,
-		                       CRect(1,1,1,1), theApp.m_bHiColorIcons ? IDR_TOOLBAR_MAINFRAME_256 : IDR_TOOLBAR_MAINFRAME) ||
-		!m_wndToolBar.LoadToolBar(theApp.m_bHiColorIcons ? IDR_TOOLBAR_MAINFRAME_256 : IDR_TOOLBAR_MAINFRAME))
-	{
-		TRACE0("Failed to create toolbar\n");
-		return -1;      // fail to create
-	}
-
-	CString strToolBarName;
-	bNameValid = strToolBarName.LoadString(IDS_TOOLBAR_STANDARD);
-	ASSERT(bNameValid);
-	m_wndToolBar.SetWindowText(strToolBarName);
-
-	if (!m_wndDesignBar.CreateEx(this, TBSTYLE_FLAT, WS_CHILD | WS_VISIBLE | CBRS_TOP | CBRS_GRIPPER | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_DYNAMIC,
-		                         CRect(1,1,1,1), IDR_DESIGNBAR) ||
-		!m_wndDesignBar.LoadToolBar(IDR_DESIGNBAR))
-	{
-		TRACE0("Failed to create designbar\n");
-		return -1;      // fail to create
-	}
-	bNameValid = strToolBarName.LoadString(IDS_TOOLBAR_DESIGN);
-	ASSERT(bNameValid);
-	m_wndDesignBar.SetWindowText(strToolBarName);
-
-	CString strCustomize;
-	bNameValid = strCustomize.LoadString(IDS_TOOLBAR_CUSTOMIZE);
-	ASSERT(bNameValid);
-	m_wndToolBar.EnableCustomizeButton(TRUE, ID_VIEW_CUSTOMIZE, strCustomize);
-	m_wndDesignBar.EnableCustomizeButton(TRUE, ID_VIEW_CUSTOMIZE, strCustomize);
-
-	// Allow user-defined toolbars operations:
-	InitUserToolbars(NULL, uiFirstUserToolBarId, uiLastUserToolBarId);
 
 	if (!m_wndStatusBar.Create(this))
 	{
@@ -169,15 +139,9 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	pApp->m_pWndEditor = &m_ctrlEditor;
 
-	m_wndMenuBar.EnableDocking(CBRS_ALIGN_ANY);
-	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
-	m_wndDesignBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndOutputView.EnableDocking(CBRS_ALIGN_ANY);
 	m_ctrlEditor.EnableDocking(CBRS_ALIGN_ANY);
 	EnableDocking(CBRS_ALIGN_ANY);
-	DockPane(&m_wndMenuBar);
-	DockPane(&m_wndToolBar);
-	DockPane(&m_wndDesignBar);
 	DockPane(&m_wndOutputView);
 	DockPane(&m_ctrlEditor);
 
@@ -186,66 +150,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// enable Visual Studio 2005 style docking window auto-hide behavior
 	EnableAutoHidePanes(CBRS_ALIGN_ANY);
 
-	// Enable toolbar and docking window menu replacement
-	EnablePaneMenu(TRUE, ID_VIEW_CUSTOMIZE, strCustomize, ID_VIEW_TOOLBAR);
-
-	// enable quick (Alt+drag) toolbar customization
-	CMFCToolBar::EnableQuickCustomization();
-	
-	// enable menu personalization (most-recently used commands)
-	CList<UINT, UINT> lstBasicCommands;
-
-	lstBasicCommands.AddTail(ID_APP_ABOUT);
-	lstBasicCommands.AddTail(ID_APP_EXIT);
-	lstBasicCommands.AddTail(ID_BUTTON_EDITTEXT);              
-	lstBasicCommands.AddTail(ID_EDIT_CUT);
-	lstBasicCommands.AddTail(ID_EDIT_COPY);
-	lstBasicCommands.AddTail(ID_EDIT_PASTE);
-	lstBasicCommands.AddTail(ID_EDIT_COPYENTIRECHART);
-	lstBasicCommands.AddTail(ID_EDIT_PASETENTIRECHART);
-	lstBasicCommands.AddTail(ID_EDIT_PREFERENCES);             
-	lstBasicCommands.AddTail(ID_EDIT_UNDO);
-	lstBasicCommands.AddTail(ID_EDIT_REDO);
-	lstBasicCommands.AddTail(ID_EDIT_UPDATE);
-	lstBasicCommands.AddTail(ID_FILE_EXPORT);
-	lstBasicCommands.AddTail(ID_FILE_NEW);
-	lstBasicCommands.AddTail(ID_FILE_OPEN);
-	lstBasicCommands.AddTail(ID_FILE_PRINT);
-	lstBasicCommands.AddTail(ID_FILE_SAVE);
-	lstBasicCommands.AddTail(ID_HELP_HELP);
-	lstBasicCommands.AddTail(ID_VIEW_ADJUSTWIDTH);             
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2003);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_AQUA);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_BLACK);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_BLUE);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_OFF_2007_SILVER);
-	lstBasicCommands.AddTail(ID_VIEW_APPLOOK_VS_2005);
-	lstBasicCommands.AddTail(ID_VIEW_FITTOWIDTH);              
-	lstBasicCommands.AddTail(ID_VIEW_FULL_SCREEN);
-	lstBasicCommands.AddTail(ID_VIEW_REDRAW);                  
-	lstBasicCommands.AddTail(ID_VIEW_STATUS_BAR);
-	lstBasicCommands.AddTail(ID_VIEW_TOOLBAR);
-	lstBasicCommands.AddTail(ID_VIEW_ZOOMIN);                  
-	lstBasicCommands.AddTail(ID_VIEW_ZOOMNORMALIZE);           
-	lstBasicCommands.AddTail(ID_VIEW_ZOOMOUT);                 
-	lstBasicCommands.AddTail(ID_VIEW_NEXTERROR);                 
-	lstBasicCommands.AddTail(ID_BUTTON_TRACK);                 
-	lstBasicCommands.AddTail(ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH); 
-	lstBasicCommands.AddTail(ID_ZOOMMODE_KEEPFITTINGTOWIDTH);  
-	lstBasicCommands.AddTail(ID_ZOOMMODE_KEEPINOVERVIEW);      
-
-	CMFCToolBar::SetBasicCommands(lstBasicCommands);
-
-	//SetWindowPos(NULL, 0, 0, 550, 300,  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-
 	if (m_ctrlEditor.IsVisible()) 
         m_ctrlEditor.SetFocus();
 
 	EnableFullScreenMode(ID_VIEW_FULL_SCREEN);
 	EnableFullScreenMainMenu(FALSE);
 
-	CMFCButton::EnableWindowsTheming ();
-
+	//CMFCButton::EnableWindowsTheming ();
 	return 0;
 }
 
@@ -286,81 +197,6 @@ void CMainFrame::Dump(CDumpContext& dc) const
 
 // CMainFrame message handlers
 
-void CMainFrame::OnViewCustomize()
-{
-	//------------------------------------
-	// Create a customize toolbars dialog:
-	//------------------------------------
-	CMFCToolBarsCustomizeDialog* pDlgCust = new CMFCToolBarsCustomizeDialog (this,
-		TRUE /* Automatic menus scaning */
-		);
-	pDlgCust->EnableUserDefinedToolbars();
-
-	CMFCToolBarComboBoxButton pageButton (ID_DESIGN_PAGE,
-		GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE, FALSE), CBS_DROPDOWNLIST, 50);
-	pDlgCust->ReplaceButton(ID_DESIGN_PAGE, pageButton);
-
-	CMFCToolBarComboBoxButton zoomButton (ID_DESIGN_ZOOM,
-		GetCmdMgr ()->GetCmdImage (ID_WINDOW_ARRANGE, FALSE), CBS_DROPDOWN, 50);
-	pDlgCust->ReplaceButton(ID_DESIGN_ZOOM, zoomButton);
-
-	CMFCToolBarComboBoxButton designButton (ID_DESIGN_DESIGN,
-		GetCmdMgr ()->GetCmdImage (ID_FILE_PRINT_SETUP, FALSE));
-	pDlgCust->ReplaceButton(ID_DESIGN_DESIGN, designButton);
-
-	pDlgCust->Create();
-}
-
-LRESULT CMainFrame::OnToolbarCreateNew(WPARAM wp,LPARAM lp)
-{
-	LRESULT lres = CFrameWndEx::OnToolbarCreateNew(wp,lp);
-	if (lres == 0)
-	{
-		return 0;
-	}
-
-	CMFCToolBar* pUserToolbar = (CMFCToolBar*)lres;
-	ASSERT_VALID(pUserToolbar);
-
-	BOOL bNameValid;
-	CString strCustomize;
-	bNameValid = strCustomize.LoadString(IDS_TOOLBAR_CUSTOMIZE);
-	ASSERT(bNameValid);
-
-	pUserToolbar->EnableCustomizeButton(TRUE, ID_VIEW_CUSTOMIZE, strCustomize);
-	return lres;
-}
-
-LRESULT CMainFrame::OnToolbarReset(WPARAM wp, LPARAM)
-{
-	UINT uiToolBarId = (UINT) wp;  
- 
-	if (uiToolBarId==IDR_DESIGNBAR) {
-		CMFCToolBarComboBoxButton pageButton (ID_DESIGN_PAGE,
-			GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE, FALSE), CBS_DROPDOWNLIST, 70);
-		m_wndDesignBar.ReplaceButton(ID_DESIGN_PAGE, pageButton);
-
-		CMFCToolBarComboBoxButton zoomButton (ID_DESIGN_ZOOM,
-			GetCmdMgr ()->GetCmdImage (ID_WINDOW_ARRANGE, FALSE), CBS_DROPDOWN, 70);
-		m_wndDesignBar.ReplaceButton(ID_DESIGN_ZOOM, zoomButton);
-
-		CMFCToolBarComboBoxButton designButton (ID_DESIGN_DESIGN,
-			GetCmdMgr ()->GetCmdImage (ID_FILE_PRINT_SETUP, FALSE));
-		m_wndDesignBar.ReplaceButton(ID_DESIGN_DESIGN, designButton);
-
-		CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
-		if (pDoc) {
-			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-			ASSERT(pApp != NULL);
-			pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
-			pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
-			pDoc->SetZoom(); //merely fill in zoom combo with list of zoom values
-		}
-	}	  
-
-	return 0; 	
-}
-
 
 void CMainFrame::OnApplicationLook(UINT id)
 {
@@ -391,6 +227,18 @@ void CMainFrame::OnApplicationLook(UINT id)
 	case ID_VIEW_APPLOOK_VS_2005:
 		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerVS2005));
 		CDockingManager::SetDockingMode(DT_SMART);
+		break;
+
+	case ID_VIEW_APPLOOK_VS_2008:
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerVS2008));
+		CDockingManager::SetDockingMode(DT_SMART);
+		m_wndRibbonBar.SetWindows7Look(FALSE);
+		break;
+
+	case ID_VIEW_APPLOOK_WINDOWS_7:
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows7));
+		CDockingManager::SetDockingMode(DT_SMART);
+		m_wndRibbonBar.SetWindows7Look(TRUE);
 		break;
 
 	default:
@@ -453,11 +301,9 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	//Actualize combo box values
 	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
 	if (pDoc) {
-		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-		ASSERT(pApp != NULL);
-		pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
-		pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
-		pDoc->SetZoom(); //merely fill in zoom combo with list of zoom values
+		FillDesignComboBox(pDoc->m_itrEditing->GetDesign(), true);
+		FillPageComboBox(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
+		FillZoomComboBox(pDoc->m_zoom); //merely fill in zoom combo with list of zoom values
 	}
 
 	return TRUE;
@@ -469,23 +315,6 @@ void CMainFrame::OnSetFocus(CWnd* /*pOldWnd*/)
 	ASSERT(pApp != NULL);
     if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
 		pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
-}
-
-void CMainFrame::OnUpdateFrameMenu(HMENU hMenuAlt)
-{
-	CFrameWndEx::OnUpdateFrameMenu(hMenuAlt);
-	//The following is a fix of the framework - we need to change menu in the menubar for embedded mode
-	if (hMenuAlt == NULL)
-	{
-		// attempt to get default menu from document
-		CDocument* pDoc = GetActiveDocument();
-		if (pDoc != NULL)
-			hMenuAlt = pDoc->GetDefaultMenu();
-		// use default menu stored in frame if none from document
-		if (hMenuAlt == NULL)
-			hMenuAlt = m_hMenuDefault;
-	}
-	m_wndMenuBar.CreateFromMenu(hMenuAlt);
 }
 
 //We need to override it to capture ESCAPE key.
@@ -573,7 +402,8 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
                 CMFCToolBarComboBoxButton pageButton (ID_DESIGN_PAGE,
                     GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE, FALSE), CBS_DROPDOWNLIST, 70);
                 p->InsertButton(pageButton);
-                pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
+                //TODO: query Toolbar Combo boxes
+                //FillPageComboBox(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
             }
             //Arrange size
             CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
@@ -680,3 +510,165 @@ void CMainFrame::SetSplitSize(unsigned coord)
 		pView->ScrollToPosition(pos);
     }
 }
+
+
+bool CMainFrame::FillDesignComboBox(const char *current, bool updateComboContent) 
+{
+	//ok now designs contains a set of of designs, preable contains a concatenation of designlib text
+	//Add the list of designs to the combo boxes
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_DESIGN_DESIGN, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    
+	if (updateComboContent || c->GetCount()==0) {
+		c->RemoveAllItems();
+        CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+        ASSERT(pApp != NULL);
+		if (pApp->m_SetOfDesigns.GetLength()) {
+			c->AddItem("(use chart-defined)");
+			c->AddItem("plain");
+			int pos = 0;
+			while (pApp->m_SetOfDesigns.GetLength()>pos) {
+				int pos2 = pApp->m_SetOfDesigns.Find(' ', pos);
+				if (pos2==-1) pos2 = pApp->m_SetOfDesigns.GetLength();
+				if (pos2>pos && pApp->m_SetOfDesigns.Mid(pos, pos2-pos).CompareNoCase("plain")!=0)
+					c->AddItem(pApp->m_SetOfDesigns.Mid(pos, pos2-pos));
+				pos = pos2+1;
+			}	
+		} else {
+			c->AddItem("-(only plain is available)-");
+		}
+	}
+	//restore the selection to the given style if it can be found
+	int index = (current==NULL || current[0]==0) ? 0 : c->FindItem(current);
+	bool ret = (index >= 0);
+	c->SelectItem(ret?index:0);
+    return ret;
+}
+
+void CMainFrame::OnDesignDesign() 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_DESIGN_DESIGN, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+	unsigned index = c->GetCurSel();
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pDoc->ChangeDesign(index<=0 ? "" : c->GetItem(index));
+}
+
+void CMainFrame::OnUpdateDesignDesign(CCmdUI *pCmdUI)
+{
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    pCmdUI->Enable(pApp->m_SetOfDesigns.GetLength()>0);
+}
+
+
+void CMainFrame::FillPageComboBox(int no_pages, int page)
+{
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_DESIGN_PAGE, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+
+	if (no_pages == 1 && c->GetCount() == 1) return;
+	//If the combo shows different number of pages then we have, update the combo
+	if (no_pages+1 != c->GetCount()) {
+		c->RemoveAllItems();
+		//Fill combo list with the appropriate number of pages
+		if (no_pages > 1) {
+            c->AddItem("(all)", 0);
+            CString str;
+			for (int i=1; i<=no_pages; i++) {
+				str.Format("%d", i);
+				c->AddItem(str, i);
+			}
+        } else {
+            c->AddItem("(no pages)", 0);
+        }
+		c->SetDropDownHeight(250);
+	}
+	//Set the index to the current page
+	c->SelectItem(page);
+}
+
+
+void CMainFrame::OnDesignPage()
+{
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_DESIGN_PAGE, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+	unsigned index = c->GetCurSel();
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pDoc->ChangePage(index);
+}
+
+void CMainFrame::OnUpdateDesignPage(CCmdUI *pCmdUI)
+{
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pCmdUI->Enable(pDoc->m_ChartShown.GetPages()>1);
+}
+
+void CMainFrame::FillZoomComboBox(int zoom)
+{
+	CString text;
+	text.Format("%u%%", zoom);
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_DESIGN_ZOOM, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    static unsigned zoom_values[] = {400, 300, 200, 150, 100, 75, 50, 40, 30, 20, 10, 0};
+    if (c->GetCount()!=sizeof(zoom_values)/sizeof(unsigned)-1) {
+        for (int i=0; zoom_values[i]>0; i++) {
+            CString text;
+            text.Format("%u%%", zoom_values[i]);
+            c->AddItem(text, zoom_values[i]);
+        }
+    }
+    c->SetEditText(text);
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc)
+        SetSplitSize(unsigned(pDoc->m_ChartShown.GetHeadingSize()*double(zoom)/100.));
+}
+
+
+
+void CMainFrame::OnViewZoomin()
+{
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pDoc->SetZoom(int(pDoc->m_zoom*1.1));
+}
+
+void CMainFrame::OnViewZoomout()
+{
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc)
+        pDoc->SetZoom(int(pDoc->m_zoom/1.1));
+}
+
+void CMainFrame::OnDesignZoom()
+{
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (!pDoc) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_DESIGN_ZOOM, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+	CString text = c->GetEditText();
+	if (!text.CompareNoCase("overview") || !text.CompareNoCase("auto")) {
+		pDoc->ArrangeViews(CMscGenDoc::OVERVIEW);
+	} else {
+		pDoc->SetZoom(atoi(text));
+	}
+}
+
+

@@ -173,18 +173,8 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_UPDATE, OnUdpateEditUpdate)
 	ON_COMMAND(ID_FILE_EXPORT, OnFileExport)
 	ON_LBN_SELCHANGE(IDC_OUTPUT_LIST, OnSelChange)
-	ON_COMMAND(ID_DESIGN_ZOOM, OnDesignZoom)
-	ON_CBN_SELENDOK(ID_DESIGN_ZOOM, OnDesignZoom)
-	ON_COMMAND(ID_DESIGN_PAGE, OnDesignPage)
-	ON_CBN_SELENDOK(ID_DESIGN_PAGE, OnDesignPage)
-	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignPage)
-	ON_COMMAND(ID_DESIGN_DESIGN, OnDesignDesign)
-	ON_CBN_SELENDOK(ID_DESIGN_DESIGN, OnDesignDesign)
-	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignDesign)
 	ON_COMMAND(ID_VIEW_NEXTERROR, &CMscGenDoc::OnViewNexterror)
 	ON_COMMAND(ID_VIEW_PREVERROR, &CMscGenDoc::OnViewPreverror)
-	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
-	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
 	ON_COMMAND(ID_VIEW_ZOOMNORMALIZE, OnViewZoomnormalize)
 	ON_COMMAND(ID_VIEW_ADJUSTWIDTH, OnViewAdjustwidth)
 	ON_COMMAND(ID_VIEW_FITTOWIDTH, OnViewFittowidth)
@@ -451,8 +441,12 @@ BOOL CMscGenDoc::OnNewDocument()
 	CheckIfChanged(); 
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
-	pApp->FillDesignDesignCombo(m_itrEditing->GetDesign(), true);
-	pApp->FillDesignPageCombo(m_ChartShown.GetPages(), m_ChartShown.GetPage());
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd) {
+        pWnd->FillDesignComboBox(m_itrEditing->GetDesign(), true);
+        pWnd->FillPageComboBox(m_ChartShown.GetPages(), m_ChartShown.GetPage());
+        pWnd->FillZoomComboBox(m_zoom);
+    }
 	SetZoom(); //reset toolbar
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
@@ -520,9 +514,12 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-	pApp->FillDesignDesignCombo(m_itrEditing->GetDesign(), true);
-	pApp->FillDesignPageCombo(m_ChartShown.GetPages(), m_ChartShown.GetPage());
-	SetZoom(); //reset toolbar, do not chnage zoom
+	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd) {
+        pWnd->FillDesignComboBox(m_itrEditing->GetDesign(), true);
+        pWnd->FillPageComboBox(m_ChartShown.GetPages(), m_ChartShown.GetPage());
+        pWnd->FillZoomComboBox(m_zoom); //reset toolbar, do not chnage zoom
+    }
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
 	return TRUE;
@@ -929,71 +926,36 @@ void CMscGenDoc::OnSelChange()
 		m_ExternalEditor.JumpToLine(line, col);
 }
 
-void CMscGenDoc::OnDesignDesign() 
+void CMscGenDoc::ChangeDesign(const char *design) 
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_DESIGN, list);
-	POSITION p = list.GetHeadPosition();
-	if (!p) return;
-	CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-	unsigned index = combo->GetCurSel();
-	//Set this setting on oll remaining ones
-	while (p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		combo->SelectItem(index, TRUE);
-	}
-	CString new_forcedDesign; 
-	if (index > 0)
-		new_forcedDesign = combo->GetItem(index);
-	if (new_forcedDesign == m_itrEditing->GetDesign()) return;
+
+	if (CString(design) == m_itrEditing->GetDesign()) return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo, keep page shown
-	m_itrEditing->SetDesign(new_forcedDesign);
-    pApp->m_pWndEditor->m_ctrlEditor.SetForcedDesign(new_forcedDesign);
+	m_itrEditing->SetDesign(design);
+    pApp->m_pWndEditor->m_ctrlEditor.SetForcedDesign(design);
 	ShowEditingChart(true);
 	CheckIfChanged();     
 }
 
-void CMscGenDoc::OnUpdateDesignDesign(CCmdUI *pCmdUI)
+void CMscGenDoc::ChangePage(unsigned page)
 {
-    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    pCmdUI->Enable(pApp->m_SetOfDesigns.GetLength()>0);
-}
-
-void CMscGenDoc::OnDesignPage()
-{
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_PAGE, list);
-
-	POSITION p = list.GetHeadPosition();
-	if (!p) return;
-	CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-	int index = combo->GetCurSel();
-	//Set this setting on oll remaining ones
-	while (p) {
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		combo->SelectItem(index);
-	}
-	if (index == m_ChartShown.GetPage())
+	if (page == m_ChartShown.GetPage())
 		return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
-	m_itrEditing->SetPage(index);  //set new page
+	m_itrEditing->SetPage(page);  //set new page
 	ShowEditingChart(true);
 	CheckIfChanged();     
 }
 
-void CMscGenDoc::OnUpdateDesignPage(CCmdUI *pCmdUI)
-{
-    pCmdUI->Enable(m_ChartShown.GetPages()>1);
-}
 
+//true if actual change happened
 void CMscGenDoc::SetZoom(int zoom)
 {
 	//No zooming by ourselves during in-place editing
 	if (IsInPlaceActive()) {
-		m_zoom = 100;
+		zoom = m_zoom = 100;
 		return;
 	}
 
@@ -1001,23 +963,6 @@ void CMscGenDoc::SetZoom(int zoom)
 	if (zoom > 10000) zoom = 10000;
 	if (zoom < 10) zoom = 10;
 
-	CString text;
-	text.Format("%u%%", zoom);
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_ZOOM, list);
-	POSITION p = list.GetHeadPosition();
-	while (p) {
-		static unsigned zoom_values[] = {400, 300, 200, 150, 100, 75, 50, 40, 30, 20, 10, 0};
-		CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-		if (combo->GetCount()!=sizeof(zoom_values)/sizeof(unsigned)-1) {
-			for (int i=0; zoom_values[i]>0; i++) {
-				CString text;
-				text.Format("%u%%", zoom_values[i]);
-				combo->AddItem(text, zoom_values[i]);
-			}
-		}
-		combo->SetText(text);
-	}
 	if (zoom == m_zoom) return;
 	m_zoom = zoom;
 	POSITION pos = GetFirstViewPosition();
@@ -1028,35 +973,11 @@ void CMscGenDoc::SetZoom(int zoom)
 			pView->Invalidate();
 		}
 	}
-    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-    if (pWnd)
-        pWnd->SetSplitSize(unsigned(m_ChartShown.GetHeadingSize()*double(m_zoom)/100.));
-}
+	CMainFrame *pWnd = static_cast<CMainFrame *>(AfxGetMainWnd());
+	if (!pWnd->IsKindOf(RUNTIME_CLASS(CMainFrame))) return;
 
-void CMscGenDoc::OnViewZoomin()
-{
-	SetZoom(int(m_zoom*1.1));
-}
-
-void CMscGenDoc::OnViewZoomout()
-{
-	SetZoom(int(m_zoom/1.1));
-}
-
-void CMscGenDoc::OnDesignZoom()
-{
-	CObList list;
-	CMFCToolBar::GetCommandButtons(ID_DESIGN_ZOOM, list);
-
-	POSITION p = list.GetHeadPosition();
-	if(!p) return;
-	CMFCToolBarComboBoxButton *combo = static_cast<CMFCToolBarComboBoxButton*>(list.GetNext(p));
-	CString text = combo->GetText();
-	if (!text.CompareNoCase("overview") || !text.CompareNoCase("auto")) {
-		ArrangeViews(OVERVIEW);
-	} else {
-		SetZoom(atoi(text));
-	}
+    pWnd->FillZoomComboBox(m_zoom);
+    return;
 }
 
 
@@ -1394,13 +1315,15 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
         pApp->m_pWndOutputView->ShowCompilationErrors(m_ChartShown);
 
 	if (!m_bAttemptingToClose) {
-		//Update page controls and variables
-		pApp->FillDesignPageCombo(m_ChartShown.GetPages(), m_ChartShown.GetPage());
-
-		//See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar
-		if (!pApp->FillDesignDesignCombo(m_ChartShown.GetDesign())) {
-			m_ChartShown.SetDesign("");
-			m_itrShown->SetDesign("");
+        CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+        if (pWnd) {
+            //See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar            
+            if (pWnd->FillDesignComboBox(m_ChartShown.GetDesign(), true)) {
+                m_ChartShown.SetDesign("");
+                m_itrShown->SetDesign("");
+            }
+            //Update page controls and variables
+            pWnd->FillPageComboBox(m_ChartShown.GetPages(), m_ChartShown.GetPage());
 		}
 	}
 

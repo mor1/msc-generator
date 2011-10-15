@@ -101,8 +101,6 @@ public:
 
 	void ReadRegistryValues(bool reportProblem);
 	int ReadDesigns(bool reportProblem, const char *fileName);
-	bool FillDesignDesignCombo(const char *current, bool updateComboContent=false);
-	void FillDesignPageCombo(int no_pages, int page);
 	bool IsInternalEditorRunning() const {
 		return m_pWndEditor && IsWindow(m_pWndEditor->m_hWnd) /* && m_pWndEditor->IsVisible()*/;}
 

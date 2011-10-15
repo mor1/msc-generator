@@ -177,9 +177,9 @@ BOOL CInPlaceFrame::OnCreateControlBars(CFrameWnd* pWndFrame, CFrameWnd* pWndDoc
 	ASSERT(pDoc != NULL);
 	ASSERT_KINDOF(CMscGenDoc, pDoc);
 
-	pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
-	pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
-	pDoc->SetZoom(); //Adjust combo
+	//pApp->FillDesignDesignCombo(pDoc->m_itrEditing->GetDesign(), true);
+	//pApp->FillDesignPageCombo(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
+	//pDoc->SetZoom(); //Adjust combo
 
 	//Set the text of the chart in the editor
 	m_ctrlEditor.m_ctrlEditor.UpdateText(pDoc->m_itrEditing->GetText(), pDoc->m_itrEditing->m_sel, true);
