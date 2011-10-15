@@ -184,7 +184,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\libmscgen\Release;..\cairo\src\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\compiled_cairo\cairo-1.10.2;..\libmscgen\OptDebug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -235,17 +235,25 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="res\bmp00001.bmp" />
+    <None Include="res\buttons.bmp" />
     <None Include="res\designba.bmp" />
+    <None Include="res\filelarge.bmp" />
+    <None Include="res\filesmall.bmp" />
     <None Include="res\IToolbar.bmp" />
     <None Include="res\IToolbar256.bmp" />
+    <None Include="res\main.bmp" />
     <None Include="res\mainfram.bmp" />
     <None Include="res\Msc-generator.ico" />
     <None Include="res\Msc-generatorDoc.ico" />
     <None Include="res\Mscgenerator.rc2" />
+    <None Include="res\ribbon.mfcribbon-ms" />
     <None Include="res\srvr_inp.bmp" />
     <None Include="res\Toolbar.bmp" />
     <None Include="res\toolbar1.bmp" />
     <None Include="res\Toolbar256.bmp" />
+    <None Include="res\writelarge.bmp" />
+    <None Include="res\writesmall.bmp" />
     <None Include="UserImages.bmp" />
     <None Include="res\html1.htm">
       <DeploymentContent>true</DeploymentContent>

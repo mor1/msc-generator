@@ -606,7 +606,8 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-        $$ = ($2)->AddAttributeList(NULL);
+    if ($2) $$ = ($2)->AddAttributeList(NULL);
+    else $$ = NULL;
   #endif
     free($1);
 }
@@ -619,7 +620,8 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = ($2)->AddAttributeList($3);
+    if ($2) $$ = ($2)->AddAttributeList($3);
+    else $$ = NULL;
   #endif
     free($1);
 }

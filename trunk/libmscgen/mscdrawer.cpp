@@ -280,6 +280,7 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType o
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
     if (total.x == 0 || total.y==0) return ERR_OK; //OK
 
+    scale_for_shadows = sqrt(scale.y*scale.x);
     cairo_scale(cr, fake_scale*scale.x, fake_scale*scale.y);
     if (white_background) {
         cairo_rectangle(cr, 0, 0, origSize.x, origSize.y+copyrightTextHeight);
@@ -667,6 +668,7 @@ void MscCanvas::SetFontFace(const char*face, bool italics, bool bold)
 
 void MscCanvas::Text(XY xy, const string &s, bool isRotated)
 {
+    _ASSERT(candraw);
     cairo_move_to (cr, xy.x, xy.y);
     if (use_text_path || (isRotated && use_text_path_rotated)) {
         cairo_text_path(cr, s.c_str());
@@ -764,6 +766,7 @@ void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy, const 
 
 void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
 {
+    _ASSERT(candraw);
     unsigned num=0;
     if (line.IsContinuous() || !fake_dash) 
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till, line);
@@ -776,6 +779,7 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
 
 void MscCanvas::singleLine(const Contour&cl, const MscLineAttr &line)
 {
+    _ASSERT(candraw);
     unsigned num=0;
     if (line.IsContinuous() || !fake_dash) 
         cl.Path(cr, false);
@@ -788,6 +792,7 @@ void MscCanvas::singleLine(const Contour&cl, const MscLineAttr &line)
 
 void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
 {
+    _ASSERT(candraw);
     _ASSERT(line.IsComplete());
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     SetLineAttr(line);
@@ -817,13 +822,14 @@ void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
     unsigned num=0;
     const double *pattern = line.DashPattern(num);
     int pos = 0;
-    double offset;
+    double offset=0;
     edge.PathDashed(cr, pattern, num, pos, offset);
     cairo_stroke(cr);
 }
 
 void MscCanvas::Line(const Block &b, const MscLineAttr &line)
 {
+    _ASSERT(candraw);
     _ASSERT(line.IsComplete());
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     if (b.IsInvalid()) return;
@@ -877,6 +883,7 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
 
 void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
 {
+    _ASSERT(candraw);
     _ASSERT(line.IsComplete());
 	if (line.type.second == LINE_NONE || !line.color.second.valid || line.color.second.a==0) return;
     if (c.IsEmpty()) return;
@@ -974,6 +981,7 @@ void MscCanvas::linearGradient(MscColorType from, MscColorType to, const XY &s, 
 void MscCanvas::fakeLinearGrad(MscColorType from, MscColorType to, const XY &s, const XY &d, 
                                bool dir_is_x, unsigned steps)
 {
+    _ASSERT(candraw);
     if (steps==0) steps = 1;
     double advance, current, till;
     if (dir_is_x) {
@@ -1029,6 +1037,7 @@ void MscCanvas::radialGradient(MscColorType from, MscColorType to, const XY &s, 
 void MscCanvas::fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, double outer_radius, double inner_radius,
                  unsigned steps, bool rectangle, double rad_from, double rad_to)
 {
+    _ASSERT(candraw);
     //Normalize radiuses
     if (outer_radius < inner_radius)
         std::swap(inner_radius, outer_radius);
@@ -1064,6 +1073,7 @@ void MscCanvas::fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, 
 
 void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
 {
+    _ASSERT(candraw);
     _ASSERT(fill.IsComplete());
     if (!fill.color.second.valid || fill.color.second.a==0) return;
 	const double max_extent = std::max(fabs(b.x.till-b.x.from), fabs(b.y.till-b.y.from));
@@ -1135,8 +1145,9 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
 
 ////////////////////// Shadow routines
 
-void MscCanvas::Shadow(const Area &area, const MscShadowAttr &shadow, bool shadow_x_neg, bool shadow_y_neg)
+void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, bool shadow_x_neg, bool shadow_y_neg)
 {
+    _ASSERT(candraw);
     _ASSERT(shadow.IsComplete());
     if (shadow.offset.second==0 || area.IsEmpty()) return;
     //Clip out the actual shape we are the shadow of
@@ -1148,8 +1159,8 @@ void MscCanvas::Shadow(const Area &area, const MscShadowAttr &shadow, bool shado
     //    cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
     //    cairo_clip(cr);
     //}
-    const Area &substract = area;//.CreateExpand(-0.5);
-    Area outer(area), inner;
+    const Contour &substract = area;//.CreateExpand(-0.5);
+    Contour outer(area), inner;
     outer.Shift(XY(shadow_x_neg?-shadow.offset.second:shadow.offset.second, shadow_y_neg?-shadow.offset.second:shadow.offset.second));
     MscColorType color = shadow.color.second;
     if (shadow.blur.second>0) {
@@ -1188,11 +1199,14 @@ void MscCanvas::Shadow(const Area &area, const MscShadowAttr &shadow, bool shado
 /* Set clip, if the rectangle of which this is the shadow of is not opaque */
 void MscCanvas::Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg, bool shadow_y_neg)
 {
+    _ASSERT(candraw);
     _ASSERT(shadow.IsComplete() && line.radius.first);
     if (shadow.offset.second==0) return;
 	if (!shadow.color.second.valid || shadow.color.second.a==0) return;
     //For now just call the other Shadow Routine
-    Shadow(line.CreateRectangle_OuterEdge(b), shadow, shadow_x_neg, shadow_y_neg);
+    Contour c = line.CreateRectangle_OuterEdge(b);
+    c.Expand(-line.width.second);
+    Shadow(std::move(c), shadow, shadow_x_neg, shadow_y_neg);
     return;
 }
 

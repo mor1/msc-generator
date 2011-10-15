@@ -1799,8 +1799,7 @@ void ArcVerticalArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 
     //Draw background
     std::vector<double> act_size(2,0);
-    style.arrow.BigDrawFromContour(outer_contours, NULL, style.fill, style.shadow, canvas,
-                                   style.side.second==SIDE_RIGHT, style.side.second==SIDE_LEFT);
+    style.arrow.BigDrawFromContour(outer_contours, NULL, style.fill, style.shadow, canvas, false, false);
 
     if (style.side.second == SIDE_LEFT)
         canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);

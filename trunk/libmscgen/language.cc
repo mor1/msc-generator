@@ -3313,7 +3313,9 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
   #else
-        (yyval.arcbase) = ((yyvsp[(2) - (2)].arcbase))->AddAttributeList(NULL);
+        if ((yyvsp[(2) - (2)].arcbase)) 
+            (yyval.arcbase) = ((yyvsp[(2) - (2)].arcbase))->AddAttributeList(NULL);
+        else (yyval.arcbase) = NULL;
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -3331,7 +3333,8 @@ yyreduce:
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(3) - (3)])))
         ArcVerticalArrow::AttributeValues(csh.hintAttrName, csh);
   #else
-    (yyval.arcbase) = ((yyvsp[(2) - (3)].arcbase))->AddAttributeList((yyvsp[(3) - (3)].attriblist));
+    if (yyvsp[(2) - (3)].arcbase) (yyval.arcbase) = ((yyvsp[(2) - (3)].arcbase))->AddAttributeList((yyvsp[(3) - (3)].attriblist));
+    else (yyval.arcbase) = NULL;
   #endif
     free((yyvsp[(1) - (3)].str));
 }
