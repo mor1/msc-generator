@@ -1167,7 +1167,7 @@ void Msc::DrawCopyrightText(MscCanvas &canvas, int page)
     StringFormat sf;
     sf.Default();
     Label label(copyrightText, &canvas, sf);
-    label.Draw(&canvas, 0, total.x, page<=-1 || page>=yPageStart.size() ? total.y : yPageStart[page+1]);
+    label.Draw(&canvas, 0, total.x, page<=-1 || page>=yPageStart.size()-1 ? total.y : yPageStart[page+1]);
 }
 
 void Msc::DrawPageBreaks(MscCanvas &canvas)
