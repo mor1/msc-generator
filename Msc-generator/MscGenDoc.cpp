@@ -1318,7 +1318,7 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
         CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
         if (pWnd) {
             //See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar            
-            if (pWnd->FillDesignComboBox(m_ChartShown.GetDesign(), true)) {
+            if (!pWnd->FillDesignComboBox(m_ChartShown.GetDesign(), true)) {
                 m_ChartShown.SetDesign("");
                 m_itrShown->SetDesign("");
             }

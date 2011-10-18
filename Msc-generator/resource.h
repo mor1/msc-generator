@@ -48,6 +48,8 @@
 #define IDR_HTML1                       314
 #define IDD_DIALOG1                     315
 #define IDD_SCALE                       315
+#define IDB_PREFLARGE                   317
+#define IDB_PREFSMALL                   318
 #define IDC_RADIO1                      1000
 #define IDC_EDIT1                       1001
 #define IDC_BUTTON_URL                  1001
@@ -133,7 +135,14 @@
 #define ID_VIEW_S                       32866
 #define ID_BUTTON9                      32874
 #define ID_BUTTON10                     32875
-#define ID_BUTTON2                      32896
+#define ID_BUTTON3                      32898
+#define ID_BUTTON_DEFAULT_TEXT          32898
+#define ID_CHECK10                      32909
+#define ID_CHECK11                      32910
+#define ID_CHECK12                      32911
+#define ID_EXTERNAL_EDITOR_COMBO        32924
+#define ID_EDIT_START_COMMAND           32927
+#define ID_EDIT_JUMP_TO_LINE            32928
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -141,8 +150,8 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        316
-#define _APS_NEXT_COMMAND_VALUE         32897
+#define _APS_NEXT_RESOURCE_VALUE        319
+#define _APS_NEXT_COMMAND_VALUE         32929
 #define _APS_NEXT_CONTROL_VALUE         1031
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

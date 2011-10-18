@@ -21,8 +21,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ContourTest", "ContourTest\
 		{B412BADD-A6EB-4B7B-9D16-9633E65CB1FB} = {B412BADD-A6EB-4B7B-9D16-9633E65CB1FB}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Ribbon", "Ribbon\Ribbon.vcxproj", "{74490C19-F740-4D1C-8604-FF9ADE511A00}"
-EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = Msc-generrator.vsmdi
@@ -62,9 +60,6 @@ Global
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.OptDebug|Win32.Build.0 = Debug|Win32
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|Win32.ActiveCfg = Release|Win32
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|Win32.Build.0 = Release|Win32
-		{74490C19-F740-4D1C-8604-FF9ADE511A00}.Debug|Win32.ActiveCfg = Debug|Win32
-		{74490C19-F740-4D1C-8604-FF9ADE511A00}.OptDebug|Win32.ActiveCfg = Debug|Win32
-		{74490C19-F740-4D1C-8604-FF9ADE511A00}.Release|Win32.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

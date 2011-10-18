@@ -250,10 +250,33 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
 	// Standard print setup command
 	ON_COMMAND(ID_FILE_PRINT_SETUP, &CWinAppEx::OnFilePrintSetup)
 	ON_COMMAND(ID_EDIT_PREFERENCES, OnEditPreferences)
+    ON_COMMAND(ID_BUTTON_DEFAULT_TEXT, &CMscGenApp::OnButtonDefaultText)
+    ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, &CMscGenApp::OnUpdateButtonDefaultText)
+    ON_COMMAND(IDC_CHECK_PEDANTIC, &CMscGenApp::OnCheckPedantic)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_PEDANTIC, &CMscGenApp::OnUpdateCheckPedantic)
+    ON_COMMAND(IDC_CHECK_WARNINGS, &CMscGenApp::OnCheckWarnings)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_WARNINGS, &CMscGenApp::OnUpdateCheckWarnings)
+    ON_COMMAND(IDC_CHECK_PB_EDITING, &CMscGenApp::OnCheckPbEditing)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_PB_EDITING, &CMscGenApp::OnUpdateCheckPbEditing)
+    ON_COMMAND(IDC_CHECK_PB_EMBEDDED, &CMscGenApp::OnCheckPbEmbedded)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_PB_EMBEDDED, &CMscGenApp::OnUpdateCheckPbEmbedded)
 END_MESSAGE_MAP()
 
 
 // CMscGenApp construction
+
+inline CMscGenDoc *CMscGenApp::GetDoc(void)  
+{
+	//Get pDoc. I have no clue how to do it for in-place active state: then we have no main window.
+	//So in that case we skip external editor restart and recompilation
+    CMscGenDoc *pDoc = NULL;
+    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+    if (pMainWnd!=NULL && pMainWnd->GetActiveView() != NULL) 
+		pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
+    _ASSERT(pDoc);
+    return pDoc;
+}
+
 
 CMscGenApp::CMscGenApp()
 {
@@ -457,12 +480,7 @@ void CMscGenApp::SaveCustomState()
 
 void CMscGenApp::OnEditPreferences()
 {
-	//Get pDoc. I have no clue how to do it for in-place active state: then we have no main window.
-	//So in that case we skip external editor restart and recompilation
-	CMscGenDoc *pDoc = NULL;
-	CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
-	if (pMainWnd!=NULL && pMainWnd->GetActiveView() != NULL) 
-		pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
+	CMscGenDoc *pDoc = GetDoc();
 
 	COptionDlg optionDlg;
 	optionDlg.m_Pedantic           = m_Pedantic;
@@ -835,4 +853,85 @@ UINT CheckVersionFreshness(LPVOID)
 		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, dlg.c);
 	}
 	return true;
+}
+
+
+void CMscGenApp::OnButtonDefaultText()
+{
+    m_DefaultText = GetDoc()->m_itrEditing->GetText();
+    WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
+}
+
+
+void CMscGenApp::OnUpdateButtonDefaultText(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_DefaultText != GetDoc()->m_itrEditing->GetText());
+}
+
+
+void CMscGenApp::OnCheckPedantic()
+{
+    m_Pedantic = !m_Pedantic;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, m_Pedantic);
+    //recompile if it was a recently compiled
+    CMscGenDoc *pDoc = GetDoc();
+    if (pDoc->m_itrShown == pDoc->m_itrEditing)
+        pDoc->ShowEditingChart(false);
+}
+
+
+void CMscGenApp::OnUpdateCheckPedantic(CCmdUI *pCmdUI)
+{
+    pCmdUI->SetCheck(m_Pedantic);
+}
+
+
+void CMscGenApp::OnCheckWarnings()
+{
+    m_Warnings = !m_Warnings;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, m_Warnings);
+    //recompile if it was a recently compiled
+    CMscGenDoc *pDoc = GetDoc();
+    if (pDoc->m_itrShown == pDoc->m_itrEditing)
+        pDoc->ShowEditingChart(false);
+}
+
+
+void CMscGenApp::OnUpdateCheckWarnings(CCmdUI *pCmdUI)
+{
+    pCmdUI->SetCheck(m_Warnings);
+}
+
+
+void CMscGenApp::OnCheckPbEditing()
+{
+    m_bPB_Editing = !m_bPB_Editing;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing);
+    //recompile if it was a recently compiled and is showing all pages
+    CMscGenDoc *pDoc = GetDoc();
+    if (pDoc->m_itrShown == pDoc->m_itrEditing &&  pDoc->m_itrEditing->GetPage()>0)
+        pDoc->ShowEditingChart(false);
+}
+
+
+void CMscGenApp::OnUpdateCheckPbEditing(CCmdUI *pCmdUI)
+{
+    pCmdUI->SetCheck(m_bPB_Editing);
+}
+
+
+void CMscGenApp::OnCheckPbEmbedded()
+{
+    m_bPB_Embedded = !m_bPB_Embedded;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded);
+    //recompile if it is embdedded and was recently compiled and is showing all pages
+    CMscGenDoc *pDoc = GetDoc();
+    if (pDoc->IsEmbedded() && pDoc->m_itrShown == pDoc->m_itrEditing && pDoc->m_itrEditing->GetPage()>0)
+        pDoc->ShowEditingChart(false);
+}
+
+
+void CMscGenApp::OnUpdateCheckPbEmbedded(CCmdUI *pCmdUI)
+{
+    pCmdUI->SetCheck(m_bPB_Embedded);
 }

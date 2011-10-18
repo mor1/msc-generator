@@ -79,9 +79,7 @@ protected:
 	mutable Msc         *m_msc;
 	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
 public:
-    mutable bool         m_bPageBreaks;
-
-    CDrawingChartData() : m_msc(NULL), m_bPageBreaks(false) {}
+    CDrawingChartData() : m_msc(NULL) {}
 	CDrawingChartData(const CChartData&o);
 	CDrawingChartData(const CDrawingChartData&o);
 	CDrawingChartData & operator = (const CChartData& o) {FreeMsc(); CChartData::operator =(o); return *this;}
@@ -111,9 +109,9 @@ public:
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
     double GetHeadingSize() const;
-    void DrawToWindow(HDC hdc, double x_scale=1.0, double y_scale=1.0) const;
+    void DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
 	void DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks) const;
-	void DrawToFile(const char* fileName, double x_scale=1.0, double y_scale=1.0) const;
+	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
 	TrackableElement *GetArcByCoordinate(CPoint point) const;
 	TrackableElement *GetArcByLine(unsigned line, unsigned col) const;
@@ -140,6 +138,6 @@ public:
     void ClearCache();
     void SetData(CDrawingChartData *data) {ClearCache(); m_data = data;}
     const CDrawingChartData *GetChartData() const {return m_data;}
-	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip);
+	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
     void SetCacheType(ECacheType t) {if (m_cacheType!=t) {ClearCache(); m_cacheType=t;}}
 };

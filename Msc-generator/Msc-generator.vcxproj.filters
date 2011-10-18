@@ -159,6 +159,15 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="res\ribbon.mfcribbon-ms" />
+    <None Include="res\bitmap1.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\PreferencesLarge.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\PreferencesSmall.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Msc-generator.rc">

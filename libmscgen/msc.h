@@ -244,7 +244,7 @@ public:
     void Draw(MscCanvas &canvas, bool pageBreaks);
     void DrawCopyrightText(MscCanvas &canvas, int page=-1);
     void DrawPageBreaks(MscCanvas &canvas);
-    void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &);
+    void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &fn, bool bPageBreaks);
 };
 
 

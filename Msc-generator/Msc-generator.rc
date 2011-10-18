@@ -296,6 +296,8 @@ IDB_MAIN                BITMAP                  "res\\main.bmp"
 IDB_FILESMALL           BITMAP                  "res\\filesmall.bmp"
 IDB_FILELARGE           BITMAP                  "res\\filelarge.bmp"
 IDB_BUTTONS             BITMAP                  "res\\buttons.bmp"
+IDB_PREFLARGE           BITMAP                  "res\\PreferencesLarge.bmp"
+IDB_PREFSMALL           BITMAP                  "res\\PreferencesSmall.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 //

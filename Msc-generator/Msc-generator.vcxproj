@@ -92,8 +92,8 @@
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\libmscgen; ..\cairo-1.10\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Program Files\Visual Leak Detector\include;..\libmscgen;..\cairo-1.10\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;_CRTDBG_MAP_ALLOC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -235,6 +235,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="res\bitmap1.bmp" />
     <None Include="res\bmp00001.bmp" />
     <None Include="res\buttons.bmp" />
     <None Include="res\designba.bmp" />
@@ -247,6 +248,8 @@
     <None Include="res\Msc-generator.ico" />
     <None Include="res\Msc-generatorDoc.ico" />
     <None Include="res\Mscgenerator.rc2" />
+    <None Include="res\PreferencesLarge.bmp" />
+    <None Include="res\PreferencesSmall.bmp" />
     <None Include="res\ribbon.mfcribbon-ms" />
     <None Include="res\srvr_inp.bmp" />
     <None Include="res\Toolbar.bmp" />
