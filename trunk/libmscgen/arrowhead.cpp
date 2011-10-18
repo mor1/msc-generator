@@ -1043,11 +1043,11 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
         for (unsigned i=1; i<xPos.size()-1; i++) {
             MscArrowType type = GetType(forward, bidir, MSC_ARROW_MIDDLE, true);
             //draw left side of the entity line
-            double right_margin; 
+            double margin; 
             area_segment += BigContourOneEntity(xPos[i], act_size[i], sy, dy, bidir, 
-                                                type, MSC_ARROW_MIDDLE, *ltype_current, true, &right_margin);
+                                                type, MSC_ARROW_MIDDLE, *ltype_current, true, &margin);
             //draw body that connects them
-            area_segment += Block(from_x, xPos[i] - right_margin, sy, dy);
+            area_segment += Block(from_x, xPos[i] - margin, sy, dy);
 
             //calculate next linewidth
             if (segment && lines && lines->size()>i)
@@ -1063,9 +1063,7 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
             if (segment) {
                 type = GetType(forward, bidir, MSC_ARROW_MIDDLE, false); //overwrite
                 area_segment = BigContourOneEntity(xPos[i], act_size[i], sy, dy, bidir, 
-                                                   type, MSC_ARROW_MIDDLE, *ltype_current, false, &from_x);
-                //calculate from_x
-                from_x = xPos[i] + from_x;
+                                                   type, MSC_ARROW_MIDDLE, *ltype_current, false, &margin);
             }
     }
     //draw rightmost arrowhead

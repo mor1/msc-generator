@@ -65,6 +65,7 @@ protected:
     bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
     bool         needs_arrow_fix; /*Cannot do the convex clipping for arrowheads */
     bool         imprecise_positioning; /*EMF/WMF has trouble doing lines on 0.5 boundaries*/
+    bool         can_and_shall_clip_total;  /* true if we can clip to "total". Does not work for WIN, so we need this flag */
     
     /* Status of fake dashes */
     double       fake_dash_offset;

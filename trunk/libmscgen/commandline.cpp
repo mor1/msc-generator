@@ -395,7 +395,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
 
         std::cerr << msc.Error.Print(oWarning);
         //Now cycle through pages and write them to individual files
-        msc.DrawToOutput(oOutType, scale, oOutputFile);
+        msc.DrawToOutput(oOutType, scale, oOutputFile, false);
     }
 
     free(input);

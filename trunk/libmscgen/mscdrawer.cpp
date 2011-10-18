@@ -144,6 +144,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     fake_spaces = false;
     needs_arrow_fix = false;
     imprecise_positioning = false;
+    can_and_shall_clip_total = true;
 
     /* Set low-level parameters for default */
     white_background = false;
@@ -178,6 +179,9 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
             use_text_path = use_text_path_rotated = true;
             fake_scale=100;
         }
+        break;
+    case WIN:
+        can_and_shall_clip_total = false;
 #endif
     default:
         break;
@@ -269,7 +273,7 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
 }
 
 //Creates a context from the surface
-MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType ot, XY scale, XY origSize, XY origOffset, double copyrightTextHeight) 
+MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /*ot*/, XY scale, XY origSize, XY origOffset, double copyrightTextHeight) 
 {
     cr = cairo_create (surface);
     cairo_status_t st = cairo_status(cr);
@@ -287,7 +291,7 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType o
         cairo_set_source_rgb(cr, 1., 1., 1.);
         cairo_fill(cr);
     }
-    if (ot!=MscCanvas::WIN) {
+    if (can_and_shall_clip_total) {
         //clip first to allow for banner text, but not for WIN contexts
         cairo_save(cr);
         cairo_rectangle(cr, 0, 0, origSize.x, origSize.y + copyrightTextHeight);
@@ -300,13 +304,13 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType o
         cairo_line_to(cr, origSize.x, origSize.y+copyrightTextHeight);
         cairo_stroke(cr);
     }
-    if (ot!=MscCanvas::WIN) {
+    cairo_translate(cr, -origOffset.x, -origOffset.y);
+    if (can_and_shall_clip_total) {
         //then clip again to exclude banner text, but not for WIN contexts
         cairo_save(cr);
-        cairo_rectangle(cr, 0, 0, origSize.x, origSize.y);
+        cairo_rectangle(cr, origOffset.x, origOffset.y, origSize.x+origOffset.x, origSize.y+origOffset.y);
         cairo_clip(cr);
     }
-    cairo_translate(cr, -origOffset.x, -origOffset.y);
     return ERR_OK;
 }
 
@@ -471,7 +475,7 @@ HMETAFILE MscCanvas::CloseOutputRetainHandleWMF()
 
 void MscCanvas::PrepareForCopyrightText()
 {
-    if (status==ERR_OK && outType != WIN)
+    if (status==ERR_OK && can_and_shall_clip_total)
         UnClip();
 }
 

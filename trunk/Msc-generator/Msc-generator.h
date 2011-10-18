@@ -29,6 +29,7 @@
 #include "ChartData.h"
 #include "OutputView.h"
 #include "MiniEditor.h"
+#include "MscGenDoc.h"
 #include "csh.h"
 
 
@@ -42,6 +43,7 @@
 
 class CMscGenApp : public CWinAppEx
 {
+    CMscGenDoc *GetDoc(void);
 public:
 	CMscGenApp();
 
@@ -107,6 +109,16 @@ public:
 	afx_msg void OnAppAbout();
 	afx_msg void OnEditPreferences();
 	DECLARE_MESSAGE_MAP()
+    afx_msg void OnButtonDefaultText();
+    afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
+    afx_msg void OnCheckPedantic();
+    afx_msg void OnUpdateCheckPedantic(CCmdUI *pCmdUI);
+    afx_msg void OnCheckWarnings();
+    afx_msg void OnUpdateCheckWarnings(CCmdUI *pCmdUI);
+    afx_msg void OnCheckPbEditing();
+    afx_msg void OnUpdateCheckPbEditing(CCmdUI *pCmdUI);
+    afx_msg void OnCheckPbEmbedded();
+    afx_msg void OnUpdateCheckPbEmbedded(CCmdUI *pCmdUI);
 };
 
 extern CMscGenApp theApp;

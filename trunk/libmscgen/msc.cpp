@@ -1160,14 +1160,14 @@ void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pa
         (*i)->Draw(canvas, pass);
 }
 
-
+//page is -1 for all, 0..n for individual pages
 void Msc::DrawCopyrightText(MscCanvas &canvas, int page)
 {
     if (total.x==0 || page+1 > int(yPageStart.size())) return;
     StringFormat sf;
     sf.Default();
     Label label(copyrightText, &canvas, sf);
-    label.Draw(&canvas, 0, total.x, page<=-1 || page>=yPageStart.size()-1 ? total.y : yPageStart[page+1]);
+    label.Draw(&canvas, 0, total.x, page<=-1 || page+1>=int(yPageStart.size()) ? total.y : yPageStart[page+1]);
 }
 
 void Msc::DrawPageBreaks(MscCanvas &canvas)
@@ -1225,7 +1225,7 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
     //HideELinesArea.Line(cr);
 }
 
-void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn)
+void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn, bool bPageBreaks)
 {
     if (yPageStart.size()<=1) {
         MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale);
@@ -1236,7 +1236,7 @@ void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &
         case MscCanvas::ERR_DONE: Error.Error(file_line(0, 0), "Whops, internal error."); return;
         default: break;
         }
-        Draw(canvas, false);
+        Draw(canvas, bPageBreaks);
         canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
         DrawCopyrightText(canvas);
         return;

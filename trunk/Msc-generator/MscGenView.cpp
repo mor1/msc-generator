@@ -182,7 +182,6 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 
 	CWaitCursor wait;
 	CDrawingChartData data(pDoc->m_ChartShown);
-    data.m_bPageBreaks = false;
 	data.SetPage(pInfo->m_nCurPage);
 
     CSize orig_size = data.GetSize(); //This one compiles
@@ -310,6 +309,8 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
 
 void CMscGenView::OnDraw(CDC* pDC)
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT_VALID(pApp);
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (SizeEmpty(m_size)) return;
@@ -335,7 +336,7 @@ void CMscGenView::OnDraw(CDC* pDC)
     oldBitmap = memDC.SelectObject(&bitmap);
     memDC.SetWindowOrg(clip.left, clip.top);
     memDC.FillSolidRect(clip, pDC->GetBkColor());
-    m_cache.DrawToWindow(memDC.m_hDC, x_scale, y_scale, clip);
+    m_cache.DrawToWindow(memDC.m_hDC, x_scale, y_scale, clip, pApp->m_bPB_Editing);
 	DrawTrackRects(&memDC, clip, x_scale, y_scale);
     //pDC->SetMapMode(MM_TEXT);
     pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, clip.left, clip.top, SRCCOPY);   
