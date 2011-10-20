@@ -90,7 +90,14 @@ public:
     MscArrowType GetType(bool bidir, MscArrowEnd which) const;
     MscArrowType GetType(bool forward, bool bidir, MscArrowEnd which, bool left) const;
 
-    //functions for normal (small) arrowheads
+    //Transformation functions for angled arrows
+    //In the transformed space (sx,y) will be the same, the space will be rotated by "radian"
+    //and the arrow will be vertical
+    void TransformCanvasForAngle(double radian, MscCanvas &canvas, double sx, double y) const; 
+    void UnTransformCanvas(MscCanvas &canvas) const;
+    void TransformSpaceForAngle(double radian, std::vector<double> &xPos) const;
+
+//functions for normal (small) arrowheads
     //tells how wide and high a specific arrowhead
     XY getWidthHeight(bool bidir, MscArrowEnd which) const;
     //tells how wide a triangle is (=above for simple arrowheads, differs for DOUBLE and TRIPLE ones)

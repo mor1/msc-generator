@@ -554,6 +554,21 @@ bool Msc::AddAttribute(const Attribute &a)
         pedantic = a.yes;
         return true;
     }
+    if (a.Is("angle")) {
+        if (!a.EnsureNotClear(Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_NUMBER, Error)) return true;
+        if (a.number<0 || a.number>45) {
+            string x;
+            if (a.number<0) x = "0";
+            if (a.number>45) x = "45";
+            Error.Error(a, true, "Using " + x + " degrees instead of the specified value.",
+                "The slant angle must be between 0 and 45 degrees.");
+            if (a.number<0) Contexts.back().slant_angle = 0;
+            else if (a.number>45) Contexts.back().slant_angle = 45;
+        } else
+            Contexts.back().slant_angle = a.number;
+        return true;
+    }
 
     string ss;
     Error.Error(a, false, "Option '" + a.name + "' not recognized. Ignoring it.");

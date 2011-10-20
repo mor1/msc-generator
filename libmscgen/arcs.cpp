@@ -122,10 +122,12 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
 
 inline Area ArcBase::GetCover4Compress(const Area &a) const
 {
-    return a.CreateExpand(chart->compressGap/2, 
-                         contour::EXPAND_MITER_SQUARE, 
-                         contour::EXPAND_MITER_SQUARE, 
-                         1, 1);
+    Area ret(static_cast<const Contour &>(a).CreateExpand(chart->compressGap/2, 
+                                             contour::EXPAND_MITER_SQUARE, 
+                                             contour::EXPAND_MITER_SQUARE, 
+                                             1, 1), a.arc);
+    ret.mainline = a.mainline;
+    return ret;
 }
 
 //l can be an empty list
@@ -265,11 +267,12 @@ double ArcIndicator::Height(MscCanvas &/*canvas*/, AreaList &cover)
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
     area = b;
-    Contour tmp = area;
+    Area tmp = area;
     if (style.shadow.offset.second>0)
         tmp += area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
+    tmp.arc = this;
+    tmp.mainline = Block(0,chart->total.x, b.y.from, b.y.till);
     cover = GetCover4Compress(std::move(tmp));
-    cover.mainline += b.y;
     return b.y.till + chart->emphVGapOutside;
 }
 
@@ -551,14 +554,35 @@ ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool /*hide*/, EIterat
     return this;
 }
 
+
+/////////////////////////////////////////////////////
+
+bool ArcArrow::AddAttribute(const Attribute &a)
+{
+    if (a.Is("angle")) {
+        if (dynamic_cast<ArcSelfArrow*>(this)) 
+            chart->Error.Warning(a, false, "Arrows pointing to the same entity cannot have an 'angle' attribute. Ignoring it.");
+        else if (dynamic_cast<ArcVerticalArrow*>(this)) 
+            chart->Error.Warning(a, false, "Verticals cannot have an 'angle' attribute. Ignoring it.");
+        return true;
+    }
+    return ArcLabelled::AddAttribute(a);
+}
+
+
 void ArcArrow::AttributeNames(Csh &csh)
 {
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
     Design().styles["arrow"].AttributeNames(csh);
 }
 
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
 {
+    if (CaseInsensitiveEqual(attr,"angle")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
     if (Design().styles["arrow"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
@@ -646,7 +670,7 @@ double ArcSelfArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     double y = chart->arcVGapAbove;
     area = parsed_label.Cover(sx, dx-src_act, y);
     area += Block(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
-    area.mainline = Range(y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
+    area.mainline = Block(0, chart->total.x, y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
 
     cover = GetCover4Compress(area);
     return area.GetBoundingBox().y.till + chart->arcVGapBelow;
@@ -699,16 +723,17 @@ void ArcSelfArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 
 ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc, bool fw, const MscStyle &st) :
-    ArcArrow(t, msc, st), linenum_src(sl.start), linenum_dst(dl.start), specified_as_forward(fw)
+    ArcArrow(t, msc, st), linenum_src(sl.start), linenum_dst(dl.start), specified_as_forward(fw), slant_angle(0)
 {
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
     modifyFirstLineSpacing = true;
     segment_types.push_back(t);
+    if (chart) slant_angle = chart->Contexts.back().slant_angle;
 };
 
 ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabelled &al) :
-    ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, al), specified_as_forward(false)
+    ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, al), specified_as_forward(false), slant_angle(0)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());
     dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
@@ -719,6 +744,7 @@ ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabell
         segment_types.push_back(MSC_ARC_BIG);
         segment_lines.push_back(style.line);
     }
+    if (chart) slant_angle = chart->Contexts.back().slant_angle;
 }
 
 ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range /*l*/)
@@ -777,6 +803,27 @@ ArcBase *ArcDirArrow::AddAttributeList(AttributeList *l)
     style = save;
     return this;
 }
+
+bool ArcDirArrow::AddAttribute(const Attribute &a)
+{
+    if (a.Is("angle")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        if (a.number<0 || a.number>45) {
+            string x;
+            if (a.number<0) x = "0";
+            if (a.number>45) x = "45";
+            chart->Error.Error(a, true, "Using " + x + " degrees instead of the specified value.",
+                "The slant angle must be between 0 and 45 degrees.");
+            if (a.number<0) slant_angle = 0;
+            else if (a.number>45) slant_angle = 45;
+        } else
+            slant_angle = a.number;
+        return true;
+    }
+    return ArcArrow::AddAttribute(a);
+}
+
 
 
 MscDirType ArcDirArrow::GetToucedEntities(class EntityList &el) const
@@ -912,13 +959,21 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
         _ASSERT(middle[iii] != chart->ActiveEntities.end());
     }
 
-    //record what entities are active at the arrow
+    //set angle to zero if a bidirectional arrow and negative if a<-b
+    if (isBidir()) slant_angle = 0;
+    else if ((*src)->index > (*dst)->index) 
+            slant_angle = -slant_angle;
+
+    sin_slant = slant_angle ? sin(slant_angle*M_PI/180.) : 0.;
+    cos_slant = slant_angle ? cos(slant_angle*M_PI/180.) : 1.;
+
+    //record what entities are active at the arrow (already consider slant)
     act_size.clear();
     act_size.reserve(2+middle.size());
-    act_size.push_back(std::max(0., (*src)->GetRunningWidth(chart->activeEntitySize)/2));
+    act_size.push_back(std::max(0., (*src)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
     for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
-        act_size.push_back(std::max(0., (*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2));
-    act_size.push_back(std::max(0., (*dst)->GetRunningWidth(chart->activeEntitySize)/2));
+        act_size.push_back(std::max(0., cos_slant*(*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
+    act_size.push_back(std::max(0., cos_slant*(*dst)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
     //Insert a small extra spacing for the arrow line
     if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
         parsed_label.AddSpacing(0, style.line.LineWidth()+
@@ -931,7 +986,7 @@ void ArcDirArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     if (!valid) return;
 
     //Here we have a valid canvas, so we adjust act_size
-    if (canvas.HasImprecisePositioning())
+    if (canvas.HasImprecisePositioning() && slant_angle==0)
         for (auto i = act_size.begin(); i!=act_size.end(); i++)
             *i = floor(*i);
 
@@ -939,19 +994,19 @@ void ArcDirArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     DoublePair end = style.arrow.getWidths(true, isBidir(), MSC_ARROW_END, style.line);
     DoublePair start = style.arrow.getWidths(true, isBidir(), MSC_ARROW_START, style.line);
     distances.Insert((*src)->index, (*dst)->index,
-                     end.first + start.second + parsed_label.getTextWidthHeight().x +
-                     *act_size.begin() + *act_size.rbegin());
+                     (end.first + start.second + parsed_label.getTextWidthHeight().x +
+                     *act_size.begin() + *act_size.rbegin())*cos_slant);
     //Add distances for arrowheads
     const bool fw = (*src)->index  <  (*dst)->index;
-    distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, start.second + *act_size.begin());
-    distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, end.first    + *act_size.rbegin());
+    distances.Insert((*src)->index, fw ? DISTANCE_RIGHT : DISTANCE_LEFT, (start.second + *act_size.begin())*cos_slant);
+    distances.Insert((*dst)->index, fw ? DISTANCE_LEFT : DISTANCE_RIGHT, (end.first    + *act_size.rbegin())*cos_slant);
 
     if (middle.size()==0) return;
     EntityDistanceMap d;
     for (unsigned i=0; i<middle.size(); i++) {
         DoublePair mid = style.arrow.getWidths(fw, isBidir(), MSC_ARROW_MIDDLE, style.line);
-        distances.Insert((*middle[i])->index, DISTANCE_LEFT,  mid.first  + act_size[i+1]);
-        distances.Insert((*middle[i])->index, DISTANCE_RIGHT, mid.second + act_size[i+1]);
+        distances.Insert((*middle[i])->index, DISTANCE_LEFT,  (mid.first  + act_size[i+1])*cos_slant);
+        distances.Insert((*middle[i])->index, DISTANCE_RIGHT, (mid.second + act_size[i+1])*cos_slant);
     }
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     distances += d;
@@ -974,6 +1029,9 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     area.clear();
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
+    //convert dx to transformed space
+    if (slant_angle)
+        dx = sx + (dx-sx)/cos_slant;
 
     double lw_max = style.line.LineWidth();
     for (unsigned i=0; i<segment_lines.size(); i++)
@@ -1001,7 +1059,7 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
             dx_text = sx - xy_s.x;
         }
         cx_text = (sx+dx)/2;
-        area += text_cover = parsed_label.Cover(sx_text, dx_text, y, cx_text);
+        area = text_cover = parsed_label.Cover(sx_text, dx_text, y, cx_text);
         //determine top edge position of arrow midline
         y += std::max(aH, firstLineHeight+ARROW_TEXT_VSPACE_ABOVE);
     } else {
@@ -1009,13 +1067,15 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         y += aH;
     }
     centerline = y = ceil(y) + lw_max/2;
+    //Note: When the angle is slanted, we rotate the space around "sx, centerline+yPos"
+
     //prepare xPos and margins
     xPos.clear(); xPos.reserve(2+middle.size());
     margins.clear(); margins.reserve(2+middle.size());
     xPos.push_back(sx);
     margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_START, style.line));
     for (unsigned i=0; i<middle.size(); i++) {
-        xPos.push_back(chart->XCoord(middle[i]));
+        xPos.push_back(sx + (chart->XCoord(middle[i])-sx)/cos_slant);
         margins.push_back(style.arrow.getWidths(sx<dx, isBidir(), MSC_ARROW_MIDDLE, style.line));
     }
     xPos.push_back(dx);
@@ -1030,14 +1090,14 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         std::reverse(act_size.begin(), act_size.end());
     }
     //prepare clip_area
-    Block total(sx + (sx<dx ? s_act : -s_act), dx - (sx<dx ? d_act : -d_act), 0, y+lw_max);
+    Block total(sx + (sx<dx ? s_act : -s_act), dx - (sx<dx ? d_act : -d_act), 0, y+2*lw_max);
     clip_area  = style.arrow.ClipForLine(XY(sx, y), s_act, sx<dx, isBidir(), MSC_ARROW_START,
                                          total, *segment_lines.begin(), *segment_lines.begin());
     clip_area *= style.arrow.ClipForLine(XY(dx, y), d_act, sx<dx, isBidir(), MSC_ARROW_END,
                                          total, *segment_lines.rbegin(), *segment_lines.rbegin());
-    for (unsigned i=0; i<middle.size(); i++)
-        clip_area *= style.arrow.ClipForLine(XY(chart->XCoord(middle[i]), y), act_size[i+1],
-                                             sx<dx, isBidir(), MSC_ARROW_MIDDLE, total, segment_lines[i], segment_lines[i+1]);
+    for (unsigned i=1; i<xPos.size()-1; i++)
+        clip_area *= style.arrow.ClipForLine(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), MSC_ARROW_MIDDLE, 
+                                             total, segment_lines[i-1], segment_lines[i]);
 
     //Add arrowheads and line segments to cover
     for (unsigned i=0; i<xPos.size(); i++)
@@ -1049,10 +1109,38 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
     }
     lw_max = std::max(lw_max, chart->nudgeSize+1.0);
-    //set mainline - not much dependent on main line with
-    area.mainline = Range(y - lw_max/2, y + lw_max/2);
+    if (slant_angle == 0) {
+        area.mainline = Block(0, chart->total.x, y - lw_max/2, y + lw_max/2);
+        cover = GetCover4Compress(area);
+        return std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
+    }
+    //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
+    //are in the transformed space
+    //Now we transfrom "area", "text_cover" and "clip" area, too
+    const XY c(sx, centerline);
+    area.RotateAround(c, slant_angle);
+    text_cover.RotateAround(c, slant_angle);
+    clip_area.RotateAround(c, slant_angle);
+
+    //calculate mainline
+    lw_max /= cos_slant;
+    const double dy = sin_slant*(dx-sx) + y;
+    const double real_dx = sx + cos_slant*(dx-sx);
+    if (sx<dx) {
+        const XY ml[] = {XY(0,   y-lw_max/2), XY(sx, y-lw_max/2), 
+                         XY(real_dx, dy-lw_max/2), XY(chart->total.x, dy-lw_max/2), 
+                         XY(chart->total.x, dy+lw_max/2), XY(real_dx, dy+lw_max/2), 
+                         XY(sx, y+lw_max/2), XY(0, y+lw_max/2)};
+        area.mainline.assign_dont_check(ml);
+    } else {
+        const XY ml[] = {XY(0, dy-lw_max/2), XY(real_dx, dy-lw_max/2), 
+                         XY(sx, y-lw_max/2), XY(chart->total.x, y-lw_max/2), 
+                         XY(chart->total.x, y+lw_max/2), XY(sx, y+lw_max/2), 
+                         XY(real_dx, dy+lw_max/2), XY(0, dy+lw_max/2)};
+        area.mainline.assign_dont_check(ml);
+    }
     cover = GetCover4Compress(area);
-    return std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
+    return area.GetBoundingBox().y.till;
 }
 
 void ArcDirArrow::ShiftBy(double y)
@@ -1113,12 +1201,19 @@ void ArcDirArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     //Exclude the areas covered by the text from entity lines
     chart->HideEntityLines(text_cover);
     //Exclude the areas covered by the arrow heads from entity lines
-    chart->HideEntityLines(style.arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_START));
-    chart->HideEntityLines(style.arrow.EntityLineCover(XY(dx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_END));
+    const XY c(sx, yPos+centerline);
+    Contour tmp;
+    tmp = style.arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_START);
+    tmp.RotateAround(c, slant_angle);
+    chart->HideEntityLines(tmp);
+    tmp = style.arrow.EntityLineCover(XY(dx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_END);
+    tmp.RotateAround(c, slant_angle);
+    chart->HideEntityLines(tmp);
     //for multi-segment arrows
-    for (unsigned i=0; i<middle.size(); i++) {
-        const double mx = chart->XCoord(middle[i]);
-        chart->HideEntityLines(style.arrow.EntityLineCover(XY(mx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_MIDDLE));
+    for (unsigned i=1; i<xPos.size()-1; i++) {
+        tmp = style.arrow.EntityLineCover(XY(xPos[i], yPos+centerline), sx<dx, isBidir(), MSC_ARROW_MIDDLE);
+        tmp.RotateAround(c, slant_angle);
+        chart->HideEntityLines(tmp);
     }
 }
 
@@ -1126,13 +1221,17 @@ void ArcDirArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
     if (pass!=draw_pass) return;
+    const double y = yPos+centerline;  //should be integer
+    if (slant_angle)
+        style.arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
     if (parsed_label.getTextWidthHeight().y)
-        parsed_label.Draw(&canvas, sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text);
+        parsed_label.Draw(&canvas, sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text, slant_angle!=0);
     /* Draw the line */
     //all the entities this (potentially multi-segment arrow visits)
-    const double y = yPos+centerline;  //should be integer
     const int mul = (sx<dx) ? 1 : -1;
-    if (canvas.NeedsArrowFix()) {
+    //TODO: Fix clipping... Why does not clip_area work for slanted arrows?
+    //TOD: Also, why does we draw a thin line for slanted?
+    if (canvas.NeedsArrowFix() || slant_angle) {
         for (unsigned i=0; i<xPos.size()-1; i++)
             canvas.Line(XY(xPos[i  ]+margins[i  ].second+act_size[i  ]*mul, y), 
                         XY(xPos[i+1]-margins[i+1].first -act_size[i+1]*mul, y), 
@@ -1149,6 +1248,8 @@ void ArcDirArrow::Draw(MscCanvas &canvas, DrawPassType pass)
         style.arrow.Draw(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i), 
                          segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)],
                          &canvas);
+    if (slant_angle)
+        style.arrow.UnTransformCanvas(canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1170,6 +1271,7 @@ ArcBigArrow::ArcBigArrow(const EntityList &el, bool bidir, const ArcLabelled &al
     : ArcDirArrow(el, bidir, al), sig(s)
 {
     modifyFirstLineSpacing = false;
+    slant_angle = 0;
 }
 
 
@@ -1359,7 +1461,7 @@ double ArcBigArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, outer_contours);
     area.arc = this;
     //set mainline - not much dependent on main line with
-    area.mainline = Range(centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
+    area.mainline = Block(0, chart->total.x, centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
 
     //due to thick lines we can extend above y==0. Shift down to avoid it
     if (area.GetBoundingBox().y.from < chart->arcVGapAbove)
@@ -2351,12 +2453,11 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover)
             (*i)->area_draw_is_frame = false;
         }
     }
-    overall_box.mainline = b.y;
     const double &offset = main_style.shadow.offset.second;
     if (offset)
-        cover = GetCover4Compress(overall_box + overall_box.CreateShifted(XY(offset, offset)));
-    else
-        cover = GetCover4Compress(overall_box);
+        overall_box += overall_box.CreateShifted(XY(offset, offset));
+    overall_box.mainline = Block(0, chart->total.x, b.y.from, b.y.till);
+    cover = GetCover4Compress(overall_box);
     return yPos + total_height + offset + chart->emphVGapOutside;
 }
 
@@ -3115,15 +3216,13 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
-    //Expand cover, but not content
-    cover = GetCover4Compress(pipe_body_cover);
     //Add content to cover (may "come out" from pipe)
     cover += content_cover;
-    //If we have valid content, set mainline to that of the content
-    if (content.size() && !content_cover.mainline.IsInvalid()) 
-        cover.mainline += content_cover.mainline;
-    else  //else use the top and bottom of the pipe
-        cover.mainline = Range(chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
+    //If we have no valid content, set mainline to that of pipe, else the content's mainline will be used
+    if (content_cover.mainline.IsEmpty()) 
+        pipe_body_cover.mainline = Block(0, chart->total.x, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
+    //Expand cover, but not content (that is already expanded)
+    cover = GetCover4Compress(pipe_body_cover);
     return yPos + total_height + max_offset + chart->emphVGapOutside;
 }
 
@@ -3366,8 +3465,7 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover)
     yPos = 0;
     if (nudge) {
         Block b(0, chart->total.x, 0, chart->nudgeSize);
-        area = b;
-        area.mainline=b.y;
+        area.mainline = area = b;
         cover = GetCover4Compress(area);
         return chart->nudgeSize;
     }
@@ -3393,9 +3491,9 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover)
     height = wh.y + extra_space;
     //Discontinuity lines cannot be compressed much
     if (type==MSC_ARC_DISCO)
-        area.mainline += Range(wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
+        area.mainline = Block(0, chart->total.x, wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
-        area.mainline += Range(centerline-charheight/2, centerline+charheight/2);
+        area.mainline = Block(0, chart->total.x, centerline-charheight/2, centerline+charheight/2);
     cover = GetCover4Compress(area);
     return height;
 }

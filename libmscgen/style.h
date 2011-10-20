@@ -9,8 +9,7 @@
 
 typedef enum {
     SIDE_INVALID = 0,
-    SIDE_LEFT,
-    SIDE_RIGHT
+    SIDE_LEFT,SIDE_RIGHT
 } MscSideType;
 bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p);
 
@@ -59,11 +58,12 @@ public:
     bool           numbering;
     bool           compress;
     bool           indicator;
+    double         slant_angle;
     StringFormat   text;
     StyleSet       styles;
     ColorSet       colors;
     NumberingStyle numberingStyle;
-    Context() : numbering(false), compress(false), indicator(true) {text.Default();}
+    Context() : numbering(false), compress(false), indicator(true), slant_angle(0) {text.Default();}
 };
 
 class Design : public Context
