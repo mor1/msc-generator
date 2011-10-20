@@ -175,6 +175,7 @@ public:
     ArcArrow(MscArcType t, Msc *msc, const MscStyle &s) : ArcLabelled(t, msc, s) {}
     ArcArrow(MscArcType t, const ArcLabelled &al) : ArcLabelled(t, al) {}
     virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l) = 0;
+    bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     bool isBidir(void) const {return type == MSC_ARC_SOLID_BIDIR || type == MSC_ARC_DOTTED_BIDIR ||
@@ -216,7 +217,9 @@ protected:
     std::vector<MscLineAttr> segment_lines; //one for each segment ([0] is the one from src), set during AddAttributeList()
     bool                     modifyFirstLineSpacing;
     const bool               specified_as_forward; //true if user specified "a->b", false if "b<-a"
+    double                   slant_angle;
 
+    mutable double sin_slant, cos_slant;
     mutable double sx, dx;     //xpos of two final arrowheads (sx can be > dx)
     mutable double sx_text, dx_text, cx_text; //xpos for text display (sorted)
     mutable std::vector<double> xPos; //positions sorted
@@ -231,6 +234,7 @@ public:
     ArcDirArrow(const EntityList &, bool bidir, const ArcLabelled &al);
     virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     ArcBase *AddAttributeList(AttributeList *l);
+    bool AddAttribute(const Attribute &);
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);

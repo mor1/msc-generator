@@ -40,6 +40,15 @@ void Area::swap(Area &a)
     Contour::swap(a);
 }
 
+double Area::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
+{
+    if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
+    if (bMainline && !mainline.IsEmpty() && mainline.GetBoundingBox().x.Overlaps(below.mainline.GetBoundingBox().x))
+        offset = mainline.OffsetBelow(below.mainline, touchpoint, offset);
+    if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;
+    return Contour::OffsetBelow(below, touchpoint, offset);
+}
+
 
 AreaList AreaList::CreateExpand(double gap, contour::EExpandType et4pos, contour::EExpandType et4neg,
                                 double miter_limit_positive, double miter_limit_negative) const
@@ -49,6 +58,29 @@ AreaList AreaList::CreateExpand(double gap, contour::EExpandType et4pos, contour
     for (auto i=cover.begin(); i!=cover.end(); i++)
         al += i->CreateExpand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative);
     return al;
+}
+
+double AreaList::OffsetBelow(const Area &below, double &touchpoint, double offset, bool bMainline) const
+{
+    if (offset < below.GetBoundingBox().y.from - boundingBox.y.till) return offset;
+    if (!boundingBox.x.Overlaps(below.GetBoundingBox().x)) return offset;
+    if (bMainline && !mainline.IsEmpty() && mainline.GetBoundingBox().x.Overlaps(below.mainline.GetBoundingBox().x))
+        offset = mainline.OffsetBelow(below.mainline, touchpoint, offset);
+    for (auto i = cover.begin(); i!=cover.end(); i++)
+        offset = i->OffsetBelow(below, touchpoint, offset, bMainline);
+    return offset;
+}
+
+double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, double offset, bool bMainline) const
+{
+    if (offset < below.boundingBox.y.from - boundingBox.y.till) return offset;
+    if (bMainline && !mainline.IsEmpty() && mainline.GetBoundingBox().x.Overlaps(below.mainline.GetBoundingBox().x))
+        offset = mainline.OffsetBelow(below.mainline, touchpoint, offset);
+    if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
+    for (auto i = cover.begin(); i!=cover.end(); i++)
+        for (auto j = below.cover.begin(); j!=below.cover.end(); j++)
+            offset = i->OffsetBelow(*j, touchpoint, offset, bMainline);
+    return offset;
 }
 
 

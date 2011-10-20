@@ -305,6 +305,35 @@ MscArrowType ArrowHead::GetType(bool forward, bool bidir, MscArrowEnd which, boo
 }
 
 
+//Transformation functions for angled arrows
+//In the transformed space (sx,y) will be the same, the space will be rotated by "radian".
+//"radian" is assumed to be between -45..+45 degrees (but in radian)
+
+//Transform the space such that if we draw a vertical arrow, it will be of angle="radian" on the canvas
+//saves cairo context, call UntransformCanvas() to kill it.
+void ArrowHead::TransformCanvasForAngle(double radian, MscCanvas &canvas, double sx, double y) const
+{
+    cairo_t *cr = canvas.GetContext();
+    cairo_save(cr);
+    cairo_translate(cr, sx, y);
+    cairo_rotate(cr, radian*M_PI/180.);
+    cairo_translate(cr, -sx, -y);
+}
+
+void ArrowHead::UnTransformCanvas(MscCanvas &canvas) const 
+{
+    canvas.UnClip();
+}
+
+
+//we assume sorted xPos and that 
+void ArrowHead::TransformSpaceForAngle(double radian, std::vector<double> &xPos) const
+{
+    const double c = cos(radian);
+    for (auto i = xPos.begin(); i!=xPos.end(); i++)
+        *i /= c;
+}
+
 XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
 {
     XY xy;

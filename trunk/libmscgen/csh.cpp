@@ -361,7 +361,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
-"text.color", "text.format", "text.ident", ""};
+"text.color", "text.format", "text.ident", "angle", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
 {"draw_time", "compress", "color", "label", "number", "indicator", "collapsed", 
@@ -374,7 +374,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "fill.color", "fill.color2", "fill.gradient", 
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
-"compressable", "xsize", "ysize", "space", ""};
+"compressable", "xsize", "ysize", "space", "angle", ""};
 
 static const char symbol_names[][ENUM_STRING_LEN] =
 {"arc", "rectangle", ""};
