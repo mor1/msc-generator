@@ -42,10 +42,10 @@ protected: // create from serialization only
 // Attributes
 public:
 	CMscGenSplitterWnd m_wndSplitter;
+	CMFCRibbonBar     m_wndRibbonBar;
 	CMFCStatusBar     m_wndStatusBar;
 protected:  
     friend class CMscGenSplitterWnd;
-	CMFCRibbonBar     m_wndRibbonBar;
 	CMFCRibbonApplicationButton m_MainButton;
 	CMFCToolBarImages m_PanelImages;
 	//CMFCRibbonStatusBar  m_wndStatusBar;
@@ -89,6 +89,8 @@ public:
     void FillPageComboBox(int no_pages, int page);
 	afx_msg void OnDesignPage(); //page combo box changes
     afx_msg void OnUpdateDesignPage(CCmdUI *pCmdUI);
+	afx_msg void OnDesignNextPage(); //page combo box changes
+	afx_msg void OnDesignPrevPage(); //page combo box changes
     void FillZoomComboBox(int zoom);
 	afx_msg void OnDesignZoom();                             //user changed zoom combo
     afx_msg void OnViewZoomin();                             //zoom in 10%

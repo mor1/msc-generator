@@ -32,8 +32,8 @@ Entity::Entity(const string &n, const string &l, const string &ol,
 {
 }
 
-//Check that all entities in edl have no parent; exist; are defined by this
-//EntityDef in edl. Then add them to children list and make us their parent
+//Check that all entities in "children" have no parent; exist; are defined by this
+//EntityDef in "children". Then add them to children list and make us their parent
 //Also set their and our "pos" to the leftmost of them, if we are collapsed
 void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
 {
@@ -234,7 +234,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         // Leave show_explicit as false
     } else {
         //indicate that this EntityDef created the Entity
-		defining = true;
+        defining = true;
     }
 
     // Process attribute list, "style" is empty (emptied in constructor)
@@ -244,9 +244,9 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         delete al;
     }
 
-    //If we have children, add them to "edl"
+    //If we have children, add them to "children"
     EntityDefList *children = new EntityDefList;
-	if (ch) {
+    if (ch) {
         for (auto i = ch->begin(); i!=ch->end(); i++) {
             CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
             if (ce==NULL || ce->IsFullHeading())

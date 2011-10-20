@@ -165,6 +165,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_COMMAND(ID_EDIT_FIND, OnEditFind)
 	ON_COMMAND(ID_EDIT_REPLACE, OnEditReplace)
 	ON_COMMAND(ID_EDIT_REPEAT, OnEditRepeat)
+    ON_COMMAND(ID_EDIT_SELECT_ALL, &CMscGenDoc::OnEditSelectAll)
 	ON_COMMAND(ID_EDIT_COPYENTIRECHART, OnEditCopyEntireChart)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPYENTIRECHART, OnUpdateFileExport)
 	ON_COMMAND(ID_EDIT_PASETENTIRECHART, OnEditPasteEntireChart)
@@ -195,6 +196,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_FIND, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_REPLACE, OnUpdateEditCutCopy)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_REPEAT, OnUpdateEditCutCopy)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_SELECT_ALL, OnUpdateEditCutCopy)
 	ON_COMMAND(ID_BUTTON_EDITTEXT, OnButtonEdittext)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITTEXT, OnUpdateButtonEdittext)
 	ON_COMMAND(ID_BUTTON_TRACK, OnButtonTrack)
@@ -823,6 +825,14 @@ void CMscGenDoc::OnEditPasteEntireChart()
 	DoPasteData(dataObject);
 }
 
+void CMscGenDoc::OnEditSelectAll()
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->SelectAll();
+}
+
+
 void CMscGenDoc::OnButtonEdittext()
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -943,6 +953,20 @@ void CMscGenDoc::ChangePage(unsigned page)
 {
 	if (page == m_ChartShown.GetPage())
 		return;
+	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
+	m_itrEditing->SetPage(page);  //set new page
+	ShowEditingChart(true);
+	CheckIfChanged();     
+}
+
+void CMscGenDoc::StepPage(signed int step)
+{
+	if (step == 0 || m_ChartShown.GetPages()<=1)
+		return;
+    int page = m_ChartShown.GetPage() + step;
+    if (page > m_ChartShown.GetPages()) page = m_ChartShown.GetPages();
+    if (page < 0 ) page = 0;
+    if (page == m_ChartShown.GetPage()) return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
 	m_itrEditing->SetPage(page);  //set new page
 	ShowEditingChart(true);
@@ -1592,5 +1616,7 @@ void CMscGenDoc::OnHelpHelp()
 
 	ShellExecute(NULL, NULL, cmdLine.c_str(), NULL, NULL, SW_SHOW); 
 }
+
+
 
 

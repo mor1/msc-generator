@@ -103,33 +103,11 @@ public:
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog();
-	afx_msg void OnBnClicked();
 
 	DECLARE_MESSAGE_MAP()
 public:
-	BOOL m_Pedantic;
-	BOOL m_Warnings;
-	CString m_DefaultText;
-	int m_TextEditorRadioButtons;
 	CString m_TextEditStartCommand;
 	CString m_TextEditorJumpToLineCommand;
-	bool m_bNppExists;
-	BOOL m_bPB_Editing;
-	BOOL m_bPB_Embedded;
-	BOOL m_bAlwaysOpen;
-	BOOL m_bCsh;
-	int m_nCshScheme;
-	BOOL m_bSmartIdent;
-    BOOL m_bCshErrors;
-    BOOL m_bCshErrorsInWindow;
-    BOOL m_bHints;
-    BOOL m_bHintsLineStart;
-    BOOL m_bHintsEntity;
-    BOOL m_bHintsAttrName;
-    BOOL m_bHintsAttrValue;
-    BOOL m_bHintsCompact;
-    BOOL m_bHintsFilter;
 };
 
 
@@ -137,25 +115,6 @@ IMPLEMENT_DYNCREATE(COptionDlg, CDialog)
 
 COptionDlg::COptionDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(COptionDlg::IDD, pParent)
-	, m_Pedantic(FALSE)
-	, m_Warnings(FALSE)
-	, m_DefaultText(_T(""))
-	, m_bNppExists(false)
-	, m_bPB_Editing(FALSE)
-	, m_bPB_Embedded(FALSE)
-	, m_bAlwaysOpen(FALSE)
-	, m_bCsh(FALSE)
-	, m_bSmartIdent(FALSE)
-	, m_nCshScheme(0)
-    , m_bHints(FALSE)
-    , m_bHintsLineStart(FALSE)
-    , m_bHintsEntity(FALSE)
-    , m_bHintsAttrName(FALSE)
-    , m_bHintsAttrValue(FALSE)
-    , m_bHintsCompact(FALSE)
-    , m_bHintsFilter(FALSE)
-    , m_bCshErrors(FALSE)
-    , m_bCshErrorsInWindow(FALSE)
 {
 }
 
@@ -166,78 +125,12 @@ COptionDlg::~COptionDlg()
 void COptionDlg::DoDataExchange(CDataExchange* pDX)
 {
     CDialog::DoDataExchange(pDX);
-    DDX_Check(pDX, IDC_CHECK_PEDANTIC, m_Pedantic);
-    DDX_Check(pDX, IDC_CHECK_WARNINGS, m_Warnings);
-    DDX_Text(pDX, IDC_EDIT_DEFAULT_TEXT, m_DefaultText);
-    DDX_Radio(pDX, IDC_RADIO1, m_TextEditorRadioButtons);
     DDX_Text(pDX, IDC_EDIT1, m_TextEditStartCommand);
     DDX_Text(pDX, IDC_EDIT2, m_TextEditorJumpToLineCommand);
-    DDX_Check(pDX, IDC_CHECK_PB_EDITING, m_bPB_Editing);
-    DDX_Check(pDX, IDC_CHECK_PB_EMBEDDED, m_bPB_Embedded);
-    DDX_Check(pDX, IDC_CHECK_CSH, m_bCsh);
-    DDX_Check(pDX, IDC_CHECK_SMART_IDENT, m_bSmartIdent);
-    DDX_Check(pDX, IDC_CHECK_ALWAYSOPEN, m_bAlwaysOpen);
-    DDX_CBIndex(pDX, IDC_COMBO_CSH, m_nCshScheme);
-
-    DDX_Check(pDX, IDC_CHECK_HINTS, m_bHints);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_LINE_START, m_bHintsLineStart);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_ENTITY, m_bHintsEntity);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_ATTR_NAME, m_bHintsAttrName);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_ATTR_VALUE, m_bHintsAttrValue);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_COMPACT, m_bHintsCompact);
-    DDX_Check(pDX, IDC_CHECK_SMART_HINT_FILTER, m_bHintsFilter);
-    DDX_Check(pDX, IDC_CHECK_CSH_ERRORS, m_bCshErrors);
-    DDX_Check(pDX, IDC_CHECK_CSH_ERROR_IN_WINDOW, m_bCshErrorsInWindow);
 }
 
-BOOL COptionDlg::OnInitDialog()
-{
-	CDialog::OnInitDialog();
-	GetDlgItem(IDC_EDIT1)->EnableWindow(m_TextEditorRadioButtons==2);
-	GetDlgItem(IDC_EDIT2)->EnableWindow(m_TextEditorRadioButtons==2);
-	GetDlgItem(IDC_RADIO2)->EnableWindow(m_bNppExists);
-	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(m_bCsh);
-	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(m_bCsh);
-    GetDlgItem(IDC_CHECK_CSH_ERROR)->EnableWindow(m_bCsh);
-    GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW)->EnableWindow(m_bCshErrors && m_bCsh);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_NAME)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_VALUE)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ENTITY)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_LINE_START)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_COMPACT)->EnableWindow(m_bHints);
-    GetDlgItem(IDC_CHECK_SMART_HINT_FILTER)->EnableWindow(m_bHints);
-	return TRUE;  // return TRUE  unless you set the focus to a control
-}
-
-void COptionDlg::OnBnClicked()
-{
-	bool otherSet = ((CButton*)this->GetDlgItem(IDC_RADIO3))->GetCheck();
-	GetDlgItem(IDC_EDIT1)->EnableWindow(otherSet);
-	GetDlgItem(IDC_EDIT2)->EnableWindow(otherSet);
-	bool cshSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH))->GetCheck();
-	GetDlgItem(IDC_COMBO_CSH)->EnableWindow(cshSet);
-	GetDlgItem(IDC_CHECK_SMART_IDENT)->EnableWindow(cshSet);
-    GetDlgItem(IDC_CHECK_CSH_ERROR)->EnableWindow(cshSet);
-    bool cshErrorSet = ((CButton*)this->GetDlgItem(IDC_CHECK_CSH_ERROR))->GetCheck();
-    GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW)->EnableWindow(cshSet && cshErrorSet);
-    if (!cshErrorSet)
-        ((CButton*)GetDlgItem(IDC_CHECK_CSH_ERROR_IN_WINDOW))->SetCheck(false);
-    bool hintSet = ((CButton*)this->GetDlgItem(IDC_CHECK_HINTS))->GetCheck();
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_NAME)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ATTR_VALUE)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_ENTITY)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_LINE_START)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_COMPACT)->EnableWindow(hintSet);
-    GetDlgItem(IDC_CHECK_SMART_HINT_FILTER)->EnableWindow(hintSet);
-}
 
 BEGIN_MESSAGE_MAP(COptionDlg, CDialog)
-	ON_BN_CLICKED(IDC_RADIO1, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_RADIO2, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_RADIO3, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_CHECK_CSH, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_CHECK_HINTS, &COptionDlg::OnBnClicked)
-	ON_BN_CLICKED(IDC_CHECK_CSH_ERROR, &COptionDlg::OnBnClicked)
 END_MESSAGE_MAP()
 
 // CMscGenApp
@@ -260,6 +153,38 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_PB_EDITING, &CMscGenApp::OnUpdateCheckPbEditing)
     ON_COMMAND(IDC_CHECK_PB_EMBEDDED, &CMscGenApp::OnCheckPbEmbedded)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_PB_EMBEDDED, &CMscGenApp::OnUpdateCheckPbEmbedded)
+    ON_COMMAND(IDC_CHECK_CSH, &CMscGenApp::OnCheckCsh)
+    ON_COMMAND(IDC_COMBO_CSH, &CMscGenApp::OnComboCsh)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_CSH, &CMscGenApp::OnUpdateCheckCsh)
+    ON_UPDATE_COMMAND_UI(IDC_COMBO_CSH, &CMscGenApp::OnUpdateComboCsh)
+    ON_COMMAND(IDC_CHECK_SMART_IDENT, &CMscGenApp::OnCheckSmartIdent)
+    ON_COMMAND(IDC_CHECK_CSH_ERROR, &CMscGenApp::OnCheckCshError)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_IDENT, &CMscGenApp::OnUpdateCheckSmartIdent)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_CSH_ERROR, &CMscGenApp::OnUpdateCheckCshError)
+    ON_COMMAND(IDC_CHECK_CSH_ERROR_IN_WINDOW, &CMscGenApp::OnCheckCshErrorInWindow)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_CSH_ERROR_IN_WINDOW, &CMscGenApp::OnUpdateCheckCshErrorInWindow)
+    ON_UPDATE_COMMAND_UI(ID_EDIT_PREFERENCES, &CMscGenApp::OnUpdateEditPreferences)
+    ON_COMMAND(ID_CHECK_EE_OTHER, &CMscGenApp::OnCheckEeOther)
+    ON_COMMAND(ID_CHECK_EE_NOTEPAD, &CMscGenApp::OnCheckEeNotepad)
+    ON_COMMAND(ID_CHECK_EE_NOTEPADPP, &CMscGenApp::OnCheckEeNotepadpp)
+    ON_UPDATE_COMMAND_UI(ID_CHECK_EE_OTHER, &CMscGenApp::OnUpdateCheckEeOther)
+    ON_UPDATE_COMMAND_UI(ID_CHECK_EE_NOTEPAD, &CMscGenApp::OnUpdateCheckEeNotepad)
+    ON_UPDATE_COMMAND_UI(ID_CHECK_EE_NOTEPADPP, &CMscGenApp::OnUpdateCheckEeNotepadpp)
+    ON_COMMAND(IDC_CHECK_HINTS, &CMscGenApp::OnCheckHints)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_COMPACT, &CMscGenApp::OnCheckSmartHintCompact)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_FILTER, &CMscGenApp::OnCheckSmartHintFilter)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_LINE_START, &CMscGenApp::OnCheckSmartHintLineStart)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_ENTITY, &CMscGenApp::OnCheckSmartHintEntity)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_ATTR_NAME, &CMscGenApp::OnCheckSmartHintAttrName)
+    ON_COMMAND(IDC_CHECK_SMART_HINT_ATTR_VALUE, &CMscGenApp::OnCheckSmartHintAttrValue)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_FILTER, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_COMPACT, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_LINE_START, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ENTITY, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ATTR_NAME, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ATTR_VALUE, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_HINTS, &CMscGenApp::OnUpdateCheckHints)
+    ON_COMMAND(ID_BUTTON_TRACK_COLOR, &CMscGenApp::OnButtonTrackColor)
 END_MESSAGE_MAP()
 
 
@@ -476,124 +401,6 @@ void CMscGenApp::LoadCustomState()
 void CMscGenApp::SaveCustomState()
 {
 }
-
-
-void CMscGenApp::OnEditPreferences()
-{
-	CMscGenDoc *pDoc = GetDoc();
-
-	COptionDlg optionDlg;
-	optionDlg.m_Pedantic           = m_Pedantic;
-	optionDlg.m_Warnings           = m_Warnings;
-	optionDlg.m_bPB_Editing        = m_bPB_Editing;
-	optionDlg.m_bPB_Embedded       = m_bPB_Embedded;
-	optionDlg.m_bAlwaysOpen        = m_bAlwaysOpen;
-	optionDlg.m_bCsh	           = m_bShowCsh;
-	optionDlg.m_nCshScheme         = m_nCshScheme;
-	optionDlg.m_bSmartIdent        = m_bSmartIdent;
-    optionDlg.m_bCshErrors         = m_bShowCshErrors;
-    optionDlg.m_bCshErrorsInWindow = m_bShowCshErrorsInWindow;
-    optionDlg.m_bHints             = m_bHints;
-    optionDlg.m_bHintsLineStart    = m_bHintLineStart;
-    optionDlg.m_bHintsEntity       = m_bHintEntity;
-    optionDlg.m_bHintsAttrName     = m_bHintAttrName;
-    optionDlg.m_bHintsAttrValue    = m_bHintAttrValue;
-    optionDlg.m_bHintsCompact      = m_bHintCompact;
-    optionDlg.m_bHintsFilter       = m_bHintFilter;
-
-	EnsureCRLF(m_DefaultText);
-	ReplaceTAB(m_DefaultText);
-	optionDlg.m_DefaultText = m_DefaultText;
-	optionDlg.m_TextEditStartCommand = m_sStartTextEditor;
-	optionDlg.m_TextEditorJumpToLineCommand = m_sJumpToLine;
-	optionDlg.m_bNppExists = m_NppPath.GetLength()>0;
-
-	switch (m_iTextEditorType) {
-		default:
-		case NOTEPAD: optionDlg.m_TextEditorRadioButtons = 0; break;
-		case NPP: optionDlg.m_TextEditorRadioButtons = m_NppPath.GetLength()?1:0; break;
-		case OTHER: optionDlg.m_TextEditorRadioButtons = 2; break;
-	}
-	if (optionDlg.DoModal() == IDOK) {
-		if (optionDlg.m_DefaultText != m_DefaultText) {
-			m_DefaultText = optionDlg.m_DefaultText;
-			EnsureCRLF(m_DefaultText);
-			ReplaceTAB(m_DefaultText);
-			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_DEFAULTTEXT, m_DefaultText);
-		}
-		if ((bool)optionDlg.m_bSmartIdent != m_bSmartIdent) 
-			WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_bSmartIdent = optionDlg.m_bSmartIdent);
-
-		bool recompile = (m_Pedantic != (bool)optionDlg.m_Pedantic) ||
-			(m_bPB_Editing != (bool)optionDlg.m_bPB_Editing) ||
-			(m_bPB_Embedded != (bool)optionDlg.m_bPB_Embedded);
-
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, m_Pedantic = optionDlg.m_Pedantic);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, m_Warnings = optionDlg.m_Warnings);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing = optionDlg.m_bPB_Editing);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded = optionDlg.m_bPB_Embedded);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, m_bAlwaysOpen = optionDlg.m_bAlwaysOpen);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh = optionDlg.m_bCsh);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_bSmartIdent = optionDlg.m_bSmartIdent);
-		WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_nCshScheme = optionDlg.m_nCshScheme);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, m_bShowCshErrors = optionDlg.m_bCshErrors);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, m_bShowCshErrorsInWindow = optionDlg.m_bCshErrorsInWindow);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, m_bHints = optionDlg.m_bHints);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_LINESTART, m_bHintLineStart = optionDlg.m_bHintsLineStart);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, m_bHintEntity = optionDlg.m_bHintsEntity);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, m_bHintAttrName = optionDlg.m_bHintsAttrName);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, m_bHintAttrValue = optionDlg.m_bHintsAttrValue);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, m_bHintFilter = optionDlg.m_bHintsFilter);
-        WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_COMPACT, m_bHintCompact = optionDlg.m_bHintsCompact);
-
-		bool bRestartEditor = false;
-		EEditorType temp;
-		switch (optionDlg.m_TextEditorRadioButtons) {
-			default:
-			case 0: temp = NOTEPAD; break;
-			case 1: temp = m_NppPath.GetLength()?NPP:NOTEPAD; break;
-			case 2: temp = OTHER; break;
-		}
-		if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
-			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
-			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, m_sStartTextEditor);
-			if (temp==OTHER && pDoc && pDoc->m_ExternalEditor.IsRunning()) 
-				bRestartEditor=true;
-		}
-		if (m_sJumpToLine != optionDlg.m_TextEditorJumpToLineCommand) {
-			m_sJumpToLine = optionDlg.m_TextEditorJumpToLineCommand;
-			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_JUMPTOLINE, m_sJumpToLine);
-		}
-		if (temp != m_iTextEditorType) {
-			m_iTextEditorType = temp;
-			WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, m_iTextEditorType);
-			bRestartEditor=true;
-			switch (m_iTextEditorType) {
-				case NPP:
-					m_sStartTextEditor = "\"" +m_NppPath+ "\" -multiInst -nosession %n";
-					m_sJumpToLine = "\"" +m_NppPath+ "\" -n%l -nosession %n";
-					break;
-				default:
-				case NOTEPAD:
-					m_sStartTextEditor = "Notepad.exe %n";
-					m_sJumpToLine = "";
-					break;
-				case OTHER:
-					break; //values already set by user
-			}
-		}
-		if (bRestartEditor && pDoc) 
-			pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
-
-		if (recompile && pDoc) 
-			pDoc->ShowEditingChart(false);     //Do not change zoom, merely recompile & re-issue 
-		if (IsInternalEditorRunning())
-			m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
-	}
-}
-
-//C:\Windows\Notepad.exe %n;"C:\Program Files\Notepad++\notepad++.exe" -multiInst -nosession %n;
-//;-n%l -nosession %n;
 
 DWORD ConvertMscColorSyntaxFlagsToCHARFORMATFlags(int input)
 {
@@ -909,7 +716,7 @@ void CMscGenApp::OnCheckPbEditing()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing);
     //recompile if it was a recently compiled and is showing all pages
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->m_itrShown == pDoc->m_itrEditing &&  pDoc->m_itrEditing->GetPage()>0)
+    if (pDoc->m_itrShown == pDoc->m_itrEditing)
         pDoc->ShowEditingChart(false);
 }
 
@@ -934,4 +741,271 @@ void CMscGenApp::OnCheckPbEmbedded()
 void CMscGenApp::OnUpdateCheckPbEmbedded(CCmdUI *pCmdUI)
 {
     pCmdUI->SetCheck(m_bPB_Embedded);
+}
+
+
+void CMscGenApp::OnCheckCsh()
+{
+    m_bShowCsh = !m_bShowCsh;
+    m_bDoCshProcessing = m_bShowCsh || m_bHints;
+	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, m_bShowCsh);
+    if (IsInternalEditorRunning())
+        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+}
+
+
+void CMscGenApp::OnUpdateCheckCsh(CCmdUI *pCmdUI)
+{
+    pCmdUI->SetCheck(m_bShowCsh);
+    pCmdUI->Enable(IsInternalEditorRunning());
+}
+
+void CMscGenApp::OnComboCsh()
+{
+    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+    if (!pMainWnd) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_COMBO_CSH, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    m_nCshScheme = c->GetCurSel();
+	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, m_nCshScheme);
+    if (IsInternalEditorRunning())
+        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+}
+
+
+
+void CMscGenApp::OnUpdateComboCsh(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+}
+
+
+void CMscGenApp::OnCheckSmartIdent()
+{
+    m_bSmartIdent = !m_bSmartIdent;
+	WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, m_bSmartIdent);
+    if (IsInternalEditorRunning())
+        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+}
+
+
+void CMscGenApp::OnUpdateCheckSmartIdent(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+    pCmdUI->SetCheck(m_bSmartIdent);
+}
+
+void CMscGenApp::OnCheckCshError()
+{
+    m_bShowCshErrors = !m_bShowCshErrors;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, m_bShowCshErrors);
+    if (IsInternalEditorRunning())
+        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+}
+
+
+
+void CMscGenApp::OnUpdateCheckCshError(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+    pCmdUI->SetCheck(m_bShowCshErrors);
+}
+
+
+void CMscGenApp::OnCheckCshErrorInWindow()
+{
+    m_bShowCshErrorsInWindow = !m_bShowCshErrorsInWindow;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORSINWINDOW, m_bShowCshErrorsInWindow); 
+    if (IsInternalEditorRunning())
+        m_pWndEditor->m_ctrlEditor.UpdateCsh(true);
+}
+
+
+void CMscGenApp::OnUpdateCheckCshErrorInWindow(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_bShowCsh && IsInternalEditorRunning());
+    pCmdUI->SetCheck(m_bShowCshErrorsInWindow);
+}
+
+void CMscGenApp::OnEditPreferences()
+{
+	CMscGenDoc *pDoc = GetDoc();
+
+	COptionDlg optionDlg;
+	optionDlg.m_TextEditStartCommand = m_sStartTextEditor;
+	optionDlg.m_TextEditorJumpToLineCommand = m_sJumpToLine;
+
+    bool bRestartEditor = false;
+    if (optionDlg.DoModal() == IDOK) {
+        if (m_sStartTextEditor != optionDlg.m_TextEditStartCommand) {
+			m_sStartTextEditor = optionDlg.m_TextEditStartCommand;
+			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, m_sStartTextEditor);
+			if (pDoc && pDoc->m_ExternalEditor.IsRunning()) 
+                pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);				
+		}
+		if (m_sJumpToLine != optionDlg.m_TextEditorJumpToLineCommand) {
+			m_sJumpToLine = optionDlg.m_TextEditorJumpToLineCommand;
+			WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_JUMPTOLINE, m_sJumpToLine);
+		}
+	}
+}
+
+void CMscGenApp::OnUpdateEditPreferences(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_iTextEditorType==OTHER);
+}
+
+//C:\Windows\Notepad.exe %n;"C:\Program Files\Notepad++\notepad++.exe" -multiInst -nosession %n;
+//;-n%l -nosession %n;
+
+
+void CMscGenApp::OnCheckEeOther()
+{
+    if (m_iTextEditorType == OTHER) return;
+    m_iTextEditorType = OTHER;
+    m_sStartTextEditor = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_STARTTEXTEDITOR, "Notepad.exe %n");
+    m_sJumpToLine = GetProfileString(REG_SECTION_SETTINGS, REG_KEY_JUMPTOLINE, "");
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, m_iTextEditorType);
+	CMscGenDoc *pDoc = GetDoc();
+    if (pDoc && pDoc->m_ExternalEditor.IsRunning()) 
+        pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);				
+}
+
+
+void CMscGenApp::OnCheckEeNotepad()
+{
+    if (m_iTextEditorType == NOTEPAD) return;
+    m_iTextEditorType = NOTEPAD;
+    m_sStartTextEditor = "C:\\Windows\\Notepad.exe %n";
+    m_sJumpToLine = "";
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, m_iTextEditorType);
+	CMscGenDoc *pDoc = GetDoc();
+    if (pDoc && pDoc->m_ExternalEditor.IsRunning()) 
+        pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);				
+}
+
+
+void CMscGenApp::OnCheckEeNotepadpp()
+{
+    if (m_iTextEditorType == NPP) return;
+    m_iTextEditorType = NPP;
+    m_sStartTextEditor = "\"" +m_NppPath+ "\" -multiInst -nosession %n";
+    m_sJumpToLine = "\"" +m_NppPath+ "\" -n%l -nosession %n";
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_TEXTEDITORTYPE, m_iTextEditorType);
+	CMscGenDoc *pDoc = GetDoc();
+    if (pDoc && pDoc->m_ExternalEditor.IsRunning()) 
+        pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);				
+}
+
+
+void CMscGenApp::OnUpdateCheckEeOther(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable();
+    pCmdUI->SetCheck(m_iTextEditorType==OTHER);
+}
+
+
+void CMscGenApp::OnUpdateCheckEeNotepad(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable();
+    pCmdUI->SetCheck(m_iTextEditorType==NOTEPAD);
+}
+
+
+void CMscGenApp::OnUpdateCheckEeNotepadpp(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_NppPath.GetLength()>0);
+    pCmdUI->SetCheck(m_iTextEditorType==NPP);
+}
+
+
+void CMscGenApp::OnCheckHints()
+{
+    m_bHints = !m_bHints;
+    m_bDoCshProcessing = m_bShowCsh || m_bHints;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT, m_bHints);
+}
+
+void CMscGenApp::OnUpdateCheckHints(CCmdUI *pCmdUI)
+{
+    pCmdUI->SetCheck(m_bHints);
+}
+
+void CMscGenApp::OnCheckSmartHintCompact()
+{
+    m_bHintCompact = !m_bHintCompact;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_SHOW_CONTROLS, m_bHintCompact);
+}
+
+
+void CMscGenApp::OnCheckSmartHintFilter()
+{
+    m_bHintFilter = !m_bHintFilter;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_FILTER, m_bHintFilter);
+}
+
+
+void CMscGenApp::OnCheckSmartHintLineStart()
+{
+    m_bHintLineStart = !m_bHintLineStart;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_LINESTART, m_bHintLineStart);
+}
+
+
+void CMscGenApp::OnCheckSmartHintEntity()
+{
+    m_bHintEntity = !m_bHintEntity;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ENTITY, m_bHintEntity);
+}
+
+
+void CMscGenApp::OnCheckSmartHintAttrName()
+{
+    m_bHintAttrName = !m_bHintAttrName;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRNAME, m_bHintAttrName);
+}
+
+
+void CMscGenApp::OnCheckSmartHintAttrValue()
+{
+    m_bHintAttrValue = !m_bHintAttrValue;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_HINT_ATTRVALUE, m_bHintAttrValue);
+}
+
+
+void CMscGenApp::OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI)
+{
+    pCmdUI->Enable(m_bHints);
+    bool set = false;
+    switch (pCmdUI->m_nID) {
+    case IDC_CHECK_SMART_HINT_FILTER: set = m_bHintFilter; break;
+    case IDC_CHECK_SMART_HINT_COMPACT: set = m_bHintCompact; break;
+    case IDC_CHECK_SMART_HINT_LINE_START: set = m_bHintLineStart; break;
+    case IDC_CHECK_SMART_HINT_ENTITY: set = m_bHintEntity; break;
+    case IDC_CHECK_SMART_HINT_ATTR_NAME: set = m_bHintAttrName; break;
+    case IDC_CHECK_SMART_HINT_ATTR_VALUE: set = m_bHintAttrValue; break;
+    default: _ASSERT(0);
+    }
+    pCmdUI->SetCheck(set);
+}
+
+
+
+
+void CMscGenApp::OnButtonTrackColor()
+{
+    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+    if (!pMainWnd) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    pMainWnd->m_wndRibbonBar.GetElementsByID(ID_BUTTON_TRACK_COLOR, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonColorButton *cb = dynamic_cast<CMFCRibbonColorButton*>(arButtons[0]);
+    COLORREF c = cb->GetColor();
+    const unsigned char r = GetRValue(c); 
+    const unsigned char g = GetGValue(c); 
+    const unsigned char b = GetBValue(c); 
+    m_trackFillColor = RGBA(r, g, b, 128); //50% transparent
+    m_trackLineColor = RGBA(r/2, g/2, b/2, 255); //50% darker, fully opaque
 }

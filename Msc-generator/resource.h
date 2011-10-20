@@ -87,7 +87,6 @@
 #define IDC_CHECK_CSH_ERROR             1021
 #define IDC_RADIO_SCALING_NO            1021
 #define IDC_CHECK_CSH_ERROR_IN_WINDOW   1022
-#define IDC_RADIO5                      1022
 #define IDC_RADIO_SCALING_XY            1022
 #define IDC_BUTTON_SCALE                1023
 #define IDC_EDIT_SCALE                  1023
@@ -112,6 +111,8 @@
 #define ID_VIEW_REDRAW                  32782
 #define ID_VIEW_ZOOMNORMALIZE           32783
 #define ID_DESIGN_PAGE                  32784
+#define ID_DESIGN_PAGE_FULL_SCREEN_NEXT 32785
+#define ID_DESIGN_PAGE_FULL_SCREEN_PREV 32786
 #define ID_DESIGN_ZOOM                  32788
 #define ID_DESIGN_DESIGN                32789
 #define ID_VIEW_RESETASPECTRATIO_INPLACE 32790
@@ -129,20 +130,16 @@
 #define ID_VIEW_GOTOPREVIOUSERROR       32859
 #define ID_BUTTON_AUTO_SPLIT            32860
 #define ID_BUTTON_AUT                   32861
-#define ID_VIEW_SHOWELEMENTCONTROLS     32862
-#define ID_VIEW_SHOWELEMENTCONTROLS32863 32863
-#define ID_VIEW_SHOWELEMENTCONTROLS32864 32864
-#define ID_VIEW_S                       32866
-#define ID_BUTTON9                      32874
-#define ID_BUTTON10                     32875
-#define ID_BUTTON3                      32898
+#define ID_VIEW_SHOWELEMENTCONTROLS     32864
 #define ID_BUTTON_DEFAULT_TEXT          32898
-#define ID_CHECK10                      32909
-#define ID_CHECK11                      32910
-#define ID_CHECK12                      32911
 #define ID_EXTERNAL_EDITOR_COMBO        32924
-#define ID_EDIT_START_COMMAND           32927
-#define ID_EDIT_JUMP_TO_LINE            32928
+#define ID_CHECK_EE_NOTEPAD             32935
+#define ID_CHECK_EE_NOTEPADPP           32937
+#define ID_CHECK_EE_OTHER               32938
+#define ID_SPIN_PAGE                    32940
+#define ID_BUTTON2                      32941
+#define ID_BUTTON_TRACK_COLOR           32941
+#define ID_BUTTON_TRACK_FILL            32942
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -151,7 +148,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        319
-#define _APS_NEXT_COMMAND_VALUE         32929
+#define _APS_NEXT_COMMAND_VALUE         32943
 #define _APS_NEXT_CONTROL_VALUE         1031
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

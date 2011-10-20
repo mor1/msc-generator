@@ -112,54 +112,18 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
 END
 
-IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 396
+IDD_DIALOG_OPTIONS DIALOGEX 0, 0, 257, 75
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Msc-generator Preferences"
+CAPTION "External Editor Details"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,137,375,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,200,375,50,14
-    LTEXT           "&Initial Chart text",IDC_STATIC,7,7,54,8
-    EDITTEXT        IDC_EDIT_DEFAULT_TEXT,7,18,243,48,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
-    GROUPBOX        "External Text Editor",IDC_STATIC,7,258,243,93
-    CONTROL         "&Windows Notepad",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,269,74,10
-    CONTROL         "&Notepad++",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,13,282,54,10
-    CONTROL         "&Other external editor:",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,13,293,87,10
-    CONTROL         "&Color Syntax Highlighting",IDC_CHECK_CSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,127,96,10
-    COMBOBOX        IDC_COMBO_CSH,179,126,63,82,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Use scheme:",IDC_STATIC,133,128,42,8
-    LTEXT           "&Start Command",IDC_STATIC,27,308,50,8
-    LTEXT           "Jump to &Line",IDC_STATIC,27,324,41,8
-    EDITTEXT        IDC_EDIT1,81,306,161,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT2,81,322,161,14,ES_AUTOHSCROLL
-    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,102,338,140,8
-    GROUPBOX        "Compilation options",IDC_STATIC,7,70,118,40
-    CONTROL         "&Pedantic (no implicit entities)",IDC_CHECK_PEDANTIC,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,81,107,10
-    CONTROL         "Show &Warnings",IDC_CHECK_WARNINGS,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,95,65,10
-    GROUPBOX        "Page breaks",IDC_STATIC,136,70,114,40
-    CONTROL         "Show while editing",IDC_CHECK_PB_EDITING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,81,75,10
-    CONTROL         "Show in embedded charts",IDC_CHECK_PB_EMBEDDED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,95,98,10
-    CONTROL         "Always open embedded documents instead of in-place editing",IDC_CHECK_ALWAYSOPEN,
-                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,14,357,213,10
-    GROUPBOX        "Internal Text Editor",IDC_STATIC,7,115,243,138
-    CONTROL         "&Smart &ident for labels",IDC_CHECK_SMART_IDENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,139,84,10
-    CONTROL         "&Auto completion information",IDC_CHECK_HINTS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,170,105,10
-    CONTROL         "typing an entity name",IDC_CHECK_SMART_HINT_ENTITY,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,210,86,10
-    CONTROL         "typing an attribute/option name",IDC_CHECK_SMART_HINT_ATTR_NAME,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,224,118,10
-    CONTROL         "typing an attribute/option value",IDC_CHECK_SMART_HINT_ATTR_VALUE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,238,118,10
-    CONTROL         "starting a new line",IDC_CHECK_SMART_HINT_LINE_START,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,36,196,75,10
-    CONTROL         "Group hints by prefix",IDC_CHECK_SMART_HINT_COMPACT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,160,182,83,10
-    CONTROL         "Filter as you type",IDC_CHECK_SMART_HINT_FILTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,160,196,72,10
-    LTEXT           "Automatically provide hints when...",IDC_STATIC,24,183,114,8
-    CONTROL         "Show errors as you type",IDC_CHECK_CSH_ERROR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,27,152,95,10
-    CONTROL         "Show errors in error window",IDC_CHECK_CSH_ERROR_IN_WINDOW,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,135,152,106,10
+    DEFPUSHBUTTON   "OK",IDOK,137,54,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,200,54,50,14
+    LTEXT           "&Start Command",IDC_STATIC,7,9,50,8
+    LTEXT           "Jump to &Line",IDC_STATIC,7,25,41,8
+    EDITTEXT        IDC_EDIT1,61,7,189,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,61,23,189,14,ES_AUTOHSCROLL
+    LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,110,39,140,8
 END
 
 IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
@@ -206,7 +170,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 250
         TOPMARGIN, 7
-        BOTTOMMARGIN, 389
+        BOTTOMMARGIN, 68
     END
 
     IDD_ABOUTBOX, DIALOG
@@ -484,7 +448,7 @@ BEGIN
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Reset &Aspect Ratio to 1:1\tCtrl+1", ID_VIEW_RESETASPECTRATIO_INPLACE
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
-        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS32864
+        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS
     END
     MENUITEM SEPARATOR
     MENUITEM SEPARATOR
@@ -562,7 +526,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
         MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
-        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS32863
+        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS
         MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
     END
     POPUP "&Help"
@@ -700,8 +664,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,4,0,0
- PRODUCTVERSION 3,4,0,0
+ FILEVERSION 3,4,1,0
+ PRODUCTVERSION 3,4,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -718,37 +682,18 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "3.4.0.0"
+            VALUE "FileVersion", "3.4.1.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "3.4.0.0"
+            VALUE "ProductVersion", "3.4.1.0"
         END
     END
     BLOCK "VarFileInfo"
     BEGIN
         VALUE "Translation", 0x409, 1252
     END
-END
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Dialog Info
-//
-
-IDD_DIALOG_OPTIONS DLGINIT
-BEGIN
-    IDC_COMBO_CSH, 0x403, 8, 0
-0x694d, 0x696e, 0x616d, 0x006c, 
-    IDC_COMBO_CSH, 0x403, 9, 0
-0x7453, 0x6e61, 0x6164, 0x6472, "\000" 
-    IDC_COMBO_CSH, 0x403, 9, 0
-0x6f43, 0x6f6c, 0x6672, 0x6c75, "\000" 
-    IDC_COMBO_CSH, 0x403, 15, 0
-0x7245, 0x6f72, 0x2d72, 0x726f, 0x6569, 0x746e, 0x6465, "\000" 
-    0
 END
 
 
@@ -852,9 +797,9 @@ BEGIN
     ID_EDIT_CUT             "Cut the selection in the Internal Editor and put it on the Clipboard\nCut"
     ID_EDIT_FIND            "Find the specified text\nFind"
     ID_EDIT_PASTE           "Insert Clipboard contents into the Internal Editor\nPaste"
-    ID_EDIT_REPEAT          "Repeat the last action\nRepeat"
+    ID_EDIT_REPEAT          "Repeat the last search or replace action\nRepeat"
     ID_EDIT_REPLACE         "Replace specific text with different text\nReplace"
-    ID_EDIT_SELECT_ALL      "Select the entire document\nSelect All"
+    ID_EDIT_SELECT_ALL      "Select the entire chart text in the Internal Editor.\nSelect All"
     ID_EDIT_UNDO            "Undo the last action\nUndo"
     ID_EDIT_REDO            "Redo the previously undone action\nRedo"
 END
@@ -906,11 +851,11 @@ STRINGTABLE
 BEGIN
     ID_FILE_EXPORT          "Export to graphics or text file\nExport"
     ID_BUTTON_EDITTEXT      "Edit Chart in External Text Editor\nExternal Editor"
-    ID_EDIT_PREFERENCES     "Edit Msc-generator options\nPreferences"
+    ID_EDIT_PREFERENCES     "Set what command to exectute to start the external editor or to jump to a certain line\nSet Details of External Editor"
     ID_VIEW_ZOOMIN          "Increase zoom factor by 10%\nZoom in"
     ID_VIEW_ZOOMOUT         "Decrease zoom factor by 10%\\Zoom out"
-    ID_VIEW_ADJUSTWIDTH     "Adjust window width to fit chart with current zoom level\nFit width"
-    ID_VIEW_FITTOWIDTH      "Adjust zoom level to fit window width\nFit to width"
+    ID_VIEW_ADJUSTWIDTH     "Adjust window width to fit chart while keeping current zoom level\nFit width"
+    ID_VIEW_FITTOWIDTH      "Adjust zoom level to fit current window width\nFit to width"
     ID_ZOOMMODE_KEEPINOVERVIEW 
                             "Automatically adjust zoom and window size after each update\nKeep in overview"
     ID_ZOOMMODE_KEEPADJUSTINGWINDOWWIDTH 
@@ -925,7 +870,7 @@ STRINGTABLE
 BEGIN
     ID_DESIGN_PAGE          "Select Page\nPage"
     ID_DESIGN_ZOOM          "Set Zoom\nZoom"
-    ID_DESIGN_DESIGN        "Set Design\nDesign"
+    ID_DESIGN_DESIGN        "Select a Design that will override the design selected in the chart text via the ""msc=<design>"" option.\nSet Design"
     ID_VIEW_RESETASPECTRATIO_INPLACE 
                             "Reset the aspect ratio to 1:1\nReset Aspect Ratio"
 END
@@ -933,7 +878,27 @@ END
 STRINGTABLE
 BEGIN
     IDC_OUTPUT_LIST         "Output"
-    IDC_INTERNAL_EDITOR     "Internal Editor"
+    IDC_INTERNAL_EDITOR     "Show page break indicators for multi-page charts in the Msc-generator window\nShow Page Indicators"
+    IDC_CHECK_PB_EMBEDDED   "Show page break indicators for multi-page charts in embedded charts\nShow Page Indicators in Embedded Charts"
+    IDC_CHECK_CSH           "Enable Color Syntax Highlighting\nEnable Color Syntax Highlighting"
+    IDC_CHECK_SMART_IDENT   "Automatically ident subsequent lines of a multi-line label to the first line.\nEnable Smart Ident"
+    IDC_COMBO_CSH           "Select the coloring scheme to use\nColor Scheme"
+    IDC_CHECK_HINTS         "Provide hints for auto-completion when Ctrl+Space is pressed\nEnable Auto-Completion Hints"
+    IDC_CHECK_SMART_HINT_ENTITY 
+                            "Automatically suggest hints when an entity name is expected.\nAutomatic Hints for Entities"
+    IDC_CHECK_SMART_HINT_ATTR_NAME 
+                            "Automatically suggest hints when an attribute or option name is expected.\nAutomatic Hints for Attribute Names"
+    IDC_CHECK_SMART_HINT_ATTR_VALUE 
+                            "Automatically suggest hints when an attribute or option value is expected.\nAutomatic Hints for Attribute Values"
+    IDC_CHECK_SMART_HINT_LINE_START 
+                            "Automatically suggest hints when starting a new line or for keywords.\nAutomatic Hints at New Line"
+    IDC_CHECK_SMART_HINT_COMPACT 
+                            "When several possible attribute names start the same way, collapse them to a single entity (such as ""line.*"") to reduce the number of hints.\nGroup Hints by Prefix"
+    IDC_CHECK_SMART_HINT_FILTER 
+                            "Display only those hints, which start with the text already typed\nFlter Hints as You Type"
+    IDC_CHECK_CSH_ERROR     "Underline error locations in the text (in addition to first appearance of entities)\nHint Errors as You Type"
+    IDC_CHECK_CSH_ERROR_IN_WINDOW 
+                            "Display error messages in a separate window, as you type\nHint Errors in Window"
 END
 
 STRINGTABLE
@@ -960,14 +925,45 @@ STRINGTABLE
 BEGIN
     ID_HELP_HELP            "Opens help"
     ID_VIEW_PREVERROR       "Go to the previous error\nPrevious error"
-    ID_BUTTON_AUTO_SPLIT    "Split view and keeps entity heading at top pane."
+    ID_BUTTON_AUTO_SPLIT    "Split view and keeps entity headings synchronized at top pane irrespective of where you pan or zoom the lower part.\nToggle Auto Split"
+END
+
+STRINGTABLE
+BEGIN
     ID_VIEW_SHOWELEMENTCONTROLS 
-                            "Show Collapse/Expand controls for chart elements "
+                            "Show or Hide Collapse/Expand controls for chart elements.\nShow\\Hide Element Controls"
 END
 
 STRINGTABLE
 BEGIN
     ID_INDICATOR_TRK        "Track"
+END
+
+STRINGTABLE
+BEGIN
+    ID_BUTTON_DEFAULT_TEXT  "From now on use the text of the current chart as the initial text of a new chart.\nSet Default Text to Current Chart"
+END
+
+STRINGTABLE
+BEGIN
+    IDC_CHECK_PEDANTIC      "Generate an error if an entity is used in a box or arrow before it is explicitly defined. This is useful to avoid mistyped entity names.\nPedantic"
+    IDC_CHECK_WARNINGS      "Include warning messages into compiler output.\nDisplay Warnings"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EXTERNAL_EDITOR_COMBO 
+                            "Select what external program to invoke when pressing the Enternal Editor button.\nSelect External Editor."
+END
+
+STRINGTABLE
+BEGIN
+    ID_CHECK_EE_NOTEPAD     "Use Windows Notepad as external editor\nWindows Notepad"
+    ID_CHECK_EE_NOTEPADPP   "Use Notepad++ as external editor\nNotepad++. Available only when Notepad++ is installed. See http://notepad-plus-plus.org."
+    ID_CHECK_EE_OTHER       "Use a user-specified editor as external editor. Specify the command line by pressing the button to the right.\nUser Specified Editor"
+    ID_SPIN_PAGE            "Select Page (available only for multi-page charts)\nPage"
+    ID_BUTTON_TRACK_COLOR   "Specifies the color of tracking rectangles.\nSet Tracking Color"
+    ID_BUTTON_TRACK_FILL    "Specifies the Line colr"
 END
 
 #endif    // English (United States) resources

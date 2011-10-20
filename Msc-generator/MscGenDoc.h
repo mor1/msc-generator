@@ -126,6 +126,7 @@ public:
 
 	void ChangeDesign(const char *design);
     void ChangePage(unsigned page);
+    void StepPage(signed int step);
 
 	//Zoom functions
 			void SetZoom(int zoom=0);                        //Update views with new zoom factor. ==0 means just reset toolbar
@@ -163,6 +164,7 @@ public:
 	void HighLightArc(const TrackableElement *arc);      //Select in internal editor
     bool OnControlClicked(TrackableElement *arc, MscControlType t); //Do what is needed if a control is clicked. Ture if chart invalidated.
 	afx_msg void OnHelpHelp();
+    afx_msg void OnEditSelectAll();
 };
 
 

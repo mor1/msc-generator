@@ -68,9 +68,11 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_COMMAND(ID_DESIGN_PAGE, OnDesignPage)
 	ON_CBN_SELENDOK(ID_DESIGN_PAGE, OnDesignPage)
 	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignPage)
+	ON_COMMAND(ID_DESIGN_PAGE_FULL_SCREEN_NEXT, OnDesignNextPage)
+	ON_COMMAND(ID_DESIGN_PAGE_FULL_SCREEN_PREV, OnDesignPrevPage)
 	ON_COMMAND(ID_DESIGN_DESIGN, OnDesignDesign)
 	ON_CBN_SELENDOK(ID_DESIGN_DESIGN, OnDesignDesign)
-	ON_UPDATE_COMMAND_UI(ID_DESIGN_PAGE, OnUpdateDesignDesign)
+	ON_UPDATE_COMMAND_UI(ID_DESIGN_DESIGN, OnUpdateDesignDesign)
 	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
 	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
 END_MESSAGE_MAP()
@@ -156,8 +158,25 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	EnableFullScreenMode(ID_VIEW_FULL_SCREEN);
 	EnableFullScreenMainMenu(FALSE);
 
-	//CMFCButton::EnableWindowsTheming ();
-	return 0;
+
+    //Set inital value of CSH scheme combo box
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(IDC_COMBO_CSH, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    c->SelectItem(pApp->m_nCshScheme);
+
+    //Set initial value for tracking color button
+    m_wndRibbonBar.GetElementsByID(ID_BUTTON_TRACK_COLOR, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonColorButton *cb = dynamic_cast<CMFCRibbonColorButton*>(arButtons[0]);    
+    //Make it 50% lighter - as if 50% transparent on white background
+    unsigned char r = GetRValue(pApp->m_trackFillColor); 
+    unsigned char g = GetGValue(pApp->m_trackFillColor); 
+    unsigned char b = GetBValue(pApp->m_trackFillColor); 
+    cb->SetColor(RGB(r, g, b));
+    
+    return 0;
 }
 
 BOOL CMainFrame::OnCreateClient(LPCREATESTRUCT /*lpcs*/,
@@ -398,12 +417,13 @@ bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
             //Add page combo, if more than one page
             CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
             CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-            if (pDoc && pApp) {
-                CMFCToolBarComboBoxButton pageButton (ID_DESIGN_PAGE,
-                    GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE, FALSE), CBS_DROPDOWNLIST, 70);
-                p->InsertButton(pageButton);
-                //TODO: query Toolbar Combo boxes
-                //FillPageComboBox(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
+            if (pDoc && pApp && pDoc->m_ChartShown.GetPages()>1) {
+                CMFCToolBarButton nextButton (ID_DESIGN_PAGE_FULL_SCREEN_NEXT,
+                    GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE_FULL_SCREEN_NEXT, FALSE), "Next Page");
+                CMFCToolBarButton prevButton (ID_DESIGN_PAGE_FULL_SCREEN_PREV,
+                    GetCmdMgr ()->GetCmdImage (ID_DESIGN_PAGE_FULL_SCREEN_PREV, FALSE), "Previous Page");
+                p->InsertButton(nextButton);
+                p->InsertButton(prevButton);
             }
             //Arrange size
             CPaneFrameWnd *f = dynamic_cast<CPaneFrameWnd *>(i);
@@ -555,9 +575,9 @@ void CMainFrame::OnDesignDesign()
     m_wndRibbonBar.GetElementsByID(ID_DESIGN_DESIGN, arButtons);
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
-	unsigned index = c->GetCurSel();
+	int index = c->GetCurSel();
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
-    if (pDoc) 
+    if (pDoc && index>=0) 
         pDoc->ChangeDesign(index<=0 ? "" : c->GetItem(index));
 }
 
@@ -582,14 +602,15 @@ void CMainFrame::FillPageComboBox(int no_pages, int page)
 		c->RemoveAllItems();
 		//Fill combo list with the appropriate number of pages
 		if (no_pages > 1) {
-            c->AddItem("(all)", 0);
             CString str;
+            str.Format("(all)/%d", no_pages);
+            c->AddItem(str, 0);
 			for (int i=1; i<=no_pages; i++) {
-				str.Format("%d", i);
+				str.Format("%d/%d", i, no_pages);
 				c->AddItem(str, i);
 			}
         } else {
-            c->AddItem("(no pages)", 0);
+            c->AddItem("1/1", 0);
         }
 		c->SetDropDownHeight(250);
 	}
@@ -615,6 +636,20 @@ void CMainFrame::OnUpdateDesignPage(CCmdUI *pCmdUI)
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
     if (pDoc) 
         pCmdUI->Enable(pDoc->m_ChartShown.GetPages()>1);
+}
+
+void CMainFrame::OnDesignNextPage()
+{
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pDoc->StepPage(+1);
+}
+
+void CMainFrame::OnDesignPrevPage()
+{
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pDoc->StepPage(-1);
 }
 
 void CMainFrame::FillZoomComboBox(int zoom)
@@ -670,5 +705,7 @@ void CMainFrame::OnDesignZoom()
 		pDoc->SetZoom(atoi(text));
 	}
 }
+
+
 
 
