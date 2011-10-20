@@ -1205,3 +1205,12 @@ void CEditorBar::TextNotFound(LPCTSTR /*lpszFind*/)
 	m_bFirstSearch = TRUE;
 	MessageBeep(MB_ICONHAND);
 }
+
+
+void CEditorBar::SelectAll()
+{
+    CHARRANGE cr;
+    cr.cpMin = 0;
+    cr.cpMax = m_ctrlEditor.GetTextLength();
+	m_ctrlEditor.SetSel(cr);
+}

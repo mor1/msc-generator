@@ -1310,8 +1310,7 @@ entity:       entity_string full_arcattrlist_with_label
   #else
     EntityDef *ed = new EntityDef($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
-    ed->AddAttributeList($2, NULL, file_line());
-    $$ = (EntityDefList*)((new EntityDefList)->Append(ed));
+    $$ = ed->AddAttributeList($2, NULL, file_line());
   #endif
     free($1);
 }

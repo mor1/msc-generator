@@ -122,4 +122,5 @@ public:
 	BOOL FindText(LPCTSTR lpszFind, BOOL bCase = TRUE, BOOL bWord = TRUE, BOOL bNext = TRUE);
 	long FindAndSelect(DWORD dwFlags, FINDTEXTEX& ft);
 	void TextNotFound(LPCTSTR lpszFind);
+    void SelectAll(); 
 };

@@ -1065,6 +1065,7 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
                 area_segment = BigContourOneEntity(xPos[i], act_size[i], sy, dy, bidir, 
                                                    type, MSC_ARROW_MIDDLE, *ltype_current, false, &margin);
             }
+            from_x = xPos[i] + margin;
     }
     //draw rightmost arrowhead
     const MscArrowEnd e_right = forward ? MSC_ARROW_END : MSC_ARROW_START;
