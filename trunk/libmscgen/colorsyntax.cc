@@ -4171,9 +4171,8 @@ yyreduce:
         if (csh.CheckHintAtAndBefore((yylsp[(2) - (3)]), (yylsp[(3) - (3)]), HINT_ATTR_VALUE, "msc")) {
             csh.AddDesignsToHints();
             csh.hintStatus = HINT_READY;
-        } else
-            csh.CheckHintAt((yylsp[(1) - (3)]), HINT_ATTR_NAME);
-        csh.SetDesignTo((yyvsp[(1) - (3)].str));
+        } 
+        csh.SetDesignTo((yyvsp[(3) - (3)].str));
   #else
         msc.AddAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), MSC_POS((yyloc)), MSC_POS((yylsp[(3) - (3)]))));
         (yyval.arcbase) = NULL;

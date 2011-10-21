@@ -1236,9 +1236,8 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, "msc")) {
             csh.AddDesignsToHints();
             csh.hintStatus = HINT_READY;
-        } else
-            csh.CheckHintAt(@1, HINT_ATTR_NAME);
-        csh.SetDesignTo($1);
+        } 
+        csh.SetDesignTo($3);
   #else
         msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
         $$ = NULL;

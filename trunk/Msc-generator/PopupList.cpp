@@ -120,32 +120,32 @@ inline CRect ConvertABCDToCRect(const CshHint *p)
 void CHintListBox::SetStringUnderCursor(const char *uc)
 {
     if (GetCount()==0) return;
-    int i;
-    int smaller = -1;  //the last one that is still smaller and selectable
+    //Go through and determine the longest matching entry
+    //elements are not necessarily sorted alphabetically
+    int match_index = -1;  
+    unsigned match_len = 0;
     if (uc && uc[0]) {
-        for (i=0; i<GetCount(); i++) {
+        const unsigned uc_len = strlen(uc);
+        for (int i=0; i<GetCount(); i++) {
             const CshHint *item= GetHint(i);
             if (!item->selectable) continue; 
             const char *p = item->plain.c_str(); 
-            int j=0;
-            while (p[j]&&uc[j]&&toupper(p[j])==toupper(uc[j])) j++;
-            //if exact or prefix match select this
-            if (p[j]==uc[j] || uc[j]==0) {
-                ChangeSelectionTo(i, HINT_ITEM_SELECTED);
+            unsigned len = CaseInsensitiveCommonPrefixLen(p, uc);
+            if (len==item->plain.length()) {
+                if (len==uc_len) 
+                    //if p == uc, we select
+                    ChangeSelectionTo(i, HINT_ITEM_SELECTED);
+                else 
+                    //if uc is longer than p, we select half
+                    ChangeSelectionTo(i, HINT_ITEM_SELECTED_HALF);
                 return;
             }
-            //if we went beyond, select only half
-            if (toupper(p[j]) > toupper(uc[j])) {
-                if (smaller < 0) ChangeSelectionTo(i, HINT_ITEM_SELECTED_HALF);
-                else ChangeSelectionTo(smaller, HINT_ITEM_SELECTED_HALF);
-                return;
-            }
-            smaller = i;
+            if (len <= match_len) continue;
+            match_index = i;
+            match_len = len;
         }
-        //We did not find any selectable, do not select anything
     }
-    ChangeSelectionTo(-1);
-    return;
+    ChangeSelectionTo(match_index);
 }
 
 //offset +-1 for up/down arrow, +-2 for pgup/dn
