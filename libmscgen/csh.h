@@ -8,6 +8,7 @@
 #include<set>
 #include<map>
 #include<stack>
+#include "color.h"
 
 #ifndef _ASSERT
 #define  _ASSERT(A)
@@ -119,8 +120,8 @@ typedef bool (*CshHintGraphicCallback)(MscCanvas*, CshHintGraphicParam);
 class CshContext
 {
 public:
-    std::map<std::string, CshHintGraphicParam> Colors;
-    std::set<std::string>                      StyleNames;
+    ColorSet              Colors;
+    std::set<std::string> StyleNames;
     void SetPlain();
     CshContext &operator+=(const CshContext &o) {
         Colors.insert(o.Colors.begin(), o.Colors.end());

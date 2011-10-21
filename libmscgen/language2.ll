@@ -203,19 +203,15 @@ do {                                                \
 
  /* A simple quoted string. */
 \"[^\"\x0d\x0a]*\" %{
-  #ifdef C_S_H_IS_COMPILED
-    yylval_param->str = strdup(yytext);
-  #else
     yylval_param->str = strdup(yytext+1);
     yylval_param->str[strlen(yylval_param->str) - 1] = '\0';
-  #endif
     return TOK_QSTRING;
 %}
 
  /* A simple quoted string, missing a closing quotation mark */
 \"[^\"\x0d\x0a]*/\x0d\x0a %{
   #ifdef C_S_H_IS_COMPILED
-    yylval_param->str = strdup(yytext);
+    yylval_param->str = strdup(yytext+1);
   #else
     {
     yylval_param->str = strdup(yytext+1);

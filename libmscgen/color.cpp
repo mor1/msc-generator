@@ -85,7 +85,16 @@ bool ColorSet::AddColor(const std::string alias, const std::string colordef,
     return false;
 }
 
-MscColorType ColorSet::GetColor(const std::string &s) const
+inline string remove_spaces(const string &s) 
+{
+    unsigned a = s.find_first_not_of(" \t\n");
+    if (a == string::npos) 
+        return string();    
+    unsigned b = s.find_last_not_of(" \t\n");
+    return s.substr(a, b-a+1);
+}
+
+MscColorType ColorSet::GetColor(const std::string &s_original) const
 {
     /* s can be one of four things
      * 1. a color name
@@ -95,13 +104,15 @@ MscColorType ColorSet::GetColor(const std::string &s) const
      * 5. three int value separated by commas (rgb)
      * 6. four int values separated by commas (rgba)
      */
+    string s = remove_spaces(s_original);
     const_iterator i = find(s);
     //if #1, return the value for the color name
     if (this->end()!=i) return i->second;
 	size_t pos = s.find_first_of(",+-");
     //if no comma, + or - and not #1, return invalid color
     if (pos == string::npos) return MscColorType();
-    i = find(s.substr(0, pos));
+    string name = remove_spaces(s.substr(0, pos));
+    i = find(name);
     //if first element in collection, see if followidered by an alpha value and/or lightness
     if (this->end()!=i) {
         MscColorType color = i->second;

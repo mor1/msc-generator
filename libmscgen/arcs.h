@@ -227,7 +227,7 @@ protected:
     mutable std::vector<DoublePair> margins; //margins sorted
     mutable Contour text_cover;   //so that we can hide entity lines in PostPosProcess - not used by ArcBigArrow
     mutable double centerline; //y offset of line compared to yPos
-    mutable Contour clip_area;
+    mutable Contour clip_area; //Used only by DirArrow to mask out the line at arrowheads
 public:
     ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc, bool fw, const MscStyle &);
@@ -240,6 +240,7 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover);
+    void CalculateMainline(double thickness);
     MscArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
     virtual void ShiftBy(double y);
     void CheckSegmentOrder(double y);
@@ -257,7 +258,6 @@ protected:
     mutable double ind_off;   //if we draw an indicator inside, this is its y offset from top of text
     mutable int stext, dtext; //filled by Width: index the two entity in xPos between which the text spans (sorted)
     mutable double sm, dm;    //filled by Width: margin (left and right) for text
-    mutable Contour label_cover;
     mutable std::vector<Contour> outer_contours; //the outer line of all segments
 public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);

@@ -619,8 +619,8 @@ void CshContext::SetPlain()
     plain.Reset();
     for (auto i=plain.colors.begin(); i!=plain.colors.end(); i++)
         Colors[i->first] = i->second;
-    StyleNames.insert("weak");
-    StyleNames.insert("strong");
+    for (auto i=plain.styles.begin(); i!=plain.styles.end(); i++)
+        StyleNames.insert(i->first);
 }
 
 Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1)
@@ -908,6 +908,14 @@ bool CshHintGraphicCallbackForColors(MscCanvas *canvas, CshHintGraphicParam p)
     MscColorType color(p);
     Block b(XY(off_x, off_y), XY(off_x+size, off_y+size));
     b.Round();
+    if (color.a<255) {
+        MscFillAttr fill(MscColorType(255,255,255), GRADIENT_NONE);
+        canvas->Fill(b.CenterPoint(), b.UpperLeft(), fill);
+        canvas->Fill(b.CenterPoint(), b.LowerRight(), fill);
+        fill.color.second = MscColorType(196,196,196);
+        canvas->Fill(b.CenterPoint(), b.UpperRight(), fill);
+        canvas->Fill(b.CenterPoint(), b.LowerLeft(), fill);
+    }
     canvas->Fill(b, MscFillAttr(color, GRADIENT_NONE));
     b.Expand(0.5);
     canvas->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0));
@@ -1020,7 +1028,8 @@ bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam)
 void Csh::AddStylesToHints()
 {
     for (auto i=Contexts.back().StyleNames.begin(); i!=Contexts.back().StyleNames.end(); i++)
-        AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
+        if (ForbiddenStyles.find(*i) == ForbiddenStyles.end())
+            AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
 }
 
 void Csh::AddOptionsToHints() 

@@ -1108,39 +1108,46 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
         area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
     }
-    lw_max = std::max(lw_max, chart->nudgeSize+1.0);
-    if (slant_angle == 0) {
-        area.mainline = Block(0, chart->total.x, y - lw_max/2, y + lw_max/2);
-        cover = GetCover4Compress(area);
-        return std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
-    }
-    //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
-    //are in the transformed space
-    //Now we transfrom "area" and "text_cover", too
-    const XY c(sx, centerline);
-    area.RotateAround(c, slant_angle);
-    text_cover.RotateAround(c, slant_angle);
-    clip_area.RotateAround(c, slant_angle);
-
-    //calculate mainline
-    lw_max /= cos_slant;
-    const double dy = sin_slant*(dx-sx) + y;
-    const double real_dx = sx + cos_slant*(dx-sx);
-    if (sx<dx) {
-        const XY ml[] = {XY(0,   y-lw_max/2), XY(sx, y-lw_max/2), 
-                         XY(real_dx, dy-lw_max/2), XY(chart->total.x, dy-lw_max/2), 
-                         XY(chart->total.x, dy+lw_max/2), XY(real_dx, dy+lw_max/2), 
-                         XY(sx, y+lw_max/2), XY(0, y+lw_max/2)};
-        area.mainline.assign_dont_check(ml);
-    } else {
-        const XY ml[] = {XY(0, dy-lw_max/2), XY(real_dx, dy-lw_max/2), 
-                         XY(sx, y-lw_max/2), XY(chart->total.x, y-lw_max/2), 
-                         XY(chart->total.x, y+lw_max/2), XY(sx, y+lw_max/2), 
-                         XY(real_dx, dy+lw_max/2), XY(0, dy+lw_max/2)};
-        area.mainline.assign_dont_check(ml);
+    CalculateMainline(std::max(lw_max, chart->nudgeSize+1.0));
+    if (slant_angle != 0) {
+        //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
+        //are in the transformed space
+        //Now we transfrom "area" and "text_cover", too
+        const XY c(sx, yPos+centerline);
+        area.RotateAround(c, slant_angle);
+        text_cover.RotateAround(c, slant_angle); //not used for bigarrows so is empty
+        clip_area.RotateAround(c, slant_angle); //not used for bigarrows so is empty
     }
     cover = GetCover4Compress(area);
+    if (slant_angle==0)
+        return std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
     return area.GetBoundingBox().y.till;
+}
+
+
+void ArcDirArrow::CalculateMainline(double thickness)
+{
+    if (slant_angle == 0) 
+        area.mainline = Block(0, chart->total.x, yPos+centerline - thickness/2, yPos+centerline + thickness/2);
+    else {
+        thickness /= cos_slant;
+        const double src_y = yPos+centerline;
+        const double dst_y = sin_slant*(dx-sx) + src_y;
+        const double real_dx = sx + cos_slant*(dx-sx);
+        if (sx<dx) {
+            const XY ml[] = {XY(0,   src_y-thickness/2), XY(sx, src_y-thickness/2), 
+                             XY(real_dx, dst_y-thickness/2), XY(chart->total.x, dst_y-thickness/2), 
+                             XY(chart->total.x, dst_y+thickness/2), XY(real_dx, dst_y+thickness/2), 
+                             XY(sx, src_y+thickness/2), XY(0, src_y+thickness/2)};
+            area.mainline.assign_dont_check(ml);
+        } else {
+            const XY ml[] = {XY(0, dst_y-thickness/2), XY(real_dx, dst_y-thickness/2), 
+                             XY(sx, src_y-thickness/2), XY(chart->total.x, src_y-thickness/2), 
+                             XY(chart->total.x, src_y+thickness/2), XY(sx, src_y+thickness/2), 
+                             XY(real_dx, dst_y+thickness/2), XY(0, dst_y+thickness/2)};
+            area.mainline.assign_dont_check(ml);
+        }
+    }
 }
 
 void ArcDirArrow::ShiftBy(double y)
@@ -1390,8 +1397,8 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
                                     isBidir(), t_right_end, e_right, dy-sy, 
                                     *act_size.rbegin(), *segment_lines.rbegin());
 
-    distances.Insert(*indexes.begin(), DISTANCE_RIGHT, sp_left_end);
-    distances.Insert(*indexes.rbegin(), DISTANCE_LEFT, sp_right_end);
+    distances.Insert(*indexes.begin(), DISTANCE_RIGHT, sp_left_end*cos_slant);
+    distances.Insert(*indexes.rbegin(), DISTANCE_LEFT, sp_right_end*cos_slant);
 
     //Collect iterators and distances into arrays
     margins.reserve(2+middle.size()); margins.clear();
@@ -1414,12 +1421,12 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
         //if neighbours
         if (indexes[i] + 1 == indexes[i+1]) {
             distances.Insert(indexes[i], indexes[i+1],
-                             margins[i].second + margins[i+1].first + chart->compressGap);
+                             (margins[i].second + margins[i+1].first + chart->compressGap)*cos_slant);
         } else {
             distances.Insert(indexes[i], indexes[i] + 1,
-                             margins[i].second + chart->compressGap);
+                             (margins[i].second + chart->compressGap)*cos_slant);
             distances.Insert(indexes[i+1]-1, indexes[i+1],
-                             margins[i+1].first + chart->compressGap);
+                             (margins[i+1].first + chart->compressGap)*cos_slant);
         }
     }
 
@@ -1434,7 +1441,7 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     dm = style.arrow.getBigMargin(tcov, sy, dy, false, isBidir(), d_type,
                                   segment_lines[stext]);
     distances.Insert(indexes[stext], indexes[dtext], 
-        sm + twh.x + dm + act_size[stext] +act_size[dtext]);
+        (sm + twh.x + dm + act_size[stext] +act_size[dtext])*cos_slant);
 }
 
 
@@ -1444,46 +1451,55 @@ double ArcBigArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     yPos = 0;
 
     //Reuse sy and dy set in Width()
-    centerline = (sy+dy)/2;
+    centerline = (sy+dy)/2; //Note that we rotate around (sx, yPos+centerline)
 
     //set sx and dx
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
+    //convert dx to transformed space
+    if (slant_angle)
+        dx = sx + (dx-sx)/cos_slant;
+
     //prepare xPos (margins were already done in Width)
     xPos.clear(); xPos.reserve(2+middle.size());
     xPos.push_back(sx);
     for (unsigned i=0; i<middle.size(); i++)
-        xPos.push_back(chart->XCoord(middle[i]));
+        xPos.push_back(sx + (chart->XCoord(middle[i])-sx)/cos_slant);
     xPos.push_back(dx);
-    if (sx > dx) 
+    if (sx >= dx) 
         std::reverse(xPos.begin(), xPos.end());
     //calculate text margings
     sx_text = xPos[stext] + sm + act_size[stext];
     dx_text = xPos[dtext] - dm - act_size[dtext];
     cx_text = (xPos[stext] + xPos[dtext])/2;
-    label_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
+    //text_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, outer_contours);
     area.arc = this;
-    //set mainline - not much dependent on main line with
-    area.mainline = Block(0, chart->total.x, centerline - chart->nudgeSize/2, centerline + chart->nudgeSize/2);
-
     //due to thick lines we can extend above y==0. Shift down to avoid it
     if (area.GetBoundingBox().y.from < chart->arcVGapAbove)
         ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
+
+    CalculateMainline(chart->nudgeSize);
+    if (slant_angle != 0) {
+        //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
+        //are in the transformed space
+        //Now we transfrom "area" and "text_cover", too
+        const XY c(sx, yPos+centerline);
+        area.RotateAround(c, slant_angle);
+        text_cover.RotateAround(c, slant_angle); 
+    }
     cover = GetCover4Compress(area);
-    return centerline*2 - chart->arcVGapAbove + chart->arcVGapBelow + style.shadow.offset.second;
+    return area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
 }
 
 void ArcBigArrow::ShiftBy(double y)
 {
     if (!valid) return;
-    centerline += y;
     sy += y;
     dy += y;
-    label_cover.Shift(XY(0,y));
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
         i->Shift(XY(0,y));
-    ArcArrow::ShiftBy(y); //Skip ArcDirArrow
+    ArcDirArrow::ShiftBy(y); //This shifts clip_area, too, but that shall be empty anyway
 }
 
 void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
@@ -1496,18 +1512,26 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
         controls.push_back(MSC_CONTROL_COLLAPSE);        
     }
     ArcArrow::PostPosProcess(canvas, autoMarker); //Skip ArcDirArrow
-    for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
-        chart->HideEntityLines(*i);
+    const XY c(sx, yPos+centerline);
+    for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++) {
+        Contour tmp(*i);
+        tmp.RotateAround(c, slant_angle);
+        chart->HideEntityLines(tmp);
+    }
 }
 
 void ArcBigArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
     if (pass!=draw_pass) return;
+    if (slant_angle)
+        style.arrow.TransformCanvasForAngle(slant_angle, canvas, sx, yPos+centerline);
     style.arrow.BigDrawFromContour(outer_contours, &segment_lines, style.fill, style.shadow, canvas);
     parsed_label.Draw(&canvas, sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
         DrawIndicator(XY(cx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside+ind_off), &canvas);
+    if (slant_angle)
+        style.arrow.UnTransformCanvas(canvas);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

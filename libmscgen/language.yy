@@ -1505,7 +1505,7 @@ colordef : TOK_STRING TOK_EQUAL string
     csh.AddCSH(@1, COLOR_COLORNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_COLORDEF);
-    MscColorType color($3);
+    MscColorType color = csh.Contexts.back().Colors.GetColor($3);
     if (color.valid)
         csh.Contexts.back().Colors[$1] = color;
   #else

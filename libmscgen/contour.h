@@ -209,8 +209,8 @@ public:
     is_within_t IsWithin(const XY &p) const {is_within_t ret = ContourWithHoles::IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
     void Shift(const XY &xy) {ContourWithHoles::Shift(xy); if (further.size()) further.Shift(xy); boundingBox.Shift(xy);}
     void SwapXY() {ContourWithHoles::SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY();}
-	void Rotate(double degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
-    void RotateAround(const XY&c, double degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
+	void Rotate(double degrees) {if (!degrees) return; double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
+    void RotateAround(const XY&c, double degrees) {if (!degrees) return; double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
 
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return a;}
     Contour CreateSwapXYd() {Contour a(*this); a.SwapXY(); return a;}
