@@ -640,7 +640,7 @@ void CMscGenDoc::OnFileExport()
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_X", scale.m_xy_x);
         AfxGetApp()->WriteProfileInt(REG_SECTION_SETTINGS, "SCALING_XY_Y", scale.m_xy_y);
     }
-    m_ChartShown.DrawToFile(name, x_scale, y_scale);
+    m_ChartShown.DrawToFile(name, false, x_scale, y_scale);
 }
 
 void CMscGenDoc::OnUpdateEditUndo(CCmdUI *pCmdUI)

@@ -1116,7 +1116,7 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     }
     //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
     //are in the transformed space
-    //Now we transfrom "area", "text_cover" and "clip" area, too
+    //Now we transfrom "area" and "text_cover", too
     const XY c(sx, centerline);
     area.RotateAround(c, slant_angle);
     text_cover.RotateAround(c, slant_angle);
@@ -1222,28 +1222,32 @@ void ArcDirArrow::Draw(MscCanvas &canvas, DrawPassType pass)
     if (!valid) return;
     if (pass!=draw_pass) return;
     const double y = yPos+centerline;  //should be integer
-    if (slant_angle)
-        style.arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
-    if (parsed_label.getTextWidthHeight().y)
+    if (parsed_label.getTextWidthHeight().y) {
+        if (slant_angle)
+            style.arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
         parsed_label.Draw(&canvas, sx_text, dx_text, yPos + chart->arcVGapAbove, cx_text, slant_angle!=0);
+        if (slant_angle)
+            style.arrow.UnTransformCanvas(canvas);
+    }
     /* Draw the line */
     //all the entities this (potentially multi-segment arrow visits)
     const int mul = (sx<dx) ? 1 : -1;
-    //TODO: Fix clipping... Why does not clip_area work for slanted arrows?
-    //TOD: Also, why does we draw a thin line for slanted?
-    if (canvas.NeedsArrowFix() || slant_angle) {
-        for (unsigned i=0; i<xPos.size()-1; i++)
-            canvas.Line(XY(xPos[i  ]+margins[i  ].second+act_size[i  ]*mul, y), 
-                        XY(xPos[i+1]-margins[i+1].first -act_size[i+1]*mul, y), 
-                        segment_lines[i]);
-    } else {
-        canvas.Clip(clip_area);
-        for (unsigned i=0; i<xPos.size()-1; i++)
-            canvas.Line(XY(xPos[i], y), XY(xPos[i+1], y), segment_lines[i]);
-            //chart->Line(XY(xPos[i]+margins[i].second, y), XY(xPos[i+1]-margins[i+1].first, y), style.line);
-        canvas.UnClip();
+    if (!canvas.NeedsArrowFix()) canvas.Clip(clip_area);
+    for (unsigned i=0; i<xPos.size()-1; i++) {
+        double sta_x = xPos[i];
+        double end_x = xPos[i+1];
+        if (canvas.NeedsArrowFix()) {
+            sta_x += +margins[i  ].second+act_size[i  ]*mul;
+            end_x += -margins[i+1].first -act_size[i+1]*mul;
+        }
+        const XY sta(sx + (sta_x-sx)*cos_slant, y + (sta_x-sx)*sin_slant);
+        const XY end(sx + (end_x-sx)*cos_slant, y + (end_x-sx)*sin_slant);
+        canvas.Line(sta, end, segment_lines[i]);
     }
+    if (!canvas.NeedsArrowFix()) canvas.UnClip();
     /* Now the arrow heads */
+    if (slant_angle)
+        style.arrow.TransformCanvasForAngle(slant_angle, canvas, sx, y);
     for (unsigned i=0; i<xPos.size(); i++)
         style.arrow.Draw(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i), 
                          segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)],
@@ -1493,7 +1497,7 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     }
     ArcArrow::PostPosProcess(canvas, autoMarker); //Skip ArcDirArrow
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
-    chart->HideEntityLines(*i);
+        chart->HideEntityLines(*i);
 }
 
 void ArcBigArrow::Draw(MscCanvas &canvas, DrawPassType pass)
