@@ -9,22 +9,13 @@ Two helpers needed:
  Allow new function only for metafiles
 
 
-PLANNED in 3.5
-FIX: What is the problem with ex37??? in GNU
+PLANNED in future releases
 CHANGE: Switched to cairo 1.10 and the new pixman after summer.
    - Bug1: hints drawing into popubox
    - Bug2: EMF re-scaling
+CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 ADD: shadow to arrows and labels
 ADD: Comments to arcs (leftside, rightside, bubble)
-ADD: Expand parallel behaviour
-	- add valign={top, center, bottom} attribute
-	- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
-		should return one)
-	- add overlap=no attribute to use compress, but downward...
-	- add these attributes to the style under parallel.valign and parallel.overlaps
-ADD: arrows in an angle
-	Arrows
-	Block arrows
 Divider package
 	ADD: Make divider only within a box
 	ADD: Allow divider to have entities
@@ -32,14 +23,29 @@ To be considered
 	ADD: more styles to design lib
 	ADD: More arrow types --> ==> >>> ..> 
 ADD: variant #1 double and triple-line joints for emphasis
-CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
-CANCELLED: Re-add escape key to exit in-place editing...
-FIX: Node hideentitylines, for radius bigger than 70
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
-CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 
-In 3.3
+In 3.4
+
+ADD: symbol cross/text [marker] at vertxpos [rotate];
+ADD: message lost (and lost arrowhead)
+ADD: mark centerline
+FIX: Regression Bugs in Contour Expand still remain...
+FIX: Too much compress after adding MITER_LIMIT
+FIX: Triple bevel changes size when size limited.
+FIX: examples. Missing lines ???
+FIX: Node hideentitylines, for radius bigger than 70
+
+CANCELLED: Expand parallel behaviour
+	- add valign={top, center, bottom} attribute
+	- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers
+		should return one)
+	- add overlap=no attribute to use compress, but downward...
+	- add these attributes to the style under parallel.valign and parallel.overlaps
+ADDED: arrows in an angle
+CANCELLED: Save/Restore the position of the Full screen toolbar (watch out that it is not outside the screen)
+CANCELLED: Re-add escape key to exit in-place editing...
 ADDDED: Entity activate/deactivate
 CHANGED: Create an order in CreateRectangle - do it at one place
 FIXED: Box drawing suchks
@@ -71,14 +77,7 @@ FIXED: the indicator inside a collapsed block arrow should have more space below
 FIXED: add shadow to the indicator for certain styles
 FIXED: test1.signalling
 ADDED: symbol circle/box [marker] at vertxpos [xsize, ysize, style];
-
-ADD: symbol cross/text [marker] at vertxpos [rotate];
-ADD: message lost
-ADD: mark centerline
-FIX: Regression Bugs in Contour Expand still remain...
-FIX: Too much compress after adding MITER_LIMIT
-FIX: Triple bevel changes size when size limited.
-FIX: examples. Missing lines ???
+FIXED: What is the problem with ex37??? in GNU
 
 In 3.2
 FIXED: Dashed entity line now never falls back to image

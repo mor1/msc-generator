@@ -168,6 +168,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
     ON_COMMAND(ID_EDIT_SELECT_ALL, &CMscGenDoc::OnEditSelectAll)
 	ON_COMMAND(ID_EDIT_COPYENTIRECHART, OnEditCopyEntireChart)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPYENTIRECHART, OnUpdateFileExport)
+    ON_COMMAND_RANGE(ID_COPY_PAGE1, ID_COPY_PAGE99, OnCopyPage)
 	ON_COMMAND(ID_EDIT_PASETENTIRECHART, OnEditPasteEntireChart)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_PASETENTIRECHART, OnUpdateEditPasteEntireChart)
 	ON_COMMAND(ID_EDIT_UPDATE, OnEditUpdate)
@@ -240,10 +241,27 @@ COleServerItem* CMscGenDoc::OnGetEmbeddedItem()
 	// OnGetEmbeddedItem is called by the framework to get the COleServerItem
 	//  that is associated with the document.  It is only called when necessary.
 
-	CMscGenSrvrItem* pItem = new CMscGenSrvrItem(this);
+	CMscGenSrvrItem* pItem = new CMscGenSrvrItem(this, 0);  //Do not force any page
 	ASSERT_VALID(pItem);
 	return pItem;
 }
+
+COleServerItem* CMscGenDoc::OnGetLinkedItem(LPCTSTR lpszItemName)
+{
+    // look in current list first
+	COleServerItem* pItem = COleServerDoc::OnGetLinkedItem(lpszItemName);
+	if (pItem != NULL)
+		return pItem;
+
+    unsigned page = 0;
+    sscanf(lpszItemName, "%ud", &page);
+    if (page > m_ChartShown.GetPages())
+        return NULL;
+
+	pItem = new CMscGenSrvrItem(this, page);
+	return pItem;
+}
+
 
 CDocObjectServer *CMscGenDoc::GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite)
 {
@@ -284,18 +302,38 @@ void CMscGenDoc::Dump(CDumpContext& dc) const
 #endif //_DEBUG
 
 // CMscGenDoc serialization
-#define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
 void CMscGenDoc::Serialize(CArchive& ar)
+{
+    unsigned forced_page = m_ChartShown.GetPage(); //dummy
+    SerializePage(ar, forced_page);
+}
+
+void CMscGenDoc::SerializePage(CArchive& ar, unsigned &forced_page)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (ar.IsStoring()) {
-        CChartData &chart = pApp->m_bFullScreenViewMode ? m_ChartSerializedIn : m_ChartShown;
-		ar << CString(NEW_VERSION_STRING);
-		ar << unsigned(3); //file format version
+        SerializeHelper(ar, pApp->m_bFullScreenViewMode ? m_ChartSerializedIn : m_ChartShown, forced_page);
+    } else {
+        CChartData chart;
+        SerializeHelper(ar, chart, forced_page);
+        InsertNewChart(chart);
+        m_ChartSerializedIn = chart;
+	} /* not IsStoring */
+}
+
+//if forced_page>0 we are surely serializing to the clipboard only a single page
+//copy this page also to the page-to-display field
+#define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
+void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page) 
+{
+	if (ar.IsStoring()) {
+		ar << CString(NEW_VERSION_STRING); //if format starts with this string, we have file version afterwards
+		ar << unsigned(4); //file format version
 		ar << chart.GetDesign();
-		ar << chart.GetPage();
+		ar << (forced_page ? forced_page : chart.GetPage());
 		ar << chart.GetText();
+        ar << forced_page; //force this page
         ar << unsigned(LIBMSCGEN_MAJOR);
         ar << unsigned(LIBMSCGEN_MINOR);
         ar << unsigned(LIBMSCGEN_SUPERMINOR);
@@ -315,12 +353,12 @@ void CMscGenDoc::Serialize(CArchive& ar)
 	} else {
 		CString text;
 		CString design;
-		unsigned page;
+		unsigned read_page;
 		ar >> design;
         unsigned file_version = 0;
-		if (design != NEW_VERSION_STRING) {
+		if (design != NEW_VERSION_STRING) { 
 			//Old file format
-			ar >> page;
+			ar >> read_page;
 			unsigned alloc = 16384;
 			unsigned length = 0;
 			char *buff = (char*)malloc(alloc);
@@ -341,7 +379,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
 					char *buff;
 					unsigned length;
 					ar >> design;
-					ar >> page;
+					ar >> read_page;
 					ar >> length;
 					buff = (char*)malloc(length+1);
 					ar.Read(buff, length);
@@ -351,16 +389,20 @@ void CMscGenDoc::Serialize(CArchive& ar)
 					break;
 				case 1:  //since ???
 				case 2:  //since v3.1
+                case 3:  //since 3.1.3
+                case 4:  //since 3.4.3
 				default: //any future version
 					ar >> design;
-					ar >> page;
+					ar >> read_page;
 					ar >> text;
 					break;
 			}
 		}
 		EnsureCRLF(text);
 		ReplaceTAB(text);
-		CChartData chart(text, design, page);
+        chart.Set(text);
+        chart.SetDesign(design);
+        chart.SetPage(read_page);
         unsigned force_entity_size, force_arc_size;
         unsigned a=0, b=0, c=0;
         switch (file_version) {
@@ -368,7 +410,9 @@ void CMscGenDoc::Serialize(CArchive& ar)
         case 1: 
             break; //nothing to read besides design, page and text
         default: //any future version 
-        case 3: //since 3.1.3
+        case 4: //since 3.4.3
+            ar >> forced_page; //read forced page for links
+        case 3: //since 3.1.3 : read version and force arc collapse
             ar >> a;
             ar >> b;
             ar >> c;
@@ -386,7 +430,7 @@ void CMscGenDoc::Serialize(CArchive& ar)
                 chart.ForceArcCollapse(as, BoxCollapseType(a));
             }
             //Fallthrough
-        case 2:  //since v3.1
+        case 2:  //since v3.1: read force entity collapse
             ar >> force_entity_size;
             for (unsigned i=0; i<force_entity_size; i++) {
                 CString s; unsigned b;
@@ -396,8 +440,6 @@ void CMscGenDoc::Serialize(CArchive& ar)
             }
             break;
         }
-        InsertNewChart(chart);
-        m_ChartSerializedIn = chart;
 	} /* not IsStoring */
 }
 
@@ -560,6 +602,7 @@ void CMscGenDoc::OnCloseDocument()
 	COleServerDocEx::OnCloseDocument();
 }
 
+
 void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 {
 	pCmdUI->Enable(!m_ChartShown.IsEmpty() || !m_itrEditing->IsEmpty());
@@ -613,7 +656,7 @@ void CMscGenDoc::OnFileExport()
         default: _ASSERT(0);
         }
         if (PathFileExists(name)) 
-            if (IDNO == MessageBox(0, "File " + name + " exists. Do you want to overwrite?", "Msc-generator", MB_YESNO))
+            if (IDNO == AfxMessageBox("File " + name + " exists. Do you want to overwrite?", MB_YESNO))
                 continue;
         break;
     } while(1);
@@ -760,9 +803,47 @@ void CMscGenDoc::OnEditReplace()
 void CMscGenDoc::OnEditCopyEntireChart()
 {
 	//Copy is handled by SrvItem
-	CMscGenSrvrItem *pItem = reinterpret_cast<CMscGenSrvrItem*>(COleServerDocEx::GetEmbeddedItem());
-	pItem->CopyToClipboard();
+    SyncShownWithEditing("copy the chart to the clipboard");
+	CMscGenSrvrItem *pItem = dynamic_cast<CMscGenSrvrItem*>(COleServerDocEx::GetEmbeddedItem());
+    TRY 
+    {
+        pItem->CopyToClipboard(TRUE);
+    }   
+    CATCH_ALL(e)
+    {
+        AfxMessageBox("Copy to clipboard failed");
+    }
+    END_CATCH_ALL
 }
+
+void CMscGenDoc::OnCopyPage(UINT id)
+{
+    const unsigned page = id - ID_COPY_PAGE1 + 1;
+    char buff[300];
+    sprintf(buff, "copy page #%u to the clipboard", page);
+    SyncShownWithEditing(buff);
+    if (m_ChartShown.GetPages() < page) {
+        sprintf(buff, "Sorry, I no longer have page #%u, "
+                      "the entire chart consists of only %u page(s). "
+                      "I did not change the clipboard.", 
+                      page, m_ChartShown.GetPages());
+        AfxMessageBox(buff);
+    } else {
+        TRY 
+        {
+            sprintf(buff, "%u", page);
+            //Copy is handled by SrvItem
+            COleServerItem *pItem = OnGetLinkedItem(buff);
+            pItem->CopyToClipboard(TRUE);
+        }   
+        CATCH_ALL(e)
+        {
+            AfxMessageBox("Copy to clipboard failed");
+        }
+        END_CATCH_ALL
+    }
+}
+
 
 void CMscGenDoc::OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI)
 {
@@ -850,7 +931,7 @@ void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 	pCmdUI->SetCheck(m_ExternalEditor.IsRunning());
 	if (!m_ExternalEditor.CanStart())
 		if (!m_ExternalEditor.Init()) 
-			MessageBox(0, "Fail to create external editor window", "Msc-generator", MB_OK);
+			AfxMessageBox("Fail to create external editor window");
 	pCmdUI->Enable(m_ExternalEditor.CanStart() && !pApp->m_bFullScreenViewMode);
 }
 
@@ -1218,7 +1299,7 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 	else 
 		message.Append("Do you want to include the changes and redraw the chart before I " + action + "?\n");
 
-	if (IDYES == MessageBox(NULL, message, "Msc-generator", MB_ICONQUESTION | MB_YESNO)) 
+	if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO)) 
 		ShowEditingChart(true);
 }
 

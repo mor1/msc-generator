@@ -81,7 +81,7 @@ MscCanvas::MscCanvas(OutputType ot) :
 //Use this to save to a file 
 MscCanvas::MscCanvas(OutputType ot, const XY &tot, double copyrightTextHeight, 
                      const string &fn, const XY &scale,
-                     const std::vector<double> *yPageStart, int page) :
+                     const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
@@ -190,22 +190,22 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
 
 //page numbering starts from 0, -1 means all of the chart (ignoring page breaks)
 //This one does not take bottom banner into account
-void MscCanvas::GetPagePosition(const std::vector<double> *yPageStart, int page, XY &offset, XY &size) const
+void MscCanvas::GetPagePosition(const std::vector<double> *yPageStart, unsigned page, XY &offset, XY &size) const
 {
     offset.x = 0;
     size.x = total.x;
-    if (page<=-1 || yPageStart==NULL || yPageStart->size()==0) {
+    if (page==0 || yPageStart==NULL || yPageStart->size()==0) {
         size.y = total.y;
         offset.y = 0;
-    } else if (unsigned(page)>=yPageStart->size()) { //too large page
+    } else if (page>yPageStart->size()) { //too large page
         size.y = 0; //nothing drawn
         offset.y = total.y;
-    } else if (unsigned(page)==yPageStart->size()-1) { //last page
-        size.y = total.y - yPageStart->at(page);
-        offset.y = yPageStart->at(page);
+    } else if (page==yPageStart->size()) { //last page
+        size.y = total.y - yPageStart->at(page-1);
+        offset.y = yPageStart->at(page-1);
     } else {
-        size.y = yPageStart->at(page+1) - yPageStart->at(page);
-        offset.y = yPageStart->at(page);
+        size.y = yPageStart->at(page) - yPageStart->at(page-1);
+        offset.y =  yPageStart->at(page-1);
     }
 }
 
@@ -319,7 +319,7 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
 //Draw to a DC that is either a display DC or a metafile
 //Use this to display a chart, use other constructors without a DC to save the chart to a file
 MscCanvas::MscCanvas(OutputType ot, HDC hdc, const XY &tot, double copyrightTextHeight, 
-                     const XY &scale, const std::vector<double> *yPageStart, int page) :
+                     const XY &scale, const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), win32_dc(NULL), save_hdc(NULL)
 {

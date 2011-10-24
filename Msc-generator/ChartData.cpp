@@ -341,16 +341,18 @@ unsigned CDrawingChartData::GetPages() const
     return GetMsc()->yPageStart.size();
 }
 
-CSize CDrawingChartData::GetSize() const
+//if force_page==0, return the size of m_page (or the entire chart if m_page==0)
+CSize CDrawingChartData::GetSize(unsigned force_page) const
 {
+    const unsigned page_to_measure = force_page ? force_page : m_page;
     const Msc &msc = *GetMsc();
     CSize ret(int(msc.total.x), int(msc.copyrightTextHeight));
-    if (m_page==0) 
+    if (page_to_measure==0) 
         ret.cy = int(msc.total.y + msc.copyrightTextHeight);
-    else if (m_page < msc.yPageStart.size()) 
-        ret.cy = int(msc.yPageStart[m_page] - msc.yPageStart[m_page-1] + msc.copyrightTextHeight);
-    else if (m_page == msc.yPageStart.size()) 
-        ret.cy = int(msc.total.y - msc.yPageStart[m_page-1] + msc.copyrightTextHeight);
+    else if (page_to_measure < msc.yPageStart.size()) 
+        ret.cy = int(msc.yPageStart[page_to_measure] - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
+    else if (page_to_measure == msc.yPageStart.size()) 
+        ret.cy = int(msc.total.y - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
     return ret;
 }
 
@@ -377,24 +379,26 @@ double CDrawingChartData::GetHeadingSize() const
 void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, double y_scale) const
 {
     MscCanvas canvas(MscCanvas::WIN, hdc, GetMsc()->total, GetMsc()->copyrightTextHeight, 
-                     XY(x_scale, y_scale), &GetMsc()->yPageStart, int(m_page)-1);
+                     XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
         m_msc->Draw(canvas, bPageBreaks && m_page==0);
         canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(canvas, int(m_page)-1);
+        m_msc->DrawCopyrightText(canvas, m_page);
     }
 }
 
-void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks) const
+//here force_page==0 means we do not force a particular page, use m_page
+void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, unsigned force_page) const
 {
+    const unsigned page_to_draw = force_page ? force_page : m_page;
     MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->total, GetMsc()->copyrightTextHeight, 
-                     XY(1., 1.), &GetMsc()->yPageStart, int(m_page)-1);
+                     XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
-        m_msc->Draw(canvas, pageBreaks && m_page==0);
+        m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
         canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(canvas, int(m_page)-1);
+        m_msc->DrawCopyrightText(canvas, page_to_draw);
     }
 }
 

@@ -36,8 +36,8 @@
 
 IMPLEMENT_DYNAMIC(CMscGenSrvrItem, CDocObjectServerItem)
 
-CMscGenSrvrItem::CMscGenSrvrItem(CMscGenDoc* pContainerDoc)
-	: CDocObjectServerItem(pContainerDoc, TRUE)
+CMscGenSrvrItem::CMscGenSrvrItem(CMscGenDoc* pContainerDoc, unsigned forcePage)
+	: CDocObjectServerItem(pContainerDoc, TRUE), m_forcePage(forcePage)
 {
 	//Add text format
 	FORMATETC formatEtc;
@@ -47,6 +47,10 @@ CMscGenSrvrItem::CMscGenSrvrItem(CMscGenDoc* pContainerDoc)
 	formatEtc.cfFormat = CF_TEXT;
 	formatEtc.tymed = TYMED_HGLOBAL;
 	m_dataSource.DelayRenderData(0, &formatEtc);
+
+    char buff[100];
+    sprintf(buff, "%u", forcePage);
+    SetItemName(buff);
 }
 
 CMscGenSrvrItem::~CMscGenSrvrItem()
@@ -63,8 +67,17 @@ void CMscGenSrvrItem::Serialize(CArchive& ar)
 	//  function.  If you support links, then you will want to serialize
 	//  just a portion of the document.
 
-	if (!IsLinkedItem())
-	{
+	if (IsLinkedItem()) {
+        //For a linked document we store the whole chart with all settings,
+        //but also add the forced page (which page the link is to)
+		CMscGenDoc* pDoc = GetDocument();
+		ASSERT_VALID(pDoc);
+		if (pDoc) {
+            //if (ar.IsStoring())
+            //    m_forcePage = pDoc->m_ChartShown.GetPage();
+			pDoc->SerializePage(ar, m_forcePage);
+        }
+	} else {
 		CMscGenDoc* pDoc = GetDocument();
 		ASSERT_VALID(pDoc);
 		if (pDoc)
@@ -91,7 +104,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
     CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
-	rSize = chart.GetSize();
+	rSize = chart.GetSize(m_forcePage);
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -119,7 +132,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
     CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
-	chart.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded);
+	chart.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded, m_forcePage);
 	return TRUE;
 }
 
@@ -248,7 +261,7 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
 	} else {
 		pApp->m_bFullScreenViewMode = false;
 		//Avoid in-place editing (verb 0) if user set this option
-		if (pApp->m_bAlwaysOpen) 
+		if (pApp->m_bAlwaysOpen || 1) 
 			switch (iVerb) {
 			case OLEIVERB_PRIMARY: //primary verb is edit (in-place)
 			case OLEIVERB_SHOW:    //this is the show (in-place edit command ==-1)

@@ -46,6 +46,7 @@ protected: // create from serialization only
 	DECLARE_DYNCREATE(CMscGenDoc)
 	DECLARE_MESSAGE_MAP()
 	virtual COleServerItem* OnGetEmbeddedItem();
+    virtual COleServerItem* OnGetLinkedItem(LPCTSTR lpszItemName);
 	virtual CDocObjectServer* GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite);
 	virtual COleIPFrameWnd *CreateInPlaceFrame(CWnd *pParentWnd);
 	virtual void DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd);
@@ -64,8 +65,8 @@ public:
 	IChartData m_itrEditing; //The chart that is the current one in the editor
 	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
 	IChartData m_itrDoNotSyncForThis; //At inplace exit we asked if we should sync this itrEditing to shown, but she said no, so we store it not to ask again
-	CDrawingChartData m_ChartShown;
-    CDrawingChartData m_ChartSerializedIn; //Any chart serialized in is stored here
+	CDrawingChartData m_ChartShown; //The chart that is currently showing
+    CDrawingChartData m_ChartSerializedIn; //Any chart serialized in is stored here for full screen view
 
 	// Zoom related 
 	unsigned m_zoom; //In percentage. 100 is normal
@@ -87,6 +88,8 @@ public:
 //Menu and toolbar functions
 public:
 	virtual void Serialize(CArchive& ar);
+            void SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page);
+            void SerializePage(CArchive& ar, unsigned &forced_page);
 	virtual void DeleteContents(); // Destroys existing data, updates views
 	virtual BOOL CanCloseFrame(CFrameWnd* pFrame);
 	virtual BOOL OnNewDocument();
@@ -110,6 +113,7 @@ public:
 	afx_msg void OnEditRepeat();
 	afx_msg void OnEditReplace();
 	afx_msg void OnEditCopyEntireChart();
+    afx_msg void OnCopyPage(UINT id); //starts from ID_COPY_PAGE1
 	afx_msg void OnUpdateEditPasteEntireChart(CCmdUI *pCmdUI);
 			void DoPasteData(COleDataObject &dataObject);
 	afx_msg void OnEditPasteEntireChart();
