@@ -54,6 +54,19 @@ const int  iMaxUserToolbars = 10;
 const UINT uiFirstUserToolBarId = AFX_IDW_CONTROLBAR_FIRST + 40;
 const UINT uiLastUserToolBarId = uiFirstUserToolBarId + iMaxUserToolbars - 1;
 
+
+//#define ID_VIEW_APPLOOK_WIN_2000        210
+//#define ID_VIEW_APPLOOK_OFF_XP          211
+//#define ID_VIEW_APPLOOK_WIN_XP          212
+//#define ID_VIEW_APPLOOK_OFF_2003        213
+//#define ID_VIEW_APPLOOK_VS_2005         214
+//#define ID_VIEW_APPLOOK_OFF_2007_BLUE   215
+//#define ID_VIEW_APPLOOK_OFF_2007_BLACK  216
+//#define ID_VIEW_APPLOOK_OFF_2007_SILVER 217
+//#define ID_VIEW_APPLOOK_OFF_2007_AQUA   218
+//#define ID_VIEW_APPLOOK_VS_2008         219
+//#define ID_VIEW_APPLOOK_WINDOWS_7       220
+
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_CREATE()
 	ON_COMMAND(ID_VIEW_FULL_SCREEN, OnViewFullScreen)
@@ -616,6 +629,25 @@ void CMainFrame::FillPageComboBox(int no_pages, int page)
 	}
 	//Set the index to the current page
 	c->SelectItem(page);
+
+
+    //Update the Copy Entire Chart button, as well
+    arButtons.RemoveAll();
+    m_wndRibbonBar.GetElementsByID(ID_EDIT_COPYENTIRECHART, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonButton *button = dynamic_cast<CMFCRibbonButton*>(arButtons[0]);
+    unsigned old_size = button->GetSubItems().GetSize();
+    unsigned new_size = no_pages;
+    if (new_size == 1) new_size = 0;
+    if (old_size == new_size) return;
+    while (old_size>new_size)
+        button->RemoveSubItem(--old_size);
+    while (old_size<new_size) {
+        char buff[100];
+        sprintf(buff, "Copy Page #%u", old_size+1);
+        button->AddSubItem(new CMFCRibbonButton(ID_COPY_PAGE1+old_size, buff));
+        old_size++;
+    }
 }
 
 

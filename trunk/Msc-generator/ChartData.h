@@ -105,12 +105,12 @@ public:
 	CString GetDesigns() const;
 //Drawing related
 	unsigned GetPages() const;
-	CSize GetSize() const;
+	CSize GetSize(unsigned force_page=0) const;
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
     double GetHeadingSize() const;
     void DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
-	void DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks) const;
+	void DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, unsigned force_page=0) const; 
 	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
 	TrackableElement *GetArcByCoordinate(CPoint point) const;

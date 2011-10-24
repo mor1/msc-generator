@@ -717,8 +717,7 @@ void CMscGenView::OnDropFiles(HDROP hDropInfo)
 	int nFiles = ::DragQueryFile(hDropInfo, (UINT)-1, NULL, 0);
 	switch (nFiles) {
 		default:
-			MessageBox("Sorry, I cannot handle multiple files dropped on me. Drop just one.", 
-				       "Msc-generator", MB_OK);
+			AfxMessageBox("Sorry, I cannot handle multiple files dropped on me. Drop just one.");
 			break;
 		case 0:
 			break; //do nothing

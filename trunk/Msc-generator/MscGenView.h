@@ -63,7 +63,7 @@ public:
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
-			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in MscGen page space)
+			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in Msc page space)
 			void DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_scale);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();

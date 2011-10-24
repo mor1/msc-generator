@@ -111,8 +111,6 @@
 #define ID_VIEW_REDRAW                  32782
 #define ID_VIEW_ZOOMNORMALIZE           32783
 #define ID_DESIGN_PAGE                  32784
-#define ID_DESIGN_PAGE_FULL_SCREEN_NEXT 32785
-#define ID_DESIGN_PAGE_FULL_SCREEN_PREV 32786
 #define ID_DESIGN_ZOOM                  32788
 #define ID_DESIGN_DESIGN                32789
 #define ID_VIEW_RESETASPECTRATIO_INPLACE 32790
@@ -133,13 +131,35 @@
 #define ID_VIEW_SHOWELEMENTCONTROLS     32864
 #define ID_BUTTON_DEFAULT_TEXT          32898
 #define ID_EXTERNAL_EDITOR_COMBO        32924
+#define ID_DESIGN_PAGE_FULL_SCREEN_NEXT 32925
+#define ID_DESIGN_PAGE_FULL_SCREEN_PREV 32926
 #define ID_CHECK_EE_NOTEPAD             32935
 #define ID_CHECK_EE_NOTEPADPP           32937
 #define ID_CHECK_EE_OTHER               32938
 #define ID_SPIN_PAGE                    32940
-#define ID_BUTTON2                      32941
 #define ID_BUTTON_TRACK_COLOR           32941
 #define ID_BUTTON_TRACK_FILL            32942
+#define ID_COPY_PAGE1                   32943
+#define ID_COPY_PAGE2                   32944
+#define ID_COPY_PAGE3                   32945
+#define ID_COPY_PAGE4                   32946
+#define ID_COPY_PAGE5                   32947
+#define ID_COPY_PAGE6                   32948
+#define ID_COPY_PAGE7                   32949
+#define ID_COPY_PAGE8                   32950
+#define ID_COPY_PAGE9                   32951
+#define ID_COPY_PAGE10                  32952
+#define ID_COPY_PAGE11                  32953
+#define ID_COPY_PAGE12                  32954
+#define ID_COPY_PAGE13                  32955
+#define ID_COPY_PAGE14                  32956
+#define ID_COPY_PAGE15                  32957
+#define ID_COPY_PAGE16                  32958
+#define ID_COPY_PAGE17                  32959
+#define ID_COPY_PAGE18                  32960
+#define ID_COPY_PAGE19                  32961
+#define ID_COPY_PAGE20                  32962
+#define ID_COPY_PAGE99                  33041
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -148,7 +168,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        319
-#define _APS_NEXT_COMMAND_VALUE         32943
+#define _APS_NEXT_COMMAND_VALUE         32944
 #define _APS_NEXT_CONTROL_VALUE         1031
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

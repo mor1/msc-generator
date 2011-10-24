@@ -27,11 +27,12 @@ class CMscGenSrvrItem : public CDocObjectServerItem
 
 // Constructors
 public:
-	CMscGenSrvrItem(CMscGenDoc* pContainerDoc);
+	CMscGenSrvrItem(CMscGenDoc* pContainerDoc, unsigned forcePage);
 
 // Attributes
 	CMscGenDoc* GetDocument() const
 		{ return reinterpret_cast<CMscGenDoc*>(CDocObjectServerItem::GetDocument()); }
+    unsigned m_forcePage;     //0 if no page forced, 1..n if one is forced
 
 // Overrides
 	public:

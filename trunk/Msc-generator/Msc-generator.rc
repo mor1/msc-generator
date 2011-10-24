@@ -910,7 +910,7 @@ END
 
 STRINGTABLE
 BEGIN
-    ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats\nCopy entire chart"
+    ID_EDIT_COPYENTIRECHART "Copy entire chart to clipboard in multiple formats. If the chart has multiple pages, you can also copy individual pages.\nCopy entire chart"
     ID_EDIT_PASETENTIRECHART 
                             "Paste an entire chart from the Clipboard\nPaste entire chart"
     ID_BUTTON_TRACK         "Turn element tracking on or off\nToggle Tracking"
