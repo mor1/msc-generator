@@ -152,7 +152,7 @@ do {                                                \
     str.erase(str.length()-1);
     /* Calculate the position of the string and prepend a location escape */
     file_line pos(yyget_extra(yyscanner)->msc->current_file,
-                 yylloc->first_line, yylloc->first_column + (s+1 - yytext));
+                 yylloc->first_line, yylloc->first_column + unsigned(s+1 - yytext));
     yylval_param->str = strdup((pos.Print() + str).c_str());
     }
   #endif
@@ -172,7 +172,7 @@ do {                                                \
     const char *s = msc_remove_head_tail_whitespace(yytext+1);
     // s now points to heading quotation mark
     file_line pos(yyget_extra(yyscanner)->msc->current_file,
-                 yylloc->first_line, yylloc->first_column + (s - yytext));
+                 yylloc->first_line, yylloc->first_column + unsigned(s - yytext));
     yyget_extra(yyscanner)->msc->Error.Error(pos,
          "This opening quotation mark misses its closing pair. "
          "Assuming string termination at line-end.",

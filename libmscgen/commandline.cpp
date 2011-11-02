@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <assert.h>
+#include <limits>
 #include "commandline.h"
 #include "msc.h"
 
@@ -39,8 +40,8 @@ const char *VersionText(char a, char b, char c)
 char *ReadFile(FILE *in)
 {
     if (!in) return NULL;
-    unsigned alloc = 16384;
-    unsigned len = 0;
+    size_t alloc = 16384;
+    size_t len = 0;
     char *buff = (char*)malloc(alloc);
     if (buff == NULL) return NULL;
     while (!feof(in)) {
@@ -363,8 +364,14 @@ int do_main(const std::list<std::string> &args, const char *designs,
     if (oCshize) {
         MscInitializeCshAppearanceList();
         Csh csh;
-        csh.ParseText(input, strlen(input), -1, 1);
-        string tmp = Cshize(input, strlen(input), csh.CshList, 1, csh_textformat.c_str());
+        if (strlen(input)>std::numeric_limits<string::size_type>::max()-10)  {
+            std::cerr << "Error: Msc-generator cannot handle files longer than " << std::numeric_limits<string::size_type>::max()-10 << ".";
+            std::cerr << "The input '" << oInputFile << "' is longer than this (" << strlen(input) << ").";
+            std::cerr << "Bailing out." << std::endl;
+            return EXIT_FAILURE;
+        }
+        csh.ParseText(input, (unsigned)strlen(input), -1, 1);
+        string tmp = Cshize(input, (unsigned)strlen(input), csh.CshList, 1, csh_textformat.c_str());
         FILE *out = fopen(oOutputFile.c_str(), "w");
         if (!out) {
             std::cerr<< "Error: Failed to open output file '" << oOutputFile << "'.\n";

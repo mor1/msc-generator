@@ -47,18 +47,13 @@ MscColorType::MscColorType(const string&text)
     valid = true;
 }
 
-MscColorType::MscColorType(void*p)
+MscColorType::MscColorType(unsigned p)
 {
-    r = (unsigned(p)>>24)&255;
-    g = (unsigned(p)>>16)&255;
-    b = (unsigned(p)>>8)&255;
-    a = unsigned(p)&255;
-}
-
-MscColorType::operator void*() const
-{
-    unsigned i = (unsigned(r)<<24) + (unsigned(g)<<16) + (unsigned(b)<<8) + unsigned(a);
-    return (void *)i;
+    r = (((unsigned)(p))>>24)&255;
+    g = (((unsigned)(p))>>16)&255;
+    b = (((unsigned)(p))>>8)&255;
+    a = ((unsigned)(p))&255;
+    valid = true;
 }
 
 string MscColorType::Print(void) const
@@ -87,10 +82,10 @@ bool ColorSet::AddColor(const std::string alias, const std::string colordef,
 
 inline string remove_spaces(const string &s) 
 {
-    unsigned a = s.find_first_not_of(" \t\n");
+    string::size_type a = s.find_first_not_of(" \t\n");
     if (a == string::npos) 
         return string();    
-    unsigned b = s.find_last_not_of(" \t\n");
+    string::size_type b = s.find_last_not_of(" \t\n");
     return s.substr(a, b-a+1);
 }
 
@@ -108,7 +103,7 @@ MscColorType ColorSet::GetColor(const std::string &s_original) const
     const_iterator i = find(s);
     //if #1, return the value for the color name
     if (this->end()!=i) return i->second;
-	size_t pos = s.find_first_of(",+-");
+	string::size_type pos = s.find_first_of(",+-");
     //if no comma, + or - and not #1, return invalid color
     if (pos == string::npos) return MscColorType();
     string name = remove_spaces(s.substr(0, pos));

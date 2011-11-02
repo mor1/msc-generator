@@ -32,7 +32,7 @@ unsigned MscError::AddFile(const string &filename)
     for (unsigned i=0; i<Files.size(); i++)
         if (Files[i] == filename) return i;
     Files.push_back(filename);
-    return Files.size()-1;
+    return (unsigned)Files.size()-1;
 }
 
 ErrorElement MscError::FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const
@@ -90,10 +90,10 @@ void MscError::_sort(std::vector<ErrorElement> &store)
 {
     if (store.size()<2) return;
     sort(store.begin(), store.end());
-    for (int i=store.size()-1; i>0; i--)
+    for (std::vector<ErrorElement>::size_type i=store.size()-1; i>0; i--)
         if (store[i].isOnlyOnce)
-            for (int j=i-1; j>=0; j--)
-                if (store[j].isOnlyOnce && store[i].message==store[j].message) {
+            for (std::vector<ErrorElement>::size_type j=i; j>0; j--)
+                if (store[j-1].isOnlyOnce && store[i].message==store[j-1].message) {
                     store.erase(store.begin()+i);
                     break;
                 }

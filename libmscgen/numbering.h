@@ -18,7 +18,7 @@ public:
     static bool Parse(Msc *, file_line linenum, const char *text, std::vector<NumberingStyleFragment> &result);
     std::string Print(int n) const;
     unsigned Input(const std::string &number, int &value);
-    static bool FindReplaceNumberFormatToken(std::string &text, file_line l, int pos=0);
+    static bool FindReplaceNumberFormatToken(std::string &text, file_line l, std::string::size_type pos=0);
 };
 
 class Numbering {
@@ -50,7 +50,7 @@ public:
     NumberingStyleFragment &Last(void) {return elements[elements.size()-1];}
     const NumberingStyleFragment &Last(void) const {return elements[elements.size()-1];}
     void Reset() {pre.clear(); post.clear(); startAt=0; elements.clear(); elements.push_back(NumberingStyleFragment());}
-    int Size(void) const {return startAt + elements.size();}
+    size_t Size(void) const {return startAt + elements.size();}
     void CopyShifted(const NumberingStyle &ns, unsigned start=0);
     int Apply(const std::vector<NumberingStyleFragment> &nsfs);
     void Push(const NumberingStyleFragment &nf) {elements.push_back(nf);}

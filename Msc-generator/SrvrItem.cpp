@@ -81,7 +81,8 @@ void CMscGenSrvrItem::Serialize(CArchive& ar)
 		CMscGenDoc* pDoc = GetDocument();
 		ASSERT_VALID(pDoc);
 		if (pDoc)
-			pDoc->Serialize(ar);
+            pDoc->SerializePage(ar, m_forcePage);
+			//pDoc->Serialize(ar);
 	}
 }
 

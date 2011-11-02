@@ -40,7 +40,7 @@ void msc_jump_line(YYLTYPE *loc)
 /* in-place removal of whitespace. Returns new head */
 char *msc_remove_head_tail_whitespace(char *s)
 {
-    int a=0;
+    size_t a=0;
     char *r;
     while (s[a]==' ' || s[a]=='\t') a++;
     r = s+a;
@@ -120,7 +120,7 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
             if (emptyLine && !wasComment )
                 ret += ' ';
             //test for how many \s we have at the end of the line
-            int pp = ret.length()-1;
+            int pp = (int)ret.length()-1;
             while (pp>=0 && ret[pp]=='\\') pp--;
             //if odd, we insert an extra '\' to keep lines ending with \s
             if ((ret.length()-pp)%2==0) ret += '\\';
@@ -217,7 +217,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
     //-each toke appears only once
     //-replaced strings will not be mistaken for a a token
     for (unsigned i=0; i<tokArrayLen; i++) {
-        unsigned pos = 0;
+        string::size_type pos = 0;
         //Search for the current token
         pos = msg.find(tokens[i].first, pos);
         //continue if not found
@@ -231,7 +231,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         //special comment for unexpected symbols
         //special handling for numbers and strings
         if (i>tokArrayLen-5) {
-            unsigned exppos = msg.find("expecting");
+            string::size_type exppos = msg.find("expecting");
             //If we replace what was unexpected, use actual token text
             if (pos < exppos) {
                 if (i==tokArrayLen-1)
@@ -240,7 +240,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
                     ins += ": '" + string(yyget_text(yyscanner)) + "'";
                 if (i==tokArrayLen-2) {
                     string hint(yyget_text(yyscanner));
-                    int pos2 = hint.find_first_not_of("abcdefghijklmnopqrstuvwxyz");
+                    string::size_type pos2 = hint.find_first_not_of("abcdefghijklmnopqrstuvwxyz");
                     hint.insert(pos2," ");
                     once_msg = "Try splitting it with a space: '"+hint+"'.";
                 }
@@ -251,7 +251,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
         //replace token
         msg.replace(pos, tokens[i].first.length(), ins);
     }
-    unsigned pos = msg.rfind("', '");
+    string::size_type pos = msg.rfind("', '");
     if (pos != string::npos) {
         msg.erase(pos+1, 1);
         msg.insert(pos+1, " or");

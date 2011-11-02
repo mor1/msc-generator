@@ -19,8 +19,9 @@
 
 #include <iostream>
 #include <sstream>
-#include <assert.h>
-#include <math.h>
+#include <cassert>
+#include <limits>
+#include <cmath>
 #include "msc.h"
 
 using namespace std;
@@ -656,7 +657,7 @@ void Msc::PushContext(bool empty)
 ArcBase *Msc::PopContext()
 {
     if (Contexts.size()<2) return NULL;
-    int old_size = Contexts.back().numberingStyle.Size();
+    size_t old_size = Contexts.back().numberingStyle.Size();
     Contexts.pop_back();
     //if numbering continues with the same amount of levels, no action will be needed
     //in PostParseProcess, so we do not generate any Command arcs.
@@ -675,7 +676,10 @@ ArcBase *Msc::PopContext()
 void Msc::ParseText(const char *input, const char *filename)
 {
     current_file = Error.AddFile(filename);
-    MscParse(*this, input, strlen(input));
+    if (strlen(input) > std::numeric_limits<unsigned>::max())
+        Error.Error(file_line(), "Input text is longer than 4Gbyte. Bailing out.");
+    else 
+        MscParse(*this, input, (unsigned)strlen(input));
 }
 
 MscDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, MscDirType dir) const
@@ -1175,14 +1179,14 @@ void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pa
         (*i)->Draw(canvas, pass);
 }
 
-//page is 0 for all, 1..n for individual pages
-void Msc::DrawCopyrightText(MscCanvas &canvas, unsigned page)
+//page is -1 for all, 0..n for individual pages
+void Msc::DrawCopyrightText(MscCanvas &canvas, int page)
 {
-    if (total.x==0 || page > yPageStart.size()) return;
+    if (total.x==0 || page+1 > int(yPageStart.size())) return;
     StringFormat sf;
     sf.Default();
     Label label(copyrightText, &canvas, sf);
-    label.Draw(&canvas, 0, total.x, page==0 || page>=yPageStart.size() ? total.y : yPageStart[page]);
+    label.Draw(&canvas, 0, total.x, page<=-1 || page+1>=int(yPageStart.size()) ? total.y : yPageStart[page+1]);
 }
 
 void Msc::DrawPageBreaks(MscCanvas &canvas)
@@ -1256,7 +1260,7 @@ void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &
         DrawCopyrightText(canvas);
         return;
     }
-    for (unsigned page=1; page<=yPageStart.size(); page++) {
+    for (unsigned page=0; page<yPageStart.size(); page++) {
         MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale, &yPageStart, page);
         switch (canvas.Status()) {
         case MscCanvas::ERR_FILE: Error.Error(file_line(0, 0), "Could not open file '" + fn + "'."); return;

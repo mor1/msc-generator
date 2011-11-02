@@ -448,7 +448,7 @@ bool ArcLabelled::AddAttribute(const Attribute &a)
         }
         if (off > 0) {
             file_line l(a.linenum_value.start);
-            l.col += a.value.length() - off;
+            l.col += (unsigned)a.value.length() - off;
             chart->Error.Warning(l, "I could not understand number from here. Applying only '" +
                                  a.value.substr(0, a.value.length() - off) + "'.");
         }
@@ -530,7 +530,7 @@ ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool /*hide*/, EIterat
     string pre_num_post;
     if (label.length()!=0) {
         if (style.numbering.second) {
-            number.SetSize(numberingStyle.Size()); //append 1s if style has more levels
+            number.SetSize((unsigned)numberingStyle.Size()); //append 1s if style has more levels
             if (concrete_number >= 0)
                 number.Last() = concrete_number;
             num = numberingStyle.Print(number);
@@ -1361,14 +1361,14 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
         switch (style.text.GetIdent()) {
 		default:
         case MSC_IDENT_LEFT:   stext = 0; break;
-        case MSC_IDENT_CENTER: stext = indexes.size()/2-1; break;
-        case MSC_IDENT_RIGHT:  stext = indexes.size()-2; break;
+        case MSC_IDENT_CENTER: stext = (unsigned)indexes.size()/2-1; break;
+        case MSC_IDENT_RIGHT:  stext = (unsigned)indexes.size()-2; break;
         }
         dtext = stext+1;
     } else {
         //if no segments, then span the whole arrow.
         stext = 0;
-        dtext = indexes.size()-1;
+        dtext = (unsigned)indexes.size()-1;
     }
 
     //Set sy and dy
@@ -4216,7 +4216,7 @@ ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EI
     if (!valid) return NULL;
     if (hide) hidden = true;
     if ((action & SIZE) && length)
-        number.SetSize(length);
+        number.SetSize(unsigned(length));
     if (action & INCREMENT)
         ++number;
     if (action & DECREMENT)

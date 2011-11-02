@@ -17,8 +17,8 @@ public:
     MscColorType(unsigned char R, unsigned char G, unsigned char B, unsigned char A=255) :
         r(R), g(G), b(B), a(A), valid(true) {}
     explicit MscColorType(const std::string&);
-    explicit MscColorType(void*);
-    operator void*() const;
+    explicit MscColorType(unsigned);
+    unsigned ConvertToUnsigned() const {return ((unsigned(r))<<24) + ((unsigned(g))<<16) + ((unsigned(b))<<8) + (unsigned(a));}
     bool operator==(const MscColorType &x) const
         {return (r==x.r && g==x.g && b==x.b && a==x.a && valid && x.valid) ||
                 (!valid && !x.valid);}
@@ -34,7 +34,7 @@ public:
     MscColorType MoreOpaque(double p) const
         {return MscColorType(r, g, b, (unsigned char)(a+p*(255-a)));}
 	MscColorType FlattenAlpha(void) const
-	    {return MscColorType(int(255-r)*(255-a)/255+r, int(255-g)*(255-a)/255+g, int(255-b)*(255-a)/255+b);}
+	    {return MscColorType(unsigned(255-r)*(255-a)/255+r, unsigned(255-g)*(255-a)/255+g, unsigned(255-b)*(255-a)/255+b);}
 };
 
 class ColorSet : public std::map<std::string, MscColorType>

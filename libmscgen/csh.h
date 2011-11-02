@@ -91,8 +91,8 @@ typedef enum
 } MscColorSyntaxFlag;
 
 struct MscColorSyntaxAppearance {
-    int effects;
-    int mask;
+    unsigned effects;
+    unsigned mask;
     unsigned char r;
     unsigned char g;
     unsigned char b;
@@ -105,7 +105,7 @@ struct MscColorSyntaxAppearance {
 extern MscColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 void MscInitializeCshAppearanceList(void);
 
-std::string Cshize(const char *input, unsigned len, const CshListType &cshList, int cshStyle,
+std::string Cshize(const char *input, unsigned len, const CshListType &cshList, unsigned cshStyle,
                    const char *command=NULL);
 
 
@@ -113,7 +113,7 @@ class MscCanvas;
 class StringFormat;
 #define HINT_GRAPHIC_SIZE_X 25
 #define HINT_GRAPHIC_SIZE_Y 18
-typedef void* CshHintGraphicParam;
+typedef unsigned CshHintGraphicParam;
 typedef bool (*CshHintGraphicCallback)(MscCanvas*, CshHintGraphicParam);
 
 //Object to collect color syntax highlighting data
@@ -173,7 +173,7 @@ struct CshHint {
     mutable int y_size;
     mutable int ul_x, ul_y, br_x, br_y;     //Size of the rectange shown in list box
     mutable CshHintItemSelectionState state; //will show if this hint is selected or not
-    CshHint(const std::string &d, CshHintType t, bool s = true, CshHintGraphicCallback c=NULL, CshHintGraphicParam p=NULL)  : 
+    CshHint(const std::string &d, CshHintType t, bool s = true, CshHintGraphicCallback c=NULL, CshHintGraphicParam p=0)  : 
         decorated(d), type(t), selectable(s), callback(c), param(p), keep(false) {}
     void swap(CshHint &o);
     bool operator < (const CshHint &o) const {if (type==o.type) return decorated<o.decorated; return type<o.type;}
@@ -207,7 +207,7 @@ public:
     bool                              addMarkersAtEnd;
     //Input parameters to the hint lookup process
     std::set<std::string> ForbiddenStyles; //Styles we never offer as hints (e.g., ->)
-    int                   cshScheme;       //What color shceme is used by the app now (to format hints)
+    unsigned              cshScheme;       //What color shceme is used by the app now (to format hints)
     std::string           ForcedDesign;    //What design is forced on us (so its colors and styles can be offered)
     int                   cursor_pos;      //to identify partial keyword names & hint list
 
@@ -223,7 +223,7 @@ public:
     void AddCSH_EntityName(CshPos&pos, const char *name);
     void AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name);
     void AddCSH_SymbolName(CshPos&pos, const char *name);
-    void ParseText(const char *input, unsigned len, int cursor_p, int scheme);
+    void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme);
     void AddErrorsToCsh() {for (unsigned i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);}
     MscColorSyntaxType GetCshAt(int pos);
 
