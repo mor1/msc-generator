@@ -140,7 +140,7 @@ void Draw(unsigned i, const Contour area1, const char *text=NULL) {Draw(i, Conto
 
 void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, bool manyfile=true, bool singlefile=true, double step=4)
 {
-    CairoContext *context;
+    CairoContext *context=NULL;
     if (singlefile) 
         context = new CairoContext(i, area1.GetBoundingBox().CreateExpand(100), NULL, false);
     const unsigned NUM=3;
@@ -150,7 +150,7 @@ void DrawExpand(unsigned i, EExpandType et, double limit, const Contour area1, b
     unsigned num=0;
     double gap = -step;
     bool shrinking = true;
-    double max_gap;
+    double max_gap=100;
     //first we find how small we can shrink it (until it disappears),
     //then we do an expand phase to the same extent
     while(shrinking || gap>=0) {
@@ -426,7 +426,7 @@ void contour_test(void)
     DrawExpand(198, EXPAND_MITER_SQUARE, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
     DrawExpand(199, EXPAND_MITER_SQUARE, DBL_MAX, form5, false, "two inverse circles with miter");
 
-    /* End of exclusion for speed */
+    //End of exclusion for speed */
     //Works up to here
 
     Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25);

@@ -70,7 +70,7 @@ bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text
                          "Try one of '123', 'iii', 'III', 'abc' or 'ABC'. You can also prepend and append additional text.");
         return false;
     }
-    int pos = 0;
+    unsigned pos = 0;
     do {
         NumberingStyleFragment nsf;
         switch (str[pos + pos_of_number + 2]) {
@@ -95,6 +95,7 @@ bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text
 //At a complete error, it leaves value unchanged
 unsigned NumberingStyleFragment::Input(const std::string &number, int &value)
 {
+    _ASSERT(number.length()<std::numeric_limits<unsigned>::max());
     if (number.length()==0) return 0; //OK, but do not set the value
     unsigned num=0;
     unsigned pos=0;
@@ -135,11 +136,11 @@ out:
             else num = num*10 + number[pos] - '0';
     }
     if (pos>0) value = num;
-    return number.length()-pos;
+    return (unsigned)number.length()-pos;
 }
 
 bool NumberingStyleFragment::FindReplaceNumberFormatToken(string &text, file_line l,
-                                                          int pos)
+                                                          string::size_type pos)
 {
     char const *formats[] = {"123", "arabic","ARABIC",
                              "iii", "xxx", "roman", "III", "XXX", "ROMAN",
@@ -149,10 +150,10 @@ bool NumberingStyleFragment::FindReplaceNumberFormatToken(string &text, file_lin
                            "i", "i", "i", "I", "I", "I",
                            "a", "a", "a", "A", "A", "A"};
 
-    for (int i=0; formats[i]!=NULL; i++) {
-        unsigned pos2 = text.find(formats[i], pos);
+    for (unsigned i=0; formats[i]!=NULL; i++) {
+        string::size_type pos2 = text.find(formats[i], pos);
         if (pos2 == string::npos) continue;
-        l.col += strlen(formats[i]);
+        l.col += (unsigned)strlen(formats[i]);
         string esc("\\" ESCAPE_STRING_NUMBERFORMAT);
         esc += codes[i];
         text.replace(pos2, strlen(formats[i]), esc + l.Print());
@@ -185,8 +186,8 @@ void NumberingStyle::CopyShifted(const NumberingStyle &ns, unsigned start)
 
 int NumberingStyle::Apply(const std::vector<NumberingStyleFragment> &nsfs)
 {
-    int off = startAt + elements.size() - nsfs.size();
-    if (off < 0) return startAt + elements.size();
+    int off = startAt + (int)elements.size() - (int)nsfs.size();
+    if (off < 0) return startAt + (int)elements.size();
     startAt = off;
     elements = nsfs;
     return 0;

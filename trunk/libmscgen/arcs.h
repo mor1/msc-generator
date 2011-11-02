@@ -536,9 +536,9 @@ class CommandNumbering : public ArcCommand
 public:
     typedef enum {INCREMENT=1, DECREMENT=2, SIZE=4} EAction;
     EAction action;
-    int     length;
+    size_t  length;
 
-    CommandNumbering(Msc *msc, EAction a, int l=0)
+    CommandNumbering(Msc *msc, EAction a, size_t l=0)
         : ArcCommand(MSC_COMMAND_NUMBERING, msc), action(a), length(l) {if (l) action = EAction(action | SIZE); AddAttributeList(NULL);}
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
 };

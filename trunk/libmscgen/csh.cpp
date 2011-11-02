@@ -47,8 +47,8 @@ void MscInitializeCshAppearanceList(void)
     MscColorSyntaxAppearance (&l)[CSH_SCHEME_MAX][COLOR_MAX] = MscCshAppearanceList;
 
     //Set the mask to default: we set all parameters
-    for (int scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
-        for (int i=0; i<COLOR_MAX; i++)
+    for (unsigned scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
+        for (unsigned i=0; i<COLOR_MAX; i++)
             l[scheme][i].mask = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS | COLOR_FLAG_UNDERLINE | COLOR_FLAG_COLOR;
 
     //CSH_SCHEME ==0 is the Minimal one
@@ -164,7 +164,7 @@ void MscInitializeCshAppearanceList(void)
 }
 
 struct CurrentState {
-    int effects;
+    unsigned effects;
     MscColorType color;
     CurrentState() : effects(0) {}
     void Apply(const MscColorSyntaxAppearance &appearance);
@@ -198,7 +198,7 @@ string CurrentState::Print(bool fakeDash) const
 }
 
 //Takes a chart description and makes it into a color syntax highlighted label
-string Cshize(const char *input, unsigned len, const CshListType &cshList, int cshStyle,
+string Cshize(const char *input, unsigned len, const CshListType &cshList, unsigned cshStyle,
               const char *textformat)
 {
     map<int, CurrentState> textState;
@@ -240,11 +240,11 @@ string Cshize(const char *input, unsigned len, const CshListType &cshList, int c
         if (i->first + offset > ret.length()) break; // color codes past the end of the string
         format = i->second.Print();
         ret.insert(i->first + offset, format);
-        offset += format.length();
+        offset += (unsigned)format.length();
         lastState = i->second;
     }
     //replace "\n" to "\\n"
-    unsigned pos = ret.find("\n");
+    string::size_type pos = ret.find("\n");
     while (pos != string::npos) {
         ret.replace(pos, 1, "\377n");
         pos = ret.find("\n", pos+2);
@@ -252,10 +252,10 @@ string Cshize(const char *input, unsigned len, const CshListType &cshList, int c
     //add escape for {}[];#" if they are not yet escaped
     pos = ret.find_first_of("{}[];#\\\"");
     while (pos != string::npos) {
-        int pos2 = pos-1;
-        while (pos2>=0 && ret[pos2]=='\\') pos2--;
+        string::size_type pos2 = pos;
+        while (pos2>0 && ret[pos2-1]=='\\') pos2--;
         //if odd number of \s
-        if ((pos-pos2)%2)
+        if ((pos-pos2+1)%2)
             ret.insert(pos, "\\");
         pos = ret.find_first_of("{}[];#\\\"", pos+2);
     }
@@ -338,9 +338,9 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
             //if even number then replace comment with spaces till end of line
             if (count%2 == 0) {
                 CshPos comment;
-                comment.first_pos = pos.first_pos + (p - copy)-1;
+                comment.first_pos = pos.first_pos + unsigned(p - copy)-1;
                 while (*p!=0 && *p!=0x0d && *p!=0x0a) *(p++) = ' ';
-                comment.last_pos = pos.first_pos + (p - copy);
+                comment.last_pos = pos.first_pos + unsigned(p - copy);
                 AddCSH(comment, COLOR_COMMENT);
             } else
                 p++; //step over the escaped #
@@ -383,9 +383,9 @@ static const char extvxpos_designator_names[][ENUM_STRING_LEN] =
 {"left", "right", "center", ""};
 
 
-int find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
+unsigned find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
 {
-    for (int i=0; array[i][0]; i++)
+    for (unsigned i=0; array[i][0]; i++)
         switch (CaseInsensitiveBeginsWith(array[i], name)) {
         case 1: return 1;
         case 2: return 2;
@@ -404,8 +404,8 @@ int find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
 void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
 {
     MscColorSyntaxType type = COLOR_KEYWORD;
-    int match_result = find_opt_attr_name(name, keyword_names);
-    int match_result_options = find_opt_attr_name(name, opt_names);
+    unsigned match_result = find_opt_attr_name(name, keyword_names);
+    unsigned match_result_options = find_opt_attr_name(name, opt_names);
     //If options fit better, we switch to them
     if (match_result_options > match_result) {
         type = COLOR_OPTIONNAME;
@@ -438,7 +438,7 @@ void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color
     const char (*array)[ENUM_STRING_LEN];
     if (color == COLOR_OPTIONNAME) array = opt_names;
     if (color == COLOR_ATTRNAME) array = attr_names;
-    int match_result = find_opt_attr_name(name, array);
+    unsigned match_result = find_opt_attr_name(name, array);
     //Honor partial matches only if cursor is right after
     if (pos.last_pos != cursor_pos && match_result == 1)
         match_result = 0;
@@ -464,7 +464,7 @@ void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color
 // Csh::partial_at_cursor_pos
 void Csh::AddCSH_StyleOrAttrName(CshPos&pos, const char *name)
 {
-    int match_result = find_opt_attr_name(name, attr_names);
+    unsigned match_result = find_opt_attr_name(name, attr_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, COLOR_ATTRNAME_PARTIAL);
         partial_at_cursor_pos.first_pos = pos.first_pos;
@@ -511,7 +511,7 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
 // Csh::partial_at_cursor_pos
 void Csh::AddCSH_SymbolName(CshPos&pos, const char *name)
 {
-    int match_result = find_opt_attr_name(name, symbol_names);
+    unsigned match_result = find_opt_attr_name(name, symbol_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, COLOR_KEYWORD_PARTIAL);
         partial_at_cursor_pos.first_pos = pos.first_pos;
@@ -529,7 +529,7 @@ void Csh::AddCSH_SymbolName(CshPos&pos, const char *name)
 
 void Csh::AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name)
 {
-    int match_result = find_opt_attr_name(name, extvxpos_designator_names);
+    unsigned match_result = find_opt_attr_name(name, extvxpos_designator_names);
     if (pos.last_pos == cursor_pos && match_result == 1) {
         AddCSH(pos, COLOR_KEYWORD_PARTIAL);
         partial_at_cursor_pos.first_pos = pos.first_pos;
@@ -566,7 +566,7 @@ bool CshHintGraphicCallbackForMarkers(MscCanvas *canvas, CshHintGraphicParam /*p
     return true;
 }
 
-void Csh::ParseText(const char *input, unsigned len, int cursor_p, int scheme)
+void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme)
 {
     //initialize data struct
     cursor_pos = cursor_p;
@@ -878,7 +878,7 @@ void Csh::AddToHints(CshHint &&h)
     if (hintStatus == HINT_READY) return; //we add no more
     if (h.callback==NULL && h.type == HINT_ATTR_NAME) {
         h.callback = CshHintGraphicCallbackForAttributeNames;
-        h.param = NULL; 
+        h.param = 0; 
     }
     Hints.insert(std::move(h));
 }
@@ -887,7 +887,7 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
                      CshHintGraphicCallback c)
 {
     //index==0 is usually "invalid"
-    for (int i=1; names[i][0]; i++)
+    for (unsigned i=1; names[i][0]; i++)
         AddToHints(CshHint(prefix+names[i], t, true, c, CshHintGraphicParam(i)));
 }
 
@@ -895,7 +895,7 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
                      CshHintGraphicCallback c, CshHintGraphicParam p)
 {
     //index==0 is usually "invalid"
-    for (int i=1; names[i][0]; i++)
+    for (unsigned i=1; names[i][0]; i++)
         AddToHints(CshHint(prefix+names[i], t, true, c, p));
 }
 
@@ -931,7 +931,7 @@ void Csh::AddColorValuesToHints()
     CshHint hint("", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForColors, 0);
     for (auto i=Contexts.back().Colors.begin(); i!=Contexts.back().Colors.end(); i++) {
         hint.decorated = HintPrefix(COLOR_ATTRVALUE) + i->first;
-        hint.param = i->second;
+        hint.param = i->second.ConvertToUnsigned();
         AddToHints(hint);
     }
 }
@@ -1102,7 +1102,7 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
             Hints.erase(i++);
             continue;
         }
-        unsigned dot_pos;
+        string::size_type dot_pos;
         if (compact_same) {
             unsigned len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), uc.c_str());
             dot_pos = i->plain.find('.', len);
@@ -1120,7 +1120,7 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
                 }
                 //Here we need to close combining, put start back to Hints
                 if (start_counter) {
-                    int pos_in_dec = start.decorated.find(start.plain.substr(start_len));
+                    string::size_type pos_in_dec = start.decorated.find(start.plain.substr(start_len));
                     start.decorated.replace(pos_in_dec, start.plain.length()-start_len, ".*");
                     start.plain.erase(start_len+1);
                     start.keep = true;
@@ -1137,7 +1137,7 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
             //it must have a dot and we shall be able to tweak the decorated string, too
             if (dot_pos != string::npos && i->decorated.find(i->plain.substr(dot_pos)) != string::npos) {
                 start = *i;
-                start_len = dot_pos;
+                start_len = unsigned(dot_pos);
                 start_counter = 0;
                 Hints.erase(i++);
                 continue;
@@ -1153,7 +1153,7 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
     //If we have unfinished compact, flush it
     if (start_len) {
         if (start_counter) {
-            int pos_in_dec = start.decorated.find(start.plain.substr(start_len));
+            string::size_type pos_in_dec = start.decorated.find(start.plain.substr(start_len));
             start.decorated.replace(pos_in_dec, start.plain.length()-start_len, ".*");
             start.plain.erase(start_len+1);
             start.keep = true;
@@ -1175,7 +1175,8 @@ int FindPrefix(const std::set<std::string> &coll, const char *txt)
 {
     if (txt == NULL || txt[0]==0) return -1;
     unsigned ret = 0;
-    const unsigned len = strlen(txt);
+    _ASSERT(strlen(txt)<UINT_MAX);
+    const unsigned len = (unsigned)strlen(txt);
     for (auto i = coll.begin(); i!=coll.end(); i++) {
         if (len > i->length()) continue;
         if (strncmp(i->c_str(), txt, len)) continue;

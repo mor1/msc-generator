@@ -4,12 +4,15 @@
 #include <cfloat>
 #include <utility>
 #include <cassert>
+#include <cstddef>
 
 using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
 
 #ifndef _ASSERT
-#define  _ASSERT(A) 
+#define  _ASSERT(A)
 #endif
+
+
 
 namespace contour {
 
@@ -135,7 +138,7 @@ struct Block {
         {return XY(x.from, y.till);}
     XY CenterPoint(void) const
         {return XY(x.MidPoint(), y.MidPoint());}
-    XY Spans(void) const 
+    XY Spans(void) const
         {return XY(x.Spans(), y.Spans());}
     is_within_t IsWithin(const XY &p) const {
         if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
@@ -160,6 +163,6 @@ struct Block {
     Block & Scale(const XY &sc) {x.Scale(sc.x); y.Scale(sc.y); return *this;}
 };
 
-} //namespace 
+} //namespace
 
 #endif //CONTOUR_BASICS_H

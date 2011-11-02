@@ -76,6 +76,7 @@ public:
     AreaList() {boundingBox.MakeInvalid();}
     AreaList(const Area &area) {boundingBox.MakeInvalid(); operator+=(area);}
     AreaList(Area &&area) {boundingBox.MakeInvalid(); operator+=(std::move(area));}
+    AreaList(const AreaList &al) : cover(al.cover), boundingBox(al.boundingBox), mainline(al.mainline) {}
     AreaList(AreaList &&al) : cover(std::move(al.cover)), boundingBox(al.boundingBox), mainline(std::move(al.mainline)) {}
     const std::list<Area> &GetCover() const {return cover;}
     void clear() {boundingBox.MakeInvalid(); mainline.clear(); cover.clear();}

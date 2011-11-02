@@ -229,7 +229,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case '_':    // subscript
         if (apply) {
             fontType.first = true;
-            fontType.second = string("+-^_").find(input[1]);
+            fontType.second = (unsigned)string("+-^_").find(input[1]);
         }
         goto ok2; //valid formatting character of length 2
 
@@ -386,7 +386,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         length = 3 + was_m;
         goto nok;
     }
-    length = end-input+1; //since we have both ( and ) found, we have at least () after the escape
+    length = unsigned(end-input)+1; //since we have both ( and ) found, we have at least () after the escape
     parameter.assign(input+was_m+3, length-was_m-4); //stuff inside parenthesis
 
     //start with escapes taking a string value as parameter
@@ -672,7 +672,7 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
     //   we know that the linenum parameter points to the opening quotation mark
     //   so we increment it at the beginning - for cases #1 and #2 it does not matter
     linenum.col++;
-    unsigned pos=0;
+    string::size_type pos=0;
     string replaceto;
     StringFormat sf;
     string ignoreText = ignore?" Ignoring it.":"";
@@ -725,12 +725,12 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
 int StringFormat::FindNumberingFormatEscape(const char *text)
 {
     StringFormat sf;
-    unsigned pos = 0;
-	unsigned text_length = strlen(text);
+    string::size_type pos = 0;
+	string::size_type text_length = strlen(text);
     while (pos < text_length) {
         unsigned length;
 		if (NUMBERING_FORMAT == sf.ProcessEscape(text+pos, length))
-            return pos;
+            return (int)pos;
         pos += length;
     }
 	return -1;
@@ -1045,7 +1045,7 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
     while (pos < label.length()) {
         if (NUMBERING == sf.ProcessEscape(label.c_str()+pos, length)) {
             label.replace(pos, length, num);
-            length = num.length();
+            length = (unsigned)num.length();
             number_added = true;
         }
         pos += length;
@@ -1303,7 +1303,7 @@ unsigned Label::AddText(const string &input, MscCanvas *canvas, StringFormat for
         pos += length; //add the length of the line break itself
         line_start = pos;
     }
-    return this->size();
+    return (unsigned)this->size();
 }
 
 void Label::AddSpacing(unsigned line, double spacing)

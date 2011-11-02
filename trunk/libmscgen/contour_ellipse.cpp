@@ -380,7 +380,6 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
 bool EllipseData::refine_point(const XY &A, const XY &B, XY &p) const
 {
     int max_itr = 32;
-    XY p_orig = p;
     while (--max_itr>=0) {
         XY c1 =   conv_to_circle_space(p);
         const double closeness = fabs(c1.length()-1);

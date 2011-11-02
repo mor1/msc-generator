@@ -242,7 +242,7 @@ public:
     void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
     void DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pass);
     void Draw(MscCanvas &canvas, bool pageBreaks);
-    void DrawCopyrightText(MscCanvas &canvas, unsigned page=0);
+    void DrawCopyrightText(MscCanvas &canvas, int page=-1);
     void DrawPageBreaks(MscCanvas &canvas);
     void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &fn, bool bPageBreaks);
 };

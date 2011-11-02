@@ -111,7 +111,7 @@ public:
     std::string Print(bool oWarnings) const;
     bool hasErrors() const {return Errors.size()>0;}
     void Sort() {_sort(Errors); _sort(ErrorsAndWarnings);}
-    unsigned GetErrorNum(bool oWarnings) const {return get_store(oWarnings).size();}
+    unsigned GetErrorNum(bool oWarnings) const {return (unsigned)get_store(oWarnings).size();}
     file_line GetErrorLoc(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].relevant_line;}
     const char *GetErrorText(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].text.c_str();}
     ErrorElement FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const ;

@@ -254,7 +254,7 @@ COleServerItem* CMscGenDoc::OnGetLinkedItem(LPCTSTR lpszItemName)
 		return pItem;
 
     unsigned page = 0;
-    sscanf(lpszItemName, "%ud", &page);
+    sscanf(lpszItemName, "%u", &page);
     if (page > m_ChartShown.GetPages())
         return NULL;
 
