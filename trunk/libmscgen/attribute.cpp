@@ -49,8 +49,9 @@ int CaseInsensitiveBeginsWith(const char *a, const char *b)
 
 bool CaseInsensitiveEndsWith(const char *base, const char *a)
 {
-    int i1 = (unsigned)strlen(a)-1;
-    int i2 = (unsigned)strlen(base)-1;
+    //strlen is size_t which may be bigger than unsigned - but I expect the value to fit an int
+    int i1 = (int)(unsigned)strlen(a)-1;
+    int i2 = (int)(unsigned)strlen(base)-1;
     if (i1>i2 || i1<0 || i2<0) return false;
     while(i1>=0 && i2>=0) {
         if (toupper(a[i1]) != toupper(base[i2]))
