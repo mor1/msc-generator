@@ -101,7 +101,7 @@ static void usage()
 "Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it under certain\n"
 "conditions; type `mscgen -l' for details.\n",
-VersionText());
+VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
 }
 
 /** Print program licence and return.
@@ -144,7 +144,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     Msc msc;
     msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
                         "http://msc-generator.sourceforge.net ";
-    msc.copyrightText.append(VersionText());
+    msc.copyrightText.append(VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
 
     msc.Error.AddFile("[options]");
     const file_line opt_pos(msc.current_file,0,0);

@@ -15,6 +15,18 @@
     {
         "Entry"
         {
+        "MsmKey" = "8:_02371FCA6956451A91F7552CC2307649"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_02371FCA6956451A91F7552CC2307649"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_0C0487C0D406475788D189FF07354D88"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -39,19 +51,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_2543ECCF06BB4ED8B28C1DCFF1B6FA62"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_2543ECCF06BB4ED8B28C1DCFF1B6FA62"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_34C1116D816E46CA859190A3B4B3BF47"
+        "MsmKey" = "8:_3ADFDA14486441A09EFD9E9A66F87863"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -443,7 +443,7 @@
         {
             "{5EB83D71-FA18-4901-BE56-DE22E13CC478}:_A88B573BA2984CDCAB87B69D8911B5D4"
             {
-            "Name" = "8:Signalling Chart"
+            "Name" = "8:Mscgen.Chart"
             "Description" = "8:Msc-generator Signalling Chart"
             "Extensions" = "8:signalling"
             "MIME" = "8:"
@@ -539,15 +539,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
-        "ProductCode" = "8:{39D76C17-DF60-4971-AD12-D46FEA6D4B98}"
-        "PackageCode" = "8:{2F854015-5BDD-4D31-896B-7005831A9471}"
+        "ProductCode" = "8:{C64A29E2-4350-4072-91DF-34E7983E430F}"
+        "PackageCode" = "8:{9FFDF379-4537-4F45-BCD7-901B70D85FAA}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:3.4.5"
+        "ProductVersion" = "8:3.4.8"
         "Manufacturer" = "8:Zoltan Turanyi"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1107,6 +1107,28 @@
                                     }
                                 }
                             }
+                            "{60EA8692-D2D5-43EB-80DC-7906BF13D6EF}:_CC951378E16546AEB475A0E3295BFDD7"
+                            {
+                            "Name" = "8:EditFlags"
+                            "Condition" = "8:"
+                            "AlwaysCreate" = "11:FALSE"
+                            "DeleteAtUninstall" = "11:FALSE"
+                            "Transitive" = "11:FALSE"
+                                "Keys"
+                                {
+                                }
+                                "Values"
+                                {
+                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_2878D711054B484188F4CF174C7B03A0"
+                                    {
+                                    "Name" = "8:"
+                                    "Condition" = "8:"
+                                    "Transitive" = "11:FALSE"
+                                    "ValueTypes" = "3:3"
+                                    "Value" = "3:65536"
+                                    }
+                                }
+                            }
                         }
                         "Values"
                         {
@@ -1117,28 +1139,6 @@
                             "Transitive" = "11:FALSE"
                             "ValueTypes" = "3:1"
                             "Value" = "8:Msc-generator Signalling Chart"
-                            }
-                        }
-                    }
-                    "{60EA8692-D2D5-43EB-80DC-7906BF13D6EF}:_2F4E26BF8194444D90E04E6B61796149"
-                    {
-                    "Name" = "8:.signalling"
-                    "Condition" = "8:"
-                    "AlwaysCreate" = "11:FALSE"
-                    "DeleteAtUninstall" = "11:TRUE"
-                    "Transitive" = "11:FALSE"
-                        "Keys"
-                        {
-                        }
-                        "Values"
-                        {
-                            "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_CD1DD009CCD4486190A5F1D086E5CC4C"
-                            {
-                            "Name" = "8:(Default)"
-                            "Condition" = "8:"
-                            "Transitive" = "11:FALSE"
-                            "ValueTypes" = "3:1"
-                            "Value" = "8:Mscgen.Chart"
                             }
                         }
                     }
@@ -1179,6 +1179,28 @@
                                             "Transitive" = "11:FALSE"
                                             "ValueTypes" = "3:1"
                                             "Value" = "8:Mscgen.Chart"
+                                            }
+                                        }
+                                    }
+                                    "{60EA8692-D2D5-43EB-80DC-7906BF13D6EF}:_0C6DD6A655B148E98A6F1F59CC6B9ABD"
+                                    {
+                                    "Name" = "8:LocalServer"
+                                    "Condition" = "8:"
+                                    "AlwaysCreate" = "11:FALSE"
+                                    "DeleteAtUninstall" = "11:FALSE"
+                                    "Transitive" = "11:FALSE"
+                                        "Keys"
+                                        {
+                                        }
+                                        "Values"
+                                        {
+                                            "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_52E44F42E41D40DA898196E8D2CF3AFB"
+                                            {
+                                            "Name" = "8:"
+                                            "Condition" = "8:"
+                                            "Transitive" = "11:FALSE"
+                                            "ValueTypes" = "3:1"
+                                            "Value" = "8:[TARGETDIR]Msc-generator.EXE"
                                             }
                                         }
                                     }
@@ -1333,7 +1355,29 @@
                                                     "Condition" = "8:"
                                                     "Transitive" = "11:FALSE"
                                                     "ValueTypes" = "3:1"
-                                                    "Value" = "8:&View Full Screen,0,2"
+                                                    "Value" = "8:&View Full Screen,0,3"
+                                                    }
+                                                }
+                                            }
+                                            "{60EA8692-D2D5-43EB-80DC-7906BF13D6EF}:_6A919911DFFE47349ABB6E6F32DC40FA"
+                                            {
+                                            "Name" = "8:0"
+                                            "Condition" = "8:"
+                                            "AlwaysCreate" = "11:FALSE"
+                                            "DeleteAtUninstall" = "11:FALSE"
+                                            "Transitive" = "11:FALSE"
+                                                "Keys"
+                                                {
+                                                }
+                                                "Values"
+                                                {
+                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_E26052C6342741C989801C3656E669DA"
+                                                    {
+                                                    "Name" = "8:"
+                                                    "Condition" = "8:"
+                                                    "Transitive" = "11:FALSE"
+                                                    "ValueTypes" = "3:1"
+                                                    "Value" = "8:&Edit,0,0"
                                                     }
                                                 }
                                             }
@@ -1983,11 +2027,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_2543ECCF06BB4ED8B28C1DCFF1B6FA62"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_02371FCA6956451A91F7552CC2307649"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_DebugCRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
                 "Properties"
                 {
                 }
@@ -1997,11 +2041,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_34C1116D816E46CA859190A3B4B3BF47"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_3ADFDA14486441A09EFD9E9A66F87863"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_DebugMFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
                 "Properties"
                 {
                 }
@@ -2016,7 +2060,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
             {
-            "SourcePath" = "8:..\\Debug\\msc-gen.exe"
+            "SourcePath" = "8:..\\Release\\msc-gen.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
@@ -2044,7 +2088,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_8D210BB11DE54BFF9295776C6C22707B"
             {
-            "SourcePath" = "8:..\\Debug\\Msc-generator.exe"
+            "SourcePath" = "8:..\\Release\\Msc-generator.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"

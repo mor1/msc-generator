@@ -82,7 +82,7 @@ protected:
     bool             candraw;
 
     void SetLowLevelParams(MscCanvas::OutputType ot);
-    void GetPagePosition(const std::vector<double> *yPageStart, int page, XY &offset, XY &size) const;
+    void GetPagePosition(const std::vector<double> *yPageStart, unsigned page, XY &offset, XY &size) const;
     ErrorType CreateSurface(const XY &size); 
     ErrorType CreateContextFromSurface(OutputType, XY scale, XY origSize, XY origOffset, double copyrightTextHeight);
 
@@ -116,12 +116,12 @@ friend class ArcPipe;  //for exotic line joints
 public:
     MscCanvas(OutputType ot);
     MscCanvas(OutputType, const XY &tot, double copyrightTextHeight, const string &fn, const XY &scale=XY(1.,1.),
-              const std::vector<double> *yPageStart=NULL, int page=-1);
+              const std::vector<double> *yPageStart=NULL, unsigned page=0);
     ErrorType Status() const {return status;}
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, save_hdc;
     MscCanvas(OutputType, HDC hdc, const XY &tot=XY(0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
-              const std::vector<double> *yPageStart=NULL, int page=-1);
+              const std::vector<double> *yPageStart=NULL, unsigned page=0);
     HENHMETAFILE CloseOutputRetainHandleEMF();
     HMETAFILE CloseOutputRetainHandleWMF();
 #endif
