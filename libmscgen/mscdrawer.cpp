@@ -103,7 +103,7 @@ MscCanvas::MscCanvas(OutputType ot, const XY &tot, double copyrightTextHeight,
     size.y *= fake_scale*scale.y;
 
     fileName = fn;
-    if (page>=0) {  //append page number if not all pages written
+    if (page>0) {  //append page number if not all pages written
         char num[3]="00";
         num[0] = char('0'+page/10);
         num[1] = char('0'+page%10);

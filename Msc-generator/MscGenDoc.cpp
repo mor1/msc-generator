@@ -305,35 +305,35 @@ void CMscGenDoc::Dump(CDumpContext& dc) const
 void CMscGenDoc::Serialize(CArchive& ar)
 {
     unsigned forced_page = m_ChartShown.GetPage(); //dummy
-    SerializePage(ar, forced_page);
+    SerializePage(ar, forced_page, false);  //do not use forced_page
 }
 
-void CMscGenDoc::SerializePage(CArchive& ar, unsigned &forced_page)
+void CMscGenDoc::SerializePage(CArchive& ar, unsigned &forced_page, bool force_page)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (ar.IsStoring()) {
-        SerializeHelper(ar, pApp->m_bFullScreenViewMode ? m_ChartSerializedIn : m_ChartShown, forced_page);
+        SerializeHelper(ar, pApp->m_bFullScreenViewMode ? m_ChartSerializedIn : m_ChartShown, forced_page, force_page);
     } else {
         CChartData chart;
-        SerializeHelper(ar, chart, forced_page);
+        SerializeHelper(ar, chart, forced_page, force_page);
         InsertNewChart(chart);
         m_ChartSerializedIn = chart;
 	} /* not IsStoring */
 }
 
-//if forced_page>0 we are surely serializing to the clipboard only a single page
-//copy this page also to the page-to-display field
+//if "force_page" is true, we force a certain page (or all) stored in "forced_page" (only at store)
+//else we use the page in "chart"
 #define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
-void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page) 
+void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page) 
 {
 	if (ar.IsStoring()) {
 		ar << CString(NEW_VERSION_STRING); //if format starts with this string, we have file version afterwards
 		ar << unsigned(4); //file format version
 		ar << chart.GetDesign();
-		ar << (forced_page ? forced_page : chart.GetPage());
+		ar << (force_page ? forced_page : chart.GetPage());
 		ar << chart.GetText();
-        ar << forced_page; //force this page
+        ar << (force_page ? forced_page : chart.GetPage()); //dummy
         ar << unsigned(LIBMSCGEN_MAJOR);
         ar << unsigned(LIBMSCGEN_MINOR);
         ar << unsigned(LIBMSCGEN_SUPERMINOR);
@@ -411,7 +411,10 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
             break; //nothing to read besides design, page and text
         default: //any future version 
         case 4: //since 3.4.3
-            ar >> forced_page; //read forced page for links
+            if (force_page)
+                ar >> forced_page; //read forced page for links (unused, quite much)
+            else 
+                ar >> a; //dummy, "a" will be overwritten below
         case 3: //since 3.1.3 : read version and force arc collapse
             ar >> a;
             ar >> b;
