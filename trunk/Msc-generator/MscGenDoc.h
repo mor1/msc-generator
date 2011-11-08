@@ -88,8 +88,8 @@ public:
 //Menu and toolbar functions
 public:
 	virtual void Serialize(CArchive& ar);
-            void SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page);
-            void SerializePage(CArchive& ar, unsigned &forced_page);
+            void SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page);
+            void SerializePage(CArchive& ar, unsigned &forced_page, bool force_page);
 	virtual void DeleteContents(); // Destroys existing data, updates views
 	virtual BOOL CanCloseFrame(CFrameWnd* pFrame);
 	virtual BOOL OnNewDocument();

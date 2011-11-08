@@ -341,10 +341,11 @@ unsigned CDrawingChartData::GetPages() const
     return GetMsc()->yPageStart.size();
 }
 
-//if force_page==0, return the size of m_page (or the entire chart if m_page==0)
-CSize CDrawingChartData::GetSize(unsigned force_page) const
+//if force_page==false, return the size of m_page (or the entire chart if m_page==0)
+//else that of forced_page
+CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
 {
-    const unsigned page_to_measure = force_page ? force_page : m_page;
+    const unsigned page_to_measure = force_page ? forced_page : m_page;
     const Msc &msc = *GetMsc();
     CSize ret(int(msc.total.x), int(msc.copyrightTextHeight));
     if (page_to_measure==0) 
@@ -389,9 +390,9 @@ void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, 
 }
 
 //here force_page==0 means we do not force a particular page, use m_page
-void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, unsigned force_page) const
+void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page) const
 {
-    const unsigned page_to_draw = force_page ? force_page : m_page;
+    const unsigned page_to_draw = force_page ? forced_page : m_page;
     MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->total, GetMsc()->copyrightTextHeight, 
                      XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
     if (canvas.Status()==MscCanvas::ERR_OK) {
