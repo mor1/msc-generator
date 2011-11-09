@@ -39,7 +39,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_6033056C18A24833894C38781DF1AC5C"
+        "MsmKey" = "8:_4318C7EEB8EE402280764D9DBC2E6524"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -47,18 +47,6 @@
         {
         "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
         "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_737AFE0A5B32452EBD92B4BCCF384FCD"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_737AFE0A5B32452EBD92B4BCCF384FCD"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -77,6 +65,18 @@
         {
         "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
         "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D98F20D460524EFA902E94CB03E675A2"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D98F20D460524EFA902E94CB03E675A2"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -539,15 +539,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
-        "ProductCode" = "8:{CF9EA9AC-EA3D-4F34-A807-D5BA81C8927A}"
-        "PackageCode" = "8:{6B268C4F-71EA-4D0B-9841-2A68D75DCD53}"
+        "ProductCode" = "8:{F6220B1D-9B14-4AE1-A027-C22802490656}"
+        "PackageCode" = "8:{ADC4DAAD-8818-4902-A46F-A6BFE7EF09FF}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:3.4.9"
+        "ProductVersion" = "8:3.4.10"
         "Manufacturer" = "8:Zoltan Turanyi"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1279,28 +1279,6 @@
                                     "Transitive" = "11:FALSE"
                                         "Keys"
                                         {
-                                            "{60EA8692-D2D5-43EB-80DC-7906BF13D6EF}:_0FE6D60707EC45218247A563A5636F8A"
-                                            {
-                                            "Name" = "8:{C7AA2160-50FF-11CF-A77E-00AA006D2EA4}"
-                                            "Condition" = "8:"
-                                            "AlwaysCreate" = "11:FALSE"
-                                            "DeleteAtUninstall" = "11:FALSE"
-                                            "Transitive" = "11:FALSE"
-                                                "Keys"
-                                                {
-                                                }
-                                                "Values"
-                                                {
-                                                    "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_489E4FB78E96496FAC27D97D6D755437"
-                                                    {
-                                                    "Name" = "8:"
-                                                    "Condition" = "8:"
-                                                    "Transitive" = "11:FALSE"
-                                                    "ValueTypes" = "3:1"
-                                                    "Value" = "8:"
-                                                    }
-                                                }
-                                            }
                                         }
                                         "Values"
                                         {
@@ -2063,7 +2041,7 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_6033056C18A24833894C38781DF1AC5C"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_4318C7EEB8EE402280764D9DBC2E6524"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
@@ -2077,7 +2055,7 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_737AFE0A5B32452EBD92B4BCCF384FCD"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_D98F20D460524EFA902E94CB03E675A2"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
