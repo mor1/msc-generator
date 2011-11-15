@@ -58,6 +58,25 @@ CMscGenSrvrItem::~CMscGenSrvrItem()
 	// add cleanup code here
 }
 
+
+//depending on the invocation mode, returns the chart to draw/save/extent
+CDrawingChartData & CMscGenSrvrItem::GetChart()
+{
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT_VALID(pApp);
+    return pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
+}
+
+//depending on linking/embedding, returns the page to draw/extent
+unsigned CMscGenSrvrItem::GetPage()
+{
+    if (IsLinkedItem()) return m_forcePage;
+    return GetChart().GetPage();
+}
+
+
 void CMscGenSrvrItem::Serialize(CArchive& ar)
 {
 	// CMscGenSrvrItem::Serialize will be called by the framework if
@@ -69,7 +88,7 @@ void CMscGenSrvrItem::Serialize(CArchive& ar)
 
     CMscGenDoc* pDoc = GetDocument();
     ASSERT_VALID(pDoc);
-    unsigned fp = m_forcePage;
+    unsigned fp = GetPage();
     pDoc->SerializePage(ar, fp, true);  //overwrite page stored in pDoc with fp, but keep m_forcedpage on read
 }
 
@@ -86,13 +105,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 
 	// CMscGenSrvrItem::OnGetExtent is called to get the extent in
 	//  HIMETRIC units of the entire item.  
-
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT_VALID(pApp);
-    CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
-	rSize = chart.GetSize(true, m_forcePage);
+	rSize = GetChart().GetSize(true, GetPage());
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -120,7 +133,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
     CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
-	chart.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded, true, m_forcePage);
+	chart.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded, true, GetPage());
 	return TRUE;
 }
 

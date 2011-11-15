@@ -39,9 +39,8 @@ ADD: Tip of the day
 
 
 In 3.4
-DOC: number in vertxpos and symbol ...
-FIX: Embedded objects pageing
-
+DOC'D: number in vertxpos and symbol ...
+FIXED: Embedded objects pageing
 ADDED: number in vertxpos
 ADDED: symbol ...
 FIXED: Shadow direction with angled block arrows
