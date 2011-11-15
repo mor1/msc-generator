@@ -126,28 +126,29 @@ BEGIN
     LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,110,39,140,8
 END
 
-IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
+IDD_ABOUTBOX DIALOGEX 0, 0, 238, 55
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About Msc-generator"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,21,20
     LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
     LTEXT           "Copyright (C) 2008-2011 Zoltan Turanyi",IDC_STATIC,40,25,139,8
-    DEFPUSHBUTTON   "OK",IDOK,178,7,50,16,WS_GROUP
-    PUSHBUTTON      "http://msc-generator.sourceforge.net",IDC_BUTTON_URL,38,37,133,14
+    DEFPUSHBUTTON   "OK",IDOK,181,7,50,16,WS_GROUP
+    PUSHBUTTON      "Go to homepage",IDC_BUTTON_URL,40,38,133,14
+    PUSHBUTTON      "Download latest version",IDC_BUTTON_LATEST_URL,114,38,117,14
 END
 
-IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 82
+IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 60
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "A new version of Msc-generator  is available"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,61,75,14
-    PUSHBUTTON      "Do not remind me",IDOK,103,61,84,14
-    PUSHBUTTON      "https://sourceforge.net/projects/msc-generator/",IDC_BUTTON_URL2,14,39,169,14
-    LTEXT           "Currently installed version:",IDC_STATIC_CURRENT_VERSION,26,9,133,8
-    LTEXT           "Latest version available:",IDC_STATIC_LATEST_VERSION,34,24,134,8
+    DEFPUSHBUTTON   "Remind me later",IDCANCEL,7,39,75,14
+    PUSHBUTTON      "Do not remind me",IDOK,103,39,84,14
+    PUSHBUTTON      "Download",IDC_BUTTON_URL2,148,22,39,14
+    LTEXT           "Currently installed version:",IDC_STATIC_CURRENT_VERSION,12,9,133,8
+    LTEXT           "Latest version available:",IDC_STATIC_LATEST_VERSION,20,24,127,8
 END
 
 
@@ -176,7 +177,7 @@ BEGIN
     IDD_ABOUTBOX, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 228
+        RIGHTMARGIN, 231
         TOPMARGIN, 7
         BOTTOMMARGIN, 48
     END
@@ -186,7 +187,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 187
         TOPMARGIN, 7
-        BOTTOMMARGIN, 75
+        BOTTOMMARGIN, 53
     END
 END
 #endif    // APSTUDIO_INVOKED

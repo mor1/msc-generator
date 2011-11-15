@@ -161,9 +161,9 @@ public:
     void Fill(const Block &b, const MscFillAttr &fill);
     void Fill(const Block &b, const MscLineAttr &line, const MscFillAttr &fill);
     void Fill(const Contour &area, const MscFillAttr &fill);
-    void Shadow(const Block &b, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false) {Shadow(b, MscLineAttr(), shadow, shadow_x_neg, shadow_y_neg);}
-    void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
-    void Shadow(const Contour &area, const MscShadowAttr &shadow, bool shadow_x_neg=false, bool shadow_y_neg=false);
+    void Shadow(const Block &b, const MscShadowAttr &shadow, double angle_radian=0) {Shadow(b, MscLineAttr(), shadow, angle_radian);}
+    void Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, double angle_radian=0);
+    void Shadow(const Contour &area, const MscShadowAttr &shadow, double angle_radian=0);
 };
 
 //A number, which is larger than any chart, but small enough for contour to make no mistakes

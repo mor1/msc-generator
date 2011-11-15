@@ -113,7 +113,7 @@ using namespace std;
 //template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
-    TrackableElement(msc), valid(true), compress(false), parallel(false), 
+    TrackableElement(msc), valid(true), compress(false), parallel(false),
     draw_pass(DEFAULT), type(t)
 {
     if (msc) compress = msc->Contexts.back().compress;
@@ -824,6 +824,22 @@ bool ArcDirArrow::AddAttribute(const Attribute &a)
     return ArcArrow::AddAttribute(a);
 }
 
+void ArcDirArrow::AttributeNames(Csh &csh)
+{
+    ArcLabelled::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
+
+}
+
+bool ArcDirArrow::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (ArcLabelled::AttributeValues(attr, csh)) return true;
+    if (CaseInsensitiveEqual(attr,"angle")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    return false;
+}
 
 
 MscDirType ArcDirArrow::GetToucedEntities(class EntityList &el) const
@@ -1135,15 +1151,15 @@ void ArcDirArrow::CalculateMainline(double thickness)
         const double dst_y = sin_slant*(dx-sx) + src_y;
         const double real_dx = sx + cos_slant*(dx-sx);
         if (sx<dx) {
-            const XY ml[] = {XY(0,   src_y-thickness/2), XY(sx, src_y-thickness/2), 
-                             XY(real_dx, dst_y-thickness/2), XY(chart->total.x, dst_y-thickness/2), 
-                             XY(chart->total.x, dst_y+thickness/2), XY(real_dx, dst_y+thickness/2), 
+            const XY ml[] = {XY(0,   src_y-thickness/2), XY(sx, src_y-thickness/2),
+                             XY(real_dx, dst_y-thickness/2), XY(chart->total.x, dst_y-thickness/2),
+                             XY(chart->total.x, dst_y+thickness/2), XY(real_dx, dst_y+thickness/2),
                              XY(sx, src_y+thickness/2), XY(0, src_y+thickness/2)};
             area.mainline.assign_dont_check(ml);
         } else {
-            const XY ml[] = {XY(0, dst_y-thickness/2), XY(real_dx, dst_y-thickness/2), 
-                             XY(sx, src_y-thickness/2), XY(chart->total.x, src_y-thickness/2), 
-                             XY(chart->total.x, src_y+thickness/2), XY(sx, src_y+thickness/2), 
+            const XY ml[] = {XY(0, dst_y-thickness/2), XY(real_dx, dst_y-thickness/2),
+                             XY(sx, src_y-thickness/2), XY(chart->total.x, src_y-thickness/2),
+                             XY(chart->total.x, src_y+thickness/2), XY(sx, src_y+thickness/2),
                              XY(real_dx, dst_y+thickness/2), XY(0, dst_y+thickness/2)};
             area.mainline.assign_dont_check(ml);
         }
@@ -1310,6 +1326,7 @@ const MscStyle *ArcBigArrow::GetRefinementStyle(MscArcType t) const
 void ArcBigArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
     Design().styles["blockarrow"].AttributeNames(csh);
 }
 
@@ -1317,6 +1334,10 @@ bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
 {
     if (Design().styles["blockarrow"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
+    if (CaseInsensitiveEqual(attr,"angle")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45>", HINT_ATTR_VALUE, false));
+        return true;
+    }
     return false;
 }
 
@@ -1526,7 +1547,7 @@ void ArcBigArrow::Draw(MscCanvas &canvas, DrawPassType pass)
     if (pass!=draw_pass) return;
     if (slant_angle)
         style.arrow.TransformCanvasForAngle(slant_angle, canvas, sx, yPos+centerline);
-    style.arrow.BigDrawFromContour(outer_contours, &segment_lines, style.fill, style.shadow, canvas);
+    style.arrow.BigDrawFromContour(outer_contours, &segment_lines, style.fill, style.shadow, canvas, slant_angle*M_PI/180.);
     parsed_label.Draw(&canvas, sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
     if (sig && style.indicator.second)
         DrawIndicator(XY(cx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside+ind_off), &canvas);
@@ -1537,10 +1558,11 @@ void ArcBigArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 //////////////////////////////////////////////////////////////////////////////////////
 
 VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l,
-                   const char *e2, file_line_range e2l, postype p)
+                   const char *e2, file_line_range e2l, postype p, double off)
 {
     valid = true;
     pos = p;
+    offset = off;
     entity1 = m.FindAllocEntity(e1, e1l);
     e1line = e1l;
     if (pos == POS_CENTER) {
@@ -1552,10 +1574,11 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l,
     }
 }
 
-VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p)
+VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p, double off)
 {
     valid = true;
     pos = p;
+    offset = off;
     entity1 = m.FindAllocEntity(e1, e1l);
     e1line = e1l;
     entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
@@ -1565,6 +1588,8 @@ VertXPos::VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p)
 VertXPos::VertXPos(Msc&m)
 {
     valid = true;
+    pos = POS_INVALID;
+    offset = 0;
     entity1 = m.AllEntities.Find_by_Ptr(m.NoEntity);
     _ASSERT(entity1 != m.AllEntities.end());
     entity2 = m.AllEntities.Find_by_Ptr(m.NoEntity);
@@ -1585,7 +1610,7 @@ double VertXPos::CalculatePos(Msc &chart, double width, double aw) const
     case VertXPos::POS_LEFT_SIDE:   xpos -= width/2 + gap; break;
     case VertXPos::POS_RIGHT_SIDE:  xpos += width/2 + gap; break;
     };
-    return xpos;
+    return xpos + offset;
 }
 
 
@@ -1929,7 +1954,7 @@ void ArcVerticalArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 
     //Draw background
     std::vector<double> act_size(2,0);
-    style.arrow.BigDrawFromContour(outer_contours, NULL, style.fill, style.shadow, canvas, false, false);
+    style.arrow.BigDrawFromContour(outer_contours, NULL, style.fill, style.shadow, canvas);
 
     if (style.side.second == SIDE_LEFT)
         canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
@@ -4406,7 +4431,7 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/, 
+ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
 {
     if (!valid) return NULL;
@@ -4417,7 +4442,7 @@ ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     //Give error if user specified groupe entities
     if (chart->ErrorIfEntityGrouped(src, sline.start)) return NULL;
     if (chart->ErrorIfEntityGrouped(dst, sline.start)) return NULL;
-    //check if src and dst has disappeared, also make src&dst point to 
+    //check if src and dst has disappeared, also make src&dst point to
     //chart->AllActiveEntities
     src = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(src));
     dst = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(dst));
@@ -4432,9 +4457,9 @@ void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     double dist = space.second; //0 if not specified by user
     if (label.second.length())
         dist += Label(label.second, &canvas, format).getTextWidthHeight().x;
-    if (dist<0) 
+    if (dist<0)
         chart->Error.Error(file_pos.start, "The horizontal space specified is negative. Ignoring it.");
-    else 
+    else
         distances.Insert((*src)->index, (*dst)->index, dist);
 }
 
@@ -4442,7 +4467,7 @@ void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 //////////////////////////////////////////////////////////////////////////////////
 
 CommandVSpace::CommandVSpace(Msc*msc)  : ArcCommand(MSC_COMMAND_VSPACE, msc),
-    format(msc->Contexts.back().text), label(false, string()), 
+    format(msc->Contexts.back().text), label(false, string()),
     space(false, 0), compressable(false)
 {
 }
@@ -4499,7 +4524,7 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/, 
+ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
 {
     if (!valid) return NULL;
@@ -4515,9 +4540,9 @@ double CommandVSpace::Height(MscCanvas &canvas, AreaList &cover)
     double dist = space.second;
     if (label.second.length())
         dist += Label(label.second, &canvas, format).getTextWidthHeight().y;
-    if (dist<0) 
+    if (dist<0)
         chart->Error.Error(file_pos.start, "The vertical space specified is negative. Ignoring it.");
-    if (dist<=0) 
+    if (dist<=0)
         return 0;
     if (!compressable) {
         area = Block(0, chart->total.x, 0, dist);
@@ -4529,7 +4554,7 @@ double CommandVSpace::Height(MscCanvas &canvas, AreaList &cover)
 
 //////////////////////////////////////////////////////////////////////////////////
 
-ExtVertXPos::ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p) : 
+ExtVertXPos::ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p) :
 VertXPos(*p), side_line(sl)
 {
     if (!valid) {
@@ -4542,44 +4567,83 @@ VertXPos(*p), side_line(sl)
         side = CENTER;
     else if (CaseInsensitiveEqual(s, "right"))
         side = RIGHT;
-    else 
+    else
         side = BAD_SIDE;
 }
 
+const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
 
-CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp, 
-                const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) : 
-    ArcCommand(MSC_COMMAND_SYMBOL, msc), 
+
+CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
+                const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) :
+    ArcCommand(MSC_COMMAND_SYMBOL, msc),
     style(chart->Contexts.back().styles["symbol"]),
-    hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)), 
-    hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)), 
+    hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
+    hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
     vpos(enp ? *enp : NamePair(NULL, file_line_range(), NULL, file_line_range())),
-    xsize(false, 0), ysize(false, 0)
+    xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL)
 {
     if (CaseInsensitiveEqual(symbol, "arc"))
         symbol_type = ARC;
     else if (CaseInsensitiveEqual(symbol, "rectangle"))
         symbol_type = RECTANGLE;
+    else if (CaseInsensitiveEqual(symbol, "..."))
+        symbol_type = ELLIPSIS;
     else {
         valid = false;
         return;
+    }
+    if (symbol_type == ELLIPSIS) {
+        if (hpos1.side != ExtVertXPos::NONE && hpos2.side != ExtVertXPos::NONE) {
+            chart->Error.Error(hpos2.e1line.start, "Symbol '...' can only have one vertical position indicated. Ignoring second one.");
+            hpos2.side = ExtVertXPos::NONE;
+        }
+        if (vpos.dst.length()>0 && vpos.src.length()>0) {
+            chart->Error.Error(vpos.dline.start, "Symbol '...' can only have one horizontal position indicated. Ignoring second one.");
+            vpos.src.clear();
+        }
+        style.fill.color.second = style.line.color.second;
     }
 }
 
 bool CommandSymbol::AddAttribute(const Attribute &a)
 {
-    if (a.Is("xsize")) {
-        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
-        xsize.first = true;
-        xsize.second = a.number;
-        return true;
-    }
-    if (a.Is("ysize")) {
-        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
-        ysize.first = true;
-        ysize.second = a.number;
-        return true;
-    }
+    if (a.Is("xsize")) 
+        switch (symbol_type) {
+        case ELLIPSIS:
+            chart->Error.Error(a, false, "Attribute 'xsize' is valid only for arc and rectangle symbols.", "Try using just 'size' instead.");
+            return true;
+        default:
+            if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+            xsize.first = true;
+            xsize.second = a.number;
+            return true;
+        }
+    if (a.Is("ysize")) 
+        switch (symbol_type) {
+        case ELLIPSIS:
+            chart->Error.Error(a, false, "Attribute 'ysize' is valid only for arc and rectangle symbols.", "Try using just 'size' instead.");
+            return true;
+        default:
+            if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+            ysize.first = true;
+            ysize.second = a.number;
+            return true;
+        }
+    if (a.Is("size")) 
+        switch (symbol_type) {
+        case ELLIPSIS: 
+            {
+                ArrowHead ah; //use this type to decode 'small', 'normal', etc...
+                ah.Empty();
+                ah.AddAttribute(a, chart, STYLE_ARC);
+                if (ah.size.first) size = ah.size.second;
+            }
+            return true;
+        default:
+            chart->Error.Error(a, false, "Attribute 'size' is valid only for '...' symbols.", "Try using 'xsize' and/or 'ysize' instead.");
+            return true;
+        }
     if (a.Is("draw_time")) {  //We add this even though it is in ArcBase::AddAttribute, but ArcCommand::AddAttribute does not call that
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
@@ -4595,6 +4659,7 @@ void CommandSymbol::AttributeNames(Csh &csh)
     ArcCommand::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", HINT_ATTR_NAME));
     Design().styles["symbol"].AttributeNames(csh);
 }
 
@@ -4606,6 +4671,10 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"ysize")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"size")) {
+        ArrowHead::AttributeValues(attr, csh, ArrowHead::ANY);
         return true;
     }
     if (ArcCommand::AttributeValues(attr, csh)) return true;
@@ -4661,14 +4730,25 @@ ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIter
     hpos2.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos2.entity2));
 
     if (hpos1.side > hpos2.side) std::swap(hpos1, hpos2);
-    if (hpos2.side == ExtVertXPos::NONE && xsize.first == false) {
-        xsize.first = true;
-        xsize.second = 10; //default size;
+    switch (symbol_type) {
+    case ARC:
+    case RECTANGLE:
+        if (hpos2.side == ExtVertXPos::NONE && xsize.first == false) {
+            xsize.first = true;
+            xsize.second = 10; //default size;
+        }
+        if (!(vpos.dst.length() || vpos.src.length()) && ysize.first == false) {
+            ysize.first = true;
+            ysize.second = 10; //default size;
+        }
+        break;
+    case ELLIPSIS:
+        static const double ellipsis_sizes[] = {0, 1.5, 3, 5, 8, 15}; //INVALID, TINY, SMALL, NORMAL, LARGE, HUGE
+        xsize.first = ysize.first = true;
+        xsize.second = ellipsis_sizes[size];
+        ysize.second = xsize.second*(3+2*ellipsis_space_ratio);
     }
-    if (!(vpos.dst.length() || vpos.src.length()) && ysize.first == false) {
-        ysize.first = true;
-        ysize.second = 10; //default size;
-    }
+
     return this;
 }
 
@@ -4729,14 +4809,14 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
 
     CalculateAreaFromOuterEdge();
 
-    if (style.shadow.offset.second) 
+    if (style.shadow.offset.second)
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
-    else 
+    else
         cover = area;
     return outer_edge.y.till + style.shadow.offset.second;
 }
 
-void CommandSymbol::ShiftBy(double y) 
+void CommandSymbol::ShiftBy(double y)
 {
     ArcCommand::ShiftBy(y);
     if (outer_edge.y.IsInvalid()) return;
@@ -4747,17 +4827,17 @@ void CommandSymbol::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
 {
     if (!outer_edge.y.IsInvalid()) return;
     //We used markers, caculate "area" and "outer_edge.y" now
-    if (vpos.src.length()) 
+    if (vpos.src.length())
         outer_edge.y.from = chart->Markers.find(vpos.src)->second.second;
-    if (vpos.dst.length()) 
+    if (vpos.dst.length())
         outer_edge.y.till = chart->Markers.find(vpos.dst)->second.second;
 
-    if (vpos.src.length()==0) 
+    if (vpos.src.length()==0)
         outer_edge.y.from = outer_edge.y.till - ysize.second;
-    if (vpos.dst.length()==0) 
+    if (vpos.dst.length()==0)
         outer_edge.y.till = outer_edge.y.from + ysize.second;
 
-    if (outer_edge.y.from > outer_edge.y.till) 
+    if (outer_edge.y.from > outer_edge.y.till)
         std::swap(outer_edge.y.from, outer_edge.y.till);
     else if (outer_edge.y.from == outer_edge.y.till)
         outer_edge.y.Expand(ysize.second/2);
@@ -4776,6 +4856,14 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
             break;
         case RECTANGLE:
             area = style.line.CreateRectangle_OuterEdge(outer_edge);
+            break;
+        case ELLIPSIS:
+            const double r = outer_edge.x.Spans()/2;
+            XY c(outer_edge.x.MidPoint(), outer_edge.y.from + r);
+            area = Contour(c, r, r);
+            area += Contour(c + XY(0, (2+2*ellipsis_space_ratio)*r), r, r);
+            area += Contour(c + XY(0, (4+4*ellipsis_space_ratio)*r), r, r);
+            break;
     }
     area.arc = this;
 }
@@ -4785,10 +4873,11 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
     if (pass!=draw_pass) return;
     switch (symbol_type) {
         case ARC:
+        case ELLIPSIS:
             canvas.Shadow(area, style.shadow);
-            canvas.Fill(area.CreateExpand(-style.line.LineWidth()/2-style.line.Spacing()), 
-                        style.fill); 
-            canvas.Line(area.CreateExpand(-style.line.LineWidth()/2), style.line); 
+            canvas.Fill(area.CreateExpand(-style.line.LineWidth()/2-style.line.Spacing()),
+                        style.fill);
+            canvas.Line(area.CreateExpand(-style.line.LineWidth()/2), style.line);
             break;
         case RECTANGLE:
             //canvas operations on blocks take the midpoint

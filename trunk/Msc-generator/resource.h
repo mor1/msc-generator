@@ -54,6 +54,7 @@
 #define IDC_EDIT1                       1001
 #define IDC_BUTTON_URL                  1001
 #define IDC_EDIT2                       1002
+#define IDC_BUTTON_LATEST_URL           1002
 #define IDC_CHECK_PEDANTIC              1003
 #define IDC_EDIT3                       1003
 #define IDC_CHECK_WARNINGS              1004
@@ -97,6 +98,7 @@
 #define IDC_STATIC_ORIGINAL_SIZE        1028
 #define IDC_RADIO_SCALING_SCALE         1029
 #define IDC_RADIO_SCALING_X             1030
+#define IDC_STATIC_LATEST               1031
 #define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
@@ -169,7 +171,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        319
 #define _APS_NEXT_COMMAND_VALUE         32944
-#define _APS_NEXT_CONTROL_VALUE         1031
+#define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif
 #endif

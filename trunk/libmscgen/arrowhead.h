@@ -93,9 +93,8 @@ public:
     //Transformation functions for angled arrows
     //In the transformed space (sx,y) will be the same, the space will be rotated by "radian"
     //and the arrow will be vertical
-    void TransformCanvasForAngle(double radian, MscCanvas &canvas, double sx, double y) const; 
+    void TransformCanvasForAngle(double degree, MscCanvas &canvas, double sx, double y) const; 
     void UnTransformCanvas(MscCanvas &canvas) const;
-    void TransformSpaceForAngle(double radian, std::vector<double> &xPos) const;
 
 //functions for normal (small) arrowheads
     //tells how wide and high a specific arrowhead
@@ -139,13 +138,13 @@ public:
                        std::vector<Contour> &result) const;
     void BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
                  const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
-                 bool shadow_x_neg=false, bool shadow_y_neg=false) const;
+                 double angle_radian=0) const;
     void BigDrawEmptyMid(const std::vector<double> &xPos, double sy, double dy, 
                          MscCanvas &canvas, const Contour *clip=NULL) const;
     void BigCalculateAndDraw(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                              double sy, double dy, bool forward, bool bidir,
                              const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
-                             const Contour *clip=NULL, bool shadow_x_neg=false, bool shadow_y_neg=false) const;
+                             const Contour *clip=NULL, double angle_radian=0) const;
 };
 
 #endif //ARROWHEAD_H
