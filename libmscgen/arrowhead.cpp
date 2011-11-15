@@ -311,27 +311,18 @@ MscArrowType ArrowHead::GetType(bool forward, bool bidir, MscArrowEnd which, boo
 
 //Transform the space such that if we draw a vertical arrow, it will be of angle="radian" on the canvas
 //saves cairo context, call UntransformCanvas() to kill it.
-void ArrowHead::TransformCanvasForAngle(double radian, MscCanvas &canvas, double sx, double y) const
+void ArrowHead::TransformCanvasForAngle(double degree, MscCanvas &canvas, double sx, double y) const
 {
     cairo_t *cr = canvas.GetContext();
     cairo_save(cr);
     cairo_translate(cr, sx, y);
-    cairo_rotate(cr, radian*M_PI/180.);
+    cairo_rotate(cr, degree*M_PI/180.);
     cairo_translate(cr, -sx, -y);
 }
 
 void ArrowHead::UnTransformCanvas(MscCanvas &canvas) const 
 {
     canvas.UnClip();
-}
-
-
-//we assume sorted xPos and that 
-void ArrowHead::TransformSpaceForAngle(double radian, std::vector<double> &xPos) const
-{
-    const double c = cos(radian);
-    for (auto i = xPos.begin(); i!=xPos.end(); i++)
-        *i /= c;
 }
 
 XY ArrowHead::getWidthHeight(bool bidir, MscArrowEnd which) const
@@ -1111,15 +1102,16 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
     return area_overall;
 }
 
+//We assume the space around us is rotated angle_degree
 void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
                  const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
-                 bool shadow_x_neg, bool shadow_y_neg) const
+                 double angle_radian) const
 {
     
     for (unsigned i=0; i<result.size(); i++) {
         const MscLineAttr &l = lines ? lines->at(i) : line;
         const Contour midline = result[i].CreateExpand(-l.LineWidth()/2);
-        canvas.Shadow(midline, shadow, shadow_x_neg, shadow_y_neg);
+        canvas.Shadow(midline, shadow, angle_radian);
         canvas.Fill  (midline.CreateExpand(-l.Spacing()), fill); 
         canvas.Line  (midline, l);
     }
@@ -1145,10 +1137,10 @@ void ArrowHead::BigDrawEmptyMid(const std::vector<double> &xPos, double sy, doub
 void ArrowHead::BigCalculateAndDraw(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                                     double sy, double dy, bool forward, bool bidir,
                                     const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
-                                    const Contour *clip, bool shadow_x_neg, bool shadow_y_neg) const
+                                    const Contour *clip, double angle_radian) const
 {
     std::vector<Contour> cont;
     BigContour(xPos, act_size, sy, dy, forward, bidir, NULL, cont);
-    BigDrawFromContour(cont, NULL, fill, shadow, canvas, shadow_x_neg, shadow_y_neg);
+    BigDrawFromContour(cont, NULL, fill, shadow, canvas, angle_radian);
     BigDrawEmptyMid(xPos, sy, dy, canvas, clip);
 }

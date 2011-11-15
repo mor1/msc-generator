@@ -374,10 +374,10 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "fill.color", "fill.color2", "fill.gradient", 
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
-"compressable", "xsize", "ysize", "space", "angle", ""};
+"compressable", "xsize", "ysize", "size", "space", "angle", ""};
 
 static const char symbol_names[][ENUM_STRING_LEN] =
-{"arc", "rectangle", ""};
+{"arc", "rectangle", "...", ""};
 
 static const char extvxpos_designator_names[][ENUM_STRING_LEN] =
 {"left", "right", "center", ""};

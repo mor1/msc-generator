@@ -26,17 +26,31 @@ ADD: variant #1 double and triple-line joints for emphasis
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
 
-In 3.4
-
+In 3.5
 ADD: symbol cross/text [marker] at vertxpos [rotate];
 ADD: message lost (and lost arrowhead)
 ADD: mark centerline
 FIX: Regression Bugs in Contour Expand still remain...
 FIX: Too much compress after adding MITER_LIMIT
 FIX: Triple bevel changes size when size limited.
-FIX: examples. Missing lines ???
 FIX: Node hideentitylines, for radius bigger than 70
+CHANGE: Mesh gradients.
+ADD: Tip of the day
 
+
+In 3.4
+DOC: number in vertxpos and symbol ...
+FIX: Embedded objects pageing
+
+ADDED: number in vertxpos
+ADDED: symbol ...
+FIXED: Shadow direction with angled block arrows
+FIXED: side and angle attributes were not hinted 
+ADDED download link to version check window
+ADDED verstion check info to About Dialog
+TESTED: openoffice linking, Libreoffice linking
+- Openoffice and LibreOffice does not support inserting Links
+FIXED: examples. Missing lines ???
 CANCELLED: Expand parallel behaviour
 	- add valign={top, center, bottom} attribute
 	- (may add experimental = keyline. Add keyline to DrawHeight as a reference, only arrows and dividers

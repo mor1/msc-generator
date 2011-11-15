@@ -193,10 +193,10 @@ void MscStyle::AttributeNames(Csh &csh) const
     if (f_arrow!=ArrowHead::NONE) ArrowHead::AttributeNames(csh);
     if (f_shadow) MscShadowAttr::AttributeNames(csh);
     if (f_text) StringFormat::AttributeNames(csh);
-    if (f_solid) {
+    if (f_solid) 
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid", HINT_ATTR_NAME));
+    if (f_side)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"side", HINT_ATTR_NAME));
-    }
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
     if (f_indicator) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"indicator", HINT_ATTR_NAME));
     if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));

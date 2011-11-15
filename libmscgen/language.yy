@@ -182,7 +182,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
                    full_arcattrlist_with_label_or_number
 %type <str>        entity_command_prefixes
-                   entity_string reserved_word_string string symbol_string colon_string
+                   entity_string reserved_word_string string symbol_string colon_string symbol_type_string
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
                    TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -204,7 +204,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {if (!C_S_H) delete $$;} entity first_entity entitylist
 %destructor {if (!C_S_H) delete $$;} arcattr arcattrlist full_arcattrlist full_arcattrlist_with_label tok_stringlist
 %destructor {if (!C_S_H) delete $$;} full_arcattrlist_with_label_or_number
-%destructor {free($$);}  entity_string reserved_word_string string symbol_string
+%destructor {free($$);}  entity_string reserved_word_string string symbol_string colon_string symbol_type_string
 %destructor {free($$);}  TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
 %destructor {free($$);}  TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
@@ -1236,7 +1236,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, "msc")) {
             csh.AddDesignsToHints();
             csh.hintStatus = HINT_READY;
-        } 
+        }
         csh.SetDesignTo($3);
   #else
         msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
@@ -1980,6 +1980,20 @@ vertxpos: TOK_AT entity_string
     free($1);
     free($2);
 }
+         | TOK_AT entity_string TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    csh.AddCSH_EntityName(@2, $2);
+    csh.AddCSH(@3, COLOR_ATTRVALUE);
+  #else
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_AT, atof($3));
+  #endif
+    free($1);
+    free($2);
+    free($3);
+}
          | TOK_AT entity_string TOK_DASH
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1994,6 +2008,21 @@ vertxpos: TOK_AT entity_string
     free($1);
     free($2);
 }
+         | TOK_AT entity_string TOK_DASH TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    csh.AddCSH_EntityName(@2, $2);
+    csh.AddCSH(@3, COLOR_SYMBOL);
+    csh.AddCSH(@4, COLOR_ATTRVALUE);
+  #else
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_LEFT_SIDE, -atof($4));
+  #endif
+    free($1);
+    free($2);
+    free($4);
+}
          | TOK_AT entity_string TOK_PLUS
 {
   #ifdef C_S_H_IS_COMPILED
@@ -2006,6 +2035,21 @@ vertxpos: TOK_AT entity_string
   #endif
     free($1);
     free($2);
+}
+         | TOK_AT entity_string TOK_PLUS TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    csh.AddCSH_EntityName(@2, $2);
+    csh.AddCSH(@3, COLOR_SYMBOL);
+    csh.AddCSH(@4, COLOR_ATTRVALUE);
+  #else
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), VertXPos::POS_RIGHT_SIDE, atof($4));
+  #endif
+    free($1);
+    free($2);
+    free($4);
 }
          | TOK_AT entity_string TOK_EMPH
 {
@@ -2056,6 +2100,24 @@ vertxpos: TOK_AT entity_string
     free($1);
     free($2);
     free($4);
+}
+         | TOK_AT entity_string TOK_DASH entity_string TOK_NUMBER
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
+    csh.AddCSH_EntityName(@2, $2);
+    csh.AddCSH(@3, COLOR_SYMBOL);
+    csh.CheckEntityHintAtAndBefore(@3, @4);
+    csh.AddCSH_EntityName(@4, $4);
+    csh.AddCSH(@5, COLOR_ATTRVALUE);
+  #else
+    $$ = new VertXPos(msc, $2, MSC_POS(@2), $4, MSC_POS(@4), VertXPos::POS_CENTER, atof($5));
+  #endif
+    free($1);
+    free($2);
+    free($4);
+    free($5);
 }
          | TOK_AT
 {
@@ -2472,16 +2534,25 @@ extvertxpos_no_string: TOK_AT_POS vertxpos
     free($1);
 };
 
+symbol_type_string: entity_string | symbol_string;
 
-symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string extvertxpos
+symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_string extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+        CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
-             CaseInsensitiveBeginsWith("rectangle", $2)==0)
-        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+             CaseInsensitiveBeginsWith("rectangle", $2)==0 &&
+             CaseInsensitiveBeginsWith("...", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
+    if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfterPlusOne(@4, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
@@ -2501,30 +2572,46 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string ext
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL entity_string markerrel_no_string extvertxpos extvertxpos
+                | TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_string extvertxpos extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+        CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
-             CaseInsensitiveBeginsWith("rectangle", $2)==0)
-        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+             CaseInsensitiveBeginsWith("rectangle", $2)==0 &&
+             CaseInsensitiveBeginsWith("...", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
+    if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
   #else
     $$ = new CommandSymbol(&msc, $2, $3, $4, $5);
   #endif
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL entity_string extvertxpos_no_string
+                | TOK_COMMAND_SYMBOL symbol_type_string extvertxpos_no_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+        CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
-             CaseInsensitiveBeginsWith("rectangle", $2)==0)
-        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+             CaseInsensitiveBeginsWith("rectangle", $2)==0 &&
+             CaseInsensitiveBeginsWith("...", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
+    if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfterPlusOne(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
@@ -2544,15 +2631,23 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string ext
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL entity_string extvertxpos_no_string extvertxpos
+                | TOK_COMMAND_SYMBOL symbol_type_string extvertxpos_no_string extvertxpos
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+        CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
-             CaseInsensitiveBeginsWith("rectangle", $2)==0)
-        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+             CaseInsensitiveBeginsWith("rectangle", $2)==0 &&
+             CaseInsensitiveBeginsWith("...", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
+    if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
     csh.CheckHintBetween(@2, @3, HINT_MARKER);
   #else
     $$ = new CommandSymbol(&msc, $2, NULL, $3, $4);
@@ -2560,15 +2655,23 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string ext
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL entity_string markerrel_no_string
+                | TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+        CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
-             CaseInsensitiveBeginsWith("rectangle", $2)==0)
-        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+             CaseInsensitiveBeginsWith("rectangle", $2)==0 &&
+             CaseInsensitiveBeginsWith("...", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
+    if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
+        csh.hintStatus = HINT_READY;
+    }
     if (csh.hintStatus != HINT_READY &&
         csh.CheckHintAfter(@3, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "left", HINT_KEYWORD, true, 
@@ -2588,18 +2691,21 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string ext
     free($1);
     free($2);
 }
-                | TOK_COMMAND_SYMBOL entity_string entity_string
+                | TOK_COMMAND_SYMBOL symbol_type_string entity_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+        CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
-             CaseInsensitiveBeginsWith("rectangle", $2)==0)
-        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+             CaseInsensitiveBeginsWith("rectangle", $2)==0 &&
+             CaseInsensitiveBeginsWith("...", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
         csh.hintStatus = HINT_READY;
     }
     else if (csh.hintStatus != HINT_READY &&
@@ -2622,18 +2728,21 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string ext
     free($2);
     free($3);
 }
-                | TOK_COMMAND_SYMBOL entity_string
+                | TOK_COMMAND_SYMBOL symbol_type_string
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle"))
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+        CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
-             CaseInsensitiveBeginsWith("rectangle", $2)==0)
-        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc' or 'rectangle'.");
+             CaseInsensitiveBeginsWith("rectangle", $2)==0 &&
+             CaseInsensitiveBeginsWith("...", $2)==0)
+        csh.AddCSH_Error(@2, "Bad symbol name. Use 'arc', '...' or 'rectangle'.");
     if (csh.CheckHintAtAndBefore(@1, @2, HINT_KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
         csh.hintStatus = HINT_READY;
     }
     else if (csh.CheckHintAfterPlusOne(@2, yylloc, yychar==YYEOF, HINT_MARKER)) {
@@ -2662,10 +2771,11 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL entity_string markerrel_no_string ext
     if (csh.CheckHintAfterPlusOne(@1, yylloc, yychar==YYEOF, HINT_KEYWORD)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "arc", HINT_KEYWORD, true));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "rectangle", HINT_KEYWORD, true));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_KEYWORD) + "...", HINT_KEYWORD, true));
         csh.hintStatus = HINT_READY;
     }
   #else
-    msc.Error.Error(MSC_POS(@1).end, "Missing a symbol type.", "Use 'arc' or 'rectangle'.");
+    msc.Error.Error(MSC_POS(@1).end, "Missing a symbol type.", "Use 'arc', '...' or 'rectangle'.");
     $$ = NULL;
   #endif
     free($1);

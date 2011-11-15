@@ -1149,7 +1149,10 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
 
 ////////////////////// Shadow routines
 
-void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, bool shadow_x_neg, bool shadow_y_neg)
+//Angle degree is 0 then shadow is offset +off in both y and x dir
+//angle grows clockwise (y grows downward) and means the rotation of the object. 
+//From that we need to calculate the offset of the shadow assuming that the space is already rotated.
+void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double angle_radian)
 {
     _ASSERT(candraw);
     _ASSERT(shadow.IsComplete());
@@ -1165,7 +1168,9 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, bool sh
     //}
     const Contour &substract = area;//.CreateExpand(-0.5);
     Contour outer(area), inner;
-    outer.Shift(XY(shadow_x_neg?-shadow.offset.second:shadow.offset.second, shadow_y_neg?-shadow.offset.second:shadow.offset.second));
+    XY off(shadow.offset.second, shadow.offset.second);
+    off.Rotate(cos(-angle_radian), sin(-angle_radian));
+    outer.Shift(off);
     MscColorType color = shadow.color.second;
     if (shadow.blur.second>0) {
         const unsigned steps = unsigned(std::min(shadow.blur.second, shadow.offset.second)*scale_for_shadows + 0.5);
@@ -1201,7 +1206,7 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, bool sh
 }
 
 /* Set clip, if the rectangle of which this is the shadow of is not opaque */
-void MscCanvas::Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, bool shadow_x_neg, bool shadow_y_neg)
+void MscCanvas::Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, double angle_radian)
 {
     _ASSERT(candraw);
     _ASSERT(shadow.IsComplete() && line.radius.first);
@@ -1210,7 +1215,7 @@ void MscCanvas::Shadow(const Block &b, const MscLineAttr &line, const MscShadowA
     //For now just call the other Shadow Routine
     Contour c = line.CreateRectangle_OuterEdge(b);
     c.Expand(-line.width.second);
-    Shadow(std::move(c), shadow, shadow_x_neg, shadow_y_neg);
+    Shadow(std::move(c), shadow, angle_radian);
     return;
 }
 

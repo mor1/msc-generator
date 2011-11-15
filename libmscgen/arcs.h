@@ -235,6 +235,8 @@ public:
     virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     ArcBase *AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
@@ -287,8 +289,9 @@ struct VertXPos {
     enum postype {POS_INVALID=0, POS_AT, POS_CENTER,
         POS_LEFT_BY, POS_LEFT_SIDE,
         POS_RIGHT_BY, POS_RIGHT_SIDE} pos;
-    VertXPos(Msc&m, const char *e1, file_line_range e1l, const char *e2, file_line_range e2l, postype p=POS_AT);
-    VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p=POS_AT);
+    double offset;
+    VertXPos(Msc&m, const char *e1, file_line_range e1l, const char *e2, file_line_range e2l, postype p=POS_AT, double off=0);
+    VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p=POS_AT, double off=0);
     explicit VertXPos(Msc&m);
     double CalculatePos(Msc &m, double width=0, double gap=-1) const;
 };
@@ -569,7 +572,7 @@ public:
 class NamePair
 {
 public:
-    const string src, dst;
+    string src, dst;
     file_line_range sline, dline;
     NamePair(const char *s, const file_line_range &sl, 
                    const char *d, const file_line_range &dl) :
@@ -621,12 +624,14 @@ public:
 class CommandSymbol : public ArcCommand
 {
 protected:
-    typedef enum {ARC, RECTANGLE} SymbolType;
+    typedef enum {ARC, RECTANGLE, ELLIPSIS} SymbolType;
+    static const double ellipsis_space_ratio;
     SymbolType              symbol_type;
     MscStyle                style;
     ExtVertXPos             hpos1, hpos2;
-    const NamePair          vpos;
-    std::pair<bool, double> xsize, ysize;
+    NamePair                vpos;
+    std::pair<bool, double> xsize, ysize;  //used for 'arc' and 'rectangle'
+    MscArrowSize            size;          //used for '...'
     mutable Block outer_edge;
 public:
     CommandSymbol(Msc*, const char *symbol, const NamePair *enp, 

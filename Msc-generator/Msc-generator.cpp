@@ -50,6 +50,7 @@ public:
 // Dialog Data
 	enum { IDD = IDD_ABOUTBOX };
 	CMFCLinkCtrl m_btnLink;
+	CMFCLinkCtrl m_btnLink_Latest;
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
@@ -71,6 +72,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_BUTTON_URL, m_btnLink);
+    DDX_Control(pDX, IDC_BUTTON_LATEST_URL, m_btnLink_Latest);
 }
 
 BOOL CAboutDlg::OnInitDialog( ) 
@@ -81,7 +83,31 @@ BOOL CAboutDlg::OnInitDialog( )
 	m_btnLink.SizeToContent();
 	CString text = "Msc-generator Version ";
 	GetDlgItem(IDC_STATIC_VERSION)->SetWindowText(text + (VersionText()+1));
-	return a;
+
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	int no_a = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_MAJOR, -1);
+	int no_b = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_MINOR, -1);
+	int no_c = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_SUPER_MINOR, -1);
+
+    m_btnLink_Latest.SetWindowText(_T(""));
+    m_btnLink_Latest.SetTooltip(_T("Msc-generator is up-to-date"));
+    m_btnLink_Latest.SizeToContent();
+    m_btnLink_Latest.EnableWindow(FALSE);
+
+    const CString latest_url = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_URL);
+    if (no_a<=0 || no_b<0 || no_c<0 || latest_url.GetLength()==0) return a;
+
+    if (no_a<=LIBMSCGEN_MAJOR) return a;
+    if (no_a==LIBMSCGEN_MAJOR && no_b<LIBMSCGEN_MINOR) return a;
+    if (no_a==LIBMSCGEN_MAJOR && no_b==LIBMSCGEN_MINOR && no_c<=LIBMSCGEN_SUPERMINOR) return a;
+
+    m_btnLink_Latest.SetURL(latest_url);
+    m_btnLink_Latest.SetWindowText(CString("Download latest version (") + VersionText(no_a, no_b, no_c) + CString(")"));
+    m_btnLink_Latest.SetTooltip(latest_url);
+    m_btnLink_Latest.SizeToContent();
+    m_btnLink_Latest.EnableWindow();
+    return a;
 }
 
 
@@ -587,8 +613,11 @@ void CVersionDlg::DoDataExchange(CDataExchange* pDX)
 BOOL CVersionDlg::OnInitDialog( ) 
 {
 	BOOL ret = CDialog::OnInitDialog();
-	m_btnLink.SetURL(_T("https://sourceforge.net/projects/msc-generator/"));
-	m_btnLink.SetTooltip(_T("Download from SourceForge"));
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    const CString latest_url = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_URL);
+	m_btnLink.SetURL(latest_url);
+	m_btnLink.SetTooltip(latest_url);
 	m_btnLink.SizeToContent();
  	CString text = "Currently installed version: ";
 	GetDlgItem(IDC_STATIC_CURRENT_VERSION)->SetWindowText(text + VersionText());
@@ -603,7 +632,8 @@ UINT CheckVersionFreshness(LPVOID)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	CString latest_version;
+    CString latest_version_download_url;
+    int latest_version_a=0, latest_version_b=0, latest_version_c=0;
 	TRY {
 		CInternetSession session("Msc-generator", 1, 0, NULL, NULL, INTERNET_FLAG_DONT_CACHE);
 		CHttpConnection *httpconn = session.GetHttpConnection("msc-generator.sourceforge.net", 
@@ -633,28 +663,37 @@ UINT CheckVersionFreshness(LPVOID)
             file->AddRequestHeaders(buff, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
         }
 		if (!file->SendRequest()) return false;
+        CString latest_version;
 		if (!file->ReadString(latest_version)) return false;
+        if (latest_version.GetLength()==0) return false;
+        if (0==sscanf(latest_version, "v%d.%d.%d", &latest_version_a, &latest_version_b, &latest_version_c)) return false;
+        pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_MAJOR, latest_version_a);
+        pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_MINOR, latest_version_b);
+        pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_SUPER_MINOR, latest_version_c);
+        if (file->ReadString(latest_version_download_url) && latest_version_download_url.GetLength()>0)
+            pApp->WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_LAST_VERSION_SEEN_URL, latest_version_download_url);
 	} CATCH(CInternetException, pEx) {
-		return false;
+        return false;
 	}
 	END_CATCH
-
-
-	if (latest_version.GetLength()==0) return false;
-	CVersionDlg dlg;
-	sscanf(latest_version, "v%d.%d.%d", &dlg.a, &dlg.b, &dlg.c);
+        
 	//If we are the latest version (or erroneous string read from web), exit
-	if (dlg.a<LIBMSCGEN_MAJOR) return false;
-	if (dlg.a==LIBMSCGEN_MAJOR && dlg.b<LIBMSCGEN_MINOR) return false;
-	if (dlg.a==LIBMSCGEN_MAJOR && dlg.b==LIBMSCGEN_MINOR && dlg.c<=LIBMSCGEN_SUPERMINOR) return false;	
+	if (latest_version_a<LIBMSCGEN_MAJOR) return false;
+	if (latest_version_a==LIBMSCGEN_MAJOR && latest_version_b<LIBMSCGEN_MINOR) return false;
+	if (latest_version_a==LIBMSCGEN_MAJOR && latest_version_b==LIBMSCGEN_MINOR && latest_version_c<=LIBMSCGEN_SUPERMINOR) return false;	
 
 	//If user do not want to get reminded for the new version, exit
 	int no_a = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MAJOR, -1);
 	int no_b = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MINOR, -1);
 	int no_c = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, -1);
-	if (no_a == dlg.a && no_b == dlg.b && no_c == dlg.c) return false;
+	if (no_a == latest_version_a && no_b == latest_version_b && no_c == latest_version_c) return false;
 	
-	if (dlg.DoModal() == IDOK) {
+    CVersionDlg dlg;
+    dlg.a = latest_version_a;
+    dlg.b = latest_version_b;
+    dlg.c = latest_version_c;
+
+    if (dlg.DoModal() == IDOK) {
 		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MAJOR, dlg.a);
 		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_MINOR, dlg.b);
 		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_NOREMIND_VERSION_SUPER_MINOR, dlg.c);
