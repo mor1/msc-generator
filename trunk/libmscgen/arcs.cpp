@@ -1676,7 +1676,7 @@ ArcArrow *ArcVerticalArrow::AddSegment(MscArcType, const char * /*m*/, file_line
 
 bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 {
-    if (a.Is("pos")) {
+    if (a.Is("ofsset")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
         offset = a.number;
@@ -1695,13 +1695,13 @@ void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
     Design().styles["vertical"].AttributeNames(csh);
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"pos", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
 }
 
 bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (CaseInsensitiveEqual(attr,"pos")) {
+    if (CaseInsensitiveEqual(attr,"offset")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
         return true;
     }

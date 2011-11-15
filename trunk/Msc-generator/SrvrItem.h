@@ -34,8 +34,13 @@ public:
 		{ return reinterpret_cast<CMscGenDoc*>(CDocObjectServerItem::GetDocument()); }
     unsigned m_forcePage;     //0 if no page forced, 1..n if one is forced
 
+    //depending on the invocation mode, returns the chart to draw/save/extent
+    CDrawingChartData & GetChart();
+    //depending on linking/embedding, returns the page to draw/extent
+    unsigned GetPage();
+
 // Overrides
-	public:
+public:
 	virtual BOOL OnDraw(CDC* pDC, CSize& rSize);
 	virtual BOOL OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize);
 	virtual BOOL OnRenderData(LPFORMATETC lpFormatEtc, LPSTGMEDIUM lpStgMedium);
