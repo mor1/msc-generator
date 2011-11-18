@@ -1,3 +1,16 @@
+defdesign colores {
+    defcolor brown1="204,102,0", brown2="153,51,0";
+    defcolor blue="51,101,255", green="0,128,0";
+    defcolor bkpurple="209,209,240";
+    defstyle entity, entitygroup_collapsed [line.color=brown2, vline.color=brown1, text.color=brown2];
+    defstyle strong [fill.color=bkpurple];
+    defstyle arrow [line.color=red, arrow.color=red, text.color=blue];
+    defstyle vertical, emptybox, blockarrow, box_collapsed, box_collapsed_arrow [line.color=brown1, text.color=green];
+    defstyle box, entitygroup [line.color=brown2, text.color=green];
+    defstyle divider [line.color=brown2, text.color=blue];
+    defstyle indicator, symbol [line.color=red, fill.color=yellow];
+    defstyle pipe [line.color=brown1, text.color=green];
+};
 defdesign rose {
     defcolor yellow="255,255,207", red="168,0,54", faint_red="red+50";
     defstyle entity [text.format="\u\mu(10)\md(10)\ml(12)\mr(8)"];

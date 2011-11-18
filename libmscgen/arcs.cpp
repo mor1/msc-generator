@@ -261,6 +261,15 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
+void ArcIndicator::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+{
+    if (*src != *dst) return; //no width requirements for Indicators not exactly on an entity
+    //If we are exactly on an entity line add left and right req for boxes potentially around us.
+    const double width = indicator_style.line.LineWidth() + indicator_size.x/2;
+    distances.InsertBoxSide((*src)->index-1, 0, width);
+    distances.InsertBoxSide((*src)->index,   width, 0);
+}
+
 double ArcIndicator::Height(MscCanvas &/*canvas*/, AreaList &cover)
 {
     yPos = chart->emphVGapOutside;
@@ -291,6 +300,7 @@ ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
     numberingStyle(msc->Contexts.back().numberingStyle)
 {
     style.type = STYLE_ARC;
+    SetStyleWithText();  //keep existing style, just combine with default text style
     //If style does not contain a numbering setting, apply the value of the
     //current chart option.
     if (!style.numbering.first) {
@@ -322,6 +332,25 @@ ArcLabelled::ArcLabelled(MscArcType t, const ArcLabelled &al)
     parallel = al.parallel;
 }
 
+//set style to this name, but combine it with default text style
+void ArcLabelled::SetStyleWithText(const char *style_name)
+{
+    const MscStyle *s = NULL;
+    if (style_name)
+        s = &chart->Contexts.back().styles[style_name];
+    SetStyleWithText(s);
+}
+
+//set style to this name, but combine it with default text style
+void ArcLabelled::SetStyleWithText(const MscStyle *style_to_use)
+{
+    if (style_to_use) 
+        style = *style_to_use;
+    //Make style.text complete using the default text formatting in the context as default
+    StringFormat to_use(chart->Contexts.back().text);
+    to_use += style.text;
+    style.text = to_use;
+}
 
 const MscStyle *ArcLabelled::GetRefinementStyle(MscArcType t) const
 {
@@ -376,10 +405,6 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
     //compress went to the style, copy it
     if (style.compress.first)
         compress = style.compress.second;
-    //Make style.text complete using the default text formatting in the context as default
-    StringFormat to_use(chart->Contexts.back().text);
-    to_use += style.text;
-    style.text = to_use;
     //Then convert color and style names in labels
     if (label.length()>0)
         StringFormat::ExpandColorAndStyle(label, chart, linenum_label, &style.text,
@@ -1284,7 +1309,7 @@ void ArcDirArrow::Draw(MscCanvas &canvas, DrawPassType pass)
 ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) : 
  ArcDirArrow(dirarrow), sig(NULL)
 {
-    style = s;
+    SetStyleWithText(&s);
     const MscStyle *refinement = GetRefinementStyle(type);
     if (refinement)
         style += *refinement;
@@ -1637,7 +1662,7 @@ ArcVerticalArrow* ArcVerticalArrow::AddXpos(VertXPos *p)
         style.side.second = SIDE_LEFT; break;
     }
     //overwrite the style set by ArcArrow::ArcArrow
-    style = chart->Contexts.back().styles["vertical"];
+    SetStyleWithText("vertical");
     switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
@@ -2031,7 +2056,7 @@ ArcBox* ArcBox::AddArcList(ArcList*l)
         l->clear(); //so that l's constructor does not delete Arcs in arclist
         delete l;
     }
-    style = chart->Contexts.back().styles["box"];
+    SetStyleWithText("box");
     const MscStyle *refinement = GetRefinementStyle(type);
     if (refinement) style += *refinement;
     return this;
@@ -2062,11 +2087,11 @@ ArcBase *ArcBox::AddAttributeList(AttributeList *l)
     //If collapsed, use emptybox style
     const MscStyle *refinement = GetRefinementStyle(type);
     if (collapsed==BOX_COLLAPSE_COLLAPSE) {
-        style = chart->Contexts.back().styles["box_collapsed"];
+        SetStyleWithText("box_collapsed");
         if (refinement) style += *refinement;
     }
     else if (collapsed==BOX_COLLAPSE_BLOCKARROW) {
-        style = chart->Contexts.back().styles["box_collapsed_arrow"];
+        SetStyleWithText("box_collapsed_arrow");
         if (refinement) style += *refinement;
     }
     ArcLabelled::AddAttributeList(l);
@@ -3275,7 +3300,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
     if (content_cover.mainline.IsEmpty()) 
         pipe_body_cover.mainline = Block(0, chart->total.x, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
     //Expand cover, but not content (that is already expanded)
-    cover = GetCover4Compress(pipe_body_cover);
+    cover += GetCover4Compress(pipe_body_cover);
     return yPos + total_height + max_offset + chart->emphVGapOutside;
 }
 
@@ -3580,7 +3605,7 @@ void ArcDivider::Draw(MscCanvas &canvas, DrawPassType pass)
     if (!valid) return;
     if (pass!=draw_pass) return;
     if (nudge) return;
-    parsed_label.Draw(&canvas, text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove));
+    parsed_label.Draw(&canvas, text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove+extra_space));
     //determine widest extent for coverage at the centerline+-style.line.LineWidth()/2;
     const double lw2 = ceil(style.line.LineWidth()/2.);
     Block b(line_margin, chart->total.x-line_margin, yPos + centerline - lw2, yPos + centerline + lw2);
@@ -4866,6 +4891,7 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
             break;
     }
     area.arc = this;
+    area.mainline = Block(Range(0, chart->total.x), area.GetBoundingBox().y);
 }
 
 void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
