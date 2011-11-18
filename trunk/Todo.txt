@@ -39,6 +39,11 @@ ADD: Tip of the day
 
 
 In 3.4
+FIX: Numbering in parallel
+
+FIXED: Disco compress
+FIXED: parallel compress
+FIXED: totally empty box...
 DOC'D: number in vertxpos and symbol ...
 FIXED: Embedded objects pageing
 ADDED: number in vertxpos

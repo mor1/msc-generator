@@ -145,6 +145,7 @@ public:
     double GetXCoord() const;
     virtual MscDirType GetToucedEntities(class EntityList &el) const;
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -160,6 +161,8 @@ protected:
 public:
     ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
     ArcLabelled(MscArcType t, const ArcLabelled &al);
+    void SetStyleWithText(const char *style_name); //set style to this name, but combine it with default text style
+    void SetStyleWithText(const MscStyle *style_to_use=NULL); //set style to this name, but combine it with default text style
     virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
     ArcBase* AddAttributeList(AttributeList *);
     bool AddAttribute(const Attribute &);

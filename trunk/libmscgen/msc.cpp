@@ -961,16 +961,9 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
         arc_cover.Shift(XY(0,y));
         y_bottom = std::max(y_bottom, y+h);
         //If we are parallel draw the rest of the block in one go
-        if ((*i)->IsParallel()) {
+        if ((*i)->IsParallel()) 
             //kill the mainline of the last arc (in "i")
             arc_cover.InvalidateMainLine();
-            cover += arc_cover;
-            //Place blocks, always compress the first (forceCompress=true)
-            //Use 0 instead of y if you want the element after "parallel" to completely
-            //ignore the "parallel" element (and potentially be above it)
-            const double bottom_of_list = PlaceListUnder(canvas, ++i, to, y_bottom, y /* or 0 */, cover, true);
-            return std::max(y_bottom, bottom_of_list);
-        }
         cover += arc_cover;
         y = y_bottom;
     }
