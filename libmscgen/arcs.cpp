@@ -299,16 +299,7 @@ ArcLabelled::ArcLabelled(MscArcType t, Msc *msc, const MscStyle &s) :
     ArcBase(t, msc), concrete_number(-1), style(s),
     numberingStyle(msc->Contexts.back().numberingStyle)
 {
-    style.type = STYLE_ARC;
-    SetStyleWithText();  //keep existing style, just combine with default text style
-    //If style does not contain a numbering setting, apply the value of the
-    //current chart option.
-    if (!style.numbering.first) {
-        style.numbering.first = true;
-        style.numbering.second = msc->Contexts.back().numbering;
-    }
-    const MscStyle *refinement = GetRefinementStyle(type);
-    if (refinement) style += *refinement;
+    SetStyleWithText();  //keep existing style, just combine with default text style, numbering and refinement
 }
 
 //This is only used to convert an ArcBox to an ArcBigArrow in
@@ -350,10 +341,21 @@ void ArcLabelled::SetStyleWithText(const MscStyle *style_to_use)
     StringFormat to_use(chart->Contexts.back().text);
     to_use += style.text;
     style.text = to_use;
+    style.type = STYLE_ARC;
+    //If style does not contain a numbering setting, apply the value of the
+    //current chart option.
+    if (!style.numbering.first) {
+        style.numbering.first = true;
+        style.numbering.second = chart->Contexts.back().numbering;
+    }
+    //Add refinement style (e.g., -> or ... or vertical++)
+    const MscStyle *refinement = GetRefinementStyle(type); //virtual function for the arc
+    if (refinement) style += *refinement;
 }
 
 const MscStyle *ArcLabelled::GetRefinementStyle(MscArcType t) const
 {
+    //refinement for all arrows, boxes and dividers
     switch(t) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
@@ -1310,9 +1312,6 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
  ArcDirArrow(dirarrow), sig(NULL)
 {
     SetStyleWithText(&s);
-    const MscStyle *refinement = GetRefinementStyle(type);
-    if (refinement)
-        style += *refinement;
     modifyFirstLineSpacing = false;
 }
 
@@ -1663,33 +1662,8 @@ ArcVerticalArrow* ArcVerticalArrow::AddXpos(VertXPos *p)
     }
     //overwrite the style set by ArcArrow::ArcArrow
     SetStyleWithText("vertical");
-    switch(type) {
-    case MSC_ARC_SOLID:
-    case MSC_ARC_SOLID_BIDIR:
-        style += chart->Contexts.back().styles["vertical->"]; break;
-    case MSC_ARC_DOTTED:
-    case MSC_ARC_DOTTED_BIDIR:
-        style += chart->Contexts.back().styles["vertical>"]; break;
-    case MSC_ARC_DASHED:
-    case MSC_ARC_DASHED_BIDIR:
-        style += chart->Contexts.back().styles["vertical>>"]; break;
-    case MSC_ARC_DOUBLE:
-    case MSC_ARC_DOUBLE_BIDIR:
-        style += chart->Contexts.back().styles["vertical=>"]; break;
-    case MSC_EMPH_SOLID:
-        style += chart->Contexts.back().styles["vertical--"]; break;
-    case MSC_EMPH_DASHED:
-        style += chart->Contexts.back().styles["vertical++"]; break;
-    case MSC_EMPH_DOTTED:
-        style += chart->Contexts.back().styles["vertical.."]; break;
-    case MSC_EMPH_DOUBLE:
-        style += chart->Contexts.back().styles["vertical=="]; break;
-    default:
-        break;
-    }
     return this;
 }
-
 
 ArcArrow *ArcVerticalArrow::AddSegment(MscArcType, const char * /*m*/, file_line_range /*ml*/, file_line_range l)
 {
@@ -1697,6 +1671,34 @@ ArcArrow *ArcVerticalArrow::AddSegment(MscArcType, const char * /*m*/, file_line
     chart->Error.Error(l.start, "Cannot add further segments to vertical arrow. Ignoring it.");
     valid = false;
     return this;
+}
+
+const MscStyle *ArcVerticalArrow::GetRefinementStyle(MscArcType t) const
+{
+    switch(type) {
+    case MSC_ARC_SOLID:
+    case MSC_ARC_SOLID_BIDIR:
+        return &chart->Contexts.back().styles["vertical->"];
+    case MSC_ARC_DOTTED:
+    case MSC_ARC_DOTTED_BIDIR:
+        return &chart->Contexts.back().styles["vertical>"];
+    case MSC_ARC_DASHED:
+    case MSC_ARC_DASHED_BIDIR:
+        return &chart->Contexts.back().styles["vertical>>"];
+    case MSC_ARC_DOUBLE:
+    case MSC_ARC_DOUBLE_BIDIR:
+        return &chart->Contexts.back().styles["vertical=>"];
+    case MSC_EMPH_SOLID:
+        return &chart->Contexts.back().styles["vertical--"];
+    case MSC_EMPH_DASHED:
+        return &chart->Contexts.back().styles["vertical++"];
+    case MSC_EMPH_DOTTED:
+        return &chart->Contexts.back().styles["vertical.."];
+    case MSC_EMPH_DOUBLE:
+        return &chart->Contexts.back().styles["vertical=="];
+    default:
+        return NULL;
+    }
 }
 
 bool ArcVerticalArrow::AddAttribute(const Attribute &a)
@@ -2057,8 +2059,6 @@ ArcBox* ArcBox::AddArcList(ArcList*l)
         delete l;
     }
     SetStyleWithText("box");
-    const MscStyle *refinement = GetRefinementStyle(type);
-    if (refinement) style += *refinement;
     return this;
 }
 
@@ -2085,15 +2085,10 @@ ArcBase *ArcBox::AddAttributeList(AttributeList *l)
     }
     delete s;
     //If collapsed, use emptybox style
-    const MscStyle *refinement = GetRefinementStyle(type);
-    if (collapsed==BOX_COLLAPSE_COLLAPSE) {
+    if (collapsed==BOX_COLLAPSE_COLLAPSE) 
         SetStyleWithText("box_collapsed");
-        if (refinement) style += *refinement;
-    }
-    else if (collapsed==BOX_COLLAPSE_BLOCKARROW) {
+    else if (collapsed==BOX_COLLAPSE_BLOCKARROW) 
         SetStyleWithText("box_collapsed_arrow");
-        if (refinement) style += *refinement;
-    }
     ArcLabelled::AddAttributeList(l);
     return this;
 }
