@@ -314,6 +314,7 @@ public:
     ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc);
     ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     ArcVerticalArrow* AddXpos(VertXPos *p);
+    virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);

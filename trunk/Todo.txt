@@ -39,8 +39,8 @@ ADD: Tip of the day
 
 
 In 3.4
-FIX: Numbering in parallel
-
+ADDED: 'colores' design
+FIXED: Numbering in parallel
 FIXED: Disco compress
 FIXED: parallel compress
 FIXED: totally empty box...
