@@ -103,6 +103,9 @@ public:
     
     bool IsSane() const;
     bool IsSaneNoBoundingBox() const;
+    //This should return the (directed) area between the y axis and the edge times 2, minus start.x*start.y, plus end.x*end.y
+    double GetAreaAboveAdjusted() const {return type==STRAIGHT ? start.x*end.y-start.y*end.x : getAreaAboveAdjusted_curvy();}
+    double GetLength() const {return type==STRAIGHT ? (end-start).length() : type == FULL_CIRCLE ? ell.Perimiter() : ell.Perimiter(s,e);}
 
     bool Expand(double gap);
 
@@ -152,6 +155,7 @@ protected:
     //remove the part of an edge before an after point p lying on the edge
     void   removebeforepoint_curvy(const XY &p);
     void   removeafterpoin_curvy(const XY &p);
+    double getAreaAboveAdjusted_curvy() const;
     double offsetbelow_curvy_straight(const Edge &M_straight, bool straight_is_up, double &touchpoint) const;
 
     double FindRadianOfClosestPos(unsigned num, double pos[], double rad);

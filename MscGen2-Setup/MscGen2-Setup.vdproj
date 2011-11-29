@@ -33,8 +33,8 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_2044FD3E577E19EF3457E127D9A06FBB"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmKey" = "8:_333272F4F0B5483A926A656BBAA7B3AB"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -57,26 +57,8 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_9E4579062CA14BB7BC0AF7FFA95EEB8D"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_9E4579062CA14BB7BC0AF7FFA95EEB8D"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
         "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_DA95C9D1619244F69F05D63C98EE5992"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -88,6 +70,18 @@
         "Entry"
         {
         "MsmKey" = "8:_E5A14705B3BBF976A15859DB5B589876"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_FB633681AC864E669FF7559FE43F2B0D"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_FB633681AC864E669FF7559FE43F2B0D"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -298,26 +292,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2044FD3E577E19EF3457E127D9A06FBB"
-            {
-            "SourcePath" = "8:cairo.dll"
-            "TargetName" = "8:cairo.dll"
-            "Tag" = "8:"
-            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6613FEF835754514BC83A62E3B74C6D5"
             {
             "SourcePath" = "8:..\\doc\\Demo.signalling"
@@ -414,7 +388,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -540,7 +514,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{EA22D2D3-C451-4109-A63B-6632D27F0511}"
-        "PackageCode" = "8:{0A94DCE4-2346-46F0-9C13-9E36F2BCEB4E}"
+        "PackageCode" = "8:{4BF93A02-7941-4511-8908-23A58E965C67}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -2041,11 +2015,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_9E4579062CA14BB7BC0AF7FFA95EEB8D"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_333272F4F0B5483A926A656BBAA7B3AB"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_DebugCRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_DebugMFC_x86.msm"
                 "Properties"
                 {
                 }
@@ -2055,11 +2029,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_DA95C9D1619244F69F05D63C98EE5992"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_FB633681AC864E669FF7559FE43F2B0D"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_DebugMFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_DebugCRT_x86.msm"
                 "Properties"
                 {
                 }

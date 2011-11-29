@@ -777,6 +777,19 @@ double Edge::radian2pos(double r) const
     return (s-r)/(s-e+2*M_PI);
 }
 
+//This should return the (directed) area between the y axis and the edge times 2, minus start.x*start.y, plus end.x*end.y
+//Well, not the full area below, merely the 
+double Edge::getAreaAboveAdjusted_curvy() const
+{
+    _ASSERT(type!=STRAIGHT);
+    if (type==FULL_CIRCLE) return ell.Area()*(clockwise_arc ? 2 : -2);
+    //We calculate as if the arc went start->center->end; and then
+    //we add it to the area of the sector of the circle
+    return ell.Area(s, e)*(clockwise_arc ? 2 : -2) + 
+           start.x*ell.GetCenter().y - start.y*ell.GetCenter().x +
+           ell.GetCenter().x*end.y - ell.GetCenter().y*end.x; 
+}
+
 bool Edge::IsSane() const
 {
     if (!IsSaneNoBoundingBox()) return false;

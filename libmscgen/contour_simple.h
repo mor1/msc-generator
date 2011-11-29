@@ -56,6 +56,7 @@ private:
         {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
 protected:
+    friend class ContourWithHoles;
     friend class ContourList;
     friend struct node;
     SimpleContour() : clockwise(true) {boundingBox.MakeInvalid();}
@@ -89,6 +90,7 @@ protected:
 public:
     bool operator < (const SimpleContour &b) const;
     bool operator ==(const SimpleContour &b) const;
+    const Edge &operator[](size_type edge) const {return at(edge);}
     void swap(SimpleContour &b) {edges.swap(b.edges); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise);}
     void clear() {edges.clear(); boundingBox.MakeInvalid();}
 
@@ -104,7 +106,8 @@ public:
     bool GetClockWise() const {return clockwise;}
     bool IsEmpty() const {return edges.size()==0;}
     bool IsSane() const;
-    const Edge &operator[](size_type edge) const {return at(edge);}
+    double GetArea() const;
+    double GetCircumference(bool include_hidden=false) const;
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;

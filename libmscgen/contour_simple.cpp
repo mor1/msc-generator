@@ -521,6 +521,33 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
     return true;
 }
 
+//This is based on http://www.mathopenref.com/coordpolygonarea.html
+//For each edge, we calculate the area above it (the area between the edge and Y axis,
+//but since y grows downward, the area is "above" the edge).
+//The value is signed. If the edge is from right to left it is positive, else negative.
+//Since (for straight edges) the area would contain "start.x*start.y-end.x*end.y",
+//which will cancel out. Plus it is easier to return twice the area.
+//Thus we request edge to return
+//"2*(area_above_edge - start.x*start.y + end.x*end.y)", this is what 
+//Edge::GetAreaAboveAdjusted() returns;
+double SimpleContour::GetArea() const
+{
+    register double ret = 0;
+    for (size_type i=0; i<size(); i++)
+        ret += at(i).GetAreaAboveAdjusted();
+    return ret/2;
+}
+
+double SimpleContour::GetCircumference(bool include_hidden) const
+{
+    register double ret = 0;
+    for (size_type i=0; i<size(); i++)
+        if (include_hidden || at(i).visible)
+            ret += at(i).GetLength();
+    return ret;
+}
+
+
 //////////////////////////////////SimpleContour::Expand implementation
 
 Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise)
@@ -624,7 +651,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
     //OK, now adjust the edges and/or insert additional ones
     Contour res_before_untangle;
-    ContourWithHoles &r2 = res_before_untangle;
+    SimpleContour &r2 = res_before_untangle.first.outline;
     r2.edges.reserve(size()*3);
     const double gap_limit = fabs(miter_limit) < DBL_MAX ? fabs(gap)*fabs(miter_limit) : DBL_MAX;
     switch (type) {
@@ -783,14 +810,13 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     if (r2.size()==1)
         r2[0].SetFullCircle();
     //OK, now untangle - use 'res_before_untangle' instead of r2
-    static_cast<SimpleContour&>(r2).CalculateBoundingBox();  //also calculates bounding boxes of edges
-    res_before_untangle.boundingBox = static_cast<SimpleContour&>(res_before_untangle).boundingBox; //copy to outer
+    r2.CalculateBoundingBox();  //also calculates bounding boxes of edges
+    res_before_untangle.boundingBox = r2.boundingBox; //copy to outer
     if (r2.size()==1) {  //only one edge
         res = std::move(res_before_untangle);
         return;
     }
     if (ContourTestDebug) {
-        const_cast<Block&>(res_before_untangle.GetBoundingBox()) = static_cast<ContourWithHoles&>(res_before_untangle).GetBoundingBox();
         Draw(ContourTestDebug*100, res_before_untangle);
         ContourTestDebug++;
     };
