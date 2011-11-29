@@ -38,7 +38,7 @@ public:
     bool operator ==(const ContourList &p) const;
     bool IsEmpty() const {return size()==0;}
     const Block &GetBoundingBox(void) const {return boundingBox;}
-    bool GetClockWise() const; 
+    bool GetClockWise() const;
     double GetArea(bool consider_holes=true) const;
     double GetCircumference(bool consider_holes=true, bool include_hidden=false) const;
 
@@ -92,7 +92,8 @@ protected:
 
 public:
     ContourWithHoles(const SimpleContour &p) : outline(p) {}
-    ContourWithHoles(ContourWithHoles &&p) : outline(std::move(p.outline)), holes(std::move(p.holes)) {}  //for list
+    ContourWithHoles(const ContourWithHoles &p) : outline(p.outline), holes(p.holes) {}  //this must be added by hand for g++
+    ContourWithHoles(ContourWithHoles &&p) : outline(std::move(p.outline)), holes(std::move(p.holes)) {}  //this must be public for list<ContourWithHoles>
     void swap(ContourWithHoles &b) {holes.swap(b.holes); outline.swap(b.outline);}
     bool operator < (const ContourWithHoles &p) const {return outline==p.outline ? holes < p.holes : outline<p.outline;}
     bool operator ==(const ContourWithHoles &p) const {return outline==p.outline && holes == p.holes;}
@@ -126,7 +127,7 @@ public:
 
 //This can contain multiple positive contours and holes
 //holes are always within one of the contours
-class Contour 
+class Contour
 {
     friend void contour_test(void);
     friend class SimpleContour;
@@ -295,7 +296,7 @@ inline double ContourList::GetCircumference(bool consider_holes, bool include_hi
 inline void ContourList::append(const ContourWithHoles &p)
 {
     if (p.IsEmpty()) return;
-    _ASSERT(size()==0 || GetClockWise() == p.GetClockWise());    
+    _ASSERT(size()==0 || GetClockWise() == p.GetClockWise());
     boundingBox += p.GetBoundingBox();
     std::list<ContourWithHoles>::push_back(p);
 }

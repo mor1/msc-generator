@@ -140,6 +140,8 @@ public:
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
+    
+    const ArcBase                *last_inserted_arc; //during parse: last arc inserted (the one notes attach to) or NULL if none
 
     XY     total;                //Total size of the chart (minus copyright)
     double copyrightTextHeight;  //Y size of the copyright text calculated
