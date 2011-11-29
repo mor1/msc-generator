@@ -4910,3 +4910,54 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CommandNote::CommandNote(Msc*msc, const file_line_range &l, const VertXPos *vxpos, const AttributeList *al)
+    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]), 
+    layout(FLOAT), previous(msc->last_inserted_arc), vertxpos(vxpos?*vxpos:VertXPos(*msc))
+{
+
+}
+
+bool CommandNote::AddAttribute(const Attribute &a)
+{
+    return ArcLabelled::AddAttribute(a);
+}
+
+void CommandNote::AttributeNames(Csh &csh)
+{
+    ArcLabelled::AttributeNames(csh);
+}
+
+bool CommandNote::AttributeValues(const std::string attr, Csh &csh)
+{
+    return ArcLabelled::AttributeValues(attr, csh);
+}
+
+ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+{
+    return ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
+}
+
+void CommandNote::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+{
+}
+
+double CommandNote::Height(MscCanvas &canvas, AreaList &cover)
+{
+    return 0;
+}
+
+void CommandNote::ShiftBy(double y)
+{
+    ArcLabelled::ShiftBy(y);
+}
+
+void CommandNote::PostPosProcess(MscCanvas &cover, double autoMarker)
+{
+}
+
+void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
+{
+}
+

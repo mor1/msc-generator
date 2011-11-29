@@ -47,6 +47,7 @@ typedef enum
     MSC_COMMAND_HSPACE,
     MSC_COMMAND_VSPACE,
     MSC_COMMAND_SYMBOL,
+    MSC_COMMAND_NOTE,
 
     MSC_ARC_INDICATOR
 } MscArcType;
@@ -649,6 +650,27 @@ public:
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
+    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+};
+
+class CommandNote : public ArcLabelled
+{
+protected:
+    typedef enum {LEFT, RIGHT, LEFT_OR_RIGHT, FLOAT} LayoutType;
+    LayoutType            layout;
+    const ArcBase * const previous;
+    VertXPos              vertxpos;
+    mutable double        xpos;
+public:
+    CommandNote(Msc*, const file_line_range &l, const VertXPos *vxpos, const AttributeList *al);
+    virtual bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual void ShiftBy(double y);
+    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
