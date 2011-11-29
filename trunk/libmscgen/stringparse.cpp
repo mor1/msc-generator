@@ -26,6 +26,9 @@
 template<> const char EnumEncapsulator<MscIdentType>::names[][ENUM_STRING_LEN] =
     {"invalid", "left", "center", "right", ""};
 
+template<> const char EnumEncapsulator<MscFontType>::names[][ENUM_STRING_LEN] =
+    {"invalid", "normal", "small", "superscript", "subscript", ""};
+
 
 void AddTristate(std::pair<bool, tristate> &a, const std::pair<bool, tristate> b)
 {
@@ -93,7 +96,7 @@ void StringFormat::Default()
     textVGapLineSpacing.first = true; textVGapLineSpacing.second = 0; 
     ident.first = true; ident.second = MSC_IDENT_CENTER;
     color.first = true; color.second =  MscColorType(0,0,0); 
-    fontType.first = true; fontType.second = 0;
+    fontType.first = true; fontType.second = MSC_FONT_NORMAL;
     spacingBelow.first = true; spacingBelow.second =  0; 
     face.first = true; face.second =  "Arial";
     bold.first = true; bold.second = no;
@@ -229,7 +232,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case '_':    // subscript
         if (apply) {
             fontType.first = true;
-            fontType.second = (unsigned)string("+-^_").find(input[1]);
+            fontType.second = (MscFontType)string("+-^_").find(input[1]);
         }
         goto ok2; //valid formatting character of length 2
 
@@ -609,7 +612,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         length = 2;
         if (apply) {
             fontType.first = true;
-            fontType.second = 1;
+            fontType.second = MSC_FONT_SMALL;
         }
         if (msc && linenum)
             msc->Error.Warning(*linenum, maybe_s_msg, PER_S_DEPRECATED_MSG);
@@ -857,7 +860,7 @@ string StringFormat::Print() const
     string ret;
     char fonttypes[] = "+-^_";
     if (fontType.first)
-        ret << string("\\") + fonttypes[fontType.second];;
+        ret << string("\\") + fonttypes[(unsigned)fontType.second];;
 
     if (color.first)
         ret << "\\c" + color.second.Print();
@@ -974,6 +977,70 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         operator += (sf);
         return true;
     }
+    if (a.EndsWith("text.font.face")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                face.first = false;
+            return true;
+        }
+        if (a.CheckType(MSC_ATTR_STRING, msc->Error)) {
+            face.first = true;
+            face.second = a.value;
+        }
+        return true;
+    }
+    if (a.EndsWith("font.type")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                fontType.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, fontType.second)) {
+            fontType.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(fontType.second), msc->Error);
+        return true;
+    }
+    std::pair<bool, tristate> *tri = NULL;
+    if (a.EndsWith("bold")) tri = &bold;
+    else if (a.EndsWith("italic")) tri = &italics;
+    else if (a.EndsWith("underline")) tri = &underline;
+    //handle bold, italics and underline
+    if (tri) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                tri->first = false;
+            return true;
+        }
+        if (a.CheckType(MSC_ATTR_BOOL, msc->Error)) {
+            tri->first = true;
+            tri->second = a.yes ? yes : no;
+        }
+        return true;
+    }
+
+    std::pair<bool, double> *dou = NULL;
+    if (a.EndsWith("gap.up")) dou = &textVGapAbove;
+    else if (a.EndsWith("gap.down")) dou = &textVGapBelow;
+    else if (a.EndsWith("gap.left")) dou = &textHGapPre;
+    else if (a.EndsWith("gap.right")) dou = &textHGapPost;
+    else if (a.EndsWith("gap.spacing")) dou = &textVGapLineSpacing;
+    else if (a.EndsWith("size.normal")) dou = &normalFontSize;
+    else if (a.EndsWith("size.small")) dou = &smallFontSize;
+
+    if (dou) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                dou->first = false;
+            return true;
+        }
+        if (a.CheckType(MSC_ATTR_NUMBER, msc->Error)) {
+            dou->first = true;
+            dou->second = a.number;
+        }
+        return true;
+    }
     return false;
 
 }
@@ -981,7 +1048,11 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void StringFormat::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "text.color", "text.ident", "text.format", ""};
+    {"", "text.color", "text.ident", "text.format", 
+    "text.font.face", "text.font.type", 
+    "text.bold", "text.italic", "text.underline", 
+    "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
+    "text.gap.spacing", "text.size.normal", "text.size.small", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
@@ -1023,6 +1094,33 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<\format string\">", HINT_ATTR_VALUE, false));
         return true;
     }
+    if (CaseInsensitiveEndsWith(attr, "font.type")) {
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "font.face")) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\\f(Arial)Arial", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Times New Roman)Times New Roman\\f()\"", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "\"\\f(Courier New)Courier New\\f()\"", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<any Windows font>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "bold") || 
+        CaseInsensitiveEndsWith(attr, "italic") ||
+        CaseInsensitiveEndsWith(attr, "underline")) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "gap.up") ||
+        CaseInsensitiveEndsWith(attr, "gap.down") ||
+        CaseInsensitiveEndsWith(attr, "gap.left") ||
+        CaseInsensitiveEndsWith(attr, "gap.right") ||
+        CaseInsensitiveEndsWith(attr, "gap.spacing") ||
+        CaseInsensitiveEndsWith(attr, "size.normal") ||
+        CaseInsensitiveEndsWith(attr, "size.small")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number in pixels>", HINT_ATTR_VALUE, false));
+        return true;
+    }
     return false;
 }
 
@@ -1057,21 +1155,20 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
 
 void StringFormat::ApplyFontTo(MscCanvas *canvas) const
 {
-    StringFormat to_use; //default
-    to_use += *this; //apply our settings;
-    canvas->SetFontFace(to_use.face.second.c_str(), to_use.italics.first&&to_use.italics.second,
-                      to_use.bold.first&&to_use.bold.second);
+    _ASSERT(IsComplete()); 
+    canvas->SetFontFace(face.second.c_str(), italics.first && italics.second,
+                        bold.first && bold.second);
 
-    canvas->SetFontSize(to_use.smallFontSize.second);
+    canvas->SetFontSize(smallFontSize.second);
     cairo_font_extents(canvas->GetContext(), &smallFontExtents);
-    canvas->SetFontSize(to_use.normalFontSize.second);
+    canvas->SetFontSize(normalFontSize.second);
     cairo_font_extents(canvas->GetContext(), &normalFontExtents);
 
-    if (to_use.fontType.second == 0) /*Normal font*/
-        canvas->SetFontSize(to_use.normalFontSize.second) ;
+    if (fontType.second == MSC_FONT_NORMAL) /*Normal font*/
+        canvas->SetFontSize(normalFontSize.second) ;
     else /* Small, subscript, superscript */
-        canvas->SetFontSize(to_use.smallFontSize.second);
-    canvas->SetColor(to_use.color.second);
+        canvas->SetFontSize(smallFontSize.second);
+    canvas->SetColor(color.second);
 }
 
 //front is yes if we want heading space width and false if trailing
@@ -1100,10 +1197,7 @@ double StringFormat::spaceWidth(const string &text, MscCanvas *canvas, bool fron
 double StringFormat::getFragmentWidth(const string &s, MscCanvas *canvas) const
 {
     if (s.length()==0 || canvas==NULL) return 0;
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
-    StringFormat to_use; //default
-    to_use += *this; //apply our settings;
-    to_use.ApplyFontTo(canvas);
+    ApplyFontTo(canvas);
     cairo_text_extents_t te;
     if (canvas->individual_chars) {
         double advance = 0;
@@ -1124,19 +1218,16 @@ double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
                                                       MscCanvas *canvas) const
 {
     if (s.length()==0 || canvas==NULL) return 0;
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
-    StringFormat to_use; //default
-    to_use += *this; //apply our settings;
-    to_use.ApplyFontTo(canvas);
-    switch(to_use.fontType.second) {
-    case 0:  //normal font
-        return to_use.normalFontExtents.ascent;
-    case 1:  //Small font
-        return to_use.smallFontExtents.ascent;
-    case 2: //superscript - typeset 20% higher than normal font
-        return to_use.normalFontExtents.ascent*1.2;
-    case 3: //subscript - typeset 20% lower than normal font
-        return std::max(0., to_use.smallFontExtents.ascent-to_use.normalFontExtents.ascent*0.2);
+    ApplyFontTo(canvas);
+    switch(fontType.second) {
+    case MSC_FONT_NORMAL:  //normal font
+        return normalFontExtents.ascent;
+    case MSC_FONT_SMALL:  //Small font
+        return smallFontExtents.ascent;
+    case MSC_FONT_SUPERSCRIPT: //superscript - typeset 20% higher than normal font
+        return normalFontExtents.ascent*1.2;
+    case MSC_FONT_SUBSCRIPT: //subscript - typeset 20% lower than normal font
+        return std::max(0., smallFontExtents.ascent-normalFontExtents.ascent*0.2);
     }
     return 0;
 }
@@ -1145,19 +1236,16 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
                                                       MscCanvas *canvas) const
 {
     if (s.length()==0 || canvas==NULL) return 0;
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
-    StringFormat to_use; //default
-    to_use += *this; //apply our settings;
-    to_use.ApplyFontTo(canvas);
-    switch(to_use.fontType.second) {
-    case 0:  //normal font
-        return to_use.normalFontExtents.descent;
-    case 1:  //Small font
-        return to_use.smallFontExtents.descent;
-    case 2: //superscript - typeset 20% higher than normal font
-        return std::max(0., to_use.smallFontExtents.descent - to_use.normalFontExtents.ascent*0.2);
-    case 3: //subscript - typeset 20% lower than normal font
-        return to_use.smallFontExtents.descent + to_use.normalFontExtents.ascent*0.2;
+    ApplyFontTo(canvas);
+    switch(fontType.second) {
+    case MSC_FONT_NORMAL:  //normal font
+        return normalFontExtents.descent;
+    case MSC_FONT_SMALL:  //Small font
+        return smallFontExtents.descent;
+    case MSC_FONT_SUPERSCRIPT: //superscript - typeset 20% higher than normal font
+        return std::max(0., smallFontExtents.descent - normalFontExtents.ascent*0.2);
+    case MSC_FONT_SUBSCRIPT: //subscript - typeset 20% lower than normal font
+        return smallFontExtents.descent + normalFontExtents.ascent*0.2;
     }
     return 0;
 }
@@ -1165,20 +1253,16 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
 double StringFormat::drawFragment(const string &s, MscCanvas *canvas, XY xy, bool isRotated) const
 {
     if (s.length()==0 || canvas==NULL) return 0;
-    //Mybe we have not all fields set
-    _ASSERT(IsComplete()); //XXX If no failt, remove to_use bullshit
-    StringFormat to_use; //default
-    to_use += *this; //apply our settings;
-    to_use.ApplyFontTo(canvas);
-    switch(to_use.fontType.second) {
-    case 0:  //normal font
-    case 1:  //Small font
+    ApplyFontTo(canvas);
+    switch(fontType.second) {
+    case MSC_FONT_NORMAL:  //normal font
+    case MSC_FONT_SMALL:  //Small font
         break;
-    case 2: //superscript - typeset 20% higher than normal font
-        xy.y -= to_use.normalFontExtents.ascent*0.2;
+    case MSC_FONT_SUPERSCRIPT: //superscript - typeset 20% higher than normal font
+        xy.y -= normalFontExtents.ascent*0.2;
         break;
-    case 3: //subscript - typeset 20% lower than normal font
-        xy.y += to_use.normalFontExtents.ascent*0.2;
+    case MSC_FONT_SUBSCRIPT: //subscript - typeset 20% lower than normal font
+        xy.y += normalFontExtents.ascent*0.2;
         break;
     }
 
@@ -1192,7 +1276,7 @@ double StringFormat::drawFragment(const string &s, MscCanvas *canvas, XY xy, boo
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        canvas->Line(xy, xy2, MscLineAttr(LINE_SOLID, to_use.color.second, 1, CORNER_NONE, 0));
+        canvas->Line(xy, xy2, MscLineAttr(LINE_SOLID, color.second, 1, CORNER_NONE, 0));
     }
     return advance;
 }

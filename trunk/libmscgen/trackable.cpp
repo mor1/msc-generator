@@ -176,5 +176,6 @@ void TrackableElement::DrawIndicator(XY pos, MscCanvas *canvas)
     const XY offset(area.x.Spans()/4, 0);
     canvas->Line(pos-offset, pos-offset, line);
     canvas->Line(pos+offset, pos+offset, line);
+    cairo_restore(canvas->GetContext());
 }
 

@@ -426,8 +426,7 @@ void contour_test(void)
     DrawExpand(198, EXPAND_MITER_SQUARE, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
     DrawExpand(199, EXPAND_MITER_SQUARE, DBL_MAX, form5, false, "two inverse circles with miter");
 
-    //End of exclusion for speed */
-    //Works up to here
+
 
     Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25);
     Draw(2181, lohere1);
@@ -496,6 +495,40 @@ void contour_test(void)
     DrawExpand(358, EXPAND_MITER, 2, triangle, false);
     DrawExpand(359, EXPAND_MITER, 1, triangle, false);
     DrawExpand(360, EXPAND_MITER, 0, triangle, false);
+
+
+  
+    
+    //Test area and circumference
+    Contour poly(60,200, 90,110); //30 degree rotated
+    for (unsigned i = 0; i<10; i++) {
+        const Contour block(0, 65+i*5, 0, 200);
+        Contour res = poly - block;
+        Contour rot = res.CreateRotatedAround(XY(100,100),29);
+        char buff[200];
+        sprintf(buff, "Normal Area: %g, Circumference: %g\nRotate Area: %g, Circumference: %g", res.GetArea(), res.GetCircumference(), rot.GetArea(), rot.GetCircumference());
+        DrawIsinside(400+i, rot, 10, buff);
+    }
+
+    //End of exclusion for speed */
+
+    Contour circle(XY(100,100), 30, 30, 30); //30 degree rotated
+    for (unsigned i = 2; i<10; i++) {
+        const Contour block(0, 65+i*5, 0, 200);
+        Contour res = circle - block;
+        char buff[200];
+        sprintf(buff, "Area: %g, Circumference: %g", res.GetArea(), res.GetCircumference());
+        DrawIsinside(500+i, res, 10, buff);
+    }
+
+    Contour ell(XY(100,100), 40, 10, 30); //30 degree rotated
+    for (unsigned i = 0; i<10; i++) {
+        const Contour block(0, 65+i*5, 0, 200);
+        Contour res = ell - block;
+        char buff[200];
+        sprintf(buff, "Area: %g, Circumference: %g", res.GetArea(), res.GetCircumference());
+        DrawIsinside(600+i, res, 10, buff);
+    }
 
 
 

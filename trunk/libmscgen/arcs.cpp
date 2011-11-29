@@ -183,8 +183,8 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"compress")||
         CaseInsensitiveEqual(attr,"parallel")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "no", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"draw_time")) {
@@ -1675,7 +1675,7 @@ ArcArrow *ArcVerticalArrow::AddSegment(MscArcType, const char * /*m*/, file_line
 
 const MscStyle *ArcVerticalArrow::GetRefinementStyle(MscArcType t) const
 {
-    switch(type) {
+    switch(t) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
         return &chart->Contexts.back().styles["vertical->"];

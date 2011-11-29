@@ -72,7 +72,7 @@ double ContourList::OffsetBelow(const ContourList &below, double &touchpoint, do
     if (!GetBoundingBox().x.Overlaps(below.GetBoundingBox().x)) return offset;
     for (auto i = begin(); i!=end(); i++)
         for (auto j = below.begin(); j!=below.end(); j++)
-            offset = i->OffsetBelow(*j, touchpoint, offset);
+            offset = i->OffsetBelow(j->outline, touchpoint, offset);
     return offset;
 }
 
@@ -148,13 +148,13 @@ const link_info::size_type link_info::no_link = std::numeric_limits<std::vector<
 
 struct Ray
 {
-    bool main_clockwise;//true if the main contour is clockwise. Unspecified for untangle
-    const SimpleContour *contour;   //the simple contour the vertex belongs to
-    Contour::size_type vertex;    //the number of the vertex staring the edge the crosspoint is on
-    double   pos;       //-1 if it is a vertex and not a crosspoint, [0..1) the pos of the crosspoint on the edge
-    bool     incoming;  //true if it is incoming
-    RayAngle angle;     //the angle of the
-    XY       xy;        //the position of the crosspoint of the ray
+    bool                     main_clockwise;//true if the main contour is clockwise. Unspecified for untangle
+    const SimpleContour     *contour;   //the simple contour the vertex belongs to
+    SimpleContour::size_type vertex;    //the number of the vertex staring the edge the crosspoint is on
+    double                   pos;       //-1 if it is a vertex and not a crosspoint, [0..1) the pos of the crosspoint on the edge
+    bool                     incoming;  //true if it is incoming
+    RayAngle                 angle;     //the angle of the
+    XY                       xy;        //the position of the crosspoint of the ray
     //linked list indices
     enum list_type {LIST_CONTOUR, LIST_CP, IN_CONTOUR, IN_CP};
     //loose lists: only heads are doubly linked, additional rays on the same contour have their next to themselves and prev to the head
@@ -168,7 +168,7 @@ struct Ray
     mutable bool                 valid;     //wether this ray have already been included in a contour resulting from a walk
     mutable link_info::size_type seq_num;   //same seq num as where we started a walk indicates a stopping criteria
     mutable link_info::size_type switch_to; //index of another ray for this cp, no_link if error
-    Ray(const XY &point, bool m_c, const SimpleContour *c, Contour::size_type v, double p, bool i, const RayAngle &a) :
+    Ray(const XY &point, bool m_c, const SimpleContour *c, SimpleContour::size_type v, double p, bool i, const RayAngle &a) :
         main_clockwise(m_c), contour(c), vertex(v), pos(p), incoming(i), angle(a),
         xy(point), valid(true), switch_to(link_info::no_link) {_ASSERT(c);}
     void Reset() const {valid = true; switch_to = link_info::no_link;}
@@ -176,9 +176,9 @@ struct Ray
 
 typedef std::vector<Ray> RayCollection;
 struct RayPointer {
-    bool                 at_vertex;  //true if we are at a vertex
-    link_info::size_type index;      //index of a ray. If we are at a vertex this points to a nearby ray on this contour
-    Contour::size_type   vertex;     //the #of vertex if we are at a vertex. Else ignore
+    bool                     at_vertex;  //true if we are at a vertex
+    link_info::size_type     index;      //index of a ray. If we are at a vertex this points to a nearby ray on this contour
+    SimpleContour::size_type vertex;     //the #of vertex if we are at a vertex. Else ignore
     explicit RayPointer(link_info::size_type i) : at_vertex(false), index(i) {}
 };
 
@@ -470,11 +470,11 @@ unsigned ContoursHelper::FindCrosspointsHelper(const SimpleContour *i)
 unsigned ContoursHelper::FindCrosspointsHelper(const ContourWithHoles *i)
 {
     //Find intersections of the main contour with itself
-    unsigned ret = FindCrosspointsHelper(static_cast<const SimpleContour*>(i));
+    unsigned ret = FindCrosspointsHelper(&i->outline);
     //Now see where the main contour meets its holes
     for (auto j=i->holes.begin(); j!=i->holes.end(); j++)
         //main_clockwise values are dummy
-        ret += FindCrosspointsHelper(bool(), static_cast<const SimpleContour*>(i), bool(), static_cast<const SimpleContour*>(&*j));
+        ret += FindCrosspointsHelper(bool(), &i->outline, bool(), &j->outline);
     return ret + FindCrosspointsHelper(&i->holes, true);
 }
 
@@ -495,7 +495,7 @@ unsigned ContoursHelper::FindCrosspointsHelper(const ContourList *c, bool cwh_in
             if (i->GetBoundingBox().Overlaps(j->GetBoundingBox()))
                 //main_clockwise values are dummy if we do a single contour operation
                 //but if we do multi-contour, we shall use the clockwiseness of these
-                ret += FindCrosspointsHelper(i->clockwise, &*i, j->clockwise, &*j);
+                ret += FindCrosspointsHelper(i->GetClockWise(), &*i, j->GetClockWise(), &*j);
         }
 
     }
@@ -509,9 +509,9 @@ inline unsigned ContoursHelper::FindCrosspointsHelper(const Contour *c, bool cwh
 {
     unsigned ret = 0;
     if (cwh_included)
-        ret = FindCrosspointsHelper(static_cast<const ContourWithHoles*>(c));
+        ret = FindCrosspointsHelper(&c->first);
     if (c->further.size()) {
-        ret += FindCrosspointsHelper(c->clockwise, static_cast<const ContourWithHoles*>(c), c->clockwise, &c->further);
+        ret += FindCrosspointsHelper(c->GetClockWise(), &c->first, c->GetClockWise(), &c->further);
         ret += FindCrosspointsHelper(&c->further, cwh_included);
     }
     return ret;
@@ -540,8 +540,8 @@ unsigned ContoursHelper::FindCrosspointsHelper(bool m_c1, const ContourWithHoles
                                                bool m_c2, const ContourWithHoles *i2)
 {
     //see where the two main covers meet
-    unsigned ret = FindCrosspointsHelper(m_c1, static_cast<const SimpleContour*>(i1),
-                                         m_c2, static_cast<const SimpleContour*>(i2));
+    unsigned ret = FindCrosspointsHelper(m_c1, &i1->outline,
+                                         m_c2, &i2->outline);
     //now see how the holes cross the other's main cover
     for (auto i = i1->holes.begin(); i!=i1->holes.end(); i++)
         if (i->GetBoundingBox().Overlaps(i2->GetBoundingBox()))
@@ -589,17 +589,17 @@ unsigned ContoursHelper::FindCrosspoints()
     if (C2==NULL) {
         ret = FindCrosspointsHelper(C1, true);
     } else if (C1->GetBoundingBox().Overlaps(C2->GetBoundingBox())) {
-        ret = FindCrosspointsHelper(C1->clockwise, static_cast <const ContourWithHoles*>(C1),
-                                    C2->clockwise, static_cast<const ContourWithHoles*>(C2));
+        ret = FindCrosspointsHelper(C1->GetClockWise(), &C1->first,
+                                    C2->GetClockWise(), &C2->first);
         if (C2->further.GetBoundingBox().Overlaps(C1->GetBoundingBox()))
-            ret += FindCrosspointsHelper(C1->clockwise, static_cast<const ContourWithHoles*>(C1),
-                                         C2->clockwise, &C2->further);
+            ret += FindCrosspointsHelper(C1->GetClockWise(), &C1->first,
+                                         C2->GetClockWise(), &C2->further);
         if (C1->further.GetBoundingBox().Overlaps(C2->GetBoundingBox()))
-            ret += FindCrosspointsHelper(C2->clockwise, static_cast<const ContourWithHoles*>(C2),
-                                         C1->clockwise, &C1->further);
+            ret += FindCrosspointsHelper(C2->GetClockWise(), &C2->first,
+                                         C1->GetClockWise(), &C1->further);
         if (C2->further.GetBoundingBox().Overlaps(C1->further.GetBoundingBox()))
-            ret += FindCrosspointsHelper(C1->clockwise, &C1->further,
-                                         C2->clockwise, &C2->further);
+            ret += FindCrosspointsHelper(C1->GetClockWise(), &C1->further,
+                                         C2->GetClockWise(), &C2->further);
         //Here we also need to test if there are ContourWithHoles:s inside C1 and C2 that touch
         //ret += FindCrosspointsHelper(C1, false);
         //ret += FindCrosspointsHelper(C2, false);
@@ -685,10 +685,10 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy, const ContourWithHoles *cwh
             //if it is an ellipse that touches the line: no change in cov
             //horizontal lines through x are ignored: we seek coverage just before (0;-inf)
     int ret = 0;
-    for (Contour::size_type e=0;e<cwh->size();e++) {
+    for (SimpleContour::size_type e=0; e<cwh->outline.size();e++) {
         double x[2], pos[2];
         bool fw[2];
-        Edge tmp(cwh->at(e));
+        Edge tmp(cwh->outline[e]);
         tmp.SwapXY();
         const int num = tmp.CrossingVertical(xy.y, x, pos, fw);
         //do nothing for -1 or 0 returns
@@ -707,7 +707,7 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy, const ContourWithHoles *cwh
 //counts coverage a bit right of xy, assuming C2==NULL
 int ContoursHelper::CalcCoverageHelper(const XY &xy) const
 {
-    int ret = CalcCoverageHelper(xy, static_cast<const ContourWithHoles*>(C1));
+    int ret = CalcCoverageHelper(xy, &C1->first);
     for (auto i = C1->further.begin(); i!=C1->further.end(); i++)
         ret += CalcCoverageHelper(xy, &*i);
     return ret;
@@ -717,11 +717,11 @@ int ContoursHelper::CalcCoverageHelper(const XY &xy) const
 //assuming C2==NULL
 int ContoursHelper::CalcCoverageHelper(link_info::size_type cp_head) const
 {
-    int ret = CalcCoverageHelper(Rays[cp_head].xy, C1);
+    int ret = CalcCoverageHelper(Rays[cp_head].xy, &C1->first);
     for (auto i = C1->further.begin(); i!=C1->further.end(); i++)
         ret += CalcCoverageHelper(Rays[cp_head].xy, &*i);
     if (C2!=NULL) {
-        ret += CalcCoverageHelper(Rays[cp_head].xy, C2);
+        ret += CalcCoverageHelper(Rays[cp_head].xy, &C2->first);
         for (auto i = C2->further.begin(); i!=C2->further.end(); i++)
             ret += CalcCoverageHelper(Rays[cp_head].xy, &*i);
     }
@@ -741,7 +741,7 @@ int ContoursHelper::CalcCoverageHelper(link_info::size_type cp_head) const
 int ContoursHelper::CalcCoverageHelper(const SimpleContour *sc) const
 {
     const XY &xy = sc->at(0).GetStart();
-    int ret =  CalcCoverageHelper(xy, C1);
+    int ret =  CalcCoverageHelper(xy, &C1->first);
     const XY next = sc->NextTangentPoint(0, 0);
     const XY prev = sc->PrevTangentPoint(0, 0);
     const double a_next = angle(xy, XY(xy.x+100, xy.y), next);
@@ -1097,31 +1097,31 @@ node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
                                        const Contour *C_other, Contour::operation_t type) const
 {
-    if (!Rays.size() || !FindContourHead(c)) {
+    if (!Rays.size() || !FindContourHead(&c->outline)) {
         int coverage_in_c;
         if (C2==NULL)
-            coverage_in_c = CalcCoverageHelper(static_cast<const SimpleContour *>(c));
+            coverage_in_c = CalcCoverageHelper(&c->outline);
         else {
             //In order to avoid checking ray crossing for all contours, we calculate
             //coverage within "c" using the assumptions on C1 and C2 being nice.
-            const is_within_t is_within_other = C_other->IsWithin(c->at(0).GetStart());
+            const is_within_t is_within_other = C_other->IsWithin(c->outline[0].GetStart());
             _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
             //if we are outside the other, coverage from that is zero
             //if we are inside, then coverage is either +1 or -1 depending on dir
-            const int cov_from_other = inside(is_within_other) ? C_other->clockwise ? 1 : -1 : 0;
+            const int cov_from_other = inside(is_within_other) ? C_other->GetClockWise() ? 1 : -1 : 0;
             //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
             //if our whole surface is ccl then 0 or -1
             const Contour * const C_us = C1==C_other ? C2 : C1;
-            const int cov_from_us = C_us->clockwise ? (c->clockwise ? 1 : 0) : (c->clockwise ? 0 : -1);
+            const int cov_from_us = C_us->GetClockWise() ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
             coverage_in_c = cov_from_us + cov_from_other;
         }
-        const int coverage_outside_c = coverage_in_c + (c->clockwise ? -1 : +1);
+        const int coverage_outside_c = coverage_in_c + (c->GetClockWise() ? -1 : +1);
         if (IsCoverageToInclude(coverage_in_c, type) !=
             IsCoverageToInclude(coverage_outside_c, type)) {
             //place into the tree
             //If the contour is not const, we can destroy it.
             //The below move does only destroy the SimpleContour part of c, not the holes
-            node *n = InsertContour(list, const_c ? node(*c) : node(std::move(*const_cast<ContourWithHoles*>(c))));
+            node *n = InsertContour(list, const_c ? node(c->outline) : node(std::move(const_cast<ContourWithHoles*>(c)->outline)));
             _ASSERT(n);
             //use its children list for any holes it may have
             list = &n->children;
@@ -1174,17 +1174,17 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
             return;
         }
         //fast path: if single surface, no holes and no crosspoints
-        if (C1->further.size()==0 && C1->holes.size()==0 && Rays.size()==0) {
+        if (C1->further.size()==0 && C1->first.holes.size()==0 && Rays.size()==0) {
             if (const_C1) result = *C1;
             else result = std::move(*C1);
-            result.CalculateClockwise();
-            if (!IsCoverageToInclude(result.clockwise ? 1 : -1, type))
+            result.first.outline.CalculateClockwise();
+            if (!IsCoverageToInclude(result.GetClockWise() ? 1 : -1, type))
                 result.clear();
             return;
         }
     } else {
         if (C1->IsEmpty()) {
-            if (C2->IsEmpty() || !OperationWithAnEmpty(type, C2->clockwise)) {
+            if (C2->IsEmpty() || !OperationWithAnEmpty(type, C2->GetClockWise())) {
                 result.clear();
                 return;
             }
@@ -1193,7 +1193,7 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
             return;
         }
         if (C2->IsEmpty()) {
-            if (OperationWithAnEmpty(type, C1->clockwise)) {
+            if (OperationWithAnEmpty(type, C1->GetClockWise())) {
                 if (const_C1) result = *C1;
                 else result = std::move(*C1);
             } else
@@ -1229,11 +1229,11 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
     //Now we need to consider those contours from the original set
     //for which we found no crosspoints (may be all of them, none of them or in bw)
         //We shall always demand a positive surface, except if both input are hole
-    InsertIfNotInRays(&list, C1, const_C1, C2, type);
+    InsertIfNotInRays(&list, &C1->first, const_C1, C2, type);
     for (auto i = C1->further.begin(); i!=C1->further.end(); i++)
         InsertIfNotInRays(&list, &*i, const_C1, C2, type);
     if (C2) {
-        InsertIfNotInRays(&list, C2, const_C2, C1, type);
+        InsertIfNotInRays(&list, &C2->first, const_C2, C1, type);
         for (auto i = C2->further.begin(); i!=C2->further.end(); i++)
             InsertIfNotInRays(&list, &*i, const_C2, C1, type);
 
@@ -1250,8 +1250,8 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
 
 bool ContourWithHoles::IsSane(bool shouldbehole) const
 {
-    if (!SimpleContour::IsSane()) return false;
-    if (GetClockWise()==shouldbehole) return false;
+    if (!outline.IsSane()) return false;
+    if (outline.GetClockWise()==shouldbehole) return false;
     for (auto i=holes.begin(); i!=holes.end(); i++)
         if (!i->IsSane(!shouldbehole))
             return false;
@@ -1261,10 +1261,10 @@ bool ContourWithHoles::IsSane(bool shouldbehole) const
 void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                               double miter_limit_positive, double miter_limit_negative) const
 {
-    if (size()==0) return;
-    if (gap==0) {res.clear(); static_cast<ContourWithHoles&>(res) = *this; return;}
-    SimpleContour::Expand(GetClockWise() && gap>0 ? type4positive : type4negative, gap, res,
-                          GetClockWise() && gap>0 ? miter_limit_positive : miter_limit_negative);
+    if (outline.size()==0) return;
+    if (gap==0) {res = *this; return;}
+    outline.Expand(outline.GetClockWise() && gap>0 ? type4positive : type4negative, gap, res,
+                   outline.GetClockWise() && gap>0 ? miter_limit_positive : miter_limit_negative);
     if (holes.size()==0 || res.IsEmpty()) return;
     Contour tmp;
     for (auto i=holes.begin(); i!=holes.end(); i++) {
@@ -1316,19 +1316,19 @@ void Contour::assign(const Edge v[], size_type size, bool winding)
 
 bool Contour::IsSane() const
 {
-    if (!ContourWithHoles::IsSane(!clockwise)) return false;
+    if (!first.IsSane(!first.GetClockWise())) return false;
     for (auto i = further.begin(); i!=further.end(); i++)
-        if (!i->IsSane(!clockwise)) return false;
+        if (!i->IsSane(!i->GetClockWise())) return false;
     return true;
 }
 
 void Contour::Invert()
 {
     Contour tmp(*this);
-    static_cast<ContourWithHoles&>(tmp).Invert();
+    tmp.first.Invert();
     if (tmp.further.size())
         tmp.further.Invert();
-    Operation(tmp.clockwise ? EXPAND_POSITIVE : EXPAND_NEGATIVE, std::move(tmp));
+    Operation(tmp.GetClockWise() ? EXPAND_POSITIVE : EXPAND_NEGATIVE, std::move(tmp));
 }
 
 void Contour::Operation(operation_t type, const Contour &c1)
@@ -1366,7 +1366,7 @@ void Contour::Operation(operation_t type, Contour &&c1, Contour &&c2)
 void Contour::Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                      double miter_limit_positive, double miter_limit_negative) const
 {
-    ContourWithHoles::Expand(type4positive, type4negative, gap, res, miter_limit_positive, miter_limit_negative);
+    first.Expand(type4positive, type4negative, gap, res, miter_limit_positive, miter_limit_negative);
     if (further.size()==0) return;
     Contour tmp;
     for (auto i = further.begin(); i!=further.end(); i++) {
