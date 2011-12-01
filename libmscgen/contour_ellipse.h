@@ -24,6 +24,7 @@ struct quadratic_xy_t;
 class EllipseData
 {
     friend struct quadratic_xy_t;
+    friend class EdgeFullCircle;
 protected:
     XY     center;
     double radius1, radius2;
@@ -32,7 +33,6 @@ protected:
     double sintilt, costilt;    //pre-computed values
 	XY     extreme[4];          //pre-computed left, rightmost, topmost, bottommost point, resp
 	double extreme_radian[4]; 
-    mutable double perimiter_cache; //if nonnegative it caches the cirumference
 
     //for tilted ellipses translate from msc space to a space, where
     //  the ellipse is a non-tilted unit circle
@@ -45,11 +45,9 @@ protected:
     void transpose_curvy_non_tilted();
 	void calculate_extremes();
 	double add_to_tilt(double cos, double sin, double radian);
-    double PerimiterHelper(double to) const;
-    void CalcPerimiterEllipse() const;
 
 public:
-    EllipseData() : perimiter_cache(-1) {};
+    EllipseData() {};
     EllipseData(const XY &c, double radius1, double radius2=0, double tilt_degree=0);
     bool operator ==(const EllipseData& p) const;
     bool operator <(const EllipseData& p) const;
@@ -69,11 +67,6 @@ public:
     XY Tangent(double radian, bool next) const;
     double Point2Radian(const XY &p) const;
     XY Radian2Point(double r) const {return conv_to_real_space(XY(cos(r), sin(r)));}
-    //this returns positive always and assumes clockwise arc
-    double Perimiter(double from, double to) const;
-    double Perimiter() const {if (perimiter_cache<0) {if (radius1 == radius2) perimiter_cache = 2*M_PI*radius1; else CalcPerimiterEllipse();} return perimiter_cache;}
-    double Area(double from, double to) const {return radius1*radius2*fmod_negative_safe(to-from, 2*M_PI)/2;}
-    double Area() const {return radius1*radius2*M_PI;}
 
     //return the number of common points, coordinates in "r"
     //also the radian or relative position inside the straight edge
@@ -152,16 +145,6 @@ inline double EllipseData::Point2Radian(const XY &p) const
     //	else *inout = WI_ON_EDGE;
     //}
 }
-
-inline double EllipseData::Perimiter(double from, double to) const
-{
-    if (radius1 == radius2) return fmod_negative_safe(to-from, 2*M_PI)*radius1;
-    const double zero2to = PerimiterHelper(fmod(to, 2*M_PI));
-    const double zero2from = PerimiterHelper(fmod(from, 2*M_PI));
-    if (from < to) return zero2to - zero2from;
-    return zero2to - zero2from + perimiter_cache; //PerimiterHelper calls Perimiter() so cache is up-to-date
-}
-
 
 inline void EllipseData::TransformForDrawing(cairo_t *cr) const
 {

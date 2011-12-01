@@ -129,7 +129,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
        TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
-       TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
+       TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL
        TOK__NEVER__HAPPENS
 %union
 {
@@ -157,7 +157,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 
 %type <msc>        msc
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
-                   symbol_command symbol_command_no_attr note
+                   symbol_command symbol_command_no_attr
 %type <arcvertarrow> vertrel_no_xpos
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcbox>     boxrel first_box
@@ -190,13 +190,13 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE
                    TOK_ACTIVATE TOK_DEACTIVATE
-                   TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
+                   TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
 %destructor {if (!C_S_H) delete $$;} vertrel_no_xpos
 %destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
-%destructor {if (!C_S_H) delete $$;} symbol_command symbol_command_no_attr note
+%destructor {if (!C_S_H) delete $$;} symbol_command symbol_command_no_attr
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} boxrel first_box box_list first_pipe pipe_list pipe_list_no_content
 %destructor {if (!C_S_H) delete $$;} parallel
@@ -211,7 +211,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
 %destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
 %destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
-%destructor {free($$);}  TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
+%destructor {free($$);}  TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL
 
 %%
 
@@ -355,7 +355,6 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     csh.AddCSH(@1, COLOR_BRACE);
     csh.AddCSH(@3, COLOR_BRACE);
   #else
-    msc.last_inserted_arc = $3;
     if ($3) ($2)->Append($3); //Append any potential CommandNumbering
     $$ = $2;
   #endif
@@ -380,7 +379,6 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     csh.AddCSH_Error(@3, "Could not recognize this as a valid line.");
     csh.AddCSH(@4, COLOR_BRACE);
   #else
-    msc.last_inserted_arc = $4;
     if ($4) ($2)->Append($4); //Append any potential CommandNumbering
     $$ = $2;
     msc.Error.Error(MSC_POS(@3).start, "Syntax error.");
@@ -418,7 +416,6 @@ arclist_maybe_no_semicolon : arclist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter(@2, "Missing a semicolon (';').");
   #else
-    msc.last_inserted_arc = $2;
     if ($2) ($1)->Append($2);
     $$ = $1;
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing ';'.");
@@ -430,7 +427,6 @@ arclist_maybe_no_semicolon : arclist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter(@1, "Missing a semicolon (';').");
   #else
-    msc.last_inserted_arc = $1;
     $$ = (new ArcList)->Append($1); /* New list */
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing ';'.");
     msc.Error.Error(MSC_POS(@1).start, MSC_POS(@1).end.NextChar(), "Here is the beginning of the command as I understood it.");
@@ -441,7 +437,6 @@ arclist_maybe_no_semicolon : arclist
 arclist:    arc_with_parallel_semicolon
 {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = $1;
     if ($1)
         $$ = (new ArcList)->Append($1); /* New list */
     else
@@ -451,7 +446,6 @@ arclist:    arc_with_parallel_semicolon
             | arclist arc_with_parallel_semicolon
 {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = $2;
     if ($2)
         ($1)->Append($2);     /* Add to existing list */
     $$ = ($1);
@@ -882,7 +876,6 @@ arc:           arcrel
     free($1);
 }
               | symbol_command
-              | note
               | TOK_COMMAND_HSPACE entityrel full_arcattrlist_with_label_or_number
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1098,7 +1091,6 @@ entity_command_prefixes: TOK_HIDE | TOK_SHOW | TOK_ACTIVATE | TOK_DEACTIVATE;
 optlist:     opt
 {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = $1;
     if ($1)
         $$ = (new ArcList)->Append($1); /* New list */
     else
@@ -1114,14 +1106,13 @@ optlist:     opt
         csh.hintStatus = HINT_READY;
     }
   #else
-    msc.last_inserted_arc = $3;
     if ($3) {
         if ($1)
             $$ = ($1)->Append($3);     /* Add to existing list */
         else
             $$ = (new ArcList)->Append($3); /* New list */
-    } else
-        $$ = $1;
+    }
+    $$ = $1;
   #endif
 }
            | optlist TOK_COMMA
@@ -2803,26 +2794,6 @@ symbol_command: symbol_command_no_attr
   #endif
 };
 
-note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_label
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
-    $$ = new CommandNote(MSC_POS(@@), $2, $3);
-  #endif
-    free($1);
-}
-               | TOK_COMMAND_NOTE full_arcattrlist_with_label
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
-    $$ = new CommandNote(&msc, MSC_POS(@@), NULL, $2);
-  #endif
-    free($1);
-};
-
-
 colon_string: TOK_COLON_QUOTED_STRING
 {
   #ifdef C_S_H_IS_COMPILED
@@ -3080,8 +3051,7 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_HEADING | TOK_COMMAND_NUDGE |
                        TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |
                        TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |
-                       TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL |
-                       TOK_COMMAND_NOTE;
+                       TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}

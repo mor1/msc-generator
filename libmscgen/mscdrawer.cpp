@@ -145,6 +145,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     needs_arrow_fix = false;
     imprecise_positioning = false;
     can_and_shall_clip_total = true;
+    low_performance_transparency = false;
 
     /* Set low-level parameters for default */
     white_background = false;
@@ -162,7 +163,8 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         use_text_path_rotated = true;
         fake_dash = true;
         needs_arrow_fix = true;
-        fake_scale = 10;              //do 10 for better precision clipping
+        fake_scale = std::min(10., total.x && total.y ? std::min(30000/total.x, 30000/total.y) : 10.);  //do 10 for better precision clipping
+        fallback_resolution = unsigned(100/fake_scale);
         //Fallthrough
     case EMF:
         needs_dots_in_corner = true;
@@ -176,8 +178,11 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
         //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
         if(!GetVersionEx ((OSVERSIONINFO *) &osvi) || osvi.dwMajorVersion<=5) {
-            use_text_path = use_text_path_rotated = true;
-            fake_scale=100;
+            use_text_path = true;
+            use_text_path_rotated = true;
+            fake_scale = std::min(10., total.x && total.y ? std::min(30000/total.x, 30000/total.y) : 10.);
+            fallback_resolution = unsigned(10./fake_scale);
+            low_performance_transparency = true;
         }
         break;
     case WIN:
@@ -639,8 +644,12 @@ void MscCanvas::Transform_FlipHorizontal(double y)
 
 void MscCanvas::SetColor(MscColorType pen)
 {
-	if (pen.valid)
-		cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
+	if (pen.valid) {
+        if (HasLowPerformaceTransparency())
+		    cairo_set_source_rgb(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0);
+        else
+		    cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
+    }
 }
 
 void MscCanvas::SetLineAttr(MscLineAttr line)
@@ -1088,6 +1097,10 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
         Clip(b);
         MscColorType color = fill.color.second;
         MscColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
+        if (HasLowPerformaceTransparency()) {
+            color.FlattenAlpha();
+            color2.FlattenAlpha();
+        }
         switch(fill.gradient.second) {
         default:
             _ASSERT(0);
@@ -1138,6 +1151,10 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
             }
         else 
             from = fill.color2.second;
+        if (HasLowPerformaceTransparency()) {
+            from.FlattenAlpha();
+            to.FlattenAlpha();
+        }
         if (fill.gradient.second ==GRADIENT_IN || fill.gradient.second == GRADIENT_OUT) 
             radialGradient(from, to, b.CenterPoint(), max_extent, 0, fill.gradient.second);
          else 

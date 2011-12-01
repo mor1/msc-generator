@@ -361,21 +361,12 @@ static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
-"text.color", "text.format", "text.ident", 
-"text.font.face", "text.font.type", 
-"text.bold", "text.italic", "text.underline", 
-"text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
-"text.gap.spacing", "text.size.normal", "text.size.small", 
-"angle", ""};
+"text.color", "text.format", "text.ident", "angle", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
 {"draw_time", "compress", "color", "label", "number", "indicator", "collapsed", 
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
-"text.font.face", "text.font.type", 
-"text.bold", "text.italic", "text.underline", 
-"text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
-"text.gap.spacing", "text.size.normal", "text.size.small",
 "arrow", "arrowsize", "arrow.size", "arrow.type", "arrow.starttype", "arrow.midtype",
 "arrow.endtype", "arrow.color", "arrow.xmul", "arrow.ymul",
 "line.color", "line.type", "line.width", "line.corner", "line.radius", 
@@ -1112,9 +1103,7 @@ void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::strin
             continue;
         }
         string::size_type dot_pos;
-        //if compacting is on we combine all hints with the same prefix into a xxx.*-like hint
-        //but only if  its type is ATTR_NAME
-        if (compact_same && i->type == HINT_ATTR_NAME) {
+        if (compact_same) {
             unsigned len = CaseInsensitiveCommonPrefixLen(i->plain.c_str(), uc.c_str());
             dot_pos = i->plain.find('.', len);
             if (start_len) {

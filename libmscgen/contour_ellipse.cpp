@@ -506,7 +506,7 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
 }
 
 EllipseData::EllipseData(const XY &c, double radius_x, double radius_y, double tilt_degree) :
-    center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), perimiter_cache(-1)
+    center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false)
 {
     if (radius2 == 0) radius2 = radius1; //circle
     if (radius1 != radius2 && tilt_degree!=0) {
@@ -731,90 +731,8 @@ XY EllipseData::Tangent(double radian, bool next) const
         return conv_to_real_space(XY(x+y, y-x));
 }
 
-inline double gk(double h) 
-{
-    double z = 0, x = 1;
-    unsigned n = 0;
-    while (!test_zero(x)) {
-        n++;
-        x = h * x * ((n-1.5)/n)*((n-1.5)/n);
-        z += x;
-    }
-    return z+1;
-}
-
-inline double cayley(double x) 
-{
-    double y = log(16/x) - 1;
-    double t = x / 4;
-    unsigned n = 1;
-    double z = 0;
-    double u = t * y;
-    double v = (n - .5) / n;
-    double w = .5 / ((n - .5) * n);
-    while (!test_zero(u)) {
-        z += u;
-        n++;
-        t *= x*v;
-        v = (n - .5) / n;
-        t *= v;
-        y -= w;
-        w = .5 / ((n - .5) * n);
-        y -= w;
-        u = t * y;
-    }
-    return 1 + z;
-}
-
-
-void EllipseData::CalcPerimiterEllipse() const
-{
-    //This is copied from http://www.numericana.com/answer/ellipse.htm#high
-    const double a = std::max(radius1, radius2);
-    const double b = std::min(radius1, radius2);
-    if (b >= 0.28*a) {
-        const double h = ((a-b)/(a+b))*((a-b)/(a+b));
-        perimiter_cache = M_PI*(a+b)*gk(h);
-    } else 
-        perimiter_cache = 4*a*cayley((b/a)*(b/a));
-}
-
-
-
-//This returns the length of the 0->to arc (always positive)
-//Here a computation of incomplete elliptic integral of the second kind is needed
-//See http://www.numericana.com/answer/geometry.htm#ellipticarc
-double EllipseData::PerimiterHelper(double to) const
-{
-    unsigned num_of_quarters;
-    double a, b;
-    if (radius1 < radius2) {
-        a = radius2;
-        b = radius1;
-        if (to <= 0.5*M_PI) num_of_quarters = 0;
-        else if (to <= 1.5*M_PI) num_of_quarters = 2;
-        else num_of_quarters = 4;
-    } else {
-        a = radius1;
-        b = radius2;
-        if (to <= M_PI) num_of_quarters = 1;
-        else num_of_quarters = 3;
-    }
-    to -= num_of_quarters*M_PI/2;
-    //Now num_of_quarters contains how many quarters of the ellipse we have from 0 to that 
-    //end of the shorter axis, which is closer to the original "to".
-    //Now "to" contains a (-pi/2..+pi/2) range showing a diff from the end of the short axis
-    //we need to calculate the length or arc from the end of short axis till "fabs(to)" and add 
-    //to the quarters if "to" is pos, and substract it if "to" is negative
-    //The below formula is by David W. Cantrell from 2002 see in the Internet Archive
-    //http://web.archive.org/web/20030225001402/http://mathforum.org/discuss/sci.math/t/469668
-    const double L = a * (sin(fabs(to)) + (fabs(to) - sin(fabs(to)))*pow(b/a, 2 - 0.216*fabs(to)*fabs(to)));
-    return num_of_quarters*Perimiter()/4 + (to<0 ? -L : L);
-}
-
 int EllipseData::Expand(double gap)
 {
-    perimiter_cache = -1; //invalidate perimiter cache
     int ret = 1;
     radius1+=gap;
     if (!test_smaller(0,radius1)) ret--;
