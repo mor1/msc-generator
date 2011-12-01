@@ -39,12 +39,11 @@ ADD: Tip of the day
 
 
 In 3.4
-ADDED: text.* attributes and options (3.4.14)
 ADDED: 'colores' design
 FIXED: Numbering in parallel
 FIXED: Disco compress
 FIXED: parallel compress
-FIXED: totally empty box... (3.4.13)
+FIXED: totally empty box...
 DOC'D: number in vertxpos and symbol ...
 FIXED: Embedded objects pageing
 ADDED: number in vertxpos

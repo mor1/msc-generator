@@ -652,7 +652,6 @@ void Msc::PushContext(bool empty)
         SetDesign("plain", true);
     } else
         Contexts.push_back(Contexts.back());
-    last_inserted_arc = NULL;
 }
 
 ArcBase *Msc::PopContext()
