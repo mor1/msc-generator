@@ -57,6 +57,7 @@ protected:
     bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
     bool         use_text_path;  /* Use cairo_text_path() instead of cairo_show_text (windows metafile & truetype font problem)*/
     bool         use_text_path_rotated; /* Use text path() on rotated text */
+    bool         use_text_wmf_tricks; /* fiddle with text during conversion to WMF */
     bool         individual_chars; /* Each character is drawn one by one */
     unsigned     fake_gradients; /* Do not use cairo gradients, mimic them with a lot of fills, #of steps if non-zero */
     double       scale_for_shadows; /* how many pixel lies below one logical pixel (needed for fine shadows) */

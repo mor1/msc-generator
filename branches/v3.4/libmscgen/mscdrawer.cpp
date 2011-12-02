@@ -132,11 +132,28 @@ cairo_status_t write_func(void * closure, const unsigned char *data, unsigned le
         return CAIRO_STATUS_WRITE_ERROR;
 }
 
+#ifdef CAIRO_HAS_WIN32_SURFACE
+int GetWindowsVersion() 
+{
+    static int cache = -1;
+    if (cache<0) {
+        OSVERSIONINFOEX osvi;
+        ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+        //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
+        if(GetVersionEx ((OSVERSIONINFO *) &osvi)) 
+            cache = osvi.dwMajorVersion;
+    }
+    return cache;
+}
+#endif
+
 void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
 {
     /* Set low-level parameters for default */
     use_text_path = false;
     use_text_path_rotated = false;
+    use_text_wmf_tricks = true;
     individual_chars = false;
     fake_gradients = 0;
     fake_dash = false; 
@@ -164,25 +181,19 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         fake_dash = true;
         needs_arrow_fix = true;
         fake_scale = std::min(10., total.x && total.y ? std::min(30000/total.x, 30000/total.y) : 10.);  //do 10 for better precision clipping
-        fallback_resolution = unsigned(100/fake_scale);
+        fallback_resolution = unsigned(100/fake_scale); //on XP fallback shall be small, so below we adjust
+        low_performance_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
         //Fallthrough
     case EMF:
         needs_dots_in_corner = true;
-        //check if we run on vista or later: then cairo can do text on EMF/WMF 
         imprecise_positioning = true;
         fake_gradients = 30;
         fake_shadows = true;
         //check if we run on vista or later: then cairo can do text on EMF/WMF 
-        OSVERSIONINFOEX osvi;
-        ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-        //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
-        if(!GetVersionEx ((OSVERSIONINFO *) &osvi) || osvi.dwMajorVersion<=5) {
+        if(GetWindowsVersion()<=5) {
             use_text_path = true;
             use_text_path_rotated = true;
-            fake_scale = std::min(10., total.x && total.y ? std::min(30000/total.x, 30000/total.y) : 10.);
-            fallback_resolution = unsigned(10./fake_scale);
-            low_performance_transparency = true;
+            fallback_resolution = unsigned(10./fake_scale); //on XP fallback shall be small
         }
         break;
     case WIN:
@@ -470,7 +481,7 @@ HMETAFILE MscCanvas::CloseOutputRetainHandleWMF()
         RECT r;
         SetRect(&r, 0, 0, int(total.x), int(total.y));
         HDC hdc = CreateMetaFile(NULL);
-        PaintEMFonWMFdc(hemf, hdc, r, true);
+        PaintEMFonWMFdc(hemf, hdc, r, use_text_wmf_tricks);
         DeleteEnhMetaFile(hemf);
         return CloseMetaFile(hdc);
     }

@@ -66,7 +66,6 @@ Global
 		{F36B3A44-3D67-4249-A522-340D32D4FD96}.Release|Itanium.ActiveCfg = Release
 		{F36B3A44-3D67-4249-A522-340D32D4FD96}.Release|Itanium.Build.0 = Release
 		{F36B3A44-3D67-4249-A522-340D32D4FD96}.Release|Win32.ActiveCfg = Release
-		{F36B3A44-3D67-4249-A522-340D32D4FD96}.Release|Win32.Build.0 = Release
 		{F36B3A44-3D67-4249-A522-340D32D4FD96}.Release|x64.ActiveCfg = Release
 		{F36B3A44-3D67-4249-A522-340D32D4FD96}.Release|x64.Build.0 = Release
 		{7ECF6BC4-E6EE-4E81-82FE-68115D657F3F}.Debug|Itanium.ActiveCfg = Debug|Win32
@@ -106,7 +105,6 @@ Global
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.OptDebug|x64.Build.0 = Debug|x64
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|Itanium.ActiveCfg = Release|x64
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|Win32.ActiveCfg = Release|Win32
-		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|Win32.Build.0 = Release|Win32
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|x64.ActiveCfg = Release|x64
 		{E683FDEA-86A9-49BE-B913-E7E42B1315B0}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection

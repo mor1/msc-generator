@@ -33,13 +33,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_212530D2707047B0A1313B06ABC8E0BD"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_212530D2707047B0A1313B06ABC8E0BD"
+        "MsmKey" = "8:_393A5358C04344D082F8DF1FE3BFDC56"
         "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -47,6 +41,18 @@
         {
         "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
         "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_77F320AD79944541BBFD977717492C19"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_77F320AD79944541BBFD977717492C19"
+        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -65,12 +71,6 @@
         {
         "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
         "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_CF30BFB992934B998FDDB034C78421FE"
-        "OwnerKey" = "8:_8D210BB11DE54BFF9295776C6C22707B"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -514,7 +514,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{462F1125-C167-40BD-8A44-6CCCD0C9E985}"
-        "PackageCode" = "8:{39CF10DF-41D1-4795-88F0-E184033BDAF8}"
+        "PackageCode" = "8:{A235DB74-DD1F-459C-94DD-F9E5CD5DF559}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -2015,11 +2015,11 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_212530D2707047B0A1313B06ABC8E0BD"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_393A5358C04344D082F8DF1FE3BFDC56"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
                 "Properties"
                 {
                 }
@@ -2029,11 +2029,11 @@
             "Feature" = "8:"
             "IsolateTo" = "8:"
             }
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_CF30BFB992934B998FDDB034C78421FE"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_77F320AD79944541BBFD977717492C19"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_MFC_x86.msm"
+            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
                 "Properties"
                 {
                 }

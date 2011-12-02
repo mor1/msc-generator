@@ -419,6 +419,7 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
     else if (ext.CompareNoCase("svg")==0) ot = MscCanvas::SVG;
     else if (ext.CompareNoCase("pdf")==0) ot = MscCanvas::PDF;
     else if (ext.CompareNoCase("eps")==0) ot = MscCanvas::EPS;
+    else if (ext.CompareNoCase("wmf")==0) ot = MscCanvas::WMF;
     else {
         ot = MscCanvas::PNG;
         fn += ".png";
