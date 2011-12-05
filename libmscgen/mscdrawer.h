@@ -67,7 +67,7 @@ protected:
     bool         needs_arrow_fix; /*Cannot do the convex clipping for arrowheads */
     bool         imprecise_positioning; /*EMF/WMF has trouble doing lines on 0.5 boundaries*/
     bool         can_and_shall_clip_total;  /* true if we can clip to "total". Does not work for WIN, so we need this flag */
-    bool         low_performance_transparency; /* true for Win Xp WMFs, where fallback images are slow */
+    bool         avoid_transparency; /* true for Win Xp WMFs, where fallback images are slow */
     
     /* Status of fake dashes */
     double       fake_dash_offset;
@@ -136,7 +136,7 @@ public:
     const XY &GetSize() const {return total;}
     bool NeedsArrowFix() const {return needs_arrow_fix;}
     bool HasImprecisePositioning() const {return imprecise_positioning;}
-    bool HasLowPerformaceTransparency() const {return low_performance_transparency;}
+    bool AvoidTransparency() const {return avoid_transparency;}
 
     cairo_line_join_t SetLineJoin(cairo_line_join_t t);
     cairo_line_cap_t SetLineCap(cairo_line_cap_t t);

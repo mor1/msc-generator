@@ -162,7 +162,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     needs_arrow_fix = false;
     imprecise_positioning = false;
     can_and_shall_clip_total = true;
-    low_performance_transparency = false;
+    avoid_transparency = false;
 
     /* Set low-level parameters for default */
     white_background = false;
@@ -182,7 +182,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         needs_arrow_fix = true;
         fake_scale = std::min(10., total.x && total.y ? std::min(30000/total.x, 30000/total.y) : 10.);  //do 10 for better precision clipping
         fallback_resolution = unsigned(100/fake_scale); //on XP fallback shall be small, so below we adjust
-        low_performance_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
+        avoid_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
         //Fallthrough
     case EMF:
         needs_dots_in_corner = true;
@@ -656,10 +656,9 @@ void MscCanvas::Transform_FlipHorizontal(double y)
 void MscCanvas::SetColor(MscColorType pen)
 {
 	if (pen.valid) {
-        if (HasLowPerformaceTransparency())
-		    cairo_set_source_rgb(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0);
-        else
-		    cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
+        if (AvoidTransparency())
+            pen = pen.FlattenAlpha();
+        cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
     }
 }
 
@@ -1108,7 +1107,7 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
         Clip(b);
         MscColorType color = fill.color.second;
         MscColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
-        if (HasLowPerformaceTransparency()) {
+        if (AvoidTransparency()) {
             color.FlattenAlpha();
             color2.FlattenAlpha();
         }
@@ -1162,7 +1161,7 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
             }
         else 
             from = fill.color2.second;
-        if (HasLowPerformaceTransparency()) {
+        if (AvoidTransparency()) {
             from.FlattenAlpha();
             to.FlattenAlpha();
         }

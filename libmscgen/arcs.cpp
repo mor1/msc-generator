@@ -3035,7 +3035,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     if (content.size() == 0)
         for (auto i = series.begin(); i!=series.end(); i++)
             (*i)->style.solid.second = 255;
-    else if (canvas.HasLowPerformaceTransparency())
+    else if (canvas.AvoidTransparency())
         for (auto i = series.begin(); i!=series.end(); i++)
             //disallow transparency if too low power
             if ((*i)->style.solid.second!=255) 
