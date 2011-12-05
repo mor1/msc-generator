@@ -20,15 +20,6 @@ typedef enum
 }
 MscIdentType;
 
-typedef enum 
-{
-    MSC_FONT_NORMAL=0, 
-    MSC_FONT_SMALL=1, 
-    MSC_FONT_SUPERSCRIPT=2, 
-    MSC_FONT_SUBSCRIPT=3
-}
-MscFontType;
-
 enum tristate {no=0, yes, invert};
 
 #define ESCAPE_CHAR_LOCATION ((char)1)
@@ -47,7 +38,7 @@ bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p
 class StringFormat {
   protected:
     std::pair<bool, MscColorType> color;
-    std::pair<bool, MscFontType>  fontType;   
+    std::pair<bool, int>          fontType;   //0 large, 1 small, 2 superScript, 3 subscript
     std::pair<bool, double>       spacingBelow;
     std::pair<bool, tristate>     bold;
     std::pair<bool, tristate>     italics;

@@ -183,8 +183,8 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"compress")||
         CaseInsensitiveEqual(attr,"parallel")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "yes", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "no", HINT_ATTR_VALUE));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"draw_time")) {
@@ -1675,7 +1675,7 @@ ArcArrow *ArcVerticalArrow::AddSegment(MscArcType, const char * /*m*/, file_line
 
 const MscStyle *ArcVerticalArrow::GetRefinementStyle(MscArcType t) const
 {
-    switch(t) {
+    switch(type) {
     case MSC_ARC_SOLID:
     case MSC_ARC_SOLID_BIDIR:
         return &chart->Contexts.back().styles["vertical->"];
@@ -3035,6 +3035,11 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     if (content.size() == 0)
         for (auto i = series.begin(); i!=series.end(); i++)
             (*i)->style.solid.second = 255;
+    else if (canvas.AvoidTransparency())
+        for (auto i = series.begin(); i!=series.end(); i++)
+            //disallow transparency if too low power
+            if ((*i)->style.solid.second!=255) 
+                (*i)->style.solid.second = 0;
     return this;
 }
 
@@ -4908,56 +4913,5 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
             canvas.Line(mid, style.line);
             break;
     }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-CommandNote::CommandNote(Msc*msc, const file_line_range &l, const VertXPos *vxpos, const AttributeList *al)
-    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]), 
-    layout(FLOAT), previous(msc->last_inserted_arc), vertxpos(vxpos?*vxpos:VertXPos(*msc))
-{
-
-}
-
-bool CommandNote::AddAttribute(const Attribute &a)
-{
-    return ArcLabelled::AddAttribute(a);
-}
-
-void CommandNote::AttributeNames(Csh &csh)
-{
-    ArcLabelled::AttributeNames(csh);
-}
-
-bool CommandNote::AttributeValues(const std::string attr, Csh &csh)
-{
-    return ArcLabelled::AttributeValues(attr, csh);
-}
-
-ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
-{
-    return ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
-}
-
-void CommandNote::Width(MscCanvas &canvas, EntityDistanceMap &distances)
-{
-}
-
-double CommandNote::Height(MscCanvas &canvas, AreaList &cover)
-{
-    return 0;
-}
-
-void CommandNote::ShiftBy(double y)
-{
-    ArcLabelled::ShiftBy(y);
-}
-
-void CommandNote::PostPosProcess(MscCanvas &cover, double autoMarker)
-{
-}
-
-void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
-{
 }
 
