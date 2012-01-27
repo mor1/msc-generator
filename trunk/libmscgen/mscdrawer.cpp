@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -132,11 +132,28 @@ cairo_status_t write_func(void * closure, const unsigned char *data, unsigned le
         return CAIRO_STATUS_WRITE_ERROR;
 }
 
+#ifdef CAIRO_HAS_WIN32_SURFACE
+int GetWindowsVersion() 
+{
+    static int cache = -1;
+    if (cache<0) {
+        OSVERSIONINFOEX osvi;
+        ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+        //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
+        if(GetVersionEx ((OSVERSIONINFO *) &osvi)) 
+            cache = osvi.dwMajorVersion;
+    }
+    return cache;
+}
+#endif
+
 void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
 {
     /* Set low-level parameters for default */
     use_text_path = false;
     use_text_path_rotated = false;
+    use_text_wmf_tricks = true;
     individual_chars = false;
     fake_gradients = 0;
     fake_dash = false; 
@@ -145,6 +162,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     needs_arrow_fix = false;
     imprecise_positioning = false;
     can_and_shall_clip_total = true;
+    avoid_transparency = false;
 
     /* Set low-level parameters for default */
     white_background = false;
@@ -162,22 +180,20 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         use_text_path_rotated = true;
         fake_dash = true;
         needs_arrow_fix = true;
-        fake_scale = 10;              //do 10 for better precision clipping
+        fake_scale = std::min(10., total.x && total.y ? std::min(30000/total.x, 30000/total.y) : 10.);  //do 10 for better precision clipping
+        fallback_resolution = unsigned(100/fake_scale); //on XP fallback shall be small, so below we adjust
+        avoid_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
         //Fallthrough
     case EMF:
         needs_dots_in_corner = true;
-        //check if we run on vista or later: then cairo can do text on EMF/WMF 
         imprecise_positioning = true;
         fake_gradients = 30;
         fake_shadows = true;
         //check if we run on vista or later: then cairo can do text on EMF/WMF 
-        OSVERSIONINFOEX osvi;
-        ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-        //majorversion of 5 is Win2000, XP and 2003, 6 is Vista, 2008 and Win7
-        if(!GetVersionEx ((OSVERSIONINFO *) &osvi) || osvi.dwMajorVersion<=5) {
-            use_text_path = use_text_path_rotated = true;
-            fake_scale=100;
+        if(GetWindowsVersion()<=5) {
+            use_text_path = true;
+            use_text_path_rotated = true;
+            fallback_resolution = unsigned(10./fake_scale); //on XP fallback shall be small
         }
         break;
     case WIN:
@@ -465,7 +481,7 @@ HMETAFILE MscCanvas::CloseOutputRetainHandleWMF()
         RECT r;
         SetRect(&r, 0, 0, int(total.x), int(total.y));
         HDC hdc = CreateMetaFile(NULL);
-        PaintEMFonWMFdc(hemf, hdc, r, true);
+        PaintEMFonWMFdc(hemf, hdc, r, use_text_wmf_tricks);
         DeleteEnhMetaFile(hemf);
         return CloseMetaFile(hdc);
     }
@@ -639,8 +655,11 @@ void MscCanvas::Transform_FlipHorizontal(double y)
 
 void MscCanvas::SetColor(MscColorType pen)
 {
-	if (pen.valid)
-		cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
+	if (pen.valid) {
+        if (AvoidTransparency())
+            pen = pen.FlattenAlpha();
+        cairo_set_source_rgba(cr, pen.r/255.0, pen.g/255.0, pen.b/255.0, pen.a/255.0);
+    }
 }
 
 void MscCanvas::SetLineAttr(MscLineAttr line)
@@ -1088,6 +1107,10 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
         Clip(b);
         MscColorType color = fill.color.second;
         MscColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
+        if (AvoidTransparency()) {
+            color.FlattenAlpha();
+            color2.FlattenAlpha();
+        }
         switch(fill.gradient.second) {
         default:
             _ASSERT(0);
@@ -1138,6 +1161,10 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
             }
         else 
             from = fill.color2.second;
+        if (AvoidTransparency()) {
+            from.FlattenAlpha();
+            to.FlattenAlpha();
+        }
         if (fill.gradient.second ==GRADIENT_IN || fill.gradient.second == GRADIENT_OUT) 
             radialGradient(from, to, b.CenterPoint(), max_extent, 0, fill.gradient.second);
          else 

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -20,9 +20,6 @@
 #include "contour.h"
 
 namespace contour {
-
-extern unsigned ContourTestDebug;
-extern unsigned ContourTestDebugMinor;
 
 void Draw(unsigned i, const Contour area1, const Contour area2, const Contour area3, const char *text=NULL);
 void Draw(unsigned i, const Contour area1, const Contour area2, const char *text=NULL);

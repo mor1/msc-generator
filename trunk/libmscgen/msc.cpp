@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -916,13 +916,20 @@ void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &dist
         (*i)->Width(canvas, distances);
 }
 
-//Draws a full list starting at position==0
+//Places a full list of elements starting at y position==0
+//Calls Height() for each element (recursively) and takes "compress" and "parallel" into account
 //We always place each element on an integer coordinates
+//returns the total height of the list and its coverage in "cover"
 double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover)
 {
     cover.clear();
-    double y = 0;
-    double y_bottom = 0;
+    double y = 0;              //vertical position of the current element
+    double y_upper_limit = 0;  //we will never shift compress higher than this runnning value
+                               //(any element marked with "parallel" will set this to its top)
+    double y_bottom = 0;       //the highest element bottom we have seen 
+                               //(will be returned, not always that of the last element)
+    bool previous_was_parallel = false;
+    bool had_parallel_above = false;
     //Zero-height arcs shall be positioned to the same place
     //as the first non-zero height arc below them (so that
     //if that arc is compressed up, they are not _below_
@@ -933,23 +940,41 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
     for (ArcList::iterator i = from; i!=to; i++) {
         AreaList arc_cover;
         double h = (*i)->Height(canvas, arc_cover);
-        //increase h, if Expand psuhed outer boundary. This ensures that we
-        //maintain a compressGap/2 amount of space between elements even without compress
+        //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
+        //maintain at least compressGap/2 amount of space between elements even without compress
         h = std::max(h, arc_cover.GetBoundingBox().y.till);
         double touchpoint = y;
-        if ((*i)->IsCompressed()) {
+        if ((*i)->IsCompressed() || previous_was_parallel) {
             //if arc is of zero height, just collect it.
             //Its position may depend on the next arc if that is compressed.
             if (h==0) {
                 if (first_zero_height == to) first_zero_height = i;
                 continue;
             }
-            const double new_y = std::max(0.0, -cover.OffsetBelow(arc_cover, touchpoint));
-            //Here new_y can be larger than y, if the copressGap requirement pushed the current arc (in "i")
-            //further below than the original height of the arcs above would have dictated.
-            //Since we do compression, we pick the smallest of the two values.
-            y = std::min(y, new_y);
-            _ASSERT(y>=0);
+            const double new_y = std::max(y_upper_limit, -cover.OffsetBelow(arc_cover, touchpoint));
+            //Here the new_y can be larger than the one before, if some prior element 
+            //prevented the current one to shift all the way to below the previous one.
+            if ((*i)->IsCompressed()) 
+                y = new_y;
+            else //we must have previous_was_parallel==true here
+                //if the immediately preceeding element (not including zero_height_ones) was
+                //marked with "parallel", we attempt to shift this element up to the top of that one
+                //even if the current element is not marked by "compress".
+                //If we can shift it all the way to the top of the previous element, we place it
+                //there. But if we can shift only halfway, we place it strictly under the previous
+                //element - as we are not compressing.
+                //Note that "y_upper_limit" contains the top of the preceeding element (marked with "parallel")
+                if (new_y == y_upper_limit) 
+                    touchpoint = y = y_upper_limit;
+                else 
+                    touchpoint = y; //OffsetBelow() may have destroyed it above
+        } else if (had_parallel_above && h>0) {
+            //If this element is not compressed, but we had an element marked with "parallel" above
+            //it may be that we overlap with a prior element, so we want to avoid that.
+            //But we place zero_height elements to just below the previous one nevertheless
+            //We also keep touchpoint==y for the very same reason
+            double dummy_touchpoint;
+            y = std::max(y, -cover.OffsetBelow(arc_cover, dummy_touchpoint));
         }
         touchpoint = floor(touchpoint+0.5);
         y = ceil(y);
@@ -962,9 +987,14 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
         arc_cover.Shift(XY(0,y));
         y_bottom = std::max(y_bottom, y+h);
         //If we are parallel draw the rest of the block in one go
-        if ((*i)->IsParallel()) 
+        if ((*i)->IsParallel()) {
             //kill the mainline of the last arc (in "i")
             arc_cover.InvalidateMainLine();
+            //indicate that elements be 
+            had_parallel_above = true;
+            y_upper_limit = y;
+        }
+        previous_was_parallel = (*i)->IsParallel();
         cover += arc_cover;
         y = y_bottom;
     }

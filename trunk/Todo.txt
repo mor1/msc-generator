@@ -15,7 +15,6 @@ CHANGE: Switched to cairo 1.10 and the new pixman after summer.
    - Bug2: EMF re-scaling
 CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 ADD: shadow to arrows and labels
-ADD: Comments to arcs (leftside, rightside, bubble)
 Divider package
 	ADD: Make divider only within a box
 	ADD: Allow divider to have entities
@@ -25,8 +24,6 @@ To be considered
 ADD: variant #1 double and triple-line joints for emphasis
 ADD: Style and color explorer (show what a style or color contains at any place in the chart)
 ADD: Context menu to editor (track one, tracking mode, find, replace, Style explorer)
-
-In 3.5
 ADD: symbol cross/text [marker] at vertxpos [rotate];
 ADD: message lost (and lost arrowhead)
 ADD: mark centerline
@@ -37,8 +34,15 @@ FIX: Node hideentitylines, for radius bigger than 70
 CHANGE: Mesh gradients.
 ADD: Tip of the day
 
+In 3.5
+ADD: Comments to arcs (leftside, rightside, bubble)
+FIX: Dinand's pipe label
+FIX: Check if file changed on disk
+FIX: Parallel with non-compress
+
 
 In 3.4
+ADDED: A bit of an XP compatibility (3.4.15)
 ADDED: text.* attributes and options (3.4.14)
 ADDED: 'colores' design
 FIXED: Numbering in parallel

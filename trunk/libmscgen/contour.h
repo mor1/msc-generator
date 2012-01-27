@@ -8,6 +8,7 @@ namespace contour {
 
 class ContourWithHoles;
 
+//should only contain contours with the same clockwiseness
 class ContourList : protected std::list<ContourWithHoles>
 {
     friend class ContourWithHoles;
@@ -226,10 +227,10 @@ public:
     bool IsSane() const;
 
     is_within_t IsWithin(const XY &p) const {is_within_t ret = first.IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
-    void Shift(const XY &xy) {first.Shift(xy); if (further.size()) further.Shift(xy); boundingBox.Shift(xy);}
-    void SwapXY() {first.SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY();}
-	void Rotate(double degrees) {if (!degrees) return; double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);}
-    void RotateAround(const XY&c, double degrees) {if (!degrees) return; double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);}
+    Contour &Shift(const XY &xy) {first.Shift(xy); if (further.size()) further.Shift(xy); boundingBox.Shift(xy); return *this;}
+    Contour &SwapXY() {first.SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY(); return *this;}
+    Contour &Rotate(double degrees) {if (degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);} return *this;}
+    Contour &RotateAround(const XY&c, double degrees) {if (degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);} return *this;}
 
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return a;}
     Contour CreateSwapXYd() {Contour a(*this); a.SwapXY(); return a;}
@@ -257,8 +258,8 @@ public:
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {first.VerticalCrossSection(x, section); if (further.size()) further.VerticalCrossSection(x, section);}
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
-    void Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
-                double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX);
+    Contour& Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
+                    double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX);
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
                          double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
 
@@ -391,14 +392,15 @@ inline double Contour::OffsetBelow(const Contour &below, double &touchpoint, dou
     return first.outline.OffsetBelow(below.first.outline, touchpoint, offset);
 }
 
-inline void Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg,
-                            double miter_limit_positive, double miter_limit_negative)
+inline Contour &Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg,
+                                double miter_limit_positive, double miter_limit_negative)
 {
     if (gap) {
         Contour res;
         Expand(et4pos, et4neg, gap, res, miter_limit_positive, miter_limit_negative);
         swap(res);
     }
+    return *this;
 }
 
 inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType et4neg,

@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -22,7 +22,6 @@
 #include <set>
 #include <stack>
 #include "contour.h"
-#include "contour_test.h"
 
 
 namespace contour {
@@ -51,6 +50,7 @@ SimpleContour::SimpleContour(XY a, XY b, XY c)
     for (size_type i=0; i<size(); i++)
         boundingBox += at(i).GetBoundingBox();
     clockwise = true;
+    area_cache.first=false;
 }
 
 SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg)
@@ -63,6 +63,7 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
     if (edge.GetType()==Edge::FULL_CIRCLE) return; //full circle
     edges.push_back(Edge(edge.GetEnd(), edge.GetStart()));
     edges.rbegin()->visible = false;
+    area_cache.first=false;
 }
 
 SimpleContour &SimpleContour::operator =(const Block &b)
@@ -75,6 +76,8 @@ SimpleContour &SimpleContour::operator =(const Block &b)
     edges.push_back(Edge(b.LowerRight(), XY(b.x.from, b.y.till)));
     edges.push_back(Edge(XY(b.x.from, b.y.till), b.UpperLeft()));
     clockwise = true;
+    area_cache.first = true;
+    area_cache.first = b.x.Spans()*b.y.Spans();
     return *this;
 }
 
@@ -85,6 +88,7 @@ void SimpleContour::Invert()
     for (size_type i=0; i<size()/2; i++)
         std::swap(at(i), at(size()-1-i));
     clockwise = !clockwise;
+    area_cache.second = -area_cache.second;
 }
 
 //in p* return the number of vertex or edge we have fallen on if result is such
@@ -245,75 +249,87 @@ SimpleContour::result_t SimpleContour::CheckContainment(const SimpleContour &oth
     }
 }
 
+//void SimpleContour::CalculateClockwise()
+//{
+//    //determine if this is clockwise.
+//    if (size()>2) {
+//        double angles = 0;
+//        XY prev = PrevTangentPoint(0, 0.0);
+//        for (size_type i=0; i<size(); i++)
+//            switch (at(i).GetType()) {
+//            case Edge::STRAIGHT:
+//				_ASSERT(!at(i).GetStart().test_equal(at_next(i).GetStart()));
+//                angles += angle_degrees(angle(at(i).GetStart(), at_next(i).GetStart(), prev));
+//                prev = at(i).GetStart();
+//                break;
+//            case Edge::FULL_CIRCLE:
+//                //continue; //do nothing
+//            case Edge::ARC:
+//                angles += angle_degrees(angle(at(i).GetStart(), NextTangentPoint(i, 0.0), prev));
+//                prev = PrevTangentPoint(i, 1.0);
+//                if (at(i).GetClockWise()) {
+//                    if (at(i).GetRadianS()<at(i).GetRadianE()) angles -=       (at(i).GetRadianE()-at(i).GetRadianS())*(180./M_PI);
+//                    else                                       angles -= 360 - (at(i).GetRadianS()-at(i).GetRadianE())*(180./M_PI);
+//                } else {
+//                    if (at(i).GetRadianE()<at(i).GetRadianS()) angles +=       (at(i).GetRadianS()-at(i).GetRadianE())*(180./M_PI);
+//                    else                                       angles += 360 - (at(i).GetRadianE()-at(i).GetRadianS())*(180./M_PI);
+//                }
+//            }
+//            //angle is (n-2)*180 for clockwise, (n+2)*180 for counterclockwise, we draw the line at n*180
+//            if (angles/180. - floor(angles/180.)*180. >= 1)
+//                angles = angles;
+//        clockwise = bool(angles < size()*180);
+//        return;
+//    }
+//    if (size()==2) {
+//        //if a contour is two edges, it should not be two straigth edges
+//        if (at(0).GetType() == Edge::STRAIGHT && at(1).GetType() == Edge::STRAIGHT) {
+//            _ASSERT(0);
+//        }
+//        if (at(0).GetType() != Edge::STRAIGHT && at(1).GetType() != Edge::STRAIGHT) {
+//            //two curves
+//            //if they are of same direction we get it
+//            if (at(0).GetClockWise() == at(1).GetClockWise()) {
+//                clockwise = at(0).GetClockWise();
+//                return;
+//            }
+//            //two curves with opposite dir, they do not touch only at the two ends
+//            //the one contains the other decides
+//            const XY center_line = (at(0).GetStart()+at(1).GetStart())/2;
+//            const XY center0 = at(0).GetEllipseData().Radian2Point(at(0).GetRadianMidPoint());
+//            const XY center1 = at(1).GetEllipseData().Radian2Point(at(1).GetRadianMidPoint());
+//            const double dist0 = (center0 - center_line).length();
+//            const double dist1 = (center1 - center_line).length();
+//            clockwise = at(0).GetClockWise() == (dist0 > dist1);
+//            return;
+//        }
+//        //one curve, one straight: dir is decided by curve
+//        if (at(0).GetType() == Edge::STRAIGHT)
+//            clockwise = at(1).GetClockWise();
+//        else
+//            clockwise = at(0).GetClockWise();
+//        return;
+//    }
+//    //if (size()==1), a full ellipsis
+//    clockwise = at(0).GetClockWise();
+//    return;
+//}
+
 void SimpleContour::CalculateClockwise()
 {
     //determine if this is clockwise.
-    if (size()>2) {
-        double angles = 0;
-        XY prev = PrevTangentPoint(0, 0.0);
-        for (size_type i=0; i<size(); i++)
-            switch (at(i).GetType()) {
-            case Edge::STRAIGHT:
-				_ASSERT(!at(i).GetStart().test_equal(at_next(i).GetStart()));
-                angles += angle_degrees(angle(at(i).GetStart(), at_next(i).GetStart(), prev));
-                prev = at(i).GetStart();
-                break;
-            case Edge::FULL_CIRCLE:
-                //continue; //do nothing
-            case Edge::ARC:
-                angles += angle_degrees(angle(at(i).GetStart(), NextTangentPoint(i, 0.0), prev));
-                prev = PrevTangentPoint(i, 1.0);
-                if (at(i).GetClockWise()) {
-                    if (at(i).GetRadianS()<at(i).GetRadianE()) angles -=       (at(i).GetRadianE()-at(i).GetRadianS())*(180./M_PI);
-                    else                                       angles -= 360 - (at(i).GetRadianS()-at(i).GetRadianE())*(180./M_PI);
-                } else {
-                    if (at(i).GetRadianE()<at(i).GetRadianS()) angles +=       (at(i).GetRadianS()-at(i).GetRadianE())*(180./M_PI);
-                    else                                       angles += 360 - (at(i).GetRadianE()-at(i).GetRadianS())*(180./M_PI);
-                }
-            }
-            //angle is (n-2)*180 for clockwise, (n+2)*180 for counterclockwise, we draw the line at n*180
-            if (angles/180. - floor(angles/180.)*180. >= 1)
-                angles = angles;
-        clockwise = bool(angles < size()*180);
-        return;
-    }
-    if (size()==2) {
-        //if a contour is two edges, it should not be two straigth edges
-        if (at(0).GetType() == Edge::STRAIGHT && at(1).GetType() == Edge::STRAIGHT) {
-            _ASSERT(0);
-        }
-        if (at(0).GetType() != Edge::STRAIGHT && at(1).GetType() != Edge::STRAIGHT) {
-            //two curves
-            //if they are of same direction we get it
-            if (at(0).GetClockWise() == at(1).GetClockWise()) {
-                clockwise = at(0).GetClockWise();
-                return;
-            }
-            //two curves with opposite dir, they do not touch only at the two ends
-            //the one contains the other decides
-            const XY center_line = (at(0).GetStart()+at(1).GetStart())/2;
-            const XY center0 = at(0).GetEllipseData().Radian2Point(at(0).GetRadianMidPoint());
-            const XY center1 = at(1).GetEllipseData().Radian2Point(at(1).GetRadianMidPoint());
-            const double dist0 = (center0 - center_line).length();
-            const double dist1 = (center1 - center_line).length();
-            clockwise = at(0).GetClockWise() == (dist0 > dist1);
-            return;
-        }
-        //one curve, one straight: dir is decided by curve
-        if (at(0).GetType() == Edge::STRAIGHT)
-            clockwise = at(1).GetClockWise();
-        else
-            clockwise = at(0).GetClockWise();
-        return;
-    }
-    //if (size()==1), a full ellipsis
-    clockwise = at(0).GetClockWise();
-    return;
+    if (size()==1) 
+        clockwise = at(0).GetClockWise();
+    else if (size()==2 && at(0).GetType() != Edge::STRAIGHT && at(1).GetType() != Edge::STRAIGHT && at(0).GetClockWise() == at(1).GetClockWise()) 
+        clockwise = at(0).GetClockWise();
+    else 
+        clockwise = GetArea()>0;
 }
 
 //Appends an edge.
 //Checks that we do not append a zero long edge
 //Checks if the edge to append is a direct continuation of the last edge
+//WE DO NOT UPDATE area_cache, clockwise, bounding box
 void SimpleContour::AppendDuringWalk(const Edge &edge)
 {
     _ASSERT(edge.IsSaneNoBoundingBox());
@@ -341,6 +357,7 @@ void SimpleContour::AppendDuringWalk(const Edge &edge)
 bool SimpleContour::PostWalk()
 {
     boundingBox.MakeInvalid();
+    area_cache.first = false;
 
     //if the crosspoint we started at was also a vertex, it may be that it is repeated at the end
     if (size()>1 && at(0).GetStart().test_equal(at(size()-1).GetStart()))
@@ -388,7 +405,7 @@ void SimpleContour::assign_dont_check(const std::vector<XY> &v)
     if (v.size()<2) return;
     for (size_type i=0; i<v.size(); i++)
         edges.push_back(Edge(v[i], v[(i+1)%v.size()]));
-    Sanitize();  //includes CalculateBoundingBox();
+    Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
 }
 
 void SimpleContour::assign_dont_check(const XY v[], size_type size)
@@ -397,7 +414,7 @@ void SimpleContour::assign_dont_check(const XY v[], size_type size)
     if (size < 2) return;
     for (size_type i=0; i<size; i++)
         edges.push_back(Edge(v[i], v[(i+1)%size]));
-    Sanitize();  //includes CalculateBoundingBox();
+    Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
 }
 
 void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
@@ -405,7 +422,7 @@ void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
     clear();
     if (v.size()<2) return;
     edges = v;
-    Sanitize();  //includes CalculateBoundingBox();
+    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 
 void SimpleContour::assign_dont_check(const Edge v[], size_type size)
@@ -414,7 +431,7 @@ void SimpleContour::assign_dont_check(const Edge v[], size_type size)
     if (size < 2) return;
     for (size_type i=0; i<size; i++)
         edges.push_back(v[i]);
-    Sanitize();  //includes CalculateBoundingBox();
+    Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 
 bool SimpleContour::IsSane() const
@@ -437,6 +454,7 @@ bool SimpleContour::IsSane() const
 //returns false if changes were needed
 bool SimpleContour::Sanitize()
 {
+    area_cache.first=false;
     bool ret = true;
     if (size()==0) return true;
     if (size()==1) {
@@ -465,6 +483,7 @@ bool SimpleContour::Sanitize()
                 goto clear;
     }
     CalculateBoundingBox();
+    CalculateClockwise();
     return ret;
 clear:
     clear();
@@ -518,6 +537,7 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
                 return false;
     //OK, we can have these edges inserted
     swap(ret);
+    area_cache.first=false;
     return true;
 }
 
@@ -530,12 +550,13 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
 //Thus we request edge to return
 //"2*(area_above_edge - start.x*start.y + end.x*end.y)", this is what 
 //Edge::GetAreaAboveAdjusted() returns;
-double SimpleContour::GetArea() const
+double SimpleContour::CalcualteArea() const
 {
     register double ret = 0;
     for (size_type i=0; i<size(); i++)
         ret += at(i).GetAreaAboveAdjusted();
-    return ret/2;
+    area_cache.first = true; 
+    return area_cache.second = ret /2;
 }
 
 double SimpleContour::GetCircumference(bool include_hidden) const
@@ -805,21 +826,16 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         }
         if (all_orig_changed_dir) return;
     }
-    r2.Sanitize();
+    r2.Sanitize(); //calculates clockwise and boundingbox, as well
     if (r2.size()==0) return;
-    if (r2.size()==1)
+    if (r2.size()==1) {
         r2[0].SetFullCircle();
-    //OK, now untangle - use 'res_before_untangle' instead of r2
-    r2.CalculateBoundingBox();  //also calculates bounding boxes of edges
-    res_before_untangle.boundingBox = r2.boundingBox; //copy to outer
-    if (r2.size()==1) {  //only one edge
+        res_before_untangle.boundingBox = r2.CalculateBoundingBox();  //also calculates bounding boxes of edges
         res = std::move(res_before_untangle);
         return;
     }
-    if (ContourTestDebug) {
-        Draw(ContourTestDebug*100, res_before_untangle);
-        ContourTestDebug++;
-    };
+    //OK, now untangle - use 'res_before_untangle' instead of r2    
+    res_before_untangle.boundingBox = r2.boundingBox; //copy bb to outer
     res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(res_before_untangle));
 }
 
