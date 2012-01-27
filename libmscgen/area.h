@@ -5,7 +5,7 @@
 #include "contour.h"
 
 class TrackableElement;
-//plus it has additional stuff, such as arc, drawtype, findtype and mainline
+//plus it has additional stuff, such as arc and mainline
 class Area : public contour::Contour
 {
     friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
@@ -37,10 +37,10 @@ public:
     Area &operator *= (const Area &b) {Contour::operator*=(b); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
     Area &operator -= (const Area &b) {Contour::operator-=(b); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
     Area &operator ^= (const Area &b) {Contour::operator^=(b);                       if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator += (Area &&b) {Contour::operator+=(std::move(b)); mainline+=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator *= (Area &&b) {Contour::operator*=(std::move(b)); mainline*=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator -= (Area &&b) {Contour::operator-=(std::move(b)); mainline-=b.mainline; if (arc==NULL) arc = b.arc; return *this;}
-    Area &operator ^= (Area &&b) {Contour::operator^=(std::move(b));                       if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator += (Area &&b) {Contour::operator+=(std::move(b)); mainline+=std::move(b.mainline); if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator *= (Area &&b) {Contour::operator*=(std::move(b)); mainline*=std::move(b.mainline); if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator -= (Area &&b) {Contour::operator-=(std::move(b)); mainline-=std::move(b.mainline); if (arc==NULL) arc = b.arc; return *this;}
+    Area &operator ^= (Area &&b) {Contour::operator^=(std::move(b));                                  if (arc==NULL) arc = b.arc; return *this;}
 
     Area operator + (const Area &p) const {return Area(*this)+=p;}
     Area operator * (const Area &p) const {return Area(*this)*=p;}
@@ -51,11 +51,11 @@ public:
     Area operator - (Area &&p) const {return Area(*this)-=std::move(p);}
     Area operator ^ (Area &&p) const {return Area(*this)^=std::move(p);}
 
-    void Shift(contour::XY xy) {Contour::Shift(xy); mainline.Shift(xy);}
+    Area& Shift(contour::XY xy) {Contour::Shift(xy); mainline.Shift(xy); return *this;}
     Area CreateShifted(const contour::XY & xy) const {Area a(*this); a.Shift(xy); return std::move(a);}
-    void Rotate(double degrees) {Contour::Rotate(degrees);}
-    void RotateAround(const contour::XY&c, double degrees) {Contour::RotateAround(c, degrees);}
-    void SwapXY() {Contour::SwapXY(); mainline.clear();}
+    Area& Rotate(double degrees) {Contour::Rotate(degrees); return *this;}
+    Area& RotateAround(const contour::XY&c, double degrees) {Contour::RotateAround(c, degrees); return *this;}
+    Area& SwapXY() {Contour::SwapXY(); mainline.clear(); return *this;}
 
     Area CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
                       double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
@@ -83,9 +83,9 @@ public:
     void swap(AreaList &o) {cover.swap(o.cover); std::swap(boundingBox, o.boundingBox); std::swap(mainline, o.mainline);}
     void SetArc(TrackableElement *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
     AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
-    AreaList &operator+=(Area &&b) {cover.push_back(std::move(b)); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
+    AreaList &operator+=(Area &&b) {cover.push_back(std::move(b)); boundingBox+=b.GetBoundingBox(); mainline+=std::move(b.mainline); return *this;}
     AreaList &operator+=(const AreaList &g) {cover.insert(cover.end(), g.cover.begin(), g.cover.end()); boundingBox+=g.boundingBox; mainline+=g.mainline; return *this;}
-    AreaList &operator+=(AreaList &&g) {cover.splice(cover.end(), g.cover); boundingBox+=g.boundingBox; mainline+=g.mainline; return *this;}
+    AreaList &operator+=(AreaList &&g) {cover.splice(cover.end(), g.cover); boundingBox+=g.boundingBox; mainline+=std::move(g.mainline); return *this;}
     bool IsEmpty() const {return cover.size()==0;}
     AreaList &Shift(contour::XY xy) {for (auto i=cover.begin(); i!=cover.end(); i++) i->Shift(xy); mainline.Shift(xy); boundingBox.Shift(xy); return *this;}
     const contour::Block& GetBoundingBox() const {return boundingBox;}

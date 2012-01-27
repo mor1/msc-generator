@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -57,6 +57,7 @@ protected:
     bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
     bool         use_text_path;  /* Use cairo_text_path() instead of cairo_show_text (windows metafile & truetype font problem)*/
     bool         use_text_path_rotated; /* Use text path() on rotated text */
+    bool         use_text_wmf_tricks; /* fiddle with text during conversion to WMF */
     bool         individual_chars; /* Each character is drawn one by one */
     unsigned     fake_gradients; /* Do not use cairo gradients, mimic them with a lot of fills, #of steps if non-zero */
     double       scale_for_shadows; /* how many pixel lies below one logical pixel (needed for fine shadows) */
@@ -66,6 +67,7 @@ protected:
     bool         needs_arrow_fix; /*Cannot do the convex clipping for arrowheads */
     bool         imprecise_positioning; /*EMF/WMF has trouble doing lines on 0.5 boundaries*/
     bool         can_and_shall_clip_total;  /* true if we can clip to "total". Does not work for WIN, so we need this flag */
+    bool         avoid_transparency; /* true for Win Xp WMFs, where fallback images are slow */
     
     /* Status of fake dashes */
     double       fake_dash_offset;
@@ -134,6 +136,7 @@ public:
     const XY &GetSize() const {return total;}
     bool NeedsArrowFix() const {return needs_arrow_fix;}
     bool HasImprecisePositioning() const {return imprecise_positioning;}
+    bool AvoidTransparency() const {return avoid_transparency;}
 
     cairo_line_join_t SetLineJoin(cairo_line_join_t t);
     cairo_line_cap_t SetLineCap(cairo_line_cap_t t);

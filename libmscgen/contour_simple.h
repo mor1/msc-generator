@@ -27,6 +27,7 @@ public:
 private:
     Block  boundingBox;
     bool   clockwise;
+    mutable std::pair<bool, double> area_cache;
 
     result_t CheckContainmentHelper(const SimpleContour &b) const;
     double do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
@@ -35,6 +36,7 @@ private:
 
     friend class ContoursHelper; //For walk related memebers
     void CalculateClockwise();
+    double CalcualteArea() const;
     void AppendDuringWalk(const Edge &);
     bool PostWalk();
     bool Sanitize();
@@ -59,9 +61,9 @@ protected:
     friend class ContourWithHoles;
     friend class ContourList;
     friend struct node;
-    SimpleContour() : clockwise(true) {boundingBox.MakeInvalid();}
+    SimpleContour() : clockwise(true), area_cache(true, 0.) {boundingBox.MakeInvalid();}
     SimpleContour(SimpleContour &&p) {swap(p);}
-    SimpleContour(const SimpleContour &p) : edges(p.edges), boundingBox(p.boundingBox), clockwise(p.clockwise) {}
+    SimpleContour(const SimpleContour &p) : edges(p.edges), boundingBox(p.boundingBox), clockwise(p.clockwise), area_cache(p.area_cache) {}
     SimpleContour(double sx, double dx, double sy, double dy) {operator = (Block(sx,dx,sy,dy));}
     SimpleContour(const Block &b) {operator =(b);}
     SimpleContour(XY a, XY b, XY c);
@@ -69,7 +71,7 @@ protected:
     SimpleContour(const XY &c, double radius_x, double radius_y=0, double tilt_deg=0, double s_deg=0, double d_deg=360);
     SimpleContour &operator =(const Block &b);
     SimpleContour &operator =(SimpleContour &&p) {if (this!=&p) swap(p);  return *this;}
-    SimpleContour &operator =(const SimpleContour &p) {if (this!=&p) {if (p.size()) {edges=p.edges; boundingBox=p.boundingBox;} else clear();} return *this;}
+    SimpleContour &operator =(const SimpleContour &p) {if (this!=&p) {if (p.size()) {edges=p.edges; boundingBox=p.boundingBox; clockwise=p.clockwise; area_cache=p.area_cache;} else clear();} return *this;}
     Edge &operator[](size_type edge) {return at(edge);}
     Edge *operator[](const XY &p) {size_type edge; is_within_t r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;}
     const Edge *operator[](const XY &p) const {size_type edge; is_within_t r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;}
@@ -92,7 +94,7 @@ public:
     bool operator ==(const SimpleContour &b) const;
     const Edge &operator[](size_type edge) const {return at(edge);}
     void swap(SimpleContour &b) {edges.swap(b.edges); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise);}
-    void clear() {edges.clear(); boundingBox.MakeInvalid();}
+    void clear() {edges.clear(); boundingBox.MakeInvalid(); area_cache.first = true; area_cache.second = 0.;}
 
     void assign_dont_check(const std::vector<XY> &v);
     void assign_dont_check(const XY v[], size_type size);
@@ -106,7 +108,7 @@ public:
     bool GetClockWise() const {return clockwise;}
     bool IsEmpty() const {return edges.size()==0;}
     bool IsSane() const;
-    double GetArea() const;
+    double GetArea() const {return area_cache.first ? area_cache.second : CalcualteArea();}
     double GetCircumference(bool include_hidden=false) const;
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;

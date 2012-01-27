@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-	Copyright 2008,2009,2010,2011 Zoltan Turanyi
+	Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify

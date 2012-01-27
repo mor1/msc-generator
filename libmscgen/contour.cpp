@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -1046,14 +1046,6 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
                 result.AppendDuringWalk(edge);
             }
         }
-        if (ContourTestDebug>0) {
-            if (C2) {
-                Draw(ContourTestDebug*100+ContourTestDebugMinor, *C1, *C2, Contour(result));
-            } else {
-                Draw(ContourTestDebug*100+ContourTestDebugMinor, *C1, Contour(result));
-            }
-            ContourTestDebugMinor++;
-        }
         //Now find the next cp and corresponding incoming ray
         Advance(current, forward);
     } while (current.at_vertex || Rays[current.index].seq_num != sn_finish);
@@ -1203,10 +1195,6 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
         _ASSERT(C1->IsSane() && C2->IsSane());
     }
     std::list<node> list;
-    if (ContourTestDebug) {
-        ContourTestDebug++;
-        ContourTestDebugMinor = 1;
-    }
     if (Rays.size()) {
         //evaluate crosspoints
         EvaluateCrosspoints(type); // Process each cp and determine if it is relevant to us or not
@@ -1242,7 +1230,6 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
     //Convert the tree of nodes to a Contour object. Make it positive unless
     //we do a binary operation on holes
     ConvertNode(type, std::move(list), result, Contour::is_positive(type));
-    result.IsSane();
     _ASSERT(result.IsSane());
 }
 
