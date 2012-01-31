@@ -153,7 +153,6 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     /* Set low-level parameters for default */
     use_text_path = false;
     use_text_path_rotated = false;
-    use_text_wmf_tricks = true;
     individual_chars = false;
     fake_gradients = 0;
     fake_dash = false; 
@@ -166,8 +165,8 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
 
     /* Set low-level parameters for default */
     white_background = false;
-    fake_scale = 1.0;
-    fallback_resolution = 300; //irrelevant for bitmaps - no fallback for bitmaps
+    fake_scale = 1.0;          //normally we map our coordinates 1:1 onto the canvas
+    fallback_resolution = 300; //this will be irrelevant for bitmaps - no fallback for bitmaps
     needs_dots_in_corner = false;
 
     switch (ot) {
@@ -180,8 +179,13 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         use_text_path_rotated = true;
         fake_dash = true;
         needs_arrow_fix = true;
-        fake_scale = std::min(10., total.x && total.y ? std::min(30000/total.x, 30000/total.y) : 10.);  //do 10 for better precision clipping
-        fallback_resolution = unsigned(100/fake_scale); //on XP fallback shall be small, so below we adjust
+        //determine scaling so that no coordinate is larger than 30K - a built-in limit of WMF
+        //but scale up, so that coordinates are large, since WMF handles only integer coordinates...
+        //so if we have coordinates already, we select fake_scale as 10, or smaller if this would result in >30K coords.
+        //LATER: I do not get this... WMF seems ok with fake_scale = 1.0 on Vista... Do it just for XP
+        if (total.x && total.y && GetWindowsVersion()<=5)
+            fake_scale = std::min(std::min(30000/total.x, 30000/total.y), 10.);  
+        fallback_resolution = unsigned(100./fake_scale); //note: on XP fallback shall be small, so below we will adjust
         avoid_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
         //Fallthrough
     case EMF:
@@ -415,7 +419,7 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
         ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, buff, len, NULL);
     } else if (lpMFR->rdFunction == META_CREATEFONTINDIRECT) {
         LOGFONT16* plogfont = ( LOGFONT16* )(&lpMFR->rdParm[0]);
-        plogfont->lfHeight = plogfont->lfHeight / 32;
+        plogfont->lfHeight = abs(plogfont->lfHeight / 32);
         b=PlayMetaFileRecord(hDC, lpHTable, lpMFR, nObj);
     } else {
         b=PlayMetaFileRecord(hDC, lpHTable, lpMFR, nObj);
@@ -481,7 +485,7 @@ HMETAFILE MscCanvas::CloseOutputRetainHandleWMF()
         RECT r;
         SetRect(&r, 0, 0, int(total.x), int(total.y));
         HDC hdc = CreateMetaFile(NULL);
-        PaintEMFonWMFdc(hemf, hdc, r, use_text_wmf_tricks);
+        PaintEMFonWMFdc(hemf, hdc, r, true); //true means we fiddle with fonts & textout
         DeleteEnhMetaFile(hemf);
         return CloseMetaFile(hdc);
     }
