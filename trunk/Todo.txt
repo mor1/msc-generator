@@ -39,6 +39,7 @@ ADD: Comments to arcs (leftside, rightside, bubble)
 ADD: Check if file changed on disk
 
 In 3.4
+FIX: Why dot and diamond arrow heads make arrow lines disappear?
 FIXED: Dinand's pipe label: turned out to be a problem with missing cairo fallback images if fake_scale is too large (unexplained)
 FIXED: Parallel with non-compress (3.4.16)
 ADDED: A bit of an XP compatibility (3.4.15)

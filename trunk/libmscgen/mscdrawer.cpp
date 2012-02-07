@@ -67,7 +67,7 @@ MscCanvas::MscCanvas(OutputType ot) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
     outType(ot), total(0,0), status(ERR_PARAM), candraw(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, win32_dc(NULL), save_hdc(NULL)
+	, win32_dc(NULL), original_wmf_hdc(NULL)
 #endif
 {
     SetLowLevelParams(ot);
@@ -85,7 +85,7 @@ MscCanvas::MscCanvas(OutputType ot, const XY &tot, double copyrightTextHeight,
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, win32_dc(NULL), save_hdc(NULL)
+	, win32_dc(NULL), original_wmf_hdc(NULL)
 #endif
 {
     _ASSERT(ot!=WIN);
@@ -180,12 +180,15 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         fake_dash = true;
         needs_arrow_fix = true;
         //determine scaling so that no coordinate is larger than 30K - a built-in limit of WMF
-        //but scale up, so that coordinates are large, since WMF handles only integer coordinates...
-        //so if we have coordinates already, we select fake_scale as 10, or smaller if this would result in >30K coords.
-        //LATER: I do not get this... WMF seems ok with fake_scale = 1.0 on Vista... Do it just for XP
-        if (total.x && total.y && GetWindowsVersion()<=5)
-            fake_scale = std::min(std::min(30000/total.x, 30000/total.y), 10.);  
-        fallback_resolution = unsigned(100./fake_scale); //note: on XP fallback shall be small, so below we will adjust
+        //but scale up, so that coordinates are large, since WMF handles only integer coordinates,
+        //thus fonts are bad if we do not scale up.
+        //So if we have total calculated already, we select fake_scale as 10, or smaller if this would result in >30K coords.
+        //Setting fake_scale higher than 10 seems to result in wrong image fallback positioning, I am not sure why.
+        if (total.x && total.y)// && GetWindowsVersion()<=5)
+            fake_scale = std::min(std::min(30000./total.x, 30000./total.y), 10.);  
+        //fallback_resolution should be set independently of fake_scale
+        //The value of 100 seems to be right
+        //fallback_resolution = 100; 
         avoid_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
         //Fallthrough
     case EMF:
@@ -197,7 +200,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         if(GetWindowsVersion()<=5) {
             use_text_path = true;
             use_text_path_rotated = true;
-            fallback_resolution = unsigned(10./fake_scale); //on XP fallback shall be small
+            //fallback_resolution = 100; //on XP fallback shall be small, or not? This seems OK
         }
         break;
     case WIN:
@@ -263,7 +266,6 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
     case MscCanvas::EMF:
-	case MscCanvas::WMF:
         // Create the Enhanced Metafile
         if (fileName.length() > 0)
             win32_dc = CreateEnhMetaFile(NULL, fileName.c_str(), NULL, "Msc-generator\0\0");
@@ -281,6 +283,21 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
          */
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
+	case MscCanvas::WMF:
+        // Create the Metafile on disk
+        if (fileName.length() > 0)
+            original_wmf_hdc = CreateMetaFile(fileName.c_str());
+        else
+            original_wmf_hdc = CreateMetaFile(NULL);
+        // Did you get a good metafile?
+        if( original_wmf_hdc == NULL ) 
+            return ERR_CANVAS;
+        // Create the Enhanced Metafile
+        win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+        // Did you get a good metafile?
+        if( win32_dc == NULL ) 
+            return ERR_CANVAS;
+        surface = cairo_win32_printing_surface_create(win32_dc);
 #endif
     }
     cairo_status_t st = cairo_surface_status(surface);
@@ -341,7 +358,7 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
 MscCanvas::MscCanvas(OutputType ot, HDC hdc, const XY &tot, double copyrightTextHeight, 
                      const XY &scale, const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), win32_dc(NULL), save_hdc(NULL)
+    total(tot), status(ERR_PARAM), candraw(false), win32_dc(NULL), original_wmf_hdc(NULL)
 {
     if (ot!=WIN && ot!=WMF && ot!=EMF) 
         return;
@@ -365,12 +382,13 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const XY &tot, double copyrightText
     case MscCanvas::WMF:
         win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
         if( win32_dc == NULL ) return;
-        save_hdc = hdc;
+        original_wmf_hdc = hdc;
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
     default:
         _ASSERT(0);
     }
+    cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
     status = CreateContextFromSurface(ot, scale, origSize, origOffset, copyrightTextHeight);
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
@@ -419,7 +437,7 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
         ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, buff, len, NULL);
     } else if (lpMFR->rdFunction == META_CREATEFONTINDIRECT) {
         LOGFONT16* plogfont = ( LOGFONT16* )(&lpMFR->rdParm[0]);
-        plogfont->lfHeight = abs(plogfont->lfHeight / 32);
+        plogfont->lfHeight = plogfont->lfHeight / 32;   //When this is negative character height is meant, when positive cell height (cell_h = character_h + lead). Keep sign!
         b=PlayMetaFileRecord(hDC, lpHTable, lpMFR, nObj);
     } else {
         b=PlayMetaFileRecord(hDC, lpHTable, lpMFR, nObj);
@@ -452,45 +470,45 @@ void PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTricks
     DeleteMetaFile(hwmf);
 }
 
-HENHMETAFILE MscCanvas::CloseOutputRetainHandleEMF()
-{
-    if (status!=ERR_OK) return NULL;
-    cairo_destroy(cr);
-    outFile=NULL;
-    cr=NULL;
-    fileName.clear();
-    if (surface==NULL) return NULL;
-    cairo_status_t st = cairo_surface_status(surface);
-    cairo_surface_show_page(surface);
-    cairo_surface_destroy(surface);
-    surface=NULL;
-    if (outType == EMF || outType == WMF) 
-        return CloseEnhMetaFile(win32_dc);
-    return NULL;
-}
-HMETAFILE MscCanvas::CloseOutputRetainHandleWMF()
-{
-    if (status!=ERR_OK) return NULL;
-    cairo_destroy(cr);
-    outFile=NULL;
-    cr=NULL;
-    fileName.clear();
-    if (surface==NULL) return NULL;
-    cairo_status_t st = cairo_surface_status(surface);
-    cairo_surface_show_page(surface);
-    cairo_surface_destroy(surface);
-    surface=NULL;
-    if (outType == EMF || outType == WMF) {
-        HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
-        RECT r;
-        SetRect(&r, 0, 0, int(total.x), int(total.y));
-        HDC hdc = CreateMetaFile(NULL);
-        PaintEMFonWMFdc(hemf, hdc, r, true); //true means we fiddle with fonts & textout
-        DeleteEnhMetaFile(hemf);
-        return CloseMetaFile(hdc);
-    }
-    return NULL;
-}
+//HENHMETAFILE MscCanvas::CloseOutputRetainHandleEMF()
+//{
+//    if (status!=ERR_OK) return NULL;
+//    cairo_destroy(cr);
+//    outFile=NULL;
+//    cr=NULL;
+//    fileName.clear();
+//    if (surface==NULL) return NULL;
+//    cairo_status_t st = cairo_surface_status(surface);
+//    cairo_surface_show_page(surface);
+//    cairo_surface_destroy(surface);
+//    surface=NULL;
+//    if (outType == EMF || outType == WMF) 
+//        return CloseEnhMetaFile(win32_dc);
+//    return NULL;
+//}
+//HMETAFILE MscCanvas::CloseOutputRetainHandleWMF()
+//{
+//    if (status!=ERR_OK) return NULL;
+//    cairo_destroy(cr);
+//    outFile=NULL;
+//    cr=NULL;
+//    fileName.clear();
+//    if (surface==NULL) return NULL;
+//    cairo_status_t st = cairo_surface_status(surface);
+//    cairo_surface_show_page(surface);
+//    cairo_surface_destroy(surface);
+//    surface=NULL;
+//    if (outType == EMF || outType == WMF) {
+//        HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
+//        RECT r;
+//        SetRect(&r, 0, 0, int(total.x), int(total.y));
+//        HDC hdc = CreateMetaFile(NULL);
+//        PaintEMFonWMFdc(hemf, hdc, r, true); //true means we fiddle with fonts & textout
+//        DeleteEnhMetaFile(hemf);
+//        return CloseMetaFile(hdc);
+//    }
+//    return NULL;
+//}
 #endif //WIN32
 
 void MscCanvas::PrepareForCopyrightText()
@@ -530,16 +548,16 @@ void MscCanvas::CloseOutput()
             cairo_surface_destroy (surface);
             if (outType==MscCanvas::EMF) {
                 if (win32_dc)
-                    DeleteEnhMetaFile(CloseEnhMetaFile(win32_dc)); //save metafile if opened by SetOutput
+                    DeleteEnhMetaFile(CloseEnhMetaFile(win32_dc)); //this does not delete the metafile on disk, if so
             } else { //WMF
-                if (save_hdc) { //Opened via SetOutputWin32()
+                if (original_wmf_hdc) { //Opened via MscCanvas() with an existing HDC
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
                     RECT r;
                     SetRect(&r, 0, 0, int(total.x), int(total.y));
-                    PaintEMFonWMFdc(hemf, save_hdc, r, true);
+                    PaintEMFonWMFdc(hemf, original_wmf_hdc, r, true);
                     DeleteEnhMetaFile(hemf);
-                    save_hdc = NULL;
-                } else { //Opened via SetOutput, win32_dc is an EMF DC
+                    original_wmf_hdc = NULL;
+                } else { //Opened via MscCanvas() with a filename, win32_dc is an EMF DC
                     DeleteEnhMetaFile(CloseEnhMetaFile(win32_dc));
                 }
             }

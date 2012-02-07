@@ -222,6 +222,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
                  if (*i == "emf")
                      oOutType = MscCanvas::EMF;
                  else
+                 if (*i == "wmf")  //undocumented
+                     oOutType = MscCanvas::WMF;
+                 else
 #endif
                  {
                      msc.Error.Error(opt_pos,

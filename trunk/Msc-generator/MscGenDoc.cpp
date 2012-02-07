@@ -614,9 +614,9 @@ void CMscGenDoc::OnUpdateFileExport(CCmdUI *pCmdUI)
 void CMscGenDoc::OnFileExport()
 {
 	SyncShownWithEditing("export");
-    CString name;
-    bool bitmap;
+    CString name = GetPathName();
     double x_scale=1, y_scale=1;
+    bool bitmap;
     do {  //must not call DoModal twice for the same instance of CFileDialog
         CFileDialog dialog(false);
         dialog.m_pOFN->Flags &= ~OFN_OVERWRITEPROMPT & ~OFN_NOTESTFILECREATE;
@@ -629,7 +629,6 @@ void CMscGenDoc::OnFileExport()
             "Portable Document Format (*.pdf)\0*.pdf\0"
             "Encapsulated PostScript (*.eps)\0*.eps\0";
         dialog.m_pOFN->nFilterIndex = 1;
-        name = GetPathName();
         char filename[1024];
         strcpy_s(filename, name);
         if (PathFindExtension(filename) == CString(".signalling"))
@@ -642,28 +641,29 @@ void CMscGenDoc::OnFileExport()
         //dialog.UpdateOFNFromShellDialog();
         name = dialog.GetPathName();
         CString ext = PathFindExtension(name);
-        if (ext.CompareNoCase(".png")==0 || ext.CompareNoCase(".bmp")==0 || 
-            ext.CompareNoCase(".emf")==0 || ext.CompareNoCase(".svg")==0 || 
-            ext.CompareNoCase(".pdf")==0 || ext.CompareNoCase(".eps")==0) {
-            strcpy_s(filename, name);
-            PathRemoveExtension(filename);
-            name = filename;
-        }
-        switch(dialog.m_pOFN->nFilterIndex) {
-        case 1: name += ".png"; bitmap=true; break;
-        case 2: name += ".bmp"; bitmap=true; break;
-        case 3: name += ".emf"; bitmap=false;break;
-        case 4: name += ".svg"; bitmap=false;break;
-        case 5: name += ".pdf"; bitmap=false;break;
-        case 6: name += ".eps"; bitmap=false;break;
-        default: _ASSERT(0);
+        //if we do not recognize the extension typed by the user, we add one from the selected type
+        if (ext.CompareNoCase(".png")!=0 && ext.CompareNoCase(".bmp")!=0 && 
+            ext.CompareNoCase(".emf")!=0 && ext.CompareNoCase(".svg")!=0 && 
+            ext.CompareNoCase(".pdf")!=0 && ext.CompareNoCase(".eps")!=0 &&
+            ext.CompareNoCase(".wmf")!=0) { //undocumented wmf export
+            switch(dialog.m_pOFN->nFilterIndex) {
+            case 1: name += ".png"; break;
+            case 2: name += ".bmp"; break;
+            case 3: name += ".emf"; break;
+            case 4: name += ".svg"; break;
+            case 5: name += ".pdf"; break;
+            case 6: name += ".eps"; break;
+            default: _ASSERT(0);
+            }
         }
         if (PathFileExists(name)) 
             if (IDNO == AfxMessageBox("File " + name + " exists. Do you want to overwrite?", MB_YESNO))
                 continue;
+        ext = PathFindExtension(name);
+        bitmap = ext.CompareNoCase(".png")==0 || ext.CompareNoCase(".bmp")==0;
         break;
     } while(1);
-    if (bitmap) {
+    if (bitmap) { 
         CScaleDlg scale;
         scale.m_orig_size = m_ChartShown.GetSize();
         if (IDCANCEL == scale.DoModal())
