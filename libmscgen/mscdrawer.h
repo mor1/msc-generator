@@ -53,7 +53,7 @@ protected:
     /* Low-level options */
     bool         white_background; /* Draw a white background */
     double       fake_scale; /*final rendering should be scaled like this */
-    unsigned	 fallback_resolution; /* for cairo WMF backends */
+    double 	     fallback_resolution; /* for cairo WMF/EMF backends */
     bool         needs_dots_in_corner; /* Draw a dot in upperleft and lowerright corner */
     bool         use_text_path;  /* Use cairo_text_path() instead of cairo_show_text (windows metafile & truetype font problem)*/
     bool         use_text_path_rotated; /* Use text path() on rotated text */
@@ -120,11 +120,9 @@ public:
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     ErrorType Status() const {return status;}
 #ifdef CAIRO_HAS_WIN32_SURFACE
-    HDC win32_dc, save_hdc;
+    HDC win32_dc, original_wmf_hdc;
     MscCanvas(OutputType, HDC hdc, const XY &tot=XY(0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
-    HENHMETAFILE CloseOutputRetainHandleEMF();
-    HMETAFILE CloseOutputRetainHandleWMF();
 #endif
     void PrepareForCopyrightText();
     void CloseOutput();

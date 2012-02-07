@@ -39,6 +39,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_47F7231221F0460B9E6DFC455AFA40C2"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -53,12 +59,6 @@
         {
         "MsmKey" = "8:_E3EC895DEE334AE1955560AD21D3DFAE"
         "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F37BD60BD662403D8C8EC15FA2D4D9A0"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -490,7 +490,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{F6532CC2-6DA5-4E2B-AB07-6ABAFFFE4623}"
-        "PackageCode" = "8:{1F97C09E-3896-4970-A3BF-532BF0E4FEF3}"
+        "PackageCode" = "8:{A3D4418C-BC93-4CE4-9E3D-04A988C2C11D}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -1991,7 +1991,7 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_F37BD60BD662403D8C8EC15FA2D4D9A0"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_47F7231221F0460B9E6DFC455AFA40C2"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
@@ -2010,7 +2010,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
             {
-            "SourcePath" = "8:..\\Release\\msc-gen.exe"
+            "SourcePath" = "8:..\\Debug\\msc-gen.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
@@ -2038,7 +2038,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_8D210BB11DE54BFF9295776C6C22707B"
             {
-            "SourcePath" = "8:..\\Release\\Msc-generator.exe"
+            "SourcePath" = "8:..\\Debug\\Msc-generator.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
