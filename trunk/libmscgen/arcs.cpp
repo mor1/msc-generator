@@ -1084,6 +1084,8 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     //If there are middle arrows, make aH be the highest of endType/startType
     //and midType arrows.
     //If not use endType/startType only
+    //aH.y is _half_ the height of the arrowhead (the height above/below the centerline)
+    //aH.x is the width on one side on the entity line only.
     double aH = max(xy_e.y, xy_s.y);
     if (middle.size()>0)
         aH = max(aH, style.arrow.getWidthHeight(isBidir(), MSC_ARROW_MIDDLE).y);
@@ -1133,7 +1135,7 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         std::reverse(act_size.begin(), act_size.end());
     }
     //prepare clip_area
-    Block total(sx + (sx<dx ? s_act : -s_act), dx - (sx<dx ? d_act : -d_act), 0, y+2*lw_max);
+    const Block total(sx + (sx<dx ? s_act : -s_act), dx - (sx<dx ? d_act : -d_act), 0, y+2*lw_max+aH);
     clip_area  = style.arrow.ClipForLine(XY(sx, y), s_act, sx<dx, isBidir(), MSC_ARROW_START,
                                          total, *segment_lines.begin(), *segment_lines.begin());
     clip_area *= style.arrow.ClipForLine(XY(dx, y), d_act, sx<dx, isBidir(), MSC_ARROW_END,

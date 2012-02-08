@@ -150,45 +150,41 @@ int GetWindowsVersion()
 
 void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
 {
-    /* Set low-level parameters for default */
+    /* Set defaults */
     use_text_path = false;
     use_text_path_rotated = false;
     individual_chars = false;
     fake_gradients = 0;
-    fake_dash = false; 
+    fake_dash = false;
     fake_shadows = false;
     fake_spaces = false;
     needs_arrow_fix = false;
     imprecise_positioning = false;
     can_and_shall_clip_total = true;
     avoid_transparency = false;
-
-    /* Set low-level parameters for default */
     white_background = false;
     fake_scale = 1.0;          //normally we map our coordinates 1:1 onto the canvas
-    fallback_resolution = 300; //this will be irrelevant for bitmaps - no fallback for bitmaps
+    fallback_resolution = 300; //this will be irrelevant for bitmaps - they use the native resolution
     needs_dots_in_corner = false;
 
+    //Customize as per target type
     switch (ot) {
     case MscCanvas::PNG:
         white_background = true;
         break;
 #ifdef CAIRO_HAS_WIN32_SURFACE
     case WMF:
-        individual_chars = true; //do this so that it is easier to convert to WMF
-        use_text_path_rotated = true;
-        fake_dash = true;
-        needs_arrow_fix = true;
+        individual_chars = true;        //do this so that it is easier to convert to WMF
+        use_text_path_rotated = true;   //WMF has no support for this
+        fake_dash = true;               //WMF has no support for this
+        needs_arrow_fix = true;         //WMF does not support complex clipping it seems
         //determine scaling so that no coordinate is larger than 30K - a built-in limit of WMF
         //but scale up, so that coordinates are large, since WMF handles only integer coordinates,
         //thus fonts are bad if we do not scale up.
         //So if we have total calculated already, we select fake_scale as 10, or smaller if this would result in >30K coords.
         //Setting fake_scale higher than 10 seems to result in wrong image fallback positioning, I am not sure why.
-        if (total.x && total.y)// && GetWindowsVersion()<=5)
+        if (total.x && total.y)
             fake_scale = std::min(std::min(30000./total.x, 30000./total.y), 10.);  
-        //fallback_resolution should be set independently of fake_scale
-        //The value of 100 seems to be right
-        //fallback_resolution = 100; 
         avoid_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
         //Fallthrough
     case EMF:
@@ -200,7 +196,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         if(GetWindowsVersion()<=5) {
             use_text_path = true;
             use_text_path_rotated = true;
-            //fallback_resolution = 100; //on XP fallback shall be small, or not? This seems OK
+            //fallback_resolution = 100; //on XP fallback shall be small, or not?         
         }
         break;
     case WIN:

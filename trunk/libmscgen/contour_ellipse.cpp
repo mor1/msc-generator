@@ -820,6 +820,7 @@ int EllipseData::Expand(double gap)
     if (!test_smaller(0,radius1)) ret--;
     radius2+=gap;
     if (!test_smaller(0,radius2)) ret--;
+    if (ret>=0) calculate_extremes();
     return ret;
 }
 
