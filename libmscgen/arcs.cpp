@@ -335,7 +335,7 @@ void ArcLabelled::SetStyleWithText(const char *style_name)
 //set style to this name, but combine it with default text style
 void ArcLabelled::SetStyleWithText(const MscStyle *style_to_use)
 {
-    if (style_to_use) 
+    if (style_to_use)
         style = *style_to_use;
     //Make style.text complete using the default text formatting in the context as default
     StringFormat to_use(chart->Contexts.back().text);
@@ -4598,6 +4598,15 @@ VertXPos(*p), side_line(sl)
         side = BAD_SIDE;
 }
 
+ExtVertXPos::ExtVertXPos(const VertXPos *p) :
+VertXPos(*p), side(CENTER), side_line()
+{
+    if (!valid) {
+        side = BAD_SIDE;
+        return;
+    }
+}
+
 const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
 
 
@@ -4659,7 +4668,7 @@ bool CommandSymbol::AddAttribute(const Attribute &a)
         }
     if (a.Is("size")) 
         switch (symbol_type) {
-        case ELLIPSIS: 
+        case ELLIPSIS:
             {
                 ArrowHead ah; //use this type to decode 'small', 'normal', etc...
                 ah.Empty();
@@ -4919,9 +4928,17 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandNote::CommandNote(Msc*msc, const file_line_range &l, const VertXPos *vxpos, const AttributeList *al)
-    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]), 
-    layout(FLOAT), previous(msc->last_inserted_arc), vertxpos(vxpos?*vxpos:VertXPos(*msc))
+/* Note syntax
+ ** NOTE left/right/center AT <ent>-<ent>: label [attrs];
+ ** NOTE AT <ent>-<ent>: label [attrs];
+ **   - center is default
+ ** NOTE: label [attrs];
+ */
+
+
+CommandNote::CommandNote(Msc*msc, const file_line_range &l, const ExtVertXPos *evxpos, const AttributeList *al)
+    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]),
+    layout(FLOAT), previous(msc->last_inserted_arc), extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc))
 {
 
 }

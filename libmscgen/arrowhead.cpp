@@ -525,6 +525,9 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
     XY half_offset(0,0);
 
     switch(GetType(bidir, which)) {
+    default:
+        _ASSERT(0);
+        //Fallthrough to kill "uninitialized r" warnings
     case MSC_ARROW_NONE:
         r.from = xy.x+act_size;
         r.till = xy.x-act_size;
@@ -597,8 +600,6 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
         area = Contour(total) - Contour(xy, wh.x, wh.y);
         r = total.x;
         break;
-    default:
-        _ASSERT(0);
     }
     //now expand returned area to cover from total.x.from to total.x.till,
     //assuming "area" now covers from r.from till r.till.

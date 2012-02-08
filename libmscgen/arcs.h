@@ -579,7 +579,7 @@ class NamePair
 public:
     string src, dst;
     file_line_range sline, dline;
-    NamePair(const char *s, const file_line_range &sl, 
+    NamePair(const char *s, const file_line_range &sl,
                    const char *d, const file_line_range &dl) :
         src(s ? s : ""), dst(d ? d : ""), sline(sl), dline(dl) {}
 };
@@ -619,11 +619,12 @@ public:
 
 class ExtVertXPos : public VertXPos
 {
-public: 
+public:
     enum {LEFT=0, CENTER=1, RIGHT=2, NONE=3, BAD_SIDE} side;
-    file_line_range side_line; 
+    file_line_range side_line;
     explicit ExtVertXPos(Msc&m) : VertXPos(m), side(NONE) {}
     ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p);
+    ExtVertXPos(const VertXPos *p);
 };
 
 class CommandSymbol : public ArcCommand
@@ -639,7 +640,7 @@ protected:
     MscArrowSize            size;          //used for '...'
     mutable Block outer_edge;
 public:
-    CommandSymbol(Msc*, const char *symbol, const NamePair *enp, 
+    CommandSymbol(Msc*, const char *symbol, const NamePair *enp,
                   const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2);
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -659,10 +660,10 @@ protected:
     typedef enum {LEFT, RIGHT, LEFT_OR_RIGHT, FLOAT} LayoutType;
     LayoutType            layout;
     const ArcBase * const previous;
-    VertXPos              vertxpos;
+    ExtVertXPos           extvertxpos;
     mutable double        xpos;
 public:
-    CommandNote(Msc*, const file_line_range &l, const VertXPos *vxpos, const AttributeList *al);
+    CommandNote(Msc*, const file_line_range &l, const ExtVertXPos *vxpos, const AttributeList *al);
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
