@@ -1,0 +1,14 @@
+hscale=auto;
+mark top;
+hide a,b,c;
+symbol rectangle top-bottom center at a [line.type=none, fill.color=lgray];
+show a,b,c;
+vspace 10;
+compress=yes;
+symbol arc center at b+ [fill.color=black, xsize=3, ysize=3];
+vspace 2;
+symbol arc center at b+ [fill.color=black, xsize=3, ysize=3];
+vspace 2;
+symbol arc center at b+ [fill.color=black, xsize=3, ysize=3];
+mark bottom;
+

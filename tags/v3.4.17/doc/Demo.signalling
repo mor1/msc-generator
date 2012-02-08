@@ -1,0 +1,64 @@
+:\mn(30)\bDemo Chart;
+:\mn(20)This chart contains a demo of the features of Msc-generator.;
+compress=yes; hscale=0.9; numbering=yes;
+vspace 20;
+g1:group 1 {
+    a [label=weak, weak], b[label=normal], c [label=strong, strong];
+},
+g2: group 2 {
+    aa[label=weak, weak],bb[label=normal], cc[label=strong, strong];
+},
+e[show=no, pos=-0.5];
+{
+      --: Arrows {
+            a->b-c:solid line with\_subscript [arrow.midtype=dot];
+            b<=c:double line;
+            >b:dotted line;
+            <<c:dashed line with\^superscript;
+            b->b: \-Points to \n\+self;
+            a->b: Weak [weak];
+            b->c: Strong [strong];
+            angle=5;
+            a->b: Slanted [arrow.type=double_empty];
+            activate b;
+            b->c: Slanted [arrow.type=double];
+            c->b: Slanted [arrow.type=empty_sharp];
+            deactivate b;
+            b->a: Slanted [arrow.type=triple_line];
+      };
+      ==: Empty boxes {
+            parallel a--a: Solid;
+            parallel b==b: Double;
+            parallel c..c: Dotted;
+      }{
+            parallel a--a: Round [line.corner=round];
+            parallel b==b: Note  [line.corner=note];
+            parallel c..c: Bevel [line.corner=bevel];
+            b--b [collapsed=yes] {
+                b->b;
+            };
+    };
+} {
+      ..: Block Arrows {
+            block aa->bb-cc:arrow;
+            block aa=>bb-cc:diamond[arrow.type=diamond];
+            block aa>bb-cc:dot [arrow.type=dot];
+            block aa>>bb-cc:mixed[arrow.midtype=diamond];
+            angle=5;
+            block aa->cc: Slanted;
+      };
+} {
+      vertical -> at e+: All the way down...[makeroom=yes];
+};
+---: Separator;
+pipe aa--bb: Solid pipe []
+       --cc: Solid, too;
+pipe b==bb: Double pipe {
+      a->cc: Label;
+};
+pipe b..c: Dotted pipe []
+     bb..cc: Dotted, too {
+      a->cc: Label;
+};
+...:Time elapses...;
+symbol ... center at b-c;

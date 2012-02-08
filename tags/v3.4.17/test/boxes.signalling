@@ -1,0 +1,205 @@
+a, b, c, d, e;
+hscale=auto;
+
+defstyle emptybox, box [fill.color=lgray];
+
+{defstyle -- [line.type=solid];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=dash_dotted];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=double];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+
+defstyle -- [line.width=5];
+
+defstyle -- [line.type=solid];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=dash_dotted];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=double];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+a--b: Box [line.corner=bevel];
+a--b: Box [line.corner=round];
+a--b: Box [line.corner=note]; }
+
+{
+defstyle -- [line.type=solid];
+defstyle -- [line.radius=40];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=dash_dotted];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=double];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+
+defstyle -- [line.width=5];
+
+defstyle -- [line.type=solid];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=dash_dotted];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=double];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+c--d: Box [line.corner=bevel];
+c--d: Box [line.corner=round];
+c--d: Box [line.corner=note];
+}
+{
+defstyle -- [line.type=solid];
+defstyle -- [line.radius=40];
+defstyle -- [text.format="\mn(30)"];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBoxBoxBox [line.corner=note] {
+    e->f:aaaa;
+    e<-f:bbb;
+};
+
+defstyle -- [line.type=dash_dotted];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+
+defstyle -- [line.type=double];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round]{
+    e->f:aaaa;
+    e<-f:bbb;
+};
+e--f: BoxBoxBoxBox [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+
+
+defstyle -- [line.width=5];
+
+defstyle -- [line.type=solid];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+
+defstyle -- [line.type=dash_dotted];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+
+defstyle -- [line.type=double];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+
+defstyle -- [line.type=triple];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+
+defstyle -- [line.type=triple_thick];
+
+e--f: BoxBoxBoxBox [line.corner=bevel];
+e--f: BoxBoxBoxBox [line.corner=round];
+e--f: BoxBoxBoxBox [line.corner=note];
+};
