@@ -702,7 +702,7 @@ void Edge::pathto_curvy(cairo_t *cr) const
     if (clockwise_arc)
         cairo_arc(cr, 0, 0, 1, s, type==ARC ? e : s+2*M_PI);
     else
-        cairo_arc_negative(cr, 0, 0, 1, s, type==ARC ? e : s+2*M_PI);
+        cairo_arc_negative(cr, 0, 0, 1, s, type==ARC ? e : s-2*M_PI);
     cairo_restore(cr);
 }
 

@@ -60,10 +60,10 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
     Edge edge(c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
     boundingBox = edge.GetBoundingBox();
     edges.push_back(edge);
+    area_cache.first=false;
     if (edge.GetType()==Edge::FULL_CIRCLE) return; //full circle
     edges.push_back(Edge(edge.GetEnd(), edge.GetStart()));
     edges.rbegin()->visible = false;
-    area_cache.first=false;
 }
 
 SimpleContour &SimpleContour::operator =(const Block &b)
@@ -610,6 +610,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     if (size()==1) {
         _ASSERT(at(0).GetType()==Edge::FULL_CIRCLE);
         if (!r[0].Expand(gap)) return; //full circle disappeared, we return empty "res"
+        r.CalculateBoundingBox();
+        r.area_cache.first = false;
         res = std::move(r);
         return;
     }

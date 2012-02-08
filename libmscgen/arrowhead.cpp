@@ -481,12 +481,12 @@ Contour ArrowHead::EntityLineCover(XY xy, bool /*forward*/, bool bidir, MscArrow
     Contour ret;
     switch(GetType(bidir, which)) {
     case MSC_ARROW_DIAMOND_EMPTY:
-    case MSC_ARROW_DIAMOND:
+    //case MSC_ARROW_DIAMOND:
         ret = diamond(xy, wh);
         break;
 
     case MSC_ARROW_DOT_EMPTY:
-    case MSC_ARROW_DOT:
+    //case MSC_ARROW_DOT:
         ret = Contour(xy, wh.x, wh.y);
         break;
     default:
@@ -495,6 +495,10 @@ Contour ArrowHead::EntityLineCover(XY xy, bool /*forward*/, bool bidir, MscArrow
     return ret;
 }
 
+//This returns an area which will be used to clip the arrow line.
+//E.g., for empty dots this is a big block, with a hole in it => line will be not drawn in the hole.
+//"total" is a block used as the basis, it is guaranteed that the whole line will fit into this.
+//if no clipping is needed (all of the line can be shown at this arrowhead, we return "total".
 Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
     const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
 {
@@ -584,20 +588,20 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
 
     case MSC_ARROW_DIAMOND:
     case MSC_ARROW_DIAMOND_EMPTY:
-        area = diamond(xy, wh);
-        r = area.GetBoundingBox().x;
-        area = Contour(Block(r, total.y)) - area;
+        area = Contour(total) - diamond(xy, wh);
+        r = total.x;
         break;
 
     case MSC_ARROW_DOT:
     case MSC_ARROW_DOT_EMPTY:
-        area = Contour(xy, wh.x, wh.y);
-        r = area.GetBoundingBox().x;
-        area = Contour(Block(r, total.y)) - area;
+        area = Contour(total) - Contour(xy, wh.x, wh.y);
+        r = total.x;
         break;
     default:
         _ASSERT(0);
     }
+    //now expand returned area to cover from total.x.from to total.x.till,
+    //assuming "area" now covers from r.from till r.till.
     if (r.from==r.till) 
         area = total;
     else {

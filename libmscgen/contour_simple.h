@@ -93,7 +93,7 @@ public:
     bool operator < (const SimpleContour &b) const;
     bool operator ==(const SimpleContour &b) const;
     const Edge &operator[](size_type edge) const {return at(edge);}
-    void swap(SimpleContour &b) {edges.swap(b.edges); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise);}
+    void swap(SimpleContour &b) {edges.swap(b.edges); std::swap(boundingBox, b.boundingBox); std::swap(clockwise, b.clockwise); std::swap(area_cache, b.area_cache);}
     void clear() {edges.clear(); boundingBox.MakeInvalid(); area_cache.first = true; area_cache.second = 0.;}
 
     void assign_dont_check(const std::vector<XY> &v);
