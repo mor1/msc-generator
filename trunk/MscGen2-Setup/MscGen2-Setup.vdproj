@@ -45,12 +45,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_9AE53C233D914618935F0A73641387FE"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -59,6 +53,12 @@
         {
         "MsmKey" = "8:_E3EC895DEE334AE1955560AD21D3DFAE"
         "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_F91A7022015C431DB42C5D2CE0CC028E"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -490,7 +490,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{325D5C3B-1223-4E18-ACF7-217985D3A1B4}"
-        "PackageCode" = "8:{6B231B14-0F46-43DE-88D6-B66073C2DCCB}"
+        "PackageCode" = "8:{41979340-C223-45D3-B17E-FCCE022D1278}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -1991,7 +1991,7 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_9AE53C233D914618935F0A73641387FE"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_F91A7022015C431DB42C5D2CE0CC028E"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"

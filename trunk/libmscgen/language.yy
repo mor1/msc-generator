@@ -2549,7 +2549,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") ||
         CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
@@ -2585,7 +2585,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") ||
         CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
@@ -2608,7 +2608,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") ||
         CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
@@ -2644,7 +2644,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") ||
         CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
@@ -2668,7 +2668,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") ||
         CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
@@ -2704,7 +2704,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") ||
         CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
@@ -2741,7 +2741,7 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
-    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") || 
+    if (CaseInsensitiveEqual($2, "arc") || CaseInsensitiveEqual($2, "rectangle") ||
         CaseInsensitiveEqual($2, "..."))
         csh.AddCSH(@2, COLOR_KEYWORD);
     else if (CaseInsensitiveBeginsWith("arc", $2)==0 &&
@@ -2808,7 +2808,17 @@ note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_la
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = new CommandNote(MSC_POS(@@), $2, $3);
+    $$ = new CommandNote(&msc, MSC_POS(@$), $2, $3);
+  #endif
+    free($1);
+}
+               | TOK_COMMAND_NOTE vertxpos full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+  #else
+    ExtVertXPos extvertxpos($2);
+    $$ = new CommandNote(&msc, MSC_POS(@$), &extvertxpos, $3);
   #endif
     free($1);
 }
@@ -2817,7 +2827,7 @@ note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_la
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = new CommandNote(&msc, MSC_POS(@@), NULL, $2);
+    $$ = new CommandNote(&msc, MSC_POS(@$), NULL, $2);
   #endif
     free($1);
 };
