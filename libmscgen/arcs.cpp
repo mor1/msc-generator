@@ -116,8 +116,21 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     TrackableElement(msc), valid(true), compress(false), parallel(false),
     draw_pass(DEFAULT), type(t)
 {
-    if (msc) compress = msc->Contexts.back().compress;
+    if (msc) 
+        compress = msc->Contexts.back().compress;
     had_add_attr_list = false;
+}
+
+void ArcBase::MakeMeLastNotable()
+{
+    if (CanBeNoted() && chart)
+        chart->last_notable_arc = this;
+}
+
+void ArcBase::AttachNote(CommandNote *cn)
+{
+    _ASSERT(CanBeNoted());
+    notes.Append(cn);
 }
 
 inline Area ArcBase::GetCover4Compress(const Area &a) const
@@ -142,7 +155,8 @@ ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 }
 
 template<> const char EnumEncapsulator<ArcBase::DrawPassType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", ""};
+    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
+     "note", "after_note", ""};
 
 
 bool ArcBase::AddAttribute(const Attribute &a)
@@ -206,6 +220,17 @@ string ArcBase::PrintType(void) const
         "command_heading", "command_nudge", "command_entity"};
     return arcnames[int(type)-1];
 }
+
+inline ArcBase* ArcBase::PostParseProcess(MscCanvas &, bool, EIterator &, EIterator &, Numbering &, bool)
+{
+    return this;
+}
+
+inline void ArcBase::Width(MscCanvas &, EntityDistanceMap &)
+{
+}
+
+
 
 void ArcBase::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
@@ -548,20 +573,19 @@ string ArcLabelled::Print(int ident) const
 //This assigns a running number to the label and 
 //fills the "compress" member from the style.
 //Strictly to be called by descendants
-ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool /*hide*/, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool top_level)
+ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
     at_top_level = top_level;
-    string num;
     string pre_num_post;
     if (label.length()!=0) {
         if (style.numbering.second) {
             number.SetSize((unsigned)numberingStyle.Size()); //append 1s if style has more levels
             if (concrete_number >= 0)
                 number.Last() = concrete_number;
-            num = numberingStyle.Print(number);
-            pre_num_post = numberingStyle.pre + num + numberingStyle.post;
+            number_text = numberingStyle.Print(number);
+            pre_num_post = numberingStyle.pre + number_text + numberingStyle.post;
             ++number;
             //Recreate the text style at the point where the label will be inserted
             StringFormat basic = style.text;
@@ -569,16 +593,16 @@ ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool /*hide*/, EIterat
             //At this point the number text must be processed using StringFormat::ExpandColorAndStyle
             //to expand remaining empty \c(), \s(), etc escapes.
             //We use a dummy linenum, as we should not get ANY errors here...
-            StringFormat::ExpandColorAndStyle(num, chart, file_line(), &basic,
+            StringFormat::ExpandColorAndStyle(number_text, chart, file_line(), &basic,
                                               true, StringFormat::LABEL);
             StringFormat::ExpandColorAndStyle(pre_num_post, chart, file_line(), &basic,
                                               true, StringFormat::LABEL);
         }
         //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
-        StringFormat::AddNumbering(label, num, pre_num_post);
+        StringFormat::AddNumbering(label, number_text, pre_num_post);
     }
     parsed_label.Set(label, &canvas, style.text);
-    return this;
+    return ArcBase::PostParseProcess(canvas, hide, left, right, number, at_top_level);
 }
 
 
@@ -790,7 +814,7 @@ ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range 
     _ASSERT(*mid != chart->NoEntity);
     if (specified_as_forward) {
         //check for this situation: ->b->a (where a is left of b)
-        if (middle.size()==0 && (*src)->name ==LSIDE_ENT_STR &&
+        if (middle.size()==0 && *src == chart->LSide &&
             (*dst)->pos > (*mid)->pos && m!=NULL)
             src = chart->FindAllocEntity(RSIDE_ENT_STR, ml);
         middle.push_back(dst);
@@ -800,7 +824,7 @@ ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range 
         segment_types.push_back(t);
     } else {
         //check for this situation: <-b<-a (where a is left of b)
-        if (middle.size()==0 && (*dst)->name ==LSIDE_ENT_STR &&
+        if (middle.size()==0 && *dst == chart->LSide &&
             (*src)->pos > (*mid)->pos && m!=NULL)
             dst = chart->FindAllocEntity(RSIDE_ENT_STR, ml);
         middle.insert(middle.begin(), src);
@@ -960,8 +984,8 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     if (src == dst && !(*src)->running_style.indicator.second) //We became a degenerate arrow, do not show us
         return NULL;
     //Update left and right using our original left and right
-    const EIterator _left = ++chart->AllEntities.begin(); // leftmost entity;
-    const EIterator _right = --chart->AllEntities.end();  // rightmost entiry
+    const EIterator _left = chart->AllEntities.Find_by_Ptr(chart->LSide); // leftmost entity;
+    const EIterator _right = chart->AllEntities.Find_by_Ptr(chart->RSide);  // rightmost entiry
     //Change left and right only if they actually point to a "real entity"
     //and not (left) or (right). If they do, consider our other "end"
     if (our_left != _left)
@@ -1224,8 +1248,7 @@ void ArcDirArrow::CheckSegmentOrder(double y)
     int earliest = -1;
     for (unsigned i = 0; i<temp.size(); i++)
         if (!(*temp[i])->status.GetStatus(y).IsOn() &&
-            (*temp[i])->name != LSIDE_ENT_STR &&
-            (*temp[i])->name != RSIDE_ENT_STR) {
+            !chart->IsVirtualEntity(*temp[i])) {
             ss.push_back("'" + (*temp[i])->name + "'");
             if (earliest == -1 || linenum_temp[i] < linenum_temp[earliest]) earliest = i;
         }
@@ -1645,7 +1668,6 @@ ArcVerticalArrow::ArcVerticalArrow(MscArcType t, const char *s, const char *d, M
 {
     if (s) src = s;
     if (d) dst = d;
-    makeroom=false;
     offset = 0;
     valid = false; //without an x pos we are invalid
 }
@@ -1709,12 +1731,6 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
         offset = a.number;
-        return true;
-    }
-    if (a.Is("makeroom")) {
-        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
-        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
-        makeroom = a.yes;
         return true;
     }
     return ArcArrow::AddAttribute(a);
@@ -1825,7 +1841,7 @@ void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     //No extra space requirement
-    if (!makeroom) return;
+    if (!style.makeroom.second) return;
     //The offset is ignored during the process of setting space requirements
     const XY twh = parsed_label.getTextWidthHeight();
     const double lw = style.line.LineWidth();
@@ -2026,7 +2042,7 @@ bool ArcSignature::operator == (const ArcSignature&o) const
 ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
                          const char *d, file_line_range dl, Msc *msc) :
     ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
-    collapsed(BOX_COLLAPSE_EXPAND), drawEntityLines(true), content(NULL)
+    collapsed(BOX_COLLAPSE_EXPAND), drawEntityLines(true)
 {
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
@@ -2219,7 +2235,7 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
         if (dir == MSC_DIR_INDETERMINATE) dir = MSC_DIR_BIDIR;
         //remove NoEntity and side ones from el
         for (auto i = el.begin(); i!=el.end(); /*nope*/)
-            if ((*i)->name == NONE_ENT_STR || (*i)->name == LSIDE_ENT_STR || (*i)->name == RSIDE_ENT_STR)
+            if (chart->IsVirtualEntity(*i))
                 el.erase(i++);
             else 
                 i++;
@@ -2460,16 +2476,17 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover)
         //Position arrows if any under the label
         AreaList content_cover = Area((*i)->text_cover);
         if ((*i)->content.size()) {
-            const double &radius = main_style.line.radius.second;
-            Contour limit = (*i)->text_cover;
-            if (i==series.begin() && main_style.line.corner.second != CORNER_NONE && radius>0) {
+            Area limit = (*i)->text_cover;
+            if (i==series.begin() && main_style.line.corner.second != CORNER_NONE && main_style.line.radius.second>0) {
                 //Funnily shaped box, prevent content from hitting it
-                const Block b(sx-lw/2, dx+lw/2, y+lw/2, y + std::max(lw+radius*4, dx-sx)); //at midpoint of line
-                limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+radius) - 
-                         main_style.line.CreateRectangle_InnerEdge(b);
+                MscLineAttr limiter_line(main_style.line);
+                limiter_line.radius.second += chart->compressGap;
+                const Block b(sx-lw/2, dx+lw/2, y+lw/2, y + std::max(lw+limiter_line.radius.second*4, dx-sx)); //at midpoint of line
+                limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+limiter_line.radius.second) - 
+                         limiter_line.CreateRectangle_InnerEdge(b);
             }
             y = chart->PlaceListUnder(canvas, (*i)->content.begin(), (*i)->content.end(),
-                                        y+th, y, Area(std::move(limit)), compress, &content_cover);  //no extra margin below text
+                                      y+th, y, limit, compress, &content_cover);  //no extra margin below text
         } else {
             y += th; //no content, just add textheight
         }
@@ -2478,7 +2495,7 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover)
             MscLineAttr limiter_line(main_style.line);
             limiter_line.radius.second += chart->compressGap;
             const Block b(sx-lw/2, dx+lw/2, -limiter_line.radius.second*2, y);
-            const Contour bottom = Contour(sx-lw/2, dx+lw/2, limiter_line.radius.second+1, y+1) -
+            const Contour bottom = Contour(sx-lw/2, dx+lw/2, y-limiter_line.radius.second, y+1) -
                                    limiter_line.CreateRectangle_InnerEdge(b);
             double tp;
             double off = content_cover.OffsetBelow(bottom, tp);
@@ -3122,8 +3139,8 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
     double lowest_line_bottom =  max_lineWidth + chart->emphVGapInside;
     //Determine highest label and collect all text covers
     //Also calcualte all x positioning
-    double lowest_label_bottom = 0;
-    double lowest_opaque_label_bottom = 0;
+    double lowest_label_on_transculent_bottom = lowest_line_bottom;
+    double lowest_label_on_opaque_segments_bottom = lowest_line_bottom;
     Area label_covers(this);
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
     const MscSideType side = (*series.begin())->style.side.second;
@@ -3159,17 +3176,13 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
             y += Label("M", &canvas, (*i)->style.text).getTextWidthHeight().y;
         if ((*i)->style.solid.second < 255) {
             label_covers += (*i)->text_cover;
-            lowest_label_bottom = std::max(lowest_label_bottom, y);
+            lowest_label_on_transculent_bottom = std::max(lowest_label_on_transculent_bottom, y);
         } else {
             //collect the highest label of opaque segments for later use
-            lowest_opaque_label_bottom = std::max(lowest_opaque_label_bottom, y);
+            lowest_label_on_opaque_segments_bottom = std::max(lowest_label_on_opaque_segments_bottom, y);
         }
     }
-    //check if thick lined segments having no label have lower still
-    if (lowest_label_bottom < lowest_line_bottom)
-        lowest_label_bottom = lowest_line_bottom;
-    double y = lowest_label_bottom;
-
+    double y = lowest_label_on_transculent_bottom;
     //Calculate the Height of the content
     AreaList content_cover;
     if (content.size())
@@ -3177,7 +3190,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
                                         lowest_line_bottom, label_covers, false, &content_cover));
     //now y contains the bottom of the content arrows (if any),
     //adjust if an opaque pipe's label was not yet considered in y
-    y = std::max(y, lowest_opaque_label_bottom);
+    y = std::max(y, lowest_label_on_opaque_segments_bottom);
     y += chart->emphVGapInside + max_lineWidth;
     //now y contains the bottommost pixel of the pipe itself
     total_height = y = ceil(y);
@@ -3244,7 +3257,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
         } else {
             //No connection, we draw this end, too
             if (rad.x>0) {
-                (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2.);
+                (*i)->pipe_body_fill -= forw_end.CreateExpand(-(*i)->style.line.width.second/2);
                 (*i)->pipe_whole_line = (*i)->pipe_body_line + forw_end.CreateExpand(gap_for_line);
                 (*i)->pipe_body_line -= forw_end.CreateExpand(gap_for_line);
 
@@ -3524,8 +3537,6 @@ void ArcDivider::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
-    const unsigned lside_index = (*chart->ActiveEntities.Find_by_Name(LSIDE_ENT_STR))->index;
-    const unsigned rside_index = (*chart->ActiveEntities.Find_by_Name(RSIDE_ENT_STR))->index;
     //Get marging from chart edge
     double margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     //convert it to a margin from lside and rside
@@ -3536,7 +3547,7 @@ void ArcDivider::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     //calculate space requirement between lside and rside
     const double width = 2*margin + parsed_label.getTextWidthHeight().x;
     if (width>0)
-        distances.Insert(lside_index, rside_index, width);
+        distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
 
 double ArcDivider::Height(MscCanvas &canvas, AreaList &cover)
@@ -4408,12 +4419,12 @@ CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
         src = chart->FindAllocEntity(enp->src.c_str(), enp->sline);
         sline = enp->sline;
     } else
-        src = chart->AllEntities.Find_by_Name(LSIDE_ENT_STR);
+        src = chart->AllEntities.Find_by_Ptr(chart->LSide);
     if (enp->dst.length()) {
         dst = chart->FindAllocEntity(enp->dst.c_str(), enp->dline);
         dline = enp->dline;
     } else
-        dst = chart->AllEntities.Find_by_Name(RSIDE_ENT_STR);
+        dst = chart->AllEntities.Find_by_Ptr(chart->RSide);
     delete enp;
 }
 
@@ -4936,39 +4947,110 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
  */
 
 
-CommandNote::CommandNote(Msc*msc, const file_line_range &l, const ExtVertXPos *evxpos, const AttributeList *al)
+CommandNote::CommandNote(Msc*msc, const ExtVertXPos *evxpos, AttributeList *al)
     : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]),
-    layout(FLOAT), previous(msc->last_inserted_arc), extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc))
+    extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc))
 {
-
+    draw_pass = NOTE;
+    AddAttributeList(al);
+    target = chart->last_notable_arc;
+    if (target == NULL) {
+        valid = false;
+        chart->Error.Error(file_pos.start, "This note has no prior element to note on. Ignoring it.",
+            "Every note must follow a visible element which it makes a remark on. "
+            "You cannot start a scope with a note either.");
+        return;
+    }
+    target->AttachNote(this);
 }
 
 bool CommandNote::AddAttribute(const Attribute &a)
 {
+    if (a.Is("point_toward")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        //which will mean chart->NoEntity in "point_toward_iterator"
+        point_toward_iterator = chart->FindAllocEntity(a.value.c_str(), a.linenum_value);
+        return true;
+    }
+    if (a.Is("ypos")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""        
+        ypos_marker = a.value;
+        ypos_marker_linenum = a.linenum_value.start;
+        return true;
+    }
     return ArcLabelled::AddAttribute(a);
 }
 
 void CommandNote::AttributeNames(Csh &csh)
 {
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "point_toward", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ypos", HINT_ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
 }
 
 bool CommandNote::AttributeValues(const std::string attr, Csh &csh)
 {
+    if (CaseInsensitiveEqual(attr,"point_toward")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<entity>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"ypos")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<marker>", HINT_ATTR_VALUE, false));
+        return true;
+    }
     return ArcLabelled::AttributeValues(attr, csh);
 }
 
-ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool /*hide*/, EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool top_level)
 {
-    return ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
+    if (!valid) return NULL;
+    if (label.length()==0) {
+        chart->Error.Error(file_pos.start, "A note must contain text. Ignoring note.", 
+            "Try adding a 'label' attribute or text after a colon (':').");
+        valid = false;
+        return NULL;
+    }
+    //if user specified 
+    if (style.note.layout.second == MscNoteAttr::LEFTRIGHT) {
+        style.note.layout.second = chart->last_note_is_on_left ? MscNoteAttr::RIGHT : MscNoteAttr::LEFT;
+        chart->last_note_is_on_left ^= true;
+    }
+    //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
+    //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
+    at_top_level = top_level;
+    const ArcLabelled *al = dynamic_cast<const ArcLabelled*>(target);
+    if (al) {
+        const string pre_num_post = al->numberingStyle.pre + al->number_text + al->numberingStyle.post;
+        //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
+        StringFormat::AddNumbering(label, al->number_text, pre_num_post);
+    }
+    parsed_label.Set(label, &canvas, style.text);
+    return this;
 }
 
-void CommandNote::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
+    //Here we only make space if the note is on the side
+    const double w = parsed_label.getTextWidthHeight().x;
+    if (style.note.layout.second == MscNoteAttr::LEFT)
+        distances.Insert(chart->LNote->index, chart->LSide->index, w);
+    else if (style.note.layout.second == MscNoteAttr::RIGHT)
+        distances.Insert(chart->RSide->index, chart->RNote->index, w);
 }
 
-double CommandNote::Height(MscCanvas &canvas, AreaList &cover)
+double CommandNote::Height(MscCanvas &/*canvas*/, AreaList &/*cover*/)
 {
+    auto i = chart->Markers.find(ypos_marker);
+    if (i == chart->Markers.end()) {
+        chart->Error.Error(ypos_marker_linenum, "Marker '" + ypos_marker + "' not defined. Ignoring 'ypos' attribute.");
+        ypos_marker.clear();
+        ypos = -1;
+    } else {
+        ypos = i->second.second;
+    }
+    //XXX fix note layout here
     return 0;
 }
 
@@ -4977,11 +5059,11 @@ void CommandNote::ShiftBy(double y)
     ArcLabelled::ShiftBy(y);
 }
 
-void CommandNote::PostPosProcess(MscCanvas &cover, double autoMarker)
+void CommandNote::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
 {
 }
 
-void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
+void CommandNote::Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/)
 {
 }
 

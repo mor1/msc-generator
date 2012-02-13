@@ -855,3 +855,129 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p)
     return true;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+
+void MscNoteAttr::MakeComplete()
+{
+    if (!layout.first) {layout.first = true; layout.second = FLOAT;}
+    if (!shape.first) {shape.first = true; shape.second = RECTANGLE;}
+    if (!point_to.first) {point_to.first = true; point_to.second = OUTLINE;}
+}
+
+MscNoteAttr &MscNoteAttr::operator +=(const MscNoteAttr&a)
+{
+    if (a.layout.first) layout = a.layout;
+	if (a.shape.first) shape = a.shape;
+	if (a.point_to.first) point_to = a.point_to;
+    return *this;
+};
+
+bool MscNoteAttr::operator == (const MscNoteAttr &a)
+{
+    if (a.layout.first != layout.first) return false;
+    if (layout.first && !(a.layout.second == layout.second)) return false;
+    if (a.shape.first != shape.first) return false;
+    if (shape.first && !(a.shape.second == shape.second)) return false;
+    if (a.point_to.first != point_to.first) return false;
+    if (point_to.first && !(a.point_to.second == point_to.second)) return false;
+    return true;
+}
+
+bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
+{
+    if (a.type == MSC_ATTR_STYLE) {
+        if (msc->Contexts.back().styles.find(a.name) == msc->Contexts.back().styles.end()) {
+            a.InvalidStyleError(msc->Error);
+            return true;
+        }
+        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        if (style.f_note) operator +=(style.note);
+        return true;
+    }
+    if (a.EndsWith("layout")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                layout.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, layout.second)) {
+            layout.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(layout.second), msc->Error);
+        return true;
+    }
+    if (a.EndsWith("shape")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                shape.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, shape.second)) {
+            shape.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(shape.second), msc->Error);
+        return true;
+    }
+    if (a.EndsWith("point_to")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                point_to.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, point_to.second)) {
+            point_to.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(point_to.second), msc->Error);
+        return true;
+    }
+    return false;
+}
+
+void MscNoteAttr::AttributeNames(Csh &csh)
+{
+    static const char names[][ENUM_STRING_LEN] =
+    {"", "layout", "shape", "point_to", ""};
+    csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+}
+
+template<> const char EnumEncapsulator<MscNoteAttr::layout_t>::names[][ENUM_STRING_LEN] =
+    {"invalid", "float", "left", "right", "alternate", ""};
+
+template<> const char EnumEncapsulator<MscNoteAttr::shape_t>::names[][ENUM_STRING_LEN] =
+    {"invalid", "none", "rectangle", "arrow", ""};
+
+template<> const char EnumEncapsulator<MscNoteAttr::point_to_t>::names[][ENUM_STRING_LEN] =
+    {"invalid", "center", "outline", ""};
+
+bool MscNoteAttr::AttributeValues(const std::string &attr, Csh &csh)
+{
+    if (CaseInsensitiveEndsWith(attr, "layout")) {
+        csh.AddToHints(EnumEncapsulator<MscNoteAttr::layout_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE /*, CshHintGraphicCallbackForLineType*/);
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "shape")) {
+        csh.AddToHints(EnumEncapsulator<MscNoteAttr::shape_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE /*, CshHintGraphicCallbackForLineType*/);
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "point_to")) {
+        csh.AddToHints(EnumEncapsulator<MscNoteAttr::point_to_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE /*, CshHintGraphicCallbackForLineType*/);
+        return true;
+    }
+    return false;
+}
+
+
+string MscNoteAttr::Print(int) const
+{
+    string ss = "note(";
+    if (layout.first) ss << " layout:" << EnumEncapsulator<MscNoteAttr::layout_t>::names[layout.second];
+    if (shape.first) ss << " shape:" << EnumEncapsulator<MscNoteAttr::shape_t>::names[shape.second];
+    if (point_to.first) ss << " point_to:" << EnumEncapsulator<MscNoteAttr::point_to_t>::names[point_to.second];
+    return ss + ")";
+}

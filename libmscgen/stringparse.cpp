@@ -1463,11 +1463,14 @@ void Label::CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, doubl
         case MSC_IDENT_CENTER: {
             double w = wh.x + at(i).startFormat.textHGapPre.second + at(i).startFormat.textHGapPost.second;
             //if center, attempt to center around cx, but minimize extension beyond sx and dx
-            if (w >= dx-sx || cx<sx || cx>dx) xy.x = (sx + dx - w) / 2; 
-            else {
+            if (cx<sx || cx>dx)  {                //if bad params, ignore cx
+                xy.x = (sx + dx - w) / 2; 
+            } else if (w <= dx-sx) {              //if text fits between, try around cx, but do not let outside sx or dx
                 xy.x = std::max(cx - w/2, sx);
                 xy.x = std::min(xy.x, dx - w);
-            }   
+            } else {                              //if text does not fit anyway, do it around cx
+                xy.x = cx - w/2;
+            }
             xy.x += at(i).startFormat.textHGapPre.second;
             break;
             }

@@ -355,8 +355,10 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     csh.AddCSH(@1, COLOR_BRACE);
     csh.AddCSH(@3, COLOR_BRACE);
   #else
-    msc.last_inserted_arc = $3;
-    if ($3) ($2)->Append($3); //Append any potential CommandNumbering
+    if ($3) {
+        ($2)->Append($3); //Append any potential CommandNumbering
+        ($3)->MakeMeLastNotable();
+    }
     $$ = $2;
   #endif
 }
@@ -380,8 +382,10 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     csh.AddCSH_Error(@3, "Could not recognize this as a valid line.");
     csh.AddCSH(@4, COLOR_BRACE);
   #else
-    msc.last_inserted_arc = $4;
-    if ($4) ($2)->Append($4); //Append any potential CommandNumbering
+    if ($4) {
+        ($2)->Append($4); //Append any potential CommandNumbering
+        ($4)->MakeMeLastNotable();
+    }
     $$ = $2;
     msc.Error.Error(MSC_POS(@3).start, "Syntax error.");
   #endif
@@ -418,8 +422,10 @@ arclist_maybe_no_semicolon : arclist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter(@2, "Missing a semicolon (';').");
   #else
-    msc.last_inserted_arc = $2;
-    if ($2) ($1)->Append($2);
+    if ($2) {
+        ($1)->Append($2);
+        ($2)->MakeMeLastNotable();
+    }
     $$ = $1;
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing ';'.");
     msc.Error.Error(MSC_POS(@2).start, MSC_POS(@2).end.NextChar(), "Here is the beginning of the command as I understood it.");
@@ -430,8 +436,11 @@ arclist_maybe_no_semicolon : arclist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter(@1, "Missing a semicolon (';').");
   #else
-    msc.last_inserted_arc = $1;
-    $$ = (new ArcList)->Append($1); /* New list */
+    if ($1) {
+        $$ = (new ArcList)->Append($1); /* New list */
+        ($1)->MakeMeLastNotable();
+    } else
+        $$ = new ArcList;
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing ';'.");
     msc.Error.Error(MSC_POS(@1).start, MSC_POS(@1).end.NextChar(), "Here is the beginning of the command as I understood it.");
   #endif
@@ -441,19 +450,20 @@ arclist_maybe_no_semicolon : arclist
 arclist:    arc_with_parallel_semicolon
 {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = $1;
-    if ($1)
+    if ($1) {
         $$ = (new ArcList)->Append($1); /* New list */
-    else
+        ($1)->MakeMeLastNotable();
+    } else
         $$ = new ArcList;
   #endif
 }
             | arclist arc_with_parallel_semicolon
 {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = $2;
-    if ($2)
+    if ($2) {
         ($1)->Append($2);     /* Add to existing list */
+        ($2)->MakeMeLastNotable();
+    }
     $$ = ($1);
   #endif
 }
@@ -1098,10 +1108,10 @@ entity_command_prefixes: TOK_HIDE | TOK_SHOW | TOK_ACTIVATE | TOK_DEACTIVATE;
 optlist:     opt
 {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = $1;
-    if ($1)
+    if ($1) {
         $$ = (new ArcList)->Append($1); /* New list */
-    else
+        ($1)->MakeMeLastNotable();
+    } else
         $$ = NULL;
   #endif
 }
@@ -1114,12 +1124,12 @@ optlist:     opt
         csh.hintStatus = HINT_READY;
     }
   #else
-    msc.last_inserted_arc = $3;
     if ($3) {
         if ($1)
             $$ = ($1)->Append($3);     /* Add to existing list */
         else
             $$ = (new ArcList)->Append($3); /* New list */
+        ($3)->MakeMeLastNotable();
     } else
         $$ = $1;
   #endif
@@ -1330,8 +1340,7 @@ entity:       entity_string full_arcattrlist_with_label
   #else
     EntityDef *ed = new EntityDef($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
-    ed->AddAttributeList(NULL, NULL, file_line());
-    $$ = (EntityDefList*)((new EntityDefList)->Append(ed));
+    $$ = ed->AddAttributeList(NULL, NULL, file_line());
   #endif
     free($1);
 }
@@ -1393,8 +1402,7 @@ first_entity:  entity_string full_arcattrlist_with_label
   #else
     EntityDef *ed = new EntityDef($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
-    ed->AddAttributeList(NULL, NULL, file_line());
-    $$ = (EntityDefList*)((new EntityDefList)->Append(ed));
+    $$ = ed->AddAttributeList(NULL, NULL, file_line());
   #endif
     free($1);
 }
@@ -2808,7 +2816,9 @@ note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_la
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = new CommandNote(&msc, MSC_POS(@$), $2, $3);
+    ArcBase *a = new CommandNote(&msc, $2, $3); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    $$ = NULL; //no need to add to arclist
   #endif
     free($1);
 }
@@ -2817,8 +2827,10 @@ note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_la
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    ExtVertXPos extvertxpos($2);
-    $$ = new CommandNote(&msc, MSC_POS(@$), &extvertxpos, $3);
+    const ExtVertXPos extvertxpos($2);
+    ArcBase *a = new CommandNote(&msc, &extvertxpos, $3); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    $$ = NULL; //no need to add to arclist
   #endif
     free($1);
 }
@@ -2827,7 +2839,9 @@ note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_la
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = new CommandNote(&msc, MSC_POS(@$), NULL, $2);
+    ArcBase *a = new CommandNote(&msc, NULL, $2); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    $$ = NULL; //no need to add to arclist
   #endif
     free($1);
 };

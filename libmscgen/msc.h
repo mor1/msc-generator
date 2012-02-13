@@ -18,9 +18,12 @@
 
 using std::string;
 
+//Name and index of the virtual entities
 #define NONE_ENT_STR  "()"
+#define LNOTE_ENT_STR "(leftside_note)"
 #define LSIDE_ENT_STR "(leftside)"
 #define RSIDE_ENT_STR "(rightside)"
+#define RNOTE_ENT_STR "(rightside_note)"
 
 #define MARKER_HERE_STR "\""
 #define MARKER_PREV_PARALLEL_STR "\"\""
@@ -128,7 +131,7 @@ public:
 
     EntityList                    AllEntities;
     EntityList                    ActiveEntities;
-    Entity                       *NoEntity;
+    Entity                       *NoEntity, *LNote, *LSide, *RSide, *RNote;
     EntityDefList                 AutoGenEntities;
     ArcList                       Arcs;
     std::list<Context>            Contexts;
@@ -141,7 +144,8 @@ public:
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
     
-    const ArcBase                *last_inserted_arc; //during parse: last arc inserted (the one notes attach to) or NULL if none
+    ArcBase                      *last_notable_arc;     //during parse: last arc inserted (the one notes attach to) or NULL if none
+    bool                          last_note_is_on_left; //during post-parse: was th last non-float note on the left side
 
     XY     total;                //Total size of the chart (minus copyright)
     double copyrightTextHeight;  //Y size of the copyright text calculated
@@ -207,6 +211,7 @@ public:
     bool IsMyParentEntity(const string &children, const string &parent);
     double GetEntityMaxPos() const;
     double GetEntityMaxPosExp() const;
+    bool IsVirtualEntity(const Entity*e) const {return e==NoEntity || e==LNote || e==LSide || e==RSide || e==RNote;}
     void AddArcs(ArcList *a);
     ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
                              const char*d, bool fw, file_line_range dl);

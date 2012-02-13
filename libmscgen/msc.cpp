@@ -277,16 +277,25 @@ Msc::Msc() :
     SetDesign("plain", true);
 
     //Add virtual entities
-    Entity *entity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1001, -1001,
-                                Contexts.back().styles["entity"], file_line(current_file, 0), false);
-    AllEntities.Append(entity);
-    NoEntity = *AllEntities.begin();
-    entity = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, -1000,
-                        Contexts.back().styles["entity"], file_line(current_file, 0), false);
-    AllEntities.Append(entity);
-    entity = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 10000,
-                        Contexts.back().styles["entity"], file_line(current_file, 0), false);
-    AllEntities.Append(entity);
+    //NoEntity will be the one representing "NULL"
+    //Arrows come between left_side and right_side.
+    //Notes on the side come between left_note and left_side; and right_side & right_note
+    NoEntity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1002, -1002,
+                          Contexts.back().styles["entity"], file_line(current_file, 0), false);
+    LNote = new Entity(LNOTE_ENT_STR, LNOTE_ENT_STR, LNOTE_ENT_STR, -1001, -1001,
+                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+    LSide = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, -1000,
+                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+    RSide = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 10000,
+                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+    RNote = new Entity(RNOTE_ENT_STR, RNOTE_ENT_STR, RNOTE_ENT_STR, 10001, 10001,
+                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+    
+    AllEntities.Append(NoEntity);
+    AllEntities.Append(LNote);
+    AllEntities.Append(LSide);
+    AllEntities.Append(RSide);
+    AllEntities.Append(RNote);
 }
 
 bool Msc::SetDesign(const string&name, bool force)
@@ -332,14 +341,14 @@ EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const
 /* Finds an entity in AllEntities. If not found, it creates one */
 EIterator Msc::FindAllocEntity(const char *e, file_line_range l)
 {
-    if (e==NULL) {
+    if (e==NULL || e[0] == 0) {
         _ASSERT (AllEntities.Find_by_Ptr(NoEntity) != AllEntities.end());
         return AllEntities.Find_by_Ptr(NoEntity);
     }
     EIterator ei = AllEntities.Find_by_Name(e);
     if (*ei == NoEntity) {
         if (pedantic)
-            Error.Error(l.start, "Unknown entity '" + string(e)
+            Error.Warning(l.start, "Unknown entity '" + string(e)
                         + "'. Assuming implicit definition.",
                         "This may be a mistyped entity name."
                         " Try turning 'pedantic' off to remove these messages.");
@@ -375,6 +384,7 @@ EIterator Msc::FindLeftRightDescendant(EIterator ei, bool left, bool stop_at_col
 //If no parent is collapsed, it returns i.
 //In essence it tells, which entity is shown on the chart for i
 //If i is a grouped entity which is not collapsed, it will not show, but we return it.
+//Virtual entities (NoEntity, leftside, leftnote, etc. will return themselves)
 EIterator Msc::FindActiveParentEntity(EIterator i)  
 {
     if ((*i)->parent_name.length() == 0) return i;
@@ -430,8 +440,7 @@ double Msc::GetEntityMaxPos() const
 {
     double ret = -1;  //first entity will be return + 1, which will be zero 
     for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
-        if ((*i)->name != NONE_ENT_STR && (*i)->name != LSIDE_ENT_STR && 
-            (*i)->name != RSIDE_ENT_STR && ret < (*i)->pos)
+        if (!IsVirtualEntity(*i) && ret < (*i)->pos)
             ret = (*i)->pos;
     return ret;
 }
@@ -441,8 +450,7 @@ double Msc::GetEntityMaxPosExp() const
 {
     double ret = -1;  //first entity will be return + 1, which will be zero 
     for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
-        if ((*i)->name != NONE_ENT_STR && (*i)->name != LSIDE_ENT_STR && 
-            (*i)->name != RSIDE_ENT_STR && ret < (*i)->pos_exp)
+        if (!IsVirtualEntity(*i) && ret < (*i)->pos_exp)
             ret = (*i)->pos_exp;
     return ret;
 }
@@ -652,7 +660,6 @@ void Msc::PushContext(bool empty)
         SetDesign("plain", true);
     } else
         Contexts.push_back(Contexts.back());
-    last_inserted_arc = NULL;
 }
 
 ArcBase *Msc::PopContext()
@@ -720,6 +727,7 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
+    last_notable_arc = NULL;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
@@ -766,12 +774,13 @@ void Msc::PostParseProcess(MscCanvas &canvas)
     AllEntities.SortByPos();
 
     //Now create a list of active Entities
+    //Note that virtual entities will be added
     ActiveEntities.clear();
     for (auto i = AllEntities.begin(); i!=AllEntities.end(); i++) {
         const EIterator j = FindActiveParentEntity(i);
         if (i==j && (*i)->children_names.size() && !(*i)->collapsed) continue;
         if (ActiveEntities.size()==0) 
-            ActiveEntities.Append(*j);  //first active entity
+            ActiveEntities.Append(*j);  //first active entity, likely be NoEntity
         else if (*ActiveEntities.Find_by_Name((*j)->name) == NoEntity)
             ActiveEntities.Append(*j);  //a new active entity, not yet added
         else if ((*ActiveEntities.rbegin()) != *j) {
@@ -787,14 +796,10 @@ void Msc::PostParseProcess(MscCanvas &canvas)
     for (EIterator temp = ActiveEntities.begin(); temp!=ActiveEntities.end(); temp++, index++)
         (*temp)->index = index;
 
-    EIterator lside = ActiveEntities.Find_by_Name(LSIDE_ENT_STR);
-    EIterator rside = ActiveEntities.Find_by_Name(RSIDE_ENT_STR);
-
     //Find the first real entity
     EIterator tmp = ActiveEntities.begin();
-    if (*tmp == NoEntity) tmp++;
-    if (tmp == lside) tmp++;
-    if (tmp == rside) tmp++;
+    while (tmp != ActiveEntities.end() && IsVirtualEntity(*tmp))
+        tmp++;
 
     //Ensure that leftmost real entity pos == 2*MARGIN
     double rightmost = 0;
@@ -804,7 +809,7 @@ void Msc::PostParseProcess(MscCanvas &canvas)
             (*i)->pos -= leftmost;
         //Find rightmost entity's pos
         for  (EIterator i = ActiveEntities.begin(); i != ActiveEntities.end(); i++) {
-            if (i==lside || i==rside || *i==NoEntity) continue;
+            if (IsVirtualEntity(*i)) continue;
             if (rightmost < (*i)->pos)
                 rightmost = (*i)->pos;
         }
@@ -814,8 +819,10 @@ void Msc::PostParseProcess(MscCanvas &canvas)
         rightmost = 3*MARGIN;
     }
     //Set the position of the virtual side entities & resort
-    const_cast<double&>((*lside)->pos) = MARGIN;
-    const_cast<double&>((*rside)->pos) = rightmost + MARGIN;
+    const_cast<double&>(LNote->pos) = MARGIN/2;
+    const_cast<double&>(LSide->pos) = MARGIN;
+    const_cast<double&>(RSide->pos) = rightmost + MARGIN;
+    const_cast<double&>(RNote->pos) = rightmost + MARGIN + MARGIN/2;
     ActiveEntities.SortByPos();
 
     if (Arcs.size()==0) return;
@@ -838,6 +845,7 @@ void Msc::PostParseProcess(MscCanvas &canvas)
 
     //Traverse Arc tree and perform post-parse processing
     Numbering number; //starts at a single level from 1
+    last_note_is_on_left = false;
     EIterator dummy1, dummy2;
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
@@ -908,10 +916,12 @@ void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
 
 void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances)
 {
-    //Indicate active and showing entities
+    //Indicate entities active and showing already at the beginning of the list
+    //(this will be updated with entities activated later)
+    //(so that we can calcualte with the width of their entityline)
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
-            distances.was_activated.insert ((*i)->index);
+            distances.was_activated.insert((*i)->index);
     for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
         (*i)->Width(canvas, distances);
 }
@@ -1095,7 +1105,7 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
         //    (*i)->running_shown = EEntityStatus::SHOW_OFF;
         EntityDistanceMap distances;
         //Add distance for arcs,
-        //needed for hscale=auto, but also for entity width calculation
+        //needed for hscale=auto, but also for entity width calculation and side note size calculation
         WidthArcList(canvas, Arcs, distances);
         if (hscale<0) {
             distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
@@ -1145,6 +1155,16 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
             }
             total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
         } else {
+            //Here we only adjust the space for notes on the side
+            const double lnote_size = distances.Query(LNote->index, LSide->index);
+            const double rnote_size = distances.Query(RSide->index, RNote->index);
+            if (lnote_size) {
+                const double diff = lnote_size - LSide->pos + LNote->pos;
+                for (auto ei = ActiveEntities.Find_by_Ptr(LSide); ei != ActiveEntities.end(); ei++)
+                    (*ei)->pos += diff;
+            }
+            if (rnote_size)  
+                RNote->pos = RSide->pos + rnote_size;
             total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN)+1; //XCoord is always integer
         }
         StringFormat sf;

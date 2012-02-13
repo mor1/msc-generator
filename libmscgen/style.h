@@ -21,18 +21,23 @@ struct MscStyle
     ArrowHead arrow;
     StringFormat text;
     std::pair<bool, unsigned char> solid;
-    std::pair<bool, MscSideType> side; //for pipes, verticals or notes
-    std::pair<bool, bool> numbering;
-    std::pair<bool, bool> compress;
-    std::pair<bool, bool> indicator;
+    std::pair<bool, MscSideType>   side; //for pipes, verticals or notes
+    std::pair<bool, bool>          numbering;
+    std::pair<bool, bool>          compress;
+    std::pair<bool, bool>          indicator;
+    std::pair<bool, bool>          makeroom; //for verticals and notes
+    MscNoteAttr note;
 
     StyleType type;
 
-    bool f_line, f_vline, f_fill, f_vfill, f_shadow, f_text, f_solid, f_numbering, f_compress, f_side, f_indicator;
+    bool f_line, f_vline, f_fill, f_vfill, f_shadow, f_text, 
+         f_solid, f_numbering, f_compress, f_side, f_indicator,
+         f_makeroom, f_note;
     ArrowHead::ArcType f_arrow;
 
     MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
-    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, bool so, bool nu, bool co, bool si, bool i, bool vf);
+    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
+             bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n);
     void Empty();
     MscStyle &operator +=(const MscStyle &toadd);
     MscStyle operator +(const MscStyle &toadd) const
