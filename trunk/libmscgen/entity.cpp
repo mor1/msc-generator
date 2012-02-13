@@ -224,6 +224,8 @@ bool EntityDef::AddAttribute(const Attribute& a)
 //This function is always called, even if there are no attributes specified (l will be NULL in that case)
 //Except for automatically generated entities
 //Any children are already defined at this point, so we can modify their "parent_name" field
+//"ch" contains an arclist specified after the entity definition in braces: our chlidrens
+//We return an EntityDefList which contains us and our children (if any)
 EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch, file_line l)
 {
     EIterator i = chart->AllEntities.Find_by_Name(name);
@@ -425,7 +427,7 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "pos", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true); //no arrow, solid numbering compress side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true, false, false); //no arrow, solid numbering compress side makeroom note
     style.AttributeNames(csh);
 
 }
@@ -453,7 +455,7 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true); //no arrow, solid numbering compress side
+    MscStyle style(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true, false, false); //no arrow, solid numbering compress side makeroom note
     if (style.AttributeValues(attr, csh)) return true;
     return false;
 }

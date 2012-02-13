@@ -798,37 +798,37 @@ static const yytype_int8 yyrhs[] =
 static const yytype_uint16 yyrline[] =
 {
        0,   218,   218,   219,   230,   240,   251,   261,   271,   281,
-     288,   301,   302,   311,   325,   337,   352,   363,   376,   390,
-     402,   415,   416,   428,   441,   451,   461,   475,   476,   477,
-     489,   504,   512,   535,   542,   553,   565,   580,   598,   610,
-     620,   634,   645,   652,   664,   676,   688,   699,   715,   730,
-     742,   749,   756,   763,   772,   781,   790,   799,   812,   821,
-     834,   846,   862,   871,   884,   885,   886,   899,   914,   925,
-     938,   954,   955,   966,   977,   989,  1000,  1009,  1023,  1048,
-    1060,  1071,  1081,  1096,  1096,  1096,  1096,  1098,  1108,  1127,
-    1140,  1141,  1152,  1172,  1192,  1219,  1239,  1257,  1278,  1284,
-    1294,  1306,  1309,  1325,  1338,  1354,  1367,  1385,  1401,  1419,
-    1435,  1436,  1443,  1469,  1485,  1503,  1504,  1511,  1527,  1547,
-    1570,  1581,  1582,  1589,  1596,  1603,  1605,  1606,  1612,  1619,
-    1638,  1657,  1676,  1697,  1706,  1718,  1725,  1733,  1747,  1755,
-    1764,  1777,  1793,  1801,  1814,  1822,  1837,  1851,  1867,  1878,
-    1896,  1903,  1911,  1925,  1926,  1933,  1947,  1958,  1970,  1980,
-    1992,  2006,  2020,  2035,  2048,  2063,  2097,  2113,  2131,  2143,
-    2159,  2159,  2159,  2161,  2175,  2186,  2198,  2207,  2221,  2232,
-    2244,  2253,  2266,  2267,  2268,  2269,  2272,  2283,  2294,  2302,
-    2306,  2310,  2315,  2329,  2340,  2352,  2363,  2374,  2388,  2399,
-    2411,  2422,  2432,  2446,  2457,  2469,  2480,  2490,  2490,  2490,
-    2490,  2491,  2491,  2491,  2491,  2492,  2492,  2492,  2492,  2494,
-    2494,  2495,  2495,  2496,  2496,  2498,  2499,  2522,  2532,  2546,
-    2546,  2548,  2584,  2607,  2643,  2667,  2703,  2740,  2776,  2793,
-    2794,  2806,  2815,  2825,  2836,  2843,  2851,  2859,  2867,  2879,
-    2887,  2890,  2900,  2910,  2921,  2932,  2943,  2954,  2967,  2971,
-    2983,  2990,  2999,  3009,  3011,  3025,  3039,  3053,  3067,  3072,
-    3084,  3084,  3086,  3086,  3087,  3087,  3088,  3088,  3088,  3089,
-    3089,  3090,  3090,  3091,  3091,  3091,  3091,  3091,  3092,  3092,
-    3092,  3093,  3093,  3093,  3094,  3096,  3097,  3098,  3099,  3100,
-    3101,  3102,  3103,  3104,  3105,  3106,  3107,  3108,  3116,  3127,
-    3127,  3127,  3127,  3129,  3143,  3145
+     288,   301,   302,   311,   325,   337,   352,   365,   378,   394,
+     406,   419,   420,   434,   450,   460,   471,   485,   486,   487,
+     499,   514,   522,   545,   552,   563,   575,   590,   608,   620,
+     630,   644,   655,   662,   674,   686,   698,   709,   725,   740,
+     752,   759,   766,   773,   782,   791,   800,   809,   822,   831,
+     844,   856,   872,   881,   894,   895,   896,   909,   924,   935,
+     948,   964,   965,   976,   987,   999,  1010,  1019,  1033,  1058,
+    1070,  1081,  1091,  1106,  1106,  1106,  1106,  1108,  1118,  1137,
+    1150,  1151,  1162,  1182,  1202,  1229,  1249,  1267,  1288,  1294,
+    1304,  1316,  1319,  1335,  1348,  1364,  1377,  1395,  1411,  1429,
+    1445,  1446,  1453,  1479,  1495,  1513,  1514,  1521,  1537,  1557,
+    1580,  1591,  1592,  1599,  1606,  1613,  1615,  1616,  1622,  1629,
+    1648,  1667,  1686,  1707,  1716,  1728,  1735,  1743,  1757,  1765,
+    1774,  1787,  1803,  1811,  1824,  1832,  1847,  1861,  1877,  1888,
+    1906,  1913,  1921,  1935,  1936,  1943,  1957,  1968,  1980,  1990,
+    2002,  2016,  2030,  2045,  2058,  2073,  2107,  2123,  2141,  2153,
+    2169,  2169,  2169,  2171,  2185,  2196,  2208,  2217,  2231,  2242,
+    2254,  2263,  2276,  2277,  2278,  2279,  2282,  2293,  2304,  2312,
+    2316,  2320,  2325,  2339,  2350,  2362,  2373,  2384,  2398,  2409,
+    2421,  2432,  2442,  2456,  2467,  2479,  2490,  2500,  2500,  2500,
+    2500,  2501,  2501,  2501,  2501,  2502,  2502,  2502,  2502,  2504,
+    2504,  2505,  2505,  2506,  2506,  2508,  2509,  2532,  2542,  2556,
+    2556,  2558,  2594,  2617,  2653,  2677,  2713,  2750,  2786,  2803,
+    2804,  2816,  2827,  2839,  2852,  2859,  2867,  2875,  2883,  2895,
+    2903,  2906,  2916,  2926,  2937,  2948,  2959,  2970,  2983,  2987,
+    2999,  3006,  3015,  3025,  3027,  3041,  3055,  3069,  3083,  3088,
+    3100,  3100,  3102,  3102,  3103,  3103,  3104,  3104,  3104,  3105,
+    3105,  3106,  3106,  3107,  3107,  3107,  3107,  3107,  3108,  3108,
+    3108,  3109,  3109,  3109,  3110,  3112,  3113,  3114,  3115,  3116,
+    3117,  3118,  3119,  3120,  3121,  3122,  3123,  3124,  3132,  3143,
+    3143,  3143,  3143,  3145,  3159,  3161
 };
 #endif
 
@@ -3044,8 +3044,10 @@ yyreduce:
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACE);
     csh.AddCSH((yylsp[(3) - (3)]), COLOR_BRACE);
   #else
-    msc.last_inserted_arc = (yyvsp[(3) - (3)].arcbase);
-    if ((yyvsp[(3) - (3)].arcbase)) ((yyvsp[(2) - (3)].arclist))->Append((yyvsp[(3) - (3)].arcbase)); //Append any potential CommandNumbering
+    if ((yyvsp[(3) - (3)].arcbase)) {
+        ((yyvsp[(2) - (3)].arclist))->Append((yyvsp[(3) - (3)].arcbase)); //Append any potential CommandNumbering
+        ((yyvsp[(3) - (3)].arcbase))->MakeMeLastNotable();
+    }
     (yyval.arclist) = (yyvsp[(2) - (3)].arclist);
   #endif
 }
@@ -3054,7 +3056,7 @@ yyreduce:
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 364 "language.yy"
+#line 366 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACE);
@@ -3072,15 +3074,17 @@ yyreduce:
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 377 "language.yy"
+#line 379 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (4)]), COLOR_BRACE);
     csh.AddCSH_Error((yylsp[(3) - (4)]), "Could not recognize this as a valid line.");
     csh.AddCSH((yylsp[(4) - (4)]), COLOR_BRACE);
   #else
-    msc.last_inserted_arc = (yyvsp[(4) - (4)].arcbase);
-    if ((yyvsp[(4) - (4)].arcbase)) ((yyvsp[(2) - (4)].arclist))->Append((yyvsp[(4) - (4)].arcbase)); //Append any potential CommandNumbering
+    if ((yyvsp[(4) - (4)].arcbase)) {
+        ((yyvsp[(2) - (4)].arclist))->Append((yyvsp[(4) - (4)].arcbase)); //Append any potential CommandNumbering
+        ((yyvsp[(4) - (4)].arcbase))->MakeMeLastNotable();
+    }
     (yyval.arclist) = (yyvsp[(2) - (4)].arclist);
     msc.Error.Error(MSC_POS((yylsp[(3) - (4)])).start, "Syntax error.");
   #endif
@@ -3091,7 +3095,7 @@ yyreduce:
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 391 "language.yy"
+#line 395 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACE);
@@ -3108,7 +3112,7 @@ yyreduce:
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 403 "language.yy"
+#line 407 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACE);
@@ -3125,13 +3129,15 @@ yyreduce:
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 417 "language.yy"
+#line 421 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing a semicolon (';').");
   #else
-    msc.last_inserted_arc = (yyvsp[(2) - (2)].arcbase);
-    if ((yyvsp[(2) - (2)].arcbase)) ((yyvsp[(1) - (2)].arclist))->Append((yyvsp[(2) - (2)].arcbase));
+    if ((yyvsp[(2) - (2)].arcbase)) {
+        ((yyvsp[(1) - (2)].arclist))->Append((yyvsp[(2) - (2)].arcbase));
+        ((yyvsp[(2) - (2)].arcbase))->MakeMeLastNotable();
+    }
     (yyval.arclist) = (yyvsp[(1) - (2)].arclist);
     msc.Error.Error(MSC_POS((yylsp[(2) - (2)])).end.NextChar(), "Missing ';'.");
     msc.Error.Error(MSC_POS((yylsp[(2) - (2)])).start, MSC_POS((yylsp[(2) - (2)])).end.NextChar(), "Here is the beginning of the command as I understood it.");
@@ -3142,13 +3148,16 @@ yyreduce:
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 429 "language.yy"
+#line 435 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter((yylsp[(1) - (1)]), "Missing a semicolon (';').");
   #else
-    msc.last_inserted_arc = (yyvsp[(1) - (1)].arcbase);
-    (yyval.arclist) = (new ArcList)->Append((yyvsp[(1) - (1)].arcbase)); /* New list */
+    if ((yyvsp[(1) - (1)].arcbase)) {
+        (yyval.arclist) = (new ArcList)->Append((yyvsp[(1) - (1)].arcbase)); /* New list */
+        ((yyvsp[(1) - (1)].arcbase))->MakeMeLastNotable();
+    } else
+        (yyval.arclist) = new ArcList;
     msc.Error.Error(MSC_POS((yylsp[(1) - (1)])).end.NextChar(), "Missing ';'.");
     msc.Error.Error(MSC_POS((yylsp[(1) - (1)])).start, MSC_POS((yylsp[(1) - (1)])).end.NextChar(), "Here is the beginning of the command as I understood it.");
   #endif
@@ -3158,13 +3167,13 @@ yyreduce:
   case 24:
 
 /* Line 1455 of yacc.c  */
-#line 442 "language.yy"
+#line 451 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = (yyvsp[(1) - (1)].arcbase);
-    if ((yyvsp[(1) - (1)].arcbase))
+    if ((yyvsp[(1) - (1)].arcbase)) {
         (yyval.arclist) = (new ArcList)->Append((yyvsp[(1) - (1)].arcbase)); /* New list */
-    else
+        ((yyvsp[(1) - (1)].arcbase))->MakeMeLastNotable();
+    } else
         (yyval.arclist) = new ArcList;
   #endif
 }
@@ -3173,12 +3182,13 @@ yyreduce:
   case 25:
 
 /* Line 1455 of yacc.c  */
-#line 452 "language.yy"
+#line 461 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = (yyvsp[(2) - (2)].arcbase);
-    if ((yyvsp[(2) - (2)].arcbase))
+    if ((yyvsp[(2) - (2)].arcbase)) {
         ((yyvsp[(1) - (2)].arclist))->Append((yyvsp[(2) - (2)].arcbase));     /* Add to existing list */
+        ((yyvsp[(2) - (2)].arcbase))->MakeMeLastNotable();
+    }
     (yyval.arclist) = ((yyvsp[(1) - (2)].arclist));
   #endif
 }
@@ -3187,7 +3197,7 @@ yyreduce:
   case 26:
 
 /* Line 1455 of yacc.c  */
-#line 462 "language.yy"
+#line 472 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_SEMICOLON);
@@ -3204,7 +3214,7 @@ yyreduce:
   case 29:
 
 /* Line 1455 of yacc.c  */
-#line 478 "language.yy"
+#line 488 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SEMICOLON);
@@ -3221,7 +3231,7 @@ yyreduce:
   case 30:
 
 /* Line 1455 of yacc.c  */
-#line 490 "language.yy"
+#line 500 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(3) - (3)]), COLOR_SEMICOLON);
@@ -3240,7 +3250,7 @@ yyreduce:
   case 31:
 
 /* Line 1455 of yacc.c  */
-#line 505 "language.yy"
+#line 515 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -3253,7 +3263,7 @@ yyreduce:
   case 32:
 
 /* Line 1455 of yacc.c  */
-#line 513 "language.yy"
+#line 523 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3280,7 +3290,7 @@ yyreduce:
   case 33:
 
 /* Line 1455 of yacc.c  */
-#line 536 "language.yy"
+#line 546 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -3292,7 +3302,7 @@ yyreduce:
   case 34:
 
 /* Line 1455 of yacc.c  */
-#line 543 "language.yy"
+#line 553 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
@@ -3308,7 +3318,7 @@ yyreduce:
   case 35:
 
 /* Line 1455 of yacc.c  */
-#line 554 "language.yy"
+#line 564 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3325,7 +3335,7 @@ yyreduce:
   case 36:
 
 /* Line 1455 of yacc.c  */
-#line 566 "language.yy"
+#line 576 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3345,7 +3355,7 @@ yyreduce:
   case 37:
 
 /* Line 1455 of yacc.c  */
-#line 581 "language.yy"
+#line 591 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3368,7 +3378,7 @@ yyreduce:
   case 38:
 
 /* Line 1455 of yacc.c  */
-#line 599 "language.yy"
+#line 609 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3385,7 +3395,7 @@ yyreduce:
   case 39:
 
 /* Line 1455 of yacc.c  */
-#line 611 "language.yy"
+#line 621 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3400,7 +3410,7 @@ yyreduce:
   case 40:
 
 /* Line 1455 of yacc.c  */
-#line 621 "language.yy"
+#line 631 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3419,7 +3429,7 @@ yyreduce:
   case 41:
 
 /* Line 1455 of yacc.c  */
-#line 635 "language.yy"
+#line 645 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(1) - (1)])))
@@ -3435,7 +3445,7 @@ yyreduce:
   case 42:
 
 /* Line 1455 of yacc.c  */
-#line 646 "language.yy"
+#line 656 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -3447,7 +3457,7 @@ yyreduce:
   case 43:
 
 /* Line 1455 of yacc.c  */
-#line 653 "language.yy"
+#line 663 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3464,7 +3474,7 @@ yyreduce:
   case 44:
 
 /* Line 1455 of yacc.c  */
-#line 665 "language.yy"
+#line 675 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3481,7 +3491,7 @@ yyreduce:
   case 45:
 
 /* Line 1455 of yacc.c  */
-#line 677 "language.yy"
+#line 687 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_COMMA);
@@ -3498,7 +3508,7 @@ yyreduce:
   case 46:
 
 /* Line 1455 of yacc.c  */
-#line 689 "language.yy"
+#line 699 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -3514,7 +3524,7 @@ yyreduce:
   case 47:
 
 /* Line 1455 of yacc.c  */
-#line 700 "language.yy"
+#line 710 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3535,7 +3545,7 @@ yyreduce:
   case 48:
 
 /* Line 1455 of yacc.c  */
-#line 716 "language.yy"
+#line 726 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (4)]), COLOR_KEYWORD);
@@ -3555,7 +3565,7 @@ yyreduce:
   case 49:
 
 /* Line 1455 of yacc.c  */
-#line 731 "language.yy"
+#line 741 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -3572,7 +3582,7 @@ yyreduce:
   case 50:
 
 /* Line 1455 of yacc.c  */
-#line 743 "language.yy"
+#line 753 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -3584,7 +3594,7 @@ yyreduce:
   case 51:
 
 /* Line 1455 of yacc.c  */
-#line 750 "language.yy"
+#line 760 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -3596,7 +3606,7 @@ yyreduce:
   case 52:
 
 /* Line 1455 of yacc.c  */
-#line 757 "language.yy"
+#line 767 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -3608,7 +3618,7 @@ yyreduce:
   case 53:
 
 /* Line 1455 of yacc.c  */
-#line 764 "language.yy"
+#line 774 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3622,7 +3632,7 @@ yyreduce:
   case 54:
 
 /* Line 1455 of yacc.c  */
-#line 773 "language.yy"
+#line 783 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3636,7 +3646,7 @@ yyreduce:
   case 55:
 
 /* Line 1455 of yacc.c  */
-#line 782 "language.yy"
+#line 792 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3650,7 +3660,7 @@ yyreduce:
   case 56:
 
 /* Line 1455 of yacc.c  */
-#line 791 "language.yy"
+#line 801 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3664,7 +3674,7 @@ yyreduce:
   case 57:
 
 /* Line 1455 of yacc.c  */
-#line 800 "language.yy"
+#line 810 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3682,7 +3692,7 @@ yyreduce:
   case 58:
 
 /* Line 1455 of yacc.c  */
-#line 813 "language.yy"
+#line 823 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3696,7 +3706,7 @@ yyreduce:
   case 59:
 
 /* Line 1455 of yacc.c  */
-#line 822 "language.yy"
+#line 832 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3714,7 +3724,7 @@ yyreduce:
   case 60:
 
 /* Line 1455 of yacc.c  */
-#line 835 "language.yy"
+#line 845 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3731,7 +3741,7 @@ yyreduce:
   case 61:
 
 /* Line 1455 of yacc.c  */
-#line 847 "language.yy"
+#line 857 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3752,7 +3762,7 @@ yyreduce:
   case 62:
 
 /* Line 1455 of yacc.c  */
-#line 863 "language.yy"
+#line 873 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3766,7 +3776,7 @@ yyreduce:
   case 63:
 
 /* Line 1455 of yacc.c  */
-#line 872 "language.yy"
+#line 882 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3784,7 +3794,7 @@ yyreduce:
   case 66:
 
 /* Line 1455 of yacc.c  */
-#line 887 "language.yy"
+#line 897 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -3802,7 +3812,7 @@ yyreduce:
   case 67:
 
 /* Line 1455 of yacc.c  */
-#line 900 "language.yy"
+#line 910 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3822,7 +3832,7 @@ yyreduce:
   case 68:
 
 /* Line 1455 of yacc.c  */
-#line 915 "language.yy"
+#line 925 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3838,7 +3848,7 @@ yyreduce:
   case 69:
 
 /* Line 1455 of yacc.c  */
-#line 926 "language.yy"
+#line 936 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -3856,7 +3866,7 @@ yyreduce:
   case 70:
 
 /* Line 1455 of yacc.c  */
-#line 939 "language.yy"
+#line 949 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -3876,7 +3886,7 @@ yyreduce:
   case 72:
 
 /* Line 1455 of yacc.c  */
-#line 956 "language.yy"
+#line 966 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_ATTRVALUE);
@@ -3892,7 +3902,7 @@ yyreduce:
   case 73:
 
 /* Line 1455 of yacc.c  */
-#line 967 "language.yy"
+#line 977 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_ATTRVALUE);
@@ -3907,7 +3917,7 @@ yyreduce:
   case 74:
 
 /* Line 1455 of yacc.c  */
-#line 978 "language.yy"
+#line 988 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_EntityName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -3924,7 +3934,7 @@ yyreduce:
   case 75:
 
 /* Line 1455 of yacc.c  */
-#line 990 "language.yy"
+#line 1000 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -3940,7 +3950,7 @@ yyreduce:
   case 76:
 
 /* Line 1455 of yacc.c  */
-#line 1001 "language.yy"
+#line 1011 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -3954,7 +3964,7 @@ yyreduce:
   case 77:
 
 /* Line 1455 of yacc.c  */
-#line 1010 "language.yy"
+#line 1020 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_EntityName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str));
@@ -3973,7 +3983,7 @@ yyreduce:
   case 78:
 
 /* Line 1455 of yacc.c  */
-#line 1024 "language.yy"
+#line 1034 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_EntityName((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
@@ -3988,7 +3998,7 @@ yyreduce:
   case 79:
 
 /* Line 1455 of yacc.c  */
-#line 1049 "language.yy"
+#line 1059 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_MARKERNAME);
@@ -4005,7 +4015,7 @@ yyreduce:
   case 80:
 
 /* Line 1455 of yacc.c  */
-#line 1061 "language.yy"
+#line 1071 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -4021,7 +4031,7 @@ yyreduce:
   case 81:
 
 /* Line 1455 of yacc.c  */
-#line 1072 "language.yy"
+#line 1082 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -4036,7 +4046,7 @@ yyreduce:
   case 82:
 
 /* Line 1455 of yacc.c  */
-#line 1082 "language.yy"
+#line 1092 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_MARKERNAME);
@@ -4055,13 +4065,13 @@ yyreduce:
   case 87:
 
 /* Line 1455 of yacc.c  */
-#line 1099 "language.yy"
+#line 1109 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
-    msc.last_inserted_arc = (yyvsp[(1) - (1)].arcbase);
-    if ((yyvsp[(1) - (1)].arcbase))
+    if ((yyvsp[(1) - (1)].arcbase)) {
         (yyval.arclist) = (new ArcList)->Append((yyvsp[(1) - (1)].arcbase)); /* New list */
-    else
+        ((yyvsp[(1) - (1)].arcbase))->MakeMeLastNotable();
+    } else
         (yyval.arclist) = NULL;
   #endif
 }
@@ -4070,7 +4080,7 @@ yyreduce:
   case 88:
 
 /* Line 1455 of yacc.c  */
-#line 1109 "language.yy"
+#line 1119 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -4079,12 +4089,12 @@ yyreduce:
         csh.hintStatus = HINT_READY;
     }
   #else
-    msc.last_inserted_arc = (yyvsp[(3) - (3)].arcbase);
     if ((yyvsp[(3) - (3)].arcbase)) {
         if ((yyvsp[(1) - (3)].arclist))
             (yyval.arclist) = ((yyvsp[(1) - (3)].arclist))->Append((yyvsp[(3) - (3)].arcbase));     /* Add to existing list */
         else
             (yyval.arclist) = (new ArcList)->Append((yyvsp[(3) - (3)].arcbase)); /* New list */
+        ((yyvsp[(3) - (3)].arcbase))->MakeMeLastNotable();
     } else
         (yyval.arclist) = (yyvsp[(1) - (3)].arclist);
   #endif
@@ -4094,7 +4104,7 @@ yyreduce:
   case 89:
 
 /* Line 1455 of yacc.c  */
-#line 1128 "language.yy"
+#line 1138 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_COMMA);
@@ -4112,7 +4122,7 @@ yyreduce:
   case 91:
 
 /* Line 1455 of yacc.c  */
-#line 1142 "language.yy"
+#line 1152 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -4126,7 +4136,7 @@ yyreduce:
   case 92:
 
 /* Line 1455 of yacc.c  */
-#line 1153 "language.yy"
+#line 1163 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -4151,7 +4161,7 @@ yyreduce:
   case 93:
 
 /* Line 1455 of yacc.c  */
-#line 1173 "language.yy"
+#line 1183 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -4176,7 +4186,7 @@ yyreduce:
   case 94:
 
 /* Line 1455 of yacc.c  */
-#line 1193 "language.yy"
+#line 1203 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -4208,7 +4218,7 @@ yyreduce:
   case 95:
 
 /* Line 1455 of yacc.c  */
-#line 1220 "language.yy"
+#line 1230 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str), COLOR_OPTIONNAME);
@@ -4233,7 +4243,7 @@ yyreduce:
   case 96:
 
 /* Line 1455 of yacc.c  */
-#line 1240 "language.yy"
+#line 1250 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -4256,7 +4266,7 @@ yyreduce:
   case 97:
 
 /* Line 1455 of yacc.c  */
-#line 1258 "language.yy"
+#line 1268 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -4281,7 +4291,7 @@ yyreduce:
   case 98:
 
 /* Line 1455 of yacc.c  */
-#line 1279 "language.yy"
+#line 1289 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     (yyval.entitylist) = (EntityDefList*)((yyvsp[(1) - (1)].entitylist));
@@ -4292,7 +4302,7 @@ yyreduce:
   case 99:
 
 /* Line 1455 of yacc.c  */
-#line 1285 "language.yy"
+#line 1295 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -4307,7 +4317,7 @@ yyreduce:
   case 100:
 
 /* Line 1455 of yacc.c  */
-#line 1295 "language.yy"
+#line 1305 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_COMMA);
@@ -4322,7 +4332,7 @@ yyreduce:
   case 102:
 
 /* Line 1455 of yacc.c  */
-#line 1310 "language.yy"
+#line 1320 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
@@ -4343,7 +4353,7 @@ yyreduce:
   case 103:
 
 /* Line 1455 of yacc.c  */
-#line 1326 "language.yy"
+#line 1336 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (1)]));
@@ -4361,7 +4371,7 @@ yyreduce:
   case 104:
 
 /* Line 1455 of yacc.c  */
-#line 1339 "language.yy"
+#line 1349 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (3)]));
@@ -4382,7 +4392,7 @@ yyreduce:
   case 105:
 
 /* Line 1455 of yacc.c  */
-#line 1355 "language.yy"
+#line 1365 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
@@ -4399,7 +4409,7 @@ yyreduce:
   case 106:
 
 /* Line 1455 of yacc.c  */
-#line 1368 "language.yy"
+#line 1378 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintAt((yylsp[(1) - (2)]), HINT_LINE_START)) {
@@ -4422,7 +4432,7 @@ yyreduce:
   case 107:
 
 /* Line 1455 of yacc.c  */
-#line 1386 "language.yy"
+#line 1396 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   	if (csh.CheckHintAt((yylsp[(1) - (1)]), HINT_LINE_START)) {
@@ -4443,7 +4453,7 @@ yyreduce:
   case 108:
 
 /* Line 1455 of yacc.c  */
-#line 1402 "language.yy"
+#line 1412 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintAt((yylsp[(1) - (3)]), HINT_LINE_START)) {
@@ -4466,7 +4476,7 @@ yyreduce:
   case 109:
 
 /* Line 1455 of yacc.c  */
-#line 1420 "language.yy"
+#line 1430 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   	if (csh.CheckHintAt((yylsp[(1) - (2)]), HINT_LINE_START)) {
@@ -4486,7 +4496,7 @@ yyreduce:
   case 111:
 
 /* Line 1455 of yacc.c  */
-#line 1437 "language.yy"
+#line 1447 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -4497,7 +4507,7 @@ yyreduce:
   case 112:
 
 /* Line 1455 of yacc.c  */
-#line 1444 "language.yy"
+#line 1454 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     for (std::list<std::string>::iterator i = ((yyvsp[(1) - (2)].stringlist))->begin(); i!=((yyvsp[(1) - (2)].stringlist))->end(); i++)
@@ -4527,7 +4537,7 @@ yyreduce:
   case 113:
 
 /* Line 1455 of yacc.c  */
-#line 1470 "language.yy"
+#line 1480 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (1)]), COLOR_STYLENAME);
@@ -4548,7 +4558,7 @@ yyreduce:
   case 114:
 
 /* Line 1455 of yacc.c  */
-#line 1486 "language.yy"
+#line 1496 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -4570,7 +4580,7 @@ yyreduce:
   case 116:
 
 /* Line 1455 of yacc.c  */
-#line 1505 "language.yy"
+#line 1515 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -4581,7 +4591,7 @@ yyreduce:
   case 117:
 
 /* Line 1455 of yacc.c  */
-#line 1512 "language.yy"
+#line 1522 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_COLORNAME);
@@ -4601,7 +4611,7 @@ yyreduce:
   case 118:
 
 /* Line 1455 of yacc.c  */
-#line 1528 "language.yy"
+#line 1538 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (5)]), COLOR_DESIGNNAME);
@@ -4626,7 +4636,7 @@ yyreduce:
   case 119:
 
 /* Line 1455 of yacc.c  */
-#line 1548 "language.yy"
+#line 1558 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (6)]), COLOR_DESIGNNAME);
@@ -4652,7 +4662,7 @@ yyreduce:
   case 120:
 
 /* Line 1455 of yacc.c  */
-#line 1571 "language.yy"
+#line 1581 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.PushContext(true);
@@ -4667,7 +4677,7 @@ yyreduce:
   case 122:
 
 /* Line 1455 of yacc.c  */
-#line 1583 "language.yy"
+#line 1593 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_SEMICOLON);
@@ -4678,7 +4688,7 @@ yyreduce:
   case 123:
 
 /* Line 1455 of yacc.c  */
-#line 1590 "language.yy"
+#line 1600 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -4690,7 +4700,7 @@ yyreduce:
   case 124:
 
 /* Line 1455 of yacc.c  */
-#line 1597 "language.yy"
+#line 1607 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -4702,7 +4712,7 @@ yyreduce:
   case 127:
 
 /* Line 1455 of yacc.c  */
-#line 1607 "language.yy"
+#line 1617 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -4713,7 +4723,7 @@ yyreduce:
   case 128:
 
 /* Line 1455 of yacc.c  */
-#line 1613 "language.yy"
+#line 1623 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_Error((yylsp[(2) - (2)]), "Extra stuff after design options. Maybe missing a comma?");
@@ -4724,7 +4734,7 @@ yyreduce:
   case 129:
 
 /* Line 1455 of yacc.c  */
-#line 1620 "language.yy"
+#line 1630 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -4748,7 +4758,7 @@ yyreduce:
   case 130:
 
 /* Line 1455 of yacc.c  */
-#line 1639 "language.yy"
+#line 1649 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -4772,7 +4782,7 @@ yyreduce:
   case 131:
 
 /* Line 1455 of yacc.c  */
-#line 1658 "language.yy"
+#line 1668 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_OPTIONNAME);
@@ -4796,7 +4806,7 @@ yyreduce:
   case 132:
 
 /* Line 1455 of yacc.c  */
-#line 1677 "language.yy"
+#line 1687 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -4820,7 +4830,7 @@ yyreduce:
   case 133:
 
 /* Line 1455 of yacc.c  */
-#line 1698 "language.yy"
+#line 1708 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     if ((yyvsp[(1) - (1)].arclist))
@@ -4834,7 +4844,7 @@ yyreduce:
   case 134:
 
 /* Line 1455 of yacc.c  */
-#line 1707 "language.yy"
+#line 1717 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     if ((yyvsp[(2) - (2)].arclist)==NULL)
@@ -4850,7 +4860,7 @@ yyreduce:
   case 135:
 
 /* Line 1455 of yacc.c  */
-#line 1719 "language.yy"
+#line 1729 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     (yyval.arcboxseries) = new ArcBoxSeries((yyvsp[(1) - (1)].arcbox));
@@ -4861,7 +4871,7 @@ yyreduce:
   case 136:
 
 /* Line 1455 of yacc.c  */
-#line 1726 "language.yy"
+#line 1736 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     ((yyvsp[(2) - (2)].arcbox))->SetLineEnd(MSC_POS((yylsp[(2) - (2)])));
@@ -4874,7 +4884,7 @@ yyreduce:
   case 137:
 
 /* Line 1455 of yacc.c  */
-#line 1734 "language.yy"
+#line 1744 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(3) - (3)])))
@@ -4893,7 +4903,7 @@ yyreduce:
   case 138:
 
 /* Line 1455 of yacc.c  */
-#line 1748 "language.yy"
+#line 1758 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     ((yyvsp[(2) - (3)].arcbox))->AddArcList((yyvsp[(3) - (3)].arclist))->SetLineEnd(MSC_POS((yylsp[(2) - (3)])));
@@ -4906,7 +4916,7 @@ yyreduce:
   case 139:
 
 /* Line 1455 of yacc.c  */
-#line 1756 "language.yy"
+#line 1766 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     ArcBox *temp = new ArcBox(MSC_EMPH_UNDETERMINED_FOLLOW, NULL, MSC_POS((yylsp[(1) - (2)])), NULL, MSC_POS((yylsp[(1) - (2)])), &msc);
@@ -4920,7 +4930,7 @@ yyreduce:
   case 140:
 
 /* Line 1455 of yacc.c  */
-#line 1765 "language.yy"
+#line 1775 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (4)])))
@@ -4938,7 +4948,7 @@ yyreduce:
   case 141:
 
 /* Line 1455 of yacc.c  */
-#line 1778 "language.yy"
+#line 1788 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
@@ -4957,7 +4967,7 @@ yyreduce:
   case 142:
 
 /* Line 1455 of yacc.c  */
-#line 1794 "language.yy"
+#line 1804 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     ((yyvsp[(1) - (1)].arcbox))->AddAttributeList(NULL);
@@ -4970,7 +4980,7 @@ yyreduce:
   case 143:
 
 /* Line 1455 of yacc.c  */
-#line 1802 "language.yy"
+#line 1812 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
@@ -4988,7 +4998,7 @@ yyreduce:
   case 144:
 
 /* Line 1455 of yacc.c  */
-#line 1815 "language.yy"
+#line 1825 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     ((yyvsp[(1) - (2)].arcbox))->AddAttributeList(NULL);
@@ -5001,7 +5011,7 @@ yyreduce:
   case 145:
 
 /* Line 1455 of yacc.c  */
-#line 1823 "language.yy"
+#line 1833 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (3)])))
@@ -5019,7 +5029,7 @@ yyreduce:
   case 146:
 
 /* Line 1455 of yacc.c  */
-#line 1838 "language.yy"
+#line 1848 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -5038,7 +5048,7 @@ yyreduce:
   case 147:
 
 /* Line 1455 of yacc.c  */
-#line 1852 "language.yy"
+#line 1862 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -5059,7 +5069,7 @@ yyreduce:
   case 148:
 
 /* Line 1455 of yacc.c  */
-#line 1868 "language.yy"
+#line 1878 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -5075,7 +5085,7 @@ yyreduce:
   case 149:
 
 /* Line 1455 of yacc.c  */
-#line 1879 "language.yy"
+#line 1889 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -5097,7 +5107,7 @@ yyreduce:
   case 150:
 
 /* Line 1455 of yacc.c  */
-#line 1897 "language.yy"
+#line 1907 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -5109,7 +5119,7 @@ yyreduce:
   case 151:
 
 /* Line 1455 of yacc.c  */
-#line 1904 "language.yy"
+#line 1914 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     ArcPipe *ap = new ArcPipe((yyvsp[(2) - (2)].arcbox));
@@ -5122,7 +5132,7 @@ yyreduce:
   case 152:
 
 /* Line 1455 of yacc.c  */
-#line 1912 "language.yy"
+#line 1922 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(3) - (3)])))
@@ -5140,7 +5150,7 @@ yyreduce:
   case 154:
 
 /* Line 1455 of yacc.c  */
-#line 1927 "language.yy"
+#line 1937 "language.yy"
     {
   #ifndef C_S_H_IS_COMPILED
     (yyval.arcpipeseries) = ((yyvsp[(1) - (2)].arcpipeseries))->AddArcList((yyvsp[(2) - (2)].arclist));
@@ -5151,7 +5161,7 @@ yyreduce:
   case 155:
 
 /* Line 1455 of yacc.c  */
-#line 1934 "language.yy"
+#line 1944 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (3)]));
@@ -5170,7 +5180,7 @@ yyreduce:
   case 156:
 
 /* Line 1455 of yacc.c  */
-#line 1948 "language.yy"
+#line 1958 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -5186,7 +5196,7 @@ yyreduce:
   case 157:
 
 /* Line 1455 of yacc.c  */
-#line 1959 "language.yy"
+#line 1969 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
@@ -5203,7 +5213,7 @@ yyreduce:
   case 158:
 
 /* Line 1455 of yacc.c  */
-#line 1971 "language.yy"
+#line 1981 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -5217,7 +5227,7 @@ yyreduce:
   case 159:
 
 /* Line 1455 of yacc.c  */
-#line 1981 "language.yy"
+#line 1991 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -5234,7 +5244,7 @@ yyreduce:
   case 160:
 
 /* Line 1455 of yacc.c  */
-#line 1993 "language.yy"
+#line 2003 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -5253,7 +5263,7 @@ yyreduce:
   case 161:
 
 /* Line 1455 of yacc.c  */
-#line 2007 "language.yy"
+#line 2017 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -5272,7 +5282,7 @@ yyreduce:
   case 162:
 
 /* Line 1455 of yacc.c  */
-#line 2021 "language.yy"
+#line 2031 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (4)]), COLOR_KEYWORD);
@@ -5292,7 +5302,7 @@ yyreduce:
   case 163:
 
 /* Line 1455 of yacc.c  */
-#line 2036 "language.yy"
+#line 2046 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -5310,7 +5320,7 @@ yyreduce:
   case 164:
 
 /* Line 1455 of yacc.c  */
-#line 2049 "language.yy"
+#line 2059 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (4)]), COLOR_KEYWORD);
@@ -5330,7 +5340,7 @@ yyreduce:
   case 165:
 
 /* Line 1455 of yacc.c  */
-#line 2064 "language.yy"
+#line 2074 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -5369,7 +5379,7 @@ yyreduce:
   case 166:
 
 /* Line 1455 of yacc.c  */
-#line 2098 "language.yy"
+#line 2108 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (4)]), COLOR_KEYWORD);
@@ -5390,7 +5400,7 @@ yyreduce:
   case 167:
 
 /* Line 1455 of yacc.c  */
-#line 2114 "language.yy"
+#line 2124 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (5)]), COLOR_KEYWORD);
@@ -5413,7 +5423,7 @@ yyreduce:
   case 168:
 
 /* Line 1455 of yacc.c  */
-#line 2132 "language.yy"
+#line 2142 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -5430,7 +5440,7 @@ yyreduce:
   case 169:
 
 /* Line 1455 of yacc.c  */
-#line 2144 "language.yy"
+#line 2154 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (CaseInsensitiveBeginsWith("at", (yyvsp[(1) - (1)].str)) && csh.cursor_pos == ((yylsp[(1) - (1)])).last_pos)
@@ -5449,7 +5459,7 @@ yyreduce:
   case 173:
 
 /* Line 1455 of yacc.c  */
-#line 2162 "language.yy"
+#line 2172 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_MARKERNAME);
@@ -5468,7 +5478,7 @@ yyreduce:
   case 174:
 
 /* Line 1455 of yacc.c  */
-#line 2176 "language.yy"
+#line 2186 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -5484,7 +5494,7 @@ yyreduce:
   case 175:
 
 /* Line 1455 of yacc.c  */
-#line 2187 "language.yy"
+#line 2197 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_MARKERNAME);
@@ -5501,7 +5511,7 @@ yyreduce:
   case 176:
 
 /* Line 1455 of yacc.c  */
-#line 2199 "language.yy"
+#line 2209 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -5515,7 +5525,7 @@ yyreduce:
   case 177:
 
 /* Line 1455 of yacc.c  */
-#line 2208 "language.yy"
+#line 2218 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_MARKERNAME);
@@ -5534,7 +5544,7 @@ yyreduce:
   case 178:
 
 /* Line 1455 of yacc.c  */
-#line 2222 "language.yy"
+#line 2232 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -5550,7 +5560,7 @@ yyreduce:
   case 179:
 
 /* Line 1455 of yacc.c  */
-#line 2233 "language.yy"
+#line 2243 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_MARKERNAME);
@@ -5567,7 +5577,7 @@ yyreduce:
   case 180:
 
 /* Line 1455 of yacc.c  */
-#line 2245 "language.yy"
+#line 2255 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -5581,7 +5591,7 @@ yyreduce:
   case 181:
 
 /* Line 1455 of yacc.c  */
-#line 2254 "language.yy"
+#line 2264 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_MARKERNAME);
@@ -5598,35 +5608,35 @@ yyreduce:
   case 182:
 
 /* Line 1455 of yacc.c  */
-#line 2266 "language.yy"
+#line 2276 "language.yy"
     {free((yyvsp[(2) - (3)].str)); (yyval.arcvertarrow)=NULL;}
     break;
 
   case 183:
 
 /* Line 1455 of yacc.c  */
-#line 2267 "language.yy"
+#line 2277 "language.yy"
     {free((yyvsp[(1) - (4)].str)); free((yyvsp[(3) - (4)].str)); (yyval.arcvertarrow)=NULL;}
     break;
 
   case 184:
 
 /* Line 1455 of yacc.c  */
-#line 2268 "language.yy"
+#line 2278 "language.yy"
     {free((yyvsp[(2) - (3)].str)); (yyval.arcvertarrow)=NULL;}
     break;
 
   case 185:
 
 /* Line 1455 of yacc.c  */
-#line 2269 "language.yy"
+#line 2279 "language.yy"
     {free((yyvsp[(1) - (4)].str)); free((yyvsp[(3) - (4)].str)); (yyval.arcvertarrow)=NULL;}
     break;
 
   case 186:
 
 /* Line 1455 of yacc.c  */
-#line 2273 "language.yy"
+#line 2283 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -5642,7 +5652,7 @@ yyreduce:
   case 187:
 
 /* Line 1455 of yacc.c  */
-#line 2284 "language.yy"
+#line 2294 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter((yylsp[(1) - (1)]), "Missing the 'at' keyword.");
@@ -5657,7 +5667,7 @@ yyreduce:
   case 188:
 
 /* Line 1455 of yacc.c  */
-#line 2295 "language.yy"
+#line 2305 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_SYMBOL);
@@ -5670,7 +5680,7 @@ yyreduce:
   case 189:
 
 /* Line 1455 of yacc.c  */
-#line 2303 "language.yy"
+#line 2313 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
@@ -5679,7 +5689,7 @@ yyreduce:
   case 190:
 
 /* Line 1455 of yacc.c  */
-#line 2307 "language.yy"
+#line 2317 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
@@ -5688,7 +5698,7 @@ yyreduce:
   case 191:
 
 /* Line 1455 of yacc.c  */
-#line 2311 "language.yy"
+#line 2321 "language.yy"
     {
     (yyval.arcbase) = (yyvsp[(1) - (1)].arcarrow);
 }
@@ -5697,7 +5707,7 @@ yyreduce:
   case 192:
 
 /* Line 1455 of yacc.c  */
-#line 2316 "language.yy"
+#line 2326 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (3)]));
@@ -5716,7 +5726,7 @@ yyreduce:
   case 193:
 
 /* Line 1455 of yacc.c  */
-#line 2330 "language.yy"
+#line 2340 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -5732,7 +5742,7 @@ yyreduce:
   case 194:
 
 /* Line 1455 of yacc.c  */
-#line 2341 "language.yy"
+#line 2351 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
@@ -5749,7 +5759,7 @@ yyreduce:
   case 195:
 
 /* Line 1455 of yacc.c  */
-#line 2353 "language.yy"
+#line 2363 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_SYMBOL);
@@ -5765,7 +5775,7 @@ yyreduce:
   case 196:
 
 /* Line 1455 of yacc.c  */
-#line 2364 "language.yy"
+#line 2374 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
@@ -5779,7 +5789,7 @@ yyreduce:
   case 197:
 
 /* Line 1455 of yacc.c  */
-#line 2375 "language.yy"
+#line 2385 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (3)]));
@@ -5798,7 +5808,7 @@ yyreduce:
   case 198:
 
 /* Line 1455 of yacc.c  */
-#line 2389 "language.yy"
+#line 2399 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -5814,7 +5824,7 @@ yyreduce:
   case 199:
 
 /* Line 1455 of yacc.c  */
-#line 2400 "language.yy"
+#line 2410 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
@@ -5831,7 +5841,7 @@ yyreduce:
   case 200:
 
 /* Line 1455 of yacc.c  */
-#line 2412 "language.yy"
+#line 2422 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_SYMBOL);
@@ -5847,7 +5857,7 @@ yyreduce:
   case 201:
 
 /* Line 1455 of yacc.c  */
-#line 2423 "language.yy"
+#line 2433 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
@@ -5861,7 +5871,7 @@ yyreduce:
   case 202:
 
 /* Line 1455 of yacc.c  */
-#line 2433 "language.yy"
+#line 2443 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (3)]));
@@ -5880,7 +5890,7 @@ yyreduce:
   case 203:
 
 /* Line 1455 of yacc.c  */
-#line 2447 "language.yy"
+#line 2457 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_SYMBOL);
@@ -5896,7 +5906,7 @@ yyreduce:
   case 204:
 
 /* Line 1455 of yacc.c  */
-#line 2458 "language.yy"
+#line 2468 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.CheckEntityHintAt((yylsp[(1) - (2)]));
@@ -5913,7 +5923,7 @@ yyreduce:
   case 205:
 
 /* Line 1455 of yacc.c  */
-#line 2470 "language.yy"
+#line 2480 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_SYMBOL);
@@ -5929,7 +5939,7 @@ yyreduce:
   case 206:
 
 /* Line 1455 of yacc.c  */
-#line 2481 "language.yy"
+#line 2491 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
@@ -5943,28 +5953,28 @@ yyreduce:
   case 220:
 
 /* Line 1455 of yacc.c  */
-#line 2494 "language.yy"
+#line 2504 "language.yy"
     {(yyval.arctype)=MSC_ARC_UNDETERMINED_SEGMENT;}
     break;
 
   case 222:
 
 /* Line 1455 of yacc.c  */
-#line 2495 "language.yy"
+#line 2505 "language.yy"
     {(yyval.arctype)=MSC_ARC_UNDETERMINED_SEGMENT;}
     break;
 
   case 224:
 
 /* Line 1455 of yacc.c  */
-#line 2496 "language.yy"
+#line 2506 "language.yy"
     {(yyval.arctype)=MSC_ARC_UNDETERMINED_SEGMENT;}
     break;
 
   case 226:
 
 /* Line 1455 of yacc.c  */
-#line 2500 "language.yy"
+#line 2510 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ExtvxposDesignatorName((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
@@ -5991,7 +6001,7 @@ yyreduce:
   case 227:
 
 /* Line 1455 of yacc.c  */
-#line 2523 "language.yy"
+#line 2533 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ExtvxposDesignatorName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str));
@@ -6006,7 +6016,7 @@ yyreduce:
   case 228:
 
 /* Line 1455 of yacc.c  */
-#line 2533 "language.yy"
+#line 2543 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ExtvxposDesignatorName((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
@@ -6024,7 +6034,7 @@ yyreduce:
   case 231:
 
 /* Line 1455 of yacc.c  */
-#line 2549 "language.yy"
+#line 2559 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (4)]), COLOR_KEYWORD);
@@ -6065,7 +6075,7 @@ yyreduce:
   case 232:
 
 /* Line 1455 of yacc.c  */
-#line 2585 "language.yy"
+#line 2595 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (5)]), COLOR_KEYWORD);
@@ -6093,7 +6103,7 @@ yyreduce:
   case 233:
 
 /* Line 1455 of yacc.c  */
-#line 2608 "language.yy"
+#line 2618 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -6134,7 +6144,7 @@ yyreduce:
   case 234:
 
 /* Line 1455 of yacc.c  */
-#line 2644 "language.yy"
+#line 2654 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (4)]), COLOR_KEYWORD);
@@ -6163,7 +6173,7 @@ yyreduce:
   case 235:
 
 /* Line 1455 of yacc.c  */
-#line 2668 "language.yy"
+#line 2678 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -6204,7 +6214,7 @@ yyreduce:
   case 236:
 
 /* Line 1455 of yacc.c  */
-#line 2704 "language.yy"
+#line 2714 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
@@ -6246,7 +6256,7 @@ yyreduce:
   case 237:
 
 /* Line 1455 of yacc.c  */
-#line 2741 "language.yy"
+#line 2751 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
@@ -6287,7 +6297,7 @@ yyreduce:
   case 238:
 
 /* Line 1455 of yacc.c  */
-#line 2777 "language.yy"
+#line 2787 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
@@ -6308,7 +6318,7 @@ yyreduce:
   case 240:
 
 /* Line 1455 of yacc.c  */
-#line 2795 "language.yy"
+#line 2805 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, (yylsp[(2) - (2)])))
@@ -6324,12 +6334,14 @@ yyreduce:
   case 241:
 
 /* Line 1455 of yacc.c  */
-#line 2807 "language.yy"
+#line 2817 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
   #else
-    (yyval.arcbase) = new CommandNote(&msc, MSC_POS((yyloc)), (yyvsp[(2) - (3)].extvertxpos), (yyvsp[(3) - (3)].attriblist));
+    ArcBase *a = new CommandNote(&msc, (yyvsp[(2) - (3)].extvertxpos), (yyvsp[(3) - (3)].attriblist)); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    (yyval.arcbase) = NULL; //no need to add to arclist
   #endif
     free((yyvsp[(1) - (3)].str));
 }
@@ -6338,13 +6350,15 @@ yyreduce:
   case 242:
 
 /* Line 1455 of yacc.c  */
-#line 2816 "language.yy"
+#line 2828 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_KEYWORD);
   #else
-    ExtVertXPos extvertxpos((yyvsp[(2) - (3)].vertxpos));
-    (yyval.arcbase) = new CommandNote(&msc, MSC_POS((yyloc)), &extvertxpos, (yyvsp[(3) - (3)].attriblist));
+    const ExtVertXPos extvertxpos((yyvsp[(2) - (3)].vertxpos));
+    ArcBase *a = new CommandNote(&msc, &extvertxpos, (yyvsp[(3) - (3)].attriblist)); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    (yyval.arcbase) = NULL; //no need to add to arclist
   #endif
     free((yyvsp[(1) - (3)].str));
 }
@@ -6353,12 +6367,14 @@ yyreduce:
   case 243:
 
 /* Line 1455 of yacc.c  */
-#line 2826 "language.yy"
+#line 2840 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
   #else
-    (yyval.arcbase) = new CommandNote(&msc, MSC_POS((yyloc)), NULL, (yyvsp[(2) - (2)].attriblist));
+    ArcBase *a = new CommandNote(&msc, NULL, (yyvsp[(2) - (2)].attriblist)); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    (yyval.arcbase) = NULL; //no need to add to arclist
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -6367,7 +6383,7 @@ yyreduce:
   case 244:
 
 /* Line 1455 of yacc.c  */
-#line 2837 "language.yy"
+#line 2853 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_ColonString((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str), false);
@@ -6379,7 +6395,7 @@ yyreduce:
   case 245:
 
 /* Line 1455 of yacc.c  */
-#line 2844 "language.yy"
+#line 2860 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_ColonString((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str), true);
@@ -6391,7 +6407,7 @@ yyreduce:
   case 246:
 
 /* Line 1455 of yacc.c  */
-#line 2852 "language.yy"
+#line 2868 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -6404,7 +6420,7 @@ yyreduce:
   case 247:
 
 /* Line 1455 of yacc.c  */
-#line 2860 "language.yy"
+#line 2876 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -6417,7 +6433,7 @@ yyreduce:
   case 248:
 
 /* Line 1455 of yacc.c  */
-#line 2868 "language.yy"
+#line 2884 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -6434,7 +6450,7 @@ yyreduce:
   case 249:
 
 /* Line 1455 of yacc.c  */
-#line 2880 "language.yy"
+#line 2896 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -6447,7 +6463,7 @@ yyreduce:
   case 251:
 
 /* Line 1455 of yacc.c  */
-#line 2891 "language.yy"
+#line 2907 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACKET);
@@ -6462,7 +6478,7 @@ yyreduce:
   case 252:
 
 /* Line 1455 of yacc.c  */
-#line 2901 "language.yy"
+#line 2917 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
@@ -6477,7 +6493,7 @@ yyreduce:
   case 253:
 
 /* Line 1455 of yacc.c  */
-#line 2911 "language.yy"
+#line 2927 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (4)]), COLOR_BRACKET);
@@ -6493,7 +6509,7 @@ yyreduce:
   case 254:
 
 /* Line 1455 of yacc.c  */
-#line 2922 "language.yy"
+#line 2938 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
@@ -6509,7 +6525,7 @@ yyreduce:
   case 255:
 
 /* Line 1455 of yacc.c  */
-#line 2933 "language.yy"
+#line 2949 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACKET);
@@ -6525,7 +6541,7 @@ yyreduce:
   case 256:
 
 /* Line 1455 of yacc.c  */
-#line 2944 "language.yy"
+#line 2960 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (3)]), COLOR_BRACKET);
@@ -6541,7 +6557,7 @@ yyreduce:
   case 257:
 
 /* Line 1455 of yacc.c  */
-#line 2955 "language.yy"
+#line 2971 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (1)]), COLOR_BRACKET);
@@ -6557,7 +6573,7 @@ yyreduce:
   case 258:
 
 /* Line 1455 of yacc.c  */
-#line 2968 "language.yy"
+#line 2984 "language.yy"
     {
     (yyval.attriblist) = NULL;
 }
@@ -6566,7 +6582,7 @@ yyreduce:
   case 259:
 
 /* Line 1455 of yacc.c  */
-#line 2972 "language.yy"
+#line 2988 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (2)]), COLOR_BRACKET);
@@ -6582,7 +6598,7 @@ yyreduce:
   case 260:
 
 /* Line 1455 of yacc.c  */
-#line 2984 "language.yy"
+#line 3000 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
   #else
@@ -6594,7 +6610,7 @@ yyreduce:
   case 261:
 
 /* Line 1455 of yacc.c  */
-#line 2991 "language.yy"
+#line 3007 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
@@ -6608,7 +6624,7 @@ yyreduce:
   case 262:
 
 /* Line 1455 of yacc.c  */
-#line 3000 "language.yy"
+#line 3016 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_COMMA);
@@ -6623,7 +6639,7 @@ yyreduce:
   case 264:
 
 /* Line 1455 of yacc.c  */
-#line 3012 "language.yy"
+#line 3028 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_ATTRNAME);
@@ -6642,7 +6658,7 @@ yyreduce:
   case 265:
 
 /* Line 1455 of yacc.c  */
-#line 3026 "language.yy"
+#line 3042 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_ATTRNAME);
@@ -6661,7 +6677,7 @@ yyreduce:
   case 266:
 
 /* Line 1455 of yacc.c  */
-#line 3040 "language.yy"
+#line 3056 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName((yylsp[(1) - (3)]), (yyvsp[(1) - (3)].str), COLOR_ATTRNAME);
@@ -6680,7 +6696,7 @@ yyreduce:
   case 267:
 
 /* Line 1455 of yacc.c  */
-#line 3054 "language.yy"
+#line 3070 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_AttrName((yylsp[(1) - (2)]), (yyvsp[(1) - (2)].str), COLOR_ATTRNAME);
@@ -6697,7 +6713,7 @@ yyreduce:
   case 268:
 
 /* Line 1455 of yacc.c  */
-#line 3068 "language.yy"
+#line 3084 "language.yy"
     {
     (yyval.attrib) = NULL;
     free((yyvsp[(1) - (3)].str));
@@ -6707,7 +6723,7 @@ yyreduce:
   case 269:
 
 /* Line 1455 of yacc.c  */
-#line 3073 "language.yy"
+#line 3089 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH_StyleOrAttrName((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
@@ -6722,91 +6738,91 @@ yyreduce:
   case 295:
 
 /* Line 1455 of yacc.c  */
-#line 3096 "language.yy"
+#line 3112 "language.yy"
     {(yyval.str) = strdup("->");}
     break;
 
   case 296:
 
 /* Line 1455 of yacc.c  */
-#line 3097 "language.yy"
+#line 3113 "language.yy"
     {(yyval.str) = strdup("<-");}
     break;
 
   case 297:
 
 /* Line 1455 of yacc.c  */
-#line 3098 "language.yy"
+#line 3114 "language.yy"
     {(yyval.str) = strdup("<->");}
     break;
 
   case 298:
 
 /* Line 1455 of yacc.c  */
-#line 3099 "language.yy"
+#line 3115 "language.yy"
     {(yyval.str) = strdup("=>");}
     break;
 
   case 299:
 
 /* Line 1455 of yacc.c  */
-#line 3100 "language.yy"
+#line 3116 "language.yy"
     {(yyval.str) = strdup("<=");}
     break;
 
   case 300:
 
 /* Line 1455 of yacc.c  */
-#line 3101 "language.yy"
+#line 3117 "language.yy"
     {(yyval.str) = strdup("<=>");}
     break;
 
   case 301:
 
 /* Line 1455 of yacc.c  */
-#line 3102 "language.yy"
+#line 3118 "language.yy"
     {(yyval.str) = strdup(">>");}
     break;
 
   case 302:
 
 /* Line 1455 of yacc.c  */
-#line 3103 "language.yy"
+#line 3119 "language.yy"
     {(yyval.str) = strdup("<<");}
     break;
 
   case 303:
 
 /* Line 1455 of yacc.c  */
-#line 3104 "language.yy"
+#line 3120 "language.yy"
     {(yyval.str) = strdup("<<>>");}
     break;
 
   case 304:
 
 /* Line 1455 of yacc.c  */
-#line 3105 "language.yy"
+#line 3121 "language.yy"
     {(yyval.str) = strdup(">");}
     break;
 
   case 305:
 
 /* Line 1455 of yacc.c  */
-#line 3106 "language.yy"
+#line 3122 "language.yy"
     {(yyval.str) = strdup("<");}
     break;
 
   case 306:
 
 /* Line 1455 of yacc.c  */
-#line 3107 "language.yy"
+#line 3123 "language.yy"
     {(yyval.str) = strdup("<>");}
     break;
 
   case 307:
 
 /* Line 1455 of yacc.c  */
-#line 3109 "language.yy"
+#line 3125 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
     case MSC_ARC_DIVIDER:  (yyval.str) = strdup("---"); break;
@@ -6819,7 +6835,7 @@ yyreduce:
   case 308:
 
 /* Line 1455 of yacc.c  */
-#line 3117 "language.yy"
+#line 3133 "language.yy"
     {
     switch ((yyvsp[(1) - (1)].arctype)) {
     case MSC_EMPH_SOLID:  (yyval.str) = strdup("--"); break;
@@ -6834,7 +6850,7 @@ yyreduce:
   case 313:
 
 /* Line 1455 of yacc.c  */
-#line 3130 "language.yy"
+#line 3146 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     csh.PushContext();
@@ -6851,7 +6867,7 @@ yyreduce:
   case 315:
 
 /* Line 1455 of yacc.c  */
-#line 3146 "language.yy"
+#line 3162 "language.yy"
     {
   #ifdef C_S_H_IS_COMPILED
     (yyval.arcbase) = NULL;
@@ -6865,7 +6881,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 6869 "colorsyntax.cc"
+#line 6885 "colorsyntax.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -7084,7 +7100,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 3156 "language.yy"
+#line 3172 "language.yy"
 
 
 

@@ -8,6 +8,84 @@
 
 namespace contour {
 
+//This is a template that allows storing of state along a 1-dimensional axis.
+//The state can change at any real (double) value. 
+//The template parameter contains the type of state.
+//We have constructs to set the state at a double walue and onwards or between two doubles
+//We also have members to query the state at any point and ask where will the next change be.
+//Finally, if the element supports the += operator we can add changes to the state.
+
+template <class element>
+class DoubleMap : public std::map<double, element>
+{
+public:
+    using std::map<double, element>::operator[];   //indicate to two-stage (dependent) name lookup
+    using std::map<double, element>::upper_bound;  //that we want these names (not dependent on "element")
+    using std::map<double, element>::lower_bound;  //looked up only at instantiation time (from base class)
+    using std::map<double, element>::begin;        //and not during template compilation (searched in global scope).
+    using std::map<double, element>::end;
+
+    DoubleMap() {};
+    DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
+                                 insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
+    void Set(double pos, const element&e) {operator[](pos) = e;}
+    void Set(const Range &r, const element &e);
+    void Add(double pos, const element&e);     //assumes element has operator +=
+    void Add(const Range &r, const element&e); //assumes element has operator +=
+    const element* Get(double pos) const {auto i=upper_bound(pos); return i==begin()?NULL:&(--i)->second;}
+    double Till(double pos) const {auto i=upper_bound(pos); return i==end()?CONTOUR_INFINITY:i->first;}
+    double From(double pos) const {auto i=--lower_bound(pos); return i==end()?-CONTOUR_INFINITY:i->first;}
+};
+
+template <class element>
+void DoubleMap<element>::Add(double pos, const element&e)
+{
+    auto i = --upper_bound(pos);
+    if (i==begin()) Set(pos, e);
+    else if (i->first == pos)
+        i->second += e;
+    else insert(i, typename std::map<double, element>::value_type(pos, i->second))->second += e;
+}
+
+template <class element>
+void DoubleMap<element>::Set(const Range &r, const element& e)
+{
+    if (r.till <= r.from) return;
+    auto i = --upper_bound(r.till);
+    if (i!=end()) {//avoid the case when whole range is before first element
+        if (i->first == r.till) {
+            erase(upper_bound(r.from), i);
+        } else {
+            operator[](r.till) = i->second;
+            erase(upper_bound(r.from), ++i);
+        }
+    }
+    operator[](r.from) = e;
+}
+
+template <class element>
+void DoubleMap<element>::Add(const Range &r, const element& e)
+{
+    if (r.till <= r.from) return;
+    auto i = --upper_bound(r.till);
+    if (i==end())
+        operator[](r.from) = e; //if the whole range is before the first element
+    else {
+        if (i->first != r.till) //i points to a place before r.till
+            i = insert(i, typename std::map<double, element>::value_type(r.till, i->second));
+        //now i points to the element at r.till
+        auto h = --upper_bound(r.from);
+        if (h==end())
+            h = insert(begin(), typename std::map<double, element>::value_type(r.from, e))++;
+        else if (h->first != r.from) //j points to an element before r.from
+            h = insert(h, typename std::map<double, element>::value_type(r.from, h->second));
+        //now h points to the first element to add e to
+        for (; h!=i; h++)
+            h->second += e;
+    }
+}
+
+
 
 class Contour;
 

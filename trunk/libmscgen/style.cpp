@@ -21,16 +21,18 @@
 
 MscStyle::MscStyle(StyleType tt) : type(tt)
 {
-    f_line=f_vline=f_fill=f_vfill=f_shadow=f_text=f_solid=f_numbering=f_compress=f_side=f_indicator=true;
+    f_line=f_vline=f_fill=f_vfill=f_shadow=f_text=true;
+    f_solid=f_numbering=f_compress=f_side=f_indicator=true;
+    f_makeroom=f_note=true;
     f_arrow=ArrowHead::ANY;
     Empty();
 }
 
 MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
-                   bool so, bool nu, bool co, bool si, bool i, bool vf) :
+                   bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n) :
     arrow(a), type(tt), f_line(l), f_vline(vl), f_fill(f), f_vfill(vf), f_shadow(s),
     f_text(t), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
-    f_indicator(i), f_arrow(a)
+    f_indicator(i), f_makeroom(mr), f_note(n), f_arrow(a)
 {
     solid.first=so;
     solid.second = 128;
@@ -42,6 +44,8 @@ MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, b
     numbering.second = false;
     indicator.first = i;
     indicator.second = true;
+    makeroom.first = mr;
+    makeroom.second = true;
 }
 
 void MscStyle::Empty()
@@ -58,6 +62,8 @@ void MscStyle::Empty()
     compress.first = false;
     numbering.first = false;
     indicator.first = false;
+    makeroom.first = false;
+    note.Empty();
 }
 
 MscStyle & MscStyle::operator +=(const MscStyle &toadd)
@@ -74,6 +80,8 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     if (toadd.f_compress && f_compress && toadd.compress.first) compress = toadd.compress;
     if (toadd.f_numbering && f_numbering && toadd.numbering.first) numbering = toadd.numbering;
     if (toadd.f_indicator && f_indicator && toadd.indicator.first) indicator = toadd.indicator;
+    if (toadd.f_makeroom && f_makeroom && toadd.makeroom.first) makeroom = toadd.makeroom;
+    if (toadd.f_note && f_note) note += toadd.note;
     return *this;
 }
 
@@ -178,6 +186,19 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         indicator.second = a.yes;
         return true;
     }
+    if (a.Is("makeroom") && f_makeroom) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, type))
+                makeroom.first = false;
+            return true;
+        }
+        if (!a.CheckType(MSC_ATTR_BOOL, msc->Error)) return true;
+        makeroom.first = true;
+        makeroom.second = a.yes;
+        return true;
+    }
+    if (f_note && (a.Is("layout") || a.Is("shape") || a.Is("point_to"))) 
+        return note.AddAttribute(a, msc, type);
     return false;
 }
 
@@ -199,9 +220,11 @@ void MscStyle::AttributeNames(Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"side", HINT_ATTR_NAME));
     if (f_numbering) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"number", HINT_ATTR_NAME));
     if (f_indicator) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"indicator", HINT_ATTR_NAME));
+    if (f_makeroom) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
     if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
     if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
     if (f_vfill) csh.AddToHints(names2, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
+    if (f_note) MscNoteAttr::AttributeNames(csh);
     csh.AddStylesToHints();
 }
 
@@ -255,7 +278,8 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         return true;
     }
     if ((CaseInsensitiveEqual(attr, "compress") && f_compress) ||
-        (CaseInsensitiveEqual(attr, "indicator") && f_indicator)) {
+        (CaseInsensitiveEqual(attr, "indicator") && f_indicator) ||
+        (CaseInsensitiveEqual(attr, "makeroom") && f_makeroom)) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
@@ -271,6 +295,11 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
+    if (f_note && 
+           (CaseInsensitiveEqual(attr, "layout") || 
+            CaseInsensitiveEqual(attr, "shape") || 
+            CaseInsensitiveEqual(attr, "point_to"))) 
+            return note.AttributeValues(attr, csh);
     return false;
 
 }
@@ -284,9 +313,12 @@ string MscStyle::Print(int) const
     if (f_vfill) s.append(vfill.Print());
     if (f_shadow) s.append(shadow.Print());
     if (f_solid) s.append("solid:").append(solid.second?"yes":"no").append("\n");
-    if (f_solid) s.append("fromright:").append(side.second==SIDE_LEFT?"left":"right").append("\n");
+    if (f_indicator) s.append("indicator:").append(solid.second?"yes":"no").append("\n");
+    if (f_makeroom) s.append("makeroom:").append(solid.second?"yes":"no").append("\n");
+    if (f_side) s.append("side:").append(side.second==SIDE_LEFT?"left":"right").append("\n");
 //    if (f_arrow!=ArrowHead::NONE) s.append(arrow.Print());
 //    if (f_text) s.append(text.Print());
+    if (f_note) s.append(note.Print());
     s.append(")");
     return s;
 }
@@ -318,7 +350,7 @@ void Design::Reset()
     colors["lgray"] = MscColorType(200, 200, 200);
 
     styles.clear();
-    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false, true, false); //no fill, shadow, vline solid side vfill
+    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false, true, false, false, false); //no fill, shadow, vline solid side vfill, makeroom, note
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -336,7 +368,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, false, false);  //no vline solid side indicator vfill
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, false, false, false, false);  //no vline solid side indicator vfill makeroom note
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = -1;
@@ -356,9 +388,10 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["block=>"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true, false, false);  //no vline solid indicator vfill
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true, false, false, true, false);  //no vline solid indicator vfill note
     style.compress.first = false;
     style.numbering.first = false;
+    style.makeroom.second = false;
     style.line.radius.second = -1;
     styles["vertical"] = style;
 
@@ -389,7 +422,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["vertical=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, false, false); //no arrow, fill, shadow solid side indicator vfill
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, false, false, false, false); //no arrow, fill, shadow solid side indicator vfill makeroom note
     style.compress.first = false;
     style.numbering.first = false;
     style.vline.Empty();
@@ -407,7 +440,7 @@ void Design::Reset()
     style.text.Apply("\\mu(10)\\md(10)");
     styles["..."] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true, false); //no arrow, vline solid side vfill
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true, false, false, false); //no arrow, vline solid side vfill makeroom note
     style.compress.first = false;
     style.numbering.first = false;
     styles["emptybox"] = style;
@@ -429,7 +462,7 @@ void Design::Reset()
     style.line.type.second = LINE_DOUBLE;
     styles["=="] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, false, false); //no arrow, vline indicator vfill
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, false, false, false, false); //no arrow, vline indicator vfill makeroom note
     style.compress.first = false;
     style.numbering.first = false;
     style.line.radius.second = 5;
@@ -449,19 +482,26 @@ void Design::Reset()
     styles["pipe=="] = style;
 
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true); //no arrow, solid numbering compress side
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true, false, false); //no arrow, solid numbering compress side makeroom note
     styles["entity"] = style;
     styles["entitygroup_collapsed"] = style;
     style.line.type.second=LINE_DASHED;
     styles["entitygroup"] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false); //fill line shadow only 
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false, false, false); //fill line shadow only 
     style.line.width.second = 2;
     styles["indicator"] = style;
 
-    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false); //only line fill and shadow
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false, false, false); //only line fill and shadow
     styles["symbol"] = style;
 
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::ARROW, true, true, true, true, false, false, true, false, false, false, false, true, true);  //no vline side solid indicator compress vfill 
+    style.numbering.first = false;
+    style.makeroom.second = true;
+    styles["note"] = style;
+
+
+    //Ok, now "weak" and "strong"
     style = MscStyle(STYLE_STYLE); //has everything, but is empty
     MscLineAttr line(MscColorType(150,150,150));
     style.line += line;;

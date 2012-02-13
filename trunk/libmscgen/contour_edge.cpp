@@ -777,17 +777,52 @@ double Edge::radian2pos(double r) const
     return (s-r)/(s-e+2*M_PI);
 }
 
-//This should return the (directed) area between the y axis and the edge times 2, minus start.x*start.y, plus end.x*end.y
-//Well, not the full area below, merely the 
+//Here is how area calculation works
+// for straight edges
+// ==========> =========>    (Since in contour we treat y coordinates as
+//  +++++        ------      growing downwards, we call these functions
+//  __+++        ------      "xxAreaAbove", meaning the area between edge & X axis.)
+//  |\+++        \-----      The dotted area is the area above an edge.
+//    \++         \ ---      It is counted as positive in the first example;
+//     \+          \---      and negative in the second. If we sum all such
+//      \           \--      areas, we get the area of the contour (positive for
+//                  _\|      clockwise and negative for counterclockwise, as it 
+//                           should be. 
+// Now, the formula for the above for an edge (X1,Y1)->(X2,Y2) is
+// AreaAbove = (X1-X2)*(Y1+Y2)/2 = (X1*Y1 - X2*Y2)/2 + (X1*Y2 - X2*Y1)/2
+// If we sum this for all edges of a connected contour the first term will
+// cancel out. Thus in the edge::xxAreaAboveAdjusted functions we return
+// the second term only (twice 2), thus we return 
+// AreaAbove*2 - (X1*Y1 - X2*Y2). 
+// In the below we return it for curvy edges.
+
 double Edge::getAreaAboveAdjusted_curvy() const
 {
     _ASSERT(type!=STRAIGHT);
-    if (type==FULL_CIRCLE) return ell.Area()*(clockwise_arc ? 2 : -2);
-    //We calculate as if the arc went start->center->end; and then
-    //we add it to the area of the sector of the circle
-    return ell.Area(s, e)*(clockwise_arc ? 2 : -2) + 
-           start.x*ell.GetCenter().y - start.y*ell.GetCenter().x +
-           ell.GetCenter().x*end.y - ell.GetCenter().y*end.x; 
+    //For a full circle we return the (signed) area enclosed by the circle times 2.
+    if (type==FULL_CIRCLE) return ell.FullArea()*(clockwise_arc ? 2 : -2);
+    //                                                                      
+    // =======>   ======>   ===========>   The first figure shows a clockwise arc (all 
+    //      ++       --                    positive areas). The second shows the same,
+    //    =>++     ===>      ^=======o     but since we start from a smaller X and end on                       
+    //   /++++    /++oo       \::::://     a larger, the difference compared to a straight
+    //   \+++/    \++o         \::://      edge is is cancelled out (indcated by "o" zero)
+    //    ===      --           ===        and the area below is negative.                               
+    //                                     The third figure shows the center of the circle.                                 
+    // Denote "S" and "D" the start and endpoint of the arc, resp; while "O" the center.
+    // To calculate this, we have three areas: the sector area of the arc, the area
+    // above the D->O and the O->S straight lines. If we treat all of these signed
+    // (if the sector is clockwise have it positive, and vice versa), we get the 
+    // (signed) area eaxctly above the arc. Thus 
+    // AreaAboveArc = SignedSectorArea + AreaAbove(D->O) + AreaAbove(O->S) = 
+    //   SignedSectorArea + (DX-OX)*(DY+OY)/2 + (OX-SX)*(OY+SY)/2 = 
+    //   SSA + (DX*DY - OX*OY)/2 + (DX*OY - OX*DY)/2 + (OX*OY - SX*SY)/2 + (OX*SY - SX*OY)/2 =
+    //   SSA + (DX*DY - SX*SY)/2 + (DX-SX)*OY/2 - (DY-SY)*OX/2.
+    // Since we need ret = AreaAboveArc*2 - (DX*DY - SX*SY)/2 =
+    //   SSA*2 + (DX-SX)*OY - (DY-SY)*OX.
+    //Note that SectorArea() always assume clockwise and returns a positive value.
+    return 2*(clockwise_arc ? ell.SectorArea(s, e) : -ell.SectorArea(e, s)) + 
+           - (end.x - start.x)*ell.GetCenter().y + (end.y-start.y)*ell.GetCenter().x; 
 }
 
 bool Edge::IsSane() const

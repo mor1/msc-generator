@@ -391,4 +391,26 @@ public:
 
 bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
 
+struct MscNoteAttr {
+public:
+    typedef enum {LAYOUT_INVALID=0, FLOAT, LEFT, RIGHT, LEFTRIGHT} layout_t;
+    typedef enum {BUBBLE_INVALID=0, NONE, RECTANGLE, ARROW} shape_t;
+    typedef enum {POINTO_INVALID=0, CENTER, OUTLINE} point_to_t;
+    std::pair<bool, layout_t> layout;
+	std::pair<bool, shape_t> shape;
+	std::pair<bool, point_to_t> point_to;
+    MscNoteAttr() {Empty(); MakeComplete();}
+    void Empty() {layout.first = shape.first = point_to.first=false;}
+    void MakeComplete();
+    bool IsComplete() const {return layout.first && shape.first && point_to.first;}
+    MscNoteAttr &operator +=(const MscNoteAttr&a);
+    bool operator == (const MscNoteAttr &a);
+    virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string &attr, Csh &csh);
+    string Print(int ident = 0) const;
+};
+
+
+
 #endif

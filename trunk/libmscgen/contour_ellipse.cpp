@@ -506,7 +506,7 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
 }
 
 EllipseData::EllipseData(const XY &c, double radius_x, double radius_y, double tilt_degree) :
-    center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), perimiter_cache(-1)
+center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), circumference_cache(-1)
 {
     if (radius2 == 0) radius2 = radius1; //circle
     if (radius1 != radius2 && tilt_degree!=0) {
@@ -767,16 +767,16 @@ inline double cayley(double x)
 }
 
 
-void EllipseData::CalcPerimiterEllipse() const
+void EllipseData::CalcCircumferenceEllipse() const
 {
     //This is copied from http://www.numericana.com/answer/ellipse.htm#high
     const double a = std::max(radius1, radius2);
     const double b = std::min(radius1, radius2);
     if (b >= 0.28*a) {
         const double h = ((a-b)/(a+b))*((a-b)/(a+b));
-        perimiter_cache = M_PI*(a+b)*gk(h);
+        circumference_cache = M_PI*(a+b)*gk(h);
     } else 
-        perimiter_cache = 4*a*cayley((b/a)*(b/a));
+        circumference_cache = 4*a*cayley((b/a)*(b/a));
 }
 
 
@@ -784,7 +784,7 @@ void EllipseData::CalcPerimiterEllipse() const
 //This returns the length of the 0->to arc (always positive)
 //Here a computation of incomplete elliptic integral of the second kind is needed
 //See http://www.numericana.com/answer/geometry.htm#ellipticarc
-double EllipseData::PerimiterHelper(double to) const
+double EllipseData::CircumferenceHelper(double to) const
 {
     unsigned num_of_quarters;
     double a, b;
@@ -809,12 +809,12 @@ double EllipseData::PerimiterHelper(double to) const
     //The below formula is by David W. Cantrell from 2002 see in the Internet Archive
     //http://web.archive.org/web/20030225001402/http://mathforum.org/discuss/sci.math/t/469668
     const double L = a * (sin(fabs(to)) + (fabs(to) - sin(fabs(to)))*pow(b/a, 2 - 0.216*fabs(to)*fabs(to)));
-    return num_of_quarters*Perimiter()/4 + (to<0 ? -L : L);
+    return num_of_quarters*FullCircumference()/4 + (to<0 ? -L : L);
 }
 
 int EllipseData::Expand(double gap)
 {
-    perimiter_cache = -1; //invalidate perimiter cache
+    circumference_cache = -1; //invalidate perimiter cache
     int ret = 1;
     radius1+=gap;
     if (!test_smaller(0,radius1)) ret--;
@@ -826,17 +826,19 @@ int EllipseData::Expand(double gap)
 
 double EllipseData::OffsetBelow(const EllipseData&) const
 {
+    _ASSERT(0);
     return 0;
 }
 
 double EllipseData::OffsetBelow(const XY&, const XY&) const
 {
-
+    _ASSERT(0);
     return 0;
 }
 
 double EllipseData::OffsetAbove(const XY&, const XY&) const
 {
+    _ASSERT(0);
     return 0;
 }
 

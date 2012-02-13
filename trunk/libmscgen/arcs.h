@@ -72,11 +72,11 @@ struct ArcSignature {
     ArcSignatureCatalog::iterator WhichIsSimilar(ArcSignatureCatalog &cat) const;
 };
 
-
+class CommandNote;
 class ArcBase : public TrackableElement
 {
 public:
-    typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT} DrawPassType;
+    typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT, NOTE, AFTER_NOTE} DrawPassType;
 private:
     bool had_add_attr_list; //TODO: debug only, remove
 protected:
@@ -85,15 +85,20 @@ protected:
     bool compress;     /* if compress mechanism is on for this arc */
     bool parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
     DrawPassType draw_pass;
+    PtrList<CommandNote> notes;
 public:
     const MscArcType type;
 
     ArcBase(MscArcType t, Msc *msc);
     virtual ~ArcBase() {};
+    bool IsValid() const {return valid;}
     virtual const ArcSignature* GetSignature() const {return NULL;}
     void SetParallel() {parallel = true;}
     bool IsParallel() const {return parallel;}
     bool IsCompressed() const {return compress;}
+    virtual bool CanBeNoted() const {return false;}
+    void MakeMeLastNotable();
+    void AttachNote(CommandNote *);
     double GetPos() const {return yPos;}
     //Get an (ordered) list of entities that this arrow/box touches
     virtual MscDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
@@ -126,10 +131,6 @@ public:
     virtual void Draw(MscCanvas &canvas, DrawPassType pass) = 0;
 };
 
-inline ArcBase* ArcBase::PostParseProcess(MscCanvas &, bool, EIterator &, EIterator &, Numbering &, bool) {return this;}
-inline void ArcBase::Width(MscCanvas &, EntityDistanceMap &) {}
-
-
 typedef PtrList<ArcBase> ArcList;
 
 class ArcIndicator : public ArcBase
@@ -154,12 +155,15 @@ public:
 class ArcLabelled : public ArcBase
 {
 protected:
+    friend class CommandNote;
     string          label;
     Label           parsed_label;
     int             concrete_number; //if >=0 it shows what number the user wanted for this arc. if <0 automatic or no numerbing
     MscStyle        style; //numbering and compress fields of style are not used. The Arc member fields are used instead.
     NumberingStyle  numberingStyle; //This is not part of styles in general, but of contexts
+    mutable string  number_text;    //the formatted number (for references, e.g., notes)
 public:
+    virtual bool CanBeNoted() const {return true;}
     ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
     ArcLabelled(MscArcType t, const ArcLabelled &al);
     void SetStyleWithText(const char *style_name); //set style to this name, but combine it with default text style
@@ -306,7 +310,6 @@ protected:
     string src, dst;   //vertical position
     VertXPos pos;
     double offset; //horizontal position base offset
-    bool makeroom;
     mutable std::vector<double> ypos; //calculate them in PostPosProcess
     mutable double sy_text, dy_text;
     mutable double xpos, width;
@@ -371,6 +374,7 @@ public:
     //Constructor to construct the first box/pipe in a series
     ArcBoxSeries(ArcBox *first);
     ArcBoxSeries* AddFollow(ArcBox *f);
+    virtual bool CanBeNoted() const {return true;}
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
@@ -425,6 +429,7 @@ public:
     ArcPipeSeries(ArcPipe *first);
     ArcPipeSeries* AddFollowWithAttributes(ArcPipe*f, AttributeList *l);
     ArcPipeSeries* AddArcList(ArcList*l);
+    virtual bool CanBeNoted() const {return true;}
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
@@ -496,6 +501,7 @@ protected:
     double height;
 public:
     CommandEntity(EntityDefList *e, Msc *msc);
+    virtual bool CanBeNoted() const {return true;}
 	bool IsFullHeading() {return full_heading;}
 	void MoveMyEntityDefsAfter(EntityDefList *e) {if (e) e->splice(e->end(), entities);} //effectively empty 'entities'
     string Print(int ident=0) const;
@@ -642,6 +648,7 @@ protected:
 public:
     CommandSymbol(Msc*, const char *symbol, const NamePair *enp,
                   const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2);
+    virtual bool CanBeNoted() const {return true;}
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -657,13 +664,16 @@ public:
 class CommandNote : public ArcLabelled
 {
 protected:
-    typedef enum {LEFT, RIGHT, LEFT_OR_RIGHT, FLOAT} LayoutType;
-    LayoutType            layout;
-    const ArcBase * const previous;
-    ExtVertXPos           extvertxpos;
-    mutable double        xpos;
+    ArcBase *             target;
+    const ExtVertXPos     extvertxpos;
+    string                point_toward; //an entity or NoEntity for center of target
+    string                ypos_marker;  //a markername or empty for automatic
+    file_line             ypos_marker_linenum;
+
+    mutable double        xpos, ypos;
+    mutable EIterator     point_toward_iterator;
 public:
-    CommandNote(Msc*, const file_line_range &l, const ExtVertXPos *vxpos, const AttributeList *al);
+    CommandNote(Msc*, const ExtVertXPos *vxpos, AttributeList *al);
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);

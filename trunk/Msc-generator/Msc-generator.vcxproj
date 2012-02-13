@@ -131,7 +131,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\compiled_cairo\cairo-1.10.2;..\libmscgen\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -168,7 +168,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\compiled_cairo\cairo-1.10.2;..\libmscgen\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -206,7 +206,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\libmscgen\Release;..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -242,7 +242,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\compiled_cairo\cairo-1.10.2;..\libmscgen\OptDebug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -257,6 +257,9 @@
       <AdditionalIncludeDirectories>..\libmscgen; ..\cairo-1.10\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level2</WarningLevel>
     </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ChartData.cpp" />
@@ -330,7 +333,6 @@
   <ItemGroup>
     <ProjectReference Include="..\libmscgen\libmscgen.vcxproj">
       <Project>{b412badd-a6eb-4b7b-9d16-9633e65cb1fb}</Project>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
