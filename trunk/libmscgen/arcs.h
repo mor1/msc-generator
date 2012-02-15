@@ -86,6 +86,9 @@ protected:
     bool parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
     DrawPassType draw_pass;
     PtrList<CommandNote> notes;
+    
+    mutable Area note_map;    /* those parts of our coverage, which must not be covered by notes */
+    mutable XY def_node_target; //The default part of the element where notes point to
 public:
     const MscArcType type;
 
@@ -98,7 +101,7 @@ public:
     bool IsCompressed() const {return compress;}
     virtual bool CanBeNoted() const {return false;}
     void MakeMeLastNotable();
-    void AttachNote(CommandNote *);
+    virtual void AttachNote(CommandNote *);
     double GetPos() const {return yPos;}
     //Get an (ordered) list of entities that this arrow/box touches
     virtual MscDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
@@ -124,7 +127,7 @@ public:
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
     virtual double Height(MscCanvas &canvas, AreaList &cover) = 0;
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
-    virtual void ShiftBy(double y) {if (valid) TrackableElement::ShiftBy(y);}
+    virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y); note_map.Shift(XY(0,y)); def_node_target.y+=y;}}
     /* This goes through the tree once more for drawing warnings that need height. */
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     /* This will actually draw the arc */
@@ -163,9 +166,9 @@ protected:
     NumberingStyle  numberingStyle; //This is not part of styles in general, but of contexts
     mutable string  number_text;    //the formatted number (for references, e.g., notes)
 public:
-    virtual bool CanBeNoted() const {return true;}
     ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
     ArcLabelled(MscArcType t, const ArcLabelled &al);
+    virtual bool CanBeNoted() const {return true;}
     void SetStyleWithText(const char *style_name); //set style to this name, but combine it with default text style
     void SetStyleWithText(const MscStyle *style_to_use=NULL); //set style to this name, but combine it with default text style
     virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
@@ -322,6 +325,7 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
+    virtual void AttachNote(CommandNote *);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover);

@@ -161,7 +161,7 @@ protected:
 
     is_within_t IsWithin(XY p, size_type *edge=NULL, double *pos=NULL, bool strict=true) const;
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (size_type i=0; i<size(); i++) at(i).Shift(xy);}
-    void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_type i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise;}
+    void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_type i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise; area_cache.second*=-1;}
     void Rotate(double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
 
@@ -188,6 +188,7 @@ public:
     bool IsSane() const;
     double GetArea() const {return area_cache.first ? area_cache.second : CalcualteArea();}
     double GetCircumference(bool include_hidden=false) const;
+    XY CentroidUpscaled() const;
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;

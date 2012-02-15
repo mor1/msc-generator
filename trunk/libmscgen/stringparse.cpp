@@ -620,6 +620,22 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return FORMATTING_OK;
 }
 
+//This one tells if the string has any escape character or not
+bool StringFormat::HasEscapes(const char *text) 
+{
+    if (text==NULL || text[0]==0) return false;
+    StringFormat sf;
+    unsigned pos=0;
+    while (pos<strlen(text)) {
+        unsigned length;
+        const EEscapeType t = sf.ProcessEscape(text, length);
+        if (t!=NON_ESCAPE && t!=SOLO_ESCAPE) return true;
+        pos+=length;
+    }
+    return false;
+}
+
+
 void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 {
     if (text==NULL) return;

@@ -136,6 +136,9 @@ public:
                        double sy, double dy, bool forward, bool bidir, 
                        const std::vector<MscLineAttr> *lines, 
                        std::vector<Contour> &result) const;
+    Contour BigHeadContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
+                           double sy, double dy, bool forward, bool bidir, 
+                           const std::vector<MscLineAttr> *lines, double compressGap) const;
     void BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
                  const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
                  double angle_radian=0) const;

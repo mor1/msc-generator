@@ -577,7 +577,7 @@ void EntityDef::Draw(MscCanvas &canvas)
     parsed_label.Draw(&canvas, b2.x.from, b2.x.till, b2.y.from + lw/2);
     //Draw indicator
     if (indicator_ypos_offset > 0)
-        DrawIndicator(XY(outer_edge.CenterPoint().x, outer_edge.y.from + indicator_ypos_offset),
+        DrawIndicator(XY(outer_edge.Centroid().x, outer_edge.y.from + indicator_ypos_offset),
                       &canvas);
 }
 

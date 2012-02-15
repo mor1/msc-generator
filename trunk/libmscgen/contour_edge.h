@@ -106,6 +106,8 @@ public:
     //This should return the (directed) area between the y axis and the edge times 2, minus start.x*start.y, plus end.x*end.y
     double GetAreaAboveAdjusted() const {return type==STRAIGHT ? start.x*end.y-start.y*end.x : getAreaAboveAdjusted_curvy();}
     double GetLength() const {return type==STRAIGHT ? (end-start).length() : type == FULL_CIRCLE ? ell.FullCircumference() : ell.SectorCircumference(s,e);}
+    //returns the centroid of the area above multipled by the (signed) area above
+    XY GetCentroidAreaAboveUpscaled() const;
 
     bool Expand(double gap);
 
@@ -156,6 +158,8 @@ protected:
     void   removebeforepoint_curvy(const XY &p);
     void   removeafterpoin_curvy(const XY &p);
     double getAreaAboveAdjusted_curvy() const;
+    static XY getcentroidareaaboveupscaled_straight(const XY&start, const XY&end);
+    XY getcentroidareaaboveupscaled_curvy() const;
     double offsetbelow_curvy_straight(const Edge &M_straight, bool straight_is_up, double &touchpoint) const;
 
     double FindRadianOfClosestPos(unsigned num, double pos[], double rad);
@@ -227,6 +231,17 @@ inline Edge& Edge::SetEndLiberal(const XY &p, bool keep_full_circle)
     CalculateBoundingBox();
     return *this;
 }
+
+inline XY Edge::GetCentroidAreaAboveUpscaled() const
+{
+    switch (type) {
+    default: 
+    case STRAIGHT:    return getcentroidareaaboveupscaled_straight(start, end);
+    case FULL_CIRCLE: return ell.GetCenter() * ell.FullArea(); 
+    case ARC:         return getcentroidareaaboveupscaled_curvy();
+    }
+}
+
 
 } //namespace
 

@@ -561,6 +561,27 @@ void EllipseData::SwapXY()
     }
 }
 
+
+XY EllipseData::SectorCentroidTimesArea(double from, double to) const
+{
+    //Here we calculate width a circle sector and approximate it
+    //http://en.wikipedia.org/wiki/List_of_centroids
+    const double half_arc = fmod_negative_safe(to - from, 2*M_PI)/2;
+    if (half_arc>M_PI/2) //below formula valid only for arc<180 deg
+        return center*FullArea() - SectorCentroidTimesArea(to, from);
+    XY centroid(2./3.*sin(half_arc)/half_arc, 0);
+    const double middle = (to+from)/2 + (to>from ? 0 : M_PI);
+    centroid.Rotate(cos(middle), sin(middle));
+    centroid.x *= radius1;
+    centroid.y *= radius2; //here we cheat, not precise for ellipses
+    if (tilted)
+        centroid.Rotate(costilt, sintilt);
+    centroid += center; 
+    //OK this is the centroid, now multiply by area
+    return centroid*SectorArea(from, to);
+}
+
+
 //Return -1 if the two ellipses are equal
 int EllipseData::CrossingEllipse(const EllipseData &B, XY r[], double radian_us[], double radian_b[]) const
 {

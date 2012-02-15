@@ -74,6 +74,7 @@ public:
     double FullCircumference() const {if (circumference_cache<0) {if (radius1 == radius2) circumference_cache = 2*M_PI*radius1; else CalcCircumferenceEllipse();} return circumference_cache;}
     double SectorArea(double from, double to) const {return radius1*radius2*fmod_negative_safe(to-from, 2*M_PI)/2;}
     double FullArea() const {return radius1*radius2*M_PI;}
+    XY     SectorCentroidTimesArea(double from, double to) const;
 
     //return the number of common points, coordinates in "r"
     //also the radian or relative position inside the straight edge

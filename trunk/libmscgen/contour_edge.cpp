@@ -1042,6 +1042,26 @@ bool Edge::CheckAndCombine(const Edge &next)
     return true;
 }
 
+XY Edge::getcentroidareaaboveupscaled_straight(const XY&start, const XY&end)
+{
+    const XY &minY = start.y < end.y ? start : end;
+    const XY &maxY = start.y < end.y ? end : start;
+    //calculate the centroid of the rectangle and triangle below a (slanted) edge
+    //multiplied by their area.
+    //We do it in two steps: centroid by the Y coordinate of the area
+    //then multiply by the (common) x coordinate of the area
+    XY ret = XY(start.x+end.x, minY.y)*(minY.y/2) +                     //centroid of rectange times y coord of its area          
+             XY(maxY.x*2+minY.x, maxY.y+minY.y*2)*((maxY.y-minY.y)/6);  //centroid of triangle times y coord of its area
+    return ret*(start.x - end.x); //this makes ret negative if edge is from right to left (as it should)
+}
+
+XY Edge::getcentroidareaaboveupscaled_curvy() const
+{
+    XY ret = clockwise_arc ? ell.SectorCentroidTimesArea(s, e) : -ell.SectorCentroidTimesArea(e, s);
+    ret += getcentroidareaaboveupscaled_straight(start, ell.GetCenter());
+    ret += getcentroidareaaboveupscaled_straight(ell.GetCenter(), end);
+    return ret;
+}
 
 //return false if curvy edge disappears
 //Destroys bounding box!!!

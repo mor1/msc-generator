@@ -42,6 +42,7 @@ public:
     bool GetClockWise() const;
     double GetArea(bool consider_holes=true) const;
     double GetCircumference(bool consider_holes=true, bool include_hidden=false) const;
+    XY CentroidUpscaled() const;
 
     is_within_t IsWithin(XY p) const;
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
@@ -113,8 +114,9 @@ public:
     const ContourList &Holes() const {return holes;}
     const Block &GetBoundingBox(void) const {return outline.GetBoundingBox();}
     bool GetClockWise() const {return outline.GetClockWise();}
-    double GetArea(bool consider_holes=true) const {return consider_holes ? outline.GetArea() + holes.GetArea(true) : outline.GetArea();}
+    double GetArea(bool consider_holes=true) const {return consider_holes && !holes.IsEmpty() ? outline.GetArea() + holes.GetArea(true) : outline.GetArea();}
     double GetCircumference(bool consider_holes=true, bool include_hidden=false) const {return consider_holes ? outline.GetCircumference(include_hidden) + holes.GetCircumference(true, include_hidden) : outline.GetCircumference(include_hidden);}
+    XY CentroidUpscaled() const {return holes.IsEmpty() ? outline.CentroidUpscaled() : outline.CentroidUpscaled() - holes.CentroidUpscaled();}
 
     //Call these for both us and the holes (except for OffsetBelow)
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {outline.VerticalCrossSection(x, section); if (holes.size()) holes.VerticalCrossSection(x, section);}
@@ -220,6 +222,7 @@ public:
     bool GetClockWise() const {return first.GetClockWise();}
     double GetArea(bool consider_holes=true) const {return further.size() ? further.GetArea(consider_holes) + first.GetArea(consider_holes) : first.GetArea(consider_holes);}
     double GetCircumference(bool consider_holes=true, bool include_hidden=false) const {return further.size() ? further.GetCircumference(consider_holes, include_hidden) + first.GetCircumference(consider_holes, include_hidden) : first.GetCircumference(consider_holes, include_hidden);}
+    XY Centroid() const {return (further.IsEmpty() ? first.CentroidUpscaled() : first.CentroidUpscaled()+further.CentroidUpscaled())/GetArea();}
     //bool AddAnEdge(const Edge &edge) {SimpleContour::AddAnEdge(edge);}
     //bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).GetStart()));}
     const ContourWithHoles &operator[](size_type n) const {return n==0 ? first : further[n-1];}
@@ -290,6 +293,14 @@ inline double ContourList::GetCircumference(bool consider_holes, bool include_hi
     register double ret = 0;
     for (auto i = begin(); i!=end(); i++)
         ret += i->GetCircumference(consider_holes, include_hidden);
+    return ret;
+}
+
+inline XY ContourList::CentroidUpscaled() const 
+{
+    XY ret(0,0);
+    for (auto i = begin(); i!=end(); i++)
+        ret += i->CentroidUpscaled();
     return ret;
 }
 

@@ -136,7 +136,7 @@ struct Block {
         {return XY(x.till, y.from);}
     XY LowerLeft(void) const
         {return XY(x.from, y.till);}
-    XY CenterPoint(void) const
+    XY Centroid(void) const
         {return XY(x.MidPoint(), y.MidPoint());}
     XY Spans(void) const
         {return XY(x.Spans(), y.Spans());}
