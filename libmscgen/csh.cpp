@@ -311,7 +311,13 @@ void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
         //This is a label or text.format
         AddCSH(pos, COLOR_LABEL_TEXT);
         //Add escape symbols
-        StringFormat::ExtractCSH(pos.first_pos, value, *this);
+        //Note the trick here: we add +1 to the pos.
+        //If the string has escapes, it must have been specified via 
+        //a quoted string, but in this case "pos" points to the beginning
+        //quotation mark, so we add one.
+        //If there are no escapes ExtractCSH() does nothing, so the passed 
+        //pos will not matter anyway.
+        StringFormat::ExtractCSH(pos.first_pos+1, value, *this);
     } else {
         // No match - regular attribute value
         AddCSH(pos, COLOR_ATTRVALUE);
@@ -920,11 +926,11 @@ bool CshHintGraphicCallbackForColors(MscCanvas *canvas, CshHintGraphicParam p)
     b.Round();
     if (color.a<255) {
         MscFillAttr fill(MscColorType(255,255,255), GRADIENT_NONE);
-        canvas->Fill(b.CenterPoint(), b.UpperLeft(), fill);
-        canvas->Fill(b.CenterPoint(), b.LowerRight(), fill);
+        canvas->Fill(b.Centroid(), b.UpperLeft(), fill);
+        canvas->Fill(b.Centroid(), b.LowerRight(), fill);
         fill.color.second = MscColorType(196,196,196);
-        canvas->Fill(b.CenterPoint(), b.UpperRight(), fill);
-        canvas->Fill(b.CenterPoint(), b.LowerLeft(), fill);
+        canvas->Fill(b.Centroid(), b.UpperRight(), fill);
+        canvas->Fill(b.Centroid(), b.LowerLeft(), fill);
     }
     canvas->Fill(b, MscFillAttr(color, GRADIENT_NONE));
     b.Expand(0.5);

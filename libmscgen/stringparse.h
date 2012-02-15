@@ -109,6 +109,8 @@ class StringFormat {
     //Draw a fragment y specifies baseline (not in cairo sense)
     double drawFragment(const string &, MscCanvas *, XY, bool isRotated) const;
 
+    //This one tells if the string has any escape character or not
+    static bool HasEscapes(const char *text);
     //This adds CSH entries to csh. Malformed \c and \s arguments are assumed OK
     static void ExtractCSH(int startpos, const char *text, Csh &csh);
     //This adds a number at the beginning of the string

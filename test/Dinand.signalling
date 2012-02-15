@@ -1,69 +1,51 @@
-msc=round_green;
-hscale=auto, compress=no, numbering = yes;
-numbering.format="123";
-MD, eNB, MDE, MDA, MDGW;
+msc=Dinand {
+background.color=white;
+UE [label="\bUE"],
+RGW [lblue, label="\bAP/RG\n\s\n802.1X authenticator\n"],
+BNG [lblue, label="\bBNG\n\sfirst-hop router\nDHCP server"],
+AAA [lblue, label="\bFixed AAA\n\-(proxy)"],
+PDN [lyellow, label="\bPDN-GW"],
+HSS [lyellow, label="\bAAA/HSS"];
 
-pipe MDA==MDA: \iPre-configured with
-          UE ID and long-term key [number=no, line.width=1, fill.color=black, fill.gradient=down];
+block UE<->RGW-AAA-HSS: Authentication (EAP) [lblue];
 
-..: LTS (Long-Term Session) Setup Procedure {
-    MD->eNB: LTS Setup Req (\N)
-             \-MD perm ID, security capabilities;
-    eNB--eNB: Select close MDE
-              Keep RRC to MD;
-    eNB->MDE: LTS Setup Req
-              \-MD perm ID, security capabilities;
-    MDE--MDE: Check if security\ncapabilities match;
-    MDE->MDA: LTS Setup Req
-              \-MD perm ID, eNB ID;
-    MDA--MDA: Check if security\ncapabilities match;
-    --: Security procedure [number=yes, line.radius=0, line.color="(200,255,255)", fill.color="(200,255,255)"] {
-        numbering.append = ".123";
-        #numbering.format = "123";
-        MDA--MDA: Create challenge\n(maybe puzzle, too);
-        MDA->MDE: MD Auth Req  (\N)
-                  \-MD perm ID, challenge, eNB-ID;
-        MDE->eNB->MD: MD Auth Req
-                      \-MD perm ID, challenge;
-        MD--MD: Calculate response
-                and MSK;
-        MD->eNB: MD Auth Resp
-                 \-MD perm ID, response;
-        eNB->MDE-MDA: MD Auth Resp
-                      \-MD perm ID, response, eNB ID;
-        MDA--MDA: Verify response
-                  Calculate MSK
-                  Look Up MDGW;
+++:Setup of first PDN connection [lred, line.type=none] {
+    UE->BNG: DHCP Request\n\-\c(red)UE prefix (HO), APN="first";
+    BNG->AAA: Get UE context\n\-\c(red)MAC@;
+    AAA->BNG: UE context\n\-\c(red)NAI, APNs, etc;
+    BNG->PDN: Create Bearer Request\n\-\c(red)NAI, UE IP@ (HO), APN="first";
+    PDN--PDN: Allocate/HO IP prefix;
+    BNG<-PDN: Create Bearer Response\n\-\c(red)UE prefix=b;
+    BNG..BNG: Generate IP@\nfrom prefix;
+    BNG->UE [label= "RA\n\-\c(red)prefix=a"];
+    BNG->UE: DHCP Ack\n\-\c(red)IP@;
+};
+
+++:Setup of second PDN connection [lyellow, line.type=none] {
+    pipe UE--BNG:GRE-in-MAC tunnel (key=PDNconnID) [number=no,lyellow]{
+        UE->BNG: DHCP Request\n\-\c(red)UE prefix (HO), APN="second";
     };
-    MDA->MDE: MD Auth Success
-              \-MD perm ID, MSK, eNB ID, MDGW ID
-              Security capabilities of MD,
-              Selected sec algorithms;
-    MDE--MDE: Create LTS Context;
-    MDE->eNB-MD: MD Auth Success
-                 \-MD perm ID, MSK(MD soft ID),
-                 Selected sec algorithm;
-    MDE->MDGW: Location Update
-                \-MD perm ID, MD soft ID;
-    MDGW--MDGW: Store Location;
-    MDE<-MDGW: Location Update Ack;
+    BNG->PDN: Create Bearer Request\n\-\c(red)NAI, UE IP@ (HO), APN="second";
+    PDN--PDN: Allocate/HO IP prefix;
+    BNG<-PDN: Create Bearer Response\n\-\c(red)UE prefix=b;
+    BNG..BNG: Generate IP@\nfrom prefix;
+    pipe UE--BNG:GRE-in-MAC(key=PDNconnID) [number=no,lyellow]{
+        BNG->UE: RA\n\-\c(red)prefix=b;
+        BNG->UE: DHCP Ack\n\-\c(red)IP@;
+    };
 };
 
-..: Uplink transmission {
-    MD->eNB: Uplink Data
-             \-MD soft ID, MSK(data), seq
-             MDE ack flag;
-    MD<<eNB: RLC ack;
-    eNB--eNB: Look up MDE;
-    eNB--eNB: Keep RRC open
-              if MDE ack flag;
-    eNB->MDE: Uplink Data
-             \-MD soft ID, MSK(data), seq
-             MDE ack flag;
-    MDE--MDE: Decrypt, check CRC;
-    MD<<eNB-MDE: Ack
-                 \-MD soft ID, seq, signed by MSK;
-    parallel eNB++eNB: Release RRC;
-    MDE->MDGW: Uplink Data\n\-MD soft ID, data;
-    MDE<-MDGW: Ack;
+
+pipe BNG--PDN:GTP tunnel [number=no,lred]{
+    UE->BNG-PDN-> [strong, number=yes]: \prUser data packet (first PDN);
 };
+
+
+pipe UE--BNG:"GRE-in-MAC tunnel (key=PDNconnID)" [number=no,lyellow]{
+    pipe BNG--PDN:GTP tunnel [number=no,lyellow]{
+        UE->BNG-PDN-> [strong, number=yes]: \prUser data packet (second PDN);
+    };
+};
+
+
+}

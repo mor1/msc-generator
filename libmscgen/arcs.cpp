@@ -119,6 +119,7 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     if (msc) 
         compress = msc->Contexts.back().compress;
     had_add_attr_list = false;
+    note_map.arc = this;
 }
 
 void ArcBase::MakeMeLastNotable()
@@ -307,6 +308,9 @@ double ArcIndicator::Height(MscCanvas &/*canvas*/, AreaList &cover)
     tmp.arc = this;
     tmp.mainline = Block(0,chart->total.x, b.y.from, b.y.till);
     cover = GetCover4Compress(std::move(tmp));
+    note_map = b;
+    note_map.arc = this;
+    def_node_target = b.Centroid();
     return b.y.till + chart->emphVGapOutside;
 }
 
@@ -705,7 +709,7 @@ void ArcSelfArrow::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
 
-double ArcSelfArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
+double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover)
 {
     if (!valid) return 0;
     yPos = 0;
@@ -720,10 +724,26 @@ double ArcSelfArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
 
     double y = chart->arcVGapAbove;
     area = parsed_label.Cover(sx, dx-src_act, y);
-    area += Block(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
+    area.arc = this;
+    note_map = area;
+    const Block arrow_box(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
+    area += arrow_box;
     area.mainline = Block(0, chart->total.x, y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
-
     cover = GetCover4Compress(area);
+    //Now add arrowheads to the "note_map", and a small block if they are NONE
+    XY point = XY(dx+src_act, xy_s.y + chart->arcVGapAbove);
+    if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
+        note_map += Block(point.x-chart->compressGap/2, point.x+chart->compressGap/2,
+                          point.y-chart->compressGap/2, point.y+chart->compressGap/2);
+    else
+        note_map += style.arrow.Cover(point, 0, true,  isBidir(), MSC_ARROW_START, style.line, style.line);
+    point.y += 2*YSize;
+    if (style.arrow.GetType(isBidir(), MSC_ARROW_END) == MSC_ARROW_NONE)
+        note_map += Block(point.x-chart->compressGap/2, point.x+chart->compressGap/2,
+                          point.y-chart->compressGap/2, point.y+chart->compressGap/2);
+    else
+        note_map += style.arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.line, style.line);
+    def_node_target = arrow_box.Centroid();
     return area.GetBoundingBox().y.till + chart->arcVGapBelow;
 }
 
@@ -1129,6 +1149,7 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         }
         cx_text = (sx+dx)/2;
         area = text_cover = parsed_label.Cover(sx_text, dx_text, y, cx_text);
+        area.arc = this;
         //determine top edge position of arrow midline
         y += std::max(aH, firstLineHeight+ARROW_TEXT_VSPACE_ABOVE);
     } else {
@@ -1136,6 +1157,8 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         y += aH;
     }
     centerline = y = ceil(y) + lw_max/2;
+    def_node_target.x = (sx+dx)/2;
+    def_node_target.y = centerline;
     //Note: When the angle is slanted, we rotate the space around "sx, centerline+yPos"
 
     //prepare xPos and margins
@@ -1172,6 +1195,14 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     for (unsigned i=0; i<xPos.size(); i++)
         area += style.arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i),
         segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)]);
+    note_map = area; //the text and arrowheads
+    //Add small blocks if there is no end or start arrowhead
+    if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
+        note_map += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
+                          centerline-chart->compressGap/2, centerline+chart->compressGap/2);
+    if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
+        note_map += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
+                          centerline-chart->compressGap/2, centerline+chart->compressGap/2);
     for (unsigned i=0; i<xPos.size()-1; i++) {
         const double lw2 = ceil(segment_lines[i].LineWidth()/2);
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
@@ -1184,8 +1215,9 @@ double ArcDirArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         //Now we transfrom "area" and "text_cover", too
         const XY c(sx, yPos+centerline);
         area.RotateAround(c, slant_angle);
-        text_cover.RotateAround(c, slant_angle); //not used for bigarrows so is empty
-        clip_area.RotateAround(c, slant_angle); //not used for bigarrows so is empty
+        note_map.RotateAround(c, slant_angle);
+        text_cover.RotateAround(c, slant_angle); 
+        clip_area.RotateAround(c, slant_angle); 
     }
     cover = GetCover4Compress(area);
     if (slant_angle==0)
@@ -1522,10 +1554,11 @@ double ArcBigArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
 
     //Reuse sy and dy set in Width()
     centerline = (sy+dy)/2; //Note that we rotate around (sx, yPos+centerline)
-
     //set sx and dx
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
+    def_node_target.x = (sx+dx)/2;
+    def_node_target.y = centerline;
     //convert dx to transformed space
     if (slant_angle)
         dx = sx + (dx-sx)/cos_slant;
@@ -1545,10 +1578,12 @@ double ArcBigArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
     //text_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, outer_contours);
     area.arc = this;
+    note_map = style.arrow.BigHeadContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, chart->compressGap);
+    note_map += parsed_label.Cover(sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
+    note_map.arc = this;
     //due to thick lines we can extend above y==0. Shift down to avoid it
-    if (area.GetBoundingBox().y.from < chart->arcVGapAbove)
+    if (area.GetBoundingBox().y.from < chart->arcVGapAbove) 
         ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
-
     CalculateMainline(chart->nudgeSize);
     if (slant_angle != 0) {
         //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
@@ -1556,9 +1591,10 @@ double ArcBigArrow::Height(MscCanvas &/*canvas*/, AreaList &cover)
         //Now we transfrom "area" and "text_cover", too
         const XY c(sx, yPos+centerline);
         area.RotateAround(c, slant_angle);
-        text_cover.RotateAround(c, slant_angle); 
+        note_map.RotateAround(c, slant_angle); 
     }
     cover = GetCover4Compress(area);
+
     return area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
 }
 
@@ -1758,6 +1794,15 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
     if (Design().styles["vertical"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
+}
+
+
+void ArcVerticalArrow::AttachNote(CommandNote *note)
+{
+    if (!note) return;
+    chart->Error.Error(note->file_pos.start, "Notes cannot be attached to Verticals. Ignoring note.");
+    chart->Error.Error(file_pos.start, note->file_pos.start, "Here is the vertical this note is attached to.");
+    delete note;
 }
 
 
@@ -2544,6 +2589,9 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover)
             (*i)->draw_is_different = false;
             (*i)->area_draw_is_frame = false;
         }
+        (*i)->note_map = (*i)->text_cover;
+        (*i)->note_map.arc = *i;
+        (*i)->def_node_target = (*i)->note_map.Centroid();
     }
     const double &offset = main_style.shadow.offset.second;
     if (offset)
@@ -3210,8 +3258,8 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
         const XY rad(radius, (*i)->pipe_block.y.Spans()/2); //we use the first pipe's line.radius
         if (side == SIDE_LEFT) std::swap(cs, cd); //use the first pipe's fromright, not (*i)->fromright
         //now cd is the one with the hole
-        Contour back_end(cs, rad.x, rad.y);
-        Contour forw_end(cd, rad.x, rad.y);
+        const Contour back_end(cs, rad.x, rad.y);
+        const Contour forw_end(cd, rad.x, rad.y);
         //(*i)->pipe_block, back_end and forw_end are now all outer edge
         //we need to shring by ilw/2 to get the line contour and by ilw/2-line.width/2 to get the fill contour
         const double gap_for_line = -ilw/2;
@@ -3306,6 +3354,11 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover)
             (*i_neigh)->pipe_shadow = ((*i)->pipe_shadow + (*i_neigh)->pipe_shadow);
             (*i)->pipe_shadow.clear();
         }
+        (*i)->note_map = (*i)->text_cover;
+        (*i)->note_map += forw_end;
+        (*i)->note_map += back_end;
+        (*i)->note_map.arc = *i;
+        (*i)->def_node_target = (*i)->note_map.Centroid();
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
@@ -3572,7 +3625,8 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover)
     text_cover = parsed_label.Cover(text_margin, chart->total.x-text_margin, y);
     area = text_cover;
     area.arc = this;
-
+    note_map = area;
+    def_node_target = note_map.Centroid();
     //Add a cover block for the line, if one exists
     if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
         area += Block(line_margin, chart->total.x-line_margin,
@@ -4171,7 +4225,10 @@ double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover)
     //their "area" to the allcovers of the chart in EntityDef::PostPosProcess.
     //Instead we add their area to this->area now
 
+    //TODO: make the notes attach to endividual entities!!!!
+    
     //We go backwards, so that contained entities get calculated first
+    note_map.clear();
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
         if (!(*i)->draw_heading) continue;
         //Collect who is my children in this list
@@ -4185,6 +4242,7 @@ double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover)
         //Note: Height() also adds the cover to the entitydef's area
         Area entity_cover;
         hei += (*i)->Height(entity_cover, edl); 
+        note_map += entity_cover;
         cover += GetCover4Compress(entity_cover);
         area += (*i)->GetAreaToSearch();
     }
@@ -4855,6 +4913,8 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover)
     outer_edge.y.till = lw + ysize.second;
 
     CalculateAreaFromOuterEdge();
+    note_map = area;
+    def_node_target = note_map.Centroid();
 
     if (style.shadow.offset.second)
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
@@ -4898,7 +4958,7 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
 {
     switch (symbol_type) {
         case ARC:
-            area = Contour(outer_edge.CenterPoint(), outer_edge.x.Spans()/2,
+            area = Contour(outer_edge.Centroid(), outer_edge.x.Spans()/2,
                            outer_edge.y.Spans()/2);
             break;
         case RECTANGLE:

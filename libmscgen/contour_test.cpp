@@ -116,6 +116,9 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
     }
     cairo_set_source_rgb(cr, r, g, b); 
     area.Line2(cr);
+    const XY c = area.Centroid();
+    cairo_arc(cr, c.x, c.y, 5, 0, 2*M_PI);
+    cairo_fill(cr);
     if (shifted)
         cairo_translate(cr,-x,0);
 } 
@@ -206,6 +209,9 @@ void contour_test(void)
     /* Excluded for speed 
     Contour tri = Contour(XY(50,90), XY(100,60), XY(40,20));
 	Draw(100, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
+    Draw(1001, tri, tri.CreateSwapXYd());
+    Draw(1002, tri, tri.CreateRotated(30));
+    Draw(1003, Contour(XY(-1, 103), XY(25, 37), XY(56, 102)), tri.CreateRotated(30));
     tri +=  Contour(30,70,60,70);
 
     Draw(101, tri, tri.CreateShifted(XY(15, 15)), tri ^ tri.CreateShifted(XY(15, 15)));
@@ -422,7 +428,7 @@ void contour_test(void)
     DrawExpand(198, EXPAND_MITER_SQUARE, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
     DrawExpand(199, EXPAND_MITER_SQUARE, DBL_MAX, form5, false, "two inverse circles with miter");
 
-
+    /* end of exlusion */
 
     Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25);
     Draw(2181, lohere1);
@@ -443,7 +449,7 @@ void contour_test(void)
                       Contour(XY(0,50), 50) - Contour(XY(50,50), 50);
 
     Contour lohere5 = lohere3[0];
-
+    
     Draw(2190, lohere1);
     Draw(2191, Contour(XY(100,100), 100), Contour(XY(140,100), 120), lohere2);
     Draw(2192, lohere3);
@@ -452,6 +458,11 @@ void contour_test(void)
 
     Contour lohere6 = lohere3[1];
     Draw(2195, lohere6);
+
+    Contour a = lohere3.CreateExpand(4, EXPAND_BEVEL, EXPAND_BEVEL);
+    Contour b = a; b.ClearHoles();
+    Draw(2196, a, b);
+    Draw (2197,b, b - Contour(10,40,10,40));
     
     DrawExpand(250, EXPAND_MITER, DBL_MAX,lohere1, false);
     DrawExpand(251, EXPAND_MITER, DBL_MAX,lohere2, false);
@@ -508,10 +519,10 @@ void contour_test(void)
 
     //End of exclusion for speed */
 
-    Contour circle(XY(100,100), 30, 30, 30); //30 degree rotated
+    Contour Circle(XY(100,100), 30, 30, 30); //30 degree rotated
     for (unsigned i = 2; i<10; i++) {
         const Contour block(0, 65+i*5, 0, 200);
-        Contour res = circle - block;
+        Contour res = Circle - block;
         char buff[200];
         sprintf(buff, "Area: %g, Circumference: %g", res.GetArea(), res.GetCircumference());
         DrawIsinside(500+i, res, 10, buff);

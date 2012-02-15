@@ -1107,6 +1107,55 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
     return area_overall;
 }
 
+//returns the outer line of the heads of the block arrow.
+//If the two ends are ARROW_NONE, a small block is added.
+//This is used to place float notes
+Contour ArrowHead::BigHeadContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
+                                  double sy, double dy, bool forward, bool bidir, 
+                                  const std::vector<MscLineAttr> *lines, double compressGap) const
+{
+    Contour ret;
+    const bool segment = !MSC_ARROW_IS_SYMMETRIC(GetType(bidir,MSC_ARROW_MIDDLE)) && xPos.size()>2;
+    const MscArrowEnd e_left  = forward ? MSC_ARROW_START : MSC_ARROW_END;
+    const MscArrowType t_left_end  = GetType(bidir, e_left);
+    const MscLineAttr *ltype_current = (segment && lines) ? &*lines->begin() : &line;
+
+    //add leftmost arrowhead
+    double dummy_margin;
+    if (t_left_end == MSC_ARROW_NONE)
+        ret = Block(xPos[0]+act_size[0]-compressGap/2, xPos[0]+act_size[0]+compressGap/2, sy, dy);
+    else 
+        ret = BigContourOneEntity(xPos[0], act_size[0], sy, dy, bidir, 
+                                  t_left_end, e_left, *ltype_current, false, &dummy_margin);
+
+    //add mid-heads
+    if (midType.second != MSC_ARROW_NONE)
+        for (unsigned i=1; i<xPos.size()-1; i++) {
+            //draw left side of the entity line
+            ret += BigContourOneEntity(xPos[i], act_size[i], sy, dy, bidir, 
+                                       GetType(forward, bidir, MSC_ARROW_MIDDLE, true),
+                                       MSC_ARROW_MIDDLE, *ltype_current, true, &dummy_margin);
+            //calculate next linewidth
+            if (segment && lines && lines->size()>i)
+                ltype_current  = &lines->at(i);
+
+            //if segmented, draw arrowhead at right side of entity line
+            if (segment) 
+                ret += BigContourOneEntity(xPos[i], act_size[i], sy, dy, bidir, 
+                                           GetType(forward, bidir, MSC_ARROW_MIDDLE, false),
+                                           MSC_ARROW_MIDDLE, *ltype_current, false, &dummy_margin);
+    }
+    //draw rightmost arrowhead
+    const MscArrowEnd e_right = forward ? MSC_ARROW_END : MSC_ARROW_START;
+    const MscArrowType t_right_end = GetType(bidir, e_right);
+    if (t_right_end == MSC_ARROW_NONE)
+        ret += Block(*xPos.rbegin()+ *act_size.rbegin()-compressGap/2, *xPos.rbegin()+*act_size.rbegin()+compressGap/2, sy, dy);
+    else 
+        ret += BigContourOneEntity(*xPos.rbegin(), *act_size.rbegin(), sy, dy, bidir, 
+                                   t_right_end, e_right, *ltype_current, true, &dummy_margin);
+    return ret;
+}
+
 //We assume the space around us is rotated angle_degree
 void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
                  const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,

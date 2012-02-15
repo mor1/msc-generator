@@ -1134,10 +1134,10 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
             _ASSERT(0);
             break;
         case GRADIENT_OUT:
-            fakeRadialGrad(color, color2, b.CenterPoint(), max_extent, 0, fake_gradients, true);
+            fakeRadialGrad(color, color2, b.Centroid(), max_extent, 0, fake_gradients, true);
             break;
         case GRADIENT_IN:
-            fakeRadialGrad(color2, color, b.CenterPoint(), max_extent, 0, fake_gradients, true);
+            fakeRadialGrad(color2, color, b.Centroid(), max_extent, 0, fake_gradients, true);
             break;
         case GRADIENT_DOWN:
             fakeLinearGrad(color2, color, b.UpperLeft(), b.LowerRight(), false, fake_gradients);
@@ -1184,7 +1184,7 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
             to.FlattenAlpha();
         }
         if (fill.gradient.second ==GRADIENT_IN || fill.gradient.second == GRADIENT_OUT) 
-            radialGradient(from, to, b.CenterPoint(), max_extent, 0, fill.gradient.second);
+            radialGradient(from, to, b.Centroid(), max_extent, 0, fill.gradient.second);
          else 
             linearGradient(from, to, b.UpperLeft(), b.LowerRight(), fill.gradient.second);
         RectanglePath(b.x.from, b.x.till, b.y.from, b.y.till);

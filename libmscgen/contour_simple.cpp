@@ -77,7 +77,7 @@ SimpleContour &SimpleContour::operator =(const Block &b)
     edges.push_back(Edge(XY(b.x.from, b.y.till), b.UpperLeft()));
     clockwise = true;
     area_cache.first = true;
-    area_cache.first = b.x.Spans()*b.y.Spans();
+    area_cache.second = b.x.Spans()*b.y.Spans();
     return *this;
 }
 
@@ -567,6 +567,15 @@ double SimpleContour::GetCircumference(bool include_hidden) const
             ret += at(i).GetLength();
     return ret;
 }
+
+XY SimpleContour::CentroidUpscaled() const
+{
+    XY ret (0,0);
+    for (size_type i=0; i<size(); i++)
+            ret += at(i).GetCentroidAreaAboveUpscaled();
+    return ret;
+}
+
 
 
 //////////////////////////////////SimpleContour::Expand implementation

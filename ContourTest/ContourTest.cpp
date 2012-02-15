@@ -20,4 +20,4 @@ int _tmain(int argc, _TCHAR* argv[])
     
     //test contour
     contour::contour_test();
-}
+} 
