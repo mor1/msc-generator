@@ -18,6 +18,7 @@
 */
 #include <cassert>
 #include "area.h"
+#include "arcs.h"
 
 /////////////////////////////////////////  Contour implementation
 
@@ -84,3 +85,23 @@ double AreaList::OffsetBelow(const AreaList &below, double &touchpoint, double o
 }
 
 
+TrackableElement *AreaPtrList::Insert(const contour::Contour &c, double &shift, double &request)
+{
+    double dummy;
+    double shift_c = 0, shift_us = 0;
+    TrackableElement *shift_arc;
+    //First see, what is the smallest movement we can make
+    for (auto i = store.begin(); i!=store.end(); i++) 
+        if ((*i)->Overlaps(c, true)) {
+            const double up_c = (*i)->arc->GetNoteMap().OffsetBelow(c, dummy);
+            shift_c = std::max(shift_c, -up_c);
+            const double up_us = c.OffsetBelow((*i)->arc->GetNoteMap(), dummy);
+            if (-up_us > shift_us) {
+                shift_us = -up_us;
+                shift_arc = (*i)->arc;
+            }
+        }
+        //TODO: XXX NOT DONE - RETHINK
+    return NULL;
+}
+        

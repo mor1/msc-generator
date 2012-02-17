@@ -39,7 +39,7 @@ public:
     cairo_t *cr;
     CairoContext(unsigned i, const Block &place, const char *text=NULL, bool two=true, int sub=-1);
     ~CairoContext();
-    void Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill);
+    void Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, double center=5);
     void Draw1(const Contour& area, bool other=false) {Draw(area, false, other?1:0, other?0:1, 0, true);}
     void Draw2(const Contour& area) {Draw(area, true, 0,0,1, true);}
 };
@@ -105,7 +105,7 @@ CairoContext::~CairoContext()
         fclose(outFile);
 };
 
-void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill) 
+void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, double b, bool fill, double center) 
 {
     if (!cr) return;
     if (shifted)
@@ -116,9 +116,11 @@ void CairoContext::Draw(const Contour& area, bool shifted, double r, double g, d
     }
     cairo_set_source_rgb(cr, r, g, b); 
     area.Line2(cr);
-    const XY c = area.Centroid();
-    cairo_arc(cr, c.x, c.y, 5, 0, 2*M_PI);
-    cairo_fill(cr);
+    if (center) {
+        const XY c = area.Centroid();
+        cairo_arc(cr, c.x, c.y, center, 0, 2*M_PI);
+        cairo_fill(cr);
+    }
     if (shifted)
         cairo_translate(cr,-x,0);
 } 
@@ -202,11 +204,25 @@ void DrawIsinside(unsigned i, const Contour &a, double gap=5, const char *text=N
         }
 }
 
+void DrawRelation(unsigned i, const Contour &c1, const Contour &c2, const char *text="")
+{
+    static const char relnames[][20] = {"OVERLAP", "A_IS_EMPTY", "B_IS_EMPTY", "BOTH_EMPTY", 
+                                        "A_INSIDE_B", "B_INSIDE_A", "SAME", "APART", 
+                                        "A_IN_HOLE_OF_B", "B_IN_HOLE_OF_A", "IN_HOLE_APART"};
+    Block b = c1.GetBoundingBox();
+    b += c2.GetBoundingBox();
+    b += XY(100,100);
+    std::string s = std::string("'A' is red: ") + relnames[(unsigned)c1.RelationTo(c2, false)] + ", should be: " + text;
+    CairoContext c(i, b, s.c_str(), false);
+    c.Draw(c1, false, 1, 0, 0, true, 0);
+    c.Draw(c2, false, 0, 1, 0, true, 0);
+};
+
 //NOW
 
-void contour_test(void)
+
+void contour_test_basic(void)
 {
-    /* Excluded for speed 
     Contour tri = Contour(XY(50,90), XY(100,60), XY(40,20));
 	Draw(100, tri, Contour(30,170,60,70), tri ^ Contour(30,170,60,70));
     Draw(1001, tri, tri.CreateSwapXYd());
@@ -238,7 +254,6 @@ void contour_test(void)
 
     Contour variable = boxhole + cooomplex2;
     DrawIsinside(1055, variable);
-
     
     Draw(106, cooomplex2, cooomplex, cooomplex2 + cooomplex);
 	cooomplex2 += cooomplex;
@@ -272,46 +287,12 @@ void contour_test(void)
     Draw(1104, cooomplex2 ^ Contour(XY(300,101), 100, 50), (cooomplex2 ^ Contour(XY(300,101), 100, 50)).CreateSwapXYd());
     
     cooomplex2 *= Contour(XY(300,101), 100, 50);
-	Contour cooomplex3 = cooomplex2;
 
-    double x=150, y=250;
-    const XY v1[] = {XY( 50, 200),
-	                XY(x, y),
-	                XY( 50, 300),
-	                XY(x+30, y+40),
-	                XY(100, 300),
-	                XY(x, y),
-                    XY( 90, 300)};
-	custom.assign(v1);
-    Draw(111, custom);
-
-	Contour custom2;
-
-    x=214, y=610;
-    const XY v2[] = {XY( 50, 200),
-	                XY(x, y),
-	                XY( 50, 300),
-	                XY(x+30, y+40),
-	                XY(100, 300),
-	                XY(x, y),
-                    XY( 90, 300)};
-    custom.assign(v2);
-
-    x=220, y=610;
-    const XY v3[] = {XY( 50, 200),
-	                XY(x, y),
-	                XY( 50, 300),
-	                XY(x+30, y+40),
-	                XY(100, 300),
-	                XY(x, y),
-                    XY( 90, 300)};
-    custom2.assign(v3);
-    Draw(112, custom, custom2);
-
-	Contour circle = Contour(XY(200, 200), 60, 30, 30);
+    Contour circle = Contour(XY(200, 200), 60, 30, 30);
     Draw(113, circle, Contour(200,300, 170,190), circle + Contour(200,300, 170,190));
 	circle += Contour(200,300, 170,190);
-    
+
+    double x=220, y=610;
 	Contour circle2= Contour(XY(x, y), 60, 30, abs(x-y));
     Contour circle3 = circle2;
     Draw(114, circle2, Contour(x,x+100, y+15,y+30), circle2 + Contour(x,x+100, y+15,y+30));
@@ -331,6 +312,7 @@ void contour_test(void)
     DrawIsinside(1163, (boxhole2 - Contour(XY(130,101), 30,20)).CreateSwapXYd(), 2);
 
 
+	Contour cooomplex3 = cooomplex2;
 	cooomplex2 = cooomplex3;
 	cooomplex2.RotateAround(XY(350,100), 39);
     Contour part = cooomplex2[1];
@@ -427,9 +409,10 @@ void contour_test(void)
     DrawExpand(197, EXPAND_MITER_SQUARE, DBL_MAX, form3, false, "pipe with bigger circle with miter");
     DrawExpand(198, EXPAND_MITER_SQUARE, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
     DrawExpand(199, EXPAND_MITER_SQUARE, DBL_MAX, form5, false, "two inverse circles with miter");
+};
 
-    /* end of exlusion */
-
+void contour_test_lohere(void) 
+{
     Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25);
     Draw(2181, lohere1);
     lohere1 += Contour(XY(25,75), 25);
@@ -502,10 +485,49 @@ void contour_test(void)
     DrawExpand(358, EXPAND_MITER, 2, triangle, false);
     DrawExpand(359, EXPAND_MITER, 1, triangle, false);
     DrawExpand(360, EXPAND_MITER, 0, triangle, false);
+};
+
+void contour_test_assign(unsigned num)
+{
+    Contour custom;
+    double x=150, y=250;
+    const XY v1[] = {XY( 50, 200),
+	                XY(x, y),
+	                XY( 50, 300),
+	                XY(x+30, y+40),
+	                XY(100, 300),
+	                XY(x, y),
+                    XY( 90, 300)};
+	custom.assign(v1);
+    Draw(num, custom);
+
+	Contour custom2;
+
+    x=214, y=610;
+    const XY v2[] = {XY( 50, 200),
+	                XY(x, y),
+	                XY( 50, 300),
+	                XY(x+30, y+40),
+	                XY(100, 300),
+	                XY(x, y),
+                    XY( 90, 300)};
+    custom.assign(v2);
+
+    x=220, y=610;
+    const XY v3[] = {XY( 50, 200),
+	                XY(x, y),
+	                XY( 50, 300),
+	                XY(x+30, y+40),
+	                XY(100, 300),
+	                XY(x, y),
+                    XY( 90, 300)};
+    custom2.assign(v3);
+    Draw(num+1, custom, custom2);
+};
 
 
-  
-    
+void contour_test_area(unsigned num)
+{
     //Test area and circumference
     Contour poly(60,200, 90,110); //30 degree rotated
     for (unsigned i = 0; i<10; i++) {
@@ -514,7 +536,7 @@ void contour_test(void)
         Contour rot = res.CreateRotatedAround(XY(100,100),29);
         char buff[200];
         sprintf(buff, "Normal Area: %g, Circumference: %g\nRotate Area: %g, Circumference: %g", res.GetArea(), res.GetCircumference(), rot.GetArea(), rot.GetCircumference());
-        DrawIsinside(400+i, rot, 10, buff);
+        DrawIsinside(num+i, rot, 10, buff);
     }
 
     //End of exclusion for speed */
@@ -525,7 +547,7 @@ void contour_test(void)
         Contour res = Circle - block;
         char buff[200];
         sprintf(buff, "Area: %g, Circumference: %g", res.GetArea(), res.GetCircumference());
-        DrawIsinside(500+i, res, 10, buff);
+        DrawIsinside(num+100+i, res, 10, buff);
     }
 
     Contour ell(XY(100,100), 40, 10, 30); //30 degree rotated
@@ -534,88 +556,55 @@ void contour_test(void)
         Contour res = ell - block;
         char buff[200];
         sprintf(buff, "Area: %g, Circumference: %g", res.GetArea(), res.GetCircumference());
-        DrawIsinside(600+i, res, 10, buff);
+        DrawIsinside(num+200+i, res, 10, buff);
     }
+};
 
 
 
-    //Contour aaa(cooomplex2.begin()->GetHoles());
-    //Contour bexp=aaa, bexp2;
-    //auto i = aaa.begin();
-    //bexp += *i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp += *++i;
-    //bexp2 += *++i;
-    //bexp.RotateAround(XY(300,100), x-y);
-    //bexp2.RotateAround(XY(300,100), x-y);
-    //Contour bexpp = bexp.CreateExpand((x-y)/10.).Shift(XY(0,100));
-    //Contour bexpp2 = bexp2.CreateExpand((x-y)/10.).Shift(XY(0,100));
-    //bexp += bexp2;
-    //bexp.Shift(XY(0,100));
-	//bexpp.Line2(cr);
-	//bexpp2.Line2(cr);
-    //bexpp += bexpp2;
-	
-//
-//    //double offset = cooomplex3.OffsetBelow(bexp);
-//    //bexp.Shift(XY(0,-offset));
-//    //cooomplex3.Line2(cr);
-//	//bexp.Line2(cr);
-//	//bexpp.Line2(cr);
-//
-//	cairo_set_source_rgb(cr, 1, 0, 0);
-//	//(boxhole + boxhole2).Line2(cr); 
-//	//(cooomplex2 * circle2).Line2(cr);
-//	cairo_set_source_rgb(cr, 0, 0, 1);
-//	//(cooomplex * circle2).Fill(cr);
-//	cairo_set_source_rgb(cr, 0, 0, 0);
-////	(pl4 * circle2).Fill(cr);
-//
-//	//double r[4];
-//	//int a = quartic_solve(1, 0, 0, 0, 0, r);
-//	//int b = cubic_solve(1, -6, 23, -6, r);
-//	//for (int i = 0; i<b; i++) {
-//	//	double k = cubic_substitute(1, -6, 23, -6, r[i]);
-//	//	k = k;
-//	//}
-//	//int c = cubic_solve(1, -6, 11, -6, r);
-//
-//
-//	//XY off(150, 30);
-//	//Edge e1(XY(x-75, y));
-//	//Edge e2(XY(200,200), 50, 100, 30);
-//	//Edge e3(XY(x, y), 100, 50, 60);
-//
-//	//cairo_move_to(cr, e3.GetStart().x, e3.GetStart().y);
-//	//e3.Path(cr, e3.GetStart()+off.Rotate90CW());
-//	//cairo_stroke(cr);
-//	//cairo_move_to(cr, e2.GetStart().x, e2.GetStart().y);
-//	//e2.Path(cr, e2.GetStart()+off);
-//	//cairo_stroke(cr);
-//	//
-//	//(Contour(XY(200,200), 50, 100, 30) * Contour(XY(x, y), 100, 50, 60)).Fill(cr);
-//
-//	//XY xy[4];
-//	//double pos1[4], pos2[4];
-//	//int num = Edge::Crossing(e3, e3.GetStart()+off.Rotate90CW(), e2, e2.GetStart()+off, xy, pos1, pos2);
-//	//for (int i=0; i<num; i++) {
-//	//	cairo_set_source_rgba(cr, 0, 1, 0, 0.8);
-//	//	cairo_arc(cr, xy[i].x, xy[i].y, 5, 0, 2*3.14);
-//	//	cairo_close_path(cr);
-//	//	cairo_fill(cr);
-//
-//	//	char buff[200];
-//	//	sprintf(buff, "%d: pos1:%f, pos2:%f", i, pos1[i], pos2[i]);
-//	//	cairo_move_to(cr, xy[i].x+10, xy[i].y);
-//	//	cairo_show_text(cr, buff);
-//	//}
+void contour_test_relations(unsigned num)
+{
+    Contour c1[10], c2[10], c3[10];
+    c1[0] = Block(22,28, 22,28); //tiny
+    c1[1] = Block(20,30, 20,30); //small
+    c1[2] = Block(10,40, 10,40); //medium
+    c1[3] = Block(0,50, 0,50);   //large
+    c1[4] = c1[3] - c1[2];       //large with hole
+    c1[5] = c1[4] + c1[1];       //small in large with hole 
+
+    for (unsigned u=0; u<10; u++) {
+        c2[u] = c1[u].CreateShifted(XY(60,0));
+        c3[u] = c1[u].CreateShifted(XY(120,0));
+    }
+    
+    DrawRelation(num+00, c1[3], c1[9], "B_EMPTY");
+    DrawRelation(num+01, c1[9], c1[1], "A_EMPTY");
+    DrawRelation(num+02, c1[9], c1[9], "BOTH_EMPTY");
+
+    DrawRelation(num+03, c1[3], c1[2], "B_IN_A");
+    DrawRelation(num+04, c1[0], c2[1], "APART");
+
+    DrawRelation(num+05, c1[3], c1[2], "B_IN_A");
+    DrawRelation(num+06, c1[0], c1[2], "A_IN_B");
+    DrawRelation(num+07, c1[1], c1[1], "SAME");
+    DrawRelation(num+ 8, c1[0], c2[1], "APART");
+    DrawRelation(num+ 9, c1[3], c1[2].CreateShifted(XY(20,0)), "OVERLAP");
+
+    DrawRelation(num+10, c1[4], c1[1], "B_IN_HOLE_A");
+    DrawRelation(num+11, c1[1], c1[4], "A_IN_HOLE_B");
+
+    DrawRelation(num+20, c1[1]+c2[1], c1[4], "HOLE_MIXED");
+};
+
+
+
+void contour_test(void)
+{
+//    contour_test_basic();
+//    contour_test_assign(111);
+//    contour_test_lohere();
+//    contour_test_area(400);
+    contour_test_relations(7000);
 }
 
 } //namespace

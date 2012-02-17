@@ -98,7 +98,10 @@ class SimpleContour
 {
     friend class Contour;
 protected:
-    typedef enum {OVERLAP, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART} result_t;
+    typedef enum {OVERLAP=0, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, 
+                  SAME, APART, A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART} result_t;
+    static bool result_overlap(result_t t) {return t==OVERLAP || t==A_INSIDE_B || t==B_INSIDE_A || t==SAME;}
+    static result_t switch_side(result_t t);
     std::vector<Edge> edges;
 public:
     typedef std::vector<Edge>::size_type size_type;
@@ -166,7 +169,7 @@ protected:
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
 
     static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
-
+    result_t RelationTo(const SimpleContour &c) const;
 public:
     bool operator < (const SimpleContour &b) const;
     bool operator ==(const SimpleContour &b) const;

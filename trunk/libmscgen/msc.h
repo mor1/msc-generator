@@ -123,6 +123,12 @@ public:
 class Msc {
 public:
     typedef std::pair<file_line, double> MarkerType;
+    struct RefType {
+        string    number_text; // the number of the arc
+        file_line linenum;     //position of the value of the "refname" attr
+        ArcBase  *arc;         // the arc or NULL if not shown (set in FinalizeLabels())
+        RefType() : arc(NULL) {}
+    };
     typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
             LineToArcMapType;
 
@@ -137,6 +143,7 @@ public:
     std::list<Context>            Contexts;
     std::map<string, Design>      Designs;
     std::map<string, MarkerType>  Markers;
+    std::map<string, RefType>     ReferenceNames;
     std::map<double, MscFillAttr> Background;
     std::string                   copyrightText;
     LineToArcMapType              AllArcs;
@@ -146,6 +153,7 @@ public:
     
     ArcBase                      *last_notable_arc;     //during parse: last arc inserted (the one notes attach to) or NULL if none
     bool                          last_note_is_on_left; //during post-parse: was th last non-float note on the left side
+    bool                          had_notes;            //during parse: did we have notes? if not we can skip Reflow()
 
     XY     total;                //Total size of the chart (minus copyright)
     double copyrightTextHeight;  //Y size of the copyright text calculated
@@ -224,6 +232,9 @@ public:
     void PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(MscCanvas &canvas);
+    void FinalizeLabelsArcList(ArcList &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
+    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas);}
+
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 
     virtual string Print(int ident=0) const;
@@ -238,9 +249,9 @@ public:
          {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
     void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
-    double HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover);
+    double HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover, bool reflow);
     double PlaceListUnder(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, double start_y,
-                          double top_y, const AreaList &area_top,
+                          double top_y, const AreaList &area_top, bool reflow,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(MscCanvas &canvas);

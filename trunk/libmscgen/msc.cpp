@@ -526,14 +526,14 @@ bool Msc::AddAttribute(const Attribute &a)
     }
     if (a.Is("numbering.pre")) {
         Contexts.back().numberingStyle.pre = a.value;
-        StringFormat::ExpandColorAndStyle(Contexts.back().numberingStyle.pre, this,
+        StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return true;
     }
     if (a.Is("numbering.post")) {
         Contexts.back().numberingStyle.post = a.value;
-        StringFormat::ExpandColorAndStyle(Contexts.back().numberingStyle.post, this,
+        StringFormat::ExpandReferences(Contexts.back().numberingStyle.post, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return true;
@@ -683,6 +683,8 @@ ArcBase *Msc::PopContext()
 
 void Msc::ParseText(const char *input, const char *filename)
 {
+    last_notable_arc = NULL;
+    had_notes = false;
     current_file = Error.AddFile(filename);
     if (strlen(input) > std::numeric_limits<unsigned>::max())
         Error.Error(file_line(), "Input text is longer than 4Gbyte. Bailing out.");
@@ -727,7 +729,6 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level)
 {
-    last_notable_arc = NULL;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
@@ -922,15 +923,18 @@ void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &dist
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert((*i)->index);
-    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
+    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) {
         (*i)->Width(canvas, distances);
+        for (auto n = (*i)->GetNotes().begin(); n != (*i)->GetNotes().end(); n++)
+            (*n)->Width(canvas, distances);
+    }
 }
 
 //Places a full list of elements starting at y position==0
 //Calls Height() for each element (recursively) and takes "compress" and "parallel" into account
 //We always place each element on an integer coordinates
 //returns the total height of the list and its coverage in "cover"
-double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover)
+double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover, bool reflow)
 {
     cover.clear();
     double y = 0;              //vertical position of the current element
@@ -949,7 +953,7 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
 
     for (ArcList::iterator i = from; i!=to; i++) {
         AreaList arc_cover;
-        double h = (*i)->Height(canvas, arc_cover);
+        double h = (*i)->Height(canvas, arc_cover, reflow);
         //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
         //maintain at least compressGap/2 amount of space between elements even without compress
         h = std::max(h, arc_cover.GetBoundingBox().y.till);
@@ -1027,12 +1031,12 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
 //y coordinate
 //If ret_cover is not null, we return the rsulting cover of the list at the pos where placed
 double Msc::PlaceListUnder(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, double start_y,
-                           double top_y, const AreaList &area_top, bool forceCompress,
+                           double top_y, const AreaList &area_top, bool reflow, bool forceCompress,
                            AreaList *ret_cover)
 {
     if (from==to) return 0;
     AreaList cover;
-    double h = HeightArcList(canvas, from, to, cover);
+    double h = HeightArcList(canvas, from, to, cover, reflow);
     double touchpoint;
     double new_start_y = std::max(top_y, -area_top.OffsetBelow(cover, touchpoint));
     //if we shifted up, apply shift only if compess is on
@@ -1098,85 +1102,84 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     yPageStart.push_back(0);
     HideELinesHere.clear();
     if (Arcs.size()==0) return;
-    if (total.y == 0) {
-        //start with width calculation, that is used by many elements
-        //First reset running shown of entities, this will be used during Width() pass
-        //for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
-        //    (*i)->running_shown = EEntityStatus::SHOW_OFF;
-        EntityDistanceMap distances;
-        //Add distance for arcs,
-        //needed for hscale=auto, but also for entity width calculation and side note size calculation
-        WidthArcList(canvas, Arcs, distances);
-        if (hscale<0) {
-            distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
-            distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
-            distances.CopyBoxSideToPair(hscaleAutoXGap);
+    if (total.y != 0) return; //already done?
+    //start with width calculation, that is used by many elements
+    //First reset running shown of entities, this will be used during Width() pass
+    //for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
+    //    (*i)->running_shown = EEntityStatus::SHOW_OFF;
+    EntityDistanceMap distances;
+    //Add distance for arcs,
+    //needed for hscale=auto, but also for entity width calculation and side note size calculation
+    WidthArcList(canvas, Arcs, distances);
+    if (hscale<0) {
+        distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
+        distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
+        distances.CopyBoxSideToPair(hscaleAutoXGap);
 
-            //Now go through all the pairwise requirements and calc actual pos.
-            //dist will hold required distance to the right of entity with index []
-            vector<double> dist(ActiveEntities.size(), 0);
-            dist[0] = 0;
-            dist[1] = XCoord(MARGIN_HSCALE_AUTO);
-            dist[dist.size()-2] = XCoord(MARGIN_HSCALE_AUTO);
-            //distances.pairs starts with requiremenst between neighbouring entities
-            //and continues with requirements between second neighbours, ... etc.
-            //we process these sequentially
-            for (auto i = distances.pairs.begin(); i!=distances.pairs.end(); i++) {
-                //Get the requirement
-                double toadd = i->second;
-                //Substract the distance already there
-                for (unsigned f = i->first.first; f!=i->first.second; f++)
-                    toadd -= dist[f];
-                //If there is need to increase start with the closer ones
-                //and gradually move to larger ones.
-                while (toadd>0)
-                    toadd = MscSpreadBetweenMins(dist, i->first.first,
-                                                 i->first.second, toadd);
-            }
-            //Now dist[i] contains the needed space on the right of entity index i
-            double unit = XCoord(1);
-            double curr_pos = MARGIN_HSCALE_AUTO;
-            unsigned index = 0;
-            for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
-                (*j)->pos = curr_pos;
-                ////Mark all parents of this active entity (they are not active) with this "pos"
-                ////In the end this will make any grouped entity to have the same "pos" as
-                ////one of its active descendants. It is unspecified, which, but that does not
-                ////matter, we just need this in CommandEntity::Width, where we want to find
-                ////the leftmost and rightmost active descendant of a grouped node
-                //EIterator j_loc = j;
-                //while ((*j_loc)->parent_name.length()>0) {
-                //    j_loc = AllEntities.Find_by_Name((*j_loc)->parent_name);
-                //    _ASSERT(*j_loc != NoEntity);
-                //    (*j_loc)->pos = curr_pos;
-                //}
-                //advance curr_pos to the next entity
-                curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
-            }
-            total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
-        } else {
-            //Here we only adjust the space for notes on the side
-            const double lnote_size = distances.Query(LNote->index, LSide->index);
-            const double rnote_size = distances.Query(RSide->index, RNote->index);
-            if (lnote_size) {
-                const double diff = lnote_size - LSide->pos + LNote->pos;
-                for (auto ei = ActiveEntities.Find_by_Ptr(LSide); ei != ActiveEntities.end(); ei++)
-                    (*ei)->pos += diff;
-            }
-            if (rnote_size)  
-                RNote->pos = RSide->pos + rnote_size;
-            total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN)+1; //XCoord is always integer
+        //Now go through all the pairwise requirements and calc actual pos.
+        //dist will hold required distance to the right of entity with index []
+        vector<double> dist(ActiveEntities.size(), 0);
+        dist[0] = 0;
+        dist[1] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[dist.size()-2] = XCoord(MARGIN_HSCALE_AUTO);
+        //distances.pairs starts with requiremenst between neighbouring entities
+        //and continues with requirements between second neighbours, ... etc.
+        //we process these sequentially
+        for (auto i = distances.pairs.begin(); i!=distances.pairs.end(); i++) {
+            //Get the requirement
+            double toadd = i->second;
+            //Substract the distance already there
+            for (unsigned f = i->first.first; f!=i->first.second; f++)
+                toadd -= dist[f];
+            //If there is need to increase start with the closer ones
+            //and gradually move to larger ones.
+            while (toadd>0)
+                toadd = MscSpreadBetweenMins(dist, i->first.first,
+                                                i->first.second, toadd);
         }
-        StringFormat sf;
-        sf.Default();
-        XY crTexSize = Label(copyrightText, &canvas, sf).getTextWidthHeight().RoundUp();
-        if (total.x<crTexSize.x) total.x = crTexSize.x;
-
-        copyrightTextHeight = crTexSize.y;
-        AreaList cover;
-        total.y = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover) + chartTailGap;
-        total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
+        //Now dist[i] contains the needed space on the right of entity index i
+        double unit = XCoord(1);
+        double curr_pos = MARGIN_HSCALE_AUTO;
+        unsigned index = 0;
+        for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
+            (*j)->pos = curr_pos;
+            ////Mark all parents of this active entity (they are not active) with this "pos"
+            ////In the end this will make any grouped entity to have the same "pos" as
+            ////one of its active descendants. It is unspecified, which, but that does not
+            ////matter, we just need this in CommandEntity::Width, where we want to find
+            ////the leftmost and rightmost active descendant of a grouped node
+            //EIterator j_loc = j;
+            //while ((*j_loc)->parent_name.length()>0) {
+            //    j_loc = AllEntities.Find_by_Name((*j_loc)->parent_name);
+            //    _ASSERT(*j_loc != NoEntity);
+            //    (*j_loc)->pos = curr_pos;
+            //}
+            //advance curr_pos to the next entity
+            curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
+        }
+        total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
+    } else {
+        //Here we only adjust the space for notes on the side
+        const double lnote_size = distances.Query(LNote->index, LSide->index);
+        const double rnote_size = distances.Query(RSide->index, RNote->index);
+        if (lnote_size) {
+            const double diff = lnote_size - LSide->pos + LNote->pos;
+            for (auto ei = ActiveEntities.Find_by_Ptr(LSide); ei != ActiveEntities.end(); ei++)
+                (*ei)->pos += diff;
+        }
+        if (rnote_size)  
+            RNote->pos = RSide->pos + rnote_size;
+        total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN)+1; //XCoord is always integer
     }
+    StringFormat sf;
+    sf.Default();
+    XY crTexSize = Label(copyrightText, canvas, sf).getTextWidthHeight().RoundUp();
+    if (total.x<crTexSize.x) total.x = crTexSize.x;
+
+    copyrightTextHeight = crTexSize.y;
+    AreaList cover;
+    total.y = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
+    total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
 }
 
 void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
@@ -1196,6 +1199,7 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
     PostParseProcess(canvas); 
+    FinalizeLabels(canvas);
 
     //Calculate chart size
     CalculateWidthHeight(canvas);
@@ -1229,8 +1233,8 @@ void Msc::DrawCopyrightText(MscCanvas &canvas, unsigned page)
     if (total.x==0 || page > yPageStart.size()) return;
     StringFormat sf;
     sf.Default();
-    Label label(copyrightText, &canvas, sf);
-    label.Draw(&canvas, 0, total.x, page==0 || page>=yPageStart.size() ? total.y : yPageStart[page]);
+    Label label(copyrightText, canvas, sf);
+    label.Draw(canvas, 0, total.x, page==0 || page>=yPageStart.size() ? total.y : yPageStart[page]);
 }
 
 void Msc::DrawPageBreaks(MscCanvas &canvas)
@@ -1249,8 +1253,8 @@ void Msc::DrawPageBreaks(MscCanvas &canvas)
         XY d;
         canvas.Line(XY(0, y), XY(total.x, y), line);
         sprintf(text, "page %d", page);
-        label.Set(text, &canvas, format);
-        label.Draw(&canvas, 0, total.x, y-label.getTextWidthHeight().y);
+        label.Set(text, canvas, format);
+        label.Draw(canvas, 0, total.x, y-label.getTextWidthHeight().y);
     }
 }
 

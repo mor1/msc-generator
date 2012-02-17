@@ -39,14 +39,14 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_42BC8A0226F94D1BB8E0C57308308114"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
-        "OwnerKey" = "8:_UNDEFINED"
+        "MsmKey" = "8:_6AF06DC891814CAEAD881EBFF7D9D02C"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -489,15 +489,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
-        "ProductCode" = "8:{A5D65CC5-6231-4870-A556-95806E021F1D}"
-        "PackageCode" = "8:{2D899C03-9755-453C-BEF8-BAD8E377019A}"
+        "ProductCode" = "8:{55652BA6-505C-45B2-A5F2-411C18AB6705}"
+        "PackageCode" = "8:{65A10BC6-8409-4D30-BB20-FF519A6C1595}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:3.4.18"
+        "ProductVersion" = "8:3.4.19"
         "Manufacturer" = "8:Zoltan Turanyi"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1991,7 +1991,7 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_42BC8A0226F94D1BB8E0C57308308114"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_6AF06DC891814CAEAD881EBFF7D9D02C"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"

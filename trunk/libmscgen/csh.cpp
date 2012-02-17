@@ -375,7 +375,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "angle", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
-{"draw_time", "compress", "color", "label", "number", "indicator", "collapsed", 
+{"draw_time", "compress", "color", "label", "refname", "number", "indicator", "collapsed", 
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "text.font.face", "text.font.type", 
@@ -1100,9 +1100,8 @@ void Csh::AddEntitiesToHints()
         AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForEntities));
 }
 
-void Csh::ProcessHints(MscCanvas *canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)
+void Csh::ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)
 {
-    if (!canvas) return;
     StringFormat f;
     f.Default();
     if (format==NULL) format = &f;

@@ -72,23 +72,20 @@ struct ArcSignature {
     ArcSignatureCatalog::iterator WhichIsSimilar(ArcSignatureCatalog &cat) const;
 };
 
-class CommandNote;
 class ArcBase : public TrackableElement
 {
 public:
     typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT, NOTE, AFTER_NOTE} DrawPassType;
 private:
-    bool had_add_attr_list; //TODO: debug only, remove
+    bool had_add_attr_list;    //TODO: debug only, remove
 protected:
-    bool valid;        /* If false, then construction failed, arc does not exist */
-    bool at_top_level; /* if at top level by PostParseProcess() */
-    bool compress;     /* if compress mechanism is on for this arc */
-    bool parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
-    DrawPassType draw_pass;
-    PtrList<CommandNote> notes;
-    
-    mutable Area note_map;    /* those parts of our coverage, which must not be covered by notes */
-    mutable XY def_node_target; //The default part of the element where notes point to
+    bool         valid;        /* If false, then construction failed, arc does not exist */
+    bool         at_top_level; /* if at top level by PostParseProcess() */
+    bool         compress;     /* if compress mechanism is on for this arc */
+    bool         parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
+    DrawPassType draw_pass;    /* Gives the Z-order position of this arc */
+    string         refname;    /* given by the "refname" attribute, to reference numbers & others*/
+    mutable double height;     /* calculated by Height() and Reflow() */
 public:
     const MscArcType type;
 
@@ -121,13 +118,15 @@ public:
     //These functions are called recursively for all arcs in this order
     /* This is called after parsing and adding attributes. Entity order and collapse/expand is already known here */
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    /* This is called to substitute name references in labels & process all escapes */
+    virtual void FinalizeLabels(MscCanvas &canvas);
     /* This fills in distances for hscale=auto mechanism */
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
-    virtual double Height(MscCanvas &canvas, AreaList &cover) = 0;
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
-    virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y); note_map.Shift(XY(0,y)); def_node_target.y+=y;}}
+    virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y);}}
     /* This goes through the tree once more for drawing warnings that need height. */
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     /* This will actually draw the arc */
@@ -151,7 +150,8 @@ public:
     virtual MscDirType GetToucedEntities(class EntityList &el) const;
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -162,9 +162,9 @@ protected:
     string          label;
     Label           parsed_label;
     int             concrete_number; //if >=0 it shows what number the user wanted for this arc. if <0 automatic or no numerbing
-    MscStyle        style; //numbering and compress fields of style are not used. The Arc member fields are used instead.
-    NumberingStyle  numberingStyle; //This is not part of styles in general, but of contexts
-    mutable string  number_text;    //the formatted number (for references, e.g., notes)
+    MscStyle        style;           //numbering and compress fields of style are not used. The Arc member fields are used instead.
+    NumberingStyle  numberingStyle;  //This is not part of styles in general, but of contexts
+    string          number_text;     //the formatted number (for references, e.g., notes)
 public:
     ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
     ArcLabelled(MscArcType t, const ArcLabelled &al);
@@ -178,6 +178,8 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    const string &GetNumberText() const {return number_text;}
+    virtual void FinalizeLabels(MscCanvas &canvas);
 };
 
 class ArcArrow : public ArcLabelled
@@ -211,7 +213,8 @@ public:
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -252,7 +255,8 @@ public:
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     void CalculateMainline(double thickness);
     MscArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
     virtual void ShiftBy(double y);
@@ -283,7 +287,8 @@ public:
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -328,7 +333,8 @@ public:
     virtual void AttachNote(CommandNote *);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -346,7 +352,7 @@ protected:
     bool            drawEntityLines; //true if we draw the entity lines (only if there is content)
     ArcList         content;
 
-    mutable double height, height_w_lower_line;
+    mutable double height_w_lower_line;
     mutable double sx_text, dx_text, y_text;  //label placement
     mutable Contour text_cover;
 public:
@@ -361,6 +367,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void FinalizeLabels(MscCanvas &canvas);
     virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;} //will never be called
     virtual void ShiftBy(double y);
     virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {} //will never be called
@@ -382,8 +389,10 @@ public:
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -437,8 +446,10 @@ public:
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -453,7 +464,7 @@ protected:
     bool wide;  //if true, we keep no margin and add no arcvgapabove & below (for copyright text)
     const double extra_space;
 
-    mutable double centerline, height;
+    mutable double centerline;
     mutable double text_margin, line_margin;
     mutable Contour text_cover;
 public:
@@ -463,7 +474,8 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh, bool nudge=false);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -480,8 +492,10 @@ public:
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -493,7 +507,6 @@ public:
     ArcCommand(MscArcType t, Msc *msc) : ArcBase(t, msc) {};
     bool AddAttribute(const Attribute &) {return false;}
     string Print(int ident=0) const;
-    virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;}
     virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {}
 };
 
@@ -502,10 +515,11 @@ class CommandEntity : public ArcCommand
 protected:
     EntityDefList entities;
     bool full_heading;
-    double height;
+    mutable AreaList cover_at_0;
 public:
     CommandEntity(EntityDefList *e, Msc *msc);
     virtual bool CanBeNoted() const {return true;}
+    virtual void AttachNote(CommandNote *);
 	bool IsFullHeading() {return full_heading;}
 	void MoveMyEntityDefsAfter(EntityDefList *e) {if (e) e->splice(e->end(), entities);} //effectively empty 'entities'
     string Print(int ident=0) const;
@@ -520,7 +534,8 @@ public:
     EEntityStatus GetCombinedStatus(const std::set<string>& children) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -534,7 +549,8 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
 };
 
@@ -545,7 +561,8 @@ public:
 
     CommandNewBackground(Msc *msc, MscFillAttr f)
         : ArcCommand(MSC_COMMAND_NEWBACKGROUND, msc), fill(f) {}
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
 };
 
@@ -570,7 +587,8 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
 };
 
@@ -580,7 +598,8 @@ class CommandEmpty : public ArcCommand
 public:
     CommandEmpty(Msc *msc);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -624,7 +643,8 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
 };
 
 class ExtVertXPos : public VertXPos
@@ -658,7 +678,8 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
@@ -682,8 +703,10 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover);
+    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
