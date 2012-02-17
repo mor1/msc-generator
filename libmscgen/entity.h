@@ -141,7 +141,7 @@ public:
     MscStyle                       style;       //this is finalized during PostParse
     Label                          parsed_label;//this is finalized during PostParse
     bool                           defining;    //true if this is the first entityDef for this entity = this entityDef created the entity (set in AddAttrList)
-    bool                           draw_heading;//true if in CommandEntity::Height we decided to draw heading of this entity
+    bool                           draw_heading;//true if in CommandEntity::PostParseProcess we decided to draw heading of this entity
 
     mutable EIterator left_ent, right_ent;      //for a grouped entity the left & right active entity (but in AllEntities)
     mutable double left_offset, right_offset;   //for a groupe entity the offset from them (of outer edge of contained entity)
@@ -154,9 +154,11 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual string Print(int ident=0) const;
+    void Combine(EntityDef *ed); //moves notes to us, combines show, active & style
 
     double Width() const;
     Range Height(Area &cover, const EntityDefList &edl);
+    void AddNoteMapWhenNotShowing();
     void ShiftBy(double y) {TrackableElement::ShiftBy(y); outer_edge.Shift(XY(0,y));}
     virtual void PostPosProcess(MscCanvas &, double);
     void Draw(MscCanvas &);

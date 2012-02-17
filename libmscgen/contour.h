@@ -30,6 +30,8 @@ class ContourList : protected std::list<ContourWithHoles>
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
 
+    SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
+    SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const;
 public:
     const ContourWithHoles & operator[](size_type i) const;
     void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
@@ -91,6 +93,8 @@ protected:
         {outline.RotateAround(c, cos, sin, radian); if (holes.size()) holes.RotateAround(c, cos, sin, radian);}
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
+    SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
+    SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const {return SimpleContour::switch_side(c.RelationTo(*this, ignore_holes));}
 
 public:
     ContourWithHoles(const SimpleContour &p) : outline(p) {}
@@ -165,6 +169,7 @@ protected:
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
 public:
+    typedef SimpleContour::result_t relation_t;
     Contour() {boundingBox.MakeInvalid();}
     Contour(double sx, double dx, double sy, double dy) : first(sx, dx, sy, dy) {boundingBox = first.GetBoundingBox();}
     Contour(const Block &b) : first(b), boundingBox(b) {}
@@ -265,6 +270,10 @@ public:
                     double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX);
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
                          double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
+    relation_t RelationTo(const Contour &c, bool ignore_holes) const;
+    static bool Overlaps(relation_t t) {return SimpleContour::result_overlap(t);}
+    bool Overlaps(const Contour &c, bool ignore_holes) const {return Overlaps(RelationTo(c, ignore_holes));}
+    bool Overlaps(const Contour &c, double gap) const; //not implemented on purpose. Declaration here to prevent unintended use
 
     void Path(cairo_t *cr, bool show_hidden) const {first.Path(cr, show_hidden); if (further.size()) further.Path(cr, show_hidden);}
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {first.Path(cr, show_hidden, clockwiseonly); if (further.size()) further.Path(cr, show_hidden, clockwiseonly);}

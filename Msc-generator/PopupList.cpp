@@ -58,7 +58,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         CDC* pDC = GetDC();
         {
             MscCanvas canvas(MscCanvas::WIN, pDC->m_hAttribDC, XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y));
-            csh.ProcessHints(&canvas, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
+            csh.ProcessHints(canvas, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
             //Destroy canvas before the DC
         }
         ReleaseDC(pDC);
@@ -196,7 +196,7 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     if (lpItem->itemID==-1) return;
     MscCanvas canvas(MscCanvas::WIN, lpItem->hDC);
     CshHint *item= (CshHint*)lpItem->itemData;
-    Label label(item->decorated, &canvas, m_format);
+    Label label(item->decorated, canvas, m_format);
     XY wh = label.getTextWidthHeight();
     Block b(lpItem->rcItem.left+1, lpItem->rcItem.right-1, lpItem->rcItem.top, lpItem->rcItem.bottom-1);
     MscColorType black(0,0,0);
@@ -209,7 +209,7 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
         canvas.Line(b, line);
     }
     int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
-    label.Draw(&canvas, lpItem->rcItem.left+ HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right, lpItem->rcItem.top + y);
+    label.Draw(canvas, lpItem->rcItem.left+ HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right, lpItem->rcItem.top + y);
     if (item->callback) {
         int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
         cairo_translate(canvas.GetContext(), lpItem->rcItem.left, lpItem->rcItem.top + y);

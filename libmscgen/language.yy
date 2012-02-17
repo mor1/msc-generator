@@ -2827,8 +2827,12 @@ note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_la
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    const ExtVertXPos extvertxpos($2);
-    ArcBase *a = new CommandNote(&msc, &extvertxpos, $3); //This attaches itself to the target of the note
+    ArcBase *a;
+    if ($2) {
+        const ExtVertXPos extvertxpos($2);
+        a = new CommandNote(&msc, &extvertxpos, $3); //This attaches itself to the target of the note
+    } else 
+        a = new CommandNote(&msc, NULL, $3);
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
     $$ = NULL; //no need to add to arclist
   #endif

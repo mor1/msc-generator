@@ -64,10 +64,10 @@ class StringFormat {
 
     mutable cairo_font_extents_t smallFontExtents;
     mutable cairo_font_extents_t normalFontExtents;
-    void ApplyFontTo(MscCanvas *) const;
-    double spaceWidth(const string &, MscCanvas *, bool front) const;
+    void ApplyFontTo(MscCanvas &) const;
+    double spaceWidth(const string &, MscCanvas &, bool front) const;
 
-    typedef enum {FORMATTING_OK, INVALID_ESCAPE, NON_FORMATTING, NON_ESCAPE, LINE_BREAK, NUMBERING, NUMBERING_FORMAT, SOLO_ESCAPE} EEscapeType;
+    typedef enum {FORMATTING_OK, INVALID_ESCAPE, NON_FORMATTING, REFERENCE, NON_ESCAPE, LINE_BREAK, NUMBERING, NUMBERING_FORMAT, SOLO_ESCAPE} EEscapeType;
     EEscapeType ProcessEscape(const char *input, unsigned &length,
                               bool resolve=false, bool apply=false, string *replaceto=NULL, const StringFormat *basic=NULL,
                               Msc *msc=NULL, file_line *linenum=NULL, bool sayIgnore=true);
@@ -100,14 +100,14 @@ class StringFormat {
         {return ident.first?ident.second:MSC_IDENT_CENTER;}
     string Print() const;
     //Return text geometry
-    double getFragmentWidth(const string &, MscCanvas *) const;
-    double getFragmentHeightAboveBaseLine(const string &, MscCanvas *) const;
-    double getFragmentHeightBelowBaseLine(const string &, MscCanvas *) const;
+    double getFragmentWidth(const string &, MscCanvas &) const;
+    double getFragmentHeightAboveBaseLine(const string &, MscCanvas &) const;
+    double getFragmentHeightBelowBaseLine(const string &, MscCanvas &) const;
     double getSpacingBelow(void) const
         {return spacingBelow.first?spacingBelow.second:0;}
 
     //Draw a fragment y specifies baseline (not in cairo sense)
-    double drawFragment(const string &, MscCanvas *, XY, bool isRotated) const;
+    double drawFragment(const string &, MscCanvas &, XY, bool isRotated) const;
 
     //This one tells if the string has any escape character or not
     static bool HasEscapes(const char *text);
@@ -119,9 +119,9 @@ class StringFormat {
     static void AddNumbering(string &label, const string &num, const string &pre_num_post);
     //This converts color names to RGBA numbers, returns the list of
     //unrecognized color escapes are left intact
-    static void ExpandColorAndStyle(string &escape, Msc *msc, file_line linenum,
-                                    const StringFormat *basic, bool ignore,
-                                    ETextType textType);
+    static void ExpandReferences(string &escape, Msc *msc, file_line linenum,
+                                 const StringFormat *basic, bool ignore,
+                                 ETextType textType);
     static int FindNumberingFormatEscape(const char *text);
     static void RemovePosEscapes(string &text);
     static void ConvertToPlainText(string &text);
@@ -137,9 +137,9 @@ protected:
     double     heightAboveBaseLine;
     double     heightBelowBaseLine;
 public:
-    ParsedLine(const string&, MscCanvas *, StringFormat &sf);
+    ParsedLine(const string&, MscCanvas &, StringFormat &sf);
     operator std::string() const;
-    void Draw(XY xy, MscCanvas *, bool isRotated) const;
+    void Draw(XY xy, MscCanvas &, bool isRotated) const;
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}
 };
@@ -150,19 +150,19 @@ class Label : public std::vector<ParsedLine>
     using std::vector<ParsedLine>::size;
     using std::vector<ParsedLine>::at;
 protected:
-    unsigned AddText(const string &s, MscCanvas *canvas, StringFormat);
+    unsigned AddText(const string &s, MscCanvas &canvas, StringFormat);
     void CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const;
 public:
-    Label(const string &s, MscCanvas *c , const StringFormat &f)
+    Label(const string &s, MscCanvas &c , const StringFormat &f)
         {AddText(s,c,f);}
     Label() {}
-    void Set(const string &s, MscCanvas *c, const StringFormat &f) {clear(); AddText(s,c,f);}
+    void Set(const string &s, MscCanvas &c, const StringFormat &f) {clear(); AddText(s,c,f);}
     void AddSpacing(unsigned line, double spacing);
     operator std::string() const;
 
     XY getTextWidthHeight(int line=-1) const;
     Contour Cover(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {Contour a; CoverOrDraw(NULL, sx, dx, y, cx, isRotated, &a); return a;}
-    void Draw(MscCanvas *canvas, double sx, double dx, double y, double cx=-1, bool isRotated=false) const {CoverOrDraw(canvas, sx, dx, y, cx, isRotated, NULL);}
+    void Draw(MscCanvas &canvas, double sx, double dx, double y, double cx=-1, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
 };
 
 

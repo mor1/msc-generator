@@ -264,7 +264,7 @@ public:
     void AddEntitiesToHints();
     void AddLineBeginToHints(bool includeParallel=true) {AddOptionsToHints(); AddKeywordsToHints(includeParallel); AddEntitiesToHints();}
     //fill in size, plain and filter/compact if needed
-    void ProcessHints(MscCanvas *canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
+    void ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
 };
 
 void CshParse(Csh &csh, const char *buff, unsigned len);

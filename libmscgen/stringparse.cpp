@@ -139,8 +139,9 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 //- a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
 //- just regular characters (NON_ESCAPE)
 //- a \n escape (LINE_BREAK)
-//- a \NN escape (NUMBERING)
-//- a \N{1aAiI} escape (NUMBERING_FORMAT)
+//- a \r(xxx) escape (REFERENCE)
+//- a \N or \r() escape (NUMBERING) - the location of the number in this label
+//- a \0x2{1aAiI} escape (NUMBERING_FORMAT)
 //- a lone '\' at the end of the string (SOLO_ESCAPE)
 //In length return the length of the escape found (or for NON_ESCAPE the offset to the next '\').
 //for FORMATTING_OK in replaceto return what to replace the escape to:
@@ -189,6 +190,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
      ** "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
      ** \n - a line break
      ** \N - insert line number here - should not appear in a numbering format
+     ** \r(ref) - insert the line number of another entity here - \r() equals \N
      ** \0x21 \0x2a \0x2A \0x2i \0x2I - used to define numbering formats, should not appear in a label
      ** \0x1(file,line,col) - notes the position of the next char in the original file
      */
@@ -338,7 +340,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return NON_FORMATTING;
     }
 
-    if (!strchr(ESCAPE_STRING_LOCATION "csfm", input[1])) {
+    if (!strchr(ESCAPE_STRING_LOCATION "csfmr", input[1])) {
         //Unrecognized escape comes here
         length = 2;
         if (msc && linenum)
@@ -474,6 +476,32 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             return FORMATTING_OK;
         }
 
+    case 'r':
+        if (length==4) { // this is a "\r()"
+            if (replaceto)
+                *replaceto = "\\N";
+            if (linenum) linenum->col += length;
+            return NUMBERING;
+        }
+        if (!msc) {
+            if (apply || resolve) //drop silently if there is a reference in a place where it should not be
+                goto nok;
+            else	   //if we are just parsing (probably for csh) keep as is.
+                goto ok;
+        } else {
+            auto itr = msc->ReferenceNames.find(parameter);
+            if (itr!=msc->ReferenceNames.end()) {
+                if (replaceto) replaceto->assign(itr->second.number_text); 
+                if (linenum) linenum->col += length;
+                return REFERENCE;
+            } else { 
+                //here we did not find the reference
+                if (linenum)
+                    msc->Error.Error(*linenum, "Unrecognized reference '" + parameter +
+                                     "'. Ignoring it.", "References are case-sensitive.");
+                goto nok;
+            }
+        }
     case 'f':
         if (length==4) { // this is a "\f()"
             if (basic == NULL) {
@@ -650,6 +678,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
         case LINE_BREAK:
         case FORMATTING_OK:
         case NON_FORMATTING:
+        case REFERENCE:
             color = COLOR_LABEL_ESCAPE; break;
         case INVALID_ESCAPE:
             color = COLOR_ERROR; break;
@@ -667,7 +696,8 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     }
 }
 
-//Replaces style and color references to actual definitions found in msc->Contexts.back()
+//Replaces style, color and element references to actual definitions found in msc->Contexts.back()
+//and in msc->ReferenceNames
 //Also performs syntax error checking and generates errors/warnings
 //escape contais the string to parse (and change)
 //if ignore then in errors we say we ignore the erroneous escape and also remove it from the str
@@ -677,8 +707,8 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 //if NULL, those escapes remain in unchanged
 //textType is NUMBER_FORMAT if this string is a number format (cannot contain \N)
 //or it is LABEL or a TEXT_FORMAT (cannot contain \0x2{1aAiI}
-void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum,
-                                       const StringFormat *basic, bool ignore, ETextType textType)
+void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
+                                    const StringFormat *basic, bool ignore, ETextType textType)
 {
     //We have three cases regarding linenum
     //1. it is a colon-label, in which case msc_process_colon_string() inserted
@@ -699,8 +729,9 @@ void StringFormat::ExpandColorAndStyle(string &text, Msc *msc, file_line linenum
         unsigned length;
         file_line beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, basic, msc, &linenum, ignore)) {
-        case FORMATTING_OK:
-            break; //do nothing, just replace as below
+        case FORMATTING_OK: //do nothing, just replace as below
+        case REFERENCE:     //a valid \r(xxx) escape. Replace text returned
+            break; 
         case INVALID_ESCAPE:
             if (ignore) break;  //replaceto is empty here, we will remove the bad escape
             //fallthrough, if we do not ignore: this will set replaceto to the bad escape
@@ -979,7 +1010,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         string tmp = a.value;
         if (tmp.length()==0) return true;
 
-        StringFormat::ExpandColorAndStyle(tmp, msc, a.linenum_value.start, this, true, TEXT_FORMAT);
+        StringFormat::ExpandReferences(tmp, msc, a.linenum_value.start, this, true, TEXT_FORMAT);
 
         StringFormat sf(tmp);
         RemovePosEscapes(tmp);
@@ -1141,7 +1172,7 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 }
 
 
-//This shall be called only after StringFormat::ExpandColorAndStyle on a label and both num strings
+//This shall be called only after StringFormat::ExpandReferences on a label and both num strings
 //If we find a \N escape in the label we replace that to num (for multiple \Ns, if needed)
 //If we find no such escape, we add it to the beginning, but after the initial formatting strings
 void StringFormat::AddNumbering(string &label, const string &num, const string &pre_num_post)
@@ -1169,28 +1200,28 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
         label.insert(beginning_pos, pre_num_post);
 }
 
-void StringFormat::ApplyFontTo(MscCanvas *canvas) const
+void StringFormat::ApplyFontTo(MscCanvas &canvas) const
 {
     _ASSERT(IsComplete()); 
-    canvas->SetFontFace(face.second.c_str(), italics.first && italics.second,
+    canvas.SetFontFace(face.second.c_str(), italics.first && italics.second,
                         bold.first && bold.second);
 
-    canvas->SetFontSize(smallFontSize.second);
-    cairo_font_extents(canvas->GetContext(), &smallFontExtents);
-    canvas->SetFontSize(normalFontSize.second);
-    cairo_font_extents(canvas->GetContext(), &normalFontExtents);
+    canvas.SetFontSize(smallFontSize.second);
+    cairo_font_extents(canvas.GetContext(), &smallFontExtents);
+    canvas.SetFontSize(normalFontSize.second);
+    cairo_font_extents(canvas.GetContext(), &normalFontExtents);
 
     if (fontType.second == MSC_FONT_NORMAL) /*Normal font*/
-        canvas->SetFontSize(normalFontSize.second) ;
+        canvas.SetFontSize(normalFontSize.second) ;
     else /* Small, subscript, superscript */
-        canvas->SetFontSize(smallFontSize.second);
-    canvas->SetColor(color.second);
+        canvas.SetFontSize(smallFontSize.second);
+    canvas.SetColor(color.second);
 }
 
 //front is yes if we want heading space width and false if trailing
-double StringFormat::spaceWidth(const string &text, MscCanvas *canvas, bool front) const
+double StringFormat::spaceWidth(const string &text, MscCanvas &canvas, bool front) const
 {
-    if (text.length()==0 || !canvas->fake_spaces) return 0;
+    if (text.length()==0 || !canvas.fake_spaces) return 0;
     size_t s;
     if (front) {
         s = text.find_first_not_of(' ');
@@ -1203,37 +1234,37 @@ double StringFormat::spaceWidth(const string &text, MscCanvas *canvas, bool fron
     if (s==0) return 0;
     ApplyFontTo(canvas);
     cairo_text_extents_t te;
-	cairo_text_extents (canvas->GetContext(), "M N", &te); //this counts one more space then needed
+	cairo_text_extents (canvas.GetContext(), "M N", &te); //this counts one more space then needed
     double  w = te.x_advance;
-    cairo_text_extents (canvas->GetContext(), "MN", &te);
+    cairo_text_extents (canvas.GetContext(), "MN", &te);
     w -= te.x_advance;
 	return w*s;
 }
 
-double StringFormat::getFragmentWidth(const string &s, MscCanvas *canvas) const
+double StringFormat::getFragmentWidth(const string &s, MscCanvas &canvas) const
 {
-    if (s.length()==0 || canvas==NULL) return 0;
+    if (s.length()==0) return 0;
     ApplyFontTo(canvas);
     cairo_text_extents_t te;
-    if (canvas->individual_chars) {
+    if (canvas.individual_chars) {
         double advance = 0;
         char tmp_stirng[2] = "a";
         for (unsigned i=0; i<s.length(); i++) {
             tmp_stirng[0] = s[i];
-            cairo_text_extents(canvas->GetContext(), tmp_stirng, &te);
+            cairo_text_extents(canvas.GetContext(), tmp_stirng, &te);
             advance += te.x_advance;
         }
         te.x_advance = advance;
     } else {
-        cairo_text_extents (canvas->GetContext(), s.c_str(), &te);
+        cairo_text_extents (canvas.GetContext(), s.c_str(), &te);
     }
     return spaceWidth(s, canvas, true) + te.x_advance + spaceWidth(s, canvas, false);
 }
 
 double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
-                                                      MscCanvas *canvas) const
+                                                      MscCanvas &canvas) const
 {
-    if (s.length()==0 || canvas==NULL) return 0;
+    if (s.length()==0) return 0;
     ApplyFontTo(canvas);
     switch(fontType.second) {
     case MSC_FONT_NORMAL:  //normal font
@@ -1249,9 +1280,9 @@ double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
 }
 
 double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
-                                                      MscCanvas *canvas) const
+                                                      MscCanvas &canvas) const
 {
-    if (s.length()==0 || canvas==NULL) return 0;
+    if (s.length()==0) return 0;
     ApplyFontTo(canvas);
     switch(fontType.second) {
     case MSC_FONT_NORMAL:  //normal font
@@ -1266,9 +1297,9 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
     return 0;
 }
 
-double StringFormat::drawFragment(const string &s, MscCanvas *canvas, XY xy, bool isRotated) const
+double StringFormat::drawFragment(const string &s, MscCanvas &canvas, XY xy, bool isRotated) const
 {
-    if (s.length()==0 || canvas==NULL) return 0;
+    if (s.length()==0) return 0;
     ApplyFontTo(canvas);
     switch(fontType.second) {
     case MSC_FONT_NORMAL:  //normal font
@@ -1283,23 +1314,23 @@ double StringFormat::drawFragment(const string &s, MscCanvas *canvas, XY xy, boo
     }
 
     cairo_text_extents_t te;
-    cairo_text_extents (canvas->GetContext(), s.c_str(), &te);
+    cairo_text_extents (canvas.GetContext(), s.c_str(), &te);
 	xy.x += spaceWidth(s, canvas, true);
-	canvas->Text(xy, s, isRotated);
+	canvas.Text(xy, s, isRotated);
 
     double advance = spaceWidth(s, canvas, true) + te.x_advance + spaceWidth(s, canvas, false);
 
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        canvas->Line(xy, xy2, MscLineAttr(LINE_SOLID, color.second, 1, CORNER_NONE, 0));
+        canvas.Line(xy, xy2, MscLineAttr(LINE_SOLID, color.second, 1, CORNER_NONE, 0));
     }
     return advance;
 }
 
 //////////////////////////////////////////////////////////////
 
-ParsedLine::ParsedLine(const string &in, MscCanvas *canvas, StringFormat &format) :
+ParsedLine::ParsedLine(const string &in, MscCanvas &canvas, StringFormat &format) :
     line(in), width(0), heightAboveBaseLine(0), heightBelowBaseLine(0)
 {
     format.Apply(line); //eats away initial formatting, ensures we do not start with escape
@@ -1355,7 +1386,7 @@ ParsedLine::operator std::string() const
     return ret;
 }
 
-void ParsedLine::Draw(XY xy, MscCanvas *canvas, bool isRotated) const
+void ParsedLine::Draw(XY xy, MscCanvas &canvas, bool isRotated) const
 {
     StringFormat format(startFormat);
     size_t pos = 0;
@@ -1388,7 +1419,7 @@ void ParsedLine::Draw(XY xy, MscCanvas *canvas, bool isRotated) const
 /** Split a string to substrings based on '\n' delimiters.
  * Then parse the strings for escape control characters
  */
-unsigned Label::AddText(const string &input, MscCanvas *canvas, StringFormat format)
+unsigned Label::AddText(const string &input, MscCanvas &canvas, StringFormat format)
 {
     size_t pos = 0, line_start = 0;
     unsigned length=0;
@@ -1497,7 +1528,7 @@ void Label::CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, doubl
         if (area)
             *area += Block(xy, xy+wh); //TODO: Make this finer if there are smaller text or italics...
         else if (canvas)
-            at(i).Draw(xy, canvas, isRotated);
+            at(i).Draw(xy, *canvas, isRotated);
         xy.y += wh.y + at(i).startFormat.spacingBelow.second +
             at(i).startFormat.textVGapLineSpacing.second;
     }

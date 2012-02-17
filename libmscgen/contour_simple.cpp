@@ -26,6 +26,27 @@
 
 namespace contour {
 
+
+SimpleContour::result_t SimpleContour::switch_side(result_t t)
+{
+    switch (t) {
+    default: _ASSERT(0); //fallthrough
+    case IN_HOLE_APART:
+    case BOTH_EMPTY:
+    case OVERLAP: 
+    case APART:
+    case SAME:            return t;
+
+    case A_IS_EMPTY:      return B_IS_EMPTY;
+    case B_IS_EMPTY:      return A_IS_EMPTY;
+    case B_INSIDE_A:      return A_INSIDE_B;
+    case A_INSIDE_B:      return B_INSIDE_A;;
+    case B_IN_HOLE_OF_A:  return A_IN_HOLE_OF_B;
+    case A_IN_HOLE_OF_B:  return B_IN_HOLE_OF_A;
+    }
+}
+
+
 ///////////////////////////// SimpleContour
 
 //Do not create degenerate triangles.
@@ -186,6 +207,9 @@ SimpleContour::result_t SimpleContour::CheckContainmentHelper(const SimpleContou
         //if we are a single ellipsis, use our center point, else use a vertex
         switch (b.IsWithin(p, &edge, &pos, /*strict=*/false)) {
         default:
+        case A_IN_HOLE_OF_B:
+        case B_IN_HOLE_OF_A:
+        case IN_HOLE_APART:
             _ASSERT(0);
         case WI_INSIDE:  return A_INSIDE_B;
         case WI_OUTSIDE: return OVERLAP;
@@ -241,6 +265,9 @@ SimpleContour::result_t SimpleContour::CheckContainment(const SimpleContour &oth
     if (this_in_other != OVERLAP) return this_in_other;
     switch (other.CheckContainmentHelper(*this)) {
     default:
+    case A_IN_HOLE_OF_B:
+    case B_IN_HOLE_OF_A:
+    case IN_HOLE_APART:
     case SAME: _ASSERT(0); return SAME;
     case OVERLAP:
     case APART:       return APART;
@@ -849,6 +876,22 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     res_before_untangle.boundingBox = r2.boundingBox; //copy bb to outer
     res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(res_before_untangle));
 }
+
+SimpleContour::result_t SimpleContour::RelationTo(const SimpleContour &c) const
+{
+    if (!boundingBox.Overlaps(c.boundingBox)) return APART;
+    //Look for crosspoints
+    XY r[4];
+    double one_pos[4], two_pos[4];
+    for (size_type u1 = 0; u1<size(); u1++)
+        for (size_type u2 = 0; u2<c.size(); u2++) 
+            if (at(u1).Crossing(c.at(u2), r, one_pos, two_pos)) 
+                if (one_pos>0 || two_pos>0) //Crosspoint found, we overlap
+                    return OVERLAP;
+    //No real crosspoint (only perhaps vertices are equal)
+    return CheckContainment(c);
+}
+
 
 void SimpleContour::Path(cairo_t *cr, bool show_hidden) const
 {

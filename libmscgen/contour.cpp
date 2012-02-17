@@ -57,6 +57,123 @@ void ContourList::SwapXY()
     boundingBox.SwapXY();
 }
 
+SimpleContour::result_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
+{
+    if (IsEmpty()) 
+        return c.IsEmpty() ? SimpleContour::BOTH_EMPTY : SimpleContour::A_IS_EMPTY;
+    else if (c.IsEmpty())
+        return SimpleContour::B_IS_EMPTY;
+
+    if (!boundingBox.Overlaps(c.GetBoundingBox())) return SimpleContour::APART;
+      
+    SimpleContour::result_t res = begin()->RelationTo(c, ignore_holes);
+    switch (res) {
+    default:
+    case SimpleContour::A_IS_EMPTY: 
+    case SimpleContour::B_IS_EMPTY: 
+    case SimpleContour::BOTH_EMPTY:
+    case SimpleContour::IN_HOLE_APART:
+        _ASSERT(0);
+    case SimpleContour::OVERLAP: 
+        return res;
+    case SimpleContour::B_INSIDE_A: 
+    case SimpleContour::A_INSIDE_B: 
+    case SimpleContour::SAME: 
+    case SimpleContour::APART:
+    case SimpleContour::B_IN_HOLE_OF_A: 
+    case SimpleContour::A_IN_HOLE_OF_B:
+        break;
+    }
+
+    auto i = ++begin();
+    while (i!=end()) {
+        SimpleContour::result_t res2 = i->RelationTo(c, ignore_holes);
+        if (res2 == res) continue;
+        switch (res2) {
+        case SimpleContour::A_IS_EMPTY: 
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
+        case SimpleContour::IN_HOLE_APART:
+            _ASSERT(0);
+        case SimpleContour::OVERLAP: 
+            return res;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+        case SimpleContour::A_IN_HOLE_OF_B:
+            if (SimpleContour::result_overlap(res)) return SimpleContour::OVERLAP;
+            else res = SimpleContour::IN_HOLE_APART;
+            break;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::SAME: 
+            if (res = SimpleContour::SAME) res = res2;
+            else return SimpleContour::OVERLAP;
+            break;
+        }
+        ++i;
+    }
+    return res;
+}
+
+SimpleContour::result_t ContourList::RelationTo(const ContourList &c, bool ignore_holes) const
+{
+    if (IsEmpty()) 
+        return c.IsEmpty() ? SimpleContour::BOTH_EMPTY : SimpleContour::A_IS_EMPTY;
+    else if (c.IsEmpty())
+        return SimpleContour::B_IS_EMPTY;
+      
+    if (!boundingBox.Overlaps(c.GetBoundingBox())) return SimpleContour::APART;
+
+    SimpleContour::result_t res = c.RelationTo(*begin(), ignore_holes);
+    switch (res) {
+    default:
+    case SimpleContour::A_IS_EMPTY: 
+    case SimpleContour::B_IS_EMPTY: 
+    case SimpleContour::BOTH_EMPTY:
+        _ASSERT(0);
+    case SimpleContour::OVERLAP: 
+        return res;
+    case SimpleContour::B_INSIDE_A: 
+    case SimpleContour::A_INSIDE_B: 
+    case SimpleContour::SAME: 
+    case SimpleContour::APART:
+    case SimpleContour::B_IN_HOLE_OF_A: 
+    case SimpleContour::A_IN_HOLE_OF_B:
+    case SimpleContour::IN_HOLE_APART:
+        break;
+    }
+
+    auto i = ++begin();
+    while (i!=end()) {
+        SimpleContour::result_t res2 = c.RelationTo(*i, ignore_holes);
+        if (res2 == res) continue;
+        switch (res2) {
+        case SimpleContour::A_IS_EMPTY: 
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
+            _ASSERT(0);
+        case SimpleContour::OVERLAP: 
+            return res;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+        case SimpleContour::A_IN_HOLE_OF_B:
+        case SimpleContour::IN_HOLE_APART:
+            if (SimpleContour::result_overlap(res)) return SimpleContour::OVERLAP;
+            else res = SimpleContour::IN_HOLE_APART;
+            break;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::SAME: 
+            if (res = SimpleContour::SAME) res = res2;
+            else return SimpleContour::OVERLAP;
+            break;
+        }
+        ++i;
+    }
+    return res;
+}
+
+
 double ContourList::OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const
 {
     if (offset < below.GetBoundingBox().y.from - GetBoundingBox().y.till) return offset;
@@ -1262,6 +1379,69 @@ void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negati
     }
 }
 
+SimpleContour::result_t ContourWithHoles::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
+{
+    SimpleContour::result_t res = outline.RelationTo(c.outline);
+    if (ignore_holes) return res;
+    switch (res) {
+    default:
+    case SimpleContour::A_IN_HOLE_OF_B:
+    case SimpleContour::B_IN_HOLE_OF_A:
+    case SimpleContour::IN_HOLE_APART:
+        _ASSERT(0);
+    case SimpleContour::OVERLAP: 
+    case SimpleContour::A_IS_EMPTY:
+    case SimpleContour::B_IS_EMPTY:
+    case SimpleContour::BOTH_EMPTY:
+    case SimpleContour::APART:
+        return res;
+    case SimpleContour::SAME: 
+        if (holes.RelationTo(c.holes, ignore_holes) == SimpleContour::SAME) return SimpleContour::SAME;
+        return SimpleContour::OVERLAP;
+    case SimpleContour::A_INSIDE_B:
+        switch (c.holes.RelationTo(outline, ignore_holes)) {
+        case SimpleContour::A_IS_EMPTY: 
+            return SimpleContour::A_INSIDE_B;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::SAME: 
+            return SimpleContour::A_IN_HOLE_OF_B;
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::OVERLAP: 
+            return SimpleContour::OVERLAP;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+            return SimpleContour::A_INSIDE_B;
+        case SimpleContour::A_IN_HOLE_OF_B:
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
+        case SimpleContour::IN_HOLE_APART:
+        default:
+            _ASSERT(0);
+            return SimpleContour::OVERLAP;
+        }
+    case SimpleContour::B_INSIDE_A:
+        switch (holes.RelationTo(c.outline, ignore_holes)) {
+        case SimpleContour::A_IS_EMPTY: 
+            return SimpleContour::B_INSIDE_A;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::SAME: 
+            return SimpleContour::B_IN_HOLE_OF_A;
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::OVERLAP: 
+            return SimpleContour::OVERLAP;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+            return SimpleContour::B_INSIDE_A;
+        case SimpleContour::A_IN_HOLE_OF_B:
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
+        case SimpleContour::IN_HOLE_APART:
+        default:
+            _ASSERT(0);
+            return SimpleContour::OVERLAP;
+        }
+    }
+}
 
 /////////////////////////////////////////  Contour implementation
 
@@ -1363,5 +1543,53 @@ void Contour::Expand(EExpandType type4positive, EExpandType type4negative, doubl
     }
     _ASSERT(IsSane());
 }
+
+//if "ignore holes" is true, it can only return 
+//A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART, OVERLAP
+//if false, these additional values may come:
+//A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART 
+//(latter meaning no overlap, but some parts of A is in holes and outside of B)
+Contour::relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) const
+{
+    if (IsEmpty()) 
+        return c.IsEmpty() ? SimpleContour::BOTH_EMPTY : SimpleContour::A_IS_EMPTY;
+    else if (c.IsEmpty())
+        return SimpleContour::B_IS_EMPTY;
+    if (!boundingBox.Overlaps(c.GetBoundingBox())) return SimpleContour::APART;
+    if (further.IsEmpty() && c.further.IsEmpty()) return first.RelationTo(c.first, ignore_holes);
+    //Here we admittedly hack.
+    //To avoid writing code again, we append the "first" to "further" and compare
+    //two ContourLists re-using the code there.
+    //Then we restore "further" by deleting the appended cwh and restoring the boundingbox
+    Contour &c1 = const_cast<Contour&>(*this);
+    Contour &c2 = const_cast<Contour&>(c);
+    SimpleContour::result_t res;
+    if (further.IsEmpty()) {
+        const Block bb(c2.further.boundingBox);
+        c2.further.append(c2.first);
+        res = first.RelationTo(c2.further, ignore_holes);
+        c2.further.pop_back();
+        c2.further.boundingBox = bb;
+    } else if (c2.further.IsEmpty()) {
+        const Block bb(c1.further.boundingBox);
+        c1.further.append(c1.first);
+        res = c1.further.RelationTo(c.first, ignore_holes);
+        c1.further.pop_back();
+        c1.further.boundingBox = bb;
+    } else {
+        const Block bb(c1.further.boundingBox);
+        const Block b2(c2.further.boundingBox);
+        c1.further.push_back(c1.first);
+        c2.further.push_back(c2.first);
+        res = c1.further.RelationTo(c2.further, ignore_holes);
+        c1.further.pop_back();
+        c2.further.pop_back();
+        c1.further.boundingBox = bb;
+        c2.further.boundingBox = b2;
+    }
+    return res;
+}
+
+
 
 } //namespace

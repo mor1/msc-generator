@@ -22,17 +22,20 @@ using namespace std;
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
     hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
+    layout_lower(0), all_notes_placed(false),
     indicator_style(m->Contexts.back().styles["indicator"])
 {
     area.arc = this;
     control_location.MakeInvalid();
 }
 
-
+//This does not copy notes!!
 TrackableElement::TrackableElement(const TrackableElement&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
+    note_map(o.note_map), def_note_target(o.def_note_target),
+    layout_lower(o.layout_lower), all_notes_placed(o.all_notes_placed),
     controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
@@ -45,14 +48,44 @@ void TrackableElement::SetLineEnd(file_line_range l, bool f)
     file_pos = l;
 }
 
+void TrackableElement::AttachNote(CommandNote *cn)
+{
+    _ASSERT(cn);
+    notes.Append(cn);
+}
+
+//move notes to us    
+void TrackableElement::CombineNotes(TrackableElement *te)
+{
+    _ASSERT(te);
+    if (te)
+        notes.splice(notes.end(), te->notes);
+}
+
 void TrackableElement::ShiftBy(double y)
 {
     if (y==0) return;
     area.Shift(XY(0, y));
     area_draw.Shift(XY(0, y));
+    note_map.Shift(XY(0,y)); 
+    def_note_target.y+=y;
     yPos+=y;
     control_location.y += y;
 }
+
+void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level)
+{
+    //dummy values. CommandNumbers do not update/use those
+    EIterator left, right;
+    Numbering number;
+    for (auto n = notes.begin(); n!=notes.end(); /*nope*/)
+        if (NULL == (*n)->PostParseProcess(canvas, hide, left, right, number, at_top_level))
+            notes.erase(n++);
+        else 
+            n++;
+}
+
+
 
 void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/, double)
 {

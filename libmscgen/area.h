@@ -101,6 +101,21 @@ public:
     void InvalidateMainLine() {mainline.clear(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.clear();}
 };
 
+class AreaPtrList 
+{
+    std::list<const Area*>  store;
+public:
+    void Append(const Area*a) {store.push_back(a);}
+    void Append(const AreaPtrList &a) {store.insert(store.end(), a.store.begin(), a.store.end());}
+    void Append(AreaPtrList &&a) {store.splice(store.end(), a.store);}
+
+    //This attempts to place "c". If "c" overlaps some, we attempt to move c or below 
+    //elements down. 
+    //"shift" returns how much shall we shift "c" down to fit.
+    //return value shows if another element needs to be pushed down "request" shows by how much
+    //In this function we are limited to shift "c" only up or down
+    TrackableElement *Insert(const contour::Contour &c, double &shift, double &request);
+};
 
 
 inline bool Area::operator <(const Area &b) const

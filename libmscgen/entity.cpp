@@ -372,7 +372,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         //Create parsed label
         string orig_label = label.first?label.second:name;
         string proc_label = orig_label;
-        StringFormat::ExpandColorAndStyle(proc_label, chart, linenum_label_value,
+        StringFormat::ExpandReferences(proc_label, chart, linenum_label_value,
                                           &style_to_use.text, true, StringFormat::LABEL);
 
         //Allocate new entity with correct label and children and style
@@ -473,6 +473,17 @@ string EntityDef::Print(int ident) const
     return ss;
 };
 
+//moves notes to us, combines show, active & style
+void EntityDef::Combine(EntityDef *ed)
+{
+    if (ed->show.first) 
+        show = ed->show;
+    if (ed->active.first) 
+        active = ed->active;
+    style += ed->style;
+    CombineNotes(ed);
+ }
+
 //returns how wide the entity is, not including its shadow
 double EntityDef::Width() const
 {
@@ -487,8 +498,8 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
 {
     const XY wh = parsed_label.getTextWidthHeight();
     const double lw = style.line.LineWidth();
+    const double x = chart->XCoord((*itr)->pos); //integer
     if (children.size()==0) {
-        const double x = chart->XCoord((*itr)->pos); //integer
         if ((*itr)->children_names.size() && style.indicator.second)
             indicator_ypos_offset = wh.y + lw + chart->emphVGapInside;
         else
@@ -519,8 +530,22 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     Area my_cover(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge, this);
     my_cover.mainline = Block(0, chart->total.x, outer_edge.y.from, outer_edge.y.till);
     cover = std::move(my_cover);
+    const Block b = outer_edge.CreateExpand(-lw/2);
+    note_map = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);
+    def_note_target = XY(0, x);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
+
+void EntityDef::AddNoteMapWhenNotShowing()
+{
+    //we do not draw this, but nevertheless define a small block here
+    const double xpos = chart->XCoord((*itr)->pos);
+    const double w2 = style.line.LineWidth()/2;
+    note_map = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
+    note_map.arc = this;
+    def_note_target = XY(0, xpos);
+}
+
 
 void EntityDef::PostPosProcess(MscCanvas &canvas, double dummy)
 {
@@ -574,7 +599,7 @@ void EntityDef::Draw(MscCanvas &canvas)
     canvas.Line(b2, style.line);
 
     //Draw text
-    parsed_label.Draw(&canvas, b2.x.from, b2.x.till, b2.y.from + lw/2);
+    parsed_label.Draw(canvas, b2.x.from, b2.x.till, b2.y.from + lw/2);
     //Draw indicator
     if (indicator_ypos_offset > 0)
         DrawIndicator(XY(outer_edge.Centroid().x, outer_edge.y.from + indicator_ypos_offset),
