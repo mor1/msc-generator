@@ -26,12 +26,15 @@ class ContourList : protected std::list<ContourWithHoles>
     void Invert();
 
     void Shift(const XY &xy);
+    void Scale(double sc);
     void SwapXY();
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
 
     SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const;
+    double Distance(const ContourWithHoles &c, double dist_so_far=MaxVal(dist_so_far)) const;
+    double Distance(const ContourList &cl, double dist_so_far=MaxVal(dist_so_far)) const;
 public:
     const ContourWithHoles & operator[](size_type i) const;
     void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
@@ -56,6 +59,7 @@ public:
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
+
 };
 
 //this contains a list of non-overlapping contours as holes
@@ -86,6 +90,7 @@ protected:
 
     void Invert() {outline.Invert(); if (holes.size()) holes.Invert();}
     void Shift(const XY &xy) {outline.Shift(xy); if (holes.size()) holes.Shift(xy);}
+    void Scale(double sc)  {outline.Scale(sc); if (holes.size()) holes.Scale(sc);}
     void SwapXY() {outline.SwapXY(); if (holes.size()) holes.SwapXY();}
     void Rotate(double cos, double sin, double radian)
         {outline.Rotate(cos, sin, radian); if (holes.size()) holes.Rotate(cos, sin, radian);}
@@ -95,6 +100,8 @@ protected:
                 double miter_limit_positive, double miter_limit_negative) const;
     SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const {return SimpleContour::switch_side(c.RelationTo(*this, ignore_holes));}
+
+    double Distance(const ContourWithHoles &c) const;
 
 public:
     ContourWithHoles(const SimpleContour &p) : outline(p) {}
@@ -236,11 +243,13 @@ public:
 
     is_within_t IsWithin(const XY &p) const {is_within_t ret = first.IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
     Contour &Shift(const XY &xy) {first.Shift(xy); if (further.size()) further.Shift(xy); boundingBox.Shift(xy); return *this;}
+    Contour &Scale(double sc) {first.Scale(sc); if (further.size()) further.Scale(sc); boundingBox.Scale(sc); return *this;}
     Contour &SwapXY() {first.SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY(); return *this;}
     Contour &Rotate(double degrees) {if (degrees) {double r=deg2rad(degrees); Rotate(cos(r), sin(r), r);} return *this;}
     Contour &RotateAround(const XY&c, double degrees) {if (degrees) {double r=deg2rad(degrees); RotateAround(c, cos(r), sin(r), r);} return *this;}
 
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return a;}
+    Contour CreateScaled(double sc) const {Contour a(*this); a.Scale(sc); return a;}
     Contour CreateSwapXYd() {Contour a(*this); a.SwapXY(); return a;}
 	Contour CreateRotated(double degrees) {Contour a(*this); a.Rotate(degrees); return a;}
     Contour CreateRotatedAround(const XY&c, double degrees) {Contour a(*this); a.RotateAround(c, degrees); return a;}
@@ -267,9 +276,9 @@ public:
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     Contour& Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
-                    double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX);
+                    double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative));
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
-                         double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
+                         double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
     relation_t RelationTo(const Contour &c, bool ignore_holes) const;
     static bool Overlaps(relation_t t) {return SimpleContour::result_overlap(t);}
     bool Overlaps(const Contour &c, bool ignore_holes) const {return Overlaps(RelationTo(c, ignore_holes));}
@@ -282,6 +291,8 @@ public:
     void Line(cairo_t *cr) const {Contour::Path(cr, false); cairo_stroke(cr);}
     void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, false); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, true); cairo_stroke(cr); cairo_restore(cr);}
     void Fill(cairo_t *cr) const {Contour::Path(cr, true); cairo_fill(cr);}
+
+    double Distance(const Contour &c, double dist_so_far=MaxVal(dist_so_far)) const;
 };
 
 inline bool ContourList::GetClockWise() const
@@ -330,6 +341,7 @@ inline void ContourList::append(ContourWithHoles &&p)
     std::list<ContourWithHoles>::push_back(std::move(p));
 }
 
+
 inline const ContourWithHoles & ContourList::operator[](size_type i) const
 {
     const_iterator itr = begin();
@@ -352,6 +364,13 @@ inline void ContourList::Shift(const XY &xy)
     for (auto i = begin(); i!=end(); i++)
         i->Shift(xy);
     boundingBox.Shift(xy);
+}
+
+inline void ContourList::Scale(double sc)
+{
+    for (auto i = begin(); i!=end(); i++)
+        i->Scale(sc);
+    boundingBox.Scale(sc);
 }
 
 
@@ -431,6 +450,7 @@ inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType
     Expand(et4pos, et4neg, gap, res, miter_limit_positive, miter_limit_negative);
     return res;
 }
+
 
 } //namespace
 

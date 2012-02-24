@@ -91,6 +91,8 @@ public:
     const XY & GetStart() const {return start;}
     const XY & GetEnd() const {return end;}
     const Block &GetBoundingBox() const {return boundingBox;}
+    double Distance(const XY &) const;   //always nonnegative
+    double Distance(const Edge &) const; //always nonnegative
 
     const EllipseData &GetEllipseData() const {_ASSERT(type!=STRAIGHT); return ell;}
     bool GetClockWise() const {_ASSERT(type!=STRAIGHT); return clockwise_arc;}
@@ -112,6 +114,7 @@ public:
     bool Expand(double gap);
 
     void Shift(const XY &wh) {start+=wh; end+=wh; boundingBox.Shift(wh); if (type!=STRAIGHT) ell.Shift(wh);}
+    void Scale(double sc) {start*=sc; end*=sc; boundingBox.Scale(sc); if (type!=STRAIGHT) ell.Scale(sc);}
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY();

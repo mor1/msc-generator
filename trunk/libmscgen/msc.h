@@ -14,7 +14,7 @@
 #include "style.h"
 #include "entity.h"
 #include "mscdrawer.h"
-#include "arcs.h"
+#include "commands.h" //includes also arcs.h
 
 using std::string;
 
@@ -150,10 +150,12 @@ public:
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
+
+    CommandNoteList               Notes;      /** all notes after PostParseProcess */
+    PtrList<Area>                 NoteMap;    /** Ptr to the note_map of all elements */
     
     ArcBase                      *last_notable_arc;     //during parse: last arc inserted (the one notes attach to) or NULL if none
     bool                          last_note_is_on_left; //during post-parse: was th last non-float note on the left side
-    bool                          had_notes;            //during parse: did we have notes? if not we can skip Reflow()
 
     XY     total;                //Total size of the chart (minus copyright)
     double copyrightTextHeight;  //Y size of the copyright text calculated
@@ -232,21 +234,14 @@ public:
     void PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(MscCanvas &canvas);
-    void FinalizeLabelsArcList(ArcList &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
-    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas);}
+    template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
+    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(Notes, canvas);}
 
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 
     virtual string Print(int ident=0) const;
     double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
-
-    void HideEntityLines(const Contour &area) {HideELinesHere += area;}
-    void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
-
-    void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
-    void DrawEntityLines(MscCanvas &canvas, double y, double height)
-         {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
     void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
     double HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover, bool reflow);
@@ -255,10 +250,20 @@ public:
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(MscCanvas &canvas);
+    void PlaceNotes(MscCanvas &canvas);
+
+    void HideEntityLines(const Contour &area) {HideELinesHere += area;}
+    void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
 
     void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
-    void DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pass);
+
+    void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
+    void DrawEntityLines(MscCanvas &canvas, double y, double height)
+         {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
+
+    template<typename list> void DrawArcList(MscCanvas &canvas, list &arcs, ArcBase::DrawPassType pass) {for (auto i = arcs.begin();i!=arcs.end(); i++) (*i)->Draw(canvas, pass);}
+    void DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass);
     void Draw(MscCanvas &canvas, bool pageBreaks);
     void DrawCopyrightText(MscCanvas &canvas, unsigned page=0);
     void DrawPageBreaks(MscCanvas &canvas);

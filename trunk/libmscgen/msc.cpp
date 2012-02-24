@@ -23,6 +23,7 @@
 #include <limits>
 #include <cmath>
 #include "msc.h"
+#include "contour_bitmap.h"
 
 using namespace std;
 
@@ -243,7 +244,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true),
+    Arcs(true), NoteMap(false), Notes(true),
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -684,7 +685,6 @@ ArcBase *Msc::PopContext()
 void Msc::ParseText(const char *input, const char *filename)
 {
     last_notable_arc = NULL;
-    had_notes = false;
     current_file = Error.AddFile(filename);
     if (strlen(input) > std::numeric_limits<unsigned>::max())
         Error.Error(file_line(), "Input text is longer than 4Gbyte. Bailing out.");
@@ -757,8 +757,11 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
                 replace = NULL;
             }
         }
+        
+        if (replace) replace->MoveNotesToChart();
+
         if (replace == *i) i++;
-        else if (replace != NULL) (*i++) = replace; //TODO: Check for ArcIndicators
+        else if (replace != NULL) (*i++) = replace;
         else arcs.erase(i++);
     }
 }
@@ -923,11 +926,6 @@ void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &dist
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert((*i)->index);
-    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) {
-        (*i)->Width(canvas, distances);
-        for (auto n = (*i)->GetNotes().begin(); n != (*i)->GetNotes().end(); n++)
-            (*n)->Width(canvas, distances);
-    }
 }
 
 //Places a full list of elements starting at y position==0
@@ -954,6 +952,7 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
     for (ArcList::iterator i = from; i!=to; i++) {
         AreaList arc_cover;
         double h = (*i)->Height(canvas, arc_cover, reflow);
+
         //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
         //maintain at least compressGap/2 amount of space between elements even without compress
         h = std::max(h, arc_cover.GetBoundingBox().y.till);
@@ -1111,6 +1110,10 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
     WidthArcList(canvas, Arcs, distances);
+    //add side distances for notes (moved to "Notes" in PostParseProcessArcList())
+    for (auto note = Notes.begin(); note!=Notes.end(); note++) 
+        (*note)->Width(canvas, distances);
+
     if (hscale<0) {
         distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
         distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
@@ -1182,6 +1185,121 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
 }
 
+using contour::Bitmap;
+
+struct SearchStatus
+{
+    int dx;
+    int dy;
+    unsigned step, pos;
+    const unsigned limit;
+    int x;
+    int y;
+    unsigned ssx, ddx, ssy, ddy;
+    SearchStatus(unsigned _x, unsigned _y, unsigned l,
+                 unsigned _sx, unsigned _dx, unsigned _sy, unsigned _dy) : 
+     dx(1), dy(0), step(1), pos(0), x(_x), y(_y), limit(l),
+     ssx(_sx), ddx(_dx), ssy(_sy), ddy(_dy) {}
+    bool Step();
+};
+
+bool SearchStatus::Step()
+{
+    do {
+        if (++pos>step) {
+            //we need to turn a corner
+            if      (dx== 1) {dx = 0; dy = 1;}
+            else if (dy== 1) {dx =-1; dy = 0; step++;}
+            else if (dx==-1) {dx = 0; dy =-1;}
+            else             {dx = 1; dy = 0; step++;}
+            pos = 0;
+            if (step>=limit) return false;
+        }
+        x += dx; 
+        y += dy; 
+    } while (ssx>x || ddx<x || ssy>y || ddy<y);
+    return true;
+}
+
+
+bool PlaceNoteInRegion(unsigned sx, unsigned dx, unsigned sy, unsigned dy,
+                       const Bitmap map[], const Bitmap obj[], unsigned placing_depth, 
+                       unsigned &x, unsigned &y)
+{
+    //convert coordinates to coarsest thing
+    sx >>= placing_depth-1;
+    dx >>= placing_depth-1;
+    sy >>= placing_depth-1;
+    dy >>= placing_depth-1;
+    SearchStatus status((sx+dx)/2, (sy+dy)/2, std::max(dx-sx, dy-sy), sx, dx, sy, dy);
+    do {
+        x = status.x, y = status.y;
+        for (int d = placing_depth-1; d>=0; d++, x*=2, y*=2) {
+            long long p = map[d].Position(obj[d], x, y);
+            if (p<0) break;    //definite overlap, move to another point on the coarser map
+            if (p>0) continue; //We have partial overlap, search on a finer resolution
+            //no overlap - return with results
+            x<<=d;
+            y<<=d;
+            return true;
+        }
+        //if there is no finer resolution or we had definite overlap, select next
+    } while(status.Step());
+    return false;
+}
+
+void Msc::PlaceNotes(MscCanvas &canvas)
+{
+    const unsigned placing_depth=1;
+    _ASSERT(placing_depth>0);
+    Bitmap original_map(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
+    for (auto i = NoteMap.begin(); i!=NoteMap.end(); i++)
+        original_map.Fill(**i);
+    for (auto note = Notes.begin(); note!=Notes.end(); note++) {
+        const TrackableElement &target = *(*note)->GetTarget();
+        const Contour &cover = target.GetAreaToDraw();
+        //Create bitmaps
+        Bitmap map[placing_depth], obj[placing_depth];
+        map[0] = original_map;
+        //Add the target to the area to avoid
+        map[0].Fill(cover); 
+        for (unsigned u = 1; u<placing_depth; u++)
+            map[u] = map[u-1].CreateDownscaleBy2();
+
+        Contour object = (*note)->Cover(canvas);
+        Block bb = object.GetBoundingBox();
+        XY shift = bb.UpperLeft();
+        bb.Expand(1);
+        object.Shift(-shift);
+        obj[0] = Bitmap(unsigned(bb.x.Spans()), unsigned(bb.y.Spans()));
+        obj[0].Fill(object);
+        for (unsigned u = 1; u<placing_depth; u++)
+            obj[u] = obj[u-1].CreateDownscaleBy2();
+
+
+        int sx, sy, dx, dy;
+        if (cover.IsEmpty()) {
+            sx = (int)target.GetDefNodeTarget().x + 20;
+            dx = (int)target.GetDefNodeTarget().x + 100;
+            sy = (int)target.GetDefNodeTarget().y - 20;
+            dy = (int)target.GetDefNodeTarget().y + 20;
+        } else {
+            sx = (int)cover.GetBoundingBox().x.till + 20;
+            dx = (int)cover.GetBoundingBox().x.till + 100;
+            sy = (int)cover.GetBoundingBox().y.from - 20;
+            dy = (int)cover.GetBoundingBox().y.till + 20;
+        }
+        if (sx<0) sx = 0;
+        if (sy<0) sy = 0;
+        unsigned x, y;
+        if (PlaceNoteInRegion(sx, dx, sy, dy, map, obj, placing_depth, x, y)) {
+            (*note)->Place(canvas, x, y);
+            original_map.Fill((*note)->GetAreaToDraw());
+        }
+    }
+}
+
+
 void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
@@ -1216,15 +1334,18 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
         //So Errors collected so far are OK even after redoing this
     }
 
+    PlaceNotes(canvas);
+
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs, -1);
     Error.Sort();
 }
 
-void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pass)
+
+void Msc::DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass)
 {
-    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
-        (*i)->Draw(canvas, pass);
+    DrawArcList(canvas, Arcs, pass);
+    DrawArcList(canvas, Notes, pass);
 }
 
 //page is 0 for all, 1..n for individual pages
@@ -1281,15 +1402,42 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks(canvas);
-    DrawArcList(canvas, Arcs, ArcBase::BEFORE_ENTITY_LINES);
+    DrawArcs(canvas, ArcBase::BEFORE_ENTITY_LINES);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
     DrawEntityLines(canvas, 0, total.y);
-    DrawArcList(canvas, Arcs, ArcBase::AFTER_ENTITY_LINES);
-    DrawArcList(canvas, Arcs, ArcBase::DEFAULT);
-    DrawArcList(canvas, Arcs, ArcBase::AFTER_DEFAULT);
-    //cairo_set_source_rgb(cr, 0, 0, 1);
-    //cairo_set_line_width(cr,2);
-    //HideELinesArea.Line(cr);
+    DrawArcs(canvas, ArcBase::AFTER_ENTITY_LINES);
+    DrawArcs(canvas, ArcBase::DEFAULT);
+    DrawArcs(canvas, ArcBase::AFTER_DEFAULT);
+    DrawArcs(canvas, ArcBase::NOTE);
+    DrawArcs(canvas, ArcBase::AFTER_NOTE);
+    
+    /* Debug: draw entity lines 
+    cairo_set_source_rgb(cr, 0, 0, 1);
+    cairo_set_line_width(cr,2);
+    HideELinesArea.Line(cr);
+    // End of debug */
+
+    /* Debug: draw cover 
+    contour::Bitmap bitmap(unsigned(total.x), unsigned(total.y));
+    bitmap.FillList(AllCovers);
+    bitmap.DrawOnto(canvas.GetContext());
+    // End of debug */
+
+    /* Debug: draw float_map 
+    unsigned m2 = 1;
+    contour::Bitmap bitmap(unsigned(total.x), unsigned(total.y));
+    for (auto i = AllArcs.begin(); i!=AllArcs.end(); i++)
+        bitmap.Fill(i->second->GetNoteMap());
+    bitmap.CreateDownscale(m2).DrawOnto(canvas.GetContext(), m2);
+    Contour tri(XY(0,0), XY(50,30), XY(30,50));
+    contour::Bitmap tri_b(51,51);
+    tri_b.Fill(tri);
+    unsigned x=100, y=100;
+    if (bitmap.Position(tri_b, x, y, Contour(), 4, 100))
+        tri_b.DrawOnto(canvas.GetContext(), 1, x, y);
+    else 
+        tri.Shift(XY(100,100)).Line(canvas.GetContext());
+    // End of debug */
 }
 
 void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn, bool bPageBreaks)

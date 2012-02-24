@@ -54,13 +54,14 @@ public:
     explicit TrackableElement(Msc *m);
     TrackableElement(const TrackableElement&);
     void SetLineEnd(file_line_range l, bool f=true);
-    virtual void AttachNote(CommandNote *cn);
+    virtual TrackableElement* AttachNote(CommandNote *cn);
     void CombineNotes(TrackableElement *); //move notes to us
-    const CommandNoteList& GetNotes() const {return notes;}
+    virtual void MoveNotesToChart();
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const {return area;};
     const Contour &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
     const Area &GetNoteMap() const {return note_map;}
+    const XY &GetDefNodeTarget() const {return def_note_target;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     virtual void PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level);

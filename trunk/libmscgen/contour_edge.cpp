@@ -69,7 +69,7 @@ double angle(XY base, XY A, XY B)
     default:
         return -1; //error one of them equals to another
     };
-    double cos = (A-base).DotProduct(B-base) / (A-base).length() / (B-base).length();
+    double cos = (A-base).DotProduct(B-base) / base.Distance(A) / base.Distance(B);
     cos = std::min(cos, 1.);
     cos = std::max(cos, -1.);
     if (clockwise)
@@ -103,6 +103,143 @@ Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg, doubl
 }
 
 
+double Edge::Distance(const XY &p) const
+{
+    if (type==STRAIGHT) {
+        if (test_equal(start.x, end.x)) {
+            double end_y;
+            if (p.y<std::min(start.y, end.y)) end_y = std::min(start.y, end.y);
+            else if (p.y>std::max(start.y, end.y)) end_y = std::max(start.y, end.y);
+            else return fabs(start.x - p.x);
+            return sqrt((start.x-p.x)*(start.x-p.x) + (end_y-p.y)*(end_y-p.y));
+        } 
+        if (test_equal(start.y, end.y)) {
+            double end_x;
+            if (p.x<std::min(start.x, end.x)) end_x = std::min(start.x, end.x);
+            else if (p.x>std::max(start.x, end.x)) end_x = std::max(start.x, end.x);
+            else return fabs(start.y - p.y);
+            return sqrt((start.y-p.y)*(start.y-p.y) + (end_x-p.x)*(end_x-p.x));
+        }
+        //http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
+        const double l = start.Distance(end);
+        const double m = fabs((start.x-p.x)*(end.x-start.x)-(end.y-start.y)*(start.y-p.y))/l;
+        if (m<0) return start.Distance(p);
+        if (m>l) return end.Distance(p);
+        return fabs((end.x-start.x)*(start.y-p.y)-(start.x-p.x)*(end.y-start.y))/l;
+    }
+    if (type==FULL_CIRCLE) return ell.Distance(p);
+    XY cross;
+    const double dist = ell.Distance(p, &cross);
+    const double radian = ell.Point2Radian(cross);
+    if (radianbetween(radian)) return dist;  //on arc
+    //outside: find the closest endpoint
+    if (std::min(fmod_negative_safe(radian-s, 2*M_PI), fmod_negative_safe(radian-s, 2*M_PI)) <
+        std::min(fmod_negative_safe(radian-e, 2*M_PI), fmod_negative_safe(radian-e, 2*M_PI))) 
+        return start.Distance(p);
+    else
+        return end.Distance(p);
+}
+
+double Edge::Distance(const Edge &o) const
+{
+    if (type==STRAIGHT) {
+        if (o.type == STRAIGHT) {
+            //test if we cross
+            if (!test_zero((end-start).PerpProduct(o.end-o.start))) {
+                //They are not parallel (and none of them are degenerate, but that does not matter now)
+                const double t = (end-start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+                if (between01_approximate_inclusive(t)) return 0; 
+                const double s = (o.end-o.start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+                if (between01_approximate_inclusive(s)) return 0; //the intersection of the line is inside AB
+            }
+            //They are either parallel, degenerate or just far away
+            //calculate the start distance only, end will come anyway
+            return std::min(Distance(o.start), o.Distance(start));
+        }
+        if (o.type == FULL_CIRCLE) {
+            XY point_on_ell, point_on_line;
+            const double d = o.GetEllipseData().Distance(start, end, point_on_ell, point_on_line);
+            const double line_pos  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                                           (point_on_line.y-start.y)/(end.y-start.y) : (point_on_line.x-start.x)/(end.x-start.x); 
+            if (d<0) { //we cross
+                if (between01_approximate_inclusive(line_pos)) return 0;
+                const double line_pos2  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                                           (point_on_ell.y-start.y)/(end.y-start.y) : (point_on_line.x-start.x)/(end.x-start.x); 
+                if (between01_approximate_inclusive(line_pos2)) return 0;
+                //none of the crosspoints are between start and end
+                //if both are at the same side, return closer one
+                if ((line_pos<0) == (line_pos2<0)) {
+                    if (line_pos < 0)  //"start" is closer
+                        return o.ell.Distance(start);
+                    else  //"end" is closer
+                        return o.ell.Distance(end);
+                } else { //we are inside the "o"
+                    if (line_pos<0) { //"point_on_line" is closer to "start" than to "end"
+                        if (-line_pos < line_pos2-1) return o.ell.Distance(start);
+                        else o.ell.Distance(end);
+                    } else {//"point_on_line" is closer to "end" than to "start"
+                        if (line_pos-1 < -line_pos2) return o.ell.Distance(end);
+                        else return o.ell.Distance(start);
+                    }
+                }
+            }
+            //if we touch & touchpoint between start and end
+            if (d==0 && between01_approximate_inclusive(line_pos)) return 0;
+            //d>0: //line avoids ellipse
+            const XY &relevant_point = line_pos<=0 ? start : line_pos>=1 ? end : point_on_line;
+            return o.ell.Distance(relevant_point);
+        }
+        if (o.type == ARC) {
+            //The following points can be the shortest distance
+            //the infinite line and the full circle
+            //the start and endpoints of either arc to the other
+            //(from the latter we skip endpoints as the next arc will do it)
+            XY point_on_ell, point_on_line;
+            double d = o.GetEllipseData().Distance(start, end, point_on_ell, point_on_line);
+            //now validate that this is a real distance
+            const double line_pos  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                                           (point_on_line.y-start.y)/(end.y-start.y) : (point_on_line.x-start.x)/(end.x-start.x); 
+            const double rad = o.GetEllipseData().Point2Radian(point_on_ell);
+            if (d>=0) {//touch or apart
+                if (!between01_approximate_inclusive(line_pos) || !o.radianbetween(rad))
+                    d = MaxVal(d); //other options will be closer
+            } else { //cross
+                //if any crosspoint is valid we are 0 distance
+                const double line_pos2  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                    (point_on_line.y-start.y)/(end.y-start.y) : (point_on_ell.x-start.x)/(end.x-start.x); 
+                //check line_pos and rad generated from "point_on_ell"
+                if (between01_approximate_inclusive(line_pos2) && o.radianbetween(rad)) 
+                    return 0;
+                //check line_pos and rad generated from "point_on_line"
+                const double rad2 = o.GetEllipseData().Point2Radian(point_on_line);
+                if (between01_approximate_inclusive(line_pos) && o.radianbetween(rad2)) 
+                    return 0;
+                d = MaxVal(d); //other options will be closer
+            }
+            //Ok, now check if the startpoint of the arc is closer to the line
+            return std::min(d, std::min(o.Distance(start), Distance(o.start)));
+        }
+        _ASSERT(0); //not arc neither full_circle nor straight
+    }
+    if (o.type==STRAIGHT) return o.Distance(*this); //straight-curvy combinations
+    //Now we have two curvy edges
+    //We select the one with shorter arc for interpolation
+    const double l1 = (ell.GetRadius1()+ell.GetRadius1())*GetSpan();
+    const double l2 = (o.ell.GetRadius1()+o.ell.GetRadius1())*o.GetSpan();
+    const Edge &a = l1<l2 ? *this : o;
+    const Edge &b = l1<l2 ? o : *this;
+    const double step_length = 5;
+    const double step_arc = step_length/((a.ell.GetRadius1()+a.ell.GetRadius1()));
+    double r1 = a.GetRadianS(), r2 = a.GetRadianE();
+    if (a.GetClockWise()) std::swap(r1, r2);
+    if (r2<=r1) r2 += 2*M_PI;
+    double d = b.Distance(a.GetEllipseData().Radian2Point(r2));
+    for (; r1<r2; r1+=step_arc) {
+        d = std::min(d, b.Distance(a.GetEllipseData().Radian2Point(r1)));
+        if (d==0) return 0;
+    }
+    return d;
+}
 
 void Edge::Rotate(double cos, double sin, double radian)
 {
@@ -111,8 +248,8 @@ void Edge::Rotate(double cos, double sin, double radian)
     if (type!=STRAIGHT) {
         const double turn = ell.Rotate(cos, sin, radian);
         if (turn) {
-            s += turn; if (s>2*M_PI) s-= 2*M_PI;
-            e += turn; if (e>2*M_PI) e-= 2*M_PI;
+            s += turn; if (s>=2*M_PI) s-= 2*M_PI;
+            e += turn; if (e>=2*M_PI) e-= 2*M_PI;
         }
     }
     CalculateBoundingBox();
@@ -1094,7 +1231,7 @@ bool Edge::Expand(double gap)
         //    type = STRAIGHT;
         }
 	}
-    const double length = (end-start).length();
+    const double length = start.Distance(end);
     const XY wh = (end-start).Rotate90CCW()/length*gap;
     start += wh;
     end += wh;
@@ -1173,8 +1310,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
                 if (crossing_line_line(end, tangent, M.start, M.end, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
-                const double dist = (end-M.start).length() * parallel_join_multipiler;
-                const double mlen = (M.end-M.start).length();
+                const double dist = end.Distance(M.start) * parallel_join_multipiler;
+                const double mlen = M.end.Distance(M.start);
                 newcp = M.start + (M.start-M.end)/mlen*dist;
                 return NO_CP_PARALLEL;
             } else {
@@ -1196,8 +1333,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
                 if (crossing_line_line(tangent, M.start, start, end, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
-                const double dist = (end-M.start).length() * parallel_join_multipiler;
-                const double len = (end-start).length();
+                const double dist = end.Distance(M.start) * parallel_join_multipiler;
+                const double len = end.Distance(start);
                 newcp = end + (end-start)/len*dist;
                 return NO_CP_PARALLEL;
             }
@@ -1217,8 +1354,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
                 if (crossing_line_line(tangent1, end, tangent2, M.start, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
-                const double dist = (end-M.start).length() * parallel_join_multipiler;
-                const double len = (end-tangent1).length();
+                const double dist = end.Distance(M.start) * parallel_join_multipiler;
+                const double len = end.Distance(tangent1);
                 newcp = (end+M.start)/2 + (end-tangent1)/len*dist;
                 return NO_CP_PARALLEL;
             }

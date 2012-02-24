@@ -48,10 +48,11 @@ void TrackableElement::SetLineEnd(file_line_range l, bool f)
     file_pos = l;
 }
 
-void TrackableElement::AttachNote(CommandNote *cn)
+TrackableElement* TrackableElement::AttachNote(CommandNote *cn)
 {
     _ASSERT(cn);
     notes.Append(cn);
+    return this;
 }
 
 //move notes to us    
@@ -61,6 +62,12 @@ void TrackableElement::CombineNotes(TrackableElement *te)
     if (te)
         notes.splice(notes.end(), te->notes);
 }
+
+void TrackableElement::MoveNotesToChart() 
+{
+    chart->Notes.splice(chart->Notes.end(), notes);
+}
+
 
 void TrackableElement::ShiftBy(double y)
 {

@@ -944,7 +944,7 @@ void MscNoteAttr::AttributeNames(Csh &csh)
 }
 
 template<> const char EnumEncapsulator<MscNoteAttr::layout_t>::names[][ENUM_STRING_LEN] =
-    {"invalid", "float", "left", "right", "alternate", ""};
+    {"invalid", "float", /*"left", "right", "alternate", */""}; //no else is supported yet
 
 template<> const char EnumEncapsulator<MscNoteAttr::shape_t>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "rectangle", "arrow", ""};
