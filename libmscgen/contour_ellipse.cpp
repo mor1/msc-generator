@@ -359,7 +359,7 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         const XY B1 = B.conv_to_real_space(XY(cos(r2)        , sin(r2)        ));
         //A1 and B1 are points on the ellipses closest to p
         //get rid of p, if it is very far from one of the ellipses
-        if ((A1-p_orig).length() > 4 || (B1-p_orig).length() > 4)
+        if (A1.Distance(p_orig) > 4 || B1.Distance(p_orig) > 4)
             return false;
         const XY A2 =   conv_to_real_space(XY(cos(r1)+sin(r1), sin(r1)-cos(r1)));
         const XY B2 = B.conv_to_real_space(XY(cos(r2)+sin(r2), sin(r2)-cos(r2)));
@@ -434,7 +434,7 @@ int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
     for (int i=1; i<num_tmp; i++) {
         int j;
         for (j=0; j<num; j++)
-            if ((p[j]-points[i]).length()<0.1)
+            if (p[j].Distance(points[i])<0.1)
                 break;
         if (j==num)
             p[num++] = points[i];
@@ -493,8 +493,8 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
         std::swap(radius1, radius2);
     } else if (tilted) { //already tilted and remains so
         double c = costilt;
-        costilt = c*cos + sintilt*sin;
-        sintilt = -c*sin + sintilt*cos;
+        costilt = c*cos - sintilt*sin;
+        sintilt = c*sin + sintilt*cos;
     } else {
         tilted=true;
         costilt = cos;
@@ -525,11 +525,62 @@ center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), circ
 	calculate_extremes();
 }
 
+//return positive distance no matter if inside or outside
+double EllipseData::Distance(const XY &p, XY *point) const
+{
+    if (p.test_equal(center)) return std::min(radius1, radius2);
+    if (radius1==radius2) {
+        const double cl = center.Distance(p);
+        if (point) 
+            *point = center + (p-center)*radius1/cl;
+        return fabs(radius1-cl);
+    }
+    //We cheat with ellipses, we do not return real distance, just the
+    //intersection of the p-center line and the ellipse
+    XY pp = conv_to_circle_space(p);
+    pp.Normalize();
+    pp = conv_to_real_space(pp);
+    if (point) *point = pp;
+    return p.Distance(pp);
+}
+
+//This caluclates the distance between the (infinite long) line of (start-end)
+//and the ellipse
+//if value returned is zero then the line touches crosses the ellipse and the
+//two points equal. If the returned value is negative, the line crosses
+//and the two crosspoints are returned
+double EllipseData::Distance(const XY &start, const XY &end, XY &point_on_ell, XY &point_on_line) const
+{
+    XY r[2];
+    int num = CrossingStraight(start, end, r, true);
+    point_on_ell = r[0];
+    switch (num) {
+    default: _ASSERT(0);
+    case 0: //far apart, project r[0] to line
+        point_on_line = point_on_ell.ProjectOntoLine(start, end);
+        return point_on_line.Distance(point_on_ell);
+    case 1: //we touch
+        point_on_line = point_on_ell;
+        return 0;
+    case 2: //we cross
+        point_on_line = r[1];
+        return -1;
+    }
+}
+
 void EllipseData::Shift(const XY &xy)
 {
     center += xy;
     for (int i=0; i<4; i++)
         extreme[i] += xy;
+}
+
+void EllipseData::Scale(double sc)
+{
+    center *= sc;
+    for (int i=0; i<4; i++)
+        extreme[i] *= sc;
+    if (circumference_cache>=0) circumference_cache *= fabs(sc);
 }
 
 //returns how much radians modify
@@ -673,8 +724,8 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p)
     return -1;
 }
 
-int EllipseData::CrossingStraight(const XY &A, const XY &B,
-  	                          XY *r, double *radian_us, double *pos_b) const
+//In case of no crosspoints, "r" still contains the point closest to the line of A-B 
+int EllipseData::CrossingStraight(const XY &A, const XY &B, XY *r, bool want_closest) const
 {
     const XY M = conv_to_circle_space(A);
     const XY N = conv_to_circle_space(B);
@@ -683,31 +734,57 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B,
     //http://mathworld.wolfram.com/Circle-LineIntersection.html
     double D = M.PerpProduct(N);
     const XY d = N-M;
-    double disc = d.length()*d.length() - D*D;
+    double disc = d.length_sqr() - D*D;
     if (disc<0) {
         //no intersection, check if it almost touches
-        const double dist = fabs((N.x-M.x)*(M.y-0) - (M.x-0)*(N.y-M.y))/(N-M).length();
+        const double dist = fabs((N.x-M.x)*(M.y-0) - (M.x-0)*(N.y-M.y))/N.Distance(M);
         if (test_equal(dist,1)) disc=0;
-        else return 0;
+        else if (want_closest) {
+            //no crosspoints
+            if (test_equal(M.x,N.x)) {
+                if (!test_smaller(-1, M.x)) r[0].x = -1;
+                else if (!test_smaller(M.x, 1)) r[0].x = 1;
+                else {
+                    _ASSERT(0);
+                }
+                r[0].y = 0;
+            } else {
+                const double m = (M.y-N.y)/(M.x-N.x);
+                r[0].x = -sin(atan(m));
+                r[0].y = cos(atan(m));  //always positive
+                if (M.y-M.x*m < 0) r[0] = -r[0]; //line crosses the Y axis below the unit circle
+            }
+            r[0] = conv_to_real_space(r[0]);
+            //no need to refine, we set r[0] originally exactly to the unit sq
+            return 0;
+        } else return 0; //did not want closest point to line
     }
 
     const XY v((d.y<0 ? -d.x : d.x)*sqrt(disc), fabs(d.y)*sqrt(disc));
     const XY f(D*d.y, -D*d.x);
     int num;
     if (test_zero(disc)) { //only touch
-        r[0] = f/d.length()/d.length();
+        r[0] = f/d.length_sqr();
         num = 1;
     } else {
         //the intersect coordinates in unit circle space
-        r[0] = (f+v)/d.length()/d.length();
-        r[1] = (f-v)/d.length()/d.length();
+        r[0] = (f+v)/d.length_sqr();
+        r[1] = (f-v)/d.length_sqr();
         num = 2;
     }
-
-
     for (int i=0; i<num; i++) {
         r[i] = conv_to_real_space(r[i]);
         refine_point(A, B, r[i]);
+    }
+    return num;
+}
+
+int EllipseData::CrossingStraight(const XY &A, const XY &B,
+  	                          XY *r, double *radian_us, double *pos_b) const
+{
+
+    int num = CrossingStraight(A, B, r, false);
+    for (int i=0; i<num; i++) {
         radian_us[i] = Point2Radian(r[i]);
         //special case: horizontal line
         if (A.y==B.y) r[i].y = A.y;

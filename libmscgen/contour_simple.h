@@ -164,9 +164,11 @@ protected:
 
     is_within_t IsWithin(XY p, size_type *edge=NULL, double *pos=NULL, bool strict=true) const;
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (size_type i=0; i<size(); i++) at(i).Shift(xy);}
+    void Scale(double sc) {boundingBox.Scale(sc); for (size_type i=0; i<size(); i++) at(i).Scale(sc); area_cache.second*=sc*sc;}
     void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_type i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise; area_cache.second*=-1;}
     void Rotate(double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
+
 
     static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
     result_t RelationTo(const SimpleContour &c) const;
@@ -195,7 +197,7 @@ public:
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
-    void Expand(EExpandType type, double gap, Contour &res, double miter_limit/*=DBL_MAX*/) const;
+    void Expand(EExpandType type, double gap, Contour &res, double miter_limit/*=MaxVal(miter_limit)*/) const;
 
     void Path(cairo_t *cr, bool show_hidden) const;
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {
@@ -207,6 +209,7 @@ public:
         if (clockwise==clockwiseonly)
             PathDashed(cr, pattern, num, show_hidden);
     }
+    double Distance(const SimpleContour &o) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const

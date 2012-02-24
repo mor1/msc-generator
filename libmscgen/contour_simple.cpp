@@ -23,7 +23,6 @@
 #include <stack>
 #include "contour.h"
 
-
 namespace contour {
 
 
@@ -253,8 +252,8 @@ SimpleContour::result_t SimpleContour::CheckContainment(const SimpleContour &oth
         if (inside(IsWithin(other[0].ell.GetCenter())) ||
             inside(other.IsWithin(at(0).ell.GetCenter()))) {
                 //the center closer to the touchpoint will be inside
-                if ((at(0).ell.GetCenter()-at(0).GetStart()).length() <
-                    (other[0].ell.GetCenter()-at(0).GetStart()).length())
+                if (at(0).GetStart().Distance(at(0).ell.GetCenter()) <
+                    at(0).GetStart().Distance(other[0].ell.GetCenter()))
                     return A_INSIDE_B;
                 else
                     return B_INSIDE_A;
@@ -610,10 +609,10 @@ XY SimpleContour::CentroidUpscaled() const
 Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise)
 {
     XY center = old;
-    double radius = (start-old).length();
-    if (!test_equal(radius, (end-old).length())) {
+    double radius = old.Distance(start);
+    if (!test_equal(radius, old.Distance(end))) {
         center = (start+end)/2;
-        radius = (start-center).length();
+        radius = start.Distance(center);
     }
     Edge edge(center, radius);
     //We do not know if the resulting contour will be clockwise or not
@@ -712,7 +711,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     Contour res_before_untangle;
     SimpleContour &r2 = res_before_untangle.first.outline;
     r2.edges.reserve(size()*3);
-    const double gap_limit = fabs(miter_limit) < DBL_MAX ? fabs(gap)*fabs(miter_limit) : DBL_MAX;
+    const double gap_limit = fabs(miter_limit) < MaxVal(miter_limit) ? fabs(gap)*fabs(miter_limit) : MaxVal(gap_limit);
     switch (type) {
     default:
         _ASSERT(0);
@@ -726,11 +725,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
             //if we are a too sharp miter, we limit its length
             if (cross_type[r.prev(i)] == Edge::CP_EXTENDED &&
-                   (new_start-r[i].GetStart()).length() > gap_limit)
+                   new_start.Distance(r[i].GetStart()) > gap_limit)
                 new_start = r[i].GetStart() + (new_start-r[i].GetStart()).Normalize()*gap_limit;
             bool need_miter_limit_bevel = false;
             if (cross_type[i] == Edge::CP_EXTENDED &&
-                   (new_end-r[i].GetEnd()).length() > gap_limit) {
+                   new_end.Distance(r[i].GetEnd()) > gap_limit) {
                 new_end = r[i].GetEnd() + (new_end-r[i].GetEnd()).Normalize()*gap_limit;
                 need_miter_limit_bevel = true;
             }
@@ -772,7 +771,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     break;
                 case EXPAND_MITER_SQUARE:
                     const XY &next_start = r.at_next(i).GetStart();
-                    const double dist = (new_end - next_start).length()/2;
+                    const double dist = new_end.Distance(next_start)/2;
                     const XY first_tangent = r[i].NextTangentPoint(1.0);
                     const XY first = new_end + (first_tangent - new_end).Normalize()*dist;
                     const XY second_tangent = r.at_next(i).PrevTangentPoint(0.0);
@@ -951,5 +950,30 @@ void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) con
             section.Set(y[j], forward[j] == clockwise);
     }
 }
+
+//The distance of the two contours
+//returns negative one is inside the other, zero if partial overlap only
+//"inside" here ignores clockwiseness
+double SimpleContour::Distance(const SimpleContour &o) const
+{
+    double d = MaxVal(d);
+    if (IsEmpty() || o.IsEmpty()) return d;
+    for (unsigned u = 0; u<size(); u++) 
+        if (/*o.size()<=4 ||*/ fabs(GetBoundingBox().Distance(o.GetBoundingBox())))
+            for (unsigned v=0; v<o.size(); v++) {
+                if (at(u).GetType() == Edge::STRAIGHT && o[v].GetType() == Edge::STRAIGHT) 
+                    d = std::min(d, at(u).Distance(o[v]));
+                else if (d > fabs(at(u).GetBoundingBox().Distance(o[v].GetBoundingBox())))
+                    //if not both are straight try to avoid calculation if bbs are far enough
+                    d = std::min(d, at(u).Distance(o[v]));
+                if (d==0) return 0;
+            }
+    //now check if one is in the other - they cannot cross each other or else d would be 0
+    _ASSERT(RelationTo(o)!=OVERLAP);
+    if (IsWithin(o[0].GetStart()) == WI_INSIDE || o.IsWithin(at(0).GetStart()) == WI_INSIDE) 
+        d = -d;
+    return d;
+}
+
 
 } //namespace

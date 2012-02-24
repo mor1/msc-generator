@@ -5,6 +5,7 @@
 #include <utility>
 #include <cassert>
 #include <cstddef>
+#include <limits>
 
 using namespace std::rel_ops;  //so that we have != and <= and >= etc from only == and <
 
@@ -16,13 +17,18 @@ using namespace std::rel_ops;  //so that we have != and <= and >= etc from only 
 
 namespace contour {
 
-#define CONTOUR_INFINITY DBL_MAX
+#define MaxVal(real) (std::numeric_limits<decltype(real)>::max())
+#define CONTOUR_INFINITY (std::numeric_limits<double>::max())
+
 //other helpers
 static const double SMALL_NUM = 1e-10; //avoid division overflow
-inline bool test_zero(double n) {return n<SMALL_NUM && n>-SMALL_NUM;}
+inline bool test_zero(double n) {return fabs(n)<SMALL_NUM;}
 inline bool test_equal(double n, double m) {return test_zero(n-m);}
 inline bool test_smaller(double n, double m) {return n<m-SMALL_NUM;} //true if *really* smaller, not just by epsilon
 inline bool test_positive(double n) {return n >= SMALL_NUM;}
+
+template <typename real> real minabs(real a, real b) {return fabs(a)<fabs(b) ? a : b;}
+template <typename real> int fsign(real a) {return a>0 ? +1 : a<0 ? -1 : 0;}
 
 class XY {
 public:
@@ -30,16 +36,16 @@ public:
     double y;
     XY() {}
     XY(double a, double b) : x(a), y(b) {}
-    XY &   operator +=(XY wh)             {x+=wh.x; y+=wh.y; return *this;}
-    XY &   operator -=(XY wh)             {x-=wh.x; y-=wh.y; return *this;}
-    XY     operator +(XY wh) const        {return XY(x+wh.x, y+wh.y);}
-    XY     operator -(XY wh) const        {return XY(x-wh.x, y-wh.y);}
-    double DotProduct(XY B) const         {return x*B.x+y*B.y;}
+    XY &   operator +=(const XY &wh)      {x+=wh.x; y+=wh.y; return *this;}
+    XY &   operator -=(const XY &wh)      {x-=wh.x; y-=wh.y; return *this;}
+    XY     operator +(const XY &wh) const {return XY(x+wh.x, y+wh.y);}
+    XY     operator -(const XY &wh) const {return XY(x-wh.x, y-wh.y);}
+    double DotProduct(const XY &B) const  {return x*B.x+y*B.y;}
     XY     operator *(double scale) const {return XY(x*scale, y*scale);}
     XY     operator *=(double scale)      {x*=scale; y*=scale; return *this;}
     XY     operator /(double scale) const {return XY(x/scale, y/scale);}
     XY     operator /=(double scale)      {x/=scale; y/=scale; return *this;}
-    double PerpProduct(XY B) const        {return x*B.y - y*B.x;}        //This is this(T) * B
+    double PerpProduct(const XY &B) const {return x*B.y - y*B.x;}        //This is this(T) * B
     double length(void) const             {return sqrt(x*x+y*y);}
     double length_sqr(void) const         {return x*x+y*y;}
     bool   operator ==(const XY& p) const {return x==p.x && y==p.y;}
@@ -58,7 +64,11 @@ public:
     XY &   RoundDown()                    {x = floor(x); y=floor(y); return *this;}
     XY &   Scale(const XY &sc)            {x*=sc.x; y*=sc.y; return *this;}
     XY &   Normalize()                    {const double l = length(); if (l) {x/=l; y/=l;} return *this;}
+    double Distance(const XY &p) const    {return sqrt((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y));}
+    XY     ProjectOntoLine(const XY&A, const XY&B) const {const XY d = A-B; return B + d*d.DotProduct(*this-B)/d.length_sqr();}
 };
+
+inline XY operator*(double a, const XY &xy) {return xy*a;}
 
 typedef enum {WI_OUTSIDE=0, WI_INSIDE, WI_ON_EDGE, WI_ON_VERTEX, WI_IN_HOLE} is_within_t;
 inline bool inside(is_within_t t) {return t!=WI_OUTSIDE && t!=WI_IN_HOLE;}
@@ -69,7 +79,7 @@ struct Range {
     double till;
     Range() {}
     Range(double s, double d) : from(s), till(d) {}
-    void MakeInvalid() {from = DBL_MAX; till = -DBL_MAX;}
+    void MakeInvalid() {from = MaxVal(from); till = -MaxVal(till);}
     bool IsInvalid() const {return from == CONTOUR_INFINITY && till == -CONTOUR_INFINITY;}
     bool Overlaps(const struct Range &r, double gap=0) const   //true if they at least touch
         {return from<=r.till+gap && r.from <= till+gap;}
@@ -87,8 +97,9 @@ struct Range {
 		if (p==from || p == till) return WI_ON_VERTEX;
                 return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;
     }
-    Range &Shift(double a) {from +=a; till+=a; return *this;}
-    Range &Expand(double a) {from -=a; till+=a; return *this;}
+    Range &Shift(double a) {from+=a; till+=a; return *this;}
+    Range &Scale(double a) {from*=a; till*=a; if (a<0) std::swap(from, till); return *this;}
+    Range &Expand(double a) {from-=a; till+=a; return *this;}
     bool HasValidFrom() const {return from != CONTOUR_INFINITY;}
     bool HasValidTill() const {return till != -CONTOUR_INFINITY;}
     double Spans() const {return till-from;}
@@ -103,7 +114,9 @@ struct Range {
     Range & RoundDown()   {from = floor(from); till=floor(till); return *this;}
     Range & RoundWider()  {from = floor(from); till=ceil(till); return *this;}
     Range & RoundCloser() {from = ceil(from); till=floor(till); return *this;}
-    Range & Scale(double sc) {from*=sc; till*=sc; return *this;}
+
+    //Returns negative if inside
+    double Distance(double a) const {_ASSERT(!IsInvalid()); return minabs(from-a,a-till);}
 };
 
 struct Block {
@@ -140,6 +153,8 @@ struct Block {
         {return XY(x.MidPoint(), y.MidPoint());}
     XY Spans(void) const
         {return XY(x.Spans(), y.Spans());}
+    double GetArea() const {return IsInvalid() ? 0 : x.Spans()*y.Spans();}
+    double GetCircumference() const {return IsInvalid() ? 0 : 2*(x.Spans()+y.Spans());}
     is_within_t IsWithin(const XY &p) const {
         if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
         if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;
@@ -152,6 +167,8 @@ struct Block {
         {x += b.x; y += b.y; return *this;}
     Block &Shift(const XY &a)
         {x.Shift(a.x); y.Shift(a.y); return *this;}
+    Block &Scale(const XY &sc) {x.Scale(sc.x); y.Scale(sc.y); return *this;}
+    Block &Scale(double sc) {x.Scale(sc); y.Scale(sc); return *this;}
     Block &Expand(double a) {x.Expand(a); y.Expand(a); return *this;}
     Block CreateExpand(double a) const {Block b(*this); b.Expand(a); return b;}
     Block &SwapXY() {std::swap(x,y); return *this;}
@@ -160,8 +177,36 @@ struct Block {
     Block & RoundDown()   {x.RoundDown(); y.RoundDown(); return *this;}
     Block & RoundWider()  {x.RoundWider(); y.RoundWider(); return *this;}
     Block & RoundCloser() {x.RoundCloser(); y.RoundCloser(); return *this;}
-    Block & Scale(const XY &sc) {x.Scale(sc.x); y.Scale(sc.y); return *this;}
+
+    double Distance(const XY &xy) const;
+    double Distance(const Block &b) const;
 };
+
+inline double Block::Distance(const XY &xy) const 
+{
+    const double xd = x.Distance(xy.x);
+    const double yd = y.Distance(xy.y);
+    //if both outside we return the distance
+    if (fsign(xd)>0 && fsign(yd)>0) return sqrt(xd*xd + yd*yd);
+    //if both inside, we are fully inside the box, return the smaller abs value
+    if (fsign(xd)<0 && fsign(yd)<0) return std::max(xd, yd); 
+    //else we return the one with bigger sign (positive or zero)
+    return fsign(xd) > fsign(yd) ? xd : yd;
+}
+
+inline double Block::Distance(const Block &b) const 
+{
+    const double uld = Distance(b.UpperLeft());
+    const double urd = Distance(b.UpperRight());
+    const double lld = Distance(b.LowerLeft());
+    const double lrd = Distance(b.LowerRight());
+    //if some squares of b are inside and some are outside (or there is a touch), return 0
+    if (fsign(uld) != fsign(lrd) || fsign(uld) != fsign(urd) || fsign(uld) != fsign(lld))
+        return 0;
+    //if all are either inside or outside, return the one with smallest abs value
+    return minabs(minabs(uld, urd), minabs(lld, lrd));
+}
+
 
 } //namespace
 

@@ -90,6 +90,12 @@
     <ClCompile Include="contour_simple.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="contour_bitmap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="commands.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arcs.h">
@@ -174,6 +180,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="contour_simple.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="contour_bitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="commands.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

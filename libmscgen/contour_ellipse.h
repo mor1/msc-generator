@@ -59,7 +59,10 @@ public:
     double GetRadius2() const {return radius2;}
     double GetTilt() const {return tilted ? tilt : 0;}
 	double GetExtreme(int n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
+    double Distance(const XY &p, XY *point=NULL) const;
+    double Distance(const XY &start, const XY &end, XY &point_on_ell, XY &point_on_line) const;
     void Shift(const XY &xy);
+    void Scale(double sc);
 	double Rotate(double cos, double sin, double radian);
 	double RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY();
@@ -80,6 +83,7 @@ public:
     //also the radian or relative position inside the straight edge
     int CrossingEllipse(const EllipseData &B,
                         XY r[], double radian_us[], double radian_b[]) const;
+    int CrossingStraight(const XY &A, const XY &B, XY *r, bool want_closest) const; //the infinite line of A-B
     int CrossingStraight(const XY &A, const XY &B,
                          XY r[], double radian_us[], double pos_b[]) const;
     int CrossingVertical(double x, double y[], double radian[]) const;

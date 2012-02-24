@@ -6,9 +6,9 @@
 
 class TrackableElement;
 //plus it has additional stuff, such as arc and mainline
+
 class Area : public contour::Contour
 {
-    friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
 public:
     mutable TrackableElement *arc;
     contour::Contour          mainline;
@@ -58,9 +58,9 @@ public:
     Area& SwapXY() {Contour::SwapXY(); mainline.clear(); return *this;}
 
     Area CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                      double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
+                      double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
     Area &Expand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                 double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX)
+                 double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative))
          {Contour::Expand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative); mainline.Expand(gap); return *this;}
 	void ClearHoles() {Contour::ClearHoles();}
 
@@ -80,6 +80,9 @@ public:
     AreaList(AreaList &&al) : cover(std::move(al.cover)), boundingBox(al.boundingBox), mainline(std::move(al.mainline)) {}
     const std::list<Area> &GetCover() const {return cover;}
     void clear() {boundingBox.MakeInvalid(); mainline.clear(); cover.clear();}
+    size_t size() const {return cover.size();}
+    std::list<Area>::const_iterator begin() const {return cover.begin();}
+    std::list<Area>::const_iterator end() const {return cover.end();}
     void swap(AreaList &o) {cover.swap(o.cover); std::swap(boundingBox, o.boundingBox); std::swap(mainline, o.mainline);}
     void SetArc(TrackableElement *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
     AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
@@ -91,7 +94,7 @@ public:
     const contour::Block& GetBoundingBox() const {return boundingBox;}
 
     AreaList CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                          double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
+                          double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;

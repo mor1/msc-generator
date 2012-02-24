@@ -740,7 +740,7 @@ static yyconst flex_int16_t yy_chk[789] =
 
 #include "colorsyntax.h"
 #include "language_misc.h"
-#include "arcs.h" //MSC_* defs
+#include "commands.h" //MSC_* defs and CommandNote
 #else
 #include "msc.h"
 #define YYMSC_RESULT_TYPE Msc

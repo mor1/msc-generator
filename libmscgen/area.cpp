@@ -18,7 +18,7 @@
 */
 #include <cassert>
 #include "area.h"
-#include "arcs.h"
+#include "commands.h"
 
 /////////////////////////////////////////  Contour implementation
 

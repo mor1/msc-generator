@@ -218,7 +218,41 @@ void DrawRelation(unsigned i, const Contour &c1, const Contour &c2, const char *
     c.Draw(c2, false, 0, 1, 0, true, 0);
 };
 
-//NOW
+void DrawDistance(unsigned i, const Contour &c1, const Contour &c2, const char *text="", const XY &p1=XY(0,0), const XY&p2=XY(0,0))
+{
+    Block b = c1.GetBoundingBox();
+    b += c2.GetBoundingBox();
+    double dist = c1.Distance(c2);
+    b += XY(100,100);
+    if (dist<MaxVal(dist)) 
+        b += XY(fabs(dist)+20, fabs(dist));
+    char uhh[1000];
+    sprintf(uhh, "Distance is %g. Point dist %g. %s", dist, p1.Distance(p2), text);
+    CairoContext c(i, b, uhh, false);
+    c.Draw(c1, false, 1, 0, 0, true, 0);
+    c.Draw(c2, false, 0, 1, 0, true, 0);
+    if (dist<MaxVal(dist)) {
+        c.Draw(c1.CreateExpand(dist, contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
+        c.Draw(c2.CreateExpand(dist, contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
+    }
+    cairo_set_source_rgb(c.cr, 0,0,0);
+    cairo_move_to(c.cr, 10, 20);
+    cairo_line_to(c.cr, 10, 30);
+    cairo_new_sub_path(c.cr);
+    cairo_move_to(c.cr, fabs(dist)+10, 20);
+    cairo_line_to(c.cr, fabs(dist)+10, 30);
+    cairo_new_sub_path(c.cr);
+    cairo_move_to(c.cr, 10, 25);
+    cairo_line_to(c.cr, fabs(dist)+10, 25);
+    cairo_set_line_width(c.cr, 2);
+
+    if (p1!=p2) {
+        XY p2_ = p1+(p2-p1).Normalize()*fabs(dist);
+        cairo_move_to(c.cr, p1.x, p1.y);
+        cairo_line_to(c.cr, p2_.x, p2_.y);
+        cairo_stroke(c.cr);
+    }
+};
 
 
 void contour_test_basic(void)
@@ -317,7 +351,7 @@ void contour_test_basic(void)
 	cooomplex2.RotateAround(XY(350,100), 39);
     Contour part = cooomplex2[1];
     Contour spart = cooomplex3[1];
-    DrawExpand(135, EXPAND_MITER, DBL_MAX, part, false);
+    DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, false);
 
     Draw(117, cooomplex3, cooomplex2, "SwapXY");
     Draw(1171, cooomplex2, cooomplex2.CreateSwapXYd(), "Rotated ellipse swapXY()");
@@ -337,37 +371,37 @@ void contour_test_basic(void)
     const XY forexpbevel[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
         XY(150,160), XY(100,160)};
 
-    DrawExpand(121, EXPAND_MITER, DBL_MAX, Contour(forexpbevel), false);
-    DrawExpand(122, EXPAND_ROUND, DBL_MAX, Contour(forexpbevel), false);
-    DrawExpand(123, EXPAND_BEVEL, DBL_MAX, Contour(forexpbevel), false);
+    DrawExpand(121, EXPAND_MITER, CONTOUR_INFINITY, Contour(forexpbevel), false);
+    DrawExpand(122, EXPAND_ROUND, CONTOUR_INFINITY, Contour(forexpbevel), false);
+    DrawExpand(123, EXPAND_BEVEL, CONTOUR_INFINITY, Contour(forexpbevel), false);
 
     Contour box = Contour(10, 110, 10, 110) - Contour(30, 40, 30, 80) - Contour(80, 90, 30, 80);
-    DrawExpand(124, EXPAND_MITER, DBL_MAX, box, false, "box with miter");
-    DrawExpand(125, EXPAND_ROUND, DBL_MAX, box, false, "box with round");
-    DrawExpand(126, EXPAND_BEVEL, DBL_MAX, box, false, "box with bevel");
-    DrawExpand(127, EXPAND_MITER, DBL_MAX, variable, false, "boxhole with miter");
-    DrawExpand(128, EXPAND_ROUND, DBL_MAX, variable, false, "boxhole with round");
-    DrawExpand(129, EXPAND_BEVEL, DBL_MAX, variable, false, "boxhole with bevel");
-    DrawExpand(130, EXPAND_MITER, DBL_MAX, later, false, "later with miter");
-    DrawExpand(131, EXPAND_BEVEL, DBL_MAX, later, false, "later with bevel");
-    DrawExpand(132, EXPAND_ROUND, DBL_MAX, later, false, "later with round");
-    DrawExpand(133, EXPAND_MITER, DBL_MAX, cooomplex, false, "complex with miter");
-    DrawExpand(134, EXPAND_MITER, DBL_MAX, huhu, false, "huhu with miter");
+    DrawExpand(124, EXPAND_MITER, CONTOUR_INFINITY, box, false, "box with miter");
+    DrawExpand(125, EXPAND_ROUND, CONTOUR_INFINITY, box, false, "box with round");
+    DrawExpand(126, EXPAND_BEVEL, CONTOUR_INFINITY, box, false, "box with bevel");
+    DrawExpand(127, EXPAND_MITER, CONTOUR_INFINITY, variable, false, "boxhole with miter");
+    DrawExpand(128, EXPAND_ROUND, CONTOUR_INFINITY, variable, false, "boxhole with round");
+    DrawExpand(129, EXPAND_BEVEL, CONTOUR_INFINITY, variable, false, "boxhole with bevel");
+    DrawExpand(130, EXPAND_MITER, CONTOUR_INFINITY, later, false, "later with miter");
+    DrawExpand(131, EXPAND_BEVEL, CONTOUR_INFINITY, later, false, "later with bevel");
+    DrawExpand(132, EXPAND_ROUND, CONTOUR_INFINITY, later, false, "later with round");
+    DrawExpand(133, EXPAND_MITER, CONTOUR_INFINITY, cooomplex, false, "complex with miter");
+    DrawExpand(134, EXPAND_MITER, CONTOUR_INFINITY, huhu, false, "huhu with miter");
 
-    DrawExpand(135, EXPAND_MITER, DBL_MAX, part, false, "part with miter");
-    DrawExpand(136, EXPAND_ROUND, DBL_MAX, part, false, "part with round");
-    DrawExpand(137, EXPAND_BEVEL, DBL_MAX, part, true, "part with bevel");
+    DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, false, "part with miter");
+    DrawExpand(136, EXPAND_ROUND, CONTOUR_INFINITY, part, false, "part with round");
+    DrawExpand(137, EXPAND_BEVEL, CONTOUR_INFINITY, part, true, "part with bevel");
 
-    DrawExpand(138, EXPAND_MITER, DBL_MAX, spart, false, "spart with round");
-    DrawExpand(139, EXPAND_ROUND, DBL_MAX, spart, false, "spart with round");
-    DrawExpand(140, EXPAND_BEVEL, DBL_MAX, spart, false, "spart with round");
+    DrawExpand(138, EXPAND_MITER, CONTOUR_INFINITY, spart, false, "spart with round");
+    DrawExpand(139, EXPAND_ROUND, CONTOUR_INFINITY, spart, false, "spart with round");
+    DrawExpand(140, EXPAND_BEVEL, CONTOUR_INFINITY, spart, false, "spart with round");
 
-    DrawExpand(150, EXPAND_MITER, DBL_MAX, cooomplex3, false, "complex3 with miter");
-    DrawExpand(151, EXPAND_BEVEL, DBL_MAX, cooomplex3, false, "complex3 with miter");
-    DrawExpand(152, EXPAND_ROUND, DBL_MAX, cooomplex3, false, "complex3 with miter");
-    DrawExpand(153, EXPAND_MITER, DBL_MAX, cooomplex2, false, "rounded complex3 with miter");
-    DrawExpand(154, EXPAND_BEVEL, DBL_MAX, cooomplex2, false, "rounded complex3 with miter");
-    DrawExpand(155, EXPAND_ROUND, DBL_MAX, cooomplex2, false, "rounded complex3 with miter");
+    DrawExpand(150, EXPAND_MITER, CONTOUR_INFINITY, cooomplex3, false, "complex3 with miter");
+    DrawExpand(151, EXPAND_BEVEL, CONTOUR_INFINITY, cooomplex3, false, "complex3 with miter");
+    DrawExpand(152, EXPAND_ROUND, CONTOUR_INFINITY, cooomplex3, false, "complex3 with miter");
+    DrawExpand(153, EXPAND_MITER, CONTOUR_INFINITY, cooomplex2, false, "rounded complex3 with miter");
+    DrawExpand(154, EXPAND_BEVEL, CONTOUR_INFINITY, cooomplex2, false, "rounded complex3 with miter");
+    DrawExpand(155, EXPAND_ROUND, CONTOUR_INFINITY, cooomplex2, false, "rounded complex3 with miter");
 
     Contour form1 = Contour(0, 100, 0, 50) + Contour(XY(0, 25), 10, 25) - Contour(XY(100, 25), 10, 25);
     Contour form2 = Contour(0, 100, 0, 50) - Contour(XY(0, 25), 10, 25) + Contour(XY(100, 25), 10, 25);
@@ -376,39 +410,39 @@ void contour_test_basic(void)
     Contour form5 = Contour(0, 100, 0, 50) - Contour(XY(0, 15), 15) - Contour(XY(0, 40), 10);
 
     
-    DrawExpand(160, EXPAND_MITER, DBL_MAX, form1, false, "pipe with miter");
-    DrawExpand(161, EXPAND_MITER, DBL_MAX, form2, false, "reverse pipe with miter");
-    DrawExpand(162, EXPAND_MITER, DBL_MAX, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(163, EXPAND_MITER, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(164, EXPAND_MITER, DBL_MAX, form5, false, "two inverse circles with miter");
-    DrawExpand(170, EXPAND_BEVEL, DBL_MAX, form1, false, "pipe with miter");
-    DrawExpand(171, EXPAND_BEVEL, DBL_MAX, form2, false, "reverse pipe with miter");
-    DrawExpand(172, EXPAND_BEVEL, DBL_MAX, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(173, EXPAND_BEVEL, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(174, EXPAND_BEVEL, DBL_MAX, form5, false, "two inverse circles with miter");
-    DrawExpand(180, EXPAND_ROUND, DBL_MAX, form1, false, "pipe with miter");
-    DrawExpand(181, EXPAND_ROUND, DBL_MAX, form2, false, "reverse pipe with miter");
-    DrawExpand(182, EXPAND_ROUND, DBL_MAX, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(183, EXPAND_ROUND, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(184, EXPAND_ROUND, DBL_MAX, form5, false, "two inverse circles with miter");
+    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, false, "pipe with miter");
+    DrawExpand(161, EXPAND_MITER, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
+    DrawExpand(162, EXPAND_MITER, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(164, EXPAND_MITER, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
+    DrawExpand(170, EXPAND_BEVEL, CONTOUR_INFINITY, form1, false, "pipe with miter");
+    DrawExpand(171, EXPAND_BEVEL, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
+    DrawExpand(172, EXPAND_BEVEL, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(173, EXPAND_BEVEL, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(174, EXPAND_BEVEL, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
+    DrawExpand(180, EXPAND_ROUND, CONTOUR_INFINITY, form1, false, "pipe with miter");
+    DrawExpand(181, EXPAND_ROUND, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
+    DrawExpand(182, EXPAND_ROUND, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(183, EXPAND_ROUND, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(184, EXPAND_ROUND, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
 
-    DrawExpand(185, EXPAND_MITER_BEVEL, DBL_MAX, form1, false, "pipe with miter");
-    DrawExpand(186, EXPAND_MITER_BEVEL, DBL_MAX, form2, false, "reverse pipe with miter");
-    DrawExpand(187, EXPAND_MITER_BEVEL, DBL_MAX, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(188, EXPAND_MITER_BEVEL, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(189, EXPAND_MITER_BEVEL, DBL_MAX, form5, false, "two inverse circles with miter");
+    DrawExpand(185, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form1, false, "pipe with miter");
+    DrawExpand(186, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
+    DrawExpand(187, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(188, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(189, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
 
-    DrawExpand(190, EXPAND_MITER_ROUND, DBL_MAX, form1, false, "pipe with miter");
-    DrawExpand(191, EXPAND_MITER_ROUND, DBL_MAX, form2, false, "reverse pipe with miter");
-    DrawExpand(192, EXPAND_MITER_ROUND, DBL_MAX, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(193, EXPAND_MITER_ROUND, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(194, EXPAND_MITER_ROUND, DBL_MAX, form5, false, "two inverse circles with miter");
+    DrawExpand(190, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form1, false, "pipe with miter");
+    DrawExpand(191, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
+    DrawExpand(192, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(193, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(194, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
 
-    DrawExpand(195, EXPAND_MITER_SQUARE, DBL_MAX, form1, false, "pipe with miter");
-    DrawExpand(196, EXPAND_MITER_SQUARE, DBL_MAX, form2, false, "reverse pipe with miter");
-    DrawExpand(197, EXPAND_MITER_SQUARE, DBL_MAX, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(198, EXPAND_MITER_SQUARE, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(199, EXPAND_MITER_SQUARE, DBL_MAX, form5, false, "two inverse circles with miter");
+    DrawExpand(195, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form1, false, "pipe with miter");
+    DrawExpand(196, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
+    DrawExpand(197, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(198, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(199, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
 };
 
 void contour_test_lohere(void) 
@@ -447,40 +481,40 @@ void contour_test_lohere(void)
     Draw(2196, a, b);
     Draw (2197,b, b - Contour(10,40,10,40));
     
-    DrawExpand(250, EXPAND_MITER, DBL_MAX,lohere1, false);
-    DrawExpand(251, EXPAND_MITER, DBL_MAX,lohere2, false);
-    DrawExpand(252, EXPAND_MITER, DBL_MAX,lohere3, false);
-    DrawExpand(253, EXPAND_MITER, DBL_MAX,lohere4, false);
-    DrawExpand(254, EXPAND_MITER, DBL_MAX,lohere5, false);
-    DrawExpand(255, EXPAND_MITER, DBL_MAX,lohere6, false);
+    DrawExpand(250, EXPAND_MITER, CONTOUR_INFINITY,lohere1, false);
+    DrawExpand(251, EXPAND_MITER, CONTOUR_INFINITY,lohere2, false);
+    DrawExpand(252, EXPAND_MITER, CONTOUR_INFINITY,lohere3, false);
+    DrawExpand(253, EXPAND_MITER, CONTOUR_INFINITY,lohere4, false);
+    DrawExpand(254, EXPAND_MITER, CONTOUR_INFINITY,lohere5, false);
+    DrawExpand(255, EXPAND_MITER, CONTOUR_INFINITY,lohere6, false);
 
-    DrawExpand(260, EXPAND_BEVEL, DBL_MAX,lohere1, false);
-    DrawExpand(261, EXPAND_BEVEL, DBL_MAX,lohere2, false);
-    DrawExpand(262, EXPAND_BEVEL, DBL_MAX,lohere3, false);
-    DrawExpand(263, EXPAND_BEVEL, DBL_MAX,lohere4, false);
-    DrawExpand(264, EXPAND_BEVEL, DBL_MAX,lohere5, false);
-    DrawExpand(265, EXPAND_BEVEL, DBL_MAX,lohere6, false);
+    DrawExpand(260, EXPAND_BEVEL, CONTOUR_INFINITY,lohere1, false);
+    DrawExpand(261, EXPAND_BEVEL, CONTOUR_INFINITY,lohere2, false);
+    DrawExpand(262, EXPAND_BEVEL, CONTOUR_INFINITY,lohere3, false);
+    DrawExpand(263, EXPAND_BEVEL, CONTOUR_INFINITY,lohere4, false);
+    DrawExpand(264, EXPAND_BEVEL, CONTOUR_INFINITY,lohere5, false);
+    DrawExpand(265, EXPAND_BEVEL, CONTOUR_INFINITY,lohere6, false);
 
-    DrawExpand(270, EXPAND_ROUND, DBL_MAX,lohere1, false);
-    DrawExpand(271, EXPAND_ROUND, DBL_MAX,lohere2, false);
-    DrawExpand(272, EXPAND_ROUND, DBL_MAX,lohere3, false);
-    DrawExpand(273, EXPAND_ROUND, DBL_MAX,lohere4, false);
-    DrawExpand(274, EXPAND_ROUND, DBL_MAX,lohere5, false);
-    DrawExpand(275, EXPAND_ROUND, DBL_MAX,lohere6, false);
+    DrawExpand(270, EXPAND_ROUND, CONTOUR_INFINITY,lohere1, false);
+    DrawExpand(271, EXPAND_ROUND, CONTOUR_INFINITY,lohere2, false);
+    DrawExpand(272, EXPAND_ROUND, CONTOUR_INFINITY,lohere3, false);
+    DrawExpand(273, EXPAND_ROUND, CONTOUR_INFINITY,lohere4, false);
+    DrawExpand(274, EXPAND_ROUND, CONTOUR_INFINITY,lohere5, false);
+    DrawExpand(275, EXPAND_ROUND, CONTOUR_INFINITY,lohere6, false);
 
-    DrawExpand(350, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);
-    DrawExpand(351, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 20), false);
-    DrawExpand(352, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), false);
+    DrawExpand(350, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);
+    DrawExpand(351, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 20), false);
+    DrawExpand(352, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), false);
 
     Contour rombusz = Contour(40,80,40,80).CreateRotatedAround(XY(60,60),45);
-    DrawExpand(353, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + rombusz, false);
-    DrawExpand(354, EXPAND_MITER, DBL_MAX,rombusz +rombusz.CreateShifted(XY(40,0)), false);
+    DrawExpand(353, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + rombusz, false);
+    DrawExpand(354, EXPAND_MITER, CONTOUR_INFINITY,rombusz +rombusz.CreateShifted(XY(40,0)), false);
 
     Contour concave = Contour(0,40,0,100) - Contour(0,20,30,60) + Contour(XY(20,45), 15);
-    DrawExpand(355, EXPAND_MITER, DBL_MAX,concave, false);
+    DrawExpand(355, EXPAND_MITER, CONTOUR_INFINITY,concave, false);
 
     Contour triangle(XY(0,0), XY(100,10), XY(0,20));
-    DrawExpand(356, EXPAND_MITER, DBL_MAX, triangle, false);
+    DrawExpand(356, EXPAND_MITER, CONTOUR_INFINITY, triangle, false);
     DrawExpand(357, EXPAND_MITER, 1.2, triangle, false);
     DrawExpand(358, EXPAND_MITER, 2, triangle, false);
     DrawExpand(359, EXPAND_MITER, 1, triangle, false);
@@ -596,6 +630,28 @@ void contour_test_relations(unsigned num)
     DrawRelation(num+20, c1[1]+c2[1], c1[4], "HOLE_MIXED");
 };
 
+void contour_test_distance(unsigned num)
+{
+    Contour c1(30, 100, 30, 100);
+    Contour c2(130, 150, 140, 200);
+    DrawDistance(num++, c1, c2, "", XY(100,100), XY(130,140));
+
+    Contour c3(XY(120, 200), 40, 60, 20);
+    DrawDistance(num++, c1, c3);
+
+    c3.Shift(XY(30,0));
+    DrawDistance(num++, c1, c3);
+
+    c3.Shift(XY(70,0));
+    DrawDistance(num++, c1, c3);
+    DrawDistance(num++, c1, c3 * Block(180, 400, 0, 500));
+    DrawDistance(num++, c1, c3 * Block(200, 400, 0, 500));
+    DrawDistance(num++, c1, c3 * Block(2300, 400, 0, 500));
+
+    DrawDistance(num++, c3.CreateRotated(30), c3);
+    DrawDistance(num++, c3 * Block(180, 400, 0, 500), (c3 * Block(180, 400, 0, 500)).Rotate(30));
+    DrawDistance(num++, c3 * Block(200, 400, 0, 500), (c3 * Block(200, 400, 0, 500)).Rotate(30));
+}
 
 
 void contour_test(void)
@@ -604,7 +660,8 @@ void contour_test(void)
 //    contour_test_assign(111);
 //    contour_test_lohere();
 //    contour_test_area(400);
-    contour_test_relations(7000);
+//    contour_test_relations(7000);
+    contour_test_distance(7100);
 }
 
 } //namespace

@@ -38,7 +38,7 @@ Entity::Entity(const string &n, const string &l, const string &ol,
 void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
 {
     if (!children || children->size()==0) return;
-    double min_pos = DBL_MAX;
+    double min_pos = MaxVal(min_pos);
     for (auto i=children->begin(); i!=children->end(); i++) {
         EIterator ei = chart->AllEntities.Find_by_Name((*i)->name);
         _ASSERT(*ei != chart->NoEntity);
@@ -494,6 +494,7 @@ double EntityDef::Width() const
     return width + fmod_negative_safe(width, 2.); //always return an even number
 }
 
+//Must not be called when reflow!!! or else we add note_map twice
 Range EntityDef::Height(Area &cover, const EntityDefList &children)
 {
     const XY wh = parsed_label.getTextWidthHeight();
@@ -532,7 +533,9 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     cover = std::move(my_cover);
     const Block b = outer_edge.CreateExpand(-lw/2);
     note_map = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);
+    note_map.arc = this;
     def_note_target = XY(0, x);
+    chart->NoteMap.Append(&note_map);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
@@ -544,6 +547,7 @@ void EntityDef::AddNoteMapWhenNotShowing()
     note_map = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
     note_map.arc = this;
     def_note_target = XY(0, xpos);
+    chart->NoteMap.Append(&note_map);
 }
 
 
