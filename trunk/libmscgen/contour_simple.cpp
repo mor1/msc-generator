@@ -975,8 +975,11 @@ void SimpleContour::Distance(const SimpleContour &o, Distance_Points &ret) const
         }
     //now check if one is in the other - they cannot cross each other or else d would be 0
     _ASSERT(RelationTo(o)!=OVERLAP);
-    if (IsWithin(o[0].GetStart()) == WI_INSIDE || o.IsWithin(at(0).GetStart()) == WI_INSIDE) 
+    if (IsWithin(o[0].GetStart()) == WI_INSIDE || o.IsWithin(at(0).GetStart()) == WI_INSIDE) {
         running.distance *= -1;
+        running.was_inside = true;
+    } else
+        running.was_outside = true;
 merge:
     ret.Merge(running);
 }
