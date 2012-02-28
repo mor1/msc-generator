@@ -209,7 +209,7 @@ public:
         if (clockwise==clockwiseonly)
             PathDashed(cr, pattern, num, show_hidden);
     }
-    double Distance(const SimpleContour &o) const;
+    void Distance(const SimpleContour &o, Distance_Points &ret) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const

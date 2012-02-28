@@ -217,36 +217,46 @@ void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, 
         i->PathDashed(cr, pattern, num, show_hidden, clockwiseonly);
 }
 
-double ContourList::Distance(const ContourWithHoles &c, double dist_so_far) const
+void ContourList::Distance(const ContourWithHoles &c, Distance_Points &dist_so_far) const
 {
-    if (IsEmpty() || c.IsEmpty()) return dist_so_far;
-    if (fabs(GetBoundingBox().Distance(c.GetBoundingBox())) > fabs(dist_so_far)) return dist_so_far;
-    if (dist_so_far != MaxVal(dist_so_far) &&
-        fsign(GetBoundingBox().Distance(c.GetBoundingBox())) != fsign(dist_so_far)) return 0;
-    const int sign_dist_so_far = fsign(dist_so_far);
-    for (auto i = begin(); i!=end(); i++) {
-        const double temp = i->Distance(c);
-        if (fsign(temp) != sign_dist_so_far && 
-            dist_so_far != MaxVal(dist_so_far)) return 0;
-        if (fabs(temp) < fabs(dist_so_far)) dist_so_far = temp;
+    if (IsEmpty() || c.IsEmpty()) return;
+    if (dist_so_far.distance == 0) return;
+    const double bbdist = GetBoundingBox().Distance(c.GetBoundingBox());
+    if (fabs(bbdist) > fabs(dist_so_far.distance)) {
+        dist_so_far.MergeInOut(bbdist);
+        return; 
     }
-    return dist_so_far;
+    for (auto i = begin(); i!=end(); i++) {
+        const double bbdist = i->GetBoundingBox().Distance(c.GetBoundingBox());
+        if (fabs(dist_so_far.distance) >= fabs(bbdist))
+            i->Distance(c, dist_so_far);
+        else 
+            dist_so_far.MergeInOut(bbdist);
+        if (dist_so_far.distance == 0) 
+            break;
+    }
 }
 
-double ContourList::Distance(const ContourList &cl, double dist_so_far) const
+void ContourList::Distance(const ContourList &cl, Distance_Points &dist_so_far) const
 {
-    if (IsEmpty() || cl.IsEmpty()) return dist_so_far;
-    if (fabs(GetBoundingBox().Distance(cl.GetBoundingBox())) > fabs(dist_so_far)) return dist_so_far;
-    if (dist_so_far != MaxVal(dist_so_far) &&
-        fsign(GetBoundingBox().Distance(cl.GetBoundingBox())) != fsign(dist_so_far)) return 0;
-    const int sign_dist_so_far = fsign(dist_so_far);
-    for (auto i = begin(); i!=end(); i++) {
-        const double temp = cl.Distance(*i, dist_so_far);
-        if (fsign(temp) != sign_dist_so_far && 
-            dist_so_far != MaxVal(dist_so_far)) return 0;
-        if (fabs(temp) < fabs(dist_so_far)) dist_so_far = temp;
+    if (IsEmpty() || cl.IsEmpty()) return;
+    if (dist_so_far.distance == 0) return;
+    const double bbdist = GetBoundingBox().Distance(cl.GetBoundingBox());
+    if (fabs(bbdist) > fabs(dist_so_far.distance)) {
+        dist_so_far.MergeInOut(bbdist);
+        return; 
     }
-    return dist_so_far;
+    dist_so_far.SwapPoints();
+    for (auto i = begin(); i!=end(); i++) {
+        const double bbdist = i->GetBoundingBox().Distance(cl.GetBoundingBox());
+        if (fabs(dist_so_far.distance) >= fabs(bbdist))
+            cl.Distance(*i, dist_so_far);
+        else 
+            dist_so_far.MergeInOut(bbdist);
+        if (dist_so_far.distance == 0) 
+            break;
+    }
+    dist_so_far.SwapPoints();
 }
 
 
@@ -1474,23 +1484,36 @@ SimpleContour::result_t ContourWithHoles::RelationTo(const ContourWithHoles &c, 
     }
 }
 
-double ContourWithHoles::Distance(const ContourWithHoles &c) const
+
+void ContourWithHoles::Distance(const ContourWithHoles &c, Distance_Points &dist_so_far) const
 {
-    double d = outline.Distance(c.outline);
-    if (d>=0) return d; //outlines are apart
-    //see which one is in the other
-    double hole_d = d;
-    if (GetBoundingBox().GetArea() < c.GetBoundingBox().GetArea()) {
-        //we are inside, see if we are in the holes of 'c'
-        if (!c.holes.IsEmpty()) 
-            hole_d = -c.holes.Distance(*this);
-    } else {
-        if (!holes.IsEmpty()) 
-            hole_d = -holes.Distance(c);
+    if (dist_so_far.distance==0) return;
+    Distance_Points d = dist_so_far;
+    d.was_inside = false;
+    d.was_outside = false;
+    outline.Distance(c.outline, d);
+    if (d.was_inside) { //one outline is inside another one, consider holes
+        //see which one is in the other
+        Distance_Points temp = d;
+        temp.was_inside = false;
+        temp.was_outside = false;
+        if (GetBoundingBox().GetArea() < c.GetBoundingBox().GetArea()) {
+            //we are inside, see if we are in the holes of 'c'
+            if (!c.holes.IsEmpty()) {
+                temp.SwapPoints();
+                c.holes.Distance(*this, temp);
+                temp.SwapPoints();
+            }
+        } else {
+            if (!holes.IsEmpty()) 
+                holes.Distance(c, temp);
+        }
+        std::swap(temp.was_inside, temp.was_outside); //anything inside a hole is actually outside
+        if (temp.distance != d.distance) //temp was changed by the holes
+            temp.distance = -temp.distance; //anything inside a hole is actually outside
+        d.Merge(temp);
     }
-    if (hole_d==0) return 0;
-    if (hole_d > 0) return hole_d; //we are inside a hole, positive result
-    return std::max(d, hole_d); //we are on the area covered, select closest (both negative)
+    dist_so_far.Merge(d);
 }
 
 /////////////////////////////////////////  Contour implementation
@@ -1640,31 +1663,23 @@ Contour::relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) con
     return res;
 }
 
-double Contour::Distance(const Contour &c, double dist_so_far) const
+void Contour::Distance(const Contour &c, Distance_Points &dist_so_far) const
 {
-    if (IsEmpty() || c.IsEmpty()) return dist_so_far;
-    double d = first.Distance(c.first);
-    if (dist_so_far != MaxVal(dist_so_far)) {
-        if (fsign(dist_so_far) != fsign(d)) return 0;
-        dist_so_far = minabs(dist_so_far, d);
-    } else
-        dist_so_far = d;
+    if (IsEmpty() || c.IsEmpty() || dist_so_far.distance==0) return;
+    first.Distance(c.first, dist_so_far);
+    if (dist_so_far.distance == 0) return;
     if (!c.further.IsEmpty()) {
-        d = c.further.Distance(first, dist_so_far);
-        if (fsign(dist_so_far) != fsign(d)) return 0;
-        dist_so_far = minabs(dist_so_far, d);
+        dist_so_far.SwapPoints();
+        c.further.Distance(first, dist_so_far);
+        if (dist_so_far.distance == 0) return;
+        dist_so_far.SwapPoints();
     }
     if (!further.IsEmpty()) {
-        d = further.Distance(c.first, dist_so_far);
-        if (fsign(dist_so_far) != fsign(d)) return 0;
-        dist_so_far = minabs(dist_so_far, d);
+        further.Distance(c.first, dist_so_far);
+        if (dist_so_far.distance == 0) return;
     }
-    if (!c.further.IsEmpty() && !further.IsEmpty()) {
-        d = c.further.Distance(further, dist_so_far);
-        if (fsign(dist_so_far) != fsign(d)) return 0;
-        dist_so_far = minabs(dist_so_far, d);
-    }
-    return dist_so_far;
+    if (!c.further.IsEmpty() && !further.IsEmpty()) 
+        further.Distance(c.further, dist_so_far);
 }
 
 

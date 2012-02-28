@@ -951,28 +951,34 @@ void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) con
     }
 }
 
-//The distance of the two contours
-//returns negative one is inside the other, zero if partial overlap only
+//The distance of the two contours and two points on them
+//returns negative one is inside the other, zero if partial overlap only (two points equal)
 //"inside" here ignores clockwiseness
-double SimpleContour::Distance(const SimpleContour &o) const
+//ret can contain the result of previous searches
+//we do not check bb, assume caller calls us if needed
+void SimpleContour::Distance(const SimpleContour &o, Distance_Points &ret) const
 {
-    double d = MaxVal(d);
-    if (IsEmpty() || o.IsEmpty()) return d;
+    if (IsEmpty() || o.IsEmpty()) return;
+    Distance_Points running = ret, tmp;
+    running.distance = fabs(running.distance);
+    //both running and tmp are positive throught this call, except at the very end
     for (unsigned u = 0; u<size(); u++) 
-        if (/*o.size()<=4 ||*/ fabs(GetBoundingBox().Distance(o.GetBoundingBox())))
-            for (unsigned v=0; v<o.size(); v++) {
-                if (at(u).GetType() == Edge::STRAIGHT && o[v].GetType() == Edge::STRAIGHT) 
-                    d = std::min(d, at(u).Distance(o[v]));
-                else if (d > fabs(at(u).GetBoundingBox().Distance(o[v].GetBoundingBox())))
-                    //if not both are straight try to avoid calculation if bbs are far enough
-                    d = std::min(d, at(u).Distance(o[v]));
-                if (d==0) return 0;
-            }
+        for (unsigned v=0; v<o.size(); v++) {
+            if (at(u).GetType() == Edge::STRAIGHT && o[v].GetType() == Edge::STRAIGHT) 
+                at(u).Distance(o[v], tmp);
+            else if (running.distance > fabs(at(u).GetBoundingBox().Distance(o[v].GetBoundingBox()))) 
+                //if not both are straight try to avoid calculation if bbs are far enough
+                at(u).Distance(o[v], tmp);
+            else continue;
+            if (running.distance > tmp.distance) running = tmp;
+            if (running.distance==0) goto merge;
+        }
     //now check if one is in the other - they cannot cross each other or else d would be 0
     _ASSERT(RelationTo(o)!=OVERLAP);
     if (IsWithin(o[0].GetStart()) == WI_INSIDE || o.IsWithin(at(0).GetStart()) == WI_INSIDE) 
-        d = -d;
-    return d;
+        running.distance *= -1;
+merge:
+    ret.Merge(running);
 }
 
 
