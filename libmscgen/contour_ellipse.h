@@ -19,6 +19,21 @@ template<typename real> real fmod_negative_safe(real a, real b) {_ASSERT(b>0); r
 //helper class for ellipsis intersection calculation
 struct quadratic_xy_t;
 
+struct Distance_Points 
+{
+    double distance;
+    bool was_inside;
+    bool was_outside;
+    XY point_on_me;
+    XY point_on_other;
+    Distance_Points() : distance(MaxVal(distance)), was_inside(false), was_outside(false) {}
+    bool operator < (const Distance_Points&o) const {return distance< o.distance;}
+    void SwapPoints() {std::swap(point_on_me, point_on_other);}
+    bool IsValid() const {return fabs(distance) < MaxVal(distance);}
+    void Merge(const Distance_Points &o); 
+    void MergeInOut(double dist); //Just see if we get mixed in_out. Do not change "distance"
+};
+
 //A helper class implementing an ellipse, its crosspoints with ellipses and lines
 //it always represents a full ellipse, not just a section of it
 class EllipseData
@@ -59,8 +74,8 @@ public:
     double GetRadius2() const {return radius2;}
     double GetTilt() const {return tilted ? tilt : 0;}
 	double GetExtreme(int n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
-    double Distance(const XY &p, XY *point=NULL) const;
-    double Distance(const XY &start, const XY &end, XY &point_on_ell, XY &point_on_line) const;
+    double Distance(const XY &p, XY &point) const;
+    double Distance(const XY &start, const XY &end, XY p[2]) const;
     void Shift(const XY &xy);
     void Scale(double sc);
 	double Rotate(double cos, double sin, double radian);

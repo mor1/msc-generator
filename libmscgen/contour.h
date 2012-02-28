@@ -33,8 +33,8 @@ class ContourList : protected std::list<ContourWithHoles>
 
     SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const;
-    double Distance(const ContourWithHoles &c, double dist_so_far=MaxVal(dist_so_far)) const;
-    double Distance(const ContourList &cl, double dist_so_far=MaxVal(dist_so_far)) const;
+    void Distance(const ContourWithHoles &c, Distance_Points &dist_so_far) const;
+    void Distance(const ContourList &cl, Distance_Points &dist_so_far) const;
 public:
     const ContourWithHoles & operator[](size_type i) const;
     void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
@@ -101,7 +101,7 @@ protected:
     SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const {return SimpleContour::switch_side(c.RelationTo(*this, ignore_holes));}
 
-    double Distance(const ContourWithHoles &c) const;
+    void Distance(const ContourWithHoles &c, Distance_Points &ret) const;
 
 public:
     ContourWithHoles(const SimpleContour &p) : outline(p) {}
@@ -175,6 +175,7 @@ protected:
 
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
+    void Distance(const Contour &c, Distance_Points &dist_so_far) const;
 public:
     typedef SimpleContour::result_t relation_t;
     Contour() {boundingBox.MakeInvalid();}
@@ -292,7 +293,12 @@ public:
     void Line2(cairo_t *cr) const {cairo_save(cr); double dash[]={2,2}; cairo_set_dash(cr, dash, 2, 0); Path(cr, false); cairo_stroke(cr); cairo_set_dash(cr, NULL, 0, 0); Path(cr, true); cairo_stroke(cr); cairo_restore(cr);}
     void Fill(cairo_t *cr) const {Contour::Path(cr, true); cairo_fill(cr);}
 
-    double Distance(const Contour &c, double dist_so_far=MaxVal(dist_so_far)) const;
+    //Returns distance and two points on the two contours.
+    //may return invalid distance if one or the other contour is empty
+    //negative distance is returned if one is inside another (but positive if in a hole)
+    //zero returned if they cross. If the two points are equal that is a crosspoint, if not they are invalid
+    //(Latter may happen if one of the contours have two pieces and one is inside and one is outside the other
+    Distance_Points Distance(const Contour &c) const {Distance_Points ret; Distance(c, ret); return ret;}
 };
 
 inline bool ContourList::GetClockWise() const

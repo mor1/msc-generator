@@ -52,6 +52,31 @@
 
 namespace contour {
 
+//select the smaller of the two distances
+//true if "this" changed
+void Distance_Points::Merge(const Distance_Points &o)
+{
+    if (distance==0) return;
+    if (o.distance!=0) {
+        if (o.distance<0) was_inside = true;
+        else was_outside = true;
+        was_inside |= o.was_inside;
+        was_outside|= o.was_outside;
+        if (fabs(o.distance) >= fabs(distance)) return;
+    }
+    distance = o.distance;
+    point_on_me = o.point_on_me;
+    point_on_other = o.point_on_other;
+} 
+
+void Distance_Points::MergeInOut(double dist) //true if changed. Just see if we get mixed
+{
+    _ASSERT(IsValid() && fabs(dist) < MaxVal(dist));
+    if (dist==0 || distance==0) return;
+    if (dist<0) was_inside = true;
+    else was_outside= true;
+}
+    
 //////////////////Helper functions
 
 //safe cubic root
@@ -526,45 +551,41 @@ center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), circ
 }
 
 //return positive distance no matter if inside or outside
-double EllipseData::Distance(const XY &p, XY *point) const
+double EllipseData::Distance(const XY &p, XY &point) const
 {
     if (p.test_equal(center)) return std::min(radius1, radius2);
     if (radius1==radius2) {
         const double cl = center.Distance(p);
-        if (point) 
-            *point = center + (p-center)*radius1/cl;
+            point = center + (p-center)*radius1/cl;
         return fabs(radius1-cl);
     }
     //We cheat with ellipses, we do not return real distance, just the
     //intersection of the p-center line and the ellipse
-    XY pp = conv_to_circle_space(p);
-    pp.Normalize();
-    pp = conv_to_real_space(pp);
-    if (point) *point = pp;
-    return p.Distance(pp);
+    point = conv_to_circle_space(p);
+    point.Normalize();
+    point = conv_to_real_space(point);
+    return p.Distance(point);
 }
 
 //This caluclates the distance between the (infinite long) line of (start-end)
 //and the ellipse
-//if value returned is zero then the line touches crosses the ellipse and the
-//two points equal. If the returned value is negative, the line crosses
-//and the two crosspoints are returned
-double EllipseData::Distance(const XY &start, const XY &end, XY &point_on_ell, XY &point_on_line) const
+//if distance returned is 
+// - zero then the line touches or crosses the ellipse and both p[0] and p[1] return the crosspoint
+// - negative, the line crosses the ellipse and p[0] and p[1] returns the two crosspoints
+// - positive, the line is apart and "p[0]" returns the closest point on the ell, "p[1]" on the line
+double EllipseData::Distance(const XY &start, const XY &end, XY p[2]) const
 {
-    XY r[2];
-    int num = CrossingStraight(start, end, r, true);
-    point_on_ell = r[0];
+    int num = CrossingStraight(start, end, p, true);
     switch (num) {
     default: _ASSERT(0);
-    case 0: //far apart, project r[0] to line
-        point_on_line = point_on_ell.ProjectOntoLine(start, end);
-        return point_on_line.Distance(point_on_ell);
+    case 0: //far apart, p[0] contains closest point, project p[0] to line
+        p[1] = p[0].ProjectOntoLine(start, end);
+        return p[0].Distance(p[1]);
     case 1: //we touch
-        point_on_line = point_on_ell;
-        return 0;
+        p[1] = p[0];
+        return 0; //p[0] is set
     case 2: //we cross
-        point_on_line = r[1];
-        return -1;
+        return -1; //p[0] and p[1] already set
     }
 }
 

@@ -218,38 +218,46 @@ void DrawRelation(unsigned i, const Contour &c1, const Contour &c2, const char *
     c.Draw(c2, false, 0, 1, 0, true, 0);
 };
 
-void DrawDistance(unsigned i, const Contour &c1, const Contour &c2, const char *text="", const XY &p1=XY(0,0), const XY&p2=XY(0,0))
+void DrawDistance(unsigned i, const Contour &c1, const Contour &c2, const char *text="")
 {
     Block b = c1.GetBoundingBox();
     b += c2.GetBoundingBox();
-    double dist = c1.Distance(c2);
+    Distance_Points dist = c1.Distance(c2);
     b += XY(100,100);
-    if (dist<MaxVal(dist)) 
-        b += XY(fabs(dist)+20, fabs(dist));
+    if (dist.IsValid()) 
+        b += XY(fabs(dist.distance)+20, fabs(dist.distance));
     char uhh[1000];
-    sprintf(uhh, "Distance is %g. Point dist %g. %s", dist, p1.Distance(p2), text);
+    const bool bad = dist.distance!=0 && !test_equal(fabs(dist.point_on_me.Distance(dist.point_on_other)), fabs(dist.distance));
+    sprintf(uhh, "Distance is %g. %s %s", dist.distance, bad ? "BAAAAD" : "", text);
     CairoContext c(i, b, uhh, false);
+    if (dist.IsValid() && dist.distance>=0) {
+        c.Draw(c1.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
+        c.Draw(c2.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
+    }
     c.Draw(c1, false, 1, 0, 0, true, 0);
     c.Draw(c2, false, 0, 1, 0, true, 0);
-    if (dist<MaxVal(dist)) {
-        c.Draw(c1.CreateExpand(dist, contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
-        c.Draw(c2.CreateExpand(dist, contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
+    if (dist.IsValid() && dist.distance<0) {
+        c.Draw(c1.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
+        c.Draw(c2.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
     }
-    cairo_set_source_rgb(c.cr, 0,0,0);
-    cairo_move_to(c.cr, 10, 20);
-    cairo_line_to(c.cr, 10, 30);
-    cairo_new_sub_path(c.cr);
-    cairo_move_to(c.cr, fabs(dist)+10, 20);
-    cairo_line_to(c.cr, fabs(dist)+10, 30);
-    cairo_new_sub_path(c.cr);
-    cairo_move_to(c.cr, 10, 25);
-    cairo_line_to(c.cr, fabs(dist)+10, 25);
-    cairo_set_line_width(c.cr, 2);
-
-    if (p1!=p2) {
-        XY p2_ = p1+(p2-p1).Normalize()*fabs(dist);
-        cairo_move_to(c.cr, p1.x, p1.y);
-        cairo_line_to(c.cr, p2_.x, p2_.y);
+    if (dist.IsValid()) {
+        cairo_set_source_rgb(c.cr, 0,0,0);
+        cairo_move_to(c.cr, 10, 20);
+        cairo_line_to(c.cr, 10, 30);
+        cairo_new_sub_path(c.cr);
+        cairo_move_to(c.cr, fabs(dist.distance)+10, 20);
+        cairo_line_to(c.cr, fabs(dist.distance)+10, 30);
+        cairo_new_sub_path(c.cr);
+        cairo_move_to(c.cr, 10, 25);
+        cairo_line_to(c.cr, fabs(dist.distance)+10, 25);
+        cairo_set_line_width(c.cr, 2);
+    }
+    if (dist.point_on_me.test_equal(dist.point_on_other)) {
+        cairo_arc(c.cr, dist.point_on_me.x, dist.point_on_me.y, 5, 0, 2*M_PI);
+        cairo_fill(c.cr);
+    } else if (dist.distance!=0) {
+        cairo_move_to(c.cr, dist.point_on_me.x, dist.point_on_me.y);
+        cairo_line_to(c.cr, dist.point_on_other.x, dist.point_on_other.y);
         cairo_stroke(c.cr);
     }
 };
@@ -634,7 +642,7 @@ void contour_test_distance(unsigned num)
 {
     Contour c1(30, 100, 30, 100);
     Contour c2(130, 150, 140, 200);
-    DrawDistance(num++, c1, c2, "", XY(100,100), XY(130,140));
+    DrawDistance(num++, c1, c2, "");
 
     Contour c3(XY(120, 200), 40, 60, 20);
     DrawDistance(num++, c1, c3);
@@ -651,6 +659,19 @@ void contour_test_distance(unsigned num)
     DrawDistance(num++, c3.CreateRotated(30), c3);
     DrawDistance(num++, c3 * Block(180, 400, 0, 500), (c3 * Block(180, 400, 0, 500)).Rotate(30));
     DrawDistance(num++, c3 * Block(200, 400, 0, 500), (c3 * Block(200, 400, 0, 500)).Rotate(30));
+
+    Contour c4 = c1 - Block(40, 90, 40, 90);
+    DrawDistance(num++, c4, Contour(XY(60,60), 40, 20));
+    DrawDistance(num++, c4, Contour(XY(60,60), 30, 20));
+    DrawDistance(num++, c4, Contour(XY(60,60), 30, 15));
+    DrawDistance(num++, c4, Contour(XY(60,60), 20, 15));
+    DrawDistance(num++, c4, Contour(XY(60,60), 15, 10));
+
+    DrawDistance(num++, c1, Block(40, 90, 40, 90));
+    DrawDistance(num++, c1, Contour(40, 90, 40, 90) + Contour(140,150,30,40));
+    DrawDistance(num++, c1 - Block(40, 50, 40, 50), Block(60, 70, 60, 70));
+    DrawDistance(num++, c1 - Block(40, 50, 40, 50) - Block (65, 75, 65, 75), Block(60, 70, 60, 70));
+    DrawDistance(num++, c4 + Block(50, 80, 50, 80), Block(60, 70, 60, 70));
 }
 
 

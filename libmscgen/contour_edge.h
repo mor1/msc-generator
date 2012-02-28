@@ -91,8 +91,8 @@ public:
     const XY & GetStart() const {return start;}
     const XY & GetEnd() const {return end;}
     const Block &GetBoundingBox() const {return boundingBox;}
-    double Distance(const XY &) const;   //always nonnegative
-    double Distance(const Edge &) const; //always nonnegative
+    double Distance(const XY &, XY &point) const;   //always nonnegative
+    void Distance(const Edge &, Distance_Points &ret) const; //always nonnegative
 
     const EllipseData &GetEllipseData() const {_ASSERT(type!=STRAIGHT); return ell;}
     bool GetClockWise() const {_ASSERT(type!=STRAIGHT); return clockwise_arc;}
