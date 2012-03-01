@@ -222,42 +222,42 @@ void DrawDistance(unsigned i, const Contour &c1, const Contour &c2, const char *
 {
     Block b = c1.GetBoundingBox();
     b += c2.GetBoundingBox();
-    Distance_Points dist = c1.Distance(c2);
+    const DistanceType<1> dist = c1.Distance<1>(c2);
     b += XY(100,100);
     if (dist.IsValid()) 
-        b += XY(fabs(dist.distance)+20, fabs(dist.distance));
+        b += XY(fabs(dist.Distance())+20, fabs(dist.Distance()));
     char uhh[1000];
-    const bool bad = dist.distance!=0 && !test_equal(fabs(dist.point_on_me.Distance(dist.point_on_other)), fabs(dist.distance));
-    sprintf(uhh, "Distance is %g. %s %s", dist.distance, bad ? "BAAAAD" : "", text);
+    const bool bad = !dist.IsZero() && !test_equal(fabs(dist.OnMe().Distance(dist.OnOther())), fabs(dist.Distance()));
+    sprintf(uhh, "Distance is %g. %s %s", dist.Distance(), bad ? "BAAAAD" : "", text);
     CairoContext c(i, b, uhh, false);
-    if (dist.IsValid() && dist.distance>=0) {
-        c.Draw(c1.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
-        c.Draw(c2.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
+    if (dist.IsValid() && dist.Distance()>=0) {
+        c.Draw(c1.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
+        c.Draw(c2.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
     }
     c.Draw(c1, false, 1, 0, 0, true, 0);
     c.Draw(c2, false, 0, 1, 0, true, 0);
-    if (dist.IsValid() && dist.distance<0) {
-        c.Draw(c1.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
-        c.Draw(c2.CreateExpand(dist.distance, contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
+    if (dist.IsValid() && dist.Distance()<0) {
+        c.Draw(c1.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
+        c.Draw(c2.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
     }
     if (dist.IsValid()) {
         cairo_set_source_rgb(c.cr, 0,0,0);
         cairo_move_to(c.cr, 10, 20);
         cairo_line_to(c.cr, 10, 30);
         cairo_new_sub_path(c.cr);
-        cairo_move_to(c.cr, fabs(dist.distance)+10, 20);
-        cairo_line_to(c.cr, fabs(dist.distance)+10, 30);
+        cairo_move_to(c.cr, fabs(dist.Distance())+10, 20);
+        cairo_line_to(c.cr, fabs(dist.Distance())+10, 30);
         cairo_new_sub_path(c.cr);
         cairo_move_to(c.cr, 10, 25);
-        cairo_line_to(c.cr, fabs(dist.distance)+10, 25);
+        cairo_line_to(c.cr, fabs(dist.Distance())+10, 25);
         cairo_set_line_width(c.cr, 2);
     }
-    if (dist.point_on_me.test_equal(dist.point_on_other)) {
-        cairo_arc(c.cr, dist.point_on_me.x, dist.point_on_me.y, 5, 0, 2*M_PI);
+    if (dist.OnMe().test_equal(dist.OnOther())) {
+        cairo_arc(c.cr, dist.OnMe().x, dist.OnMe().y, 5, 0, 2*M_PI);
         cairo_fill(c.cr);
-    } else if (dist.distance!=0) {
-        cairo_move_to(c.cr, dist.point_on_me.x, dist.point_on_me.y);
-        cairo_line_to(c.cr, dist.point_on_other.x, dist.point_on_other.y);
+    } else if (!dist.IsZero()) {
+        cairo_move_to(c.cr, dist.OnMe().x, dist.OnMe().y);
+        cairo_line_to(c.cr, dist.OnOther().x, dist.OnOther().y);
         cairo_stroke(c.cr);
     }
 };

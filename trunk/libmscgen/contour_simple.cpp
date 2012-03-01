@@ -951,38 +951,4 @@ void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) con
     }
 }
 
-//The distance of the two contours and two points on them
-//returns negative one is inside the other, zero if partial overlap only (two points equal)
-//"inside" here ignores clockwiseness
-//ret can contain the result of previous searches
-//we do not check bb, assume caller calls us if needed
-void SimpleContour::Distance(const SimpleContour &o, Distance_Points &ret) const
-{
-    if (IsEmpty() || o.IsEmpty()) return;
-    Distance_Points running = ret, tmp;
-    running.distance = fabs(running.distance);
-    //both running and tmp are positive throught this call, except at the very end
-    for (unsigned u = 0; u<size(); u++) 
-        for (unsigned v=0; v<o.size(); v++) {
-            if (at(u).GetType() == Edge::STRAIGHT && o[v].GetType() == Edge::STRAIGHT) 
-                at(u).Distance(o[v], tmp);
-            else if (running.distance > fabs(at(u).GetBoundingBox().Distance(o[v].GetBoundingBox()))) 
-                //if not both are straight try to avoid calculation if bbs are far enough
-                at(u).Distance(o[v], tmp);
-            else continue;
-            if (running.distance > tmp.distance) running = tmp;
-            if (running.distance==0) goto merge;
-        }
-    //now check if one is in the other - they cannot cross each other or else d would be 0
-    _ASSERT(RelationTo(o)!=OVERLAP);
-    if (IsWithin(o[0].GetStart()) == WI_INSIDE || o.IsWithin(at(0).GetStart()) == WI_INSIDE) {
-        running.distance *= -1;
-        running.was_inside = true;
-    } else
-        running.was_outside = true;
-merge:
-    ret.Merge(running);
-}
-
-
 } //namespace

@@ -353,9 +353,13 @@ double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area.mainline = Block(0,chart->total.x, b.y.from, b.y.till);
     note_map = b;
     note_map.arc = this;
-    if (!reflow) chart->NoteMap.Append(&note_map);
+    if (!reflow) {
+        chart->NoteMapImp.Append(&note_map);
+        chart->NoteMapAll.Append(&area);
+    }
     def_note_target = b.Centroid();
     height = b.y.till + chart->emphVGapOutside;
+    //TODO add shadow to cover
     cover = GetCover4Compress(area);
     return height;
 }
@@ -784,7 +788,6 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area = parsed_label.Cover(sx, dx-src_act, y);
     area.arc = this;
     note_map = area;
-    if (!reflow) chart->NoteMap.Append(&note_map);
     const Block arrow_box(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
     area += arrow_box;
     area.mainline = Block(0, chart->total.x, y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
@@ -802,6 +805,10 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     else
         note_map += style.arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.line, style.line);
     def_note_target = arrow_box.Centroid();
+    if (!reflow) {
+        chart->NoteMapImp.Append(&note_map);
+        chart->NoteMapAll.Append(&area);
+    }
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
     cover = GetCover4Compress(area);
     return height;
@@ -1257,7 +1264,6 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         area += style.arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i),
         segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)]);
     note_map = area; //the text and arrowheads
-    if (!reflow) chart->NoteMap.Append(&note_map);
     //Add small blocks if there is no end or start arrowhead
     if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
         note_map += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
@@ -1280,6 +1286,10 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         note_map.RotateAround(c, slant_angle);
         text_cover.RotateAround(c, slant_angle); 
         clip_area.RotateAround(c, slant_angle); 
+    }
+    if (!reflow) {
+        chart->NoteMapImp.Append(&note_map);
+        chart->NoteMapAll.Append(&area);
     }
     cover = GetCover4Compress(area);
     if (slant_angle==0)
@@ -1644,7 +1654,6 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     note_map = style.arrow.BigHeadContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, chart->compressGap);
     note_map += parsed_label.Cover(sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
     note_map.arc = this;
-    if (!reflow) chart->NoteMap.Append(&note_map);
     //due to thick lines we can extend above y==0. Shift down to avoid it
     if (area.GetBoundingBox().y.from < chart->arcVGapAbove) 
         ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
@@ -1656,6 +1665,10 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         const XY c(sx, yPos+centerline);
         area.RotateAround(c, slant_angle);
         note_map.RotateAround(c, slant_angle); 
+    }
+    if (!reflow) {
+        chart->NoteMapImp.Append(&note_map);
+        chart->NoteMapAll.Append(&area);
     }
     cover = GetCover4Compress(area);
 
@@ -2670,7 +2683,10 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             (*i)->area_draw_is_frame = false;
         }
         (*i)->note_map = (*i)->text_cover;
-        if (!reflow) chart->NoteMap.Append(&(*i)->note_map);
+        if (!reflow) {
+            chart->NoteMapImp.Append(&(*i)->note_map);
+            chart->NoteMapAll.Append(&(*i)->GetAreaToDraw());
+        }
         (*i)->note_map.arc = *i;
         (*i)->def_note_target = (*i)->note_map.Centroid();
     }
@@ -3448,7 +3464,10 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         (*i)->note_map += back_end;
         (*i)->note_map.arc = *i;
         (*i)->def_note_target = (*i)->note_map.Centroid();
-        if (!reflow) chart->NoteMap.Append(&(*i)->note_map);
+        if (!reflow) {
+            chart->NoteMapImp.Append(&(*i)->note_map);
+            chart->NoteMapAll.Append(&(*i)->GetAreaToDraw());    
+        }        
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
@@ -3718,7 +3737,6 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area.arc = this;
     note_map = area;
     def_note_target = note_map.Centroid();
-    if (!reflow) chart->NoteMap.Append(&note_map);
     //Add a cover block for the line, if one exists
     if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
         area += Block(line_margin, chart->total.x-line_margin,
@@ -3731,6 +3749,10 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         area.mainline = Block(0, chart->total.x, wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
         area.mainline = Block(0, chart->total.x, centerline-charheight/2, centerline+charheight/2);
+    if (!reflow) {
+        chart->NoteMapImp.Append(&note_map);
+        chart->NoteMapAll.Append(&area);
+    }
     cover = GetCover4Compress(area);
     return height;
 }

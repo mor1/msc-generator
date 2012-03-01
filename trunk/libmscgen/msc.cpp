@@ -24,6 +24,7 @@
 #include <cmath>
 #include "msc.h"
 #include "contour_bitmap.h"
+#include "notes.h"
 
 using namespace std;
 
@@ -244,7 +245,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), NoteMap(false), Notes(true),
+    Arcs(true), NoteMapImp(false), NoteMapAll(false), Notes(true),
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -1185,116 +1186,23 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
 }
 
-using contour::Bitmap;
-
-struct SearchStatus
-{
-    int dx;
-    int dy;
-    unsigned step, pos;
-    const unsigned limit;
-    int x;
-    int y;
-    unsigned ssx, ddx, ssy, ddy;
-    SearchStatus(unsigned _x, unsigned _y, unsigned l,
-                 unsigned _sx, unsigned _dx, unsigned _sy, unsigned _dy) : 
-     dx(1), dy(0), step(1), pos(0), x(_x), y(_y), limit(l),
-     ssx(_sx), ddx(_dx), ssy(_sy), ddy(_dy) {}
-    bool Step();
-};
-
-bool SearchStatus::Step()
-{
-    do {
-        if (++pos>step) {
-            //we need to turn a corner
-            if      (dx== 1) {dx = 0; dy = 1;}
-            else if (dy== 1) {dx =-1; dy = 0; step++;}
-            else if (dx==-1) {dx = 0; dy =-1;}
-            else             {dx = 1; dy = 0; step++;}
-            pos = 0;
-            if (step>=limit) return false;
-        }
-        x += dx; 
-        y += dy; 
-    } while (ssx>x || ddx<x || ssy>y || ddy<y);
-    return true;
-}
-
-
-bool PlaceNoteInRegion(unsigned sx, unsigned dx, unsigned sy, unsigned dy,
-                       const Bitmap map[], const Bitmap obj[], unsigned placing_depth, 
-                       unsigned &x, unsigned &y)
-{
-    //convert coordinates to coarsest thing
-    sx >>= placing_depth-1;
-    dx >>= placing_depth-1;
-    sy >>= placing_depth-1;
-    dy >>= placing_depth-1;
-    SearchStatus status((sx+dx)/2, (sy+dy)/2, std::max(dx-sx, dy-sy), sx, dx, sy, dy);
-    do {
-        x = status.x, y = status.y;
-        for (int d = placing_depth-1; d>=0; d++, x*=2, y*=2) {
-            long long p = map[d].Position(obj[d], x, y);
-            if (p<0) break;    //definite overlap, move to another point on the coarser map
-            if (p>0) continue; //We have partial overlap, search on a finer resolution
-            //no overlap - return with results
-            x<<=d;
-            y<<=d;
-            return true;
-        }
-        //if there is no finer resolution or we had definite overlap, select next
-    } while(status.Step());
-    return false;
-}
-
 void Msc::PlaceNotes(MscCanvas &canvas)
 {
-    const unsigned placing_depth=1;
-    _ASSERT(placing_depth>0);
-    Bitmap original_map(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    for (auto i = NoteMap.begin(); i!=NoteMap.end(); i++)
-        original_map.Fill(**i);
+    contour::Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
+    contour::Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
+    for (auto i = NoteMapImp.begin(); i!=NoteMapImp.end(); i++)
+        original_map_imp.Fill(**i);
+    for (auto i = NoteMapAll.begin(); i!=NoteMapAll.end(); i++)
+        original_map_all.Fill(**i);
+    original_map_imp.Frame();
+    original_map_all.Frame();
     for (auto note = Notes.begin(); note!=Notes.end(); note++) {
-        const TrackableElement &target = *(*note)->GetTarget();
-        const Contour &cover = target.GetAreaToDraw();
-        //Create bitmaps
-        Bitmap map[placing_depth], obj[placing_depth];
-        map[0] = original_map;
-        //Add the target to the area to avoid
-        map[0].Fill(cover); 
-        for (unsigned u = 1; u<placing_depth; u++)
-            map[u] = map[u-1].CreateDownscaleBy2();
-
-        Contour object = (*note)->Cover(canvas);
-        Block bb = object.GetBoundingBox();
-        XY shift = bb.UpperLeft();
-        bb.Expand(1);
-        object.Shift(-shift);
-        obj[0] = Bitmap(unsigned(bb.x.Spans()), unsigned(bb.y.Spans()));
-        obj[0].Fill(object);
-        for (unsigned u = 1; u<placing_depth; u++)
-            obj[u] = obj[u-1].CreateDownscaleBy2();
-
-
-        int sx, sy, dx, dy;
-        if (cover.IsEmpty()) {
-            sx = (int)target.GetDefNodeTarget().x + 20;
-            dx = (int)target.GetDefNodeTarget().x + 100;
-            sy = (int)target.GetDefNodeTarget().y - 20;
-            dy = (int)target.GetDefNodeTarget().y + 20;
+        NotePlacement place(this);
+        if (place.PlaceNote(*note)) {
+            original_map_all.Fill((*note)->GetAreaToDraw());
+            original_map_imp.Fill((*note)->GetAreaToDraw());
         } else {
-            sx = (int)cover.GetBoundingBox().x.till + 20;
-            dx = (int)cover.GetBoundingBox().x.till + 100;
-            sy = (int)cover.GetBoundingBox().y.from - 20;
-            dy = (int)cover.GetBoundingBox().y.till + 20;
-        }
-        if (sx<0) sx = 0;
-        if (sy<0) sy = 0;
-        unsigned x, y;
-        if (PlaceNoteInRegion(sx, dx, sy, dy, map, obj, placing_depth, x, y)) {
-            (*note)->Place(canvas, x, y);
-            original_map.Fill((*note)->GetAreaToDraw());
+            //TODO: warning
         }
     }
 }
@@ -1421,6 +1329,16 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
     contour::Bitmap bitmap(unsigned(total.x), unsigned(total.y));
     bitmap.FillList(AllCovers);
     bitmap.DrawOnto(canvas.GetContext());
+    // End of debug */
+
+    /* Debug: draw float_map */
+    Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
+    Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
+    for (auto i = NoteMapImp.begin(); i!=NoteMapImp.end(); i++)
+        original_map_imp.Fill(**i);
+    for (auto i = NoteMapAll.begin(); i!=NoteMapAll.end(); i++)
+        original_map_all.Fill(**i);
+    original_map_all.DrawOnto(canvas.GetContext());
     // End of debug */
 
     /* Debug: draw float_map 

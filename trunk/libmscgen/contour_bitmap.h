@@ -52,6 +52,7 @@ public:
     template<typename C> void Fill(const C&c) {c.Fill(context);} //C must have ::Fill(cairo_t *)
     template<typename C> void Fill(const C&, const XY &shift, unsigned magnify=1); //C must have ::Fill(cairo_t *)
     template<typename CL> void FillList(const CL &cl, const XY &shift=XY(0,0), unsigned magnify=1);
+    void Frame();
     Bitmap CreateDownscale(unsigned magnify) const;
     Bitmap CreateDownscaleBy2() const;
     void DrawOnto(cairo_t *cr, unsigned magnify=1, double _x=0, double _y=0);

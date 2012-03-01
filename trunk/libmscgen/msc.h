@@ -1,3 +1,21 @@
+/*
+    This file is part of Msc-generator.
+    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #if !defined(MSC_H)
 #define MSC_H
 
@@ -152,7 +170,8 @@ public:
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
     CommandNoteList               Notes;      /** all notes after PostParseProcess */
-    PtrList<Area>                 NoteMap;    /** Ptr to the note_map of all elements */
+    PtrList<const Contour>        NoteMapImp; /** Ptr to the note_map of all elements */
+    PtrList<const Contour>        NoteMapAll; /** Ptr to the draw_area of all elements */
     
     ArcBase                      *last_notable_arc;     //during parse: last arc inserted (the one notes attach to) or NULL if none
     bool                          last_note_is_on_left; //during post-parse: was th last non-float note on the left side

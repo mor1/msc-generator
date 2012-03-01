@@ -1,13 +1,7 @@
 #if !defined(CONTOUR_H)
 #define CONTOUR_H
 
-#define _USE_MATH_DEFINES
-#include <cmath>
 #include <map>
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 #include "contour_ellipse.h"
 
 namespace contour {
@@ -37,10 +31,6 @@ namespace contour {
 
 typedef enum {ALL_EQUAL, A_EQUAL_B, A_EQUAL_C, B_EQUAL_C, IN_LINE, CLOCKWISE, COUNTERCLOCKWISE} triangle_dir_t;
 triangle_dir_t triangle_dir(XY a, XY b, XY c);
-double angle(XY base, XY A, XY B);
-inline double angle_degrees(double angle) {
-    return (angle>=2) ? 360 - acos(angle-3)*(180./M_PI) : acos(1-angle)*(180./M_PI);
-}
 
 typedef enum {
     EXPAND_MITER, //continue edges until they meet, if they dont add two segments
@@ -92,7 +82,7 @@ public:
     const XY & GetEnd() const {return end;}
     const Block &GetBoundingBox() const {return boundingBox;}
     double Distance(const XY &, XY &point) const;   //always nonnegative
-    void Distance(const Edge &, Distance_Points &ret) const; //always nonnegative
+    template <unsigned D> void Distance(const Edge &, DistanceType<D> &ret) const; //always nonnegative
 
     const EllipseData &GetEllipseData() const {_ASSERT(type!=STRAIGHT); return ell;}
     bool GetClockWise() const {_ASSERT(type!=STRAIGHT); return clockwise_arc;}
@@ -242,6 +232,174 @@ inline XY Edge::GetCentroidAreaAboveUpscaled() const
     case STRAIGHT:    return getcentroidareaaboveupscaled_straight(start, end);
     case FULL_CIRCLE: return ell.GetCenter() * ell.FullArea(); 
     case ARC:         return getcentroidareaaboveupscaled_curvy();
+    }
+}
+
+//This one assumes an empty "ret", which gets filled in, with a nonnegative value
+template <unsigned D> 
+void Edge::Distance(const Edge &o, DistanceType<D> &ret) const
+{
+    if (type==STRAIGHT) {
+        if (o.type == STRAIGHT) {
+            //test if we cross
+            if (!test_zero((end-start).PerpProduct(o.end-o.start))) {
+                //They are not parallel (and none of them are degenerate, but that does not matter now)
+                const double t = (end-start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+                const double s = (o.end-o.start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
+                if (between01_approximate_inclusive(t) && between01_approximate_inclusive(s)) {
+                    ret.Merge(0, start + (end-start)*t, start + (end-start)*t);
+                    return; 
+                }
+                //here the two infinite lines cross, but the cp is outside at least one 
+                //of the two sections
+            }
+            //They are either parallel, degenerate or just far away
+            //calculate the start distance only, end will come anyway
+            XY point1, point2;
+            const double d1 = Distance(o.start, point1);
+            const double d2 = o.Distance(start, point2);
+            if (d1<d2) 
+                ret.Merge(d1, point1, o.start);
+            else 
+                ret.Merge(d2, start, point2);
+            return;
+        }
+        if (o.type == FULL_CIRCLE) {
+            XY p[2];
+            const double d = o.GetEllipseData().Distance(start, end, p);
+            //now p[0] is a point on the ellipse, p[1] is a point on the line "this"
+            const double line_pos = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                                    (p[1].y-start.y)/(end.y-start.y) : (p[1].x-start.x)/(end.x-start.x); 
+            if (d<0) { //we cross
+                //the two points are the crosspoints
+                //check if the first in inside the section
+                if (between01_approximate_inclusive(line_pos)) {
+                    ret.Merge(0, p[1], p[1]);
+                    return;
+                }
+                //now check if the other is
+                const double line_pos2  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                                           (p[0].y-start.y)/(end.y-start.y) : (p[0].x-start.x)/(end.x-start.x); 
+                if (between01_approximate_inclusive(line_pos2)) {
+                    ret.Merge(0, p[0], p[0]);
+                    return;
+                }
+                //none of the crosspoints are between start and end of the section
+                //if both are at the same side, return closer one
+                if ((line_pos<0) == (line_pos2<0)) {
+                    if (line_pos < 0)  {//"start" is closer
+start_is_closer:
+                        XY other;
+                        const double d = o.ell.Distance(start, other);
+                        ret.Merge(d, start, other);
+                        return;
+                    } else { //"end" is closer
+end_is_closer:
+                        XY other;
+                        const double d = o.ell.Distance(end, other);
+                        ret.Merge(d, end, other);
+                        return;
+                    }
+                } else { //we are inside the "o"
+                    if (line_pos<0) { //"point_on_line" is closer to "start" than to "end"
+                        if (-line_pos < line_pos2-1)  goto start_is_closer;
+                        else goto end_is_closer;
+                    } else {//"point_on_line" is closer to "end" than to "start"
+                        if (line_pos-1 < -line_pos2) goto end_is_closer;
+                        else goto start_is_closer;
+                    }
+                }
+            }
+            //if we touch & touchpoint between start and end
+            if (d==0 && between01_approximate_inclusive(line_pos)) {
+                ret.Merge(0, p[0], p[0]);
+                return;
+            }
+            //d>0: //line avoids ellipse
+            if (!test_smaller(0,line_pos)) goto start_is_closer;
+            if (!test_smaller(line_pos,1)) goto end_is_closer;
+            //"p[1]" contains a point of the line "this" which is closest to the ellipse "o"
+            XY other;
+            const double di = o.ell.Distance(p[1], other);
+            ret.Merge(di, p[1], other);
+            return;
+        }
+        if (o.type == ARC) {
+            //The following points can be the shortest distance
+            //the infinite line and the full circle
+            //the start and endpoints of either arc to the other
+            //(from the latter we skip endpoints as the next arc will do it)
+            XY p[2];
+            double d = o.GetEllipseData().Distance(start, end, p);
+            //now p[0] is a point on the ellipse, p[1] is a point on the line "this"
+            //now validate that this is a real distance
+            const double line_pos  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                                           (p[1].y-start.y)/(end.y-start.y) : (p[1].x-start.x)/(end.x-start.x); 
+            const double rad = o.GetEllipseData().Point2Radian(p[0]);
+            if (d>=0) {//touch or apart
+                if (!between01_approximate_inclusive(line_pos) || !o.radianbetween(rad))
+                    d = MaxVal(d); //other options will be closer
+            } else { //cross
+                //if any crosspoint is valid we are 0 distance
+                const double line_pos2 = fabs(start.x-end.x) < fabs(start.y - end.y) ?
+                                            (p[0].y-start.y)/(end.y-start.y) : (p[0].x-start.x)/(end.x-start.x); 
+                //check line_pos and rad generated from point on ell (="p[0]")
+                if (between01_approximate_inclusive(line_pos2) && o.radianbetween(rad)) {
+                ret.Merge(0, p[0], p[0]);
+                    return;
+                }
+                //check line_pos and rad generated from point on line (="p[1]")
+                const double rad2 = o.GetEllipseData().Point2Radian(p[1]);
+                if (between01_approximate_inclusive(line_pos) && o.radianbetween(rad2)) {
+                ret.Merge(0, p[1], p[1]);
+                    return;
+                }
+                d = MaxVal(d); //other options will be closer
+            }
+            //Here d is nonnegative (can be maxval)
+            //Ok, now check if the startpoint of the arc is closer to the line
+            XY point1, point2;
+            const double d1 = Distance(o.start, point1);
+            const double d2 = o.Distance(start, point2);
+            if (d < d1 && d < d2) {
+                ret.Merge(d, p[1], p[0]);
+                return; 
+            }
+            if (d1<d2) 
+                ret.Merge(d1, point1, o.start);
+            else 
+                ret.Merge(d2, start, point2);
+            return;
+        }
+        _ASSERT(0); //not arc neither full_circle nor straight
+    }
+    if (o.type==STRAIGHT) {
+        ret.SwapPoints();
+        o.Distance(*this, ret); //straight-curvy combinations
+        ret.SwapPoints();
+        return;
+    }
+    //Now we have two curvy edges
+    //We select the one with shorter arc for interpolation
+    //TODO: replace to binary search
+    const double l1 = (ell.GetRadius1()+ell.GetRadius1())*GetSpan();
+    const double l2 = (o.ell.GetRadius1()+o.ell.GetRadius1())*o.GetSpan();
+    const Edge &a = l1<l2 ? *this : o;
+    const Edge &b = l1<l2 ? o : *this;
+    const double step_length = 5;
+    const double step_arc = step_length/((a.ell.GetRadius1()+a.ell.GetRadius1()));
+    double r1 = a.GetRadianS(), r2 = a.GetRadianE();
+    if (a.GetClockWise()) std::swap(r1, r2);
+    if (r2<=r1) r2 += 2*M_PI;
+    const XY me = a.GetEllipseData().Radian2Point(r2);
+    XY other;
+    const double d = b.Distance(me, other);
+    ret.Merge(d, me, other);
+    for (; r1<r2; r1+=step_arc) {
+        const XY me = a.GetEllipseData().Radian2Point(r1);
+        const double d = b.Distance(me, other);
+        ret.Merge(d, me, other);
+        if (ret.IsZero()) return;
     }
 }
 

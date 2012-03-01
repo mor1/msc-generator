@@ -482,6 +482,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='MyRelease|Win32'">..\cairo\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='MyRelease|Itanium'">..\cairo\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <ClCompile Include="notes.cpp" />
     <ClCompile Include="numbering.cpp" />
     <ClCompile Include="parse_tools.cpp" />
     <ClCompile Include="stringparse.cpp" />
@@ -502,6 +503,7 @@
     <ClInclude Include="contour.h" />
     <ClInclude Include="contour_basics.h" />
     <ClInclude Include="contour_bitmap.h" />
+    <ClInclude Include="contour_distance.h" />
     <ClInclude Include="contour_edge.h" />
     <ClInclude Include="contour_ellipse.h" />
     <ClInclude Include="contour_simple.h" />
@@ -513,6 +515,7 @@
     <ClInclude Include="language_misc.h" />
     <ClInclude Include="msc.h" />
     <ClInclude Include="mscdrawer.h" />
+    <ClInclude Include="notes.h" />
     <ClInclude Include="numbering.h" />
     <ClInclude Include="parse_tools.h" />
     <ClInclude Include="stringparse.h" />

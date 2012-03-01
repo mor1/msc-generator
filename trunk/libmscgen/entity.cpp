@@ -535,7 +535,8 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     note_map = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);
     note_map.arc = this;
     def_note_target = XY(0, x);
-    chart->NoteMap.Append(&note_map);
+    chart->NoteMapImp.Append(&note_map);
+    chart->NoteMapAll.Append(&area);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
@@ -547,7 +548,8 @@ void EntityDef::AddNoteMapWhenNotShowing()
     note_map = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
     note_map.arc = this;
     def_note_target = XY(0, xpos);
-    chart->NoteMap.Append(&note_map);
+    chart->NoteMapImp.Append(&note_map);
+    chart->NoteMapAll.Append(&note_map); 
 }
 
 
