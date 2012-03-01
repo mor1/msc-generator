@@ -118,8 +118,7 @@ void Bitmap::Overlap(Bitmap &&b, unsigned long long &definite, unsigned long lon
     //of alpha values (we only have alpha in CAIRO_FORMAT_A8)
     cairo_set_source_surface(b.context, surface, -double(_x), -double(_y));
     cairo_set_operator(b.context, CAIRO_OPERATOR_IN);
-    cairo_rectangle(b.context, 0, 0, b.x, b.y);
-    cairo_fill(b.context);
+    cairo_paint(b.context);
     register unsigned long long de = 0, pa = 0;
     for (register int m = b.y-1; m>=0; m--) {
         const register unsigned char *end = b.data + m*b.stride;
@@ -130,6 +129,18 @@ void Bitmap::Overlap(Bitmap &&b, unsigned long long &definite, unsigned long lon
     }
     definite = de;
     partial = pa;
+}
+
+void Bitmap::Frame()
+{
+    for (unsigned char *p = data, *end = p+x; p<end; p++)
+        *p=255;
+    for (unsigned char *p = data+(y-1)*stride, *end = p+x; p<end; p++)
+        *p=255;
+    for (unsigned char *p = data, *end = p+y*stride; p<end; p+=stride)
+        *p=255;
+    for (unsigned char *p = data+x-1, *end = p+y*stride; p<end; p+=stride)
+        *p=255;
 }
 
 Bitmap Bitmap::CreateDownscale(unsigned magnify) const

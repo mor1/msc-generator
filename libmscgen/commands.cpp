@@ -1205,8 +1205,10 @@ double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     CalculateAreaFromOuterEdge();
     note_map = area;
     def_note_target = note_map.Centroid();
-    if (!reflow) chart->NoteMap.Append(&note_map);
-
+    if (!reflow) {
+        chart->NoteMapImp.Append(&note_map);
+        chart->NoteMapAll.Append(&area);
+    }
     if (style.shadow.offset.second)
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
     else

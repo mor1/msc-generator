@@ -52,31 +52,7 @@
 
 namespace contour {
 
-//select the smaller of the two distances
-//true if "this" changed
-void Distance_Points::Merge(const Distance_Points &o)
-{
-    if (distance==0) return;
-    if (o.distance!=0) {
-        if (o.distance<0) was_inside = true;
-        else was_outside = true;
-        was_inside |= o.was_inside;
-        was_outside|= o.was_outside;
-        if (fabs(o.distance) >= fabs(distance)) return;
-    }
-    distance = o.distance;
-    point_on_me = o.point_on_me;
-    point_on_other = o.point_on_other;
-} 
-
-void Distance_Points::MergeInOut(double dist) //true if changed. Just see if we get mixed
-{
-    _ASSERT(IsValid() && fabs(dist) < MaxVal(dist));
-    if (dist==0 || distance==0) return;
-    if (dist<0) was_inside = true;
-    else was_outside= true;
-}
-    
+   
 //////////////////Helper functions
 
 //safe cubic root

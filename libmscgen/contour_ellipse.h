@@ -1,3 +1,22 @@
+/*
+    This file is part of Msc-generator.
+    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #if !defined(CONTOUR_ELLIPSE_H)
 #define CONTOUR_ELLIPSE_H
 
@@ -9,30 +28,11 @@
 #endif
 
 #include "cairo.h"
-#include "contour_basics.h"
+#include "contour_distance.h"
 
 namespace contour {
-
-//an fmod, that always return a value in [0..b] even if a<0
-template<typename real> real fmod_negative_safe(real a, real b) {_ASSERT(b>0); return a>=0 ? fmod(a, b) : b - fmod(-a, b);}
-
 //helper class for ellipsis intersection calculation
 struct quadratic_xy_t;
-
-struct Distance_Points 
-{
-    double distance;
-    bool was_inside;
-    bool was_outside;
-    XY point_on_me;
-    XY point_on_other;
-    Distance_Points() : distance(MaxVal(distance)), was_inside(false), was_outside(false) {}
-    bool operator < (const Distance_Points&o) const {return distance< o.distance;}
-    void SwapPoints() {std::swap(point_on_me, point_on_other);}
-    bool IsValid() const {return fabs(distance) < MaxVal(distance);}
-    void Merge(const Distance_Points &o); 
-    void MergeInOut(double dist); //Just see if we get mixed in_out. Do not change "distance"
-};
 
 //A helper class implementing an ellipse, its crosspoints with ellipses and lines
 //it always represents a full ellipse, not just a section of it
