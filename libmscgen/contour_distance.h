@@ -117,8 +117,8 @@ private:
     void RecalcLargest() {largest = 0; if (!zero) for (unsigned u = 1; u<D; u++) if (fabs(dirs[largest].distance) < fabs(dirs[u].distance)) largest = u;}
 public:
     static const DistanceAngleRange<D> ranges;
-    DistanceType() : smallest(0), largest(0), was_inside(false), was_outside(false), valid(false), zero(false) 
-            {for (unsigned u=0; u<D; u++) dirs[u].distance = MaxVal(dirs[u].distance);}
+    DistanceType() {Reset();}
+    void Reset();
     void SwapPoints() {for (unsigned u=0; u<D; u++) std::swap(dirs[u].point_on_me, dirs[u].point_on_other);}
     void Merge(double d, const XY &point_on_me, const XY &point_on_other); 
     void Merge(const DistanceType<D> &o); 
@@ -162,6 +162,20 @@ inline double DistanceType<1>::Distance(int index) const
 template<> 
 inline unsigned DistanceType<1>::SmallestIndex() const 
         {return 0;}
+
+
+template<unsigned D> 
+void DistanceType<D>::Reset()
+{
+    smallest= 0;
+    largest = 0; 
+    was_inside = false; 
+    was_outside = false; 
+    valid = false; 
+    zero = false; 
+    for (unsigned u=0; u<D; u++) 
+        dirs[u].distance = MaxVal(dirs[u].distance);
+}
 
 template<unsigned D> 
 inline void DistanceType<D>::Merge(double d, const XY &point_on_me, const XY &point_on_other)

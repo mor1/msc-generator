@@ -53,6 +53,56 @@
 namespace contour {
 
    
+//calculates how the line "A"->"B" crosses the rectangle
+//if no crossing, an invalid range is returned
+//if there is a crossing, "pos" values are returned 
+//0 corresponds to "A", 1 corresponds to "B", values in between
+//correspond to the section A->B; and outside likewise
+Range Block::Cut(const XY &A, const XY &B) const
+{
+    Range ret;
+    if (IsInvalid() || A.test_equal(B)) goto invalid;
+    if (test_equal(A.x, B.x)) {
+        if (!x.IsWithinBool(A.x)) goto invalid;
+        ret.from = (y.from-A.y)/(B.y-A.y);
+        ret.till = (y.till-A.y)/(B.y-A.y);
+        goto valid;
+    } 
+    if (test_equal(A.y, B.y)) {
+        if (!y.IsWithinBool(A.y)) goto invalid;
+        ret.from = (y.from-A.y)/(B.y-A.y);
+        ret.till = (y.till-A.y)/(B.y-A.y);
+        goto valid;
+    } 
+    bool have_one = false;
+    if (y.IsWithinBool((B.y-A.y)/(B.x-A.x)*(x.from-A.x)+A.y)) {
+        ret.from = (x.from-A.x)/(B.x-A.x);
+        have_one = true;
+    }
+    if (y.IsWithinBool((B.y-A.y)/(B.x-A.x)*(x.till-A.x)+A.y)) {
+        (have_one ? ret.till : ret.from) = (x.till-A.x)/(B.x-A.x);
+        if (have_one) goto valid;
+        have_one = true;
+    }
+    if (x.IsWithinBool((B.x-A.x)/(B.y-A.y)*(y.from-A.y)+A.x)) {
+        (have_one ? ret.till : ret.from) = (y.from-A.y)/(B.y-A.y);
+        if (have_one) goto valid;
+        have_one = true;
+    }
+    if (x.IsWithinBool((B.x-A.x)/(B.y-A.y)*(y.till-A.y)+A.x)) {
+        (have_one ? ret.till : ret.from) = (y.till-A.y)/(B.y-A.y);
+        if (have_one) goto valid;
+        _ASSERT(0);
+    }
+invalid:
+    ret.MakeInvalid();
+    return ret;
+valid:
+    if (ret.from > ret.till)
+        std::swap(ret.from, ret.till);
+    return ret;
+}
+
 //////////////////Helper functions
 
 //safe cubic root

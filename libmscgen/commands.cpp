@@ -1302,7 +1302,8 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
 
 CommandNote::CommandNote(Msc*msc, const ExtVertXPos *evxpos, AttributeList *al)
     : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]),
-    extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc))
+    extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc)),
+    float_dir_x(0), float_dir_y(0), float_dist(-1)
 {
     draw_pass = NOTE;
     AddAttributeList(al);
@@ -1398,18 +1399,34 @@ void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
         distances.Insert(chart->RSide->index, chart->RNote->index, w);
 }
 
-Contour CommandNote::Cover(MscCanvas &canvas, const XY &point_to, bool use_point_to) //places center to 0,0
+Contour CommandNote::CoverBody(MscCanvas &canvas) const//places upper left corner to 0,0
 {
-    const XY wh = parsed_label.getTextWidthHeight();
-    return Block(-wh.x/2, wh.x/2, -wh.y/2, wh.y/2);
-    //TODO: Add corners, linewidth and arrow
+    return style.line.CreateRectangle_Midline(XY(0,0), parsed_label.getTextWidthHeight());
 }
 
-void CommandNote::Place(MscCanvas &canvas, double x, double y) 
+Contour CommandNote::cover_pointer(MscCanvas &canvas, const XY &pointto) const //places upper left corner of the body to 0,0
 {
-    xpos = x;
-    ypos = y;
-    area = Cover(canvas).Shift(XY(x,y));
+    const double width_min=10, width_max=50, width_div=50;
+
+    const Contour body = CoverBody(canvas);
+    if (inside(body.IsWithin(pointto))) return Contour();
+    const XY center = body.GetBoundingBox().Centroid();
+    const double l = center.Distance(pointto);
+    const double startwidth = std::min(width_max, width_min + l/width_div);
+    const XY a = (center-pointto).Rotate90CCW()/l*startwidth/2;
+    return Contour(pointto, center-a, center+a);
+}
+
+void CommandNote::Place(MscCanvas &canvas, const XY &origin, const XY &pointto) 
+{
+    const Block playground(XY(0,0), chart->total);
+    if (!playground.IsWithinBool(origin) || !playground.IsWithinBool(pointto)) {
+        _ASSERT(0);
+        return;
+    }
+    pos = origin;
+    point_to = pointto;
+    area = CoverAll(canvas, pointto-origin).Shift(pos);
 }
 
 
@@ -1430,16 +1447,22 @@ void CommandNote::Place(MscCanvas &canvas, double x, double y)
 void CommandNote::ShiftBy(double y)
 {
     ArcLabelled::ShiftBy(y);
+    pos.y += y;
+    point_to.y += y;
 }
 
 
-void CommandNote::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
-{
-}
+//void CommandNote::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
+//{
+//}
 
 void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (pass!=draw_pass) return;
-    parsed_label.Draw(canvas, xpos, xpos+parsed_label.getTextWidthHeight().x, ypos);
+    const Contour cover = CoverAll(canvas, point_to-pos).Shift(pos);
+    canvas.Shadow(cover.CreateExpand(style.line.Spacing()), style.shadow);
+    canvas.Fill(cover.CreateExpand(-style.line.Spacing()), style.fill);
+    canvas.Line(cover.CreateExpand(style.line.Spacing()), style.line);
+    parsed_label.Draw(canvas, pos.x, pos.x+parsed_label.getTextWidthHeight().x, pos.y);
 }
 

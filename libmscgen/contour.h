@@ -60,6 +60,7 @@ public:
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 
+    Range Cut(const XY &A, const XY &B) const;
 };
 
 //this contains a list of non-overlapping contours as holes
@@ -98,6 +99,7 @@ protected:
         {outline.RotateAround(c, cos, sin, radian); if (holes.size()) holes.RotateAround(c, cos, sin, radian);}
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
+    void Expand2D(const XY &gap, Contour &res) const;
     SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const {return SimpleContour::switch_side(c.RelationTo(*this, ignore_holes));}
 
@@ -137,6 +139,8 @@ public:
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {outline.Path(cr, show_hidden, clockwiseonly); if (holes.size()) holes.Path(cr, show_hidden, clockwiseonly);}
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {outline.PathDashed(cr, pattern, num, show_hidden); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden);}
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {outline.PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
+
+    Range Cut(const XY &A, const XY &B) const {return outline.Cut(A, B);}
 };
 
 //This can contain multiple positive contours and holes
@@ -176,6 +180,7 @@ protected:
 
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
+    void Expand2D(const XY &gap, Contour &res) const;
     template<unsigned D> void Distance(const Contour &c, DistanceType<D> &dist_so_far) const;
 public:
     typedef SimpleContour::result_t relation_t;
@@ -197,12 +202,14 @@ public:
     Contour(const SimpleContour &p) : first(p) {boundingBox = first.GetBoundingBox();}
     Contour(ContourWithHoles &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}
     Contour(SimpleContour &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}
+    Contour(Contour &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.boundingBox) {}
 
     Contour &operator = (const Block &a) {first = a; further.clear(); boundingBox = a; return *this;}
     Contour &operator = (const SimpleContour &a) {first.operator=(a); further.clear(); boundingBox = first.GetBoundingBox(); return *this;}
     Contour &operator = (SimpleContour &&a) {first.operator=(std::move(a)); boundingBox = first.GetBoundingBox(); return *this;}
     Contour &operator = (const ContourWithHoles &a) {first.operator=(a); further.clear(); boundingBox = first.GetBoundingBox(); return *this;}
     Contour &operator = (ContourWithHoles &&a) {first.operator=(std::move(a)); further.clear(); boundingBox = first.GetBoundingBox(); return *this;}
+    Contour &operator = (Contour &&a) {first.swap(a.first); further.swap(a.further); boundingBox = a.boundingBox; return *this;}
 
     bool operator < (const Contour &p) const {return first==p.first ? further < p.further: first < p.first;}
     bool operator ==(const Contour &p) const {return first==p.first && further == p.further;}
@@ -281,6 +288,9 @@ public:
                     double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative));
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
                          double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
+    Contour& Expand2D(const XY &gap);
+    Contour Expand2D(const XY &gap) const;
+
     relation_t RelationTo(const Contour &c, bool ignore_holes) const;
     static bool Overlaps(relation_t t) {return SimpleContour::result_overlap(t);}
     bool Overlaps(const Contour &c, bool ignore_holes) const {return Overlaps(RelationTo(c, ignore_holes));}
@@ -300,6 +310,7 @@ public:
     //zero returned if they cross. If the two points are equal that is a crosspoint, if not they are invalid
     //(Latter may happen if one of the contours have two pieces and one is inside and one is outside the other
     template<unsigned D> DistanceType<D> Distance(const Contour &c) const {DistanceType<D> r; Distance(c, r); return r;}
+    Range Cut(const XY &A, const XY &B) const {Range ret = first.Cut(A, B); if (!further.IsEmpty()) ret += further.Cut(A, B); return ret;}
 };
 
 template <typename list, unsigned D> void Distance(const list &list, const Contour &c, DistanceType<D> &dist_so_far) 
@@ -466,6 +477,16 @@ void ContourList::Distance(const ContourList &cl, DistanceType<D> &dist_so_far) 
     dist_so_far.SwapPoints();
 }
 
+
+inline Range ContourList::Cut(const XY &A, const XY &B) const
+{
+    Range ret;
+    ret.MakeInvalid();
+    for (auto i = begin(); i!=end(); i++)
+        ret += i->Cut(A, B);
+    return ret;
+}
+
 ///////Contour///////////////////////////////////////
 
 inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
@@ -529,11 +550,10 @@ inline double Contour::OffsetBelow(const Contour &below, double &touchpoint, dou
 inline Contour &Contour::Expand(double gap, EExpandType et4pos, EExpandType et4neg,
                                 double miter_limit_positive, double miter_limit_negative)
 {
-    if (gap) {
-        Contour res;
-        Expand(et4pos, et4neg, gap, res, miter_limit_positive, miter_limit_negative);
-        swap(res);
-    }
+    if (!gap) return *this;
+    Contour res;
+    Expand(et4pos, et4neg, gap, res, miter_limit_positive, miter_limit_negative);
+    swap(res);
     return *this;
 }
 
@@ -545,6 +565,23 @@ inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType
     Expand(et4pos, et4neg, gap, res, miter_limit_positive, miter_limit_negative);
     return res;
 }
+
+inline Contour& Contour::Expand2D(const XY &gap)
+{
+    if (test_zero(gap.x) || test_zero(gap.y)) return *this;
+    Contour res;
+    Expand2D(gap, res);
+    swap(res);
+}
+
+inline Contour Contour::Expand2D(const XY &gap) const
+{
+    if (test_zero(gap.x) || test_zero(gap.y)) return *this;
+    Contour res;
+    Expand2D(gap, res);
+    return res;
+}
+
 
 template<unsigned D>
 void Contour::Distance(const Contour &c, DistanceType<D> &dist_so_far) const

@@ -876,6 +876,72 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(res_before_untangle));
 }
 
+
+void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a, 
+                                   unsigned original_last, unsigned next, 
+                                   int last_type, int stype) 
+{
+    XY cp;
+    switch (a[original_last].FindExpandedEdgesCP(a[original_last+1], cp)) {
+    case Edge::CP_REAL:
+        a[original_last].SetEndLiberal(cp);
+        a[next].SetStartLiberal(cp);
+        break;
+    default:
+        if (last_type && stype == -last_type) {
+            cp = a[original_last].GetEnd();
+            switch (last_type) {
+            case +1: cp.y -= 2*gap.x; break;
+            case -1: cp.y += 2*gap.y; break;
+            case +3: cp.x += 2*gap.x; break;
+            case -3: cp.x -= 2*gap.y; break;
+            default: _ASSERT(0); break;
+            }
+            XY next_start = a[next].GetStart();
+            a.insert(a.begin()+original_last+1, Edge(a[original_last].GetEnd(), cp));
+            a.insert(a.begin()+original_last+2, Edge(cp, next_start));
+        } else {
+            _ASSERT(test_equal(a[original_last].GetEnd().x, a[next].GetStart().x) ||
+                    test_equal(a[original_last].GetEnd().y, a[next].GetStart().y));
+            a.insert(a.begin()+original_last+1,
+                     Edge(a[original_last].GetEnd(), a[next].GetStart()));
+        }
+    }
+}
+
+//This one will create a contour such that any gap*2 block centered outside of the
+//resulting contour will not overlap with "this"
+void SimpleContour::Expand2D(const XY &gap, Contour &res) const
+{
+    if (gap.x==0 && gap.y==0) {
+        res = *this;
+        return;
+    }
+    Contour r2;
+    if (IsEmpty()) return;
+    int first_type, last_type;
+    at(0).CreateExpand2D(gap, r2.first.outline.edges, first_type, last_type);
+    for (unsigned u=1; u<size(); u++) {
+        int stype, etype;
+        // types are: toward upper-left: +1; toward lower-right: -1
+        // toward upper-right: +3, toward lower-left: -3;
+        // horizontal and vertical are 0
+        const unsigned original_last = r2.first.outline.edges.size()-1;
+        at(u).CreateExpand2D(gap, r2.first.outline.edges, stype, etype);
+        Expand2DHelper(gap, r2.first.outline.edges, original_last, original_last+1, last_type, stype);
+        last_type = etype;
+    }
+    //Now meld last and first
+    Expand2DHelper(gap, r2.first.outline.edges, r2.first.outline.edges.size()-1, 0, last_type, first_type);
+
+    r2.first.outline.Sanitize(); //calculates clockwise and boundingbox, as well
+    if (r2.first.outline.size()==0) return;
+    r2.boundingBox = r2.first.outline.boundingBox; //copy bb to outer
+    res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
+}
+
+
+
 SimpleContour::result_t SimpleContour::RelationTo(const SimpleContour &c) const
 {
     if (!boundingBox.Overlaps(c.boundingBox)) return APART;
@@ -950,5 +1016,35 @@ void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) con
             section.Set(y[j], forward[j] == clockwise);
     }
 }
+
+Range SimpleContour::Cut(const XY &A, const XY &B) const
+{
+    Range ret = boundingBox.Cut(A, B); //also tests for A==B or invalid bb, which catches empty "this"
+    if (ret.IsInvalid()) return ret;
+    const Edge section(A+(B-A)*ret.from, A+(B-A)*(ret.till+0.1));
+    ret.MakeInvalid();
+    XY dummy1[2];
+    double pos[2], dummy2[2];
+    for (unsigned u = 0; u<size(); u++) 
+        for (int i = at(u).Crossing(section, dummy1, dummy2, pos)-1; i>=0; i--)
+            ret += pos[i];
+    if (ret.IsInvalid()) return ret;
+    Range ret2;
+    if (fabs(A.x-B.x) > fabs(A.y-B.y)) {
+        const double p1 = section.GetStart().x + (section.GetEnd().x-section.GetStart().x)*ret.from;
+        const double p2 = section.GetStart().x + (section.GetEnd().x-section.GetStart().x)*ret.till;
+        //p1 and p2 are now the x coordinate of the two CP, convert to "pos" on A-B
+        ret2.from = (p1-A.x)/(B.x-A.x);
+        ret2.till = (p2-A.x)/(B.x-A.x);
+    } else { //do it in y coordinates
+        const double p1 = section.GetStart().y + (section.GetEnd().y-section.GetStart().y)*ret.from;
+        const double p2 = section.GetStart().y + (section.GetEnd().y-section.GetStart().y)*ret.till;
+        //p1 and p2 are now the y coordinate of the two CP, convert to "pos" on A-B
+        ret2.from = (p1-A.y)/(B.y-A.y);
+        ret2.till = (p2-A.y)/(B.y-A.y);
+    }
+    return ret2;
+}
+
 
 } //namespace

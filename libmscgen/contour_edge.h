@@ -102,6 +102,7 @@ public:
     XY GetCentroidAreaAboveUpscaled() const;
 
     bool Expand(double gap);
+    void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 
     void Shift(const XY &wh) {start+=wh; end+=wh; boundingBox.Shift(wh); if (type!=STRAIGHT) ell.Shift(wh);}
     void Scale(double sc) {start*=sc; end*=sc; boundingBox.Scale(sc); if (type!=STRAIGHT) ell.Scale(sc);}
@@ -176,6 +177,8 @@ protected:
     EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp) const;
     void SetStartEndForExpand(const XY &S, const XY &E);
     bool IsOpposite(const XY &S, const XY &E) const;
+
+    void CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 };
 
 inline double Edge::GetSpan() const
@@ -234,6 +237,28 @@ inline XY Edge::GetCentroidAreaAboveUpscaled() const
     case ARC:         return getcentroidareaaboveupscaled_curvy();
     }
 }
+
+namespace Edge_CreateExpand2D {
+inline int comp_int(const double &a, const double &b) {
+    return a<b ? -1 : a==b ? 0 : 1;
+}
+inline double comp_dbl(const double &a, const double &b, double g) {
+    return a<b ? -g : a==b ? 0 : g;
+}
+}
+
+//returns a list of edges, this one does
+inline void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
+{
+    if (type!=STRAIGHT) return CreateExpand2DCurvy(gap, ret, stype, etype);
+    ret.push_back(Edge(start + XY(Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y),
+                                  Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.x)),
+                       end   + XY(Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y),
+                                  Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.x))));
+    etype = stype = Edge_CreateExpand2D::comp_int(start.x, end.x) +
+                    Edge_CreateExpand2D::comp_int(start.y, end.y)*2;
+}
+
 
 //This one assumes an empty "ret", which gets filled in, with a nonnegative value
 template <unsigned D> 

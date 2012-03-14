@@ -262,6 +262,120 @@ void DrawDistance(unsigned i, const Contour &c1, const Contour &c2, const char *
     }
 };
 
+void DrawCut(unsigned i, const Contour &c1, unsigned num, const XY s[], const XY e[])
+{
+    Block b = c1.GetBoundingBox();
+    b.Expand(10);
+    const XY origo = b.UpperLeft();
+    b += XY(100,100);
+    b += XY(0,0);
+    CairoContext c(i, b, "", false);
+    c.Draw(c1, false, 1, 0, 0, true, 0);
+    for (unsigned u=0; u<num; u++) {
+        const Range r = c1.Cut(s[u]+origo, e[u]+origo);
+        XY start = origo + s[u], end = origo + e[u];
+        const XY from = origo + s[u] + (e[u]-s[u])*r.from;
+        const XY till = origo + s[u] + (e[u]-s[u])*r.till;
+        if (r.from<0) start = from;
+        if (r.till>1) end = till;
+        cairo_move_to(c.cr, start.x, start.y);
+        cairo_line_to(c.cr, end.x, end.y);
+        cairo_set_source_rgb(c.cr, 0.5, 1, 0.5);
+        cairo_stroke(c.cr);
+        cairo_set_source_rgb(c.cr, 0, 1, 0);
+        cairo_arc(c.cr, s[u].x + origo.x, s[u].y + origo.y, 3, 0, 2*M_PI);
+        cairo_fill(c.cr);
+        cairo_arc(c.cr, e[u].x + origo.x, e[u].y + origo.y, 3, 0, 2*M_PI);
+        cairo_fill(c.cr);
+        if (r.IsInvalid()) continue;
+        cairo_set_source_rgb(c.cr, 0, 0, 1);
+        cairo_arc(c.cr, from.x, from.y, 3, 0, 2*M_PI);
+        cairo_fill(c.cr);
+        cairo_arc(c.cr, till.x, till.y, 3, 0, 2*M_PI);
+        cairo_fill(c.cr);
+    }
+}
+
+
+namespace generated_forms {
+    Contour tri, boxhole, cooomplex, cooomplex2, cooomplex3;
+    Contour variable, custom, later, raster;
+    Contour circle, circle2, circle3, huhu, boxhole2;
+    Contour part, spart, partxy, spartxy, forexpbevel;
+    bool done = false;
+} //namespace local
+
+void generate_forms() 
+{
+    using namespace generated_forms;
+    if (done) return;
+    done = true;
+    tri = Contour(XY(50,90), XY(100,60), XY(40,20));
+    tri +=  Contour(30,70,60,70);
+
+	boxhole = Contour(130,170,60,70);
+	boxhole += Contour(160,170,60,140);
+	boxhole += Contour(130,140,60,140);
+	boxhole += Contour(130,170,130,140);
+    boxhole += Contour(148,153, 85, 115);
+
+    cooomplex=boxhole+tri;
+
+	cooomplex2 = Contour(110, 200, 80, 120);
+    cooomplex2 -= Contour(120, 190, 90, 110);
+
+    variable = boxhole + cooomplex2;
+	cooomplex2 += cooomplex;
+    later = cooomplex2;
+
+	custom = cooomplex2;
+    cooomplex2 += cooomplex2.CreateShifted(XY(15,15));
+
+    cooomplex2.Shift(XY(200,0));
+	custom. Shift(XY(200,0));
+    
+	const int num_x = 10;
+	const int num_y = 10;
+	for (int i=0; i<num_x; i++)
+		raster += Contour(200+i*20, 215+i*20, 200, 190+num_y*20);
+	for (int j=0; j<num_y; j++)
+		raster += Contour(200, 190+num_x*20, 200+j*20, 215+j*20);
+
+    cooomplex2.ClearHoles();
+
+    cooomplex2 *= Contour(XY(300,101), 100, 50);
+
+    circle = Contour(XY(200, 200), 60, 30, 30);
+	circle += Contour(200,300, 170,190);
+
+    double x=220, y=610;
+	circle2= Contour(XY(x, y), 60, 30, abs(x-y));
+    circle3 = circle2;
+    circle2 += Contour(x,x+100, y+15,y+30);
+
+	boxhole2 = Contour(110, 200, 80, 120);
+	boxhole2 -= Contour(120, 190, 90, 110);
+	huhu = boxhole2;
+	huhu.ClearHoles();
+	huhu *= Contour(XY(130,101), 30,20);
+
+    cooomplex3 = cooomplex2;
+	cooomplex2 = cooomplex3;
+	cooomplex2.RotateAround(XY(350,100), 39);
+    part = cooomplex2[1];
+    spart = cooomplex3[1];
+    partxy = part.CreateSwapXYd();
+    partxy.IsSane();
+    spartxy = spart.CreateSwapXYd();
+    spartxy.IsSane();
+
+    variable.ClearHoles();
+
+    const XY forexpbevel_points[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
+        XY(150,160), XY(100,160)};
+    forexpbevel.assign(forexpbevel_points);
+}
+
 
 void contour_test_basic(void)
 {
@@ -674,6 +788,18 @@ void contour_test_distance(unsigned num)
     DrawDistance(num++, c4 + Block(50, 80, 50, 80), Block(60, 70, 60, 70));
 }
 
+void contour_test_cut(unsigned num)
+{
+    generate_forms();
+    const XY start[] = {XY(0,0), XY(20,30), XY(100, 200)};
+    const XY end[] = {XY(30,40), XY(210,20), XY(10, 30)};
+    DrawCut(num++, generated_forms::boxhole.GetBoundingBox(), sizeof(start)/sizeof(XY), start, end);
+    DrawCut(num++, generated_forms::tri, sizeof(start)/sizeof(XY), start, end);
+    DrawCut(num++, generated_forms::raster, sizeof(start)/sizeof(XY), start, end);
+    DrawCut(num++, generated_forms::boxhole, sizeof(start)/sizeof(XY), start, end);
+    DrawCut(num++, generated_forms::cooomplex3, sizeof(start)/sizeof(XY), start, end);
+}
+
 
 void contour_test(void)
 {
@@ -682,7 +808,8 @@ void contour_test(void)
 //    contour_test_lohere();
 //    contour_test_area(400);
 //    contour_test_relations(7000);
-    contour_test_distance(7100);
+//    contour_test_distance(7100);
+    contour_test_cut(7300);
 }
 
 } //namespace
