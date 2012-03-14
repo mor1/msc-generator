@@ -97,6 +97,7 @@ struct Range {
 		if (p==from || p == till) return WI_ON_VERTEX;
                 return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;
     }
+    bool IsWithinBool(double p) const {return from<=p && p<=till;}
     Range &Shift(double a) {from+=a; till+=a; return *this;}
     Range &Scale(double a) {from*=a; till*=a; if (a<0) std::swap(from, till); return *this;}
     Range &Expand(double a) {from-=a; till+=a; return *this;}
@@ -161,6 +162,7 @@ struct Block {
         if (x.IsWithin(p.x) == WI_ON_VERTEX && y.IsWithin(p.y) == WI_ON_VERTEX) return WI_ON_VERTEX;
         return WI_ON_EDGE;
     }
+    bool IsWithinBool(const XY &p) const {return x.IsWithinBool(p.x) && y.IsWithinBool(p.y);}
     Block & operator +=(const XY &p)
         {x += p.x; y += p.y; return *this;}
     Block & operator +=(const Block &b)
@@ -180,6 +182,7 @@ struct Block {
 
     double Distance(const XY &xy) const;
     double Distance(const Block &b) const;
+    Range Cut(const XY &A, const XY &B) const;
 };
 
 inline double Block::Distance(const XY &xy) const 
@@ -206,7 +209,6 @@ inline double Block::Distance(const Block &b) const
     //if all are either inside or outside, return the one with smallest abs value
     return minabs(minabs(uld, urd), minabs(lld, lrd));
 }
-
 
 } //namespace
 

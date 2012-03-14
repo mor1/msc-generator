@@ -1378,6 +1378,21 @@ void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negati
     }
 }
 
+void ContourWithHoles::Expand2D(const XY &gap, Contour &res) const
+{
+    if (outline.size()==0) return;
+    if (test_zero(gap.x) || test_zero(gap.y)) {res = *this; return;}
+    outline.Expand2D(gap, res);
+    if (holes.size()==0 || res.IsEmpty()) return;
+    Contour tmp;
+    for (auto i=holes.begin(); i!=holes.end(); i++) {
+        i->Expand2D(gap, tmp);
+        //in case "i" is an actual holes, it is are already inversed, adding is the right op
+        res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
+        tmp.clear();
+    }
+}
+
 SimpleContour::result_t ContourWithHoles::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
 {
     SimpleContour::result_t res = outline.RelationTo(c.outline);
@@ -1542,6 +1557,20 @@ void Contour::Expand(EExpandType type4positive, EExpandType type4negative, doubl
     }
     _ASSERT(IsSane());
 }
+
+void Contour::Expand2D(const XY &gap, Contour &res) const
+{
+    first.Expand2D(gap, res);
+    if (further.size()==0) return;
+    Contour tmp;
+    for (auto i = further.begin(); i!=further.end(); i++) {
+        i->Expand2D(gap, tmp);
+        res += std::move(tmp);
+        tmp.clear();
+    }
+    _ASSERT(IsSane());
+}
+
 
 //if "ignore holes" is true, it can only return 
 //A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART, OVERLAP

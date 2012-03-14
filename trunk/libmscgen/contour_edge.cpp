@@ -130,9 +130,10 @@ double Edge::Distance(const XY &p, XY &point) const
         const double l = start.Distance(end);
         const double m = fabs((start.x-p.x)*(end.x-start.x)-(end.y-start.y)*(start.y-p.y))/l;
         if (m<0) {point = start; return start.Distance(p);}
-        if (m>l) {point = end; return end.Distance(p);}
+        if (m>1) {point = end; return end.Distance(p);}
         point = start + (end-start)*m;
-        return fabs((end.x-start.x)*(start.y-p.y)-(start.x-p.x)*(end.y-start.y))/l;
+        //return fabs((end.x-start.x)*(start.y-p.y)-(start.x-p.x)*(end.y-start.y))/l;
+        return point.Distance(p);
     }
     if (type==FULL_CIRCLE) return ell.Distance(p, point);
     const double dist = ell.Distance(p, point);
@@ -1327,6 +1328,53 @@ bool Edge::IsOpposite(const XY &S, const XY &E) const
     return radian_diff_abs(e, new_e) + radian_diff_abs(s, new_s) >
            radian_diff_abs(e, new_s) + radian_diff_abs(s, new_e);
 }
+
+void Edge::CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
+{
+    _ASSERT(type!=STRAIGHT);
+    const double tilt = ell.GetTilt();
+    const double dir = clockwise_arc ? +1 : -1;
+    const double ee = type == FULL_CIRCLE ? s+2*M_PI*dir : (e>s)==clockwise_arc ? e : e+2*M_PI*dir;
+    const double off = clockwise_arc ? M_PI/2 - fmod(s+tilt, M_PI/2) : -fmod(s+tilt, M_PI/2);
+    unsigned index = ret.size();
+    const unsigned original_index = index;
+    ret.push_back(Edge());
+    ret[index].type = ARC;
+    ret[index].clockwise_arc = clockwise_arc;
+    ret[index].start = start;
+    ret[index].ell = ell;
+    ret[index].s = s;
+    for (double ss = s+off; clockwise_arc == (ss<ee); ss+=M_PI/2*dir, index+=2) {
+        ret.resize(index+3);
+        ret[index+2].type = ARC;
+        ret[index+2].clockwise_arc = clockwise_arc;
+        ret[index+2].start = ret[index].end = ell.Radian2Point(ss);
+        ret[index+2].s     = ret[index].e   = fmod(ss, 2*M_PI);
+        ret[index+2].ell = ell;
+    }
+    ret[index].e = fmod(ee, 2*M_PI);
+    ret[index].end = end;
+    stype = Edge_CreateExpand2D::comp_int(ret[original_index].start.x, ret[original_index].end.x) +
+            Edge_CreateExpand2D::comp_int(ret[original_index].start.y, ret[original_index].end.y)*2;
+    if (index==original_index) {
+        etype=stype;
+        return;
+    }
+    for (unsigned u=original_index; u<=index; u+=2) {
+        ret[u].CalculateBoundingBox();
+        ret[u].Shift(XY(Edge_CreateExpand2D::comp_dbl(ret[u].start.x, ret[u].end.x, gap.y),
+                        Edge_CreateExpand2D::comp_dbl(ret[u].start.y, ret[u].end.y, gap.x)));
+    }
+    for (unsigned u=original_index+1; u<index; u+=2) {
+        ret[u].type = STRAIGHT;
+        ret[u].start = ret[u-1].end;
+        ret[u].end = ret[u+1].start;
+        ret[u].CalculateBoundingBox();
+    }
+    etype = Edge_CreateExpand2D::comp_int(ret[index].start.x, ret[index].end.x) +
+            Edge_CreateExpand2D::comp_int(ret[index].start.y, ret[index].end.y)*2;
+}
+
 
 //int Edge::CombineExpandedEdges(Edge&M, EExpandType et, const XY &old, Edge &res)
 //{

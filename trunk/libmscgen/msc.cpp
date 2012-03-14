@@ -23,7 +23,6 @@
 #include <limits>
 #include <cmath>
 #include "msc.h"
-#include "contour_bitmap.h"
 #include "notes.h"
 
 using namespace std;
@@ -1188,8 +1187,8 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
 
 void Msc::PlaceNotes(MscCanvas &canvas)
 {
-    contour::Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    contour::Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
+    Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
+    Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
     for (auto i = NoteMapImp.begin(); i!=NoteMapImp.end(); i++)
         original_map_imp.Fill(**i);
     for (auto i = NoteMapAll.begin(); i!=NoteMapAll.end(); i++)
@@ -1197,8 +1196,10 @@ void Msc::PlaceNotes(MscCanvas &canvas)
     original_map_imp.Frame();
     original_map_all.Frame();
     for (auto note = Notes.begin(); note!=Notes.end(); note++) {
-        NotePlacement place(this);
-        if (place.PlaceNote(*note)) {
+        NotePlacement place(*this, canvas, **note, original_map_imp, original_map_all);
+        XY pos, point;
+        if (place.PlaceNote(pos, point)) {
+            (*note)->Place(canvas, pos, point);
             original_map_all.Fill((*note)->GetAreaToDraw());
             original_map_imp.Fill((*note)->GetAreaToDraw());
         } else {
@@ -1246,6 +1247,8 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs, -1);
+    for (auto i = Notes.begin(); i!=Notes.end(); i++)
+        (*i)->PostPosProcess(canvas, -1);
     Error.Sort();
 }
 

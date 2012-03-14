@@ -138,6 +138,9 @@ private:
     XY NextTangentPoint(size_type edge, double pos) const
         {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
+    static void Expand2DHelper(const XY &gap, std::vector<Edge> &a, 
+                               unsigned original_last, unsigned next, 
+                               int last_type, int stype);
 protected:
     friend class ContourWithHoles;
     friend class ContourList;
@@ -198,6 +201,7 @@ public:
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     void Expand(EExpandType type, double gap, Contour &res, double miter_limit/*=MaxVal(miter_limit)*/) const;
+    void Expand2D(const XY &gap, Contour &res) const;
 
     void Path(cairo_t *cr, bool show_hidden) const;
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {
@@ -210,6 +214,7 @@ public:
             PathDashed(cr, pattern, num, show_hidden);
     }
     template<unsigned D> void Distance(const SimpleContour &o, DistanceType<D> &ret) const;
+    Range Cut(const XY &A, const XY &B) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const

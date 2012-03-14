@@ -71,6 +71,7 @@ ADD: Comments to arcs (leftside, rightside, bubble)
 
 
 ADD: Check if file changed on disk
+ADD: URL's to PNG
 
 In 3.4
 FIXED: Label attribute CSH if specified via a quoted string (3.4.19)

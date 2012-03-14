@@ -284,7 +284,7 @@ void ArcBase::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     _ASSERT(had_add_attr_list);
     if (valid) 
-        TrackableElement::PostPosProcess(canvas, autoMarker);
+        TrackableElement::PostPosProcess(canvas, autoMarker); //also adds "this" to chart->AllArcs
     else if (!file_pos.IsInvalid())
         chart->AllArcs[file_pos] = this; //Do this even if we are invalid
 }

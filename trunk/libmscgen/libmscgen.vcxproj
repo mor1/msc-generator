@@ -464,7 +464,6 @@
     <ClCompile Include="area.cpp" />
     <ClCompile Include="commands.cpp" />
     <ClCompile Include="contour.cpp" />
-    <ClCompile Include="contour_bitmap.cpp" />
     <ClCompile Include="contour_edge.cpp" />
     <ClCompile Include="contour_ellipse.cpp" />
     <ClCompile Include="contour_simple.cpp" />
@@ -502,7 +501,6 @@
     <ClInclude Include="commands.h" />
     <ClInclude Include="contour.h" />
     <ClInclude Include="contour_basics.h" />
-    <ClInclude Include="contour_bitmap.h" />
     <ClInclude Include="contour_distance.h" />
     <ClInclude Include="contour_edge.h" />
     <ClInclude Include="contour_ellipse.h" />
