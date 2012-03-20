@@ -247,16 +247,35 @@ inline double comp_dbl(const double &a, const double &b, double g) {
 }
 }
 
-//returns a list of edges, this one does
+//returns a list of edges to replace "this"
+//{s,d}types return the direction of the two ends as below 
+//       +4  _+3 _  +2
+//          |\ ^ /|           Value takes edge direction into
+//            \|/             account, thus for lines
+//       +1  <-0->  -1        stype == dtype.
+//            /|\
+//          |/ v \|           For degenerate edges type==0
+//       -2   -3    -4
 inline void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
 {
     if (type!=STRAIGHT) return CreateExpand2DCurvy(gap, ret, stype, etype);
-    ret.push_back(Edge(start + XY(Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y),
-                                  Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.x)),
-                       end   + XY(Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y),
-                                  Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.x))));
+    ret.resize(ret.size()+1); 
+    Edge &e = *ret.rbegin();
+    const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
+                 Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
+    e.start = start + off;
+    e.end   = end   + off;
+    //expand for horizontal and vertical edges
+    if (start.x == end.x) {
+        e.start.y += Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
+        e.end.y -= Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
+    }
+    if (start.y == end.y) {
+        e.start.x += Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
+        e.end.x -= Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
+    }
     etype = stype = Edge_CreateExpand2D::comp_int(start.x, end.x) +
-                    Edge_CreateExpand2D::comp_int(start.y, end.y)*2;
+                    Edge_CreateExpand2D::comp_int(start.y, end.y)*3;
 }
 
 

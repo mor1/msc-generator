@@ -73,7 +73,8 @@ public:
     double GetRadius1() const {return radius1;}
     double GetRadius2() const {return radius2;}
     double GetTilt() const {return tilted ? tilt : 0;}
-	double GetExtreme(int n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
+	double GetExtreme(unsigned n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
+    double FindExtreme(double rad, bool after, XY &p) const;
     double Distance(const XY &p, XY &point) const;
     double Distance(const XY &start, const XY &end, XY p[2]) const;
     void Shift(const XY &xy);
@@ -218,6 +219,23 @@ typedef enum {LINE_CROSSING_PARALLEL, LINE_CROSSING_INSIDE, LINE_CROSSING_OUTSID
 
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
 double point2pos_straight(const XY &M, const XY&N, const XY &p);
+
+
+//finds the radian of the extreme just after or before "rad"
+//if "rad" is exactly on an extreme, we return another one
+inline double EllipseData::FindExtreme(double rad, bool after, XY &p) const
+{
+    double maxdiff = MaxVal(maxdiff);
+    unsigned ret;
+    for (unsigned u=0; u<4; u++) {
+        const double diff = fmod_negative_safe(after ? extreme_radian[u]-rad : rad-extreme_radian[u], 2*M_PI);
+        if (diff<maxdiff && !test_zero(diff)) 
+            ret = u, maxdiff = diff;
+    }
+    p = extreme[ret];
+    return extreme_radian[ret];
+}
+
 
 } //namespace
 

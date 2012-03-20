@@ -1381,7 +1381,7 @@ void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negati
 void ContourWithHoles::Expand2D(const XY &gap, Contour &res) const
 {
     if (outline.size()==0) return;
-    if (test_zero(gap.x) || test_zero(gap.y)) {res = *this; return;}
+    if (test_zero(gap.x) && test_zero(gap.y)) {res = *this; return;}
     outline.Expand2D(gap, res);
     if (holes.size()==0 || res.IsEmpty()) return;
     Contour tmp;
