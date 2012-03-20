@@ -877,32 +877,34 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 }
 
 
+//my index is the index of the edge (of "this") just added 
 void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a, 
-                                   unsigned original_last, unsigned next, 
-                                   int last_type, int stype) 
+                                   unsigned original_last, unsigned next, unsigned my_index,
+                                   int last_type, int stype) const
 {
     XY cp;
-    switch (a[original_last].FindExpandedEdgesCP(a[original_last+1], cp)) {
+    switch (a[original_last].FindExpandedEdgesCP(a[next], cp)) {
     case Edge::CP_REAL:
         a[original_last].SetEndLiberal(cp);
         a[next].SetStartLiberal(cp);
         break;
     default:
-        if (last_type && stype == -last_type) {
+        if (last_type && !(last_type & 1) && stype == -last_type &&
+            //insert an extra point only if we have a sharp convex vertex
+            CLOCKWISE == triangle_dir(PrevTangentPoint(my_index, 0), at(my_index).GetStart(), 
+                                      NextTangentPoint(my_index, 0))) {
             cp = a[original_last].GetEnd();
             switch (last_type) {
-            case +1: cp.y -= 2*gap.x; break;
-            case -1: cp.y += 2*gap.y; break;
-            case +3: cp.x += 2*gap.x; break;
-            case -3: cp.x -= 2*gap.y; break;
+            case +2: cp.x += 2*gap.x; break;
+            case -2: cp.x -= 2*gap.x; break;
+            case +4: cp.y -= 2*gap.y; break;
+            case -4: cp.y += 2*gap.y; break;
             default: _ASSERT(0); break;
             }
             XY next_start = a[next].GetStart();
             a.insert(a.begin()+original_last+1, Edge(a[original_last].GetEnd(), cp));
             a.insert(a.begin()+original_last+2, Edge(cp, next_start));
         } else {
-            _ASSERT(test_equal(a[original_last].GetEnd().x, a[next].GetStart().x) ||
-                    test_equal(a[original_last].GetEnd().y, a[next].GetStart().y));
             a.insert(a.begin()+original_last+1,
                      Edge(a[original_last].GetEnd(), a[next].GetStart()));
         }
@@ -923,16 +925,13 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
     at(0).CreateExpand2D(gap, r2.first.outline.edges, first_type, last_type);
     for (unsigned u=1; u<size(); u++) {
         int stype, etype;
-        // types are: toward upper-left: +1; toward lower-right: -1
-        // toward upper-right: +3, toward lower-left: -3;
-        // horizontal and vertical are 0
         const unsigned original_last = r2.first.outline.edges.size()-1;
         at(u).CreateExpand2D(gap, r2.first.outline.edges, stype, etype);
-        Expand2DHelper(gap, r2.first.outline.edges, original_last, original_last+1, last_type, stype);
+        Expand2DHelper(gap, r2.first.outline.edges, original_last, original_last+1, u, last_type, stype);
         last_type = etype;
     }
     //Now meld last and first
-    Expand2DHelper(gap, r2.first.outline.edges, r2.first.outline.edges.size()-1, 0, last_type, first_type);
+    Expand2DHelper(gap, r2.first.outline.edges, r2.first.outline.edges.size()-1, 0, 0, last_type, first_type);
 
     r2.first.outline.Sanitize(); //calculates clockwise and boundingbox, as well
     if (r2.first.outline.size()==0) return;

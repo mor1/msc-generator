@@ -1332,38 +1332,44 @@ bool Edge::IsOpposite(const XY &S, const XY &E) const
 void Edge::CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
 {
     _ASSERT(type!=STRAIGHT);
-    const double tilt = ell.GetTilt();
-    const double dir = clockwise_arc ? +1 : -1;
-    const double ee = type == FULL_CIRCLE ? s+2*M_PI*dir : (e>s)==clockwise_arc ? e : e+2*M_PI*dir;
-    const double off = clockwise_arc ? M_PI/2 - fmod(s+tilt, M_PI/2) : -fmod(s+tilt, M_PI/2);
     unsigned index = ret.size();
     const unsigned original_index = index;
+    const double ee = GetRadianE();
     ret.push_back(Edge());
     ret[index].type = ARC;
     ret[index].clockwise_arc = clockwise_arc;
     ret[index].start = start;
     ret[index].ell = ell;
     ret[index].s = s;
-    for (double ss = s+off; clockwise_arc == (ss<ee); ss+=M_PI/2*dir, index+=2) {
+    XY extreme;
+    double current = s;
+    while (1) {
+        const double next = ell.FindExtreme(current, clockwise_arc, extreme);
+        //if we have moved over "ee" stop.
+        if (!(type==FULL_CIRCLE && current==s) &&  //exclude the first segment of full circles
+            fmod_negative_safe(clockwise_arc ? next-current : current-next, 2*M_PI) >=
+            fmod_negative_safe(clockwise_arc ? ee-current : current-ee, 2*M_PI)) break;
+        current = next;
         ret.resize(index+3);
-        ret[index+2].type = ARC;
-        ret[index+2].clockwise_arc = clockwise_arc;
-        ret[index+2].start = ret[index].end = ell.Radian2Point(ss);
-        ret[index+2].s     = ret[index].e   = fmod(ss, 2*M_PI);
-        ret[index+2].ell = ell;
+        index+=2;
+        ret[index].type = ARC;
+        ret[index].clockwise_arc = clockwise_arc;
+        ret[index].start = ret[index-2].end = extreme;
+        ret[index].s     = ret[index-2].e   = fmod(current, 2*M_PI);
+        ret[index].ell = ell;
     }
-    ret[index].e = fmod(ee, 2*M_PI);
+    ret[index].e = ee;
     ret[index].end = end;
     stype = Edge_CreateExpand2D::comp_int(ret[original_index].start.x, ret[original_index].end.x) +
-            Edge_CreateExpand2D::comp_int(ret[original_index].start.y, ret[original_index].end.y)*2;
+            Edge_CreateExpand2D::comp_int(ret[original_index].start.y, ret[original_index].end.y)*3;
+    for (unsigned u=original_index; u<=index; u+=2) {
+        ret[u].CalculateBoundingBox();
+        ret[u].Shift(XY(Edge_CreateExpand2D::comp_dbl(ret[u].end.y, ret[u].start.y, gap.x),
+                        Edge_CreateExpand2D::comp_dbl(ret[u].start.x, ret[u].end.x, gap.y)));
+    }
     if (index==original_index) {
         etype=stype;
         return;
-    }
-    for (unsigned u=original_index; u<=index; u+=2) {
-        ret[u].CalculateBoundingBox();
-        ret[u].Shift(XY(Edge_CreateExpand2D::comp_dbl(ret[u].start.x, ret[u].end.x, gap.y),
-                        Edge_CreateExpand2D::comp_dbl(ret[u].start.y, ret[u].end.y, gap.x)));
     }
     for (unsigned u=original_index+1; u<index; u+=2) {
         ret[u].type = STRAIGHT;
@@ -1372,7 +1378,7 @@ void Edge::CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype
         ret[u].CalculateBoundingBox();
     }
     etype = Edge_CreateExpand2D::comp_int(ret[index].start.x, ret[index].end.x) +
-            Edge_CreateExpand2D::comp_int(ret[index].start.y, ret[index].end.y)*2;
+            Edge_CreateExpand2D::comp_int(ret[index].start.y, ret[index].end.y)*3;
 }
 
 

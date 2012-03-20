@@ -138,9 +138,9 @@ private:
     XY NextTangentPoint(size_type edge, double pos) const
         {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
-    static void Expand2DHelper(const XY &gap, std::vector<Edge> &a, 
-                               unsigned original_last, unsigned next, 
-                               int last_type, int stype);
+    void Expand2DHelper(const XY &gap, std::vector<Edge> &a, 
+                        unsigned original_last, unsigned next, unsigned my_index,
+                        int last_type, int stype) const;
 protected:
     friend class ContourWithHoles;
     friend class ContourList;
@@ -171,8 +171,7 @@ protected:
     void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_type i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise; area_cache.second*=-1;}
     void Rotate(double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
-
-
+    
     static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
     result_t RelationTo(const SimpleContour &c) const;
 public:

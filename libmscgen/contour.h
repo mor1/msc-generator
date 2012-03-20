@@ -112,6 +112,7 @@ public:
     void swap(ContourWithHoles &b) {holes.swap(b.holes); outline.swap(b.outline);}
     bool operator < (const ContourWithHoles &p) const {return outline==p.outline ? holes < p.holes : outline<p.outline;}
     bool operator ==(const ContourWithHoles &p) const {return outline==p.outline && holes == p.holes;}
+    SimpleContour::size_type size() const {return outline.size();}
     const Edge &operator[](SimpleContour::size_type edge) const {return outline[edge];}
     ContourWithHoles &operator = (const Block &a) {outline = a; holes.clear(); return *this;}
     ContourWithHoles &operator = (const SimpleContour &a) {outline=a; holes.clear(); return *this;}
@@ -129,7 +130,7 @@ public:
     bool GetClockWise() const {return outline.GetClockWise();}
     double GetArea(bool consider_holes=true) const {return consider_holes && !holes.IsEmpty() ? outline.GetArea() + holes.GetArea(true) : outline.GetArea();}
     double GetCircumference(bool consider_holes=true, bool include_hidden=false) const {return consider_holes ? outline.GetCircumference(include_hidden) + holes.GetCircumference(true, include_hidden) : outline.GetCircumference(include_hidden);}
-    XY CentroidUpscaled() const {return holes.IsEmpty() ? outline.CentroidUpscaled() : outline.CentroidUpscaled() - holes.CentroidUpscaled();}
+    XY CentroidUpscaled() const {return holes.IsEmpty() ? outline.CentroidUpscaled() : outline.CentroidUpscaled() + holes.CentroidUpscaled();}
 
     //Call these for both us and the holes (except for OffsetBelow)
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {outline.VerticalCrossSection(x, section); if (holes.size()) holes.VerticalCrossSection(x, section);}
@@ -289,7 +290,7 @@ public:
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
                          double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
     Contour& Expand2D(const XY &gap);
-    Contour Expand2D(const XY &gap) const;
+    Contour CreateExpand2D(const XY &gap) const;
 
     relation_t RelationTo(const Contour &c, bool ignore_holes) const;
     static bool Overlaps(relation_t t) {return SimpleContour::result_overlap(t);}
@@ -568,15 +569,15 @@ inline Contour Contour::CreateExpand(double gap, EExpandType et4pos, EExpandType
 
 inline Contour& Contour::Expand2D(const XY &gap)
 {
-    if (test_zero(gap.x) || test_zero(gap.y)) return *this;
+    if (test_zero(gap.x) && test_zero(gap.y)) return *this;
     Contour res;
     Expand2D(gap, res);
     swap(res);
 }
 
-inline Contour Contour::Expand2D(const XY &gap) const
+inline Contour Contour::CreateExpand2D(const XY &gap) const
 {
-    if (test_zero(gap.x) || test_zero(gap.y)) return *this;
+    if (test_zero(gap.x) && test_zero(gap.y)) return *this;
     Contour res;
     Expand2D(gap, res);
     return res;

@@ -382,7 +382,7 @@ void get_bezout_determinant (const quadratic_xy_t &one, const quadratic_xy_t & t
 //finds a crosspoint of two infinite lines defined by AB and MN
 //rets LINE_CROSSING_PARALLEL if parallel
 //rets LINE_CROSSING_OUTSIDE if the crosspoint is outside M-N.
-//rets LINE_CROSSING_INSIDE if the crosspoint is within (M-N). (We assume in calling function that it is inside A-B, too.)
+//rets LINE_CROSSING_INSIDE if the crosspoint is within (M-N) and (A-B)
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r)
 {
 	const double perp = (B-A).PerpProduct(N-M);
@@ -390,7 +390,9 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
     //They are not parallel (and none of them are degenerate)
     const double t = (B-A).PerpProduct(A-M) / perp;
     r = M + (N-M)*t;
-    return between01_approximate_inclusive(t) ? LINE_CROSSING_INSIDE : LINE_CROSSING_OUTSIDE;
+    if (!between01_approximate_inclusive(t)) return LINE_CROSSING_OUTSIDE;
+    const double s = (N-M).PerpProduct(M-A) / -perp;
+    return between01_approximate_inclusive(s) ? LINE_CROSSING_INSIDE : LINE_CROSSING_OUTSIDE;
 }
 
 //refines the location of a point using crosspoints of tangents
