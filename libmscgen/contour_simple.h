@@ -35,6 +35,7 @@ public:
     const element* Get(double pos) const {auto i=upper_bound(pos); return i==begin()?NULL:&(--i)->second;}
     double Till(double pos) const {auto i=upper_bound(pos); return i==end()?CONTOUR_INFINITY:i->first;}
     double From(double pos) const {auto i=--lower_bound(pos); return i==end()?-CONTOUR_INFINITY:i->first;}
+    void Prune(); //Kill elements that are not needed
 };
 
 template <class element>
@@ -85,6 +86,20 @@ void DoubleMap<element>::Add(const Range &r, const element& e)
     }
 }
 
+template <class element>
+void DoubleMap<element>::Prune()
+{
+    auto i = begin();
+    while(i!=end()) {
+        auto j = i;
+        j++;
+        if (j==end()) return;
+        if (i->second == j->second) 
+            erase(j);
+        else
+            i=j;
+    }
+}
 
 
 class Contour;
@@ -212,8 +227,10 @@ public:
         if (clockwise==clockwiseonly)
             PathDashed(cr, pattern, num, show_hidden);
     }
-    template<unsigned D> void Distance(const SimpleContour &o, DistanceType<D> &ret) const;
+    void Distance(const SimpleContour &o, DistanceType &ret) const;
     Range Cut(const XY &A, const XY &B) const;
+    void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
+    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const
@@ -240,36 +257,6 @@ inline double SimpleContour::OffsetBelow(const SimpleContour &below, double &tou
     return do_offsetbelow(below, touchpoint, offset);
 }
 
-//The distance of the two contours and two points on them
-//returns negative one is inside the other, zero if partial overlap only (two points equal)
-//"inside" here ignores clockwiseness
-//ret can contain the result of previous searches
-//we do not check bb, assume caller calls us if needed
-template<unsigned D>
-void SimpleContour::Distance(const SimpleContour &o, DistanceType<D> &ret) const
-{
-    if (IsEmpty() || o.IsEmpty()) return;
-    DistanceType<D> running = ret, tmp;
-    running.MakeAllOutside();
-    //both running and tmp are positive throught this call, except at the very end
-    for (unsigned u = 0; u<size(); u++) 
-        for (unsigned v=0; v<o.size(); v++) {
-            if (at(u).GetType() == Edge::STRAIGHT && o[v].GetType() == Edge::STRAIGHT) 
-                at(u).Distance(o[v], tmp);
-            else if (running.ConsiderBB(fabs(at(u).GetBoundingBox().Distance(o[v].GetBoundingBox())))) 
-                //if not both are straight try to avoid calculation if bbs are far enough
-                at(u).Distance(o[v], tmp);
-            else continue;
-            running.Merge(tmp);
-            if (running.IsZero()) goto final_merge;
-        }
-    //now check if one is in the other - they cannot cross each other or else d would be 0
-    _ASSERT(RelationTo(o)!=OVERLAP);
-    if (IsWithin(o[0].GetStart()) == WI_INSIDE || o.IsWithin(at(0).GetStart()) == WI_INSIDE) 
-        running.MakeAllInside();
-final_merge:
-    ret.Merge(running);
-}
 
 } //namespace
 

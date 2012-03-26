@@ -139,7 +139,7 @@ public:
     /* This is called to substitute name references in labels & process all escapes */
     virtual void FinalizeLabels(MscCanvas &canvas);
     /* This fills in distances for hscale=auto mechanism */
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances) {}
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances) {TrackableElement::Width(canvas, distances);}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
@@ -377,6 +377,7 @@ public:
     //Constructor to construct the first box/pipe in a series
     ArcBox(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc);
+    virtual bool CanBeNoted() const {return true;}
     virtual const ArcSignature* GetSignature() const;
     ArcBox* AddArcList(ArcList*l);
     ArcBase* AddAttributeList(AttributeList *);
@@ -403,10 +404,10 @@ public:
     //Constructor to construct the first box/pipe in a series
     ArcBoxSeries(ArcBox *first);
     ArcBoxSeries* AddFollow(ArcBox *f);
-    virtual bool CanBeNoted() const {return true;}
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void MoveNotesToChart();
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
@@ -436,6 +437,7 @@ protected:
 public:
     //Constructor to construct the first box/pipe in a series
     ArcPipe(ArcBox *box);
+    virtual bool CanBeNoted() const {return true;}
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -460,10 +462,10 @@ public:
     ArcPipeSeries(ArcPipe *first);
     ArcPipeSeries* AddFollowWithAttributes(ArcPipe*f, AttributeList *l);
     ArcPipeSeries* AddArcList(ArcList*l);
-    virtual bool CanBeNoted() const {return true;}
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual void MoveNotesToChart();
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);

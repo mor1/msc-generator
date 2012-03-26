@@ -19,6 +19,7 @@ typedef enum {
 class Msc;
 class MscCanvas;
 class CommandNote;
+class EntityDistanceMap;
 
 typedef PtrList<CommandNote> CommandNoteList;
 //This is a set of Areas, that may overlap
@@ -36,8 +37,8 @@ protected:
     bool   area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
 
     CommandNoteList notes;           // Notes attached to this element
-    mutable Area    note_map;        /* those parts of our coverage, which must not be covered by notes */
-    mutable XY      def_note_target; //The default part of the element where notes point to
+    mutable Contour note_map;        /* those parts of our coverage, which must not be covered by notes */
+    mutable XY      def_note_target[3]; //The default part of the element where notes point to [1] must be on the section between [0] and [2]
 
     double          layout_lower;    //Lay this element this much lower to make room for a note
     bool            all_notes_placed;//true if all our notes are placed: we cannot be requested to move
@@ -60,11 +61,12 @@ public:
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const {return area;};
     const Contour &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
-    const Area &GetNoteMap() const {return note_map;}
-    const XY &GetDefNodeTarget() const {return def_note_target;}
+    const Contour &GetNoteMap() const {return note_map;}
+    const XY *GetDefNodeTarget() const {return def_note_target;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     virtual void PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level);
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual void RequestLayoutChange(double y) {layout_lower += y;}
     virtual void MarkAllNotesPlaced() {all_notes_placed = true;}
     bool AreAllNotesPlaced() const {return all_notes_placed;}

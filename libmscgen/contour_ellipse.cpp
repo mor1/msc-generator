@@ -52,29 +52,29 @@
 
 namespace contour {
 
-   
+
 //calculates how the line "A"->"B" crosses the rectangle
 //if no crossing, an invalid range is returned
-//if there is a crossing, "pos" values are returned 
+//if there is a crossing, "pos" values are returned
 //0 corresponds to "A", 1 corresponds to "B", values in between
 //correspond to the section A->B; and outside likewise
 Range Block::Cut(const XY &A, const XY &B) const
 {
     Range ret;
+    bool have_one = false;
     if (IsInvalid() || A.test_equal(B)) goto invalid;
     if (test_equal(A.x, B.x)) {
         if (!x.IsWithinBool(A.x)) goto invalid;
         ret.from = (y.from-A.y)/(B.y-A.y);
         ret.till = (y.till-A.y)/(B.y-A.y);
         goto valid;
-    } 
+    }
     if (test_equal(A.y, B.y)) {
         if (!y.IsWithinBool(A.y)) goto invalid;
-        ret.from = (y.from-A.y)/(B.y-A.y);
-        ret.till = (y.till-A.y)/(B.y-A.y);
+        ret.from = (x.from-A.x)/(B.x-A.x);
+        ret.till = (x.till-A.x)/(B.x-A.x);
         goto valid;
-    } 
-    bool have_one = false;
+    }
     if (y.IsWithinBool((B.y-A.y)/(B.x-A.x)*(x.from-A.x)+A.y)) {
         ret.from = (x.from-A.x)/(B.x-A.x);
         have_one = true;
@@ -597,7 +597,7 @@ double EllipseData::Distance(const XY &p, XY &point) const
 
 //This caluclates the distance between the (infinite long) line of (start-end)
 //and the ellipse
-//if distance returned is 
+//if distance returned is
 // - zero then the line touches or crosses the ellipse and both p[0] and p[1] return the crosspoint
 // - negative, the line crosses the ellipse and p[0] and p[1] returns the two crosspoints
 // - positive, the line is apart and "p[0]" returns the closest point on the ell, "p[1]" on the line
@@ -676,7 +676,7 @@ XY EllipseData::SectorCentroidTimesArea(double from, double to) const
     centroid.y *= radius2; //here we cheat, not precise for ellipses
     if (tilted)
         centroid.Rotate(costilt, sintilt);
-    centroid += center; 
+    centroid += center;
     //OK this is the centroid, now multiply by area
     return centroid*SectorArea(from, to);
 }
@@ -773,7 +773,7 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p)
     return -1;
 }
 
-//In case of no crosspoints, "r" still contains the point closest to the line of A-B 
+//In case of no crosspoints, "r" still contains the point closest to the line of A-B
 int EllipseData::CrossingStraight(const XY &A, const XY &B, XY *r, bool want_closest) const
 {
     const XY M = conv_to_circle_space(A);
@@ -878,7 +878,7 @@ XY EllipseData::Tangent(double radian, bool next) const
         return conv_to_real_space(XY(x+y, y-x));
 }
 
-inline double gk(double h) 
+inline double gk(double h)
 {
     double z = 0, x = 1;
     unsigned n = 0;
@@ -948,10 +948,10 @@ double EllipseData::CircumferenceHelper(double to) const
         else num_of_quarters = 3;
     }
     to -= num_of_quarters*M_PI/2;
-    //Now num_of_quarters contains how many quarters of the ellipse we have from 0 to that 
+    //Now num_of_quarters contains how many quarters of the ellipse we have from 0 to that
     //end of the shorter axis, which is closer to the original "to".
     //Now "to" contains a (-pi/2..+pi/2) range showing a diff from the end of the short axis
-    //we need to calculate the length or arc from the end of short axis till "fabs(to)" and add 
+    //we need to calculate the length or arc from the end of short axis till "fabs(to)" and add
     //to the quarters if "to" is pos, and substract it if "to" is negative
     //The below formula is by David W. Cantrell from 2002 see in the Internet Archive
     //http://web.archive.org/web/20030225001402/http://mathforum.org/discuss/sci.math/t/469668
@@ -988,5 +988,16 @@ double EllipseData::OffsetAbove(const XY&, const XY&) const
     _ASSERT(0);
     return 0;
 }
+
+bool EllipseData::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
+{
+    const XY a = conv_to_circle_space(from);
+    const double l = a.length();
+    if (!test_smaller(1,l)) return false; //on or inside
+    clockwise =  conv_to_real_space(XY(a.y, -a.x));
+    cclockwise = conv_to_real_space(XY(-a.y, a.x));
+    return true;
+}
+
 
 } //namespace

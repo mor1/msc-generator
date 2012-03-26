@@ -222,7 +222,7 @@ void DrawDistance(unsigned i, const Contour &c1, const Contour &c2, const char *
 {
     Block b = c1.GetBoundingBox();
     b += c2.GetBoundingBox();
-    const DistanceType<1> dist = c1.Distance<1>(c2);
+    const DistanceType dist = c1.Distance(c2);
     b += XY(100,100);
     if (dist.IsValid()) 
         b += XY(fabs(dist.Distance())+20, fabs(dist.Distance()));

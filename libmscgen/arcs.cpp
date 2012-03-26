@@ -137,7 +137,6 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     if (msc) 
         compress = msc->Contexts.back().compress;
     had_add_attr_list = false;
-    note_map.arc = this;
 }
 
 void ArcBase::MakeMeLastNotable()
@@ -256,7 +255,9 @@ string ArcBase::PrintType(void) const
     return arcnames[int(type)-1];
 }
 
-ArcBase* ArcBase::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcBase::PostParseProcess(MscCanvas &canvas, bool hide,
+                                   EIterator &/*left*/, EIterator &/*right*/,
+                                   Numbering &/*number*/, bool top_level)
 {
     at_top_level = top_level;
     //Do it for the notes, too.
@@ -264,13 +265,13 @@ ArcBase* ArcBase::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left
     return this;
 }
 
-void ArcBase::FinalizeLabels(MscCanvas &canvas)
+void ArcBase::FinalizeLabels(MscCanvas &/*canvas*/)
 {
     if (refname.length())
         chart->ReferenceNames[refname].arc = this;
 }
 
-double ArcBase::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+double ArcBase::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow)
 {
     if (reflow)
         cover = GetCover4Compress(area);
@@ -334,8 +335,9 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-void ArcIndicator::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+void ArcIndicator::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
+    ArcBase::Width(canvas, distances);
     if (*src != *dst) return; //no width requirements for Indicators not exactly on an entity
     //If we are exactly on an entity line add left and right req for boxes potentially around us.
     const double width = indicator_style.line.LineWidth() + indicator_size.x/2;
@@ -352,12 +354,10 @@ double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area = b;
     area.mainline = Block(0,chart->total.x, b.y.from, b.y.till);
     note_map = b;
-    note_map.arc = this;
-    if (!reflow) {
-        chart->NoteMapImp.Append(&note_map);
-        chart->NoteMapAll.Append(&area);
-    }
-    def_note_target = b.Centroid();
+    if (!reflow) chart->NoteBlockers.Append(this);
+    def_note_target[0] = XY(b.x.from, b.y.MidPoint());
+    def_note_target[1] = b.Centroid();
+    def_note_target[2] = XY(b.x.till, b.y.MidPoint());
     height = b.y.till + chart->emphVGapOutside;
     //TODO add shadow to cover
     cover = GetCover4Compress(area);
@@ -627,7 +627,7 @@ string ArcLabelled::Print(int ident) const
 //This assigns a running number to the label and 
 //fills the "compress" member from the style.
 //Strictly to be called by descendants
-ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool /*top_level*/)
 {
     if (!valid) return NULL;
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
@@ -763,9 +763,10 @@ ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     return this;
 }
 
-void ArcSelfArrow::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+void ArcSelfArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcArrow::Width(canvas, distances);
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
@@ -804,11 +805,10 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         point.y-chart->compressGap/2, point.y+chart->compressGap/2);
     else
         note_map += style.arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.line, style.line);
-    def_note_target = arrow_box.Centroid();
-    if (!reflow) {
-        chart->NoteMapImp.Append(&note_map);
-        chart->NoteMapAll.Append(&area);
-    }
+    def_note_target[0] = XY(arrow_box.x.from, arrow_box.y.MidPoint());
+    def_note_target[1] = arrow_box.Centroid();
+    def_note_target[2] = XY(arrow_box.x.from, arrow_box.y.MidPoint());
+    if (!reflow) chart->NoteBlockers.Append(this);
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
     cover = GetCover4Compress(area);
     return height;
@@ -1138,7 +1138,7 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 void ArcDirArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-
+    ArcArrow::Width(canvas, distances);
     //Here we have a valid canvas, so we adjust act_size
     if (canvas.HasImprecisePositioning() && slant_angle==0)
         for (auto i = act_size.begin(); i!=act_size.end(); i++)
@@ -1225,8 +1225,9 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         y += aH;
     }
     centerline = y = ceil(y) + lw_max/2;
-    def_note_target.x = (sx+dx)/2;
-    def_note_target.y = centerline;
+    def_note_target[0] = XY(sx, centerline);
+    def_note_target[1] = XY((sx+dx)/2, centerline);
+    def_note_target[2] = XY(dx, centerline);
     //Note: When the angle is slanted, we rotate the space around "sx, centerline+yPos"
 
     //prepare xPos and margins
@@ -1287,10 +1288,7 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         text_cover.RotateAround(c, slant_angle); 
         clip_area.RotateAround(c, slant_angle); 
     }
-    if (!reflow) {
-        chart->NoteMapImp.Append(&note_map);
-        chart->NoteMapAll.Append(&area);
-    }
+    if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
     if (slant_angle==0)
         return height = std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
@@ -1512,6 +1510,7 @@ ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcArrow::Width(canvas, distances);
 
     //fill an "indexes" and "act_size" array
     const bool fw = (*src)->index < (*dst)->index;
@@ -1630,8 +1629,9 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //set sx and dx
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
-    def_note_target.x = (sx+dx)/2;
-    def_note_target.y = centerline;
+    def_note_target[0] = XY(sx, centerline);
+    def_note_target[1] = XY((sx+dx)/2, centerline);
+    def_note_target[2] = XY(dx, centerline);
     //convert dx to transformed space
     if (slant_angle)
         dx = sx + (dx-sx)/cos_slant;
@@ -1653,7 +1653,6 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area.arc = this;
     note_map = style.arrow.BigHeadContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, chart->compressGap);
     note_map += parsed_label.Cover(sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
-    note_map.arc = this;
     //due to thick lines we can extend above y==0. Shift down to avoid it
     if (area.GetBoundingBox().y.from < chart->arcVGapAbove) 
         ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
@@ -1666,10 +1665,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         area.RotateAround(c, slant_angle);
         note_map.RotateAround(c, slant_angle); 
     }
-    if (!reflow) {
-        chart->NoteMapImp.Append(&note_map);
-        chart->NoteMapAll.Append(&area);
-    }
+    if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
 
     return height = area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
@@ -1963,6 +1959,8 @@ ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EItera
 void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcArrow::Width(canvas, distances);
+
     //No extra space requirement
     if (!style.makeroom.second) return;
     //The offset is ignored during the process of setting space requirements
@@ -2502,6 +2500,13 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     return this;
 }
 
+void ArcBoxSeries::MoveNotesToChart()
+{
+    ArcBase::MoveNotesToChart();
+    for (auto i = series.begin(); i != series.end(); i++) 
+        (*i)->MoveNotesToChart();
+}
+
 void ArcBoxSeries::FinalizeLabels(MscCanvas &canvas)
 {
     for (auto i=series.begin(); i!=series.end(); i++)
@@ -2513,6 +2518,8 @@ void ArcBoxSeries::FinalizeLabels(MscCanvas &canvas)
 void ArcBoxSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcBase::Width(canvas, distances);
+
     const MscStyle &overall_style = (*series.begin())->style;
     const EIterator src = (*series.begin())->src;
     const EIterator dst = (*series.begin())->dst;
@@ -2522,6 +2529,7 @@ void ArcBoxSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     for (auto i = series.begin(); i!=series.end(); i++) {
         if ((*i)->content.size())
             chart->WidthArcList(canvas, ((*i)->content), d);
+        (*i)->ArcLabelled::Width(canvas, distances); //To process notes
         double width = (*i)->parsed_label.getTextWidthHeight().x;
         //calculated margins (only for first segment) and save them
         if (i==series.begin()) {
@@ -2682,13 +2690,15 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             (*i)->draw_is_different = false;
             (*i)->area_draw_is_frame = false;
         }
-        (*i)->note_map = (*i)->text_cover;
-        if (!reflow) {
-            chart->NoteMapImp.Append(&(*i)->note_map);
-            chart->NoteMapAll.Append(&(*i)->GetAreaToDraw());
-        }
-        (*i)->note_map.arc = *i;
-        (*i)->def_note_target = (*i)->note_map.Centroid();
+        if ((*i)->text_cover.IsEmpty()) 
+            (*i)->note_map = (*i)->area;
+        else 
+            (*i)->note_map = (*i)->text_cover;
+        if (!reflow) chart->NoteBlockers.Append(*i);
+        (*i)->def_note_target[1] = (*i)->note_map.Centroid();
+        (*i)->def_note_target[0].x = (*i)->note_map.GetBoundingBox().x.from;
+        (*i)->def_note_target[2].x = (*i)->note_map.GetBoundingBox().x.from;
+        (*i)->def_note_target[2].y = (*i)->def_note_target[0].y = (*i)->def_note_target[1].y;
     }
     const double &offset = main_style.shadow.offset.second;
     if (offset)
@@ -3207,6 +3217,14 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     return this;
 }
 
+void ArcPipeSeries::MoveNotesToChart()
+{
+    ArcBase::MoveNotesToChart();
+    for (auto i = series.begin(); i != series.end(); i++) 
+        (*i)->MoveNotesToChart();
+}
+
+
 void ArcPipeSeries::FinalizeLabels(MscCanvas &canvas)
 {
     for (auto i=series.begin(); i!=series.end(); i++)
@@ -3219,6 +3237,8 @@ void ArcPipeSeries::FinalizeLabels(MscCanvas &canvas)
 void ArcPipeSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcBase::Width(canvas, distances);
+
     EntityDistanceMap d, d_pipe;
     if (content.size())
         chart->WidthArcList(canvas, content, d);
@@ -3229,6 +3249,7 @@ void ArcPipeSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     //(*i)->src and dst contain the left and right end of a pipe
     //The order of the pipe segments in follow depends on style.side
     for (auto i = series.begin(); i!=series.end(); i++) {
+        (*i)->ArcLabelled::Width(canvas, distances); //To process notes
         const double ilw = (*i)->style.line.LineWidth();
         const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->emphVGapInside;
         (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
@@ -3462,12 +3483,11 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         (*i)->note_map = (*i)->text_cover;
         (*i)->note_map += forw_end;
         (*i)->note_map += back_end;
-        (*i)->note_map.arc = *i;
-        (*i)->def_note_target = (*i)->note_map.Centroid();
-        if (!reflow) {
-            chart->NoteMapImp.Append(&(*i)->note_map);
-            chart->NoteMapAll.Append(&(*i)->GetAreaToDraw());    
-        }        
+        if (!reflow) chart->NoteBlockers.Append(*i);
+        (*i)->def_note_target[1] = (*i)->note_map.Centroid();
+        (*i)->def_note_target[0].x = (*i)->note_map.GetBoundingBox().x.from;
+        (*i)->def_note_target[2].x = (*i)->note_map.GetBoundingBox().x.from;
+        (*i)->def_note_target[2].y = (*i)->def_note_target[0].y = (*i)->def_note_target[1].y;
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
@@ -3694,9 +3714,11 @@ ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &l
     return this;
 }
 
-void ArcDivider::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+void ArcDivider::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcLabelled::Width(canvas, distances);
+
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
     //Get marging from chart edge
@@ -3736,7 +3758,10 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area = text_cover;
     area.arc = this;
     note_map = area;
-    def_note_target = note_map.Centroid();
+    def_note_target[1] = note_map.Centroid();
+    def_note_target[0].x = note_map.GetBoundingBox().x.from;
+    def_note_target[2].x = note_map.GetBoundingBox().x.from;
+    def_note_target[2].y = def_note_target[0].y = def_note_target[1].y;
     //Add a cover block for the line, if one exists
     if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
         area += Block(line_margin, chart->total.x-line_margin,
@@ -3749,10 +3774,7 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         area.mainline = Block(0, chart->total.x, wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
         area.mainline = Block(0, chart->total.x, centerline-charheight/2, centerline+charheight/2);
-    if (!reflow) {
-        chart->NoteMapImp.Append(&note_map);
-        chart->NoteMapAll.Append(&area);
-    }
+    if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
     return height;
 }
@@ -3844,6 +3866,7 @@ void ArcParallel::FinalizeLabels(MscCanvas &canvas)
 void ArcParallel::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcBase::Width(canvas, distances);
     EntityDistanceMap d;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
         chart->WidthArcList(canvas, **i, d);

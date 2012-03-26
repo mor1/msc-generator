@@ -1727,6 +1727,7 @@ box_list: first_box
 {
   #ifndef C_S_H_IS_COMPILED
     $$ = new ArcBoxSeries($1);
+    ($1)->MakeMeLastNotable();
   #endif
 }
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
@@ -1736,6 +1737,7 @@ box_list: first_box
     ($2)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList(NULL); //should come after AddFollow
+    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list boxrel full_arcattrlist_with_label
@@ -1749,7 +1751,7 @@ box_list: first_box
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList($3); //should come after AddFollow
-
+    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list boxrel braced_arclist
@@ -1758,6 +1760,7 @@ box_list: first_box
     ($2)->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList(NULL); //should come after AddFollow
+    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list braced_arclist
@@ -1767,6 +1770,7 @@ box_list: first_box
     temp->AddArcList($2);
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList(NULL); //should come after AddFollow
+    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list boxrel full_arcattrlist_with_label braced_arclist
@@ -1780,6 +1784,7 @@ box_list: first_box
     ($2)->AddArcList($4)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList($3); //should come after AddFollow
+    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list full_arcattrlist_with_label braced_arclist
@@ -1794,6 +1799,7 @@ box_list: first_box
     temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList($2); //should come after AddFollow
+    ($1)->MakeMeLastNotable();
   #endif
 };
 
@@ -1853,6 +1859,7 @@ first_pipe: TOK_COMMAND_PIPE boxrel
   #else
     $$ = new ArcPipe($2);
     ($$)->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@$));
+    ($$)->MakeMeLastNotable();
   #endif
     free($1);
 }
@@ -1897,6 +1904,7 @@ first_pipe: TOK_COMMAND_PIPE boxrel
   #else
     $$ = new ArcPipe($2);
     ($$)->AddAttributeList($3)->SetLineEnd(MSC_POS(@$));
+    ($$)->MakeMeLastNotable();
   #endif
     free($1);
 };
@@ -1912,6 +1920,7 @@ pipe_list_no_content: first_pipe
 {
   #ifndef C_S_H_IS_COMPILED
     ArcPipe *ap = new ArcPipe($2);
+    ap->MakeMeLastNotable();
     ap->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollowWithAttributes(ap, NULL);
   #endif
@@ -1925,6 +1934,7 @@ pipe_list_no_content: first_pipe
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
     ArcPipe *ap = new ArcPipe($2);
+    ap->MakeMeLastNotable();
     ap->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollowWithAttributes(ap, $3);
   #endif
@@ -1948,6 +1958,7 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.AddCSH_EntityName(@3, $3);
   #else
     $$ = new ArcBox($2, $1, MSC_POS(@1), $3, MSC_POS(@3), &msc);
+    ($$)->MakeMeLastNotable();
   #endif
     free($1);
     free($3);
@@ -1960,6 +1971,7 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.AddCSH_EntityName(@2, $2);
   #else
     $$ = new ArcBox($1, NULL, MSC_POS(@1), $2, MSC_POS(@2), &msc);
+    ($$)->MakeMeLastNotable();
   #endif
     free($2);
 }
@@ -1972,6 +1984,7 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     $$ = new ArcBox($2, $1, MSC_POS(@1), NULL, MSC_POS(@2), &msc);
+    ($$)->MakeMeLastNotable();
   #endif
     free($1);
 }
@@ -1982,6 +1995,7 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.CheckEntityHintAfter(@1, yylloc, yychar==YYEOF);
   #else
     $$ = new ArcBox($1, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
+    ($$)->MakeMeLastNotable();
   #endif
 };
 
@@ -2831,7 +2845,7 @@ note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_la
     if ($2) {
         const ExtVertXPos extvertxpos($2);
         a = new CommandNote(&msc, &extvertxpos, $3); //This attaches itself to the target of the note
-    } else 
+    } else
         a = new CommandNote(&msc, NULL, $3);
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
     $$ = NULL; //no need to add to arclist

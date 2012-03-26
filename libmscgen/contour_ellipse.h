@@ -46,7 +46,7 @@ protected:
     double tilt;                //supposedly between [0..pi/2)
     double sintilt, costilt;    //pre-computed values
 	XY     extreme[4];          //pre-computed left, rightmost, topmost, bottommost point, resp
-	double extreme_radian[4]; 
+	double extreme_radian[4];
     mutable double circumference_cache; //if nonnegative it caches the cirumference
 
     //for tilted ellipses translate from msc space to a space, where
@@ -112,6 +112,8 @@ public:
 	double OffsetBelow(const EllipseData&) const;
 	double OffsetBelow(const XY&A, const XY&B) const;
 	double OffsetAbove(const XY&A, const XY&B) const;
+
+    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
 };
 
 
@@ -202,7 +204,7 @@ inline bool between01_approximate_inclusive(double r)
     return !(test_smaller(r, 0) || test_smaller(1, r));
 }
 
-inline bool between01_adjust(double &n) 
+inline bool between01_adjust(double &n)
 {
 	if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
 		return false;
@@ -210,7 +212,7 @@ inline bool between01_adjust(double &n)
 	return true;
 }
 
-inline double deg2rad(double degree) 
+inline double deg2rad(double degree)
 {
 	return fmod_negative_safe(degree, 360.)*M_PI/180;
 }
@@ -226,10 +228,10 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p);
 inline double EllipseData::FindExtreme(double rad, bool after, XY &p) const
 {
     double maxdiff = MaxVal(maxdiff);
-    unsigned ret;
+    unsigned ret=0;
     for (unsigned u=0; u<4; u++) {
         const double diff = fmod_negative_safe(after ? extreme_radian[u]-rad : rad-extreme_radian[u], 2*M_PI);
-        if (diff<maxdiff && !test_zero(diff)) 
+        if (diff<maxdiff && !test_zero(diff))
             ret = u, maxdiff = diff;
     }
     p = extreme[ret];
