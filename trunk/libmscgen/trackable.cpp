@@ -34,11 +34,13 @@ TrackableElement::TrackableElement(const TrackableElement&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
-    note_map(o.note_map), def_note_target(o.def_note_target),
+    note_map(o.note_map), 
     layout_lower(o.layout_lower), all_notes_placed(o.all_notes_placed),
     controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
+    memcpy(def_note_target, o.def_note_target, sizeof(def_note_target));
+    _ASSERT(sizeof(def_note_target)==3*sizeof(XY));
 }
 
 void TrackableElement::SetLineEnd(file_line_range l, bool f)
@@ -75,7 +77,9 @@ void TrackableElement::ShiftBy(double y)
     area.Shift(XY(0, y));
     area_draw.Shift(XY(0, y));
     note_map.Shift(XY(0,y)); 
-    def_note_target.y+=y;
+    def_note_target[0].y+=y;
+    def_note_target[1].y+=y;
+    def_note_target[2].y+=y;
     yPos+=y;
     control_location.y += y;
 }
@@ -92,6 +96,11 @@ void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool 
             n++;
 }
 
+void TrackableElement::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+{
+    for (auto n = notes.begin(); n!=notes.end(); n++)
+        (*n)->Width(canvas, distances);
+}
 
 
 void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/, double)

@@ -55,9 +55,9 @@ public:
     bool   test_smaller(const XY& p) const{return contour::test_equal(x, p.x) ? contour::test_smaller(y, p.y) : contour::test_smaller(x, p.x);}
     XY     Rotate90CW() const             {return XY(-y, x);}
     XY     Rotate90CCW() const            {return XY(y, -x);}
-	void   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos;}
-	void   RotateAround(const XY&c, double cos, double sin)
-	    {double X=x-c.x, Y=y-c.y; x=X*cos-Y*sin+c.x; y=X*sin+Y*cos+c.y;}
+	XY &   Rotate(double cos, double sin) {double X=x; x=X*cos-y*sin; y=X*sin+y*cos; return *this;}
+	XY &   RotateAround(const XY&c, double cos, double sin)
+	    {double X=x-c.x, Y=y-c.y; x=X*cos-Y*sin+c.x; y=X*sin+Y*cos+c.y; return *this;}
     XY &   SwapXY()                       {std::swap(x,y); return *this;}
     XY &   Round()                        {x = floor(x+.5); y=floor(y+.5); return *this;}
     XY &   RoundUp()                      {x = ceil(x); y=ceil(y); return *this;}
@@ -65,7 +65,8 @@ public:
     XY &   Scale(const XY &sc)            {x*=sc.x; y*=sc.y; return *this;}
     XY &   Normalize()                    {const double l = length(); if (l) {x/=l; y/=l;} return *this;}
     double Distance(const XY &p) const    {return sqrt((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y));}
-    XY     ProjectOntoLine(const XY&A, const XY&B) const {const XY d = A-B; return B + d*d.DotProduct(*this-B)/d.length_sqr();}
+    double DistanceSqr(const XY &p) const {return (x-p.x)*(x-p.x)+(y-p.y)*(y-p.y);}
+    XY     ProjectOntoLine(const XY&A, const XY&B) const {if (A.test_equal(B)) return A; const XY d = A-B; return B + d*d.DotProduct(*this-B)/d.length_sqr();}
 };
 
 inline XY operator*(double a, const XY &xy) {return xy*a;}
@@ -173,6 +174,8 @@ struct Block {
     Block &Scale(double sc) {x.Scale(sc); y.Scale(sc); return *this;}
     Block &Expand(double a) {x.Expand(a); y.Expand(a); return *this;}
     Block CreateExpand(double a) const {Block b(*this); b.Expand(a); return b;}
+    Block &Expand2D(const XY &gap) {x.Expand(gap.x); y.Expand(gap.y); return *this;}
+    Block CreateExpand2D(const XY &gap) const {Block b(*this); b.Expand2D(gap); return b;}
     Block &SwapXY() {std::swap(x,y); return *this;}
     Block & Round()       {x.Round(); y.Round(); return *this;}
     Block & RoundUp()     {x.RoundUp(); y.RoundUp(); return *this;}

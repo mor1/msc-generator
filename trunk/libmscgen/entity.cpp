@@ -533,10 +533,11 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     cover = std::move(my_cover);
     const Block b = outer_edge.CreateExpand(-lw/2);
     note_map = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);
-    note_map.arc = this;
-    def_note_target = XY(0, x);
-    chart->NoteMapImp.Append(&note_map);
-    chart->NoteMapAll.Append(&area);
+    def_note_target[1] = note_map.Centroid();
+    def_note_target[0].x = note_map.GetBoundingBox().x.from;
+    def_note_target[2].x = note_map.GetBoundingBox().x.from;
+    def_note_target[2].y = def_note_target[0].y = def_note_target[1].y;
+    chart->NoteBlockers.Append(this);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
@@ -546,10 +547,8 @@ void EntityDef::AddNoteMapWhenNotShowing()
     const double xpos = chart->XCoord((*itr)->pos);
     const double w2 = style.line.LineWidth()/2;
     note_map = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
-    note_map.arc = this;
-    def_note_target = XY(0, xpos);
-    chart->NoteMapImp.Append(&note_map);
-    chart->NoteMapAll.Append(&note_map); 
+    def_note_target[0] = def_note_target[1] = def_note_target[2] = XY(0, xpos);
+    chart->NoteBlockers.Append(this);
 }
 
 

@@ -58,9 +58,9 @@ public:
     Area& SwapXY() {Contour::SwapXY(); mainline.clear(); return *this;}
 
     Area CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                      double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
+                      double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY) const;
     Area &Expand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                 double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative))
+                 double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY)
          {Contour::Expand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative); mainline.Expand(gap); return *this;}
 	void ClearHoles() {Contour::ClearHoles();}
 
@@ -94,7 +94,7 @@ public:
     const contour::Block& GetBoundingBox() const {return boundingBox;}
 
     AreaList CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                          double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
+                          double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY) const;
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
@@ -104,7 +104,7 @@ public:
     void InvalidateMainLine() {mainline.clear(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.clear();}
 };
 
-class AreaPtrList 
+class AreaPtrList
 {
     std::list<const Area*>  store;
 public:
@@ -112,8 +112,8 @@ public:
     void Append(const AreaPtrList &a) {store.insert(store.end(), a.store.begin(), a.store.end());}
     void Append(AreaPtrList &&a) {store.splice(store.end(), a.store);}
 
-    //This attempts to place "c". If "c" overlaps some, we attempt to move c or below 
-    //elements down. 
+    //This attempts to place "c". If "c" overlaps some, we attempt to move c or below
+    //elements down.
     //"shift" returns how much shall we shift "c" down to fit.
     //return value shows if another element needs to be pushed down "request" shows by how much
     //In this function we are limited to shift "c" only up or down

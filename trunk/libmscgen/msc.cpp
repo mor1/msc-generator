@@ -23,7 +23,6 @@
 #include <limits>
 #include <cmath>
 #include "msc.h"
-#include "notes.h"
 
 using namespace std;
 
@@ -244,7 +243,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), NoteMapImp(false), NoteMapAll(false), Notes(true),
+    Arcs(true), Notes(true), NoteBlockers(false), 
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -926,6 +925,8 @@ void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &dist
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert((*i)->index);
+    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) 
+        (*i)->Width(canvas, distances);
 }
 
 //Places a full list of elements starting at y position==0
@@ -1187,24 +1188,8 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
 
 void Msc::PlaceNotes(MscCanvas &canvas)
 {
-    Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    for (auto i = NoteMapImp.begin(); i!=NoteMapImp.end(); i++)
-        original_map_imp.Fill(**i);
-    for (auto i = NoteMapAll.begin(); i!=NoteMapAll.end(); i++)
-        original_map_all.Fill(**i);
-    original_map_imp.Frame();
-    original_map_all.Frame();
     for (auto note = Notes.begin(); note!=Notes.end(); note++) {
-        NotePlacement place(*this, canvas, **note, original_map_imp, original_map_all);
-        XY pos, point;
-        if (place.PlaceNote(pos, point)) {
-            (*note)->Place(canvas, pos, point);
-            original_map_all.Fill((*note)->GetAreaToDraw());
-            original_map_imp.Fill((*note)->GetAreaToDraw());
-        } else {
-            //TODO: warning
-        }
+        (*note)->PlaceFloating(canvas);
     }
 }
 
@@ -1321,7 +1306,17 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
     DrawArcs(canvas, ArcBase::AFTER_DEFAULT);
     DrawArcs(canvas, ArcBase::NOTE);
     DrawArcs(canvas, ArcBase::AFTER_NOTE);
-    
+
+    /* Debug: draw Debug Shapes */
+    for (auto i=DebugContours.begin(); i!=DebugContours.end(); i++) {
+        i->fill.MakeComplete();
+        i->line.MakeComplete();
+        canvas.Fill(i->area, i->fill);
+        canvas.Line(i->area, i->line);
+    }
+    // End of debug */
+
+
     /* Debug: draw entity lines 
     cairo_set_source_rgb(cr, 0, 0, 1);
     cairo_set_line_width(cr,2);
@@ -1334,7 +1329,7 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
     bitmap.DrawOnto(canvas.GetContext());
     // End of debug */
 
-    /* Debug: draw float_map */
+    /* Debug: draw float_map 
     Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
     Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
     for (auto i = NoteMapImp.begin(); i!=NoteMapImp.end(); i++)

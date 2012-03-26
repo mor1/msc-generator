@@ -33,8 +33,8 @@ class ContourList : protected std::list<ContourWithHoles>
 
     SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const;
-    template<unsigned D> void Distance(const ContourWithHoles &c, DistanceType<D> &dist_so_far) const;
-    template<unsigned D> void Distance(const ContourList &cl, DistanceType<D> &dist_so_far) const;
+    void Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const;
+    void Distance(const ContourList &cl, DistanceType &dist_so_far) const;
 public:
     const ContourWithHoles & operator[](size_type i) const;
     void swap(ContourList &a) {std::list<ContourWithHoles>::swap(a); std::swap(boundingBox, a.boundingBox);}
@@ -61,6 +61,8 @@ public:
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 
     Range Cut(const XY &A, const XY &B) const;
+    void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
+    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
 };
 
 //this contains a list of non-overlapping contours as holes
@@ -103,7 +105,7 @@ protected:
     SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
     SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const {return SimpleContour::switch_side(c.RelationTo(*this, ignore_holes));}
 
-    template<unsigned D> void Distance(const ContourWithHoles &c, DistanceType<D> &ret) const;
+    void Distance(const ContourWithHoles &c, DistanceType &ret) const;
 
 public:
     ContourWithHoles(const SimpleContour &p) : outline(p) {}
@@ -142,6 +144,7 @@ public:
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {outline.PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
 
     Range Cut(const XY &A, const XY &B) const {return outline.Cut(A, B);}
+    void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {outline.Cut(A, B, map); holes.Cut(A, B, map);}
 };
 
 //This can contain multiple positive contours and holes
@@ -153,7 +156,7 @@ class Contour
     friend class ContourWithHoles;
     friend class ContourList;
     friend class ContoursHelper;
-    template <typename list, unsigned D> friend void Distance(const list &list, const Contour &c, DistanceType<D> &dist_so_far);
+    template <typename LT> friend void Distance(const LT &list, const Contour &c, DistanceType &dist_so_far);
     typedef enum {POSITIVE_UNION=0, POSITIVE_INTERSECT, POSITIVE_XOR,
                   WINDING_RULE_NONZERO, WINDING_RULE_EVENODD,
                   EXPAND_POSITIVE,
@@ -182,7 +185,7 @@ protected:
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
     void Expand2D(const XY &gap, Contour &res) const;
-    template<unsigned D> void Distance(const Contour &c, DistanceType<D> &dist_so_far) const;
+    void Distance(const Contour &c, DistanceType &dist_so_far) const;
 public:
     typedef SimpleContour::result_t relation_t;
     Contour() {boundingBox.MakeInvalid();}
@@ -204,6 +207,7 @@ public:
     Contour(ContourWithHoles &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}
     Contour(SimpleContour &&p) : first(std::move(p)) {boundingBox = first.GetBoundingBox();}
     Contour(Contour &&a) : first(std::move(a.first)), further(std::move(a.further)), boundingBox(a.boundingBox) {}
+    Contour(const Contour &a) : first(a.first), further(a.further), boundingBox(a.boundingBox) {}
 
     Contour &operator = (const Block &a) {first = a; further.clear(); boundingBox = a; return *this;}
     Contour &operator = (const SimpleContour &a) {first.operator=(a); further.clear(); boundingBox = first.GetBoundingBox(); return *this;}
@@ -211,6 +215,7 @@ public:
     Contour &operator = (const ContourWithHoles &a) {first.operator=(a); further.clear(); boundingBox = first.GetBoundingBox(); return *this;}
     Contour &operator = (ContourWithHoles &&a) {first.operator=(std::move(a)); further.clear(); boundingBox = first.GetBoundingBox(); return *this;}
     Contour &operator = (Contour &&a) {first.swap(a.first); further.swap(a.further); boundingBox = a.boundingBox; return *this;}
+    Contour &operator = (const Contour &a) {first = a.first; further = a.further; boundingBox = a.boundingBox; return *this;}
 
     bool operator < (const Contour &p) const {return first==p.first ? further < p.further: first < p.first;}
     bool operator ==(const Contour &p) const {return first==p.first && further == p.further;}
@@ -260,9 +265,9 @@ public:
 
     Contour CreateShifted(const XY & xy) const {Contour a(*this); a.Shift(xy); return a;}
     Contour CreateScaled(double sc) const {Contour a(*this); a.Scale(sc); return a;}
-    Contour CreateSwapXYd() {Contour a(*this); a.SwapXY(); return a;}
-	Contour CreateRotated(double degrees) {Contour a(*this); a.Rotate(degrees); return a;}
-    Contour CreateRotatedAround(const XY&c, double degrees) {Contour a(*this); a.RotateAround(c, degrees); return a;}
+    Contour CreateSwapXYd() const {Contour a(*this); a.SwapXY(); return a;}
+    Contour CreateRotated(double degrees) const {Contour a(*this); a.Rotate(degrees); return a;}
+    Contour CreateRotatedAround(const XY&c, double degrees) const {Contour a(*this); a.RotateAround(c, degrees); return a;}
 
     Contour &operator += (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, *this, a); return *this;}
     Contour &operator += (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}
@@ -286,9 +291,9 @@ public:
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     Contour& Expand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
-                    double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative));
+                    double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY);
     Contour CreateExpand(double gap, EExpandType et4pos=EXPAND_MITER_ROUND, EExpandType et4neg=EXPAND_MITER_ROUND,
-                         double miter_limit_positive=MaxVal(miter_limit_positive), double miter_limit_negative=MaxVal(miter_limit_negative)) const;
+                         double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY) const;
     Contour& Expand2D(const XY &gap);
     Contour CreateExpand2D(const XY &gap) const;
 
@@ -310,20 +315,22 @@ public:
     //negative distance is returned if one is inside another (but positive if in a hole)
     //zero returned if they cross. If the two points are equal that is a crosspoint, if not they are invalid
     //(Latter may happen if one of the contours have two pieces and one is inside and one is outside the other
-    template<unsigned D> DistanceType<D> Distance(const Contour &c) const {DistanceType<D> r; Distance(c, r); return r;}
+    DistanceType Distance(const Contour &c) const {DistanceType r; Distance(c, r); return r;}
     Range Cut(const XY &A, const XY &B) const {Range ret = first.Cut(A, B); if (!further.IsEmpty()) ret += further.Cut(A, B); return ret;}
+    void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {first.Cut(A, B, map); if (further.IsEmpty()) further.Cut(A, B, map); map.Prune();}
+    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
 };
 
-template <typename list, unsigned D> void Distance(const list &list, const Contour &c, DistanceType<D> &dist_so_far) 
+template <typename LT> void Distance(const LT &list, const Contour &c, DistanceType &dist_so_far)
 {
     if (list.size()==0 || c.IsEmpty()) return;
     for (auto i = list.begin(); i!=list.end(); i++) {
         const double bbdist = (*i)->GetBoundingBox().Distance(c.GetBoundingBox());
         if (dist_so_far.ConsiderBB(bbdist))
             (*i)->Distance(c, dist_so_far);
-        else 
+        else
             dist_so_far.MergeInOut(bbdist);
-        if (dist_so_far.IsZero()) 
+        if (dist_so_far.IsZero())
             break;
     }
 }
@@ -351,7 +358,7 @@ inline double ContourList::GetCircumference(bool consider_holes, bool include_hi
     return ret;
 }
 
-inline XY ContourList::CentroidUpscaled() const 
+inline XY ContourList::CentroidUpscaled() const
 {
     XY ret(0,0);
     for (auto i = begin(); i!=end(); i++)
@@ -394,6 +401,13 @@ inline is_within_t ContourList::IsWithin(XY p) const
     return WI_OUTSIDE;
 }
 
+inline void ContourList::VerticalCrossSection(double x, DoubleMap<bool> &section) const
+{
+    for (auto i=begin(); i!=end(); i++)
+        i->VerticalCrossSection(x, section);
+}
+
+
 inline void ContourList::Shift(const XY &xy)
 {
     for (auto i = begin(); i!=end(); i++)
@@ -434,51 +448,6 @@ inline double ContourList::OffsetBelow(const Contour &below, double &touchpoint,
     return OffsetBelow(below.first.outline, touchpoint, offset);
 }
 
-template<unsigned D> 
-void ContourList::Distance(const ContourWithHoles &c, DistanceType<D> &dist_so_far) const
-{
-    if (IsEmpty() || c.IsEmpty()) return;
-    if (dist_so_far.IsZero()) return;
-    const double bbdist = GetBoundingBox().Distance(c.GetBoundingBox());
-    if (!dist_so_far.ConsiderBB(bbdist)) {
-        dist_so_far.MergeInOut(bbdist);
-        return; 
-    }
-    for (auto i = begin(); i!=end(); i++) {
-        const double bbdist = i->GetBoundingBox().Distance(c.GetBoundingBox());
-        if (dist_so_far.ConsiderBB(bbdist))
-            i->Distance(c, dist_so_far);
-        else 
-            dist_so_far.MergeInOut(bbdist);
-        if (dist_so_far.IsZero()) 
-            break;
-    }
-}
-
-template<unsigned D>
-void ContourList::Distance(const ContourList &cl, DistanceType<D> &dist_so_far) const
-{
-    if (IsEmpty() || cl.IsEmpty()) return;
-    if (dist_so_far.IsZero()) return;
-    const double bbdist = GetBoundingBox().Distance(cl.GetBoundingBox());
-    if (!dist_so_far.ConsiderBB(bbdist)) {
-        dist_so_far.MergeInOut(bbdist);
-        return; 
-    }
-    dist_so_far.SwapPoints();
-    for (auto i = begin(); i!=end(); i++) {
-        const double bbdist = i->GetBoundingBox().Distance(cl.GetBoundingBox());
-        if (dist_so_far.ConsiderBB(bbdist))
-            cl.Distance(*i, dist_so_far);
-        else 
-            dist_so_far.MergeInOut(bbdist);
-        if (dist_so_far.IsZero()) 
-            break;
-    }
-    dist_so_far.SwapPoints();
-}
-
-
 inline Range ContourList::Cut(const XY &A, const XY &B) const
 {
     Range ret;
@@ -488,6 +457,27 @@ inline Range ContourList::Cut(const XY &A, const XY &B) const
     return ret;
 }
 
+inline void ContourList::Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const
+{
+    for (auto i = begin(); i!=end(); i++)
+        i->Cut(A, B, map);
+}
+
+
+//returns true only if all is true
+inline bool ContourList::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
+{
+    if (size()==0) return false;
+    if (!begin()->outline.TangentFrom(from, clockwise, cclockwise))
+        return false;
+    XY c, cc;
+    for (auto i=++begin(); i!=end(); i++) {
+        if (!i->outline.TangentFrom(from, c, cc)) return false;
+        clockwise =  minmax_clockwise(from, clockwise,  c,  true);
+        cclockwise = minmax_clockwise(from, cclockwise, cc, false);
+    }
+    return true;
+}
 ///////Contour///////////////////////////////////////
 
 inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
@@ -501,34 +491,6 @@ inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
     case WI_OUTSIDE: return WI_INSIDE;
     default: return ret;
     }
-}
-
-template <unsigned D>
-void ContourWithHoles::Distance(const ContourWithHoles &c, DistanceType<D> &dist_so_far) const
-{
-    if (dist_so_far.IsZero()) return;
-    DistanceType<D> d = dist_so_far;
-    d.ClearInOut();
-    outline.Distance(c.outline, d);
-    if (d.was_inside) { //one outline is inside another one, consider holes
-        //see which one is in the other
-        DistanceType<D> temp = d;
-        temp.ClearInOut();
-        if (GetBoundingBox().GetArea() < c.GetBoundingBox().GetArea()) {
-            //we are inside, see if we are in the holes of 'c'
-            if (!c.holes.IsEmpty()) {
-                temp.SwapPoints();
-                c.holes.Distance(*this, temp);
-                temp.SwapPoints();
-            }
-        } else {
-            if (!holes.IsEmpty()) 
-                holes.Distance(c, temp);
-        }
-        temp.SwapInOut();
-        d.Merge(temp);
-    }
-    dist_so_far.Merge(d);
 }
 
 inline double Contour::OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const
@@ -584,8 +546,7 @@ inline Contour Contour::CreateExpand2D(const XY &gap) const
 }
 
 
-template<unsigned D>
-void Contour::Distance(const Contour &c, DistanceType<D> &dist_so_far) const
+inline void Contour::Distance(const Contour &c, DistanceType &dist_so_far) const
 {
     if (IsEmpty() || c.IsEmpty() || dist_so_far.IsZero()) return;
     first.Distance(c.first, dist_so_far);
@@ -600,10 +561,22 @@ void Contour::Distance(const Contour &c, DistanceType<D> &dist_so_far) const
         further.Distance(c.first, dist_so_far);
         if (dist_so_far.IsZero()) return;
     }
-    if (!c.further.IsEmpty() && !further.IsEmpty()) 
+    if (!c.further.IsEmpty() && !further.IsEmpty())
         further.Distance(c.further, dist_so_far);
 }
 
+inline bool Contour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
+{
+    if (first.outline.TangentFrom(from, clockwise, cclockwise)) {
+        XY c, cc;
+        if (further.TangentFrom(from, c, cc)) {
+            clockwise =  minmax_clockwise(from, clockwise,  c,  true);
+            cclockwise = minmax_clockwise(from, cclockwise, cc, false);
+        }
+        return true;
+    }
+    return false;
+}
 
 
 } //namespace

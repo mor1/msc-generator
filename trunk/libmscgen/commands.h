@@ -218,9 +218,10 @@ protected:
     file_line             ypos_marker_linenum;
     int                   float_dir_x, float_dir_y, float_dist; //user preferences of floating note placement
 
-    mutable XY            pos, point_to;
+    mutable XY            halfsize, pos_center, point_to;
     mutable EIterator     point_toward_iterator;
-    Contour cover_pointer(MscCanvas &canvas, const XY &point_to) const; //places upper left corner of the body to 0,0
+    double pointer_width(double distance) const;
+    Contour cover_pointer(MscCanvas &canvas, const XY &point_to, const XY &center) const; //places upper left corner of the body to 0,0
 public:
     CommandNote(Msc*, const ExtVertXPos *vxpos, AttributeList *al);
     TrackableElement *GetTarget() const {return target;}
@@ -230,12 +231,15 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    Contour CoverBody(MscCanvas &canvas) const; //places upper left corner to 0,0
-    Contour CoverPointer(MscCanvas &canvas, const XY &pointto) const //places upper left corner of the body to 0,0
-        {return cover_pointer(canvas, pointto) - CoverBody(canvas);} 
-    Contour CoverAll(MscCanvas &canvas, const XY &pointto) const //places upper left corner of the body to 0,0
-        {return cover_pointer(canvas, pointto) + CoverBody(canvas);} 
-    void Place(MscCanvas &canvas, const XY &origin, const XY &pointto);
+
+    Contour CoverBody(MscCanvas &canvas, const XY &center) const; //places upper left corner to 0,0
+    Contour CoverPointer(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
+        {return cover_pointer(canvas, pointto, center) - CoverBody(canvas, center);} 
+    Contour CoverAll(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
+        {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);} 
+    Contour GetRegion(const Contour &region_belt, int dir_x, int dir_y, XY &start_xy) const;
+    void PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center);
+    void PlaceFloating(MscCanvas &canvas);
 
     virtual void ShiftBy(double y);
     //virtual void PostPosProcess(MscCanvas &cover, double autoMarker);

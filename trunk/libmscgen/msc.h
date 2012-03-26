@@ -149,6 +149,14 @@ public:
     };
     typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
             LineToArcMapType;
+    struct ContourAttr {
+        Contour     area;
+        MscLineAttr line;
+        MscFillAttr fill;
+        ContourAttr() : fill(MscColorType(0,0,0,0)) {} //transparent
+        ContourAttr(const Contour &c, const MscLineAttr &l=MscLineAttr(), const MscFillAttr &f=MscFillAttr(MscColorType(0,0,0,0))) : area(c), line(l), fill(f) {}
+        ContourAttr(const Contour &c, const MscFillAttr &f) : area(c), line(LINE_NONE), fill(f) {}
+    };
 
     MscError     Error;
     unsigned     current_file;  /* The number of the file under parsing, plus the error location */
@@ -169,10 +177,11 @@ public:
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
-    CommandNoteList               Notes;      /** all notes after PostParseProcess */
-    PtrList<const Contour>        NoteMapImp; /** Ptr to the note_map of all elements */
-    PtrList<const Contour>        NoteMapAll; /** Ptr to the draw_area of all elements */
+    CommandNoteList               Notes;        /** all notes after PostParseProcess */
+    PtrList<const TrackableElement> NoteBlockers; /** Ptr to all elements that may block a floating note*/
     
+    std::list<ContourAttr>        DebugContours;
+
     ArcBase                      *last_notable_arc;     //during parse: last arc inserted (the one notes attach to) or NULL if none
     bool                          last_note_is_on_left; //during post-parse: was th last non-float note on the left side
 

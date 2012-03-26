@@ -17,6 +17,7 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "msc.h"
+#include <algorithm>
 
 using namespace std;
 
@@ -404,15 +405,17 @@ void CommandEntity::MoveNotesToChart()
 //be drawn as containing other entities.
 //Since parents are in the beginning of the list, we will go and add distances from the back
 //and use the added distances later in the cycle when processing parents
-void CommandEntity::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid || hidden) return;
+    ArcCommand::Width(canvas, distances);
     //Add distances for entity heading
     //Start by creating a map in which distances are ordered by index
     std::map<int, pair<double, double>> dist; //map the index of an active entity to spaces left & right
     //in PostParseProcess we created an entitydef for all entities shown here. 
     //"full_heading" not even checked here
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
+        (*i)->TrackableElement::Width(canvas, distances); //process comments to entitydefs
         //Take entity height into account or draw it if show=on was added
         if (!(*i)->draw_heading) continue;
         if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
@@ -475,7 +478,7 @@ void CommandEntity::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     }
 }
 
-double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow)
 {
     if (!valid || hidden) return height=0;
     if (reflow) {
@@ -493,10 +496,14 @@ double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 
     //We go backwards, so that contained entities get calculated first
     double xpos_all = 0, xpos_showing = 0;
+    double xpos_all_min = MaxVal(xpos_all_min), xpos_all_max = -MaxVal(xpos_all_max);
+    double xpos_sho_min = MaxVal(xpos_sho_min), xpos_sho_max = -MaxVal(xpos_sho_max);
     unsigned num_showing = 0;
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
         const double xpos = chart->XCoord((*(*i)->itr)->pos);
         xpos_all += xpos;
+        xpos_all_min = std::min(xpos_all_min, xpos - (*i)->Width()/2);
+        xpos_all_max = std::max(xpos_all_max, xpos + (*i)->Width()/2);
         if (!(*i)->draw_heading) {
             if (!reflow) (*i)->AddNoteMapWhenNotShowing();
             continue;
@@ -516,12 +523,19 @@ double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         cover += GetCover4Compress(entity_cover);
         area += (*i)->GetAreaToSearch();
         xpos_showing += xpos;
+        xpos_sho_min = std::min(xpos_sho_min, xpos - (*i)->Width()/2);
+        xpos_sho_max = std::max(xpos_sho_max, xpos + (*i)->Width()/2);
         num_showing ++;
     }
-    if (num_showing)
-        def_note_target = XY(0, xpos_showing/num_showing);
-    else
-        def_note_target = XY(0, xpos_all/entities.size());
+    if (num_showing) {
+        def_note_target[0] = XY(xpos_sho_min, 0);
+        def_note_target[1] = XY(xpos_showing/num_showing, 0);
+        def_note_target[2] = XY(xpos_sho_max, 0);
+    } else {
+        def_note_target[0] = XY(xpos_all_min, 0);
+        def_note_target[1] = XY(xpos_all/entities.size(), 0);
+        def_note_target[2] = XY(xpos_all_max, 0);
+    }
     if (!num_showing) 
         return height = 0; //if no headings show
     //Ensure overall startpos is zero
@@ -831,6 +845,7 @@ ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
 void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+    ArcCommand::Width(canvas, distances);
     double dist = space.second; //0 if not specified by user
     if (label.second.length())
         dist += Label(label.second, canvas, format).getTextWidthHeight().x;
@@ -1139,11 +1154,12 @@ ArcBase* CommandSymbol::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     return this;
 }
 
-void CommandSymbol::Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*/)
+void CommandSymbol::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
+    ArcCommand::Width(canvas, distances);
 }
 
-double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow)
 {
     if (reflow) {
         if (style.shadow.offset.second)
@@ -1204,11 +1220,8 @@ double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 
     CalculateAreaFromOuterEdge();
     note_map = area;
-    def_note_target = note_map.Centroid();
-    if (!reflow) {
-        chart->NoteMapImp.Append(&note_map);
-        chart->NoteMapAll.Append(&area);
-    }
+    def_note_target[0] = def_note_target[1] = def_note_target[2] = note_map.Centroid();
+    if (!reflow) chart->NoteBlockers.Append(this);
     if (style.shadow.offset.second)
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
     else
@@ -1303,7 +1316,7 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
 CommandNote::CommandNote(Msc*msc, const ExtVertXPos *evxpos, AttributeList *al)
     : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]),
     extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc)),
-    float_dir_x(0), float_dir_y(0), float_dist(-1)
+    float_dir_x(0), float_dir_y(0), float_dist(0)
 {
     draw_pass = NOTE;
     AddAttributeList(al);
@@ -1334,6 +1347,26 @@ bool CommandNote::AddAttribute(const Attribute &a)
         //MSC_ATTR_CLEAR is OK above with value = ""        
         ypos_marker = a.value;
         ypos_marker_linenum = a.linenum_value.start;
+        return true;
+    }
+    if (a.Is("pos")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""        
+        if (CaseInsensitiveEqual(a.value, "left"))
+            float_dir_x = -1;
+        else if (CaseInsensitiveEqual(a.value, "right"))
+            float_dir_x = +1;
+        else if (CaseInsensitiveEqual(a.value, "up"))
+            float_dir_y = -1;
+        else if (CaseInsensitiveEqual(a.value, "down"))
+            float_dir_y = +1;
+        else if (CaseInsensitiveEqual(a.value, "near"))
+            float_dist = -1;
+        else if (CaseInsensitiveEqual(a.value, "far"))
+            float_dist = +1;
+        else 
+            chart->Error.Error(a, true, "Could not recognize vlaue of 'pos'.", 
+            "Can be one of 'left'/'right'/'up'/'down'/'near'/'far'.");
         return true;
     }
     return ArcLabelled::AddAttribute(a);
@@ -1391,6 +1424,8 @@ void CommandNote::FinalizeLabels(MscCanvas &canvas)
 
 void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
+    halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.line.LineWidth(), style.line.LineWidth());
+    //ArcCommand::Width(canvas, distances); We may not have notes
     //Here we only make space if the note is on the side
     const double w = parsed_label.getTextWidthHeight().x;
     if (style.note.layout.second == MscNoteAttr::LEFT)
@@ -1399,34 +1434,552 @@ void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
         distances.Insert(chart->RSide->index, chart->RNote->index, w);
 }
 
-Contour CommandNote::CoverBody(MscCanvas &canvas) const//places upper left corner to 0,0
+Contour CommandNote::CoverBody(MscCanvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
 {
-    return style.line.CreateRectangle_Midline(XY(0,0), parsed_label.getTextWidthHeight());
+    return style.line.CreateRectangle_Midline(center-halfsize, center+halfsize);
 }
 
-Contour CommandNote::cover_pointer(MscCanvas &canvas, const XY &pointto) const //places upper left corner of the body to 0,0
-{
-    const double width_min=10, width_max=50, width_div=50;
+const double pointer_width_min=10, pointer_width_max=50, pointer_width_div=50;
 
-    const Contour body = CoverBody(canvas);
-    if (inside(body.IsWithin(pointto))) return Contour();
-    const XY center = body.GetBoundingBox().Centroid();
+double CommandNote::pointer_width(double distance) const
+{
+    return std::min(pointer_width_max, pointer_width_min + distance/pointer_width_div);
+}
+
+Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
+{
     const double l = center.Distance(pointto);
-    const double startwidth = std::min(width_max, width_min + l/width_div);
+    if (contour::test_zero(l)) return Contour();
+    const double startwidth = pointer_width(l);
     const XY a = (center-pointto).Rotate90CCW()/l*startwidth/2;
     return Contour(pointto, center-a, center+a);
 }
 
-void CommandNote::Place(MscCanvas &canvas, const XY &origin, const XY &pointto) 
+//dir_x is +2 at the right edge of the box searching, +1 in the right third
+//+ in the middle third, -1 in the left third and -2 along the left edge.
+//We return the region to check and also a starting point
+Contour CommandNote::GetRegion(const Contour &region_belt, int dir_x, int dir_y, XY &start_xy) const
+{
+    const Block &outer = region_belt.GetBoundingBox();
+    XY A, B;
+    const XY third(outer.x.Spans()/3, outer.y.Spans()/3);
+    switch (dir_x) {
+    default:
+        _ASSERT(0);
+    case -2: A.x = B.x = outer.x.from; break;
+    case -1: A.x = outer.x.from; B.x = A.x + third.x; break;
+    case  0: A.x = outer.x.from + third.x; B.x = A.x + third.x; break;
+    case +1: B.x = outer.x.till; A.x = B.x - third.x; break;
+    case +2: B.x = A.x = outer.x.till;
+    }
+    switch (dir_y) {
+    default:
+        _ASSERT(0);
+    case -2: A.y = B.y = outer.y.from; break;
+    case -1: A.y = outer.y.from; B.y = A.y + third.y; break;
+    case  0: A.y = outer.y.from + third.y; B.y = A.y + third.y; break;
+    case +1: B.y = outer.y.till; A.y = B.y - third.y; break;
+    case +2: B.y = A.y = outer.y.till;
+    }
+
+    const XY center = outer.Centroid();
+    const XY end = (A+B)/2;
+    const Contour region = region_belt * Contour(A, B, center);
+    //_ASSERT(!region.IsEmpty());
+    if (!region.IsEmpty())
+        start_xy = center + (end-center)*region.Cut(center, end).MidPoint();
+    return region;
+}
+
+template<typename T> int sign(T a) {return a>0 ? +1 : a==0 ? 0 : -1;}
+
+void CommandNote::PlaceFloating(MscCanvas &canvas)
+{
+    const unsigned region_distances = 3;
+    static const unsigned distances_search_order[region_distances] = {1, 0, 2};
+    const static double region_distance_sizes[region_distances+1] = {0, 10, 30, 100};
+
+    //Do a shorter alias
+    const unsigned RD = region_distances;
+    //Normalize attributes
+    if (abs(float_dist) > RD/2)
+        float_dist = float_dist>0 ? RD/2 : -int(RD/2);
+    float_dir_x = std::max(-1, std::min(+1, float_dir_x));
+    float_dir_y = std::max(-1, std::min(+1, float_dir_y));
+
+    //This struct holds a score
+    struct score_t {
+        double a, b, c;
+        score_t() {}
+        score_t(double aa, double bb = 0, double cc = 0) : a(aa), b(bb), c(cc) {}
+        score_t & operator +=(const score_t &o) {a+=o.a; b+=o.b; c+=o.c; return *this;}
+        score_t operator *(double m) const {return score_t(a*m, b*m, c*m);}
+        //bool operator <(const score_t &o) const {return a<o.a? true : a==o.a? b<o.b ? true : b==o.b ? c<o.c : false : false;}
+        bool operator <(const score_t &o) const {return a*100+b*10+c<o.a*100+o.b*10+o.c;}
+    };
+    //This struct holds the searching pattern.
+    //x_pos is +2 at the right edge of the box searching, +1 in the right third
+    //+ in the middle third, -1 in the left third and -2 along the left edge.
+    //"dist" can be between [0..region_distances)
+    struct region_block_t {
+        int x;
+        int y;
+        int dist;
+        score_t score;
+        int map;
+        bool operator <(const region_block_t &o) const {return score>o.score;} //HIGHER score first
+    } region_blocks[24*region_distances] = {{+1,-2}, {+2,-1}, {0,-2}, {-1,-2},
+                                            {-2,+1}, {+1,+2}, {0,+2}, {+2,+1},
+                                            {-2,-1}, {-1,+2}, {-2,0}, {+2, 0}};
+    //add tie-breaking scores
+    for (unsigned u=0; u<12; u++) {
+        region_blocks[u].score.a = 0;
+        region_blocks[u].score.b = 0;
+        region_blocks[u].score.c= 12-u;
+    }
+    //Now we copy the above directional patterns as many times as many distances there are
+    for (unsigned u=1; u<region_distances; u++)
+        for (unsigned v=0; v<12; v++)
+            region_blocks[u*12+v] = region_blocks[v];
+
+    //These are added to the region_blocks[].score, can be any value
+    const score_t def_dist_penalty_mul(0,-1);
+    const score_t dist_award_match(0);
+    const score_t dist_penalty_mul(-10);
+    const score_t corner_award_match(+15);
+    const score_t corner_award_neighbour_side(+5);
+    const score_t corner_penalty_neighbour_corner(-15);
+    const score_t corner_penalty_other_side(-20);
+    const score_t corner_penalty_opposite(-30);
+    const score_t side_award_match(+15);
+    const score_t side_award_neighbour(+10);
+    const score_t side_penalty_neighbour_side(-5);
+    const score_t side_penalty_other_corner(-20);
+    const score_t side_penalty_opposite(-30);
+    //the below penalties are calculated after placement, must be negative
+    const score_t penalty_body_cover_something(0, -10);
+    const score_t penalty_body_cover_something_mul(0, -10); //multiplies a [0..1] value (percent of the comment covering)
+    const score_t penalty_body_cover_imp(0, -50);
+    const score_t penalty_body_cover_imp_mul(0, -50); //multiplies a [0..1] value (percent of the comment covering)
+    const score_t penalty_for_pointer_angle_mul(0, -0.1); //multiplies a [0..90] value
+    const score_t penalty_for_pointer_length_mul(0, -10); //multiplies [0..] value: (dist/ideal_dist - 1)
+
+    const double worst_value = -MaxVal(worst_value);
+    const score_t worst_point(worst_value, worst_value, worst_value);
+    const score_t neutral_point(0,0,0);
+
+    //We apply a small default penalty to too close or too far distances
+    for (unsigned u=0; u<region_distances; u++)
+        for (unsigned v=0; v<12; v++) {
+            region_blocks[u*12+v].dist = distances_search_order[u];
+            region_blocks[u*12+v].score += def_dist_penalty_mul*u;
+        }
+
+    //now we score these according to the note's attributes.
+    //if distance is specified and matches, we award +10 points,
+    //    if does not match we penalize diff*5 points
+    //if two directions specified, we award 15 points to the corner
+    //      and 5 points to the neighbouring sides
+    //      -15 points to neighbouring corners, -20 to other sides and -30 to opposite corner
+    //       CPNC   CAN  CAM
+    //        +--  ----  ==+  <-if this corner is selected
+    //    CPNC|            || CAM = Corner_Award_Match (see consts above)
+    //
+    //    CPOS|            | CAN
+    //
+    //     CPO|            | CPNC
+    //        +--  ----  --+
+    //        CPO  CPOS  CPNC
+    //if only one direction is specified, we award +15 to that side and +10 to neighbouring half-corners
+    //      -5 to the other sides, -20 to other corner half sides and -30 to opposite side
+    //        SAN   SAM  SAN
+    //        +--  ====  --+
+    //    SPNS|     ^      | SPNS
+    //            if this
+    //    SPNS|    side    | SPNS
+    //           selected
+    //    SPOC|            | SPOC
+    //        +--  ----  --+
+    //        SPO  SPO   SPO
+
+    if (float_dist) {   //0 = not specified, -1:near, +1 far, -2, +2...
+        //normalize to the distances we have implemented
+        const int fdist = float_dist + RD/2; //so that we have values [0..region_distances)
+        for (unsigned u=0; u<RD; u++)
+            for (unsigned v=0; v<12; v++)
+                if (region_blocks[u*12+v].dist == fdist)
+                    region_blocks[u*12+v].score += dist_award_match;
+                else
+                    region_blocks[u*12+v].score +=
+                        dist_penalty_mul * abs(region_blocks[u*12+v].dist - fdist);
+    }
+    if (float_dir_x==0 && float_dir_y!=0) {
+        for (unsigned u=0; u<RD; u++)
+            for (unsigned v=0; v<12; v++)
+                if (region_blocks[u*12+v].x == 0 && region_blocks[u*12+v].y == 2*float_dir_y)
+                    region_blocks[u*12+v].score += side_award_match;
+                else if (region_blocks[u*12+v].y == 2*float_dir_y)
+                    region_blocks[u*12+v].score += side_award_neighbour;
+                else if (region_blocks[u*12+v].y == float_dir_y || region_blocks[u*12+v].y==0)
+                    region_blocks[u*12+v].score += side_penalty_neighbour_side;
+                else if (region_blocks[u*12+v].y == -float_dir_y)
+                    region_blocks[u*12+v].score += side_penalty_other_corner;
+                else
+                    region_blocks[u*12+v].score += side_penalty_opposite;
+    } else if (float_dir_x!=0 && float_dir_y==0) {
+        for (unsigned u=0; u<RD; u++)
+            for (unsigned v=0; v<12; v++)
+                if (region_blocks[u*12+v].y == 0 && region_blocks[u*12+v].x == 2*float_dir_x)
+                    region_blocks[u*12+v].score += side_award_match;
+                else if (region_blocks[u*12+v].x == 2*float_dir_x)
+                    region_blocks[u*12+v].score += side_award_neighbour;
+                else if (region_blocks[u*12+v].x == float_dir_x || region_blocks[u*12+v].x==0)
+                    region_blocks[u*12+v].score += side_penalty_neighbour_side;
+                else if (region_blocks[u*12+v].x == -float_dir_x)
+                    region_blocks[u*12+v].score += side_penalty_other_corner;
+                else
+                    region_blocks[u*12+v].score += side_penalty_opposite;
+    } else if (float_dir_x!=0 && float_dir_y!=0) {
+        for (unsigned u=0; u<RD; u++)
+            for (unsigned v=0; v<12; v++)
+                if (sign(float_dir_x) == sign(region_blocks[u*12+v].x) &&
+                    sign(float_dir_y) == sign(region_blocks[u*12+v].y))
+                    region_blocks[u*12+v].score += corner_award_match;
+                else if (sign(float_dir_x) == sign(region_blocks[u*12+v].x))
+                    region_blocks[u*12+v].score += region_blocks[u*12+v].y ? corner_penalty_neighbour_corner : corner_award_neighbour_side;
+                else if (sign(float_dir_y) == sign(region_blocks[u*12+v].y))
+                    region_blocks[u*12+v].score += region_blocks[u*12+v].x ? corner_penalty_neighbour_corner : corner_award_neighbour_side;
+                else if (region_blocks[u*12+v].x == 0 || region_blocks[u*12+v].y == 0)
+                    region_blocks[u*12+v].score += corner_penalty_other_side;
+                else
+                    region_blocks[u*12+v].score += corner_penalty_opposite;
+    }
+    //OK, now sort according to score
+    std::sort(region_blocks, region_blocks+RD*24);
+
+    //Now duplicate the whole shabang, and factor in which map to avoid
+    //0 means to avoid all screen elements
+    //1 means to avoid only the important parts
+    for (unsigned u=0; u<RD*12; u++) {
+        region_blocks[u+RD*12] = region_blocks[u];
+        region_blocks[u].map = 0;
+        region_blocks[u+RD*12].map = 1;
+    }
+
+    //Create the region belts
+    const double default_expand_size = 5;
+    Contour region_belts[region_distances];
+    Contour cont_target_if_empty = Block(target->GetDefNodeTarget()[0], target->GetDefNodeTarget()[2]).Expand(default_expand_size);
+    const Contour &contour_target_to_use = target->GetAreaToDraw().IsEmpty() ? cont_target_if_empty : target->GetAreaToDraw();
+    const Contour target_2D_expanded = contour_target_to_use.CreateExpand2D(halfsize);
+    Contour prev = target_2D_expanded.CreateExpand(region_distance_sizes[region_distances], EXPAND_MITER, EXPAND_MITER);
+    for (int i = region_distances-1; i>=0; i--) {
+        Contour next = target_2D_expanded.CreateExpand(region_distance_sizes[i], EXPAND_MITER, EXPAND_MITER);
+        region_belts[i] = prev - next;
+        prev.swap(next);
+    }
+
+    //Create three maps containing places the center of the note body can go.
+    //Here we simplisticly assume the body is a box of size 2*halfsize.
+    //"map_all" contains a hole for all the drawn elements (expanded) around the
+    //  target, plus small rectangles for non-drawn important places
+    //  such as entity lines turned off.
+    //  (We create an area of interest that is a box around the target including
+    //   any place the center of the note can go - we care for blocking elements
+    //   only here. AOI is used as a sort of limit to computation)
+    //  We consider elements expanded by "halfsize": if the center of the note falls inside
+    //  the map - the note will not overlap with the elements in NoteMapAll.
+    //"map_imp" contains a hole for the important parts of elements. Each element
+    //  specifies this during "Height()" and we expand2d it smae as for above.
+    //"map_pointer_all" is inverse: it contains a positive surface for all elements
+    //  inside AOI this is used to calculate how much the arrow covers
+    //"map_pointer_imp" is also inverse, it just contains the important parts
+    //  even the arrow should avoid it.
+    const Block total(halfsize, chart->total-halfsize);
+    const Block AOI = contour_target_to_use.GetBoundingBox().CreateExpand(region_distance_sizes[RD]).Expand2D(halfsize);
+
+    Contour map_all(total), map_imp(total);
+    Contour pointer_map_all, pointer_map_imp;
+    for (auto i = chart->NoteBlockers.begin(); i!=chart->NoteBlockers.end(); i++) {
+        if (target == *i) continue; //avoid clashes of the target with the note during arrow placement
+        if ((*i)->GetAreaToDraw().GetBoundingBox().Overlaps(AOI)) {
+            map_all -= (*i)->GetAreaToDraw().CreateExpand2D(halfsize);
+            pointer_map_all += (*i)->GetAreaToDraw();
+        }
+        if ((*i)->GetNoteMap().GetBoundingBox().Overlaps(AOI)) {
+            map_imp -= (*i)->GetNoteMap().CreateExpand2D(halfsize);
+            pointer_map_imp += (*i)->GetNoteMap();
+        }
+    }
+
+
+    ////Display regions in chart->DebugContours
+    //for (unsigned u=0; u<RD*24; u++) {
+    //    const region_block_t &RB = region_blocks[u];
+    //    if (RB.map==0) continue;
+    //    const Contour &map = RB.map ? map_imp : map_all;
+    //    XY ret;
+    //    const Contour region = map * GetRegion(region_belts[RB.dist], RB.x, RB.y, ret);
+    //    if (region.IsEmpty()) continue;
+    //    chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(u*2, u*2, u*2, 128))));
+    //}
+    //chart->DebugContours.push_back(Msc::ContourAttr(pointer_map, MscFillAttr(MscColorType(255, 0, 0, 128))));
+    XY best_center;
+    XY best_pointto;
+    score_t best_point = worst_point;
+
+    //We divide the belt around the target into 12 sections and 3 ("region_distances")
+    //belts at ever greater distance (for near/far). We have two such sets one for
+    //the important and one for all elements.
+    //Process through each such section (or block)
+    for (unsigned u=0; u<RD*24; u++) {
+        const region_block_t &RB = region_blocks[u];
+        if (RB.score < best_point) break; //no chance of getting any better
+        const Contour &map = RB.map ? map_imp : map_all;
+        XY ret;
+        //Intersect the belt section with the map: get all the points
+        //where the center of the note body can go.
+        const Contour region = map * GetRegion(region_belts[RB.dist], RB.x, RB.y, ret);
+        if (region.IsEmpty()) continue;
+
+        //Ok, a note can be placed in this region.
+        //Now find a suitable position inside the region and a
+        //suitable end for the arrow that lies on the line between
+        //target->GetDefNodeTarget()[0] and [2]
+        XY clockwise1, cclockwise1;
+        XY clockwise2, cclockwise2;
+        const XY &t_from = target->GetDefNodeTarget()[0];
+        const XY &t_till = target->GetDefNodeTarget()[2];
+        const Edge t_line(t_from, t_till);
+        if (!region.TangentFrom(t_from, clockwise1, cclockwise1) ||
+            !region.TangentFrom(t_till, clockwise2, cclockwise2)) {
+            _ASSERT(0);
+        }
+        //"arrowspace" contains all the possible space the arrow can go through
+        const Contour arrowspace = Contour(t_from, cclockwise1, clockwise2) +
+                                   Contour(t_from, clockwise2, t_till) +
+                                   Contour(t_from, clockwise1, cclockwise2) +
+                                   Contour(t_from, cclockwise2, t_till);
+        //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
+        //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
+        //chart->DebugContours.push_back(Msc::ContourAttr(pointer_map_imp, MscFillAttr(MscColorType(255,128,255))));
+
+        //From here we try to place both the body inside 'region' and its pointer
+        //simultaneously. We go by angle. The arrow of a note should preferably be
+        //perpendicular to the defnodetartget line. If that is not possible we attempt
+        //ever smaller angles, till we find one. Angles are in radians below.
+        const XY ideal_center = region.Centroid();
+        const double angle_step_unit = 10/(180/M_PI);
+        double angle_step = angle_step_unit;
+        //starting angle is the angle specified by the sector of the belt we are in
+        //it shall be zero if we want to start with a vertical center->pos arrangement
+        double angle = -atan2(double(sign(RB.x)), double(sign(-RB.y)));  //deliberate swap of x & y
+
+        XY center, pointto;
+        for (/*nope*/;
+            fabs(angle_step)<=M_PI/2;
+            angle += angle_step,
+            angle_step = -angle_step + ((angle_step > 0) ? -angle_step_unit : angle_step_unit)) {
+
+            //We rotate the tangent line and "region" by angle and see if their
+            //x coordinates overlap.
+            const double sa = sin(angle);
+            const double ca = cos(angle);
+            const double deg_ang = angle*180/M_PI;
+            const XY ideal_center_rot = XY(ideal_center).Rotate(ca, sa);
+            const XY t_from_rot = XY(t_from).Rotate(ca, sa);
+            const XY t_till_rot = XY(t_till).Rotate(ca, sa);
+            Range range(t_from_rot.x, t_till_rot.x);
+            if (range.from > range.till)
+                std::swap(range.from, range.till);
+            const Contour region_rot = region.CreateRotated(deg_ang);
+            if (!range.Overlaps(region_rot.GetBoundingBox().x)) continue;
+            //if there is an overlap, we may find a good placement else go to next angle
+            //region_rot may not be contiguous
+            //Calculate the x ranges of region where we can place the arrow
+            //if the target line is now parallel with the arrow, skip region calc.
+            //as we can only place an arrow onto the target line. Just test if tline
+            //is inside the region.
+            DoubleMap<bool> region_ranges(false);
+            if (contour::test_equal(t_from_rot.x, t_till_rot.x)) {
+                bool success = false;
+                for (unsigned ru = 0; ru<region_rot.size(); ru++) {
+                    const Range &r = region_rot[ru].GetBoundingBox().x;
+                    if (contour::test_smaller(t_from_rot.x, r.from) ||
+                        contour::test_smaller(r.till, t_from_rot.x)) continue;
+                    success = true;
+                    break;
+                }
+                if (!success) continue; //no part of region is on the target line
+            } else {
+                //Add the rotated region's pieces to the region ranges
+                for (unsigned ru = 0; ru<region_rot.size(); ru++)
+                    region_ranges.Set(region_rot[ru].GetBoundingBox().x, true);
+                //kill anything otside the target line's projection.
+                region_ranges.Set(Range(-CONTOUR_INFINITY, range.from), false);
+                region_ranges.Set(Range(range.till, CONTOUR_INFINITY), false);
+            }
+            //Now try to find a place first avoiding all visible blockers,
+            //then only the important ones
+            XY pointto_rot;
+            for (unsigned bl = 0; bl<2; bl++) {
+                //rotate the map, which contains the blocking contours
+                const Contour blockers = (bl==0 ? pointer_map_all : pointer_map_imp)*arrowspace;
+                const Contour blockers_rot = blockers.CreateRotated(deg_ang);
+                //if we have a vertical rotated target line, just test if the tline is blocked
+                if (contour::test_equal(t_from_rot.x, t_till_rot.x)) {
+                    bool success2 = true;
+                    for (unsigned u = 0; u<blockers_rot.size(); u++) {
+                        const Range &r = blockers_rot[u].GetBoundingBox().x;
+                        if (contour::test_smaller(t_from_rot.x, r.from) ||
+                            contour::test_smaller(r.till, t_from_rot.x)) continue;
+                        success2 = false;
+                        break;
+                    }
+                    if (!success2) continue; //we are blocked
+                    if (ideal_center_rot.DistanceSqr(t_from_rot) >
+                        ideal_center_rot.DistanceSqr(t_till_rot))
+                        pointto_rot = t_till_rot;
+                    else
+                        pointto_rot = t_from_rot;
+                } else {
+                    DoubleMap<bool> canplacehere(false);
+                    //On first iteration we copy, else we move
+                    if (bl==0) canplacehere = region_ranges;
+                    else canplacehere = std::move(region_ranges);
+                    //take each independent contour and substract their x extent
+                    //from the places to consider
+                    for (unsigned u = 0; u<blockers_rot.size(); u++) {
+                        canplacehere.Set(blockers_rot[u].GetBoundingBox().x, false);
+                        if (canplacehere.Till(range.from-1) > range.till) break; //all cancelled
+                    }
+                    //Now pick the range that is widest
+                    Range candidate_range(0,0); //width of 0
+                    double pos = range.from-1;
+                    do {
+                        double next_set = canplacehere.Till(pos);
+                        while (*canplacehere.Get(next_set)==false && next_set <= range.till)
+                            next_set = canplacehere.Till(next_set);
+                        if (next_set > range.till) break;
+                        pos = canplacehere.Till(next_set);
+                        while (*canplacehere.Get(pos)==true && pos <= range.till)
+                            pos = canplacehere.Till(pos);
+                        _ASSERT(*canplacehere.Get(next_set) == true && *canplacehere.Get(pos) == false);
+                        if (pos-next_set > candidate_range.Spans()) {
+                            candidate_range.from = next_set;
+                            candidate_range.till = pos;
+                        }
+                    } while (pos < range.till);
+                    if (candidate_range.Spans()==0) continue; //not found any
+                    if (candidate_range.Spans() < pointer_width_max)
+                        pointto_rot.x = candidate_range.MidPoint();
+                    else {
+                        candidate_range.Expand(-pointer_width_max/2);
+                        if (ideal_center_rot.x<candidate_range.from)
+                            pointto_rot.x = candidate_range.from;
+                        else if (ideal_center_rot.x>candidate_range.till)
+                            pointto_rot.x = candidate_range.till;
+                        else
+                            pointto_rot.x = ideal_center_rot.x;
+                    }
+                    //OK, pointto_rot.x is now set. Find pointto_rot.y to be
+                    //on the rotated target_line
+                    pointto_rot.y = t_from_rot.y + (pointto_rot.x - t_from_rot.x) *
+                        (t_till_rot.y - t_from_rot.y) / (t_till_rot.x - t_from_rot.x);
+
+                }  // else: tline not horizontal
+
+                //Now we have a pointto_rot, find our corresponding center_rot
+                //(on the same x coordinate, but somewhere inside region_rot, as close to ideal as we can)
+                DoubleMap<bool> map(false);
+                region_rot.VerticalCrossSection(pointto_rot.x, map);
+                map.Prune();
+                center.x = pointto_rot.x;
+                if (*map.Get(ideal_center_rot.y))
+                    center.y = ideal_center_rot.y;
+                else if (ideal_center_rot.y - map.From(ideal_center_rot.y) <
+                            map.Till(ideal_center_rot.y) - ideal_center_rot.y)
+                    center.y = map.From(ideal_center_rot.y);
+                else
+                    center.y = map.Till(ideal_center_rot.y);
+                //rotate them back
+                center.Rotate(ca, -sa);
+                pointto = pointto_rot.Rotate(ca, -sa);  //destroys pointto_rot
+                break; //we have found a good place, not blocking either of the maps
+            } //for: blockers
+
+            //Adjust pointto, so that it points to the outline of the target, not somewhere inside it
+            if (!target->GetAreaToDraw().IsEmpty()) {
+                Range r = target->GetAreaToDraw().Cut(pointto, center);
+                if (!r.IsInvalid())
+                    pointto = pointto + (center-pointto)*r.till;
+            }
+            //Evaluate the hit found
+            //See if we cover something
+            const Contour cov = CoverAll(canvas, pointto, center);
+            const double cov_area = cov.GetArea();
+            const double cov_sng_ratio = (cov * pointer_map_all).GetArea() / cov_area;
+            const double cov_imp_ratio = (cov * pointer_map_imp).GetArea() / cov_area;
+
+            score_t cover_penalty = neutral_point;
+            score_t angle_penalty = neutral_point;
+            score_t point = RB.score;
+            if (cov_sng_ratio) {
+                cover_penalty += penalty_body_cover_something;
+                cover_penalty += penalty_body_cover_something_mul * cov_sng_ratio;
+            }
+            if (cov_imp_ratio) {
+                cover_penalty += penalty_body_cover_imp;
+                cover_penalty += penalty_body_cover_imp_mul * cov_imp_ratio;
+            }
+            //penalize if arrow is simply too long
+            if (!t_from.test_equal(t_till)) {
+                XY ideal_pointto;
+                Edge tline(t_from, t_till);
+                const double dist = center.Distance(pointto);
+                const double ideal_dist = tline.Distance(center, ideal_pointto);
+                cover_penalty += penalty_for_pointer_length_mul * (dist/ideal_dist - 1);
+            }
+            //penalize if we deviate from the ideal angle requested by the user
+            if (angle_step>10./180*M_PI)
+                angle_penalty = penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step);
+
+            point += cover_penalty;
+            point += angle_penalty;
+
+            if (point > best_point) {
+                //OK, if we get better, replace
+                best_point = point;
+                best_center = center;
+                best_pointto = pointto;
+            }
+            //if the cover penalty is not better than the angle we may not find better
+            //scores with later angles (as the angle penalty will get only worse,
+            //while the cover penalty cannot get better than neutral)
+            if (cover_penalty > angle_penalty) break;
+        }  //for: angle
+    } //for: regions
+    if (best_point > worst_point) {
+        PlaceTo(canvas, best_pointto, best_center);
+    } else {
+        //Not successful
+        chart->Error.Error(file_pos.start, "Could not place this note.");
+        valid = false;
+    }
+}
+
+
+
+void CommandNote::PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center)
 {
     const Block playground(XY(0,0), chart->total);
-    if (!playground.IsWithinBool(origin) || !playground.IsWithinBool(pointto)) {
+    if (!playground.IsWithinBool(center) || !playground.IsWithinBool(pointto)) {
         _ASSERT(0);
         return;
     }
-    pos = origin;
+    pos_center = center;
     point_to = pointto;
-    area = CoverAll(canvas, pointto-origin).Shift(pos);
+    area = CoverAll(canvas, pointto, center);
 }
 
 
@@ -1447,7 +2000,7 @@ void CommandNote::Place(MscCanvas &canvas, const XY &origin, const XY &pointto)
 void CommandNote::ShiftBy(double y)
 {
     ArcLabelled::ShiftBy(y);
-    pos.y += y;
+    pos_center.y += y;
     point_to.y += y;
 }
 
@@ -1459,10 +2012,12 @@ void CommandNote::ShiftBy(double y)
 void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (pass!=draw_pass) return;
-    const Contour cover = CoverAll(canvas, point_to-pos).Shift(pos);
+    const Contour cover = CoverAll(canvas, point_to, pos_center);
     canvas.Shadow(cover.CreateExpand(style.line.Spacing()), style.shadow);
     canvas.Fill(cover.CreateExpand(-style.line.Spacing()), style.fill);
     canvas.Line(cover.CreateExpand(style.line.Spacing()), style.line);
-    parsed_label.Draw(canvas, pos.x, pos.x+parsed_label.getTextWidthHeight().x, pos.y);
+    const double w2 = halfsize.x + style.line.LineWidth();
+    parsed_label.Draw(canvas, pos_center.x-w2, pos_center.x+w2,
+        pos_center.y-halfsize.y+style.line.LineWidth());
 }
 
