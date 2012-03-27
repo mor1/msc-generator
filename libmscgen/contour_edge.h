@@ -132,6 +132,7 @@ public:
 
     //tangential toucher from a point
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
+    bool TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
 
 protected:
     bool equal_curvy(const Edge &p) const;
@@ -288,12 +289,19 @@ inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool
 }
 
 //does not consider "end"
+//overwrites what is received in 
 inline bool Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
 {
     if (type==FULL_CIRCLE) return ell.TangentFrom(from, clockwise, cclockwise);
     if (type==ARC && ell.TangentFrom(from, clockwise, cclockwise)) {
-        clockwise  = minmax_clockwise(from, start, clockwise, true);
-        cclockwise = minmax_clockwise(from, start, cclockwise, false);
+        if (radianbetween(ell.Point2Radian(clockwise)))
+            clockwise  = minmax_clockwise(from, start, clockwise, true);
+        else 
+            clockwise = start;
+        if (radianbetween(ell.Point2Radian(cclockwise)))
+            cclockwise = minmax_clockwise(from, start, cclockwise, false);
+        else 
+            cclockwise = start;
     } else
         clockwise = cclockwise = start;
     return true;

@@ -27,21 +27,18 @@ class TrackableElement {
 protected:
     static const XY control_size;
     static const XY indicator_size;
-    Msc * const chart;
-    bool   hidden;             //true if we are hidden inside a collapsed box
-    bool   linenum_final;      //true if file_pos below is the final value
-    Area   area;               //The area covered by the element...
-    double yPos;               //...drawn at this point
-    Contour area_draw;         //The area to draw when highlighting the element
-    bool   draw_is_different;  //True is area_draw is different from area
-    bool   area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
+    Msc * const     chart;
+    bool            hidden;             //true if we are hidden inside a collapsed box
+    bool            linenum_final;      //true if file_pos below is the final value
+    Area            area;               //The area covered by the element...
+    double          yPos;               //...drawn at this point
+    Contour         area_draw;          //The area to draw when highlighting the element
+    bool            draw_is_different;  //True is area_draw is different from area
+    bool            area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
+    Contour         area_to_note;       //if not empty the notes will point towards this area
 
-    CommandNoteList notes;           // Notes attached to this element
-    mutable Contour note_map;        /* those parts of our coverage, which must not be covered by notes */
-    mutable XY      def_note_target[3]; //The default part of the element where notes point to [1] must be on the section between [0] and [2]
-
-    double          layout_lower;    //Lay this element this much lower to make room for a note
-    bool            all_notes_placed;//true if all our notes are placed: we cannot be requested to move
+    CommandNoteList notes;              // Notes attached to this element
+    Contour         note_map;           /* those parts of our coverage, which must not be covered by notes */
 
     std::vector<MscControlType> 
            controls;           //Controls added for this box  
@@ -61,16 +58,12 @@ public:
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const {return area;};
     const Contour &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
+    const Contour &GetAreaToNote() const {return area_to_note.IsEmpty() ? area : area_to_note;}
     const Contour &GetNoteMap() const {return note_map;}
-    const XY *GetDefNodeTarget() const {return def_note_target;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     virtual void PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void RequestLayoutChange(double y) {layout_lower += y;}
-    virtual void MarkAllNotesPlaced() {all_notes_placed = true;}
-    bool AreAllNotesPlaced() const {return all_notes_placed;}
-    double GetLayoutLower() const {return layout_lower;}
     virtual void PostPosProcess(MscCanvas &, double);
     void DrawControls(MscCanvas*, double size);
     MscControlType WhichControl(const XY &xy);

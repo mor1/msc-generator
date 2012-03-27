@@ -209,21 +209,21 @@ public:
 
 class CommandNote : public ArcLabelled
 {
+public:
 protected:
-    friend class NotePlacement;
     TrackableElement *    target;
-    const ExtVertXPos     extvertxpos;
     string                point_toward; //an entity or NoEntity for center of target
-    string                ypos_marker;  //a markername or empty for automatic
-    file_line             ypos_marker_linenum;
-    int                   float_dir_x, float_dir_y, float_dist; //user preferences of floating note placement
+    file_line_range       point_toward_pos;
+    std::pair<bool, int>  float_dist; //user preferences of floating note placement
+    int                   float_dir_x;
+    int                   float_dir_y;
 
     mutable XY            halfsize, pos_center, point_to;
     mutable EIterator     point_toward_iterator;
     double pointer_width(double distance) const;
     Contour cover_pointer(MscCanvas &canvas, const XY &point_to, const XY &center) const; //places upper left corner of the body to 0,0
 public:
-    CommandNote(Msc*, const ExtVertXPos *vxpos, AttributeList *al);
+    CommandNote(Msc*, const char *pt, file_line_range ptm, AttributeList *al);
     TrackableElement *GetTarget() const {return target;}
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -238,6 +238,7 @@ public:
     Contour CoverAll(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
         {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);} 
     Contour GetRegion(const Contour &region_belt, int dir_x, int dir_y, XY &start_xy) const;
+    Contour GetPointerTarget() const;
     void PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center);
     void PlaceFloating(MscCanvas &canvas);
 

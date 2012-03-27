@@ -114,6 +114,7 @@ public:
 	double OffsetAbove(const XY&A, const XY&B) const;
 
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
+    bool TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const;
 };
 
 

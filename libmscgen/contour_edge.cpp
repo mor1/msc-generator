@@ -1741,4 +1741,61 @@ double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
     return ret;
 }
 
+
+//here we merge to clockwise and counterclockwise
+//directions are viewed from "this" toward "o"
+bool Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
+{
+    XY c, cc;
+    clockwise[1]  = minmax_clockwise(clockwise[0], o.start, clockwise[1], true);
+    cclockwise[1] = minmax_clockwise(cclockwise[0], o.start, cclockwise[1], false);
+
+    clockwise[0]  = minmax_clockwise(clockwise[1], start, clockwise[0], false);
+    cclockwise[0] = minmax_clockwise(cclockwise[1], start, cclockwise[0], true);
+
+    //clockwise[1]  = minmax_clockwise(clockwise[0], o.start, clockwise[1], true);
+    //cclockwise[1] = minmax_clockwise(cclockwise[0], o.start, cclockwise[1], false);
+
+    if (type==STRAIGHT) {
+        if (o.type!=STRAIGHT) {
+            if (o.TangentFrom(start, c, cc)) {
+                if (o.radianbetween(o.ell.Point2Radian(c)))
+                    clockwise[1]  = minmax_clockwise(start, c, clockwise[1], true);
+                if (o.radianbetween(o.ell.Point2Radian(cc)))
+                    cclockwise[1] = minmax_clockwise(start, cc, cclockwise[1], false);
+            }
+        }
+    } else if (o.type == STRAIGHT) {
+        if (TangentFrom(o.start, c, cc)) {
+            if (radianbetween(ell.Point2Radian(c)))
+                clockwise[0]  = minmax_clockwise(o.start, cc, clockwise[0], false);
+            if (radianbetween(ell.Point2Radian(cc)))
+                cclockwise[0] = minmax_clockwise(o.start, c, cclockwise[0], true);
+        }
+    } else {
+        XY c[2], cc[2];
+        if (ell.TangentFrom(o.ell, c, cc)) {
+            if (radianbetween(ell.Point2Radian(c[0])) && o.radianbetween(o.ell.Point2Radian(c[1]))) {
+                clockwise[1]  = minmax_clockwise(clockwise[0], c[1], clockwise[1], true);
+                clockwise[0]  = minmax_clockwise(clockwise[1], c[0], clockwise[0], false);
+            }
+            if (radianbetween(ell.Point2Radian(cc[0])) && o.radianbetween(o.ell.Point2Radian(cc[1]))) {
+                cclockwise[0] = minmax_clockwise(cclockwise[1], cc[0], cclockwise[0], true);
+                cclockwise[1] = minmax_clockwise(cclockwise[0], cc[1], cclockwise[1], false);
+            }
+        }
+        if (o.ell.TangentFrom(ell, c, cc)) {
+            if (radianbetween(ell.Point2Radian(c[1])) && o.radianbetween(o.ell.Point2Radian(c[0]))) {
+                clockwise[1]  = minmax_clockwise(clockwise[0], cc[0], clockwise[1], false);
+                clockwise[0]  = minmax_clockwise(clockwise[1], cc[1], clockwise[0], true);
+            }
+            if (radianbetween(ell.Point2Radian(cc[1])) && o.radianbetween(o.ell.Point2Radian(cc[0]))) {
+                cclockwise[0] = minmax_clockwise(cclockwise[1], c[1], cclockwise[0], false);
+                cclockwise[1] = minmax_clockwise(cclockwise[0], c[0], cclockwise[1], true);
+            }
+        }
+    }
+    return true;
+}
+
 } //namespace

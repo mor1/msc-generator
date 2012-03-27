@@ -60,6 +60,7 @@ public:
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const;
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 
+    double Distance(const XY &o, XY &ret) const;
     Range Cut(const XY &A, const XY &B) const;
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
@@ -143,6 +144,7 @@ public:
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const {outline.PathDashed(cr, pattern, num, show_hidden); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden);}
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {outline.PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
 
+    double Distance(const XY &o, XY &ret) const;
     Range Cut(const XY &A, const XY &B) const {return outline.Cut(A, B);}
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {outline.Cut(A, B, map); holes.Cut(A, B, map);}
 };
@@ -253,7 +255,7 @@ public:
     //bool AddAnEdge(const Edge &edge) {SimpleContour::AddAnEdge(edge);}
     //bool AddPoint(const XY &xy) {return AddAnEdge(Edge(xy, at(0).GetStart()));}
     const ContourWithHoles &operator[](size_type n) const {return n==0 ? first : further[n-1];}
-    void ClearHoles() {first.holes.clear(); for (auto i = further.begin(); i!=further.end(); i++) i->holes.clear();}
+    Contour &ClearHoles() {first.holes.clear(); for (auto i = further.begin(); i!=further.end(); i++) i->holes.clear(); return *this;}
     bool IsSane() const;
 
     is_within_t IsWithin(const XY &p) const {is_within_t ret = first.IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
@@ -316,9 +318,11 @@ public:
     //zero returned if they cross. If the two points are equal that is a crosspoint, if not they are invalid
     //(Latter may happen if one of the contours have two pieces and one is inside and one is outside the other
     DistanceType Distance(const Contour &c) const {DistanceType r; Distance(c, r); return r;}
+    double Distance(const XY &o, XY &ret) const {XY tmp; double d = first.Distance(o, ret), dd=further.Distance(o, tmp); if (fabs(dd)<fabs(d)) {ret=tmp; d=dd;} return d;}
     Range Cut(const XY &A, const XY &B) const {Range ret = first.Cut(A, B); if (!further.IsEmpty()) ret += further.Cut(A, B); return ret;}
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {first.Cut(A, B, map); if (further.IsEmpty()) further.Cut(A, B, map); map.Prune();}
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
+    bool TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]) const;
 };
 
 template <typename LT> void Distance(const LT &list, const Contour &c, DistanceType &dist_so_far)
@@ -446,6 +450,19 @@ inline double ContourList::OffsetBelow(const Contour &below, double &touchpoint,
     if (below.further.size())
         offset = OffsetBelow(below.further, touchpoint, offset);
     return OffsetBelow(below.first.outline, touchpoint, offset);
+}
+
+inline double ContourWithHoles::Distance(const XY &o, XY &ret) const
+{
+    double d = outline.Distance(o, ret);
+    if (d>=0) return d;
+    XY tmp;
+    double dd = -holes.Distance(o, tmp);
+    if (fabs(dd)<fabs(d)) {
+        ret = tmp;
+        return dd;
+    }
+    return d;
 }
 
 inline Range ContourList::Cut(const XY &A, const XY &B) const

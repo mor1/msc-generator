@@ -221,6 +221,7 @@ public:
     void AddCSH_AttrValue(CshPos& pos, const char *value, const char *name);
     void AddCSH_StyleOrAttrName(CshPos&pos, const char *name);
     void AddCSH_EntityName(CshPos&pos, const char *name);
+    void AddCSH_EntityOrMarkerName(CshPos&pos, const char *name);
     void AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name);
     void AddCSH_SymbolName(CshPos&pos, const char *name);
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme);

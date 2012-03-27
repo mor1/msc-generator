@@ -48,7 +48,7 @@
 #include <cassert>
 #include <vector>
 #include <algorithm>
-#include "contour_ellipse.h"
+#include "contour_edge.h"
 
 namespace contour {
 
@@ -517,7 +517,7 @@ void EllipseData::calculate_extremes()
         extreme[0].y = center.y;
         extreme_radian[0] = M_PI;
         extreme[1].x = center.x + radius1;
-        extreme[1].y = center.y;
+        extreme[1].y = center.y; 
         extreme_radian[1] = 0;
         extreme[2].y = center.y - radius2;
         extreme[2].x = center.x;
@@ -994,10 +994,39 @@ bool EllipseData::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) con
     const XY a = conv_to_circle_space(from);
     const double l = a.length();
     if (!test_smaller(1,l)) return false; //on or inside
-    clockwise =  conv_to_real_space(XY(a.y, -a.x));
-    cclockwise = conv_to_real_space(XY(-a.y, a.x));
+    clockwise =  conv_to_real_space(XY(a.y, -a.x)/l);
+    cclockwise = conv_to_real_space(XY(-a.y, a.x)/l);
     return true;
 }
+
+bool EllipseData::TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const
+{
+    //TODO: Assume they do not touch
+    XY dummy[4];
+    double dummy2[4];
+    //_ASSERT(CrossingEllipse(from, dummy, dummy2, dummy2)==0);
+    clockwise[0] = cclockwise[0] = center;
+    clockwise[1] = cclockwise[1] = from.center;
+    XY old[2];
+    do {
+        old[0] = clockwise[0];
+        old[1] = cclockwise[0];
+        XY c, cc;
+        if (!from.TangentFrom(clockwise[0], c, cc)) return false;
+        clockwise[1] = minmax_clockwise(clockwise[0], clockwise[1], c, true);
+        if (!from.TangentFrom(cclockwise[0], c, cc)) return false;
+        cclockwise[1] = minmax_clockwise(cclockwise[0], cclockwise[1], cc, false);
+
+        //Now see it back: change dirs
+        if (!TangentFrom(clockwise[1], c, cc)) return false;
+        clockwise[0] = minmax_clockwise(clockwise[1], clockwise[0], cc, false);
+        if (!TangentFrom(cclockwise[1], c, cc)) return false;
+        cclockwise[0] = minmax_clockwise(cclockwise[1], cclockwise[0], c, true);
+    } while (old[0].DistanceSqr(clockwise[0])>=1 && old[1].DistanceSqr(cclockwise[0])>=1);
+    return true;
+}
+
+
 
 
 } //namespace

@@ -519,6 +519,15 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     was_partial = true;
 }
 
+void Csh::AddCSH_EntityOrMarkerName(CshPos&pos, const char *name)
+{
+    if (EntityNames.find(string(name)) != EntityNames.end()) 
+        AddCSH(pos, COLOR_ENTITYNAME);
+    else
+        AddCSH(pos, COLOR_MARKERNAME);
+}
+
+
 //This is called when a string is after the keyword "symbol"
 // we give KEYWORD or KEYWORD_PARTIAL for full or partial matches
 // and STYLE for no matched

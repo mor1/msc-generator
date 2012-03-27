@@ -1392,6 +1392,21 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
     _ASSERT(result.IsSane());
 }
 
+double ContourList::Distance(const XY &o, XY &ret) const
+{
+    double d = CONTOUR_INFINITY;
+    for (auto i = begin(); i!=end(); i++) {
+        XY tmp;
+        double dd = i->Distance(o, tmp);
+        if (fabs(dd)<fabs(d)) {
+            d = -dd;
+            ret = tmp;
+            if (d==0) return 0;
+        }
+    }
+    return d;
+}
+
 /////////////////////ContourWithHoles
 
 bool ContourWithHoles::IsSane(bool shouldbehole) const
@@ -1526,7 +1541,6 @@ void ContourWithHoles::Distance(const ContourWithHoles &c, DistanceType &dist_so
     }
     dist_so_far.Merge(d);
 }
-
 
 /////////////////////////////////////////  Contour implementation
 
@@ -1689,6 +1703,44 @@ Contour::relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) con
     return res;
 }
 
+inline bool MergeTangentFroms(bool was, XY clockwise[2], XY cclockwise[2], bool was2, const XY c[2], const XY cc[2])
+{
+    if (was && was2) {
+        clockwise[1]  = minmax_clockwise(clockwise[0], c[1], clockwise[1], true);
+        clockwise[0]  = minmax_clockwise(clockwise[1], c[0], clockwise[0], false);
+        cclockwise[0] = minmax_clockwise(cclockwise[1], cc[0], cclockwise[0], true);
+        cclockwise[1] = minmax_clockwise(cclockwise[0], cc[1], cclockwise[1], false);
+        //clockwise[1]  = minmax_clockwise(clockwise[0], c[1], clockwise[1], true);
+        //clockwise[0]  = minmax_clockwise(clockwise[1], c[0], clockwise[0], false);
+    } else if (was2) {
+        clockwise[1]  = c[1];
+        clockwise[0]  = c[0];
+        cclockwise[0] = cc[0];
+        cclockwise[1] = cc[1];
+    }
+    return was || was2;
+}
+
+
+bool Contour::TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]) const
+{
+    if (IsEmpty() || from.IsEmpty()) return false;
+    bool was = first.outline.TangentFrom(from.first.outline, clockwise, cclockwise);
+    XY c[2], cc[2];
+    for (auto i = from.further.begin(); i!=from.further.end(); i++) {
+        const bool was2 = first.outline.TangentFrom(i->outline, c, cc);
+        was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
+    }
+    for (auto j = further.begin(); j!=further.end(); j++) {
+        const bool was2 = j->outline.TangentFrom(from.first.outline, c, cc);
+        was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
+        for (auto i = from.further.begin(); i!=from.further.end(); i++) {
+            const bool was2 = j->outline.TangentFrom(i->outline, c, cc);
+            was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
+        }
+    }
+    return was;
+}
 
 
 } //namespace
