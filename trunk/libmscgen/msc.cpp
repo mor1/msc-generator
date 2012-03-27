@@ -243,7 +243,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), Notes(true), NoteBlockers(false), 
+    Arcs(true), FloatingNotes(true), NoteBlockers(false), 
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -848,7 +848,6 @@ void Msc::PostParseProcess(MscCanvas &canvas)
 
     //Traverse Arc tree and perform post-parse processing
     Numbering number; //starts at a single level from 1
-    last_note_is_on_left = false;
     EIterator dummy1, dummy2;
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
@@ -1111,8 +1110,8 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
     WidthArcList(canvas, Arcs, distances);
-    //add side distances for notes (moved to "Notes" in PostParseProcessArcList())
-    for (auto note = Notes.begin(); note!=Notes.end(); note++) 
+    //add side distances for notes (moved to "FloatingNotes" in PostParseProcessArcList())
+    for (auto note = FloatingNotes.begin(); note!=FloatingNotes.end(); note++) 
         (*note)->Width(canvas, distances);
 
     if (hscale<0) {
@@ -1186,9 +1185,9 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
 }
 
-void Msc::PlaceNotes(MscCanvas &canvas)
+void Msc::PlaceFloatingNotes(MscCanvas &canvas)
 {
-    for (auto note = Notes.begin(); note!=Notes.end(); note++) {
+    for (auto note = FloatingNotes.begin(); note!=FloatingNotes.end(); note++) {
         (*note)->PlaceFloating(canvas);
     }
 }
@@ -1228,11 +1227,11 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
         //So Errors collected so far are OK even after redoing this
     }
 
-    PlaceNotes(canvas);
+    PlaceFloatingNotes(canvas);
 
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs, -1);
-    for (auto i = Notes.begin(); i!=Notes.end(); i++)
+    for (auto i = FloatingNotes.begin(); i!=FloatingNotes.end(); i++)
         (*i)->PostPosProcess(canvas, -1);
     Error.Sort();
 }
@@ -1241,7 +1240,7 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 void Msc::DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass)
 {
     DrawArcList(canvas, Arcs, pass);
-    DrawArcList(canvas, Notes, pass);
+    DrawArcList(canvas, FloatingNotes, pass);
 }
 
 //page is 0 for all, 1..n for individual pages

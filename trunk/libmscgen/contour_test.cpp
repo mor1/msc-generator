@@ -314,6 +314,34 @@ void DrawExpand2D(unsigned i, const Contour &c1, const XY &gap, const char *text
     cairo_stroke(c.cr);
 };
 
+void DrawTangent(unsigned i, const Contour &c1, const Contour &c2, const char *text="")
+{
+    Block b = c1.GetBoundingBox();
+    b += c2.GetBoundingBox();
+    XY C[2], CC[2];
+    bool was = c1.TangentFrom(c2, C, CC);
+    CairoContext c(i, b, text, false);
+    c.Draw(c1, false, 1, 0, 0, true, 0);
+    c.Draw(c2, false, 0, 1, 0, true, 0);
+    if (was) {
+        cairo_set_source_rgb(c.cr, 0,0,0);
+        cairo_move_to(c.cr, C[0].x, C[0].y);
+        cairo_line_to(c.cr, C[1].x, C[1].y);
+        cairo_stroke(c.cr);
+        cairo_arc(c.cr, C[0].x, C[0].y, 5, 0, 2*M_PI);
+        cairo_fill(c.cr);
+        cairo_arc(c.cr, C[1].x, C[1].y, 5, 0, 2*M_PI);
+        cairo_fill(c.cr);
+        cairo_move_to(c.cr, CC[0].x, CC[0].y);
+        cairo_line_to(c.cr, CC[1].x, CC[1].y);
+        cairo_stroke(c.cr);
+        cairo_arc(c.cr, CC[0].x, CC[0].y, 5, 0, 2*M_PI);
+        cairo_stroke(c.cr);
+        cairo_arc(c.cr, CC[1].x, CC[1].y, 5, 0, 2*M_PI);
+        cairo_stroke(c.cr);
+    }
+};
+
 
 
 namespace generated_forms {
@@ -881,6 +909,21 @@ void contour_test_expand2D(unsigned num)
     DrawExpand2D(num++, generated_forms::cooomplex2, XY(30,10));
 }
 
+void contour_test_tangent(unsigned num)
+{
+    generate_forms();
+    DrawTangent(num++, generated_forms::boxhole, generated_forms::boxhole.CreateShifted(XY(50,20)));
+    DrawTangent(num++, generated_forms::boxhole, generated_forms::boxhole.CreateShifted(XY(50,-20)));
+    DrawTangent(num++, generated_forms::boxhole, generated_forms::tri.CreateShifted(XY(150,20)));
+    DrawTangent(num++, generated_forms::boxhole, Contour(XY(150,20), 10, 20, 30));
+    DrawTangent(num++, Contour(XY(10,50), 30, 10, -10), Contour(XY(150,20), 10, 20, 30));
+    DrawTangent(num++, generated_forms::boxhole, Contour(generated_forms::cooomplex2[0]).CreateShifted(XY(50,20)));
+    DrawTangent(num++, generated_forms::boxhole, Contour(generated_forms::cooomplex2[1]).CreateShifted(XY(50,20)));
+    DrawTangent(num++, generated_forms::boxhole, generated_forms::cooomplex2.CreateShifted(XY(50,20)));
+    DrawTangent(num++, generated_forms::cooomplex2, Contour(XY(150,20), 10, 20, 30));
+    DrawTangent(num++, generated_forms::cooomplex2.CreateRotated(10), generated_forms::cooomplex2.CreateShifted(XY(100,20)));
+}
+
 
 void contour_test(void)
 {
@@ -891,7 +934,8 @@ void contour_test(void)
     //contour_test_relations(7000);
     //contour_test_distance(7100);
     //contour_test_cut(7300);
-    contour_test_expand2D(7400);
+    //contour_test_expand2D(7400);
+    contour_test_tangent(7500);
 }
 
 } //namespace

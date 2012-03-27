@@ -495,15 +495,9 @@ double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow
     //Instead we add their area to this->area now
 
     //We go backwards, so that contained entities get calculated first
-    double xpos_all = 0, xpos_showing = 0;
-    double xpos_all_min = MaxVal(xpos_all_min), xpos_all_max = -MaxVal(xpos_all_max);
-    double xpos_sho_min = MaxVal(xpos_sho_min), xpos_sho_max = -MaxVal(xpos_sho_max);
     unsigned num_showing = 0;
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
         const double xpos = chart->XCoord((*(*i)->itr)->pos);
-        xpos_all += xpos;
-        xpos_all_min = std::min(xpos_all_min, xpos - (*i)->Width()/2);
-        xpos_all_max = std::max(xpos_all_max, xpos + (*i)->Width()/2);
         if (!(*i)->draw_heading) {
             if (!reflow) (*i)->AddNoteMapWhenNotShowing();
             continue;
@@ -522,19 +516,8 @@ double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow
         hei += (*i)->Height(entity_cover, edl); 
         cover += GetCover4Compress(entity_cover);
         area += (*i)->GetAreaToSearch();
-        xpos_showing += xpos;
-        xpos_sho_min = std::min(xpos_sho_min, xpos - (*i)->Width()/2);
-        xpos_sho_max = std::max(xpos_sho_max, xpos + (*i)->Width()/2);
+        area_to_note += (*i)->GetAreaToNote();
         num_showing ++;
-    }
-    if (num_showing) {
-        def_note_target[0] = XY(xpos_sho_min, 0);
-        def_note_target[1] = XY(xpos_showing/num_showing, 0);
-        def_note_target[2] = XY(xpos_sho_max, 0);
-    } else {
-        def_note_target[0] = XY(xpos_all_min, 0);
-        def_note_target[1] = XY(xpos_all/entities.size(), 0);
-        def_note_target[2] = XY(xpos_all_max, 0);
     }
     if (!num_showing) 
         return height = 0; //if no headings show
@@ -1220,7 +1203,6 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow
 
     CalculateAreaFromOuterEdge();
     note_map = area;
-    def_note_target[0] = def_note_target[1] = def_note_target[2] = note_map.Centroid();
     if (!reflow) chart->NoteBlockers.Append(this);
     if (style.shadow.offset.second)
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
@@ -1313,10 +1295,10 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
  */
 
 
-CommandNote::CommandNote(Msc*msc, const ExtVertXPos *evxpos, AttributeList *al)
+CommandNote::CommandNote(Msc*msc, const char *pt, file_line_range ptm, AttributeList *al)
     : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]),
-    extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc)),
-    float_dir_x(0), float_dir_y(0), float_dist(0)
+    point_toward(pt ? pt : ""), point_toward_pos(ptm),
+    float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {
     draw_pass = NOTE;
     AddAttributeList(al);
@@ -1335,38 +1317,30 @@ CommandNote::CommandNote(Msc*msc, const ExtVertXPos *evxpos, AttributeList *al)
 
 bool CommandNote::AddAttribute(const Attribute &a)
 {
-    if (a.Is("point_toward")) {
-        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
-        //MSC_ATTR_CLEAR is OK above with value = ""
-        //which will mean chart->NoEntity in "point_toward_iterator"
-        point_toward_iterator = chart->FindAllocEntity(a.value.c_str(), a.linenum_value);
-        return true;
-    }
-    if (a.Is("ypos")) {
+    //we handle note.pos here, making it stronger
+    if (a.EndsWith("pos")) {
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""        
-        ypos_marker = a.value;
-        ypos_marker_linenum = a.linenum_value.start;
-        return true;
-    }
-    if (a.Is("pos")) {
-        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
-        //MSC_ATTR_CLEAR is OK above with value = ""        
-        if (CaseInsensitiveEqual(a.value, "left"))
-            float_dir_x = -1;
-        else if (CaseInsensitiveEqual(a.value, "right"))
-            float_dir_x = +1;
-        else if (CaseInsensitiveEqual(a.value, "up"))
-            float_dir_y = -1;
-        else if (CaseInsensitiveEqual(a.value, "down"))
-            float_dir_y = +1;
-        else if (CaseInsensitiveEqual(a.value, "near"))
-            float_dist = -1;
-        else if (CaseInsensitiveEqual(a.value, "far"))
-            float_dist = +1;
-        else 
-            chart->Error.Error(a, true, "Could not recognize vlaue of 'pos'.", 
-            "Can be one of 'left'/'right'/'up'/'down'/'near'/'far'.");
+        MscNoteAttr::pos_t tmp;
+        if (a.value.length()==0) {
+            //delete even the default orientation
+            float_dir_x = float_dir_y = 0;
+            float_dist.first=false;
+            style.note.def_float_dist.second = style.note.def_float_x.second = 
+                style.note.def_float_y.second = 0; 
+        } else if (Convert(a.value, tmp)) {
+            switch(tmp) {
+            default:
+            case MscNoteAttr::POS_INVALID: _ASSERT(0); break;
+            case MscNoteAttr::POS_NEAR: float_dist.first=true; float_dist.second=-1; break;
+            case MscNoteAttr::POS_FAR:  float_dist.first=true; float_dist.second=+1; break;
+            case MscNoteAttr::LEFT:     float_dir_x=-1; break;
+            case MscNoteAttr::RIGHT:    float_dir_x=+1; break;
+            case MscNoteAttr::UP:       float_dir_y=-1; break;
+            case MscNoteAttr::DOWN:     float_dir_y=+1; break;
+            }
+        } else 
+            a.InvalidValueError(CandidatesFor(tmp), chart->Error);
         return true;
     }
     return ArcLabelled::AddAttribute(a);
@@ -1397,15 +1371,10 @@ ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 {
     if (!valid) return NULL;
     if (label.length()==0) {
-        chart->Error.Error(file_pos.start, "A note must contain text. Ignoring note.", 
+        chart->Error.Error(file_pos.start, "A note must contain a label. Ignoring note.", 
             "Try adding a 'label' attribute or text after a colon (':').");
         valid = false;
         return NULL;
-    }
-    //if user specified 
-    if (style.note.layout.second == MscNoteAttr::LEFTRIGHT) {
-        style.note.layout.second = chart->last_note_is_on_left ? MscNoteAttr::RIGHT : MscNoteAttr::LEFT;
-        chart->last_note_is_on_left ^= true;
     }
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
     //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
@@ -1428,9 +1397,9 @@ void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     //ArcCommand::Width(canvas, distances); We may not have notes
     //Here we only make space if the note is on the side
     const double w = parsed_label.getTextWidthHeight().x;
-    if (style.note.layout.second == MscNoteAttr::LEFT)
+    if (style.note.layout.second == MscNoteAttr::LEFTSIDE)
         distances.Insert(chart->LNote->index, chart->LSide->index, w);
-    else if (style.note.layout.second == MscNoteAttr::RIGHT)
+    else if (style.note.layout.second == MscNoteAttr::RIGHTSIDE)
         distances.Insert(chart->RSide->index, chart->RNote->index, w);
 }
 
@@ -1491,91 +1460,86 @@ Contour CommandNote::GetRegion(const Contour &region_belt, int dir_x, int dir_y,
     return region;
 }
 
+
+Contour CommandNote::GetPointerTarget() const
+{
+    if (point_toward.length()==0) return target->GetAreaToNote();
+    auto ei = chart->AllEntities.Find_by_Name(point_toward);
+    auto mi = chart->Markers.find(point_toward);
+    if (ei== chart->AllEntities.end() && mi== chart->Markers.end()) {
+        chart->Error.Error(point_toward_pos.start, "'" + point_toward + "' is neither an entity neither a marker. Ignoring it.");
+        return Contour();
+    }
+    const double gap = 0.1;
+    if (ei != chart->AllEntities.end()) {
+        if (mi != chart->Markers.end()) {
+            chart->Error.Warning(point_toward_pos.start, "You have specified both an entity and a marker with the name '" + point_toward + "'. I use the entity here.");
+            chart->Error.Warning((*ei)->file_pos, point_toward_pos.start, "Place of the entity definition.");
+            chart->Error.Warning(mi->second.first, point_toward_pos.start, "Place of the marker definition.");
+        }
+        const double x = chart->XCoord((*ei)->pos);
+        const Contour ret = target->GetAreaToNote() * Contour(x-gap, x+gap, 0, chart->total.y);
+        if (ret.IsEmpty()) {
+            chart->Error.Error(point_toward_pos.start, "Entity '" + point_toward + "' is not above the target of the note. Ignoring the 'at' clause.");
+            chart->Error.Error(target->file_pos.start, point_toward_pos.start, "This is the target of the note.");
+        }
+        return ret;
+    } 
+    //now we must have a valid marker in "mi"
+    const double y = mi->second.second;
+    const Contour ret = target->GetAreaToNote() * Contour(0, chart->total.x, y-gap, y+gap);
+    if (ret.IsEmpty()) {
+        chart->Error.Error(point_toward_pos.start, "Marker '" + point_toward + "' is not level with the target of the note. Ignoring the 'at' clause.");
+        chart->Error.Error(target->file_pos.start, point_toward_pos.start, "This is the target of the note.");
+        chart->Error.Error(mi->second.first, point_toward_pos.start, "Place of the marker definition.");
+    }
+    return ret;
+}
+
 template<typename T> int sign(T a) {return a>0 ? +1 : a==0 ? 0 : -1;}
 
-void CommandNote::PlaceFloating(MscCanvas &canvas)
+//This struct holds a score
+struct score_t {
+    double a, b, c;
+    score_t() {}
+    score_t(double aa, double bb = 0, double cc = 0) : a(aa), b(bb), c(cc) {}
+    score_t & operator +=(const score_t &o) {a+=o.a; b+=o.b; c+=o.c; return *this;}
+    score_t operator *(double m) const {return score_t(a*m, b*m, c*m);}
+    //bool operator <(const score_t &o) const {return a<o.a? true : a==o.a? b<o.b ? true : b==o.b ? c<o.c : false : false;}
+    bool operator <(const score_t &o) const {return a*100+b*10+c<o.a*100+o.b*10+o.c;}
+};
+
+//These are added to the region_blocks[].score.a or .b, can be any value
+const double dist_award_match = 0;
+const double dist_penalty_mul = -10;
+const double corner_award_match = +15;
+const double corner_award_neighbour_side = +5;
+const double corner_penalty_neighbour_corner = -15;
+const double corner_penalty_other_side = -20;
+const double corner_penalty_opposite = -30;
+const double side_award_match = +15;
+const double side_award_neighbour = +10;
+const double side_penalty_neighbour_side = -5;
+const double side_penalty_other_corner = -20;
+const double side_penalty_opposite = -30;
+//the below penalties are calculated after placement, must be negative
+//so that we can detect when the score cannot improve any better and bail out
+const score_t penalty_body_cover_something(0, -10);
+const score_t penalty_body_cover_something_mul(0, -10); //multiplies a [0..1] value (percent of the comment covering)
+const score_t penalty_body_cover_imp(0, -50);
+const score_t penalty_body_cover_imp_mul(0, -50); //multiplies a [0..1] value (percent of the comment covering)
+const score_t penalty_for_pointer_angle_mul(0, -0.1); //multiplies a [0..90] value
+const score_t penalty_for_pointer_length_mul(0, -10); //multiplies [0..] value: (dist/ideal_dist - 1)
+
+const double worst_value = -MaxVal(worst_value);
+const score_t worst_point(worst_value, worst_value, worst_value);
+const score_t neutral_point(0,0,0);
+
+double ScoreRegion(const std::pair<bool, int> &wanted_dist,
+                   int wanted_x, int wanted_y,
+                   int dist, int x, int y)
 {
-    const unsigned region_distances = 3;
-    static const unsigned distances_search_order[region_distances] = {1, 0, 2};
-    const static double region_distance_sizes[region_distances+1] = {0, 10, 30, 100};
 
-    //Do a shorter alias
-    const unsigned RD = region_distances;
-    //Normalize attributes
-    if (abs(float_dist) > RD/2)
-        float_dist = float_dist>0 ? RD/2 : -int(RD/2);
-    float_dir_x = std::max(-1, std::min(+1, float_dir_x));
-    float_dir_y = std::max(-1, std::min(+1, float_dir_y));
-
-    //This struct holds a score
-    struct score_t {
-        double a, b, c;
-        score_t() {}
-        score_t(double aa, double bb = 0, double cc = 0) : a(aa), b(bb), c(cc) {}
-        score_t & operator +=(const score_t &o) {a+=o.a; b+=o.b; c+=o.c; return *this;}
-        score_t operator *(double m) const {return score_t(a*m, b*m, c*m);}
-        //bool operator <(const score_t &o) const {return a<o.a? true : a==o.a? b<o.b ? true : b==o.b ? c<o.c : false : false;}
-        bool operator <(const score_t &o) const {return a*100+b*10+c<o.a*100+o.b*10+o.c;}
-    };
-    //This struct holds the searching pattern.
-    //x_pos is +2 at the right edge of the box searching, +1 in the right third
-    //+ in the middle third, -1 in the left third and -2 along the left edge.
-    //"dist" can be between [0..region_distances)
-    struct region_block_t {
-        int x;
-        int y;
-        int dist;
-        score_t score;
-        int map;
-        bool operator <(const region_block_t &o) const {return score>o.score;} //HIGHER score first
-    } region_blocks[24*region_distances] = {{+1,-2}, {+2,-1}, {0,-2}, {-1,-2},
-                                            {-2,+1}, {+1,+2}, {0,+2}, {+2,+1},
-                                            {-2,-1}, {-1,+2}, {-2,0}, {+2, 0}};
-    //add tie-breaking scores
-    for (unsigned u=0; u<12; u++) {
-        region_blocks[u].score.a = 0;
-        region_blocks[u].score.b = 0;
-        region_blocks[u].score.c= 12-u;
-    }
-    //Now we copy the above directional patterns as many times as many distances there are
-    for (unsigned u=1; u<region_distances; u++)
-        for (unsigned v=0; v<12; v++)
-            region_blocks[u*12+v] = region_blocks[v];
-
-    //These are added to the region_blocks[].score, can be any value
-    const score_t def_dist_penalty_mul(0,-1);
-    const score_t dist_award_match(0);
-    const score_t dist_penalty_mul(-10);
-    const score_t corner_award_match(+15);
-    const score_t corner_award_neighbour_side(+5);
-    const score_t corner_penalty_neighbour_corner(-15);
-    const score_t corner_penalty_other_side(-20);
-    const score_t corner_penalty_opposite(-30);
-    const score_t side_award_match(+15);
-    const score_t side_award_neighbour(+10);
-    const score_t side_penalty_neighbour_side(-5);
-    const score_t side_penalty_other_corner(-20);
-    const score_t side_penalty_opposite(-30);
-    //the below penalties are calculated after placement, must be negative
-    const score_t penalty_body_cover_something(0, -10);
-    const score_t penalty_body_cover_something_mul(0, -10); //multiplies a [0..1] value (percent of the comment covering)
-    const score_t penalty_body_cover_imp(0, -50);
-    const score_t penalty_body_cover_imp_mul(0, -50); //multiplies a [0..1] value (percent of the comment covering)
-    const score_t penalty_for_pointer_angle_mul(0, -0.1); //multiplies a [0..90] value
-    const score_t penalty_for_pointer_length_mul(0, -10); //multiplies [0..] value: (dist/ideal_dist - 1)
-
-    const double worst_value = -MaxVal(worst_value);
-    const score_t worst_point(worst_value, worst_value, worst_value);
-    const score_t neutral_point(0,0,0);
-
-    //We apply a small default penalty to too close or too far distances
-    for (unsigned u=0; u<region_distances; u++)
-        for (unsigned v=0; v<12; v++) {
-            region_blocks[u*12+v].dist = distances_search_order[u];
-            region_blocks[u*12+v].score += def_dist_penalty_mul*u;
-        }
-
-    //now we score these according to the note's attributes.
     //if distance is specified and matches, we award +10 points,
     //    if does not match we penalize diff*5 points
     //if two directions specified, we award 15 points to the corner
@@ -1601,59 +1565,108 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //    SPOC|            | SPOC
     //        +--  ----  --+
     //        SPO  SPO   SPO
+    double score = 0;
+    if (wanted_dist.first) {   //0 = not specified, -1:near, +1 far, -2, +2...
+        if (dist == wanted_dist.second)
+            score += dist_award_match;
+        else
+            score +=
+                dist_penalty_mul * abs(dist - wanted_dist.second);
+    }
+    if (wanted_x==0 && wanted_y!=0) {
+        if (x == 0 && y == 2*wanted_y)
+            score += side_award_match;
+        else if (y == 2*wanted_y)
+            score += side_award_neighbour;
+        else if (y == wanted_y || y==0)
+            score += side_penalty_neighbour_side;
+        else if (y == -wanted_y)
+            score += side_penalty_other_corner;
+        else
+            score += side_penalty_opposite;
+    } else if (wanted_x!=0 && wanted_y==0) {
+        if (y == 0 && x == 2*wanted_x)
+            score += side_award_match;
+        else if (x == 2*wanted_x)
+            score += side_award_neighbour;
+        else if (x == wanted_x || x==0)
+            score += side_penalty_neighbour_side;
+        else if (x == -wanted_x)
+            score += side_penalty_other_corner;
+        else
+            score += side_penalty_opposite;
+    } else if (wanted_x!=0 && wanted_y!=0) {
+        if (sign(wanted_x) == sign(x) &&
+            sign(wanted_y) == sign(y))
+            score += corner_award_match;
+        else if (sign(wanted_x) == sign(x))
+            score += y ? corner_penalty_neighbour_corner : corner_award_neighbour_side;
+        else if (sign(wanted_y) == sign(y))
+            score += x ? corner_penalty_neighbour_corner : corner_award_neighbour_side;
+        else if (x == 0 || y == 0)
+            score += corner_penalty_other_side;
+        else
+            score += corner_penalty_opposite;
+    }
+    return score;
+}
 
-    if (float_dist) {   //0 = not specified, -1:near, +1 far, -2, +2...
-        //normalize to the distances we have implemented
-        const int fdist = float_dist + RD/2; //so that we have values [0..region_distances)
-        for (unsigned u=0; u<RD; u++)
-            for (unsigned v=0; v<12; v++)
-                if (region_blocks[u*12+v].dist == fdist)
-                    region_blocks[u*12+v].score += dist_award_match;
-                else
-                    region_blocks[u*12+v].score +=
-                        dist_penalty_mul * abs(region_blocks[u*12+v].dist - fdist);
+void CommandNote::PlaceFloating(MscCanvas &canvas)
+{
+    const unsigned region_distances = 3;
+    static const unsigned distances_search_order[region_distances] = {1, 0, 2};
+    const static double region_distance_sizes[region_distances+1] = {0, 10, 30, 100};
+
+    //Do a shorter alias
+    const unsigned RD = region_distances;
+    //Normalize attributes
+    if (abs(float_dist.second) > RD/2)
+        float_dist.second = float_dist.second>0 ? RD/2 : -int(RD/2);
+    float_dir_x = std::max(-1, std::min(+1, float_dir_x));
+    float_dir_y = std::max(-1, std::min(+1, float_dir_y));
+
+    //This struct holds the searching pattern.
+    //x_pos is +2 at the right edge of the box searching, +1 in the right third
+    //+ in the middle third, -1 in the left third and -2 along the left edge.
+    //"dist" can be between [0..region_distances)
+    struct region_block_t {
+        int x;
+        int y;
+        int dist;
+        score_t score;
+        int map;
+        bool operator <(const region_block_t &o) const {return score>o.score;} //HIGHER score first
+    } region_blocks[24*region_distances] = {{+1,-2}, {+2,-1}, {0,-2}, {-1,-2},
+                                            {-2,+1}, {+1,+2}, {0,+2}, {+2,+1},
+                                            {-2,-1}, {-1,+2}, {-2,0}, {+2, 0}};
+    //add tie-breaking scores
+    for (unsigned u=0; u<12; u++) {
+        region_blocks[u].score.a = 0;
+        region_blocks[u].score.b = 0;
+        region_blocks[u].score.c= 12-u;
+        region_blocks[u].dist = distances_search_order[0];
     }
-    if (float_dir_x==0 && float_dir_y!=0) {
-        for (unsigned u=0; u<RD; u++)
-            for (unsigned v=0; v<12; v++)
-                if (region_blocks[u*12+v].x == 0 && region_blocks[u*12+v].y == 2*float_dir_y)
-                    region_blocks[u*12+v].score += side_award_match;
-                else if (region_blocks[u*12+v].y == 2*float_dir_y)
-                    region_blocks[u*12+v].score += side_award_neighbour;
-                else if (region_blocks[u*12+v].y == float_dir_y || region_blocks[u*12+v].y==0)
-                    region_blocks[u*12+v].score += side_penalty_neighbour_side;
-                else if (region_blocks[u*12+v].y == -float_dir_y)
-                    region_blocks[u*12+v].score += side_penalty_other_corner;
-                else
-                    region_blocks[u*12+v].score += side_penalty_opposite;
-    } else if (float_dir_x!=0 && float_dir_y==0) {
-        for (unsigned u=0; u<RD; u++)
-            for (unsigned v=0; v<12; v++)
-                if (region_blocks[u*12+v].y == 0 && region_blocks[u*12+v].x == 2*float_dir_x)
-                    region_blocks[u*12+v].score += side_award_match;
-                else if (region_blocks[u*12+v].x == 2*float_dir_x)
-                    region_blocks[u*12+v].score += side_award_neighbour;
-                else if (region_blocks[u*12+v].x == float_dir_x || region_blocks[u*12+v].x==0)
-                    region_blocks[u*12+v].score += side_penalty_neighbour_side;
-                else if (region_blocks[u*12+v].x == -float_dir_x)
-                    region_blocks[u*12+v].score += side_penalty_other_corner;
-                else
-                    region_blocks[u*12+v].score += side_penalty_opposite;
-    } else if (float_dir_x!=0 && float_dir_y!=0) {
-        for (unsigned u=0; u<RD; u++)
-            for (unsigned v=0; v<12; v++)
-                if (sign(float_dir_x) == sign(region_blocks[u*12+v].x) &&
-                    sign(float_dir_y) == sign(region_blocks[u*12+v].y))
-                    region_blocks[u*12+v].score += corner_award_match;
-                else if (sign(float_dir_x) == sign(region_blocks[u*12+v].x))
-                    region_blocks[u*12+v].score += region_blocks[u*12+v].y ? corner_penalty_neighbour_corner : corner_award_neighbour_side;
-                else if (sign(float_dir_y) == sign(region_blocks[u*12+v].y))
-                    region_blocks[u*12+v].score += region_blocks[u*12+v].x ? corner_penalty_neighbour_corner : corner_award_neighbour_side;
-                else if (region_blocks[u*12+v].x == 0 || region_blocks[u*12+v].y == 0)
-                    region_blocks[u*12+v].score += corner_penalty_other_side;
-                else
-                    region_blocks[u*12+v].score += corner_penalty_opposite;
-    }
+    //Now we copy the above directional patterns as many times as many distances there are
+    for (unsigned u=1; u<region_distances; u++)
+        for (unsigned v=0; v<12; v++) {
+            region_blocks[u*12+v] = region_blocks[v];
+            region_blocks[u*12+v].dist = distances_search_order[u];
+        }
+
+    //now we score these according to the note's attributes.
+    for (unsigned u=0; u<RD; u++)
+        for (unsigned v=0; v<12; v++) {
+            region_block_t &RB = region_blocks[u*12+v];
+            //score hard user preferences
+            RB.score.a += ScoreRegion(float_dist, float_dir_x, float_dir_y,
+                                      RB.dist - RD/2, RB.x, RB.y); //distance is normalized back to -1..+1
+            //score softer default preferences
+            RB.score.b += ScoreRegion(style.note.def_float_dist,
+                                      style.note.def_float_x.second,
+                                      style.note.def_float_y.second,
+                                      RB.dist - RD/2, RB.x, RB.y)/10; //distance is normalized back to -1..+1
+        }
+
     //OK, now sort according to score
     std::sort(region_blocks, region_blocks+RD*24);
 
@@ -1669,9 +1682,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //Create the region belts
     const double default_expand_size = 5;
     Contour region_belts[region_distances];
-    Contour cont_target_if_empty = Block(target->GetDefNodeTarget()[0], target->GetDefNodeTarget()[2]).Expand(default_expand_size);
-    const Contour &contour_target_to_use = target->GetAreaToDraw().IsEmpty() ? cont_target_if_empty : target->GetAreaToDraw();
-    const Contour target_2D_expanded = contour_target_to_use.CreateExpand2D(halfsize);
+    const Contour contour_target = GetPointerTarget(); //can only be called once
+    const Contour target_2D_expanded = contour_target.CreateExpand2D(halfsize);
     Contour prev = target_2D_expanded.CreateExpand(region_distance_sizes[region_distances], EXPAND_MITER, EXPAND_MITER);
     for (int i = region_distances-1; i>=0; i--) {
         Contour next = target_2D_expanded.CreateExpand(region_distance_sizes[i], EXPAND_MITER, EXPAND_MITER);
@@ -1696,7 +1708,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //"map_pointer_imp" is also inverse, it just contains the important parts
     //  even the arrow should avoid it.
     const Block total(halfsize, chart->total-halfsize);
-    const Block AOI = contour_target_to_use.GetBoundingBox().CreateExpand(region_distance_sizes[RD]).Expand2D(halfsize);
+    const Block AOI = contour_target.GetBoundingBox().CreateExpand(region_distance_sizes[RD]).Expand2D(halfsize);
 
     Contour map_all(total), map_imp(total);
     Contour pointer_map_all, pointer_map_imp;
@@ -1745,24 +1757,15 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         //Ok, a note can be placed in this region.
         //Now find a suitable position inside the region and a
         //suitable end for the arrow that lies on the line between
-        //target->GetDefNodeTarget()[0] and [2]
-        XY clockwise1, cclockwise1;
-        XY clockwise2, cclockwise2;
-        const XY &t_from = target->GetDefNodeTarget()[0];
-        const XY &t_till = target->GetDefNodeTarget()[2];
-        const Edge t_line(t_from, t_till);
-        if (!region.TangentFrom(t_from, clockwise1, cclockwise1) ||
-            !region.TangentFrom(t_till, clockwise2, cclockwise2)) {
-            _ASSERT(0);
-        }
         //"arrowspace" contains all the possible space the arrow can go through
-        const Contour arrowspace = Contour(t_from, cclockwise1, clockwise2) +
-                                   Contour(t_from, clockwise2, t_till) +
-                                   Contour(t_from, clockwise1, cclockwise2) +
-                                   Contour(t_from, cclockwise2, t_till);
-        //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
-        //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
-        //chart->DebugContours.push_back(Msc::ContourAttr(pointer_map_imp, MscFillAttr(MscColorType(255,128,255))));
+        XY c[2], cc[2];
+        if (!region.TangentFrom(contour_target, c, cc)) continue;
+        const Contour arrowspace = (region + contour_target +
+            Contour(cc[0], cc[1], c[1]) + Contour(c[1], c[0], cc[0])).ClearHoles();
+
+        chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
+        chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
+        chart->DebugContours.push_back(Msc::ContourAttr(pointer_map_imp, MscFillAttr(MscColorType(255,128,255))));
 
         //From here we try to place both the body inside 'region' and its pointer
         //simultaneously. We go by angle. The arrow of a note should preferably be
@@ -1787,38 +1790,19 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
             const double ca = cos(angle);
             const double deg_ang = angle*180/M_PI;
             const XY ideal_center_rot = XY(ideal_center).Rotate(ca, sa);
-            const XY t_from_rot = XY(t_from).Rotate(ca, sa);
-            const XY t_till_rot = XY(t_till).Rotate(ca, sa);
-            Range range(t_from_rot.x, t_till_rot.x);
-            if (range.from > range.till)
-                std::swap(range.from, range.till);
+            const Contour contour_target_rot = contour_target.CreateRotated(deg_ang);
             const Contour region_rot = region.CreateRotated(deg_ang);
-            if (!range.Overlaps(region_rot.GetBoundingBox().x)) continue;
+            if (!contour_target_rot.GetBoundingBox().x.Overlaps(region_rot.GetBoundingBox().x)) continue;
             //if there is an overlap, we may find a good placement else go to next angle
-            //region_rot may not be contiguous
+            //region_rot or contour_target_rot may not be contiguous
             //Calculate the x ranges of region where we can place the arrow
-            //if the target line is now parallel with the arrow, skip region calc.
-            //as we can only place an arrow onto the target line. Just test if tline
-            //is inside the region.
-            DoubleMap<bool> region_ranges(false);
-            if (contour::test_equal(t_from_rot.x, t_till_rot.x)) {
-                bool success = false;
-                for (unsigned ru = 0; ru<region_rot.size(); ru++) {
-                    const Range &r = region_rot[ru].GetBoundingBox().x;
-                    if (contour::test_smaller(t_from_rot.x, r.from) ||
-                        contour::test_smaller(r.till, t_from_rot.x)) continue;
-                    success = true;
-                    break;
-                }
-                if (!success) continue; //no part of region is on the target line
-            } else {
-                //Add the rotated region's pieces to the region ranges
-                for (unsigned ru = 0; ru<region_rot.size(); ru++)
-                    region_ranges.Set(region_rot[ru].GetBoundingBox().x, true);
-                //kill anything otside the target line's projection.
-                region_ranges.Set(Range(-CONTOUR_INFINITY, range.from), false);
-                region_ranges.Set(Range(range.till, CONTOUR_INFINITY), false);
-            }
+            DoubleMap<int> region_ranges(0);
+            //Add the rotated region's pieces to the region ranges
+            for (unsigned ru = 0; ru<region_rot.size(); ru++)
+                region_ranges.Set(region_rot[ru].GetBoundingBox().x, 1);
+            for (unsigned ctu = 0; ctu<contour_target_rot.size(); ctu++)
+                region_ranges.Add(contour_target_rot[ctu].GetBoundingBox().x, 1);
+            //OK, we are interested in where the value equals "2" (both cover)
             //Now try to find a place first avoiding all visible blockers,
             //then only the important ones
             XY pointto_rot;
@@ -1826,68 +1810,49 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 //rotate the map, which contains the blocking contours
                 const Contour blockers = (bl==0 ? pointer_map_all : pointer_map_imp)*arrowspace;
                 const Contour blockers_rot = blockers.CreateRotated(deg_ang);
-                //if we have a vertical rotated target line, just test if the tline is blocked
-                if (contour::test_equal(t_from_rot.x, t_till_rot.x)) {
-                    bool success2 = true;
-                    for (unsigned u = 0; u<blockers_rot.size(); u++) {
-                        const Range &r = blockers_rot[u].GetBoundingBox().x;
-                        if (contour::test_smaller(t_from_rot.x, r.from) ||
-                            contour::test_smaller(r.till, t_from_rot.x)) continue;
-                        success2 = false;
-                        break;
+                DoubleMap<int> canplacehere(0);
+                //On first iteration we copy, else we move
+                if (bl==0) canplacehere = region_ranges;
+                else canplacehere = std::move(region_ranges);
+                //take each independent contour and substract their x extent
+                //from the places to consider
+                for (unsigned u = 0; u<blockers_rot.size(); u++) 
+                    canplacehere.Set(blockers_rot[u].GetBoundingBox().x, 0);
+                //Now pick the range that is widest
+                Range candidate_range(0,0); //width of 0
+                double pos = -CONTOUR_INFINITY;
+                do {
+                    double next_set = canplacehere.Till(pos);
+                    while (*canplacehere.Get(next_set)<2 && next_set < CONTOUR_INFINITY)
+                        next_set = canplacehere.Till(next_set);
+                    if (next_set == CONTOUR_INFINITY) break;
+                    pos = canplacehere.Till(next_set);
+                    while (*canplacehere.Get(pos)==2 && pos < CONTOUR_INFINITY)
+                        pos = canplacehere.Till(pos);
+                    if (pos == CONTOUR_INFINITY) break;
+                    _ASSERT(*canplacehere.Get(next_set) == 2 && *canplacehere.Get(pos) < 2);
+                    if (pos-next_set > candidate_range.Spans()) {
+                        candidate_range.from = next_set;
+                        candidate_range.till = pos;
                     }
-                    if (!success2) continue; //we are blocked
-                    if (ideal_center_rot.DistanceSqr(t_from_rot) >
-                        ideal_center_rot.DistanceSqr(t_till_rot))
-                        pointto_rot = t_till_rot;
+                } while (pos < CONTOUR_INFINITY);
+                if (candidate_range.Spans()==0) continue; //not found any
+                if (candidate_range.Spans() < pointer_width_max)
+                    pointto_rot.x = candidate_range.MidPoint();
+                else {
+                    candidate_range.Expand(-pointer_width_max/2);
+                    if (ideal_center_rot.x<candidate_range.from)
+                        pointto_rot.x = candidate_range.from;
+                    else if (ideal_center_rot.x>candidate_range.till)
+                        pointto_rot.x = candidate_range.till;
                     else
-                        pointto_rot = t_from_rot;
-                } else {
-                    DoubleMap<bool> canplacehere(false);
-                    //On first iteration we copy, else we move
-                    if (bl==0) canplacehere = region_ranges;
-                    else canplacehere = std::move(region_ranges);
-                    //take each independent contour and substract their x extent
-                    //from the places to consider
-                    for (unsigned u = 0; u<blockers_rot.size(); u++) {
-                        canplacehere.Set(blockers_rot[u].GetBoundingBox().x, false);
-                        if (canplacehere.Till(range.from-1) > range.till) break; //all cancelled
-                    }
-                    //Now pick the range that is widest
-                    Range candidate_range(0,0); //width of 0
-                    double pos = range.from-1;
-                    do {
-                        double next_set = canplacehere.Till(pos);
-                        while (*canplacehere.Get(next_set)==false && next_set <= range.till)
-                            next_set = canplacehere.Till(next_set);
-                        if (next_set > range.till) break;
-                        pos = canplacehere.Till(next_set);
-                        while (*canplacehere.Get(pos)==true && pos <= range.till)
-                            pos = canplacehere.Till(pos);
-                        _ASSERT(*canplacehere.Get(next_set) == true && *canplacehere.Get(pos) == false);
-                        if (pos-next_set > candidate_range.Spans()) {
-                            candidate_range.from = next_set;
-                            candidate_range.till = pos;
-                        }
-                    } while (pos < range.till);
-                    if (candidate_range.Spans()==0) continue; //not found any
-                    if (candidate_range.Spans() < pointer_width_max)
-                        pointto_rot.x = candidate_range.MidPoint();
-                    else {
-                        candidate_range.Expand(-pointer_width_max/2);
-                        if (ideal_center_rot.x<candidate_range.from)
-                            pointto_rot.x = candidate_range.from;
-                        else if (ideal_center_rot.x>candidate_range.till)
-                            pointto_rot.x = candidate_range.till;
-                        else
-                            pointto_rot.x = ideal_center_rot.x;
-                    }
-                    //OK, pointto_rot.x is now set. Find pointto_rot.y to be
-                    //on the rotated target_line
-                    pointto_rot.y = t_from_rot.y + (pointto_rot.x - t_from_rot.x) *
-                        (t_till_rot.y - t_from_rot.y) / (t_till_rot.x - t_from_rot.x);
-
-                }  // else: tline not horizontal
+                        pointto_rot.x = ideal_center_rot.x;
+                }
+                //OK, pointto_rot.x is now set. Find pointto_rot.y to be
+                //on the rotated target_line
+                const Range &y = contour_target_rot.GetBoundingBox().y;
+                const double r = contour_target_rot.Cut(XY(pointto_rot.x, y.from), XY(pointto_rot.x, y.till)).from;
+                pointto_rot.y = y.from + (y.till-y.from)*r;
 
                 //Now we have a pointto_rot, find our corresponding center_rot
                 //(on the same x coordinate, but somewhere inside region_rot, as close to ideal as we can)
@@ -1933,13 +1898,10 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 cover_penalty += penalty_body_cover_imp_mul * cov_imp_ratio;
             }
             //penalize if arrow is simply too long
-            if (!t_from.test_equal(t_till)) {
-                XY ideal_pointto;
-                Edge tline(t_from, t_till);
-                const double dist = center.Distance(pointto);
-                const double ideal_dist = tline.Distance(center, ideal_pointto);
-                cover_penalty += penalty_for_pointer_length_mul * (dist/ideal_dist - 1);
-            }
+            XY tmp;
+            const double ideal_dist = contour_target.Distance(center, tmp);
+            const double dist = pointto.Distance(center);
+            cover_penalty += penalty_for_pointer_length_mul * (dist/ideal_dist - 1);
             //penalize if we deviate from the ideal angle requested by the user
             if (angle_step>10./180*M_PI)
                 angle_penalty = penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step);

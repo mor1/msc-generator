@@ -295,11 +295,8 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (f_note && 
-           (CaseInsensitiveEqual(attr, "layout") || 
-            CaseInsensitiveEqual(attr, "shape") || 
-            CaseInsensitiveEqual(attr, "point_to"))) 
-            return note.AttributeValues(attr, csh);
+    if (f_note && CaseInsensitiveBeginsWith(attr, "note"))
+        return note.AttributeValues(attr, csh);
     return false;
 
 }

@@ -177,13 +177,11 @@ public:
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
-    CommandNoteList               Notes;        /** all notes after PostParseProcess */
-    PtrList<const TrackableElement> NoteBlockers; /** Ptr to all elements that may block a floating note*/
+    CommandNoteList               FloatingNotes;    /** all floating notes after PostParseProcess */
+    PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
+    ArcBase                      *last_notable_arc; //during parse: last arc inserted (the one notes attach to) or NULL if none
     
     std::list<ContourAttr>        DebugContours;
-
-    ArcBase                      *last_notable_arc;     //during parse: last arc inserted (the one notes attach to) or NULL if none
-    bool                          last_note_is_on_left; //during post-parse: was th last non-float note on the left side
 
     XY     total;                //Total size of the chart (minus copyright)
     double copyrightTextHeight;  //Y size of the copyright text calculated
@@ -263,7 +261,7 @@ public:
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(MscCanvas &canvas);
     template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
-    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(Notes, canvas);}
+    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(FloatingNotes, canvas);}
 
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 
@@ -278,7 +276,7 @@ public:
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(MscCanvas &canvas);
-    void PlaceNotes(MscCanvas &canvas);
+    void PlaceFloatingNotes(MscCanvas &canvas);
 
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}

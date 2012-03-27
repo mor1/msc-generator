@@ -63,7 +63,8 @@
           An arc can also become hidden due to collapsed entities - this was determined in #4c above. If 
           the arc becomes hidden, it can get replaced to an ArcIndicator if the entity in question has its
           "indicator" in "running_style" set. Else we just retuen NULL.
-       i) If the node is kept, we move its notes to "Msc::Notes" 
+       i) If the node is kept, we move its floating notes to "Msc::FloatingNotes" via "MoveNotesToChart"
+          called from "Msc::PostParseProcessArcList".
        This function can only be called once, as it changes arcs (e.g., you do not want to
        increment numbering twice). Often the arc needs to be changed to a different one, in this case the
        return pointer shall be used. If the return pointer == this, the arc shall not be replaced.
@@ -75,7 +76,7 @@
        If hcale!=auto, entities have fixed positions, but this function is still called (so as it can be used
        to calculate cached values).
 
-    <here we calculate the Entity::pos for all entities in ActiveEntities>
+    <here we calculate the Entity::pos for all entities in ActiveEntities in Msc::CalculateWidthHeight>
 
     7. Height: This is a key function, returning the vertical space an element(/arc) occupies. It also places
        the contour of the element in its "cover" parameter. The former (height) is used when compress is off and
@@ -101,12 +102,15 @@
        notes have been placed. Elements containing ArcLists must prepare that the height of those
        will change. The task is otherwise the same as for Height(): fill in internal values,
        return height and cover. Before calling reflow, the element have been ShiftBy'ed back to 0.
-    9. PostPosProcess: Called after the last call to ShiftBy. Here entity lines are hidden behind text and
-       warnings/errors are generated which require vertical position to decide. No error messages can be printed
-       after this function.
-   10. Draw: This function actually draws the chart to the Msc pointed by its "chart" member (initialized in the
-       constructor). This function can rely cached values in the elements. It can be called several times and
-       should not change state of the element including the cached values.
+    
+    <here we place floating notes in Msc::PlaceFloatingNotes>
+
+    9. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
+       Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
+       to decide. No error messages can be printed after this function.
+   10. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely cached 
+       values in the elements. It can be called several times and should not change state of the element 
+       including the cached values.
    11. Destructor.
 
        All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
@@ -355,9 +359,6 @@ double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area.mainline = Block(0,chart->total.x, b.y.from, b.y.till);
     note_map = b;
     if (!reflow) chart->NoteBlockers.Append(this);
-    def_note_target[0] = XY(b.x.from, b.y.MidPoint());
-    def_note_target[1] = b.Centroid();
-    def_note_target[2] = XY(b.x.till, b.y.MidPoint());
     height = b.y.till + chart->emphVGapOutside;
     //TODO add shadow to cover
     cover = GetCover4Compress(area);
@@ -805,9 +806,6 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         point.y-chart->compressGap/2, point.y+chart->compressGap/2);
     else
         note_map += style.arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.line, style.line);
-    def_note_target[0] = XY(arrow_box.x.from, arrow_box.y.MidPoint());
-    def_note_target[1] = arrow_box.Centroid();
-    def_note_target[2] = XY(arrow_box.x.from, arrow_box.y.MidPoint());
     if (!reflow) chart->NoteBlockers.Append(this);
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
     cover = GetCover4Compress(area);
@@ -1225,9 +1223,6 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         y += aH;
     }
     centerline = y = ceil(y) + lw_max/2;
-    def_note_target[0] = XY(sx, centerline);
-    def_note_target[1] = XY((sx+dx)/2, centerline);
-    def_note_target[2] = XY(dx, centerline);
     //Note: When the angle is slanted, we rotate the space around "sx, centerline+yPos"
 
     //prepare xPos and margins
@@ -1629,9 +1624,6 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //set sx and dx
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
-    def_note_target[0] = XY(sx, centerline);
-    def_note_target[1] = XY((sx+dx)/2, centerline);
-    def_note_target[2] = XY(dx, centerline);
     //convert dx to transformed space
     if (slant_angle)
         dx = sx + (dx-sx)/cos_slant;
@@ -2695,10 +2687,6 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         else 
             (*i)->note_map = (*i)->text_cover;
         if (!reflow) chart->NoteBlockers.Append(*i);
-        (*i)->def_note_target[1] = (*i)->note_map.Centroid();
-        (*i)->def_note_target[0].x = (*i)->note_map.GetBoundingBox().x.from;
-        (*i)->def_note_target[2].x = (*i)->note_map.GetBoundingBox().x.from;
-        (*i)->def_note_target[2].y = (*i)->def_note_target[0].y = (*i)->def_note_target[1].y;
     }
     const double &offset = main_style.shadow.offset.second;
     if (offset)
@@ -3484,10 +3472,6 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         (*i)->note_map += forw_end;
         (*i)->note_map += back_end;
         if (!reflow) chart->NoteBlockers.Append(*i);
-        (*i)->def_note_target[1] = (*i)->note_map.Centroid();
-        (*i)->def_note_target[0].x = (*i)->note_map.GetBoundingBox().x.from;
-        (*i)->def_note_target[2].x = (*i)->note_map.GetBoundingBox().x.from;
-        (*i)->def_note_target[2].y = (*i)->def_note_target[0].y = (*i)->def_note_target[1].y;
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
@@ -3758,10 +3742,6 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area = text_cover;
     area.arc = this;
     note_map = area;
-    def_note_target[1] = note_map.Centroid();
-    def_note_target[0].x = note_map.GetBoundingBox().x.from;
-    def_note_target[2].x = note_map.GetBoundingBox().x.from;
-    def_note_target[2].y = def_note_target[0].y = def_note_target[1].y;
     //Add a cover block for the line, if one exists
     if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
         area += Block(line_margin, chart->total.x-line_margin,

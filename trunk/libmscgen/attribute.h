@@ -393,22 +393,27 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
 
 struct MscNoteAttr {
 public:
-    typedef enum {LAYOUT_INVALID=0, FLOAT, LEFT, RIGHT, LEFTRIGHT} layout_t;
-    typedef enum {BUBBLE_INVALID=0, NONE, RECTANGLE, ARROW} shape_t;
-    typedef enum {POINTO_INVALID=0, CENTER, OUTLINE} point_to_t;
+    typedef enum {LAYOUT_INVALID=0, FLOATING, LEFTSIDE, RIGHTSIDE} layout_t;
+    typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} pointer_t;
+    typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN} pos_t;
     std::pair<bool, layout_t> layout;
-	std::pair<bool, shape_t> shape;
-	std::pair<bool, point_to_t> point_to;
+	std::pair<bool, pointer_t> pointer;
+    std::pair<bool, int> def_float_dist;
+    std::pair<bool, int> def_float_x;
+    std::pair<bool, int> def_float_y;
     MscNoteAttr() {Empty(); MakeComplete();}
-    void Empty() {layout.first = shape.first = point_to.first=false;}
+    void Empty() {layout.first = pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;}
     void MakeComplete();
-    bool IsComplete() const {return layout.first && shape.first && point_to.first;}
+    bool IsComplete() const {return layout.first && pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;}
     MscNoteAttr &operator +=(const MscNoteAttr&a);
     bool operator == (const MscNoteAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
+    static bool CshHintGraphicCallbackForLayout(MscCanvas *canvas, CshHintGraphicParam p);
+    static bool CshHintGraphicCallbackForPointer(MscCanvas *canvas, CshHintGraphicParam p);
+    static bool CshHintGraphicCallbackForPos(MscCanvas *canvas, CshHintGraphicParam p);
 };
 
 

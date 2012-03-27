@@ -614,6 +614,18 @@ bool SimpleContour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) c
     return was;
 }
 
+bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const
+{
+    if (size()==0 || from.size()==0) return false;
+    clockwise[0] = cclockwise[0] = at(0).GetStart();
+    clockwise[1] = cclockwise[1] = from.at(0).GetStart();
+    bool was = false;
+    for (unsigned u=0; u<size(); u++)
+        for(unsigned v=0; v<from.size(); v++) 
+            was |= at(u).TangentFrom(from[v], clockwise, cclockwise);
+    return was;
+}
+
 
 //////////////////////////////////SimpleContour::Expand implementation
 
@@ -1055,6 +1067,25 @@ void SimpleContour::Distance(const SimpleContour &o, DistanceType &ret) const
 final_merge:
     ret.Merge(running);
 }
+
+double SimpleContour::Distance(const XY &o, XY &ret) const
+{
+    if (IsEmpty()) return CONTOUR_INFINITY;
+    double r = CONTOUR_INFINITY;
+    for (unsigned u = 0; u<size(); u++) {
+        XY tmp;
+        double d = at(u).Distance(o, tmp);
+        if (d<r) {
+            d = r;
+            ret = tmp;
+            if (d==0) return 0;
+        }
+    }
+    if (IsWithin(o) == WI_INSIDE)
+        r = -r;
+    return r;
+}
+
 
 Range SimpleContour::Cut(const XY &A, const XY &B) const
 {

@@ -2825,45 +2825,78 @@ symbol_command: symbol_command_no_attr
   #endif
 };
 
-note:            TOK_COMMAND_NOTE extvertxpos_no_string full_arcattrlist_with_label
+note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    csh.AddCSH_EntityOrMarkerName(@3, $3);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @4))
+        CommandNote::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @4))
+        CommandNote::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcBase *a = new CommandNote(&msc, $2, $3); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, $3, MSC_POS(@3), $4); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    a->SetLineEnd(MSC_POS(@$));
     $$ = NULL; //no need to add to arclist
   #endif
     free($1);
-}
-               | TOK_COMMAND_NOTE vertxpos full_arcattrlist_with_label
-{
-  #ifdef C_S_H_IS_COMPILED
-    csh.AddCSH(@1, COLOR_KEYWORD);
-  #else
-    ArcBase *a;
-    if ($2) {
-        const ExtVertXPos extvertxpos($2);
-        a = new CommandNote(&msc, &extvertxpos, $3); //This attaches itself to the target of the note
-    } else
-        a = new CommandNote(&msc, NULL, $3);
-    if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    $$ = NULL; //no need to add to arclist
-  #endif
-    free($1);
+    free($2);
+    free($3);
 }
                | TOK_COMMAND_NOTE full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        CommandNote::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
+        CommandNote::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcBase *a = new CommandNote(&msc, NULL, $2); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, NULL, file_line_range(), $2); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    a->SetLineEnd(MSC_POS(@$));
     $$ = NULL; //no need to add to arclist
   #endif
     free($1);
+}
+               | TOK_COMMAND_NOTE TOK_AT
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    csh.AddCSH_ErrorAfter(@2, "Missing an entity or marker name.");
+    csh.AddCSH_ErrorAfter(@2, "Notes need a label.");
+    if (csh.CheckEntityHintAfterPlusOne(@2, yylloc, yychar==YYEOF))
+        csh.addMarkersAtEnd = true;
+  #else
+    $$ = NULL;
+  #endif
+    free($1);
+    free($2);
+}
+               | TOK_COMMAND_NOTE TOK_AT full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_KEYWORD);
+    csh.AddCSH_ErrorAfter(@2, "Missing an entity or marker name.");
+    if (csh.CheckEntityHintAfterPlusOne(@2, yylloc, yychar==YYEOF))
+        csh.addMarkersAtEnd = true;
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
+        CommandNote::AttributeNames(csh);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
+        CommandNote::AttributeValues(csh.hintAttrName, csh);
+  #else
+    ArcBase *a = new CommandNote(&msc, NULL, file_line_range(), $3); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    a->SetLineEnd(MSC_POS(@$));
+    $$ = NULL; //no need to add to arclist
+  #endif
+    free($1);
+    free($2);
 };
-
 
 colon_string: TOK_COLON_QUOTED_STRING
 {
