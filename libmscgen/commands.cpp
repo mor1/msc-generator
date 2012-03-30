@@ -1640,7 +1640,8 @@ void CommandNote::Tangents(XY &pointto, XY &t1, XY&t2) const
 //Penalize if the pointer has a too narrow angle with the side of the target
     const contour::is_within_t t = target->GetAreaToNote().Tangents(pointto, t1, t2);
     if (t!=contour::WI_ON_EDGE && t!=contour::WI_ON_VERTEX) {
-        target->GetAreaToNote().Distance(pointto, pointto);
+        const XY from = pointto;
+        target->GetAreaToNote().Distance(from, pointto);
         const contour::is_within_t tt = target->GetAreaToNote().Tangents(pointto, t1, t2);
         _ASSERT(tt==contour::WI_ON_EDGE || tt==contour::WI_ON_VERTEX);
     }
@@ -1779,10 +1780,11 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 
     //Create the region belts
     const double default_expand_size = 5;
+    const XY note_gap(chart->compressGap, chart->compressGap);
     Contour region_belts[region_distances];
     const Contour &contour_target = target->GetAreaToNote(); 
     std::vector<XY> target_points = GetPointerTarget(); //call only once!!!
-    const Contour target_2D_expanded = contour_target.CreateExpand2D(halfsize);
+    const Contour target_2D_expanded = contour_target.CreateExpand2D(halfsize+note_gap);
     Contour prev = target_2D_expanded.CreateExpand(region_distance_sizes[region_distances], EXPAND_MITER, EXPAND_MITER);
     for (int i = region_distances-1; i>=0; i--) {
         Contour next = target_2D_expanded.CreateExpand(region_distance_sizes[i], EXPAND_MITER, EXPAND_MITER);
@@ -1814,11 +1816,11 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     for (auto i = chart->NoteBlockers.begin(); i!=chart->NoteBlockers.end(); i++) {
         if (target == *i) continue; //avoid clashes of the target with the note during arrow placement
         if ((*i)->GetAreaToDraw().GetBoundingBox().Overlaps(AOI)) {
-            block_all_exp -= (*i)->GetAreaToDraw().CreateExpand2D(halfsize);
+            block_all_exp -= (*i)->GetAreaToDraw().CreateExpand2D(halfsize+note_gap);
             block_all += (*i)->GetAreaToDraw();
         }
         if ((*i)->GetAreaImportant().GetBoundingBox().Overlaps(AOI)) {
-            block_imp_exp -= (*i)->GetAreaImportant().CreateExpand2D(halfsize);
+            block_imp_exp -= (*i)->GetAreaImportant().CreateExpand2D(halfsize+note_gap);
             block_imp += (*i)->GetAreaImportant();
         }
     }
@@ -1826,8 +1828,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //does not block us
     //block_all -= contour_target;
     //block_imp += contour_target;
-    chart->DebugContours.push_back(Msc::ContourAttr(block_all, MscFillAttr(MscColorType(255,128,255, 128))));
-    chart->DebugContours.push_back(Msc::ContourAttr(block_imp, MscFillAttr(MscColorType(255,255,128, 128))));
+    //chart->DebugContours.push_back(Msc::ContourAttr(block_all, MscFillAttr(MscColorType(255,128,255, 128))));
+    //chart->DebugContours.push_back(Msc::ContourAttr(block_imp, MscFillAttr(MscColorType(255,255,128, 128))));
     
     XY best_center;
     XY best_pointto;
@@ -1839,8 +1841,9 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //the important and one for all elements.
     //Process through each such section (or block)
     for (unsigned rno=0; rno<RD*24; rno++) {
+        using namespace std::rel_ops;
         const region_block_t &RB = region_blocks[rno];
-        if (RB.score < best_point)
+        if (RB.score <= best_point)
             break; //no chance of getting any better
         const Contour &map = RB.map ? block_imp_exp : block_all_exp;
         //Intersect the belt section with the map: get all the points
@@ -1876,7 +1879,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 //if (Contour::IsResultOverlapping(arrowspace.RelationTo(contour_target, true)))
                 //    continue;
                 //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
-                chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
+                //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
 
                 XY t1, t2;
                 Tangents(tp, t1, t2);  //may update tp to be on the contour
@@ -1955,7 +1958,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                     penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step) :
                     neutral_point;
 
-                 if (local_penalty < penalty) break; //we cannot get any better
+                 if (local_penalty <= penalty) break; //we cannot get any better
                 
                 //We rotate the tangent line and "region" by angle and see if their
                 //x coordinates overlap.
@@ -1976,6 +1979,17 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 for (unsigned ctu = 0; ctu<contour_target_rot.size(); ctu++)
                     region_ranges.Add(contour_target_rot[ctu].GetBoundingBox().x, 1);
                 //OK, we are interested in where the value equals "2" (both cover)
+                DoubleMap<bool> region_ranges_bool(false);
+                bool was2 = false, running=false;
+                for (auto i = ++region_ranges.begin(); i!=region_ranges.end(); i++) 
+                    if ((i->second==2) != running) {
+                        running = i->second == 2;
+                        region_ranges_bool.Set(i->first, running);
+                        was2 |= running;
+                    }
+                if (!was2)    //rotated region and contour has no overlapping x-axis range,
+                    continue; //we will never find a match with this angle
+
                 //Now try to find a place first avoiding all visible blockers,
                 //then only the important ones
                 //We set success to true if we find a non-blocking "pointto" and "center",
@@ -1983,9 +1997,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 bool success = false;  
                 XY pointto, center;
                 for (unsigned bl = 0; bl<2; bl++) {
-                    DoubleMap<bool> canplacehere(false);
-                    for (auto i = region_ranges.begin(); i!=region_ranges.end(); i++)
-                        canplacehere.Set(i->first, i->second == 2);                            
+                    DoubleMap<bool> canplacehere(region_ranges_bool);
                     //rotate the map, which contains the blocking contours
                     const Contour blockers_rot = (bl==0 ? region_block_all : region_block_imp).CreateRotated(deg_ang);
                     //take each independent contour and substract their x extent
@@ -1997,19 +2009,26 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                     XY pointto_rot;
                     if (GetAPointInside(canplacehere, pointto_rot.x)) 
                         success = true; //we found a range, where there is no overlap
-                    else 
+                    else {
                         //there is no position without some overlap, pick a good position
-                        //for now we just pick the middle of the target 
-                        pointto_rot.x = region_rot.GetBoundingBox().x.MidPoint();
-                    //OK, pointto_rot.x is now set. Find pointto_rot.y to be
-                    //on the rotated target_line
+                        //without considering blockers
+                        const bool ok = GetAPointInside(region_ranges_bool, pointto_rot.x);
+                        _ASSERT(ok);
+                    }
+                    //now find center
+                    const bool ok = GetAPointInside(region_rot, XY(pointto_rot.x,0), XY (pointto_rot.x,100), center);
+                    _ASSERT(ok);
+                    //finally, calculate pointto_rot.y. make a cut in "region_rot" and
+                    //select the point closer to "center"
                     const Range &y = contour_target_rot.GetBoundingBox().y;
-                    const double r = contour_target_rot.Cut(XY(pointto_rot.x, y.from), XY(pointto_rot.x, y.till)).from;
-                    pointto_rot.y = y.from + (y.till-y.from)*r;
+                    const Range r = contour_target_rot.Cut(center, center+XY(0,100));
+                    _ASSERT(!r.IsInvalid());
+                    if (fabs(r.from)<fabs(r.till))
+                        pointto_rot.y = center.y + 100*r.from;
+                    else
+                        pointto_rot.y = center.y + 100*r.till;
                     //Now we have a pointto_rot, find our corresponding center_rot
                     //(on the same x coordinate, but somewhere inside region_rot, as close to ideal as we can)
-                    const bool ok = GetAPointInside(region_rot, pointto_rot, pointto_rot+XY(0,100), center);
-                    _ASSERT(ok);
                     //rotate back
                     pointto = pointto_rot.Rotate(ca, -sa);
                     center.Rotate(ca, -sa); 
@@ -2061,6 +2080,10 @@ void CommandNote::PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center
     }
     pos_center = center;
     point_to = pointto;
+    //now a hack: decrease halfsize by half a linewidth, from now on CoverAll
+    //is assumed to return the midline.
+    halfsize.x -= style.line.LineWidth()/2;
+    halfsize.y -= style.line.LineWidth()/2;
     area = CoverAll(canvas, pointto, center);
     area_important = area;
     //instead of Height() we add ourselves to the list here
@@ -2098,9 +2121,9 @@ void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (pass!=draw_pass) return;
     const Contour cover = CoverAll(canvas, point_to, pos_center);
-    canvas.Shadow(cover, style.shadow);
-    canvas.Fill(cover.CreateExpand(-style.line.LineWidth()+style.line.Spacing()), style.fill);
-    canvas.Line(cover.CreateExpand(-style.line.LineWidth()/2), style.line);
+    canvas.Shadow(cover.CreateExpand(style.line.Spacing()), style.shadow);
+    canvas.Fill(cover.CreateExpand(-style.line.Spacing()), style.fill);
+    canvas.Line(cover, style.line);
     const double w2 = halfsize.x - style.line.LineWidth();
     parsed_label.Draw(canvas, pos_center.x-w2, pos_center.x+w2,
         pos_center.y-halfsize.y+style.line.LineWidth());
