@@ -33,7 +33,7 @@ TrackableElement::TrackableElement(const TrackableElement&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
-    note_map(o.note_map), 
+    area_important(o.area_important), 
     controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
@@ -73,7 +73,7 @@ void TrackableElement::ShiftBy(double y)
     area.Shift(XY(0, y));
     area_draw.Shift(XY(0, y));
     area_to_note.Shift(XY(0,y));
-    note_map.Shift(XY(0,y)); 
+    area_important.Shift(XY(0,y)); 
     yPos+=y;
     control_location.y += y;
 }

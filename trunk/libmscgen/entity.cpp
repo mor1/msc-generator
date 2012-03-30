@@ -532,18 +532,18 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     my_cover.mainline = Block(0, chart->total.x, outer_edge.y.from, outer_edge.y.till);
     cover = std::move(my_cover);
     const Block b = outer_edge.CreateExpand(-lw/2);
-    note_map = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);
+    area_important = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);
     chart->NoteBlockers.Append(this);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
-void EntityDef::AddNoteMapWhenNotShowing()
+void EntityDef::AddAreaImportantWhenNotShowing()
 {
     //we do not draw this, but nevertheless define a small block here
     const double xpos = chart->XCoord((*itr)->pos);
     const double w2 = style.line.LineWidth()/2;
-    note_map = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
-    area_to_note = note_map;
+    area_important = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
+    area_to_note = area_important;
     chart->NoteBlockers.Append(this);
 }
 

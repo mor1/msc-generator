@@ -207,6 +207,8 @@ public:
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
+struct score_t;
+
 class CommandNote : public ArcLabelled
 {
 public:
@@ -237,8 +239,11 @@ public:
         {return cover_pointer(canvas, pointto, center) - CoverBody(canvas, center);} 
     Contour CoverAll(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
         {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);} 
-    Contour GetRegion(const Contour &region_belt, int dir_x, int dir_y, XY &start_xy) const;
-    Contour GetPointerTarget() const;
+    static Contour GetRegionMask(const Block &outer, int dir_x, int dir_y);
+    std::vector<XY> GetPointerTarget() const;
+    void CoverPenalty(const XY &pointto, const XY &center, MscCanvas &canvas,
+                      const Contour &block_all, const Contour &block_imp,
+                      score_t &cover_penalty) const;
     void PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center);
     void PlaceFloating(MscCanvas &canvas);
 

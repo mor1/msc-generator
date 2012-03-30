@@ -158,7 +158,7 @@ public:
 
     double Width() const;
     Range Height(Area &cover, const EntityDefList &edl);
-    void AddNoteMapWhenNotShowing();
+    void AddAreaImportantWhenNotShowing();
     void ShiftBy(double y) {TrackableElement::ShiftBy(y); outer_edge.Shift(XY(0,y));}
     virtual void PostPosProcess(MscCanvas &, double);
     void Draw(MscCanvas &);

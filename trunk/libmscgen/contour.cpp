@@ -559,7 +559,7 @@ link_info::size_type ContoursHelper::FindContourHead(const SimpleContour *c) con
 //return true if we could add (no duplication)
 bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, Contour::size_type v, double p, bool i, const RayAngle &a)
 {
-    _ASSERT(c->at(v).Pos2Point(p).test_equal(point));
+    //_ASSERT(c->at(v).Pos2Point(p).test_equal(point));
     Rays.push_back(Ray(point, m_c, c, v, p, i, a));
     //link in to the loose lists
     const link_info::size_type index = Rays.size()-1;
