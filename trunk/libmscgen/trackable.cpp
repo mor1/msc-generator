@@ -102,7 +102,10 @@ void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/, double)
     if (!area.IsEmpty()&& !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,
         //we still keep the original stuff.
-        Area expanded_area = area.CreateExpand(chart->trackExpandBy);
+        Area expanded_area = area.CreateExpand(chart->trackExpandBy, 
+                                               contour::EXPAND_MITER_ROUND, 
+                                               contour::EXPAND_MITER_ROUND, 
+                                               2, 2);
         if (!expanded_area.IsEmpty())
             area = expanded_area;
         area.arc = this;
@@ -117,7 +120,10 @@ void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/, double)
         controls.clear();
     }
     if (!hidden && draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
-        area_draw = area_draw.CreateExpand(chart->trackExpandBy);
+        area_draw = area_draw.CreateExpand(chart->trackExpandBy, 
+                                           contour::EXPAND_MITER_ROUND, 
+                                           contour::EXPAND_MITER_ROUND, 
+                                           2, 2);
     if (!file_pos.IsInvalid())
         chart->AllArcs[file_pos] = this;
 }

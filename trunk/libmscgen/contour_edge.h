@@ -33,13 +33,14 @@ typedef enum {ALL_EQUAL, A_EQUAL_B, A_EQUAL_C, B_EQUAL_C, IN_LINE, CLOCKWISE, CO
 triangle_dir_t triangle_dir(XY a, XY b, XY c);
 
 typedef enum {
-    EXPAND_MITER, //continue edges until they meet, if they dont add two segments
-    EXPAND_MITER_ROUND, //continue edges until they meet, if they dont add circle
-    EXPAND_MITER_BEVEL, //continue edges until they meet, if they dont cut directly
-    EXPAND_MITER_SQUARE, //continue edges until they meet, if they dont add square
+    EXPAND_MITER, //continue edges until they meet, if they dont: add two segments (uses miter_limit)
+    EXPAND_MITER_ROUND, //continue edges until they meet, if they dont: add circle (uses miter_limit)
+    EXPAND_MITER_BEVEL, //continue edges until they meet, if they dont: cut directly (uses miter_limit)
+    EXPAND_MITER_SQUARE, //continue edges until they meet, if they dont: add square (uses miter_limit)
     EXPAND_ROUND, //add circle
     EXPAND_BEVEL, //cut directly
 } EExpandType;
+//miter_limit is understood as a multiple of gap: the length of edge increases at most miter_limit*gap
 
 struct RayAngle {
     double angle;  //the false angle [0..4], each integer corresponds to 90 degrees
