@@ -1076,7 +1076,7 @@ double SimpleContour::Distance(const XY &o, XY &ret) const
         XY tmp;
         double d = at(u).Distance(o, tmp);
         if (d<r) {
-            d = r;
+            r = d;
             ret = tmp;
             if (d==0) return 0;
         }

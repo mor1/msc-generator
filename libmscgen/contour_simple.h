@@ -28,6 +28,10 @@ public:
     DoubleMap() {};
     DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
                                  insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
+    void clear(const element &e) {std::map<double, element>::clear(); 
+                                  insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
+                                  insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
+    void clear() {if (size()>2) erase(++begin(), --end());}
     void Set(double pos, const element&e) {operator[](pos) = e;}
     void Set(const Range &r, const element &e);
     void Add(double pos, const element&e);     //assumes element has operator +=
@@ -233,6 +237,7 @@ public:
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const;
+    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const

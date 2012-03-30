@@ -38,7 +38,7 @@ protected:
     Contour         area_to_note;       //if not empty the notes will point towards this area
 
     CommandNoteList notes;              // Notes attached to this element
-    Contour         note_map;           /* those parts of our coverage, which must not be covered by notes */
+    Contour         area_important;     /* those parts of our coverage, which must not be covered by notes */
 
     std::vector<MscControlType> 
            controls;           //Controls added for this box  
@@ -56,10 +56,14 @@ public:
     void CombineNotes(TrackableElement *); //move notes to us
     virtual void MoveNotesToChart();
     virtual void ShiftBy(double y);
-    const Area &GetAreaToSearch() const {return area;};
-    const Contour &GetAreaToDraw() const {return draw_is_different ? area_draw : area;}
-    const Contour &GetAreaToNote() const {return area_to_note.IsEmpty() ? area : area_to_note;}
-    const Contour &GetNoteMap() const {return note_map;}
+    const Area &GetAreaToSearch() const   //An area over which if the mouse hoovers, we highlight the element
+        {return area;};
+    const Contour &GetAreaToDraw() const  //An area to highlight when the mouse moves over
+        {return draw_is_different ? area_draw : area;}
+    const Contour &GetAreaToNote() const  //An area to the edge of which notes made to this element will point 
+        {return area_to_note.IsEmpty() ? area : area_to_note;}
+    const Contour &GetAreaImportant() const     //An area which shall possibly not get covered by notes
+        {return area_important;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     virtual void PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level);

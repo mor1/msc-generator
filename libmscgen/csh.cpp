@@ -390,7 +390,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
 "compressable", "xsize", "ysize", "size", "space", "angle",
-"layout", "shape", "point_to", "point_toward", "ypos", ""};
+"note.layout", "note.pointer", "note.pos", ""};
 
 static const char symbol_names[][ENUM_STRING_LEN] =
 {"arc", "rectangle", "...", ""};

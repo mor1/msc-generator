@@ -49,7 +49,8 @@ public:
     double GetCircumference(bool consider_holes=true, bool include_hidden=false) const;
     XY CentroidUpscaled() const;
 
-    is_within_t IsWithin(XY p) const;
+    is_within_t IsWithin(const XY &p) const;
+    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const;
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
@@ -127,6 +128,7 @@ public:
     bool IsEmpty() const {return outline.IsEmpty();}
 
     is_within_t IsWithin(const XY &p) const;
+    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const;
     bool HasHoles() const {return !holes.IsEmpty();}
     const ContourList &Holes() const {return holes;}
     const Block &GetBoundingBox(void) const {return outline.GetBoundingBox();}
@@ -259,6 +261,7 @@ public:
     bool IsSane() const;
 
     is_within_t IsWithin(const XY &p) const {is_within_t ret = first.IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
+    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const {is_within_t ret = first.Tangents(p, t1, t2); if (ret==WI_OUTSIDE) ret = further.Tangents(p, t1, t2); return ret;}
     Contour &Shift(const XY &xy) {first.Shift(xy); if (further.size()) further.Shift(xy); boundingBox.Shift(xy); return *this;}
     Contour &Scale(double sc) {first.Scale(sc); if (further.size()) further.Scale(sc); boundingBox.Scale(sc); return *this;}
     Contour &SwapXY() {first.SwapXY(); if (further.size()) further.SwapXY(); boundingBox.SwapXY(); return *this;}
@@ -396,7 +399,7 @@ inline const ContourWithHoles & ContourList::operator[](size_type i) const
 }
 
 
-inline is_within_t ContourList::IsWithin(XY p) const
+inline is_within_t ContourList::IsWithin(const XY &p) const
 {
     is_within_t ret = boundingBox.IsWithin(p);
     if (ret==WI_OUTSIDE) return WI_OUTSIDE;
@@ -404,6 +407,16 @@ inline is_within_t ContourList::IsWithin(XY p) const
         if (WI_OUTSIDE != (ret=i->IsWithin(p))) return ret; //we also return IN_HOLE
     return WI_OUTSIDE;
 }
+
+inline is_within_t ContourList::Tangents(const XY &p, XY &t1, XY &t2) const
+{
+    is_within_t ret = boundingBox.IsWithin(p);
+    if (ret==WI_OUTSIDE) return WI_OUTSIDE;
+    for (auto i = begin(); i!=end(); i++)
+        if (WI_OUTSIDE != (ret=i->Tangents(p, t1, t2))) return ret; //we also return IN_HOLE
+    return WI_OUTSIDE;
+}
+
 
 inline void ContourList::VerticalCrossSection(double x, DoubleMap<bool> &section) const
 {
@@ -509,6 +522,27 @@ inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
     default: return ret;
     }
 }
+
+inline is_within_t ContourWithHoles::Tangents(const XY &p, XY &t1, XY &t2) const
+{
+    SimpleContour::size_type edge;
+    double pos;
+    is_within_t ret = outline.IsWithin(p, &edge, &pos);
+    if (ret==WI_ON_EDGE || ret==WI_ON_VERTEX) {
+        t1 = outline.PrevTangentPoint(edge, pos);
+        t2 = outline.NextTangentPoint(edge, pos);
+        return ret;
+    }
+    if (ret!=WI_INSIDE || holes.size()==0) return ret;
+    ret = holes.Tangents(p, t1, t2);
+    switch (ret) {
+    case WI_INSIDE: return WI_IN_HOLE;
+    case WI_IN_HOLE:
+    case WI_OUTSIDE: return WI_INSIDE;
+    default: return ret;
+    }
+}
+
 
 inline double Contour::OffsetBelow(const SimpleContour &below, double &touchpoint, double offset) const
 {
