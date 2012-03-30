@@ -244,6 +244,11 @@ public:
     void CoverPenalty(const XY &pointto, const XY &center, MscCanvas &canvas,
                       const Contour &block_all, const Contour &block_imp,
                       score_t &cover_penalty) const;
+    void Tangents(XY &pointto, XY &t1, XY&t2) const;
+    void SlantPenalty(const XY &pointto, const XY &center, const XY &t1, const XY&t2,
+                      score_t &slant_penalty) const;
+    static bool GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY&ret);
+    static bool GetAPointInside(const DoubleMap<bool> &map, double &ret);
     void PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center);
     void PlaceFloating(MscCanvas &canvas);
 
