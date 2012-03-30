@@ -192,6 +192,7 @@ protected:
     void Distance(const Contour &c, DistanceType &dist_so_far) const;
 public:
     typedef SimpleContour::result_t relation_t;
+    static bool IsResultOverlapping(relation_t t) {return t==SimpleContour::OVERLAP || t==SimpleContour::A_INSIDE_B || t==SimpleContour::B_INSIDE_A || t==SimpleContour::SAME;}
     Contour() {boundingBox.MakeInvalid();}
     Contour(double sx, double dx, double sy, double dy) : first(sx, dx, sy, dy) {boundingBox = first.GetBoundingBox();}
     Contour(const Block &b) : first(b), boundingBox(b) {}

@@ -1505,8 +1505,8 @@ struct score_t {
     score_t(double aa, double bb = 0, double cc = 0) : a(aa), b(bb), c(cc) {}
     score_t & operator +=(const score_t &o) {a+=o.a; b+=o.b; c+=o.c; return *this;}
     score_t operator *(double m) const {return score_t(a*m, b*m, c*m);}
-    //bool operator <(const score_t &o) const {return a<o.a? true : a==o.a? b<o.b ? true : b==o.b ? c<o.c : false : false;}
-    bool operator <(const score_t &o) const {return a*100+b*10+c<o.a*100+o.b*10+o.c;}
+    bool operator <(const score_t &o) const {return a<o.a? true : a==o.a? b<o.b ? true : b==o.b ? c<o.c : false : false;}
+    //bool operator <(const score_t &o) const {return a*100+b*10+c<o.a*100+o.b*10+o.c;}
 };
 
 //These are added to the region_blocks[].score.a or .b, can be any value
@@ -1633,22 +1633,79 @@ void CommandNote::CoverPenalty(const XY &pointto, const XY &center, MscCanvas &c
             cover_penalty += penalty_body_cover_imp_mul * (cov_target_area/cov_area);
         }
     }
-    //Penalize if the pointer has a too narrow angle with the side of the target
-    XY tmp, tmp2;
-    XY on_target = pointto; //assuming it is on the surface
-    const contour::is_within_t t = target->GetAreaToNote().Tangents(on_target, tmp, tmp2);
+}
+
+void CommandNote::Tangents(XY &pointto, XY &t1, XY&t2) const
+{
+//Penalize if the pointer has a too narrow angle with the side of the target
+    const contour::is_within_t t = target->GetAreaToNote().Tangents(pointto, t1, t2);
     if (t!=contour::WI_ON_EDGE && t!=contour::WI_ON_VERTEX) {
-        target->GetAreaToNote().Distance(pointto, on_target);
-        const contour::is_within_t t2 = target->GetAreaToNote().Tangents(on_target, tmp, tmp2);
-        _ASSERT(t2==contour::WI_ON_EDGE || t2==contour::WI_ON_VERTEX);
+        target->GetAreaToNote().Distance(pointto, pointto);
+        const contour::is_within_t tt = target->GetAreaToNote().Tangents(pointto, t1, t2);
+        _ASSERT(tt==contour::WI_ON_EDGE || tt==contour::WI_ON_VERTEX);
     }
-    const double a1 = acos((tmp - pointto).Normalize().DotProduct((center-on_target).Normalize()));
-    const double a2 = acos((tmp2- pointto).Normalize().DotProduct((center-on_target).Normalize()));
-    const double dev_from_90 = std::min(fabs(M_PI/2-a1), fabs(M_PI/2-a2)) * 180./M_PI;
+}
+void CommandNote::SlantPenalty(const XY &pointto, const XY &center, const XY &t1, const XY&t2,
+                               score_t &slant_penalty) const
+{
+    double dev_from_90;
+    switch (contour::triangle_dir(pointto, t1, t2)) {
+    default:
+        _ASSERT(0);
+    case contour::IN_LINE: {
+        const double a1 = acos((t1 - pointto).Normalize().DotProduct((center-pointto).Normalize()));
+        const double a2 = acos((t2 - pointto).Normalize().DotProduct((center-pointto).Normalize()));
+        dev_from_90 = std::min(fabs(M_PI/2-a1), fabs(M_PI/2-a2)) * 180./M_PI;
+        } break;
+    case contour::CLOCKWISE:
+    case contour::COUNTERCLOCKWISE:
+        const double a = acos(((t1+t2)/2 - pointto).Normalize().DotProduct((center-pointto).Normalize()));
+        dev_from_90 = std::min(fabs(a), fabs(M_PI-a)) * 180./M_PI;
+        break;
+    }
     if (dev_from_90 >= 30) 
-        cover_penalty += penalty_for_pointer_vs_target_angle_mul *
+        slant_penalty += penalty_for_pointer_vs_target_angle_mul *
             (dev_from_90 - 30);
 }
+
+//This returns a point inside c on the p1->p2 line.
+//The point should be as inside as possible.
+bool CommandNote::GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY &ret)
+{
+    if (p1.test_equal(p2)) {
+        if (c.IsWithin(p1)==contour::WI_OUTSIDE) return false;
+        ret = p1;
+        return true;
+    }
+    DoubleMap<bool>map(false); 
+    c.Cut(p1, p2, map);
+    double r;
+    if (!GetAPointInside(map, r)) return false;
+    ret = p1 + (p2-p1)*r;
+    return true;
+}
+
+bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
+{
+    Range candidate_range(0,0); //width of 0
+    double pos = -CONTOUR_INFINITY;
+    do {
+        double next_set = map.Till(pos);
+        while (!*map.Get(next_set) && next_set < CONTOUR_INFINITY)
+            next_set = map.Till(next_set);
+        if (next_set == CONTOUR_INFINITY) break;
+        pos = map.Till(next_set); //we do not cycle until false, we treal two true sections after one another as separate
+        if (pos == CONTOUR_INFINITY) break;
+        if (pos-next_set > candidate_range.Spans()) {
+            candidate_range.from = next_set;
+            candidate_range.till = pos;
+        }
+    } while (pos < CONTOUR_INFINITY);
+    if (0==candidate_range.Spans()) return false;
+    ret = candidate_range.MidPoint();
+    return true;
+}
+
 
 void CommandNote::PlaceFloating(MscCanvas &canvas)
 {
@@ -1701,14 +1758,11 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
             RB.score.a += ScoreRegion(float_dist, float_dir_x, float_dir_y,
                                       RB.dist - RD/2, RB.x, RB.y); //distance is normalized back to -1..+1
             //score softer default preferences
-            RB.score.c += ScoreRegion(style.note.def_float_dist,
+            RB.score.b += ScoreRegion(style.note.def_float_dist,
                                       style.note.def_float_x.second,
                                       style.note.def_float_y.second,
-                                      RB.dist - RD/2, RB.x, RB.y)*5; //distance is normalized back to -1..+1
+                                      RB.dist - RD/2, RB.x, RB.y)/2;
         }
-
-    //OK, now sort according to score
-    std::sort(region_blocks, region_blocks+RD*24);
 
     //Now duplicate the whole shabang, and factor in which map to avoid
     //0 means to avoid all screen elements
@@ -1717,7 +1771,11 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         region_blocks[u+RD*12] = region_blocks[u];
         region_blocks[u].map = 0;
         region_blocks[u+RD*12].map = 1;
+        region_blocks[u+RD*12].score += penalty_body_cover_something;
     }
+
+    //OK, now sort according to score
+    std::sort(region_blocks, region_blocks+RD*24);
 
     //Create the region belts
     const double default_expand_size = 5;
@@ -1768,10 +1826,13 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //does not block us
     //block_all -= contour_target;
     //block_imp += contour_target;
+    chart->DebugContours.push_back(Msc::ContourAttr(block_all, MscFillAttr(MscColorType(255,128,255, 128))));
+    chart->DebugContours.push_back(Msc::ContourAttr(block_imp, MscFillAttr(MscColorType(255,255,128, 128))));
     
     XY best_center;
     XY best_pointto;
     score_t best_point = worst_point;
+    score_t penalty = worst_point;
 
     //We divide the belt around the target into 12 sections and 3 ("region_distances")
     //belts at ever greater distance (for near/far). We have two such sets one for
@@ -1792,184 +1853,154 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         //Ok, a note can be placed in this region.
         //Now find a suitable position inside the region and a
         //suitable end for the arrow that lies on the line between
-        //"arrowspace" contains all the possible space the arrow can go through
-        XY c[2], cc[2];
-        if (!region.TangentFrom(contour_target, c, cc)) continue;
-        const Contour arrowspace = (region + contour_target +
-            Contour(cc[0], cc[1], c[1]) + Contour(c[1], c[0], cc[0])).ClearHoles();
 
-        //calc blocking elements for this region
-        const Contour region_block_all = block_all * arrowspace;
-        const Contour region_block_imp = block_imp * arrowspace;
-
-        //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
-        //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
-        //chart->DebugContours.push_back(Msc::ContourAttr(block_imp, MscFillAttr(MscColorType(255,128,255, 128))));
-
-        const XY ideal_center = region.Centroid();
-        //Sort target_points so that we process them from the ones closes to the ideal_center
-        //(does nothing if "target_points" is empty)
-        const struct {
-            XY from;
-            bool operator ()(const XY &a, const XY &b) {return from.DistanceSqr(a) < from.DistanceSqr(b);}
-        } compare = {ideal_center};
-        std::sort(target_points.begin(), target_points.end(), compare);
-
-        //From here we try to place both the body inside 'region' and its pointer
-        //simultaneously. We go by angle. The arrow of a note should preferably be
+        //We try to place both the body inside 'region' and its pointer
+        //simultaneously. We will go by angle. The arrow of a note should preferably be
         //perpendicular to the defnodetartget line. If that is not possible we attempt
         //ever smaller angles, till we find one. Angles are in radians below.
+        //We calculate angle running variables here, as they are needed for both cases
+        //(with or without target_points)
         const double angle_step_unit = 10/(180/M_PI);
         double angle_step = angle_step_unit;
         //starting angle is the angle specified by the sector of the belt we are in
         //it shall be zero if we want to start with a vertical center->pos arrangement
         double angle = -atan2(double(sign(RB.x)), double(sign(-RB.y)));  //deliberate swap of x & y
 
-        XY center, pointto;
-        score_t coverage_penalty = worst_point;
-        for (/*nope*/;
-            fabs(angle_step)<=M_PI/2;
-            angle += angle_step,
-            angle_step = -angle_step + ((angle_step > 0) ? -angle_step_unit : angle_step_unit)) {
+        //Do it differently if we have target points
+        if (target_points.size()) {
+            for (unsigned tpu=0; tpu<target_points.size(); tpu++) {
+                XY tp = target_points[tpu];
+                XY c, cc;
+                if (!region.TangentFrom(tp, c, cc)) continue;
+                const Contour arrowspace = region + Contour(tp, c, cc);
+                //if (Contour::IsResultOverlapping(arrowspace.RelationTo(contour_target, true)))
+                //    continue;
+                //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
+                chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
 
-            //The angle penalty is added if we deviate much from the angle suitable
-            //for this region. It is independent of the chart, depends only on "angle"
-            //and as we cycle in the angle for cycle it only becomes worse.
-            //This is split from other penalties, so that we can stop earlier in this 
-            //cycle, when other penalties are better than the angle penalty.
-            const score_t angle_penalty = (angle_step>10./180*M_PI) ?
-                penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step) :
-                neutral_point;
-            //if the other penalties are not better than the angle we may not find better
-            //scores with later angles (as the angle penalty will get only worse,
-            //while the cover penalty cannot get better than neutral)
-            if (coverage_penalty > angle_penalty) break;
-                
-            //We rotate the tangent line and "region" by angle and see if their
-            //x coordinates overlap.
-            const double sa = sin(angle);
-            const double ca = cos(angle);
-            const double deg_ang = angle*180/M_PI;
-            const XY ideal_center_rot = XY(ideal_center).Rotate(ca, sa);
-            const Contour contour_target_rot = contour_target.CreateRotated(deg_ang);
-            const Contour region_rot = region.CreateRotated(deg_ang);
-            //if (!contour_target_rot.GetBoundingBox().x.Overlaps(region_rot.GetBoundingBox().x)) continue;
-            //if there is an overlap, we may find a good placement else go to next angle
-            //region_rot or contour_target_rot may not be contiguous
-            //Calculate the x ranges of region where we can place the arrow
-            DoubleMap<int> region_ranges(0);
-            //Add the rotated region's pieces to the region ranges
-            for (unsigned ru = 0; ru<region_rot.size(); ru++)
-                region_ranges.Set(region_rot[ru].GetBoundingBox().x, 1);
-            for (unsigned ctu = 0; ctu<contour_target_rot.size(); ctu++)
-                region_ranges.Add(contour_target_rot[ctu].GetBoundingBox().x, 1);
-            //OK, we are interested in where the value equals "2" (both cover)
-            //Now try to find a place first avoiding all visible blockers,
-            //then only the important ones
-            //We set success to true if we find a non-blocking "pointto" and "center",
-            //but we determine some "pointto" and "center", in all the cases
-            bool success = false;  
-            score_t local_coverage_penalty = worst_point;
-            for (unsigned bl = 0; bl<2; bl++) {
-                //rotate the map, which contains the blocking contours
-                const Contour blockers_rot = (bl==0 ? region_block_all : region_block_imp).CreateRotated(deg_ang);
+                XY t1, t2;
+                Tangents(tp, t1, t2);  //may update tp to be on the contour
 
-                DoubleMap<int> canplacehere(0);
-                //On first iteration we copy, else we move
-                if (bl==0) canplacehere = region_ranges;
-                else canplacehere = std::move(region_ranges);
-                //take each independent contour and substract their x extent
-                //from the places to consider
-                for (unsigned u = 0; u<blockers_rot.size(); u++) 
-                    canplacehere.Set(blockers_rot[u].GetBoundingBox().x, 0);
-                //Now canplacehere is "2" where we can place a pointer
+                for (/*nope*/;
+                    fabs(angle_step)<=M_PI/2;
+                    angle += angle_step,
+                    angle_step = -angle_step + ((angle_step > 0) ? -angle_step_unit : angle_step_unit)) {
 
-                //Now if we have a set of points to target, pick one
-                //Else select regions
-                if (target_points.size()) {
-                    for (unsigned tp=0; tp<target_points.size(); tp++) {
-                        const XY tp_rot =XY(target_points[tp]).Rotate(ca, sa);
-                        //if (*canplacehere.Get(tp_rot.x)!=2) continue;
-                        ////Now see if the pointer would cross the target or not
-                        //DoubleMap<bool> map(false);
-                        //contour_target_rot.VerticalCrossSection(tp_rot.x, map);
-                        //double y = std::min(tp_rot.y, ideal_center_rot.y);
-                        //const double till = std::max(tp_rot.y, ideal_center_rot.y);
-                        //while (y<till) 
-                        //    if (*map.Get(y)) break;
-                        //    else y = map.Till(y);
-                        //if (y<till)    //we found a piece of the target between 
-                        //    continue;  //tp_rot and ideal_center_rot: next tp
+                    //Calculate the penalty of the angle (in relation to the region)
+                    score_t local_penalty = (angle_step>10./180*M_PI) ?
+                        penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step) :
+                        neutral_point;
+                    if (local_penalty < penalty) break; //we cannot get any better
 
-                        //Now calculate corresponding center
-                        DoubleMap<bool>map(false); 
-                        region_rot.VerticalCrossSection(tp_rot.x, map);
-                        map.Prune();
-                        XY cand_center;
-                        cand_center.x = tp_rot.x;
-                        if (*map.Get(ideal_center_rot.y))
-                            cand_center.y = ideal_center_rot.y;
-                        else if (ideal_center_rot.y - map.From(ideal_center_rot.y) <
-                                    map.Till(ideal_center_rot.y) - ideal_center_rot.y)
-                            cand_center.y = map.From(ideal_center_rot.y);
-                        else
-                            cand_center.y = map.Till(ideal_center_rot.y);
-                        if (cand_center.y == CONTOUR_INFINITY || cand_center.y == -CONTOUR_INFINITY)
-                            continue; //we skip this point if it is not even on the line with region
-                        cand_center.Rotate(ca, -sa); //rotate back
-                        cand_center.Round();
+                    XY center;
+                    if (!GetAPointInside(region, tp, tp+XY(0,-100).Rotate(cos(-angle), sin(-angle)), center))
+                        continue;
 
-                        //Calculate penalty if note body or pointer covers something.
-                        score_t very_local_cover_penalty = neutral_point;
-                        CoverPenalty(target_points[tp], cand_center, canvas, block_all, block_imp, very_local_cover_penalty);
-                        if (very_local_cover_penalty > local_coverage_penalty) {
-                            center = cand_center;
-                            pointto = target_points[tp];  //the original value, no need to rotate back
-                            local_coverage_penalty = very_local_cover_penalty;
-                            success |= *canplacehere.Get(tp_rot.x)==2;
-                            //if we found a point where there is no overlap, what more can we hope for?
-                            if (!(local_coverage_penalty < neutral_point)) break;
-                        } 
+                    SlantPenalty(tp, center, t1, t2, local_penalty);
+                    if (local_penalty < penalty) continue; //futile, try next point
+
+                    //calc blocking elements for this region
+                    const Contour region_block_all = block_all * arrowspace;
+                    const Contour region_block_imp = block_imp * arrowspace;
+
+                    CoverPenalty(tp, center, canvas, block_all, block_imp, local_penalty);
+                    if (local_penalty < penalty) continue; //futile, try next point
+
+                    //Calculate final score
+                    score_t point = RB.score;
+                    point += local_penalty;
+                    if (point > best_point) {
+                        //OK, if we get better, replace
+                        best_point = point;
+                        best_center = center;
+                        best_pointto = tp;
+                        penalty = local_penalty;
+                        //chart->DebugContours.push_back(Msc::ContourAttr(CoverAll(canvas, best_pointto, best_center)));
                     }
-                } else { //here we have no points set by an 'at' clause
-                    //Now pick the range that is widest
-                    Range candidate_range(0,0); //width of 0
-                    double pos = -CONTOUR_INFINITY;
-                    do {
-                        double next_set = canplacehere.Till(pos);
-                        while (*canplacehere.Get(next_set)<2 && next_set < CONTOUR_INFINITY)
-                            next_set = canplacehere.Till(next_set);
-                        if (next_set == CONTOUR_INFINITY) break;
-                        pos = canplacehere.Till(next_set);
-                        while (*canplacehere.Get(pos)==2 && pos < CONTOUR_INFINITY)
-                            pos = canplacehere.Till(pos);
-                        if (pos == CONTOUR_INFINITY) break;
-                        _ASSERT(*canplacehere.Get(next_set) == 2 && *canplacehere.Get(pos) < 2);
-                        if (pos-next_set > candidate_range.Spans()) {
-                            candidate_range.from = next_set;
-                            candidate_range.till = pos;
-                        }
-                    } while (pos < CONTOUR_INFINITY);
+                    if (!(penalty < neutral_point)) break; //we have what we want
+                }//for: cylce angles
+                if (!(penalty < neutral_point)) break; //we have what we want
+            }//for: cylce through tp's
+        } else { //no target points
+            //"arrowspace" contains all the possible space the arrow can go through
+            XY c[2], cc[2];
+            if (!region.TangentFrom(contour_target, c, cc)) continue;
+            const Contour arrowspace = (region + contour_target +
+                Contour(cc[0], cc[1], c[1]) + Contour(c[1], c[0], cc[0])).ClearHoles();
+
+            //calc blocking elements for this region
+            const Contour region_block_all = block_all * arrowspace;
+            const Contour region_block_imp = block_imp * arrowspace;
+
+            //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
+            //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
+            //chart->DebugContours.push_back(Msc::ContourAttr(block_imp, MscFillAttr(MscColorType(255,128,255, 128))));
+
+            const XY ideal_center = region.Centroid();
+            //From here we try to place both the body inside 'region' and its pointer
+            //simultaneously. We go by angle. The arrow of a note should preferably be
+            //perpendicular to the defnodetartget line. If that is not possible we attempt
+            //ever smaller angles, till we find one. Angles are in radians below.
+            for (/*nope*/;
+                fabs(angle_step)<=M_PI/2;
+                angle += angle_step,
+                angle_step = -angle_step + ((angle_step > 0) ? -angle_step_unit : angle_step_unit)) {
+
+                //The angle penalty is added if we deviate much from the angle suitable
+                //for this region. It is independent of the chart, depends only on "angle"
+                //and as we cycle in the angle for cycle it only becomes worse.
+                //This is split from other penalties, so that we can stop earlier in this 
+                //cycle, when other penalties are better than the angle penalty.
+                 score_t local_penalty = (angle_step>10./180*M_PI) ?
+                    penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step) :
+                    neutral_point;
+
+                 if (local_penalty < penalty) break; //we cannot get any better
+                
+                //We rotate the tangent line and "region" by angle and see if their
+                //x coordinates overlap.
+                const double sa = sin(angle);
+                const double ca = cos(angle);
+                const double deg_ang = angle*180/M_PI;
+                const XY ideal_center_rot = XY(ideal_center).Rotate(ca, sa);
+                const Contour contour_target_rot = contour_target.CreateRotated(deg_ang);
+                const Contour region_rot = region.CreateRotated(deg_ang);
+                //if (!contour_target_rot.GetBoundingBox().x.Overlaps(region_rot.GetBoundingBox().x)) continue;
+                //if there is an overlap, we may find a good placement else go to next angle
+                //region_rot or contour_target_rot may not be contiguous
+                //Calculate the x ranges of region where we can place the arrow
+                DoubleMap<int> region_ranges(0);
+                //Add the rotated region's pieces to the region ranges
+                for (unsigned ru = 0; ru<region_rot.size(); ru++)
+                    region_ranges.Set(region_rot[ru].GetBoundingBox().x, 1);
+                for (unsigned ctu = 0; ctu<contour_target_rot.size(); ctu++)
+                    region_ranges.Add(contour_target_rot[ctu].GetBoundingBox().x, 1);
+                //OK, we are interested in where the value equals "2" (both cover)
+                //Now try to find a place first avoiding all visible blockers,
+                //then only the important ones
+                //We set success to true if we find a non-blocking "pointto" and "center",
+                //but we determine some "pointto" and "center", in all the cases
+                bool success = false;  
+                XY pointto, center;
+                for (unsigned bl = 0; bl<2; bl++) {
+                    DoubleMap<bool> canplacehere(false);
+                    for (auto i = region_ranges.begin(); i!=region_ranges.end(); i++)
+                        canplacehere.Set(i->first, i->second == 2);                            
+                    //rotate the map, which contains the blocking contours
+                    const Contour blockers_rot = (bl==0 ? region_block_all : region_block_imp).CreateRotated(deg_ang);
+                    //take each independent contour and substract their x extent
+                    //from the places to consider
+                    for (unsigned u = 0; u<blockers_rot.size(); u++) 
+                        canplacehere.Set(blockers_rot[u].GetBoundingBox().x, false);
+                    //Now canplacehere is true where we can place a pointer
+                    canplacehere.Prune(); //merge neighbouring sections 
                     XY pointto_rot;
-                    if (candidate_range.Spans()) {
-                        //we found a range, where there is no overlap, pick an x from it
-                        if (candidate_range.Spans() < pointer_width_max)
-                            pointto_rot.x = candidate_range.MidPoint();
-                        else {
-                            candidate_range.Expand(-pointer_width_max/2);
-                            if (ideal_center_rot.x<candidate_range.from)
-                                pointto_rot.x = candidate_range.from;
-                            else if (ideal_center_rot.x>candidate_range.till)
-                                pointto_rot.x = candidate_range.till;
-                            else
-                                pointto_rot.x = ideal_center_rot.x;
-                            success = true;
-                        }
-                    } else {
+                    if (GetAPointInside(canplacehere, pointto_rot.x)) 
+                        success = true; //we found a range, where there is no overlap
+                    else 
                         //there is no position without some overlap, pick a good position
                         //for now we just pick the middle of the target 
-                        pointto_rot.x = contour_target_rot.GetBoundingBox().x.MidPoint();
-                    }
+                        pointto_rot.x = region_rot.GetBoundingBox().x.MidPoint();
                     //OK, pointto_rot.x is now set. Find pointto_rot.y to be
                     //on the rotated target_line
                     const Range &y = contour_target_rot.GetBoundingBox().y;
@@ -1977,50 +2008,38 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                     pointto_rot.y = y.from + (y.till-y.from)*r;
                     //Now we have a pointto_rot, find our corresponding center_rot
                     //(on the same x coordinate, but somewhere inside region_rot, as close to ideal as we can)
-                    DoubleMap<bool> map(false);
-                    region_rot.VerticalCrossSection(pointto_rot.x, map);
-                    map.Prune();
-                    center.x = pointto_rot.x;
-                    if (*map.Get(ideal_center_rot.y))
-                        center.y = ideal_center_rot.y;
-                    else if (ideal_center_rot.y - map.From(ideal_center_rot.y) <
-                                map.Till(ideal_center_rot.y) - ideal_center_rot.y)
-                        center.y = map.From(ideal_center_rot.y);
-                    else
-                        center.y = map.Till(ideal_center_rot.y);
-                    pointto = pointto_rot.Rotate(ca, -sa);  //destroys pointto_rot
-                    //Adjust to surely point to the contour of target
-                    if (!target->GetAreaToNote().IsEmpty()) {
-                        Range r = target->GetAreaToNote().Cut(pointto, center);
-                        if (!r.IsInvalid())
-                            pointto = pointto + (center-pointto)*r.till;
-                    }
-                    center.Rotate(ca, -sa);
-                    center.Round();
-                    //Calculate penalty if note body or pointer covers something.
-                    CoverPenalty(pointto, center, canvas, block_all, block_imp, local_coverage_penalty);
+                    const bool ok = GetAPointInside(region_rot, pointto_rot, pointto_rot+XY(0,100), center);
+                    _ASSERT(ok);
+                    //rotate back
+                    pointto = pointto_rot.Rotate(ca, -sa);
+                    center.Rotate(ca, -sa); 
+                    center.Round(); //so that we avoid roinding mismatches
+                    if (success) break; //we have found a good place, not blocking either of the maps
+                } //for: blockers
+
+                //Now we have a valid "center" and "pointto" with their 
+                //"local_coverage_penalty" calculated. 
+                //Calculate penalty if note body or pointer covers something.
+                XY t1, t2;
+                Tangents(pointto, t1, t2);
+                SlantPenalty(pointto, center, t1, t2, local_penalty);
+                if (local_penalty < penalty) continue; //futile, try next angle
+                CoverPenalty(pointto, center, canvas, block_all, block_imp, local_penalty);
+                if (local_penalty < penalty) continue; //futile, try next angle
+
+                //Calculate final score
+                score_t point = RB.score;
+                point += local_penalty;
+                if (point > best_point) {
+                    //OK, if we get better, replace
+                    best_point = point;
+                    best_center = center;
+                    best_pointto = pointto;
+                    penalty = local_penalty;
+                    //chart->DebugContours.push_back(Msc::ContourAttr(CoverAll(canvas, best_pointto, best_center)));
                 }
-                if (success) break; //we have found a good place, not blocking either of the maps
-            } //for: blockers
-
-            //Now we usually have a valid "center" and "pointto" with their 
-            //"local_coverage_penalty" calculated. The exception if none of 
-            //the target_point[]s is in line with the region at this angle. 
-            //In that case local_coverage_penalty == worst_point.
-            //Calculate final score
-            score_t point = RB.score;
-            point += angle_penalty;
-            point += local_coverage_penalty;
-
-            if (point > best_point) {
-                //OK, if we get better, replace
-                best_point = point;
-                best_center = center;
-                best_pointto = pointto;
-                coverage_penalty = local_coverage_penalty;
-                //chart->DebugContours.push_back(Msc::ContourAttr(CoverAll(canvas, best_pointto, best_center)));
-            }
-        }  //for: angle
+            }  //for: angle
+        }//else: we had no target points
     } //for: regions
     if (best_point > worst_point) {
         PlaceTo(canvas, best_pointto, best_center);

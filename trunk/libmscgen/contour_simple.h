@@ -36,6 +36,8 @@ public:
     void Set(const Range &r, const element &e);
     void Add(double pos, const element&e);     //assumes element has operator +=
     void Add(const Range &r, const element&e); //assumes element has operator +=
+    template <typename T> void Add(double pos, const element&e, T &combine);     //uses "t(a, b)" to combine elements
+    template <typename T> void Add(const Range &r, const element&e, T &combine); //uses "t(a, b)" to combine elements
     const element* Get(double pos) const {auto i=upper_bound(pos); return i==begin()?NULL:&(--i)->second;}
     double Till(double pos) const {auto i=upper_bound(pos); return i==end()?CONTOUR_INFINITY:i->first;}
     double From(double pos) const {auto i=--lower_bound(pos); return i==end()?-CONTOUR_INFINITY:i->first;}
@@ -50,6 +52,17 @@ void DoubleMap<element>::Add(double pos, const element&e)
     else if (i->first == pos)
         i->second += e;
     else insert(i, typename std::map<double, element>::value_type(pos, i->second))->second += e;
+}
+
+template <class element>
+template <typename T>
+void DoubleMap<element>::Add(double pos, const element&e, T &combine)
+{
+    auto i = --upper_bound(pos);
+    if (i==begin()) Set(pos, e);
+    else if (i->first == pos)
+        i->second = combine(i->second, e);
+    else insert(i, typename std::map<double, element>::value_type(pos, combine(i->second, e)));
 }
 
 template <class element>
@@ -90,6 +103,28 @@ void DoubleMap<element>::Add(const Range &r, const element& e)
     }
 }
 
+template <class element>
+template <typename T>
+void DoubleMap<element>::Add(const Range &r, const element& e, T &combine)
+{
+    if (r.till <= r.from) return;
+    auto i = --upper_bound(r.till);
+    if (i==end())
+        operator[](r.from) = e; //if the whole range is before the first element
+    else {
+        if (i->first != r.till) //i points to a place before r.till
+            i = insert(i, typename std::map<double, element>::value_type(r.till, i->second));
+        //now i points to the element at r.till
+        auto h = --upper_bound(r.from);
+        if (h==end())
+            h = insert(begin(), typename std::map<double, element>::value_type(r.from, e))++;
+        else if (h->first != r.from) //j points to an element before r.from
+            h = insert(h, typename std::map<double, element>::value_type(r.from, h->second));
+        //now h points to the first element to add e to
+        for (; h!=i; h++)
+            h->second = combine(h->second, e);
+    }
+}
 template <class element>
 void DoubleMap<element>::Prune()
 {
