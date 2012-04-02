@@ -62,6 +62,7 @@ public:
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const;
 
     double Distance(const XY &o, XY &ret) const;
+    double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
     Range Cut(const XY &A, const XY &B) const;
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
@@ -147,6 +148,7 @@ public:
     void PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden, bool clockwiseonly) const {outline.PathDashed(cr, pattern, num, show_hidden, clockwiseonly); if (holes.size()) holes.PathDashed(cr, pattern, num, show_hidden, clockwiseonly);}
 
     double Distance(const XY &o, XY &ret) const;
+    double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
     Range Cut(const XY &A, const XY &B) const {return outline.Cut(A, B);}
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {outline.Cut(A, B, map); holes.Cut(A, B, map);}
 };
@@ -323,8 +325,9 @@ public:
     //(Latter may happen if one of the contours have two pieces and one is inside and one is outside the other
     DistanceType Distance(const Contour &c) const {DistanceType r; Distance(c, r); return r;}
     double Distance(const XY &o, XY &ret) const {XY tmp; double d = first.Distance(o, ret), dd=further.Distance(o, tmp); if (fabs(dd)<fabs(d)) {ret=tmp; d=dd;} return d;}
+    double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const {XY tmp, _1, _2; double d = first.DistanceWithTangents(o, ret, t1, t2), dd=further.DistanceWithTangents(o, tmp, _1, _2); if (fabs(dd)<fabs(d)) {ret=tmp; t1=_1; t2=_2; d=dd;} return d;}
     Range Cut(const XY &A, const XY &B) const {Range ret = first.Cut(A, B); if (!further.IsEmpty()) ret += further.Cut(A, B); return ret;}
-    void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {first.Cut(A, B, map); if (further.IsEmpty()) further.Cut(A, B, map); map.Prune();}
+    void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {first.Cut(A, B, map); if (!further.IsEmpty()) further.Cut(A, B, map); map.Prune();}
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]) const;
 };
@@ -478,6 +481,23 @@ inline double ContourWithHoles::Distance(const XY &o, XY &ret) const
     }
     return d;
 }
+
+
+inline double ContourWithHoles::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
+{
+    double d = outline.DistanceWithTangents(o, ret, t1, t2);
+    if (d>=0) return d;
+    XY tmp, _1, _2;
+    double dd = -holes.DistanceWithTangents(o, tmp, _1, _2);
+    if (fabs(dd)<fabs(d)) {
+        ret = tmp;
+        t1 = _1;
+        t2 = _2;
+        return dd;
+    }
+    return d;
+}
+
 
 inline Range ContourList::Cut(const XY &A, const XY &B) const
 {

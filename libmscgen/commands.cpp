@@ -20,6 +20,8 @@
 #include <algorithm>
 
 using namespace std;
+using contour::deg2rad;
+using contour::rad2deg;
 
 string ArcCommand::Print(int ident) const
 {
@@ -1349,10 +1351,12 @@ bool CommandNote::AddAttribute(const Attribute &a)
 void CommandNote::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
+    Design().styles["note"].AttributeNames(csh);
 }
 
 bool CommandNote::AttributeValues(const std::string attr, Csh &csh)
 {
+    if (Design().styles["note"].AttributeValues(attr, csh)) return true;
     return ArcLabelled::AttributeValues(attr, csh);
 }
 
@@ -1377,6 +1381,7 @@ void CommandNote::FinalizeLabels(MscCanvas &canvas)
     if (al) {
         numberingStyle = al->numberingStyle;
         number_text = al->number_text;
+        style.numbering = al->style.numbering; //skip numbering if target has no number
     }
     ArcLabelled::FinalizeLabels(canvas);
 }
@@ -1402,16 +1407,58 @@ const double pointer_width_min=10, pointer_width_max=50, pointer_width_div=50;
 
 double CommandNote::pointer_width(double distance) const
 {
-    return std::min(pointer_width_max, pointer_width_min + distance/pointer_width_div);
+    switch (style.note.pointer.second) {
+    default: _ASSERT(0);
+    case MscNoteAttr::NONE: 
+        return 0;
+    case MscNoteAttr::CALLOUT: 
+        return std::min(pointer_width_max, pointer_width_min + distance/pointer_width_div);
+    case MscNoteAttr::BLOCKARROW:
+        return style.arrow.getBigWidthHeight(style.arrow.endType.second, style.line).y;
+    case MscNoteAttr::ARROW:
+        return style.line.LineWidth();
+    }
 }
 
 Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
 {
     const double l = center.Distance(pointto);
     if (contour::test_zero(l)) return Contour();
-    const double startwidth = pointer_width(l);
-    const XY a = (center-pointto).Rotate90CCW()/l*startwidth/2;
-    return Contour(pointto, center-a, center+a);
+    const double width = pointer_width(l);
+    _ASSERT(style.note.IsComplete());
+    switch (style.note.pointer.second) {
+    default: _ASSERT(0);
+    case MscNoteAttr::NONE: return Contour();
+    case MscNoteAttr::CALLOUT: {
+        const XY a = (center-pointto).Rotate90CCW()/l*width/2;
+        return Contour(pointto, center-a, center+a); }
+    case MscNoteAttr::BLOCKARROW:
+    case MscNoteAttr::ARROW:
+        break;
+    }
+    //Do an arrow between pointto - XY(l,0) and pointto
+    std::vector<double> v(2), a(2);
+    v[0] = pointto.x - l; v[1] = pointto.x;
+    a[0] = a[1] = 0;
+    Contour ret;
+    if (style.note.pointer.second == MscNoteAttr::BLOCKARROW) {
+        const double size_mul = 3;
+        std::vector<Contour> vc;
+        v[0] *= size_mul;
+        v[1] *= size_mul;
+        ret = style.arrow.BigContour(v, a, (pointto.y-width/3)*size_mul, (pointto.y+width/3)*size_mul, true, false, NULL, vc);
+        ret.Scale(1/size_mul);
+    } else {
+        const Contour clip = style.arrow.ClipForLine(pointto, 0, true, false, MSC_ARROW_END,
+                                         Block(v[0],v[1], 0, chart->total.y),
+                                         style.line, style.line);
+        ret = style.arrow.Cover(pointto, 0, true, false, MSC_ARROW_END, style.line, style.line);
+        ret += Contour(v[0], v[1], pointto.y-width/2, pointto.y+width/2) * clip;
+    }
+    //Now rotate around pointto so that startpoint is in "center"
+    const double deg =rad2deg(atan2(-(center-pointto).y, -(center-pointto).x)); 
+    ret.RotateAround(pointto, deg);
+    return ret;
 }
 
 //dir_x is +2 at the right edge of the box searching, +1 in the right third
@@ -1637,13 +1684,14 @@ void CommandNote::CoverPenalty(const XY &pointto, const XY &center, MscCanvas &c
 
 void CommandNote::Tangents(XY &pointto, XY &t1, XY&t2) const
 {
-//Penalize if the pointer has a too narrow angle with the side of the target
+    static unsigned a=0, b=0;
+    //Penalize if the pointer has a too narrow angle with the side of the target
+    a++;
     const contour::is_within_t t = target->GetAreaToNote().Tangents(pointto, t1, t2);
     if (t!=contour::WI_ON_EDGE && t!=contour::WI_ON_VERTEX) {
+        b++;
         const XY from = pointto;
-        target->GetAreaToNote().Distance(from, pointto);
-        const contour::is_within_t tt = target->GetAreaToNote().Tangents(pointto, t1, t2);
-        _ASSERT(tt==contour::WI_ON_EDGE || tt==contour::WI_ON_VERTEX);
+        target->GetAreaToNote().DistanceWithTangents(from, pointto, t1, t2);
     }
 }
 void CommandNote::SlantPenalty(const XY &pointto, const XY &center, const XY &t1, const XY&t2,
@@ -1656,12 +1704,12 @@ void CommandNote::SlantPenalty(const XY &pointto, const XY &center, const XY &t1
     case contour::IN_LINE: {
         const double a1 = acos((t1 - pointto).Normalize().DotProduct((center-pointto).Normalize()));
         const double a2 = acos((t2 - pointto).Normalize().DotProduct((center-pointto).Normalize()));
-        dev_from_90 = std::min(fabs(M_PI/2-a1), fabs(M_PI/2-a2)) * 180./M_PI;
+        dev_from_90 = rad2deg(std::min(fabs(M_PI/2-a1), fabs(M_PI/2-a2)));
         } break;
     case contour::CLOCKWISE:
     case contour::COUNTERCLOCKWISE:
         const double a = acos(((t1+t2)/2 - pointto).Normalize().DotProduct((center-pointto).Normalize()));
-        dev_from_90 = std::min(fabs(a), fabs(M_PI-a)) * 180./M_PI;
+        dev_from_90 = rad2deg(std::min(fabs(a), fabs(M_PI-a)));
         break;
     }
     if (dev_from_90 >= 30) 
@@ -1863,7 +1911,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         //ever smaller angles, till we find one. Angles are in radians below.
         //We calculate angle running variables here, as they are needed for both cases
         //(with or without target_points)
-        const double angle_step_unit = 10/(180/M_PI);
+        const double angle_step_unit = deg2rad(10);
         double angle_step = angle_step_unit;
         //starting angle is the angle specified by the sector of the belt we are in
         //it shall be zero if we want to start with a vertical center->pos arrangement
@@ -1890,8 +1938,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                     angle_step = -angle_step + ((angle_step > 0) ? -angle_step_unit : angle_step_unit)) {
 
                     //Calculate the penalty of the angle (in relation to the region)
-                    score_t local_penalty = (angle_step>10./180*M_PI) ?
-                        penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step) :
+                    score_t local_penalty = (angle_step>deg2rad(10)) ?
+                        penalty_for_pointer_angle_mul*rad2deg(fabs(angle_step)) :
                         neutral_point;
                     if (local_penalty < penalty) break; //we cannot get any better
 
@@ -1954,8 +2002,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 //and as we cycle in the angle for cycle it only becomes worse.
                 //This is split from other penalties, so that we can stop earlier in this 
                 //cycle, when other penalties are better than the angle penalty.
-                 score_t local_penalty = (angle_step>10./180*M_PI) ?
-                    penalty_for_pointer_angle_mul*(180/M_PI)*fabs(angle_step) :
+                 score_t local_penalty = (angle_step>deg2rad(10)) ?
+                    penalty_for_pointer_angle_mul*rad2deg(fabs(angle_step)) :
                     neutral_point;
 
                  if (local_penalty <= penalty) break; //we cannot get any better
@@ -1964,7 +2012,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 //x coordinates overlap.
                 const double sa = sin(angle);
                 const double ca = cos(angle);
-                const double deg_ang = angle*180/M_PI;
+                const double deg_ang = rad2deg(angle);
                 const XY ideal_center_rot = XY(ideal_center).Rotate(ca, sa);
                 const Contour contour_target_rot = contour_target.CreateRotated(deg_ang);
                 const Contour region_rot = region.CreateRotated(deg_ang);
@@ -2040,6 +2088,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 //"local_coverage_penalty" calculated. 
                 //Calculate penalty if note body or pointer covers something.
                 XY t1, t2;
+                const XY old_pointto = pointto;
                 Tangents(pointto, t1, t2);
                 SlantPenalty(pointto, center, t1, t2, local_penalty);
                 if (local_penalty < penalty) continue; //futile, try next angle
@@ -2120,7 +2169,26 @@ void CommandNote::ShiftBy(double y)
 void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (pass!=draw_pass) return;
-    const Contour cover = CoverAll(canvas, point_to, pos_center);
+    Contour cover;
+    if (style.note.pointer.second == MscNoteAttr::ARROW) {
+        cover = CoverBody(canvas, pos_center);
+        const Range r = cover.CreateExpand(style.line.Spacing()).Cut(point_to, pos_center);
+        const double len = r.from * point_to.Distance(pos_center);
+        style.arrow.TransformCanvasForAngle(rad2deg(atan2(-(pos_center-point_to).y, -(pos_center-point_to).x)), 
+                                                  canvas, point_to.x, point_to.y);
+        std::vector<double> v(2), a(2);
+        v[0] = point_to.x - len; v[1] = point_to.x;
+        a[0] = a[1] = 0;
+        const Contour clip = style.arrow.ClipForLine(point_to, 0, true, false, MSC_ARROW_END,
+                                         Block(v[0],v[1], 0, chart->total.y),
+                                         style.line, style.line);
+        canvas.Clip(clip);
+        canvas.Line(point_to, point_to - XY(len,0), style.line);
+        canvas.UnClip();
+        style.arrow.Draw(point_to, 0, true, false, MSC_ARROW_END, style.line, style.line, &canvas);
+        style.arrow.UnTransformCanvas(canvas);
+    } else 
+        cover = CoverAll(canvas, point_to, pos_center);
     canvas.Shadow(cover.CreateExpand(style.line.Spacing()), style.shadow);
     canvas.Fill(cover.CreateExpand(-style.line.Spacing()), style.fill);
     canvas.Line(cover, style.line);

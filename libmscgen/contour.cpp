@@ -1407,6 +1407,24 @@ double ContourList::Distance(const XY &o, XY &ret) const
     return d;
 }
 
+double ContourList::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
+{
+    double d = CONTOUR_INFINITY;
+    for (auto i = begin(); i!=end(); i++) {
+        XY tmp, _1, _2;
+        double dd = i->DistanceWithTangents(o, tmp, _1, _2);
+        if (fabs(dd)<fabs(d)) {
+            d = -dd;
+            ret = tmp;
+            t1 = _1;
+            t2 = _2;
+            if (d==0) return 0;
+        }
+    }
+    return d;
+}
+
+
 /////////////////////ContourWithHoles
 
 bool ContourWithHoles::IsSane(bool shouldbehole) const

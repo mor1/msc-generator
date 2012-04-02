@@ -82,7 +82,7 @@ public:
     const XY & GetStart() const {return start;}
     const XY & GetEnd() const {return end;}
     const Block &GetBoundingBox() const {return boundingBox;}
-    double Distance(const XY &, XY &point) const; //always nonnegative
+    double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
     DistanceType Distance(const Edge &) const;    //always nonnegative
 
     const EllipseData &GetEllipseData() const {_ASSERT(type!=STRAIGHT); return ell;}

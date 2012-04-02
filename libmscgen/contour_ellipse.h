@@ -75,7 +75,7 @@ public:
     double GetTilt() const {return tilted ? tilt : 0;}
 	double GetExtreme(unsigned n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
     double FindExtreme(double rad, bool after, XY &p) const;
-    double Distance(const XY &p, XY &point) const;
+    double Distance(const XY &p, XY &point, double &rad) const;
     double Distance(const XY &start, const XY &end, XY p[2]) const;
     void Shift(const XY &xy);
     void Scale(double sc);
@@ -215,7 +215,12 @@ inline bool between01_adjust(double &n)
 
 inline double deg2rad(double degree)
 {
-	return fmod_negative_safe(degree, 360.)*M_PI/180;
+	return fmod_negative_safe(degree, 360.)*(M_PI/180);
+}
+
+inline double rad2deg(double degree)
+{
+	return fmod_negative_safe(degree, 2*M_PI)*(180/M_PI);
 }
 
 typedef enum {LINE_CROSSING_PARALLEL, LINE_CROSSING_INSIDE, LINE_CROSSING_OUTSIDE} ELineCrossingType;

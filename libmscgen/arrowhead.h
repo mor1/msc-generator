@@ -69,7 +69,7 @@ protected:
     static double arrowSizePercentage[6];
 
 public:
-    enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
+    enum ArcType {NONE, ARROW, BIGARROW, ANY, NOTE} type;
     MscLineAttr                   line;
     std::pair<bool, MscArrowSize> size;
     std::pair<bool, double>       xmul;

@@ -1074,7 +1074,8 @@ double SimpleContour::Distance(const XY &o, XY &ret) const
     double r = CONTOUR_INFINITY;
     for (unsigned u = 0; u<size(); u++) {
         XY tmp;
-        double d = at(u).Distance(o, tmp);
+        double dummy;
+        double d = at(u).Distance(o, tmp, dummy);
         if (d<r) {
             r = d;
             ret = tmp;
@@ -1085,6 +1086,28 @@ double SimpleContour::Distance(const XY &o, XY &ret) const
         r = -r;
     return r;
 }
+
+double SimpleContour::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
+{
+    if (IsEmpty()) return CONTOUR_INFINITY;
+    double r = CONTOUR_INFINITY;
+    for (unsigned u = 0; u<size(); u++) {
+        XY tmp;
+        double _pos;
+        double d = at(u).Distance(o, tmp, _pos);
+        if (d<r) {
+            r = d;
+            ret = tmp;
+            t1 = PrevTangentPoint(u, _pos);
+            t2 = NextTangentPoint(u, _pos);
+            if (d==0) return 0;
+        }
+    }
+    if (IsWithin(o) == WI_INSIDE)
+        r = -r;
+    return r;
+}
+
 
 
 Range SimpleContour::Cut(const XY &A, const XY &B) const

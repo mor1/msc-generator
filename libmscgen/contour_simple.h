@@ -268,6 +268,7 @@ public:
     }
     void Distance(const SimpleContour &o, DistanceType &ret) const;
     double Distance(const XY &o, XY &ret) const;
+    double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
     Range Cut(const XY &A, const XY &B) const;
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;

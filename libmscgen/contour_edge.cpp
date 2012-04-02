@@ -103,25 +103,35 @@ Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg, doubl
 }
 
 
-double Edge::Distance(const XY &p, XY &point) const
+double Edge::Distance(const XY &p, XY &point, double &pos) const
 {
     if (type==STRAIGHT) {
         if (test_equal(start.x, end.x)) {
             point.x = start.x;
-            if (p.y<std::min(start.y, end.y)) point.y = std::min(start.y, end.y);
-            else if (p.y>std::max(start.y, end.y)) point.y = std::max(start.y, end.y);
-            else {
+            if (p.y<std::min(start.y, end.y)) {
+                point.y = std::min(start.y, end.y);
+                pos = end.y<start.y ? 1 : 0;
+            } else if (p.y>std::max(start.y, end.y)) {
+                point.y = std::max(start.y, end.y);
+                pos = end.y>start.y ? 1 : 0;
+            } else {
                 point.y = p.y;
+                pos = (p.y-start.y)/(end.y-start.y);
                 return fabs(start.x - p.x);
             }
             return point.Distance(p);
         }
         if (test_equal(start.y, end.y)) {
             point.y = start.y;
-            if (p.x<std::min(start.x, end.x)) point.x = std::min(start.x, end.x);
-            else if (p.x>std::max(start.x, end.x)) point.x = std::max(start.x, end.x);
-            else {
+            if (p.x<std::min(start.x, end.x)) {
+                point.x = std::min(start.x, end.x);
+                pos = end.x<start.x ? 1 : 0;
+            } else if (p.x>std::max(start.x, end.x)) {
+                point.x = std::max(start.x, end.x);
+                pos = end.x>start.x ? 1 : 0;
+            } else {
                 point.x = p.x;
+                pos = (p.x-start.x)/(end.x-start.x);
                 return fabs(start.y - p.y);
             }
             return point.Distance(p);
@@ -129,22 +139,30 @@ double Edge::Distance(const XY &p, XY &point) const
         //http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
         const double l = start.Distance(end);
         const double m = fabs((start.x-p.x)*(end.x-start.x)-(end.y-start.y)*(start.y-p.y))/l;
-        if (m<0) {point = start; return start.Distance(p);}
-        if (m>1) {point = end; return end.Distance(p);}
+        if (m<0) {point = start; pos = 0; return start.Distance(p);}
+        if (m>1) {point = end; pos = 1; return end.Distance(p);}
         point = start + (end-start)*m;
+        pos = m;
         //return fabs((end.x-start.x)*(start.y-p.y)-(start.x-p.x)*(end.y-start.y))/l;
         return point.Distance(p);
     }
-    if (type==FULL_CIRCLE) return ell.Distance(p, point);
-    const double dist = ell.Distance(p, point);
-    const double radian = ell.Point2Radian(point);
-    if (radianbetween(radian)) return dist;  //on arc
+    if (type==FULL_CIRCLE) {
+        const double d = ell.Distance(p, point, pos);
+        pos = radian2pos(pos);
+        return d;
+    }
+    double radian;
+    const double dist = ell.Distance(p, point, radian);
+    if (radianbetween(radian)) { //on arc
+        pos = radian2pos(radian);
+        return dist;  
+    }
     //outside: find the closest endpoint
     if (std::min(fmod_negative_safe(radian-s, 2*M_PI), fmod_negative_safe(radian-s, 2*M_PI)) <
         std::min(fmod_negative_safe(radian-e, 2*M_PI), fmod_negative_safe(radian-e, 2*M_PI)))
-        {point = start; return start.Distance(p);}
+        {point = start; pos = 0; return start.Distance(p);}
     else
-        {point = end; return end.Distance(p);}
+        {point = end; pos = 1; return end.Distance(p);}
 }
 
 //This one assumes an empty "ret", which gets filled in, with a nonnegative value
@@ -168,8 +186,9 @@ DistanceType Edge::Distance(const Edge &o) const
             //They are either parallel, degenerate or just far away
             //calculate the start distance only, end will come anyway
             XY point1, point2;
-            const double d1 = Distance(o.start, point1);
-            const double d2 = o.Distance(start, point2);
+            double dummy;
+            const double d1 = Distance(o.start, point1, dummy);
+            const double d2 = o.Distance(start, point2, dummy);
             if (d1<d2)
                 ret.Merge(d1, point1, o.start);
             else
@@ -220,20 +239,23 @@ DistanceType Edge::Distance(const Edge &o) const
             if (!test_smaller(0,line_pos)) {//"start" is closer
 start_is_closer:
                 XY other;
-                const double d = o.ell.Distance(start, other);
+                double dummy;
+                const double d = o.ell.Distance(start, other, dummy);
                 ret.Merge(d, start, other);
                 return ret;
             }
             if (!test_smaller(line_pos,1)) { //"end" is closer
 end_is_closer:
                 XY other;
-                const double d = o.ell.Distance(end, other);
+                double dummy;
+                const double d = o.ell.Distance(end, other, dummy);
                 ret.Merge(d, end, other);
                 return ret;
             }
             //"p[1]" contains a point of the line "this" which is closest to the ellipse "o"
             XY other;
-            const double di = o.ell.Distance(p[1], other);
+            double dummy;
+            const double di = o.ell.Distance(p[1], other, dummy);
             ret.Merge(di, p[1], other);
             return ret;
         }
@@ -272,8 +294,9 @@ end_is_closer:
             //Here d is nonnegative (can be maxval)
             //Ok, now check if the startpoint of the arc is closer to the line
             XY point1, point2;
-            const double d1 = Distance(o.start, point1);
-            const double d2 = o.Distance(start, point2);
+            double dummy;
+            const double d1 = Distance(o.start, point1, dummy);
+            const double d2 = o.Distance(start, point2, dummy);
             if (d < d1 && d < d2) {
                 ret.Merge(d, p[1], p[0]);
                 return ret;
@@ -305,11 +328,12 @@ end_is_closer:
     if (r2<=r1) r2 += 2*M_PI;
     const XY me = a.GetEllipseData().Radian2Point(r2);
     XY other;
-    const double d = b.Distance(me, other);
+    double dummy;
+    const double d = b.Distance(me, other, dummy);
     ret.Merge(d, me, other);
     for (; r1<r2; r1+=step_arc) {
         const XY me = a.GetEllipseData().Radian2Point(r1);
-        const double d = b.Distance(me, other);
+        const double d = b.Distance(me, other, dummy);
         ret.Merge(d, me, other);
         if (ret.IsZero()) return ret;
     }
