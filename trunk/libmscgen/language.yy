@@ -2836,9 +2836,8 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @4))
         CommandNote::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcBase *a = new CommandNote(&msc, $3, MSC_POS(@3), $4); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, MSC_POS(@$), $3, MSC_POS(@3), $4); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    a->SetLineEnd(MSC_POS(@$));
     $$ = NULL; //no need to add to arclist
   #endif
     free($1);
@@ -2854,9 +2853,8 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcBase *a = new CommandNote(&msc, NULL, file_line_range(), $2); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, MSC_POS(@$), NULL, file_line_range(), $2); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    a->SetLineEnd(MSC_POS(@$));
     $$ = NULL; //no need to add to arclist
   #endif
     free($1);
@@ -2889,9 +2887,8 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         CommandNote::AttributeValues(csh.hintAttrName, csh);
   #else
-    ArcBase *a = new CommandNote(&msc, NULL, file_line_range(), $3); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, MSC_POS(@$), NULL, file_line_range(), $3); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    a->SetLineEnd(MSC_POS(@$));
     $$ = NULL; //no need to add to arclist
   #endif
     free($1);

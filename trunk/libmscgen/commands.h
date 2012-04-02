@@ -225,7 +225,7 @@ protected:
     double pointer_width(double distance) const;
     Contour cover_pointer(MscCanvas &canvas, const XY &point_to, const XY &center) const; //places upper left corner of the body to 0,0
 public:
-    CommandNote(Msc*, const char *pt, file_line_range ptm, AttributeList *al);
+    CommandNote(Msc*, const file_line_range &fp, const char *pt, const file_line_range &ptm, AttributeList *al);
     TrackableElement *GetTarget() const {return target;}
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -236,9 +236,9 @@ public:
 
     Contour CoverBody(MscCanvas &canvas, const XY &center) const; //places upper left corner to 0,0
     Contour CoverPointer(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
-        {return cover_pointer(canvas, pointto, center) - CoverBody(canvas, center);} 
+        {return cover_pointer(canvas, pointto, center) - CoverBody(canvas, center);}
     Contour CoverAll(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
-        {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);} 
+        {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);}
     static Contour GetRegionMask(const Block &outer, int dir_x, int dir_y);
     std::vector<XY> GetPointerTarget() const;
     void CoverPenalty(const XY &pointto, const XY &center, MscCanvas &canvas,

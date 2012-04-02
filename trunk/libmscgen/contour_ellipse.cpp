@@ -517,7 +517,7 @@ void EllipseData::calculate_extremes()
         extreme[0].y = center.y;
         extreme_radian[0] = M_PI;
         extreme[1].x = center.x + radius1;
-        extreme[1].y = center.y; 
+        extreme[1].y = center.y;
         extreme_radian[1] = 0;
         extreme[2].y = center.y - radius2;
         extreme[2].x = center.x;
@@ -1008,8 +1008,8 @@ bool EllipseData::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) con
 bool EllipseData::TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const
 {
     //TODO: Assume they do not touch
-    XY dummy[4];
-    double dummy2[4];
+    //XY dummy[4];
+    //double dummy2[4];
     //_ASSERT(CrossingEllipse(from, dummy, dummy2, dummy2)==0);
     clockwise[0] = cclockwise[0] = center;
     clockwise[1] = cclockwise[1] = from.center;

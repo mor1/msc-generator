@@ -9,7 +9,7 @@
 namespace contour {
 
 //This is a template that allows storing of state along a 1-dimensional axis.
-//The state can change at any real (double) value. 
+//The state can change at any real (double) value.
 //The template parameter contains the type of state.
 //We have constructs to set the state at a double walue and onwards or between two doubles
 //We also have members to query the state at any point and ask where will the next change be.
@@ -28,10 +28,10 @@ public:
     DoubleMap() {};
     DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
                                  insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
-    void clear(const element &e) {std::map<double, element>::clear(); 
+    void clear(const element &e) {std::map<double, element>::clear();
                                   insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
                                   insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
-    void clear() {if (size()>2) erase(++begin(), --end());}
+    void clear() {if (this->size()>2) erase(++begin(), --end());}
     void Set(double pos, const element&e) {operator[](pos) = e;}
     void Set(const Range &r, const element &e);
     void Add(double pos, const element&e);     //assumes element has operator +=
@@ -133,7 +133,7 @@ void DoubleMap<element>::Prune()
         auto j = i;
         j++;
         if (j==end()) return;
-        if (i->second == j->second) 
+        if (i->second == j->second)
             erase(j);
         else
             i=j;
@@ -152,7 +152,7 @@ class SimpleContour
 {
     friend class Contour;
 protected:
-    typedef enum {OVERLAP=0, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, 
+    typedef enum {OVERLAP=0, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A,
                   SAME, APART, A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART} result_t;
     static bool result_overlap(result_t t) {return t==OVERLAP || t==A_INSIDE_B || t==B_INSIDE_A || t==SAME;}
     static result_t switch_side(result_t t);
@@ -192,7 +192,7 @@ private:
     XY NextTangentPoint(size_type edge, double pos) const
         {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
-    void Expand2DHelper(const XY &gap, std::vector<Edge> &a, 
+    void Expand2DHelper(const XY &gap, std::vector<Edge> &a,
                         unsigned original_last, unsigned next, unsigned my_index,
                         int last_type, int stype) const;
 protected:
@@ -225,7 +225,7 @@ protected:
     void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_type i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise; area_cache.second*=-1;}
     void Rotate(double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
-    
+
     static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
     result_t RelationTo(const SimpleContour &c) const;
 public:
