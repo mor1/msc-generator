@@ -2019,19 +2019,20 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 DoubleMap<int> region_ranges(0);
                 //Add the rotated region's pieces to the region ranges
                 for (unsigned ru = 0; ru<region_rot.size(); ru++)
-                    region_ranges.Set(region_rot[ru].GetBoundingBox().x, 1);
+                    region_ranges.Set(region_rot[ru].GetBoundingBox().x, 10000);
+                //Warning contour_target_rot may have multiple overlapping ranges!
                 for (unsigned ctu = 0; ctu<contour_target_rot.size(); ctu++)
                     region_ranges.Add(contour_target_rot[ctu].GetBoundingBox().x, 1);
-                //OK, we are interested in where the value equals "2" (both cover)
+                //OK, we are interested in where the value is greater than "10001" (both cover)
                 DoubleMap<bool> region_ranges_bool(false);
-                bool was2 = false, running=false;
+                bool was = false, running=false;
                 for (auto i = ++region_ranges.begin(); i!=region_ranges.end(); i++)
-                    if ((i->second==2) != running) {
-                        running = i->second == 2;
+                    if ((i->second>=10001) != running) {
+                        running = i->second >= 10001;
                         region_ranges_bool.Set(i->first, running);
-                        was2 |= running;
+                        was |= running;
                     }
-                if (!was2)    //rotated region and contour has no overlapping x-axis range,
+                if (!was)    //rotated region and contour has no overlapping x-axis range,
                     continue; //we will never find a match with this angle
 
                 //Now try to find a place first avoiding all visible blockers,
