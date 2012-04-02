@@ -10,6 +10,7 @@ defdesign colores {
     defstyle divider [line.color=brown2, text.color=blue];
     defstyle indicator, symbol [line.color=red, fill.color=yellow];
     defstyle pipe [line.color=brown1, text.color=green];
+    defstyle note [fill.color="yellow+60", line.color=brown2, arrow.color=brown2];
 };
 defdesign rose {
     defcolor yellow="255,255,207", red="168,0,54", faint_red="red+50";
@@ -24,6 +25,8 @@ defdesign rose {
     defstyle box_collapsed [emptybox];
     defstyle box_collapsed_arrow [blockarrow];
     defstyle indicator, symbol [line.color=red, fill.color=yellow];
+    defstyle note [fill.color=yellow];
+
     defstyle pipe [line.color=red];
     defstyle weak [line.color=faint_red, vline.color=faint_red, arrow.color=faint_red, text.color="black,128"];
 };
@@ -34,6 +37,7 @@ defdesign mild_yellow {
     defstyle entitygroup_collapsed [entity];
     defstyle box_collapsed [emptybox];
     defstyle box_collapsed_arrow [blockarrow];
+    defstyle note [fill.color="green+80"];
     hscale = auto, compress = yes;
 };
 defdesign omegapple {
@@ -53,6 +57,7 @@ defdesign omegapple {
     defstyle entitygroup_collapsed [entity, line.radius=10, text.format="\md(0)"];
     defstyle box_collapsed [emptybox];
     defstyle box_collapsed_arrow [blockarrow];
+    defstyle note [line.corner=round, line.radius=5, line.color=rose2, fill.color=yellow];
 
     defstyle weak [line.color=faint_rose, vline.color=faint_rose, arrow.color=faint_rose];
     hscale=auto;
@@ -64,6 +69,7 @@ defdesign qsd {
       defstyle entitygroup_collapsed [text.format="\md(0)"];
       defstyle entity [vline.type=dashed];
       defstyle >, >> [arrow.type=line];
+      defstyle note [shadow.offset=3, shadow.blur=3];
       hscale=auto;
 };
 defdesign modern_blue {
@@ -82,8 +88,9 @@ defdesign modern_blue {
       defstyle entitygroup_collapsed [entity, line.radius=5, text.format="\md(0)"];
       defstyle box_collapsed [emptybox];
       defstyle box_collapsed_arrow [blockarrow];
-
+      defstyle note [line.corner=round, line.radius=3, fill.color="160,200,240", shadow.offset=3, shadow.blur=3];
 };
+
 defdesign round_green {
       defcolor green="161,207,169";
       defcolor brown="165,132,88", lbrown="232,204,180";
@@ -98,6 +105,7 @@ defdesign round_green {
       defstyle >, >> [arrow.type=line];
       defstyle box, pipe, vertical, entitygroup [line.width=2, line.color=green];
       defstyle indicator, symbol [line.corner = round, line.radius=2];
+      defstyle note [fill.color="yellow+60", line.color="yellow-50", line.corner=round, line.radius=4];
 };
 defdesign green_earth {
       defcolor green="87,139,119", lgray="240,240,240";
@@ -105,13 +113,14 @@ defdesign green_earth {
       defstyle entity, entitygroup_collapsed [text.format="\mu(6)\ml(6)\mr(6)\md(6)\b", text.color=white];
       defstyle entitygroup_collapsed [text.format="\md(0)"];
       defstyle entity [vline.color=gray, vline.type=dashed];
-      defstyle emptybox, pipe, blockarrow, vertical, box_collapsed, box_collapsed_arrow [shadow.offset=4, shadow.blur=6];
+      defstyle emptybox, pipe, blockarrow, vertical, box_collapsed, box_collapsed_arrow, note [shadow.offset=4, shadow.blur=6];
       defstyle emptybox, box_collapsed [line.width=2];
       defstyle arrow, blockarrow, box_collapsed_arrow [line.width=2];
       defstyle >, >> [arrow.type=line];
       defstyle => [arrow.size=normal];
       defstyle box, pipe, vertical, entitygroup [line.width=2, line.color=gray, fill.color=lgray];
       defstyle box, pipe, vertical, ---, ... [text.format="\b"];
+      defstyle note [line.width=2, fill.color="green+70", text.bold=yes];
       defstyle weak [text.color="200,200,200", text.format="\mn(14)", line.width=1];
       defstyle strong [text.format="\mn(18)", line.width=3];
 };
@@ -129,13 +138,13 @@ defdesign Dinand {
 
       defstyle entity, entitygroup_collapsed [fill.color=lgray, fill.gradient=up, vline.color=lgray];
       defstyle box [fill.gradient=down, text.color = "125, 125, 125"];
-      defstyle vertical [fill.gradient=down];
+      defstyle vertical, note [fill.gradient=down];
       defstyle emptybox [fill.gradient=none, text.color=black];
       defstyle arrow [arrow.midtype=dot];
       defstyle blockarrow, box_collapsed_arrow [arrow.midtype=dot, fill.gradient=down];
 };
 defdesign thick_lines {
-    defstyle arrow, blockarrow, vertical, pipe, box, emptybox, divider, symbol, indicator [line.width=2];
+    defstyle arrow, blockarrow, vertical, pipe, box, emptybox, divider, symbol, indicator, note [line.width=2];
     defstyle box_collapsed, box_collapsed_arrow, entity, entitygroup, entitygroup_collapsed [line.width=2];
     defstyle entity, entitygroup_collapsed [vline.width=2];
     defstyle weak [line.width=1, vline.width=1];

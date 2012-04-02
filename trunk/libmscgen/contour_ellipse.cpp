@@ -579,18 +579,24 @@ center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), circ
 }
 
 //return positive distance no matter if inside or outside
-double EllipseData::Distance(const XY &p, XY &point) const
+double EllipseData::Distance(const XY &p, XY &point, double &rad) const
 {
-    if (p.test_equal(center)) return std::min(radius1, radius2);
+    if (p.test_equal(center)) {
+        rad = (radius2 < radius1) ? M_PI/2 : 0;
+        point = Radian2Point(rad);
+        return std::min(radius1, radius2);
+    }
     if (radius1==radius2) {
         const double cl = center.Distance(p);
-            point = center + (p-center)*radius1/cl;
+        point = center + (p-center)*radius1/cl;
+        rad = atan2((point-center).y, (point-center).x);
         return fabs(radius1-cl);
     }
     //We cheat with ellipses, we do not return real distance, just the
     //intersection of the p-center line and the ellipse
     point = conv_to_circle_space(p);
     point.Normalize();
+    rad = atan2(point.y, point.x);
     point = conv_to_real_space(point);
     return p.Distance(point);
 }

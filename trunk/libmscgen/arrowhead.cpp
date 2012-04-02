@@ -88,8 +88,12 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     else if (a.EndsWith("midtype")) pType = &midType;
     if (pType) {
         if (a.Is("arrow"))
-            msc->Error.Warning(a, "Option/Attribute 'arrow' is deprecated, but understood.",
+            msc->Error.Warning(a, false, "Attribute 'arrow' is deprecated, but understood.",
                                 "Use 'arrow.type'.");
+        if (pType != &endType && type == NOTE) {
+            msc->Error.Error(a, false, "Only the end type of a note poiner can be set. Ignoring '"+a.name+"' attribute.");
+            return true;
+        }
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t)) {
                 pType->first = false;
@@ -126,7 +130,7 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
             Convert(a.value, size.second)) {
             size.first = true;
         if (a.Is("arrowsize"))
-            msc->Error.Warning(a, "Option/Attribute 'arrowsize' is deprecated, but understood.",
+            msc->Error.Warning(a, false, "Attribute 'arrowsize' is deprecated, but understood.",
                                "Use 'arrow.size'.");
             return true;
         }

@@ -110,20 +110,22 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         if (f_line) line.AddAttribute(a, msc, type);
         return f_arrow!=ArrowHead::NONE || f_line;
     }
-    if ((a.StartsWith("text") || a.Is("ident")) && f_text)
+    if (f_text && (a.StartsWith("text") || a.Is("ident")))
         return text.AddAttribute(a, msc, type);
-    if (a.StartsWith("line") && f_line)
+    if (f_line && a.StartsWith("line"))
         return line.AddAttribute(a, msc, type);
-    if (a.StartsWith("vline") && f_vline)
+    if (f_vline && a.StartsWith("vline"))
         return vline.AddAttribute(a, msc, type);
     if (a.StartsWith("fill") && f_fill)
         return fill.AddAttribute(a, msc, type);
-    if (a.StartsWith("vfill") && f_vfill)
+    if (f_vfill && a.StartsWith("vfill"))
         return vfill.AddAttribute(a, msc, type);
-    if (a.StartsWith("shadow") && f_shadow)
+    if (f_shadow && a.StartsWith("shadow"))
         return shadow.AddAttribute(a, msc, type);
-    if ((a.StartsWith("arrow") || a.Is("arrowsize")) && f_arrow!=ArrowHead::NONE)
+    if (f_arrow!=ArrowHead::NONE && (a.StartsWith("arrow") || a.Is("arrowsize")))
         return arrow.AddAttribute(a, msc, type);
+    if (f_note && a.StartsWith("note")) 
+        return note.AddAttribute(a, msc, type);
     if (a.Is("solid") && f_solid) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
@@ -197,8 +199,6 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         makeroom.second = a.yes;
         return true;
     }
-    if (f_note && (a.Is("layout") || a.Is("shape") || a.Is("point_to"))) 
-        return note.AddAttribute(a, msc, type);
     return false;
 }
 
@@ -492,9 +492,9 @@ void Design::Reset()
     style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false, false, false); //only line fill and shadow
     styles["symbol"] = style;
 
-    style= MscStyle(STYLE_DEFAULT, ArrowHead::ARROW, true, true, true, true, false, false, true, false, false, false, false, true, true);  //no vline side solid indicator compress vfill 
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::NOTE, true, true, true, true, false, false, true, false, false, false, false, false, true);  //no vline side solid indicator compress vfill makreoom
     style.numbering.first = false;
-    style.makeroom.second = true;
+    style.text += "\\mn(10)\\ms(6)"; //small font to 6, normal to 10
     styles["note"] = style;
 
 
