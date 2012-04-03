@@ -317,6 +317,8 @@ void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
         //quotation mark, so we add one.
         //If there are no escapes ExtractCSH() does nothing, so the passed 
         //pos will not matter anyway.
+        //For exactly this reason if "AddCSH_AttrValue" is called from
+        //"AddCSH_ColonString" below, it is called with the colon position.
         StringFormat::ExtractCSH(pos.first_pos+1, value, *this);
     } else {
         // No match - regular attribute value
@@ -329,7 +331,7 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
     CshPos colon = pos;
     colon.last_pos = colon.first_pos;
     AddCSH(colon, COLOR_COLON);
-    pos.first_pos++;
+    //pos.first_pos++;
     char *copy = strdup(value);
     if (processComments) {
         char *p = copy;

@@ -1381,8 +1381,9 @@ void CommandNote::FinalizeLabels(MscCanvas &canvas)
     if (al) {
         numberingStyle = al->numberingStyle;
         number_text = al->number_text;
-        style.numbering.second = al->style.numbering.second && al->label.length(); //skip numbering if target has no number
-    }
+        style.numbering.second = al->style.numbering.second && number_text.length(); //skip numbering if target has no number
+    } else
+        style.numbering.second = false; //if target is not an ArcLabelled (e.g., EntityDef)
     ArcLabelled::FinalizeLabels(canvas);
 }
 
@@ -1683,12 +1684,11 @@ void CommandNote::CoverPenalty(const XY &pointto, const XY &center, MscCanvas &c
 
 void CommandNote::Tangents(XY &pointto, XY &t1, XY&t2) const
 {
-    static unsigned a=0, b=0;
     //Penalize if the pointer has a too narrow angle with the side of the target
-    a++;
+    //(Measurements show that roughly half the cases "Tangents()" below return
+    //that "pointto" is not on the contour.)
     const contour::is_within_t t = target->GetAreaToNote().Tangents(pointto, t1, t2);
     if (t!=contour::WI_ON_EDGE && t!=contour::WI_ON_VERTEX) {
-        b++;
         const XY from = pointto;
         target->GetAreaToNote().DistanceWithTangents(from, pointto, t1, t2);
     }
