@@ -69,7 +69,8 @@ public:
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     virtual void PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level);
-    double NoteHeight(MscCanvas &canvas, AreaList &cover);
+    double NoteHeight(MscCanvas &canvas, AreaList &cover) {double l=0, r=0; return NoteHeightHelper(canvas, cover, l, r);}
+    virtual double NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
     virtual void PostPosProcess(MscCanvas &, double);
 
     void DrawControls(MscCanvas*, double size);

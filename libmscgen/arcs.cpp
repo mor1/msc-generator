@@ -270,7 +270,7 @@ ArcBase* ArcBase::PostParseProcess(MscCanvas &canvas, bool hide,
     return this;
 }
 
-void ArcBase::FinalizeLabels(MscCanvas &canvas)
+void ArcBase::FinalizeLabels(MscCanvas &)
 {
     if (refname.length())
         chart->ReferenceNames[refname].arc = this;
@@ -340,7 +340,7 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-void ArcIndicator::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void ArcIndicator::Width(MscCanvas &, EntityDistanceMap &distances)
 {
     if (*src != *dst) return; //no width requirements for Indicators not exactly on an entity
     //If we are exactly on an entity line add left and right req for boxes potentially around us.
@@ -764,7 +764,7 @@ ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     return this;
 }
 
-void ArcSelfArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void ArcSelfArrow::Width(MscCanvas &, EntityDistanceMap &distances)
 {
     if (!valid) return;
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
@@ -2593,10 +2593,14 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 
     double y = chart->emphVGapOutside;
     yPos = y;
+    double note_end=y;
     for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->yPos = y;
-        // y now points to the *top* of the line of the top edge of this box
-        // if we are pipe, we draw the segment side-by side, so we reset y here
+        (*i)->yPos = y; //"y" now points to the *top* of the line of the top edge of this box
+        
+        //Place side comments. This will update "cover" and thus force the content
+        //downward if the content also has side notes
+        double l=y, r=y;
+        note_end = y + (*i)->NoteHeightHelper(canvas, cover, l, r);
 
         //Advance upper line and spacing
         y += (*i)->style.line.LineWidth() + chart->emphVGapInside;
@@ -2637,6 +2641,8 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             if (off<0) y-=off;
         }
         y += chart->emphVGapInside;
+        //increase the size of the box by the side notes, except for the last box
+        if (i!=--series.end()) y = std::max(y, note_end);
         //Make segment as tall as needed to accomodate curvature
         //if (style.line.radius.second>0) {
         //    double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
@@ -2687,7 +2693,9 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     overall_box.mainline = Block(chart->GetDrawing().x, b.y);
     cover = GetCover4Compress(overall_box);
     height = yPos + total_height + offset + chart->emphVGapOutside;
-    return std::max(height, NoteHeight(canvas, cover));
+    //We do not call NoteHeight for "this" since a box series cannot take notes, only its
+    //box elements do and those were handled above
+    return std::max(height, note_end);
 }
 
 void ArcBox::ShiftBy(double y)
@@ -3299,6 +3307,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
     const MscSideType side = (*series.begin())->style.side.second;
     const double radius = (*series.begin())->style.line.radius.second;
+    double note_l=0, note_r=0;
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Variables already set (all of them rounded):
         //pipe_connect true if a segment connects to us directly
@@ -3307,6 +3316,10 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         (*i)->area.clear();
         (*i)->area_draw.clear();
         (*i)->draw_is_different = false;
+
+        //Place side comments. This will update "cover" and thus force the content
+        //downward if the content also has side notes
+        (*i)->NoteHeightHelper(canvas, cover, note_l, note_r);
 
         //Set pipe_block.x, sx_text, dx_text in each segment, in the meantime
         //pipe_block contains the outside of the pipe, with the exception of the curvature (since it is a rect)
@@ -3475,7 +3488,8 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //Expand cover, but not content (that is already expanded)
     cover += GetCover4Compress(pipe_body_cover);
     height = yPos + total_height + max_offset + chart->emphVGapOutside;
-    return std::max(height, NoteHeight(canvas, cover));
+    //We do not call NoteHeight here as a PipeSeries will not have notes, only its elements
+    return std::max(height, std::max(note_l, note_r));
 }
 
 
@@ -3692,7 +3706,7 @@ ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &l
     return this;
 }
 
-void ArcDivider::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void ArcDivider::Width(MscCanvas &, EntityDistanceMap &distances)
 {
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)

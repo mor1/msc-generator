@@ -137,7 +137,7 @@ public:
     /* This is called to substitute name references in labels & process all escapes */
     virtual void FinalizeLabels(MscCanvas &canvas);
     /* This fills in distances for hscale=auto mechanism */
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances) {}
+    virtual void Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*/) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);

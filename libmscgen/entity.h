@@ -39,6 +39,7 @@ public:
     double StyleTill(double pos) const {return styleStatus.Till(pos);}
     double ShowFrom(double pos) const {return showStatus.From(pos);}
     double StyleFrom(double pos) const {return styleStatus.From(pos);}
+    void Reset() {styleStatus.clear(); showStatus.clear();}
 };
 
 class Msc;

@@ -55,6 +55,7 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void MoveNotesToChart();
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+    virtual double NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
@@ -250,7 +251,6 @@ public:
                       score_t &slant_penalty) const;
     static bool GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY&ret);
     static bool GetAPointInside(const DoubleMap<bool> &map, double &ret);
-    void PlaceFloatingTo(MscCanvas &canvas, const XY &pointto, const XY &center);
     void PlaceFloating(MscCanvas &canvas);
     void PlaceSideTo(MscCanvas &canvas, AreaList &cover, double &y);
 

@@ -407,7 +407,7 @@ void CommandEntity::MoveNotesToChart()
 //be drawn as containing other entities.
 //Since parents are in the beginning of the list, we will go and add distances from the back
 //and use the added distances later in the cycle when processing parents
-void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void CommandEntity::Width(MscCanvas &, EntityDistanceMap &distances)
 {
     if (!valid || hidden) return;
     //Add distances for entity heading
@@ -478,12 +478,21 @@ void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     }
 }
 
+//Here we add to "cover", do not overwrite it
+double CommandEntity::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
+{
+    TrackableElement::NoteHeightHelper(canvas, cover, l, r);
+    for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) 
+        (*i_def)->NoteHeightHelper(canvas, cover, l, r);
+    return std::max(l, r);
+}
+
 double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 {
     if (!valid || hidden) return height=0;
     if (reflow) {
         cover = cover_at_0;
-        return height;
+        return std::max(height, NoteHeight(canvas, cover));
     }
     Range hei(0,0);
     //Those entities explicitly listed will have their own EntityDef for this line.
@@ -1146,6 +1155,7 @@ void CommandSymbol::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     ArcCommand::Width(canvas, distances);
 }
+
 
 double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 {
@@ -2113,7 +2123,20 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         }//else: we had no target points
     } //for: regions
     if (best_point > worst_point) {
-        PlaceFloatingTo(canvas, best_pointto, best_center);
+        //Ok, place the note, calculate "area"
+        _ASSERT(style.note.layout.second==MscNoteAttr::FLOATING);
+        if (!chart->GetDrawing().IsWithinBool(best_center) || !chart->GetDrawing().IsWithinBool(best_pointto)) {
+            _ASSERT(0);
+            return;
+        }
+        pos_center = best_center;
+        point_to = best_pointto;
+        //now a hack: decrease halfsize by half a linewidth, from now on CoverAll
+        //is assumed to return the midline.
+        halfsize.x -= style.line.LineWidth()/2;
+        halfsize.y -= style.line.LineWidth()/2;
+        area = CoverAll(canvas, best_pointto, best_center);
+        area_important = area;
     } else {
         //Not successful
         chart->Error.Error(file_pos.start, "Could not place this note.");
@@ -2121,35 +2144,14 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     }
 }
 
-
-
-void CommandNote::PlaceFloatingTo(MscCanvas &canvas, const XY &pointto, const XY &center)
-{
-    _ASSERT(style.note.layout.second==MscNoteAttr::FLOATING);
-    if (!chart->GetDrawing().IsWithinBool(center) || !chart->GetDrawing().IsWithinBool(pointto)) {
-        _ASSERT(0);
-        return;
-    }
-    pos_center = center;
-    point_to = pointto;
-    //now a hack: decrease halfsize by half a linewidth, from now on CoverAll
-    //is assumed to return the midline.
-    halfsize.x -= style.line.LineWidth()/2;
-    halfsize.y -= style.line.LineWidth()/2;
-    area = CoverAll(canvas, pointto, center);
-    area_important = area;
-    //instead of Height() we add ourselves to the list here
-    chart->NoteBlockers.Append(this);
-}
-
 //return height, but place to "y" (below other notes)
-void CommandNote::PlaceSideTo(MscCanvas &canvas, AreaList &cover, double &y)
+void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
 {
     _ASSERT(style.note.layout.second==MscNoteAttr::LEFTSIDE || style.note.layout.second==MscNoteAttr::RIGHTSIDE);
     yPos = y + chart->arcVGapAbove;
     if (style.note.layout.second == MscNoteAttr::LEFTSIDE)
         area = parsed_label.Cover(chart->XCoord(chart->LNote->pos), chart->XCoord(chart->LSide->pos), yPos);
-    else                           
+    else
         area = parsed_label.Cover(chart->XCoord(chart->RSide->pos), chart->XCoord(chart->RNote->pos), yPos);
     area.arc = this;
     height = area.GetBoundingBox().y.till - y + chart->arcVGapBelow;
@@ -2173,9 +2175,9 @@ void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
         _ASSERT(0);
         return;
     case MscNoteAttr::LEFTSIDE:
-        parsed_label.Draw(canvas, chart->XCoord(chart->LNote->pos), chart->XCoord(chart->LSide->pos), yPos); 
+        parsed_label.Draw(canvas, chart->XCoord(chart->LNote->pos), chart->XCoord(chart->LSide->pos), yPos);
         return;
-    case MscNoteAttr::RIGHTSIDE:    
+    case MscNoteAttr::RIGHTSIDE:
         parsed_label.Draw(canvas, chart->XCoord(chart->RSide->pos), chart->XCoord(chart->RNote->pos), yPos);
         return;
     case MscNoteAttr::FLOATING:
