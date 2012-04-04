@@ -227,6 +227,7 @@ protected:
 public:
     CommandNote(Msc*, const file_line_range &fp, const char *pt, const file_line_range &ptm, AttributeList *al);
     TrackableElement *GetTarget() const {return target;}
+    MscNoteAttr::layout_t GetLayout() const {return style.note.layout.second;}
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -249,8 +250,9 @@ public:
                       score_t &slant_penalty) const;
     static bool GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY&ret);
     static bool GetAPointInside(const DoubleMap<bool> &map, double &ret);
-    void PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center);
+    void PlaceFloatingTo(MscCanvas &canvas, const XY &pointto, const XY &center);
     void PlaceFloating(MscCanvas &canvas);
+    void PlaceSideTo(MscCanvas &canvas, AreaList &cover, double &y);
 
     virtual void ShiftBy(double y);
     //virtual void PostPosProcess(MscCanvas &cover, double autoMarker);

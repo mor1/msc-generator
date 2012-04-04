@@ -92,8 +92,6 @@ struct ArcSignature {
 
 class ArcBase : public TrackableElement
 {
-public:
-    typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT, NOTE, AFTER_NOTE} DrawPassType;
 private:
     bool had_add_attr_list;    //TODO: debug only, remove
 protected:
@@ -139,7 +137,7 @@ public:
     /* This is called to substitute name references in labels & process all escapes */
     virtual void FinalizeLabels(MscCanvas &canvas);
     /* This fills in distances for hscale=auto mechanism */
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances) {TrackableElement::Width(canvas, distances);}
+    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);

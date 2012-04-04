@@ -270,19 +270,19 @@ ArcBase* ArcBase::PostParseProcess(MscCanvas &canvas, bool hide,
     return this;
 }
 
-void ArcBase::FinalizeLabels(MscCanvas &/*canvas*/)
+void ArcBase::FinalizeLabels(MscCanvas &canvas)
 {
     if (refname.length())
         chart->ReferenceNames[refname].arc = this;
 }
 
-double ArcBase::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow)
+double ArcBase::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 {
     if (reflow)
         cover = GetCover4Compress(area);
     else
         height = 0;
-    return height;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 
@@ -342,7 +342,6 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
 
 void ArcIndicator::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
-    ArcBase::Width(canvas, distances);
     if (*src != *dst) return; //no width requirements for Indicators not exactly on an entity
     //If we are exactly on an entity line add left and right req for boxes potentially around us.
     const double width = indicator_style.line.LineWidth() + indicator_size.x/2;
@@ -357,13 +356,13 @@ double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
     area = b;
-    area.mainline = Block(0,chart->total.x, b.y.from, b.y.till);
+    area.mainline = Block(chart->GetDrawing().x, b.y);
     area_important = b;
     if (!reflow) chart->NoteBlockers.Append(this);
     height = b.y.till + chart->emphVGapOutside;
     //TODO add shadow to cover
     cover = GetCover4Compress(area);
-    return height;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void ArcIndicator::Draw(MscCanvas &canvas, DrawPassType pass) 
@@ -768,7 +767,6 @@ ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
 void ArcSelfArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcArrow::Width(canvas, distances);
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
@@ -793,7 +791,7 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area_important = area;
     const Block arrow_box(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
     area += arrow_box;
-    area.mainline = Block(0, chart->total.x, y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
+    area.mainline = Block(chart->GetDrawing().x, Range(y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2));
     //Now add arrowheads to the "area_important", and a small block if they are NONE
     XY point = XY(dx+src_act, xy_s.y + chart->arcVGapAbove);
     if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
@@ -810,7 +808,7 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     if (!reflow) chart->NoteBlockers.Append(this);
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
     cover = GetCover4Compress(area);
-    return height;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void ArcSelfArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
@@ -847,7 +845,7 @@ void ArcSelfArrow::Draw(MscCanvas &canvas, DrawPassType pass)
         canvas.Line(Edge(XY(dx+src_act, y+YSize), wh.x, wh.y/2, 0, 270, 90), style.line);
     } else {
         //draw (part of) a rounded rectangle
-        canvas.Clip(dx+src_act, chart->total.x, 0, chart->total.y);
+        canvas.Clip(dx+src_act, chart->GetDrawing().x.till, chart->GetDrawing().y.from, chart->GetDrawing().y.till);
         canvas.Line(Block(XY(0, y), XY(dx,y)+wh), style.line);
         canvas.UnClip();
     }
@@ -1137,7 +1135,6 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 void ArcDirArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcArrow::Width(canvas, distances);
     //Here we have a valid canvas, so we adjust act_size
     if (canvas.HasImprecisePositioning() && slant_angle==0)
         for (auto i = act_size.begin(); i!=act_size.end(); i++)
@@ -1287,31 +1284,33 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
     if (slant_angle==0)
-        return height = std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
-    return height = area.GetBoundingBox().y.till;
+        height = std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
+    else
+        height = area.GetBoundingBox().y.till;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 
 void ArcDirArrow::CalculateMainline(double thickness)
 {
     if (slant_angle == 0) 
-        area.mainline = Block(0, chart->total.x, yPos+centerline - thickness/2, yPos+centerline + thickness/2);
+        area.mainline = Block(chart->GetDrawing().x, Range(yPos+centerline - thickness/2, yPos+centerline + thickness/2));
     else {
         thickness /= cos_slant;
         const double src_y = yPos+centerline;
         const double dst_y = sin_slant*(dx-sx) + src_y;
         const double real_dx = sx + cos_slant*(dx-sx);
         if (sx<dx) {
-            const XY ml[] = {XY(0,   src_y-thickness/2), XY(sx, src_y-thickness/2),
-                             XY(real_dx, dst_y-thickness/2), XY(chart->total.x, dst_y-thickness/2),
-                             XY(chart->total.x, dst_y+thickness/2), XY(real_dx, dst_y+thickness/2),
-                             XY(sx, src_y+thickness/2), XY(0, src_y+thickness/2)};
+            const XY ml[] = {XY(chart->GetDrawing().x.from,   src_y-thickness/2), XY(sx, src_y-thickness/2),
+                             XY(real_dx, dst_y-thickness/2), XY(chart->GetDrawing().x.till, dst_y-thickness/2),
+                             XY(chart->GetDrawing().x.till, dst_y+thickness/2), XY(real_dx, dst_y+thickness/2),
+                             XY(sx, src_y+thickness/2), XY(chart->GetDrawing().x.from, src_y+thickness/2)};
             area.mainline.assign_dont_check(ml);
         } else {
-            const XY ml[] = {XY(0, dst_y-thickness/2), XY(real_dx, dst_y-thickness/2),
-                             XY(sx, src_y-thickness/2), XY(chart->total.x, src_y-thickness/2),
-                             XY(chart->total.x, src_y+thickness/2), XY(sx, src_y+thickness/2),
-                             XY(real_dx, dst_y+thickness/2), XY(0, dst_y+thickness/2)};
+            const XY ml[] = {XY(chart->GetDrawing().x.from, dst_y-thickness/2), XY(real_dx, dst_y-thickness/2),
+                             XY(sx, src_y-thickness/2), XY(chart->GetDrawing().x.till, src_y-thickness/2),
+                             XY(chart->GetDrawing().x.till, src_y+thickness/2), XY(sx, src_y+thickness/2),
+                             XY(real_dx, dst_y+thickness/2), XY(chart->GetDrawing().x.from, dst_y+thickness/2)};
             area.mainline.assign_dont_check(ml);
         }
     }
@@ -1506,8 +1505,6 @@ ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcArrow::Width(canvas, distances);
-
     //fill an "indexes" and "act_size" array
     const bool fw = (*src)->index < (*dst)->index;
     std::vector<unsigned> indexes;
@@ -1661,7 +1658,8 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
 
-    return height = area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
+    height = area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void ArcBigArrow::ShiftBy(double y)
@@ -1952,8 +1950,6 @@ ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EItera
 void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcArrow::Width(canvas, distances);
-
     //No extra space requirement
     if (!style.makeroom.second) return;
     //The offset is ignored during the process of setting space requirements
@@ -1993,8 +1989,9 @@ void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-double ArcVerticalArrow::Height(MscCanvas &/*canvas*/, AreaList &, bool)
+double ArcVerticalArrow::Height(MscCanvas &, AreaList &, bool)
 {
+    //We will not have notes, so no need to call NoteHeight()
     return height = 0;
 }
 
@@ -2511,8 +2508,6 @@ void ArcBoxSeries::FinalizeLabels(MscCanvas &canvas)
 void ArcBoxSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcBase::Width(canvas, distances);
-
     const MscStyle &overall_style = (*series.begin())->style;
     const EIterator src = (*series.begin())->src;
     const EIterator dst = (*series.begin())->dst;
@@ -2689,9 +2684,10 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     const double &offset = main_style.shadow.offset.second;
     if (offset)
         overall_box += overall_box.CreateShifted(XY(offset, offset));
-    overall_box.mainline = Block(0, chart->total.x, b.y.from, b.y.till);
+    overall_box.mainline = Block(chart->GetDrawing().x, b.y);
     cover = GetCover4Compress(overall_box);
-    return height = yPos + total_height + offset + chart->emphVGapOutside;
+    height = yPos + total_height + offset + chart->emphVGapOutside;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void ArcBox::ShiftBy(double y)
@@ -2772,7 +2768,7 @@ void ArcBoxSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
 void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
-    if (pass!=draw_pass) return;
+    if (pass!=draw_pass) return;  //What about note???!!!!
     //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
     const MscStyle &main_style = (*series.begin())->style;
     const double lw = main_style.line.LineWidth();
@@ -3223,8 +3219,6 @@ void ArcPipeSeries::FinalizeLabels(MscCanvas &canvas)
 void ArcPipeSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcBase::Width(canvas, distances);
-
     EntityDistanceMap d, d_pipe;
     if (content.size())
         chart->WidthArcList(canvas, content, d);
@@ -3402,7 +3396,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
                 //the other way is not ok: Expand fails in expanding negative arcs
                 if (content.size() && (*i)->style.solid.second < 255) {
                     (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth);
-                    (*i)->area_draw *= Contour(side == SIDE_RIGHT ? 0 : chart->total.x, cd.x,
+                    (*i)->area_draw *= Contour(side == SIDE_RIGHT ? chart->GetDrawing().x.from : chart->GetDrawing().x.till, cd.x,
                                                 -chart->trackFrameWidth-1, total_height+chart->trackFrameWidth+1);
                 }
             }
@@ -3477,10 +3471,11 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     cover += content_cover;
     //If we have no valid content, set mainline to that of pipe, else the content's mainline will be used
     if (content_cover.mainline.IsEmpty()) 
-        pipe_body_cover.mainline = Block(0, chart->total.x, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
+        pipe_body_cover.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
     //Expand cover, but not content (that is already expanded)
     cover += GetCover4Compress(pipe_body_cover);
-    return height = yPos + total_height + max_offset + chart->emphVGapOutside;
+    height = yPos + total_height + max_offset + chart->emphVGapOutside;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 
@@ -3569,7 +3564,8 @@ void ArcPipe::DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bo
     if (topSideLine) {
         cairo_line_join_t t = canvas.SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
         const double x = style.side.second == SIDE_RIGHT ? pipe_block.x.till : pipe_block.x.from;
-        Contour clip(x, style.side.second == SIDE_LEFT ? chart->total.x : 0, 0, chart->total.y);
+        Contour clip(x, style.side.second == SIDE_LEFT ? chart->GetDrawing().x.till : chart->GetDrawing().x.from,
+                     chart->GetDrawing().y.from, chart->GetDrawing().y.till);
         if (style.line.radius.second>0 && pipe_connect_forw) {
             const XY c(x, pipe_block.y.MidPoint());
             clip -= Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2);
@@ -3699,8 +3695,6 @@ ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &l
 void ArcDivider::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcLabelled::Width(canvas, distances);
-
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
     //Get marging from chart edge
@@ -3722,7 +3716,7 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     if (reflow) return ArcBase::Height(canvas, cover, reflow);
     yPos = 0;
     if (nudge) {
-        Block b(0, chart->total.x, 0, chart->nudgeSize);
+        Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
         area.mainline = area = b;
         cover = GetCover4Compress(area);
         return height = chart->nudgeSize;
@@ -3736,25 +3730,27 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     centerline = y+wh.y/2;
     text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     line_margin = chart->XCoord(MARGIN);
-    text_cover = parsed_label.Cover(text_margin, chart->total.x-text_margin, y);
+    text_cover = parsed_label.Cover(chart->GetDrawing().x.from, text_margin, chart->GetDrawing().x.till-text_margin, y);
     area = text_cover;
     area.arc = this;
     area_important = area;
     //Add a cover block for the line, if one exists
     if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
-        area += Block(line_margin, chart->total.x-line_margin,
+        area += Block(chart->GetDrawing().x.from + line_margin, chart->GetDrawing().x.till - line_margin,
                       centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
     if (!wide)
         wh.y += chart->arcVGapBelow;
     height = wh.y + extra_space;
     //Discontinuity lines cannot be compressed much
     if (type==MSC_ARC_DISCO)
-        area.mainline = Block(0, chart->total.x, wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
+        area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
+                              wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
-        area.mainline = Block(0, chart->total.x, centerline-charheight/2, centerline+charheight/2);
+        area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
+                              centerline-charheight/2, centerline+charheight/2);
     if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
-    return height;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void ArcDivider::ShiftBy(double y)
@@ -3786,16 +3782,18 @@ void ArcDivider::Draw(MscCanvas &canvas, DrawPassType pass)
     if (!valid) return;
     if (pass!=draw_pass) return;
     if (nudge) return;
-    parsed_label.Draw(canvas, text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove+extra_space));
+    parsed_label.Draw(canvas, chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till - text_margin, 
+                      yPos + (wide ? 0 : chart->arcVGapAbove+extra_space));
     //determine widest extent for coverage at the centerline+-style.line.LineWidth()/2;
     const double lw2 = ceil(style.line.LineWidth()/2.);
-    Block b(line_margin, chart->total.x-line_margin, yPos + centerline - lw2, yPos + centerline + lw2);
+    Block b(chart->GetDrawing().x.from+line_margin, chart->GetDrawing().x.till-line_margin, 
+            yPos + centerline - lw2, yPos + centerline + lw2);
     Range r = (text_cover * b).GetBoundingBox().x;
     if (r.IsInvalid())
-        canvas.Line(XY(line_margin, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
+        canvas.Line(XY(chart->GetDrawing().x.from+line_margin, yPos + centerline), XY(chart->GetDrawing().x.till-line_margin, yPos + centerline), style.line);
     else {
-        canvas.Line(XY(line_margin, yPos + centerline), XY(r.from-chart->emphVGapInside, yPos + centerline), style.line);
-        canvas.Line(XY(r.till+chart->emphVGapInside, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
+        canvas.Line(XY(chart->GetDrawing().x.from+line_margin, yPos + centerline), XY(r.from-chart->emphVGapInside, yPos + centerline), style.line);
+        canvas.Line(XY(r.till+chart->emphVGapInside, yPos + centerline), XY(chart->GetDrawing().x.till-line_margin, yPos + centerline), style.line);
     }
 }
 
@@ -3844,7 +3842,6 @@ void ArcParallel::FinalizeLabels(MscCanvas &canvas)
 void ArcParallel::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcBase::Width(canvas, distances);
     EntityDistanceMap d;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
         chart->WidthArcList(canvas, **i, d);
@@ -3869,7 +3866,7 @@ double ArcParallel::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         cover += cover_block;
     }
     //Do not expand cover, it has already been expanded
-    return height;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void ArcParallel::ShiftBy(double y)

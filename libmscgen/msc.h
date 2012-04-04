@@ -178,12 +178,18 @@ public:
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
     CommandNoteList               FloatingNotes;    /** all floating notes after PostParseProcess */
+    CommandNoteList               SideNotes;        /** a copy to all side notes after PostParseProcess */
     PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
     ArcBase                      *last_notable_arc; //during parse: last arc inserted (the one notes attach to) or NULL if none
     
     std::list<ContourAttr>        DebugContours;
 
+protected:
     XY     total;                //Total size of the chart (minus copyright)
+    Block  drawing;              //The area where chart elements can be (total minus the side note lanes)
+public:
+    const XY &GetTotal() const {return total;}
+    const Block &GetDrawing() const {return drawing;}
     double copyrightTextHeight;  //Y size of the copyright text calculated
     double headingSize;          //Y size of first heading row collected during PostPosProcess(?)
 
@@ -208,6 +214,8 @@ public:
     double compressGap;
     /** Size of gap at hscale=auto */
     double hscaleAutoXGap;
+    /* Gap between the side note line and the comments */
+    double sideNoteGap;
     /* Width of the frames used for tracking boxes on screen */
     double trackFrameWidth;
     /* How much do we expand tracking covers */
@@ -261,7 +269,7 @@ public:
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(MscCanvas &canvas);
     template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
-    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(FloatingNotes, canvas);}
+    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(FloatingNotes, canvas); FinalizeLabelsArcList(SideNotes, canvas);}
 
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 
