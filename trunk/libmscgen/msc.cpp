@@ -243,7 +243,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), FloatingNotes(true), NoteBlockers(false), 
+    Arcs(true), FloatingNotes(true), SideNotes(false), NoteBlockers(false), 
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -259,6 +259,7 @@ Msc::Msc() :
     activeEntitySize = 14;
     compressGap = 2;
     hscaleAutoXGap = 5;
+    sideNoteGap = 5;
     trackFrameWidth = 4;
     trackExpandBy = 2;
 
@@ -1110,10 +1111,16 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
     WidthArcList(canvas, Arcs, distances);
-    //add side distances for notes (moved to "FloatingNotes" in PostParseProcessArcList())
-    for (auto note = FloatingNotes.begin(); note!=FloatingNotes.end(); note++) 
-        (*note)->Width(canvas, distances);
-
+    //Also call the Width() of floating notes. These will not add distances, but calculate some values
+    for (auto i = FloatingNotes.begin(); i!=FloatingNotes.end(); i++)
+        (*i)->Width(canvas, distances);
+    //Also call the Width() of side notes. Individual arcs -although responsible for their notes- will not call this
+    for (auto i = SideNotes.begin(); i!=SideNotes.end(); i++)
+        (*i)->Width(canvas, distances);
+    
+    double unit = XCoord(1);
+    const double lnote_size = distances.Query(LNote->index, LSide->index)/unit;
+    const double rnote_size = distances.Query(RSide->index, RNote->index)/unit;
     if (hscale<0) {
         distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
         distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
@@ -1141,7 +1148,15 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
                                                 i->first.second, toadd);
         }
         //Now dist[i] contains the needed space on the right of entity index i
-        double unit = XCoord(1);
+        //Consider "sideNoteGap"
+        if (lnote_size) {
+            dist[LNote->index] += sideNoteGap;
+            dist[LSide->index] += sideNoteGap;
+        }
+        if (rnote_size) {
+            dist[RSide->index-1] += sideNoteGap;
+            dist[RNote->index-1] += sideNoteGap;
+        }
         double curr_pos = MARGIN_HSCALE_AUTO;
         unsigned index = 0;
         for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
@@ -1163,26 +1178,44 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
         total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
     } else {
         //Here we only adjust the space for notes on the side
-        const double lnote_size = distances.Query(LNote->index, LSide->index);
-        const double rnote_size = distances.Query(RSide->index, RNote->index);
         if (lnote_size) {
-            const double diff = lnote_size - LSide->pos + LNote->pos;
+            //Shift all entities (use twice of "sideNoteGap")
+            const double diff = lnote_size - LSide->pos + LNote->pos + sideNoteGap*2/unit;
             for (auto ei = ActiveEntities.Find_by_Ptr(LSide); ei != ActiveEntities.end(); ei++)
                 (*ei)->pos += diff;
+            //Substract from LSide on sideNoteGap
+            LSide->pos -= sideNoteGap/unit;
         }
-        if (rnote_size)  
-            RNote->pos = RSide->pos + rnote_size;
+        if (rnote_size)  {
+            RSide->pos += sideNoteGap/unit;
+            RNote->pos += rnote_size + sideNoteGap*2/unit;
+        }
         total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN)+1; //XCoord is always integer
     }
+    //Consider the copyright text
     StringFormat sf;
     sf.Default();
     XY crTexSize = Label(copyrightText, canvas, sf).getTextWidthHeight().RoundUp();
     if (total.x<crTexSize.x) total.x = crTexSize.x;
-
     copyrightTextHeight = crTexSize.y;
+
+    //Turn on entity line for side note lines if there are side notes
+    if (lnote_size) 
+        LSide->status.SetStatus(0, EEntityStatus::SHOW_ON);
+    if (rnote_size) 
+        RSide->status.SetStatus(0, EEntityStatus::SHOW_ON);
+
+    drawing.x.from = XCoord(LSide->pos);
+    drawing.x.till = XCoord(RSide->pos);
     AreaList cover;
     total.y = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
     total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
+    drawing.y.from = 0;
+    drawing.y.till = total.y;  
+
+    //Finally add side notes to noteblockers
+    for (auto i=SideNotes.begin(); i!=SideNotes.end(); i++)
+        NoteBlockers.Append(*i);
 }
 
 void Msc::PlaceFloatingNotes(MscCanvas &canvas)
@@ -1241,6 +1274,7 @@ void Msc::DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass)
 {
     DrawArcList(canvas, Arcs, pass);
     DrawArcList(canvas, FloatingNotes, pass);
+    DrawArcList(canvas, SideNotes, pass);
 }
 
 //page is 0 for all, 1..n for individual pages

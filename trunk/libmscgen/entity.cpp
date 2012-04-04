@@ -529,7 +529,7 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     area.arc = this;
     //Add shadow to outer_edge and place that to cover
     Area my_cover(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge, this);
-    my_cover.mainline = Block(0, chart->total.x, outer_edge.y.from, outer_edge.y.till);
+    my_cover.mainline = Block(chart->GetDrawing().x, outer_edge.y);
     cover = std::move(my_cover);
     const Block b = outer_edge.CreateExpand(-lw/2);
     area_important = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);

@@ -347,13 +347,13 @@ CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_measure = force_page ? forced_page : m_page;
     const Msc &msc = *GetMsc();
-    CSize ret(int(msc.total.x), int(msc.copyrightTextHeight));
+    CSize ret(int(msc.GetTotal().x), int(msc.copyrightTextHeight));
     if (page_to_measure==0) 
-        ret.cy = int(msc.total.y + msc.copyrightTextHeight);
+        ret.cy = int(msc.GetTotal().y + msc.copyrightTextHeight);
     else if (page_to_measure < msc.yPageStart.size()) 
         ret.cy = int(msc.yPageStart[page_to_measure] - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
     else if (page_to_measure == msc.yPageStart.size()) 
-        ret.cy = int(msc.total.y - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
+        ret.cy = int(msc.GetTotal().y - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
     return ret;
 }
 
@@ -362,7 +362,7 @@ double CDrawingChartData::GetPageYShift() const
     const Msc &msc = *GetMsc();
     if (m_page==0) return 0;
     if (m_page <= msc.yPageStart.size()) return msc.yPageStart[m_page-1];
-    return msc.total.y;
+    return msc.GetTotal().y;
 }
 
 
@@ -379,7 +379,7 @@ double CDrawingChartData::GetHeadingSize() const
 
 void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, double y_scale) const
 {
-    MscCanvas canvas(MscCanvas::WIN, hdc, GetMsc()->total, GetMsc()->copyrightTextHeight, 
+    MscCanvas canvas(MscCanvas::WIN, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
                      XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
@@ -393,7 +393,7 @@ void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, 
 void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
-    MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->total, GetMsc()->copyrightTextHeight, 
+    MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
                      XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only

@@ -394,12 +394,12 @@ int do_main(const std::list<std::string> &args, const char *designs,
             if (oScale)
                 msc.Error.Error(opt_pos, "Conflicting scaing options. Use either -s or one/both of -x/-y. Using no scaling.");
             else if (oX>0 && oY>0) {
-                scale.x = double(oX)/double(msc.total.x);
-                scale.y = double(oY)/double(msc.total.y);
+                scale.x = double(oX)/double(msc.GetTotal().x);
+                scale.y = double(oY)/double(msc.GetTotal().y);
             } else if (oX>0)
-                scale.x = scale.y = double(oX)/double(msc.total.x);
+                scale.x = scale.y = double(oX)/double(msc.GetTotal().x);
             else if (oY>0)
-                scale.x = scale.y = double(oY)/double(msc.total.y);
+                scale.x = scale.y = double(oY)/double(msc.GetTotal().y);
         } else if (oScale)
             scale.x = scale.y = oScale;
 

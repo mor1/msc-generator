@@ -410,14 +410,12 @@ void CommandEntity::MoveNotesToChart()
 void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid || hidden) return;
-    ArcCommand::Width(canvas, distances);
     //Add distances for entity heading
     //Start by creating a map in which distances are ordered by index
     std::map<int, pair<double, double>> dist; //map the index of an active entity to spaces left & right
     //in PostParseProcess we created an entitydef for all entities shown here. 
     //"full_heading" not even checked here
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
-        (*i)->TrackableElement::Width(canvas, distances); //process comments to entitydefs
         //Take entity height into account or draw it if show=on was added
         if (!(*i)->draw_heading) continue;
         if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
@@ -480,7 +478,7 @@ void CommandEntity::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     }
 }
 
-double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow)
+double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 {
     if (!valid || hidden) return height=0;
     if (reflow) {
@@ -526,7 +524,8 @@ double CommandEntity::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow
     ShiftBy(-hei.from + chart->headingVGapAbove);
     cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));
     cover_at_0 = cover;
-    return height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
+    height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void CommandEntity::ShiftBy(double y)
@@ -552,10 +551,10 @@ void CommandEntity::PostPosProcess(MscCanvas &canvas, double autoMarker)
 void CommandEntity::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
-    if (pass!=draw_pass) return;
-    for (auto i = entities.begin(); i!=entities.end(); i++)
-        if ((*i)->draw_heading)
+    for (auto i = entities.begin(); i!=entities.end(); i++) {
+        if ((*i)->draw_heading && pass!=draw_pass)
             (*i)->Draw(canvas);
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -579,7 +578,8 @@ double CommandNewpage::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
 {
     height = 0;
     if (!valid || reflow) return 0;
-    Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
+    Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
+            -chart->nudgeSize/2, chart->nudgeSize/2);
     area_draw = b;
     draw_is_different = true; //area is empty - never find this
     return 0;
@@ -597,7 +597,8 @@ double CommandNewBackground::Height(MscCanvas &/*canvas*/, AreaList &, bool refl
 {
     height = 0;
     if (!valid || reflow) return 0;
-    Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
+    Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
+            -chart->nudgeSize/2, chart->nudgeSize/2);
     area_draw = b;
     draw_is_different = true; //area is empty - never find this
     return 0;
@@ -671,7 +672,8 @@ double CommandMark::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
 {
     height = 0;
     if (!valid || reflow) return 0;
-    Block b(0, chart->total.x, offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
+    Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
+            offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
     area_draw = b;
     draw_is_different = true; //area is empty - never find this
     return 0;
@@ -706,14 +708,16 @@ void CommandEmpty::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     distances.Insert(lside_index, rside_index, width);
 }
 
-double CommandEmpty::Height(MscCanvas &/*canvas*/, AreaList &cover, bool)
+double CommandEmpty::Height(MscCanvas &canvas, AreaList &cover, bool)
 {
     if (!valid) return height = 0;
     yPos = 0;
     const XY wh = parsed_label.getTextWidthHeight();
-    const Area a(Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y), this);
+    const double mid = chart->GetDrawing().x.MidPoint();
+    const Area a(Block(mid-wh.x/2, mid+wh.x/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y), this);
     cover = GetCover4Compress(a);
-    return height = wh.y + EMPTY_MARGIN_Y*2;
+    height = wh.y + EMPTY_MARGIN_Y*2;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void CommandEmpty::Draw(MscCanvas &canvas, DrawPassType pass)
@@ -735,8 +739,9 @@ void CommandEmpty::Draw(MscCanvas &canvas, DrawPassType pass)
     shadow.offset.second = 5;
     shadow.blur.second = 5;
 
-    Block b(XY((chart->total.x-width)/2 , yPos+EMPTY_MARGIN_Y),
-            XY((chart->total.x+width)/2 , yPos+EMPTY_MARGIN_Y+height));
+    const double mid = chart->GetDrawing().x.MidPoint();
+    const Block b(XY(mid-width/2 , yPos+EMPTY_MARGIN_Y),
+                  XY(mid+width/2 , yPos+EMPTY_MARGIN_Y+height));
 
     canvas.Shadow(b, line, shadow);
     canvas.Fill(b, line, fill);
@@ -829,7 +834,6 @@ ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
 void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    ArcCommand::Width(canvas, distances);
     double dist = space.second; //0 if not specified by user
     if (label.second.length())
         dist += Label(label.second, canvas, format).getTextWidthHeight().x;
@@ -922,7 +926,7 @@ double CommandVSpace::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     if (dist<=0)
         return height = 0;
     if (!compressable) {
-        area = Block(0, chart->total.x, 0, dist);
+        area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, dist);
         cover = GetCover4Compress(area);
     }
     return height = dist;
@@ -1143,14 +1147,14 @@ void CommandSymbol::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     ArcCommand::Width(canvas, distances);
 }
 
-double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow)
+double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 {
     if (reflow) {
         if (style.shadow.offset.second)
             cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
         else
             cover = area;
-        return height;
+        return std::max(height, NoteHeight(canvas, cover));
     }
 
     //Calculate x positions
@@ -1209,7 +1213,8 @@ double CommandSymbol::Height(MscCanvas &/*canvas*/, AreaList &cover, bool reflow
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
     else
         cover = area;
-    return height = outer_edge.y.till + style.shadow.offset.second;
+    height = outer_edge.y.till + style.shadow.offset.second;
+    return std::max(height, NoteHeight(canvas, cover));
 }
 
 void CommandSymbol::ShiftBy(double y)
@@ -1262,7 +1267,7 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
             break;
     }
     area.arc = this;
-    area.mainline = Block(Range(0, chart->total.x), area.GetBoundingBox().y);
+    area.mainline = Block(chart->GetDrawing().x, area.GetBoundingBox().y);
 }
 
 void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
@@ -1390,7 +1395,7 @@ void CommandNote::FinalizeLabels(MscCanvas &canvas)
 void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
     halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.line.LineWidth(), style.line.LineWidth());
-    //ArcCommand::Width(canvas, distances); We may not have notes
+    //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
     //Here we only make space if the note is on the side
     const double w = parsed_label.getTextWidthHeight().x;
     if (style.note.layout.second == MscNoteAttr::LEFTSIDE)
@@ -1451,7 +1456,8 @@ Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, con
         ret.Scale(1/size_mul);
     } else {
         const Contour clip = style.arrow.ClipForLine(pointto, 0, true, false, MSC_ARROW_END,
-                                         Block(v[0],v[1], 0, chart->total.y),
+                                         Block(v[0],v[1], 
+                                         chart->GetDrawing().y.from, chart->GetDrawing().y.till),
                                          style.line, style.line);
         ret = style.arrow.Cover(pointto, 0, true, false, MSC_ARROW_END, style.line, style.line);
         ret += Contour(v[0], v[1], pointto.y-width/2, pointto.y+width/2) * clip;
@@ -1854,7 +1860,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //  inside AOI this is used to calculate how much the arrow covers
     //"map_pointer_imp" is also inverse, it just contains the important parts
     //  even the arrow should avoid it.
-    const Block total(halfsize, chart->total-halfsize);
+    const Block total = chart->GetDrawing().CreateExpand2D(-halfsize);
     const Block AOI = contour_target.GetBoundingBox().CreateExpand(region_distance_sizes[RD]).Expand2D(halfsize);
 
     Contour block_all_exp(total), block_imp_exp(total);
@@ -2107,7 +2113,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         }//else: we had no target points
     } //for: regions
     if (best_point > worst_point) {
-        PlaceTo(canvas, best_pointto, best_center);
+        PlaceFloatingTo(canvas, best_pointto, best_center);
     } else {
         //Not successful
         chart->Error.Error(file_pos.start, "Could not place this note.");
@@ -2117,10 +2123,10 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 
 
 
-void CommandNote::PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center)
+void CommandNote::PlaceFloatingTo(MscCanvas &canvas, const XY &pointto, const XY &center)
 {
-    const Block playground(XY(0,0), chart->total);
-    if (!playground.IsWithinBool(center) || !playground.IsWithinBool(pointto)) {
+    _ASSERT(style.note.layout.second==MscNoteAttr::FLOATING);
+    if (!chart->GetDrawing().IsWithinBool(center) || !chart->GetDrawing().IsWithinBool(pointto)) {
         _ASSERT(0);
         return;
     }
@@ -2136,20 +2142,20 @@ void CommandNote::PlaceTo(MscCanvas &canvas, const XY &pointto, const XY &center
     chart->NoteBlockers.Append(this);
 }
 
-
-//double CommandNote::Height(MscCanvas &/*canvas*/, AreaList &/*cover*/, bool /*reflow*/)
-//{
-//    auto i = chart->Markers.find(ypos_marker);
-//    if (i == chart->Markers.end()) {
-//        chart->Error.Error(ypos_marker_linenum, "Marker '" + ypos_marker + "' not defined. Ignoring 'ypos' attribute.");
-//        ypos_marker.clear();
-//        ypos = -1;
-//    } else {
-//        ypos = i->second.second;
-//    }
-//    //XXX fix note layout here
-//    return height = 0;
-//}
+//return height, but place to "y" (below other notes)
+void CommandNote::PlaceSideTo(MscCanvas &canvas, AreaList &cover, double &y)
+{
+    _ASSERT(style.note.layout.second==MscNoteAttr::LEFTSIDE || style.note.layout.second==MscNoteAttr::RIGHTSIDE);
+    yPos = y + chart->arcVGapAbove;
+    if (style.note.layout.second == MscNoteAttr::LEFTSIDE)
+        area = parsed_label.Cover(chart->XCoord(chart->LNote->pos), chart->XCoord(chart->LSide->pos), yPos);
+    else                           
+        area = parsed_label.Cover(chart->XCoord(chart->RSide->pos), chart->XCoord(chart->RNote->pos), yPos);
+    area.arc = this;
+    height = area.GetBoundingBox().y.till - y + chart->arcVGapBelow;
+    y += height;
+    cover += GetCover4Compress(area);
+}
 
 void CommandNote::ShiftBy(double y)
 {
@@ -2159,38 +2165,48 @@ void CommandNote::ShiftBy(double y)
 }
 
 
-//void CommandNote::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
-//{
-//}
-
 void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid || pass!=draw_pass) return;
-    Contour cover;
-    if (style.note.pointer.second == MscNoteAttr::ARROW) {
-        cover = CoverBody(canvas, pos_center);
-        const Range r = cover.CreateExpand(style.line.Spacing()).Cut(point_to, pos_center);
-        const double len = r.from * point_to.Distance(pos_center);
-        style.arrow.TransformCanvasForAngle(rad2deg(atan2(-(pos_center-point_to).y, -(pos_center-point_to).x)), 
-                                                  canvas, point_to.x, point_to.y);
-        std::vector<double> v(2), a(2);
-        v[0] = point_to.x - len; v[1] = point_to.x;
-        a[0] = a[1] = 0;
-        const Contour clip = style.arrow.ClipForLine(point_to, 0, true, false, MSC_ARROW_END,
-                                         Block(v[0],v[1], 0, chart->total.y),
-                                         style.line, style.line);
-        canvas.Clip(clip);
-        canvas.Line(point_to, point_to - XY(len,0), style.line);
-        canvas.UnClip();
-        style.arrow.Draw(point_to, 0, true, false, MSC_ARROW_END, style.line, style.line, &canvas);
-        style.arrow.UnTransformCanvas(canvas);
-    } else
-        cover = CoverAll(canvas, point_to, pos_center);
-    canvas.Shadow(cover.CreateExpand(style.line.Spacing()), style.shadow);
-    canvas.Fill(cover.CreateExpand(-style.line.Spacing()), style.fill);
-    canvas.Line(cover, style.line);
-    const double w2 = halfsize.x - style.line.LineWidth();
-    parsed_label.Draw(canvas, pos_center.x-w2, pos_center.x+w2,
-        pos_center.y-halfsize.y+style.line.LineWidth());
+    switch (style.note.layout.second) {
+    default:
+        _ASSERT(0);
+        return;
+    case MscNoteAttr::LEFTSIDE:
+        parsed_label.Draw(canvas, chart->XCoord(chart->LNote->pos), chart->XCoord(chart->LSide->pos), yPos); 
+        return;
+    case MscNoteAttr::RIGHTSIDE:    
+        parsed_label.Draw(canvas, chart->XCoord(chart->RSide->pos), chart->XCoord(chart->RNote->pos), yPos);
+        return;
+    case MscNoteAttr::FLOATING:
+        Contour cover;
+        if (style.note.pointer.second == MscNoteAttr::ARROW) {
+            cover = CoverBody(canvas, pos_center);
+            const Range r = cover.CreateExpand(style.line.Spacing()).Cut(point_to, pos_center);
+            const double len = r.from * point_to.Distance(pos_center);
+            style.arrow.TransformCanvasForAngle(rad2deg(atan2(-(pos_center-point_to).y, -(pos_center-point_to).x)), 
+                                                      canvas, point_to.x, point_to.y);
+            std::vector<double> v(2), a(2);
+            v[0] = point_to.x - len; v[1] = point_to.x;
+            a[0] = a[1] = 0;
+            const Contour clip = style.arrow.ClipForLine(point_to, 0, true, false, MSC_ARROW_END,
+                                             Block(v[0],v[1], 
+                                             chart->GetDrawing().y.from, chart->GetDrawing().y.till),
+                                             style.line, style.line);
+            canvas.Clip(clip);
+            canvas.Line(point_to, point_to - XY(len,0), style.line);
+            canvas.UnClip();
+            style.arrow.Draw(point_to, 0, true, false, MSC_ARROW_END, style.line, style.line, &canvas);
+            style.arrow.UnTransformCanvas(canvas);
+        } else
+            cover = CoverAll(canvas, point_to, pos_center);
+        canvas.Shadow(cover.CreateExpand(style.line.Spacing()), style.shadow);
+        canvas.Fill(cover.CreateExpand(-style.line.Spacing()), style.fill);
+        canvas.Line(cover, style.line);
+        const double w2 = halfsize.x - style.line.LineWidth();
+        parsed_label.Draw(canvas, pos_center.x-w2, pos_center.x+w2,
+            pos_center.y-halfsize.y+style.line.LineWidth());
+        return;
+    }
 }
 

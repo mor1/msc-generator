@@ -63,7 +63,11 @@ void TrackableElement::CombineNotes(TrackableElement *te)
 
 void TrackableElement::MoveNotesToChart() 
 {
-    chart->FloatingNotes.splice(chart->FloatingNotes.end(), notes);
+    for (auto n = notes.begin(); n!=notes.end(); /*nope*/)
+        if ((*n)->GetLayout() == MscNoteAttr::FLOATING)
+            chart->FloatingNotes.splice(chart->FloatingNotes.end(), notes, n++);
+        else 
+            chart->SideNotes.push_back(*(n++));
 }
 
 
@@ -76,6 +80,8 @@ void TrackableElement::ShiftBy(double y)
     area_important.Shift(XY(0,y)); 
     yPos+=y;
     control_location.y += y;
+    for (auto n = notes.begin(); n!=notes.end(); n++)
+        (*n)->ShiftBy(y);
 }
 
 void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level)
@@ -90,10 +96,14 @@ void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool 
             n++;
 }
 
-void TrackableElement::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+
+//Here we add to cover, do not overwrite it
+double TrackableElement::NoteHeight(MscCanvas &canvas, AreaList &cover)
 {
+    double left = 0, right = 0;
     for (auto n = notes.begin(); n!=notes.end(); n++)
-        (*n)->Width(canvas, distances);
+        (*n)->Height(canvas, cover, (*n)->GetLayout()==MscNoteAttr::LEFTSIDE ? left : right);
+    return std::max(left, right);
 }
 
 

@@ -24,6 +24,8 @@ class EntityDistanceMap;
 typedef PtrList<CommandNote> CommandNoteList;
 //This is a set of Areas, that may overlap
 class TrackableElement {
+public:
+    typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT, NOTE, AFTER_NOTE} DrawPassType;
 protected:
     static const XY control_size;
     static const XY indicator_size;
@@ -67,8 +69,9 @@ public:
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     virtual void PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+    double NoteHeight(MscCanvas &canvas, AreaList &cover);
     virtual void PostPosProcess(MscCanvas &, double);
+
     void DrawControls(MscCanvas*, double size);
     MscControlType WhichControl(const XY &xy);
 
