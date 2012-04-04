@@ -238,7 +238,7 @@ public:
     bool SetDesign(const string &design, bool force);
     string GetDesigns() const;
 
-    bool AddAttribute(const Attribute&);
+    ArcBase *AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
     static void AttributeNames(Csh &csh, bool designOnly);
     static bool AttributeValues(const std::string attr, Csh &csh);

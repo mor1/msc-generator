@@ -1173,8 +1173,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.hintStatus = HINT_READY;
     }
   #else
-    msc.AddAttribute(Attribute($1, str2bool($3), MSC_POS(@1), MSC_POS(@3), $3));
-    $$ = NULL;
+    $$ = msc.AddAttribute(Attribute($1, str2bool($3), MSC_POS(@1), MSC_POS(@3), $3));
   #endif
     free($1);
     free($3);
@@ -1193,8 +1192,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.hintStatus = HINT_READY;
     }
   #else
-    msc.AddAttribute(Attribute($1, atof($3), MSC_POS(@1), MSC_POS(@3), $3));
-    $$ = NULL;
+    $$ = msc.AddAttribute(Attribute($1, atof($3), MSC_POS(@1), MSC_POS(@3), $3));
   #endif
     free($1);
     free($3);
@@ -1213,15 +1211,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.hintStatus = HINT_READY;
     }
   #else
-    Attribute a($1, $3, MSC_POS(@1), MSC_POS(@3));
-    MscFillAttr fill;
-    fill.Empty();
-    if (a.StartsWith("background") && fill.AddAttribute(a, &msc, STYLE_OPTION)) {
-        $$ = (new CommandNewBackground(&msc, fill))->AddAttributeList(NULL);
-    } else {
-        msc.AddAttribute(a);
-        $$ = NULL;
-    }
+    $$ = msc.AddAttribute(Attribute($1, $3, MSC_POS(@1), MSC_POS(@3)));
   #endif
     free($1);
     free($3);
@@ -1258,8 +1248,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         }
         csh.SetDesignTo($3);
   #else
-        msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
-        $$ = NULL;
+        $$ = msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
     free($1);
     free($3);

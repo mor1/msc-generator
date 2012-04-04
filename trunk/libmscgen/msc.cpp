@@ -484,66 +484,68 @@ void Msc::AddArcs(ArcList *a)
     delete a;
 }
 
-bool Msc::AddAttribute(const Attribute &a)
+ArcBase *Msc::AddAttribute(const Attribute &a)
 {
     //Chart options cannot be styles
     assert (a.type != MSC_ATTR_STYLE);
 
     if (a.Is("msc")) {
-        if (!a.CheckType(MSC_ATTR_STRING, Error)) return true;
+        if (!a.CheckType(MSC_ATTR_STRING, Error)) return NULL;
         if (!SetDesign(a.value, false))
             Error.Warning(a.linenum_value.start, "Unknown chart design: '" + a.value +
                           "'. Ignoring design selection.",
                           "Available styles are: " + GetDesigns() +".");
-        return true;
+        return NULL;
     }
     if (a.Is("hscale")) {
         if (a.type == MSC_ATTR_NUMBER && a.number>=0.01 && a.number <= 100) {
             hscale = a.number;
-            return true;
+            return NULL;
         } else if (a.type == MSC_ATTR_STRING && a.value == "auto") {
             hscale = -1;
-            return true;
+            return NULL;
         }
         a.InvalidValueError("0.01..100' or 'auto", Error);
-        return true;
+        return NULL;
     }
     if (a.Is("compress")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
         Contexts.back().compress = a.yes;
-        return true;
+        return NULL;
     }
     if (a.Is("indicator")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
         Contexts.back().indicator = a.yes;
-        return true;
+        return NULL;
     }
-    if (a.StartsWith("text"))
-        return Contexts.back().text.AddAttribute(a, this, STYLE_OPTION);
+    if (a.StartsWith("text")) {
+        Contexts.back().text.AddAttribute(a, this, STYLE_OPTION); //generates error if needed
+        return NULL;
+    }
     if (a.Is("numbering")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
         Contexts.back().numbering = a.yes;
-        return true;
+        return NULL;
     }
     if (a.Is("numbering.pre")) {
         Contexts.back().numberingStyle.pre = a.value;
         StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
-        return true;
+        return NULL;
     }
     if (a.Is("numbering.post")) {
         Contexts.back().numberingStyle.post = a.value;
         StringFormat::ExpandReferences(Contexts.back().numberingStyle.post, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
-        return true;
+        return NULL;
     }
     if (a.Is("numbering.append")) {
         std::vector<NumberingStyleFragment> nsfs;
         if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs))
             Contexts.back().numberingStyle.Push(nsfs);
-        return true;
+        return NULL;
     }
     if (a.Is("numbering.format")) {
         std::vector<NumberingStyleFragment> nsfs;
@@ -556,17 +558,17 @@ bool Msc::AddAttribute(const Attribute &a)
                 Error.Error(a, true, msg);
             }
         }
-        return true;
+        return NULL;
     }
 
     if (a.Is("pedantic")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
         pedantic = a.yes;
-        return true;
+        return NULL;
     }
     if (a.Is("angle")) {
-        if (!a.EnsureNotClear(Error, STYLE_ARC)) return true;
-        if (!a.CheckType(MSC_ATTR_NUMBER, Error)) return true;
+        if (!a.EnsureNotClear(Error, STYLE_ARC)) return NULL;
+        if (!a.CheckType(MSC_ATTR_NUMBER, Error)) return NULL;
         if (a.number<0 || a.number>45) {
             string x;
             if (a.number<0) x = "0";
@@ -577,12 +579,30 @@ bool Msc::AddAttribute(const Attribute &a)
             else if (a.number>45) Contexts.back().slant_angle = 45;
         } else
             Contexts.back().slant_angle = a.number;
-        return true;
+        return NULL;
     }
-
+    if (a.StartsWith("background")) {
+        MscFillAttr fill;
+        fill.Empty();
+        if (fill.AddAttribute(a, this, STYLE_OPTION))  //generates error if needed
+             return (new CommandNewBackground(this, fill))->AddAttributeList(NULL);
+        return NULL;
+    } 
+    if (a.StartsWith("lnote.line") || a.StartsWith("rnote.line")) {
+        EntityDef *ed = new EntityDef(a.StartsWith("lnote.line") ? LSIDE_ENT_STR : RSIDE_ENT_STR, this);
+        ed->SetLineEnd(file_line_range(a.linenum_attr.start, a.linenum_value.end));
+        Attribute *att = new Attribute(a);
+        //replace attribute name to "vline"
+        att->name.erase(0, 10); //delete "rnote.line"
+        att->name.insert(0, "vline");
+        AttributeList *al = (new AttributeList())->Append(att);
+        EntityDefList *edl = ed->AddAttributeList(al, NULL, file_line()); //generates error if value is bad
+        return (new CommandEntity(edl, this))->AddAttributeList(NULL);        
+    }
+    
     string ss;
     Error.Error(a, false, "Option '" + a.name + "' not recognized. Ignoring it.");
-    return false;
+    return NULL;
 }
 
 //Add an attribute only if it can be part of a design. Others trigger error.
@@ -613,6 +633,16 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.type", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.width", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.radius", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.corner", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.type", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.width", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.radius", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.corner", HINT_ATTR_NAME));
 }
 
 bool Msc::AttributeValues(const std::string attr, Csh &csh)
@@ -635,6 +665,9 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveBeginsWith(attr, "text"))
         return StringFormat::AttributeValues(attr, csh);
+    if (CaseInsensitiveBeginsWith(attr, "lnote.line") ||
+        CaseInsensitiveBeginsWith(attr, "rnote.line"))
+        return MscLineAttr::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
         MscFillAttr::AttributeValues(attr, csh);
@@ -1230,6 +1263,11 @@ void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMar
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
         (*j)->PostPosProcess(canvas, autoMarker);
+    //Delete LSide and RSide actions if there are no side comments
+    if (LNote->pos == LSide->pos) 
+        LSide->status.Reset();
+    if (RNote->pos == RSide->pos) 
+        RSide->status.Reset();
 }
 
 void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
@@ -1264,8 +1302,12 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs, -1);
-    for (auto i = FloatingNotes.begin(); i!=FloatingNotes.end(); i++)
-        (*i)->PostPosProcess(canvas, -1);
+    for (auto note = FloatingNotes.begin(); note!=FloatingNotes.end(); note++) {
+        (*note)->PostPosProcess(canvas, -1);
+    }
+    for (auto note = SideNotes.begin(); note!=SideNotes.end(); note++) {
+        (*note)->PostPosProcess(canvas, -1);
+    }
     Error.Sort();
 }
 

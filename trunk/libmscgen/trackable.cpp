@@ -97,13 +97,12 @@ void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool 
 }
 
 
-//Here we add to cover, do not overwrite it
-double TrackableElement::NoteHeight(MscCanvas &canvas, AreaList &cover)
+//Here we add to "cover", do not overwrite it
+double TrackableElement::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
 {
-    double left = 0, right = 0;
     for (auto n = notes.begin(); n!=notes.end(); n++)
-        (*n)->Height(canvas, cover, (*n)->GetLayout()==MscNoteAttr::LEFTSIDE ? left : right);
-    return std::max(left, right);
+        (*n)->PlaceSideTo(canvas, cover, (*n)->GetLayout()==MscNoteAttr::LEFTSIDE ? l : r);
+    return std::max(l, r);
 }
 
 

@@ -374,6 +374,8 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "text.bold", "text.italic", "text.underline", 
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
 "text.gap.spacing", "text.size.normal", "text.size.small", 
+"lnote.line.color", "lnote.line.type", "lnote.line.width", 
+"rnote.line.color", "rnote.line.type", "rnote.line.width", 
 "angle", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
