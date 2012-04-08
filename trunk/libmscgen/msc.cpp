@@ -243,7 +243,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), FloatingNotes(true), SideNotes(false), NoteBlockers(false), 
+    Arcs(true), Notes(true), Comments(false), NoteBlockers(false), 
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -587,17 +587,31 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         if (fill.AddAttribute(a, this, STYLE_OPTION))  //generates error if needed
              return (new CommandNewBackground(this, fill))->AddAttributeList(NULL);
         return NULL;
-    } 
-    if (a.StartsWith("lnote.line") || a.StartsWith("rnote.line")) {
-        EntityDef *ed = new EntityDef(a.StartsWith("lnote.line") ? LSIDE_ENT_STR : RSIDE_ENT_STR, this);
-        ed->SetLineEnd(file_line_range(a.linenum_attr.start, a.linenum_value.end));
-        Attribute *att = new Attribute(a);
-        //replace attribute name to "vline"
-        att->name.erase(0, 10); //delete "rnote.line"
-        att->name.insert(0, "vline");
-        AttributeList *al = (new AttributeList())->Append(att);
-        EntityDefList *edl = ed->AddAttributeList(al, NULL, file_line()); //generates error if value is bad
-        return (new CommandEntity(edl, this))->AddAttributeList(NULL);        
+    }
+    if (a.StartsWith("lcomment") || a.StartsWith("rcomment")) {
+        if (CaseInsensitiveBeginsWith(a.name.substr(9), "line") ||
+            CaseInsensitiveBeginsWith(a.name.substr(9), "fill")) {
+            const bool line = CaseInsensitiveBeginsWith(a.name.substr(9), "line");
+            MscStyle toadd; //empty
+            bool OK;
+            if (line) {
+                OK = toadd.line.AddAttribute(a, this, STYLE_OPTION); //generates errors if needed
+                if (OK) std::swap(toadd.line, toadd.vline); //option shall be stored in vline
+            } else
+                OK = toadd.fill.AddAttribute(a, this, STYLE_OPTION); //generates errors if needed
+            if (OK) {
+                ArcBase *save = last_notable_arc;
+                const char *ent_str = a.StartsWith("lcomment") ? LNOTE_ENT_STR : RNOTE_ENT_STR;
+                EntityDef *ed = new EntityDef(ent_str, this);
+                ed->SetLineEnd(file_line_range(a.linenum_attr.start, a.linenum_value.end));
+                EntityDefList *edl = ed->AddAttributeList(NULL, NULL, file_line());
+                ed->style += toadd;
+                ArcBase *ce = (new CommandEntity(edl, this))->AddAttributeList(NULL);
+                last_notable_arc = save;
+                return ce;
+            }
+            //fallthrough till error if not "OK"
+        }
     }
     
     string ss;
@@ -633,14 +647,20 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.type", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.width", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.radius", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lnote.line.corner", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.type", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.width", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.type", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.width", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.color2", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.gradient", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.radius", HINT_ATTR_NAME));
+    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.corner", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.type", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.width", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.color", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.color2", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.gradient", HINT_ATTR_NAME));
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.radius", HINT_ATTR_NAME));
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.corner", HINT_ATTR_NAME));
 }
@@ -665,9 +685,12 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveBeginsWith(attr, "text"))
         return StringFormat::AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWith(attr, "lnote.line") ||
-        CaseInsensitiveBeginsWith(attr, "rnote.line"))
+    if (CaseInsensitiveBeginsWith(attr, "lcomment.line") ||
+        CaseInsensitiveBeginsWith(attr, "rcomment.line"))
         return MscLineAttr::AttributeValues(attr, csh);
+    if (CaseInsensitiveBeginsWith(attr, "lcomment.fill") ||
+        CaseInsensitiveBeginsWith(attr, "rcomment.fill"))
+        return MscFillAttr::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
         MscFillAttr::AttributeValues(attr, csh);
@@ -856,10 +879,10 @@ void Msc::PostParseProcess(MscCanvas &canvas)
         rightmost = 3*MARGIN;
     }
     //Set the position of the virtual side entities & resort
-    const_cast<double&>(LNote->pos) = MARGIN/2;
+    const_cast<double&>(LNote->pos) = 0;
     const_cast<double&>(LSide->pos) = MARGIN;
     const_cast<double&>(RSide->pos) = rightmost + MARGIN;
-    const_cast<double&>(RNote->pos) = rightmost + MARGIN + MARGIN/2;
+    const_cast<double&>(RNote->pos) = rightmost + MARGIN + MARGIN;
     ActiveEntities.SortByPos();
 
     if (Arcs.size()==0) return;
@@ -1145,15 +1168,15 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
     WidthArcList(canvas, Arcs, distances);
     //Also call the Width() of floating notes. These will not add distances, but calculate some values
-    for (auto i = FloatingNotes.begin(); i!=FloatingNotes.end(); i++)
+    for (auto i = Notes.begin(); i!=Notes.end(); i++)
         (*i)->Width(canvas, distances);
     //Also call the Width() of side notes. Individual arcs -although responsible for their notes- will not call this
-    for (auto i = SideNotes.begin(); i!=SideNotes.end(); i++)
+    for (auto i = Comments.begin(); i!=Comments.end(); i++)
         (*i)->Width(canvas, distances);
     
     double unit = XCoord(1);
-    const double lnote_size = distances.Query(LNote->index, LSide->index)/unit;
-    const double rnote_size = distances.Query(RSide->index, RNote->index)/unit;
+    const double lnote_size = distances.Query(LNote->index, DISTANCE_LEFT)/unit;
+    const double rnote_size = distances.Query(RNote->index, DISTANCE_RIGHT)/unit;
     if (hscale<0) {
         distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
         distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
@@ -1163,8 +1186,8 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
         //dist will hold required distance to the right of entity with index []
         vector<double> dist(ActiveEntities.size(), 0);
         dist[0] = 0;
-        dist[1] = XCoord(MARGIN_HSCALE_AUTO);
-        dist[dist.size()-2] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[LSide->index] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[RSide->index-1] = XCoord(MARGIN_HSCALE_AUTO);
         //distances.pairs starts with requiremenst between neighbouring entities
         //and continues with requirements between second neighbours, ... etc.
         //we process these sequentially
@@ -1183,14 +1206,12 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
         //Now dist[i] contains the needed space on the right of entity index i
         //Consider "sideNoteGap"
         if (lnote_size) {
-            dist[LNote->index] += sideNoteGap;
-            dist[LSide->index] += sideNoteGap;
+            dist[LNote->index] += 2*sideNoteGap;
         }
         if (rnote_size) {
-            dist[RSide->index-1] += sideNoteGap;
-            dist[RNote->index-1] += sideNoteGap;
+            dist[RSide->index] += 2*sideNoteGap;
         }
-        double curr_pos = MARGIN_HSCALE_AUTO;
+        double curr_pos = MARGIN_HSCALE_AUTO; //This is here only for bkw comp!!
         unsigned index = 0;
         for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
             (*j)->pos = curr_pos;
@@ -1208,22 +1229,30 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
             //advance curr_pos to the next entity
             curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
         }
-        total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
+        total.x = XCoord(curr_pos)+1;
     } else {
+        //In postparseprocess we set the virtual entity's pos as follows
+        //in the second column we show how they should be if there are
+        //side commets of L and R size resp. (including 2*sideNoteGap)
+        //Noentity     = 0             |  0                             | 0 
+        //LNote        = 0             |  L/unit                        | L/unit
+        //LSide        = MARGIN        |  L/unit + MARGIN               | L/unit
+        //first entity = 2*MARGIN      |  L/unit + 2*MARGIN             | L/unit
+        //last entity  = x             |  L/unit + x                    | L/unit
+        //RSIDE        = x + MARGIN    |  L/unit + x + MARGIN           | L/unit
+        //RNOTE        = x + 2*MARGIN  |  L/unit + x + 2*MARGIN         | L/unit
+        //rotal.x      = x + 2*MARGIN  |  L/unit + x + 2*MARGIN + R/unit| L/unit + R/unit
+
         //Here we only adjust the space for notes on the side
         if (lnote_size) {
             //Shift all entities (use twice of "sideNoteGap")
-            const double diff = lnote_size - LSide->pos + LNote->pos + sideNoteGap*2/unit;
-            for (auto ei = ActiveEntities.Find_by_Ptr(LSide); ei != ActiveEntities.end(); ei++)
+            const double diff = lnote_size + sideNoteGap*2/unit;
+            for (auto ei = ActiveEntities.Find_by_Ptr(LNote); ei != ActiveEntities.end(); ei++)
                 (*ei)->pos += diff;
-            //Substract from LSide on sideNoteGap
-            LSide->pos -= sideNoteGap/unit;
         }
-        if (rnote_size)  {
-            RSide->pos += sideNoteGap/unit;
-            RNote->pos += rnote_size + sideNoteGap*2/unit;
-        }
-        total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN)+1; //XCoord is always integer
+        total.x = XCoord(RNote->pos)+1; //XCoord is always integer
+        if (rnote_size) 
+            total.x += rnote_size*unit + 2*sideNoteGap;
     }
     //Consider the copyright text
     StringFormat sf;
@@ -1234,12 +1263,12 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
 
     //Turn on entity line for side note lines if there are side notes
     if (lnote_size) 
-        LSide->status.SetStatus(0, EEntityStatus::SHOW_ON);
+        LNote->status.SetStatus(0, EEntityStatus::SHOW_ON);
     if (rnote_size) 
-        RSide->status.SetStatus(0, EEntityStatus::SHOW_ON);
+        RNote->status.SetStatus(0, EEntityStatus::SHOW_ON);
 
-    drawing.x.from = XCoord(LSide->pos);
-    drawing.x.till = XCoord(RSide->pos);
+    drawing.x.from = XCoord(LNote->pos) + sideNoteGap;
+    drawing.x.till = XCoord(RNote->pos) - sideNoteGap;
     AreaList cover;
     total.y = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
     total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
@@ -1247,13 +1276,13 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     drawing.y.till = total.y;  
 
     //Finally add side notes to noteblockers
-    for (auto i=SideNotes.begin(); i!=SideNotes.end(); i++)
+    for (auto i=Comments.begin(); i!=Comments.end(); i++)
         NoteBlockers.Append(*i);
 }
 
 void Msc::PlaceFloatingNotes(MscCanvas &canvas)
 {
-    for (auto note = FloatingNotes.begin(); note!=FloatingNotes.end(); note++) {
+    for (auto note = Notes.begin(); note!=Notes.end(); note++) {
         (*note)->PlaceFloating(canvas);
     }
 }
@@ -1302,10 +1331,10 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs, -1);
-    for (auto note = FloatingNotes.begin(); note!=FloatingNotes.end(); note++) {
+    for (auto note = Notes.begin(); note!=Notes.end(); note++) {
         (*note)->PostPosProcess(canvas, -1);
     }
-    for (auto note = SideNotes.begin(); note!=SideNotes.end(); note++) {
+    for (auto note = Comments.begin(); note!=Comments.end(); note++) {
         (*note)->PostPosProcess(canvas, -1);
     }
     Error.Sort();
@@ -1315,8 +1344,8 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 void Msc::DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass)
 {
     DrawArcList(canvas, Arcs, pass);
-    DrawArcList(canvas, FloatingNotes, pass);
-    DrawArcList(canvas, SideNotes, pass);
+    DrawArcList(canvas, Notes, pass);
+    DrawArcList(canvas, Comments, pass);
 }
 
 //page is 0 for all, 1..n for individual pages
@@ -1369,6 +1398,22 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
         }
         if (y < total.y) 
             canvas.Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
+    }
+    //Add background for side notes (if any)
+    for (unsigned u = 0; u<2; u++) {
+        const Entity * const note = u==0 ? LNote : RNote;
+        const Entity * const side = u==0 ? LSide : RSide;
+        if (note->pos == side->pos) continue;
+        const Range x = u==0 ? Range(0, XCoord(LNote->pos)) : Range(XCoord((RNote)->pos), total.x); 
+        double pos = 0, till = 0;
+        do {
+            till = note->status.StyleTill(till);
+            if (till<total.y && note->status.GetStyle(pos).fill == note->status.GetStyle(till).fill)
+                continue;  //go until "fill" changes
+            if (till>total.y) till = total.y;
+            canvas.Fill(Block(x, Range(pos, till)), note->status.GetStyle(pos).fill);
+            pos = till;
+        } while (pos<total.y);
     }
 	//Draw page breaks
     if (pageBreaks)

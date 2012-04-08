@@ -363,7 +363,7 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
-"bye", "hspace", "vspace", "symbol", ""};
+"bye", "hspace", "vspace", "symbol", "note", "comment", ""};
 
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
@@ -374,8 +374,10 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "text.bold", "text.italic", "text.underline", 
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
 "text.gap.spacing", "text.size.normal", "text.size.small", 
-"lnote.line.color", "lnote.line.type", "lnote.line.width", 
-"rnote.line.color", "rnote.line.type", "rnote.line.width", 
+"lcomment.line.color", "lcomment.line.type", "lcomment.line.width", 
+"rcomment.line.color", "rcomment.line.type", "rcomment.line.width",
+"lcomment.fill.color", "lcomment.fill.color2", "lcomment.fill.gradient",
+"rcomment.fill.color", "rcomment.fill.color2", "rcomment.fill.gradient",
 "angle", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
@@ -394,7 +396,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
 "compressable", "xsize", "ysize", "size", "space", "angle",
-"note.layout", "note.pointer", "note.pos", ""};
+"note.pointer", "note.pos", ""};
 
 static const char symbol_names[][ENUM_STRING_LEN] =
 {"arc", "rectangle", "...", ""};

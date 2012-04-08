@@ -49,25 +49,25 @@ void TrackableElement::SetLineEnd(file_line_range l, bool f)
 TrackableElement* TrackableElement::AttachNote(CommandNote *cn)
 {
     _ASSERT(cn);
-    notes.Append(cn);
+    comments.Append(cn);
     return this;
 }
 
-//move notes to us    
+//move comments to us    
 void TrackableElement::CombineNotes(TrackableElement *te)
 {
     _ASSERT(te);
     if (te)
-        notes.splice(notes.end(), te->notes);
+        comments.splice(comments.end(), te->comments);
 }
 
 void TrackableElement::MoveNotesToChart() 
 {
-    for (auto n = notes.begin(); n!=notes.end(); /*nope*/)
-        if ((*n)->GetLayout() == MscNoteAttr::FLOATING)
-            chart->FloatingNotes.splice(chart->FloatingNotes.end(), notes, n++);
+    for (auto n = comments.begin(); n!=comments.end(); /*nope*/)
+        if ((*n)->is_float)
+            chart->Notes.splice(chart->Notes.end(), comments, n++);
         else 
-            chart->SideNotes.push_back(*(n++));
+            chart->Comments.push_back(*(n++));
 }
 
 
@@ -80,7 +80,7 @@ void TrackableElement::ShiftBy(double y)
     area_important.Shift(XY(0,y)); 
     yPos+=y;
     control_location.y += y;
-    for (auto n = notes.begin(); n!=notes.end(); n++)
+    for (auto n = comments.begin(); n!=comments.end(); n++)
         (*n)->ShiftBy(y);
 }
 
@@ -89,10 +89,10 @@ void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool 
     //dummy values. CommandNumbers do not update/use those
     EIterator left, right;
     Numbering number;
-    for (auto n = notes.begin(); n!=notes.end(); /*nope*/)
+    for (auto n = comments.begin(); n!=comments.end(); /*nope*/)
         if (NULL == (*n)->PostParseProcess(canvas, hide, left, right, number, at_top_level))
-            notes.erase(n++);
-        else 
+            comments.erase(n++);
+        else
             n++;
 }
 
@@ -100,8 +100,8 @@ void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool 
 //Here we add to "cover", do not overwrite it
 double TrackableElement::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
 {
-    for (auto n = notes.begin(); n!=notes.end(); n++)
-        (*n)->PlaceSideTo(canvas, cover, (*n)->GetLayout()==MscNoteAttr::LEFTSIDE ? l : r);
+    for (auto n = comments.begin(); n!=comments.end(); n++)
+        (*n)->PlaceSideTo(canvas, cover, (*n)->GetStyle().side.second == SIDE_LEFT ? l : r);
     return std::max(l, r);
 }
 

@@ -612,7 +612,7 @@ MscFillAttr &MscFillAttr::operator +=(const MscFillAttr&a)
     return *this;
 };
 
-bool MscFillAttr::operator == (const MscFillAttr &a)
+bool MscFillAttr::operator == (const MscFillAttr &a) const
 {
     if (a.color.first != color.first) return false;
     if (color.first && !(a.color.second == color.second)) return false;
@@ -859,7 +859,6 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p)
 
 void MscNoteAttr::MakeComplete()
 {
-    if (!layout.first) {layout.first = true; layout.second = FLOATING;}
     if (!pointer.first) {pointer.first = true; pointer.second = CALLOUT;}
     if (!def_float_dist.first) {def_float_dist.first = true; def_float_dist.second = 0;}
     if (!def_float_x.first) {def_float_x.first = true; def_float_x.second = 0;}
@@ -868,7 +867,6 @@ void MscNoteAttr::MakeComplete()
 
 MscNoteAttr &MscNoteAttr::operator +=(const MscNoteAttr&a)
 {
-    if (a.layout.first) layout = a.layout;
     if (a.pointer.first) pointer = a.pointer;
     if (a.def_float_dist.first) def_float_dist = a.def_float_dist;
     if (a.def_float_x.first) def_float_x = a.def_float_x;
@@ -878,8 +876,6 @@ MscNoteAttr &MscNoteAttr::operator +=(const MscNoteAttr&a)
 
 bool MscNoteAttr::operator == (const MscNoteAttr &a)
 {
-    if (a.layout.first != layout.first) return false;
-    if (layout.first && !(a.layout.second == layout.second)) return false;
     if (a.pointer.first != pointer.first) return false;
     if (pointer.first && !(a.pointer.second == pointer.second)) return false;
     if (a.def_float_dist.first != def_float_dist.first) return false;
@@ -900,19 +896,6 @@ bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         }
         const MscStyle &style = msc->Contexts.back().styles[a.name];
         if (style.f_note) operator +=(style.note);
-        return true;
-    }
-    if (a.EndsWith("layout")) {
-        if (a.type == MSC_ATTR_CLEAR) {
-            if (a.EnsureNotClear(msc->Error, t))
-                layout.first = false;
-            return true;
-        }
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, layout.second)) {
-            layout.first = true;
-            return true;
-        }
-        a.InvalidValueError(CandidatesFor(layout.second), msc->Error);
         return true;
     }
     if (a.EndsWith("pointer")) {
@@ -957,12 +940,9 @@ bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void MscNoteAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "note.layout", "note.pointer", "note.pos", ""};
+    {"", "note.pointer", "note.pos", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
-
-template<> const char EnumEncapsulator<MscNoteAttr::layout_t>::names[][ENUM_STRING_LEN] =
-    {"invalid", "float", "left", "right", ""};
 
 template<> const char EnumEncapsulator<MscNoteAttr::pointer_t>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "callout", "arrow", "blockarrow", ""};
@@ -972,11 +952,6 @@ template<> const char EnumEncapsulator<MscNoteAttr::pos_t>::names[][ENUM_STRING_
 
 bool MscNoteAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
-    if (CaseInsensitiveEndsWith(attr, "layout")) {
-        csh.AddToHints(EnumEncapsulator<MscNoteAttr::layout_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForLayout);
-        return true;
-    }
     if (CaseInsensitiveEndsWith(attr, "pointer")) {
         csh.AddToHints(EnumEncapsulator<MscNoteAttr::pointer_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForPointer);
@@ -987,11 +962,6 @@ bool MscNoteAttr::AttributeValues(const std::string &attr, Csh &csh)
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForPos);
         return true;
     }
-    return false;
-}
-
-bool MscNoteAttr::CshHintGraphicCallbackForLayout(MscCanvas *canvas, CshHintGraphicParam p)
-{
     return false;
 }
 
@@ -1009,7 +979,6 @@ bool MscNoteAttr::CshHintGraphicCallbackForPos(MscCanvas *canvas, CshHintGraphic
 string MscNoteAttr::Print(int) const
 {
     string ss = "note(";
-    if (layout.first) ss << " layout:" << EnumEncapsulator<MscNoteAttr::layout_t>::names[layout.second];
     if (pointer.first) ss << " pointer:" << EnumEncapsulator<MscNoteAttr::pointer_t>::names[pointer.second];
     if (def_float_dist.first) ss << " def_float_dist:" << def_float_dist.second;
     if (def_float_x.first) ss << " def_float_x:" << def_float_x.second;

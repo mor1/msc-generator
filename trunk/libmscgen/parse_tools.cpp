@@ -205,6 +205,7 @@ void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
     std::pair<string,string>("TOK_COMMAND_HSPACE", "'hspace'"),
     std::pair<string,string>("TOK_COMMAND_SYMBOL", "'symbol'"),
     std::pair<string,string>("TOK_COMMAND_NOTE", "'note'"),
+    std::pair<string,string>("TOK_COMMAND_COMMENT", "'comment'"),
     std::pair<string,string>("TOK_COLON_STRING", "':'"),  //just say colon to the user
     std::pair<string,string>("TOK_COLON_QUOTED_STRING", "':'"),  //just say colon to the user
     std::pair<string,string>("TOK_NUMBER", "number"),

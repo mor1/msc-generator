@@ -1311,9 +1311,11 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
  */
 
 
-CommandNote::CommandNote(Msc*msc, const file_line_range &fp, const char *pt, const file_line_range &ptm, AttributeList *al)
-    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]),
-    point_toward(pt ? pt : ""), point_toward_pos(ptm),
+CommandNote::CommandNote(Msc*msc, bool is_note, const file_line_range &fp, 
+                         const char *pt, const file_line_range &ptm, 
+                         AttributeList *al)
+    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles[is_note ? "note" : "comment"]),
+    is_float(is_note), point_toward(pt ? pt : ""), point_toward_pos(ptm),
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {
     file_pos = fp;
@@ -1335,7 +1337,7 @@ CommandNote::CommandNote(Msc*msc, const file_line_range &fp, const char *pt, con
 bool CommandNote::AddAttribute(const Attribute &a)
 {
     //we handle note.pos here, making it stronger
-    if (a.EndsWith("pos")) {
+    if (is_float && a.EndsWith("pos")) {
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""        
         MscNoteAttr::pos_t tmp;
@@ -1363,15 +1365,15 @@ bool CommandNote::AddAttribute(const Attribute &a)
     return ArcLabelled::AddAttribute(a);
 }
 
-void CommandNote::AttributeNames(Csh &csh)
+void CommandNote::AttributeNames(Csh &csh, bool is_float)
 {
     ArcLabelled::AttributeNames(csh);
-    Design().styles["note"].AttributeNames(csh);
+    Design().styles[is_float ? "note" : "comment"].AttributeNames(csh);
 }
 
-bool CommandNote::AttributeValues(const std::string attr, Csh &csh)
+bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_float)
 {
-    if (Design().styles["note"].AttributeValues(attr, csh)) return true;
+    if (Design().styles[is_float ? "note" : "comment"].AttributeValues(attr, csh)) return true;
     return ArcLabelled::AttributeValues(attr, csh);
 }
 
@@ -1380,7 +1382,8 @@ ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 {
     if (!valid) return NULL;
     if (label.length()==0) {
-        chart->Error.Error(file_pos.start, "A note must contain a label. Ignoring note.", 
+        chart->Error.Error(file_pos.start, is_float ? "Notes" : "Comments" +
+                           string(" must contain a label. Ignoring note."), 
             "Try adding a 'label' attribute or text after a colon (':').");
         valid = false;
         return NULL;
@@ -1404,18 +1407,22 @@ void CommandNote::FinalizeLabels(MscCanvas &canvas)
 
 void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
-    halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.line.LineWidth(), style.line.LineWidth());
     //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
-    //Here we only make space if the note is on the side
-    const double w = parsed_label.getTextWidthHeight().x;
-    if (style.note.layout.second == MscNoteAttr::LEFTSIDE)
-        distances.Insert(chart->LNote->index, chart->LSide->index, w);
-    else if (style.note.layout.second == MscNoteAttr::RIGHTSIDE)
-        distances.Insert(chart->RSide->index, chart->RNote->index, w);
+    if (is_float) {
+        halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.line.LineWidth(), style.line.LineWidth());
+    } else {
+        //Here we only make space if the note is on the side
+        const double w = parsed_label.getTextWidthHeight().x;
+        if (style.side.second == SIDE_LEFT)
+            distances.Insert(chart->LNote->index, DISTANCE_LEFT, w);
+        else if (style.side.second == SIDE_RIGHT)
+            distances.Insert(chart->RNote->index, DISTANCE_RIGHT, w);
+    }
 }
 
 Contour CommandNote::CoverBody(MscCanvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
 {
+    _ASSERT(is_float);
     return style.line.CreateRectangle_Midline(center-halfsize, center+halfsize);
 }
 
@@ -1423,6 +1430,7 @@ const double pointer_width_min=10, pointer_width_max=50, pointer_width_div=50;
 
 double CommandNote::pointer_width(double distance) const
 {
+    _ASSERT(is_float);
     switch (style.note.pointer.second) {
     default: _ASSERT(0);
     case MscNoteAttr::NONE:
@@ -1438,6 +1446,7 @@ double CommandNote::pointer_width(double distance) const
 
 Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
 {
+    _ASSERT(is_float);
     const double l = center.Distance(pointto);
     if (contour::test_zero(l)) return Contour();
     const double width = pointer_width(l);
@@ -1513,6 +1522,7 @@ Contour CommandNote::GetRegionMask(const Block &outer, int dir_x, int dir_y)
 //return empty vector if any point on the contour can do
 std::vector<XY> CommandNote::GetPointerTarget() const
 {
+    _ASSERT(is_float);
     std::vector<XY> ret;
     if (point_toward.length()==0) return ret;
     auto ei = chart->AllEntities.Find_by_Name(point_toward);
@@ -1677,6 +1687,7 @@ void CommandNote::CoverPenalty(const XY &pointto, const XY &center, MscCanvas &c
                                const Contour &block_all, const Contour &block_imp,
                                score_t &cover_penalty) const
 {
+    _ASSERT(is_float);
     const Contour cov = CoverAll(canvas, pointto, center);
     const double cov_area = cov.GetArea();
     const double cov_target_area = (cov * target->GetAreaToNote()).GetArea();
@@ -1700,6 +1711,7 @@ void CommandNote::CoverPenalty(const XY &pointto, const XY &center, MscCanvas &c
 
 void CommandNote::Tangents(XY &pointto, XY &t1, XY&t2) const
 {
+    _ASSERT(is_float);
     //Penalize if the pointer has a too narrow angle with the side of the target
     //(Measurements show that roughly half the cases "Tangents()" below return
     //that "pointto" is not on the contour.)
@@ -1712,6 +1724,7 @@ void CommandNote::Tangents(XY &pointto, XY &t1, XY&t2) const
 void CommandNote::SlantPenalty(const XY &pointto, const XY &center, const XY &t1, const XY&t2,
                                score_t &slant_penalty) const
 {
+    _ASSERT(is_float);
     double dev_from_90;
     switch (contour::triangle_dir(pointto, t1, t2)) {
     default:
@@ -1773,6 +1786,7 @@ bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
 
 void CommandNote::PlaceFloating(MscCanvas &canvas)
 {
+    _ASSERT(is_float);
     const unsigned region_distances = 3;
     static const unsigned distances_search_order[region_distances] = {1, 0, 2};
     const static double region_distance_sizes[region_distances+1] = {0, 10, 30, 100};
@@ -2124,7 +2138,6 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     } //for: regions
     if (best_point > worst_point) {
         //Ok, place the note, calculate "area"
-        _ASSERT(style.note.layout.second==MscNoteAttr::FLOATING);
         if (!chart->GetDrawing().IsWithinBool(best_center) || !chart->GetDrawing().IsWithinBool(best_pointto)) {
             _ASSERT(0);
             return;
@@ -2147,12 +2160,12 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 //return height, but place to "y" (below other notes)
 void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
 {
-    _ASSERT(style.note.layout.second==MscNoteAttr::LEFTSIDE || style.note.layout.second==MscNoteAttr::RIGHTSIDE);
+    _ASSERT(!is_float);
     yPos = y + chart->arcVGapAbove;
-    if (style.note.layout.second == MscNoteAttr::LEFTSIDE)
-        area = parsed_label.Cover(chart->XCoord(chart->LNote->pos), chart->XCoord(chart->LSide->pos), yPos);
+    if (style.side.second == SIDE_LEFT)
+        area = parsed_label.Cover(chart->sideNoteGap, chart->XCoord(chart->LNote->pos)-chart->sideNoteGap, yPos);
     else
-        area = parsed_label.Cover(chart->XCoord(chart->RSide->pos), chart->XCoord(chart->RNote->pos), yPos);
+        area = parsed_label.Cover(chart->XCoord(chart->RNote->pos) + chart->sideNoteGap, chart->GetTotal().x-chart->sideNoteGap, yPos);
     area.arc = this;
     height = area.GetBoundingBox().y.till - y + chart->arcVGapBelow;
     y += height;
@@ -2162,25 +2175,17 @@ void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
 void CommandNote::ShiftBy(double y)
 {
     ArcLabelled::ShiftBy(y);
-    pos_center.y += y;
-    point_to.y += y;
+    if (is_float) {
+        pos_center.y += y;
+        point_to.y += y;
+    }
 }
 
 
 void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid || pass!=draw_pass) return;
-    switch (style.note.layout.second) {
-    default:
-        _ASSERT(0);
-        return;
-    case MscNoteAttr::LEFTSIDE:
-        parsed_label.Draw(canvas, chart->XCoord(chart->LNote->pos), chart->XCoord(chart->LSide->pos), yPos);
-        return;
-    case MscNoteAttr::RIGHTSIDE:
-        parsed_label.Draw(canvas, chart->XCoord(chart->RSide->pos), chart->XCoord(chart->RNote->pos), yPos);
-        return;
-    case MscNoteAttr::FLOATING:
+    if (is_float) {
         Contour cover;
         if (style.note.pointer.second == MscNoteAttr::ARROW) {
             cover = CoverBody(canvas, pos_center);
@@ -2208,6 +2213,16 @@ void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
         const double w2 = halfsize.x - style.line.LineWidth();
         parsed_label.Draw(canvas, pos_center.x-w2, pos_center.x+w2,
             pos_center.y-halfsize.y+style.line.LineWidth());
+        return;
+    } else switch (style.side.second) {
+    default:
+        _ASSERT(0);
+        return;
+    case SIDE_LEFT:
+        parsed_label.Draw(canvas, chart->sideNoteGap, chart->XCoord(chart->LNote->pos)-chart->sideNoteGap, yPos);
+        return;
+    case SIDE_RIGHT:
+        parsed_label.Draw(canvas, chart->XCoord(chart->RNote->pos) + chart->sideNoteGap, chart->GetTotal().x-chart->sideNoteGap, yPos);
         return;
     }
 }

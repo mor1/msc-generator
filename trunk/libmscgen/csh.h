@@ -180,7 +180,7 @@ struct CshHint {
     bool operator ==(const CshHint &o) const {return type == o.type && decorated == o.decorated;}
 };
 
-#define ENUM_STRING_LEN 20
+#define ENUM_STRING_LEN 30
 
 class Csh
 {

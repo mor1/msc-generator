@@ -497,6 +497,11 @@ void Design::Reset()
     style.text += "\\mn(10)\\ms(6)"; //small font to 6, normal to 10
     styles["note"] = style;
 
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, false, false, false, false, false, true, false, true, false, false, false, false);  //only text numbering and side
+    style.numbering.first = false;
+    style.text += "\\mn(10)\\ms(6)\\pl"; //small font to 6, normal to 10, left para
+    styles["comment"] = style;
+
 
     //Ok, now "weak" and "strong"
     style = MscStyle(STYLE_STYLE); //has everything, but is empty

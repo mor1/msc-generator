@@ -130,6 +130,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
        TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
+       TOK_COMMAND_COMMENT
        TOK__NEVER__HAPPENS
 %union
 {
@@ -157,7 +158,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 
 %type <msc>        msc
 %type <arcbase>    arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
-                   symbol_command symbol_command_no_attr note
+                   symbol_command symbol_command_no_attr note comment
 %type <arcvertarrow> vertrel_no_xpos
 %type <arcarrow>   arcrel_to arcrel_from arcrel_bidir
 %type <arcbox>     boxrel first_box
@@ -190,13 +191,14 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE
                    TOK_ACTIVATE TOK_DEACTIVATE
-                   TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
+                   TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE 
+                   TOK_COMMAND_COMMENT
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
 %destructor {if (!C_S_H) delete $$;} vertrel_no_xpos
 %destructor {if (!C_S_H) delete $$;} arcrel arc arc_with_parallel arc_with_parallel_semicolon opt vertrel scope_close
-%destructor {if (!C_S_H) delete $$;} symbol_command symbol_command_no_attr note
+%destructor {if (!C_S_H) delete $$;} symbol_command symbol_command_no_attr note comment
 %destructor {if (!C_S_H) delete $$;} arcrel_to arcrel_from arcrel_bidir
 %destructor {if (!C_S_H) delete $$;} boxrel first_box box_list first_pipe pipe_list pipe_list_no_content
 %destructor {if (!C_S_H) delete $$;} parallel
@@ -211,7 +213,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
 %destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
 %destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
-%destructor {free($$);}  TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
+%destructor {free($$);}  TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE TOK_COMMAND_COMMENT
 
 %%
 
@@ -893,6 +895,7 @@ arc:           arcrel
 }
               | symbol_command
               | note
+              | comment
               | TOK_COMMAND_HSPACE entityrel full_arcattrlist_with_label_or_number
 {
   #ifdef C_S_H_IS_COMPILED
@@ -1110,7 +1113,7 @@ optlist:     opt
   #ifndef C_S_H_IS_COMPILED
     if ($1) {
         $$ = (new ArcList)->Append($1); /* New list */
-        ($1)->MakeMeLastNotable();
+        //($1)->MakeMeLastNotable(); Do not make chart options notable
     } else
         $$ = NULL;
   #endif
@@ -1129,7 +1132,7 @@ optlist:     opt
             $$ = ($1)->Append($3);     /* Add to existing list */
         else
             $$ = (new ArcList)->Append($3); /* New list */
-        ($3)->MakeMeLastNotable();
+        //($3)->MakeMeLastNotable(); Do not make chart options notable
     } else
         $$ = $1;
   #endif
@@ -2821,11 +2824,11 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     csh.AddCSH(@2, COLOR_KEYWORD);
     csh.AddCSH_EntityOrMarkerName(@3, $3);
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @4))
-        CommandNote::AttributeNames(csh);
+        CommandNote::AttributeNames(csh, true);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @4))
-        CommandNote::AttributeValues(csh.hintAttrName, csh);
+        CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ArcBase *a = new CommandNote(&msc, MSC_POS(@$), $3, MSC_POS(@3), $4); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, true, MSC_POS(@$), $3, MSC_POS(@3), $4); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
     $$ = NULL; //no need to add to arclist
   #endif
@@ -2838,11 +2841,11 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
-        CommandNote::AttributeNames(csh);
+        CommandNote::AttributeNames(csh, true);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
-        CommandNote::AttributeValues(csh.hintAttrName, csh);
+        CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ArcBase *a = new CommandNote(&msc, MSC_POS(@$), NULL, file_line_range(), $2); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, true, MSC_POS(@$), NULL, file_line_range(), $2); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
     $$ = NULL; //no need to add to arclist
   #endif
@@ -2872,16 +2875,44 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     if (csh.CheckEntityHintAfterPlusOne(@2, yylloc, yychar==YYEOF))
         csh.addMarkersAtEnd = true;
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @3))
-        CommandNote::AttributeNames(csh);
+        CommandNote::AttributeNames(csh, true);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
-        CommandNote::AttributeValues(csh.hintAttrName, csh);
+        CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ArcBase *a = new CommandNote(&msc, MSC_POS(@$), NULL, file_line_range(), $3); //This attaches itself to the target of the note
+    ArcBase *a = new CommandNote(&msc, true, MSC_POS(@$), NULL, file_line_range(), $3); //This attaches itself to the target of the note
     if (!a->IsValid()) delete a; //if attachment not successful, drop it
     $$ = NULL; //no need to add to arclist
   #endif
     free($1);
     free($2);
+};
+
+comment:            TOK_COMMAND_COMMENT full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        CommandNote::AttributeNames(csh, false);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
+        CommandNote::AttributeValues(csh.hintAttrName, csh, false);
+  #else
+    ArcBase *a = new CommandNote(&msc, false, MSC_POS(@$), NULL, file_line_range(), $2); //This attaches itself to the target of the note
+    if (!a->IsValid()) delete a; //if attachment not successful, drop it
+    $$ = NULL; //no need to add to arclist
+  #endif
+    free($1);
+}
+               | TOK_COMMAND_COMMENT
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH_ErrorAfter(@1, "Comments need a label.");
+    if (csh.CheckEntityHintAfterPlusOne(@1, yylloc, yychar==YYEOF))
+        csh.addMarkersAtEnd = true;
+  #else
+    $$ = NULL;
+  #endif
+    free($1);
 };
 
 colon_string: TOK_COLON_QUOTED_STRING
@@ -3142,7 +3173,7 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |
                        TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |
                        TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL |
-                       TOK_COMMAND_NOTE;
+                       TOK_COMMAND_NOTE | TOK_COMMAND_COMMENT;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}

@@ -184,6 +184,7 @@ protected:
 public:
     ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
     ArcLabelled(MscArcType t, const ArcLabelled &al);
+    const MscStyle &GetStyle() const {return style;}
     virtual bool CanBeNoted() const {return true;}
     void SetStyleWithText(const char *style_name); //set style to this name, but combine it with default text style
     void SetStyleWithText(const MscStyle *style_to_use=NULL); //set style to this name, but combine it with default text style
