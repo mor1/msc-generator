@@ -213,6 +213,7 @@ struct score_t;
 class CommandNote : public ArcLabelled
 {
 public:
+    const bool            is_float;
 protected:
     TrackableElement *    target;
     string                point_toward; //an entity or NoEntity for center of target
@@ -226,12 +227,11 @@ protected:
     double pointer_width(double distance) const;
     Contour cover_pointer(MscCanvas &canvas, const XY &point_to, const XY &center) const; //places upper left corner of the body to 0,0
 public:
-    CommandNote(Msc*, const file_line_range &fp, const char *pt, const file_line_range &ptm, AttributeList *al);
+    CommandNote(Msc*, bool is_note, const file_line_range &fp, const char *pt, const file_line_range &ptm, AttributeList *al);
     TrackableElement *GetTarget() const {return target;}
-    MscNoteAttr::layout_t GetLayout() const {return style.note.layout.second;}
     virtual bool AddAttribute(const Attribute &);
-    static void AttributeNames(Csh &csh);
-    static bool AttributeValues(const std::string attr, Csh &csh);
+    static void AttributeNames(Csh &csh, bool is_float);
+    static bool AttributeValues(const std::string attr, Csh &csh, bool is_float);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);

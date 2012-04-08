@@ -39,7 +39,7 @@ protected:
     bool            area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
     Contour         area_to_note;       //if not empty the notes will point towards this area
 
-    CommandNoteList notes;              // Notes attached to this element
+    CommandNoteList comments;           // Notes attached to this element
     Contour         area_important;     /* those parts of our coverage, which must not be covered by notes */
 
     std::vector<MscControlType> 

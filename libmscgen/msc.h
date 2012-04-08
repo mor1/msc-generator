@@ -177,8 +177,8 @@ public:
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
-    CommandNoteList               FloatingNotes;    /** all floating notes after PostParseProcess */
-    CommandNoteList               SideNotes;        /** a copy to all side notes after PostParseProcess */
+    CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
+    CommandNoteList               Comments;         /** a copy to all side notes after PostParseProcess */
     PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
     ArcBase                      *last_notable_arc; //during parse: last arc inserted (the one notes attach to) or NULL if none
     
@@ -231,7 +231,7 @@ public:
     EntityCollapseCatalog force_entity_collapse; //these entities must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse;    //These boxes must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse_instead; //These should be kept from force_box_collapse
-    
+
     Msc();
 
     void AddStandardDesigns(void);
@@ -269,7 +269,7 @@ public:
                                  EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(MscCanvas &canvas);
     template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
-    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(FloatingNotes, canvas); FinalizeLabelsArcList(SideNotes, canvas);}
+    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(Notes, canvas); FinalizeLabelsArcList(Comments, canvas);}
 
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 

@@ -364,7 +364,7 @@ public:
     void MakeComplete();
     bool IsComplete() const {return color.first && gradient.first;} //color2 is not needed
     MscFillAttr &operator +=(const MscFillAttr&a);
-    bool operator == (const MscFillAttr &a);
+    bool operator == (const MscFillAttr &a) const;
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
@@ -393,18 +393,16 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
 
 struct MscNoteAttr {
 public:
-    typedef enum {LAYOUT_INVALID=0, FLOATING, LEFTSIDE, RIGHTSIDE} layout_t;
     typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} pointer_t;
     typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN} pos_t;
-    std::pair<bool, layout_t> layout;
 	std::pair<bool, pointer_t> pointer;
     std::pair<bool, int> def_float_dist;
     std::pair<bool, int> def_float_x;
     std::pair<bool, int> def_float_y;
     MscNoteAttr() {Empty(); MakeComplete();}
-    void Empty() {layout.first = pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;}
+    void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;}
     void MakeComplete();
-    bool IsComplete() const {return layout.first && pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;}
+    bool IsComplete() const {return pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;}
     MscNoteAttr &operator +=(const MscNoteAttr&a);
     bool operator == (const MscNoteAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
