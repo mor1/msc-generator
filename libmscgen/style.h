@@ -60,23 +60,25 @@ public:
 class Context
 {
 public:
-    bool           numbering;
-    bool           compress;
-    bool           indicator;
-    double         slant_angle;
-    StringFormat   text;
-    StyleSet       styles;
-    ColorSet       colors;
-    NumberingStyle numberingStyle;
-    Context() : numbering(false), compress(false), indicator(true), slant_angle(0) {text.Default();}
-};
-
-class Design : public Context
-{
-public:
-    double hscale;
-    Design() {Reset();}
-    void Reset();
+    bool is_full;
+    std::pair<bool, double> hscale;
+    std::pair<bool, bool>   numbering;
+    std::pair<bool, bool>   compress;
+    std::pair<bool, bool>   indicator;
+    std::pair<bool, double> slant_angle;
+    MscLineAttr defLCommentLine, defRCommentLine;
+    MscFillAttr defLCommentFill, defRCommentFill;
+    MscFillAttr defBackground;
+    StringFormat            text;
+    StyleSet                styles;
+    ColorSet                colors;
+    NumberingStyle          numberingStyle;
+    Context() {Empty();}
+    Context(bool) {Plain();}
+    void Empty(); 
+    void Plain();
+    bool IsComplete() const {return hscale.first && defLCommentLine.IsComplete() && defRCommentLine.IsComplete() && defLCommentFill.IsComplete() && defRCommentFill.IsComplete() && defBackground.IsComplete() && numbering.first && compress.first && indicator.first && slant_angle.first && styles.size() && colors.size() && numberingStyle.IsComplete();}
+    Context &operator +=(const Context &o);
 };
 
 #endif //STYLE_H

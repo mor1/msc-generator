@@ -606,8 +606,8 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     EntityNames.clear();
     MarkerNames.clear();
     Contexts.clear();
-    if (!ForcedDesign.empty() && Designs.find(ForcedDesign) != Designs.end())
-        Contexts.push_back(Designs[ForcedDesign]);
+    if (!ForcedDesign.empty() && FullDesigns.find(ForcedDesign) != FullDesigns.end())
+        Contexts.push_back(FullDesigns[ForcedDesign]);
     else
         PushContext(true);
     hintStatus = HINT_NONE;
@@ -646,39 +646,38 @@ MscColorSyntaxType Csh::GetCshAt(int pos)
 
 void CshContext::SetPlain()
 {
-    Design plain;
-    plain.Reset();
-    for (auto i=plain.colors.begin(); i!=plain.colors.end(); i++)
+    full = true;
+    for (auto i=ArcBase::plainDesign.colors.begin(); i!=ArcBase::plainDesign.colors.end(); i++)
         Colors[i->first] = i->second;
-    for (auto i=plain.styles.begin(); i!=plain.styles.end(); i++)
+    for (auto i=ArcBase::plainDesign.styles.begin(); i!=ArcBase::plainDesign.styles.end(); i++)
         StyleNames.insert(i->first);
 }
 
 Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1)
 {
-    Design plain;
-    plain.Reset();
-    for (auto i=plain.styles.begin(); i!=plain.styles.end(); i++)
+    for (auto i=ArcBase::plainDesign.styles.begin(); i!=ArcBase::plainDesign.styles.end(); i++)
         ForbiddenStyles.insert(i->first);
     ForbiddenStyles.erase("weak");
     ForbiddenStyles.erase("strong");
     PushContext(true);
+    Contexts.back().SetPlain();
 }
 
 void Csh::PushContext(bool empty)
 {
-    if (empty){
+    if (empty)
         Contexts.push_back(CshContext());
-        Contexts.back().SetPlain();
-    } else {
+    else 
         Contexts.push_back(Contexts.back());
-    }
 }
 
 bool Csh::SetDesignTo(const std::string&design)
 {
-    auto i = Designs.find(design);
-    if (i==Designs.end()) return false;
+    auto i = FullDesigns.find(design);
+    if (i==FullDesigns.end()) {
+        i = PartialDesigns.find(design);
+        if (i==PartialDesigns.end()) return false;
+    }
     Contexts.back() += i->second;
     return true;
 }
@@ -1001,9 +1000,9 @@ bool CshHintGraphicCallbackForDesigns(MscCanvas *canvas, CshHintGraphicParam /*p
     return true;
 }
 
-void Csh::AddDesignsToHints()
+void Csh::AddDesignsToHints(bool full)
 {
-    for (auto i= Designs.begin(); i!=Designs.end(); i++)
+    for (auto i= (full ? FullDesigns : PartialDesigns).begin(); i!=(full ? FullDesigns : PartialDesigns).end(); i++)
         Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
 }
 

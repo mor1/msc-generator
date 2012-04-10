@@ -140,7 +140,7 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     draw_pass(DEFAULT), type(t)
 {
     if (msc) 
-        compress = msc->Contexts.back().compress;
+        compress = msc->Contexts.back().compress.second;
     had_add_attr_list = false;
 }
 
@@ -426,7 +426,7 @@ void ArcLabelled::SetStyleWithText(const MscStyle *style_to_use)
     //current chart option.
     if (!style.numbering.first) {
         style.numbering.first = true;
-        style.numbering.second = chart->Contexts.back().numbering;
+        style.numbering.second = chart->Contexts.back().numbering.second;
     }
     //Add refinement style (e.g., -> or ... or vertical++)
     const MscStyle *refinement = GetRefinementStyle(type); //virtual function for the arc
@@ -655,7 +655,7 @@ void ArcLabelled::FinalizeLabels(MscCanvas &canvas)
                                           true, StringFormat::LABEL);
     string pre_num_post;
     if (label.length()!=0 && style.numbering.second) {
-        pre_num_post = numberingStyle.pre + number_text + numberingStyle.post;
+        pre_num_post = numberingStyle.pre.second + number_text + numberingStyle.post.second;
         //Recreate the text style at the point where the label will be inserted
         StringFormat basic = style.text;
         basic.Apply(label.c_str());
@@ -691,7 +691,7 @@ void ArcArrow::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
-    Design().styles["arrow"].AttributeNames(csh);
+    plainDesign.styles.GetStyle("arrow").AttributeNames(csh);
 }
 
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
@@ -700,7 +700,7 @@ bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (Design().styles["arrow"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle("arrow").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -864,7 +864,7 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
     dst = chart->FindAllocEntity(d, dl);
     modifyFirstLineSpacing = true;
     segment_types.push_back(t);
-    if (chart) slant_angle = chart->Contexts.back().slant_angle;
+    if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
 };
 
 ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabelled &al) :
@@ -879,7 +879,7 @@ ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabell
         segment_types.push_back(MSC_ARC_BIG);
         segment_lines.push_back(style.line);
     }
-    if (chart) slant_angle = chart->Contexts.back().slant_angle;
+    if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
 }
 
 ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range /*l*/)
@@ -1473,12 +1473,12 @@ void ArcBigArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
-    Design().styles["blockarrow"].AttributeNames(csh);
+    plainDesign.styles.GetStyle("blockarrow").AttributeNames(csh);
 }
 
 bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (Design().styles["blockarrow"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle("blockarrow").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     if (CaseInsensitiveEqual(attr,"angle")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45>", HINT_ATTR_VALUE, false));
@@ -1839,7 +1839,7 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    Design().styles["vertical"].AttributeNames(csh);
+    plainDesign.styles.GetStyle("vertical").AttributeNames(csh);
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
 }
@@ -1855,7 +1855,7 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (Design().styles["vertical"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle("vertical").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -2251,7 +2251,7 @@ bool ArcBox::AddAttribute(const Attribute &a)
 void ArcBox::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    Design().styles["box"].AttributeNames(csh);
+    plainDesign.styles.GetStyle("box").AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
 }
 
@@ -2283,7 +2283,7 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
         return true;
     }
-    if (Design().styles["box"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle("box").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -2894,7 +2894,7 @@ bool ArcPipe::AddAttribute(const Attribute &a)
 void ArcPipe::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    Design().styles["pipe"].AttributeNames(csh);
+    plainDesign.styles.GetStyle("pipe").AttributeNames(csh);
 }
 
 bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
@@ -2903,7 +2903,7 @@ bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
         csh.AddColorValuesToHints();
         return true;
     }
-    if (Design().styles["pipe"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle("pipe").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -3680,13 +3680,13 @@ void ArcDivider::AttributeNames(Csh &csh, bool nudge)
 {
     if (nudge) return;
     ArcLabelled::AttributeNames(csh);
-    Design().styles["divider"].AttributeNames(csh);
+    plainDesign.styles.GetStyle("divider").AttributeNames(csh);
 }
 
 bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
 {
     if (nudge) return false;
-    if (Design().styles["divider"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle("divider").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -3714,7 +3714,7 @@ void ArcDivider::Width(MscCanvas &, EntityDistanceMap &distances)
     //Get marging from chart edge
     double margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     //convert it to a margin from lside and rside
-    if (chart->hscale>0)
+    if (chart->GetHScale()>0)
         margin -= chart->XCoord(MARGIN);
     else
         margin -= chart->XCoord(MARGIN_HSCALE_AUTO);

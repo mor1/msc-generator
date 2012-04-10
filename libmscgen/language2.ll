@@ -274,6 +274,7 @@ do {                                                \
 \+\+     yylval_param->arctype=MSC_EMPH_DASHED;     return TOK_EMPH;             // ++
 \.\.     yylval_param->arctype=MSC_EMPH_DOTTED;     return TOK_EMPH;             // ..
 ==       yylval_param->arctype=MSC_EMPH_DOUBLE;     return TOK_EMPH;             // ==
+\+=      return TOK_PLUS_EQUAL;
 -        return TOK_DASH;
 \+       return TOK_PLUS;
 =        return TOK_EQUAL;

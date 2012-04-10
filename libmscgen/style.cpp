@@ -327,13 +327,81 @@ const MscStyle &StyleSet::GetStyle(const string &s) const
     else return i->second;
 };
 
-void Design::Reset()
+void Context::Empty()
 {
-    numbering=false;
-    compress=false;
+    is_full = false;
+    hscale.first = false;
+    numbering.first = false;
+    compress.first = false;
+    indicator.first = false;
+    slant_angle.first = false;
+    defLCommentLine.Empty();
+    defRCommentLine.Empty();
+    defLCommentFill.Empty();
+    defRCommentFill.Empty();
+    defBackground.Empty();
+    text.Empty();
+    styles.clear();
+    colors.clear();
+    numberingStyle.Empty();  
+}
+
+Context &Context::operator +=(const Context &o)
+{
+    is_full |= o.is_full;
+    if (o.hscale.first) hscale = o.hscale;
+    if (o.numbering.first) numbering = o.numbering;
+    if (o.compress.first) compress = o.compress;
+    if (o.indicator.first) indicator = o.indicator;
+    if (o.slant_angle.first) slant_angle = o.slant_angle;
+    defLCommentLine += o.defLCommentLine;
+    defRCommentLine += o.defRCommentLine;
+    defLCommentFill += o.defLCommentFill;
+    defRCommentFill += o.defRCommentFill;
+    defBackground += o.defBackground;
+    text += o.text;
+    for (auto i = o.colors.begin(); i!=o.colors.end(); i++) 
+        colors[i->first] = i->second;
+    for (auto i = o.styles.begin(); i!=o.styles.end(); i++) {
+        auto j = styles.find(i->first);
+        if (j==styles.end()) 
+            styles[i->first] = i->second;
+        else
+            j->second += i->second;
+    }
+    numberingStyle += o.numberingStyle;
+    return *this;
+}
+
+void Context::Plain()
+{
+    is_full = true;
+    hscale.first = true;
+    hscale.second = 1.0;
+    numbering.first = true;
+    numbering.second=false;
+    compress.first = true;
+    compress.second=false;
+    indicator.first = true;
+    indicator.second = true;
+    slant_angle.first = true;
+    slant_angle.second = 0;
+    defLCommentLine.MakeComplete();
+    defRCommentLine.MakeComplete();
+    defLCommentFill.MakeComplete();
+    defRCommentFill.MakeComplete();
+    defBackground.MakeComplete();
+    defLCommentLine.width.second = 2;
+    defRCommentLine.width.second = 2;
+    defLCommentFill.color.second.a = 0; //fully transparent
+    defRCommentFill.color.second.a = 0; //fully transparent
+    defBackground.color.second.a = 0; //fully transparent
     numberingStyle.Reset();
-    numberingStyle.post = ": ";
-    hscale = 1.0;
+    numberingStyle.pre.first = true;
+    numberingStyle.pre.second.clear();
+    numberingStyle.post.first = true;
+    numberingStyle.post.second = ": ";
+    text.Default();
 
     colors.clear();
     colors["none"]  = MscColorType(  0,   0,   0, 0);

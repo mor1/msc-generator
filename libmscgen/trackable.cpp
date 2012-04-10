@@ -19,6 +19,10 @@
 #include "msc.h"
 using namespace std;
 
+//Generate a plain design with all the default styles
+//will be used by ::AddAttributeNames to see which style components an element has
+const Context TrackableElement::plainDesign(true);
+
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
     hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
