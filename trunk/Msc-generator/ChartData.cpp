@@ -272,7 +272,7 @@ void CDrawingChartData::CompileIfNeeded() const
 	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
 		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
 		    if (!m_ForcedDesign.IsEmpty())
-			    if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
+			    if (m_msc->SetDesign(true, (const char*)m_ForcedDesign, true)) 
 				    m_msc->ignore_designs = true;
 	    }
         //copy forced collapse/expand entities/boxes
@@ -332,7 +332,7 @@ CString CDrawingChartData::GetErrorText(unsigned num, bool oWarnings) const
 
 CString CDrawingChartData::GetDesigns() const 
 {
-	return CString(GetMsc()->GetDesigns().c_str());
+	return CString(GetMsc()->GetDesigns(true).c_str());
 }
 
 

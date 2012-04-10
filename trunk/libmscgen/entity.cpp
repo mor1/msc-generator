@@ -366,7 +366,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         //we use the value from the context (true by default)
         if (!style_to_use.indicator.first) {
             style_to_use.indicator.first = true;
-            style_to_use.indicator.second = chart->Contexts.back().indicator;
+            style_to_use.indicator.second = chart->Contexts.back().indicator.second;
         }
 
         //Create parsed label

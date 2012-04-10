@@ -10,11 +10,6 @@
 #include<stack>
 #include "color.h"
 
-#ifndef _ASSERT
-#define  _ASSERT(A)
-#endif
-
-
 struct CshPos
 {
   int first_pos;
@@ -120,12 +115,15 @@ typedef bool (*CshHintGraphicCallback)(MscCanvas*, CshHintGraphicParam);
 class CshContext
 {
 public:
+    bool                  full;
     ColorSet              Colors;
     std::set<std::string> StyleNames;
+    CshContext() : full(false) {}
     void SetPlain();
     CshContext &operator+=(const CshContext &o) {
         Colors.insert(o.Colors.begin(), o.Colors.end());
         StyleNames.insert(o.StyleNames.begin(), o.StyleNames.end());
+        full |= o.full;
         return *this;
     }
 };
@@ -198,7 +196,7 @@ public:
     //Running variables during csh parsing
     std::set<std::string>             EntityNames;
     std::set<std::string>             MarkerNames;
-    std::map<std::string, CshContext> Designs;
+    std::map<std::string, CshContext> FullDesigns, PartialDesigns;
     std::list<CshContext>             Contexts;
     CshHintType                       hintType;        //low level rules use to indicate type to higher rules
     CshHintStatus                     hintStatus;      //indicates if a lower level rule has anything to indicate
@@ -257,7 +255,7 @@ public:
     void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, CshHintType t, 
                     CshHintGraphicCallback c, CshHintGraphicParam);
     void AddColorValuesToHints();
-    void AddDesignsToHints();
+    void AddDesignsToHints(bool full);
     void AddStylesToHints();
     void AddOptionsToHints();
     void AddDesignOptionsToHints();

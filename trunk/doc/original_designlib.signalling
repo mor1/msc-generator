@@ -108,6 +108,7 @@ defdesign round_green {
       defstyle note [fill.color="yellow+60", line.color="yellow-50", line.corner=round, line.radius=4];
 };
 defdesign green_earth {
+      msc = plain;
       defcolor green="87,139,119", lgray="240,240,240";
       defstyle entity, entitygroup_collapsed, symbol [fill.color=green, line.color=green];
       defstyle entity, entitygroup_collapsed [text.format="\mu(6)\ml(6)\mr(6)\md(6)\b", text.color=white];

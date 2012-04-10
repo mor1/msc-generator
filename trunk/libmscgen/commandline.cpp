@@ -270,12 +270,25 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 Attribute a(name.c_str(), true, opt_pos_range, opt_pos_range, "yes");
                 a.error = true;  //supress errors in AddAttribute
                 if (msc.AddAttribute(a)) continue;
-                if (!msc.SetDesign(a.name, true))
+                switch (msc.SetDesign(true, a.name, true)) {
+                case 0:
+                    msc.ignore_designs = true;
+                    break;
+                case 1:
                     msc.Error.Error(opt_pos,
                                     "Unknown chart design: '" + a.name + "'. Using 'plain'.",
-                                    " Available styles are: " + msc.GetDesigns() +".");
-                else
-                    msc.ignore_designs = true;
+                                    " Available designs are: " + msc.GetDesigns(true) +".");
+                    break;
+                case 2:
+                    msc.Error.Warning(a, true, "Use of '+=' to set a full design.", "Use 'msc = " + a.value + "' to suppress this warning.");
+                    break;
+                case 3:
+                    msc.Error.Warning(a, true, "Use of '=' to apply a partial design.", "Use 'msc += " + a.value + "' to suppress this warning.");
+                    break;
+                default:
+                    _ASSERT(0);
+                    break;
+                }
             } else {
                 float num;
                 string value(name.substr(name.find("=")+1));

@@ -116,7 +116,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %}
 
 %token TOK_STRING TOK_QSTRING TOK_NUMBER TOK_DASH TOK_EQUAL TOK_COMMA
-       TOK_SEMICOLON TOK_PLUS
+       TOK_SEMICOLON TOK_PLUS TOK_PLUS_EQUAL
        TOK_OCBRACKET TOK_CCBRACKET TOK_OSBRACKET TOK_CSBRACKET TOK_MSC
        TOK_COLON_STRING TOK_COLON_QUOTED_STRING TOK_STYLE_NAME
        TOK_BOOLEAN
@@ -254,7 +254,7 @@ msc:
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_VALUE, @1))
-        csh.AddDesignsToHints();
+        csh.AddDesignsToHints(true);
   #else
     msc.AddArcs($2);
   #endif
@@ -1246,7 +1246,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH(@3, COLOR_DESIGNNAME);
         if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, "msc")) {
-            csh.AddDesignsToHints();
+            csh.AddDesignsToHints(true);
             csh.hintStatus = HINT_READY;
         }
         csh.SetDesignTo($3);
@@ -1263,7 +1263,44 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.AddCSH(@2, COLOR_EQUAL);
         csh.AddCSH_ErrorAfter(@2, "Missing option value.");
         if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE, "msc")) {
-            csh.AddDesignsToHints();
+            csh.AddDesignsToHints(true);
+            csh.hintStatus = HINT_READY;
+        }
+        if (csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
+            csh.AddOptionsToHints();
+            csh.hintStatus = HINT_READY;
+        }
+  #else
+    msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing option value.");
+    $$ = NULL;
+  #endif
+    free($1);
+}
+            | TOK_MSC TOK_PLUS_EQUAL string
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH(@3, COLOR_DESIGNNAME);
+        if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, "msc+")) {
+            csh.AddDesignsToHints(false);
+            csh.hintStatus = HINT_READY;
+        }
+        csh.SetDesignTo($3);
+  #else
+        $$ = msc.AddAttribute(Attribute("msc+", $3, MSC_POS(@$), MSC_POS(@3)));
+  #endif
+    free($1);
+    free($3);
+}
+            | TOK_MSC TOK_PLUS_EQUAL
+{
+  #ifdef C_S_H_IS_COMPILED
+        csh.AddCSH(@1, COLOR_KEYWORD);
+        csh.AddCSH(@2, COLOR_EQUAL);
+        csh.AddCSH_ErrorAfter(@2, "Missing option value.");
+        if (csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_ATTR_VALUE, "msc+")) {
+            csh.AddDesignsToHints(false);
             csh.hintStatus = HINT_READY;
         }
         if (csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
@@ -1531,15 +1568,12 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     csh.AddCSH(@2, COLOR_BRACE);
     csh.AddCSH(@4, COLOR_SEMICOLON);
     csh.AddCSH(@5, COLOR_BRACE);
-    csh.Designs[$1] = csh.Contexts.back();
+    (csh.Contexts.back().full ? csh.FullDesigns : csh.PartialDesigns)[$1] += csh.Contexts.back();
     csh.PopContext();
   #else
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
-    Design &design = msc.Designs[$1];
-    static_cast<Context&>(design) = msc.Contexts.back();
-    design.hscale = msc.hscale;
-    msc.hscale = msc.saved_hscale;
+    msc.Designs[$1] += msc.Contexts.back();
     msc.PopContext();
   #endif
     free($1);
@@ -1552,16 +1586,13 @@ designdef : TOK_STRING scope_open_empty designelementlist TOK_SEMICOLON TOK_CCBR
     csh.AddCSH(@4, COLOR_SEMICOLON);
     csh.AddCSH_Error(@5, "Could not recognize this as part of a design definition.");
     csh.AddCSH(@6, COLOR_BRACE);
-    csh.Designs[$1] = csh.Contexts.back();
+    (csh.Contexts.back().full ? csh.FullDesigns : csh.PartialDesigns)[$1] = csh.Contexts.back();
     csh.PopContext();
   #else
     //if closing brace missing, still do the design definition
     //cope_open_empty pushed an empty color & style set onto the stack
     //then designelementlist added color & style definitions, now we harvest those
-    Design &design = msc.Designs[$1];
-    static_cast<Context&>(design) = msc.Contexts.back();
-    design.hscale = msc.hscale;
-    msc.hscale = msc.saved_hscale;
+    msc.Designs[$1] += msc.Contexts.back();
     msc.PopContext();
   #endif
 };
@@ -1574,7 +1605,6 @@ scope_open_empty: TOK_OCBRACKET
   #else
     //push empty color & style sets for design definition
     msc.PushContext(true);
-    msc.saved_hscale = msc.hscale;
   #endif
 };
 
@@ -1688,6 +1718,25 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
     }
   #else
     msc.AddDesignAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
+  #endif
+    free($1);
+    free($3);
+}
+            | TOK_MSC TOK_PLUS_EQUAL string
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    csh.AddCSH(@2, COLOR_EQUAL);
+    csh.AddCSH(@3, COLOR_DESIGNNAME);
+    if (csh.CheckHintAt(@1, HINT_ATTR_NAME)) {
+        csh.AddDesignOptionsToHints();
+        csh.hintStatus = HINT_READY;
+    } else if (csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, $1)) {
+        Msc::AttributeValues("msc+", csh);
+        csh.hintStatus = HINT_READY;
+    }
+  #else
+    msc.AddDesignAttribute(Attribute("msc+", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
     free($1);
     free($3);
@@ -3230,7 +3279,10 @@ scope_close: TOK_CCBRACKET
     $$ = NULL;
     csh.PopContext();
   #else
+    std::pair<bool, double> hscale = msc.Contexts.back().hscale;
     $$ = msc.PopContext();
+    if (hscale.first) 
+        msc.Contexts.back().hscale = hscale;
   #endif
 };
 

@@ -1059,7 +1059,7 @@ void CommandSymbol::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", HINT_ATTR_NAME));
-    Design().styles["symbol"].AttributeNames(csh);
+    plainDesign.styles.GetStyle("symbol").AttributeNames(csh);
 }
 
 bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
@@ -1077,7 +1077,7 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (ArcCommand::AttributeValues(attr, csh)) return true;
-    if (Design().styles["symbol"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle("symbol").AttributeValues(attr, csh)) return true;
     return false;
 }
 
@@ -1368,12 +1368,12 @@ bool CommandNote::AddAttribute(const Attribute &a)
 void CommandNote::AttributeNames(Csh &csh, bool is_float)
 {
     ArcLabelled::AttributeNames(csh);
-    Design().styles[is_float ? "note" : "comment"].AttributeNames(csh);
+    plainDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeNames(csh);
 }
 
 bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_float)
 {
-    if (Design().styles[is_float ? "note" : "comment"].AttributeValues(attr, csh)) return true;
+    if (plainDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeValues(attr, csh)) return true;
     return ArcLabelled::AttributeValues(attr, csh);
 }
 

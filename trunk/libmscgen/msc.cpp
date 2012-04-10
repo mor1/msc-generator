@@ -263,19 +263,15 @@ Msc::Msc() :
     trackFrameWidth = 4;
     trackExpandBy = 2;
 
-    hscale = 1;
     pedantic=false;
     ignore_designs = false;
 
     current_file = Error.AddFile("[config]");
     
-    //Add topmost style and color sets (global context), all empty now
-    Contexts.push_back(Context());
-
-    //Add "plain" style - the default constructor of Design sets that
-    Designs["plain"];
-    //Apply "plain" design
-    SetDesign("plain", true);
+    //Add "plain" style 
+    Designs["plain"].Plain();
+    //Add topmost style and color sets (global context) in plain style
+    Contexts.push_back(Designs["plain"]);
 
     //Add virtual entities
     //NoEntity will be the one representing "NULL"
@@ -299,30 +295,31 @@ Msc::Msc() :
     AllEntities.Append(RNote);
 }
 
-bool Msc::SetDesign(const string&name, bool force)
+//return value: 0 not found
+//0: found, OK
+//2: found, but is full, whereas should be partial
+//3: found, but is partiall, whereas should be full
+int Msc::SetDesign(bool full, const string&name, bool force)
 {
-    std::map<string,Design>::const_iterator i = Designs.find(name);
+    auto i = Designs.find(name);
     if (i==Designs.end())
-        return false;
+        return 0;
     if (ignore_designs &&!force)
-        return true;
-    Contexts.back().numbering = i->second.numbering;
-    Contexts.back().compress  = i->second.compress;
-    hscale = i->second.hscale;
-    for (ColorSet::const_iterator j = i->second.colors.begin(); j!=i->second.colors.end(); j++)
-        Contexts.back().colors[j->first] = j->second;
-    for (StyleSet::const_iterator j = i->second.styles.begin(); j!=i->second.styles.end(); j++)
-        Contexts.back().styles[j->first] = j->second;
-	Contexts.back().numberingStyle = i->second.numberingStyle;
-    return true;
+        return 1;
+    Contexts.back() += i->second;
+    if (full == i->second.is_full) return 1;
+    return full ? 3 : 2;
 }
 
-string Msc::GetDesigns() const
+string Msc::GetDesigns(bool full) const
 {
-    std::map<string,Design>::const_iterator i = Designs.begin();
-    string retval = i->first;
-    for (i++; i!=Designs.end(); i++)
-        retval.append(" ").append(i->first);
+    string retval;
+    for (auto i = Designs.begin(); i!=Designs.end(); i++)
+        if (i->second.is_full == full) {
+            if (retval.length()==0) 
+                retval.append(" ");
+            retval.append(i->first);
+        }
     return retval;
 }
 
@@ -487,22 +484,38 @@ void Msc::AddArcs(ArcList *a)
 ArcBase *Msc::AddAttribute(const Attribute &a)
 {
     //Chart options cannot be styles
-    assert (a.type != MSC_ATTR_STYLE);
+    _ASSERT(a.type != MSC_ATTR_STYLE);
 
-    if (a.Is("msc")) {
+    if (a.Is("msc") || a.Is("msc+")) {
+        const bool full = a.Is("msc");
         if (!a.CheckType(MSC_ATTR_STRING, Error)) return NULL;
-        if (!SetDesign(a.value, false))
-            Error.Warning(a.linenum_value.start, "Unknown chart design: '" + a.value +
-                          "'. Ignoring design selection.",
-                          "Available styles are: " + GetDesigns() +".");
+        switch (SetDesign(full, a.value, false)) {
+        case 0:
+            Error.Error(a, true, "Unknown chart design: '" + a.value +
+                        "'. Ignoring design selection.",
+                        "Available designs are: " + GetDesigns(full) +".");
+            break;
+        case 2:
+            Error.Warning(a, true, "Use of '+=' to set a full design.", "Use 'msc = " + a.value + "' to suppress this warning.");
+            break;
+        case 3:
+            Error.Warning(a, true, "Use of '=' to apply a partial design.", "Use 'msc += " + a.value + "' to suppress this warning.");
+        case 1:
+            break;
+        default:
+            _ASSERT(0);
+            break;
+        }
         return NULL;
     }
     if (a.Is("hscale")) {
         if (a.type == MSC_ATTR_NUMBER && a.number>=0.01 && a.number <= 100) {
-            hscale = a.number;
+            Contexts.back().hscale.first = true;
+            Contexts.back().hscale.second = a.number;
             return NULL;
         } else if (a.type == MSC_ATTR_STRING && a.value == "auto") {
-            hscale = -1;
+            Contexts.back().hscale.first = true;
+            Contexts.back().hscale.second = -1;
             return NULL;
         }
         a.InvalidValueError("0.01..100' or 'auto", Error);
@@ -510,12 +523,14 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
     }
     if (a.Is("compress")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
-        Contexts.back().compress = a.yes;
+        Contexts.back().compress.first = true;
+        Contexts.back().compress.second = a.yes;
         return NULL;
     }
     if (a.Is("indicator")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
-        Contexts.back().indicator = a.yes;
+        Contexts.back().indicator.first = true;
+        Contexts.back().indicator.second = a.yes;
         return NULL;
     }
     if (a.StartsWith("text")) {
@@ -524,19 +539,22 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
     }
     if (a.Is("numbering")) {
         if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
-        Contexts.back().numbering = a.yes;
+        Contexts.back().numbering.first=true;
+        Contexts.back().numbering.second = a.yes;
         return NULL;
     }
     if (a.Is("numbering.pre")) {
-        Contexts.back().numberingStyle.pre = a.value;
-        StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre, this,
+        Contexts.back().numberingStyle.pre.first = true;
+        Contexts.back().numberingStyle.pre.second = a.value;
+        StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre.second, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return NULL;
     }
     if (a.Is("numbering.post")) {
-        Contexts.back().numberingStyle.post = a.value;
-        StringFormat::ExpandReferences(Contexts.back().numberingStyle.post, this,
+        Contexts.back().numberingStyle.post.first = true;
+        Contexts.back().numberingStyle.post.second = a.value;
+        StringFormat::ExpandReferences(Contexts.back().numberingStyle.post.second, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
         return NULL;
@@ -573,12 +591,13 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
             string x;
             if (a.number<0) x = "0";
             if (a.number>45) x = "45";
-            Error.Error(a, true, "Using " + x + " degrees instead of the specified value.",
+            Error.Warning(a, true, "Using " + x + " degrees instead of the specified value.",
                 "The slant angle must be between 0 and 45 degrees.");
-            if (a.number<0) Contexts.back().slant_angle = 0;
-            else if (a.number>45) Contexts.back().slant_angle = 45;
-        } else
-            Contexts.back().slant_angle = a.number;
+            if (a.number<0) Contexts.back().slant_angle.second = 0;
+            else if (a.number>45) Contexts.back().slant_angle.second = 45;
+        } else 
+            Contexts.back().slant_angle.second = a.number;
+        Contexts.back().slant_angle.first = true;
         return NULL;
     }
     if (a.StartsWith("background")) {
@@ -623,7 +642,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
 //This is called when a design definition is in progress.
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
-    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") ||
+    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
         a.StartsWith("text"))
         return AddAttribute(a);
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
@@ -668,7 +687,11 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
 bool Msc::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"msc")) {
-        csh.AddDesignsToHints();
+        csh.AddDesignsToHints(true);
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"msc+")) {
+        csh.AddDesignsToHints(false);
         return true;
     }
     if (CaseInsensitiveEqual(attr,"hscale")) {
@@ -714,7 +737,6 @@ void Msc::PushContext(bool empty)
 {
     if (empty) {
         Contexts.push_back(Context());
-        SetDesign("plain", true);
     } else
         Contexts.push_back(Contexts.back());
 }
@@ -722,11 +744,13 @@ void Msc::PushContext(bool empty)
 ArcBase *Msc::PopContext()
 {
     if (Contexts.size()<2) return NULL;
-    size_t old_size = Contexts.back().numberingStyle.Size();
+    const bool full = Contexts.back().is_full;
+    const size_t old_size = full ? Contexts.back().numberingStyle.Size() : 0;
     Contexts.pop_back();
-    //if numbering continues with the same amount of levels, no action will be needed
+    //if numbering continues with the same amount of levels (or if this was a partial
+    //context used to specify a design), no action will be needed
     //in PostParseProcess, so we do not generate any Command arcs.
-    if (old_size == Contexts.back().numberingStyle.Size())
+    if (!full || old_size == Contexts.back().numberingStyle.Size())
         return NULL;
     //if number of levels is less in the outer context, we will need to trim the Numbering list
     //during PostParseProcess after processing all arcs in the inner context, so we insert
@@ -1177,7 +1201,7 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     double unit = XCoord(1);
     const double lnote_size = distances.Query(LNote->index, DISTANCE_LEFT)/unit;
     const double rnote_size = distances.Query(RNote->index, DISTANCE_RIGHT)/unit;
-    if (hscale<0) {
+    if (GetHScale()<0) {
         distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
         distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
         distances.CopyBoxSideToPair(hscaleAutoXGap);
@@ -1319,7 +1343,8 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
     if (total.y <= chartTailGap && avoidEmpty) {
         //Add the Empty command
         Arcs.push_front((new CommandEmpty(this))->AddAttributeList(NULL));
-        hscale = -1;
+        _ASSERT(Contexts.size() && Contexts.back().hscale.first);
+        Contexts.back().hscale.second = -1;
         //Redo calculations
         total.x = total.y = 0;
         CalculateWidthHeight(canvas);

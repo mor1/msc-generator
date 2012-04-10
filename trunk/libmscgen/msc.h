@@ -167,7 +167,7 @@ public:
     EntityDefList                 AutoGenEntities;
     ArcList                       Arcs;
     std::list<Context>            Contexts;
-    std::map<string, Design>      Designs;
+    std::map<string, Context>     Designs;
     std::map<string, MarkerType>  Markers;
     std::map<string, RefType>     ReferenceNames;
     std::map<double, MscFillAttr> Background;
@@ -222,8 +222,6 @@ public:
     double trackExpandBy;
 
     /* Parse Options */
-    double       hscale;     /** Relative xsize, -1 is auto **/
-    double       saved_hscale; /** save hscale during design definition */
     bool         pedantic;   /* if we require pre-defined entities. */
     bool         ignore_designs; /* ignore design changes */
 
@@ -235,8 +233,8 @@ public:
     Msc();
 
     void AddStandardDesigns(void);
-    bool SetDesign(const string &design, bool force);
-    string GetDesigns() const;
+    int SetDesign(bool full, const string &design, bool force);
+    string GetDesigns(bool full) const;
 
     ArcBase *AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
@@ -274,7 +272,8 @@ public:
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 
     virtual string Print(int ident=0) const;
-    double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
+    double GetHScale() const {_ASSERT(Contexts.size() && Contexts.back().hscale.first); return Contexts.back().hscale.second;}
+    double XCoord(double pos) const {return floor(pos*130*(GetHScale()>0?GetHScale():1)+0.5);} //rounded
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
     void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
