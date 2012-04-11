@@ -271,9 +271,12 @@ void CDrawingChartData::CompileIfNeeded() const
         //compile preamble and set forced design
 	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
 		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
-		    if (!m_ForcedDesign.IsEmpty())
-			    if (m_msc->SetDesign(true, (const char*)m_ForcedDesign, true)) 
+		    if (!m_ForcedDesign.IsEmpty()) {
+                ArcBase *ret;
+			    if (m_msc->SetDesign(true, (const char*)m_ForcedDesign, true, &ret)) 
 				    m_msc->ignore_designs = true;
+                m_msc->Arcs.Append(ret);
+            }
 	    }
         //copy forced collapse/expand entities/boxes
         m_msc->force_entity_collapse = m_ForcedEntityCollapse;

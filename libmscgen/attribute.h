@@ -251,6 +251,7 @@ public:
     MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, double r) :
         type(true, t), color(true, c), width(true, w), radius(true, r), corner(true, ct) {}
     void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;}
+    bool IsEmpty() const {return !type.first && !color.first && !width.first && !corner.first && !radius.first;}
     bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;}
     void MakeComplete();
     MscLineAttr &operator +=(const MscLineAttr&a);
@@ -362,6 +363,7 @@ public:
         color(true, c), color2(true, c2), gradient(true,g) {}
     void Empty() {color.first = color2.first = gradient.first = false;}
     void MakeComplete();
+    bool IsEmpty() const {return !color.first && !gradient.first;} //color2 is not needed
     bool IsComplete() const {return color.first && gradient.first;} //color2 is not needed
     MscFillAttr &operator +=(const MscFillAttr&a);
     bool operator == (const MscFillAttr &a) const;

@@ -3530,7 +3530,7 @@ yyreduce:
     {
   #ifdef C_S_H_IS_COMPILED
   #else
-    (yyval.arcbase) = (new CommandEntity((yyvsp[(1) - (1)].entitylist), &msc))->AddAttributeList(NULL);
+    (yyval.arcbase) = (new CommandEntity((yyvsp[(1) - (1)].entitylist), &msc, false))->AddAttributeList(NULL);
   #endif
 }
     break;
@@ -3561,7 +3561,7 @@ yyreduce:
     csh.AddCSH((yylsp[(1) - (2)]), COLOR_KEYWORD);
     csh.CheckEntityHintAtAndBeforePlusOne((yylsp[(1) - (2)]), (yylsp[(2) - (2)]));
   #else
-    CommandEntity *ce = new CommandEntity((yyvsp[(2) - (2)].entitylist), &msc);
+    CommandEntity *ce = new CommandEntity((yyvsp[(2) - (2)].entitylist), &msc, false);
     ce->AddAttributeList(NULL);
 	(yyval.arcbase) = ce->ApplyPrefix((yyvsp[(1) - (2)].str));
   #endif
@@ -3579,7 +3579,7 @@ yyreduce:
     csh.CheckEntityHintAfter((yylsp[(2) - (2)]), yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter((yylsp[(2) - (2)]), "Missing an entity.");
   #else
-    CommandEntity *ce = new CommandEntity((yyvsp[(1) - (2)].entitylist), &msc);
+    CommandEntity *ce = new CommandEntity((yyvsp[(1) - (2)].entitylist), &msc, false);
     (yyval.arcbase) = ce->AddAttributeList(NULL);
     msc.Error.Error(MSC_POS((yylsp[(2) - (2)])).end.NextChar(), "Missing an entity.");
   #endif
@@ -3595,7 +3595,7 @@ yyreduce:
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_COMMA);
     csh.CheckEntityHintAtAndBefore((yylsp[(2) - (3)]), (yylsp[(3) - (3)]));
   #else
-    CommandEntity *ce = new CommandEntity(((yyvsp[(3) - (3)].entitylist))->Prepend((yyvsp[(1) - (3)].entitylist)), &msc);
+    CommandEntity *ce = new CommandEntity(((yyvsp[(3) - (3)].entitylist))->Prepend((yyvsp[(1) - (3)].entitylist)), &msc, false);
 	delete ((yyvsp[(1) - (3)].entitylist));
     (yyval.arcbase) = ce->AddAttributeList(NULL);
   #endif
@@ -3614,7 +3614,7 @@ yyreduce:
     csh.CheckEntityHintAfter((yylsp[(3) - (3)]), yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter((yylsp[(3) - (3)]), "Missing an entity.");
   #else
-    CommandEntity *ce = new CommandEntity((yyvsp[(2) - (3)].entitylist), &msc);
+    CommandEntity *ce = new CommandEntity((yyvsp[(2) - (3)].entitylist), &msc, false);
     ce->AddAttributeList(NULL);
 	(yyval.arcbase) = ce->ApplyPrefix((yyvsp[(1) - (3)].str));
     msc.Error.Error(MSC_POS((yylsp[(3) - (3)])).end.NextChar(), "Missing an entity.");
@@ -3634,7 +3634,7 @@ yyreduce:
     csh.CheckEntityHintAtAndBeforePlusOne((yylsp[(1) - (4)]), (yylsp[(2) - (4)]));
     csh.CheckEntityHintAtAndBefore((yylsp[(3) - (4)]), (yylsp[(4) - (4)]));
   #else
-    CommandEntity *ce = new CommandEntity(((yyvsp[(4) - (4)].entitylist))->Prepend((yyvsp[(2) - (4)].entitylist)), &msc);
+    CommandEntity *ce = new CommandEntity(((yyvsp[(4) - (4)].entitylist))->Prepend((yyvsp[(2) - (4)].entitylist)), &msc, false);
 	delete ((yyvsp[(2) - (4)].entitylist));
     ce->AddAttributeList(NULL);
     (yyval.arcbase) = ce->ApplyPrefix((yyvsp[(1) - (4)].str));
@@ -3651,9 +3651,9 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
   #else
     /* If there were arcs defined by the options (e.g., background)
-     * enclose them in a single item parallel element. */
+     * enclose them in an "CommandArcList" element used only for this. */
     if ((yyvsp[(1) - (1)].arclist)) {
-        (yyval.arcbase) = (new ArcParallel(&msc))->AddArcList((yyvsp[(1) - (1)].arclist))->AddAttributeList(NULL);
+        (yyval.arcbase) = (new CommandArcList(&msc, (yyvsp[(1) - (1)].arclist)))->AddAttributeList(NULL);
     } else
         (yyval.arcbase) = NULL;
   #endif
@@ -3746,7 +3746,7 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
   #else
-    (yyval.arcbase) = (new CommandEntity(NULL, &msc))->AddAttributeList(NULL);
+    (yyval.arcbase) = (new CommandEntity(NULL, &msc, false))->AddAttributeList(NULL);
   #endif
     free((yyvsp[(1) - (1)].str));
 }
@@ -3764,7 +3764,7 @@ yyreduce:
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         CommandEntity::AttributeValues(csh.hintAttrName, csh);
   #else
-    (yyval.arcbase) = (new CommandEntity(NULL, &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    (yyval.arcbase) = (new CommandEntity(NULL, &msc, false))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -7107,7 +7107,7 @@ yyreduce:
 
 
 /* Line 1806 of yacc.c  */
-#line 7108 "language.cc"
+#line 7111 "language.cc"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -7345,7 +7345,7 @@ yyreturn:
 
 
 /* Line 2067 of yacc.c  */
-#line 3287 "language.yy"
+#line 3290 "language.yy"
 
 
 

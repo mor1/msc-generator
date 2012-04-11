@@ -343,7 +343,9 @@ msckey:       TOK_MSC TOK_EQUAL
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_DESIGNNAME);
     csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, "msc");
-    csh.SetDesignTo($1);
+    std::string msg = csh.SetDesignTo($3, true);
+    if (msg.length()) 
+        csh.AddCSH_Error(@3, msg.c_str());
   #else
     msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
   #endif
@@ -658,7 +660,7 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
   #else
-    $$ = (new CommandEntity($1, &msc))->AddAttributeList(NULL);
+    $$ = (new CommandEntity($1, &msc, false))->AddAttributeList(NULL);
   #endif
 }
               | entity_command_prefixes
@@ -679,7 +681,7 @@ arc:           arcrel
     csh.AddCSH(@1, COLOR_KEYWORD);
     csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
   #else
-    CommandEntity *ce = new CommandEntity($2, &msc);
+    CommandEntity *ce = new CommandEntity($2, &msc, false);
     ce->AddAttributeList(NULL);
 	$$ = ce->ApplyPrefix($1);
   #endif
@@ -692,7 +694,7 @@ arc:           arcrel
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@2, "Missing an entity.");
   #else
-    CommandEntity *ce = new CommandEntity($1, &msc);
+    CommandEntity *ce = new CommandEntity($1, &msc, false);
     $$ = ce->AddAttributeList(NULL);
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing an entity.");
   #endif
@@ -703,7 +705,7 @@ arc:           arcrel
     csh.AddCSH(@2, COLOR_COMMA);
     csh.CheckEntityHintAtAndBefore(@2, @3);
   #else
-    CommandEntity *ce = new CommandEntity(($3)->Prepend($1), &msc);
+    CommandEntity *ce = new CommandEntity(($3)->Prepend($1), &msc, false);
 	delete ($1);
     $$ = ce->AddAttributeList(NULL);
   #endif
@@ -717,7 +719,7 @@ arc:           arcrel
     csh.CheckEntityHintAfter(@3, yylloc, yychar==YYEOF);
     csh.AddCSH_ErrorAfter(@3, "Missing an entity.");
   #else
-    CommandEntity *ce = new CommandEntity($2, &msc);
+    CommandEntity *ce = new CommandEntity($2, &msc, false);
     ce->AddAttributeList(NULL);
 	$$ = ce->ApplyPrefix($1);
     msc.Error.Error(MSC_POS(@3).end.NextChar(), "Missing an entity.");
@@ -732,7 +734,7 @@ arc:           arcrel
     csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.CheckEntityHintAtAndBefore(@3, @4);
   #else
-    CommandEntity *ce = new CommandEntity(($4)->Prepend($2), &msc);
+    CommandEntity *ce = new CommandEntity(($4)->Prepend($2), &msc, false);
 	delete ($2);
     ce->AddAttributeList(NULL);
     $$ = ce->ApplyPrefix($1);
@@ -744,9 +746,9 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
   #else
     /* If there were arcs defined by the options (e.g., background)
-     * enclose them in a single item parallel element. */
+     * enclose them in an "CommandArcList" element used only for this. */
     if ($1) {
-        $$ = (new ArcParallel(&msc))->AddArcList($1)->AddAttributeList(NULL);
+        $$ = (new CommandArcList(&msc, $1))->AddAttributeList(NULL);
     } else
         $$ = NULL;
   #endif
@@ -804,7 +806,7 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
   #else
-    $$ = (new CommandEntity(NULL, &msc))->AddAttributeList(NULL);
+    $$ = (new CommandEntity(NULL, &msc, false))->AddAttributeList(NULL);
   #endif
     free($1);
 }
@@ -817,7 +819,7 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandEntity::AttributeValues(csh.hintAttrName, csh);
   #else
-    $$ = (new CommandEntity(NULL, &msc))->AddAttributeList($2);
+    $$ = (new CommandEntity(NULL, &msc, false))->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -1249,7 +1251,9 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
             csh.AddDesignsToHints(true);
             csh.hintStatus = HINT_READY;
         }
-        csh.SetDesignTo($3);
+        std::string msg = csh.SetDesignTo($3, true);
+        if (msg.length()) 
+            csh.AddCSH_Error(@3, msg.c_str());
   #else
         $$ = msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
@@ -1286,7 +1290,9 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
             csh.AddDesignsToHints(false);
             csh.hintStatus = HINT_READY;
         }
-        csh.SetDesignTo($3);
+        std::string msg = csh.SetDesignTo($3, false);
+        if (msg.length()) 
+            csh.AddCSH_Error(@3, msg.c_str());
   #else
         $$ = msc.AddAttribute(Attribute("msc+", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
@@ -1716,6 +1722,9 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
         Msc::AttributeValues("msc", csh);
         csh.hintStatus = HINT_READY;
     }
+    std::string msg = csh.SetDesignTo($3, true);
+    if (msg.length()) 
+        csh.AddCSH_Error(@3, msg.c_str());
   #else
     msc.AddDesignAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif
@@ -1735,6 +1744,9 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
         Msc::AttributeValues("msc+", csh);
         csh.hintStatus = HINT_READY;
     }
+    std::string msg = csh.SetDesignTo($3, false);
+    if (msg.length()) 
+        csh.AddCSH_Error(@3, msg.c_str());
   #else
     msc.AddDesignAttribute(Attribute("msc+", $3, MSC_POS(@$), MSC_POS(@3)));
   #endif

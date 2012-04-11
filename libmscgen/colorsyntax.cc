@@ -3115,7 +3115,9 @@ yyreduce:
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_EQUAL);
     csh.AddCSH((yylsp[(3) - (3)]), COLOR_DESIGNNAME);
     csh.CheckHintAtAndBefore((yylsp[(2) - (3)]), (yylsp[(3) - (3)]), HINT_ATTR_VALUE, "msc");
-    csh.SetDesignTo((yyvsp[(1) - (3)].str));
+    std::string msg = csh.SetDesignTo((yyvsp[(3) - (3)].str), true);
+    if (msg.length()) 
+        csh.AddCSH_Error((yylsp[(3) - (3)]), msg.c_str());
   #else
     msc.AddAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), MSC_POS((yylsp[(1) - (3)])), MSC_POS((yylsp[(3) - (3)]))));
   #endif
@@ -3659,9 +3661,9 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
   #else
     /* If there were arcs defined by the options (e.g., background)
-     * enclose them in a single item parallel element. */
+     * enclose them in an "CommandArcList" element used only for this. */
     if ((yyvsp[(1) - (1)].arclist)) {
-        (yyval.arcbase) = (new ArcParallel(&msc))->AddArcList((yyvsp[(1) - (1)].arclist))->AddAttributeList(NULL);
+        (yyval.arcbase) = (new CommandArcList(&msc, (yyvsp[(1) - (1)].arclist)))->AddAttributeList(NULL);
     } else
         (yyval.arcbase) = NULL;
   #endif
@@ -4332,7 +4334,9 @@ yyreduce:
             csh.AddDesignsToHints(true);
             csh.hintStatus = HINT_READY;
         }
-        csh.SetDesignTo((yyvsp[(3) - (3)].str));
+    std::string msg = csh.SetDesignTo((yyvsp[(3) - (3)].str), true);
+    if (msg.length()) 
+        csh.AddCSH_Error((yylsp[(3) - (3)]), msg.c_str());
   #else
         (yyval.arcbase) = msc.AddAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), MSC_POS((yyloc)), MSC_POS((yylsp[(3) - (3)]))));
   #endif
@@ -4379,7 +4383,9 @@ yyreduce:
             csh.AddDesignsToHints(false);
             csh.hintStatus = HINT_READY;
         }
-        csh.SetDesignTo((yyvsp[(3) - (3)].str));
+    std::string msg = csh.SetDesignTo((yyvsp[(3) - (3)].str), false);
+    if (msg.length()) 
+        csh.AddCSH_Error((yylsp[(3) - (3)]), msg.c_str());
   #else
         (yyval.arcbase) = msc.AddAttribute(Attribute("msc+", (yyvsp[(3) - (3)].str), MSC_POS((yyloc)), MSC_POS((yylsp[(3) - (3)]))));
   #endif
@@ -4935,6 +4941,9 @@ yyreduce:
         Msc::AttributeValues("msc", csh);
         csh.hintStatus = HINT_READY;
     }
+    std::string msg = csh.SetDesignTo((yyvsp[(3) - (3)].str), true);
+    if (msg.length()) 
+        csh.AddCSH_Error((yylsp[(3) - (3)]), msg.c_str());
   #else
     msc.AddDesignAttribute(Attribute("msc", (yyvsp[(3) - (3)].str), MSC_POS((yyloc)), MSC_POS((yylsp[(3) - (3)]))));
   #endif
@@ -4959,6 +4968,9 @@ yyreduce:
         Msc::AttributeValues("msc+", csh);
         csh.hintStatus = HINT_READY;
     }
+    std::string msg = csh.SetDesignTo((yyvsp[(3) - (3)].str), false);
+    if (msg.length()) 
+        csh.AddCSH_Error((yylsp[(3) - (3)]), msg.c_str());
   #else
     msc.AddDesignAttribute(Attribute("msc+", (yyvsp[(3) - (3)].str), MSC_POS((yyloc)), MSC_POS((yylsp[(3) - (3)]))));
   #endif
@@ -7104,7 +7116,10 @@ yyreduce:
     (yyval.arcbase) = NULL;
     csh.PopContext();
   #else
+    std::pair<bool, double> hscale = msc.Contexts.back().hscale;
     (yyval.arcbase) = msc.PopContext();
+    if (hscale.first) 
+        msc.Contexts.back().hscale = hscale;
   #endif
 }
     break;
@@ -7112,7 +7127,7 @@ yyreduce:
 
 
 /* Line 1806 of yacc.c  */
-#line 7116 "colorsyntax.cc"
+#line 7119 "colorsyntax.cc"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -7350,7 +7365,7 @@ yyreturn:
 
 
 /* Line 2067 of yacc.c  */
-#line 3287 "language.yy"
+#line 3290 "language.yy"
 
 
 

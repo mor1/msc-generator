@@ -33,8 +33,8 @@ string ArcCommand::Print(int ident) const
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandEntity::CommandEntity(EntityDefList *e, Msc *msc)
-    : ArcCommand(MSC_COMMAND_ENTITY, msc)
+CommandEntity::CommandEntity(EntityDefList *e, Msc *msc, bool in)
+    : ArcCommand(MSC_COMMAND_ENTITY, msc), internally_defined(in)
 {
     full_heading = (e==NULL);
     if (e) {
@@ -98,6 +98,7 @@ string CommandEntity::Print(int ident) const
 //shown;               //ignore, will be set in PostParse
 void CommandEntity::AppendToEntities(const EntityDefList &e)
 {
+    _ASSERT(!internally_defined);
     for (auto i = e.begin(); i!=e.end(); i++) {
         auto i2 = entities.begin();
         for (/*nope*/; i2!=entities.end(); i2++)
@@ -118,6 +119,7 @@ void CommandEntity::Combine(CommandEntity *ce)
 {
     if (!ce) return;
     if (!ce->valid) return;
+    if (ce->internally_defined || internally_defined) return;
     //Always keep the line_pos of the "heading" command
     //If we are already one, keep ours
     if (!full_heading && ce->full_heading)
@@ -131,6 +133,7 @@ void CommandEntity::Combine(CommandEntity *ce)
 
 CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
 {
+    _ASSERT(!internally_defined);
     for (auto i=entities.begin(); i!=entities.end(); i++) {
 		if (CaseInsensitiveEqual(prefix, "show") || CaseInsensitiveEqual(prefix, "hide")) {
 			if ((*i)->show_is_explicit) continue;	
@@ -529,6 +532,7 @@ double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     }
     if (!num_showing) 
         return height = 0; //if no headings show
+    _ASSERT(!internally_defined); //internally defined entitydefs should not show a heading
     //Ensure overall startpos is zero
     ShiftBy(-hei.from + chart->headingVGapAbove);
     cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));

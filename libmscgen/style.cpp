@@ -391,8 +391,8 @@ void Context::Plain()
     defLCommentFill.MakeComplete();
     defRCommentFill.MakeComplete();
     defBackground.MakeComplete();
-    defLCommentLine.width.second = 2;
-    defRCommentLine.width.second = 2;
+    defLCommentLine.width.second = 3;
+    defRCommentLine.width.second = 3;
     defLCommentFill.color.second.a = 0; //fully transparent
     defRCommentFill.color.second.a = 0; //fully transparent
     defBackground.color.second.a = 0; //fully transparent
