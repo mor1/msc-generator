@@ -67,6 +67,7 @@ typedef enum
     MSC_COMMAND_SYMBOL,
     MSC_COMMAND_NOTE,
 
+    MSC_ARC_ARCLIST,
     MSC_ARC_INDICATOR
 } MscArcType;
 

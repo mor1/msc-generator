@@ -270,25 +270,23 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 Attribute a(name.c_str(), true, opt_pos_range, opt_pos_range, "yes");
                 a.error = true;  //supress errors in AddAttribute
                 if (msc.AddAttribute(a)) continue;
-                switch (msc.SetDesign(true, a.name, true)) {
-                case 0:
+                ArcBase *ret;
+                switch (msc.SetDesign(true, a.name, true, &ret)) { 
+                case 1:
+                case 2:
+                case 3:
                     msc.ignore_designs = true;
                     break;
-                case 1:
+                case 0:
                     msc.Error.Error(opt_pos,
                                     "Unknown chart design: '" + a.name + "'. Using 'plain'.",
                                     " Available designs are: " + msc.GetDesigns(true) +".");
-                    break;
-                case 2:
-                    msc.Error.Warning(a, true, "Use of '+=' to set a full design.", "Use 'msc = " + a.value + "' to suppress this warning.");
-                    break;
-                case 3:
-                    msc.Error.Warning(a, true, "Use of '=' to apply a partial design.", "Use 'msc += " + a.value + "' to suppress this warning.");
                     break;
                 default:
                     _ASSERT(0);
                     break;
                 }
+                msc.Arcs.Append(ret);
             } else {
                 float num;
                 string value(name.substr(name.find("=")+1));

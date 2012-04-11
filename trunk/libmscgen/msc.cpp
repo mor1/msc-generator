@@ -270,7 +270,7 @@ Msc::Msc() :
     
     //Add "plain" style 
     Designs["plain"].Plain();
-    //Add topmost style and color sets (global context) in plain style
+    //Add global context, with "plain" design
     Contexts.push_back(Designs["plain"]);
 
     //Add virtual entities
@@ -293,20 +293,45 @@ Msc::Msc() :
     AllEntities.Append(LSide);
     AllEntities.Append(RSide);
     AllEntities.Append(RNote);
+
+    //This sets the global context to "plain" (redundant) 
+    //and adds CommandEntities for lcomment.* and CommandBackground if needed.
+    ArcBase *toadd;
+    SetDesign(true, "plain", true, &toadd); 
+    Arcs.Append(toadd);
 }
 
 //return value: 0 not found
 //0: found, OK
 //2: found, but is full, whereas should be partial
 //3: found, but is partiall, whereas should be full
-int Msc::SetDesign(bool full, const string&name, bool force)
+//also appends elements to Arcs !!! (e.g., background)
+int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, const file_line_range &l)
 {
+    *ret = NULL;
     auto i = Designs.find(name);
     if (i==Designs.end())
         return 0;
     if (ignore_designs &&!force)
         return 1;
     Contexts.back() += i->second;
+    ArcList list(true);
+    if (!i->second.defBackground.IsEmpty())
+        list.Append((new CommandNewBackground(this, i->second.defBackground))->AddAttributeList(NULL));
+    if (!i->second.defLCommentFill.IsEmpty() || !i->second.defLCommentLine.IsEmpty()) {
+        MscStyle s; //empty
+        s.vline += i->second.defLCommentLine;
+        s.fill += i->second.defLCommentFill;
+        list.Append(CEForComments(true, s, l));
+    }
+    if (!i->second.defRCommentFill.IsEmpty() || !i->second.defRCommentLine.IsEmpty()) {
+        MscStyle s; //empty
+        s.vline += i->second.defRCommentLine;
+        s.fill += i->second.defRCommentFill;
+        list.Append(CEForComments(false, s, l));
+    }
+    if (list.size())
+        *ret = (new CommandArcList(this, &list))->AddAttributeList(NULL);
     if (full == i->second.is_full) return 1;
     return full ? 3 : 2;
 }
@@ -316,7 +341,7 @@ string Msc::GetDesigns(bool full) const
     string retval;
     for (auto i = Designs.begin(); i!=Designs.end(); i++)
         if (i->second.is_full == full) {
-            if (retval.length()==0) 
+            if (retval.length()) 
                 retval.append(" ");
             retval.append(i->first);
         }
@@ -481,6 +506,20 @@ void Msc::AddArcs(ArcList *a)
     delete a;
 }
 
+CommandEntity *Msc::CEForComments(bool left, const MscStyle &s, const file_line_range &l)
+{
+    ArcBase *save = last_notable_arc;
+    const char *ent_str = left ? LNOTE_ENT_STR : RNOTE_ENT_STR;
+    EntityDef *ed = new EntityDef(ent_str, this);
+    ed->SetLineEnd(l);
+    EntityDefList *edl = ed->AddAttributeList(NULL, NULL, file_line());
+    ed->style += s;
+    CommandEntity *ce = new CommandEntity(edl, this, true);
+    ce->AddAttributeList(NULL);
+    last_notable_arc = save;
+    return ce;
+}
+
 ArcBase *Msc::AddAttribute(const Attribute &a)
 {
     //Chart options cannot be styles
@@ -489,7 +528,9 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
     if (a.Is("msc") || a.Is("msc+")) {
         const bool full = a.Is("msc");
         if (!a.CheckType(MSC_ATTR_STRING, Error)) return NULL;
-        switch (SetDesign(full, a.value, false)) {
+        const file_line_range line(a.linenum_attr.start, a.linenum_value.end);
+        ArcBase *ret;
+        switch (SetDesign(full, a.value, false, &ret, line)) { 
         case 0:
             Error.Error(a, true, "Unknown chart design: '" + a.value +
                         "'. Ignoring design selection.",
@@ -506,7 +547,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
             _ASSERT(0);
             break;
         }
-        return NULL;
+        return ret;
     }
     if (a.Is("hscale")) {
         if (a.type == MSC_ATTR_NUMBER && a.number>=0.01 && a.number <= 100) {
@@ -618,17 +659,8 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
                 if (OK) std::swap(toadd.line, toadd.vline); //option shall be stored in vline
             } else
                 OK = toadd.fill.AddAttribute(a, this, STYLE_OPTION); //generates errors if needed
-            if (OK) {
-                ArcBase *save = last_notable_arc;
-                const char *ent_str = a.StartsWith("lcomment") ? LNOTE_ENT_STR : RNOTE_ENT_STR;
-                EntityDef *ed = new EntityDef(ent_str, this);
-                ed->SetLineEnd(file_line_range(a.linenum_attr.start, a.linenum_value.end));
-                EntityDefList *edl = ed->AddAttributeList(NULL, NULL, file_line());
-                ed->style += toadd;
-                ArcBase *ce = (new CommandEntity(edl, this))->AddAttributeList(NULL);
-                last_notable_arc = save;
-                return ce;
-            }
+            if (OK) 
+                return CEForComments(a.StartsWith("lcomment"), toadd, file_line_range(a.linenum_attr.start, a.linenum_value.end));
             //fallthrough till error if not "OK"
         }
     }
@@ -643,8 +675,10 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
     if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
-        a.StartsWith("text"))
-        return AddAttribute(a);
+        a.StartsWith("text")) {
+        AddAttribute(a);
+        return true;
+    }
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
                   "' as part of a design definition. Ignoring it.");
     return false;
@@ -810,18 +844,30 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
                                   Numbering &number, bool top_level)
 {
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
+        //Splice in CommandArcList members
+        CommandArcList *al = dynamic_cast<CommandArcList *>(*i);
+        if (al) {
+            al->MoveContent(arcs, i);
+            //al now empty
+            delete al;
+            arcs.erase(i++);  //we will also check the content of al for further CommandArcLists
+            continue;
+        } else 
+            i++;
+    }
+    for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
             _ASSERT (left != AllEntities.end());
         }
         //Combine subsequent CommandEntities
         CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
-        while (ce) {
+        while (ce && !ce->internally_defined) {
             ArcList::iterator j = i;
             j++;
             if (j==arcs.end()) break;
             CommandEntity *ce2 = dynamic_cast<CommandEntity *>(*j);
-            if (!ce2) break;
+            if (!ce2 || ce2->internally_defined) break;
             ce->Combine(ce2);
             delete ce2;
             arcs.erase(j);
@@ -917,7 +963,7 @@ void Msc::PostParseProcess(MscCanvas &canvas)
         //Otherwise, generate a new entity command as first arc
         ArcList::iterator i = Arcs.begin();
         if ((*i)->type != MSC_COMMAND_ENTITY) {
-            CommandEntity *ce = new CommandEntity(new EntityDefList, this);
+            CommandEntity *ce = new CommandEntity(new EntityDefList, this, false);
             ce->AddAttributeList(NULL);
             i = Arcs.insert(i, ce);
         }

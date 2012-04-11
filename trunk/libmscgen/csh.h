@@ -228,7 +228,7 @@ public:
 
     void PushContext(bool empty=false);
     void PopContext() {Contexts.pop_back();}
-    bool SetDesignTo(const std::string&design);
+    std::string SetDesignTo(const std::string&design, bool full);
     CshCursorRelPosType CursorIn(const CshPos &p) const {return CursorIn(p.first_pos, p.last_pos);}
     CshCursorRelPosType CursorIn(int a, int b) const;
     bool CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);

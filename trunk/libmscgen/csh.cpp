@@ -661,6 +661,7 @@ Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), 
     ForbiddenStyles.erase("strong");
     PushContext(true);
     Contexts.back().SetPlain();
+    FullDesigns["plain"] = Contexts.back();
 }
 
 void Csh::PushContext(bool empty)
@@ -671,15 +672,21 @@ void Csh::PushContext(bool empty)
         Contexts.push_back(Contexts.back());
 }
 
-bool Csh::SetDesignTo(const std::string&design)
+std::string Csh::SetDesignTo(const std::string&design, bool full)
 {
+    bool found_full = true;
     auto i = FullDesigns.find(design);
     if (i==FullDesigns.end()) {
         i = PartialDesigns.find(design);
-        if (i==PartialDesigns.end()) return false;
+        if (i==PartialDesigns.end()) {
+            return "Design '" + design + "' not defined earlier.";
+        }
+        found_full = false;
     }
     Contexts.back() += i->second;
-    return true;
+    if (found_full == full) return "";
+    if (found_full) return "Design '" + design + "' is a full design. Use 'msc = ' instead of 'msc += '.";
+    return "Design '" + design + "' is a partial design. Use 'msc += ' instead of 'msc = '.";
 }
 
 CshCursorRelPosType Csh::CursorIn(int a, int b) const

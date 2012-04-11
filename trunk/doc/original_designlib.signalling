@@ -1,4 +1,5 @@
 defdesign colores {
+    msc = plain;
     defcolor brown1="204,102,0", brown2="153,51,0";
     defcolor blue="51,101,255", green="0,128,0";
     defcolor bkpurple="209,209,240";
@@ -13,6 +14,7 @@ defdesign colores {
     defstyle note [fill.color="yellow+60", line.color=brown2, arrow.color=brown2];
 };
 defdesign rose {
+    msc = plain;
     defcolor yellow="255,255,207", red="168,0,54", faint_red="red+50";
     defstyle entity [text.format="\u\mu(10)\md(10)\ml(12)\mr(8)"];
     defstyle entity [line.color=red, fill.color=yellow, vline.type=dashed, vline.color=red];
@@ -31,6 +33,7 @@ defdesign rose {
     defstyle weak [line.color=faint_red, vline.color=faint_red, arrow.color=faint_red, text.color="black,128"];
 };
 defdesign mild_yellow {
+    msc = plain;
     defcolor yellow ="255,255,196";
     defstyle divider [line.width=3, text.format="\b"];
     defstyle box, pipe, vertical, entitygroup [fill.color=yellow];
@@ -41,6 +44,7 @@ defdesign mild_yellow {
     hscale = auto, compress = yes;
 };
 defdesign omegapple {
+    msc = plain;
     defcolor rose="194,10,80", rose2="210,63,122", yellow="252,243,152";
     defcolor faint_rose="225,133,168";
     defstyle emptybox, vertical, indicator, symbol [fill.color=yellow, fill.gradient=down];
@@ -63,6 +67,7 @@ defdesign omegapple {
     hscale=auto;
 };
 defdesign qsd {
+      msc = plain;
       defstyle entity, pipe, box, emptybox, blockarrow, vertical, box_collapsed_arrow, box_collapsed,
                entitygroup_collapsed, indicator, symbol [shadow.offset=4, shadow.blur=2];
       defstyle entity [text.format="\u\mu(6)\md(6)\ml(6)\mr(6)"];
@@ -73,6 +78,7 @@ defdesign qsd {
       hscale=auto;
 };
 defdesign modern_blue {
+      msc = plain;
       defcolor blue="82,123,198", lblue="215,224,242";
       defstyle entity [text.color=white, text.format="\mu(6)\ml(6)\mr(6)\md(6)"];
       defstyle entity [fill.color=blue, line.color=blue, line.radius=5];
@@ -92,6 +98,7 @@ defdesign modern_blue {
 };
 
 defdesign round_green {
+      msc = plain;
       defcolor green="161,207,169";
       defcolor brown="165,132,88", lbrown="232,204,180";
       defstyle arrow, entity, box, emptybox, entitygroup, entitygroup_collapsed, box_collapsed
@@ -125,8 +132,12 @@ defdesign green_earth {
       defstyle weak [text.color="200,200,200", text.format="\mn(14)", line.width=1];
       defstyle strong [text.format="\mn(18)", line.width=3];
 };
+defdesign hcn {
+    hscale=auto, compress=yes, numbering=yes;
+};
 defdesign Dinand {
-      hscale=auto, compress=yes, numbering=yes;
+      msc = plain;
+      msc += hcn;
       defcolor light_green="205,255,215", lgreen = light_green;
       defcolor light_red="250,185,175", lred = light_red;
       defcolor light_yellow="255,255,160", lyellow = light_yellow;
