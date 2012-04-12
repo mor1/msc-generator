@@ -1063,7 +1063,7 @@ void CommandSymbol::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", HINT_ATTR_NAME));
-    plainDesign.styles.GetStyle("symbol").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("symbol").AttributeNames(csh);
 }
 
 bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
@@ -1081,7 +1081,7 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (ArcCommand::AttributeValues(attr, csh)) return true;
-    if (plainDesign.styles.GetStyle("symbol").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("symbol").AttributeValues(attr, csh)) return true;
     return false;
 }
 
@@ -1357,10 +1357,14 @@ bool CommandNote::AddAttribute(const Attribute &a)
             case MscNoteAttr::POS_INVALID: _ASSERT(0); break;
             case MscNoteAttr::POS_NEAR: float_dist.first=true; float_dist.second=-1; break;
             case MscNoteAttr::POS_FAR:  float_dist.first=true; float_dist.second=+1; break;
-            case MscNoteAttr::LEFT:     float_dir_x=-1; break;
-            case MscNoteAttr::RIGHT:    float_dir_x=+1; break;
-            case MscNoteAttr::UP:       float_dir_y=-1; break;
-            case MscNoteAttr::DOWN:     float_dir_y=+1; break;
+            case MscNoteAttr::LEFT:     float_dir_x=-1; float_dir_y=0; break;
+            case MscNoteAttr::RIGHT:    float_dir_x=+1; float_dir_y=0; break;
+            case MscNoteAttr::UP:       float_dir_x=0; float_dir_y=-1; break;
+            case MscNoteAttr::DOWN:     float_dir_x=0; float_dir_y=+1; break;
+            case MscNoteAttr::LEFT_UP:    float_dir_x=-1; float_dir_y=-1; break;
+            case MscNoteAttr::LEFT_DOWN:  float_dir_x=-1; float_dir_y=+1; break;
+            case MscNoteAttr::RIGHT_UP:   float_dir_x=+1; float_dir_y=-1; break;
+            case MscNoteAttr::RIGHT_DOWN: float_dir_x=+1; float_dir_y=+1; break;
             }
         } else 
             a.InvalidValueError(CandidatesFor(tmp), chart->Error);
@@ -1372,12 +1376,12 @@ bool CommandNote::AddAttribute(const Attribute &a)
 void CommandNote::AttributeNames(Csh &csh, bool is_float)
 {
     ArcLabelled::AttributeNames(csh);
-    plainDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeNames(csh);
+    defaultDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeNames(csh);
 }
 
 bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_float)
 {
-    if (plainDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle(is_float ? "note" : "comment").AttributeValues(attr, csh)) return true;
     return ArcLabelled::AttributeValues(attr, csh);
 }
 

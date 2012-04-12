@@ -100,6 +100,7 @@ class StringFormat {
         {return ident.first?ident.second:MSC_IDENT_CENTER;}
     string Print() const;
     //Return text geometry
+    double getCharHeight(MscCanvas &) const;
     double getFragmentWidth(const string &, MscCanvas &) const;
     double getFragmentHeightAboveBaseLine(const string &, MscCanvas &) const;
     double getFragmentHeightBelowBaseLine(const string &, MscCanvas &) const;

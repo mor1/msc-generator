@@ -206,6 +206,8 @@ public:
     double arcVGapAbove, arcVGapBelow;
     /* How much extra space above and below a discontinuity line (...) */
     double discoVgap;
+    /* How much extra space above and below a title */
+    double titleVgap, subtitleVgap;
     /** Nudge size */
     double nudgeSize;
     /** The width of entity activation bars **/

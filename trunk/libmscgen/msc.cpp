@@ -255,6 +255,8 @@ Msc::Msc() :
     arcVGapAbove = 0;
     arcVGapBelow = 3;
     discoVgap = 5;
+    titleVgap = 10;
+    subtitleVgap = 5;
     nudgeSize = 4;
     activeEntitySize = 14;
     compressGap = 2;

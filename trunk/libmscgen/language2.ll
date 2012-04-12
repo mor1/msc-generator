@@ -255,6 +255,8 @@ do {                                                \
 (?i:symbol)    yylval_param->str = strdup(yytext); return TOK_COMMAND_SYMBOL;
 (?i:note)      yylval_param->str = strdup(yytext); return TOK_COMMAND_NOTE;
 (?i:comment)   yylval_param->str = strdup(yytext); return TOK_COMMAND_COMMENT;
+(?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
+(?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
 
 \.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
 ---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---

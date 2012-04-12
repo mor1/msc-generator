@@ -25,7 +25,7 @@ typedef PtrList<CommandNote> CommandNoteList;
 //This is a set of Areas, that may overlap
 class TrackableElement {
 public:
-    static const Context plainDesign;
+    static const Context defaultDesign;
     typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT, NOTE, AFTER_NOTE} DrawPassType;
 protected:
     static const XY control_size;
