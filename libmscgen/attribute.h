@@ -396,7 +396,7 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
 struct MscNoteAttr {
 public:
     typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} pointer_t;
-    typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN} pos_t;
+    typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN, LEFT_UP, LEFT_DOWN, RIGHT_UP, RIGHT_DOWN} pos_t;
 	std::pair<bool, pointer_t> pointer;
     std::pair<bool, int> def_float_dist;
     std::pair<bool, int> def_float_x;

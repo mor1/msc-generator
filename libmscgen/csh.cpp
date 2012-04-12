@@ -363,7 +363,7 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
-"bye", "hspace", "vspace", "symbol", "note", "comment", ""};
+"bye", "hspace", "vspace", "symbol", "note", "comment", "title", "subtitle", ""};
 
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
@@ -605,11 +605,8 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     CshList.clear();
     EntityNames.clear();
     MarkerNames.clear();
-    Contexts.clear();
     if (!ForcedDesign.empty() && FullDesigns.find(ForcedDesign) != FullDesigns.end())
-        Contexts.push_back(FullDesigns[ForcedDesign]);
-    else
-        PushContext(true);
+        Contexts.back() = FullDesigns[ForcedDesign];
     hintStatus = HINT_NONE;
     //Positions returned by yacc contain the first and last char of range
     //so for a 1 char long selection first_pos=last_pos
@@ -647,15 +644,15 @@ MscColorSyntaxType Csh::GetCshAt(int pos)
 void CshContext::SetPlain()
 {
     full = true;
-    for (auto i=ArcBase::plainDesign.colors.begin(); i!=ArcBase::plainDesign.colors.end(); i++)
+    for (auto i=ArcBase::defaultDesign.colors.begin(); i!=ArcBase::defaultDesign.colors.end(); i++)
         Colors[i->first] = i->second;
-    for (auto i=ArcBase::plainDesign.styles.begin(); i!=ArcBase::plainDesign.styles.end(); i++)
+    for (auto i=ArcBase::defaultDesign.styles.begin(); i!=ArcBase::defaultDesign.styles.end(); i++)
         StyleNames.insert(i->first);
 }
 
 Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1)
 {
-    for (auto i=ArcBase::plainDesign.styles.begin(); i!=ArcBase::plainDesign.styles.end(); i++)
+    for (auto i=ArcBase::defaultDesign.styles.begin(); i!=ArcBase::defaultDesign.styles.end(); i++)
         ForbiddenStyles.insert(i->first);
     ForbiddenStyles.erase("weak");
     ForbiddenStyles.erase("strong");

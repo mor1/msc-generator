@@ -92,7 +92,9 @@
      TOK_COMMAND_SYMBOL = 310,
      TOK_COMMAND_NOTE = 311,
      TOK_COMMAND_COMMENT = 312,
-     TOK__NEVER__HAPPENS = 313
+     TOK_COMMAND_TITLE = 313,
+     TOK_COMMAND_SUBTITLE = 314,
+     TOK__NEVER__HAPPENS = 315
    };
 #endif
 /* Tokens.  */
@@ -151,7 +153,9 @@
 #define TOK_COMMAND_SYMBOL 310
 #define TOK_COMMAND_NOTE 311
 #define TOK_COMMAND_COMMENT 312
-#define TOK__NEVER__HAPPENS 313
+#define TOK_COMMAND_TITLE 313
+#define TOK_COMMAND_SUBTITLE 314
+#define TOK__NEVER__HAPPENS 315
 
 
 
@@ -187,7 +191,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 191 "colorsyntax.h"
+#line 195 "colorsyntax.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

@@ -130,7 +130,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
        TOK_COMMAND_BIG TOK_COMMAND_PIPE TOK_COMMAND_MARK TOK_COMMAND_PARALLEL
        TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE TOK_BYE
        TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
-       TOK_COMMAND_COMMENT
+       TOK_COMMAND_COMMENT TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
        TOK__NEVER__HAPPENS
 %union
 {
@@ -182,7 +182,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %type <namerel>    entityrel markerrel_no_string
 %type <attriblist> arcattrlist full_arcattrlist full_arcattrlist_with_label
                    full_arcattrlist_with_label_or_number
-%type <str>        entity_command_prefixes
+%type <str>        entity_command_prefixes titlecommandtoken
                    entity_string reserved_word_string string symbol_string colon_string symbol_type_string
                    TOK_STRING TOK_QSTRING TOK_COLON_STRING TOK_COLON_QUOTED_STRING
                    TOK_STYLE_NAME TOK_MSC TOK_COMMAND_BIG TOK_COMMAND_PIPE
@@ -191,8 +191,8 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
                    TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
                    TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE
                    TOK_ACTIVATE TOK_DEACTIVATE
-                   TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE 
-                   TOK_COMMAND_COMMENT
+                   TOK_COMMAND_VSPACE TOK_COMMAND_HSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE
+                   TOK_COMMAND_COMMENT TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
 %type <stringlist> tok_stringlist
 
 %destructor {if (!C_S_H) delete $$;} vertxpos
@@ -212,8 +212,9 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
 %destructor {free($$);}  TOK_COMMAND_DEFCOLOR TOK_COMMAND_DEFSTYLE TOK_COMMAND_DEFDESIGN
 %destructor {free($$);}  TOK_COMMAND_NEWPAGE TOK_COMMAND_HEADING TOK_COMMAND_NUDGE
 %destructor {free($$);}  TOK_COMMAND_PARALLEL TOK_COMMAND_MARK TOK_BYE
-%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE TOK_ACTIVATE TOK_DEACTIVATE
-%destructor {free($$);}  TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL TOK_COMMAND_NOTE TOK_COMMAND_COMMENT
+%destructor {free($$);}  TOK_NUMBER TOK_BOOLEAN TOK_VERTICAL TOK_AT TOK_AT_POS TOK_SHOW TOK_HIDE
+%destructor {free($$);}  TOK_ACTIVATE TOK_DEACTIVATE TOK_COMMAND_VSPACE TOK_COMMAND_SYMBOL
+%destructor {free($$);}   TOK_COMMAND_NOTE TOK_COMMAND_COMMENT TOK_COMMAND_TITLE TOK_COMMAND_SUBTITLE
 
 %%
 
@@ -344,7 +345,7 @@ msckey:       TOK_MSC TOK_EQUAL
     csh.AddCSH(@3, COLOR_DESIGNNAME);
     csh.CheckHintAtAndBefore(@2, @3, HINT_ATTR_VALUE, "msc");
     std::string msg = csh.SetDesignTo($3, true);
-    if (msg.length()) 
+    if (msg.length())
         csh.AddCSH_Error(@3, msg.c_str());
   #else
     msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
@@ -649,9 +650,9 @@ arc:           arcrel
 {
   #ifdef C_S_H_IS_COMPILED
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @1))
-        ArcDivider::AttributeNames(csh);
+        ArcDivider::AttributeNames(csh, false, false);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @1))
-        ArcDivider::AttributeValues(csh.hintAttrName, csh);
+        ArcDivider::AttributeValues(csh.hintAttrName, csh, false, false);
   #else
     $$ = (new ArcDivider(MSC_ARC_VSPACE, &msc))->AddAttributeList($1);
   #endif
@@ -837,11 +838,27 @@ arc:           arcrel
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH(@1, COLOR_KEYWORD);
     if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
-        ArcDivider::AttributeNames(csh, true);
+        ArcDivider::AttributeNames(csh, true, false);
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
-        ArcDivider::AttributeValues(csh.hintAttrName, csh, true);
+        ArcDivider::AttributeValues(csh.hintAttrName, csh, true, false);
   #else
     $$ = (new ArcDivider(MSC_COMMAND_NUDGE, &msc))->AddAttributeList($2);
+  #endif
+    free($1);
+}
+	      | titlecommandtoken full_arcattrlist_with_label
+{
+  #ifdef C_S_H_IS_COMPILED
+    csh.AddCSH(@1, COLOR_KEYWORD);
+    if (csh.CheckHintLocated(HINT_ATTR_NAME, @2))
+        ArcDivider::AttributeNames(csh, false, true);
+    else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
+        ArcDivider::AttributeValues(csh.hintAttrName, csh, false, true);
+  #else
+    const MscArcType t = CaseInsensitiveEqual("title", $1) ? MSC_COMMAND_TITLE :
+                         CaseInsensitiveEqual("subtitle", $1) ? MSC_COMMAND_SUBTITLE :
+                         MSC_ARC_INVALID;
+    $$ = (new ArcDivider(t, &msc))->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -965,6 +982,8 @@ arc:           arcrel
   #endif
     free($1);
 };
+
+titlecommandtoken: TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
 
 full_arcattrlist_with_label_or_number: full_arcattrlist_with_label
             | TOK_NUMBER
@@ -1252,7 +1271,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
             csh.hintStatus = HINT_READY;
         }
         std::string msg = csh.SetDesignTo($3, true);
-        if (msg.length()) 
+        if (msg.length())
             csh.AddCSH_Error(@3, msg.c_str());
   #else
         $$ = msc.AddAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
@@ -1291,7 +1310,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
             csh.hintStatus = HINT_READY;
         }
         std::string msg = csh.SetDesignTo($3, false);
-        if (msg.length()) 
+        if (msg.length())
             csh.AddCSH_Error(@3, msg.c_str());
   #else
         $$ = msc.AddAttribute(Attribute("msc+", $3, MSC_POS(@$), MSC_POS(@3)));
@@ -1723,7 +1742,7 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.hintStatus = HINT_READY;
     }
     std::string msg = csh.SetDesignTo($3, true);
-    if (msg.length()) 
+    if (msg.length())
         csh.AddCSH_Error(@3, msg.c_str());
   #else
     msc.AddDesignAttribute(Attribute("msc", $3, MSC_POS(@$), MSC_POS(@3)));
@@ -1745,7 +1764,7 @@ designopt:         entity_string TOK_EQUAL TOK_BOOLEAN
         csh.hintStatus = HINT_READY;
     }
     std::string msg = csh.SetDesignTo($3, false);
-    if (msg.length()) 
+    if (msg.length())
         csh.AddCSH_Error(@3, msg.c_str());
   #else
     msc.AddDesignAttribute(Attribute("msc+", $3, MSC_POS(@$), MSC_POS(@3)));
@@ -3234,7 +3253,8 @@ reserved_word_string : TOK_MSC | TOK_COMMAND_DEFCOLOR |
                        TOK_COMMAND_MARK | TOK_AT | TOK_AT_POS | TOK_SHOW | TOK_HIDE |
                        TOK_ACTIVATE | TOK_DEACTIVATE | TOK_BYE |
                        TOK_COMMAND_HSPACE | TOK_COMMAND_VSPACE | TOK_COMMAND_SYMBOL |
-                       TOK_COMMAND_NOTE | TOK_COMMAND_COMMENT;
+                       TOK_COMMAND_NOTE | TOK_COMMAND_COMMENT |
+                       TOK_COMMAND_TITLE | TOK_COMMAND_SUBTITLE;
 
 symbol_string : TOK_REL_SOLID_TO  {$$ = strdup("->");}
        | TOK_REL_SOLID_FROM	  {$$ = strdup("<-");}
@@ -3293,7 +3313,7 @@ scope_close: TOK_CCBRACKET
   #else
     std::pair<bool, double> hscale = msc.Contexts.back().hscale;
     $$ = msc.PopContext();
-    if (hscale.first) 
+    if (hscale.first)
         msc.Contexts.back().hscale = hscale;
   #endif
 };

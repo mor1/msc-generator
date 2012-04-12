@@ -13,8 +13,13 @@ typedef enum {
 } MscSideType;
 bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p);
 
-struct MscStyle
+class MscStyle
 {
+protected:
+    friend class Context;
+    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
+             bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n);
+public:
     MscLineAttr line, vline;
     MscFillAttr fill, vfill;
     MscShadowAttr shadow;
@@ -36,9 +41,8 @@ struct MscStyle
     ArrowHead::ArcType f_arrow;
 
     MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
-    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
-             bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n);
     void Empty();
+    void MakeCompleteButText();
     MscStyle &operator +=(const MscStyle &toadd);
     MscStyle operator +(const MscStyle &toadd) const
         {return MscStyle(*this) += toadd;}

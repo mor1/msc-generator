@@ -57,6 +57,18 @@ void ArrowHead::Empty() {
     ymul.first = false;
 }
 
+
+void ArrowHead::MakeComplete() 
+{
+    if (!size.first) {size.first = true; size.second= MSC_ARROW_SMALL;}
+    if (!xmul.first) {xmul.first = true; xmul.second= 1;}
+    if (!ymul.first) {ymul.first = true; ymul.second= 1;}
+    if (!endType.first) {endType.first = true; endType.second= MSC_ARROW_SOLID;}
+    if (!midType.first) {midType.first = true; midType.second= MSC_ARROW_SOLID;}
+    if (!startType.first) {startType.first = true; startType.second= MSC_ARROW_NONE;}
+    line.MakeComplete();
+}
+
 ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
 {
     const ArrowHead &a = static_cast<const ArrowHead&>(toadd);
@@ -198,20 +210,20 @@ bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p
 bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscArrowSize size, bool left)
 {
     if (!canvas) return false;
-    const double xx = left ? 0.9 : 0.7;
+    const double xx = left ? 0.3 : 0.7;
     XY xy(HINT_GRAPHIC_SIZE_X*xx, HINT_GRAPHIC_SIZE_Y/2);
     MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     ArrowHead ah;
     ah.line += MscColorType(0,192,32); //green-blue
     ah.endType.second = type;
     ah.size.second = size;
-    Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END).GetBoundingBox().y;
+    Range cover = ah.EntityLineCover(xy, left, false, MSC_ARROW_END).GetBoundingBox().y;
     canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     if (cover.from>1)
         canvas->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
     if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
         canvas->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    Contour clip = ah.ClipForLine(xy, 0, true, false, MSC_ARROW_END, Block(XY(0,0), canvas->GetSize()), eLine, eLine);
+    Contour clip = ah.ClipForLine(xy, 0, !left, false, MSC_ARROW_END, Block(0, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y), eLine, eLine);
     canvas->Clip(clip);
     canvas->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), xy, ah.line);
     canvas->UnClip();

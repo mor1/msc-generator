@@ -66,6 +66,8 @@ typedef enum
     MSC_COMMAND_VSPACE,
     MSC_COMMAND_SYMBOL,
     MSC_COMMAND_NOTE,
+    MSC_COMMAND_TITLE,
+    MSC_COMMAND_SUBTITLE,
 
     MSC_ARC_ARCLIST,
     MSC_ARC_INDICATOR
@@ -481,6 +483,7 @@ class ArcDivider : public ArcLabelled
 {
 protected:
     const bool nudge;
+    const bool title;
     bool wide;  //if true, we keep no margin and add no arcvgapabove & below (for copyright text)
     const double extra_space;
 
@@ -489,9 +492,10 @@ protected:
     mutable Contour text_cover;
 public:
     ArcDivider(MscArcType t, Msc *msc);
+    static const char *MyStyleName(MscArcType t);
     bool AddAttribute(const Attribute &);
-    static void AttributeNames(Csh &csh, bool nudge=false);
-    static bool AttributeValues(const std::string attr, Csh &csh, bool nudge=false);
+    static void AttributeNames(Csh &csh, bool nudge, bool title);
+    static bool AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);

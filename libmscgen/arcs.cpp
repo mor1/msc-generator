@@ -691,7 +691,7 @@ void ArcArrow::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
-    plainDesign.styles.GetStyle("arrow").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("arrow").AttributeNames(csh);
 }
 
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
@@ -700,7 +700,7 @@ bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (plainDesign.styles.GetStyle("arrow").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("arrow").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -1473,12 +1473,12 @@ void ArcBigArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
-    plainDesign.styles.GetStyle("blockarrow").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("blockarrow").AttributeNames(csh);
 }
 
 bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (plainDesign.styles.GetStyle("blockarrow").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("blockarrow").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     if (CaseInsensitiveEqual(attr,"angle")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45>", HINT_ATTR_VALUE, false));
@@ -1547,7 +1547,7 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
         twh.y += GetIndiactorSize().y + chart->emphVGapInside;
         twh.x = std::max(twh.x, GetIndiactorSize().x + 2*chart->emphVGapInside);
     } 
-    twh.y = std::max(twh.y, Label("M", canvas, style.text).getTextWidthHeight().y);
+    twh.y = std::max(twh.y, style.text.getCharHeight(canvas));
     sy = chart->arcVGapAbove + aH;
     dy = ceil(sy + twh.y + chart->emphVGapInside*2 + 2*segment_lines[stext].LineWidth());
 
@@ -1839,7 +1839,7 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    plainDesign.styles.GetStyle("vertical").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("vertical").AttributeNames(csh);
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
 }
@@ -1855,7 +1855,7 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (plainDesign.styles.GetStyle("vertical").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("vertical").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -1957,7 +1957,7 @@ void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     const double lw = style.line.LineWidth();
     double width = twh.y;
     if (width==0)
-        width = Label("M", canvas, style.text).getTextWidthHeight().y;
+        width = style.text.getCharHeight(canvas);
     width += 2*lw + 2*chart->hscaleAutoXGap;
 
     const double aw =style.arrow.bigYExtent(isBidir(), false);
@@ -2073,7 +2073,7 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     //calculate xpos and width
     width = twh.y;
     if (width==0)
-        width = Label("M", canvas, style.text).getTextWidthHeight().y;
+        width = style.text.getCharHeight(canvas);
     width = ceil(width + 2*lw + 2*chart->emphVGapInside);
     width += fmod_negative_safe(width, 2.); //width is even integer now: the distance from outer edge to outer edge
 
@@ -2251,7 +2251,7 @@ bool ArcBox::AddAttribute(const Attribute &a)
 void ArcBox::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    plainDesign.styles.GetStyle("box").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("box").AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
 }
 
@@ -2283,7 +2283,7 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
         return true;
     }
-    if (plainDesign.styles.GetStyle("box").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("box").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -2894,7 +2894,7 @@ bool ArcPipe::AddAttribute(const Attribute &a)
 void ArcPipe::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    plainDesign.styles.GetStyle("pipe").AttributeNames(csh);
+    defaultDesign.styles.GetStyle("pipe").AttributeNames(csh);
 }
 
 bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
@@ -2903,7 +2903,7 @@ bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
         csh.AddColorValuesToHints();
         return true;
     }
-    if (plainDesign.styles.GetStyle("pipe").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle("pipe").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -3340,7 +3340,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         // in that case content can be drawn at same position as label - opaque pipe will cover anyway
         double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
         if (y == (*i)->y_text && content.size()==0)
-            y += Label("M", canvas, (*i)->style.text).getTextWidthHeight().y;
+            y += (*i)->style.text.getCharHeight(canvas);
         if ((*i)->style.solid.second < 255) {
             label_covers += (*i)->text_cover;
             lowest_label_on_transculent_bottom = std::max(lowest_label_on_transculent_bottom, y);
@@ -3660,11 +3660,36 @@ void ArcPipeSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
-    nudge(t==MSC_COMMAND_NUDGE), wide(false),
-    extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0)
+    ArcLabelled(t, msc, msc->Contexts.back().styles[MyStyleName(t)]),
+    nudge(t==MSC_COMMAND_NUDGE),
+    title(t==MSC_COMMAND_TITLE || t==MSC_COMMAND_SUBTITLE),
+    wide(false),
+    extra_space(t==MSC_ARC_DISCO ? msc->discoVgap :
+                t==MSC_COMMAND_TITLE ? msc->titleVgap :
+                t==MSC_COMMAND_SUBTITLE ? msc->subtitleVgap :
+                0)
 {
 }
+
+const char *ArcDivider::MyStyleName(MscArcType t)
+{
+    switch(t) {
+    default:
+        _ASSERT(0);
+        //these styles will be differentiated by refinement styles
+        //in ArcLabelled::GetRefinementStyle
+    case MSC_ARC_DISCO:
+    case MSC_ARC_DIVIDER:
+    case MSC_ARC_VSPACE:
+    case MSC_COMMAND_NUDGE:
+        return "divider";
+    case MSC_COMMAND_TITLE:
+        return "title";
+    case MSC_COMMAND_SUBTITLE:
+        return "subtitle";
+    }
+}
+
 
 bool ArcDivider::AddAttribute(const Attribute &a)
 {
@@ -3676,17 +3701,17 @@ bool ArcDivider::AddAttribute(const Attribute &a)
     return ArcLabelled::AddAttribute(a);
 };
 
-void ArcDivider::AttributeNames(Csh &csh, bool nudge)
+void ArcDivider::AttributeNames(Csh &csh, bool nudge, bool title)
 {
     if (nudge) return;
     ArcLabelled::AttributeNames(csh);
-    plainDesign.styles.GetStyle("divider").AttributeNames(csh);
+    defaultDesign.styles.GetStyle(title ? "title" : "divider").AttributeNames(csh);
 }
 
-bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
+bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title)
 {
     if (nudge) return false;
-    if (plainDesign.styles.GetStyle("divider").AttributeValues(attr, csh)) return true;
+    if (defaultDesign.styles.GetStyle(title ? "title" : "divider").AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -3694,13 +3719,27 @@ bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
 ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
+    string ss;
+    switch (type) {
+    case MSC_ARC_DISCO:        ss = "'...'"; break;
+    case MSC_ARC_DIVIDER:      ss = "'---'"; break;
+    case MSC_COMMAND_TITLE:    ss = "Title"; break;
+    case MSC_COMMAND_SUBTITLE: ss = "Subtitle"; break;
+    default: _ASSERT(0); break;
+    }
+
+    if (title && label.length()==0) {
+        chart->Error.Error(file_pos.start, ss + "s must have a label. Ignoring this command.");
+        return NULL;
+    }
+
     //Add numbering, if needed
     ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
-    if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER)) {
-        string ss;
-        ss << (type==MSC_ARC_DISCO ? "'...'" : "'---'") << " is specified inside a parallel block.";
-        chart->Error.Warning(file_pos.start, ss, "May display incorrectly.");
+    if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER || 
+                       type==MSC_COMMAND_TITLE || type==MSC_COMMAND_SUBTITLE)) {
+        chart->Error.Warning(file_pos.start, ss + " is specified inside a parallel block.",
+            "May display incorrectly.");
     }
     if (hide) return NULL;
     return this;
@@ -3711,15 +3750,12 @@ void ArcDivider::Width(MscCanvas &, EntityDistanceMap &distances)
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
-    //Get marging from chart edge
-    double margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
-    //convert it to a margin from lside and rside
-    if (chart->GetHScale()>0)
-        margin -= chart->XCoord(MARGIN);
-    else
-        margin -= chart->XCoord(MARGIN_HSCALE_AUTO);
+    //Get marging from lside and rside
+    text_margin = wide ? 0 : chart->XCoord((chart->GetHScale()>=0 ? MARGIN : MARGIN_HSCALE_AUTO)/2);
+    if (title) 
+        text_margin += style.line.LineWidth();
     //calculate space requirement between lside and rside
-    const double width = 2*margin + parsed_label.getTextWidthHeight().x;
+    const double width = 2*text_margin + parsed_label.getTextWidthHeight().x;
     if (width>0)
         distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
@@ -3737,26 +3773,33 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     }
     double y = wide ? 0 : chart->arcVGapAbove;
     y += extra_space;
-    const double charheight = Label("M", canvas, style.text).getTextWidthHeight().y;
-
+    if (title)
+        y += style.line.LineWidth();
+    const double charheight = style.text.getCharHeight(canvas);
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;
     centerline = y+wh.y/2;
-    text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     line_margin = chart->XCoord(MARGIN);
-    text_cover = parsed_label.Cover(chart->GetDrawing().x.from, text_margin, chart->GetDrawing().x.till-text_margin, y);
+    text_cover = parsed_label.Cover(chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till-text_margin, y);
     area = text_cover;
     area.arc = this;
     area_important = area;
+    const double lw = style.line.LineWidth();
     //Add a cover block for the line, if one exists
-    if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
+    if (!title && style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
         area += Block(chart->GetDrawing().x.from + line_margin, chart->GetDrawing().x.till - line_margin,
                       centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
+    if (title && (style.line.type.second != LINE_NONE || style.fill.color.second.valid))
+        area += Block(chart->GetDrawing().x.from + text_margin-lw, chart->GetDrawing().x.till - text_margin+lw,
+                      y-lw, y+wh.y+lw);
+
     if (!wide)
         wh.y += chart->arcVGapBelow;
-    height = wh.y + extra_space;
+    height = wh.y + 2*extra_space;
+    if (title)
+        height += 2*style.line.LineWidth() + style.shadow.offset.second;
     //Discontinuity lines cannot be compressed much
-    if (type==MSC_ARC_DISCO)
+    if (type==MSC_ARC_DISCO || title)
         area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
                               wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
@@ -3783,7 +3826,8 @@ void ArcDivider::PostPosProcess(MscCanvas &canvas, double autoMarker)
 		MscStyle toadd;
 		toadd.vline = style.vline;
         for(EIterator i = chart->ActiveEntities.begin(); i!=chart->ActiveEntities.end(); i++)
-            (*i)->status.ApplyStyle(Range(yPos, yPos+height), toadd);
+            if (!chart->IsVirtualEntity(*i))
+                (*i)->status.ApplyStyle(Range(yPos, yPos+height), toadd);
 	}
 
     if (!nudge)
@@ -3796,8 +3840,16 @@ void ArcDivider::Draw(MscCanvas &canvas, DrawPassType pass)
     if (!valid) return;
     if (pass!=draw_pass) return;
     if (nudge) return;
+    if (title) {
+        const Block outer(chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till - text_margin,
+                            yPos+extra_space, yPos+height-style.shadow.offset.second-extra_space);
+        canvas.Shadow(outer, style.line, style.shadow);
+        canvas.Fill(outer.CreateExpand(-style.line.LineWidth()/2-style.line.Spacing()), style.line, style.fill);
+        canvas.Line(outer.CreateExpand(-style.line.LineWidth()/2), style.line);
+    }
     parsed_label.Draw(canvas, chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till - text_margin, 
                       yPos + (wide ? 0 : chart->arcVGapAbove+extra_space));
+    if (title) return;
     //determine widest extent for coverage at the centerline+-style.line.LineWidth()/2;
     const double lw2 = ceil(style.line.LineWidth()/2.);
     Block b(chart->GetDrawing().x.from+line_margin, chart->GetDrawing().x.till-line_margin, 
