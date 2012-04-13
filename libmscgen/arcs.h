@@ -200,6 +200,7 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
     const string &GetNumberText() const {return number_text;}
     virtual void FinalizeLabels(MscCanvas &canvas);
+    virtual void PostPosProcess(MscCanvas &canvas, double autoMarker);
 };
 
 class ArcArrow : public ArcLabelled
@@ -235,7 +236,7 @@ public:
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &canvas, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 

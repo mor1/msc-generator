@@ -98,7 +98,6 @@ string CommandEntity::Print(int ident) const
 //shown;               //ignore, will be set in PostParse
 void CommandEntity::AppendToEntities(const EntityDefList &e)
 {
-    _ASSERT(!internally_defined);
     for (auto i = e.begin(); i!=e.end(); i++) {
         auto i2 = entities.begin();
         for (/*nope*/; i2!=entities.end(); i2++)
@@ -119,7 +118,7 @@ void CommandEntity::Combine(CommandEntity *ce)
 {
     if (!ce) return;
     if (!ce->valid) return;
-    if (ce->internally_defined || internally_defined) return;
+    if (ce->internally_defined != internally_defined) return;
     //Always keep the line_pos of the "heading" command
     //If we are already one, keep ours
     if (!full_heading && ce->full_heading)

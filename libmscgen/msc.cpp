@@ -646,14 +646,17 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
     if (a.StartsWith("background")) {
         MscFillAttr fill;
         fill.Empty();
-        if (fill.AddAttribute(a, this, STYLE_OPTION))  //generates error if needed
-             return (new CommandNewBackground(this, fill))->AddAttributeList(NULL);
+        if (fill.AddAttribute(a, this, STYLE_OPTION)) { //generates error if needed
+            Contexts.back().defBackground += fill;
+            return (new CommandNewBackground(this, fill))->AddAttributeList(NULL);
+        }
         return NULL;
     }
     if (a.StartsWith("lcomment") || a.StartsWith("rcomment")) {
         if (CaseInsensitiveBeginsWith(a.name.substr(9), "line") ||
             CaseInsensitiveBeginsWith(a.name.substr(9), "fill")) {
             const bool line = CaseInsensitiveBeginsWith(a.name.substr(9), "line");
+            const bool left = a.StartsWith("lcomment");
             MscStyle toadd; //empty
             bool OK;
             if (line) {
@@ -661,8 +664,16 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
                 if (OK) std::swap(toadd.line, toadd.vline); //option shall be stored in vline
             } else
                 OK = toadd.fill.AddAttribute(a, this, STYLE_OPTION); //generates errors if needed
-            if (OK) 
-                return CEForComments(a.StartsWith("lcomment"), toadd, file_line_range(a.linenum_attr.start, a.linenum_value.end));
+            if (OK) {
+                if (left) {
+                    Contexts.back().defLCommentFill += toadd.fill;
+                    Contexts.back().defLCommentLine += toadd.vline;
+                } else {
+                    Contexts.back().defRCommentFill += toadd.fill;
+                    Contexts.back().defRCommentLine += toadd.vline;
+                }
+                return CEForComments(left, toadd, file_line_range(a.linenum_attr.start, a.linenum_value.end));
+            }
             //fallthrough till error if not "OK"
         }
     }
@@ -677,8 +688,10 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
     if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
-        a.StartsWith("text")) {
-        AddAttribute(a);
+        a.StartsWith("text") || a.StartsWith("lcomment") || a.StartsWith("rcomment") || a.StartsWith("background")) {
+        ArcBase *ret = AddAttribute(a);
+        if (ret)
+            delete ret;
         return true;
     }
     Error.Warning(a, false, "Cannot set attribute '" + a.name +
@@ -863,17 +876,17 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
             _ASSERT (left != AllEntities.end());
         }
         //Combine subsequent CommandEntities
-        CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
-        while (ce && !ce->internally_defined) {
+        CommandEntity * const ce = dynamic_cast<CommandEntity *>(*i);
+        while (ce) {
             ArcList::iterator j = i;
             j++;
             if (j==arcs.end()) break;
-            CommandEntity *ce2 = dynamic_cast<CommandEntity *>(*j);
-            if (!ce2 || ce2->internally_defined) break;
+            CommandEntity * const ce2 = dynamic_cast<CommandEntity *>(*j);
+            if (!ce2 || ce->internally_defined != ce2->internally_defined) break;
             ce->Combine(ce2);
             delete ce2;
             arcs.erase(j);
-            continue; //i remains at this very same CommandEntity!
+            //i remains at this very same CommandEntity!
         }
         ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level);
         //Do not add an ArcIndicator, if previous thing was also an ArcIndicator on the same entity

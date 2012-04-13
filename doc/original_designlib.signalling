@@ -12,6 +12,9 @@ defdesign colores {
     defstyle indicator, symbol [line.color=red, fill.color=yellow];
     defstyle pipe [line.color=brown1, text.color=green];
     defstyle note [fill.color="yellow+60", line.color=brown2, arrow.color=brown2];
+    defstyle title, subtitle [text.color="green-20"];
+    rcomment.line.color = brown2;
+    lcomment.line.color = brown2;
 };
 defdesign rose {
     msc = plain;
@@ -68,6 +71,7 @@ defdesign omegapple {
 };
 defdesign qsd {
       msc = plain;
+      hscale=auto;
       defstyle entity, pipe, box, emptybox, blockarrow, vertical, box_collapsed_arrow, box_collapsed,
                entitygroup_collapsed, indicator, symbol [shadow.offset=4, shadow.blur=2];
       defstyle entity [text.format="\u\mu(6)\md(6)\ml(6)\mr(6)"];
@@ -75,7 +79,7 @@ defdesign qsd {
       defstyle entity [vline.type=dashed];
       defstyle >, >> [arrow.type=line];
       defstyle note [shadow.offset=3, shadow.blur=3];
-      hscale=auto;
+      defstyle title, subtitle [text.underline = yes];
 };
 defdesign modern_blue {
       msc = plain;
@@ -95,6 +99,8 @@ defdesign modern_blue {
       defstyle box_collapsed [emptybox];
       defstyle box_collapsed_arrow [blockarrow];
       defstyle note [line.corner=round, line.radius=3, fill.color="160,200,240", shadow.offset=3, shadow.blur=3];
+      defstyle title [text.color="blue-30"];
+      defstyle subtitle [text.color="blue-20"];
 };
 
 defdesign round_green {
@@ -131,6 +137,8 @@ defdesign green_earth {
       defstyle note [line.width=2, fill.color="green+70", text.bold=yes];
       defstyle weak [text.color="200,200,200", text.format="\mn(14)", line.width=1];
       defstyle strong [text.format="\mn(18)", line.width=3];
+      defstyle title [text.color="green-40"];
+      defstyle subtitle [text.color="green-30"];
 };
 defdesign hcn {
     hscale=auto, compress=yes, numbering=yes;
@@ -160,4 +168,76 @@ defdesign thick_lines {
     defstyle box_collapsed, box_collapsed_arrow, entity, entitygroup, entitygroup_collapsed [line.width=2];
     defstyle entity, entitygroup_collapsed [vline.width=2];
     defstyle weak [line.width=1, vline.width=1];
+};
+
+defdesign feng_shui_notes {
+    defstyle note [line.width=2, line.color="1,0,0", arrow.color="1,0,0", fill.color="1,1,0", line.radius=7];
+};
+
+defdesign all_blue {
+    defstyle entity, entitygroup_collapsed, entity, arrow, blockarrow, box_collapsed_arrow, 
+             box, emptybox, ox_collapsed, vertical, pipe, note, comment, title, subtitle 
+        [text.color="0,1,0"];
+    defstyle entity, entitygroup_collapsed, entity, arrow, blockarrow, box_collapsed_arrow, 
+             box, emptybox, box_collapsed, vertical, pipe, note 
+        [line.color="0,1,0"];
+    defstyle arrow, note [arrow.color="0,1,0"];
+    defstyle entity, entitygroup_collapsed, entity [vline.color="0,1,0"];
+    lcomment.line.color = "0,1,0";
+    rcomment.line.color = "0,1,0";
+};
+
+defdesign black_on_white {
+    msc = plain;
+    defstyle entity, entitygroup_collapsed, entitygroup, arrow, blockarrow, box_collapsed_arrow, 
+             box, emptybox, box_collapsed, vertical, pipe, note, comment, title, subtitle, 
+             divider, ..., --- 
+        [text.color=white];
+    defstyle entity, entitygroup_collapsed, entitygroup, blockarrow, box_collapsed_arrow, 
+             box, emptybox, box_collapsed, vertical, pipe, note, symbol, indicator 
+        [fill.color=black];
+    defstyle entity, entitygroup_collapsed, entitygroup, arrow, blockarrow, box_collapsed_arrow, 
+             box, emptybox, box_collapsed, vertical, pipe, note, symbol, indicator,
+             divider, ..., ---  
+        [line.color=white];
+    defstyle arrow, note [arrow.color=white];
+    defstyle entity, entitygroup_collapsed, entity [vline.color=white, vfill.color=black];
+    background.color = black;
+    lcomment.line.color = white;
+    rcomment.line.color = white;
+};
+
+defdesign norton_commander {
+    msc = plain;
+
+    defcolor blue = "0,0,170", cyan = "0,170,170",
+             vivid_green="85,255,85", grey="170,170,170",
+             lred="255,85,85";
+
+    defstyle entity, entitygroup_collapsed, entitygroup, arrow, blockarrow, box_collapsed_arrow,
+             emptybox, box_collapsed, vertical, note, divider, ..., ---
+        [text.color=white];
+    defstyle comment [text.color=black];
+    defstyle pipe, title, subtitle [text.color=vivid_green];
+    defstyle box [text.color=vivid_green, text.bold=yes];
+    defstyle entity, entitygroup_collapsed, emptybox, vertical, note,
+        box_collapsed_arrow, blockarrow
+        [fill.color = cyan, line.type=none, line.color=white];
+    defstyle entitygroup
+        [fill.color = grey, line.type=solid, line.width=3, line.color=grey];
+    defstyle blockarrow, box, vertical, pipe, symbol, indicator
+        [fill.color = blue, line.color=white];
+    defstyle arrow, divider, ..., ---
+        [line.color=white];
+    defstyle arrow, note [arrow.color=white];
+    defstyle entity, entitygroup_collapsed, entity [vline.color=white, vfill.color=grey];
+    background.color = blue;
+    lcomment.line.color = white;
+    lcomment.line.type = double;
+    lcomment.line.width = 1;
+    rcomment.line.color = white;
+    rcomment.line.type = double;
+    rcomment.line.width = 1;
+    lcomment.fill.color = grey;
+    rcomment.fill.color = grey;
 };
