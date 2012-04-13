@@ -1513,15 +1513,38 @@ styledef : tok_stringlist full_arcattrlist
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         MscStyle().AttributeValues(csh.hintAttrName, csh);
   #else
-    for (std::list<std::string>::iterator i = ($1)->begin(); i!=($1)->end(); i++) {
-        MscStyle style = msc.Contexts.back().styles.GetStyle(*i);
-        AttributeList::iterator j=($2)->begin();
-        while (j!=($2)->end()) {
-           if (!style.AddAttribute(**j, &msc))
-               msc.Error.Error(**j, false, "Attribute '" + (*j)->name + "' is not applicable to styles. Ignoring it.");
-           j++;
+    for (auto a=($2)->begin(); a!=($2)->end(); a++) {
+        std::list<string> problem;
+        bool had_generic = false;
+        for (auto s = ($1)->begin(); s!=($1)->end(); s++) {
+            MscStyle style = msc.Contexts.back().styles.GetStyle(*s); //may be default style
+            if (style.AddAttribute(**a, &msc))
+               msc.Contexts.back().styles[*s] = style;
+            else {
+               problem.push_back(*s);
+               had_generic |= (style.type == STYLE_STYLE);
+            }
         }
-        msc.Contexts.back().styles[*i] = style;
+        if (problem.size()==0) continue;
+        string msg;
+        if (problem.size()==1) {
+            if (had_generic) 
+                msg = "Attribute '" + (*a)->name + "' is not applicable to styles. Ignoring it.";
+            else
+                msg = "Attribute '" + (*a)->name + "' is not applicable to style '" + *problem.begin() + "'. Ignoring it.";
+        } else if (problem.size() == ($2)->size()) {
+            if (had_generic) 
+                msg = "Attribute '" + (*a)->name + "' is not applicable to styles. Ignoring it.";
+            else
+                msg = "Attribute '" + (*a)->name + "' is not applicable to any of these styles. Ignoring it.";
+        } else {
+            msg = *problem.begin();
+            for (auto p = ++problem.begin(); p!=--problem.end(); p++)
+                msg.append("', '").append(*p);
+            msg.append("' and '").append(*--problem.end());
+            _ASSERT(!had_generic);
+        }
+        msc.Error.Error(**a, false, msg);
     }
     delete($1);
     delete($2);

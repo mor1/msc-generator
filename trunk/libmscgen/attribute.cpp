@@ -719,7 +719,7 @@ MscShadowAttr::MscShadowAttr() :
 
 void MscShadowAttr::MakeComplete()
 {
-    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = color.second.a = 255;}
+    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255;}
     if (!offset.first) {offset.first = true; offset.second = 0;}
     if (!blur.first) {blur.first = true; blur.second = 0;}
 }

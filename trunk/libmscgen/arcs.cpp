@@ -644,7 +644,6 @@ ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     return ArcBase::PostParseProcess(canvas, hide, left, right, number, at_top_level);
 }
 
-
 void ArcLabelled::FinalizeLabels(MscCanvas &canvas) 
 {
     ArcBase::FinalizeLabels(canvas);
@@ -670,6 +669,21 @@ void ArcLabelled::FinalizeLabels(MscCanvas &canvas)
     //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
     StringFormat::AddNumbering(label, number_text, pre_num_post);
     parsed_label.Set(label, canvas, style.text);
+}
+
+void ArcLabelled::PostPosProcess(MscCanvas &canvas, double autoMarker)
+{
+	//If there is a vline or vfill in the current style, add that to entitylines
+    if ((style.f_vline &&(style.vline.width.first || style.vline.type.first || style.vline.color.first)) ||
+        (style.f_vfill && !style.vfill.IsEmpty())) {
+		MscStyle toadd;
+        if (style.f_vline) toadd.vline = style.vline;
+        if (style.f_vfill) toadd.vfill = style.vfill;
+        for(EIterator i = chart->ActiveEntities.begin(); i!=chart->ActiveEntities.end(); i++)
+            if (!chart->IsVirtualEntity(*i))
+                (*i)->status.ApplyStyle(area.GetBoundingBox().y, toadd);
+	}
+    ArcBase::PostPosProcess(canvas, autoMarker);
 }
 
 /////////////////////////////////////////////////////
@@ -2610,7 +2624,7 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         //Add text cover & draw if necessary
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
         //Advance label height
-        double th = (*i)->parsed_label.getTextWidthHeight().y;
+        const double th = (*i)->parsed_label.getTextWidthHeight().y;
         //Position arrows if any under the label
         AreaList content_cover = Area((*i)->text_cover);
         if ((*i)->content.size()) {
@@ -2623,8 +2637,9 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
                 limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+limiter_line.radius.second) - 
                          limiter_line.CreateRectangle_InnerEdge(b);
             }
-            y = chart->PlaceListUnder(canvas, (*i)->content.begin(), (*i)->content.end(),
+            const double content_y = chart->PlaceListUnder(canvas, (*i)->content.begin(), (*i)->content.end(),
                                       y+th, y, limit, reflow, compress, &content_cover);  //no extra margin below text
+            y = std::max(y+th, content_y);
         } else {
             y += th; //no content, just add textheight
         }
@@ -3721,15 +3736,16 @@ ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &l
     if (!valid) return NULL;
     string ss;
     switch (type) {
+    case MSC_ARC_VSPACE:       break;
     case MSC_ARC_DISCO:        ss = "'...'"; break;
     case MSC_ARC_DIVIDER:      ss = "'---'"; break;
-    case MSC_COMMAND_TITLE:    ss = "Title"; break;
-    case MSC_COMMAND_SUBTITLE: ss = "Subtitle"; break;
+    case MSC_COMMAND_TITLE:    ss = "Titles"; break;
+    case MSC_COMMAND_SUBTITLE: ss = "Subtitles"; break;
     default: _ASSERT(0); break;
     }
 
     if (title && label.length()==0) {
-        chart->Error.Error(file_pos.start, ss + "s must have a label. Ignoring this command.");
+        chart->Error.Error(file_pos.start, ss + " must have a label. Ignoring this command.");
         return NULL;
     }
 
@@ -3821,15 +3837,6 @@ void ArcDivider::ShiftBy(double y)
 void ArcDivider::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-	//If there is a vline in the current style, add that to entitylines
-	if (style.vline.width.first || style.vline.type.first || style.vline.color.first) {
-		MscStyle toadd;
-		toadd.vline = style.vline;
-        for(EIterator i = chart->ActiveEntities.begin(); i!=chart->ActiveEntities.end(); i++)
-            if (!chart->IsVirtualEntity(*i))
-                (*i)->status.ApplyStyle(Range(yPos, yPos+height), toadd);
-	}
-
     if (!nudge)
         chart->HideEntityLines(text_cover);
     ArcLabelled::PostPosProcess(canvas, autoMarker);
