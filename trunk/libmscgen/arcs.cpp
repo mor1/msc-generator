@@ -2824,7 +2824,7 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
             canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
         //if there are contained entities, draw entity lines, strictly from inside of line
         if ((*i)->content.size()) {
-            if (pass==AFTER_ENTITY_LINES && (*i)->drawEntityLines &&
+            if (pass==draw_pass && (*i)->drawEntityLines &&
                 (*i)->collapsed==BOX_COLLAPSE_EXPAND)
                 chart->DrawEntityLines(canvas, (*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
             canvas.UnClip();

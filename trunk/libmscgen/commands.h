@@ -260,7 +260,8 @@ public:
     void PlaceFloating(MscCanvas &canvas);
     void PlaceSideTo(MscCanvas &canvas, AreaList &cover, double &y);
 
-    virtual void ShiftBy(double y);
+    virtual void ShiftBy(double y) {} //shift only along the target
+    virtual void ShiftCommentBy(double y);
     //virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
