@@ -59,13 +59,11 @@ bool CommandEntity::AttributeValues(const std::string, Csh &)
     return false;
 }
 
-TrackableElement* CommandEntity::AttachNote(CommandNote *cn)
+void CommandEntity::AttachComment(CommandNote *cn)
 {
     _ASSERT(CanBeNoted());
-    if (entities.size())
-        return (*entities.rbegin())->AttachNote(cn);
-    else 
-        return ArcBase::AttachNote(cn);
+    _ASSERT(entities.size());
+    (*entities.rbegin())->AttachComment(cn);
 }
 
 string CommandEntity::Print(int ident) const
@@ -126,7 +124,7 @@ void CommandEntity::Combine(CommandEntity *ce)
     if (ce->full_heading) full_heading = true;
     AppendToEntities(ce->entities);
     ce->entities.clear();
-    CombineNotes(ce); //noves notes from 'ce' to us
+    CombineComments(ce); //noves notes from 'ce' to us
 }
 
 
@@ -255,8 +253,8 @@ EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children)
  */
 
 //TODO: What if multiple entitydefs are present for the same entity? We should merge them
-ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &,
-                                     bool top_level)
+ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                         Numbering &, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL;
     at_top_level = top_level;
@@ -380,7 +378,8 @@ ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     //Go through them and update left, right and the entities' maxwidth
     //Also, PostParseProcess their notes, too
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        (*i_def)->PostParseProcessNotes(canvas, hide, at_top_level);
+        if (!chart->IsVirtualEntity(*(*i_def)->itr))
+            *target = *i_def;
         if (!(*i_def)->draw_heading) continue;
         const EIterator ei = (*i_def)->itr;
         left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf(ei, true));
@@ -389,17 +388,8 @@ ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
         double w = (*i_def)->Width();
         if ((*ei)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
     }
-    //process comments attached to the CommandEntity (from heading commands)
-    PostParseProcessNotes(canvas, hide, at_top_level);
     hidden = hide;
     return this;
-}
-
-void CommandEntity::MoveNotesToChart()
-{
-    ArcCommand::MoveNotesToChart();
-    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
-        (*i_def)->MoveNotesToChart();
 }
 
 
@@ -623,7 +613,8 @@ void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/, double)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool /*top_level*/)
+ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
+                                            Numbering &number, bool /*top_level*/, TrackableElement ** /*target*/)
 {
     if (!valid) return NULL;
     if (hide) hidden = true;
@@ -824,7 +815,8 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
 }
 
 ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
-    EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+    EIterator &/*left*/, EIterator &/*right*/, 
+    Numbering &/*number*/, bool /*top_level*/, TrackableElement ** /*target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -917,7 +909,8 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
 }
 
 ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
-    EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+    EIterator &/*left*/, EIterator &/*right*/, 
+    Numbering &/*number*/, bool /*top_level*/, TrackableElement ** /*target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -1084,7 +1077,8 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-ArcBase* CommandSymbol::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
+                                         Numbering &/*number*/, bool /*top_level*/, TrackableElement ** /*target*/)
 {
     if (!valid) return NULL;
     if (vpos.src.length()) {
@@ -1150,7 +1144,6 @@ ArcBase* CommandSymbol::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
         xsize.second = ellipsis_sizes[size];
         ysize.second = xsize.second*(3+2*ellipsis_space_ratio);
     }
-    PostParseProcessNotes(canvas, hide, at_top_level);
     return this;
 }
 
@@ -1306,35 +1299,12 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* Note syntax
- ** NOTE left/right/center AT <ent>-<ent>: label [attrs];
- ** NOTE AT <ent>-<ent>: label [attrs];
- **   - center is default
- ** NOTE: label [attrs];
- */
-
-
-CommandNote::CommandNote(Msc*msc, bool is_note, const file_line_range &fp, 
-                         const char *pt, const file_line_range &ptm, 
-                         AttributeList *al)
+CommandNote::CommandNote(Msc*msc, bool is_note, const char *pt, const file_line_range &ptm)
     : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles[is_note ? "note" : "comment"]),
     is_float(is_note), point_toward(pt ? pt : ""), point_toward_pos(ptm),
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {
-    file_pos = fp;
     draw_pass = NOTE;
-    AddAttributeList(al);
-    target = chart->last_notable_arc;
-    if (target == NULL) {
-        valid = false;
-        chart->Error.Error(file_pos.start, "This note has no prior element to note on. Ignoring it.",
-            "Every note must follow a visible element which it makes a remark on. "
-            "You cannot start a scope with a note either.");
-        return;
-    }
-    target = target->AttachNote(this);
-    if (target == NULL) //Did not succeed in attaching to an existing target. Error has already been issued.
-        valid = false;
 }
 
 bool CommandNote::AddAttribute(const Attribute &a)
@@ -1384,8 +1354,8 @@ bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_floa
     return ArcLabelled::AttributeValues(attr, csh);
 }
 
-/*Must not use left, right, and number, or TrackableElement::PostParseProcessNotes wont work */
-ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                       Numbering &number, bool top_level, TrackableElement **note_target)
 {
     if (!valid) return NULL;
     if (label.length()==0) {
@@ -1395,9 +1365,28 @@ ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
         valid = false;
         return NULL;
     }
+    //Now try to attach to the target
+    target = *note_target;
+    if (target == NULL) {
+        valid = false;
+        chart->Error.Error(file_pos.start, "This note has no prior element to note on. Ignoring it.",
+            "Every note must follow a visible element which it makes a remark on.");
+        return NULL;
+    }
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
     //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
-    return ArcBase::PostParseProcess(canvas, hide, left, right, number, top_level);
+    ArcBase *ret = ArcBase::PostParseProcess(canvas, hide, left, right, number, top_level, note_target);
+
+    if (target == DELETE_NOTE || hide) 
+        return NULL; //silently drop note - our target has disappeared, as well
+    //OK, now attach the note
+    if (is_float) {
+        chart->Notes.Append(this);
+    } else {
+        target->AttachComment(this);
+        chart->Comments.Append(this);
+    }
+    return ret;
 }
 
 void CommandNote::FinalizeLabels(MscCanvas &canvas)

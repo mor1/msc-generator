@@ -21,12 +21,14 @@ class MscCanvas;
 class CommandNote;
 class EntityDistanceMap;
 
+#define DELETE_NOTE ((TrackableElement * )1)
 typedef PtrList<CommandNote> CommandNoteList;
 //This is a set of Areas, that may overlap
 class TrackableElement {
 public:
     static const Context defaultDesign;
     typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT, NOTE, AFTER_NOTE} DrawPassType;
+    
 protected:
     static const XY control_size;
     static const XY indicator_size;
@@ -55,9 +57,8 @@ public:
     explicit TrackableElement(Msc *m);
     TrackableElement(const TrackableElement&);
     void SetLineEnd(file_line_range l, bool f=true);
-    virtual TrackableElement* AttachNote(CommandNote *cn);
-    void CombineNotes(TrackableElement *); //move notes to us
-    virtual void MoveNotesToChart();
+    virtual void AttachComment(CommandNote *cn);
+    void CombineComments(TrackableElement *); //move comments to us
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const   //An area over which if the mouse hoovers, we highlight the element
         {return area;};
@@ -69,7 +70,6 @@ public:
         {return area_important;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
-    virtual void PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level);
     double NoteHeight(MscCanvas &canvas, AreaList &cover) {double l=0, r=0; return NoteHeightHelper(canvas, cover, l, r);}
     virtual double NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
     virtual void PostPosProcess(MscCanvas &, double);

@@ -27,6 +27,7 @@ const Context TrackableElement::defaultDesign(true);
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
     hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
+    comments(false),
     indicator_style(m->Contexts.back().styles["indicator"])
 {
     area.arc = this;
@@ -51,30 +52,20 @@ void TrackableElement::SetLineEnd(file_line_range l, bool f)
     file_pos = l;
 }
 
-TrackableElement* TrackableElement::AttachNote(CommandNote *cn)
+void TrackableElement::AttachComment(CommandNote *cn)
 {
     _ASSERT(cn);
+    _ASSERT(!cn->is_float);
     comments.Append(cn);
-    return this;
 }
 
 //move comments to us    
-void TrackableElement::CombineNotes(TrackableElement *te)
+void TrackableElement::CombineComments(TrackableElement *te)
 {
     _ASSERT(te);
     if (te)
         comments.splice(comments.end(), te->comments);
 }
-
-void TrackableElement::MoveNotesToChart() 
-{
-    for (auto n = comments.begin(); n!=comments.end(); /*nope*/)
-        if ((*n)->is_float)
-            chart->Notes.splice(chart->Notes.end(), comments, n++);
-        else 
-            chart->Comments.push_back(*(n++));
-}
-
 
 void TrackableElement::ShiftBy(double y)
 {
@@ -88,19 +79,6 @@ void TrackableElement::ShiftBy(double y)
     for (auto n = comments.begin(); n!=comments.end(); n++)
         (*n)->ShiftBy(y);
 }
-
-void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level)
-{
-    //dummy values. CommandNumbers do not update/use those
-    EIterator left, right;
-    Numbering number;
-    for (auto n = comments.begin(); n!=comments.end(); /*nope*/)
-        if (NULL == (*n)->PostParseProcess(canvas, hide, left, right, number, at_top_level))
-            comments.erase(n++);
-        else
-            n++;
-}
-
 
 //Here we add to "cover", do not overwrite it
 double TrackableElement::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)

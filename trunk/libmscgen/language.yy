@@ -360,10 +360,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     csh.AddCSH(@1, COLOR_BRACE);
     csh.AddCSH(@3, COLOR_BRACE);
   #else
-    if ($3) {
-        ($2)->Append($3); //Append any potential CommandNumbering
-        ($3)->MakeMeLastNotable();
-    }
+    if ($3) ($2)->Append($3); //Append any potential CommandNumbering
     $$ = $2;
   #endif
 }
@@ -387,10 +384,7 @@ braced_arclist: scope_open arclist_maybe_no_semicolon scope_close
     csh.AddCSH_Error(@3, "Could not recognize this as a valid line.");
     csh.AddCSH(@4, COLOR_BRACE);
   #else
-    if ($4) {
-        ($2)->Append($4); //Append any potential CommandNumbering
-        ($4)->MakeMeLastNotable();
-    }
+    if ($4) ($2)->Append($4); //Append any potential CommandNumbering
     $$ = $2;
     msc.Error.Error(MSC_POS(@3).start, "Syntax error.");
   #endif
@@ -427,10 +421,7 @@ arclist_maybe_no_semicolon : arclist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter(@2, "Missing a semicolon (';').");
   #else
-    if ($2) {
-        ($1)->Append($2);
-        ($2)->MakeMeLastNotable();
-    }
+    if ($2) ($1)->Append($2);
     $$ = $1;
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Missing ';'.");
     msc.Error.Error(MSC_POS(@2).start, MSC_POS(@2).end.NextChar(), "Here is the beginning of the command as I understood it.");
@@ -441,10 +432,9 @@ arclist_maybe_no_semicolon : arclist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter(@1, "Missing a semicolon (';').");
   #else
-    if ($1) {
+    if ($1) 
         $$ = (new ArcList)->Append($1); /* New list */
-        ($1)->MakeMeLastNotable();
-    } else
+    else
         $$ = new ArcList;
     msc.Error.Error(MSC_POS(@1).end.NextChar(), "Missing ';'.");
     msc.Error.Error(MSC_POS(@1).start, MSC_POS(@1).end.NextChar(), "Here is the beginning of the command as I understood it.");
@@ -455,20 +445,16 @@ arclist_maybe_no_semicolon : arclist
 arclist:    arc_with_parallel_semicolon
 {
   #ifndef C_S_H_IS_COMPILED
-    if ($1) {
+    if ($1) 
         $$ = (new ArcList)->Append($1); /* New list */
-        ($1)->MakeMeLastNotable();
-    } else
+    else
         $$ = new ArcList;
   #endif
 }
             | arclist arc_with_parallel_semicolon
 {
   #ifndef C_S_H_IS_COMPILED
-    if ($2) {
-        ($1)->Append($2);     /* Add to existing list */
-        ($2)->MakeMeLastNotable();
-    }
+    if ($2) ($1)->Append($2);     /* Add to existing list */
     $$ = ($1);
   #endif
 }
@@ -1822,7 +1808,6 @@ box_list: first_box
 {
   #ifndef C_S_H_IS_COMPILED
     $$ = new ArcBoxSeries($1);
-    ($1)->MakeMeLastNotable();
   #endif
 }
 /* ALWAYS Add Arclist before Attributes. AddArcList changes default attributes!! */
@@ -1832,7 +1817,6 @@ box_list: first_box
     ($2)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList(NULL); //should come after AddFollow
-    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list boxrel full_arcattrlist_with_label
@@ -1846,7 +1830,6 @@ box_list: first_box
     ($2)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList($3); //should come after AddFollow
-    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list boxrel braced_arclist
@@ -1855,7 +1838,6 @@ box_list: first_box
     ($2)->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList(NULL); //should come after AddFollow
-    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list braced_arclist
@@ -1865,7 +1847,6 @@ box_list: first_box
     temp->AddArcList($2);
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList(NULL); //should come after AddFollow
-    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list boxrel full_arcattrlist_with_label braced_arclist
@@ -1879,7 +1860,6 @@ box_list: first_box
     ($2)->AddArcList($4)->SetLineEnd(MSC_POS2(@2, @3));
     $$ = ($1)->AddFollow($2);
     ($2)->AddAttributeList($3); //should come after AddFollow
-    ($1)->MakeMeLastNotable();
   #endif
 }
            | box_list full_arcattrlist_with_label braced_arclist
@@ -1894,7 +1874,6 @@ box_list: first_box
     temp->AddArcList($3)->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollow(temp);
     temp->AddAttributeList($2); //should come after AddFollow
-    ($1)->MakeMeLastNotable();
   #endif
 };
 
@@ -1954,7 +1933,6 @@ first_pipe: TOK_COMMAND_PIPE boxrel
   #else
     $$ = new ArcPipe($2);
     ($$)->AddAttributeList(NULL)->SetLineEnd(MSC_POS(@$));
-    ($$)->MakeMeLastNotable();
   #endif
     free($1);
 }
@@ -1999,7 +1977,6 @@ first_pipe: TOK_COMMAND_PIPE boxrel
   #else
     $$ = new ArcPipe($2);
     ($$)->AddAttributeList($3)->SetLineEnd(MSC_POS(@$));
-    ($$)->MakeMeLastNotable();
   #endif
     free($1);
 };
@@ -2015,7 +1992,6 @@ pipe_list_no_content: first_pipe
 {
   #ifndef C_S_H_IS_COMPILED
     ArcPipe *ap = new ArcPipe($2);
-    ap->MakeMeLastNotable();
     ap->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollowWithAttributes(ap, NULL);
   #endif
@@ -2029,7 +2005,6 @@ pipe_list_no_content: first_pipe
         ArcPipe::AttributeValues(csh.hintAttrName, csh);
   #else
     ArcPipe *ap = new ArcPipe($2);
-    ap->MakeMeLastNotable();
     ap->SetLineEnd(MSC_POS(@2));
     $$ = ($1)->AddFollowWithAttributes(ap, $3);
   #endif
@@ -2053,7 +2028,6 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.AddCSH_EntityName(@3, $3);
   #else
     $$ = new ArcBox($2, $1, MSC_POS(@1), $3, MSC_POS(@3), &msc);
-    ($$)->MakeMeLastNotable();
   #endif
     free($1);
     free($3);
@@ -2066,7 +2040,6 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.AddCSH_EntityName(@2, $2);
   #else
     $$ = new ArcBox($1, NULL, MSC_POS(@1), $2, MSC_POS(@2), &msc);
-    ($$)->MakeMeLastNotable();
   #endif
     free($2);
 }
@@ -2079,7 +2052,6 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
     $$ = new ArcBox($2, $1, MSC_POS(@1), NULL, MSC_POS(@2), &msc);
-    ($$)->MakeMeLastNotable();
   #endif
     free($1);
 }
@@ -2090,7 +2062,6 @@ boxrel:   entity_string TOK_EMPH entity_string
     csh.CheckEntityHintAfter(@1, yylloc, yychar==YYEOF);
   #else
     $$ = new ArcBox($1, NULL, MSC_POS(@1), NULL, MSC_POS(@1), &msc);
-    ($$)->MakeMeLastNotable();
   #endif
 };
 
@@ -2931,9 +2902,8 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @4))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ArcBase *a = new CommandNote(&msc, true, MSC_POS(@$), $3, MSC_POS(@3), $4); //This attaches itself to the target of the note
-    if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    $$ = NULL; //no need to add to arclist
+    $$ = new CommandNote(&msc, true, $3, MSC_POS(@3));
+    ($$)->AddAttributeList($4);
   #endif
     free($1);
     free($2);
@@ -2948,9 +2918,8 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ArcBase *a = new CommandNote(&msc, true, MSC_POS(@$), NULL, file_line_range(), $2); //This attaches itself to the target of the note
-    if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    $$ = NULL; //no need to add to arclist
+    $$ = new CommandNote(&msc, true);
+    ($$)->AddAttributeList($2);
   #endif
     free($1);
 }
@@ -2982,9 +2951,8 @@ note:            TOK_COMMAND_NOTE TOK_AT string full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @3))
         CommandNote::AttributeValues(csh.hintAttrName, csh, true);
   #else
-    ArcBase *a = new CommandNote(&msc, true, MSC_POS(@$), NULL, file_line_range(), $3); //This attaches itself to the target of the note
-    if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    $$ = NULL; //no need to add to arclist
+    $$ = new CommandNote(&msc, true);
+    ($$)->AddAttributeList($3);
   #endif
     free($1);
     free($2);
@@ -2999,9 +2967,8 @@ comment:            TOK_COMMAND_COMMENT full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh, false);
   #else
-    ArcBase *a = new CommandNote(&msc, false, MSC_POS(@$), NULL, file_line_range(), $2); //This attaches itself to the target of the note
-    if (!a->IsValid()) delete a; //if attachment not successful, drop it
-    $$ = NULL; //no need to add to arclist
+    $$ = new CommandNote(&msc, false); 
+    ($$)->AddAttributeList($2);
   #endif
     free($1);
 }

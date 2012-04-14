@@ -479,7 +479,7 @@ void EntityDef::Combine(EntityDef *ed)
     if (ed->active.first) 
         active = ed->active;
     style += ed->style;
-    CombineNotes(ed);
+    CombineComments(ed);
  }
 
 //returns how wide the entity is, not including its shadow
