@@ -77,7 +77,7 @@ void TrackableElement::ShiftBy(double y)
     yPos+=y;
     control_location.y += y;
     for (auto n = comments.begin(); n!=comments.end(); n++)
-        (*n)->ShiftBy(y);
+        (*n)->ShiftCommentBy(y);
 }
 
 //Here we add to "cover", do not overwrite it

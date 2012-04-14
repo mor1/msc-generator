@@ -2157,7 +2157,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
 {
     _ASSERT(!is_float);
-    yPos = y + chart->arcVGapAbove;
+    yPos = y;
     if (style.side.second == SIDE_LEFT)
         area = parsed_label.Cover(chart->sideNoteGap, chart->XCoord(chart->LNote->pos)-chart->sideNoteGap, yPos);
     else
@@ -2168,13 +2168,14 @@ void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
     cover += GetCover4Compress(area);
 }
 
-void CommandNote::ShiftBy(double y)
+void CommandNote::ShiftCommentBy(double y)
 {
+    _ASSERT(!is_float);
     ArcLabelled::ShiftBy(y);
-    if (is_float) {
-        pos_center.y += y;
-        point_to.y += y;
-    }
+    //if (is_float) {
+    //    pos_center.y += y;
+    //    point_to.y += y;
+    //}
 }
 
 
