@@ -138,6 +138,8 @@ public:
 
 /////////////////////////////////////////////////////////////////////
 
+class ArcVerticalArrow;
+
 class Msc {
 public:
     typedef std::pair<file_line, double> MarkerType;
@@ -177,10 +179,10 @@ public:
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
+    PtrList<ArcVerticalArrow>     Verticals;         //a pointer to all verticals
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
     CommandNoteList               Comments;         /** a copy to all side notes after PostParseProcess */
     PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
-    ArcBase                      *last_notable_arc; //during parse: last arc inserted (the one notes attach to) or NULL if none
     
     std::list<ContourAttr>        DebugContours;
 
@@ -267,10 +269,9 @@ public:
     void ParseText(const char *input, const char *filename);
 
     void PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
-                                 EIterator &right, Numbering &number, bool top_level);
+                                 EIterator &right, Numbering &number, bool top_level, TrackableElement **note_target);
     void PostParseProcess(MscCanvas &canvas);
     template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
-    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas); FinalizeLabelsArcList(Notes, canvas); FinalizeLabelsArcList(Comments, canvas);}
 
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 

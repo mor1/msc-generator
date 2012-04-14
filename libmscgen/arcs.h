@@ -116,8 +116,6 @@ public:
     bool IsParallel() const {return parallel;}
     bool IsCompressed() const {return compress;}
     virtual bool CanBeNoted() const {return false;}
-    void MakeMeLastNotable();
-    virtual TrackableElement* AttachNote(CommandNote *); //returns new target
     double GetPos() const {return yPos;}
     //Get an (ordered) list of entities that this arrow/box touches
     virtual MscDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
@@ -136,7 +134,8 @@ public:
 
     //These functions are called recursively for all arcs in this order
     /* This is called after parsing and adding attributes. Entity order and collapse/expand is already known here */
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     /* This is called to substitute name references in labels & process all escapes */
     virtual void FinalizeLabels(MscCanvas &canvas);
     /* This fills in distances for hscale=auto mechanism */
@@ -197,7 +196,8 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     const string &GetNumberText() const {return number_text;}
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void PostPosProcess(MscCanvas &canvas, double autoMarker);
@@ -232,7 +232,8 @@ public:
     virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
@@ -274,7 +275,8 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
@@ -306,7 +308,8 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
@@ -352,7 +355,8 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual TrackableElement* AttachNote(CommandNote *);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
@@ -388,7 +392,8 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;} //will never be called
     virtual void ShiftBy(double y);
@@ -409,8 +414,8 @@ public:
     ArcBoxSeries* AddFollow(ArcBox *f);
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
-    virtual void MoveNotesToChart();
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
@@ -467,8 +472,8 @@ public:
     ArcPipeSeries* AddArcList(ArcList*l);
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
-    virtual void MoveNotesToChart();
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
@@ -497,7 +502,8 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool nudge, bool title);
     static bool AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
@@ -516,7 +522,8 @@ public:
     ArcParallel* AddArcList(ArcList*l) {blocks.push_back(l); return this;}
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level);
+    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);

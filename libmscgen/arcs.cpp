@@ -65,6 +65,7 @@
           "indicator" in "running_style" set. Else we just retuen NULL.
        i) If the node is kept, we move its floating notes to "Msc::FloatingNotes" via "MoveNotesToChart"
           called from "Msc::PostParseProcessArcList".
+       j) For notes and comments, we decide who is the real target and attach the note/command here.
        This function can only be called once, as it changes arcs (e.g., you do not want to
        increment numbering twice). Often the arc needs to be changed to a different one, in this case the
        return pointer shall be used. If the return pointer == this, the arc shall not be replaced.
@@ -142,18 +143,6 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     if (msc) 
         compress = msc->Contexts.back().compress.second;
     had_add_attr_list = false;
-}
-
-void ArcBase::MakeMeLastNotable()
-{
-    if (CanBeNoted() && chart)
-        chart->last_notable_arc = this;
-}
-
-TrackableElement* ArcBase::AttachNote(CommandNote *cn)
-{
-    _ASSERT(CanBeNoted());
-    return TrackableElement::AttachNote(cn);
 }
 
 inline Area ArcBase::GetCover4Compress(const Area &a) const
@@ -260,13 +249,13 @@ string ArcBase::PrintType(void) const
     return arcnames[int(type)-1];
 }
 
-ArcBase* ArcBase::PostParseProcess(MscCanvas &canvas, bool hide,
+ArcBase* ArcBase::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
                                    EIterator &/*left*/, EIterator &/*right*/,
-                                   Numbering &/*number*/, bool top_level)
+                                   Numbering &/*number*/, bool top_level, 
+                                   TrackableElement **target)
 {
     at_top_level = top_level;
-    //Do it for the notes, too.
-    PostParseProcessNotes(canvas, hide, at_top_level);
+    if (CanBeNoted()) *target = this;
     return this;
 }
 
@@ -628,7 +617,8 @@ string ArcLabelled::Print(int ident) const
 //This assigns a running number to the label and 
 //fills the "compress" member from the style.
 //Strictly to be called by descendants
-ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool /*top_level*/)
+ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                       Numbering &number, bool /*top_level*/, TrackableElement **target)
 {
     if (!valid) return NULL;
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
@@ -641,7 +631,7 @@ ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
             chart->ReferenceNames[refname].number_text = number_text;
         ++number;
     }
-    return ArcBase::PostParseProcess(canvas, hide, left, right, number, at_top_level);
+    return ArcBase::PostParseProcess(canvas, hide, left, right, number, at_top_level, target);
 }
 
 void ArcLabelled::FinalizeLabels(MscCanvas &canvas) 
@@ -750,13 +740,14 @@ string ArcSelfArrow::Print(int ident) const
     return ss;
 };
 
-ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                        Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL;
     if (chart->ErrorIfEntityGrouped(src, (*src)->file_pos)) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
 
     const EIterator substitute = chart->FindActiveParentEntity(src);
     const bool we_disappear = src != substitute; //src is not visible -> we disappear, too
@@ -1018,7 +1009,8 @@ string ArcDirArrow::Print(int ident) const
 #define ARROW_TEXT_VSPACE_ABOVE 1
 #define ARROW_TEXT_VSPACE_BELOW 1
 
-ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                       Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL;
     bool error = false;
@@ -1065,7 +1057,7 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     no_problem:
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
 
     //Save our left and right (as specified by the user)
     const EIterator our_left =  chart->EntityMinByPos(src, dst);
@@ -1451,8 +1443,7 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
     modifyFirstLineSpacing = false;
 }
 
-//This invocation is from ArcBoxSeries::PostParseProcess, so PPP will not be called
-//on this arrow again. (But ArcLabelled::PPP was already called)
+//This invocation is from ArcBoxSeries::PostParseProcess
 ArcBigArrow::ArcBigArrow(const EntityList &el, bool bidir, const ArcLabelled &al,
     const ArcSignature *s)
     : ArcDirArrow(el, bidir, al), sig(s)
@@ -1506,11 +1497,12 @@ string ArcBigArrow::Print(int ident) const
     return ArcDirArrow::Print(ident);
 }
 
-ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+                                       Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL;
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
-    ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, top_level);
+    ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, top_level, target);
     //Finally copy the line attribute to the arrow, as well (arrow.line.* attributes are annulled here)
     style.arrow.line = style.line;
     return ret;
@@ -1886,7 +1878,7 @@ TrackableElement* ArcVerticalArrow::AttachNote(CommandNote *note)
 
 
 ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, bool top_level)
+                                            Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL; 
     //Ignore hide: we show verticals even if they may be hidden
@@ -1925,12 +1917,15 @@ ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EItera
     if (error) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
 
     left = chart->EntityMinByPos(left, pos.entity1);
     right = chart->EntityMaxByPos(right, pos.entity1);
     left = chart->EntityMinByPos(left, pos.entity2);
     right = chart->EntityMaxByPos(right, pos.entity2);
+
+    if (hide) 
+        return NULL;
 
     //Now change entities in vertxPos to point to ActiveEntities
     pos.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity1));
@@ -1958,6 +1953,7 @@ ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EItera
         else
             style.fill.gradient.second = readfrom_right_gardient[style.fill.gradient.second];
     }
+    chart->Verticals.Append(this);
     return this;
 }
 
@@ -2349,8 +2345,9 @@ string ArcBoxSeries::Print(int ident) const
 }
 
 ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                  Numbering &number, bool top_level)
+                                  Numbering &number, bool top_level, TrackableElement **target)
 {
+    ArcBase *ret = this;
     if (collapsed == BOX_COLLAPSE_BLOCKARROW) {
         EntityList el(false);
         //replace us with a block arrow - here we are sure to be alone in the series
@@ -2367,12 +2364,15 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
         el.SortByPosExp();
         if (dir == MSC_DIR_LEFT)
             std::reverse(el.begin(), el.end());
-        ArcBigArrow *ret = new ArcBigArrow(el, dir == MSC_DIR_BIDIR, *this, GetSignature());
-        ret->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
-        ret->CombineNotes(this); //we pass on our notes to the block arrow
-        return ret->PostParseProcess(canvas, hide, left, right, number, top_level);
-    }
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
+        ArcBigArrow *aba = new ArcBigArrow(el, dir == MSC_DIR_BIDIR, *this, GetSignature());
+        aba->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
+        aba->CombineComments(this); //we pass on our notes to the block arrow
+        TrackableElement *const old_target = *target;
+        ret = aba->PostParseProcess(canvas, hide, left, right, number, top_level, target);
+        if (old_target != *target && ret == NULL)
+            *target = DELETE_NOTE;
+    } else 
+        ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
     //Add numbering, if needed
     EIterator left_content = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     EIterator right_content = left_content;
@@ -2384,7 +2384,7 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
             number.decrementOnAddingLevels = true;
         const bool hide_i = hide || (collapsed!=BOX_COLLAPSE_EXPAND);
         chart->PostParseProcessArcList(canvas, hide_i, content, false, 
-                                       left_content, right_content, number, top_level);
+                                       left_content, right_content, number, top_level, target);
         //If we are collapsed, but not hidden and "indicator" attribute is set, 
         //then add an indicator to the end of the list (which will have only elements
         //with zero height here, the rest removed themselves due to hide_i==true
@@ -2408,12 +2408,12 @@ void ArcBox::FinalizeLabels(MscCanvas &canvas)
 }
 
 ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, bool top_level)
+                                        Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid || series.size()==0) return NULL;
     //If first segment is compressed or parallel, copy that to full series
     compress = (*series.begin())->compress;
-//    parallel = (*series.begin())->parallel;
+    //parallel = (*series.begin())->parallel;
 
     ArcBase *ret = this;
     EIterator src, dst;
@@ -2442,7 +2442,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
         }
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
-        ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level); //ret is an arcblockarrow if we need to collapse
+        ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level, target); //ret is an arcblockarrow if we need to collapse
     }
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
@@ -2502,13 +2502,6 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     if (series.size()==1 && (*series.begin())->collapsed == BOX_COLLAPSE_BLOCKARROW) 
         return ret;
     return this;
-}
-
-void ArcBoxSeries::MoveNotesToChart()
-{
-    ArcBase::MoveNotesToChart();
-    for (auto i = series.begin(); i != series.end(); i++) 
-        (*i)->MoveNotesToChart();
 }
 
 void ArcBoxSeries::FinalizeLabels(MscCanvas &canvas)
@@ -2791,7 +2784,6 @@ void ArcBoxSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
 void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
-    if (pass!=draw_pass) return;  //What about note???!!!!
     //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
     const MscStyle &main_style = (*series.begin())->style;
     const double lw = main_style.line.LineWidth();
@@ -2802,10 +2794,11 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
                   yPos + lw/2, yPos+total_height - lw/2); 
     //The radius specified in main_style.line will be that of the midpoint of the line
     //First draw the shadow.
-    canvas.Shadow(r, main_style.line, main_style.shadow);
+    if (pass==draw_pass) 
+        canvas.Shadow(r, main_style.line, main_style.shadow);
     //Do a clip region for the overall box (for round/bevel/note corners)
     //at half a linewidth from the inner edge (use the width of a single line!)
-    canvas.Clip(main_style.line.CreateRectangle_ForFill(r));
+    const Contour clip = main_style.line.CreateRectangle_ForFill(r);
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Overall rule for background fill:
         //for single line borders we fill up to the middle of the border
@@ -2825,17 +2818,21 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
             dy += main_style.line.width.second/2.;
         else
             dy += (*next)->style.line.width.second/2.;
+        canvas.Clip(clip);
         //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
-        canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
+        if (pass==draw_pass) 
+            canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
         //if there are contained entities, draw entity lines, strictly from inside of line
         if ((*i)->content.size()) {
-            chart->DrawArcList(canvas, (*i)->content, BEFORE_ENTITY_LINES);
-            if ((*i)->collapsed==BOX_COLLAPSE_EXPAND && (*i)->drawEntityLines)
+            if (pass==AFTER_ENTITY_LINES && (*i)->drawEntityLines &&
+                (*i)->collapsed==BOX_COLLAPSE_EXPAND)
                 chart->DrawEntityLines(canvas, (*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
-            chart->DrawArcList(canvas, (*i)->content, AFTER_ENTITY_LINES);
-        }
+            canvas.UnClip();
+            chart->DrawArcList(canvas, (*i)->content, pass);
+        } else
+            canvas.UnClip();
     }
-    canvas.UnClip();
+    if (pass!=draw_pass) return;
     //Draw box lines - Cycle only for subsequent boxes
     for (auto i = ++series.begin(); i!=series.end(); i++) {
         const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
@@ -2847,12 +2844,6 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->parsed_label.Draw(canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
-        if ((*i)->content.size()) 
-            chart->DrawArcList(canvas, (*i)->content, DEFAULT);
-        //if (i==follow.begin()) {
-        //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
-        //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
-        //}
     }
     for (auto i = series.begin(); i!=series.end(); i++) 
         if ((*i)->content.size()) 
@@ -3006,17 +2997,17 @@ struct pipe_compare
 };
 
 ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, bool top_level)
+                                        Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL;
 
     //Add numbering, if needed 
     for (auto i = series.begin(); i!=series.end(); i++) 
-        (*i)->PostParseProcess(canvas, hide, left, right, number, top_level);
+        (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
     //Postparse the content;
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
-    chart->PostParseProcessArcList(canvas, hide, content, false, content_left, content_right, number, top_level);
+    chart->PostParseProcessArcList(canvas, hide, content, false, content_left, content_right, number, top_level, target);
 
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
@@ -3221,14 +3212,6 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
                 (*i)->style.solid.second = 0;
     return this;
 }
-
-void ArcPipeSeries::MoveNotesToChart()
-{
-    ArcBase::MoveNotesToChart();
-    for (auto i = series.begin(); i != series.end(); i++) 
-        (*i)->MoveNotesToChart();
-}
-
 
 void ArcPipeSeries::FinalizeLabels(MscCanvas &canvas)
 {
@@ -3639,37 +3622,37 @@ void ArcPipe::DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bo
 void ArcPipeSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
-    if (pass!=draw_pass) return;
     //First shadows
-    for (auto i = series.begin(); i!=series.end(); i++)
-        (*i)->DrawPipe(canvas, false, false, false, true, false, 0, drawing_variant);  //dummy 0
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        //Dont draw the topside fill
-        //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
-        //Draw the backside in any case.
-        //Do not draw text
-        auto i_next = i; i_next++;
-        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
-        (*i)->DrawPipe(canvas, false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
+    if (pass==draw_pass) {
+        for (auto i = series.begin(); i!=series.end(); i++)
+            (*i)->DrawPipe(canvas, false, false, false, true, false, 0, drawing_variant);  //dummy 0
+        for (auto i = series.begin(); i!=series.end(); i++) {
+            //Dont draw the topside fill
+            //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
+            //Draw the backside in any case.
+            //Do not draw text
+            auto i_next = i; i_next++;
+            const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
+            (*i)->DrawPipe(canvas, false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
+        }
     }
     if (content.size()) {
-        chart->DrawArcList(canvas, content, BEFORE_ENTITY_LINES);
-        for (auto i = series.begin(); i!=series.end(); i++) 
-            if ((*i)->drawEntityLines)
-                chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
-        chart->DrawArcList(canvas, content, AFTER_ENTITY_LINES);
-        chart->DrawArcList(canvas, content, DEFAULT);
-        chart->DrawArcList(canvas, content, AFTER_DEFAULT);
+        if (pass==AFTER_ENTITY_LINES)
+            for (auto i = series.begin(); i!=series.end(); i++) 
+                if ((*i)->drawEntityLines)
+                    chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
+        chart->DrawArcList(canvas, content, pass);
     }
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        //Draw the topside fill only if the pipe is not fully transparent.
-        //Draw the topside line in any case
-        //Do not draw the backside (that may content arrow lines already drawn)
-        //Draw the text
-        auto i_next = i; i_next++;
-        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
-        (*i)->DrawPipe(canvas, (*i)->style.solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
-    }
+    if (pass==draw_pass) 
+        for (auto i = series.begin(); i!=series.end(); i++) {
+            //Draw the topside fill only if the pipe is not fully transparent.
+            //Draw the topside line in any case
+            //Do not draw the backside (that may content arrow lines already drawn)
+            //Draw the text
+            auto i_next = i; i_next++;
+            const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
+            (*i)->DrawPipe(canvas, (*i)->style.solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
+        }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -3731,7 +3714,8 @@ bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge, b
     return false;
 }
 
-ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                                      Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL;
     string ss;
@@ -3750,7 +3734,7 @@ ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &l
     }
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
 
     if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER || 
                        type==MSC_COMMAND_TITLE || type==MSC_COMMAND_SUBTITLE)) {
@@ -3895,12 +3879,13 @@ string ArcParallel::Print(int ident) const
     return ss;
 };
 
-ArcBase* ArcParallel::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+ArcBase* ArcParallel::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+                      Numbering &number, bool top_level, TrackableElement **target)
 {
     if (!valid) return NULL;
     at_top_level = top_level;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
-        chart->PostParseProcessArcList(canvas, hide, **i, false, left, right, number, false);
+        chart->PostParseProcessArcList(canvas, hide, **i, false, left, right, number, false, target);
     if (hide) return NULL;
     return this;
 }

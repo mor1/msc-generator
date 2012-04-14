@@ -243,7 +243,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), Notes(true), Comments(false), NoteBlockers(false), 
+    Arcs(true), Verticals(false), Notes(false), Comments(false), NoteBlockers(false), 
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -510,7 +510,6 @@ void Msc::AddArcs(ArcList *a)
 
 CommandEntity *Msc::CEForComments(bool left, const MscStyle &s, const file_line_range &l)
 {
-    ArcBase *save = last_notable_arc;
     const char *ent_str = left ? LNOTE_ENT_STR : RNOTE_ENT_STR;
     EntityDef *ed = new EntityDef(ent_str, this);
     ed->SetLineEnd(l);
@@ -518,7 +517,6 @@ CommandEntity *Msc::CEForComments(bool left, const MscStyle &s, const file_line_
     ed->style += s;
     CommandEntity *ce = new CommandEntity(edl, this, true);
     ce->AddAttributeList(NULL);
-    last_notable_arc = save;
     return ce;
 }
 
@@ -813,7 +811,6 @@ ArcBase *Msc::PopContext()
 
 void Msc::ParseText(const char *input, const char *filename)
 {
-    last_notable_arc = NULL;
     current_file = Error.AddFile(filename);
     if (strlen(input) > std::numeric_limits<unsigned>::max())
         Error.Error(file_line(), "Input text is longer than 4Gbyte. Bailing out.");
@@ -856,7 +853,7 @@ string Msc::Print(int ident) const
 
 void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
-                                  Numbering &number, bool top_level)
+                                  Numbering &number, bool top_level, TrackableElement **target)
 {
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         //Splice in CommandArcList members
@@ -888,19 +885,30 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
             arcs.erase(j);
             //i remains at this very same CommandEntity!
         }
-        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level);
+        TrackableElement * const old_target = *target;
+        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
+        //if the new target is somewhere inside "i" (or is exactly == to "i")
+        //NOTE: *target is never set to NULL, only to DELETE_NOTE or to an Arc
+        if (*target != old_target) {
+            //If we remove an arc that could have been noted, we set the target to DELETE_NOTE, as well
+            if (replace == NULL) 
+                *target = DELETE_NOTE;
+            //if we replace to a different Arc, redirect notes to that
+            else if (replace != (*i))
+                *target = replace;
+        }
         //Do not add an ArcIndicator, if previous thing was also an ArcIndicator on the same entity
         ArcIndicator *ai = dynamic_cast<ArcIndicator*>(replace);
         if (ai && i!=arcs.begin()) {
             ArcIndicator *ai2 = dynamic_cast<ArcIndicator*>(*--ArcList::iterator(i));
             if (ai2 && ai2->Combine(ai)) {
+                if (*target == replace) //redirect note to previous indicator
+                    *target = ai2;
                 delete replace;
                 replace = NULL;
             }
         }
         
-        if (replace) replace->MoveNotesToChart();
-
         if (replace == *i) i++;
         else if (replace != NULL) (*i++) = replace;
         else arcs.erase(i++);
@@ -993,7 +1001,8 @@ void Msc::PostParseProcess(MscCanvas &canvas)
     EIterator dummy1, dummy2;
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
-    PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true);
+    TrackableElement *note_target = NULL;
+    PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true, &note_target);
 }
 
 void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
@@ -1252,21 +1261,14 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
     WidthArcList(canvas, Arcs, distances);
-    //Also call the Width() of floating notes. These will not add distances, but calculate some values
-    for (auto i = Notes.begin(); i!=Notes.end(); i++)
-        (*i)->Width(canvas, distances);
-    //Also call the Width() of side notes. Individual arcs -although responsible for their notes- will not call this
-    for (auto i = Comments.begin(); i!=Comments.end(); i++)
-        (*i)->Width(canvas, distances);
+    distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
+    distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
+    distances.CopyBoxSideToPair(hscaleAutoXGap);
     
     double unit = XCoord(1);
-    const double lnote_size = distances.Query(LNote->index, DISTANCE_LEFT)/unit;
-    const double rnote_size = distances.Query(RNote->index, DISTANCE_RIGHT)/unit;
+    const double lnote_size = distances.Query(NoEntity->index, LNote->index)/unit;
+    const double rnote_size = distances.Query(RNote->index, RNote->index+1)/unit;
     if (GetHScale()<0) {
-        distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
-        distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
-        distances.CopyBoxSideToPair(hscaleAutoXGap);
-
         //Now go through all the pairwise requirements and calc actual pos.
         //dist will hold required distance to the right of entity with index []
         vector<double> dist(ActiveEntities.size(), 0);
@@ -1395,7 +1397,7 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
     PostParseProcess(canvas); 
-    FinalizeLabels(canvas);
+    FinalizeLabelsArcList(Arcs, canvas);
 
     //Calculate chart size
     CalculateWidthHeight(canvas);
@@ -1417,12 +1419,6 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs, -1);
-    for (auto note = Notes.begin(); note!=Notes.end(); note++) {
-        (*note)->PostPosProcess(canvas, -1);
-    }
-    for (auto note = Comments.begin(); note!=Comments.end(); note++) {
-        (*note)->PostPosProcess(canvas, -1);
-    }
     Error.Sort();
 }
 
@@ -1430,8 +1426,6 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 void Msc::DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass)
 {
     DrawArcList(canvas, Arcs, pass);
-    DrawArcList(canvas, Notes, pass);
-    DrawArcList(canvas, Comments, pass);
 }
 
 //page is 0 for all, 1..n for individual pages
