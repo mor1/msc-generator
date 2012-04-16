@@ -147,7 +147,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
     CHAR_IF_CSH(MscArcType)        arctype;
     CHAR_IF_CSH(EntityDef)        *entity;
-    CHAR_IF_CSH(EntityDefList)    *entitylist;
+    CHAR_IF_CSH(EntityDefHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
     CHAR_IF_CSH(AttributeList)    *attriblist;
     CHAR_IF_CSH(VertXPos)         *vertxpos;
@@ -432,7 +432,7 @@ arclist_maybe_no_semicolon : arclist
   #ifdef C_S_H_IS_COMPILED
     csh.AddCSH_ErrorAfter(@1, "Missing a semicolon (';').");
   #else
-    if ($1) 
+    if ($1)
         $$ = (new ArcList)->Append($1); /* New list */
     else
         $$ = new ArcList;
@@ -445,7 +445,7 @@ arclist_maybe_no_semicolon : arclist
 arclist:    arc_with_parallel_semicolon
 {
   #ifndef C_S_H_IS_COMPILED
-    if ($1) 
+    if ($1)
         $$ = (new ArcList)->Append($1); /* New list */
     else
         $$ = new ArcList;
@@ -692,8 +692,9 @@ arc:           arcrel
     csh.AddCSH(@2, COLOR_COMMA);
     csh.CheckEntityHintAtAndBefore(@2, @3);
   #else
-    CommandEntity *ce = new CommandEntity(($3)->Prepend($1), &msc, false);
-	delete ($1);
+    ($3)->Prepend($1);
+    CommandEntity *ce = new CommandEntity($3, &msc, false);
+    delete ($1);
     $$ = ce->AddAttributeList(NULL);
   #endif
 }
@@ -708,7 +709,7 @@ arc:           arcrel
   #else
     CommandEntity *ce = new CommandEntity($2, &msc, false);
     ce->AddAttributeList(NULL);
-	$$ = ce->ApplyPrefix($1);
+    $$ = ce->ApplyPrefix($1);
     msc.Error.Error(MSC_POS(@3).end.NextChar(), "Missing an entity.");
   #endif
     free($1);
@@ -721,8 +722,9 @@ arc:           arcrel
     csh.CheckEntityHintAtAndBeforePlusOne(@1, @2);
     csh.CheckEntityHintAtAndBefore(@3, @4);
   #else
-    CommandEntity *ce = new CommandEntity(($4)->Prepend($2), &msc, false);
-	delete ($2);
+    ($4)->Prepend($2);
+    CommandEntity *ce = new CommandEntity($4, &msc, false);
+    delete ($2);
     ce->AddAttributeList(NULL);
     $$ = ce->ApplyPrefix($1);
   #endif
@@ -1328,7 +1330,7 @@ opt:         entity_string TOK_EQUAL TOK_BOOLEAN
 entitylist:   entity
 {
   #ifndef C_S_H_IS_COMPILED
-    $$ = (EntityDefList*)($1);
+    $$ = ($1);
   #endif
 }
             | entitylist TOK_COMMA entity
@@ -1337,8 +1339,9 @@ entitylist:   entity
     csh.AddCSH(@2, COLOR_COMMA);
     csh.CheckEntityHintAtAndBefore(@2, @3);
   #else
-    $$ = (EntityDefList*)(($1)->Append($3));
-	delete ($3);
+    ($3)->Prepend($1);
+    $$ = $3;
+    delete ($1);
   #endif
 }
             | entitylist TOK_COMMA
@@ -1347,7 +1350,7 @@ entitylist:   entity
     csh.AddCSH(@2, COLOR_COMMA);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
-    $$ = (EntityDefList*)($1);
+    $$ = ($1);
     msc.Error.Error(MSC_POS(@2).end.NextChar(), "Expecting an entity here.");
   #endif
 }
@@ -1514,12 +1517,12 @@ styledef : tok_stringlist full_arcattrlist
         if (problem.size()==0) continue;
         string msg;
         if (problem.size()==1) {
-            if (had_generic) 
+            if (had_generic)
                 msg = "Attribute '" + (*a)->name + "' is not applicable to styles. Ignoring it.";
             else
                 msg = "Attribute '" + (*a)->name + "' is not applicable to style '" + *problem.begin() + "'. Ignoring it.";
         } else if (problem.size() == ($2)->size()) {
-            if (had_generic) 
+            if (had_generic)
                 msg = "Attribute '" + (*a)->name + "' is not applicable to styles. Ignoring it.";
             else
                 msg = "Attribute '" + (*a)->name + "' is not applicable to any of these styles. Ignoring it.";
@@ -2879,6 +2882,11 @@ symbol_command_no_attr: TOK_COMMAND_SYMBOL symbol_type_string markerrel_no_strin
 };
 
 symbol_command: symbol_command_no_attr
+{
+  #ifndef C_S_H_IS_COMPILED
+    $$ = ($1)->AddAttributeList(NULL);
+  #endif
+}
                 | symbol_command_no_attr full_arcattrlist_with_label
 {
   #ifdef C_S_H_IS_COMPILED
@@ -2967,7 +2975,7 @@ comment:            TOK_COMMAND_COMMENT full_arcattrlist_with_label
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         CommandNote::AttributeValues(csh.hintAttrName, csh, false);
   #else
-    $$ = new CommandNote(&msc, false); 
+    $$ = new CommandNote(&msc, false);
     ($$)->AddAttributeList($2);
   #endif
     free($1);

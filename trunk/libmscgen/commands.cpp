@@ -33,12 +33,18 @@ string ArcCommand::Print(int ident) const
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandEntity::CommandEntity(EntityDefList *e, Msc *msc, bool in)
-    : ArcCommand(MSC_COMMAND_ENTITY, msc), internally_defined(in)
+CommandEntity::CommandEntity(EntityDefHelper *e, Msc *msc, bool in)
+    : ArcCommand(MSC_COMMAND_ENTITY, msc), 
+    tmp_stored_notes(true), internally_defined(in)
+    //tmp_stored_notes is responsible for its content - if the CommandEntity is
+    //destroyed during parse, these notes must also get deleted
 {
     full_heading = (e==NULL);
     if (e) {
-        entities.splice(entities.end(), *e);
+        entities.splice(entities.end(), e->entities);
+        tmp_stored_notes.splice(tmp_stored_notes.end(), e->notes);
+        tmp_stored_note_targets.splice(tmp_stored_note_targets.end(), e->note_targets);
+        target_entity = e->target;
         delete e;
     }
 }
@@ -66,6 +72,44 @@ void CommandEntity::AttachComment(CommandNote *cn)
     (*entities.rbegin())->AttachComment(cn);
 }
 
+//This takes ownership of the note and stores it temporarily.
+//We also store what is the name of the entity the note is made to.
+//You can store notes before CommandEntity::PostParseProcess.
+//These will be removed in Msc::PostParseProcessArcList, and will be
+//inserted into the arc list after the commandEntity
+void CommandEntity::TmpStoreNote(CommandNote *cn) 
+{
+    tmp_stored_note_targets.push_back(target_entity);
+    tmp_stored_notes.Append(cn);
+}
+
+void CommandEntity::ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator after)
+{
+    _ASSERT(tmp_stored_notes.size() == tmp_stored_note_targets.size());
+    _ASSERT(entities.size()); //After PostParseProcess, we must have entities even if a heading command
+    after++;  // list::insert insterts _before_ the given iterator
+    while (tmp_stored_notes.size()) {
+        bool was = false;
+        const string target_name = tmp_stored_note_targets.begin()->length() 
+                                      ? *tmp_stored_note_targets.begin() 
+                                      : target_entity;
+        for (auto i=entities.begin(); i!=entities.end(); i++)
+            if ((*i)->name == target_name) {
+                was = true; //OK, we found the entitydef of this name
+                if (chart->FindActiveParentEntity((*i)->itr) == (*i)->itr) {
+                    //OK, it is not hidden - set target of note and reinsert it into ArcList
+                    (*tmp_stored_notes.begin())->SetTarget(*i);  
+                    list.insert(after, *tmp_stored_notes.begin());
+                }
+                break;
+            }
+        _ASSERT(was);
+        //if we did not find the entity that means it has been hidden - just drop note/comment
+        tmp_stored_notes.erase(tmp_stored_notes.begin());
+        tmp_stored_note_targets.erase(tmp_stored_note_targets.begin());
+    }
+}
+
 string CommandEntity::Print(int ident) const
 {
     string ss;
@@ -77,8 +121,9 @@ string CommandEntity::Print(int ident) const
     return ss;
 }
 
-//This is called only from "Combine" and Msc::PostParseProcess(), so definitely
-//After AddAttrLits and before PostParseProcess, so here are the members
+//This is called only from "Combine" and Msc::PostParseProcess() 
+//(for autogen entities), so definitely
+//after AddAttrLits and before PostParseProcess, so here are the members
 //with comments on how to merge a later entityDef into a former one.
 //name                 //This is const, shall be the same
 //label;               //This can only be set once: keep the former
@@ -124,6 +169,10 @@ void CommandEntity::Combine(CommandEntity *ce)
     if (ce->full_heading) full_heading = true;
     AppendToEntities(ce->entities);
     ce->entities.clear();
+    //move potential notes, as well
+    tmp_stored_notes.splice(tmp_stored_notes.end(), ce->tmp_stored_notes);
+    tmp_stored_note_targets.splice(tmp_stored_note_targets.end(), ce->tmp_stored_note_targets);
+    target_entity = ce->target_entity;
     CombineComments(ce); //noves notes from 'ce' to us
 }
 
@@ -377,8 +426,9 @@ ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     //8. At last we have all entities among "entities" that will show here/change status or style
     //Go through them and update left, right and the entities' maxwidth
     //Also, PostParseProcess their notes, too
+    //Also, set target to the entity we received in the constructor
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
-        if (!chart->IsVirtualEntity(*(*i_def)->itr))
+        if (target_entity == (*i_def)->name && !internally_defined)
             *target = *i_def;
         if (!(*i_def)->draw_heading) continue;
         const EIterator ei = (*i_def)->itr;
@@ -538,12 +588,12 @@ void CommandEntity::ShiftBy(double y)
     ArcCommand::ShiftBy(y);
 }
 
-void CommandEntity::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void CommandEntity::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
-    ArcCommand::PostPosProcess(canvas, autoMarker);
+    ArcCommand::PostPosProcess(canvas);
     for (auto i = entities.begin(); i!=entities.end(); i++)
-        (*i)->PostPosProcess(canvas, autoMarker);
+        (*i)->PostPosProcess(canvas);
     if (height>0 && !hidden) {
         if (chart->headingSize == 0) chart->headingSize = yPos + height;
         chart->headingSize = std::min(chart->headingSize, yPos + height);
@@ -554,7 +604,7 @@ void CommandEntity::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
     for (auto i = entities.begin(); i!=entities.end(); i++) {
-        if ((*i)->draw_heading && pass!=draw_pass)
+        if ((*i)->draw_heading && pass==draw_pass)
             (*i)->Draw(canvas);
     }
 }
@@ -587,7 +637,7 @@ double CommandNewpage::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
     return 0;
 }
 
-void CommandNewpage::PostPosProcess(MscCanvas &/*canvas*/, double)
+void CommandNewpage::PostPosProcess(MscCanvas &/*canvas*/)
 {
     if (!valid) return;
     chart->yPageStart.push_back(yPos);
@@ -606,7 +656,7 @@ double CommandNewBackground::Height(MscCanvas &/*canvas*/, AreaList &, bool refl
     return 0;
 }
 
-void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/, double)
+void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/)
 {
     if (!valid) return;
     chart->Background[yPos] = fill;
@@ -1301,11 +1351,18 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
 
 CommandNote::CommandNote(Msc*msc, bool is_note, const char *pt, const file_line_range &ptm)
     : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles[is_note ? "note" : "comment"]),
-    is_float(is_note), point_toward(pt ? pt : ""), point_toward_pos(ptm),
+    is_float(is_note), target(NULL), point_toward(pt ? pt : ""), point_toward_pos(ptm),
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {
-    draw_pass = NOTE;
+    draw_pass = DRAW_NOTE;
 }
+
+CommandNote::~CommandNote()
+{
+    if (chart)
+        chart->RemoveFromNotes(this);
+}
+
 
 bool CommandNote::AddAttribute(const Attribute &a)
 {
@@ -1365,13 +1422,15 @@ ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
         valid = false;
         return NULL;
     }
-    //Now try to attach to the target
-    target = *note_target;
+    //Now try to attach to the target, if not yet attached (as is the case for comments to entities)
     if (target == NULL) {
-        valid = false;
-        chart->Error.Error(file_pos.start, "This note has no prior element to note on. Ignoring it.",
-            "Every note must follow a visible element which it makes a remark on.");
-        return NULL;
+        target = *note_target;
+        if (target == NULL) {
+            valid = false;
+            chart->Error.Error(file_pos.start, "This note has no prior element to note on. Ignoring it.",
+                "Every note must follow a visible element which it makes a remark on.");
+            return NULL;
+        }
     }
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
     //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
@@ -1384,13 +1443,13 @@ ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
         chart->Notes.Append(this);
     } else {
         target->AttachComment(this);
-        chart->Comments.Append(this);
     }
     return ret;
 }
 
 void CommandNote::FinalizeLabels(MscCanvas &canvas)
 {
+    if (!valid) return;
     const ArcLabelled *al = dynamic_cast<const ArcLabelled*>(target);
     if (al) {
         numberingStyle = al->numberingStyle;
@@ -1403,6 +1462,7 @@ void CommandNote::FinalizeLabels(MscCanvas &canvas)
 
 void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
+    if (!valid) return;
     //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
     if (is_float) {
         halfsize = parsed_label.getTextWidthHeight()/2 + XY(style.line.LineWidth(), style.line.LineWidth());
@@ -1414,6 +1474,14 @@ void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
         else if (style.side.second == SIDE_RIGHT)
             distances.Insert(chart->RNote->index, DISTANCE_RIGHT, w);
     }
+}
+
+double CommandNote::Height(MscCanvas &canvas, AreaList &cover, bool reflow) 
+{
+    if (!valid) return 0;
+    if (!is_float && !reflow)  //Only comments, notes will be placed later
+        chart->NoteBlockers.Append(this); 
+    return height = 0;
 }
 
 Contour CommandNote::CoverBody(MscCanvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
@@ -1779,9 +1847,10 @@ bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
     return true;
 }
 
-
+//This is called for notes from Msc::CompleteParse, just before PostPosProcess
 void CommandNote::PlaceFloating(MscCanvas &canvas)
 {
+   if (!valid) return;
     _ASSERT(is_float);
     const unsigned region_distances = 3;
     static const unsigned distances_search_order[region_distances] = {1, 0, 2};
@@ -2146,6 +2215,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         halfsize.y -= style.line.LineWidth()/2;
         area = CoverAll(canvas, best_pointto, best_center);
         area_important = area;
+        chart->NoteBlockers.Append(this);
     } else {
         //Not successful
         chart->Error.Error(file_pos.start, "Could not place this note.");
@@ -2154,8 +2224,10 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 }
 
 //return height, but place to "y" (below other notes)
+//This is called from Height() of the target for comments
 void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
 {
+   if (!valid) return;
     _ASSERT(!is_float);
     yPos = y;
     if (style.side.second == SIDE_LEFT)

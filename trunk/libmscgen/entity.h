@@ -60,6 +60,7 @@ public:
     EntityStatusMap  status;   // contains vertical line status & type & color
     MscStyle         running_style;  //Used during PostParse process to make EntityDef::style's fully specified
     EEntityStatus    running_shown;  //Used during Height process to see if it is shown
+    DrawPassType     running_draw_pass; /* Gives the running Z-order position of this arc */
     double           maxwidth;       //Used during PostParse process to collect the maximum width of the entity
 
     string           parent_name;    //tells if we are part of an entity group
@@ -120,6 +121,16 @@ typedef PtrList<ArcBase> ArcList;
 class EntityDef;
 typedef PtrList<EntityDef> EntityDefList;
 
+struct EntityDefHelper
+{
+    std::string            target;       //use this as target for a subsequent note
+    EntityDefList          entities;
+    PtrList<CommandNote>   notes;        //these two have same size
+    std::list<std::string> note_targets; //and elements correspond to each other
+    //Default constructor will make notes & entities responsible
+    EntityDefHelper *Prepend(EntityDefHelper*edh) {if (edh) {entities.Prepend(&edh->entities); notes.Prepend(&edh->notes); note_targets.splice(note_targets.begin(), edh->note_targets);} return this;} //leave "target" as that of the latter edh
+};
+
 /* Class allocated during parse */
 //Each occurrence of an entity in an enity command allocates an EntityDef.
 //In contrast, there is only one Entity object per entity
@@ -151,7 +162,7 @@ public:
     explicit EntityDef(const char *s, Msc* chart);
 
     virtual bool AddAttribute(const Attribute&);
-    EntityDefList* AddAttributeList(AttributeList *, const ArcList *children, file_line l);
+    EntityDefHelper* AddAttributeList(AttributeList *, ArcList *children, file_line l);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual string Print(int ident=0) const;
@@ -161,7 +172,7 @@ public:
     Range Height(Area &cover, const EntityDefList &edl);
     void AddAreaImportantWhenNotShowing();
     void ShiftBy(double y) {TrackableElement::ShiftBy(y); outer_edge.Shift(XY(0,y));}
-    virtual void PostPosProcess(MscCanvas &, double);
+    virtual void PostPosProcess(MscCanvas &);
     void Draw(MscCanvas &);
 };
 

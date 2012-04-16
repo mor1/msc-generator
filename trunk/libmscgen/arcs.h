@@ -102,7 +102,6 @@ protected:
     bool         at_top_level; /* if at top level by PostParseProcess() */
     bool         compress;     /* if compress mechanism is on for this arc */
     bool         parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
-    DrawPassType draw_pass;    /* Gives the Z-order position of this arc */
     string         refname;    /* given by the "refname" attribute, to reference numbers & others*/
     mutable double height;     /* calculated by Height() and Reflow() */
 public:
@@ -145,8 +144,10 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y);}}
+    /* Goes through the tree to place verticals. All height & pos info final by now, except on verticals & notes */
+    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker) {}
     /* This goes through the tree once more for drawing warnings that need height. */
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     /* This will actually draw the arc */
     virtual void Draw(MscCanvas &canvas, DrawPassType pass) = 0;
 };
@@ -200,7 +201,7 @@ public:
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     const string &GetNumberText() const {return number_text;}
     virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void PostPosProcess(MscCanvas &canvas, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
 };
 
 class ArcArrow : public ArcLabelled
@@ -237,7 +238,7 @@ public:
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
-    virtual void PostPosProcess(MscCanvas &canvas, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -284,7 +285,7 @@ public:
     MscArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
     virtual void ShiftBy(double y);
     void CheckSegmentOrder(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -314,7 +315,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -342,7 +343,7 @@ protected:
     string src, dst;   //vertical position
     VertXPos pos;
     double offset; //horizontal position base offset
-    mutable std::vector<double> ypos; //calculate them in PostPosProcess
+    mutable std::vector<double> ypos; //calculate them in PlaceVerticals
     mutable double sy_text, dy_text;
     mutable double xpos, width;
     mutable std::vector<Contour> outer_contours;
@@ -361,7 +362,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -421,7 +423,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -479,7 +482,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -508,7 +512,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 
@@ -529,7 +533,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
 

@@ -78,11 +78,8 @@ class PtrList : public std::list<Object*>
             {if (o) push_front(o); return this;}
         PtrList *Prepend(PtrList<Object> *l)
 	        {if (l) {_ASSERT(responsible==l->responsible); splice(std::list<Object*>::begin(), *l);} return this;}        
-		~PtrList()
-            {typename std::list<Object*>::iterator i=std::list<Object*>::begin();
-             if (responsible)
-                 while (i!=std::list<Object*>::end())
-                    delete *(i++);}
+        void Empty() {if (responsible) for (auto i=this->begin(); i!=this->end(); i++) delete(*i); this->clear();}
+		~PtrList() {Empty();}
         string Print(int ident=0) const
             {typename std::list<Object*>::const_iterator i = std::list<Object*>::begin();
              string s;;

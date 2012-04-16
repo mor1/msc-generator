@@ -103,6 +103,9 @@
        notes have been placed. Elements containing ArcLists must prepare that the height of those
        will change. The task is otherwise the same as for Height(): fill in internal values,
        return height and cover. Before calling reflow, the element have been ShiftBy'ed back to 0.
+    9. PlaceVerticals: By now all positions and height values are final, except for notes & verticals. 
+       (Comments are also placed with their target.) We go through the tree and calculate position & cover for
+       verticals. This is needed as a separate run, just to do it before placing notes.
     
     <here we place floating notes in Msc::PlaceFloatingNotes>
 
@@ -138,7 +141,7 @@ template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
     TrackableElement(msc), valid(true), compress(false), parallel(false),
-    draw_pass(DEFAULT), type(t)
+    type(t)
 {
     if (msc) 
         compress = msc->Contexts.back().compress.second;
@@ -166,11 +169,6 @@ ArcBase* ArcBase::AddAttributeList(AttributeList *l)
     return this;
 }
 
-template<> const char EnumEncapsulator<ArcBase::DrawPassType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
-     "note", "after_note", ""};
-
-
 bool ArcBase::AddAttribute(const Attribute &a)
 {
     //In case of ArcLabelled this will not be called, for a compress attribute.
@@ -189,12 +187,6 @@ bool ArcBase::AddAttribute(const Attribute &a)
         parallel = a.yes;
         return true;
     }
-    if (a.Is("draw_time")) {
-        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
-        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
-        return true;
-    }
     if (a.Is("refname")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         auto i = chart->ReferenceNames.find(a.value);
@@ -207,15 +199,15 @@ bool ArcBase::AddAttribute(const Attribute &a)
         chart->Error.Error(i->second.linenum, a.linenum_value.start, "This is the location of the previous assignment.");
         return true;
     }
-    return false;
+    return TrackableElement::AddAttribute(a);
 }
 
 void ArcBase::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", HINT_ATTR_NAME));
+    TrackableElement::AttributeNames(csh);
 }
 
 bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
@@ -226,13 +218,9 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
         return true;
     }
-    if (CaseInsensitiveEqual(attr,"draw_time")) {
-        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE);
-        return true;
-    }
     if (CaseInsensitiveEqual(attr,"refname")) 
         return true;
+    if (TrackableElement::AttributeValues(attr, csh)) return true;
     return false;
 }
 
@@ -275,11 +263,11 @@ double ArcBase::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 }
 
 
-void ArcBase::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcBase::PostPosProcess(MscCanvas &canvas)
 {
     _ASSERT(had_add_attr_list);
     if (valid) 
-        TrackableElement::PostPosProcess(canvas, autoMarker); //also adds "this" to chart->AllArcs
+        TrackableElement::PostPosProcess(canvas); //also adds "this" to chart->AllArcs
     else if (!file_pos.IsInvalid())
         chart->AllArcs[file_pos] = this; //Do this even if we are invalid
 }
@@ -661,7 +649,7 @@ void ArcLabelled::FinalizeLabels(MscCanvas &canvas)
     parsed_label.Set(label, canvas, style.text);
 }
 
-void ArcLabelled::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcLabelled::PostPosProcess(MscCanvas &canvas)
 {
 	//If there is a vline or vfill in the current style, add that to entitylines
     if ((style.f_vline &&(style.vline.width.first || style.vline.type.first || style.vline.color.first)) ||
@@ -673,7 +661,7 @@ void ArcLabelled::PostPosProcess(MscCanvas &canvas, double autoMarker)
             if (!chart->IsVirtualEntity(*i))
                 (*i)->status.ApplyStyle(area.GetBoundingBox().y, toadd);
 	}
-    ArcBase::PostPosProcess(canvas, autoMarker);
+    ArcBase::PostPosProcess(canvas);
 }
 
 /////////////////////////////////////////////////////
@@ -816,10 +804,10 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     return std::max(height, NoteHeight(canvas, cover));
 }
 
-void ArcSelfArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcSelfArrow::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(canvas, autoMarker);
+    ArcArrow::PostPosProcess(canvas);
 
     //Check if the entity involved is actually turned on.
     if (!(*src)->status.GetStatus(yPos).IsOn()) {
@@ -1371,10 +1359,10 @@ void ArcDirArrow::CheckSegmentOrder(double y)
 }
 
 
-void ArcDirArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcDirArrow::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(canvas, autoMarker);
+    ArcArrow::PostPosProcess(canvas);
     CheckSegmentOrder(yPos+centerline);
     //Exclude the areas covered by the text from entity lines
     chart->HideEntityLines(text_cover);
@@ -1678,7 +1666,7 @@ void ArcBigArrow::ShiftBy(double y)
     ArcDirArrow::ShiftBy(y); //This shifts clip_area, too, but that shall be empty anyway
 }
 
-void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcBigArrow::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
     CheckSegmentOrder(yPos + centerline);
@@ -1687,7 +1675,7 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
         controls.push_back(MSC_CONTROL_EXPAND);        
         controls.push_back(MSC_CONTROL_COLLAPSE);        
     }
-    ArcArrow::PostPosProcess(canvas, autoMarker); //Skip ArcDirArrow
+    ArcArrow::PostPosProcess(canvas); //Skip ArcDirArrow
     const XY c(sx, yPos+centerline);
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++) {
         Contour tmp(*i);
@@ -1953,7 +1941,6 @@ ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EItera
         else
             style.fill.gradient.second = readfrom_right_gardient[style.fill.gradient.second];
     }
-    chart->Verticals.Append(this);
     return this;
 }
 
@@ -2010,12 +1997,9 @@ void ArcVerticalArrow::ShiftBy(double y)
     yPos += y;
 }
 
-void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcVerticalArrow::PlaceVerticals(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(canvas, autoMarker);
-	//area is empty here, so we will have to add our stuff to chart->AllCovers later in this function
-
     //Here we are sure markers are OK
     //all below are integers. yPos is such, in general. "Markers" are yPos of the markers
     if (src == MARKER_HERE_STR)
@@ -2108,8 +2092,14 @@ void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
     area.SwapXY();
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
         i->SwapXY();
+    chart->NoteBlockers.Append(this);
+}
+
+void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas)
+{
+    if (!valid) return;
     //Expand area and add us to chart's all covers list
-    ArcArrow::PostPosProcess(canvas, autoMarker);
+    ArcArrow::PostPosProcess(canvas);
 }
 
 
@@ -2424,7 +2414,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
                                "Attribute 'parallel' can only be specified in the first "
                                "element in a box series. Ignoring it in subsequent ones.");
         }
-        if (i!=series.begin() && (*i)->draw_pass!=DEFAULT) {
+        if (i!=series.begin() && (*i)->draw_pass!=DRAW_DEFAULT) {
             chart->Error.Error((*i)->file_pos.start,
                                "Attribute 'draw_time' can only be specified in the first "
                                "element in a box series. Ignoring it in subsequent ones.");
@@ -2726,7 +2716,15 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcBoxSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcBoxSeries::PlaceVerticals(MscCanvas &canvas, double autoMarker)
+{
+    for (auto i = series.begin(); i!=series.end(); i++)
+        if ((*i)->valid && (*i)->content.size()) 
+            chart->PlaceVerticalsArcList(canvas, (*i)->content, autoMarker);
+}
+
+
+void ArcBoxSeries::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
     //For boxes we always add the background cover first then the content
@@ -2750,9 +2748,9 @@ void ArcBoxSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
                     _ASSERT(0); //should not happen here
                     break;
                 }
-            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
+            (*i)->ArcLabelled::PostPosProcess(canvas);
             if ((*i)->content.size()) 
-                chart->PostPosProcessArcList(canvas, (*i)->content, autoMarker);
+                chart->PostPosProcessArcList(canvas, (*i)->content);
         }
 
     //Hide entity lines during the lines inside the box
@@ -2845,9 +2843,6 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->parsed_label.Draw(canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
     }
-    for (auto i = series.begin(); i!=series.end(); i++) 
-        if ((*i)->content.size()) 
-            chart->DrawArcList(canvas, (*i)->content, AFTER_DEFAULT);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -3077,7 +3072,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
                         chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previousl one. It may not look so good.",
                         "Encapsulate one in the other if you want that effect.");
                 }
-                if (i!=series.begin() && (*i)->draw_pass!=DEFAULT) {
+                if (i!=series.begin() && (*i)->draw_pass!=DRAW_DEFAULT) {
                     chart->Error.Error((*i)->file_pos.start,
                         "Attribute 'draw_time' can only be specified in the first "
                         "element in a pipe series. Ignoring it in subsequent ones.");
@@ -3519,7 +3514,13 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcPipeSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcPipeSeries::PlaceVerticals(MscCanvas &canvas, double autoMarker)
+{
+    if (content.size())
+        chart->PlaceVerticalsArcList(canvas, content, autoMarker);
+}
+
+void ArcPipeSeries::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
     //For pipes we first add those covers to chart->AllCovers that are not fully opaque,
@@ -3528,12 +3529,12 @@ void ArcPipeSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
     //(this is because search is backwards and this arrangement fits the visual best
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.solid.second < 255)
-            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
+            (*i)->ArcLabelled::PostPosProcess(canvas);
     if (content.size())
-        chart->PostPosProcessArcList(canvas, content, autoMarker);
+        chart->PostPosProcessArcList(canvas, content);
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.solid.second == 255)
-            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
+            (*i)->ArcLabelled::PostPosProcess(canvas);
     for (auto i = series.begin(); i!=series.end(); i++)
         chart->HideEntityLines((*i)->pipe_shadow);
 }
@@ -3637,7 +3638,7 @@ void ArcPipeSeries::Draw(MscCanvas &canvas, DrawPassType pass)
         }
     }
     if (content.size()) {
-        if (pass==AFTER_ENTITY_LINES)
+        if (pass==DRAW_AFTER_ENTITY_LINES)
             for (auto i = series.begin(); i!=series.end(); i++) 
                 if ((*i)->drawEntityLines)
                     chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
@@ -3818,12 +3819,12 @@ void ArcDivider::ShiftBy(double y)
     ArcLabelled::ShiftBy(y);
 }
 
-void ArcDivider::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcDivider::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
     if (!nudge)
         chart->HideEntityLines(text_cover);
-    ArcLabelled::PostPosProcess(canvas, autoMarker);
+    ArcLabelled::PostPosProcess(canvas);
 }
 
 void ArcDivider::Draw(MscCanvas &canvas, DrawPassType pass)
@@ -3935,15 +3936,22 @@ void ArcParallel::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcParallel::PostPosProcess(MscCanvas &canvas, double autoMarker)
+void ArcParallel::PlaceVerticals(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcBase::PostPosProcess(canvas, autoMarker);
     int n=0;
     //For automarker, give the bottom of the largest of previous blocks
     for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PostPosProcessArcList(canvas, *(*i),
+        chart->PlaceVerticalsArcList(canvas, *(*i),
             n>0 && heights[n-1]>0 ? yPos + heights[n-1] : autoMarker);
+}
+
+void ArcParallel::PostPosProcess(MscCanvas &canvas)
+{
+    if (!valid) return;
+    ArcBase::PostPosProcess(canvas);
+    for (auto i=blocks.begin(); i!=blocks.end(); i++)
+        chart->PostPosProcessArcList(canvas, *(*i));
 }
 
 void ArcParallel::Draw(MscCanvas &canvas, DrawPassType pass)

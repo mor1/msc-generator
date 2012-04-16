@@ -243,7 +243,7 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), Verticals(false), Notes(false), Comments(false), NoteBlockers(false), 
+    Arcs(true), Notes(false), NoteBlockers(false), 
     total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
@@ -301,6 +301,12 @@ Msc::Msc() :
     ArcBase *toadd;
     SetDesign(true, "plain", true, &toadd); 
     Arcs.Append(toadd);
+}
+
+Msc::~Msc() 
+{
+    //Proper deletion order
+    Arcs.Empty();    //This must be before Notes, since TrackableElement::~ will use chart->Notes
 }
 
 //return value: 0 not found
@@ -513,9 +519,9 @@ CommandEntity *Msc::CEForComments(bool left, const MscStyle &s, const file_line_
     const char *ent_str = left ? LNOTE_ENT_STR : RNOTE_ENT_STR;
     EntityDef *ed = new EntityDef(ent_str, this);
     ed->SetLineEnd(l);
-    EntityDefList *edl = ed->AddAttributeList(NULL, NULL, file_line());
+    EntityDefHelper *edh = ed->AddAttributeList(NULL, NULL, file_line());
     ed->style += s;
-    CommandEntity *ce = new CommandEntity(edl, this, true);
+    CommandEntity *ce = new CommandEntity(edh, this, true);
     ce->AddAttributeList(NULL);
     return ce;
 }
@@ -855,6 +861,7 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level, TrackableElement **target)
 {
+    if (arcs.size()==0) return;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         //Splice in CommandArcList members
         CommandArcList *al = dynamic_cast<CommandArcList *>(*i);
@@ -867,6 +874,20 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
         } else 
             i++;
     }
+    //If a CommandNote is immediately after an CommandEntity, take it out 
+    //and temporarily store it in the CommandEntity (for re-insertation further below)
+    for (ArcList::iterator i = ++arcs.begin(); i != arcs.end(); /*none*/) {
+        ArcList::iterator prev = i; prev--;
+        CommandEntity *ce = dynamic_cast<CommandEntity *>(*prev);
+        CommandNote *cn = dynamic_cast<CommandNote *>(*i);
+        if (ce == NULL || cn == NULL) {
+            i++;
+            continue;
+        }
+        ce->TmpStoreNote(cn);
+        arcs.erase(i++);
+    }
+
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
@@ -908,10 +929,17 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
                 replace = NULL;
             }
         }
+        //Ok, reinsert temporarily stored notes from commandentities (if any)
+        CommandEntity * const cee = dynamic_cast<CommandEntity *>(replace);
+        if (cee) 
+            cee->ReinsertTmpStoredNotes(arcs, i);
         
         if (replace == *i) i++;
-        else if (replace != NULL) (*i++) = replace;
-        else arcs.erase(i++);
+        else {
+            delete *i;
+            if (replace != NULL) (*i++) = replace;
+            else arcs.erase(i++);
+        }
     }
 }
 
@@ -986,7 +1014,7 @@ void Msc::PostParseProcess(MscCanvas &canvas)
         //Otherwise, generate a new entity command as first arc
         ArcList::iterator i = Arcs.begin();
         if ((*i)->type != MSC_COMMAND_ENTITY) {
-            CommandEntity *ce = new CommandEntity(new EntityDefList, this, false);
+            CommandEntity *ce = new CommandEntity(new EntityDefHelper, this, false);
             ce->AddAttributeList(NULL);
             i = Arcs.insert(i, ce);
         }
@@ -1361,11 +1389,14 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
     drawing.y.from = 0;
     drawing.y.till = total.y;  
-
-    //Finally add side notes to noteblockers
-    for (auto i=Comments.begin(); i!=Comments.end(); i++)
-        NoteBlockers.Append(*i);
 }
+
+void Msc::PlaceVerticalsArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
+{
+    for (auto j = arcs.begin(); j != arcs.end(); j++)
+        (*j)->PlaceVerticals(canvas, autoMarker);
+}
+
 
 void Msc::PlaceFloatingNotes(MscCanvas &canvas)
 {
@@ -1375,15 +1406,10 @@ void Msc::PlaceFloatingNotes(MscCanvas &canvas)
 }
 
 
-void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
+void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
-        (*j)->PostPosProcess(canvas, autoMarker);
-    //Delete LSide and RSide actions if there are no side comments
-    if (LNote->pos == LSide->pos) 
-        LSide->status.Reset();
-    if (RNote->pos == RSide->pos) 
-        RSide->status.Reset();
+        (*j)->PostPosProcess(canvas);
 }
 
 void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
@@ -1415,15 +1441,32 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
         //So Errors collected so far are OK even after redoing this
     }
 
+    PlaceVerticalsArcList(canvas, Arcs, -1);
     PlaceFloatingNotes(canvas);
 
     //A final step of prcessing, checking for additional drawing warnings
-    PostPosProcessArcList(canvas, Arcs, -1);
+    PostPosProcessArcList(canvas, Arcs);
+
+    //Sort elements in AllCovers, so that the ones we draw later show up later
+    struct {
+        bool operator()(const Area &a1, const Area &a2) {
+            _ASSERT(a1.arc!=NULL && a2.arc!=NULL);
+            return a1.arc->draw_pass < a2.arc->draw_pass;
+        }
+    } comp;
+    AllCovers.sort(comp);
+
+    //Delete LSide and RSide actions if there are no side comments
+    if (LNote->pos == LSide->pos) 
+        LSide->status.Reset();
+    if (RNote->pos == RSide->pos) 
+        RSide->status.Reset();
+
     Error.Sort();
 }
 
 
-void Msc::DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass)
+void Msc::DrawArcs(MscCanvas &canvas, DrawPassType pass)
 {
     DrawArcList(canvas, Arcs, pass);
 }
@@ -1498,14 +1541,14 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks(canvas);
-    DrawArcs(canvas, ArcBase::BEFORE_ENTITY_LINES);
+    DrawArcs(canvas, DRAW_BEFORE_ENTITY_LINES);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
     DrawEntityLines(canvas, 0, total.y);
-    DrawArcs(canvas, ArcBase::AFTER_ENTITY_LINES);
-    DrawArcs(canvas, ArcBase::DEFAULT);
-    DrawArcs(canvas, ArcBase::AFTER_DEFAULT);
-    DrawArcs(canvas, ArcBase::NOTE);
-    DrawArcs(canvas, ArcBase::AFTER_NOTE);
+    DrawArcs(canvas, DRAW_AFTER_ENTITY_LINES);
+    DrawArcs(canvas, DRAW_DEFAULT);
+    DrawArcs(canvas, DRAW_AFTER_DEFAULT);
+    DrawArcs(canvas, DRAW_NOTE);
+    DrawArcs(canvas, DRAW_AFTER_NOTE);
 
     /* Debug: draw Debug Shapes */
     for (auto i=DebugContours.begin(); i!=DebugContours.end(); i++) {
@@ -1587,3 +1630,16 @@ void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &
     }
 }
 
+void Msc::InvalidateNotesToThisTarget(const TrackableElement *target)
+{
+    for(auto i=Notes.begin(); i!=Notes.end(); i++) 
+        if ((*i)->GetTarget() == target)
+            (*i)->Invalidate();
+}
+
+void Msc::RemoveFromNotes(const CommandNote *note)
+{
+    for(auto i=Notes.begin(); i!=Notes.end(); /*nope*/) 
+        if (*i==note) Notes.erase(i++);
+        else i++;
+}

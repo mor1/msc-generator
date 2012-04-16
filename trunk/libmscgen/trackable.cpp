@@ -25,7 +25,7 @@ using namespace std;
 const Context TrackableElement::defaultDesign(true);
 
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
-    hidden(false), linenum_final(false),  yPos(0),
+    hidden(false), linenum_final(false),  draw_pass(DRAW_DEFAULT), yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
     comments(false),
     indicator_style(m->Contexts.back().styles["indicator"])
@@ -34,9 +34,16 @@ TrackableElement::TrackableElement(Msc *m) : chart(m),
     control_location.MakeInvalid();
 }
 
-//This does not copy notes!!
+TrackableElement::~TrackableElement() 
+{
+    if (chart) 
+        chart->InvalidateNotesToThisTarget(this);
+}
+
+//This does not copy comments
 TrackableElement::TrackableElement(const TrackableElement&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
+    draw_pass(o.draw_pass),
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
     area_important(o.area_important), 
@@ -67,6 +74,37 @@ void TrackableElement::CombineComments(TrackableElement *te)
         comments.splice(comments.end(), te->comments);
 }
 
+template<> const char EnumEncapsulator<DrawPassType>::names[][ENUM_STRING_LEN] =
+    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
+     "note", "after_note", ""};
+
+
+bool TrackableElement::AddAttribute(const Attribute &a)
+{
+    if (a.Is("draw_time")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
+        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
+        return true;
+    }
+    return false;
+}
+
+void TrackableElement::AttributeNames(Csh &csh)
+{
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
+}
+
+bool TrackableElement::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"draw_time")) {
+        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE);
+        return true;
+    }
+    return false;
+}
+
 void TrackableElement::ShiftBy(double y)
 {
     if (y==0) return;
@@ -89,7 +127,7 @@ double TrackableElement::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, do
 }
 
 
-void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/, double)
+void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/)
 {
     if (!area.IsEmpty()&& !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,
