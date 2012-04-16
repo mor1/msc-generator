@@ -16,6 +16,16 @@ typedef enum {
     MSC_CONTROL_ARROW
 } MscControlType;
 
+typedef enum {
+    DRAW_INVALID, 
+    DRAW_BEFORE_ENTITY_LINES, 
+    DRAW_AFTER_ENTITY_LINES, 
+    DRAW_DEFAULT, 
+    DRAW_AFTER_DEFAULT, 
+    DRAW_NOTE, 
+    DRAW_AFTER_NOTE
+} DrawPassType;
+
 class Msc;
 class MscCanvas;
 class CommandNote;
@@ -27,8 +37,7 @@ typedef PtrList<CommandNote> CommandNoteList;
 class TrackableElement {
 public:
     static const Context defaultDesign;
-    typedef enum {INVALID, BEFORE_ENTITY_LINES, AFTER_ENTITY_LINES, DEFAULT, AFTER_DEFAULT, NOTE, AFTER_NOTE} DrawPassType;
-    
+   
 protected:
     static const XY control_size;
     static const XY indicator_size;
@@ -53,12 +62,17 @@ protected:
     XY GetIndiactorSize() const {const double a = indicator_style.shadow.offset.second+indicator_style.line.LineWidth()*2; return indicator_size+XY(a,a);}
 
 public:
+    DrawPassType    draw_pass;          /* Gives the Z-order position of this arc */
     file_line_range file_pos;
     explicit TrackableElement(Msc *m);
     TrackableElement(const TrackableElement&);
+    virtual ~TrackableElement();
     void SetLineEnd(file_line_range l, bool f=true);
     virtual void AttachComment(CommandNote *cn);
     void CombineComments(TrackableElement *); //move comments to us
+    virtual bool AddAttribute(const Attribute &);
+    static void AttributeNames(Csh &csh);
+    static bool AttributeValues(const std::string attr, Csh &csh);
     virtual void ShiftBy(double y);
     const Area &GetAreaToSearch() const   //An area over which if the mouse hoovers, we highlight the element
         {return area;};
@@ -72,7 +86,7 @@ public:
     const Block &GetControlLocation() const {return control_location;}
     double NoteHeight(MscCanvas &canvas, AreaList &cover) {double l=0, r=0; return NoteHeightHelper(canvas, cover, l, r);}
     virtual double NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
-    virtual void PostPosProcess(MscCanvas &, double);
+    virtual void PostPosProcess(MscCanvas &);
 
     void DrawControls(MscCanvas*, double size);
     MscControlType WhichControl(const XY &xy);

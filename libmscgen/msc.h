@@ -179,9 +179,7 @@ public:
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
-    PtrList<ArcVerticalArrow>     Verticals;         //a pointer to all verticals
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
-    CommandNoteList               Comments;         /** a copy to all side notes after PostParseProcess */
     PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
     
     std::list<ContourAttr>        DebugContours;
@@ -235,6 +233,7 @@ public:
     ArcSignatureCatalog   force_box_collapse_instead; //These should be kept from force_box_collapse
 
     Msc();
+    ~Msc();
 
     void AddStandardDesigns(void);
     int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const file_line_range &l = file_line_range(file_line(0,0,0), file_line(0,0,0)));
@@ -287,11 +286,12 @@ public:
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(MscCanvas &canvas);
+    void PlaceVerticalsArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
     void PlaceFloatingNotes(MscCanvas &canvas);
 
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
-    void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
+    void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs);
 
     void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
 
@@ -299,12 +299,15 @@ public:
     void DrawEntityLines(MscCanvas &canvas, double y, double height)
          {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
-    template<typename list> void DrawArcList(MscCanvas &canvas, list &arcs, ArcBase::DrawPassType pass) {for (auto i = arcs.begin();i!=arcs.end(); i++) (*i)->Draw(canvas, pass);}
-    void DrawArcs(MscCanvas &canvas, ArcBase::DrawPassType pass);
+    template<typename list> void DrawArcList(MscCanvas &canvas, list &arcs, DrawPassType pass) {for (auto i = arcs.begin();i!=arcs.end(); i++) (*i)->Draw(canvas, pass);}
+    void DrawArcs(MscCanvas &canvas, DrawPassType pass);
     void Draw(MscCanvas &canvas, bool pageBreaks);
     void DrawCopyrightText(MscCanvas &canvas, unsigned page=0);
     void DrawPageBreaks(MscCanvas &canvas);
     void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &fn, bool bPageBreaks);
+
+    void InvalidateNotesToThisTarget(const TrackableElement *target);
+    void RemoveFromNotes(const CommandNote *note);
 };
 
 

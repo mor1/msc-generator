@@ -217,6 +217,7 @@ bool EntityDef::AddAttribute(const Attribute& a)
         chart->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
         return false;
     }
+    if (TrackableElement::AddAttribute(a)) return true;
     a.InvalidAttrError(chart->Error);
     return false;
 };
@@ -226,7 +227,7 @@ bool EntityDef::AddAttribute(const Attribute& a)
 //Any children are already defined at this point, so we can modify their "parent_name" field
 //"ch" contains an arclist specified after the entity definition in braces: our chlidrens
 //We return an EntityDefList which contains us and our children (if any)
-EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch, file_line l)
+EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, file_line l)
 {
     EIterator i = chart->AllEntities.Find_by_Name(name);
     if (*i != chart->NoEntity) {
@@ -234,9 +235,12 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         show.first = false;
         active.first = false;
         // Leave show_explicit as false
+        //take the entity's draw_pass as default
+        draw_pass = (*i)->running_draw_pass;
     } else {
         //indicate that this EntityDef created the Entity
         defining = true;
+        draw_pass = DRAW_DEFAULT;
     }
 
     // Process attribute list, "style" is empty (emptied in constructor)
@@ -246,22 +250,32 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         delete al;
     }
 
-    //If we have children, add them to "children"
-    EntityDefList *children = new EntityDefList;
+    EntityDefHelper *ret = new EntityDefHelper;
+    //If we have children, add them to "ret->entities"
+    string note_target_name = name;
     if (ch) {
-        for (auto i = ch->begin(); i!=ch->end(); i++) {
-            CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
-            if (ce==NULL || ce->IsFullHeading())
+        for (auto i = ch->begin(); i!=ch->end(); /*nope*/) {
+            CommandEntity * const ce = dynamic_cast<CommandEntity *>(*i);
+            CommandNote * const cn = dynamic_cast<CommandNote *>(*i);
+            if (ce!=NULL && !ce->IsFullHeading()) {
+                ce->MoveMyEntityDefsAfter(ret->entities);  //ce is emptied out of all EntityDefs
+                note_target_name = (*(ret->entities.rbegin()))->name;
+                i++;
+            } else if (cn!=NULL) {
+                ret->notes.Append(cn);
+                ret->note_targets.push_back(note_target_name);
+                ch->erase(i++);
+            } else {
                 chart->Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
-            else
-                ce->MoveMyEntityDefsAfter(children);  //ce is emptied out of all EntityDefs
+                i++;
+            }
         }
         delete ch;
     }
 
     bool make_collapsed = false;
     //Check that we apply certain attributes the right way for grouped entities
-    if (children && children->size()) {
+    if (ret->entities.size()) {
         if (pos.first || rel.first)
             chart->Error.Error(pos.first ? pos.third : rel.third,
                                "The position of grouped entities is derived from its member entities.",
@@ -350,7 +364,7 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
             show.second = show.first = true;
 
         const char *style_name;
-        if (children && children->size()) //we are group entity
+        if (ret->entities.size()) //we are group entity
             style_name = make_collapsed ? "entitygroup_collapsed" : "entitygroup";
         else
             style_name = "entity";
@@ -378,7 +392,8 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
         //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
                                style_to_use, file_pos.start, make_collapsed);
-        e->AddChildrenList(children, chart);  //also fixes positions & updates running_style
+        e->AddChildrenList(&ret->entities, chart);  //also fixes positions & updates running_style
+        e->running_draw_pass = draw_pass;
         //Add to entity list
         chart->AllEntities.Append(e);
     } else {
@@ -413,8 +428,9 @@ EntityDefList* EntityDef::AddAttributeList(AttributeList *al, const ArcList *ch,
     }
 
     //Prepend this entity to the list (list is empty if no children)
-    children->Prepend(this);
-    return children;
+    ret->entities.Prepend(this);
+    ret->target = name;  //if we were a group entity, use us as target for a subsequent note
+    return ret;
 }
 
 
@@ -428,7 +444,7 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
     defaultDesign.styles.GetStyle("entity").AttributeNames(csh);
-
+    TrackableElement::AttributeNames(csh);
 }
 
 bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
@@ -454,6 +470,7 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
+    if (TrackableElement::AttributeValues(attr, csh)) return true;
     if (defaultDesign.styles.GetStyle("entity").AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -511,6 +528,11 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
         outer_edge = Block(x-ceil(width/2), x+ceil(width/2),
                            chart->headingVGapAbove /*- indicator_height*/,
                            height - chart->headingVGapBelow /*-indicator_height*/);
+
+        area = style.line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
+        area_draw.clear();
+        draw_is_different = false;
+        area_draw_is_frame = false;
     } else {
         indicator_ypos_offset = -1;
         outer_edge.x.from = chart->XCoord((*left_ent)->pos) - left_offset;
@@ -522,8 +544,12 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
         }
         outer_edge.y.from = top - chart->headingVGapAbove - ceil(wh.y + lw);
         outer_edge.y.till = bottom + chart->headingVGapBelow + lw;
+
+        area = style.line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
+        area_draw = area.CreateExpand(chart->trackFrameWidth) - area;
+        draw_is_different = true;
+        area_draw_is_frame = true;
     }
-    area = style.line.CreateRectangle_OuterEdge(outer_edge.CreateExpand(-lw/2));
     area.arc = this;
     //Add shadow to outer_edge and place that to cover
     Area my_cover(Block(outer_edge).Shift(XY(style.shadow.offset.second,style.shadow.offset.second)) += outer_edge, this);
@@ -531,6 +557,8 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     cover = std::move(my_cover);
     const Block b = outer_edge.CreateExpand(-lw/2);
     area_important = parsed_label.Cover(b.x.from, b.x.till, b.y.from + lw/2);
+    if (children.size()) 
+        area_draw += area_important;
     chart->NoteBlockers.Append(this);
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
@@ -546,7 +574,7 @@ void EntityDef::AddAreaImportantWhenNotShowing()
 }
 
 
-void EntityDef::PostPosProcess(MscCanvas &canvas, double dummy)
+void EntityDef::PostPosProcess(MscCanvas &canvas)
 {
     if (draw_heading && !hidden) {
         chart->HideEntityLines(outer_edge);
@@ -570,7 +598,7 @@ void EntityDef::PostPosProcess(MscCanvas &canvas, double dummy)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
-    TrackableElement::PostPosProcess(canvas, dummy);
+    TrackableElement::PostPosProcess(canvas);
 }
 
 
