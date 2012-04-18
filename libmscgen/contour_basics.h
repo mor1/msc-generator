@@ -30,6 +30,43 @@ inline bool test_positive(double n) {return n >= SMALL_NUM;}
 template <typename real> real minabs(real a, real b) {return fabs(a)<fabs(b) ? a : b;}
 template <typename real> int fsign(real a) {return a>0 ? +1 : a<0 ? -1 : 0;}
 
+typedef enum {
+    REL_OVERLAP=0, 
+    REL_A_IS_EMPTY, 
+    REL_B_IS_EMPTY, 
+    REL_BOTH_EMPTY, 
+    REL_A_INSIDE_B, 
+    REL_B_INSIDE_A,
+    REL_SAME, 
+    REL_APART, 
+    REL_A_IN_HOLE_OF_B, 
+    REL_B_IN_HOLE_OF_A, 
+    REL_IN_HOLE_APART
+} relation_t;
+
+inline bool result_overlap(relation_t t) {return t==REL_OVERLAP || t==REL_A_INSIDE_B || t==REL_B_INSIDE_A || t==REL_SAME;}
+inline relation_t switch_side(relation_t t)
+{
+    switch (t) {
+    default: _ASSERT(0); //fallthrough
+    case REL_IN_HOLE_APART:
+    case REL_BOTH_EMPTY:
+    case REL_OVERLAP:
+    case REL_APART:
+    case REL_SAME:            return t;
+
+    case REL_A_IS_EMPTY:      return REL_B_IS_EMPTY;
+    case REL_B_IS_EMPTY:      return REL_A_IS_EMPTY;
+    case REL_B_INSIDE_A:      return REL_A_INSIDE_B;
+    case REL_A_INSIDE_B:      return REL_B_INSIDE_A;;
+    case REL_B_IN_HOLE_OF_A:  return REL_A_IN_HOLE_OF_B;
+    case REL_A_IN_HOLE_OF_B:  return REL_B_IN_HOLE_OF_A;
+    }
+}
+
+
+
+
 class XY {
 public:
     double x;
@@ -119,6 +156,14 @@ struct Range {
 
     //Returns negative if inside
     double Distance(double a) const {_ASSERT(!IsInvalid()); return minabs(from-a,a-till);}
+    relation_t RelationTo(const Range &c) const {
+        if (IsInvalid()) return c.IsInvalid() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
+        if (c.IsInvalid()) return REL_B_IS_EMPTY;
+        if (from>=c.till || c.from>=till) return REL_APART;
+        if (from<=c.from && till>=c.till) return REL_B_INSIDE_A;
+        if (c.from<=from && c.till>=till) return REL_A_INSIDE_B;
+        return REL_OVERLAP;
+    }
 };
 
 struct Block {
@@ -186,6 +231,14 @@ struct Block {
     double Distance(const XY &xy) const;
     double Distance(const Block &b) const;
     Range Cut(const XY &A, const XY &B) const;
+    relation_t RelationTo(const Block &c) const {
+        if (IsInvalid()) return c.IsInvalid() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
+        if (c.IsInvalid()) return REL_B_IS_EMPTY;
+        const relation_t rx = x.RelationTo(c.x), ry = y.RelationTo(c.y);
+        if (rx == ry) return rx;
+        if (rx == REL_APART || ry == REL_APART) return REL_APART;
+        return REL_OVERLAP;
+    }
 };
 
 inline double Block::Distance(const XY &xy) const 

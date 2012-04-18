@@ -151,20 +151,16 @@ class Contour;
 class SimpleContour
 {
     friend class Contour;
-protected:
-    typedef enum {OVERLAP=0, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A,
-                  SAME, APART, A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART} result_t;
-    static bool result_overlap(result_t t) {return t==OVERLAP || t==A_INSIDE_B || t==B_INSIDE_A || t==SAME;}
-    static result_t switch_side(result_t t);
-    std::vector<Edge> edges;
 public:
     typedef std::vector<Edge>::size_type size_type;
+protected:
+    std::vector<Edge> edges;
 private:
     Block  boundingBox;
     bool   clockwise;
     mutable std::pair<bool, double> area_cache;
 
-    result_t CheckContainmentHelper(const SimpleContour &b) const;
+    relation_t CheckContainmentHelper(const SimpleContour &b) const;
     double do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
     const Block &CalculateBoundingBox();
@@ -217,7 +213,7 @@ protected:
     bool AddAnEdge(const Edge &edge);
     void Invert();
 
-    result_t CheckContainment(const SimpleContour &b) const;
+    relation_t CheckContainment(const SimpleContour &b) const;
 
     is_within_t IsWithin(XY p, size_type *edge=NULL, double *pos=NULL, bool strict=true) const;
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (size_type i=0; i<size(); i++) at(i).Shift(xy);}
@@ -227,7 +223,7 @@ protected:
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
 
     static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
-    result_t RelationTo(const SimpleContour &c) const;
+    relation_t RelationTo(const SimpleContour &c) const;
 public:
     bool operator < (const SimpleContour &b) const;
     bool operator ==(const SimpleContour &b) const;
@@ -269,7 +265,8 @@ public:
     void Distance(const SimpleContour &o, DistanceType &ret) const;
     double Distance(const XY &o, XY &ret) const;
     double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
-    Range Cut(const XY &A, const XY &B) const;
+    Range Cut(const Edge &e) const;
+    Range CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const;
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const;

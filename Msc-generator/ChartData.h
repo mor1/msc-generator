@@ -106,6 +106,7 @@ public:
 //Drawing related
 	unsigned GetPages() const;
 	CSize GetSize(bool force_page=false, unsigned forced_page=0) const;
+    const Block &GetMscTotal() const;
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
     double GetHeadingSize() const;

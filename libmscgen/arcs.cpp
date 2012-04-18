@@ -2089,7 +2089,11 @@ void ArcVerticalArrow::PlaceVerticals(MscCanvas &canvas, double autoMarker)
     //use inverse of forward, swapXY will do the job
     area = style.arrow.BigContour(ypos, act_size, xpos-width/2, xpos+width/2, 
                                   forward, isBidir(), NULL, outer_contours);
+    area.arc = this;
     area.SwapXY();
+    area_important = parsed_label.Cover(min(sy_text, dy_text), max(sy_text, dy_text),
+                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside);
+    area_important.SwapXY();
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
         i->SwapXY();
     chart->NoteBlockers.Append(this);
@@ -2116,12 +2120,9 @@ void ArcVerticalArrow::Draw(MscCanvas &canvas, DrawPassType pass)
         canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
     else
         canvas.Transform_Rotate90(ypos[0], ypos[1], true);
-    const Contour lab = parsed_label.Cover(ypos[0], ypos[1],
-                                        xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
-                                        -1, true);
     //We skip BigDrawEmptyMid. as there can not be mid-stops
     parsed_label.Draw(canvas, min(sy_text, dy_text), max(sy_text, dy_text),
-                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);
+                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -CONTOUR_INFINITY, true);
     canvas.UnTransform();
 }
 

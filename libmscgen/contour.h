@@ -31,8 +31,8 @@ class ContourList : protected std::list<ContourWithHoles>
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
 
-    SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
-    SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const;
+    relation_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
+    relation_t RelationTo(const ContourList &c, bool ignore_holes) const;
     void Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const;
     void Distance(const ContourList &cl, DistanceType &dist_so_far) const;
 public:
@@ -63,7 +63,8 @@ public:
 
     double Distance(const XY &o, XY &ret) const;
     double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
-    Range Cut(const XY &A, const XY &B) const;
+    Range Cut(const Edge &e) const;
+    Range CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const;
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
 };
@@ -105,8 +106,8 @@ protected:
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
     void Expand2D(const XY &gap, Contour &res) const;
-    SimpleContour::result_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
-    SimpleContour::result_t RelationTo(const ContourList &c, bool ignore_holes) const {return SimpleContour::switch_side(c.RelationTo(*this, ignore_holes));}
+    relation_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
+    relation_t RelationTo(const ContourList &c, bool ignore_holes) const {return switch_side(c.RelationTo(*this, ignore_holes));}
 
     void Distance(const ContourWithHoles &c, DistanceType &ret) const;
 
@@ -149,7 +150,8 @@ public:
 
     double Distance(const XY &o, XY &ret) const;
     double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
-    Range Cut(const XY &A, const XY &B) const {return outline.Cut(A, B);}
+    Range Cut(const Edge &e) const {return outline.Cut(e);}
+    Range CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const {return outline.CutWithTangent(e, from, till);}
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {outline.Cut(A, B, map); holes.Cut(A, B, map);}
 };
 
@@ -193,8 +195,6 @@ protected:
     void Expand2D(const XY &gap, Contour &res) const;
     void Distance(const Contour &c, DistanceType &dist_so_far) const;
 public:
-    typedef SimpleContour::result_t relation_t;
-    static bool IsResultOverlapping(relation_t t) {return t==SimpleContour::OVERLAP || t==SimpleContour::A_INSIDE_B || t==SimpleContour::B_INSIDE_A || t==SimpleContour::SAME;}
     Contour() {boundingBox.MakeInvalid();}
     Contour(double sx, double dx, double sy, double dy) : first(sx, dx, sy, dy) {boundingBox = first.GetBoundingBox();}
     Contour(const Block &b) : first(b), boundingBox(b) {}
@@ -306,7 +306,7 @@ public:
     Contour CreateExpand2D(const XY &gap) const;
 
     relation_t RelationTo(const Contour &c, bool ignore_holes) const;
-    static bool Overlaps(relation_t t) {return SimpleContour::result_overlap(t);}
+    static bool Overlaps(relation_t t) {return result_overlap(t);}
     bool Overlaps(const Contour &c, bool ignore_holes) const {return Overlaps(RelationTo(c, ignore_holes));}
     bool Overlaps(const Contour &c, double gap) const; //not implemented on purpose. Declaration here to prevent unintended use
 
@@ -326,7 +326,10 @@ public:
     DistanceType Distance(const Contour &c) const {DistanceType r; Distance(c, r); return r;}
     double Distance(const XY &o, XY &ret) const {XY tmp; double d = first.Distance(o, ret), dd=further.Distance(o, tmp); if (fabs(dd)<fabs(d)) {ret=tmp; d=dd;} return d;}
     double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const {XY tmp, _1, _2; double d = first.DistanceWithTangents(o, ret, t1, t2), dd=further.DistanceWithTangents(o, tmp, _1, _2); if (fabs(dd)<fabs(d)) {ret=tmp; t1=_1; t2=_2; d=dd;} return d;}
-    Range Cut(const XY &A, const XY &B) const {Range ret = first.Cut(A, B); if (!further.IsEmpty()) ret += further.Cut(A, B); return ret;}
+    Range Cut(const XY &A, const XY &B) const;
+    Range Cut(const Edge &e) const {Range ret = first.Cut(e); if (!further.IsEmpty()) ret += further.Cut(e); return ret;}
+    Range CutWithTangent(const XY &A, const XY &B, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const;
+    Range CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const {Range ret = first.CutWithTangent(e, from, till); if (!further.IsEmpty()) ret += further.CutWithTangent(e,from, till); return ret;}
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const {first.Cut(A, B, map); if (!further.IsEmpty()) further.Cut(A, B, map); map.Prune();}
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]) const;
@@ -499,12 +502,31 @@ inline double ContourWithHoles::DistanceWithTangents(const XY &o, XY &ret, XY &t
 }
 
 
-inline Range ContourList::Cut(const XY &A, const XY &B) const
+inline Range ContourList::Cut(const Edge &e) const
 {
     Range ret;
     ret.MakeInvalid();
     for (auto i = begin(); i!=end(); i++)
-        ret += i->Cut(A, B);
+        ret += i->Cut(e);
+    return ret;
+}
+
+inline Range ContourList::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const
+{
+    Range ret;
+    ret.MakeInvalid();
+    std::pair<XY, XY> f, t;
+    for (auto i = begin(); i!=end(); i++) {
+        Range r = i->CutWithTangent(e, f, t);
+        if (ret.from > r.from) {
+            ret.from = r.from;
+            from = f;
+        }
+        if (ret.till < r.till) {
+            ret.till = r.till;
+            till = t;
+        }
+    }
     return ret;
 }
 

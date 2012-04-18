@@ -239,6 +239,7 @@ protected:
 public:
     CommandNote(Msc*, bool is_note, const char *pt=NULL, const file_line_range &ptm=file_line_range());
     ~CommandNote();
+    virtual bool CanBeNoted() const {return false;}
     TrackableElement *GetTarget() const {return target;}
     void SetTarget(EntityDef *e) {target = e;}
     void Invalidate() {valid = false;} //called by Msc::InvalidateNotesToThisTarget if target becomes hidden
@@ -257,12 +258,11 @@ public:
     Contour CoverAll(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
         {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);}
     static Contour GetRegionMask(const Block &outer, int dir_x, int dir_y);
-    std::vector<XY> GetPointerTarget() const;
+    std::vector<std::pair<XY, XY>> GetPointerTarget() const;
     void CoverPenalty(const XY &pointto, const XY &center, MscCanvas &canvas,
                       const Contour &block_all, const Contour &block_imp,
                       score_t &cover_penalty) const;
-    void Tangents(XY &pointto, XY &t1, XY&t2) const;
-    void SlantPenalty(const XY &pointto, const XY &center, const XY &t1, const XY&t2,
+    void SlantPenalty(const XY &pointto, const XY &center, const XY &tangent, 
                       score_t &slant_penalty) const;
     static bool GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY&ret);
     static bool GetAPointInside(const DoubleMap<bool> &map, double &ret);

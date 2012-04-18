@@ -287,7 +287,7 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
     clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
 	//This is the destination surface
-    MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, XY(m_size.cx, m_size.cy), 0, XY(x_scale, y_scale));
+    MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, pDoc->m_ChartShown.GetMscTotal(), 0, XY(x_scale, y_scale));
     cairo_set_line_width(canvas.GetContext(), 1);
 	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
         if (i->what == TrackedArc::TRACKRECT) {

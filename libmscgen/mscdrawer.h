@@ -78,14 +78,15 @@ protected:
     cairo_surface_t *surface;
     cairo_t         *cr;
     const OutputType outType;
-    const XY         total; //the full chart area (in unscaled chart coordinates, all pages) excluding copyright
+    const Block      total; //the full chart area (in unscaled chart coordinates, all pages) excluding copyright
     ErrorType        status;
     bool             candraw;
 
     void SetLowLevelParams(MscCanvas::OutputType ot);
-    void GetPagePosition(const std::vector<double> *yPageStart, unsigned page, XY &offset, XY &size) const;
+    void GetPagePosition(const std::vector<double> *yPageStart, unsigned page, double &y_offset, double &y_size) const;
     ErrorType CreateSurface(const XY &size); 
-    ErrorType CreateContextFromSurface(OutputType, XY scale, XY origSize, XY origOffset, double copyrightTextHeight);
+    ErrorType CreateContextFromSurface(OutputType, const XY &scale, double origYSize, 
+                                       double origYOffset, double copyrightTextHeight);
 
     void ArcPath(const contour::EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
@@ -116,12 +117,12 @@ friend class ArcPipe;  //for exotic line joints
 
 public:
     MscCanvas(OutputType ot);
-    MscCanvas(OutputType, const XY &tot, double copyrightTextHeight, const string &fn, const XY &scale=XY(1.,1.),
+    MscCanvas(OutputType, const Block &tot, double copyrightTextHeight, const string &fn, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     ErrorType Status() const {return status;}
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, original_wmf_hdc;
-    MscCanvas(OutputType, HDC hdc, const XY &tot=XY(0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
+    MscCanvas(OutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
 #endif
     void PrepareForCopyrightText();
@@ -130,7 +131,7 @@ public:
 
     OutputType GetOutputType() const {return outType;}
     cairo_t *GetContext() const {return cr;}
-    const XY &GetSize() const {return total;}
+    const Block &GetSize() const {return total;}
     bool NeedsArrowFix() const {return needs_arrow_fix;}
     bool HasImprecisePositioning() const {return imprecise_positioning;}
     bool AvoidTransparency() const {return avoid_transparency;}

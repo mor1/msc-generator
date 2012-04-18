@@ -396,6 +396,8 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, fil
         e->running_draw_pass = draw_pass;
         //Add to entity list
         chart->AllEntities.Append(e);
+        if (!chart->IsVirtualEntity(e))
+            ret->target = name;  //if we were a group entity, use us as target for a subsequent note
     } else {
         file_line p;
         // An existing entity. Disallow attributes that change drawing positions
@@ -425,11 +427,12 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, fil
 		                      "Ignoring grouping and placing entities just after.");
             chart->Error.Error(file_pos.start, l, "Entity '" + name + "' was defined here.");
         }
+        if (!chart->IsVirtualEntity(*i))
+            ret->target = name;  //if we were a group entity, use us as target for a subsequent note
     }
 
     //Prepend this entity to the list (list is empty if no children)
     ret->entities.Prepend(this);
-    ret->target = name;  //if we were a group entity, use us as target for a subsequent note
     return ret;
 }
 

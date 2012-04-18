@@ -786,7 +786,7 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
     //for double or triple arrows, second and third line should be shorter, so that 
     //they do not extend to the middle of a double line
     if (arrow_type == MSC_ARROW_DOUBLE_HALF || arrow_type == MSC_ARROW_TRIPLE_HALF) {
-        Block ext1(XY(0,0), canvas->GetSize());
+        Block ext1(canvas->GetSize());
         Block ext2 = ext1;
         ext1.y.from = xy.y + mainline_left.Spacing();
         ext2.y.from = xy.y + mainline_right.Spacing();
@@ -810,7 +810,7 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
     case MSC_ARROW_LINE: /* Two lines */
     case MSC_ARROW_HALF: /* Unfilled half */
         if (MSC_ARROW_IS_HALF(arrow_type)) {
-            Block ext(XY(0,0), canvas->GetSize());
+            Block ext(canvas->GetSize());
             ext.y.from = xy.y;
             canvas->Clip(ext);
         }

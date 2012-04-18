@@ -244,7 +244,8 @@ string EntityDistanceMap::Print()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
     Arcs(true), Notes(false), NoteBlockers(false), 
-    total(0,0), copyrightTextHeight(0), headingSize(0)
+    total(0,0,0,0), drawing(0,0,0,0), 
+    comments_right_side(0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
     selfArrowYSize = 12;
@@ -1062,10 +1063,10 @@ void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
                 //...or an active rectangle may have started earlier
                 else
                     outer_edge.y.from = std::max(show_from, 0.);
-                outer_edge.y.till = std::min(show_till, total.y);
+                outer_edge.y.till = std::min(show_till, total.y.till);
                 outer_edge.x.from = up.x - act_size; 
                 outer_edge.x.till = up.x + act_size;
-                Block clip(XY(0,0), total);
+                Block clip(total);
                 bool doClip = false;
                 if (outer_edge.y.from < up.y) {
                     clip.y.from = up.y;
@@ -1280,7 +1281,7 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     yPageStart.push_back(0);
     HideELinesHere.clear();
     if (Arcs.size()==0) return;
-    if (total.y != 0) return; //already done?
+    if (total.y.Spans() > 0) return; //already done?
     //start with width calculation, that is used by many elements
     //First reset running shown of entities, this will be used during Width() pass
     //for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
@@ -1296,6 +1297,8 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     double unit = XCoord(1);
     const double lnote_size = distances.Query(NoEntity->index, LNote->index)/unit;
     const double rnote_size = distances.Query(RNote->index, RNote->index+1)/unit;
+    total.x.from = 0;
+    total.y.from = 0;
     if (GetHScale()<0) {
         //Now go through all the pairwise requirements and calc actual pos.
         //dist will hold required distance to the right of entity with index []
@@ -1344,7 +1347,7 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
             //advance curr_pos to the next entity
             curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
         }
-        total.x = XCoord(curr_pos)+1;
+        total.x.till = XCoord(curr_pos)+1;
     } else {
         //In postparseprocess we set the virtual entity's pos as follows
         //in the second column we show how they should be if there are
@@ -1365,16 +1368,17 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
             for (auto ei = ActiveEntities.Find_by_Ptr(LNote); ei != ActiveEntities.end(); ei++)
                 (*ei)->pos += diff;
         }
-        total.x = XCoord(RNote->pos)+1; //XCoord is always integer
+        total.x.till = XCoord(RNote->pos)+1; //XCoord is always integer
         if (rnote_size) 
-            total.x += rnote_size*unit + 2*sideNoteGap;
+            total.x.till += rnote_size*unit + 2*sideNoteGap;
     }
     //Consider the copyright text
     StringFormat sf;
     sf.Default();
     XY crTexSize = Label(copyrightText, canvas, sf).getTextWidthHeight().RoundUp();
-    if (total.x<crTexSize.x) total.x = crTexSize.x;
+    if (total.x.till < crTexSize.x) total.x.till = crTexSize.x;
     copyrightTextHeight = crTexSize.y;
+    comments_right_side = total.x.till; //save: total.x.till may be later increased by note placement
 
     //Turn on entity line for side note lines if there are side notes
     if (lnote_size) 
@@ -1385,10 +1389,9 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     drawing.x.from = XCoord(LNote->pos) + sideNoteGap;
     drawing.x.till = XCoord(RNote->pos) - sideNoteGap;
     AreaList cover;
-    total.y = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
-    total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
-    drawing.y.from = 0;
-    drawing.y.till = total.y;  
+    total.y.till = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
+    total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
+    drawing.y = total.y;  
 }
 
 void Msc::PlaceVerticalsArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
@@ -1400,9 +1403,15 @@ void Msc::PlaceVerticalsArcList(MscCanvas &canvas, ArcList &arcs, double autoMar
 
 void Msc::PlaceFloatingNotes(MscCanvas &canvas)
 {
+    Block new_total;
+    new_total.MakeInvalid();
     for (auto note = Notes.begin(); note!=Notes.end(); note++) {
         (*note)->PlaceFloating(canvas);
+        new_total += (*note)->GetAreaToDraw().GetBoundingBox();
     }
+    if (new_total.IsInvalid()) return;
+    new_total.Expand(sideNoteGap);
+    total += new_total;
 }
 
 
@@ -1429,13 +1438,13 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
     CalculateWidthHeight(canvas);
 
     //If the chart ended up empty we may want to display something
-    if (total.y <= chartTailGap && avoidEmpty) {
+    if (total.y.till <= chartTailGap && avoidEmpty) {
         //Add the Empty command
         Arcs.push_front((new CommandEmpty(this))->AddAttributeList(NULL));
         _ASSERT(Contexts.size() && Contexts.back().hscale.first);
         Contexts.back().hscale.second = -1;
         //Redo calculations
-        total.x = total.y = 0;
+        total.x.till = total.y.till = 0;  //"from" members still zero, only notes can take it negative
         CalculateWidthHeight(canvas);
         //Luckily Width and DrawCover calls do not generate error messages,
         //So Errors collected so far are OK even after redoing this
@@ -1443,6 +1452,11 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
 
     PlaceVerticalsArcList(canvas, Arcs, -1);
     PlaceFloatingNotes(canvas);
+
+    total.x.from = floor(total.x.from);
+    total.y.from = floor(total.y.from);
+    total.x.till = ceil(total.x.till);
+    total.y.till = ceil(total.y.till);
 
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs);
@@ -1474,17 +1488,17 @@ void Msc::DrawArcs(MscCanvas &canvas, DrawPassType pass)
 //page is 0 for all, 1..n for individual pages
 void Msc::DrawCopyrightText(MscCanvas &canvas, unsigned page)
 {
-    if (total.x==0 || page > yPageStart.size()) return;
+    if (total.x.Spans()<=0 || page > yPageStart.size()) return;
     StringFormat sf;
     sf.Default();
     Label label(copyrightText, canvas, sf);
-    label.Draw(canvas, 0, total.x, page==0 || page>=yPageStart.size() ? total.y : yPageStart[page]);
+    label.Draw(canvas, total.x.from, total.x.till, page==0 || page>=yPageStart.size() ? total.y.till : yPageStart[page]);
 }
 
 void Msc::DrawPageBreaks(MscCanvas &canvas)
 {
     if (yPageStart.size()<=1) return;
-    if (total.y==0) return;
+    if (total.y.Spans()<=0) return;
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
@@ -1495,55 +1509,55 @@ void Msc::DrawPageBreaks(MscCanvas &canvas)
         char text[20];
         const double y = yPageStart[page];
         XY d;
-        canvas.Line(XY(0, y), XY(total.x, y), line);
+        canvas.Line(XY(total.x.from, y), XY(total.x.till, y), line);
         sprintf(text, "page %d", page);
         label.Set(text, canvas, format);
-        label.Draw(canvas, 0, total.x, y-label.getTextWidthHeight().y);
+        label.Draw(canvas, total.x.from, total.x.till, y-label.getTextWidthHeight().y);
     }
 }
 
 void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
 {
-    if (total.y == 0) return;
+    if (total.y.Spans() <= 0) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
 	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
-	canvas.Line(XY(0,0), XY(1,0), marker);
-	canvas.Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
+	canvas.Line(XY(total.x.from,total.y.from), XY(total.x.from+1,total.y.from), marker);
+	canvas.Line(XY(total.x.till,total.y.till), XY(total.x.till-1,total.y.till), marker);
 	//draw background
     if (Background.size()) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
         fill_bkg += Background.begin()->second;
         double y = Background.begin()->first;
 	    for (auto i = ++Background.begin(); i!=Background.end(); i++) {
-            canvas.Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
+            canvas.Fill(Block(XY(total.x.from,y), XY(total.x.till,i->first)), fill_bkg);
             fill_bkg += i->second;
             y = i->first;
         }
-        if (y < total.y) 
-            canvas.Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
+        if (y < total.y.till) 
+            canvas.Fill(Block(XY(total.x.from,y), XY(total.x.till,total.y.till)), fill_bkg);
     }
     //Add background for side notes (if any)
     for (unsigned u = 0; u<2; u++) {
         const Entity * const note = u==0 ? LNote : RNote;
         const Entity * const side = u==0 ? LSide : RSide;
         if (note->pos == side->pos) continue;
-        const Range x = u==0 ? Range(0, XCoord(LNote->pos)) : Range(XCoord((RNote)->pos), total.x); 
-        double pos = 0, till = 0;
+        const Range x = u==0 ? Range(total.x.from, XCoord(LNote->pos)) : Range(XCoord((RNote)->pos), total.x.till); 
+        double pos = total.y.from, till = total.y.from;
         do {
             till = note->status.StyleTill(till);
-            if (till<total.y && note->status.GetStyle(pos).fill == note->status.GetStyle(till).fill)
+            if (till<total.y.till && note->status.GetStyle(pos).fill == note->status.GetStyle(till).fill)
                 continue;  //go until "fill" changes
-            if (till>total.y) till = total.y;
+            if (till>total.y.till) till = total.y.till;
             canvas.Fill(Block(x, Range(pos, till)), note->status.GetStyle(pos).fill);
             pos = till;
-        } while (pos<total.y);
+        } while (pos<total.y.till);
     }
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks(canvas);
     DrawArcs(canvas, DRAW_BEFORE_ENTITY_LINES);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
-    DrawEntityLines(canvas, 0, total.y);
+    DrawEntityLines(canvas, total.y.from, total.y.till);
     DrawArcs(canvas, DRAW_AFTER_ENTITY_LINES);
     DrawArcs(canvas, DRAW_DEFAULT);
     DrawArcs(canvas, DRAW_AFTER_DEFAULT);
