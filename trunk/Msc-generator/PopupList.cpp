@@ -57,7 +57,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         const bool filter_by_uc = pApp->m_bHintFilter && !userRequest;
         CDC* pDC = GetDC();
         {
-            MscCanvas canvas(MscCanvas::WIN, pDC->m_hAttribDC, XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y));
+            MscCanvas canvas(MscCanvas::WIN, pDC->m_hAttribDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
             csh.ProcessHints(canvas, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
             //Destroy canvas before the DC
         }

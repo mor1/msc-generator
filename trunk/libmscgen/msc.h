@@ -185,11 +185,12 @@ public:
     std::list<ContourAttr>        DebugContours;
 
 protected:
-    XY     total;                //Total size of the chart (minus copyright)
+    Block  total;                //Total size of the chart (minus copyright)
     Block  drawing;              //The area where chart elements can be (total minus the side note lanes)
 public:
-    const XY &GetTotal() const {return total;}
+    const Block &GetTotal() const {return total;}
     const Block &GetDrawing() const {return drawing;}
+    double comments_right_side;  //the right side of comments (or the drawing area if no rcomments)
     double copyrightTextHeight;  //Y size of the copyright text calculated
     double headingSize;          //Y size of first heading row collected during PostPosProcess(?)
 

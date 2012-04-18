@@ -137,8 +137,7 @@ double Edge::Distance(const XY &p, XY &point, double &pos) const
             return point.Distance(p);
         }
         //http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
-        const double l = start.Distance(end);
-        const double m = fabs((start.x-p.x)*(end.x-start.x)-(end.y-start.y)*(start.y-p.y))/l;
+        const double m = fabs((start.x-p.x)*(end.x-start.x)-(end.y-start.y)*(start.y-p.y))/start.DistanceSqr(end);
         if (m<0) {point = start; pos = 0; return start.Distance(p);}
         if (m>1) {point = end; pos = 1; return end.Distance(p);}
         point = start + (end-start)*m;

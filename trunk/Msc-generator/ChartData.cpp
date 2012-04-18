@@ -346,38 +346,47 @@ unsigned CDrawingChartData::GetPages() const
 
 //if force_page==false, return the size of m_page (or the entire chart if m_page==0)
 //else that of forced_page
+
+//In CDrawingChartData we hide that the Msc chart does not originate in (0,0) by 
+//shifting all coordinates.
 CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_measure = force_page ? forced_page : m_page;
     const Msc &msc = *GetMsc();
-    CSize ret(int(msc.GetTotal().x), int(msc.copyrightTextHeight));
+    CSize ret(int(msc.GetTotal().x.Spans()), int(msc.copyrightTextHeight));
     if (page_to_measure==0) 
-        ret.cy = int(msc.GetTotal().y + msc.copyrightTextHeight);
+        ret.cy = int(msc.GetTotal().y.Spans() + msc.copyrightTextHeight);
     else if (page_to_measure < msc.yPageStart.size()) 
         ret.cy = int(msc.yPageStart[page_to_measure] - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
     else if (page_to_measure == msc.yPageStart.size()) 
-        ret.cy = int(msc.GetTotal().y - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
+        ret.cy = int(msc.GetTotal().y.till - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
     return ret;
 }
+
+const Block &CDrawingChartData::GetMscTotal() const 
+{
+    return GetMsc()->GetTotal();
+}
+
 
 double CDrawingChartData::GetPageYShift() const
 {
     const Msc &msc = *GetMsc();
     if (m_page==0) return 0;
-    if (m_page <= msc.yPageStart.size()) return msc.yPageStart[m_page-1];
-    return msc.GetTotal().y;
+    if (m_page <= msc.yPageStart.size()) return msc.yPageStart[m_page-1]-msc.GetTotal().y.from;
+    return msc.GetTotal().y.Spans();
 }
 
 
 double CDrawingChartData::GetBottomWithoutCopyright() const
 {
-    return GetSize().cx - GetMsc()->copyrightTextHeight;
+    return GetSize().cy - GetMsc()->copyrightTextHeight;
 }
 
 
 double CDrawingChartData::GetHeadingSize() const
 {
-    return GetMsc()->headingSize;
+    return GetMsc()->headingSize - GetMsc()->GetTotal().x.from;
 }
 
 void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, double y_scale) const
@@ -436,7 +445,8 @@ TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 	CompileIfNeeded();
 	if (m_page>0)
 		point.y += LONG(m_msc->yPageStart[m_page-1]);
-    const Area *area = m_msc->AllCovers.InWhichFromBack(XY(point.x, point.y));
+    const XY point_msc(point.x + m_msc->GetTotal().x.from, point.y + m_msc->GetTotal().y.from);
+    const Area *area = m_msc->AllCovers.InWhichFromBack(point_msc);
 	if (area==NULL) return NULL;
 	return area->arc;
 }
