@@ -718,13 +718,13 @@ int Edge::CrossingVertical(double x, double y[], double pos[], bool forward[]) c
         if (test_arc_end(start, x, y[0])) {
 			y[0] = start.y;
 			pos[0] = 0;
-            forward[0] = true;  //always from left to right with endpouints
+            forward[0] = false;  //always from left to right with startpoints
 			return 1;
 		}
 		if (test_arc_end(end, x, y[0])) {
 			y[0] = end.y;
 			pos[0] = 1;
-            forward[0] = true;  //always from left to right with endpouints
+            forward[0] = true;  //always from left to right with endpoints
 			return 1;
 		}
         //not close to any endpoint: touching is not valid then

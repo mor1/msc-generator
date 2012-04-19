@@ -103,7 +103,7 @@
        notes have been placed. Elements containing ArcLists must prepare that the height of those
        will change. The task is otherwise the same as for Height(): fill in internal values,
        return height and cover. Before calling reflow, the element have been ShiftBy'ed back to 0.
-    9. PlaceVerticals: By now all positions and height values are final, except for notes & verticals. 
+    9. PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
        (Comments are also placed with their target.) We go through the tree and calculate position & cover for
        verticals. This is needed as a separate run, just to do it before placing notes.
     
@@ -1997,7 +1997,7 @@ void ArcVerticalArrow::ShiftBy(double y)
     yPos += y;
 }
 
-void ArcVerticalArrow::PlaceVerticals(MscCanvas &canvas, double autoMarker)
+void ArcVerticalArrow::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     //Here we are sure markers are OK
@@ -2431,12 +2431,16 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
                                     "Ignoring 'collapsed' attribute.");
             (*i)->collapsed = BOX_COLLAPSE_EXPAND;
         }
+        //set the target to the ArcBox (if a first note comes in the content)
+        *target = *i;
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
         ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level, target); //ret is an arcblockarrow if we need to collapse
     }
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
+    //Set the target to the last ArcBox (for comments coming afterwards)
+    *target = *series.rbegin();
     //src and dst can be NoEntity here if none of the series specified a left or a right entity
     //Go through and use content to adjust to content
     if (*src==chart->NoEntity) 
@@ -2717,11 +2721,11 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcBoxSeries::PlaceVerticals(MscCanvas &canvas, double autoMarker)
+void ArcBoxSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->content.size()) 
-            chart->PlaceVerticalsArcList(canvas, (*i)->content, autoMarker);
+            chart->PlaceWithMarkersArcList(canvas, (*i)->content, autoMarker);
 }
 
 
@@ -3003,10 +3007,14 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     //Postparse the content;
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
+    //set the first element as the note target (first in the {})
+    *target = *series.begin();
     chart->PostParseProcessArcList(canvas, hide, content, false, content_left, content_right, number, top_level, target);
 
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
+    //set the last element as a note target (coming after us)
+    *target = *series.rbegin();
 
     //Check that all pipe segments are fully specified, non-overlapping and sort them
 
@@ -3515,10 +3523,10 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcPipeSeries::PlaceVerticals(MscCanvas &canvas, double autoMarker)
+void ArcPipeSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
     if (content.size())
-        chart->PlaceVerticalsArcList(canvas, content, autoMarker);
+        chart->PlaceWithMarkersArcList(canvas, content, autoMarker);
 }
 
 void ArcPipeSeries::PostPosProcess(MscCanvas &canvas)
@@ -3784,16 +3792,18 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     line_margin = chart->XCoord(MARGIN);
     text_cover = parsed_label.Cover(chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till-text_margin, y);
     area = text_cover;
-    area.arc = this;
     area_important = area;
     const double lw = style.line.LineWidth();
     //Add a cover block for the line, if one exists
     if (!title && style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
         area += Block(chart->GetDrawing().x.from + line_margin, chart->GetDrawing().x.till - line_margin,
                       centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
-    if (title && (style.line.type.second != LINE_NONE || style.fill.color.second.valid))
+    else if (title && (style.line.type.second != LINE_NONE || style.fill.color.second.valid))
         area += Block(chart->GetDrawing().x.from + text_margin-lw, chart->GetDrawing().x.till - text_margin+lw,
                       y-lw, y+wh.y+lw);
+    else if (area.IsEmpty())
+        area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
+    area.arc = this;
 
     if (!wide)
         wh.y += chart->arcVGapBelow;
@@ -3937,13 +3947,13 @@ void ArcParallel::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcParallel::PlaceVerticals(MscCanvas &canvas, double autoMarker)
+void ArcParallel::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     int n=0;
     //For automarker, give the bottom of the largest of previous blocks
     for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PlaceVerticalsArcList(canvas, *(*i),
+        chart->PlaceWithMarkersArcList(canvas, *(*i),
             n>0 && heights[n-1]>0 ? yPos + heights[n-1] : autoMarker);
 }
 

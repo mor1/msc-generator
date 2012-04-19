@@ -1283,7 +1283,7 @@ void CommandSymbol::ShiftBy(double y)
     outer_edge.y.Shift(y);
 }
 
-void CommandSymbol::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
+void CommandSymbol::PlaceWithMarkers(MscCanvas &/*cover*/, double /*autoMarker*/)
 {
     if (!outer_edge.y.IsInvalid()) return;
     //We used markers, caculate "area" and "outer_edge.y" now
@@ -1557,7 +1557,7 @@ Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, con
 //dir_x is +2 at the right edge of the box searching, +1 in the right third
 //+ in the middle third, -1 in the left third and -2 along the left edge.
 //We return the region to check and also a starting point
-Contour CommandNote::GetRegionMask(const Block &outer, int dir_x, int dir_y)
+Contour CommandNote::GetRegionMask(const Block &outer, const XY &center, int dir_x, int dir_y)
 {
     XY A, B;
     const XY third(outer.x.Spans()/3, outer.y.Spans()/3);
@@ -1580,7 +1580,6 @@ Contour CommandNote::GetRegionMask(const Block &outer, int dir_x, int dir_y)
     case +2: B.y = A.y = outer.y.till;
     }
 
-    const XY center = outer.Centroid();
     return Contour(A, B, center);
 }
 
@@ -1928,14 +1927,22 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     const XY note_gap(chart->compressGap, chart->compressGap);
     Contour region_belts[region_distances];
     const Contour &contour_target = target->GetAreaToNote();
+    if (contour_target.IsEmpty()) {
+        chart->Error.Warning(file_pos.start, "The target of this note has no shape, I cannot point the note to anything. Ignoring note.");
+        chart->Error.Warning(target->file_pos.start, file_pos.start, "This is the target of the note.");
+    }
+    const XY target_centroid = contour_target.Centroid();
     const std::vector<std::pair<XY,XY>> target_points = GetPointerTarget(); //call only once, as it emits errors
-    const Contour target_2D_expanded = contour_target.CreateExpand2D(halfsize+note_gap);
     //Region belts are created via Expand2D to avoid spikes
-    Contour prev = target_2D_expanded.CreateExpand2D(XY(region_distance_sizes[region_distances], region_distance_sizes[region_distances]));
+    Contour prev = contour_target.CreateExpand2D(XY(region_distance_sizes[region_distances], region_distance_sizes[region_distances])+halfsize+note_gap);
+    _ASSERT(!prev.IsEmpty());
     for (int i = region_distances-1; i>=0; i--) {
-        Contour next = target_2D_expanded.CreateExpand2D(XY(region_distance_sizes[i], region_distance_sizes[i]));
+        Contour next = contour_target.CreateExpand2D(XY(region_distance_sizes[i], region_distance_sizes[i])+halfsize+note_gap);
+        _ASSERT(!next.IsEmpty());
         region_belts[i] = prev - next;
+        _ASSERT(!region_belts[i].IsEmpty());
         region_belts[i] *= total;  //limit to chart space 
+        _ASSERT(!region_belts[i].IsEmpty());
         prev.swap(next);
     }
 
@@ -1997,7 +2004,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         //Intersect the belt section with the map: get all the points
         //where the center of the note body can go.
         const Block &outer = region_belts[RD-1].GetBoundingBox();
-        const Contour region_mask = GetRegionMask(outer, RB.x, RB.y) * region_belts[RB.dist];
+        const Contour region_mask = GetRegionMask(outer, target_centroid, RB.x, RB.y) * region_belts[RB.dist];
         const Contour region = region_mask * map;
         if (region.IsEmpty()) continue; 
         Contour region_rot; //Preallocate - rotation does not change number of elements
@@ -2224,7 +2231,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         //we did not succeed. Pick any point from the first region
         const region_block_t &RB = region_blocks[0];
         const Block &outer = region_belts[RD-1].GetBoundingBox();
-        const Contour region_mask = GetRegionMask(outer, RB.x, RB.y) * region_belts[RB.dist];
+        const Contour region_mask = GetRegionMask(outer, target_centroid, RB.x, RB.y) * region_belts[RB.dist];
+        _ASSERT(!region_mask.IsEmpty());
         if (target_points.size()) {
             best_center = region_mask.Centroid();
             if (best_center.Distance(target_points[0].first) < best_center.Distance(target_points[0].second))
@@ -2237,7 +2245,9 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
             best_center = region_mask.Centroid();
             const XY c = contour_target.Centroid();
             std::pair<XY, XY> from, till;
-            contour_target.CutWithTangent(c, best_center, from, till);
+            if (contour_target.CutWithTangent(c, best_center, from, till).IsInvalid()) {
+                _ASSERT(0);
+            }
             best_pointto = till.first;
         }
         //Not successful
