@@ -1,0 +1,40 @@
+msc=Dinand {
+background.color=white; note: note\nhere;
+UE [label="\bUE"],
+RGW [lblue, label="\bRG\n\sWLAN AP\n802.1X authenticator\n"],
+BNG [lblue, label="\bTNSP"],
+AAA [lblue, label="\bAAA\n\-relay"],
+PDN [lyellow, label="\bPDN-GW"],
+HSS [lyellow, label="\bHSS server"]; note: note\nhere;
+
+++:Local attach and access authentication [lyellow]{
+
+      UE<->RGW: Setup 802.11 association; note: note\nhere;
+
+      RGW->AAA->HSS: Diameter/Radius (EAP-RSP/Ident)\n\-\c(red)UE Identifier (NAI); note: note\nhere;
+      block UE<->RGW-AAA-HSS: EAP messages [lyellow]; note: note\nhere;
+      HSS->AAA-RGW: Diameter/Radius (EAP-Success); note: note\nhere;
+      AAA--AAA: Store NAI and MAC@; note: note\nhere;
+      RGW->UE: EAP-Success; note: note\nhere;
+
+      RGW<->UE: EAPOL-Key (4-way handshake); note: note\nhere;
+      UE--RGW: 802.1X controlled port unblocked; note: note\nhere;
+}; note: note\nhere;
+++: IP session setup for first PDN connection [lred] {
+      UE->RGW-BNG: DHCP Request\n\-\c(red)UE IP@ (HO), APN="first"; note: note\nhere;
+      BNG->AAA: Get UE Context\n\-\c(red)MAC@; note: note\nhere;
+      AAA->BNG: UE Context Ack; note: note\nhere;
+      BNG->PDN: Create Bearer Request\n\-\c(red)NAI, APN="first"; note: note\nhere;
+      PDN--PDN: Allocate/HO IP@; note: note\nhere;
+      PDN<->HSS: Update PDN GW Address; note: note\nhere;
+      BNG<-PDN: Create Bearer Response\n\-\c(red)UE IP@; note: note\nhere;
+      UE<-RGW-BNG: DHCP Ack\n\-\c(red)UE IP@; note: note\nhere;
+}; note: note\nhere;
+
+
+pipe BNG--PDN:GTP/PMIP tunnel [number=no,lred]{
+      UE->RGW-BNG-PDN-> [strong, number=yes]: \prUser data packet; note: note\nhere;
+}; note: note\nhere;
+
+
+}

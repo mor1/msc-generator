@@ -1162,6 +1162,7 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
             link_info::size_type switch_to = ray.switch_to;
             if (switch_to == link_info::no_link || !Rays[switch_to].valid) {
                 //backtrack to last position
+                link_info::size_type last_chosen;
                 do {
                     if (wdata.size()==0) {
                         //cannot backtrace: give up
@@ -1173,11 +1174,11 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
                     _ASSERT(result.size()>=wdata.rbegin()->result_size);
                     RevalidateAllAfter(ray_array, wdata.rbegin()->rays_size);
                     result.edges.resize(wdata.rbegin()->result_size);
-                    const link_info::size_type last_chosen = wdata.rbegin()->chosen_outgoing;
+                    last_chosen = wdata.rbegin()->chosen_outgoing;
                     wdata.pop_back();
                     switch_to = Rays[last_chosen].link_in_cp.next; //next to pick
                     //if next to pick is another ray group, we need to backtrace one more
-                } while (!Rays[switch_to].angle.IsSimilar(Rays[switch_to].angle));
+                } while (!Rays[switch_to].angle.IsSimilar(Rays[last_chosen].angle));
                 //OK here, wdata, ray_array are restored to correct size
                 //switch_to shows next alternative to try
                 //we even removed this backtrace from wdata, if there are more

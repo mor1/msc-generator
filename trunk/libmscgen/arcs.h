@@ -145,7 +145,7 @@ public:
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y);}}
     /* Goes through the tree to place verticals. All height & pos info final by now, except on verticals & notes */
-    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker) {}
+    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker) {}
     /* This goes through the tree once more for drawing warnings that need height. */
     virtual void PostPosProcess(MscCanvas &cover);
     /* This will actually draw the arc */
@@ -343,7 +343,7 @@ protected:
     string src, dst;   //vertical position
     VertXPos pos;
     double offset; //horizontal position base offset
-    mutable std::vector<double> ypos; //calculate them in PlaceVerticals
+    mutable std::vector<double> ypos; //calculate them in PlaceWithMarkers
     mutable double sy_text, dy_text;
     mutable double xpos, width;
     mutable std::vector<Contour> outer_contours;
@@ -362,7 +362,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -423,7 +423,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -482,7 +482,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -533,7 +533,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PlaceVerticals(MscCanvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };

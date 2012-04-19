@@ -287,7 +287,7 @@ public:
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(MscCanvas &canvas);
-    void PlaceVerticalsArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
+    void PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
     void PlaceFloatingNotes(MscCanvas &canvas);
 
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}

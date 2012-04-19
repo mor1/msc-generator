@@ -1394,10 +1394,10 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     drawing.y = total.y;  
 }
 
-void Msc::PlaceVerticalsArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
+void Msc::PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
-        (*j)->PlaceVerticals(canvas, autoMarker);
+        (*j)->PlaceWithMarkers(canvas, autoMarker);
 }
 
 
@@ -1450,7 +1450,7 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
         //So Errors collected so far are OK even after redoing this
     }
 
-    PlaceVerticalsArcList(canvas, Arcs, -1);
+    PlaceWithMarkersArcList(canvas, Arcs, -1);
     PlaceFloatingNotes(canvas);
 
     total.x.from = floor(total.x.from);

@@ -213,7 +213,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -257,7 +257,7 @@ public:
         {return cover_pointer(canvas, pointto, center) - CoverBody(canvas, center);}
     Contour CoverAll(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
         {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);}
-    static Contour GetRegionMask(const Block &outer, int dir_x, int dir_y);
+    static Contour GetRegionMask(const Block &outer, const XY &center, int dir_x, int dir_y);
     std::vector<std::pair<XY, XY>> GetPointerTarget() const;
     void CoverPenalty(const XY &pointto, const XY &center, MscCanvas &canvas,
                       const Contour &block_all, const Contour &block_imp,

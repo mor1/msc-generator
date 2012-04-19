@@ -1,0 +1,100 @@
+msc {
+hscale=auto, numbering=yes, compress=yes; note: note\nhere;
+
+eNodeB [label="eNodeB\_2", line.type=double], MME [color=gray], AAA, e1 [pos=+1], e2 [pos=-2]; note: note\nhere;
+defcolor pink="128,0,0", lightgray=lgray; note: note\nhere;
+defstyle redline [line.color=red]; note: note\nhere;
+
+background.color = "(200,200,200)"; note: note\nhere;
+background.gradient=button; note: note\nhere;
+
+--- [label="\u\c(pink)This\x is a \bvery\b long\b\nm\\ul\-\c(red)tiline\+tiline\^uper\_subsr\+ddd\ndivider arc,\nfor testing"]; note: note\nhere;
+
+eNodeB<->MME-AAA-e2-e1 [line.width=3]: \nempty first line; note: note\nhere;
+
+eNodeB=>; note: note\nhere;
+->AAA; note: note\nhere;
+eNodeB->AAA->; note: note\nhere;
+eNodeB->eNodeB; note: note\nhere;
+e2->e2: "\mn(6)This\nis\nNew York" [redline, arrow.starttype=diamond]; note: note\nhere;
+AAA<-eNodeB<-; note: note\nhere;
+->eNodeB->AAA->; note: note\nhere;
+<-AAA-eNodeB; note: note\nhere;
+
+
+--: mi ez?; note: note\nhere;
+
+MME--MME: 802.2x port unlocked [fill.color=lgray, fill.gradient=button]; note: note\nhere;
+
+[]; note: note\nhere;
+e1->e2 [arrow.starttype=empty_dot]; note: note\nhere;
+
+AAA [show=no]; note: note\nhere;
+e3 [color=blue, label="blue entity"]; note: note\nhere;
+heading; note: note\nhere;
+{
+    eNodeB<->MME [label="\uSCTP conne\-ctilon setup", compress=no]; note: note\nhere;
+} {
+    e1<->e3 [label="other connection setup", compress=no]; note: note\nhere;
+}
+{}; note: note\nhere;
+{
+    eNodeB->MME [label="S1 setup request\n\pl\s(eNBID, eNBName, SuppTAIs)\nOther text\n\sFurther text\nMore text"]; note: note\nhere;
+} {
+    e1 == e2: Just above
+    {
+       e1->e2; note: note\nhere;
+    }; note: note\nhere;
+    == [label="Red emphasis box\n\sSize auto-calculated", color = "(255,0,0,128)", ident=right, line.width=1] {
+        e1<-e2 [label="S1 Setup Request\n\s(MMEName, ServedPLMNs)", color=blue, arrow.type=empty]; note: note\nhere;
+        e2<-e1 [label="S1 Setup Response\n\s(MMEName, ServedPLMNs)", arrow.type=diamond]; note: note\nhere;
+    }
+    --: na most mi van [color=green, line.width=9] {
+        e2->e1; note: note\nhere;
+    }
+    ==: na most mi van {
+        e2--e2:Long text for box; note: note\nhere;
+    }
+    ==: na most mi van
+    --: es itt?; note: note\nhere;
+} {
+    []; note: note\nhere; []; note: note\nhere;
+    e3 [show=no], AAA [show=yes]; note: note\nhere;
+}; note: note\nhere;
+
+background.color = "(200,200,100)"; note: note\nhere;
+numbering=no; note: note\nhere;
+[label="This is a comment here followed by a larger space and repeated header", color=red]; note: note\nhere;
+[]; note: note\nhere;
+AAA [show=no], e1 [color=red]; note: note\nhere;
+e1<-; note: note\nhere;
+...: hihi; note: note\nhere;
+heading; note: note\nhere;
+{
+    defstyle arrow, emptyemphasis [line.width=2]; note: note\nhere;
+    []; note: note\nhere; []; note: note\nhere; []; note: note\nhere;
+    -- [label="Change numbering", number=100] {
+        numbering=yes; note: note\nhere;
+        e1<-e2 [label="S1 Setup Response\n\s(e2Name, ServedPLMNs)", color=blue]; note: note\nhere;
+        e2--e1 [label="Emph box\nwith no arcs", color="(220,220,220,128)"]; note: note\nhere;
+        e1<-e2 [label="S1 Setup Response\n\s(e2Name, ServedPLMNs)"]; note: note\nhere;
+    }; note: note\nhere;
+}{
+    eNodeB== [label="Emphasis box\n\sRight size auto-calculated", color = lgray] {
+        eNodeB<-MME [label="S1 Setup Response\n\s(MMEName, ServedPLMNs)", color=blue]; note: note\nhere;
+AAA [show=yes]; note: note\nhere;
+        eNodeB<-MME [label="S1 Setup Response\n\s(MMEName, ServedPLMNs)"]; note: note\nhere;
+        eNodeB--AAA [label="\sHAHAHA\nHihihi", ident=center, color=green] {
+            eNodeB->AAA [label="\sS1 setup request\n\s(eNBID, eNBName, SuppTAIs)", ident=left]; note: note\nhere;
+AAA [show=no]; note: note\nhere;
+            eNodeB--AAA [label="HAHAHA\nHihihi\nMuhaha\nHohoho", number=no, ident=right] {
+                eNodeB<-MME [label="S1 Setup Response\n\s(MMEName, ServedPLMNs)", color=blue]; note: note\nhere;
+                MME==AAA [label="Emphasis box\n\swith no arcs", color="1,1,0,0.5"]; note: note\nhere;
+            }; note: note\nhere;
+        }; note: note\nhere;
+    }; note: note\nhere;
+}; note: note\nhere;
+
+eNodeB->MME: One more arrow; note: note\nhere;
+
+}
