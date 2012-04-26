@@ -47,7 +47,7 @@ public:
 	bool IsFullHeading() {return full_heading;}
     void TmpStoreNote(CommandNote *);
     void ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator after);
-	void MoveMyEntityDefsAfter(EntityDefList &e) {e.splice(e.end(), entities);} //effectively empty 'entities'
+	void MoveMyContentAfter(EntityDefHelper &e); //effectively empty 'entities'
     string Print(int ident=0) const;
     void AppendToEntities(const EntityDefList &e);
     void Combine(CommandEntity *ce);

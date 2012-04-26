@@ -112,6 +112,13 @@ void CommandEntity::ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator afte
     }
 }
 
+void CommandEntity::MoveMyContentAfter(EntityDefHelper &e)
+{
+    e.entities.splice(e.entities.end(), entities);
+    e.notes.splice(e.notes.end(), tmp_stored_notes);
+    e.note_targets.splice(e.note_targets.end(), tmp_stored_note_targets);
+} 
+
 string CommandEntity::Print(int ident) const
 {
     string ss;
@@ -163,7 +170,7 @@ void CommandEntity::Combine(CommandEntity *ce)
 {
     if (!ce) return;
     if (!ce->valid) return;
-    if (ce->internally_defined != internally_defined) return;
+    _ASSERT(ce->internally_defined == internally_defined);
     //Always keep the line_pos of the "heading" command
     //If we are already one, keep ours
     if (!full_heading && ce->full_heading)
@@ -392,14 +399,18 @@ ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     //5. A "heading" command, we have to draw all entities that are on
     //for these we create additional EntityDefs and append them to entities
     //Only do this for children (non-grouped entities)
+    EntityDef *heading_target=NULL;
     if (full_heading)
         for (auto i = chart->AllEntities.begin(); i!=chart->AllEntities.end(); i++) {
             if (!(*i)->running_shown.IsOn()) continue;
             if ((*i)->children_names.size()) continue;
+            unsigned entsize = entities.size();
             EntityDef *ed = FindAddEntityDefForEntity((*i)->name, this->file_pos); //use the file_pos of the CommandEntity
             ed->draw_heading = true;
+            if (entsize != entities.size()) 
+                heading_target = ed;
         }
-
+   
     //6. Order the list (lousy bubblesort)
     //any descendant should come after any of their anscestors, but we can only compare
     //direct parent-child, so we go through the list until we see change
@@ -440,6 +451,8 @@ ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
         double w = (*i_def)->Width();
         if ((*ei)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
     }
+    if (target_entity.length()==0 && heading_target)
+        *target = heading_target;
     hidden = hide;
     return this;
 }
@@ -543,9 +556,7 @@ double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //Thus their area will be stored there and not in CommandEntity->area
     //But, still put those into "cover" so they can be considered for placement
     //There are other entities shown here, those triggered by a heading command.
-    //They have no line info and they do not add
-    //their "area" to the allcovers of the chart in EntityDef::PostPosProcess.
-    //Instead we add their area to this->area now
+    //They have the line info of the entity command.
 
     //We go backwards, so that contained entities get calculated first
     unsigned num_showing = 0;
@@ -1804,7 +1815,7 @@ void CommandNote::SlantPenalty(const XY &pointto, const XY &center, const XY &ta
     _ASSERT(is_float);
     const XY meroleges = (tangent-pointto).Rotate90CCW().Normalize();
     const XY irany = (center-pointto).Normalize();
-    const double dev_from_90 = rad2deg(acos(fabs(irany.DotProduct(meroleges)))); //between 0..90
+    const double dev_from_90 = rad2deg(acos(std::min(1.0, fabs(irany.DotProduct(meroleges))))); //between 0..90
     _ASSERT(dev_from_90>=0 && dev_from_90<=90);
     if (dev_from_90 >= 30)
         slant_penalty += penalty_for_pointer_vs_target_angle_mul *

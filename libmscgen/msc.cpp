@@ -911,13 +911,15 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
         ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
         //if the new target is somewhere inside "i" (or is exactly == to "i")
         //NOTE: *target is never set to NULL, only to DELETE_NOTE or to an Arc
-        if (*target != old_target) {
+        if (*target != old_target && replace != (*i)) {
             //If we remove an arc that could have been noted, we set the target to DELETE_NOTE, as well
             if (replace == NULL) 
                 *target = DELETE_NOTE;
             //if we replace to a different Arc, redirect notes to that
-            else if (replace != (*i))
+            else if (replace->CanBeNoted())
                 *target = replace;
+            else 
+                *target = old_target;
         }
         //Do not add an ArcIndicator, if previous thing was also an ArcIndicator on the same entity
         ArcIndicator *ai = dynamic_cast<ArcIndicator*>(replace);
@@ -930,6 +932,7 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
                 replace = NULL;
             }
         }
+
         //Ok, reinsert temporarily stored notes from commandentities (if any)
         CommandEntity * const cee = dynamic_cast<CommandEntity *>(replace);
         if (cee) 
@@ -938,8 +941,20 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
         if (replace == *i) i++;
         else {
             delete *i;
-            if (replace != NULL) (*i++) = replace;
-            else arcs.erase(i++);
+            if (replace == NULL) arcs.erase(i++);
+            else {
+                CommandArcList *al = dynamic_cast<CommandArcList *>(*i);
+                if (al == NULL)
+                    (*i++) = replace;
+                else {
+                    auto j = i;
+                    i++; //next element to PostParseProcess
+                    al->MoveContent(arcs, j);  //this content was ppp'd
+                    //al now empty
+                    delete al;
+                    arcs.erase(j);  //delete replaced element
+                }
+            }
         }
     }
 }

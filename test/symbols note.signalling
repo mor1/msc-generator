@@ -1,5 +1,5 @@
-hscale=auto; note: note\nhere;
-mark top; note: note\nhere;
+hscale=auto;
+mark top;
 hide a,b,c; note: note\nhere;
 symbol rectangle top-bottom center at a [line.type=none, fill.color=lgray]; note: note\nhere;
 show a,b,c; note: note\nhere;

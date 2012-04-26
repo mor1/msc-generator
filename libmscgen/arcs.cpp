@@ -2389,7 +2389,7 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
     right = chart->EntityMaxByPos(right, dst);
     if (*src == chart->NoEntity) src = left_content;
     if (*dst == chart->NoEntity) dst = right_content;
-    return this;
+    return ret;
 }
 
 void ArcBox::FinalizeLabels(MscCanvas &canvas)
@@ -3143,11 +3143,10 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     //see if we have any segments left, if not return only content
     if (series.size()==0) {
         if (content.size()) {
-            ArcParallel *p = new ArcParallel(chart);
-            p->AddAttributeList(NULL);
             ArcList *al = new ArcList;
             al->swap(content);
-            p->AddArcList(al);  //this will do a "delete al;"
+            CommandArcList *p = new CommandArcList(chart, al); //this will do a "delete al;"
+            p->AddAttributeList(NULL);
             return p;
         }
         //We completely disappear due to entity collapses and have no content
