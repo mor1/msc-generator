@@ -258,7 +258,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, fil
             CommandEntity * const ce = dynamic_cast<CommandEntity *>(*i);
             CommandNote * const cn = dynamic_cast<CommandNote *>(*i);
             if (ce!=NULL && !ce->IsFullHeading()) {
-                ce->MoveMyEntityDefsAfter(ret->entities);  //ce is emptied out of all EntityDefs
+                ce->MoveMyContentAfter(*ret);  //ce is emptied out of all EntityDefs and tmp stored notes
                 note_target_name = (*(ret->entities.rbegin()))->name;
                 i++;
             } else if (cn!=NULL) {
@@ -569,7 +569,10 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
 void EntityDef::AddAreaImportantWhenNotShowing()
 {
     //we do not draw this, but nevertheless define a small block here
-    const double xpos = chart->XCoord((*itr)->pos);
+    //if we are hidden, find someone who shows and has a valid "pos"
+    const EIterator e = chart->FindWhoIsShowingInsteadOf(itr, false); 
+    //"e" may be equal to "itr" if we are not hidden
+    const double xpos = chart->XCoord((*e)->pos);
     const double w2 = style.line.LineWidth()/2;
     area_important = Block(xpos - w2, xpos + w2, -chart->compressGap/2, +chart->compressGap/2);
     area_to_note = area_important;

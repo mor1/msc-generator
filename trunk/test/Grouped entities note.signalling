@@ -1,14 +1,14 @@
 compress=no;
 hscale=auto;
-x; note: note\nhere;
+x; note: note\nhere x;
 x1 {
     x3; note: note\nhere;
     a2 {
-        b; note: note\nhere;
-        c; note: note\nhere;
-        d; note: note\nhere;
-    }; note: note\nhere;
-}; note: note\nhere;
+        b; note: note\nhere b;
+        c; note: note\nhere c;
+        d; note: note\nhere d;
+    }; note: note\nhere a2;
+}; note: note\nhere x1;
 
 x3--c:aa {
     ->b: 0; note: note\nhere;
