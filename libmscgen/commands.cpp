@@ -94,19 +94,27 @@ void CommandEntity::ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator afte
                                       : target_entity;
         //here "target_name" can be empty, if entities are virtual
         if (target_name.length()) {
-            bool was = false;
-            for (auto i=entities.begin(); i!=entities.end(); i++)
-                if ((*i)->name == target_name) {
-                    was = true; //OK, we found the entitydef of this name
-                    if (chart->FindActiveParentEntity((*i)->itr) == (*i)->itr) 
-                        //OK, it is not hidden - set target of note and reinsert it into ArcList
+			EIterator ent = chart->AllEntities.Find_by_Name(target_name);
+			_ASSERT(*ent != chart->NoEntity);
+			EIterator ent_parent = chart->FindActiveParentEntity(ent);
+            if (ent_parent == ent) {
+                bool was = false;	
+                for (auto i=entities.begin(); i!=entities.end(); i++)
+                    if (*(*i)->itr == *ent) {
+                        was = true; //OK, we found the (showing parent of) entitydef of this name
+                        //set target of note 
                         (*tmp_stored_notes.begin())->SetTarget(*i);  
-                    break;
-                }
-                _ASSERT(was);
+                        list.insert(after, *tmp_stored_notes.begin());
+                        break;
+                    }
+                    _ASSERT(was);
+            } else {
+                //The noted entity is hidden due to a collapsed parent
+                //silently drop notes to it
+                delete *tmp_stored_notes.begin();
+            }
         }
-        list.insert(after, *tmp_stored_notes.begin());
-        //if we did not find the entity that means it has been hidden - just drop note/comment
+        //OK, we either reinserted or deleted the note, remove from tmp list
         tmp_stored_notes.erase(tmp_stored_notes.begin());
         tmp_stored_note_targets.erase(tmp_stored_note_targets.begin());
     }

@@ -2363,7 +2363,7 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
         if (old_target != *target && ret == NULL)
             *target = DELETE_NOTE;
     } else 
-        ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
+        ret = ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
     //Add numbering, if needed
     EIterator left_content = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     EIterator right_content = left_content;
@@ -2436,6 +2436,15 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
         ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level, target); //ret is an arcblockarrow if we need to collapse
+		//Check if we are collapsed to a block arrow
+		if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW) {
+			_ASSERT(series.size()==1);
+			if (ret == NULL) *target = DELETE_NOTE;
+			else if (ret->CanBeNoted()) *target = ret;
+			else *target = DELETE_NOTE; //ArcBox can be noted, so if replacement cannot, we shall silently delete note
+			return ret;
+		}
+		_ASSERT(*i==ret);
     }
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
@@ -2492,10 +2501,6 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     if (hide) return NULL;  
     if (we_diappear) //we disappear, but leave an indicator: left & right shall be updated
         return new ArcIndicator(chart, src, indicator_style, file_pos); //notes deleted
-
-    //Check if we are collapsed to a block arrow
-    if (series.size()==1 && (*series.begin())->collapsed == BOX_COLLAPSE_BLOCKARROW) 
-        return ret;
     return this;
 }
 

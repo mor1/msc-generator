@@ -36,7 +36,7 @@ ADD: Tip of the day
 
 In 3.5
 FIX: Background command does not work (old test)
-FIX: Grouped entity 2 note problem.
+FIXED: Grouped entity 2 note problem.
 FIX: merge lcomment and rcomment
 FIX: pipes note, test1 note
 ADD: Check if file changed on disk
