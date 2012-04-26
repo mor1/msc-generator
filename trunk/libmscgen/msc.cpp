@@ -943,7 +943,7 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
             delete *i;
             if (replace == NULL) arcs.erase(i++);
             else {
-                CommandArcList *al = dynamic_cast<CommandArcList *>(*i);
+                CommandArcList *al = dynamic_cast<CommandArcList *>(replace);
                 if (al == NULL)
                     (*i++) = replace;
                 else {
