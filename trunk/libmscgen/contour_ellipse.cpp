@@ -420,8 +420,8 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         //We operate on the assumption that the intersection of two tangents is closer to the
         //intersection of the ellipses
         XY p_new;
-        if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL)
-            return false; //no intersection. Lines are parallel two ellipses, we drop this
+        if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL) 
+            p_new = (A1+B1)/2; //no intersection. Lines are parallel 
         if ((p-p_new).length_sqr()<1e-30)
             return true; //no improvement, exit
         p = p_new;
@@ -455,7 +455,7 @@ bool EllipseData::refine_point(const XY &A, const XY &B, XY &p) const
     return true;
 }
 
-//take the (at most)
+//take the relevant crosspoints and refine them
 int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
                                 const quadratic_xy_t &one, const quadratic_xy_t &/*two*/, XY p[]) const
 {
@@ -491,6 +491,25 @@ int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
                 break;
         if (j==num)
             p[num++] = points[i];
+    }
+    if (num==1 && !IsTilted() && !B.IsTilted()) {
+        if (test_equal(center.x, B.center.x)) {
+            _ASSERT(test_equal(radius2+B.radius2, fabs(center.y-B.center.y)) || 
+                    test_equal(fabs(radius2-B.radius2), fabs(center.y-B.center.y)));
+            p[0].x = center.x;
+            if (fabs(center.y-radius2-p[0].y) < fabs(center.y+radius2-p[0].y))
+                p[0].y = center.y-radius2;
+            else
+                p[0].y = center.y+radius2;
+        } else if (test_equal(center.y, B.center.y)) {
+            _ASSERT(test_equal(radius1+B.radius1, fabs(center.x-B.center.x)) || 
+                    test_equal(fabs(radius1-B.radius1), fabs(center.x-B.center.x)));
+            p[0].y = center.y;
+            if (fabs(center.x-radius1-p[0].x) < fabs(center.x+radius1-p[0].x))
+                p[0].x = center.x-radius1;
+            else
+                p[0].x = center.x+radius1;
+        }
     }
     return num;
 }
@@ -818,7 +837,7 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B, XY *r, bool want_clo
     const XY v((d.y<0 ? -d.x : d.x)*sqrt(disc), fabs(d.y)*sqrt(disc));
     const XY f(D*d.y, -D*d.x);
     int num;
-    if (test_zero(disc)) { //only touch
+    if (disc<1e-20) { //only touch
         r[0] = f/d.length_sqr();
         num = 1;
     } else {

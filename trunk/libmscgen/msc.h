@@ -240,7 +240,7 @@ public:
     int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const file_line_range &l = file_line_range(file_line(0,0,0), file_line(0,0,0)));
     string GetDesigns(bool full) const;
 
-    CommandEntity *CEForComments(bool left, const MscStyle &s, const file_line_range &l);
+    CommandEntity *CEForComments(const MscStyle &s, const file_line_range &l);
     ArcBase *AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
     static void AttributeNames(Csh &csh, bool designOnly);
