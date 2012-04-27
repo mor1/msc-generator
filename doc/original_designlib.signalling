@@ -13,8 +13,7 @@ defdesign colores {
     defstyle pipe [line.color=brown1, text.color=green];
     defstyle note [fill.color="yellow+60", line.color=brown2, arrow.color=brown2];
     defstyle title, subtitle [text.color="green-20"];
-    rcomment.line.color = brown2;
-    lcomment.line.color = brown2;
+    comment.line.color = brown2;
 };
 defdesign rose {
     msc = plain;
@@ -183,8 +182,7 @@ defdesign all_blue {
         [line.color="0,1,0"];
     defstyle arrow, note [arrow.color="0,1,0"];
     defstyle entity, entitygroup_collapsed, entity [vline.color="0,1,0"];
-    lcomment.line.color = "0,1,0";
-    rcomment.line.color = "0,1,0";
+    comment.line.color = "0,1,0";
 };
 
 defdesign black_on_white {
@@ -203,8 +201,7 @@ defdesign black_on_white {
     defstyle arrow, note [arrow.color=white];
     defstyle entity, entitygroup_collapsed, entity [vline.color=white, vfill.color=black];
     background.color = black;
-    lcomment.line.color = white;
-    rcomment.line.color = white;
+    comment.line.color = white;
 };
 
 defdesign norton_commander {
@@ -232,12 +229,8 @@ defdesign norton_commander {
     defstyle arrow, note [arrow.color=white];
     defstyle entity, entitygroup_collapsed, entity [vline.color=white, vfill.color=grey];
     background.color = blue;
-    lcomment.line.color = white;
-    lcomment.line.type = double;
-    lcomment.line.width = 1;
-    rcomment.line.color = white;
-    rcomment.line.type = double;
-    rcomment.line.width = 1;
-    lcomment.fill.color = grey;
-    rcomment.fill.color = grey;
+    comment.line.color = white;
+    comment.line.type = double;
+    comment.line.width = 1;
+    comment.fill.color = grey;
 };

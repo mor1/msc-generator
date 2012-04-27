@@ -70,8 +70,8 @@ public:
     std::pair<bool, bool>   compress;
     std::pair<bool, bool>   indicator;
     std::pair<bool, double> slant_angle;
-    MscLineAttr defLCommentLine, defRCommentLine;
-    MscFillAttr defLCommentFill, defRCommentFill;
+    MscLineAttr defCommentLine;
+    MscFillAttr defCommentFill;
     MscFillAttr defBackground;
     StringFormat            text;
     StyleSet                styles;
@@ -81,7 +81,7 @@ public:
     Context(bool) {Plain();}
     void Empty(); 
     void Plain();
-    bool IsComplete() const {return hscale.first && defLCommentLine.IsComplete() && defRCommentLine.IsComplete() && defLCommentFill.IsComplete() && defRCommentFill.IsComplete() && defBackground.IsComplete() && numbering.first && compress.first && indicator.first && slant_angle.first && styles.size() && colors.size() && numberingStyle.IsComplete();}
+    bool IsComplete() const {return hscale.first && defCommentLine.IsComplete() && defCommentFill.IsComplete() && defBackground.IsComplete() && numbering.first && compress.first && indicator.first && slant_angle.first && styles.size() && colors.size() && numberingStyle.IsComplete();}
     Context &operator +=(const Context &o);
 };
 

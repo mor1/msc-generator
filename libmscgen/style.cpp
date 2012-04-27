@@ -356,10 +356,8 @@ Context &Context::operator +=(const Context &o)
     if (o.compress.first) compress = o.compress;
     if (o.indicator.first) indicator = o.indicator;
     if (o.slant_angle.first) slant_angle = o.slant_angle;
-    defLCommentLine += o.defLCommentLine;
-    defRCommentLine += o.defRCommentLine;
-    defLCommentFill += o.defLCommentFill;
-    defRCommentFill += o.defRCommentFill;
+    defCommentLine += o.defCommentLine;
+    defCommentFill += o.defCommentFill;
     defBackground += o.defBackground;
     text += o.text;
     for (auto i = o.colors.begin(); i!=o.colors.end(); i++) 
@@ -383,10 +381,8 @@ void Context::Empty()
     compress.first = false;
     indicator.first = false;
     slant_angle.first = false;
-    defLCommentLine.Empty();
-    defRCommentLine.Empty();
-    defLCommentFill.Empty();
-    defRCommentFill.Empty();
+    defCommentLine.Empty();
+    defCommentFill.Empty();
     defBackground.Empty();
     text.Empty();
     styles.clear();
@@ -501,15 +497,11 @@ void Context::Plain()
     indicator.second = true;
     slant_angle.first = true;
     slant_angle.second = 0;
-    defLCommentLine.MakeComplete();
-    defRCommentLine.MakeComplete();
-    defLCommentFill.MakeComplete();
-    defRCommentFill.MakeComplete();
+    defCommentLine.MakeComplete();
+    defCommentFill.MakeComplete();
     defBackground.MakeComplete();
-    defLCommentLine.width.second = 3;
-    defRCommentLine.width.second = 3;
-    defLCommentFill.color.second.a = 0; //fully transparent
-    defRCommentFill.color.second.a = 0; //fully transparent
+    defCommentLine.width.second = 3;
+    defCommentFill.color.second.a = 0; //fully transparent
     defBackground.color.second.a = 0; //fully transparent
     numberingStyle.Reset();
     numberingStyle.pre.first = true;

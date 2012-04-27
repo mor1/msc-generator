@@ -465,9 +465,11 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
     if (style.compress.first)
         compress = style.compress.second;
     //Then convert color and style names in labels
-    //if (label.length()>0)
-    //    StringFormat::ExpandReferences(label, chart, linenum_label, &style.text,
-    //                                      true, StringFormat::LABEL);
+    if (label.length()>0)
+        //we can start with a dummy pos, since the label's pos is prepended
+        //during parse for colon labels and during AddAttributeList for others
+        StringFormat::ExpandReferences(label, chart, file_line(), &style.text,
+                                          true, StringFormat::LABEL);
     return this;
 }
 
@@ -626,10 +628,6 @@ void ArcLabelled::FinalizeLabels(MscCanvas &canvas)
 {
     ArcBase::FinalizeLabels(canvas);
     if (label.length()==0) return;
-    //we can start with a dummy pos, since the label's pos is prepended
-    //during parse for colon labels and during AddAttributeList for others
-    StringFormat::ExpandReferences(label, chart, file_line(), &style.text,
-                                          true, StringFormat::LABEL);
     string pre_num_post;
     if (label.length()!=0 && style.numbering.second) {
         pre_num_post = numberingStyle.pre.second + number_text + numberingStyle.post.second;
@@ -2607,7 +2605,7 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         //Place side comments. This will update "cover" and thus force the content
         //downward if the content also has side notes
         double l=y, r=y;
-        note_end = y + (*i)->NoteHeightHelper(canvas, cover, l, r);
+        note_end = (*i)->NoteHeightHelper(canvas, cover, l, r);
 
         //Advance upper line and spacing
         y += (*i)->style.line.LineWidth() + chart->emphVGapInside;

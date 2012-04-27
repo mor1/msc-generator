@@ -680,7 +680,11 @@ double CommandNewBackground::Height(MscCanvas &/*canvas*/, AreaList &, bool refl
 void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/)
 {
     if (!valid) return;
-    chart->Background[yPos] = fill;
+    auto i = chart->Background.find(yPos);
+    if (i == chart->Background.end())
+        chart->Background[yPos] = fill;
+    else 
+        i->second += fill;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

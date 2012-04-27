@@ -327,17 +327,11 @@ int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, cons
     ArcList list(true);
     if (!i->second.defBackground.IsEmpty())
         list.Append((new CommandNewBackground(this, i->second.defBackground))->AddAttributeList(NULL));
-    if (!i->second.defLCommentFill.IsEmpty() || !i->second.defLCommentLine.IsEmpty()) {
+    if (!i->second.defCommentFill.IsEmpty() || !i->second.defCommentLine.IsEmpty()) {
         MscStyle s; //empty
-        s.vline += i->second.defLCommentLine;
-        s.fill += i->second.defLCommentFill;
-        list.Append(CEForComments(true, s, l));
-    }
-    if (!i->second.defRCommentFill.IsEmpty() || !i->second.defRCommentLine.IsEmpty()) {
-        MscStyle s; //empty
-        s.vline += i->second.defRCommentLine;
-        s.fill += i->second.defRCommentFill;
-        list.Append(CEForComments(false, s, l));
+        s.vline += i->second.defCommentLine;
+        s.fill += i->second.defCommentFill;
+        list.Append(CEForComments(s, l));
     }
     if (list.size())
         *ret = (new CommandArcList(this, &list))->AddAttributeList(NULL);
@@ -515,14 +509,19 @@ void Msc::AddArcs(ArcList *a)
     delete a;
 }
 
-CommandEntity *Msc::CEForComments(bool left, const MscStyle &s, const file_line_range &l)
+CommandEntity *Msc::CEForComments(const MscStyle &s, const file_line_range &l)
 {
-    const char *ent_str = left ? LNOTE_ENT_STR : RNOTE_ENT_STR;
-    EntityDef *ed = new EntityDef(ent_str, this);
-    ed->SetLineEnd(l);
-    EntityDefHelper *edh = ed->AddAttributeList(NULL, NULL, file_line());
-    ed->style += s;
-    CommandEntity *ce = new CommandEntity(edh, this, true);
+    EntityDef *led = new EntityDef(LNOTE_ENT_STR, this);
+    led->SetLineEnd(l);
+    led->style += s;
+    EntityDefHelper *ledh = led->AddAttributeList(NULL, NULL, file_line());
+    EntityDef *red = new EntityDef(RNOTE_ENT_STR, this);
+    red->SetLineEnd(l);
+    red->style += s;
+    EntityDefHelper *redh = red->AddAttributeList(NULL, NULL, file_line());
+    redh->Prepend(ledh);
+    delete ledh;
+    CommandEntity *ce = new CommandEntity(redh, this, true);
     ce->AddAttributeList(NULL);
     return ce;
 }
@@ -657,11 +656,10 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         }
         return NULL;
     }
-    if (a.StartsWith("lcomment") || a.StartsWith("rcomment")) {
-        if (CaseInsensitiveBeginsWith(a.name.substr(9), "line") ||
-            CaseInsensitiveBeginsWith(a.name.substr(9), "fill")) {
-            const bool line = CaseInsensitiveBeginsWith(a.name.substr(9), "line");
-            const bool left = a.StartsWith("lcomment");
+    if (a.StartsWith("comment")) {
+        if (CaseInsensitiveBeginsWith(a.name.substr(8), "line") ||
+            CaseInsensitiveBeginsWith(a.name.substr(8), "fill")) {
+            const bool line = CaseInsensitiveBeginsWith(a.name.substr(8), "line");
             MscStyle toadd; //empty
             bool OK;
             if (line) {
@@ -670,14 +668,9 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
             } else
                 OK = toadd.fill.AddAttribute(a, this, STYLE_OPTION); //generates errors if needed
             if (OK) {
-                if (left) {
-                    Contexts.back().defLCommentFill += toadd.fill;
-                    Contexts.back().defLCommentLine += toadd.vline;
-                } else {
-                    Contexts.back().defRCommentFill += toadd.fill;
-                    Contexts.back().defRCommentLine += toadd.vline;
-                }
-                return CEForComments(left, toadd, file_line_range(a.linenum_attr.start, a.linenum_value.end));
+                Contexts.back().defCommentFill += toadd.fill;
+                Contexts.back().defCommentLine += toadd.vline;
+                return CEForComments(toadd, file_line_range(a.linenum_attr.start, a.linenum_value.end));
             }
             //fallthrough till error if not "OK"
         }
@@ -692,14 +685,29 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
 //This is called when a design definition is in progress.
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
+    if (a.Is("numbering.append")) 
+        goto error;
+    if (a.Is("numbering.format")) {
+        std::vector<NumberingStyleFragment> nsfs;
+        if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs)) {
+            int off = Contexts.back().numberingStyle.Apply(nsfs);
+            if (off > 0) {
+                string msg = "Only the format of the top level number can be set as part of the design definition.";
+                msg << " Ignoring option.";
+                Error.Error(a, true, msg);
+            }
+        }
+        return true;
+    }
     if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
-        a.StartsWith("text") || a.StartsWith("lcomment") || a.StartsWith("rcomment") || a.StartsWith("background")) {
+        a.StartsWith("text") || a.StartsWith("comment") || a.StartsWith("background")) {
         ArcBase *ret = AddAttribute(a);
         if (ret)
             delete ret;
         return true;
     }
-    Error.Warning(a, false, "Cannot set attribute '" + a.name +
+error:
+    Error.Error(a, false, "Cannot set option '" + a.name +
                   "' as part of a design definition. Ignoring it.");
     return false;
 }
