@@ -98,16 +98,13 @@ void CommandEntity::ReinsertTmpStoredNotes(ArcList &list, ArcList::iterator afte
 			_ASSERT(*ent != chart->NoEntity);
 			EIterator ent_parent = chart->FindActiveParentEntity(ent);
             if (ent_parent == ent) {
-                bool was = false;	
                 for (auto i=entities.begin(); i!=entities.end(); i++)
                     if (*(*i)->itr == *ent) {
-                        was = true; //OK, we found the (showing parent of) entitydef of this name
                         //set target of note 
                         (*tmp_stored_notes.begin())->SetTarget(*i);  
                         list.insert(after, *tmp_stored_notes.begin());
                         break;
                     }
-                    _ASSERT(was);
             } else {
                 //The noted entity is hidden due to a collapsed parent
                 //silently drop notes to it
@@ -1502,10 +1499,10 @@ void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     }
 }
 
-double CommandNote::Height(MscCanvas &canvas, AreaList &cover, bool reflow) 
+double CommandNote::Height(MscCanvas &/*canvas*/, AreaList &/*cover*/, bool reflow) 
 {
     if (!valid) return 0;
-    if (!is_float && !reflow)  //Only comments, notes will be placed later
+    if (!is_float && !reflow)  //Only comments, notes will be added after placement
         chart->NoteBlockers.Append(this); 
     return height = 0;
 }
@@ -1616,8 +1613,8 @@ std::vector<std::pair<XY, XY>> CommandNote::GetPointerTarget() const
     if (point_toward.length()==0) return ret;
     auto ei = chart->AllEntities.Find_by_Name(point_toward);
     auto mi = chart->Markers.find(point_toward);
-    if (ei== chart->AllEntities.end() && mi== chart->Markers.end()) {
-        chart->Error.Error(point_toward_pos.start, "'" + point_toward + "' is neither an entity neither a marker. Ignoring it.");
+    if (*ei == chart->NoEntity && mi== chart->Markers.end()) {
+        chart->Error.Error(point_toward_pos.start, "'" + point_toward + "' is neither an entity nor a marker. Ignoring it.");
         return ret;
     }
     DoubleMap<bool> section(false);
@@ -1629,27 +1626,33 @@ std::vector<std::pair<XY, XY>> CommandNote::GetPointerTarget() const
         }
         ret.resize(2);
         const double x = chart->XCoord((*ei)->pos);
-        const Range y = GetAreaToNote().GetBoundingBox().y;
+        const Range y = target->GetAreaToNote().GetBoundingBox().y;
         const Edge e(XY(x, y.from-1), XY(x, y.till+1));
         const Range r = target->GetAreaToNote().CutWithTangent(e, ret[0], ret[1]);
         if (r.IsInvalid()) {
-            chart->Error.Error(point_toward_pos.start, "Entity '" + point_toward + "' is not above the target of the note. Ignoring the 'at' clause.");
-            chart->Error.Error(target->file_pos.start, point_toward_pos.start, "This is the target of the note.");
-            ret.clear();
+            const Range r2 = target->GetAreaToNote2().CutWithTangent(e, ret[0], ret[1]);
+            if (r2.IsInvalid()) {
+                chart->Error.Error(point_toward_pos.start, "Entity '" + point_toward + "' is not above the target of the note. Ignoring the 'at' clause.");
+                chart->Error.Error(target->file_pos.start, point_toward_pos.start, "This is the target of the note.");
+                ret.clear();
+            }
         }
         return ret;
     } 
     //now we must have a valid marker in "mi"
     ret.resize(2);
     const double y = mi->second.second;
-    const Range x = GetAreaToNote().GetBoundingBox().x;
+    const Range x = target->GetAreaToNote().GetBoundingBox().x;
     const Edge e(XY(x.from-1, y), XY(x.till+1, y));
     const Range r = target->GetAreaToNote().CutWithTangent(e, ret[0], ret[1]);
     if (r.IsInvalid()) {
-        chart->Error.Error(point_toward_pos.start, "Marker '" + point_toward + "' is not level with the target of the note. Ignoring the 'at' clause.");
-        chart->Error.Error(target->file_pos.start, point_toward_pos.start, "This is the target of the note.");
-        chart->Error.Error(mi->second.first, point_toward_pos.start, "Place of the marker definition.");
-        ret.clear();
+        const Range r2 = target->GetAreaToNote2().CutWithTangent(e, ret[0], ret[1]);
+        if (r2.IsInvalid()) {
+            chart->Error.Error(point_toward_pos.start, "Marker '" + point_toward + "' is not level with the target of the note. Ignoring the 'at' clause.");
+            chart->Error.Error(target->file_pos.start, point_toward_pos.start, "This is the target of the note.");
+            chart->Error.Error(mi->second.first, point_toward_pos.start, "Place of the marker definition.");
+            ret.clear();
+            }
     }
     return ret;
 }
@@ -1877,12 +1880,23 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 {
    if (!valid) return;
     _ASSERT(is_float);
+    /* how many belts will we have around target */
     const unsigned region_distances = 3;
+    /* if belts starting from 0 (nearest) to region_distances-1, what shall be the 
+       default order of search */
     static const unsigned distances_search_order[region_distances] = {1, 0, 2};
+    /* What is the pixel distance from the target of the belt margins */
     const static double region_distance_sizes[region_distances+1] = {0, 10, 30, 100};
 
     //Do a shorter alias
     const unsigned RD = region_distances;
+    if (!float_dist.first)
+        float_dist = style.note.def_float_dist;
+    if (float_dir_x==0 && style.note.def_float_x.first) 
+        float_dir_x = style.note.def_float_x.second;
+    if (float_dir_y==0 && style.note.def_float_y.first) 
+        float_dir_y = style.note.def_float_y.second;
+
     //Normalize attributes
     if (abs(float_dist.second) > RD/2)
         float_dist.second = float_dist.second>0 ? RD/2 : -int(RD/2);
@@ -1925,11 +1939,11 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
             //score hard user preferences
             RB.score.a += ScoreRegion(float_dist, float_dir_x, float_dir_y,
                                       RB.dist - RD/2, RB.x, RB.y); //distance is normalized back to -1..+1
-            //score softer default preferences
-            RB.score.b += ScoreRegion(style.note.def_float_dist,
-                                      style.note.def_float_x.second,
-                                      style.note.def_float_y.second,
-                                      RB.dist - RD/2, RB.x, RB.y)/2;
+            ////score softer default preferences
+            //RB.score.b += ScoreRegion(style.note.def_float_dist,
+            //                          style.note.def_float_x.second,
+            //                          style.note.def_float_y.second,
+            //                          RB.dist - RD/2, RB.x, RB.y)/2;
         }
 
     //Now duplicate the whole shabang, and factor in which map to avoid
@@ -2046,13 +2060,10 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         //simultaneously. We will go by angle. The arrow of a note should preferably be
         //perpendicular to the defnodetartget line. If that is not possible we attempt
         //ever smaller angles, till we find one. Angles are in radians below.
-        //We calculate angle running variables here, as they are needed for both cases
-        //(with or without target_points)
         const double angle_step_unit = deg2rad(10);
-        double angle_step = angle_step_unit;
         //starting angle is the angle specified by the sector of the belt we are in
         //it shall be zero if we want to start with a vertical down center->pos arrangement
-        double angle = -atan2(double(sign(RB.x)), double(sign(-RB.y)));  //deliberate swap of x & y
+        const double start_angle = -atan2(double(sign(RB.x)), double(sign(-RB.y)));  //deliberate swap of x & y
 
         //Do it differently if we have target points
         if (target_points.size()) {
@@ -2067,7 +2078,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
                 //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
 
-                for (/*nope*/;
+                for (double angle_step = angle_step_unit, 
+                            angle = start_angle;
                     fabs(angle_step)<=M_PI/2;
                     angle += angle_step,
                     angle_step = -angle_step + ((angle_step > 0) ? -angle_step_unit : angle_step_unit)) {
@@ -2127,7 +2139,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
             //simultaneously. We go by angle. The arrow of a note should preferably be
             //perpendicular to the defnodetartget line. If that is not possible we attempt
             //ever smaller angles, till we find one. Angles are in radians below.
-            for (/*nope*/;
+            for (double angle_step = angle_step_unit, 
+                        angle = start_angle;
                 fabs(angle_step)<=M_PI/2;
                 angle += angle_step,
                 angle_step = -angle_step + ((angle_step > 0) ? -angle_step_unit : angle_step_unit)) {

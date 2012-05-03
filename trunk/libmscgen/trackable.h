@@ -17,12 +17,12 @@ typedef enum {
 } MscControlType;
 
 typedef enum {
-    DRAW_INVALID, 
-    DRAW_BEFORE_ENTITY_LINES, 
-    DRAW_AFTER_ENTITY_LINES, 
-    DRAW_DEFAULT, 
-    DRAW_AFTER_DEFAULT, 
-    DRAW_NOTE, 
+    DRAW_INVALID,
+    DRAW_BEFORE_ENTITY_LINES,
+    DRAW_AFTER_ENTITY_LINES,
+    DRAW_DEFAULT,
+    DRAW_AFTER_DEFAULT,
+    DRAW_NOTE,
     DRAW_AFTER_NOTE
 } DrawPassType;
 
@@ -37,7 +37,7 @@ typedef PtrList<CommandNote> CommandNoteList;
 class TrackableElement {
 public:
     static const Context defaultDesign;
-   
+
 protected:
     static const XY control_size;
     static const XY indicator_size;
@@ -50,6 +50,7 @@ protected:
     bool            draw_is_different;  //True is area_draw is different from area
     bool            area_draw_is_frame; /* if so, we will not expand area_draw in PostPosProcess */
     Contour         area_to_note;       //if not empty the notes will point towards this area
+    Contour         area_to_note2;      //if a note with "at" clause does not hit the above, try this
 
     CommandNoteList comments;           // Notes attached to this element
     Contour         area_important;     /* those parts of our coverage, which must not be covered by notes */
@@ -78,10 +79,11 @@ public:
         {return area;};
     const Contour &GetAreaToDraw() const  //An area to highlight when the mouse moves over
         {return draw_is_different ? area_draw : area;}
-    const Contour &GetAreaToNote() const  //An area to the edge of which notes made to this element will point 
-        {return area_to_note.IsEmpty() ? area : area_to_note;}
     const Contour &GetAreaImportant() const     //An area which shall possibly not get covered by notes
         {return area_important;}
+    const Contour &GetAreaToNote() const  //An area to the edge of which notes made to this element will point 
+        {return area_to_note.IsEmpty() ? area : area_to_note;}
+    const Contour &GetAreaToNote2() const {return area_to_note2;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
     const Block &GetControlLocation() const {return control_location;}
     double NoteHeight(MscCanvas &canvas, AreaList &cover) {double l=0, r=0; return NoteHeightHelper(canvas, cover, l, r);}

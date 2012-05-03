@@ -176,6 +176,8 @@ inline bool really_between04_warp (double q, double a, double b)
 
 //Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A
 //It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
+//clockwiseness is ignored: the inside of a counterclockwise contour is the limited space
+//it encircles.
 relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 {
     size_type edge;
@@ -218,7 +220,7 @@ relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 
 
 //Gives valid result only if the two contours have no crosspoints
-//clockwiseness fully honored
+//clockwiseness fully ignored: inside of cclwise contours is the limited space it encloses
 relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
 {
     //special case of two full ellipses touching - not caught otherwise

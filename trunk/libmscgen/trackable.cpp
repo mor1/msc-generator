@@ -25,10 +25,11 @@ using namespace std;
 const Context TrackableElement::defaultDesign(true);
 
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
-    hidden(false), linenum_final(false),  draw_pass(DRAW_DEFAULT), yPos(0),
+    hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
     comments(false),
-    indicator_style(m->Contexts.back().styles["indicator"])
+    indicator_style(m->Contexts.back().styles["indicator"]),
+    draw_pass(DRAW_DEFAULT) 
 {
     area.arc = this;
     control_location.MakeInvalid();
@@ -40,14 +41,18 @@ TrackableElement::~TrackableElement()
         chart->InvalidateNotesToThisTarget(this);
 }
 
+
 //This does not copy comments
 TrackableElement::TrackableElement(const TrackableElement&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
-    draw_pass(o.draw_pass),
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
+    area_to_note(o.area_to_note),
+    comments(false), //we do not copy comments!!!
     area_important(o.area_important), 
-    controls(o.controls), control_location(o.control_location)
+    controls(o.controls), control_location(o.control_location),
+    indicator_style(o.indicator_style),
+    draw_pass(o.draw_pass), file_pos(o.file_pos)
 {
     area.arc = this;
 }
@@ -111,6 +116,7 @@ void TrackableElement::ShiftBy(double y)
     area.Shift(XY(0, y));
     area_draw.Shift(XY(0, y));
     area_to_note.Shift(XY(0,y));
+    area_to_note2.Shift(XY(0,y));
     area_important.Shift(XY(0,y)); 
     yPos+=y;
     control_location.y += y;
