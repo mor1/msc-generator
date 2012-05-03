@@ -1,0 +1,39 @@
+a [label=weak, weak], col [collapsed=yes] {b[label=normal], c [label=strong, strong]; note: note\nhere;},
+coll {aa[label=weak, weak],bb[label=normal]; note: note\nhere;}, cc[label=strong, strong],
+e[show=no]; note: note\nhere;
+{
+      --: Arrows [collapsed=yes]{
+            a->b-c:solid line with\_subscript; note: note\nhere;
+            b<=c:double line; note: note\nhere;
+            >b:dotted line; note: note\nhere;
+            <<c:dashed line with\^superscript; note: note\nhere;
+            b->b: \-Points to \n\+self; note: note\nhere;
+            a->b: Weak [weak]; note: note\nhere;
+            b->c: Strong [strong]; note: note\nhere;
+      }; note: note\nhere;
+      ==: Empty boxes [collapsed=arrow]{
+            {a--a: Solid; note: note\nhere;}
+            {b==b: Double; note: note\nhere;}
+            {c..c: Dotted; note: note\nhere;}; note: note\nhere;
+      }; note: note\nhere;
+} {
+      ..: Block Arrows {
+            block aa->bb-cc:arrow; note: note\nhere;
+            block aa=>bb-cc:diamond[arrow.type=diamond]; note: note\nhere;
+            block aa>bb-cc:dot [arrow.type=dot]; note: note\nhere;
+            block aa>>bb-cc:mixed[arrow.midtype=diamond]; note: note\nhere;
+      }; note: note\nhere;
+} {
+      vertical -> at e+: All the way down...[makeroom=yes]; note: note\nhere;
+}; note: note\nhere;
+a--a: aa; note: note\nhere;
+---: Separator; note: note\nhere;
+pipe aa--bb: Solid pipe; note: note\nhere;
+pipe b==bb: Double pipe {
+      a->cc: Label; note: note\nhere;
+}; note: note\nhere;
+pipe b..c: Dotted pipe {
+      a->cc: Label; note: note\nhere;
+}; note: note\nhere;
+...:Time elapses...; note: note\nhere;
+ 

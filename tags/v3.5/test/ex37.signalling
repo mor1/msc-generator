@@ -1,0 +1,23 @@
+C: Client;
+R1: Router;
+R2: Router;
+S: Server;
+
+->C: Hit;
+C==C: Generate\nrequest;
+pipe R1--R2: Tunnel {
+    C=>S: Request;
+};
+S--S: Set up\nmore tunnels;
+pipe R1--R2: Segment 1 []
+     R2==S: Segment 2
+{
+    C<=S:Response;
+};
+pipe R1--R2: Outer
+        [solid=255, color=green] {
+    pipe C++S: \plInner
+            [color=red] {
+        C<=>: \prSome message;
+    };
+};
