@@ -918,7 +918,7 @@ bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
             return true;
         }
         pos_t tmp;
-        if (a.type != MSC_ATTR_STRING && Convert(a.value, tmp)) {
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, tmp)) {
             switch(tmp) {
             default:
             case POS_INVALID: _ASSERT(0); break;

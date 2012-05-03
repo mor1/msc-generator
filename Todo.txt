@@ -33,15 +33,18 @@ FIX: Triple bevel changes size when size limited.
 FIX: Node hideentitylines, for radius bigger than 70
 CHANGE: Mesh gradients.
 ADD: Tip of the day
+ADD: Check if file changed on disk
+ADD: URL's to PNG
 
 In 3.5
+FIX: regression with stripes - also test contour fully
+DOC'd: Add titles, vspace, symbol, mark to commands section
+DOC'd: Add titles and detail notes in doc.
 FIXED: pink color
 FIXED: Background command does not work (old test)
 FIXED: Grouped entity 2 note problem.
-FIX: merge lcomment and rcomment
+FIXED: merge lcomment and rcomment
 FIXED: pipes note, test1 note
-ADD: Check if file changed on disk
-ADD: URL's to PNG
 CHANGE: Add Comments to arclist and remove them only at postparseprocess
 ADDED: Notes and comments
 ADDED: Titles and subtitles

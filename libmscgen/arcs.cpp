@@ -1262,6 +1262,8 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
         area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
     }
+    //Add a horizontal line to area to bridge the gap across activated entities
+    area_to_note2 = Block(sx, dx, centerline, centerline).Expand(0.5);
     CalculateMainline(std::max(lw_max, chart->nudgeSize+1.0));
     if (slant_angle != 0) {
         //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
@@ -1270,6 +1272,7 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         const XY c(sx, yPos+centerline);
         area.RotateAround(c, slant_angle);
         area_important.RotateAround(c, slant_angle);
+        area_to_note2.RotateAround(c, slant_angle);
         text_cover.RotateAround(c, slant_angle); 
         clip_area.RotateAround(c, slant_angle); 
     }
@@ -1635,6 +1638,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     area.arc = this;
     area_important = style.arrow.BigHeadContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, chart->compressGap);
     area_important += parsed_label.Cover(sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
+    area_to_note2 = Block(sx, dx, (sy+dy)/2, (sy+dy)/2).Expand(0.5);
     //due to thick lines we can extend above y==0. Shift down to avoid it
     if (area.GetBoundingBox().y.from < chart->arcVGapAbove) 
         ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
@@ -1646,6 +1650,7 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         const XY c(sx, yPos+centerline);
         area.RotateAround(c, slant_angle);
         area_important.RotateAround(c, slant_angle); 
+        area_to_note2.RotateAround(c, slant_angle);
     }
     if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
@@ -2092,6 +2097,7 @@ void ArcVerticalArrow::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
     area_important = parsed_label.Cover(min(sy_text, dy_text), max(sy_text, dy_text),
                       xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside);
     area_important.SwapXY();
+    area_to_note2 = Block(xpos, xpos, ypos[0], ypos[1]).Expand(0.5);
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
         i->SwapXY();
     chart->NoteBlockers.Append(this);
@@ -3737,6 +3743,7 @@ ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &l
     case MSC_ARC_DIVIDER:      ss = "'---'"; break;
     case MSC_COMMAND_TITLE:    ss = "Titles"; break;
     case MSC_COMMAND_SUBTITLE: ss = "Subtitles"; break;
+    case MSC_COMMAND_NUDGE:    ss = "Nudges"; break;
     default: _ASSERT(0); break;
     }
 

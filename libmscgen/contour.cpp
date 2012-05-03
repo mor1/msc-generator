@@ -359,11 +359,11 @@ struct node
     node(const SimpleContour &c) : contour(c) {}
 };
 
-
 class ContoursHelper {
 protected:
     const Contour * const C1, * const C2;     //The contours we process
     const bool            const_C1, const_C2; //True if the contours cannot be destroyed
+    const bool            clockwise_C1, clockwise_C2; //save this (C1 and C2 may get destroyed)
     RayCollection         Rays;               //All the rays of an operation for all cps
     link_info::size_type  link_contours_head; //head of the contour loose list
     link_info::size_type  link_cps_head;      //head of the cp loose list
@@ -387,7 +387,7 @@ protected:
     //helpers for adding crosspoints and linking them
     link_info::size_type InsertToLooseList(Ray::list_type type, link_info::size_type index);
     bool InsertToStrictList(Ray::list_type type, link_info::size_type index, link_info::size_type head);
-    link_info::size_type FindContourHead(const SimpleContour *c) const;
+    bool IsContourInRays(const SimpleContour *c) const;
     bool AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, Contour::size_type v, double p, bool i, const RayAngle &a);
     void AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour *c1, Contour::size_type v1, double p1, bool m_c2, const SimpleContour *c2, Contour::size_type v2, double p2);
     unsigned FindCrosspointsHelper(const SimpleContour *i);
@@ -417,6 +417,7 @@ protected:
     void RevalidateAllAfter(std::vector<link_info::size_type> &ray_array, link_info::size_type from) const;
     void Walk(RayPointer start, SimpleContour &result) const;
     //helper for post-processing
+    int CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const;
     node *InsertContour(std::list<node> *list, node &&n) const;
     void InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
                            const Contour *C_other, Contour::operation_t type) const;
@@ -425,11 +426,11 @@ protected:
 
 public:
     //external interface
-    ContoursHelper(const Contour &c) : C1(&c), C2(NULL), const_C1(true), const_C2(true) {FindCrosspoints();}
-    ContoursHelper(const Contour &c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(true) {FindCrosspoints();}
-    ContoursHelper(const Contour &c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(false) {FindCrosspoints();}
-    ContoursHelper(Contour &&c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(true) {FindCrosspoints();}
-    ContoursHelper(Contour &&c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(false) {FindCrosspoints();}
+    ContoursHelper(const Contour &c) : C1(&c), C2(NULL), const_C1(true), const_C2(true), clockwise_C1(c.GetClockWise()), clockwise_C2(false) {FindCrosspoints();}
+    ContoursHelper(const Contour &c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
+    ContoursHelper(const Contour &c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
+    ContoursHelper(Contour &&c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
+    ContoursHelper(Contour &&c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
     void Do(Contour::operation_t type, Contour &result) const;
 };
 
@@ -546,11 +547,11 @@ bool ContoursHelper::InsertToStrictList(Ray::list_type type, link_info::size_typ
 }
 
 //Finds the head of the strict list for a contour
-link_info::size_type ContoursHelper::FindContourHead(const SimpleContour *c) const
+bool ContoursHelper::IsContourInRays(const SimpleContour *c) const
 {
     link_info::size_type u = link_contours_head;
     do {
-        if (Rays[u].contour == c) break;
+        if (Rays[u].contour == c) return true;
         u = Rays[u].link_contours.next;
     } while (u!=link_contours_head);
     return Rays[u].contour == c;
@@ -1211,6 +1212,31 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
     } while (current.at_vertex || Rays[current.index].seq_num != sn_finish);
 }
 
+//Finds the coverage of "c" among the node elements - assume c does not overlap with any element
+int ContoursHelper::CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const
+{
+    for (auto i=list.begin(); i!=list.end(); i++) 
+        switch(i->contour.CheckContainment(c)) {
+        case REL_OVERLAP: 
+        case REL_A_IS_EMPTY: 
+        case REL_B_IS_EMPTY: 
+        case REL_BOTH_EMPTY: 
+        case REL_SAME: 
+        case REL_A_IN_HOLE_OF_B: 
+        case REL_B_IN_HOLE_OF_A: 
+        case REL_IN_HOLE_APART:
+            _ASSERT(0); //should not happen
+            //fallthrough
+        case REL_A_INSIDE_B: 
+        case REL_APART:     //c is outside "i->contour" check further elements in list
+            continue;
+        case REL_B_INSIDE_A: //"c" is inside "i->contour", dwelve deeper
+            return CoverageInNodeList(i->children, c) + (i->contour.GetClockWise() ? +1 : -1);
+        }
+    return 0;
+}
+
+
 //inserts a node into the tree, returns the resulting inserted node
 node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 {
@@ -1249,31 +1275,42 @@ node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
                                        const Contour *C_other, Contour::operation_t type) const
 {
-    if (!Rays.size() || !FindContourHead(&c->outline)) {
+    if (!Rays.size() || !IsContourInRays(&c->outline)) {
         int coverage_in_c;
         if (C2==NULL)
             coverage_in_c = CalcCoverageHelper(&c->outline);
         else {
             //In order to avoid checking ray crossing for all contours, we calculate
             //coverage within "c" using the assumptions on C1 and C2 being nice.
-            const is_within_t is_within_other = C_other->IsWithin(c->outline[0].GetStart());
-            _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
-            //if we are outside the other, coverage from that is zero
-            //if we are inside, then coverage is either +1 or -1 depending on dir
-            const int cov_from_other = inside(is_within_other) ? C_other->GetClockWise() ? 1 : -1 : 0;
-            //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
-            //if our whole surface is ccl then 0 or -1
-            const Contour * const C_us = C1==C_other ? C2 : C1;
-            const int cov_from_us = C_us->GetClockWise() ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
-            coverage_in_c = cov_from_us + cov_from_other;
+            //Now, it may be that C_other is already empty, if we have already moved all its
+            //content to "list". In that case we have to traverse the "list"
+            if (C_other->IsEmpty()) {
+                const int cov_from_other = CoverageInNodeList(*list, c->outline);
+                //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
+                //if our whole surface is ccl then 0 or -1
+                const bool clockwise_us = C1==C_other ? clockwise_C2 : clockwise_C1;
+                const int cov_from_us = clockwise_us ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
+                coverage_in_c = cov_from_us + cov_from_other;
+            } else {
+                const is_within_t is_within_other = C_other->IsWithin(c->outline[0].GetStart());
+                _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
+                //if we are outside the other, coverage from that is zero
+                //if we are inside, then coverage is either +1 or -1 depending on dir
+                const int cov_from_other = inside(is_within_other) ? C_other->GetClockWise() ? 1 : -1 : 0;
+                //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
+                //if our whole surface is ccl then 0 or -1
+                const Contour * const C_us = C1==C_other ? C2 : C1;
+                const int cov_from_us = C_us->GetClockWise() ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
+                coverage_in_c = cov_from_us + cov_from_other;
+            }
         }
         const int coverage_outside_c = coverage_in_c + (c->GetClockWise() ? -1 : +1);
         if (IsCoverageToInclude(coverage_in_c, type) !=
             IsCoverageToInclude(coverage_outside_c, type)) {
             //place into the tree
             //If the contour is not const, we can destroy it.
-            //The below move does only destroy the SimpleContour part of c, not the holes
-            node *n = InsertContour(list, const_c ? node(c->outline) : node(std::move(const_cast<ContourWithHoles*>(c)->outline)));
+            //The below move does only destroy the outline of c, not the holes
+            node *n = InsertContour(list, const_c ? node(c->outline) : node(std::move(const_cast<SimpleContour&&>(c->outline))));
             _ASSERT(n);
             //use its children list for any holes it may have
             list = &n->children;

@@ -175,11 +175,33 @@ class Contour
     ContourWithHoles first;
     ContourList further;
     Block boundingBox;
+
+    friend Contour operator + (const Contour &a, const Contour &b);
+    friend Contour operator * (const Contour &a, const Contour &b);
+    friend Contour operator - (const Contour &a, const Contour &b);
+    friend Contour operator ^ (const Contour &a, const Contour &b);
+    friend Contour operator + (const Contour &a, Contour &&b);
+    friend Contour operator * (const Contour &a, Contour &&b);
+    friend Contour operator - (const Contour &a, Contour &&b);
+    friend Contour operator ^ (const Contour &a, Contour &&b);
+    friend Contour operator + (Contour &&a, const Contour &b);
+    friend Contour operator * (Contour &&a, const Contour &b);
+    friend Contour operator - (Contour &&a, const Contour &b);
+    friend Contour operator ^ (Contour &&a, const Contour &b);
+    friend Contour operator + (Contour &&a, Contour &&b);
+    friend Contour operator * (Contour &&a, Contour &&b);
+    friend Contour operator - (Contour &&a, Contour &&b);
+    friend Contour operator ^ (Contour &&a, Contour &&b);
+
+    Contour(operation_t type, const Contour &c1, const Contour &c2) {Operation(type, c1, c2);}
+    Contour(operation_t type, const Contour &c1, Contour &&c2) {Operation(type, c1, std::move(c2));}
+    Contour(operation_t type, Contour &&c1, Contour &&c2) {Operation(type, std::move(c1), std::move(c2));}
 protected:
     void append(const ContourWithHoles &p) {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); first.assign(p);} else {boundingBox+=p.GetBoundingBox(); further.append(p);}}
     void append(ContourWithHoles &&p)  {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); first.assign(std::move(p));} else {boundingBox+=p.GetBoundingBox(); further.append(std::move(p));}}
 
     void Invert();
+    Contour& invert_dont_check() {first.Invert(); if (further.size()) further.Invert(); return *this;}
     Contour CreateInverse() const {Contour tmp(*this); tmp.Invert(); return tmp;}
     void Rotate(double cos, double sin, double radian) {first.Rotate(cos, sin, radian); boundingBox = first.GetBoundingBox(); if (further.size()) {further.Rotate(cos, sin, radian); boundingBox += further.GetBoundingBox();}}
     void RotateAround(const XY&c, double cos, double sin, double radian) {first.RotateAround(c, cos, sin, radian); boundingBox = first.GetBoundingBox(); if (further.size()) {further.RotateAround(c, cos, sin, radian); boundingBox += further.GetBoundingBox();}}
@@ -277,23 +299,14 @@ public:
     Contour CreateRotated(double degrees) const {Contour a(*this); a.Rotate(degrees); return a;}
     Contour CreateRotatedAround(const XY&c, double degrees) const {Contour a(*this); a.RotateAround(c, degrees); return a;}
 
-    Contour &operator += (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, *this, a); return *this;}
-    Contour &operator += (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}
-    Contour &operator *= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, *this, a); return *this;}
-    Contour &operator *= (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, *this, std::move(a)); return *this;}
-    Contour &operator -= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, *this, a.CreateInverse()); return *this;}
-    Contour &operator -= (Contour &&a)      {a.Invert(); Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, *this, std::move(a)); return *this;}
-    Contour &operator ^= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_XOR : NEGATIVE_XOR, *this, a); return *this;}
-    Contour &operator ^= (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_XOR : NEGATIVE_XOR, *this, std::move(a)); return *this;}
-
-    Contour operator + (const Contour &p) const {return Contour(*this)+=p;}
-    Contour operator * (const Contour &p) const {return Contour(*this)*=p;}
-    Contour operator - (const Contour &p) const {return Contour(*this)-=p;}
-    Contour operator ^ (const Contour &p) const {return Contour(*this)^=p;}
-    Contour operator + (Contour &&p) const {return Contour(*this)+=std::move(p);}
-    Contour operator * (Contour &&p) const {return Contour(*this)*=std::move(p);}
-    Contour operator - (Contour &&p) const {return Contour(*this)-=std::move(p);}
-    Contour operator ^ (Contour &&p) const {return Contour(*this)^=std::move(p);}
+    Contour &operator += (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), a); return *this;}
+    Contour &operator += (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), std::move(a)); return *this;}
+    Contour &operator *= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, std::move(*this), a); return *this;}
+    Contour &operator *= (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_INTERSECT : NEGATIVE_INTERSECT, std::move(*this), std::move(a)); return *this;}
+    Contour &operator -= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), a.CreateInverse()); return *this;}
+    Contour &operator -= (Contour &&a)      {a.Invert(); Operation(GetClockWise() || !a.GetClockWise() ? POSITIVE_UNION : NEGATIVE_UNION, std::move(*this), std::move(a)); return *this;}
+    Contour &operator ^= (const Contour &a) {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_XOR : NEGATIVE_XOR, std::move(*this), a); return *this;}
+    Contour &operator ^= (Contour &&a)      {Operation(GetClockWise() || a.GetClockWise() ? POSITIVE_XOR : NEGATIVE_XOR, std::move(*this), std::move(a)); return *this;}
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const {first.VerticalCrossSection(x, section); if (further.size()) further.VerticalCrossSection(x, section);}
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
@@ -334,6 +347,25 @@ public:
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]) const;
 };
+
+inline Contour operator + (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, b);}
+inline Contour operator * (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, a, b);}
+inline Contour operator - (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, b.CreateInverse());}
+inline Contour operator ^ (const Contour &a, const Contour &b) {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_XOR : Contour::NEGATIVE_XOR,             a, b);}
+inline Contour operator + (const Contour &a, Contour &&b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, std::move(b));}
+inline Contour operator * (const Contour &a, Contour &&b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, a, std::move(b));}
+inline Contour operator - (const Contour &a, Contour &&b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         a, std::move(b.invert_dont_check()));}
+inline Contour operator ^ (const Contour &a, Contour &&b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_XOR : Contour::NEGATIVE_XOR,             a, std::move(b));}
+inline Contour operator + (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), b);}
+inline Contour operator * (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, std::move(a), b);}
+inline Contour operator - (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), b.CreateInverse());}
+inline Contour operator ^ (Contour &&a, const Contour &b)      {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_XOR : Contour::NEGATIVE_XOR,             std::move(a), b);}
+inline Contour operator + (Contour &&a, Contour &&b)           {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), std::move(b));}
+inline Contour operator * (Contour &&a, Contour &&b)           {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_INTERSECT : Contour::NEGATIVE_INTERSECT, std::move(a), std::move(b));}
+inline Contour operator - (Contour &&a, Contour &&b)           {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION,         std::move(a), std::move(b.invert_dont_check()));}
+inline Contour operator ^ (Contour &&a, Contour &&b)           {return Contour(a.GetClockWise() || b.GetClockWise() ? Contour::POSITIVE_XOR : Contour::NEGATIVE_XOR,             std::move(a), std::move(b));}
+
+
 
 template <typename LT> void Distance(const LT &list, const Contour &c, DistanceType &dist_so_far)
 {

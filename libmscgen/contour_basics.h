@@ -131,6 +131,11 @@ struct Range {
         return *this;}
     Range &operator*=(const Range &a)
         {if (from<a.from) from=a.from; if (till>a.till) till=a.till; return *this;}
+    Range operator+(const Range &a) const 
+        {return Range(std::min(a.from, from), std::max(a.till, till));}
+    Range operator*(const Range &a) const 
+        {return Range(std::max(a.from, from), std::min(a.till, till));}
+
     is_within_t IsWithin(double p) const {
 		if (p==from || p == till) return WI_ON_VERTEX;
                 return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;
@@ -213,6 +218,8 @@ struct Block {
         {x += p.x; y += p.y; return *this;}
     Block & operator +=(const Block &b)
         {x += b.x; y += b.y; return *this;}
+    Block operator+(const Block &b) const
+        {return Block(x+b.x, y+b.y);}
     Block &Shift(const XY &a)
         {x.Shift(a.x); y.Shift(a.y); return *this;}
     Block &Scale(const XY &sc) {x.Scale(sc.x); y.Scale(sc.y); return *this;}

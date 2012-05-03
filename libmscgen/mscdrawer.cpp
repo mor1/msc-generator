@@ -251,7 +251,14 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
 #ifdef CAIRO_HAS_PDF_SURFACE
     case MscCanvas::PDF:
         surface = cairo_pdf_surface_create_for_stream(write_func, outFile, x, y);
+#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1,10,0)
+        //Limit to PDF version 1.4 if possible (appeared in cairo 1.10)
+        //since no features of higher are relevant and Texinfo doc compilation 
+        //produces warnings with 1.5
+        if (cairo_surface_status(surface) == CAIRO_STATUS_SUCCESS)
+            cairo_pdf_surface_restrict_to_version(surface, CAIRO_PDF_VERSION_1_4);
         break;
+  #endif
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
     case MscCanvas::SVG:
