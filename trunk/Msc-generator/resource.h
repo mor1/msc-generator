@@ -150,6 +150,7 @@
 #define ID_COPY_PAGE7                   32949
 #define ID_COPY_PAGE8                   32950
 #define ID_COPY_PAGE9                   32951
+#define ID_BUTTON4                      32951
 #define ID_COPY_PAGE10                  32952
 #define ID_COPY_PAGE11                  32953
 #define ID_COPY_PAGE12                  32954
@@ -162,6 +163,8 @@
 #define ID_COPY_PAGE19                  32961
 #define ID_COPY_PAGE20                  32962
 #define ID_COPY_PAGE99                  33041
+#define ID_BUTTON_EDITINTERNAL          33050
+#define ID_BUTTON_EDITORS               33051
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -170,7 +173,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        319
-#define _APS_NEXT_COMMAND_VALUE         32944
+#define _APS_NEXT_COMMAND_VALUE         32955
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

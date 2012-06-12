@@ -904,7 +904,7 @@ END
 
 STRINGTABLE
 BEGIN
-    ID_VIEW_EDITOR          "Show/Hide the Error Window\nToggle Editor Window"
+    ID_VIEW_EDITOR          "Show/Hide the Editor Window\nToggle Editor Window"
     ID_EDIT_UPDATE          "Update and redraw chart with the description currently in the Internal Editor\nUpdate & redraw"
     ID_VIEW_NEXTERROR       "Go to the next error\nNext error"
 END
@@ -965,6 +965,12 @@ BEGIN
     ID_SPIN_PAGE            "Select Page (available only for multi-page charts)\nPage"
     ID_BUTTON_TRACK_COLOR   "Specifies the color of tracking rectangles.\nSet Tracking Color"
     ID_BUTTON_TRACK_FILL    "Specifies the Line colr"
+END
+
+STRINGTABLE
+BEGIN
+    ID_BUTTON_EDITINTERNAL  "Toggles Internal Editor Window\nInternal Editor"
+    ID_BUTTON_EDITORS       "Text Edtors\nSelects internal & external text editors."
 END
 
 #endif    // English (United States) resources

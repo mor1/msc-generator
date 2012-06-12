@@ -88,6 +88,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_UPDATE_COMMAND_UI(ID_DESIGN_DESIGN, OnUpdateDesignDesign)
 	ON_COMMAND(ID_VIEW_ZOOMIN, OnViewZoomin)
 	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
+	ON_COMMAND(ID_BUTTON_EDITINTERNAL, OnViewInternalEditor)
+	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITINTERNAL, OnUpdateViewInternalEditor)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -738,6 +740,13 @@ void CMainFrame::OnDesignZoom()
 	}
 }
 
+void CMainFrame::OnViewInternalEditor()
+{
+	m_ctrlEditor.ShowPane(!m_ctrlEditor.IsVisible(), FALSE, TRUE);
+}
 
-
+void CMainFrame::OnUpdateViewInternalEditor(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(m_ctrlEditor.IsVisible());
+}
 
