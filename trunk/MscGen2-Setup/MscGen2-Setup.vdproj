@@ -15,12 +15,6 @@
     {
         "Entry"
         {
-        "MsmKey" = "8:_062BC7B400BF412BBF0A9D4C02F98DBB"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_0C0487C0D406475788D189FF07354D88"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -39,8 +33,20 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_2044FD3E577E19EF3457E127D9A06FBB"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_6613FEF835754514BC83A62E3B74C6D5"
         "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_727CA50EBB6D43AE90D2E6F964A85B45"
+        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -262,6 +268,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2044FD3E577E19EF3457E127D9A06FBB"
+            {
+            "SourcePath" = "8:cairo.dll"
+            "TargetName" = "8:cairo.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:TRUE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6613FEF835754514BC83A62E3B74C6D5"
             {
             "SourcePath" = "8:..\\doc\\Demo.signalling"
@@ -464,7 +490,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
         "ProductCode" = "8:{D6892D29-60AF-4E57-9361-1269824537FC}"
-        "PackageCode" = "8:{D0B25730-8802-411F-B112-440954E8AB2D}"
+        "PackageCode" = "8:{CCEBB801-B20F-4AC4-A5EA-37BA6420F7AB}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -1508,6 +1534,20 @@
             "Icon" = "8:"
             "Feature" = "8:"
             }
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_6EF2E1543A0C4C75B8F4FB20035E9FD5"
+            {
+            "Name" = "8:Help"
+            "Arguments" = "8:"
+            "Description" = "8:Windows Help for Msc-generator"
+            "ShowCmd" = "3:1"
+            "IconIndex" = "3:0"
+            "Transitive" = "11:FALSE"
+            "Target" = "8:_1B922D1673AC46F7BBAB1450339B0CCA"
+            "Folder" = "8:_9170C9A931A748898DEC2E233B9401C5"
+            "WorkingFolder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
+            "Icon" = "8:"
+            "Feature" = "8:"
+            }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_72214C96388145BFAD062D3E3EEF4BEC"
             {
             "Name" = "8:Msc-generator"
@@ -1520,6 +1560,20 @@
             "Folder" = "8:_9170C9A931A748898DEC2E233B9401C5"
             "WorkingFolder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
             "Icon" = "8:_8D210BB11DE54BFF9295776C6C22707B"
+            "Feature" = "8:"
+            }
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_B9BB4ECDA26E41248AFC8EC683B63C2E"
+            {
+            "Name" = "8:Users Guide"
+            "Arguments" = "8:"
+            "Description" = "8:A PDF user manual document"
+            "ShowCmd" = "3:1"
+            "IconIndex" = "3:0"
+            "Transitive" = "11:FALSE"
+            "Target" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
+            "Folder" = "8:_9170C9A931A748898DEC2E233B9401C5"
+            "WorkingFolder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
+            "Icon" = "8:"
             "Feature" = "8:"
             }
         }
@@ -1965,7 +2019,7 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_062BC7B400BF412BBF0A9D4C02F98DBB"
+            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_727CA50EBB6D43AE90D2E6F964A85B45"
             {
             "UseDynamicProperties" = "11:TRUE"
             "IsDependency" = "11:TRUE"
