@@ -90,7 +90,7 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight
 {
     _ASSERT(ot!=WIN);
     _ASSERT(fn.length()>0);
-    if (fn.length()==0 || ot==WIN) 
+    if (fn.length()==0 || ot==WIN || ot==PRINTER) 
         return; //fail
 
     SetLowLevelParams(ot);
@@ -174,6 +174,9 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         break;
 #ifdef CAIRO_HAS_WIN32_SURFACE
     case WMF:
+        if (total.x.Spans()>0 && total.y.Spans()>0)
+            fake_scale = std::min(std::min(30000./total.x.Spans(), 30000./total.y.Spans()), 10.);  
+    case PRINTER:
         individual_chars = true;        //do this so that it is easier to convert to WMF
         use_text_path_rotated = true;   //WMF has no support for this
         fake_dash = true;               //WMF has no support for this
@@ -183,8 +186,6 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         //thus fonts are bad if we do not scale up.
         //So if we have total calculated already, we select fake_scale as 10, or smaller if this would result in >30K coords.
         //Setting fake_scale higher than 10 seems to result in wrong image fallback positioning, I am not sure why.
-        if (total.x.Spans()>0 && total.y.Spans()>0)
-            fake_scale = std::min(std::min(30000./total.x.Spans(), 30000./total.y.Spans()), 10.);  
         avoid_transparency = GetWindowsVersion()<=5; //on XP transparency happens wrong
         //Fallthrough
     case EMF:
@@ -354,14 +355,14 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
 
 #ifdef CAIRO_HAS_WIN32_SURFACE
 
-//Draw to a DC that is either a display DC or a metafile
+//Draw to a DC that is either a display/printer DC or a metafile
 //Use this to display a chart, use other constructors without a DC to save the chart to a file
 MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightTextHeight, 
                      const XY &scale, const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), win32_dc(NULL), original_wmf_hdc(NULL)
 {
-    if (ot!=WIN && ot!=WMF && ot!=EMF) 
+    if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=PRINTER) 
         return;
 
     SetLowLevelParams(ot);
@@ -372,6 +373,7 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
     size.y += copyrightTextHeight;
     size.x *= fake_scale*scale.x;
     size.y *= fake_scale*scale.y;
+    RECT r;
 
     switch (ot) {
     case MscCanvas::WIN:
@@ -381,7 +383,10 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
         surface = cairo_win32_printing_surface_create(hdc);
         break;
     case MscCanvas::WMF:
-        win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+    case MscCanvas::PRINTER:
+        //Save the extent (including this page, the copyright, scale & fake_scale)
+        SetRect(&r,0,0,(int)size.x, (int)size.y);
+        win32_dc = CreateEnhMetaFile(NULL, NULL, &r, NULL);
         if( win32_dc == NULL ) return;
         original_wmf_hdc = hdc;
         surface = cairo_win32_printing_surface_create(win32_dc);
@@ -544,17 +549,21 @@ void MscCanvas::CloseOutput()
             break;
         case MscCanvas::EMF:
         case MscCanvas::WMF:
+        case MscCanvas::PRINTER:
 #ifdef CAIRO_HAS_WIN32_SURFACE
             cairo_surface_show_page(surface);
             cairo_surface_destroy (surface);
             if (outType==MscCanvas::EMF) {
                 if (win32_dc)
                     DeleteEnhMetaFile(CloseEnhMetaFile(win32_dc)); //this does not delete the metafile on disk, if so
-            } else { //WMF
+            } else { //WMF or PRINTER
                 if (original_wmf_hdc) { //Opened via MscCanvas() with an existing HDC
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
+                    //Get saved extent (includes scale & fake_scale)
+                    ENHMETAHEADER emh;
+                    GetEnhMetaFileHeader(hemf, sizeof(emh), &emh);
                     RECT r;
-                    SetRect(&r, 0, 0, int(total.x.Spans()), int(total.y.Spans()));
+                    SetRect(&r, emh.rclFrame.left, emh.rclFrame.top, emh.rclFrame.right, emh.rclFrame.bottom);
                     PaintEMFonWMFdc(hemf, original_wmf_hdc, r, true);
                     DeleteEnhMetaFile(hemf);
                     original_wmf_hdc = NULL;
