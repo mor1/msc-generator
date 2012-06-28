@@ -163,7 +163,9 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	if (pDoc->m_ExternalEditor.IsRunning())
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 	pDoc->SyncShownWithEditing("print");
-	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
+    CDrawingChartData *pData = new CDrawingChartData(pDoc->m_ChartShown);
+	pInfo->SetMaxPage(pData->GetPages()); //This one compiles copied chart
+    pInfo->m_lpUserData = pData;
 	// default preparation
 	return DoPreparePrinting(pInfo);
 }
@@ -175,18 +177,17 @@ void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 
 void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 {
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	if (pDoc->m_ChartShown.IsEmpty())
+    CDrawingChartData *const pData = (CDrawingChartData *)pInfo->m_lpUserData;
+    if (pData==NULL || pData->IsEmpty())
 		return;
 
-	CWaitCursor wait;
-	CDrawingChartData data(pDoc->m_ChartShown);
-	data.SetPage(pInfo->m_nCurPage);
+ //   CSize orig_size = pData->GetSize();
+	//double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
+ //   scale = std::min(scale, 5.);
 
-    CSize orig_size = data.GetSize(); //This one compiles
-	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
-    data.DrawToWindow(pDC->m_hDC, scale, scale);
+    CWaitCursor wait;
+	pData->SetPage(pInfo->m_nCurPage);
+    pData->DrawToPrinter(pDC->m_hDC);//, scale, scale);
 
 	//CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 	//HENHMETAFILE hemf = data.GetEMF(true);

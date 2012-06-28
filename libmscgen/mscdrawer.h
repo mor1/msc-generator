@@ -47,7 +47,8 @@ class MscCanvas
 {
 public:
     //WMF does the same as EMF, but uses features only that can be in WMFs
-    typedef enum {PNG, EPS, PDF, SVG, EMF, WMF, WIN} OutputType;
+    //PRINTER is a WMF, with no false scaling
+    typedef enum {PNG, EPS, PDF, SVG, EMF, WMF, WIN, PRINTER} OutputType;
     typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_PARAM, ERR_DONE} ErrorType;
 protected:
     /* Low-level options */

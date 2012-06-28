@@ -401,6 +401,20 @@ void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, 
     }
 }
 
+void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) const
+{
+    MscCanvas canvas(MscCanvas::PRINTER, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
+    if (canvas.Status()==MscCanvas::ERR_OK) {
+        //draw page breaks only if requested and not drawing a single page only
+        m_msc->Draw(canvas, false);
+        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
+        m_msc->DrawCopyrightText(canvas, m_page);
+    }
+}
+
+
+
 //here force_page==0 means we do not force a particular page, use m_page
 void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page) const
 {
