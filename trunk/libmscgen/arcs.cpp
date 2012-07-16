@@ -148,7 +148,7 @@ ArcBase::ArcBase(MscArcType t, Msc *msc) :
     had_add_attr_list = false;
 }
 
-inline Area ArcBase::GetCover4Compress(const Area &a) const
+Area ArcBase::GetCover4Compress(const Area &a) const
 {
     Area ret(static_cast<const Contour &>(a).CreateExpand(chart->compressGap/2, 
                                              contour::EXPAND_MITER_SQUARE, 

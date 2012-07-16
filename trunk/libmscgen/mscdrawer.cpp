@@ -385,10 +385,12 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
     case MscCanvas::WMF:
     case MscCanvas::PRINTER:
         //Save the extent (including this page, the copyright, scale & fake_scale)
-        SetRect(&r,0,0,(int)size.x, (int)size.y);
-        win32_dc = CreateEnhMetaFile(NULL, NULL, &r, NULL);
+        //SetRect(&r,0,0,(int)size.x, (int)size.y);
+        //win32_dc = CreateEnhMetaFile(NULL, NULL, &r, NULL);
+        win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
         if( win32_dc == NULL ) return;
         original_wmf_hdc = hdc;
+        original_size_for_printing = size;
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
     default:
@@ -433,22 +435,27 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
                      )
 {
     bool b=true;
-    char buff[4096];
     if (lpMFR->rdFunction == META_EXTTEXTOUT) {
-        EXTTO* pTO = ( EXTTO* )(&lpMFR->rdParm[0]);
-        unsigned len = pTO->toSTRLEN;
-        for (unsigned i=0; i<len; i++)
-            buff[i] = pTO->string[i] + 29;
-        buff[len]=0;
-        ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, buff, len, NULL);
-    } else if (lpMFR->rdFunction == META_CREATEFONTINDIRECT) {
-        LOGFONT16* plogfont = ( LOGFONT16* )(&lpMFR->rdParm[0]);
+        const EXTTO * const pTO = ( EXTTO* )(&lpMFR->rdParm[0]);
+        const unsigned len = pTO->toSTRLEN;
+        //**Below code is needed for cairo 10.8, but not for 12.2
+        //char buff[4096];
+        //for (unsigned i=0; i<len; i++)
+        //    buff[i] = pTO->string[i] + 29; 
+        //buff[len]=0;
+        //ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, buff, len, NULL);
+        ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, pTO->string, len, NULL);
+        ::MoveToEx(hDC, pTO->toX, pTO->toY, NULL);
+        ::LineTo(hDC, pTO->toX, pTO->toY+10);
+    } else 
+    if (lpMFR->rdFunction == META_CREATEFONTINDIRECT) {
+        LOGFONT16* const plogfont = ( LOGFONT16* )(&lpMFR->rdParm[0]);
         plogfont->lfHeight = plogfont->lfHeight / 32;   //When this is negative character height is meant, when positive cell height (cell_h = character_h + lead). Keep sign!
         b=PlayMetaFileRecord(hDC, lpHTable, lpMFR, nObj);
     } else {
         b=PlayMetaFileRecord(hDC, lpHTable, lpMFR, nObj);
     }
-    if (!b) FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,NULL,GetLastError(),0, buff,4096,NULL );
+    //if (!b) FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,NULL,GetLastError(),0, buff,4096,NULL );
     return 1;
 }
 
@@ -459,13 +466,13 @@ void PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTricks
     SetMapMode(refDC, MM_ANISOTROPIC);
     SetWindowExtEx(refDC, r.right, r.bottom, NULL);
     SetViewportExtEx(refDC, r.right, r.bottom, NULL);
-    unsigned size = GetWinMetaFileBits(hemf, 0, NULL, MM_ANISOTROPIC, refDC);
+    unsigned size = GetWinMetaFileBits(hemf, 0, NULL, MM_ANISOTROPIC, hdc);
     BYTE *buff = (BYTE*)malloc(size);
 	if (buff==NULL) {
 		ReleaseDC(NULL, refDC);
 		return;
 	}
-    size = GetWinMetaFileBits(hemf, size, buff, MM_ANISOTROPIC, refDC);
+    size = GetWinMetaFileBits(hemf, size, buff, MM_ANISOTROPIC, hdc);
     ReleaseDC(NULL, refDC);
     HMETAFILE hwmf = SetMetaFileBitsEx(size, buff);
     free(buff);
@@ -560,11 +567,19 @@ void MscCanvas::CloseOutput()
                 if (original_wmf_hdc) { //Opened via MscCanvas() with an existing HDC
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
                     //Get saved extent (includes scale & fake_scale)
-                    ENHMETAHEADER emh;
-                    GetEnhMetaFileHeader(hemf, sizeof(emh), &emh);
+                    //ENHMETAHEADER emh;
+                    //GetEnhMetaFileHeader(hemf, sizeof(emh), &emh);
                     RECT r;
-                    SetRect(&r, emh.rclFrame.left, emh.rclFrame.top, emh.rclFrame.right, emh.rclFrame.bottom);
-                    PaintEMFonWMFdc(hemf, original_wmf_hdc, r, true);
+                    //SetRect(&r, emh.rclFrame.left, emh.rclFrame.top, emh.rclFrame.right, emh.rclFrame.bottom);
+                    //SetRect(&r, 0, 0, int(total.x.Spans()), int(total.y.Spans()));
+                    SetRect(&r, 0, 0, int(original_size_for_printing.x), int(original_size_for_printing.y));
+                    HDC hDCmeta = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+                    PaintEMFonWMFdc(hemf, hDCmeta, r, true); 
+                    HENHMETAFILE hemf2 = CloseEnhMetaFile(hDCmeta);
+                    PlayEnhMetaFile(original_wmf_hdc, hemf2, &r);
+                    DeleteEnhMetaFile(hemf2);
+                    ::MoveToEx(original_wmf_hdc, r.left, r.top, NULL);
+                    ::LineTo(original_wmf_hdc, r.right, r.bottom);
                     DeleteEnhMetaFile(hemf);
                     original_wmf_hdc = NULL;
                 } else { //Opened via MscCanvas() with a filename, win32_dc is an EMF DC

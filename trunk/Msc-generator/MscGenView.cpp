@@ -181,13 +181,13 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     if (pData==NULL || pData->IsEmpty())
 		return;
 
- //   CSize orig_size = pData->GetSize();
-	//double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
- //   scale = std::min(scale, 5.);
+    CSize orig_size = pData->GetSize();
+	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
+    scale = std::min(scale, 10.);
 
     CWaitCursor wait;
 	pData->SetPage(pInfo->m_nCurPage);
-    pData->DrawToPrinter(pDC->m_hDC);//, scale, scale);
+    pData->DrawToPrinter(pDC->m_hDC, scale, scale);
 
 	//CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 	//HENHMETAFILE hemf = data.GetEMF(true);

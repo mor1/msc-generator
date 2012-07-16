@@ -123,6 +123,7 @@ public:
     ErrorType Status() const {return status;}
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, original_wmf_hdc;
+    XY original_size_for_printing;
     MscCanvas(OutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
 #endif
