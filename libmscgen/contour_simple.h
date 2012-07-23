@@ -9,7 +9,7 @@
 namespace contour {
 
 //This is a template that allows storing of state along a 1-dimensional axis.
-//The state can change at any real (double) value.
+//The state can change at any real (double) value. 
 //The template parameter contains the type of state.
 //We have constructs to set the state at a double walue and onwards or between two doubles
 //We also have members to query the state at any point and ask where will the next change be.
@@ -28,20 +28,13 @@ public:
     DoubleMap() {};
     DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
                                  insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
-    void clear(const element &e) {std::map<double, element>::clear();
-                                  insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
-                                  insert(typename std::map<double, element>::value_type(CONTOUR_INFINITY, e));}
-    void clear() {if (this->size()>2) erase(++begin(), --end());}
     void Set(double pos, const element&e) {operator[](pos) = e;}
     void Set(const Range &r, const element &e);
     void Add(double pos, const element&e);     //assumes element has operator +=
     void Add(const Range &r, const element&e); //assumes element has operator +=
-    template <typename T> void Add(double pos, const element&e, T &combine);     //uses "t(a, b)" to combine elements
-    template <typename T> void Add(const Range &r, const element&e, T &combine); //uses "t(a, b)" to combine elements
     const element* Get(double pos) const {auto i=upper_bound(pos); return i==begin()?NULL:&(--i)->second;}
     double Till(double pos) const {auto i=upper_bound(pos); return i==end()?CONTOUR_INFINITY:i->first;}
     double From(double pos) const {auto i=--lower_bound(pos); return i==end()?-CONTOUR_INFINITY:i->first;}
-    void Prune(); //Kill elements that are not needed
 };
 
 template <class element>
@@ -52,17 +45,6 @@ void DoubleMap<element>::Add(double pos, const element&e)
     else if (i->first == pos)
         i->second += e;
     else insert(i, typename std::map<double, element>::value_type(pos, i->second))->second += e;
-}
-
-template <class element>
-template <typename T>
-void DoubleMap<element>::Add(double pos, const element&e, T &combine)
-{
-    auto i = --upper_bound(pos);
-    if (i==begin()) Set(pos, e);
-    else if (i->first == pos)
-        i->second = combine(i->second, e);
-    else insert(i, typename std::map<double, element>::value_type(pos, combine(i->second, e)));
 }
 
 template <class element>
@@ -103,42 +85,6 @@ void DoubleMap<element>::Add(const Range &r, const element& e)
     }
 }
 
-template <class element>
-template <typename T>
-void DoubleMap<element>::Add(const Range &r, const element& e, T &combine)
-{
-    if (r.till <= r.from) return;
-    auto i = --upper_bound(r.till);
-    if (i==end())
-        operator[](r.from) = e; //if the whole range is before the first element
-    else {
-        if (i->first != r.till) //i points to a place before r.till
-            i = insert(i, typename std::map<double, element>::value_type(r.till, i->second));
-        //now i points to the element at r.till
-        auto h = --upper_bound(r.from);
-        if (h==end())
-            h = insert(begin(), typename std::map<double, element>::value_type(r.from, e))++;
-        else if (h->first != r.from) //j points to an element before r.from
-            h = insert(h, typename std::map<double, element>::value_type(r.from, h->second));
-        //now h points to the first element to add e to
-        for (; h!=i; h++)
-            h->second = combine(h->second, e);
-    }
-}
-template <class element>
-void DoubleMap<element>::Prune()
-{
-    auto i = begin();
-    while(i!=end()) {
-        auto j = i;
-        j++;
-        if (j==end()) return;
-        if (i->second == j->second)
-            erase(j);
-        else
-            i=j;
-    }
-}
 
 
 class Contour;
@@ -151,16 +97,20 @@ class Contour;
 class SimpleContour
 {
     friend class Contour;
+protected:
+    typedef enum {OVERLAP=0, A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, 
+                  SAME, APART, A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART} result_t;
+    static bool result_overlap(result_t t) {return t==OVERLAP || t==A_INSIDE_B || t==B_INSIDE_A || t==SAME;}
+    static result_t switch_side(result_t t);
+    std::vector<Edge> edges;
 public:
     typedef std::vector<Edge>::size_type size_type;
-protected:
-    std::vector<Edge> edges;
 private:
     Block  boundingBox;
     bool   clockwise;
     mutable std::pair<bool, double> area_cache;
 
-    relation_t CheckContainmentHelper(const SimpleContour &b) const;
+    result_t CheckContainmentHelper(const SimpleContour &b) const;
     double do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
     const Block &CalculateBoundingBox();
@@ -188,9 +138,6 @@ private:
     XY NextTangentPoint(size_type edge, double pos) const
         {return (test_smaller(pos, 1) ? at(edge) : at_next(edge)).NextTangentPoint(test_smaller(pos, 1) ? pos : 0);}
 
-    void Expand2DHelper(const XY &gap, std::vector<Edge> &a,
-                        unsigned original_last, unsigned next, unsigned my_index,
-                        int last_type, int stype) const;
 protected:
     friend class ContourWithHoles;
     friend class ContourList;
@@ -213,17 +160,16 @@ protected:
     bool AddAnEdge(const Edge &edge);
     void Invert();
 
-    relation_t CheckContainment(const SimpleContour &b) const;
+    result_t CheckContainment(const SimpleContour &b) const;
 
     is_within_t IsWithin(XY p, size_type *edge=NULL, double *pos=NULL, bool strict=true) const;
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (size_type i=0; i<size(); i++) at(i).Shift(xy);}
-    void Scale(double sc) {boundingBox.Scale(sc); for (size_type i=0; i<size(); i++) at(i).Scale(sc); area_cache.second*=sc*sc;}
     void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_type i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise; area_cache.second*=-1;}
     void Rotate(double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).Rotate(cos, sin, radian); CalculateBoundingBox();}
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_type i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();}
 
     static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
-    relation_t RelationTo(const SimpleContour &c) const;
+    result_t RelationTo(const SimpleContour &c) const;
 public:
     bool operator < (const SimpleContour &b) const;
     bool operator ==(const SimpleContour &b) const;
@@ -249,8 +195,7 @@ public:
 
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
-    void Expand(EExpandType type, double gap, Contour &res, double miter_limit/*=MaxVal(miter_limit)*/) const;
-    void Expand2D(const XY &gap, Contour &res) const;
+    void Expand(EExpandType type, double gap, Contour &res, double miter_limit/*=DBL_MAX*/) const;
 
     void Path(cairo_t *cr, bool show_hidden) const;
     void Path(cairo_t *cr, bool show_hidden, bool clockwiseonly) const {
@@ -262,15 +207,6 @@ public:
         if (clockwise==clockwiseonly)
             PathDashed(cr, pattern, num, show_hidden);
     }
-    void Distance(const SimpleContour &o, DistanceType &ret) const;
-    double Distance(const XY &o, XY &ret) const;
-    double DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const;
-    Range Cut(const Edge &e) const;
-    Range CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const;
-    void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
-    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
-    bool TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const;
-    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const;
 };
 
 inline bool SimpleContour::operator <(const SimpleContour &b) const
@@ -296,7 +232,6 @@ inline double SimpleContour::OffsetBelow(const SimpleContour &below, double &tou
     if (!boundingBox.x.Overlaps(below.boundingBox.x)) return offset;
     return do_offsetbelow(below, touchpoint, offset);
 }
-
 
 } //namespace
 

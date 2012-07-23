@@ -1,5 +1,5 @@
-Title:Demo Chart;
-Subtitle:This chart contains a demo of the features of Msc-generator.;
+:\mn(30)\bDemo Chart;
+:\mn(20)This chart contains a demo of the features of Msc-generator.;
 compress=yes; hscale=0.9; numbering=yes;
 vspace 20;
 g1:group 1 {
@@ -7,14 +7,11 @@ g1:group 1 {
 },
 g2: group 2 {
     aa[label=weak, weak],bb[label=normal], cc[label=strong, strong];
-};
-note: This is a\ngroup enttity [note.pos=right_up];
+},
 e[show=no, pos=-0.5];
 {
       --: Arrows {
             a->b-c:solid line with\_subscript [arrow.midtype=dot];
-            comment: These are the
-                     various arrow types [side=left];
             b<=c:double line;
             >b:dotted line;
             <<c:dashed line with\^superscript;
@@ -31,8 +28,6 @@ e[show=no, pos=-0.5];
       };
       ==: Empty boxes {
             parallel a--a: Solid;
-            comment: These are the
-                     various box types [side=left];
             parallel b==b: Double;
             parallel c..c: Dotted;
       }{
@@ -51,8 +46,6 @@ e[show=no, pos=-0.5];
             block aa>>bb-cc:mixed[arrow.midtype=diamond];
             angle=5;
             block aa->cc: Slanted;
-            note: These are example
-                    block arrows;
       };
 } {
       vertical -> at e+: All the way down...[makeroom=yes];
@@ -69,5 +62,3 @@ pipe b..c: Dotted pipe []
 };
 ...:Time elapses...;
 symbol ... center at b-c;
-note: You can draw
-      various symbols;

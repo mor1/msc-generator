@@ -13,13 +13,8 @@ typedef enum {
 } MscSideType;
 bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p);
 
-class MscStyle
+struct MscStyle
 {
-protected:
-    friend class Context;
-    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
-             bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n);
-public:
     MscLineAttr line, vline;
     MscFillAttr fill, vfill;
     MscShadowAttr shadow;
@@ -41,8 +36,9 @@ public:
     ArrowHead::ArcType f_arrow;
 
     MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
+    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
+             bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n);
     void Empty();
-    void MakeCompleteButText();
     MscStyle &operator +=(const MscStyle &toadd);
     MscStyle operator +(const MscStyle &toadd) const
         {return MscStyle(*this) += toadd;}
@@ -64,25 +60,23 @@ public:
 class Context
 {
 public:
-    bool is_full;
-    std::pair<bool, double> hscale;
-    std::pair<bool, bool>   numbering;
-    std::pair<bool, bool>   compress;
-    std::pair<bool, bool>   indicator;
-    std::pair<bool, double> slant_angle;
-    MscLineAttr defCommentLine;
-    MscFillAttr defCommentFill;
-    MscFillAttr defBackground;
-    StringFormat            text;
-    StyleSet                styles;
-    ColorSet                colors;
-    NumberingStyle          numberingStyle;
-    Context() {Empty();}
-    Context(bool) {Plain();}
-    void Empty(); 
-    void Plain();
-    bool IsComplete() const {return hscale.first && defCommentLine.IsComplete() && defCommentFill.IsComplete() && defBackground.IsComplete() && numbering.first && compress.first && indicator.first && slant_angle.first && styles.size() && colors.size() && numberingStyle.IsComplete();}
-    Context &operator +=(const Context &o);
+    bool           numbering;
+    bool           compress;
+    bool           indicator;
+    double         slant_angle;
+    StringFormat   text;
+    StyleSet       styles;
+    ColorSet       colors;
+    NumberingStyle numberingStyle;
+    Context() : numbering(false), compress(false), indicator(true), slant_angle(0) {text.Default();}
+};
+
+class Design : public Context
+{
+public:
+    double hscale;
+    Design() {Reset();}
+    void Reset();
 };
 
 #endif //STYLE_H

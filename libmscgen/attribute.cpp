@@ -612,7 +612,7 @@ MscFillAttr &MscFillAttr::operator +=(const MscFillAttr&a)
     return *this;
 };
 
-bool MscFillAttr::operator == (const MscFillAttr &a) const
+bool MscFillAttr::operator == (const MscFillAttr &a)
 {
     if (a.color.first != color.first) return false;
     if (color.first && !(a.color.second == color.second)) return false;
@@ -719,7 +719,7 @@ MscShadowAttr::MscShadowAttr() :
 
 void MscShadowAttr::MakeComplete()
 {
-    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255;}
+    if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = color.second.a = 255;}
     if (!offset.first) {offset.first = true; offset.second = 0;}
     if (!blur.first) {blur.first = true; blur.second = 0;}
 }
@@ -859,31 +859,27 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p)
 
 void MscNoteAttr::MakeComplete()
 {
-    if (!pointer.first) {pointer.first = true; pointer.second = CALLOUT;}
-    if (!def_float_dist.first) {def_float_dist.first = true; def_float_dist.second = 0;}
-    if (!def_float_x.first) {def_float_x.first = true; def_float_x.second = 0;}
-    if (!def_float_y.first) {def_float_y.first = true; def_float_y.second = 0;}
+    if (!layout.first) {layout.first = true; layout.second = FLOAT;}
+    if (!shape.first) {shape.first = true; shape.second = RECTANGLE;}
+    if (!point_to.first) {point_to.first = true; point_to.second = OUTLINE;}
 }
 
 MscNoteAttr &MscNoteAttr::operator +=(const MscNoteAttr&a)
 {
-    if (a.pointer.first) pointer = a.pointer;
-    if (a.def_float_dist.first) def_float_dist = a.def_float_dist;
-    if (a.def_float_x.first) def_float_x = a.def_float_x;
-    if (a.def_float_y.first) def_float_y = a.def_float_y;
+    if (a.layout.first) layout = a.layout;
+	if (a.shape.first) shape = a.shape;
+	if (a.point_to.first) point_to = a.point_to;
     return *this;
 };
 
 bool MscNoteAttr::operator == (const MscNoteAttr &a)
 {
-    if (a.pointer.first != pointer.first) return false;
-    if (pointer.first && !(a.pointer.second == pointer.second)) return false;
-    if (a.def_float_dist.first != def_float_dist.first) return false;
-    if (def_float_dist.first && !(a.def_float_dist.second == def_float_dist.second)) return false;
-    if (a.def_float_x.first != def_float_x.first) return false;
-    if (def_float_x.first && !(a.def_float_x.second == def_float_x.second)) return false;
-    if (a.def_float_y.first != def_float_y.first) return false;
-    if (def_float_y.first && !(a.def_float_y.second == def_float_y.second)) return false;
+    if (a.layout.first != layout.first) return false;
+    if (layout.first && !(a.layout.second == layout.second)) return false;
+    if (a.shape.first != shape.first) return false;
+    if (shape.first && !(a.shape.second == shape.second)) return false;
+    if (a.point_to.first != point_to.first) return false;
+    if (point_to.first && !(a.point_to.second == point_to.second)) return false;
     return true;
 }
 
@@ -898,44 +894,43 @@ bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         if (style.f_note) operator +=(style.note);
         return true;
     }
-    if (a.EndsWith("pointer")) {
+    if (a.EndsWith("layout")) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
-                pointer.first = false;
+                layout.first = false;
             return true;
         }
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, pointer.second)) {
-            pointer.first = true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, layout.second)) {
+            layout.first = true;
             return true;
         }
-        a.InvalidValueError(CandidatesFor(pointer.second), msc->Error);
+        a.InvalidValueError(CandidatesFor(layout.second), msc->Error);
         return true;
     }
-    if (a.EndsWith("pos")) {
+    if (a.EndsWith("shape")) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
-                def_float_dist.first = def_float_x.first = def_float_y.first= false;
+                shape.first = false;
             return true;
         }
-        pos_t tmp;
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, tmp)) {
-            switch(tmp) {
-            default:
-            case POS_INVALID: _ASSERT(0); break;
-            case POS_NEAR:   def_float_dist.first=true; def_float_dist.second=-1; break;
-            case POS_FAR:    def_float_dist.first=true; def_float_dist.second=+1; break;
-            case LEFT:       def_float_x.second=-1; def_float_y.second= 0; def_float_x.first=def_float_y.first=true; break;
-            case RIGHT:      def_float_x.second=+1; def_float_y.second= 0; def_float_x.first=def_float_y.first=true; break;
-            case UP:         def_float_x.second= 0; def_float_y.second=-1; def_float_x.first=def_float_y.first=true; break;
-            case DOWN:       def_float_x.second= 0; def_float_y.second=+1; def_float_x.first=def_float_y.first=true; break;
-            case LEFT_UP:    def_float_x.second=-1; def_float_y.second=-1; def_float_x.first=def_float_y.first=true; break;
-            case LEFT_DOWN:  def_float_x.second=-1; def_float_y.second=+1; def_float_x.first=def_float_y.first=true; break;
-            case RIGHT_UP:   def_float_x.second=+1; def_float_y.second=-1; def_float_x.first=def_float_y.first=true; break;
-            case RIGHT_DOWN: def_float_x.second=+1; def_float_y.second=+1; def_float_x.first=def_float_y.first=true; break;
-            }
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, shape.second)) {
+            shape.first = true;
             return true;
         }
-        a.InvalidValueError(CandidatesFor(tmp), msc->Error);
+        a.InvalidValueError(CandidatesFor(shape.second), msc->Error);
+        return true;
+    }
+    if (a.EndsWith("point_to")) {
+        if (a.type == MSC_ATTR_CLEAR) {
+            if (a.EnsureNotClear(msc->Error, t))
+                point_to.first = false;
+            return true;
+        }
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, point_to.second)) {
+            point_to.first = true;
+            return true;
+        }
+        a.InvalidValueError(CandidatesFor(point_to.second), msc->Error);
         return true;
     }
     return false;
@@ -944,145 +939,45 @@ bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 void MscNoteAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
-    {"", "note.pointer", "note.pos", ""};
+    {"", "layout", "shape", "point_to", ""};
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
-template<> const char EnumEncapsulator<MscNoteAttr::pointer_t>::names[][ENUM_STRING_LEN] =
-    {"invalid", "none", "callout", "arrow", "blockarrow", ""};
+template<> const char EnumEncapsulator<MscNoteAttr::layout_t>::names[][ENUM_STRING_LEN] =
+    {"invalid", "float", "left", "right", "alternate", ""};
 
-template<> const char EnumEncapsulator<MscNoteAttr::pos_t>::names[][ENUM_STRING_LEN] =
-    {"invalid", "near", "far", "left", "right", "up", "down", "left_up", "left_down", "right_up", "right_down", ""};
+template<> const char EnumEncapsulator<MscNoteAttr::shape_t>::names[][ENUM_STRING_LEN] =
+    {"invalid", "none", "rectangle", "arrow", ""};
+
+template<> const char EnumEncapsulator<MscNoteAttr::point_to_t>::names[][ENUM_STRING_LEN] =
+    {"invalid", "center", "outline", ""};
 
 bool MscNoteAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
-    if (CaseInsensitiveEndsWith(attr, "pointer")) {
-        csh.AddToHints(EnumEncapsulator<MscNoteAttr::pointer_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForPointer);
+    if (CaseInsensitiveEndsWith(attr, "layout")) {
+        csh.AddToHints(EnumEncapsulator<MscNoteAttr::layout_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE /*, CshHintGraphicCallbackForLineType*/);
         return true;
     }
-    if (CaseInsensitiveEndsWith(attr, "pos")) {
-        csh.AddToHints(EnumEncapsulator<MscNoteAttr::pos_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE, CshHintGraphicCallbackForPos);
+    if (CaseInsensitiveEndsWith(attr, "shape")) {
+        csh.AddToHints(EnumEncapsulator<MscNoteAttr::shape_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE /*, CshHintGraphicCallbackForLineType*/);
+        return true;
+    }
+    if (CaseInsensitiveEndsWith(attr, "point_to")) {
+        csh.AddToHints(EnumEncapsulator<MscNoteAttr::point_to_t>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE /*, CshHintGraphicCallbackForLineType*/);
         return true;
     }
     return false;
-}
-
-bool MscNoteAttr::CshHintGraphicCallbackForPointer(MscCanvas *canvas, CshHintGraphicParam p)
-{
-    if (!canvas) return false;
-    const MscNoteAttr::pointer_t v = MscNoteAttr::pointer_t(p);
-    if (v!=MscNoteAttr::ARROW && v!=MscNoteAttr::BLOCKARROW && 
-        v!=MscNoteAttr::NONE && v!=MscNoteAttr::CALLOUT) 
-        return false;
-    const Block object(HINT_GRAPHIC_SIZE_X*0.7, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y);
-    const MscFillAttr object_fill(MscColorType(128,128,128), GRADIENT_LEFT);
-    const MscLineAttr object_line;
-    Contour note;
-    if (v==MscNoteAttr::CALLOUT) {
-        const XY points[] ={XY(HINT_GRAPHIC_SIZE_X*0.7, HINT_GRAPHIC_SIZE_Y*0.6),
-                            XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.3),
-                            XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.0),
-                            XY(HINT_GRAPHIC_SIZE_X*0.0, HINT_GRAPHIC_SIZE_Y*0.0),
-                            XY(HINT_GRAPHIC_SIZE_X*0.0, HINT_GRAPHIC_SIZE_Y*1.0),
-                            XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*1.0),
-                            XY(HINT_GRAPHIC_SIZE_X*0.2, HINT_GRAPHIC_SIZE_Y*0.5),
-                            XY(HINT_GRAPHIC_SIZE_X*0.7, HINT_GRAPHIC_SIZE_Y*0.6)};
-        note = Contour(points);
-    } else {
-        note = Block(0, HINT_GRAPHIC_SIZE_X*0.2, 0, HINT_GRAPHIC_SIZE_Y);
-    }
-    canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
-    //draw object we comment
-    canvas->Fill(object, object_fill);
-    canvas->Line(object.UpperLeft(), object.LowerLeft(), object_line);
-    //draw note
-    const MscLineAttr line(LINE_SOLID, MscColorType(0,192,32), 1, CORNER_NONE, 0); //green-blue
-    const MscFillAttr fill(line.color.second.Lighter(0.7), GRADIENT_NONE);
-    const MscShadowAttr shadow;
-    canvas->Shadow(note, shadow);
-    canvas->Fill(note, fill);
-    canvas->Line(note, line);
-    //draw arrow
-    switch (v) {
-    case MscNoteAttr::ARROW: 
-        canvas->Clip(Block(HINT_GRAPHIC_SIZE_X*0.2-1, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y));
-        CshHintGraphicCallbackForArrows(canvas, MSC_ARROW_SOLID, MSC_ARROW_SMALL, false);
-        canvas->UnClip();
-        break;
-    case MscNoteAttr::BLOCKARROW: 
-        canvas->Clip(Block(HINT_GRAPHIC_SIZE_X*0.2-1, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y));
-        CshHintGraphicCallbackForBigArrows(canvas, (int)MSC_ARROW_SOLID);
-        canvas->UnClip();
-    default:
-        break;
-    }
-    canvas->UnClip();
-    return true;
-}
-
-bool MscNoteAttr::CshHintGraphicCallbackForPos(MscCanvas *canvas, CshHintGraphicParam p)
-{
-    if (!canvas) return false;
-    double dist = 1;
-    XY pos(+1, +1);
-    switch(MscNoteAttr::pos_t(int(p))) {
-    default:
-    case MscNoteAttr::POS_INVALID: return false;
-    case MscNoteAttr::POS_NEAR:   dist=0.8; break;
-    case MscNoteAttr::POS_FAR:    dist=1.2; break;
-    case MscNoteAttr::LEFT:       pos.x=-1; pos.y= 0; break;
-    case MscNoteAttr::RIGHT:      pos.x=+1; pos.y= 0; break;
-    case MscNoteAttr::UP:         pos.x= 0; pos.y=-1; break;
-    case MscNoteAttr::DOWN:       pos.x= 0; pos.y=+1; break;
-    case MscNoteAttr::LEFT_UP:    pos.x=-1; pos.y=-1; break;
-    case MscNoteAttr::LEFT_DOWN:  pos.x=-1; pos.y=+1; break;
-    case MscNoteAttr::RIGHT_UP:   pos.x=+1; pos.y=-1; break;
-    case MscNoteAttr::RIGHT_DOWN: pos.x=+1; pos.y=+1; break;
-    }
-
-    const double r0 = 0.4; //object rectangle offset
-    const double r1 = 0.3; //object rectangle halfsize
-    const double r2 = 0.15; //note rectangle halfsize
-    const double r3 = 0.65; //note rectangle midpoint offset
-
-    canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
-    //the center of the object
-    const XY center(HINT_GRAPHIC_SIZE_X*(0.5-pos.x*r0), HINT_GRAPHIC_SIZE_Y*(0.5-pos.y*r0));
-    //the tip of the note (on the contour of the object)
-    const XY tip = XY(pos.x*HINT_GRAPHIC_SIZE_X*r1, pos.y*HINT_GRAPHIC_SIZE_Y*r1) + center;
-    //the center of the note box
-    const XY ori = XY(pos.x*HINT_GRAPHIC_SIZE_X*r3, pos.y*HINT_GRAPHIC_SIZE_Y*r3)*dist + center;
-    //the halfsize of the note box
-    const XY wh = XY(HINT_GRAPHIC_SIZE_X*r2, HINT_GRAPHIC_SIZE_Y*r2);
-    //the offset of the pointer's base from "ori" (1.5 pixels)
-    const XY para = (ori-center).Rotate90CW().Normalize()*1.5;
-
-    //Draw object
-    const Contour object = Contour(-HINT_GRAPHIC_SIZE_X*r1, HINT_GRAPHIC_SIZE_X*r1,
-                         -HINT_GRAPHIC_SIZE_Y*r1, HINT_GRAPHIC_SIZE_Y*r1).Shift(center);
-    canvas->Fill(object, MscFillAttr(MscColorType(128,128,128), GRADIENT_NONE));
-    canvas->Line(object, MscLineAttr());
-    //Draw note
-    const Contour c = Contour(Block(ori-wh, ori+wh)) + Contour(tip, ori+para, ori-para);
-    const MscLineAttr line(LINE_SOLID, MscColorType(0,192,32), 1, CORNER_NONE, 0); //green-blue
-    const MscFillAttr fill(line.color.second.Lighter(0.7), GRADIENT_NONE);
-    const MscShadowAttr shadow;
-    canvas->Shadow(c, shadow);
-    canvas->Fill(c, fill);
-    canvas->Line(c, line);
-    canvas->UnClip();
-    return true;
 }
 
 
 string MscNoteAttr::Print(int) const
 {
     string ss = "note(";
-    if (pointer.first) ss << " pointer:" << EnumEncapsulator<MscNoteAttr::pointer_t>::names[pointer.second];
-    if (def_float_dist.first) ss << " def_float_dist:" << def_float_dist.second;
-    if (def_float_x.first) ss << " def_float_x:" << def_float_x.second;
-    if (def_float_y.first) ss << " def_float_y:" << def_float_y.second;
+    if (layout.first) ss << " layout:" << EnumEncapsulator<MscNoteAttr::layout_t>::names[layout.second];
+    if (shape.first) ss << " shape:" << EnumEncapsulator<MscNoteAttr::shape_t>::names[shape.second];
+    if (point_to.first) ss << " point_to:" << EnumEncapsulator<MscNoteAttr::point_to_t>::names[point_to.second];
     return ss + ")";
 }

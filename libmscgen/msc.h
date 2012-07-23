@@ -1,21 +1,3 @@
-/*
-    This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
-    Distributed under GNU Affero General Public License.
-
-    Msc-generator is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    Msc-generator is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
-*/
 #if !defined(MSC_H)
 #define MSC_H
 
@@ -32,7 +14,7 @@
 #include "style.h"
 #include "entity.h"
 #include "mscdrawer.h"
-#include "commands.h" //includes also arcs.h
+#include "arcs.h"
 
 using std::string;
 
@@ -138,8 +120,6 @@ public:
 
 /////////////////////////////////////////////////////////////////////
 
-class ArcVerticalArrow;
-
 class Msc {
 public:
     typedef std::pair<file_line, double> MarkerType;
@@ -151,14 +131,6 @@ public:
     };
     typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
             LineToArcMapType;
-    struct ContourAttr {
-        Contour     area;
-        MscLineAttr line;
-        MscFillAttr fill;
-        ContourAttr() : fill(MscColorType(0,0,0,0)) {} //transparent
-        ContourAttr(const Contour &c, const MscLineAttr &l=MscLineAttr(), const MscFillAttr &f=MscFillAttr(MscColorType(0,0,0,0))) : area(c), line(l), fill(f) {}
-        ContourAttr(const Contour &c, const MscFillAttr &f) : area(c), line(LINE_NONE), fill(f) {}
-    };
 
     MscError     Error;
     unsigned     current_file;  /* The number of the file under parsing, plus the error location */
@@ -169,7 +141,7 @@ public:
     EntityDefList                 AutoGenEntities;
     ArcList                       Arcs;
     std::list<Context>            Contexts;
-    std::map<string, Context>     Designs;
+    std::map<string, Design>      Designs;
     std::map<string, MarkerType>  Markers;
     std::map<string, RefType>     ReferenceNames;
     std::map<double, MscFillAttr> Background;
@@ -178,19 +150,12 @@ public:
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
-
-    CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
-    PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
     
-    std::list<ContourAttr>        DebugContours;
+    ArcBase                      *last_notable_arc;     //during parse: last arc inserted (the one notes attach to) or NULL if none
+    bool                          last_note_is_on_left; //during post-parse: was th last non-float note on the left side
+    bool                          had_notes;            //during parse: did we have notes? if not we can skip Reflow()
 
-protected:
-    Block  total;                //Total size of the chart (minus copyright)
-    Block  drawing;              //The area where chart elements can be (total minus the side note lanes)
-public:
-    const Block &GetTotal() const {return total;}
-    const Block &GetDrawing() const {return drawing;}
-    double comments_right_side;  //the right side of comments (or the drawing area if no rcomments)
+    XY     total;                //Total size of the chart (minus copyright)
     double copyrightTextHeight;  //Y size of the copyright text calculated
     double headingSize;          //Y size of first heading row collected during PostPosProcess(?)
 
@@ -207,8 +172,6 @@ public:
     double arcVGapAbove, arcVGapBelow;
     /* How much extra space above and below a discontinuity line (...) */
     double discoVgap;
-    /* How much extra space above and below a title */
-    double titleVgap, subtitleVgap;
     /** Nudge size */
     double nudgeSize;
     /** The width of entity activation bars **/
@@ -217,14 +180,14 @@ public:
     double compressGap;
     /** Size of gap at hscale=auto */
     double hscaleAutoXGap;
-    /* Gap between the side note line and the comments */
-    double sideNoteGap;
     /* Width of the frames used for tracking boxes on screen */
     double trackFrameWidth;
     /* How much do we expand tracking covers */
     double trackExpandBy;
 
     /* Parse Options */
+    double       hscale;     /** Relative xsize, -1 is auto **/
+    double       saved_hscale; /** save hscale during design definition */
     bool         pedantic;   /* if we require pre-defined entities. */
     bool         ignore_designs; /* ignore design changes */
 
@@ -232,16 +195,14 @@ public:
     EntityCollapseCatalog force_entity_collapse; //these entities must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse;    //These boxes must be collapsed/expanded
     ArcSignatureCatalog   force_box_collapse_instead; //These should be kept from force_box_collapse
-
+    
     Msc();
-    ~Msc();
 
     void AddStandardDesigns(void);
-    int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const file_line_range &l = file_line_range(file_line(0,0,0), file_line(0,0,0)));
-    string GetDesigns(bool full) const;
+    bool SetDesign(const string &design, bool force);
+    string GetDesigns() const;
 
-    CommandEntity *CEForComments(const MscStyle &s, const file_line_range &l);
-    ArcBase *AddAttribute(const Attribute&);
+    bool AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
     static void AttributeNames(Csh &csh, bool designOnly);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -269,16 +230,23 @@ public:
     void ParseText(const char *input, const char *filename);
 
     void PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
-                                 EIterator &right, Numbering &number, bool top_level, TrackableElement **note_target);
+                                 EIterator &right, Numbering &number, bool top_level);
     void PostParseProcess(MscCanvas &canvas);
-    template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
+    void FinalizeLabelsArcList(ArcList &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
+    void FinalizeLabels(MscCanvas &canvas) {FinalizeLabelsArcList(Arcs, canvas);}
 
     MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
 
     virtual string Print(int ident=0) const;
-    double GetHScale() const {_ASSERT(Contexts.size() && Contexts.back().hscale.first); return Contexts.back().hscale.second;}
-    double XCoord(double pos) const {return floor(pos*130*(GetHScale()>0?GetHScale():1)+0.5);} //rounded
+    double XCoord(double pos) const {return floor(pos*130*(hscale>0?hscale:1)+0.5);} //rounded
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
+
+    void HideEntityLines(const Contour &area) {HideELinesHere += area;}
+    void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
+
+    void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
+    void DrawEntityLines(MscCanvas &canvas, double y, double height)
+         {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
     void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
     double HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover, bool reflow);
@@ -287,28 +255,14 @@ public:
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
     void CalculateWidthHeight(MscCanvas &canvas);
-    void PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
-    void PlaceFloatingNotes(MscCanvas &canvas);
-
-    void HideEntityLines(const Contour &area) {HideELinesHere += area;}
-    void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
-    void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs);
+    void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
 
     void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
-
-    void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
-    void DrawEntityLines(MscCanvas &canvas, double y, double height)
-         {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
-
-    template<typename list> void DrawArcList(MscCanvas &canvas, list &arcs, DrawPassType pass) {for (auto i = arcs.begin();i!=arcs.end(); i++) (*i)->Draw(canvas, pass);}
-    void DrawArcs(MscCanvas &canvas, DrawPassType pass);
+    void DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pass);
     void Draw(MscCanvas &canvas, bool pageBreaks);
     void DrawCopyrightText(MscCanvas &canvas, unsigned page=0);
     void DrawPageBreaks(MscCanvas &canvas);
     void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &fn, bool bPageBreaks);
-
-    void InvalidateNotesToThisTarget(const TrackableElement *target);
-    void RemoveFromNotes(const CommandNote *note);
 };
 
 

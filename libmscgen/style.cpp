@@ -34,39 +34,18 @@ MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, b
     f_text(t), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
     f_indicator(i), f_makeroom(mr), f_note(n), f_arrow(a)
 {
-    Empty();
-}
-
-//This one leaves "text" empty!!
-void MscStyle::MakeCompleteButText() 
-{
-    if (f_line) line.MakeComplete();
-    else line.Empty();
-    if (f_vline) vline.MakeComplete();
-    else vline.Empty();
-    if (f_fill) fill.MakeComplete();
-    else fill.Empty();
-    if (f_vfill) vfill.MakeComplete();
-    else vfill.Empty();
-    if (f_shadow) shadow.MakeComplete();
-    else shadow.Empty();
-    if (f_arrow!=ArrowHead::NONE) arrow.MakeComplete();
-    else arrow.Empty();
-    //text untouched
-    solid.first=f_solid;
+    solid.first=so;
     solid.second = 128;
-    side.first = f_side;  
+    side.first = si;  
     side.second = SIDE_RIGHT;
-    numbering.first = f_numbering;
-    numbering.second = false;
-    compress.first = f_compress;
+    compress.first = co;
     compress.second = false;
-    indicator.first = f_indicator;
+    numbering.first = nu;
+    numbering.second = false;
+    indicator.first = i;
     indicator.second = true;
-    makeroom.first = f_makeroom;
+    makeroom.first = mr;
     makeroom.second = true;
-    if (f_note) note.MakeComplete();
-    else note.Empty();
 }
 
 void MscStyle::Empty()
@@ -131,22 +110,20 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         if (f_line) line.AddAttribute(a, msc, type);
         return f_arrow!=ArrowHead::NONE || f_line;
     }
-    if (f_text && (a.StartsWith("text") || a.Is("ident")))
+    if ((a.StartsWith("text") || a.Is("ident")) && f_text)
         return text.AddAttribute(a, msc, type);
-    if (f_line && a.StartsWith("line"))
+    if (a.StartsWith("line") && f_line)
         return line.AddAttribute(a, msc, type);
-    if (f_vline && a.StartsWith("vline"))
+    if (a.StartsWith("vline") && f_vline)
         return vline.AddAttribute(a, msc, type);
     if (a.StartsWith("fill") && f_fill)
         return fill.AddAttribute(a, msc, type);
-    if (f_vfill && a.StartsWith("vfill"))
+    if (a.StartsWith("vfill") && f_vfill)
         return vfill.AddAttribute(a, msc, type);
-    if (f_shadow && a.StartsWith("shadow"))
+    if (a.StartsWith("shadow") && f_shadow)
         return shadow.AddAttribute(a, msc, type);
-    if (f_arrow!=ArrowHead::NONE && (a.StartsWith("arrow") || a.Is("arrowsize")))
+    if ((a.StartsWith("arrow") || a.Is("arrowsize")) && f_arrow!=ArrowHead::NONE)
         return arrow.AddAttribute(a, msc, type);
-    if (f_note && a.StartsWith("note")) 
-        return note.AddAttribute(a, msc, type);
     if (a.Is("solid") && f_solid) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, type))
@@ -220,6 +197,8 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
         makeroom.second = a.yes;
         return true;
     }
+    if (f_note && (a.Is("layout") || a.Is("shape") || a.Is("point_to"))) 
+        return note.AddAttribute(a, msc, type);
     return false;
 }
 
@@ -316,8 +295,11 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (f_note && CaseInsensitiveBeginsWith(attr, "note"))
-        return note.AttributeValues(attr, csh);
+    if (f_note && 
+           (CaseInsensitiveEqual(attr, "layout") || 
+            CaseInsensitiveEqual(attr, "shape") || 
+            CaseInsensitiveEqual(attr, "point_to"))) 
+            return note.AttributeValues(attr, csh);
     return false;
 
 }
@@ -348,167 +330,13 @@ const MscStyle &StyleSet::GetStyle(const string &s) const
     else return i->second;
 };
 
-Context &Context::operator +=(const Context &o)
+void Design::Reset()
 {
-    is_full |= o.is_full;
-    if (o.hscale.first) hscale = o.hscale;
-    if (o.numbering.first) numbering = o.numbering;
-    if (o.compress.first) compress = o.compress;
-    if (o.indicator.first) indicator = o.indicator;
-    if (o.slant_angle.first) slant_angle = o.slant_angle;
-    defCommentLine += o.defCommentLine;
-    defCommentFill += o.defCommentFill;
-    defBackground += o.defBackground;
-    text += o.text;
-    for (auto i = o.colors.begin(); i!=o.colors.end(); i++) 
-        colors[i->first] = i->second;
-    for (auto i = o.styles.begin(); i!=o.styles.end(); i++) {
-        auto j = styles.find(i->first);
-        if (j==styles.end()) 
-            styles[i->first] = i->second;
-        else
-            j->second += i->second;
-    }
-    numberingStyle += o.numberingStyle;
-    return *this;
-}
-
-void Context::Empty()
-{
-    is_full = false;
-    hscale.first = false;
-    numbering.first = false;
-    compress.first = false;
-    indicator.first = false;
-    slant_angle.first = false;
-    defCommentLine.Empty();
-    defCommentFill.Empty();
-    defBackground.Empty();
-    text.Empty();
-    styles.clear();
-    colors.clear();
-    numberingStyle.Empty();  
-
-    //Now add default styles, but all empty
-    
-    styles["arrow"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, 
-                 false, true, true, false, true, false, false, false); 
-                 //no fill, shadow, vline solid side vfill, makeroom, note;
-    styles["->"] = styles["arrow"];
-    styles[">"]  = styles["arrow"];
-    styles[">>"] = styles["arrow"];
-    styles["=>"] = styles["arrow"];
-
-    styles["blockarrow"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, 
-                 false, true, true, false, false, false, false, false);  
-                 //no vline solid side indicator vfill makeroom note;
-    styles["box_collapsed_arrow"] = styles["blockarrow"];
-    styles["block->"] = styles["blockarrow"];
-    styles["block>"]  = styles["blockarrow"];
-    styles["block>>"] = styles["blockarrow"];
-    styles["block=>"] = styles["blockarrow"];
-
-    styles["vertical"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, 
-                 false, true, true, true, false, false, true, false);  
-                 //no vline solid indicator vfill note
-    styles["vertical->"] = styles["vertical"];
-    styles["vertical>"]  = styles["vertical"];
-    styles["vertical>>"] = styles["vertical"];
-    styles["vertical=>"] = styles["vertical"];
-    styles["vertical--"] = styles["vertical"];
-    styles["vertical++"] = styles["vertical"];
-    styles["vertical.."] = styles["vertical"];
-    styles["vertical=="] = styles["vertical"];
-
-    styles["divider"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, 
-                 false, true, true, false, false, false, false, false); 
-                 //no arrow, fill, shadow solid side indicator vfill makeroom note
-    styles["---"] = styles["divider"];
-    styles["..."] = styles["divider"];
-
-    styles["box"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, 
-                 false, true, true, false, true, false, false, false);
-                 //no arrow, vline solid side vfill makeroom note;
-    styles["box_collapsed"] = styles["box"];
-    styles["emptybox"] = styles["box"];
-    styles["--"] = styles["box"];
-    styles["++"] = styles["box"];
-    styles[".."] = styles["box"];
-    styles["=="] = styles["box"];
-
-    styles["pipe"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false,
-                 true, true, true, true, false, false, false, false); 
-                 //no arrow, vline indicator vfill makeroom note;
-    styles["pipe--"] = styles["pipe"];
-    styles["pipe++"] = styles["pipe"];
-    styles["pipe.."] = styles["pipe"];
-    styles["pipe=="] = styles["pipe"];
-
-    styles["entity"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, 
-                 false, false, false, false, true, true, false, false); 
-                 //no arrow, solid numbering compress side makeroom note
-    styles["entitygroup_collapsed"] = styles["entity"];
-    styles["entitygroup"] = styles["entity"];
-
-    styles["indicator"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, 
-                 false, false, false, false, false, false, false, false); 
-                 //fill line shadow only 
-    styles["symbol"] =
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, 
-                 false, false, false, false, false, false, false, false); 
-                 //only line fill and shadow
-
-    styles["note"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NOTE, true, true, true, true, false, 
-                 false, true, false, false, false, false, false, true);  
-                 //no vline side solid indicator compress vfill makreoom
-    
-    styles["comment"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, false, false, false, false, 
-                 false, true, false, true, false, false, false, false);  
-                 //only text numbering and side
-
-    styles["title"] = 
-        MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, 
-                 false, false, false, false, false, false, false, false);  
-                 //line, fill, shadow, vline text  
-    styles["subtitle"] = styles["title"];
-}
-
-void Context::Plain()
-{
-    Empty();
-    is_full = true;
-    hscale.first = true;
-    hscale.second = 1.0;
-    numbering.first = true;
-    numbering.second=false;
-    compress.first = true;
-    compress.second=false;
-    indicator.first = true;
-    indicator.second = true;
-    slant_angle.first = true;
-    slant_angle.second = 0;
-    defCommentLine.MakeComplete();
-    defCommentFill.MakeComplete();
-    defBackground.MakeComplete();
-    defCommentLine.width.second = 3;
-    defCommentFill.color.second.a = 0; //fully transparent
-    defBackground.color.second.a = 0; //fully transparent
+    numbering=false;
+    compress=false;
     numberingStyle.Reset();
-    numberingStyle.pre.first = true;
-    numberingStyle.pre.second.clear();
-    numberingStyle.post.first = true;
-    numberingStyle.post.second = ": ";
-    text.Default();
+    numberingStyle.post = ": ";
+    hscale = 1.0;
 
     colors.clear();
     colors["none"]  = MscColorType(  0,   0,   0, 0);
@@ -521,137 +349,160 @@ void Context::Plain()
     colors["gray"]  = MscColorType(150, 150, 150);
     colors["lgray"] = MscColorType(200, 200, 200);
 
-    styles["arrow"].MakeCompleteButText();
-    styles["arrow"].compress.first = false;
-    styles["arrow"].numbering.first = false;
-    styles["arrow"].line.radius.second = -1;
+    styles.clear();
+    MscStyle style(STYLE_DEFAULT, ArrowHead::ARROW, true, true, false, false, false, false, true, true, false, true, false, false, false); //no fill, shadow, vline solid side vfill, makeroom, note
+    style.compress.first = false;
+    style.numbering.first = false;
+    style.line.radius.second = -1;
+    styles["arrow"] = style;
 
-    styles["->"].line.type.first = true;
-    styles["->"].line.type.second = LINE_SOLID;
-    styles[">"].line.type.first = true;
-    styles[">"].line.type.second = LINE_DOTTED;
-    styles[">>"].line.type.first = true;
-    styles[">>"].line.type.second = LINE_DASHED;
-    styles["=>"].line.type.first = true;
-    styles["=>"].line.type.second = LINE_DOUBLE;
+    style.Empty();
+    style.type = STYLE_STYLE;
+    style.line.type.first = true;
+    style.line.type.second = LINE_SOLID;
+    styles["->"] = style;
+    style.line.type.second = LINE_DOTTED;
+    styles[">"] = style;
+    style.line.type.second = LINE_DASHED;
+    styles[">>"] = style;
+    style.line.type.second = LINE_DOUBLE;
+    styles["=>"] = style;
 
-    styles["blockarrow"].MakeCompleteButText();
-    styles["blockarrow"].compress.first = false;
-    styles["blockarrow"].numbering.first = false;
-    styles["blockarrow"].line.radius.second = -1;
-    styles["box_collapsed_arrow"] = styles["blockarrow"];
-    styles["box_collapsed_arrow"].arrow.midType.second = MSC_ARROW_DOT;
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, false, false, false, false, false);  //no vline solid side indicator vfill makeroom note
+    style.compress.first = false;
+    style.numbering.first = false;
+    style.line.radius.second = -1;
+    styles["blockarrow"] = style;
+    style.arrow.midType.second = MSC_ARROW_DOT;
+    styles["box_collapsed_arrow"] = style;
 
-    styles["block->"].line.type.first = true;
-    styles["block->"].line.type.second = LINE_SOLID;
-    styles["block>"].line.type.first = true;
-    styles["block>"].line.type.second = LINE_DOTTED;
-    styles["block>>"].line.type.first = true;
-    styles["block>>"].line.type.second = LINE_DASHED;
-    styles["block=>"].line.type.first = true;
-    styles["block=>"].line.type.second = LINE_DOUBLE;
+    style.Empty();
+    style.type = STYLE_STYLE;
+    style.line.type.first = true;
+    style.line.type.second = LINE_SOLID;
+    styles["block->"] = style;
+    style.line.type.second = LINE_DOTTED;
+    styles["block>"] = style;
+    style.line.type.second = LINE_DASHED;
+    styles["block>>"] = style;
+    style.line.type.second = LINE_DOUBLE;
+    styles["block=>"] = style;
 
-    styles["vertical"].MakeCompleteButText();
-    styles["vertical"].compress.first = false;
-    styles["vertical"].numbering.first = false;
-    styles["vertical"].makeroom.second = false;
-    styles["vertical"].line.radius.second = -1;
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::BIGARROW, true, true, true, true, false, false, true, true, true, false, false, true, false);  //no vline solid indicator vfill note
+    style.compress.first = false;
+    style.numbering.first = false;
+    style.makeroom.second = false;
+    style.line.radius.second = -1;
+    styles["vertical"] = style;
 
-    styles["vertical->"].line.type.first = true;
-    styles["vertical->"].line.type.second = LINE_SOLID;
-    styles["vertical>"].line.type.first = true; 
-    styles["vertical>"].line.type.second = LINE_DOTTED;
-    styles["vertical>>"].line.type.first = true;
-    styles["vertical>>"].line.type.second = LINE_DASHED;
-    styles["vertical=>"].line.type.first = true;
-    styles["vertical=>"].line.type.second = LINE_DOUBLE;
+    style.Empty();
+    style.type = STYLE_STYLE;
+    style.line.type.first = true;
+    style.line.type.second = LINE_SOLID;
+    styles["vertical->"] = style;
+    style.line.type.second = LINE_DOTTED;
+    styles["vertical>"] = style;
+    style.line.type.second = LINE_DASHED;
+    styles["vertical>>"] = style;
+    style.line.type.second = LINE_DOUBLE;
+    styles["vertical=>"] = style;
 
-    styles["vertical--"].arrow.startType.first = true;
-    styles["vertical--"].arrow.startType.second = MSC_ARROW_NONE;
-    styles["vertical--"].arrow.midType.first = true;
-    styles["vertical--"].arrow.midType.second = MSC_ARROW_NONE;
-    styles["vertical--"].arrow.endType.first = true;
-    styles["vertical--"].arrow.endType.second = MSC_ARROW_NONE;
-    styles["vertical--"].line.type.first = true;
-    styles["vertical--"].line.type.second = LINE_SOLID;
-    styles["vertical++"] = styles["vertical--"];
-    styles["vertical++"].line.type.second = LINE_DASHED;
-    styles["vertical.."] = styles["vertical--"];
-    styles["vertical.."].line.type.second = LINE_DOTTED;
-    styles["vertical=="] = styles["vertical--"];
-    styles["vertical=="].line.type.second = LINE_DOUBLE;
+    style.arrow.startType.first = true;
+    style.arrow.startType.second = MSC_ARROW_NONE;
+    style.arrow.midType.first = true;
+    style.arrow.midType.second = MSC_ARROW_NONE;
+    style.arrow.endType.first = true;
+    style.arrow.endType.second = MSC_ARROW_NONE;
+    style.line.type.second = LINE_SOLID;
+    styles["vertical--"] = style;
+    style.line.type.second = LINE_DASHED;
+    styles["vertical++"] = style;
+    style.line.type.second = LINE_DOTTED;
+    styles["vertical.."] = style;
+    style.line.type.second = LINE_DOUBLE;
+    styles["vertical=="] = style;
 
-    styles["divider"].MakeCompleteButText();
-    styles["divider"].compress.first = false;
-    styles["divider"].numbering.first = false;
-    styles["divider"].vline.Empty();
-    styles["divider"].line.type.second = LINE_NONE;
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, false, false, true, false, true, true, false, false, false, false, false); //no arrow, fill, shadow solid side indicator vfill makeroom note
+    style.compress.first = false;
+    style.numbering.first = false;
+    style.vline.Empty();
+    style.line.type.second = LINE_NONE;
+    styles["divider"] = style;
 
-    styles["---"].line.type.first = true;
-    styles["---"].line.type.second = LINE_DOTTED;
-    styles["..."].vline.type.first = true;
-    styles["..."].vline.type.second = LINE_DOTTED;
-    styles["..."].text.Apply("\\mu(10)\\md(10)");
+    style.Empty();
+    style.type = STYLE_STYLE;
+    style.line.type.first = true;
+    style.line.type.second = LINE_DOTTED;
+    styles["---"] = style;
+    style.Empty();
+    style.vline.type.first = true;
+    style.vline.type.second = LINE_DOTTED;
+    style.text.Apply("\\mu(10)\\md(10)");
+    styles["..."] = style;
 
-    styles["emptybox"].MakeCompleteButText();
-    styles["emptybox"].compress.first = false;
-    styles["emptybox"].numbering.first = false;
-    styles["box_collapsed"] = styles["emptybox"];
-    styles["box"] = styles["emptybox"];
-    styles["box"].text.Apply("\\pl");
-    styles["box"].line.type.first = false;
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, false, true, true, false, true, false, false, false); //no arrow, vline solid side vfill makeroom note
+    style.compress.first = false;
+    style.numbering.first = false;
+    styles["emptybox"] = style;
+    styles["box_collapsed"] = style;
+    style.text.Apply("\\pl");
+    style.line.type.first = false;
+    styles["box"] = style;
 
-    styles["--"].line.type.first = true;
-    styles["--"].line.type.second = LINE_SOLID;
-    styles["++"].line.type.first = true;
-    styles["++"].line.type.second = LINE_DASHED;
-    styles[".."].line.type.first = true;
-    styles[".."].line.type.second = LINE_DOTTED;
-    styles["=="].line.type.first = true;
-    styles["=="].line.type.second = LINE_DOUBLE;
+    style.Empty();
+    style.type = STYLE_STYLE;
+    style.line.type.first = true;
+    style.line.type.second = LINE_SOLID;
+    styles["--"] = style;
+    style.line.type.second = LINE_DASHED;
+    styles["++"] = style;
+    style.line.type.second = LINE_DOTTED;
+    styles[".."] = style;
+    style.line.type.second = LINE_DASHED;
+    style.line.type.second = LINE_DOUBLE;
+    styles["=="] = style;
 
-    styles["pipe"].MakeCompleteButText();
-    styles["pipe"].compress.first = false;
-    styles["pipe"].numbering.first = false;
-    styles["pipe"].line.radius.second = 5;
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, false, true, true, true, true, false, false, false, false); //no arrow, vline indicator vfill makeroom note
+    style.compress.first = false;
+    style.numbering.first = false;
+    style.line.radius.second = 5;
+    styles["pipe"] = style;
 
-    styles["pipe--"].line.type.first = true;
-    styles["pipe--"].line.type.second = LINE_SOLID;
-    styles["pipe++"].line.type.first = true;
-    styles["pipe++"].line.type.second = LINE_DASHED;
-    styles["pipe.."].line.type.first = true;
-    styles["pipe.."].line.type.second = LINE_DOTTED;
-    styles["pipe=="].line.type.first = true;
-    styles["pipe=="].line.type.second = LINE_DOUBLE;
+    style.Empty();
+    style.type = STYLE_STYLE;
+    style.line.type.first = true;
+    style.line.type.second = LINE_SOLID;
+    styles["pipe--"] = style;
+    style.line.type.second = LINE_DASHED;
+    styles["pipe++"] = style;
+    style.line.type.second = LINE_DOTTED;
+    styles["pipe.."] = style;
+    style.line.type.second = LINE_DASHED;
+    style.line.type.second = LINE_DOUBLE;
+    styles["pipe=="] = style;
 
-    styles["entity"].MakeCompleteButText();
-    styles["entitygroup_collapsed"].MakeCompleteButText();
-    styles["entitygroup"].MakeCompleteButText();
-    styles["entitygroup"].line.type.second = LINE_DASHED;
 
-    styles["indicator"].MakeCompleteButText();
-    styles["indicator"].line.width.second = 2;
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, true, true, true, true, true, false, false, false, false, true, true, false, false); //no arrow, solid numbering compress side makeroom note
+    styles["entity"] = style;
+    styles["entitygroup_collapsed"] = style;
+    style.line.type.second=LINE_DASHED;
+    styles["entitygroup"] = style;
 
-    styles["symbol"].MakeCompleteButText();
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false, false, false); //fill line shadow only 
+    style.line.width.second = 2;
+    styles["indicator"] = style;
 
-    styles["note"].MakeCompleteButText();
-    styles["note"].numbering.first = false;
-    styles["note"].text += "\\mn(10)\\ms(6)"; //small font to 6, normal to 10
+    style = MscStyle(STYLE_DEFAULT, ArrowHead::NONE, false, true, true, true, false, false, false, false, false, false, false, false, false); //only line fill and shadow
+    styles["symbol"] = style;
 
-    styles["comment"].MakeCompleteButText();
-    styles["comment"].numbering.first = false;
-    styles["comment"].text += "\\mn(10)\\ms(6)\\pl"; //small font to 6, normal to 10, left para
+    style= MscStyle(STYLE_DEFAULT, ArrowHead::ARROW, true, true, true, true, false, false, true, false, false, false, false, true, true);  //no vline side solid indicator compress vfill 
+    style.numbering.first = false;
+    style.makeroom.second = true;
+    styles["note"] = style;
 
-    styles["title"].MakeCompleteButText();
-    styles["title"].vline.type.second = LINE_NONE;
-    styles["title"].line.type.second = LINE_NONE;
-    styles["title"].fill.color.second = MscColorType(0,0,0,0); //no fill
-    styles["title"].text += "\\mn(28)\\ms(18)\\B";
-    styles["subtitle"] = styles["title"];
-    styles["subtitle"].text += "\\mn(22)\\ms(14)\\B";
-    
+
     //Ok, now "weak" and "strong"
-    MscStyle style = MscStyle(STYLE_STYLE); //has everything, but is empty
+    style = MscStyle(STYLE_STYLE); //has everything, but is empty
     MscLineAttr line(MscColorType(150,150,150));
     style.line += line;;
     style.vline += line;

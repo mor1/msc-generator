@@ -23,7 +23,29 @@
 #include <stack>
 #include "contour.h"
 
+
 namespace contour {
+
+
+SimpleContour::result_t SimpleContour::switch_side(result_t t)
+{
+    switch (t) {
+    default: _ASSERT(0); //fallthrough
+    case IN_HOLE_APART:
+    case BOTH_EMPTY:
+    case OVERLAP: 
+    case APART:
+    case SAME:            return t;
+
+    case A_IS_EMPTY:      return B_IS_EMPTY;
+    case B_IS_EMPTY:      return A_IS_EMPTY;
+    case B_INSIDE_A:      return A_INSIDE_B;
+    case A_INSIDE_B:      return B_INSIDE_A;;
+    case B_IN_HOLE_OF_A:  return A_IN_HOLE_OF_B;
+    case A_IN_HOLE_OF_B:  return B_IN_HOLE_OF_A;
+    }
+}
+
 
 ///////////////////////////// SimpleContour
 
@@ -176,9 +198,7 @@ inline bool really_between04_warp (double q, double a, double b)
 
 //Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A
 //It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
-//clockwiseness is ignored: the inside of a counterclockwise contour is the limited space
-//it encircles.
-relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
+SimpleContour::result_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 {
     size_type edge;
     for (size_type i=0; i<size(); i++) {
@@ -187,9 +207,12 @@ relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
         //if we are a single ellipsis, use our center point, else use a vertex
         switch (b.IsWithin(p, &edge, &pos, /*strict=*/false)) {
         default:
+        case A_IN_HOLE_OF_B:
+        case B_IN_HOLE_OF_A:
+        case IN_HOLE_APART:
             _ASSERT(0);
-        case WI_INSIDE:  return REL_A_INSIDE_B;
-        case WI_OUTSIDE: return REL_OVERLAP;
+        case WI_INSIDE:  return A_INSIDE_B;
+        case WI_OUTSIDE: return OVERLAP;
         case WI_ON_VERTEX:
             pos = 0; //if we are on b's vertex, this is the right pos for that edge
         case WI_ON_EDGE:
@@ -208,48 +231,48 @@ relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
             if (test_equal(two_prev, two_next)) break;
 
             if (really_between04_warp(one_prev, two_next, two_prev) &&
-                really_between04_warp(one_next, two_next, two_prev)) return REL_A_INSIDE_B;
+                really_between04_warp(one_next, two_next, two_prev)) return A_INSIDE_B;
             if (really_between04_warp(two_prev, one_next, one_prev) &&
-                really_between04_warp(two_next, one_next, one_prev)) return REL_B_INSIDE_A;
-            return REL_APART;
+                really_between04_warp(two_next, one_next, one_prev)) return B_INSIDE_A;
+            return APART;
         }
     }
     //All points were on a vertex equal in one of the directions
-    return REL_SAME;
+    return SAME;
 }
 
 
 //Gives valid result only if the two contours have no crosspoints
-//clockwiseness fully ignored: inside of cclwise contours is the limited space it encloses
-relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
+//clockwiseness fully honored
+SimpleContour::result_t SimpleContour::CheckContainment(const SimpleContour &other) const
 {
     //special case of two full ellipses touching - not caught otherwise
     if (size()==1 && other.size()==1 && at(0).GetStart() == other.at(0).GetStart()) {
-        if (at(0).ell==other[0].ell) return REL_SAME;
+        if (at(0).ell==other[0].ell) return SAME;
         //if one of the centers is in the other ellipses then x_INSIDE_y
         if (inside(IsWithin(other[0].ell.GetCenter())) ||
             inside(other.IsWithin(at(0).ell.GetCenter()))) {
                 //the center closer to the touchpoint will be inside
-                if (at(0).GetStart().Distance(at(0).ell.GetCenter()) <
-                    at(0).GetStart().Distance(other[0].ell.GetCenter()))
-                    return REL_A_INSIDE_B;
+                if ((at(0).ell.GetCenter()-at(0).GetStart()).length() <
+                    (other[0].ell.GetCenter()-at(0).GetStart()).length())
+                    return A_INSIDE_B;
                 else
-                    return REL_B_INSIDE_A;
+                    return B_INSIDE_A;
         }
-        return REL_APART;
+        return APART;
     }
-    relation_t this_in_other = CheckContainmentHelper(other);
-    if (this_in_other != REL_OVERLAP) return this_in_other;
+    result_t this_in_other = CheckContainmentHelper(other);
+    if (this_in_other != OVERLAP) return this_in_other;
     switch (other.CheckContainmentHelper(*this)) {
     default:
-    case REL_A_IN_HOLE_OF_B:
-    case REL_B_IN_HOLE_OF_A:
-    case REL_IN_HOLE_APART:
-    case REL_SAME: _ASSERT(0); return REL_SAME;
-    case REL_OVERLAP:
-    case REL_APART:       return REL_APART;
-    case REL_A_INSIDE_B:  return REL_B_INSIDE_A; //other is in us
-    case REL_B_INSIDE_A:  return REL_A_INSIDE_B; //we are in other
+    case A_IN_HOLE_OF_B:
+    case B_IN_HOLE_OF_A:
+    case IN_HOLE_APART:
+    case SAME: _ASSERT(0); return SAME;
+    case OVERLAP:
+    case APART:       return APART;
+    case A_INSIDE_B:  return B_INSIDE_A; //other is in us
+    case B_INSIDE_A:  return A_INSIDE_B; //we are in other
     }
 }
 
@@ -322,11 +345,11 @@ relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
 void SimpleContour::CalculateClockwise()
 {
     //determine if this is clockwise.
-    if (size()==1)
+    if (size()==1) 
         clockwise = at(0).GetClockWise();
-    else if (size()==2 && at(0).GetType() != Edge::STRAIGHT && at(1).GetType() != Edge::STRAIGHT && at(0).GetClockWise() == at(1).GetClockWise())
+    else if (size()==2 && at(0).GetType() != Edge::STRAIGHT && at(1).GetType() != Edge::STRAIGHT && at(0).GetClockWise() == at(1).GetClockWise()) 
         clockwise = at(0).GetClockWise();
-    else
+    else 
         clockwise = GetArea()>0;
 }
 
@@ -552,14 +575,14 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
 //Since (for straight edges) the area would contain "start.x*start.y-end.x*end.y",
 //which will cancel out. Plus it is easier to return twice the area.
 //Thus we request edge to return
-//"2*(area_above_edge - start.x*start.y + end.x*end.y)", this is what
+//"2*(area_above_edge - start.x*start.y + end.x*end.y)", this is what 
 //Edge::GetAreaAboveAdjusted() returns;
 double SimpleContour::CalcualteArea() const
 {
     register double ret = 0;
     for (size_type i=0; i<size(); i++)
         ret += at(i).GetAreaAboveAdjusted();
-    area_cache.first = true;
+    area_cache.first = true; 
     return area_cache.second = ret /2;
 }
 
@@ -580,32 +603,6 @@ XY SimpleContour::CentroidUpscaled() const
     return ret;
 }
 
-bool SimpleContour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
-{
-    if (size()==0 || IsWithin(from)!=WI_OUTSIDE) return false;
-    bool was=false;
-    XY c, cc;
-    for (unsigned u=0; u<size(); u++)
-        if (!was)
-            was = at(u).TangentFrom(from, clockwise, cclockwise);
-        else if (at(u).TangentFrom(from, c, cc)) {
-            clockwise =  minmax_clockwise(from, clockwise,  c,  true);
-            cclockwise = minmax_clockwise(from, cclockwise, cc, false);
-        }
-    return was;
-}
-
-bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const
-{
-    if (size()==0 || from.size()==0) return false;
-    clockwise[0] = cclockwise[0] = at(0).GetStart();
-    clockwise[1] = cclockwise[1] = from.at(0).GetStart();
-    bool was = false;
-    for (unsigned u=0; u<size(); u++)
-        for(unsigned v=0; v<from.size(); v++) 
-            was |= at(u).TangentFrom(from[v], clockwise, cclockwise);
-    return was;
-}
 
 
 //////////////////////////////////SimpleContour::Expand implementation
@@ -613,10 +610,10 @@ bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY c
 Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise)
 {
     XY center = old;
-    double radius = old.Distance(start);
-    if (!test_equal(radius, old.Distance(end))) {
+    double radius = (start-old).length();
+    if (!test_equal(radius, (end-old).length())) {
         center = (start+end)/2;
-        radius = start.Distance(center);
+        radius = (start-center).length();
     }
     Edge edge(center, radius);
     //We do not know if the resulting contour will be clockwise or not
@@ -715,7 +712,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     Contour res_before_untangle;
     SimpleContour &r2 = res_before_untangle.first.outline;
     r2.edges.reserve(size()*3);
-    const double gap_limit = fabs(miter_limit) < MaxVal(miter_limit) ? fabs(gap)*fabs(miter_limit) : MaxVal(gap_limit);
+    const double gap_limit = fabs(miter_limit) < DBL_MAX ? fabs(gap)*fabs(miter_limit) : DBL_MAX;
     switch (type) {
     default:
         _ASSERT(0);
@@ -729,11 +726,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
             //if we are a too sharp miter, we limit its length
             if (cross_type[r.prev(i)] == Edge::CP_EXTENDED &&
-                   new_start.Distance(r[i].GetStart()) > gap_limit)
+                   (new_start-r[i].GetStart()).length() > gap_limit)
                 new_start = r[i].GetStart() + (new_start-r[i].GetStart()).Normalize()*gap_limit;
             bool need_miter_limit_bevel = false;
             if (cross_type[i] == Edge::CP_EXTENDED &&
-                   new_end.Distance(r[i].GetEnd()) > gap_limit) {
+                   (new_end-r[i].GetEnd()).length() > gap_limit) {
                 new_end = r[i].GetEnd() + (new_end-r[i].GetEnd()).Normalize()*gap_limit;
                 need_miter_limit_bevel = true;
             }
@@ -775,7 +772,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     break;
                 case EXPAND_MITER_SQUARE:
                     const XY &next_start = r.at_next(i).GetStart();
-                    const double dist = new_end.Distance(next_start)/2;
+                    const double dist = (new_end - next_start).length()/2;
                     const XY first_tangent = r[i].NextTangentPoint(1.0);
                     const XY first = new_end + (first_tangent - new_end).Normalize()*dist;
                     const XY second_tangent = r.at_next(i).PrevTangentPoint(0.0);
@@ -875,87 +872,22 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         res = std::move(res_before_untangle);
         return;
     }
-    //OK, now untangle - use 'res_before_untangle' instead of r2
+    //OK, now untangle - use 'res_before_untangle' instead of r2    
     res_before_untangle.boundingBox = r2.boundingBox; //copy bb to outer
     res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(res_before_untangle));
 }
 
-
-//my index is the index of the edge (of "this") just added
-void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
-                                   unsigned original_last, unsigned next, unsigned my_index,
-                                   int last_type, int stype) const
+SimpleContour::result_t SimpleContour::RelationTo(const SimpleContour &c) const
 {
-    XY cp;
-    switch (a[original_last].FindExpandedEdgesCP(a[next], cp)) {
-    case Edge::CP_REAL:
-        a[original_last].SetEndLiberal(cp);
-        a[next].SetStartLiberal(cp);
-        break;
-    default:
-        if (last_type && !(last_type & 1) && stype == -last_type &&
-            //insert an extra point only if we have a sharp convex vertex
-            CLOCKWISE == triangle_dir(PrevTangentPoint(my_index, 0), at(my_index).GetStart(),
-                                      NextTangentPoint(my_index, 0))) {
-            cp = a[original_last].GetEnd();
-            switch (last_type) {
-            case +2: cp.x += 2*gap.x; break;
-            case -2: cp.x -= 2*gap.x; break;
-            case +4: cp.y -= 2*gap.y; break;
-            case -4: cp.y += 2*gap.y; break;
-            default: _ASSERT(0); break;
-            }
-            XY next_start = a[next].GetStart();
-            a.insert(a.begin()+original_last+1, Edge(a[original_last].GetEnd(), cp));
-            a.insert(a.begin()+original_last+2, Edge(cp, next_start));
-        } else {
-            a.insert(a.begin()+original_last+1,
-                     Edge(a[original_last].GetEnd(), a[next].GetStart()));
-        }
-    }
-}
-
-//This one will create a contour such that any gap*2 block centered outside of the
-//resulting contour will not overlap with "this"
-void SimpleContour::Expand2D(const XY &gap, Contour &res) const
-{
-    if (gap.x==0 && gap.y==0) {
-        res = *this;
-        return;
-    }
-    Contour r2;
-    if (IsEmpty()) return;
-    int first_type, last_type;
-    at(0).CreateExpand2D(gap, r2.first.outline.edges, first_type, last_type);
-    for (unsigned u=1; u<size(); u++) {
-        int stype, etype;
-        const unsigned original_last = r2.first.outline.edges.size()-1;
-        at(u).CreateExpand2D(gap, r2.first.outline.edges, stype, etype);
-        Expand2DHelper(gap, r2.first.outline.edges, original_last, original_last+1, u, last_type, stype);
-        last_type = etype;
-    }
-    //Now meld last and first
-    Expand2DHelper(gap, r2.first.outline.edges, r2.first.outline.edges.size()-1, 0, 0, last_type, first_type);
-
-    r2.first.outline.Sanitize(); //calculates clockwise and boundingbox, as well
-    if (r2.first.outline.size()==0) return;
-    r2.boundingBox = r2.first.outline.boundingBox; //copy bb to outer
-    res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(r2));
-}
-
-
-
-relation_t SimpleContour::RelationTo(const SimpleContour &c) const
-{
-    if (!boundingBox.Overlaps(c.boundingBox)) return REL_APART;
+    if (!boundingBox.Overlaps(c.boundingBox)) return APART;
     //Look for crosspoints
     XY r[4];
     double one_pos[4], two_pos[4];
     for (size_type u1 = 0; u1<size(); u1++)
-        for (size_type u2 = 0; u2<c.size(); u2++)
-            if (at(u1).Crossing(c.at(u2), r, one_pos, two_pos))
+        for (size_type u2 = 0; u2<c.size(); u2++) 
+            if (at(u1).Crossing(c.at(u2), r, one_pos, two_pos)) 
                 if (one_pos>0 || two_pos>0) //Crosspoint found, we overlap
-                    return REL_OVERLAP;
+                    return OVERLAP;
     //No real crosspoint (only perhaps vertices are equal)
     return CheckContainment(c);
 }
@@ -1018,149 +950,6 @@ void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) con
         for (int j = 0; j<num; j++)
             section.Set(y[j], forward[j] == clockwise);
     }
-}
-//The distance of the two contours and two points on them
-//returns negative one is inside the other, zero if partial overlap only (two points equal)
-//"inside" here ignores clockwiseness
-//ret can contain the result of previous searches
-//we do not check bb, assume caller calls us if needed
-void SimpleContour::Distance(const SimpleContour &o, DistanceType &ret) const
-{
-    if (IsEmpty() || o.IsEmpty()) return;
-    DistanceType running = ret, tmp;
-    running.MakeAllOutside();
-    //both running and tmp are positive throught this call, except at the very end
-    for (unsigned u = 0; u<size(); u++)
-        for (unsigned v=0; v<o.size(); v++) {
-            if (at(u).GetType() == Edge::STRAIGHT && o[v].GetType() == Edge::STRAIGHT)
-                tmp = at(u).Distance(o[v]);
-            else if (running.ConsiderBB(fabs(at(u).GetBoundingBox().Distance(o[v].GetBoundingBox()))))
-                //if not both are straight try to avoid calculation if bbs are far enough
-                tmp = at(u).Distance(o[v]);
-            else continue;
-            running.Merge(tmp);
-            if (running.IsZero()) goto final_merge;
-        }
-    //now check if one is in the other - they cannot cross each other or else d would be 0
-    _ASSERT(RelationTo(o)!=REL_OVERLAP);
-    if (IsWithin(o[0].GetStart()) == WI_INSIDE || o.IsWithin(at(0).GetStart()) == WI_INSIDE)
-        running.MakeAllInside();
-final_merge:
-    ret.Merge(running);
-}
-
-double SimpleContour::Distance(const XY &o, XY &ret) const
-{
-    if (IsEmpty()) return CONTOUR_INFINITY;
-    double r = CONTOUR_INFINITY;
-    for (unsigned u = 0; u<size(); u++) {
-        XY tmp;
-        double dummy;
-        double d = at(u).Distance(o, tmp, dummy);
-        if (d<r) {
-            r = d;
-            ret = tmp;
-            if (d==0) return 0;
-        }
-    }
-    if (IsWithin(o) == WI_INSIDE)
-        r = -r;
-    return r;
-}
-
-double SimpleContour::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
-{
-    if (IsEmpty()) return CONTOUR_INFINITY;
-    double r = CONTOUR_INFINITY;
-    for (unsigned u = 0; u<size(); u++) {
-        XY tmp;
-        double _pos;
-        double d = at(u).Distance(o, tmp, _pos);
-        if (d<r) {
-            r = d;
-            ret = tmp;
-            t1 = PrevTangentPoint(u, _pos);
-            t2 = NextTangentPoint(u, _pos);
-            if (d==0) return 0;
-        }
-    }
-    if (IsWithin(o) == WI_INSIDE)
-        r = -r;
-    return r;
-}
-
-
-
-Range SimpleContour::Cut(const Edge &s) const
-{
-    Range ret;
-    ret.MakeInvalid();
-    XY dummy1[2];
-    double pos[2], dummy2[2];
-    for (unsigned u = 0; u<size(); u++)
-        for (int i = at(u).Crossing(s, dummy1, dummy2, pos)-1; i>=0; i--)
-            ret += pos[i];
-    return ret;
-}
-
-Range SimpleContour::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const
-{
-    Range ret;
-    ret.MakeInvalid();
-    if (!boundingBox.Overlaps(e.GetBoundingBox())) return ret;
-    XY point[2];
-    double pos[2], scpos[2];
-    for (unsigned u = 0; u<size(); u++)
-        for (int i = at(u).Crossing(e, point, scpos, pos)-1; i>=0; i--) {
-            if (ret.IsWithin(pos[i])) continue;
-            XY tangent = at(u).NextTangentPoint(scpos[i]);
-            if (scpos[i] == 0) {
-                const XY prev_t_norm = (at_prev(u).NextTangentPoint(1.0)- at(u).GetStart()).Normalize();
-                const XY tangen_norm = (tangent - at(u).GetStart()).Normalize();
-                const XY delta = prev_t_norm+tangen_norm;
-                if (delta.length_sqr()<1e-8)
-                    tangent.Rotate90CW();
-                else 
-                    tangent = at(u).GetStart() + delta/2;
-            }
-            if (ret.from > pos[i]) {
-                ret.from = pos[i];
-                from.first = point[i];
-                from.second = tangent;
-            }
-            if (ret.till < pos[i]) {
-                ret.till = pos[i];
-                till.first = point[i];
-                till.second = tangent;
-            }
-        }
-    return ret;
-}
-
-
-
-void SimpleContour::Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const
-{
-    const Range ret = boundingBox.Cut(A, B); //also tests for A==B or invalid bb, which catches empty "this"
-    if (ret.IsInvalid()) return;
-    const Edge s(A+(B-A)*ret.from, A+(B-A)*(ret.till+0.1));
-    DoubleMap<bool> local;
-    XY dummy1[2];
-    double pos[2], dummy2[2];
-    for (unsigned u = 0; u<size(); u++)
-        for (int i = at(u).Crossing(s, dummy1, dummy2, pos)-1; i>=0; i--)
-            if (fabs(A.x-B.x) > fabs(A.y-B.y)) {
-                const double p = s.GetStart().x + (s.GetEnd().x-s.GetStart().x)*pos[i];
-                local.Set((p-A.x)/(B.x-A.x), true);
-            } else { //do it in y coordinates
-                const double p = s.GetStart().y + (s.GetEnd().y-s.GetStart().y)*pos[i];
-                //p is now the y coordinate of the two CP, convert to "pos" on A-B
-                local.Set((p-A.y)/(B.y-A.y), true);
-            }
-    if (local.size()<=1) return;
-    for (DoubleMap<bool>::const_iterator i=++local.begin(), j=local.begin(); i!=local.end(); j=i,i++)
-        if (inside(IsWithin(A+(B-A)*(i->first+j->first)/2)))
-            map.Set(Range(j->first, i->first), clockwise);
 }
 
 } //namespace

@@ -4,10 +4,6 @@
 #include<string>
 #include<vector>
 
-#ifndef _ASSERT
-#define  _ASSERT(A)
-#endif
-
 class Attribute;
 
 class file_line

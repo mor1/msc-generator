@@ -270,23 +270,12 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 Attribute a(name.c_str(), true, opt_pos_range, opt_pos_range, "yes");
                 a.error = true;  //supress errors in AddAttribute
                 if (msc.AddAttribute(a)) continue;
-                ArcBase *ret;
-                switch (msc.SetDesign(true, a.name, true, &ret)) { 
-                case 1:
-                case 2:
-                case 3:
-                    msc.ignore_designs = true;
-                    break;
-                case 0:
+                if (!msc.SetDesign(a.name, true))
                     msc.Error.Error(opt_pos,
                                     "Unknown chart design: '" + a.name + "'. Using 'plain'.",
-                                    " Available designs are: " + msc.GetDesigns(true) +".");
-                    break;
-                default:
-                    _ASSERT(0);
-                    break;
-                }
-                msc.Arcs.Append(ret);
+                                    " Available styles are: " + msc.GetDesigns() +".");
+                else
+                    msc.ignore_designs = true;
             } else {
                 float num;
                 string value(name.substr(name.find("=")+1));
@@ -405,12 +394,12 @@ int do_main(const std::list<std::string> &args, const char *designs,
             if (oScale)
                 msc.Error.Error(opt_pos, "Conflicting scaing options. Use either -s or one/both of -x/-y. Using no scaling.");
             else if (oX>0 && oY>0) {
-                scale.x = double(oX)/double(msc.GetTotal().x.Spans());
-                scale.y = double(oY)/double(msc.GetTotal().y.Spans());
+                scale.x = double(oX)/double(msc.total.x);
+                scale.y = double(oY)/double(msc.total.y);
             } else if (oX>0)
-                scale.x = scale.y = double(oX)/double(msc.GetTotal().x.Spans());
+                scale.x = scale.y = double(oX)/double(msc.total.x);
             else if (oY>0)
-                scale.x = scale.y = double(oY)/double(msc.GetTotal().y.Spans());
+                scale.x = scale.y = double(oY)/double(msc.total.y);
         } else if (oScale)
             scale.x = scale.y = oScale;
 

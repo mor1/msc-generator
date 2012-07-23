@@ -48,60 +48,9 @@
 #include <cassert>
 #include <vector>
 #include <algorithm>
-#include "contour_edge.h"
+#include "contour_ellipse.h"
 
 namespace contour {
-
-
-//calculates how the line "A"->"B" crosses the rectangle
-//if no crossing, an invalid range is returned
-//if there is a crossing, "pos" values are returned
-//0 corresponds to "A", 1 corresponds to "B", values in between
-//correspond to the section A->B; and outside likewise
-Range Block::Cut(const XY &A, const XY &B) const
-{
-    Range ret;
-    bool have_one = false;
-    if (IsInvalid() || A.test_equal(B)) goto invalid;
-    if (test_equal(A.x, B.x)) {
-        if (!x.IsWithinBool(A.x)) goto invalid;
-        ret.from = (y.from-A.y)/(B.y-A.y);
-        ret.till = (y.till-A.y)/(B.y-A.y);
-        goto valid;
-    }
-    if (test_equal(A.y, B.y)) {
-        if (!y.IsWithinBool(A.y)) goto invalid;
-        ret.from = (x.from-A.x)/(B.x-A.x);
-        ret.till = (x.till-A.x)/(B.x-A.x);
-        goto valid;
-    }
-    if (y.IsWithinBool((B.y-A.y)/(B.x-A.x)*(x.from-A.x)+A.y)) {
-        ret.from = (x.from-A.x)/(B.x-A.x);
-        have_one = true;
-    }
-    if (y.IsWithinBool((B.y-A.y)/(B.x-A.x)*(x.till-A.x)+A.y)) {
-        (have_one ? ret.till : ret.from) = (x.till-A.x)/(B.x-A.x);
-        if (have_one) goto valid;
-        have_one = true;
-    }
-    if (x.IsWithinBool((B.x-A.x)/(B.y-A.y)*(y.from-A.y)+A.x)) {
-        (have_one ? ret.till : ret.from) = (y.from-A.y)/(B.y-A.y);
-        if (have_one) goto valid;
-        have_one = true;
-    }
-    if (x.IsWithinBool((B.x-A.x)/(B.y-A.y)*(y.till-A.y)+A.x)) {
-        (have_one ? ret.till : ret.from) = (y.till-A.y)/(B.y-A.y);
-        if (have_one) goto valid;
-        _ASSERT(0);
-    }
-invalid:
-    ret.MakeInvalid();
-    return ret;
-valid:
-    if (ret.from > ret.till)
-        std::swap(ret.from, ret.till);
-    return ret;
-}
 
 //////////////////Helper functions
 
@@ -382,7 +331,7 @@ void get_bezout_determinant (const quadratic_xy_t &one, const quadratic_xy_t & t
 //finds a crosspoint of two infinite lines defined by AB and MN
 //rets LINE_CROSSING_PARALLEL if parallel
 //rets LINE_CROSSING_OUTSIDE if the crosspoint is outside M-N.
-//rets LINE_CROSSING_INSIDE if the crosspoint is within (M-N) and (A-B)
+//rets LINE_CROSSING_INSIDE if the crosspoint is within (M-N). (We assume in calling function that it is inside A-B, too.)
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r)
 {
 	const double perp = (B-A).PerpProduct(N-M);
@@ -390,9 +339,7 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
     //They are not parallel (and none of them are degenerate)
     const double t = (B-A).PerpProduct(A-M) / perp;
     r = M + (N-M)*t;
-    if (!between01_approximate_inclusive(t)) return LINE_CROSSING_OUTSIDE;
-    const double s = (N-M).PerpProduct(M-A) / -perp;
-    return between01_approximate_inclusive(s) ? LINE_CROSSING_INSIDE : LINE_CROSSING_OUTSIDE;
+    return between01_approximate_inclusive(t) ? LINE_CROSSING_INSIDE : LINE_CROSSING_OUTSIDE;
 }
 
 //refines the location of a point using crosspoints of tangents
@@ -412,7 +359,7 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         const XY B1 = B.conv_to_real_space(XY(cos(r2)        , sin(r2)        ));
         //A1 and B1 are points on the ellipses closest to p
         //get rid of p, if it is very far from one of the ellipses
-        if (A1.Distance(p_orig) > 4 || B1.Distance(p_orig) > 4)
+        if ((A1-p_orig).length() > 4 || (B1-p_orig).length() > 4)
             return false;
         const XY A2 =   conv_to_real_space(XY(cos(r1)+sin(r1), sin(r1)-cos(r1)));
         const XY B2 = B.conv_to_real_space(XY(cos(r2)+sin(r2), sin(r2)-cos(r2)));
@@ -420,8 +367,8 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         //We operate on the assumption that the intersection of two tangents is closer to the
         //intersection of the ellipses
         XY p_new;
-        if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL) 
-            p_new = (A1+B1)/2; //no intersection. Lines are parallel 
+        if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL)
+            return false; //no intersection. Lines are parallel two ellipses, we drop this
         if ((p-p_new).length_sqr()<1e-30)
             return true; //no improvement, exit
         p = p_new;
@@ -455,7 +402,7 @@ bool EllipseData::refine_point(const XY &A, const XY &B, XY &p) const
     return true;
 }
 
-//take the relevant crosspoints and refine them
+//take the (at most)
 int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
                                 const quadratic_xy_t &one, const quadratic_xy_t &/*two*/, XY p[]) const
 {
@@ -487,29 +434,10 @@ int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
     for (int i=1; i<num_tmp; i++) {
         int j;
         for (j=0; j<num; j++)
-            if (p[j].Distance(points[i])<0.1)
+            if ((p[j]-points[i]).length()<0.1)
                 break;
         if (j==num)
             p[num++] = points[i];
-    }
-    if (num==1 && !IsTilted() && !B.IsTilted()) {
-        if (test_equal(center.x, B.center.x)) {
-            _ASSERT(test_equal(radius2+B.radius2, fabs(center.y-B.center.y)) || 
-                    test_equal(fabs(radius2-B.radius2), fabs(center.y-B.center.y)));
-            p[0].x = center.x;
-            if (fabs(center.y-radius2-p[0].y) < fabs(center.y+radius2-p[0].y))
-                p[0].y = center.y-radius2;
-            else
-                p[0].y = center.y+radius2;
-        } else if (test_equal(center.y, B.center.y)) {
-            _ASSERT(test_equal(radius1+B.radius1, fabs(center.x-B.center.x)) || 
-                    test_equal(fabs(radius1-B.radius1), fabs(center.x-B.center.x)));
-            p[0].y = center.y;
-            if (fabs(center.x-radius1-p[0].x) < fabs(center.x+radius1-p[0].x))
-                p[0].x = center.x-radius1;
-            else
-                p[0].x = center.x+radius1;
-        }
     }
     return num;
 }
@@ -565,8 +493,8 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
         std::swap(radius1, radius2);
     } else if (tilted) { //already tilted and remains so
         double c = costilt;
-        costilt = c*cos - sintilt*sin;
-        sintilt = c*sin + sintilt*cos;
+        costilt = c*cos + sintilt*sin;
+        sintilt = -c*sin + sintilt*cos;
     } else {
         tilted=true;
         costilt = cos;
@@ -597,64 +525,11 @@ center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), circ
 	calculate_extremes();
 }
 
-//return positive distance no matter if inside or outside
-double EllipseData::Distance(const XY &p, XY &point, double &rad) const
-{
-    if (p.test_equal(center)) {
-        rad = (radius2 < radius1) ? M_PI/2 : 0;
-        point = Radian2Point(rad);
-        return std::min(radius1, radius2);
-    }
-    if (radius1==radius2) {
-        const double cl = center.Distance(p);
-        point = center + (p-center)*radius1/cl;
-        rad = atan2((point-center).y, (point-center).x);
-        return fabs(radius1-cl);
-    }
-    //We cheat with ellipses, we do not return real distance, just the
-    //intersection of the p-center line and the ellipse
-    point = conv_to_circle_space(p);
-    point.Normalize();
-    rad = atan2(point.y, point.x);
-    point = conv_to_real_space(point);
-    return p.Distance(point);
-}
-
-//This caluclates the distance between the (infinite long) line of (start-end)
-//and the ellipse
-//if distance returned is
-// - zero then the line touches or crosses the ellipse and both p[0] and p[1] return the crosspoint
-// - negative, the line crosses the ellipse and p[0] and p[1] returns the two crosspoints
-// - positive, the line is apart and "p[0]" returns the closest point on the ell, "p[1]" on the line
-double EllipseData::Distance(const XY &start, const XY &end, XY p[2]) const
-{
-    int num = CrossingStraight(start, end, p, true);
-    switch (num) {
-    default: _ASSERT(0);
-    case 0: //far apart, p[0] contains closest point, project p[0] to line
-        p[1] = p[0].ProjectOntoLine(start, end);
-        return p[0].Distance(p[1]);
-    case 1: //we touch
-        p[1] = p[0];
-        return 0; //p[0] is set
-    case 2: //we cross
-        return -1; //p[0] and p[1] already set
-    }
-}
-
 void EllipseData::Shift(const XY &xy)
 {
     center += xy;
     for (int i=0; i<4; i++)
         extreme[i] += xy;
-}
-
-void EllipseData::Scale(double sc)
-{
-    center *= sc;
-    for (int i=0; i<4; i++)
-        extreme[i] *= sc;
-    if (circumference_cache>=0) circumference_cache *= fabs(sc);
 }
 
 //returns how much radians modify
@@ -701,7 +576,7 @@ XY EllipseData::SectorCentroidTimesArea(double from, double to) const
     centroid.y *= radius2; //here we cheat, not precise for ellipses
     if (tilted)
         centroid.Rotate(costilt, sintilt);
-    centroid += center;
+    centroid += center; 
     //OK this is the centroid, now multiply by area
     return centroid*SectorArea(from, to);
 }
@@ -798,8 +673,8 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p)
     return -1;
 }
 
-//In case of no crosspoints, "r" still contains the point closest to the line of A-B
-int EllipseData::CrossingStraight(const XY &A, const XY &B, XY *r, bool want_closest) const
+int EllipseData::CrossingStraight(const XY &A, const XY &B,
+  	                          XY *r, double *radian_us, double *pos_b) const
 {
     const XY M = conv_to_circle_space(A);
     const XY N = conv_to_circle_space(B);
@@ -808,57 +683,31 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B, XY *r, bool want_clo
     //http://mathworld.wolfram.com/Circle-LineIntersection.html
     double D = M.PerpProduct(N);
     const XY d = N-M;
-    double disc = d.length_sqr() - D*D;
+    double disc = d.length()*d.length() - D*D;
     if (disc<0) {
         //no intersection, check if it almost touches
-        const double dist = fabs((N.x-M.x)*(M.y-0) - (M.x-0)*(N.y-M.y))/N.Distance(M);
+        const double dist = fabs((N.x-M.x)*(M.y-0) - (M.x-0)*(N.y-M.y))/(N-M).length();
         if (test_equal(dist,1)) disc=0;
-        else if (want_closest) {
-            //no crosspoints
-            if (test_equal(M.x,N.x)) {
-                if (!test_smaller(-1, M.x)) r[0].x = -1;
-                else if (!test_smaller(M.x, 1)) r[0].x = 1;
-                else {
-                    _ASSERT(0);
-                }
-                r[0].y = 0;
-            } else {
-                const double m = (M.y-N.y)/(M.x-N.x);
-                r[0].x = -sin(atan(m));
-                r[0].y = cos(atan(m));  //always positive
-                if (M.y-M.x*m < 0) r[0] = -r[0]; //line crosses the Y axis below the unit circle
-            }
-            r[0] = conv_to_real_space(r[0]);
-            //no need to refine, we set r[0] originally exactly to the unit sq
-            return 0;
-        } else return 0; //did not want closest point to line
+        else return 0;
     }
 
     const XY v((d.y<0 ? -d.x : d.x)*sqrt(disc), fabs(d.y)*sqrt(disc));
     const XY f(D*d.y, -D*d.x);
     int num;
-    if (disc<1e-20) { //only touch
-        r[0] = f/d.length_sqr();
+    if (test_zero(disc)) { //only touch
+        r[0] = f/d.length()/d.length();
         num = 1;
     } else {
         //the intersect coordinates in unit circle space
-        r[0] = (f+v)/d.length_sqr();
-        r[1] = (f-v)/d.length_sqr();
+        r[0] = (f+v)/d.length()/d.length();
+        r[1] = (f-v)/d.length()/d.length();
         num = 2;
     }
+
+
     for (int i=0; i<num; i++) {
         r[i] = conv_to_real_space(r[i]);
         refine_point(A, B, r[i]);
-    }
-    return num;
-}
-
-int EllipseData::CrossingStraight(const XY &A, const XY &B,
-  	                          XY *r, double *radian_us, double *pos_b) const
-{
-
-    int num = CrossingStraight(A, B, r, false);
-    for (int i=0; i<num; i++) {
         radian_us[i] = Point2Radian(r[i]);
         //special case: horizontal line
         if (A.y==B.y) r[i].y = A.y;
@@ -903,7 +752,7 @@ XY EllipseData::Tangent(double radian, bool next) const
         return conv_to_real_space(XY(x+y, y-x));
 }
 
-inline double gk(double h)
+inline double gk(double h) 
 {
     double z = 0, x = 1;
     unsigned n = 0;
@@ -973,10 +822,10 @@ double EllipseData::CircumferenceHelper(double to) const
         else num_of_quarters = 3;
     }
     to -= num_of_quarters*M_PI/2;
-    //Now num_of_quarters contains how many quarters of the ellipse we have from 0 to that
+    //Now num_of_quarters contains how many quarters of the ellipse we have from 0 to that 
     //end of the shorter axis, which is closer to the original "to".
     //Now "to" contains a (-pi/2..+pi/2) range showing a diff from the end of the short axis
-    //we need to calculate the length or arc from the end of short axis till "fabs(to)" and add
+    //we need to calculate the length or arc from the end of short axis till "fabs(to)" and add 
     //to the quarters if "to" is pos, and substract it if "to" is negative
     //The below formula is by David W. Cantrell from 2002 see in the Internet Archive
     //http://web.archive.org/web/20030225001402/http://mathforum.org/discuss/sci.math/t/469668
@@ -1013,45 +862,5 @@ double EllipseData::OffsetAbove(const XY&, const XY&) const
     _ASSERT(0);
     return 0;
 }
-
-bool EllipseData::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
-{
-    const XY a = conv_to_circle_space(from);
-    const double l = a.length();
-    if (!test_smaller(1,l)) return false; //on or inside
-    clockwise =  conv_to_real_space(XY(a.y, -a.x)/l);
-    cclockwise = conv_to_real_space(XY(-a.y, a.x)/l);
-    return true;
-}
-
-bool EllipseData::TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const
-{
-    //TODO: Assume they do not touch
-    //XY dummy[4];
-    //double dummy2[4];
-    //_ASSERT(CrossingEllipse(from, dummy, dummy2, dummy2)==0);
-    clockwise[0] = cclockwise[0] = center;
-    clockwise[1] = cclockwise[1] = from.center;
-    XY old[2];
-    do {
-        old[0] = clockwise[0];
-        old[1] = cclockwise[0];
-        XY c, cc;
-        if (!from.TangentFrom(clockwise[0], c, cc)) return false;
-        clockwise[1] = minmax_clockwise(clockwise[0], clockwise[1], c, true);
-        if (!from.TangentFrom(cclockwise[0], c, cc)) return false;
-        cclockwise[1] = minmax_clockwise(cclockwise[0], cclockwise[1], cc, false);
-
-        //Now see it back: change dirs
-        if (!TangentFrom(clockwise[1], c, cc)) return false;
-        clockwise[0] = minmax_clockwise(clockwise[1], clockwise[0], cc, false);
-        if (!TangentFrom(cclockwise[1], c, cc)) return false;
-        cclockwise[0] = minmax_clockwise(cclockwise[1], cclockwise[0], c, true);
-    } while (old[0].DistanceSqr(clockwise[0])>=1 && old[1].DistanceSqr(cclockwise[0])>=1);
-    return true;
-}
-
-
-
 
 } //namespace

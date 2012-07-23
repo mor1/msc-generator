@@ -33,28 +33,44 @@ FIX: Triple bevel changes size when size limited.
 FIX: Node hideentitylines, for radius bigger than 70
 CHANGE: Mesh gradients.
 ADD: Tip of the day
-ADD: Check if file changed on disk
-ADD: URL's to PNG
-
-In 3.5.1
-ADDED: Option to re-open accidentally closed internal editor
 
 In 3.5
-FIX: regression with stripes - also test contour fully
-DOC'd: Add titles, vspace, symbol, mark to commands section
-DOC'd: Add titles and detail notes in doc.
-FIXED: pink color
-FIXED: Background command does not work (old test)
-FIXED: Grouped entity 2 note problem.
-FIXED: merge lcomment and rcomment
-FIXED: pipes note, test1 note
-CHANGE: Add Comments to arclist and remove them only at postparseprocess
-ADDED: Notes and comments
-ADDED: Titles and subtitles
-ADDED: Partial designs and msc +=
-ADDED: Bkg and lcomment.fill et al to designs
-ADDED: Many more designs
-FIXED: some layout bugs
+ADD: Comments to arcs (leftside, rightside, bubble)
+    - Two type of notes: on the side or in a bubble. If on the side it can be left, right or alternate_side
+	    -> layout: [float], left, right, alternate
+		If there are multiple notes of the same layout their text is simply concatenated with a \n\s(),
+		taking special processing for alternate.
+	- Can have bubble around or not (latter for side)
+	    -> sahpe: none, [rectangle], arrow
+	- The arrow can point to the edge of the noted object or to its centerline
+	    -> point_to: center, [outline]
+    - x-wise to the center or to an entity
+	    -> point_toward: [center], <entity>
+    - For floating notes the x position can be automatic or at an xpos
+	    expressed via an exvertxpos after the "NOTE" keyword, ignored for non-floating notes
+	- The y pos is computed as follows
+	    - can be set to a marker (ypos: <marker>)
+		- if not set then 
+		    - equal to the element top for no arrows (element is moved downwards if not enough space)
+			- above the element if there is space, below if not
+	- For floating notes, we can make them overlay 
+		-> makeroom: no, [yes]
+	- layout, shape, point_to, makeroom will be style attributes for notes
+	  (point_toward, ypos will be element attributes)
+	- notes will have numbering (on-off) having the same number as their referenced element
+	- notes will have arrow for the arrowhead
+
+	Laying out float bubbles
+	- We define a float_layout_map, which holds areas that shall not be covered by float notes.
+	- Only the label of elements are added to the float_layout_map, not 
+	  their box, pipe outline or arrow/divider line. The only exceptions are
+	    - arrowheads (block and normal alike), a small blob at none arrowhead at the end/start 
+		- line of self-pointing arrows
+		- a bit of the line of dividers on both side of the text
+		- small blobs around entity line status changes. (on/off, active/inactive)
+
+
+ADD: Check if file changed on disk
 
 In 3.4
 FIXED: Label attribute CSH if specified via a quoted string (3.4.19)

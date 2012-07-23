@@ -69,7 +69,7 @@ double angle(XY base, XY A, XY B)
     default:
         return -1; //error one of them equals to another
     };
-    double cos = (A-base).DotProduct(B-base) / base.Distance(A) / base.Distance(B);
+    double cos = (A-base).DotProduct(B-base) / (A-base).length() / (B-base).length();
     cos = std::min(cos, 1.);
     cos = std::max(cos, -1.);
     if (clockwise)
@@ -88,7 +88,7 @@ inline double MM(XY A, XY B)
 
 //to generate a full circle instead of an empty one, specify d_deg as s_deg+360
 Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg)
-    : type(FULL_CIRCLE), s(deg2rad(s_deg)), e(deg2rad(d_deg)), clockwise_arc(true),
+    : type(FULL_CIRCLE), s(deg2rad(s_deg)), e(deg2rad(d_deg)), clockwise_arc(true), 
     ell(c, radius_x, radius_y, tilt_deg), visible(true)
 {
     start = ell.Radian2Point(s);
@@ -103,243 +103,6 @@ Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg, doubl
 }
 
 
-double Edge::Distance(const XY &p, XY &point, double &pos) const
-{
-    if (type==STRAIGHT) {
-        if (test_equal(start.x, end.x)) {
-            point.x = start.x;
-            if (p.y<std::min(start.y, end.y)) {
-                point.y = std::min(start.y, end.y);
-                pos = end.y<start.y ? 1 : 0;
-            } else if (p.y>std::max(start.y, end.y)) {
-                point.y = std::max(start.y, end.y);
-                pos = end.y>start.y ? 1 : 0;
-            } else {
-                point.y = p.y;
-                pos = (p.y-start.y)/(end.y-start.y);
-                return fabs(start.x - p.x);
-            }
-            return point.Distance(p);
-        }
-        if (test_equal(start.y, end.y)) {
-            point.y = start.y;
-            if (p.x<std::min(start.x, end.x)) {
-                point.x = std::min(start.x, end.x);
-                pos = end.x<start.x ? 1 : 0;
-            } else if (p.x>std::max(start.x, end.x)) {
-                point.x = std::max(start.x, end.x);
-                pos = end.x>start.x ? 1 : 0;
-            } else {
-                point.x = p.x;
-                pos = (p.x-start.x)/(end.x-start.x);
-                return fabs(start.y - p.y);
-            }
-            return point.Distance(p);
-        }
-        //http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
-        const double m = fabs((start.x-p.x)*(end.x-start.x)-(end.y-start.y)*(start.y-p.y))/start.DistanceSqr(end);
-        if (m<0) {point = start; pos = 0; return start.Distance(p);}
-        if (m>1) {point = end; pos = 1; return end.Distance(p);}
-        point = start + (end-start)*m;
-        pos = m;
-        //return fabs((end.x-start.x)*(start.y-p.y)-(start.x-p.x)*(end.y-start.y))/l;
-        return point.Distance(p);
-    }
-    if (type==FULL_CIRCLE) {
-        const double d = ell.Distance(p, point, pos);
-        pos = radian2pos(pos);
-        return d;
-    }
-    double radian;
-    const double dist = ell.Distance(p, point, radian);
-    if (radianbetween(radian)) { //on arc
-        pos = radian2pos(radian);
-        return dist;  
-    }
-    //outside: find the closest endpoint
-    if (std::min(fmod_negative_safe(radian-s, 2*M_PI), fmod_negative_safe(radian-s, 2*M_PI)) <
-        std::min(fmod_negative_safe(radian-e, 2*M_PI), fmod_negative_safe(radian-e, 2*M_PI)))
-        {point = start; pos = 0; return start.Distance(p);}
-    else
-        {point = end; pos = 1; return end.Distance(p);}
-}
-
-//This one assumes an empty "ret", which gets filled in, with a nonnegative value
-DistanceType Edge::Distance(const Edge &o) const
-{
-    DistanceType ret;
-    if (type==STRAIGHT) {
-        if (o.type == STRAIGHT) {
-            //test if we cross
-            if (!test_zero((end-start).PerpProduct(o.end-o.start))) {
-                //They are not parallel (and none of them are degenerate, but that does not matter now)
-                const double t = (end-start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
-                const double s = (o.end-o.start).PerpProduct(start-o.start) / (end-start).PerpProduct(o.end-o.start);
-                if (between01_approximate_inclusive(t) && between01_approximate_inclusive(s)) {
-                    ret.Merge(0, start + (end-start)*t, start + (end-start)*t);
-                    return ret;
-                }
-                //here the two infinite lines cross, but the cp is outside at least one
-                //of the two sections
-            }
-            //They are either parallel, degenerate or just far away
-            //calculate the start distance only, end will come anyway
-            XY point1, point2;
-            double dummy;
-            const double d1 = Distance(o.start, point1, dummy);
-            const double d2 = o.Distance(start, point2, dummy);
-            if (d1<d2)
-                ret.Merge(d1, point1, o.start);
-            else
-                ret.Merge(d2, start, point2);
-            return ret;
-        }
-        if (o.type == FULL_CIRCLE) {
-            XY p[2];
-            const double d = o.GetEllipseData().Distance(start, end, p);
-            //now p[0] is a point on the ellipse, p[1] is a point on the line "this"
-            const double line_pos = fabs(start.x-end.x) < fabs(start.y - end.y) ?
-                                    (p[1].y-start.y)/(end.y-start.y) : (p[1].x-start.x)/(end.x-start.x);
-            if (d<0) { //we cross
-                //the two points are the crosspoints
-                //check if the first in inside the section
-                if (between01_approximate_inclusive(line_pos)) {
-                    ret.Merge(0, p[1], p[1]);
-                    return ret;
-                }
-                //now check if the other is
-                const double line_pos2  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
-                                           (p[0].y-start.y)/(end.y-start.y) : (p[0].x-start.x)/(end.x-start.x);
-                if (between01_approximate_inclusive(line_pos2)) {
-                    ret.Merge(0, p[0], p[0]);
-                    return ret;
-                }
-                //none of the crosspoints are between start and end of the section
-                //if both are at the same side, return closer one
-                if ((line_pos<0) == (line_pos2<0)) {
-                    if (line_pos < 0) goto start_is_closer;
-                    else goto end_is_closer;
-                } else { //we are inside the "o"
-                    if (line_pos<0) { //"point_on_line" is closer to "start" than to "end"
-                        if (-line_pos < line_pos2-1)  goto start_is_closer;
-                        else goto end_is_closer;
-                    } else {//"point_on_line" is closer to "end" than to "start"
-                        if (line_pos-1 < -line_pos2) goto end_is_closer;
-                        else goto start_is_closer;
-                    }
-                }
-            }
-            //if we touch & touchpoint between start and end
-            if (d==0 && between01_approximate_inclusive(line_pos)) {
-                ret.Merge(0, p[0], p[0]);
-                return ret;
-            }
-            //d>0: //line avoids ellipse
-            if (!test_smaller(0,line_pos)) {//"start" is closer
-start_is_closer:
-                XY other;
-                double dummy;
-                const double d = o.ell.Distance(start, other, dummy);
-                ret.Merge(d, start, other);
-                return ret;
-            }
-            if (!test_smaller(line_pos,1)) { //"end" is closer
-end_is_closer:
-                XY other;
-                double dummy;
-                const double d = o.ell.Distance(end, other, dummy);
-                ret.Merge(d, end, other);
-                return ret;
-            }
-            //"p[1]" contains a point of the line "this" which is closest to the ellipse "o"
-            XY other;
-            double dummy;
-            const double di = o.ell.Distance(p[1], other, dummy);
-            ret.Merge(di, p[1], other);
-            return ret;
-        }
-        if (o.type == ARC) {
-            //The following points can be the shortest distance
-            //the infinite line and the full circle
-            //the start and endpoints of either arc to the other
-            //(from the latter we skip endpoints as the next arc will do it)
-            XY p[2];
-            double d = o.GetEllipseData().Distance(start, end, p);
-            //now p[0] is a point on the ellipse, p[1] is a point on the line "this"
-            //now validate that this is a real distance
-            const double line_pos  = fabs(start.x-end.x) < fabs(start.y - end.y) ?
-                                           (p[1].y-start.y)/(end.y-start.y) : (p[1].x-start.x)/(end.x-start.x);
-            const double rad = o.GetEllipseData().Point2Radian(p[0]);
-            if (d>=0) {//touch or apart
-                if (!between01_approximate_inclusive(line_pos) || !o.radianbetween(rad))
-                    d = MaxVal(d); //other options will be closer
-            } else { //cross
-                //if any crosspoint is valid we are 0 distance
-                const double line_pos2 = fabs(start.x-end.x) < fabs(start.y - end.y) ?
-                                            (p[0].y-start.y)/(end.y-start.y) : (p[0].x-start.x)/(end.x-start.x);
-                //check line_pos and rad generated from point on ell (="p[0]")
-                if (between01_approximate_inclusive(line_pos2) && o.radianbetween(rad)) {
-                ret.Merge(0, p[0], p[0]);
-                    return ret;
-                }
-                //check line_pos and rad generated from point on line (="p[1]")
-                const double rad2 = o.GetEllipseData().Point2Radian(p[1]);
-                if (between01_approximate_inclusive(line_pos) && o.radianbetween(rad2)) {
-                ret.Merge(0, p[1], p[1]);
-                    return ret;
-                }
-                d = MaxVal(d); //other options will be closer
-            }
-            //Here d is nonnegative (can be maxval)
-            //Ok, now check if the startpoint of the arc is closer to the line
-            XY point1, point2;
-            double dummy;
-            const double d1 = Distance(o.start, point1, dummy);
-            const double d2 = o.Distance(start, point2, dummy);
-            if (d < d1 && d < d2) {
-                ret.Merge(d, p[1], p[0]);
-                return ret;
-            }
-            if (d1<d2)
-                ret.Merge(d1, point1, o.start);
-            else
-                ret.Merge(d2, start, point2);
-            return ret;
-        }
-        _ASSERT(0); //not arc neither full_circle nor straight
-    }
-    if (o.type==STRAIGHT) {
-        ret = o.Distance(*this); //straight-curvy combinations
-        ret.SwapPoints();
-        return ret;
-    }
-    //Now we have two curvy edges
-    //We select the one with shorter arc for interpolation
-    //TODO: replace to binary search
-    const double l1 = (ell.GetRadius1()+ell.GetRadius1())*GetSpan();
-    const double l2 = (o.ell.GetRadius1()+o.ell.GetRadius1())*o.GetSpan();
-    const Edge &a = l1<l2 ? *this : o;
-    const Edge &b = l1<l2 ? o : *this;
-    const double step_length = 5;
-    const double step_arc = step_length/((a.ell.GetRadius1()+a.ell.GetRadius1()));
-    double r1 = a.GetRadianS(), r2 = a.GetRadianE();
-    if (a.GetClockWise()) std::swap(r1, r2);
-    if (r2<=r1) r2 += 2*M_PI;
-    const XY me = a.GetEllipseData().Radian2Point(r2);
-    XY other;
-    double dummy;
-    const double d = b.Distance(me, other, dummy);
-    ret.Merge(d, me, other);
-    for (; r1<r2; r1+=step_arc) {
-        const XY me = a.GetEllipseData().Radian2Point(r1);
-        const double d = b.Distance(me, other, dummy);
-        ret.Merge(d, me, other);
-        if (ret.IsZero()) return ret;
-    }
-    return ret;
-}
-
-
 
 void Edge::Rotate(double cos, double sin, double radian)
 {
@@ -348,8 +111,8 @@ void Edge::Rotate(double cos, double sin, double radian)
     if (type!=STRAIGHT) {
         const double turn = ell.Rotate(cos, sin, radian);
         if (turn) {
-            s += turn; if (s>=2*M_PI) s-= 2*M_PI;
-            e += turn; if (e>=2*M_PI) e-= 2*M_PI;
+            s += turn; if (s>2*M_PI) s-= 2*M_PI;
+            e += turn; if (e>2*M_PI) e-= 2*M_PI;
         }
     }
     CalculateBoundingBox();
@@ -477,7 +240,7 @@ unsigned Edge::Crossing(const Edge &o, XY r[], double pos_my[], double pos_other
 		    if (between01_adjust(pos_my[num])) num++;
 	    }
 	    return num;
-
+        
     }
     //"this is either a full circle or an arc
     int num;
@@ -718,13 +481,13 @@ int Edge::CrossingVertical(double x, double y[], double pos[], bool forward[]) c
         if (test_arc_end(start, x, y[0])) {
 			y[0] = start.y;
 			pos[0] = 0;
-            forward[0] = false;  //always from left to right with startpoints
+            forward[0] = true;  //always from left to right with endpouints
 			return 1;
 		}
 		if (test_arc_end(end, x, y[0])) {
 			y[0] = end.y;
 			pos[0] = 1;
-            forward[0] = true;  //always from left to right with endpoints
+            forward[0] = true;  //always from left to right with endpouints
 			return 1;
 		}
         //not close to any endpoint: touching is not valid then
@@ -926,7 +689,7 @@ void Edge::calcbb_curvy()
     } else {
         //if any extreme point is included in the arc add them
         for (int i=0; i<4; i++)
-            if (radianbetween(ell.GetExtreme(i, xy)))
+            if (radianbetween(ell.GetExtreme(i, xy))) 
                 boundingBox += xy;
     }
 }
@@ -1023,14 +786,14 @@ double Edge::radian2pos(double r) const
 //    \++         \ ---      It is counted as positive in the first example;
 //     \+          \---      and negative in the second. If we sum all such
 //      \           \--      areas, we get the area of the contour (positive for
-//                  _\|      clockwise and negative for counterclockwise, as it
-//                           should be.
+//                  _\|      clockwise and negative for counterclockwise, as it 
+//                           should be. 
 // Now, the formula for the above for an edge (X1,Y1)->(X2,Y2) is
 // AreaAbove = (X1-X2)*(Y1+Y2)/2 = (X1*Y1 - X2*Y2)/2 + (X1*Y2 - X2*Y1)/2
 // If we sum this for all edges of a connected contour the first term will
 // cancel out. Thus in the edge::xxAreaAboveAdjusted functions we return
-// the second term only (twice 2), thus we return
-// AreaAbove*2 - (X1*Y1 - X2*Y2).
+// the second term only (twice 2), thus we return 
+// AreaAbove*2 - (X1*Y1 - X2*Y2). 
 // In the below we return it for curvy edges.
 
 double Edge::getAreaAboveAdjusted_curvy() const
@@ -1038,28 +801,28 @@ double Edge::getAreaAboveAdjusted_curvy() const
     _ASSERT(type!=STRAIGHT);
     //For a full circle we return the (signed) area enclosed by the circle times 2.
     if (type==FULL_CIRCLE) return ell.FullArea()*(clockwise_arc ? 2 : -2);
-    //
-    // =======>   ======>   ===========>   The first figure shows a clockwise arc (all
+    //                                                                      
+    // =======>   ======>   ===========>   The first figure shows a clockwise arc (all 
     //      ++       --                    positive areas). The second shows the same,
-    //    =>++     ===>      ^=======o     but since we start from a smaller X and end on
+    //    =>++     ===>      ^=======o     but since we start from a smaller X and end on                       
     //   /++++    /++oo       \::::://     a larger, the difference compared to a straight
     //   \+++/    \++o         \::://      edge is is cancelled out (indcated by "o" zero)
-    //    ===      --           ===        and the area below is negative.
-    //                                     The third figure shows the center of the circle.
+    //    ===      --           ===        and the area below is negative.                               
+    //                                     The third figure shows the center of the circle.                                 
     // Denote "S" and "D" the start and endpoint of the arc, resp; while "O" the center.
     // To calculate this, we have three areas: the sector area of the arc, the area
     // above the D->O and the O->S straight lines. If we treat all of these signed
-    // (if the sector is clockwise have it positive, and vice versa), we get the
-    // (signed) area eaxctly above the arc. Thus
-    // AreaAboveArc = SignedSectorArea + AreaAbove(D->O) + AreaAbove(O->S) =
-    //   SignedSectorArea + (DX-OX)*(DY+OY)/2 + (OX-SX)*(OY+SY)/2 =
+    // (if the sector is clockwise have it positive, and vice versa), we get the 
+    // (signed) area eaxctly above the arc. Thus 
+    // AreaAboveArc = SignedSectorArea + AreaAbove(D->O) + AreaAbove(O->S) = 
+    //   SignedSectorArea + (DX-OX)*(DY+OY)/2 + (OX-SX)*(OY+SY)/2 = 
     //   SSA + (DX*DY - OX*OY)/2 + (DX*OY - OX*DY)/2 + (OX*OY - SX*SY)/2 + (OX*SY - SX*OY)/2 =
     //   SSA + (DX*DY - SX*SY)/2 + (DX-SX)*OY/2 - (DY-SY)*OX/2.
     // Since we need ret = AreaAboveArc*2 - (DX*DY - SX*SY)/2 =
     //   SSA*2 + (DX-SX)*OY - (DY-SY)*OX.
     //Note that SectorArea() always assume clockwise and returns a positive value.
-    return 2*(clockwise_arc ? ell.SectorArea(s, e) : -ell.SectorArea(e, s)) +
-           - (end.x - start.x)*ell.GetCenter().y + (end.y-start.y)*ell.GetCenter().x;
+    return 2*(clockwise_arc ? ell.SectorArea(s, e) : -ell.SectorArea(e, s)) + 
+           - (end.x - start.x)*ell.GetCenter().y + (end.y-start.y)*ell.GetCenter().x; 
 }
 
 bool Edge::IsSane() const
@@ -1287,7 +1050,7 @@ XY Edge::getcentroidareaaboveupscaled_straight(const XY&start, const XY&end)
     //multiplied by their area.
     //We do it in two steps: centroid by the Y coordinate of the area
     //then multiply by the (common) x coordinate of the area
-    XY ret = XY(start.x+end.x, minY.y)*(minY.y/2) +                     //centroid of rectange times y coord of its area
+    XY ret = XY(start.x+end.x, minY.y)*(minY.y/2) +                     //centroid of rectange times y coord of its area          
              XY(maxY.x*2+minY.x, maxY.y+minY.y*2)*((maxY.y-minY.y)/6);  //centroid of triangle times y coord of its area
     return ret*(start.x - end.x); //this makes ret negative if edge is from right to left (as it should)
 }
@@ -1331,7 +1094,7 @@ bool Edge::Expand(double gap)
         //    type = STRAIGHT;
         }
 	}
-    const double length = start.Distance(end);
+    const double length = (end-start).length();
     const XY wh = (end-start).Rotate90CCW()/length*gap;
     start += wh;
     end += wh;
@@ -1392,7 +1155,7 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
         if (type == STRAIGHT) {
             switch (crossing_line_line(start, end, M.start, M.end, newcp)) {
             default: _ASSERT(0);
-            case LINE_CROSSING_PARALLEL:
+            case LINE_CROSSING_PARALLEL: 
                 if (end.test_equal(M.start)) {
                     newcp = end;
                     return CP_REAL;
@@ -1410,8 +1173,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
                 if (crossing_line_line(end, tangent, M.start, M.end, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
-                const double dist = end.Distance(M.start) * parallel_join_multipiler;
-                const double mlen = M.end.Distance(M.start);
+                const double dist = (end-M.start).length() * parallel_join_multipiler;
+                const double mlen = (M.end-M.start).length();
                 newcp = M.start + (M.start-M.end)/mlen*dist;
                 return NO_CP_PARALLEL;
             } else {
@@ -1433,8 +1196,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
                 if (crossing_line_line(tangent, M.start, start, end, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
-                const double dist = end.Distance(M.start) * parallel_join_multipiler;
-                const double len = end.Distance(start);
+                const double dist = (end-M.start).length() * parallel_join_multipiler;
+                const double len = (end-start).length();
                 newcp = end + (end-start)/len*dist;
                 return NO_CP_PARALLEL;
             }
@@ -1454,8 +1217,8 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
                 if (crossing_line_line(tangent1, end, tangent2, M.start, newcp) != LINE_CROSSING_PARALLEL)
                     return NO_CP_CONVERGE;
                 //if we are parallel, calculate a conv point
-                const double dist = end.Distance(M.start) * parallel_join_multipiler;
-                const double len = end.Distance(tangent1);
+                const double dist = (end-M.start).length() * parallel_join_multipiler;
+                const double len = (end-tangent1).length();
                 newcp = (end+M.start)/2 + (end-tangent1)/len*dist;
                 return NO_CP_PARALLEL;
             }
@@ -1522,59 +1285,6 @@ bool Edge::IsOpposite(const XY &S, const XY &E) const
     return radian_diff_abs(e, new_e) + radian_diff_abs(s, new_s) >
            radian_diff_abs(e, new_s) + radian_diff_abs(s, new_e);
 }
-
-void Edge::CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
-{
-    _ASSERT(type!=STRAIGHT);
-    unsigned index = ret.size();
-    const unsigned original_index = index;
-    const double ee = GetRadianE();
-    ret.push_back(Edge());
-    ret[index].type = ARC;
-    ret[index].clockwise_arc = clockwise_arc;
-    ret[index].start = start;
-    ret[index].ell = ell;
-    ret[index].s = s;
-    XY extreme;
-    double current = s;
-    while (1) {
-        const double next = ell.FindExtreme(current, clockwise_arc, extreme);
-        //if we have moved over "ee" stop.
-        if (!(type==FULL_CIRCLE && current==s) &&  //exclude the first segment of full circles
-            fmod_negative_safe(clockwise_arc ? next-current : current-next, 2*M_PI) >=
-            fmod_negative_safe(clockwise_arc ? ee-current : current-ee, 2*M_PI)) break;
-        current = next;
-        ret.resize(index+3);
-        index+=2;
-        ret[index].type = ARC;
-        ret[index].clockwise_arc = clockwise_arc;
-        ret[index].start = ret[index-2].end = extreme;
-        ret[index].s     = ret[index-2].e   = fmod(current, 2*M_PI);
-        ret[index].ell = ell;
-    }
-    ret[index].e = ee;
-    ret[index].end = end;
-    stype = Edge_CreateExpand2D::comp_int(ret[original_index].start.x, ret[original_index].end.x) +
-            Edge_CreateExpand2D::comp_int(ret[original_index].start.y, ret[original_index].end.y)*3;
-    for (unsigned u=original_index; u<=index; u+=2) {
-        ret[u].CalculateBoundingBox();
-        ret[u].Shift(XY(Edge_CreateExpand2D::comp_dbl(ret[u].end.y, ret[u].start.y, gap.x),
-                        Edge_CreateExpand2D::comp_dbl(ret[u].start.x, ret[u].end.x, gap.y)));
-    }
-    if (index==original_index) {
-        etype=stype;
-        return;
-    }
-    for (unsigned u=original_index+1; u<index; u+=2) {
-        ret[u].type = STRAIGHT;
-        ret[u].start = ret[u-1].end;
-        ret[u].end = ret[u+1].start;
-        ret[u].CalculateBoundingBox();
-    }
-    etype = Edge_CreateExpand2D::comp_int(ret[index].start.x, ret[index].end.x) +
-            Edge_CreateExpand2D::comp_int(ret[index].start.y, ret[index].end.y)*3;
-}
-
 
 //int Edge::CombineExpandedEdges(Edge&M, EExpandType et, const XY &old, Edge &res)
 //{
@@ -1704,7 +1414,7 @@ double Edge::offsetbelow_curvy_straight(const Edge &M, bool straight_is_up, doub
 double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
 {
     if (o.GetType() == STRAIGHT) {
-        if (type != STRAIGHT)
+        if (type != STRAIGHT) 
             return offsetbelow_curvy_straight(o, false, touchpoint);
         //calc for two straight edges
         const double minAB = std::min(start.x, end.x);
@@ -1762,63 +1472,6 @@ double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
         e1.start = e1.end;
     }
     return ret;
-}
-
-
-//here we merge to clockwise and counterclockwise
-//directions are viewed from "this" toward "o"
-bool Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
-{
-    XY c, cc;
-    clockwise[1]  = minmax_clockwise(clockwise[0], o.start, clockwise[1], true);
-    cclockwise[1] = minmax_clockwise(cclockwise[0], o.start, cclockwise[1], false);
-
-    clockwise[0]  = minmax_clockwise(clockwise[1], start, clockwise[0], false);
-    cclockwise[0] = minmax_clockwise(cclockwise[1], start, cclockwise[0], true);
-
-    //clockwise[1]  = minmax_clockwise(clockwise[0], o.start, clockwise[1], true);
-    //cclockwise[1] = minmax_clockwise(cclockwise[0], o.start, cclockwise[1], false);
-
-    if (type==STRAIGHT) {
-        if (o.type!=STRAIGHT) {
-            if (o.TangentFrom(start, c, cc)) {
-                if (o.radianbetween(o.ell.Point2Radian(c)))
-                    clockwise[1]  = minmax_clockwise(start, c, clockwise[1], true);
-                if (o.radianbetween(o.ell.Point2Radian(cc)))
-                    cclockwise[1] = minmax_clockwise(start, cc, cclockwise[1], false);
-            }
-        }
-    } else if (o.type == STRAIGHT) {
-        if (TangentFrom(o.start, c, cc)) {
-            if (radianbetween(ell.Point2Radian(c)))
-                clockwise[0]  = minmax_clockwise(o.start, cc, clockwise[0], false);
-            if (radianbetween(ell.Point2Radian(cc)))
-                cclockwise[0] = minmax_clockwise(o.start, c, cclockwise[0], true);
-        }
-    } else {
-        XY c[2], cc[2];
-        if (ell.TangentFrom(o.ell, c, cc)) {
-            if (radianbetween(ell.Point2Radian(c[0])) && o.radianbetween(o.ell.Point2Radian(c[1]))) {
-                clockwise[1]  = minmax_clockwise(clockwise[0], c[1], clockwise[1], true);
-                clockwise[0]  = minmax_clockwise(clockwise[1], c[0], clockwise[0], false);
-            }
-            if (radianbetween(ell.Point2Radian(cc[0])) && o.radianbetween(o.ell.Point2Radian(cc[1]))) {
-                cclockwise[0] = minmax_clockwise(cclockwise[1], cc[0], cclockwise[0], true);
-                cclockwise[1] = minmax_clockwise(cclockwise[0], cc[1], cclockwise[1], false);
-            }
-        }
-        if (o.ell.TangentFrom(ell, c, cc)) {
-            if (radianbetween(ell.Point2Radian(c[1])) && o.radianbetween(o.ell.Point2Radian(c[0]))) {
-                clockwise[1]  = minmax_clockwise(clockwise[0], cc[0], clockwise[1], false);
-                clockwise[0]  = minmax_clockwise(clockwise[1], cc[1], clockwise[0], true);
-            }
-            if (radianbetween(ell.Point2Radian(cc[1])) && o.radianbetween(o.ell.Point2Radian(cc[0]))) {
-                cclockwise[0] = minmax_clockwise(cclockwise[1], c[1], cclockwise[0], false);
-                cclockwise[1] = minmax_clockwise(cclockwise[0], c[0], cclockwise[1], true);
-            }
-        }
-    }
-    return true;
 }
 
 } //namespace

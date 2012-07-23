@@ -40,25 +40,22 @@ public:
 
 class NumberingStyle {
 protected:
-    std::pair<bool, std::vector<NumberingStyleFragment>> elements;
+    std::vector<NumberingStyleFragment> elements;
     unsigned                            startAt;
 public:
-    std::pair<bool, std::string> pre;
-    std::pair<bool, std::string> post;
+    std::string pre;
+    std::string post;
 
-    NumberingStyle(): startAt(0) {elements.first = pre.first = post.first = true; elements.second.push_back(NumberingStyleFragment());}
-    NumberingStyleFragment &Last(void) {_ASSERT(IsComplete()); return elements.second[elements.second.size()-1];}
-    const NumberingStyleFragment &Last(void) const {_ASSERT(IsComplete()); return elements.second[elements.second.size()-1];}
-    bool IsComplete() const {return elements.first && pre.first && post.first;}
-    NumberingStyle &operator +=(const NumberingStyle&o); 
-    void Reset() {elements.first = pre.first = post.first = true; pre.second.clear(); post.second.clear(); startAt=0; elements.second.clear(); elements.second.push_back(NumberingStyleFragment());}
-    void Empty() {elements.first = pre.first = post.first = false;} 
-    size_t Size(void) const {_ASSERT(IsComplete()); return startAt + elements.second.size();}
+    NumberingStyle(): startAt(0) {elements.push_back(NumberingStyleFragment());}
+    NumberingStyleFragment &Last(void) {return elements[elements.size()-1];}
+    const NumberingStyleFragment &Last(void) const {return elements[elements.size()-1];}
+    void Reset() {pre.clear(); post.clear(); startAt=0; elements.clear(); elements.push_back(NumberingStyleFragment());}
+    size_t Size(void) const {return startAt + elements.size();}
     void CopyShifted(const NumberingStyle &ns, unsigned start=0);
     int Apply(const std::vector<NumberingStyleFragment> &nsfs);
-    void Push(const NumberingStyleFragment &nf) {_ASSERT(IsComplete()); elements.second.push_back(nf);}
-    void Push(const std::vector<NumberingStyleFragment> &nsfs) {elements.first = true; elements.second.insert(elements.second.end(), nsfs.begin(), nsfs.end());}
-    void Pop() {_ASSERT(IsComplete()); if (elements.second.size()>1) elements.second.pop_back();}
+    void Push(const NumberingStyleFragment &nf) {elements.push_back(nf);}
+    void Push(const std::vector<NumberingStyleFragment> &nsfs) {elements.insert(elements.end(), nsfs.begin(), nsfs.end());}
+    void Pop() {if (elements.size()>1) elements.pop_back();}
     std::string Print(const Numbering &n) const;
 };
 

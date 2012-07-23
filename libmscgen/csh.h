@@ -10,6 +10,11 @@
 #include<stack>
 #include "color.h"
 
+#ifndef _ASSERT
+#define  _ASSERT(A)
+#endif
+
+
 struct CshPos
 {
   int first_pos;
@@ -115,15 +120,12 @@ typedef bool (*CshHintGraphicCallback)(MscCanvas*, CshHintGraphicParam);
 class CshContext
 {
 public:
-    bool                  full;
     ColorSet              Colors;
     std::set<std::string> StyleNames;
-    CshContext() : full(false) {}
     void SetPlain();
     CshContext &operator+=(const CshContext &o) {
         Colors.insert(o.Colors.begin(), o.Colors.end());
         StyleNames.insert(o.StyleNames.begin(), o.StyleNames.end());
-        full |= o.full;
         return *this;
     }
 };
@@ -178,7 +180,7 @@ struct CshHint {
     bool operator ==(const CshHint &o) const {return type == o.type && decorated == o.decorated;}
 };
 
-#define ENUM_STRING_LEN 30
+#define ENUM_STRING_LEN 20
 
 class Csh
 {
@@ -196,7 +198,7 @@ public:
     //Running variables during csh parsing
     std::set<std::string>             EntityNames;
     std::set<std::string>             MarkerNames;
-    std::map<std::string, CshContext> FullDesigns, PartialDesigns;
+    std::map<std::string, CshContext> Designs;
     std::list<CshContext>             Contexts;
     CshHintType                       hintType;        //low level rules use to indicate type to higher rules
     CshHintStatus                     hintStatus;      //indicates if a lower level rule has anything to indicate
@@ -219,7 +221,6 @@ public:
     void AddCSH_AttrValue(CshPos& pos, const char *value, const char *name);
     void AddCSH_StyleOrAttrName(CshPos&pos, const char *name);
     void AddCSH_EntityName(CshPos&pos, const char *name);
-    void AddCSH_EntityOrMarkerName(CshPos&pos, const char *name);
     void AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name);
     void AddCSH_SymbolName(CshPos&pos, const char *name);
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme);
@@ -228,7 +229,7 @@ public:
 
     void PushContext(bool empty=false);
     void PopContext() {Contexts.pop_back();}
-    std::string SetDesignTo(const std::string&design, bool full);
+    bool SetDesignTo(const std::string&design);
     CshCursorRelPosType CursorIn(const CshPos &p) const {return CursorIn(p.first_pos, p.last_pos);}
     CshCursorRelPosType CursorIn(int a, int b) const;
     bool CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
@@ -255,7 +256,7 @@ public:
     void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, CshHintType t, 
                     CshHintGraphicCallback c, CshHintGraphicParam);
     void AddColorValuesToHints();
-    void AddDesignsToHints(bool full);
+    void AddDesignsToHints();
     void AddStylesToHints();
     void AddOptionsToHints();
     void AddDesignOptionsToHints();

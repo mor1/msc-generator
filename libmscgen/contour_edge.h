@@ -1,7 +1,13 @@
 #if !defined(CONTOUR_H)
 #define CONTOUR_H
 
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <map>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #include "contour_ellipse.h"
 
 namespace contour {
@@ -31,16 +37,19 @@ namespace contour {
 
 typedef enum {ALL_EQUAL, A_EQUAL_B, A_EQUAL_C, B_EQUAL_C, IN_LINE, CLOCKWISE, COUNTERCLOCKWISE} triangle_dir_t;
 triangle_dir_t triangle_dir(XY a, XY b, XY c);
+double angle(XY base, XY A, XY B);
+inline double angle_degrees(double angle) {
+    return (angle>=2) ? 360 - acos(angle-3)*(180./M_PI) : acos(1-angle)*(180./M_PI);
+}
 
 typedef enum {
-    EXPAND_MITER, //continue edges until they meet, if they dont: add two segments (uses miter_limit)
-    EXPAND_MITER_ROUND, //continue edges until they meet, if they dont: add circle (uses miter_limit)
-    EXPAND_MITER_BEVEL, //continue edges until they meet, if they dont: cut directly (uses miter_limit)
-    EXPAND_MITER_SQUARE, //continue edges until they meet, if they dont: add square (uses miter_limit)
+    EXPAND_MITER, //continue edges until they meet, if they dont add two segments
+    EXPAND_MITER_ROUND, //continue edges until they meet, if they dont add circle
+    EXPAND_MITER_BEVEL, //continue edges until they meet, if they dont cut directly
+    EXPAND_MITER_SQUARE, //continue edges until they meet, if they dont add square
     EXPAND_ROUND, //add circle
     EXPAND_BEVEL, //cut directly
 } EExpandType;
-//miter_limit is understood as a multiple of gap: the length of edge increases at most miter_limit*gap
 
 struct RayAngle {
     double angle;  //the false angle [0..4], each integer corresponds to 90 degrees
@@ -55,7 +64,7 @@ class Edge
 {
     friend class SimpleContour;
     friend class ContoursHelper;
-public:
+public: 
     typedef enum {STRAIGHT=0, FULL_CIRCLE=1, ARC=2} EEdgeType;
     typedef enum {DEGENERATE, SAME_ELLIPSIS,
                   CP_REAL, CP_EXTENDED,
@@ -82,8 +91,6 @@ public:
     const XY & GetStart() const {return start;}
     const XY & GetEnd() const {return end;}
     const Block &GetBoundingBox() const {return boundingBox;}
-    double Distance(const XY &, XY &point, double &pos) const; //always nonnegative
-    DistanceType Distance(const Edge &) const;    //always nonnegative
 
     const EllipseData &GetEllipseData() const {_ASSERT(type!=STRAIGHT); return ell;}
     bool GetClockWise() const {_ASSERT(type!=STRAIGHT); return clockwise_arc;}
@@ -93,7 +100,7 @@ public:
     double GetRadianMidPoint() const;
     XY Pos2Point(double pos) const;
     void SetFullCircle() {_ASSERT(type!=STRAIGHT); type = FULL_CIRCLE; end=start; e=s; CalculateBoundingBox();}
-
+    
     bool IsSane() const;
     bool IsSaneNoBoundingBox() const;
     //This should return the (directed) area between the y axis and the edge times 2, minus start.x*start.y, plus end.x*end.y
@@ -103,10 +110,8 @@ public:
     XY GetCentroidAreaAboveUpscaled() const;
 
     bool Expand(double gap);
-    void CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 
     void Shift(const XY &wh) {start+=wh; end+=wh; boundingBox.Shift(wh); if (type!=STRAIGHT) ell.Shift(wh);}
-    void Scale(double sc) {start*=sc; end*=sc; boundingBox.Scale(sc); if (type!=STRAIGHT) ell.Scale(sc);}
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY();
@@ -130,10 +135,6 @@ public:
 
     //helpers for offsetbelow
     double OffsetBelow(const Edge &M, double &touchpoint) const;
-
-    //tangential toucher from a point
-    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
-    bool TangentFrom(const Edge &from, XY clockwise[2], XY cclockwise[2]) const;
 
 protected:
     bool equal_curvy(const Edge &p) const;
@@ -182,8 +183,6 @@ protected:
     EExpandCPType FindExpandedEdgesCP(const Edge &M, XY &newcp) const;
     void SetStartEndForExpand(const XY &S, const XY &E);
     bool IsOpposite(const XY &S, const XY &E) const;
-
-    void CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const;
 };
 
 inline double Edge::GetSpan() const
@@ -236,77 +235,13 @@ inline Edge& Edge::SetEndLiberal(const XY &p, bool keep_full_circle)
 inline XY Edge::GetCentroidAreaAboveUpscaled() const
 {
     switch (type) {
-    default:
+    default: 
     case STRAIGHT:    return getcentroidareaaboveupscaled_straight(start, end);
-    case FULL_CIRCLE: return ell.GetCenter() * ell.FullArea();
+    case FULL_CIRCLE: return ell.GetCenter() * ell.FullArea(); 
     case ARC:         return getcentroidareaaboveupscaled_curvy();
     }
 }
 
-namespace Edge_CreateExpand2D {
-inline int comp_int(const double &a, const double &b) {
-    return a<b ? -1 : a==b ? 0 : 1;
-}
-inline double comp_dbl(const double &a, const double &b, double g) {
-    return a<b ? -g : a==b ? 0 : g;
-}
-}
-
-//returns a list of edges to replace "this"
-//{s,d}types return the direction of the two ends as below
-//       +4  _+3 _  +2
-//          |\ ^ /|           Value takes edge direction into
-//            \|/             account, thus for lines
-//       +1  <-0->  -1        stype == dtype.
-//            /|\             .
-//          |/ v \|           For degenerate edges type==0
-//       -2   -3    -4
-inline void Edge::CreateExpand2D(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
-{
-    if (type!=STRAIGHT) return CreateExpand2DCurvy(gap, ret, stype, etype);
-    ret.resize(ret.size()+1);
-    Edge &e = *ret.rbegin();
-    const XY off(Edge_CreateExpand2D::comp_dbl(end.y, start.y, gap.x),
-                 Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.y));
-    e.start = start + off;
-    e.end   = end   + off;
-    //expand for horizontal and vertical edges
-    if (start.x == end.x) {
-        e.start.y += Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
-        e.end.y -= Edge_CreateExpand2D::comp_dbl(start.y, end.y, gap.y);
-    }
-    if (start.y == end.y) {
-        e.start.x += Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
-        e.end.x -= Edge_CreateExpand2D::comp_dbl(start.x, end.x, gap.x);
-    }
-    etype = stype = Edge_CreateExpand2D::comp_int(start.x, end.x) +
-                    Edge_CreateExpand2D::comp_int(start.y, end.y)*3;
-}
-
-
-inline const XY &minmax_clockwise(const XY &from, const XY &A, const XY &B, bool clockwise)
-{
-    return (clockwise == (CLOCKWISE == triangle_dir(from, A, B))) ? B : A;
-}
-
-//does not consider "end"
-//overwrites what is received in 
-inline bool Edge::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
-{
-    if (type==FULL_CIRCLE) return ell.TangentFrom(from, clockwise, cclockwise);
-    if (type==ARC && ell.TangentFrom(from, clockwise, cclockwise)) {
-        if (radianbetween(ell.Point2Radian(clockwise)))
-            clockwise  = minmax_clockwise(from, start, clockwise, true);
-        else 
-            clockwise = start;
-        if (radianbetween(ell.Point2Radian(cclockwise)))
-            cclockwise = minmax_clockwise(from, start, cclockwise, false);
-        else 
-            cclockwise = start;
-    } else
-        clockwise = cclockwise = start;
-    return true;
-}
 
 } //namespace
 

@@ -163,9 +163,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 	if (pDoc->m_ExternalEditor.IsRunning())
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 	pDoc->SyncShownWithEditing("print");
-    CDrawingChartData *pData = new CDrawingChartData(pDoc->m_ChartShown);
-	pInfo->SetMaxPage(pData->GetPages()); //This one compiles copied chart
-    pInfo->m_lpUserData = pData;
+	pInfo->SetMaxPage(pDoc->m_ChartShown.GetPages());
 	// default preparation
 	return DoPreparePrinting(pInfo);
 }
@@ -177,17 +175,18 @@ void CMscGenView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 
 void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 {
-    CDrawingChartData *const pData = (CDrawingChartData *)pInfo->m_lpUserData;
-    if (pData==NULL || pData->IsEmpty())
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+	if (pDoc->m_ChartShown.IsEmpty())
 		return;
 
-    CSize orig_size = pData->GetSize();
-	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
-    scale = std::min(scale, 10.);
+	CWaitCursor wait;
+	CDrawingChartData data(pDoc->m_ChartShown);
+	data.SetPage(pInfo->m_nCurPage);
 
-    CWaitCursor wait;
-	pData->SetPage(pInfo->m_nCurPage);
-    pData->DrawToPrinter(pDC->m_hDC, scale, scale);
+    CSize orig_size = data.GetSize(); //This one compiles
+	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
+    data.DrawToWindow(pDC->m_hDC, scale, scale);
 
 	//CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
 	//HENHMETAFILE hemf = data.GetEMF(true);
@@ -288,7 +287,7 @@ void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
     clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
 	//This is the destination surface
-    MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, pDoc->m_ChartShown.GetMscTotal(), 0, XY(x_scale, y_scale));
+    MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, XY(m_size.cx, m_size.cy), 0, XY(x_scale, y_scale));
     cairo_set_line_width(canvas.GetContext(), 1);
 	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
         if (i->what == TrackedArc::TRACKRECT) {

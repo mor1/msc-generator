@@ -174,44 +174,33 @@ void Numbering::SetSize(unsigned n)
     decrementOnAddingLevels = false;
 }
 
-NumberingStyle &NumberingStyle::operator +=(const NumberingStyle&o)
-{
-    if (o.elements.first) elements = o.elements;
-    if (o.pre.first) pre = o.pre;
-    if (o.post.first) post = o.post;
-    startAt = o.startAt;
-    return *this;
-}
-
-
 void NumberingStyle::CopyShifted(const NumberingStyle &ns, unsigned start)
 {
-    _ASSERT(IsComplete());
-    elements.second.clear();
-    for (unsigned i = start; i<ns.elements.second.size(); i++)
-        elements.second.push_back(ns.elements.second[i]);
-    if (elements.second.size() == 0) //too much shift
-        elements.second.push_back(NumberingStyleFragment());
+    elements.clear();
+    for (unsigned i = start; i<ns.elements.size(); i++)
+        elements.push_back(ns.elements[i]);
+    if (elements.size() == 0) //too much shift
+        elements.push_back(NumberingStyleFragment());
     startAt = start + ns.startAt;
 }
 
 int NumberingStyle::Apply(const std::vector<NumberingStyleFragment> &nsfs)
 {
-    int off = startAt + (int)elements.second.size() - (int)nsfs.size();
-    if (off < 0) return startAt + (int)elements.second.size();
+    int off = startAt + (int)elements.size() - (int)nsfs.size();
+    if (off < 0) return startAt + (int)elements.size();
     startAt = off;
-    elements.second = nsfs;
+    elements = nsfs;
     return 0;
 }
 
 std::string NumberingStyle::Print(const Numbering &n) const
 {
     std::string ret;
-    for (unsigned i = 0; i<elements.second.size(); i++) {
+    for (unsigned i = 0; i<elements.size(); i++) {
         int num=1;
         if (n.values.size() > startAt + i)
             num = n.values[startAt+i];
-        ret += elements.second[i].pre + elements.second[i].Print(num) + elements.second[i].post;
+        ret += elements[i].pre + elements[i].Print(num) + elements[i].post;
     }
     return ret;
 }

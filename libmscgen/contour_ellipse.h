@@ -1,22 +1,3 @@
-/*
-    This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
-    Distributed under GNU Affero General Public License.
-
-    Msc-generator is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    Msc-generator is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #if !defined(CONTOUR_ELLIPSE_H)
 #define CONTOUR_ELLIPSE_H
 
@@ -28,9 +9,13 @@
 #endif
 
 #include "cairo.h"
-#include "contour_distance.h"
+#include "contour_basics.h"
 
 namespace contour {
+
+//an fmod, that always return a value in [0..b] even if a<0
+template<typename real> real fmod_negative_safe(real a, real b) {_ASSERT(b>0); return a>=0 ? fmod(a, b) : b - fmod(-a, b);}
+
 //helper class for ellipsis intersection calculation
 struct quadratic_xy_t;
 
@@ -46,7 +31,7 @@ protected:
     double tilt;                //supposedly between [0..pi/2)
     double sintilt, costilt;    //pre-computed values
 	XY     extreme[4];          //pre-computed left, rightmost, topmost, bottommost point, resp
-	double extreme_radian[4];
+	double extreme_radian[4]; 
     mutable double circumference_cache; //if nonnegative it caches the cirumference
 
     //for tilted ellipses translate from msc space to a space, where
@@ -73,12 +58,8 @@ public:
     double GetRadius1() const {return radius1;}
     double GetRadius2() const {return radius2;}
     double GetTilt() const {return tilted ? tilt : 0;}
-	double GetExtreme(unsigned n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
-    double FindExtreme(double rad, bool after, XY &p) const;
-    double Distance(const XY &p, XY &point, double &rad) const;
-    double Distance(const XY &start, const XY &end, XY p[2]) const;
+	double GetExtreme(int n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
     void Shift(const XY &xy);
-    void Scale(double sc);
 	double Rotate(double cos, double sin, double radian);
 	double RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY();
@@ -99,7 +80,6 @@ public:
     //also the radian or relative position inside the straight edge
     int CrossingEllipse(const EllipseData &B,
                         XY r[], double radian_us[], double radian_b[]) const;
-    int CrossingStraight(const XY &A, const XY &B, XY *r, bool want_closest) const; //the infinite line of A-B
     int CrossingStraight(const XY &A, const XY &B,
                          XY r[], double radian_us[], double pos_b[]) const;
     int CrossingVertical(double x, double y[], double radian[]) const;
@@ -112,9 +92,6 @@ public:
 	double OffsetBelow(const EllipseData&) const;
 	double OffsetBelow(const XY&A, const XY&B) const;
 	double OffsetAbove(const XY&A, const XY&B) const;
-
-    bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
-    bool TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const;
 };
 
 
@@ -205,7 +182,7 @@ inline bool between01_approximate_inclusive(double r)
     return !(test_smaller(r, 0) || test_smaller(1, r));
 }
 
-inline bool between01_adjust(double &n)
+inline bool between01_adjust(double &n) 
 {
 	if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
 		return false;
@@ -213,37 +190,15 @@ inline bool between01_adjust(double &n)
 	return true;
 }
 
-inline double deg2rad(double degree)
+inline double deg2rad(double degree) 
 {
-	return fmod_negative_safe(degree, 360.)*(M_PI/180);
-}
-
-inline double rad2deg(double degree)
-{
-	return fmod_negative_safe(degree, 2*M_PI)*(180/M_PI);
+	return fmod_negative_safe(degree, 360.)*M_PI/180;
 }
 
 typedef enum {LINE_CROSSING_PARALLEL, LINE_CROSSING_INSIDE, LINE_CROSSING_OUTSIDE} ELineCrossingType;
 
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
 double point2pos_straight(const XY &M, const XY&N, const XY &p);
-
-
-//finds the radian of the extreme just after or before "rad"
-//if "rad" is exactly on an extreme, we return another one
-inline double EllipseData::FindExtreme(double rad, bool after, XY &p) const
-{
-    double maxdiff = MaxVal(maxdiff);
-    unsigned ret=0;
-    for (unsigned u=0; u<4; u++) {
-        const double diff = fmod_negative_safe(after ? extreme_radian[u]-rad : rad-extreme_radian[u], 2*M_PI);
-        if (diff<maxdiff && !test_zero(diff))
-            ret = u, maxdiff = diff;
-    }
-    p = extreme[ret];
-    return extreme_radian[ret];
-}
-
 
 } //namespace
 

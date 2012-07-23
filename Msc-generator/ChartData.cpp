@@ -271,12 +271,9 @@ void CDrawingChartData::CompileIfNeeded() const
         //compile preamble and set forced design
 	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
 		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
-		    if (!m_ForcedDesign.IsEmpty()) {
-                ArcBase *ret;
-			    if (m_msc->SetDesign(true, (const char*)m_ForcedDesign, true, &ret)) 
+		    if (!m_ForcedDesign.IsEmpty())
+			    if (m_msc->SetDesign((const char*)m_ForcedDesign, true)) 
 				    m_msc->ignore_designs = true;
-                m_msc->Arcs.Append(ret);
-            }
 	    }
         //copy forced collapse/expand entities/boxes
         m_msc->force_entity_collapse = m_ForcedEntityCollapse;
@@ -335,7 +332,7 @@ CString CDrawingChartData::GetErrorText(unsigned num, bool oWarnings) const
 
 CString CDrawingChartData::GetDesigns() const 
 {
-	return CString(GetMsc()->GetDesigns(true).c_str());
+	return CString(GetMsc()->GetDesigns().c_str());
 }
 
 
@@ -346,52 +343,43 @@ unsigned CDrawingChartData::GetPages() const
 
 //if force_page==false, return the size of m_page (or the entire chart if m_page==0)
 //else that of forced_page
-
-//In CDrawingChartData we hide that the Msc chart does not originate in (0,0) by 
-//shifting all coordinates.
 CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_measure = force_page ? forced_page : m_page;
     const Msc &msc = *GetMsc();
-    CSize ret(int(msc.GetTotal().x.Spans()), int(msc.copyrightTextHeight));
+    CSize ret(int(msc.total.x), int(msc.copyrightTextHeight));
     if (page_to_measure==0) 
-        ret.cy = int(msc.GetTotal().y.Spans() + msc.copyrightTextHeight);
+        ret.cy = int(msc.total.y + msc.copyrightTextHeight);
     else if (page_to_measure < msc.yPageStart.size()) 
         ret.cy = int(msc.yPageStart[page_to_measure] - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
     else if (page_to_measure == msc.yPageStart.size()) 
-        ret.cy = int(msc.GetTotal().y.till - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
+        ret.cy = int(msc.total.y - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
     return ret;
 }
-
-const Block &CDrawingChartData::GetMscTotal() const 
-{
-    return GetMsc()->GetTotal();
-}
-
 
 double CDrawingChartData::GetPageYShift() const
 {
     const Msc &msc = *GetMsc();
     if (m_page==0) return 0;
-    if (m_page <= msc.yPageStart.size()) return msc.yPageStart[m_page-1]-msc.GetTotal().y.from;
-    return msc.GetTotal().y.Spans();
+    if (m_page <= msc.yPageStart.size()) return msc.yPageStart[m_page-1];
+    return msc.total.y;
 }
 
 
 double CDrawingChartData::GetBottomWithoutCopyright() const
 {
-    return GetSize().cy - GetMsc()->copyrightTextHeight;
+    return GetSize().cx - GetMsc()->copyrightTextHeight;
 }
 
 
 double CDrawingChartData::GetHeadingSize() const
 {
-    return GetMsc()->headingSize - GetMsc()->GetTotal().x.from;
+    return GetMsc()->headingSize;
 }
 
 void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, double y_scale) const
 {
-    MscCanvas canvas(MscCanvas::WIN, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+    MscCanvas canvas(MscCanvas::WIN, hdc, GetMsc()->total, GetMsc()->copyrightTextHeight, 
                      XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
@@ -401,25 +389,11 @@ void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, 
     }
 }
 
-void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) const
-{
-    MscCanvas canvas(MscCanvas::PRINTER, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
-                     XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
-    if (canvas.Status()==MscCanvas::ERR_OK) {
-        //draw page breaks only if requested and not drawing a single page only
-        m_msc->Draw(canvas, false);
-        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(canvas, m_page);
-    }
-}
-
-
-
 //here force_page==0 means we do not force a particular page, use m_page
 void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
-    MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+    MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->total, GetMsc()->copyrightTextHeight, 
                      XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
@@ -459,8 +433,7 @@ TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 	CompileIfNeeded();
 	if (m_page>0)
 		point.y += LONG(m_msc->yPageStart[m_page-1]);
-    const XY point_msc(point.x + m_msc->GetTotal().x.from, point.y + m_msc->GetTotal().y.from);
-    const Area *area = m_msc->AllCovers.InWhichFromBack(point_msc);
+    const Area *area = m_msc->AllCovers.InWhichFromBack(XY(point.x, point.y));
 	if (area==NULL) return NULL;
 	return area->arc;
 }

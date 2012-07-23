@@ -63,9 +63,6 @@
           An arc can also become hidden due to collapsed entities - this was determined in #4c above. If 
           the arc becomes hidden, it can get replaced to an ArcIndicator if the entity in question has its
           "indicator" in "running_style" set. Else we just retuen NULL.
-       i) If the node is kept, we move its floating notes to "Msc::FloatingNotes" via "MoveNotesToChart"
-          called from "Msc::PostParseProcessArcList".
-       j) For notes and comments, we decide who is the real target and attach the note/command here.
        This function can only be called once, as it changes arcs (e.g., you do not want to
        increment numbering twice). Often the arc needs to be changed to a different one, in this case the
        return pointer shall be used. If the return pointer == this, the arc shall not be replaced.
@@ -77,7 +74,7 @@
        If hcale!=auto, entities have fixed positions, but this function is still called (so as it can be used
        to calculate cached values).
 
-    <here we calculate the Entity::pos for all entities in ActiveEntities in Msc::CalculateWidthHeight>
+    <here we calculate the Entity::pos for all entities in ActiveEntities>
 
     7. Height: This is a key function, returning the vertical space an element(/arc) occupies. It also places
        the contour of the element in its "cover" parameter. The former (height) is used when compress is off and
@@ -92,7 +89,7 @@
        - area_draw is used to draw, it should be a frame for boxes and pipes with content, not the contour of the box.
        Height can also store some pre-computed values and contours to make drawing faster.
        Height always places the element at the vertical position=0. Any contour should assume that.
-       Finally, Height() also fills in "area_important", containing the 'important' part of the
+       Finally, Height() also fills in "note_map", containing the 'important' part of the
        element's cover (text, arrowheads, symbols). The Note layout engine will use this, to avoid
        covering these areas. Also, "def_note_target" is filled in, this is where a note points to
        by default.
@@ -103,19 +100,12 @@
        notes have been placed. Elements containing ArcLists must prepare that the height of those
        will change. The task is otherwise the same as for Height(): fill in internal values,
        return height and cover. Before calling reflow, the element have been ShiftBy'ed back to 0.
-    9. PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
-       (Comments are also placed with their target.) We go through the tree and calculate position & cover for
-       verticals. This is needed as a separate run, just to do it before placing notes.
-    
-    <here we place floating notes in Msc::PlaceFloatingNotes>
-
-    9. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
-       Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
-       to decide. We also expand all "area" and "area_draw" members, so that contours look better in tracking mode.
-       No error messages shall be printed after this function.
-   10. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely cached 
-       values in the elements. It can be called several times and should not change state of the element 
-       including the cached values.
+    9. PostPosProcess: Called after the last call to ShiftBy. Here entity lines are hidden behind text and
+       warnings/errors are generated which require vertical position to decide. No error messages can be printed
+       after this function.
+   10. Draw: This function actually draws the chart to the Msc pointed by its "chart" member (initialized in the
+       constructor). This function can rely cached values in the elements. It can be called several times and
+       should not change state of the element including the cached values.
    11. Destructor.
 
        All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
@@ -137,18 +127,31 @@
 
 using namespace std;
 
-template class PtrList<ArcBase>;
+//template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
     TrackableElement(msc), valid(true), compress(false), parallel(false),
-    type(t)
+    draw_pass(DEFAULT), type(t)
 {
     if (msc) 
-        compress = msc->Contexts.back().compress.second;
+        compress = msc->Contexts.back().compress;
     had_add_attr_list = false;
+    note_map.arc = this;
 }
 
-Area ArcBase::GetCover4Compress(const Area &a) const
+void ArcBase::MakeMeLastNotable()
+{
+    if (CanBeNoted() && chart)
+        chart->last_notable_arc = this;
+}
+
+void ArcBase::AttachNote(CommandNote *cn)
+{
+    _ASSERT(CanBeNoted());
+    TrackableElement::AttachNote(cn);
+}
+
+inline Area ArcBase::GetCover4Compress(const Area &a) const
 {
     Area ret(static_cast<const Contour &>(a).CreateExpand(chart->compressGap/2, 
                                              contour::EXPAND_MITER_SQUARE, 
@@ -169,6 +172,11 @@ ArcBase* ArcBase::AddAttributeList(AttributeList *l)
     return this;
 }
 
+template<> const char EnumEncapsulator<ArcBase::DrawPassType>::names[][ENUM_STRING_LEN] =
+    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
+     "note", "after_note", ""};
+
+
 bool ArcBase::AddAttribute(const Attribute &a)
 {
     //In case of ArcLabelled this will not be called, for a compress attribute.
@@ -187,6 +195,12 @@ bool ArcBase::AddAttribute(const Attribute &a)
         parallel = a.yes;
         return true;
     }
+    if (a.Is("draw_time")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
+        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
+        return true;
+    }
     if (a.Is("refname")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
         auto i = chart->ReferenceNames.find(a.value);
@@ -199,15 +213,15 @@ bool ArcBase::AddAttribute(const Attribute &a)
         chart->Error.Error(i->second.linenum, a.linenum_value.start, "This is the location of the previous assignment.");
         return true;
     }
-    return TrackableElement::AddAttribute(a);
+    return false;
 }
 
 void ArcBase::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", HINT_ATTR_NAME));
-    TrackableElement::AttributeNames(csh);
 }
 
 bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
@@ -218,9 +232,13 @@ bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
         return true;
     }
+    if (CaseInsensitiveEqual(attr,"draw_time")) {
+        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+                       HINT_ATTR_VALUE);
+        return true;
+    }
     if (CaseInsensitiveEqual(attr,"refname")) 
         return true;
-    if (TrackableElement::AttributeValues(attr, csh)) return true;
     return false;
 }
 
@@ -237,17 +255,15 @@ string ArcBase::PrintType(void) const
     return arcnames[int(type)-1];
 }
 
-ArcBase* ArcBase::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
-                                   EIterator &/*left*/, EIterator &/*right*/,
-                                   Numbering &/*number*/, bool top_level, 
-                                   TrackableElement **target)
+ArcBase* ArcBase::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     at_top_level = top_level;
-    if (CanBeNoted()) *target = this;
+    //Do it for the notes, too.
+    PostParseProcessNotes(canvas, hide, at_top_level);
     return this;
 }
 
-void ArcBase::FinalizeLabels(MscCanvas &)
+void ArcBase::FinalizeLabels(MscCanvas &canvas)
 {
     if (refname.length())
         chart->ReferenceNames[refname].arc = this;
@@ -259,15 +275,15 @@ double ArcBase::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         cover = GetCover4Compress(area);
     else
         height = 0;
-    return std::max(height, NoteHeight(canvas, cover));
+    return height;
 }
 
 
-void ArcBase::PostPosProcess(MscCanvas &canvas)
+void ArcBase::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     _ASSERT(had_add_attr_list);
     if (valid) 
-        TrackableElement::PostPosProcess(canvas); //also adds "this" to chart->AllArcs
+        TrackableElement::PostPosProcess(canvas, autoMarker);
     else if (!file_pos.IsInvalid())
         chart->AllArcs[file_pos] = this; //Do this even if we are invalid
 }
@@ -317,7 +333,7 @@ MscDirType ArcIndicator::GetToucedEntities(class EntityList &el) const
     return MSC_DIR_INDETERMINATE;
 }
 
-void ArcIndicator::Width(MscCanvas &, EntityDistanceMap &distances)
+void ArcIndicator::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
     if (*src != *dst) return; //no width requirements for Indicators not exactly on an entity
     //If we are exactly on an entity line add left and right req for boxes potentially around us.
@@ -333,13 +349,13 @@ double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
     area = b;
-    area.mainline = Block(chart->GetDrawing().x, b.y);
-    area_important = b;
-    if (!reflow) chart->NoteBlockers.Append(this);
+    area.mainline = Block(0,chart->total.x, b.y.from, b.y.till);
+    note_map = b;
+    note_map.arc = this;
+    def_note_target = b.Centroid();
     height = b.y.till + chart->emphVGapOutside;
-    //TODO add shadow to cover
     cover = GetCover4Compress(area);
-    return std::max(height, NoteHeight(canvas, cover));
+    return height;
 }
 
 void ArcIndicator::Draw(MscCanvas &canvas, DrawPassType pass) 
@@ -403,7 +419,7 @@ void ArcLabelled::SetStyleWithText(const MscStyle *style_to_use)
     //current chart option.
     if (!style.numbering.first) {
         style.numbering.first = true;
-        style.numbering.second = chart->Contexts.back().numbering.second;
+        style.numbering.second = chart->Contexts.back().numbering;
     }
     //Add refinement style (e.g., -> or ... or vertical++)
     const MscStyle *refinement = GetRefinementStyle(type); //virtual function for the arc
@@ -465,11 +481,9 @@ ArcBase *ArcLabelled::AddAttributeList(AttributeList *l)
     if (style.compress.first)
         compress = style.compress.second;
     //Then convert color and style names in labels
-    if (label.length()>0)
-        //we can start with a dummy pos, since the label's pos is prepended
-        //during parse for colon labels and during AddAttributeList for others
-        StringFormat::ExpandReferences(label, chart, file_line(), &style.text,
-                                          true, StringFormat::LABEL);
+    //if (label.length()>0)
+    //    StringFormat::ExpandReferences(label, chart, linenum_label, &style.text,
+    //                                      true, StringFormat::LABEL);
     return this;
 }
 
@@ -607,8 +621,7 @@ string ArcLabelled::Print(int ident) const
 //This assigns a running number to the label and 
 //fills the "compress" member from the style.
 //Strictly to be called by descendants
-ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, bool /*top_level*/, TrackableElement **target)
+ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
@@ -621,16 +634,21 @@ ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
             chart->ReferenceNames[refname].number_text = number_text;
         ++number;
     }
-    return ArcBase::PostParseProcess(canvas, hide, left, right, number, at_top_level, target);
+    return ArcBase::PostParseProcess(canvas, hide, left, right, number, at_top_level);
 }
+
 
 void ArcLabelled::FinalizeLabels(MscCanvas &canvas) 
 {
     ArcBase::FinalizeLabels(canvas);
     if (label.length()==0) return;
+    //we can start with a dummy pos, since the label's pos is prepended
+    //during parse for colon labels and during AddAttributeList for others
+    StringFormat::ExpandReferences(label, chart, file_line(), &style.text,
+                                          true, StringFormat::LABEL);
     string pre_num_post;
     if (label.length()!=0 && style.numbering.second) {
-        pre_num_post = numberingStyle.pre.second + number_text + numberingStyle.post.second;
+        pre_num_post = numberingStyle.pre + number_text + numberingStyle.post;
         //Recreate the text style at the point where the label will be inserted
         StringFormat basic = style.text;
         basic.Apply(label.c_str());
@@ -645,21 +663,6 @@ void ArcLabelled::FinalizeLabels(MscCanvas &canvas)
     //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
     StringFormat::AddNumbering(label, number_text, pre_num_post);
     parsed_label.Set(label, canvas, style.text);
-}
-
-void ArcLabelled::PostPosProcess(MscCanvas &canvas)
-{
-	//If there is a vline or vfill in the current style, add that to entitylines
-    if ((style.f_vline &&(style.vline.width.first || style.vline.type.first || style.vline.color.first)) ||
-        (style.f_vfill && !style.vfill.IsEmpty())) {
-		MscStyle toadd;
-        if (style.f_vline) toadd.vline = style.vline;
-        if (style.f_vfill) toadd.vfill = style.vfill;
-        for(EIterator i = chart->ActiveEntities.begin(); i!=chart->ActiveEntities.end(); i++)
-            if (!chart->IsVirtualEntity(*i))
-                (*i)->status.ApplyStyle(area.GetBoundingBox().y, toadd);
-	}
-    ArcBase::PostPosProcess(canvas);
 }
 
 /////////////////////////////////////////////////////
@@ -681,7 +684,7 @@ void ArcArrow::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
     ArcLabelled::AttributeNames(csh);
-    defaultDesign.styles.GetStyle("arrow").AttributeNames(csh);
+    Design().styles["arrow"].AttributeNames(csh);
 }
 
 bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
@@ -690,7 +693,7 @@ bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
-    if (defaultDesign.styles.GetStyle("arrow").AttributeValues(attr, csh)) return true;
+    if (Design().styles["arrow"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -726,14 +729,13 @@ string ArcSelfArrow::Print(int ident) const
     return ss;
 };
 
-ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                        Numbering &number, bool top_level, TrackableElement **target)
+ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     if (chart->ErrorIfEntityGrouped(src, (*src)->file_pos)) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
     const EIterator substitute = chart->FindActiveParentEntity(src);
     const bool we_disappear = src != substitute; //src is not visible -> we disappear, too
@@ -755,7 +757,7 @@ ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     return this;
 }
 
-void ArcSelfArrow::Width(MscCanvas &, EntityDistanceMap &distances)
+void ArcSelfArrow::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
     if (!valid) return;
     distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
@@ -779,33 +781,33 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     double y = chart->arcVGapAbove;
     area = parsed_label.Cover(sx, dx-src_act, y);
     area.arc = this;
-    area_important = area;
+    note_map = area;
     const Block arrow_box(dx+src_act, ceil(dx+src_act+wh.x), y, ceil(y+xy_s.y+wh.y+xy_e.y));
     area += arrow_box;
-    area.mainline = Block(chart->GetDrawing().x, Range(y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2));
-    //Now add arrowheads to the "area_important", and a small block if they are NONE
+    area.mainline = Block(0, chart->total.x, y - chart->nudgeSize/2, y + wh.y + chart->nudgeSize/2);
+    //Now add arrowheads to the "note_map", and a small block if they are NONE
     XY point = XY(dx+src_act, xy_s.y + chart->arcVGapAbove);
     if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
-        area_important += Block(point.x-chart->compressGap/2, point.x+chart->compressGap/2,
+        note_map += Block(point.x-chart->compressGap/2, point.x+chart->compressGap/2,
         point.y-chart->compressGap/2, point.y+chart->compressGap/2);
     else
-        area_important += style.arrow.Cover(point, 0, true,  isBidir(), MSC_ARROW_START, style.line, style.line);
+        note_map += style.arrow.Cover(point, 0, true,  isBidir(), MSC_ARROW_START, style.line, style.line);
     point.y += 2*YSize;
     if (style.arrow.GetType(isBidir(), MSC_ARROW_END) == MSC_ARROW_NONE)
-        area_important += Block(point.x-chart->compressGap/2, point.x+chart->compressGap/2,
+        note_map += Block(point.x-chart->compressGap/2, point.x+chart->compressGap/2,
         point.y-chart->compressGap/2, point.y+chart->compressGap/2);
     else
-        area_important += style.arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.line, style.line);
-    if (!reflow) chart->NoteBlockers.Append(this);
+        note_map += style.arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.line, style.line);
+    def_note_target = arrow_box.Centroid();
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
     cover = GetCover4Compress(area);
-    return std::max(height, NoteHeight(canvas, cover));
+    return height;
 }
 
-void ArcSelfArrow::PostPosProcess(MscCanvas &canvas)
+void ArcSelfArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(canvas);
+    ArcArrow::PostPosProcess(canvas, autoMarker);
 
     //Check if the entity involved is actually turned on.
     if (!(*src)->status.GetStatus(yPos).IsOn()) {
@@ -836,7 +838,7 @@ void ArcSelfArrow::Draw(MscCanvas &canvas, DrawPassType pass)
         canvas.Line(Edge(XY(dx+src_act, y+YSize), wh.x, wh.y/2, 0, 270, 90), style.line);
     } else {
         //draw (part of) a rounded rectangle
-        canvas.Clip(dx+src_act, chart->GetDrawing().x.till, chart->GetDrawing().y.from, chart->GetDrawing().y.till);
+        canvas.Clip(dx+src_act, chart->total.x, 0, chart->total.y);
         canvas.Line(Block(XY(0, y), XY(dx,y)+wh), style.line);
         canvas.UnClip();
     }
@@ -855,7 +857,7 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
     dst = chart->FindAllocEntity(d, dl);
     modifyFirstLineSpacing = true;
     segment_types.push_back(t);
-    if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
+    if (chart) slant_angle = chart->Contexts.back().slant_angle;
 };
 
 ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabelled &al) :
@@ -870,7 +872,7 @@ ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabell
         segment_types.push_back(MSC_ARC_BIG);
         segment_lines.push_back(style.line);
     }
-    if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
+    if (chart) slant_angle = chart->Contexts.back().slant_angle;
 }
 
 ArcArrow * ArcDirArrow::AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range /*l*/)
@@ -995,8 +997,7 @@ string ArcDirArrow::Print(int ident) const
 #define ARROW_TEXT_VSPACE_ABOVE 1
 #define ARROW_TEXT_VSPACE_BELOW 1
 
-ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, bool top_level, TrackableElement **target)
+ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     bool error = false;
@@ -1043,7 +1044,7 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     no_problem:
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
     //Save our left and right (as specified by the user)
     const EIterator our_left =  chart->EntityMinByPos(src, dst);
@@ -1127,6 +1128,7 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 void ArcDirArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+
     //Here we have a valid canvas, so we adjust act_size
     if (canvas.HasImprecisePositioning() && slant_angle==0)
         for (auto i = act_size.begin(); i!=act_size.end(); i++)
@@ -1213,6 +1215,8 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         y += aH;
     }
     centerline = y = ceil(y) + lw_max/2;
+    def_note_target.x = (sx+dx)/2;
+    def_note_target.y = centerline;
     //Note: When the angle is slanted, we rotate the space around "sx, centerline+yPos"
 
     //prepare xPos and margins
@@ -1249,21 +1253,19 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     for (unsigned i=0; i<xPos.size(); i++)
         area += style.arrow.Cover(XY(xPos[i], y), act_size[i], sx<dx, isBidir(), WhichArrow(i),
         segment_lines[i - (i==0 ? 0 : 1)], segment_lines[i - (i==xPos.size()-1 ? 1 : 0)]);
-    area_important = area; //the text and arrowheads
+    note_map = area; //the text and arrowheads
     //Add small blocks if there is no end or start arrowhead
     if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
-        area_important += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
-                                centerline-chart->compressGap/2, centerline+chart->compressGap/2);
+        note_map += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
+                          centerline-chart->compressGap/2, centerline+chart->compressGap/2);
     if (style.arrow.GetType(isBidir(), MSC_ARROW_START) == MSC_ARROW_NONE)
-        area_important += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
-                                centerline-chart->compressGap/2, centerline+chart->compressGap/2);
+        note_map += Block(sx-chart->compressGap/2, sx+chart->compressGap/2,
+                          centerline-chart->compressGap/2, centerline+chart->compressGap/2);
     for (unsigned i=0; i<xPos.size()-1; i++) {
         const double lw2 = ceil(segment_lines[i].LineWidth()/2);
         //x coordinates below are not integer- but this will be merged with other contours - so they disappear
         area += clip_area * Block(xPos[i]+margins[i].second, xPos[i+1]-margins[i+1].first, y-lw2, y+lw2);
     }
-    //Add a horizontal line to area to bridge the gap across activated entities
-    area_to_note2 = Block(sx, dx, centerline, centerline).Expand(0.5);
     CalculateMainline(std::max(lw_max, chart->nudgeSize+1.0));
     if (slant_angle != 0) {
         //OK: all of sx, dx, sx_text, dx_text, cx_text, xPos, act_size, margins
@@ -1271,41 +1273,37 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         //Now we transfrom "area" and "text_cover", too
         const XY c(sx, yPos+centerline);
         area.RotateAround(c, slant_angle);
-        area_important.RotateAround(c, slant_angle);
-        area_to_note2.RotateAround(c, slant_angle);
+        note_map.RotateAround(c, slant_angle);
         text_cover.RotateAround(c, slant_angle); 
         clip_area.RotateAround(c, slant_angle); 
     }
-    if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
     if (slant_angle==0)
-        height = std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
-    else
-        height = area.GetBoundingBox().y.till;
-    return std::max(height, NoteHeight(canvas, cover));
+        return height = std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
+    return height = area.GetBoundingBox().y.till;
 }
 
 
 void ArcDirArrow::CalculateMainline(double thickness)
 {
     if (slant_angle == 0) 
-        area.mainline = Block(chart->GetDrawing().x, Range(yPos+centerline - thickness/2, yPos+centerline + thickness/2));
+        area.mainline = Block(0, chart->total.x, yPos+centerline - thickness/2, yPos+centerline + thickness/2);
     else {
         thickness /= cos_slant;
         const double src_y = yPos+centerline;
         const double dst_y = sin_slant*(dx-sx) + src_y;
         const double real_dx = sx + cos_slant*(dx-sx);
         if (sx<dx) {
-            const XY ml[] = {XY(chart->GetDrawing().x.from,   src_y-thickness/2), XY(sx, src_y-thickness/2),
-                             XY(real_dx, dst_y-thickness/2), XY(chart->GetDrawing().x.till, dst_y-thickness/2),
-                             XY(chart->GetDrawing().x.till, dst_y+thickness/2), XY(real_dx, dst_y+thickness/2),
-                             XY(sx, src_y+thickness/2), XY(chart->GetDrawing().x.from, src_y+thickness/2)};
+            const XY ml[] = {XY(0,   src_y-thickness/2), XY(sx, src_y-thickness/2),
+                             XY(real_dx, dst_y-thickness/2), XY(chart->total.x, dst_y-thickness/2),
+                             XY(chart->total.x, dst_y+thickness/2), XY(real_dx, dst_y+thickness/2),
+                             XY(sx, src_y+thickness/2), XY(0, src_y+thickness/2)};
             area.mainline.assign_dont_check(ml);
         } else {
-            const XY ml[] = {XY(chart->GetDrawing().x.from, dst_y-thickness/2), XY(real_dx, dst_y-thickness/2),
-                             XY(sx, src_y-thickness/2), XY(chart->GetDrawing().x.till, src_y-thickness/2),
-                             XY(chart->GetDrawing().x.till, src_y+thickness/2), XY(sx, src_y+thickness/2),
-                             XY(real_dx, dst_y+thickness/2), XY(chart->GetDrawing().x.from, dst_y+thickness/2)};
+            const XY ml[] = {XY(0, dst_y-thickness/2), XY(real_dx, dst_y-thickness/2),
+                             XY(sx, src_y-thickness/2), XY(chart->total.x, src_y-thickness/2),
+                             XY(chart->total.x, src_y+thickness/2), XY(sx, src_y+thickness/2),
+                             XY(real_dx, dst_y+thickness/2), XY(0, dst_y+thickness/2)};
             area.mainline.assign_dont_check(ml);
         }
     }
@@ -1360,10 +1358,10 @@ void ArcDirArrow::CheckSegmentOrder(double y)
 }
 
 
-void ArcDirArrow::PostPosProcess(MscCanvas &canvas)
+void ArcDirArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
-    ArcArrow::PostPosProcess(canvas);
+    ArcArrow::PostPosProcess(canvas, autoMarker);
     CheckSegmentOrder(yPos+centerline);
     //Exclude the areas covered by the text from entity lines
     chart->HideEntityLines(text_cover);
@@ -1432,7 +1430,8 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
     modifyFirstLineSpacing = false;
 }
 
-//This invocation is from ArcBoxSeries::PostParseProcess
+//This invocation is from ArcBoxSeries::PostParseProcess, so PPP will not be called
+//on this arrow again. (But ArcLabelled::PPP was already called)
 ArcBigArrow::ArcBigArrow(const EntityList &el, bool bidir, const ArcLabelled &al,
     const ArcSignature *s)
     : ArcDirArrow(el, bidir, al), sig(s)
@@ -1467,12 +1466,12 @@ void ArcBigArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "angle", HINT_ATTR_NAME));
-    defaultDesign.styles.GetStyle("blockarrow").AttributeNames(csh);
+    Design().styles["blockarrow"].AttributeNames(csh);
 }
 
 bool ArcBigArrow::AttributeValues(const std::string attr, Csh &csh)
 {
-    if (defaultDesign.styles.GetStyle("blockarrow").AttributeValues(attr, csh)) return true;
+    if (Design().styles["blockarrow"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     if (CaseInsensitiveEqual(attr,"angle")) {
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number 0..45>", HINT_ATTR_VALUE, false));
@@ -1486,12 +1485,11 @@ string ArcBigArrow::Print(int ident) const
     return ArcDirArrow::Print(ident);
 }
 
-ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                       Numbering &number, bool top_level, TrackableElement **target)
+ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     //Determine src and dst entity, check validity of multi-segment ones, add numbering, etc
-    ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, top_level, target);
+    ArcBase *ret = ArcDirArrow::PostParseProcess(canvas, hide, left, right, number, top_level);
     //Finally copy the line attribute to the arrow, as well (arrow.line.* attributes are annulled here)
     style.arrow.line = style.line;
     return ret;
@@ -1500,6 +1498,7 @@ ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
+
     //fill an "indexes" and "act_size" array
     const bool fw = (*src)->index < (*dst)->index;
     std::vector<unsigned> indexes;
@@ -1542,7 +1541,7 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
         twh.y += GetIndiactorSize().y + chart->emphVGapInside;
         twh.x = std::max(twh.x, GetIndiactorSize().x + 2*chart->emphVGapInside);
     } 
-    twh.y = std::max(twh.y, style.text.getCharHeight(canvas));
+    twh.y = std::max(twh.y, Label("M", canvas, style.text).getTextWidthHeight().y);
     sy = chart->arcVGapAbove + aH;
     dy = ceil(sy + twh.y + chart->emphVGapInside*2 + 2*segment_lines[stext].LineWidth());
 
@@ -1617,6 +1616,8 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //set sx and dx
     sx = chart->XCoord(src);
     dx = chart->XCoord(dst);
+    def_note_target.x = (sx+dx)/2;
+    def_note_target.y = centerline;
     //convert dx to transformed space
     if (slant_angle)
         dx = sx + (dx-sx)/cos_slant;
@@ -1636,9 +1637,9 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //text_cover = parsed_label.Cover(sx_text, dx_text, sy+style.line.LineWidth()/2 + chart->emphVGapInside, cx_text);
     area = style.arrow.BigContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, outer_contours);
     area.arc = this;
-    area_important = style.arrow.BigHeadContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, chart->compressGap);
-    area_important += parsed_label.Cover(sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
-    area_to_note2 = Block(sx, dx, (sy+dy)/2, (sy+dy)/2).Expand(0.5);
+    note_map = style.arrow.BigHeadContour(xPos, act_size, sy, dy, sx<dx, isBidir(), &segment_lines, chart->compressGap);
+    note_map += parsed_label.Cover(sx_text, dx_text, sy+segment_lines[stext].LineWidth() + chart->emphVGapInside, cx_text);
+    note_map.arc = this;
     //due to thick lines we can extend above y==0. Shift down to avoid it
     if (area.GetBoundingBox().y.from < chart->arcVGapAbove) 
         ShiftBy(-area.GetBoundingBox().y.from + chart->arcVGapAbove);
@@ -1649,14 +1650,11 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         //Now we transfrom "area" and "text_cover", too
         const XY c(sx, yPos+centerline);
         area.RotateAround(c, slant_angle);
-        area_important.RotateAround(c, slant_angle); 
-        area_to_note2.RotateAround(c, slant_angle);
+        note_map.RotateAround(c, slant_angle); 
     }
-    if (!reflow) chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
 
-    height = area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
-    return std::max(height, NoteHeight(canvas, cover));
+    return height = area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
 }
 
 void ArcBigArrow::ShiftBy(double y)
@@ -1669,7 +1667,7 @@ void ArcBigArrow::ShiftBy(double y)
     ArcDirArrow::ShiftBy(y); //This shifts clip_area, too, but that shall be empty anyway
 }
 
-void ArcBigArrow::PostPosProcess(MscCanvas &canvas)
+void ArcBigArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     CheckSegmentOrder(yPos + centerline);
@@ -1678,7 +1676,7 @@ void ArcBigArrow::PostPosProcess(MscCanvas &canvas)
         controls.push_back(MSC_CONTROL_EXPAND);        
         controls.push_back(MSC_CONTROL_COLLAPSE);        
     }
-    ArcArrow::PostPosProcess(canvas); //Skip ArcDirArrow
+    ArcArrow::PostPosProcess(canvas, autoMarker); //Skip ArcDirArrow
     const XY c(sx, yPos+centerline);
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++) {
         Contour tmp(*i);
@@ -1836,7 +1834,7 @@ bool ArcVerticalArrow::AddAttribute(const Attribute &a)
 void ArcVerticalArrow::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    defaultDesign.styles.GetStyle("vertical").AttributeNames(csh);
+    Design().styles["vertical"].AttributeNames(csh);
     //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"makeroom", HINT_ATTR_NAME));
 }
@@ -1852,24 +1850,23 @@ bool ArcVerticalArrow::AttributeValues(const std::string attr, Csh &csh)
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
-    if (defaultDesign.styles.GetStyle("vertical").AttributeValues(attr, csh)) return true;
+    if (Design().styles["vertical"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
 
 
-TrackableElement* ArcVerticalArrow::AttachNote(CommandNote *note)
+void ArcVerticalArrow::AttachNote(CommandNote *note)
 {
     _ASSERT(note);
     chart->Error.Error(note->file_pos.start, "Notes cannot be attached to Verticals. Ignoring note.");
     chart->Error.Error(file_pos.start, note->file_pos.start, "Here is the vertical this note is attached to.");
     delete note;
-    return NULL;
 }
 
 
 ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                            Numbering &number, bool top_level, TrackableElement **target)
+                                        Numbering &number, bool top_level)
 {
     if (!valid) return NULL; 
     //Ignore hide: we show verticals even if they may be hidden
@@ -1908,15 +1905,12 @@ ArcBase* ArcVerticalArrow::PostParseProcess(MscCanvas &canvas, bool hide, EItera
     if (error) return NULL;
 
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
     left = chart->EntityMinByPos(left, pos.entity1);
     right = chart->EntityMaxByPos(right, pos.entity1);
     left = chart->EntityMinByPos(left, pos.entity2);
     right = chart->EntityMaxByPos(right, pos.entity2);
-
-    if (hide) 
-        return NULL;
 
     //Now change entities in vertxPos to point to ActiveEntities
     pos.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(pos.entity1));
@@ -1957,7 +1951,7 @@ void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     const double lw = style.line.LineWidth();
     double width = twh.y;
     if (width==0)
-        width = style.text.getCharHeight(canvas);
+        width = Label("M", canvas, style.text).getTextWidthHeight().y;
     width += 2*lw + 2*chart->hscaleAutoXGap;
 
     const double aw =style.arrow.bigYExtent(isBidir(), false);
@@ -1989,9 +1983,8 @@ void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-double ArcVerticalArrow::Height(MscCanvas &, AreaList &, bool)
+double ArcVerticalArrow::Height(MscCanvas &/*canvas*/, AreaList &, bool)
 {
-    //We will not have notes, so no need to call NoteHeight()
     return height = 0;
 }
 
@@ -2000,9 +1993,12 @@ void ArcVerticalArrow::ShiftBy(double y)
     yPos += y;
 }
 
-void ArcVerticalArrow::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
+void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
+    ArcArrow::PostPosProcess(canvas, autoMarker);
+	//area is empty here, so we will have to add our stuff to chart->AllCovers later in this function
+
     //Here we are sure markers are OK
     //all below are integers. yPos is such, in general. "Markers" are yPos of the markers
     if (src == MARKER_HERE_STR)
@@ -2070,7 +2066,7 @@ void ArcVerticalArrow::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
     //calculate xpos and width
     width = twh.y;
     if (width==0)
-        width = style.text.getCharHeight(canvas);
+        width = Label("M", canvas, style.text).getTextWidthHeight().y;
     width = ceil(width + 2*lw + 2*chart->emphVGapInside);
     width += fmod_negative_safe(width, 2.); //width is even integer now: the distance from outer edge to outer edge
 
@@ -2092,22 +2088,11 @@ void ArcVerticalArrow::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
     //use inverse of forward, swapXY will do the job
     area = style.arrow.BigContour(ypos, act_size, xpos-width/2, xpos+width/2, 
                                   forward, isBidir(), NULL, outer_contours);
-    area.arc = this;
     area.SwapXY();
-    area_important = parsed_label.Cover(min(sy_text, dy_text), max(sy_text, dy_text),
-                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside);
-    area_important.SwapXY();
-    area_to_note2 = Block(xpos, xpos, ypos[0], ypos[1]).Expand(0.5);
     for (auto i = outer_contours.begin(); i!=outer_contours.end(); i++)
         i->SwapXY();
-    chart->NoteBlockers.Append(this);
-}
-
-void ArcVerticalArrow::PostPosProcess(MscCanvas &canvas)
-{
-    if (!valid) return;
     //Expand area and add us to chart's all covers list
-    ArcArrow::PostPosProcess(canvas);
+    ArcArrow::PostPosProcess(canvas, autoMarker);
 }
 
 
@@ -2124,9 +2109,12 @@ void ArcVerticalArrow::Draw(MscCanvas &canvas, DrawPassType pass)
         canvas.Transform_Rotate90(xpos-width/2, xpos+width/2, false);
     else
         canvas.Transform_Rotate90(ypos[0], ypos[1], true);
+    const Contour lab = parsed_label.Cover(ypos[0], ypos[1],
+                                        xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside,
+                                        -1, true);
     //We skip BigDrawEmptyMid. as there can not be mid-stops
     parsed_label.Draw(canvas, min(sy_text, dy_text), max(sy_text, dy_text),
-                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -CONTOUR_INFINITY, true);
+                      xpos-width/2+style.line.LineWidth()/2+chart->emphVGapInside, -1, true);
     canvas.UnTransform();
 }
 
@@ -2256,7 +2244,7 @@ bool ArcBox::AddAttribute(const Attribute &a)
 void ArcBox::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    defaultDesign.styles.GetStyle("box").AttributeNames(csh);
+    Design().styles["box"].AttributeNames(csh);
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"collapsed", HINT_ATTR_NAME));
 }
 
@@ -2288,7 +2276,7 @@ bool ArcBox::AttributeValues(const std::string attr, Csh &csh)
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForBoxCollapsed); 
         return true;
     }
-    if (defaultDesign.styles.GetStyle("box").AttributeValues(attr, csh)) return true;
+    if (Design().styles["box"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -2340,9 +2328,8 @@ string ArcBoxSeries::Print(int ident) const
 }
 
 ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                  Numbering &number, bool top_level, TrackableElement **target)
+                                  Numbering &number, bool top_level)
 {
-    ArcBase *ret = this;
     if (collapsed == BOX_COLLAPSE_BLOCKARROW) {
         EntityList el(false);
         //replace us with a block arrow - here we are sure to be alone in the series
@@ -2359,15 +2346,12 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
         el.SortByPosExp();
         if (dir == MSC_DIR_LEFT)
             std::reverse(el.begin(), el.end());
-        ArcBigArrow *aba = new ArcBigArrow(el, dir == MSC_DIR_BIDIR, *this, GetSignature());
-        aba->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
-        aba->CombineComments(this); //we pass on our notes to the block arrow
-        TrackableElement *const old_target = *target;
-        ret = aba->PostParseProcess(canvas, hide, left, right, number, top_level, target);
-        if (old_target != *target && ret == NULL)
-            *target = DELETE_NOTE;
-    } else 
-        ret = ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
+        ArcBigArrow *ret = new ArcBigArrow(el, dir == MSC_DIR_BIDIR, *this, GetSignature());
+        ret->ArcArrow::AddAttributeList(NULL); //skip copying line segment styles
+        ret->CombineNotes(this); //we pass on our notes to the block arrow
+        return ret->PostParseProcess(canvas, hide, left, right, number, top_level);
+    }
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
     //Add numbering, if needed
     EIterator left_content = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     EIterator right_content = left_content;
@@ -2379,7 +2363,7 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
             number.decrementOnAddingLevels = true;
         const bool hide_i = hide || (collapsed!=BOX_COLLAPSE_EXPAND);
         chart->PostParseProcessArcList(canvas, hide_i, content, false, 
-                                       left_content, right_content, number, top_level, target);
+                                       left_content, right_content, number, top_level);
         //If we are collapsed, but not hidden and "indicator" attribute is set, 
         //then add an indicator to the end of the list (which will have only elements
         //with zero height here, the rest removed themselves due to hide_i==true
@@ -2393,7 +2377,7 @@ ArcBase* ArcBox::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left,
     right = chart->EntityMaxByPos(right, dst);
     if (*src == chart->NoEntity) src = left_content;
     if (*dst == chart->NoEntity) dst = right_content;
-    return ret;
+    return this;
 }
 
 void ArcBox::FinalizeLabels(MscCanvas &canvas)
@@ -2403,12 +2387,12 @@ void ArcBox::FinalizeLabels(MscCanvas &canvas)
 }
 
 ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, bool top_level, TrackableElement **target)
+                                        Numbering &number, bool top_level)
 {
     if (!valid || series.size()==0) return NULL;
     //If first segment is compressed or parallel, copy that to full series
     compress = (*series.begin())->compress;
-    //parallel = (*series.begin())->parallel;
+//    parallel = (*series.begin())->parallel;
 
     ArcBase *ret = this;
     EIterator src, dst;
@@ -2419,7 +2403,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
                                "Attribute 'parallel' can only be specified in the first "
                                "element in a box series. Ignoring it in subsequent ones.");
         }
-        if (i!=series.begin() && (*i)->draw_pass!=DRAW_DEFAULT) {
+        if (i!=series.begin() && (*i)->draw_pass!=DEFAULT) {
             chart->Error.Error((*i)->file_pos.start,
                                "Attribute 'draw_time' can only be specified in the first "
                                "element in a box series. Ignoring it in subsequent ones.");
@@ -2435,25 +2419,12 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
                                     "Ignoring 'collapsed' attribute.");
             (*i)->collapsed = BOX_COLLAPSE_EXPAND;
         }
-        //set the target to the ArcBox (if a first note comes in the content)
-        *target = *i;
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
-        ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level, target); //ret is an arcblockarrow if we need to collapse
-		//Check if we are collapsed to a block arrow
-		if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW) {
-			_ASSERT(series.size()==1);
-			if (ret == NULL) *target = DELETE_NOTE;
-			else if (ret->CanBeNoted()) *target = ret;
-			else *target = DELETE_NOTE; //ArcBox can be noted, so if replacement cannot, we shall silently delete note
-			return ret;
-		}
-		_ASSERT(*i==ret);
+        ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level); //ret is an arcblockarrow if we need to collapse
     }
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
-    //Set the target to the last ArcBox (for comments coming afterwards)
-    *target = *series.rbegin();
     //src and dst can be NoEntity here if none of the series specified a left or a right entity
     //Go through and use content to adjust to content
     if (*src==chart->NoEntity) 
@@ -2505,6 +2476,10 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     if (hide) return NULL;  
     if (we_diappear) //we disappear, but leave an indicator: left & right shall be updated
         return new ArcIndicator(chart, src, indicator_style, file_pos); //notes deleted
+
+    //Check if we are collapsed to a block arrow
+    if (series.size()==1 && (*series.begin())->collapsed == BOX_COLLAPSE_BLOCKARROW) 
+        return ret;
     return this;
 }
 
@@ -2528,7 +2503,6 @@ void ArcBoxSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     for (auto i = series.begin(); i!=series.end(); i++) {
         if ((*i)->content.size())
             chart->WidthArcList(canvas, ((*i)->content), d);
-        (*i)->ArcLabelled::Width(canvas, distances); //To process notes
         double width = (*i)->parsed_label.getTextWidthHeight().x;
         //calculated margins (only for first segment) and save them
         if (i==series.begin()) {
@@ -2604,14 +2578,10 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 
     double y = chart->emphVGapOutside;
     yPos = y;
-    double note_end=y;
     for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->yPos = y; //"y" now points to the *top* of the line of the top edge of this box
-        
-        //Place side comments. This will update "cover" and thus force the content
-        //downward if the content also has side notes
-        double l=y, r=y;
-        note_end = (*i)->NoteHeightHelper(canvas, cover, l, r);
+        (*i)->yPos = y;
+        // y now points to the *top* of the line of the top edge of this box
+        // if we are pipe, we draw the segment side-by side, so we reset y here
 
         //Advance upper line and spacing
         y += (*i)->style.line.LineWidth() + chart->emphVGapInside;
@@ -2621,7 +2591,7 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         //Add text cover & draw if necessary
         (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
         //Advance label height
-        const double th = (*i)->parsed_label.getTextWidthHeight().y;
+        double th = (*i)->parsed_label.getTextWidthHeight().y;
         //Position arrows if any under the label
         AreaList content_cover = Area((*i)->text_cover);
         if ((*i)->content.size()) {
@@ -2634,9 +2604,8 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
                 limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+limiter_line.radius.second) - 
                          limiter_line.CreateRectangle_InnerEdge(b);
             }
-            const double content_y = chart->PlaceListUnder(canvas, (*i)->content.begin(), (*i)->content.end(),
+            y = chart->PlaceListUnder(canvas, (*i)->content.begin(), (*i)->content.end(),
                                       y+th, y, limit, reflow, compress, &content_cover);  //no extra margin below text
-            y = std::max(y+th, content_y);
         } else {
             y += th; //no content, just add textheight
         }
@@ -2653,8 +2622,6 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             if (off<0) y-=off;
         }
         y += chart->emphVGapInside;
-        //increase the size of the box by the side notes, except for the last box
-        if (i!=--series.end()) y = std::max(y, note_end);
         //Make segment as tall as needed to accomodate curvature
         //if (style.line.radius.second>0) {
         //    double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
@@ -2696,18 +2663,16 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             (*i)->draw_is_different = false;
             (*i)->area_draw_is_frame = false;
         }
-        (*i)->area_important = (*i)->text_cover;
-        if (!reflow) chart->NoteBlockers.Append(*i);
+        (*i)->note_map = (*i)->text_cover;
+        (*i)->note_map.arc = *i;
+        (*i)->def_note_target = (*i)->note_map.Centroid();
     }
     const double &offset = main_style.shadow.offset.second;
     if (offset)
         overall_box += overall_box.CreateShifted(XY(offset, offset));
-    overall_box.mainline = Block(chart->GetDrawing().x, b.y);
+    overall_box.mainline = Block(0, chart->total.x, b.y.from, b.y.till);
     cover = GetCover4Compress(overall_box);
-    height = yPos + total_height + offset + chart->emphVGapOutside;
-    //We do not call NoteHeight for "this" since a box series cannot take notes, only its
-    //box elements do and those were handled above
-    return std::max(height, note_end);
+    return height = yPos + total_height + offset + chart->emphVGapOutside;
 }
 
 void ArcBox::ShiftBy(double y)
@@ -2730,15 +2695,7 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcBoxSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
-{
-    for (auto i = series.begin(); i!=series.end(); i++)
-        if ((*i)->valid && (*i)->content.size()) 
-            chart->PlaceWithMarkersArcList(canvas, (*i)->content, autoMarker);
-}
-
-
-void ArcBoxSeries::PostPosProcess(MscCanvas &canvas)
+void ArcBoxSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     //For boxes we always add the background cover first then the content
@@ -2762,9 +2719,9 @@ void ArcBoxSeries::PostPosProcess(MscCanvas &canvas)
                     _ASSERT(0); //should not happen here
                     break;
                 }
-            (*i)->ArcLabelled::PostPosProcess(canvas);
+            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
             if ((*i)->content.size()) 
-                chart->PostPosProcessArcList(canvas, (*i)->content);
+                chart->PostPosProcessArcList(canvas, (*i)->content, autoMarker);
         }
 
     //Hide entity lines during the lines inside the box
@@ -2796,6 +2753,7 @@ void ArcBoxSeries::PostPosProcess(MscCanvas &canvas)
 void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     //For boxes draw background for each segment, then separator lines, then bounding rectangle lines, then content
     const MscStyle &main_style = (*series.begin())->style;
     const double lw = main_style.line.LineWidth();
@@ -2806,11 +2764,10 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
                   yPos + lw/2, yPos+total_height - lw/2); 
     //The radius specified in main_style.line will be that of the midpoint of the line
     //First draw the shadow.
-    if (pass==draw_pass) 
-        canvas.Shadow(r, main_style.line, main_style.shadow);
+    canvas.Shadow(r, main_style.line, main_style.shadow);
     //Do a clip region for the overall box (for round/bevel/note corners)
     //at half a linewidth from the inner edge (use the width of a single line!)
-    const Contour clip = main_style.line.CreateRectangle_ForFill(r);
+    canvas.Clip(main_style.line.CreateRectangle_ForFill(r));
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Overall rule for background fill:
         //for single line borders we fill up to the middle of the border
@@ -2830,21 +2787,17 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
             dy += main_style.line.width.second/2.;
         else
             dy += (*next)->style.line.width.second/2.;
-        canvas.Clip(clip);
         //fill wider than r.x - note+triple line has wider areas to cover, clip will cut away excess
-        if (pass==draw_pass) 
-            canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
+        canvas.Fill(Block(r.x.from, r.x.till+lw, sy, dy), (*i)->style.fill);
         //if there are contained entities, draw entity lines, strictly from inside of line
         if ((*i)->content.size()) {
-            if (pass==draw_pass && (*i)->drawEntityLines &&
-                (*i)->collapsed==BOX_COLLAPSE_EXPAND)
+            chart->DrawArcList(canvas, (*i)->content, BEFORE_ENTITY_LINES);
+            if ((*i)->collapsed==BOX_COLLAPSE_EXPAND && (*i)->drawEntityLines)
                 chart->DrawEntityLines(canvas, (*i)->yPos, (*i)->height + (*i)->style.line.LineWidth(), (*i)->src, ++EIterator((*i)->dst));
-            canvas.UnClip();
-            chart->DrawArcList(canvas, (*i)->content, pass);
-        } else
-            canvas.UnClip();
+            chart->DrawArcList(canvas, (*i)->content, AFTER_ENTITY_LINES);
+        }
     }
-    if (pass!=draw_pass) return;
+    canvas.UnClip();
     //Draw box lines - Cycle only for subsequent boxes
     for (auto i = ++series.begin(); i!=series.end(); i++) {
         const double y = (*i)->yPos + (*i)->style.line.LineWidth()/2;
@@ -2856,7 +2809,16 @@ void ArcBoxSeries::Draw(MscCanvas &canvas, DrawPassType pass)
     //XXX double line joints: fix it
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->parsed_label.Draw(canvas, (*i)->sx_text, (*i)->dx_text, (*i)->y_text, r.x.MidPoint());
+        if ((*i)->content.size()) 
+            chart->DrawArcList(canvas, (*i)->content, DEFAULT);
+        //if (i==follow.begin()) {
+        //    const Area tcov = (*i)->parsed_label.Cover(0, (*i)->parsed_label.getTextWidthHeight().x, style.line.LineWidth()+chart->emphVGapInside);
+        //    DoublePair margins = style.line.CalculateTextMargin(tcov, 0, follow.size()==1?chart:NULL);
+        //}
     }
+    for (auto i = series.begin(); i!=series.end(); i++) 
+        if ((*i)->content.size()) 
+            chart->DrawArcList(canvas, (*i)->content, AFTER_DEFAULT);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -2909,7 +2871,7 @@ bool ArcPipe::AddAttribute(const Attribute &a)
 void ArcPipe::AttributeNames(Csh &csh)
 {
     ArcLabelled::AttributeNames(csh);
-    defaultDesign.styles.GetStyle("pipe").AttributeNames(csh);
+    Design().styles["pipe"].AttributeNames(csh);
 }
 
 bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
@@ -2918,7 +2880,7 @@ bool ArcPipe::AttributeValues(const std::string attr, Csh &csh)
         csh.AddColorValuesToHints();
         return true;
     }
-    if (defaultDesign.styles.GetStyle("pipe").AttributeValues(attr, csh)) return true;
+    if (Design().styles["pipe"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
@@ -3006,24 +2968,20 @@ struct pipe_compare
 };
 
 ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                        Numbering &number, bool top_level, TrackableElement **target)
+                                        Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
 
     //Add numbering, if needed 
     for (auto i = series.begin(); i!=series.end(); i++) 
-        (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
+        (*i)->PostParseProcess(canvas, hide, left, right, number, top_level);
     //Postparse the content;
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
-    //set the first element as the note target (first in the {})
-    *target = *series.begin();
-    chart->PostParseProcessArcList(canvas, hide, content, false, content_left, content_right, number, top_level, target);
+    chart->PostParseProcessArcList(canvas, hide, content, false, content_left, content_right, number, top_level);
 
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
-    //set the last element as a note target (coming after us)
-    *target = *series.rbegin();
 
     //Check that all pipe segments are fully specified, non-overlapping and sort them
 
@@ -3090,7 +3048,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
                         chart->Error.Warning((*i)->file_pos.start, "This pipe segment overlaps the previousl one. It may not look so good.",
                         "Encapsulate one in the other if you want that effect.");
                 }
-                if (i!=series.begin() && (*i)->draw_pass!=DRAW_DEFAULT) {
+                if (i!=series.begin() && (*i)->draw_pass!=DEFAULT) {
                     chart->Error.Error((*i)->file_pos.start,
                         "Attribute 'draw_time' can only be specified in the first "
                         "element in a pipe series. Ignoring it in subsequent ones.");
@@ -3152,10 +3110,11 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
     //see if we have any segments left, if not return only content
     if (series.size()==0) {
         if (content.size()) {
+            ArcParallel *p = new ArcParallel(chart);
+            p->AddAttributeList(NULL);
             ArcList *al = new ArcList;
             al->swap(content);
-            CommandArcList *p = new CommandArcList(chart, al); //this will do a "delete al;"
-            p->AddAttributeList(NULL);
+            p->AddArcList(al);  //this will do a "delete al;"
             return p;
         }
         //We completely disappear due to entity collapses and have no content
@@ -3247,7 +3206,6 @@ void ArcPipeSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     //(*i)->src and dst contain the left and right end of a pipe
     //The order of the pipe segments in follow depends on style.side
     for (auto i = series.begin(); i!=series.end(); i++) {
-        (*i)->ArcLabelled::Width(canvas, distances); //To process notes
         const double ilw = (*i)->style.line.LineWidth();
         const double width = (*i)->parsed_label.getTextWidthHeight().x + 2*chart->emphVGapInside;
         (*i)->left_space = d.Query((*(*i)->src)->index, DISTANCE_LEFT) + chart->emphVGapInside;
@@ -3317,7 +3275,6 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
     const MscSideType side = (*series.begin())->style.side.second;
     const double radius = (*series.begin())->style.line.radius.second;
-    double note_l=0, note_r=0;
     for (auto i = series.begin(); i!=series.end(); i++) {
         //Variables already set (all of them rounded):
         //pipe_connect true if a segment connects to us directly
@@ -3326,10 +3283,6 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         (*i)->area.clear();
         (*i)->area_draw.clear();
         (*i)->draw_is_different = false;
-
-        //Place side comments. This will update "cover" and thus force the content
-        //downward if the content also has side notes
-        (*i)->NoteHeightHelper(canvas, cover, note_l, note_r);
 
         //Set pipe_block.x, sx_text, dx_text in each segment, in the meantime
         //pipe_block contains the outside of the pipe, with the exception of the curvature (since it is a rect)
@@ -3350,7 +3303,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         // in that case content can be drawn at same position as label - opaque pipe will cover anyway
         double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
         if (y == (*i)->y_text && content.size()==0)
-            y += (*i)->style.text.getCharHeight(canvas);
+            y += Label("M", canvas, (*i)->style.text).getTextWidthHeight().y;
         if ((*i)->style.solid.second < 255) {
             label_covers += (*i)->text_cover;
             lowest_label_on_transculent_bottom = std::max(lowest_label_on_transculent_bottom, y);
@@ -3419,7 +3372,7 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
                 //the other way is not ok: Expand fails in expanding negative arcs
                 if (content.size() && (*i)->style.solid.second < 255) {
                     (*i)->area_draw -= forw_end.CreateExpand(-chart->trackFrameWidth);
-                    (*i)->area_draw *= Contour(side == SIDE_RIGHT ? chart->GetDrawing().x.from : chart->GetDrawing().x.till, cd.x,
+                    (*i)->area_draw *= Contour(side == SIDE_RIGHT ? 0 : chart->total.x, cd.x,
                                                 -chart->trackFrameWidth-1, total_height+chart->trackFrameWidth+1);
                 }
             }
@@ -3483,10 +3436,11 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             (*i_neigh)->pipe_shadow = ((*i)->pipe_shadow + (*i_neigh)->pipe_shadow);
             (*i)->pipe_shadow.clear();
         }
-        (*i)->area_important = (*i)->text_cover;
-        (*i)->area_important += forw_end;
-        (*i)->area_important += back_end;
-        if (!reflow) chart->NoteBlockers.Append(*i);
+        (*i)->note_map = (*i)->text_cover;
+        (*i)->note_map += forw_end;
+        (*i)->note_map += back_end;
+        (*i)->note_map.arc = *i;
+        (*i)->def_note_target = (*i)->note_map.Centroid();
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
@@ -3494,12 +3448,10 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     cover += content_cover;
     //If we have no valid content, set mainline to that of pipe, else the content's mainline will be used
     if (content_cover.mainline.IsEmpty()) 
-        pipe_body_cover.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
+        pipe_body_cover.mainline = Block(0, chart->total.x, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
     //Expand cover, but not content (that is already expanded)
     cover += GetCover4Compress(pipe_body_cover);
-    height = yPos + total_height + max_offset + chart->emphVGapOutside;
-    //We do not call NoteHeight here as a PipeSeries will not have notes, only its elements
-    return std::max(height, std::max(note_l, note_r));
+    return height = yPos + total_height + max_offset + chart->emphVGapOutside;
 }
 
 
@@ -3531,13 +3483,7 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcPipeSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
-{
-    if (content.size())
-        chart->PlaceWithMarkersArcList(canvas, content, autoMarker);
-}
-
-void ArcPipeSeries::PostPosProcess(MscCanvas &canvas)
+void ArcPipeSeries::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     //For pipes we first add those covers to chart->AllCovers that are not fully opaque,
@@ -3546,12 +3492,12 @@ void ArcPipeSeries::PostPosProcess(MscCanvas &canvas)
     //(this is because search is backwards and this arrangement fits the visual best
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.solid.second < 255)
-            (*i)->ArcLabelled::PostPosProcess(canvas);
+            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
     if (content.size())
-        chart->PostPosProcessArcList(canvas, content);
+        chart->PostPosProcessArcList(canvas, content, autoMarker);
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.solid.second == 255)
-            (*i)->ArcLabelled::PostPosProcess(canvas);
+            (*i)->ArcLabelled::PostPosProcess(canvas, autoMarker);
     for (auto i = series.begin(); i!=series.end(); i++)
         chart->HideEntityLines((*i)->pipe_shadow);
 }
@@ -3594,8 +3540,7 @@ void ArcPipe::DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bo
     if (topSideLine) {
         cairo_line_join_t t = canvas.SetLineJoin(CAIRO_LINE_JOIN_BEVEL);
         const double x = style.side.second == SIDE_RIGHT ? pipe_block.x.till : pipe_block.x.from;
-        Contour clip(x, style.side.second == SIDE_LEFT ? chart->GetDrawing().x.till : chart->GetDrawing().x.from,
-                     chart->GetDrawing().y.from, chart->GetDrawing().y.till);
+        Contour clip(x, style.side.second == SIDE_LEFT ? chart->total.x : 0, 0, chart->total.y);
         if (style.line.radius.second>0 && pipe_connect_forw) {
             const XY c(x, pipe_block.y.MidPoint());
             clip -= Contour(c, style.line.radius.second-next_lw/2, pipe_block.y.Spans()/2.-next_lw/2);
@@ -3640,72 +3585,47 @@ void ArcPipe::DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bo
 void ArcPipeSeries::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
+    if (pass!=draw_pass) return;
     //First shadows
-    if (pass==draw_pass) {
-        for (auto i = series.begin(); i!=series.end(); i++)
-            (*i)->DrawPipe(canvas, false, false, false, true, false, 0, drawing_variant);  //dummy 0
-        for (auto i = series.begin(); i!=series.end(); i++) {
-            //Dont draw the topside fill
-            //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
-            //Draw the backside in any case.
-            //Do not draw text
-            auto i_next = i; i_next++;
-            const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
-            (*i)->DrawPipe(canvas, false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
-        }
+    for (auto i = series.begin(); i!=series.end(); i++)
+        (*i)->DrawPipe(canvas, false, false, false, true, false, 0, drawing_variant);  //dummy 0
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Dont draw the topside fill
+        //Draw the topside line only if pipe is fully transparent. Else we may cover the line.
+        //Draw the backside in any case.
+        //Do not draw text
+        auto i_next = i; i_next++;
+        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
+        (*i)->DrawPipe(canvas, false, (*i)->style.solid.second == 0, true, false, false, next_linewidth, drawing_variant);
     }
     if (content.size()) {
-        if (pass==DRAW_AFTER_ENTITY_LINES)
-            for (auto i = series.begin(); i!=series.end(); i++) 
-                if ((*i)->drawEntityLines)
-                    chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
-        chart->DrawArcList(canvas, content, pass);
+        chart->DrawArcList(canvas, content, BEFORE_ENTITY_LINES);
+        for (auto i = series.begin(); i!=series.end(); i++) 
+            if ((*i)->drawEntityLines)
+                chart->DrawEntityLines(canvas, yPos, total_height, (*i)->src, ++EIterator((*i)->dst));
+        chart->DrawArcList(canvas, content, AFTER_ENTITY_LINES);
+        chart->DrawArcList(canvas, content, DEFAULT);
+        chart->DrawArcList(canvas, content, AFTER_DEFAULT);
     }
-    if (pass==draw_pass) 
-        for (auto i = series.begin(); i!=series.end(); i++) {
-            //Draw the topside fill only if the pipe is not fully transparent.
-            //Draw the topside line in any case
-            //Do not draw the backside (that may content arrow lines already drawn)
-            //Draw the text
-            auto i_next = i; i_next++;
-            const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
-            (*i)->DrawPipe(canvas, (*i)->style.solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
-        }
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Draw the topside fill only if the pipe is not fully transparent.
+        //Draw the topside line in any case
+        //Do not draw the backside (that may content arrow lines already drawn)
+        //Draw the text
+        auto i_next = i; i_next++;
+        const double next_linewidth = i_next!=series.end() ? (*i_next)->style.line.width.second : 0;
+        (*i)->DrawPipe(canvas, (*i)->style.solid.second > 0, true, false, false, true, next_linewidth, drawing_variant);
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcDivider::ArcDivider(MscArcType t, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.back().styles[MyStyleName(t)]),
-    nudge(t==MSC_COMMAND_NUDGE),
-    title(t==MSC_COMMAND_TITLE || t==MSC_COMMAND_SUBTITLE),
-    wide(false),
-    extra_space(t==MSC_ARC_DISCO ? msc->discoVgap :
-                t==MSC_COMMAND_TITLE ? msc->titleVgap :
-                t==MSC_COMMAND_SUBTITLE ? msc->subtitleVgap :
-                0)
+    ArcLabelled(t, msc, msc->Contexts.back().styles["divider"]),
+    nudge(t==MSC_COMMAND_NUDGE), wide(false),
+    extra_space(t==MSC_ARC_DISCO ? msc->discoVgap : 0)
 {
 }
-
-const char *ArcDivider::MyStyleName(MscArcType t)
-{
-    switch(t) {
-    default:
-        _ASSERT(0);
-        //these styles will be differentiated by refinement styles
-        //in ArcLabelled::GetRefinementStyle
-    case MSC_ARC_DISCO:
-    case MSC_ARC_DIVIDER:
-    case MSC_ARC_VSPACE:
-    case MSC_COMMAND_NUDGE:
-        return "divider";
-    case MSC_COMMAND_TITLE:
-        return "title";
-    case MSC_COMMAND_SUBTITLE:
-        return "subtitle";
-    }
-}
-
 
 bool ArcDivider::AddAttribute(const Attribute &a)
 {
@@ -3717,64 +3637,50 @@ bool ArcDivider::AddAttribute(const Attribute &a)
     return ArcLabelled::AddAttribute(a);
 };
 
-void ArcDivider::AttributeNames(Csh &csh, bool nudge, bool title)
+void ArcDivider::AttributeNames(Csh &csh, bool nudge)
 {
     if (nudge) return;
     ArcLabelled::AttributeNames(csh);
-    defaultDesign.styles.GetStyle(title ? "title" : "divider").AttributeNames(csh);
+    Design().styles["divider"].AttributeNames(csh);
 }
 
-bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title)
+bool ArcDivider::AttributeValues(const std::string attr, Csh &csh, bool nudge)
 {
     if (nudge) return false;
-    if (defaultDesign.styles.GetStyle(title ? "title" : "divider").AttributeValues(attr, csh)) return true;
+    if (Design().styles["divider"].AttributeValues(attr, csh)) return true;
     if (ArcLabelled::AttributeValues(attr, csh)) return true;
     return false;
 }
 
-ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                      Numbering &number, bool top_level, TrackableElement **target)
+ArcBase* ArcDivider::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
-    string ss;
-    switch (type) {
-    case MSC_ARC_VSPACE:       break;
-    case MSC_ARC_DISCO:        ss = "'...'"; break;
-    case MSC_ARC_DIVIDER:      ss = "'---'"; break;
-    case MSC_COMMAND_TITLE:    ss = "Titles"; break;
-    case MSC_COMMAND_SUBTITLE: ss = "Subtitles"; break;
-    case MSC_COMMAND_NUDGE:    ss = "Nudges"; break;
-    default: _ASSERT(0); break;
-    }
-
-    if (title && label.length()==0) {
-        chart->Error.Error(file_pos.start, ss + " must have a label. Ignoring this command.");
-        return NULL;
-    }
-
     //Add numbering, if needed
-    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level, target);
+    ArcLabelled::PostParseProcess(canvas, hide, left, right, number, top_level);
 
-    if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER || 
-                       type==MSC_COMMAND_TITLE || type==MSC_COMMAND_SUBTITLE)) {
-        chart->Error.Warning(file_pos.start, ss + " is specified inside a parallel block.",
-            "May display incorrectly.");
+    if (!top_level && (type==MSC_ARC_DISCO || type==MSC_ARC_DIVIDER)) {
+        string ss;
+        ss << (type==MSC_ARC_DISCO ? "'...'" : "'---'") << " is specified inside a parallel block.";
+        chart->Error.Warning(file_pos.start, ss, "May display incorrectly.");
     }
     if (hide) return NULL;
     return this;
 }
 
-void ArcDivider::Width(MscCanvas &, EntityDistanceMap &distances)
+void ArcDivider::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
 {
     if (!valid) return;
     if (nudge || !valid || parsed_label.getTextWidthHeight().y==0)
         return;
-    //Get marging from lside and rside
-    text_margin = wide ? 0 : chart->XCoord((chart->GetHScale()>=0 ? MARGIN : MARGIN_HSCALE_AUTO)/2);
-    if (title) 
-        text_margin += style.line.LineWidth();
+    //Get marging from chart edge
+    double margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
+    //convert it to a margin from lside and rside
+    if (chart->hscale>0)
+        margin -= chart->XCoord(MARGIN);
+    else
+        margin -= chart->XCoord(MARGIN_HSCALE_AUTO);
     //calculate space requirement between lside and rside
-    const double width = 2*text_margin + parsed_label.getTextWidthHeight().x;
+    const double width = 2*margin + parsed_label.getTextWidthHeight().x;
     if (width>0)
         distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
@@ -3785,50 +3691,39 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     if (reflow) return ArcBase::Height(canvas, cover, reflow);
     yPos = 0;
     if (nudge) {
-        Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
+        Block b(0, chart->total.x, 0, chart->nudgeSize);
         area.mainline = area = b;
         cover = GetCover4Compress(area);
         return height = chart->nudgeSize;
     }
     double y = wide ? 0 : chart->arcVGapAbove;
     y += extra_space;
-    if (title)
-        y += style.line.LineWidth();
-    const double charheight = style.text.getCharHeight(canvas);
+    const double charheight = Label("M", canvas, style.text).getTextWidthHeight().y;
+
     XY wh = parsed_label.getTextWidthHeight();
     if (!wh.y) wh.y = charheight;
     centerline = y+wh.y/2;
+    text_margin = wide ? 0 : chart->XCoord(MARGIN*1.3);
     line_margin = chart->XCoord(MARGIN);
-    text_cover = parsed_label.Cover(chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till-text_margin, y);
+    text_cover = parsed_label.Cover(text_margin, chart->total.x-text_margin, y);
     area = text_cover;
-    area_important = area;
-    const double lw = style.line.LineWidth();
-    //Add a cover block for the line, if one exists
-    if (!title && style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
-        area += Block(chart->GetDrawing().x.from + line_margin, chart->GetDrawing().x.till - line_margin,
-                      centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
-    else if (title && (style.line.type.second != LINE_NONE || style.fill.color.second.valid))
-        area += Block(chart->GetDrawing().x.from + text_margin-lw, chart->GetDrawing().x.till - text_margin+lw,
-                      y-lw, y+wh.y+lw);
-    else if (area.IsEmpty())
-        area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
     area.arc = this;
-
+    note_map = area;
+    def_note_target = note_map.Centroid();
+    //Add a cover block for the line, if one exists
+    if (style.line.type.second != LINE_NONE && style.line.color.second.valid && style.line.color.second.a>0)
+        area += Block(line_margin, chart->total.x-line_margin,
+                      centerline - style.line.LineWidth()*2, centerline + style.line.LineWidth()*2);
     if (!wide)
         wh.y += chart->arcVGapBelow;
-    height = wh.y + 2*extra_space;
-    if (title)
-        height += 2*style.line.LineWidth() + style.shadow.offset.second;
+    height = wh.y + extra_space;
     //Discontinuity lines cannot be compressed much
-    if (type==MSC_ARC_DISCO || title)
-        area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
-                              wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
+    if (type==MSC_ARC_DISCO)
+        area.mainline = Block(0, chart->total.x, wide ? 0 : chart->arcVGapAbove, height- (wide ? 0 :chart->arcVGapBelow));
     else
-        area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
-                              centerline-charheight/2, centerline+charheight/2);
-    if (!reflow) chart->NoteBlockers.Append(this);
+        area.mainline = Block(0, chart->total.x, centerline-charheight/2, centerline+charheight/2);
     cover = GetCover4Compress(area);
-    return std::max(height, NoteHeight(canvas, cover));
+    return height;
 }
 
 void ArcDivider::ShiftBy(double y)
@@ -3839,12 +3734,20 @@ void ArcDivider::ShiftBy(double y)
     ArcLabelled::ShiftBy(y);
 }
 
-void ArcDivider::PostPosProcess(MscCanvas &canvas)
+void ArcDivider::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
+	//If there is a vline in the current style, add that to entitylines
+	if (style.vline.width.first || style.vline.type.first || style.vline.color.first) {
+		MscStyle toadd;
+		toadd.vline = style.vline;
+        for(EIterator i = chart->ActiveEntities.begin(); i!=chart->ActiveEntities.end(); i++)
+            (*i)->status.ApplyStyle(Range(yPos, yPos+height), toadd);
+	}
+
     if (!nudge)
         chart->HideEntityLines(text_cover);
-    ArcLabelled::PostPosProcess(canvas);
+    ArcLabelled::PostPosProcess(canvas, autoMarker);
 }
 
 void ArcDivider::Draw(MscCanvas &canvas, DrawPassType pass)
@@ -3852,26 +3755,16 @@ void ArcDivider::Draw(MscCanvas &canvas, DrawPassType pass)
     if (!valid) return;
     if (pass!=draw_pass) return;
     if (nudge) return;
-    if (title) {
-        const Block outer(chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till - text_margin,
-                            yPos+extra_space, yPos+height-style.shadow.offset.second-extra_space);
-        canvas.Shadow(outer, style.line, style.shadow);
-        canvas.Fill(outer.CreateExpand(-style.line.LineWidth()/2-style.line.Spacing()), style.line, style.fill);
-        canvas.Line(outer.CreateExpand(-style.line.LineWidth()/2), style.line);
-    }
-    parsed_label.Draw(canvas, chart->GetDrawing().x.from + text_margin, chart->GetDrawing().x.till - text_margin, 
-                      yPos + (wide ? 0 : chart->arcVGapAbove+extra_space));
-    if (title) return;
+    parsed_label.Draw(canvas, text_margin, chart->total.x-text_margin, yPos + (wide ? 0 : chart->arcVGapAbove+extra_space));
     //determine widest extent for coverage at the centerline+-style.line.LineWidth()/2;
     const double lw2 = ceil(style.line.LineWidth()/2.);
-    Block b(chart->GetDrawing().x.from+line_margin, chart->GetDrawing().x.till-line_margin, 
-            yPos + centerline - lw2, yPos + centerline + lw2);
+    Block b(line_margin, chart->total.x-line_margin, yPos + centerline - lw2, yPos + centerline + lw2);
     Range r = (text_cover * b).GetBoundingBox().x;
     if (r.IsInvalid())
-        canvas.Line(XY(chart->GetDrawing().x.from+line_margin, yPos + centerline), XY(chart->GetDrawing().x.till-line_margin, yPos + centerline), style.line);
+        canvas.Line(XY(line_margin, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
     else {
-        canvas.Line(XY(chart->GetDrawing().x.from+line_margin, yPos + centerline), XY(r.from-chart->emphVGapInside, yPos + centerline), style.line);
-        canvas.Line(XY(r.till+chart->emphVGapInside, yPos + centerline), XY(chart->GetDrawing().x.till-line_margin, yPos + centerline), style.line);
+        canvas.Line(XY(line_margin, yPos + centerline), XY(r.from-chart->emphVGapInside, yPos + centerline), style.line);
+        canvas.Line(XY(r.till+chart->emphVGapInside, yPos + centerline), XY(chart->total.x-line_margin, yPos + centerline), style.line);
     }
 }
 
@@ -3900,13 +3793,12 @@ string ArcParallel::Print(int ident) const
     return ss;
 };
 
-ArcBase* ArcParallel::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                      Numbering &number, bool top_level, TrackableElement **target)
+ArcBase* ArcParallel::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
 {
     if (!valid) return NULL;
     at_top_level = top_level;
     for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
-        chart->PostParseProcessArcList(canvas, hide, **i, false, left, right, number, false, target);
+        chart->PostParseProcessArcList(canvas, hide, **i, false, left, right, number, false);
     if (hide) return NULL;
     return this;
 }
@@ -3945,7 +3837,7 @@ double ArcParallel::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         cover += cover_block;
     }
     //Do not expand cover, it has already been expanded
-    return std::max(height, NoteHeight(canvas, cover));
+    return height;
 }
 
 void ArcParallel::ShiftBy(double y)
@@ -3956,22 +3848,15 @@ void ArcParallel::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcParallel::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
+void ArcParallel::PostPosProcess(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
+    ArcBase::PostPosProcess(canvas, autoMarker);
     int n=0;
     //For automarker, give the bottom of the largest of previous blocks
     for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PlaceWithMarkersArcList(canvas, *(*i),
+        chart->PostPosProcessArcList(canvas, *(*i),
             n>0 && heights[n-1]>0 ? yPos + heights[n-1] : autoMarker);
-}
-
-void ArcParallel::PostPosProcess(MscCanvas &canvas)
-{
-    if (!valid) return;
-    ArcBase::PostPosProcess(canvas);
-    for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->PostPosProcessArcList(canvas, *(*i));
 }
 
 void ArcParallel::Draw(MscCanvas &canvas, DrawPassType pass)
@@ -3979,5 +3864,1400 @@ void ArcParallel::Draw(MscCanvas &canvas, DrawPassType pass)
     if (!valid) return;
     for (auto i=blocks.begin(); i != blocks.end(); i++)
         chart->DrawArcList(canvas, *(*i), pass);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+string ArcCommand::Print(int ident) const
+{
+    string ss;
+    ss << string(ident*2, ' ');
+    ss << PrintType();
+    return ss;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+CommandEntity::CommandEntity(EntityDefList *e, Msc *msc)
+    : ArcCommand(MSC_COMMAND_ENTITY, msc)
+{
+    full_heading = (e==NULL);
+    if (e) {
+        entities.splice(entities.end(), *e);
+        delete e;
+    }
+}
+
+
+bool CommandEntity::AddAttribute(const Attribute &)
+{
+    return false;
+}
+
+void CommandEntity::AttributeNames(Csh &)
+{
+    return;
+}
+
+bool CommandEntity::AttributeValues(const std::string, Csh &)
+{
+    return false;
+}
+
+void CommandEntity::AttachNote(CommandNote *cn)
+{
+    _ASSERT(CanBeNoted());
+    if (entities.size())
+        (*entities.rbegin())->AttachNote(cn);
+    else 
+        ArcBase::AttachNote(cn);
+}
+
+string CommandEntity::Print(int ident) const
+{
+    string ss;
+    ss << string(ident*2, ' ');
+    ss << "Entity Command";
+    if (full_heading) ss<<"(full_heading)";
+    for (auto i = entities.begin();i != entities.end(); i++)
+        ss << "\n" << (*i)->Print(ident+1);
+    return ss;
+}
+
+//This is called only from "Combine" and Msc::PostParseProcess(), so definitely
+//After AddAttrLits and before PostParseProcess, so here are the members
+//with comments on how to merge a later entityDef into a former one.
+//name                 //This is const, shall be the same
+//label;               //This can only be set once: keep the former
+//linenum_label_value; //pos of label text, irrelevant in later one
+//pos;                 //THis is used only in AddAttributeList
+//rel;                 //THis is used only in AddAttributeList
+//collapsed;           //THis is used only in AddAttributeList
+//show;                //the latter shall overwrite the former one
+//active;              //the latter shall overwrite the former one
+//show_is_explicit;    //ignore, This is only used in ApplyPrefix which is only called during parse
+//itr;                 //this is set during PostParse, ignore
+//style;               //this is finalized during PostParse, combine latter into former
+//parsed_label;        //will be set during PostParse, ignore
+//defining;            //keep former
+//shown;               //ignore, will be set in PostParse
+void CommandEntity::AppendToEntities(const EntityDefList &e)
+{
+    for (auto i = e.begin(); i!=e.end(); i++) {
+        auto i2 = entities.begin();
+        for (/*nope*/; i2!=entities.end(); i2++)
+            if ((*i2)->name == (*i)->name) break;
+        if (i2 == entities.end()) {
+            entities.Append(*i);
+        } else {
+            (*i2)->style += (*i)->style;
+            if ((*i)->show.first)
+                (*i2)->show = (*i)->show;
+            if ((*i)->active.first)
+                (*i2)->active = (*i)->active;
+        }
+    }
+}
+
+void CommandEntity::Combine(CommandEntity *ce)
+{
+    if (!ce) return;
+    if (!ce->valid) return;
+    //Always keep the line_pos of the "heading" command
+    //If we are already one, keep ours
+    if (!full_heading && ce->full_heading)
+        file_pos = ce->file_pos;
+    if (ce->full_heading) full_heading = true;
+    AppendToEntities(ce->entities);
+    ce->entities.clear();
+    CombineNotes(ce); //noves notes from 'ce' to us
+}
+
+
+CommandEntity *CommandEntity::ApplyPrefix(const char *prefix)
+{
+    for (auto i=entities.begin(); i!=entities.end(); i++) {
+		if (CaseInsensitiveEqual(prefix, "show") || CaseInsensitiveEqual(prefix, "hide")) {
+			if ((*i)->show_is_explicit) continue;	
+			(*i)->show.first = true;	
+			(*i)->show.second = CaseInsensitiveEqual(prefix, "show");
+		} else if (CaseInsensitiveEqual(prefix, "activate") || CaseInsensitiveEqual(prefix, "deactivate")) {
+            if ((*i)->active_is_explicit) continue;
+			(*i)->active.first = true;	
+			(*i)->active.second = CaseInsensitiveEqual(prefix, "activate");
+            (*i)->active.third = (*i)->file_pos.start;
+        }
+    }
+    return this;
+}
+
+void CommandEntity::ApplyShowToChildren(const string &name, bool show)
+{
+    EIterator j_ent = chart->AllEntities.Find_by_Name(name);
+    if ((*j_ent)->children_names.size()==0) {
+        for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+            if ((*i_def)->name == name) {
+                (*i_def)->show.first = true;
+                (*i_def)->show.second = show;
+                return;
+            }
+        EntityDef *ed = new EntityDef(name.c_str(), chart);
+        ed->AddAttribute(Attribute("show", show, file_line_range(), file_line_range(), NULL));
+        entities.Append(ed);
+    } else {
+        for (auto s = (*j_ent)->children_names.begin(); s != (*j_ent)->children_names.end(); s++) 
+            ApplyShowToChildren(*s, show);
+    }
+}
+
+
+//Adds and entitydef for "entity" uses running_show and running_style
+EntityDef* CommandEntity::FindAddEntityDefForEntity(const string &entity, const file_line_range &l)
+{
+    //find if already have a def for this
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+        if ((*i_def)->name == entity) return *i_def;
+    const EIterator jj_ent = chart->AllEntities.Find_by_Name(entity);
+    _ASSERT(*jj_ent != chart->NoEntity);
+    EntityDef *ed = new EntityDef(entity.c_str(), chart);
+    ed->itr = jj_ent;
+    ed->style = (*jj_ent)->running_style;
+    ed->file_pos = l;
+    ed->show.first = ed->active.first = false;
+    entities.Append(ed);
+    return ed;
+}
+
+//return active if any of the children are active and ON if any of them are ON
+//go recursive all the way deep - ignore the "running_shown" of parents
+EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children) const
+{
+    EEntityStatus ret = EEntityStatus::SHOW_OFF;
+    for (auto s = children.begin(); s!=children.end(); s++) {
+        auto i = chart->AllEntities.Find_by_Name(*s);
+        _ASSERT(*i != chart->NoEntity);
+        EEntityStatus es;
+        if ((*i)->children_names.size()) es = GetCombinedStatus((*i)->children_names);
+        else es = (*i)->running_shown;
+        if (es.IsActive()) ret.Activate(true);
+        if (es.IsOn()) ret.Show(true);
+    }
+    return ret;
+}
+
+/* The following rules apply.
+ * Each entity we can possibly have is represented in chart->AllEntities and is of
+ * class Entity. 
+ * Each time we name an entity in an entity command, we allocate an EntityDef object.
+ * If the "defining" member is true this mention of the entity was used to define the
+ * entity. If it is false, this mention of the entity is a subsequent one.
+ * An entity can have zero or one EntityDefs with defining=true (zero if the entity
+ * was implicitly defined via e.g., an arrow definition).
+ * When an entity is mentioned in an entity command any (or all) of the three things
+ * can be done: turn it on/off, activate/deactivate it or change the style. An entity
+ * that is on can be turned on again, in which case we draw an entity heading of it.
+ * Similar, the heading command draws an entity heading for all entities that are currently
+ * on. This is emulated by adding EntityDefs for such entities with show set to on.
+ *
+ * During the PostParse process we keep up-to date the "running_show" and "running_style"
+ * members of the entities. (Memmbers of class "Entity".) These are used by arrows, etc.
+ * to find out if certain entities are on/off or active, etc.
+ * In addition, we store the "running_style" and "running_show" in every EntityDef, as well;
+ * and then in the PosPos process, when x and y coordinates are already set, we copy them
+ * to Entity::status, so that when we draw entity lines we know what to draw at what 
+ * coordinate. The entity headings are drawn based on the EntityDef::style member.
+ *
+ * The EntityDef::draw_heading member tells if a heading should be drawn for this heading
+ * at this point. The "show" and "active" members tell if there was "show" or "active"
+ * attributes set (perhaps via show/hide/activate/deactivate commands). If so, the
+ * "show_is_explicit"/"active_is_explicit" are set. (This is used to prevent overwriting
+ * an explicitly written [show=yes/no] with a "show" command. Thus 'show aaa [show=no]' 
+ * will result in show=false. Otherwise any newly defined entitydef
+ * has show set to true and active set to false - the default for newly defined entities.
+
+ * The algorithm here is the following.
+ *
+ * 0. Merge entitydefs corresponding to the same entity. (They are in the same order 
+ *    as in the source file, so copying merging "active", "show" and "style" is enough,
+ *    since all other attributes can only be used at definition, which can be the first 
+ *    one only.)
+ * 1. Apply the style elements specified by the user to the entity's "running_style"
+ * 2. If a grouped entity is listed with show=yes/no, we copy this attribute to all of its
+ *    listed children (unless they also have an explicit show attribute, which overrides that
+ *    of the group). We also prepend any unlisted children and copy the attribute.
+ *    At the same time, we remove the show attribute from the grouped entities.
+ *    This will result in that if a grouped entity is turned on or off all of its 
+ *    children (and their children, too) will get turned on or off, as well.
+ * 3. Apply all listed entities show and active attributes to "running_show" & "draw_heading"
+ * 4. Update the "running_shown" of all parents based on the status of leaf children,
+ *    if any change, add a corresponding entitydef (if needed)
+ * 5. If we are a heading command, add entities where running_show indicates shown
+ * 6. Order the listed entities such that parents come first and their children after
+ * 7. Set "draw_heading" of the children of collapsed parents to false
+ * 8. For those that draw a heading, update "left" and "right", process label & record max width
+ */
+
+//TODO: What if multiple entitydefs are present for the same entity? We should merge them
+ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &,
+                                     bool top_level)
+{
+    if (!valid) return NULL;
+    at_top_level = top_level;
+    if (full_heading && !top_level)
+        chart->Error.Warning(file_pos.start, "The command 'heading' is specified "
+                             "inside a parallel block. May display incorrectly.");
+
+    //0. First merge entitydefs of the same entity, so that we have at most one for each entity.
+    for (auto i_def = entities.begin(); i_def != entities.end(); /*nope*/) {
+        //find first entity of this name
+        EntityDef *ed = FindAddEntityDefForEntity((*i_def)->name, file_pos); //second param dummy, we never add here
+        if (ed == *i_def) i_def++; 
+        else {
+            //OK, "ed" is an EntityDef before i_def, combine them.
+            _ASSERT(!(*i_def)->defining);
+            //show_is_explicit and active_is_explicit makes no role beyond this, so ignore
+            ed->Combine(*i_def);
+            //Ok, delete i_def
+            delete *i_def;
+            entities.erase(i_def++);
+        }
+    }
+    
+    //1. Then apply the style changes of this command to the running style of the entities
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
+        const EIterator j_ent = chart->AllEntities.Find_by_Name((*i_def)->name);
+        (*i_def)->itr = j_ent;
+        //Make the style of the entitydef fully specified using the accumulated style info in Entity
+        (*j_ent)->running_style += (*i_def)->style;  //(*i)->style is a partial style here specified by the user
+    }
+    //2. Copy show on/off attribute from grouped entities to their children
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
+        const Entity *ent = *(*i_def)->itr;
+        //if the entity is a grouped entity with a show/hide attribute, 
+        //add an entitydef to our list for those children, who have no entitidefs
+        //yet in the list. For those children, who have, just set show attribute
+        //if not set yet
+        //new entitydefs are added to the end of the list - and get processed for further 
+        //children
+        if ((*i_def)->show.first && ent->children_names.size()) 
+            for (auto ss = ent->children_names.begin(); ss!=ent->children_names.end(); ss++) 
+                FindAddEntityDefForEntity(*ss, (*i_def)->file_pos)->show = (*i_def)->show;
+    }
+    //3. Decide if we will draw a heading for these entities & update running state
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
+        Entity *ent = *(*i_def)->itr;
+        //Decide, if this entitydef will draw a heading or not
+        //It can get drawn because we 1) said show=yes, or
+        //2) because it is on, we mention it (without show=yes) and it is
+        //a full heading.
+        (*i_def)->draw_heading = ((*i_def)->show.second && (*i_def)->show.first) 
+                                 || (full_heading && ent->running_shown.IsOn());
+        //Adjust the running status of the entity, this is valid *after* this command. 
+        //This is just for the Height process knwos whch entity is on/off
+        if ((*i_def)->show.first)
+            ent->running_shown.Show((*i_def)->show.second);
+        //Update the style of the entitydef
+        (*i_def)->style = ent->running_style;	 //(*i)->style now become the full style to use from this point
+        //reflect any "active" attribute in the running_shown variable 
+        if ((*i_def)->active.first) 
+            ent->running_shown.Activate((*i_def)->active.second);
+    }
+    //4. Now we are guaranteed to have all leaf children's runnin_shown status right.
+    //However, we can have parents, whose child(ren) changed status and we need to update that
+    //We will need to add EntityDefs here for such parents (so they update status in PostPos, too)
+    for (auto j_ent = chart->AllEntities.begin(); j_ent != chart->AllEntities.end(); j_ent++) {
+        if ((*j_ent)->children_names.size()==0) continue;
+        EEntityStatus es_new = GetCombinedStatus((*j_ent)->children_names);
+        EEntityStatus es_old = (*j_ent)->running_shown;
+        if (es_old == es_new) continue;
+        //ok, shown status has changed, add/lookup entitydef
+        EntityDef *ed = FindAddEntityDefForEntity((*j_ent)->name, this->file_pos);
+        if (es_new.IsOn() != es_old.IsOn()) {
+            ed->show.first = true;
+            ed->show.second = es_new.IsOn();
+        }
+        if (es_new.IsActive() != es_old.IsActive()) {
+            ed->active.first = true;
+            ed->active.second = es_new.IsActive();
+        }
+        (*j_ent)->running_shown = es_new;
+    }
+
+    //5. A "heading" command, we have to draw all entities that are on
+    //for these we create additional EntityDefs and append them to entities
+    //Only do this for children (non-grouped entities)
+    if (full_heading)
+        for (auto i = chart->AllEntities.begin(); i!=chart->AllEntities.end(); i++) {
+            if (!(*i)->running_shown.IsOn()) continue;
+            if ((*i)->children_names.size()) continue;
+            EntityDef *ed = FindAddEntityDefForEntity((*i)->name, this->file_pos); //use the file_pos of the CommandEntity
+            ed->draw_heading = true;
+        }
+
+    //6. Order the list (lousy bubblesort)
+    //any descendant should come after any of their anscestors, but we can only compare
+    //direct parent-child, so we go through the list until we see change
+    bool changed;
+    do {
+        changed = false;
+        for (auto i_def = ++entities.begin(); i_def != entities.end(); i_def++) 
+            for (auto i_def2 = entities.begin(); i_def2 != i_def; i_def2++) 
+                if ((*(*i_def2)->itr)->parent_name == (*i_def)->name) {
+                    std::swap(*i_def, *i_def2);
+                    changed = true;
+                }
+    } while (changed);
+
+    //At this point the list contains all entities that 
+    //- is mentioned by the user (style or status change)
+    //- shall be shown a heading due to heading command
+    //- has a parent (ancestor) or children (descendant) in the above mentioned two categories
+    //Collapse is not considered yet, we will do it below
+
+    //7. Finally prune the list: do not show those that shall not be displayed due to collapse
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
+        if (chart->FindActiveParentEntity((*i_def)->itr) != (*i_def)->itr) 
+            (*i_def)->draw_heading = false;
+
+    //8. At last we have all entities among "entities" that will show here/change status or style
+    //Go through them and update left, right and the entities' maxwidth
+    //Also, PostParseProcess their notes, too
+    for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) {
+        (*i_def)->PostParseProcessNotes(canvas, hide, at_top_level);
+        if (!(*i_def)->draw_heading) continue;
+        const EIterator ei = (*i_def)->itr;
+        left =  chart->EntityMinByPos(left,  chart->FindWhoIsShowingInsteadOf(ei, true));
+        right = chart->EntityMaxByPos(right, chart->FindWhoIsShowingInsteadOf(ei, false));
+        (*i_def)->parsed_label.Set((*ei)->label, canvas, (*ei)->running_style.text);
+        double w = (*i_def)->Width();
+        if ((*ei)->maxwidth < w) (*(*i_def)->itr)->maxwidth = w;
+    }
+    //process comments attached to the CommandEntity (from heading commands)
+    PostParseProcessNotes(canvas, hide, at_top_level);
+    hidden = hide;
+    return this;
+}
+
+//Here we have EIterators in entitydefs that point to AllEntities (in contrast to
+//all other arcs, where PostParseProcess will convert to iterators in AllActiveEntities)
+//If an entity we list here is not collapsed and have children, then it will
+//be drawn as containing other entities.
+//Since parents are in the beginning of the list, we will go and add distances from the back
+//and use the added distances later in the cycle when processing parents
+void CommandEntity::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+{
+    if (!valid || hidden) return;
+    //Add distances for entity heading
+    //Start by creating a map in which distances are ordered by index
+    std::map<int, pair<double, double>> dist; //map the index of an active entity to spaces left & right
+    //in PostParseProcess we created an entitydef for all entities shown here. 
+    //"full_heading" not even checked here
+    for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
+        //Take entity height into account or draw it if show=on was added
+        if (!(*i)->draw_heading) continue;
+        if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
+            const double halfsize = (*(*i)->itr)->maxwidth/2;
+            const unsigned index = (*(*i)->itr)->index;
+            dist[index] = pair<double, double>(halfsize, halfsize);
+            (*i)->right_ent = (*i)->left_ent = (*i)->itr;
+            (*i)->right_offset = (*i)->left_offset = 0;
+        } else {
+            //grouped entity, which is not collapsed
+            //find leftmost and rightmost active entity 
+            //and expand us by linewidth and space
+            const EIterator j_ent = (*i)->itr;
+            double expand = chart->emphVGapInside + (*i)->style.line.LineWidth();
+            (*i)->left_ent = chart->FindWhoIsShowingInsteadOf(j_ent, true);
+            (*i)->right_ent= chart->FindWhoIsShowingInsteadOf(j_ent, false);
+            (*i)->left_offset = dist[(*(*i)->left_ent)->index].first += expand; 
+            (*i)->right_offset = dist[(*(*i)->right_ent)->index].second += expand; 
+            //If this is a group entity containing only one element, ensure its label fit
+            if ((*i)->left_ent == (*i)->right_ent) {
+                if (dist[(*(*i)->left_ent)->index].first < (*(*i)->itr)->maxwidth/2) {
+                    dist[(*(*i)->left_ent)->index].first = (*(*i)->itr)->maxwidth/2;
+                    (*i)->left_offset = (*(*i)->itr)->maxwidth/2;
+                }
+                if (dist[(*(*i)->right_ent)->index].second < (*(*i)->itr)->maxwidth/2) {
+                    dist[(*(*i)->right_ent)->index].second = (*(*i)->itr)->maxwidth/2;
+                    (*i)->right_offset = (*(*i)->itr)->maxwidth/2;
+                }
+            } else {
+                //Insert a requirement between left_ent and right_ent, so that our width will fit (e.g., long text)
+                distances.Insert((*(*i)->left_ent)->index, (*(*i)->right_ent)->index,
+                                 (*(*i)->itr)->maxwidth - (*i)->left_offset - (*i)->right_offset);
+            }
+        }
+    }
+    if (dist.size()) {
+        //Now convert neighbouring ones to box_side distances, and add the rest as normal side distance
+        distances.Insert(dist.begin()->first,  DISTANCE_LEFT, dist.begin()->second.first); //leftmost distance
+        distances.Insert(dist.rbegin()->first, DISTANCE_RIGHT,dist.rbegin()->second.second); //rightmost distance
+        for (auto d = dist.begin(); d!=--dist.end(); d++) {
+            auto d_next = d; d_next++;
+            if (d->first == d_next->first-1) //neighbours
+                distances.InsertBoxSide(d->first, d->second.second, d_next->second.first);
+            else {
+                distances.Insert(d->first, DISTANCE_RIGHT, d->second.second);
+                distances.Insert(d_next->first, DISTANCE_LEFT, d_next->second.first);
+            }
+        }
+    }
+    //Now add some distances for activation (only for non-grouped or collapsed entities)
+    for (auto i = entities.begin(); i!=entities.end(); i++) {
+        if ((*(*i)->itr)->children_names.size() == 0 || (*(*i)->itr)->collapsed) {
+            if ((*i)->show.first) 
+                (*(*i)->itr)->running_shown.Show((*i)->show.second);
+            if ((*i)->active.first) 
+                (*(*i)->itr)->running_shown.Activate((*i)->active.second);
+            if ((*(*i)->itr)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
+                distances.was_activated.insert((*(*i)->itr)->index);
+        }
+    }
+}
+
+double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+{
+    if (!valid || hidden) return height=0;
+    if (reflow) {
+        cover = cover_at_0;
+        return height;
+    }
+    Range hei(0,0);
+    //Those entities explicitly listed will have their own EntityDef for this line.
+    //Thus their area will be stored there and not in CommandEntity->area
+    //But, still put those into "cover" so they can be considered for placement
+    //There are other entities shown here, those triggered by a heading command.
+    //They have no line info and they do not add
+    //their "area" to the allcovers of the chart in EntityDef::PostPosProcess.
+    //Instead we add their area to this->area now
+
+    //We go backwards, so that contained entities get calculated first
+    double xpos_all = 0, xpos_showing = 0;
+    unsigned num_showing = 0;
+    for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
+        const double xpos = chart->XCoord((*(*i)->itr)->pos);
+        xpos_all += xpos;
+        if (!(*i)->draw_heading) {;
+            (*i)->AddNoteMapWhenNotShowing();
+            continue;
+        }
+        //Collect who is my children in this list
+        EntityDefList edl(false);
+        for (auto ii = entities.rbegin(); !(ii==entities.rend()); ii++) 
+            if ((*ii)->draw_heading && *ii != *i && chart->IsMyParentEntity((*ii)->name, (*i)->name))
+                edl.Append(*ii);
+        //EntityDef::Height places children entities to yPos==0
+        //Grouped entities may start at negative yPos.
+        //We collect here the maximum extent
+        //Note: Height() also adds the cover to the entitydef's area and
+        //fills (*i)->note_map and (*i)->def_note_target;
+        Area entity_cover;
+        hei += (*i)->Height(entity_cover, edl); 
+        cover += GetCover4Compress(entity_cover);
+        area += (*i)->GetAreaToSearch();
+        xpos_showing += xpos;
+        num_showing ++;
+    }
+    if (num_showing)
+        def_note_target = XY(0, xpos_showing/num_showing);
+    else
+        def_note_target = XY(0, xpos_all/entities.size());
+    if (!num_showing) 
+        return height = 0; //if no headings show
+    //Ensure overall startpos is zero
+    ShiftBy(-hei.from + chart->headingVGapAbove);
+    cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));
+    cover_at_0 = cover;
+    return height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
+}
+
+void CommandEntity::ShiftBy(double y)
+{
+    if (!valid) return;
+    for (auto i = entities.begin(); i!=entities.end(); i++)
+        (*i)->ShiftBy(y);
+    ArcCommand::ShiftBy(y);
+}
+
+void CommandEntity::PostPosProcess(MscCanvas &canvas, double autoMarker)
+{
+    if (!valid) return;
+    ArcCommand::PostPosProcess(canvas, autoMarker);
+    for (auto i = entities.begin(); i!=entities.end(); i++)
+        (*i)->PostPosProcess(canvas, autoMarker);
+    if (height>0 && !hidden) {
+        if (chart->headingSize == 0) chart->headingSize = yPos + height;
+        chart->headingSize = std::min(chart->headingSize, yPos + height);
+    }
+}
+
+void CommandEntity::Draw(MscCanvas &canvas, DrawPassType pass)
+{
+    if (!valid) return;
+    if (pass!=draw_pass) return;
+    for (auto i = entities.begin(); i!=entities.end(); i++)
+        if ((*i)->draw_heading)
+            (*i)->Draw(canvas);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+bool CommandNewpage::AddAttribute(const Attribute &)
+{
+    return false;
+}
+
+void CommandNewpage::AttributeNames(Csh &)
+{
+
+}
+
+bool CommandNewpage::AttributeValues(const std::string, Csh &)
+{
+    return false;
+}
+
+double CommandNewpage::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
+{
+    height = 0;
+    if (!valid || reflow) return 0;
+    Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
+    area_draw = b;
+    draw_is_different = true; //area is empty - never find this
+    return 0;
+}
+
+void CommandNewpage::PostPosProcess(MscCanvas &/*canvas*/, double)
+{
+    if (!valid) return;
+    chart->yPageStart.push_back(yPos);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+double CommandNewBackground::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
+{
+    height = 0;
+    if (!valid || reflow) return 0;
+    Block b(0, chart->total.x, -chart->nudgeSize/2, chart->nudgeSize/2);
+    area_draw = b;
+    draw_is_different = true; //area is empty - never find this
+    return 0;
+}
+
+void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/, double)
+{
+    if (!valid) return;
+    chart->Background[yPos] = fill;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &number, bool /*top_level*/)
+{
+    if (!valid) return NULL;
+    if (hide) hidden = true;
+    if ((action & SIZE) && length)
+        number.SetSize(unsigned(length));
+    if (action & INCREMENT)
+        ++number;
+    if (action & DECREMENT)
+        --number;
+    return this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+CommandMark::CommandMark(const char *m, file_line_range ml, Msc *msc) :
+    ArcCommand(MSC_COMMAND_MARK, msc), name(m)
+{
+    map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
+    if (i != chart->Markers.end()) {
+		chart->Error.Error(ml.start, "Marker '"+name+"' has already been defined. Keeping old definition.");
+        chart->Error.Error(i->second.first,  ml.start, "Location of previous definition.");
+        valid = false;
+        return;
+    }
+    chart->Markers[name].first = ml.start;
+    chart->Markers[name].second = -1001;
+    offset = 0;
+}
+
+bool CommandMark::AddAttribute(const Attribute &a)
+{
+    if (a.Is("offset")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        offset = a.number;
+        return true;
+    }
+    return ArcBase::AddAttribute(a);
+}
+
+void CommandMark::AttributeNames(Csh &csh)
+{
+    ArcBase::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"offset", HINT_ATTR_NAME));
+}
+
+bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"offset")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable()+"<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (ArcBase::AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+double CommandMark::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
+{
+    height = 0;
+    if (!valid || reflow) return 0;
+    Block b(0, chart->total.x, offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
+    area_draw = b;
+    draw_is_different = true; //area is empty - never find this
+    return 0;
+}
+
+void CommandMark::ShiftBy(double y)
+{
+    if (!valid) return;
+    ArcCommand::ShiftBy(y);
+    chart->Markers[name].second = yPos+offset;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+#define EMPTY_MARGIN_X 50
+#define EMPTY_MARGIN_Y 5
+
+CommandEmpty::CommandEmpty(Msc *msc) : ArcCommand(MSC_COMMAND_EMPTY, msc)
+{
+}
+
+void CommandEmpty::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+{
+    if (!valid) return;
+    StringFormat format;
+    format.Default();
+    format.Apply("\\pc\\mu(10)\\md(10)\\ml(10)\\mr(10)\\c(255,255,255)\\b\\i");
+    parsed_label.Set(string("\\i\\bEmpty chart"), canvas, format);
+    const unsigned lside_index = (*chart->ActiveEntities.Find_by_Name(LSIDE_ENT_STR))->index;
+    const unsigned rside_index = (*chart->ActiveEntities.Find_by_Name(RSIDE_ENT_STR))->index;
+    const double width = parsed_label.getTextWidthHeight().x + 2*EMPTY_MARGIN_X;
+    distances.Insert(lside_index, rside_index, width);
+}
+
+double CommandEmpty::Height(MscCanvas &/*canvas*/, AreaList &cover, bool)
+{
+    if (!valid) return height = 0;
+    yPos = 0;
+    const XY wh = parsed_label.getTextWidthHeight();
+    const Area a(Block((chart->total.x-wh.x)/2, (chart->total.x+wh.x)/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y), this);
+    cover = GetCover4Compress(a);
+    return height = wh.y + EMPTY_MARGIN_Y*2;
+}
+
+void CommandEmpty::Draw(MscCanvas &canvas, DrawPassType pass)
+{
+    if (!valid) return;
+    if (pass!=draw_pass) return;
+    const double width  = parsed_label.getTextWidthHeight().x;
+    const double height = parsed_label.getTextWidthHeight().y;
+    MscLineAttr line;
+    line.width.second = 3;
+    line.corner.second = CORNER_ROUND;
+    line.radius.second = 10;
+
+    MscFillAttr fill;
+    fill.color.second = MscColorType(0,0,128);
+    fill.gradient.second = GRADIENT_BUTTON;
+
+    MscShadowAttr shadow;
+    shadow.offset.second = 5;
+    shadow.blur.second = 5;
+
+    Block b(XY((chart->total.x-width)/2 , yPos+EMPTY_MARGIN_Y),
+            XY((chart->total.x+width)/2 , yPos+EMPTY_MARGIN_Y+height));
+
+    canvas.Shadow(b, line, shadow);
+    canvas.Fill(b, line, fill);
+    canvas.Line(b, line);
+}
+
+/////////////////////////////////////////////////////////////////
+CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
+    ArcCommand(MSC_COMMAND_HSPACE, msc), format(msc->Contexts.back().text),
+    label(false, string()), space(false, 0)
+{
+    if (enp==NULL) {
+        valid=false;
+        return;
+    }
+    if (enp->src.length()) {
+        src = chart->FindAllocEntity(enp->src.c_str(), enp->sline);
+        sline = enp->sline;
+    } else
+        src = chart->AllEntities.Find_by_Ptr(chart->LSide);
+    if (enp->dst.length()) {
+        dst = chart->FindAllocEntity(enp->dst.c_str(), enp->dline);
+        dline = enp->dline;
+    } else
+        dst = chart->AllEntities.Find_by_Ptr(chart->RSide);
+    delete enp;
+}
+
+bool CommandHSpace::AddAttribute(const Attribute &a)
+{
+    if (a.Is("label")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        label.first = true;
+        label.second = a.value;
+        return true;
+    }
+    if (a.Is("space")) {
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        space.first = true;
+        space.second = a.number;
+        return true;
+    }
+    if (format.AddAttribute(a, chart, STYLE_ARC)) return true;
+    return ArcCommand::AddAttribute(a);
+}
+
+void CommandHSpace::AttributeNames(Csh &csh)
+{
+    ArcCommand::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
+    StringFormat::AttributeNames(csh);
+}
+
+bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"label")) {
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"space")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (StringFormat::AttributeValues(attr, csh)) return true;
+    if (ArcCommand::AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
+    EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+{
+    if (!valid) return NULL;
+    if (!label.first && !space.first) {
+        chart->Error.Error(file_pos.start, "You must specify either a numeric space or a lable for the hspace command.");
+        return NULL;
+    }
+    //Give error if user specified groupe entities
+    if (chart->ErrorIfEntityGrouped(src, sline.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(dst, sline.start)) return NULL;
+    //check if src and dst has disappeared, also make src&dst point to
+    //chart->AllActiveEntities
+    src = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(src));
+    dst = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(dst));
+    //we keep ourselves even if src/dst has disappeared
+    return this; 
+}
+
+
+void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+{
+    if (!valid) return;
+    double dist = space.second; //0 if not specified by user
+    if (label.second.length())
+        dist += Label(label.second, canvas, format).getTextWidthHeight().x;
+    if (dist<0)
+        chart->Error.Error(file_pos.start, "The horizontal space specified is negative. Ignoring it.");
+    else
+        distances.Insert((*src)->index, (*dst)->index, dist);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
+
+CommandVSpace::CommandVSpace(Msc*msc)  : ArcCommand(MSC_COMMAND_VSPACE, msc),
+    format(msc->Contexts.back().text), label(false, string()),
+    space(false, 0), compressable(false)
+{
+}
+
+bool CommandVSpace::AddAttribute(const Attribute &a)
+{
+    if (a.Is("label")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        label.first = true;
+        label.second = a.value;
+        return true;
+    }
+    if (a.Is("space")) {
+        if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+        space.first = true;
+        space.second = a.number;
+        return true;
+    }
+    if (a.Is("compressable")) {
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        compressable = a.yes;
+        return true;
+    }
+    if (format.AddAttribute(a, chart, STYLE_ARC)) return true;
+    return ArcCommand::AddAttribute(a);
+}
+
+void CommandVSpace::AttributeNames(Csh &csh)
+{
+    ArcCommand::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "label", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "space", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compressable", HINT_ATTR_NAME));
+    StringFormat::AttributeNames(csh);
+}
+
+bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"label")) {
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"space")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"compressable")) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        return true;
+    }
+    if (StringFormat::AttributeValues(attr, csh)) return true;
+    if (ArcCommand::AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
+    EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+{
+    if (!valid) return NULL;
+    if (!label.first && !space.first) {
+        chart->Error.Error(file_pos.start, "You must specify either a numeric space or a lable for the vspace command.");
+        return NULL;
+    }
+    return this;
+}
+
+double CommandVSpace::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+{
+    if (reflow) return ArcCommand::Height(canvas, cover, reflow);
+    double dist = space.second;
+    if (label.second.length())
+        dist += Label(label.second, canvas, format).getTextWidthHeight().y;
+    if (dist<0)
+        chart->Error.Error(file_pos.start, "The vertical space specified is negative. Ignoring it.");
+    if (dist<=0)
+        return height = 0;
+    if (!compressable) {
+        area = Block(0, chart->total.x, 0, dist);
+        cover = GetCover4Compress(area);
+    }
+    return height = dist;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
+
+ExtVertXPos::ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p) :
+VertXPos(*p), side_line(sl)
+{
+    if (!valid) {
+        side = BAD_SIDE;
+        return;
+    }
+    if (CaseInsensitiveEqual(s, "left"))
+        side = LEFT;
+    else if (CaseInsensitiveEqual(s, "center"))
+        side = CENTER;
+    else if (CaseInsensitiveEqual(s, "right"))
+        side = RIGHT;
+    else
+        side = BAD_SIDE;
+}
+
+ExtVertXPos::ExtVertXPos(const VertXPos *p) :
+VertXPos(*p), side(CENTER), side_line()
+{
+    if (!valid) {
+        side = BAD_SIDE;
+        return;
+    }
+}
+
+const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
+
+
+CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
+                const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) :
+    ArcCommand(MSC_COMMAND_SYMBOL, msc),
+    style(chart->Contexts.back().styles["symbol"]),
+    hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
+    hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
+    vpos(enp ? *enp : NamePair(NULL, file_line_range(), NULL, file_line_range())),
+    xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL)
+{
+    if (CaseInsensitiveEqual(symbol, "arc"))
+        symbol_type = ARC;
+    else if (CaseInsensitiveEqual(symbol, "rectangle"))
+        symbol_type = RECTANGLE;
+    else if (CaseInsensitiveEqual(symbol, "..."))
+        symbol_type = ELLIPSIS;
+    else {
+        valid = false;
+        return;
+    }
+    if (symbol_type == ELLIPSIS) {
+        if (hpos1.side != ExtVertXPos::NONE && hpos2.side != ExtVertXPos::NONE) {
+            chart->Error.Error(hpos2.e1line.start, "Symbol '...' can only have one vertical position indicated. Ignoring second one.");
+            hpos2.side = ExtVertXPos::NONE;
+        }
+        if (vpos.dst.length()>0 && vpos.src.length()>0) {
+            chart->Error.Error(vpos.dline.start, "Symbol '...' can only have one horizontal position indicated. Ignoring second one.");
+            vpos.src.clear();
+        }
+        style.fill.color.second = style.line.color.second;
+    }
+}
+
+bool CommandSymbol::AddAttribute(const Attribute &a)
+{
+    if (a.Is("xsize")) 
+        switch (symbol_type) {
+        case ELLIPSIS:
+            chart->Error.Error(a, false, "Attribute 'xsize' is valid only for arc and rectangle symbols.", "Try using just 'size' instead.");
+            return true;
+        default:
+            if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+            xsize.first = true;
+            xsize.second = a.number;
+            return true;
+        }
+    if (a.Is("ysize")) 
+        switch (symbol_type) {
+        case ELLIPSIS:
+            chart->Error.Error(a, false, "Attribute 'ysize' is valid only for arc and rectangle symbols.", "Try using just 'size' instead.");
+            return true;
+        default:
+            if (!a.CheckType(MSC_ATTR_NUMBER, chart->Error)) return true;
+            ysize.first = true;
+            ysize.second = a.number;
+            return true;
+        }
+    if (a.Is("size")) 
+        switch (symbol_type) {
+        case ELLIPSIS:
+            {
+                ArrowHead ah; //use this type to decode 'small', 'normal', etc...
+                ah.Empty();
+                ah.AddAttribute(a, chart, STYLE_ARC);
+                if (ah.size.first) size = ah.size.second;
+            }
+            return true;
+        default:
+            chart->Error.Error(a, false, "Attribute 'size' is valid only for '...' symbols.", "Try using 'xsize' and/or 'ysize' instead.");
+            return true;
+        }
+    if (a.Is("draw_time")) {  //We add this even though it is in ArcBase::AddAttribute, but ArcCommand::AddAttribute does not call that
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
+        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
+        return true;
+    }
+    if (style.AddAttribute(a, chart)) return true;
+    return ArcCommand::AddAttribute(a);
+}
+
+void CommandSymbol::AttributeNames(Csh &csh)
+{
+    ArcCommand::AttributeNames(csh);
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "xsize", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ysize", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "size", HINT_ATTR_NAME));
+    Design().styles["symbol"].AttributeNames(csh);
+}
+
+bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"xsize")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"ysize")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"size")) {
+        ArrowHead::AttributeValues(attr, csh, ArrowHead::ANY);
+        return true;
+    }
+    if (ArcCommand::AttributeValues(attr, csh)) return true;
+    if (Design().styles["symbol"].AttributeValues(attr, csh)) return true;
+    return false;
+}
+
+ArcBase* CommandSymbol::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &/*left*/, EIterator &/*right*/, Numbering &/*number*/, bool /*top_level*/)
+{
+    if (!valid) return NULL;
+    if (vpos.src.length()) {
+        std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(vpos.src);
+        if (i == chart->Markers.end()) {
+            chart->Error.Error(file_pos.start, "Cannot find marker '" + vpos.src + "'."
+                " Ignoring symbol.");
+            return NULL;
+        }
+    }
+    if (vpos.dst.length()) {
+        std::map<string, Msc::MarkerType>::const_iterator i = chart->Markers.find(vpos.dst);
+        if (i == chart->Markers.end()) {
+            chart->Error.Error(file_pos.start, "Cannot find marker '" + vpos.dst + "'."
+                " Ignoring symbol.");
+            return NULL;
+        }
+    }
+    if (hpos1.side == ExtVertXPos::BAD_SIDE) {
+        chart->Error.Error(hpos1.side_line.start, "Invalid horizontal position designator. Ignoring symbol.", "Use 'left', 'right' or 'center'.");
+        return NULL;
+    }
+    if (hpos2.side == ExtVertXPos::BAD_SIDE) {
+        chart->Error.Error(hpos2.side_line.start, "Invalid horizontal position designator. Ignoring symbol.", "Use 'left', 'right' or 'center'.");
+        return NULL;
+    }
+    if (hpos1.side == ExtVertXPos::NONE) {
+        chart->Error.Error(hpos1.side_line.start, "You need to specify at least one horizontal position designator. Ignoring symbol.", "Use 'left at', 'right at' or 'center at'.");
+        return NULL;
+    }
+    if (hpos1.side == hpos2.side) {
+        chart->Error.Error(hpos2.side_line.start, "You cannot specify the same horizontal position designator twice. Ignoring symbol.");
+        chart->Error.Error(hpos1.side_line.start, hpos2.side_line.start, "Here is the first designator.");
+        return NULL;
+    }
+    if (chart->ErrorIfEntityGrouped(hpos1.entity1, hpos1.e1line.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(hpos1.entity2, hpos1.e2line.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(hpos2.entity1, hpos2.e1line.start)) return NULL;
+    if (chart->ErrorIfEntityGrouped(hpos2.entity2, hpos2.e2line.start)) return NULL;
+    if (hide) return NULL;
+
+    hpos1.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos1.entity1));
+    hpos1.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos1.entity2));
+    hpos2.entity1 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos2.entity1));
+    hpos2.entity2 = chart->ActiveEntities.Find_by_Ptr(*chart->FindActiveParentEntity(hpos2.entity2));
+
+    if (hpos1.side > hpos2.side) std::swap(hpos1, hpos2);
+    switch (symbol_type) {
+    case ARC:
+    case RECTANGLE:
+        if (hpos2.side == ExtVertXPos::NONE && xsize.first == false) {
+            xsize.first = true;
+            xsize.second = 10; //default size;
+        }
+        if (!(vpos.dst.length() || vpos.src.length()) && ysize.first == false) {
+            ysize.first = true;
+            ysize.second = 10; //default size;
+        }
+        break;
+    case ELLIPSIS:
+        static const double ellipsis_sizes[] = {0, 1.5, 3, 5, 8, 15}; //INVALID, TINY, SMALL, NORMAL, LARGE, HUGE
+        xsize.first = ysize.first = true;
+        xsize.second = ellipsis_sizes[size];
+        ysize.second = xsize.second*(3+2*ellipsis_space_ratio);
+    }
+    PostParseProcessNotes(canvas, hide, at_top_level);
+    return this;
+}
+
+void CommandSymbol::Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*/)
+{
+}
+
+double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+{
+    if (reflow) {
+        if (style.shadow.offset.second)
+            cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
+        else
+            cover = area;
+        return height;
+    }
+
+    //Calculate x positions
+    const double lw = style.line.LineWidth();
+    double x1 = hpos1.CalculatePos(*chart);
+    switch (hpos2.side) {
+    case ExtVertXPos::NONE:
+        switch (hpos1.side) {
+        case ExtVertXPos::LEFT:
+            outer_edge.x.from = x1;
+            outer_edge.x.till = x1 + xsize.second;
+            break;
+        case ExtVertXPos::RIGHT:
+            outer_edge.x.from = x1 - xsize.second;
+            outer_edge.x.till = x1;
+            break;
+        case ExtVertXPos::CENTER:
+            outer_edge.x.from = x1 - xsize.second/2;
+            outer_edge.x.till = x1 + xsize.second/2;
+            break;
+        default:
+            _ASSERT(0);
+            break;
+        }
+        break;
+    case ExtVertXPos::RIGHT:
+        outer_edge.x.till = hpos2.CalculatePos(*chart);
+        if (hpos1.side == ExtVertXPos::LEFT)
+            outer_edge.x.from = x1;
+        else //can only be center
+            outer_edge.x.from = 2*x1 - outer_edge.x.till;
+        break;
+    case ExtVertXPos::CENTER:
+        //here hpos1 can only be LEFT
+        outer_edge.x.from = x1;
+        outer_edge.x.till = 2*hpos2.CalculatePos(*chart) - x1;
+        break;
+    default:
+        _ASSERT(0);
+        break;
+    }
+    outer_edge.x.Expand(lw/2);
+    //if no markers were specified, we draw it here and assign room
+    //else we are done here
+    if (vpos.src.length() || vpos.dst.length()) {
+        outer_edge.y.MakeInvalid();
+        return height = 0;
+    }
+    outer_edge.y.from = 0;
+    outer_edge.y.till = lw + ysize.second;
+
+    CalculateAreaFromOuterEdge();
+    note_map = area;
+    def_note_target = note_map.Centroid();
+
+    if (style.shadow.offset.second)
+        cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
+    else
+        cover = area;
+    return height = outer_edge.y.till + style.shadow.offset.second;
+}
+
+void CommandSymbol::ShiftBy(double y)
+{
+    ArcCommand::ShiftBy(y);
+    if (outer_edge.y.IsInvalid()) return;
+    outer_edge.y.Shift(y);
+}
+
+void CommandSymbol::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
+{
+    if (!outer_edge.y.IsInvalid()) return;
+    //We used markers, caculate "area" and "outer_edge.y" now
+    if (vpos.src.length())
+        outer_edge.y.from = chart->Markers.find(vpos.src)->second.second;
+    if (vpos.dst.length())
+        outer_edge.y.till = chart->Markers.find(vpos.dst)->second.second;
+
+    if (vpos.src.length()==0)
+        outer_edge.y.from = outer_edge.y.till - ysize.second;
+    if (vpos.dst.length()==0)
+        outer_edge.y.till = outer_edge.y.from + ysize.second;
+
+    if (outer_edge.y.from > outer_edge.y.till)
+        std::swap(outer_edge.y.from, outer_edge.y.till);
+    else if (outer_edge.y.from == outer_edge.y.till)
+        outer_edge.y.Expand(ysize.second/2);
+
+    outer_edge.y.Expand(style.line.LineWidth()/2);
+
+    CalculateAreaFromOuterEdge();
+}
+
+void CommandSymbol::CalculateAreaFromOuterEdge()
+{
+    switch (symbol_type) {
+        case ARC:
+            area = Contour(outer_edge.Centroid(), outer_edge.x.Spans()/2,
+                           outer_edge.y.Spans()/2);
+            break;
+        case RECTANGLE:
+            area = style.line.CreateRectangle_OuterEdge(outer_edge);
+            break;
+        case ELLIPSIS:
+            const double r = outer_edge.x.Spans()/2;
+            XY c(outer_edge.x.MidPoint(), outer_edge.y.from + r);
+            area = Contour(c, r, r);
+            area += Contour(c + XY(0, (2+2*ellipsis_space_ratio)*r), r, r);
+            area += Contour(c + XY(0, (4+4*ellipsis_space_ratio)*r), r, r);
+            break;
+    }
+    area.arc = this;
+    area.mainline = Block(Range(0, chart->total.x), area.GetBoundingBox().y);
+}
+
+void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
+{
+    if (pass!=draw_pass) return;
+    switch (symbol_type) {
+        case ARC:
+        case ELLIPSIS:
+            canvas.Shadow(area, style.shadow);
+            canvas.Fill(area.CreateExpand(-style.line.LineWidth()/2-style.line.Spacing()),
+                        style.fill);
+            canvas.Line(area.CreateExpand(-style.line.LineWidth()/2), style.line);
+            break;
+        case RECTANGLE:
+            //canvas operations on blocks take the midpoint
+            const Block mid = outer_edge.CreateExpand(-style.line.LineWidth()/2);
+            canvas.Shadow(mid, style.line, style.shadow);
+            canvas.Fill(mid, style.line, style.fill);
+            canvas.Line(mid, style.line);
+            break;
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* Note syntax
+ ** NOTE left/right/center AT <ent>-<ent>: label [attrs];
+ ** NOTE AT <ent>-<ent>: label [attrs];
+ **   - center is default
+ ** NOTE: label [attrs];
+ */
+
+
+CommandNote::CommandNote(Msc*msc, const ExtVertXPos *evxpos, AttributeList *al)
+    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles["note"]),
+    extvertxpos(evxpos?*evxpos:ExtVertXPos(*msc))
+{
+    draw_pass = NOTE;
+    AddAttributeList(al);
+    target = chart->last_notable_arc;
+    if (target == NULL) {
+        valid = false;
+        chart->Error.Error(file_pos.start, "This note has no prior element to note on. Ignoring it.",
+            "Every note must follow a visible element which it makes a remark on. "
+            "You cannot start a scope with a note either.");
+        return;
+    }
+    target->AttachNote(this);
+    chart->had_notes = true;
+}
+
+bool CommandNote::AddAttribute(const Attribute &a)
+{
+    if (a.Is("point_toward")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""
+        //which will mean chart->NoEntity in "point_toward_iterator"
+        point_toward_iterator = chart->FindAllocEntity(a.value.c_str(), a.linenum_value);
+        return true;
+    }
+    if (a.Is("ypos")) {
+        if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
+        //MSC_ATTR_CLEAR is OK above with value = ""        
+        ypos_marker = a.value;
+        ypos_marker_linenum = a.linenum_value.start;
+        return true;
+    }
+    return ArcLabelled::AddAttribute(a);
+}
+
+void CommandNote::AttributeNames(Csh &csh)
+{
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "point_toward", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "ypos", HINT_ATTR_NAME));
+    ArcLabelled::AttributeNames(csh);
+}
+
+bool CommandNote::AttributeValues(const std::string attr, Csh &csh)
+{
+    if (CaseInsensitiveEqual(attr,"point_toward")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<entity>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    if (CaseInsensitiveEqual(attr,"ypos")) {
+        csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<marker>", HINT_ATTR_VALUE, false));
+        return true;
+    }
+    return ArcLabelled::AttributeValues(attr, csh);
+}
+
+/*Must not use left, right, and number, or TrackableElement::PostParseProcessNotes wont work */
+ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, Numbering &number, bool top_level)
+{
+    if (!valid) return NULL;
+    if (label.length()==0) {
+        chart->Error.Error(file_pos.start, "A note must contain text. Ignoring note.", 
+            "Try adding a 'label' attribute or text after a colon (':').");
+        valid = false;
+        return NULL;
+    }
+    //if user specified 
+    if (style.note.layout.second == MscNoteAttr::LEFTRIGHT) {
+        style.note.layout.second = chart->last_note_is_on_left ? MscNoteAttr::RIGHT : MscNoteAttr::LEFT;
+        chart->last_note_is_on_left ^= true;
+    }
+    //We do everything here even if we are hidden (numbering is not impacted by hide/show or collapse/expand)
+    //Do not call ArcLabelled::PostParseProcess, as we do not increase numbering for notes
+    return ArcBase::PostParseProcess(canvas, hide, left, right, number, top_level);
+}
+
+void CommandNote::FinalizeLabels(MscCanvas &canvas)
+{
+    const ArcLabelled *al = dynamic_cast<const ArcLabelled*>(target);
+    if (al) {
+        numberingStyle = al->numberingStyle;
+        number_text = al->number_text;
+    }
+    ArcLabelled::FinalizeLabels(canvas);
+}
+
+void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+{
+    //Here we only make space if the note is on the side
+    const double w = parsed_label.getTextWidthHeight().x;
+    if (style.note.layout.second == MscNoteAttr::LEFT)
+        distances.Insert(chart->LNote->index, chart->LSide->index, w);
+    else if (style.note.layout.second == MscNoteAttr::RIGHT)
+        distances.Insert(chart->RSide->index, chart->RNote->index, w);
+}
+
+double CommandNote::Height(MscCanvas &/*canvas*/, AreaList &/*cover*/, bool /*reflow*/)
+{
+    auto i = chart->Markers.find(ypos_marker);
+    if (i == chart->Markers.end()) {
+        chart->Error.Error(ypos_marker_linenum, "Marker '" + ypos_marker + "' not defined. Ignoring 'ypos' attribute.");
+        ypos_marker.clear();
+        ypos = -1;
+    } else {
+        ypos = i->second.second;
+    }
+    //XXX fix note layout here
+    return height = 0;
+}
+
+void CommandNote::ShiftBy(double y)
+{
+    ArcLabelled::ShiftBy(y);
+}
+
+void CommandNote::PostPosProcess(MscCanvas &/*cover*/, double /*autoMarker*/)
+{
+}
+
+void CommandNote::Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/)
+{
 }
 

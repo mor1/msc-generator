@@ -57,57 +57,57 @@ void ContourList::SwapXY()
     boundingBox.SwapXY();
 }
 
-relation_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
+SimpleContour::result_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
 {
-    if (IsEmpty())
-        return c.IsEmpty() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
+    if (IsEmpty()) 
+        return c.IsEmpty() ? SimpleContour::BOTH_EMPTY : SimpleContour::A_IS_EMPTY;
     else if (c.IsEmpty())
-        return REL_B_IS_EMPTY;
+        return SimpleContour::B_IS_EMPTY;
 
-    if (!boundingBox.Overlaps(c.GetBoundingBox())) return REL_APART;
-
-    relation_t res = begin()->RelationTo(c, ignore_holes);
+    if (!boundingBox.Overlaps(c.GetBoundingBox())) return SimpleContour::APART;
+      
+    SimpleContour::result_t res = begin()->RelationTo(c, ignore_holes);
     switch (res) {
     default:
-    case REL_A_IS_EMPTY:
-    case REL_B_IS_EMPTY:
-    case REL_BOTH_EMPTY:
-    case REL_IN_HOLE_APART:
+    case SimpleContour::A_IS_EMPTY: 
+    case SimpleContour::B_IS_EMPTY: 
+    case SimpleContour::BOTH_EMPTY:
+    case SimpleContour::IN_HOLE_APART:
         _ASSERT(0);
-    case REL_OVERLAP:
+    case SimpleContour::OVERLAP: 
         return res;
-    case REL_B_INSIDE_A:
-    case REL_A_INSIDE_B:
-    case REL_SAME:
-    case REL_APART:
-    case REL_B_IN_HOLE_OF_A:
-    case REL_A_IN_HOLE_OF_B:
+    case SimpleContour::B_INSIDE_A: 
+    case SimpleContour::A_INSIDE_B: 
+    case SimpleContour::SAME: 
+    case SimpleContour::APART:
+    case SimpleContour::B_IN_HOLE_OF_A: 
+    case SimpleContour::A_IN_HOLE_OF_B:
         break;
     }
 
     auto i = ++begin();
     while (i!=end()) {
-        const relation_t res2 = i->RelationTo(c, ignore_holes);
+        SimpleContour::result_t res2 = i->RelationTo(c, ignore_holes);
         if (res2 == res) continue;
         switch (res2) {
-        case REL_A_IS_EMPTY:
-        case REL_B_IS_EMPTY:
-        case REL_BOTH_EMPTY:
-        case REL_IN_HOLE_APART:
+        case SimpleContour::A_IS_EMPTY: 
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
+        case SimpleContour::IN_HOLE_APART:
             _ASSERT(0);
-        case REL_OVERLAP:
+        case SimpleContour::OVERLAP: 
             return res;
-        case REL_APART:
-        case REL_B_IN_HOLE_OF_A:
-        case REL_A_IN_HOLE_OF_B:
-            if (result_overlap(res)) return REL_OVERLAP;
-            else res = REL_IN_HOLE_APART;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+        case SimpleContour::A_IN_HOLE_OF_B:
+            if (SimpleContour::result_overlap(res)) return SimpleContour::OVERLAP;
+            else res = SimpleContour::IN_HOLE_APART;
             break;
-        case REL_B_INSIDE_A:
-        case REL_A_INSIDE_B:
-        case REL_SAME:
-            if (res == REL_SAME) res = res2;
-            else return REL_OVERLAP;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::SAME: 
+            if (res = SimpleContour::SAME) res = res2;
+            else return SimpleContour::OVERLAP;
             break;
         }
         ++i;
@@ -115,57 +115,57 @@ relation_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes)
     return res;
 }
 
-relation_t ContourList::RelationTo(const ContourList &c, bool ignore_holes) const
+SimpleContour::result_t ContourList::RelationTo(const ContourList &c, bool ignore_holes) const
 {
-    if (IsEmpty())
-        return c.IsEmpty() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
+    if (IsEmpty()) 
+        return c.IsEmpty() ? SimpleContour::BOTH_EMPTY : SimpleContour::A_IS_EMPTY;
     else if (c.IsEmpty())
-        return REL_B_IS_EMPTY;
+        return SimpleContour::B_IS_EMPTY;
+      
+    if (!boundingBox.Overlaps(c.GetBoundingBox())) return SimpleContour::APART;
 
-    if (!boundingBox.Overlaps(c.GetBoundingBox())) return REL_APART;
-
-    relation_t res = c.RelationTo(*begin(), ignore_holes);
+    SimpleContour::result_t res = c.RelationTo(*begin(), ignore_holes);
     switch (res) {
     default:
-    case REL_A_IS_EMPTY:
-    case REL_B_IS_EMPTY:
-    case REL_BOTH_EMPTY:
+    case SimpleContour::A_IS_EMPTY: 
+    case SimpleContour::B_IS_EMPTY: 
+    case SimpleContour::BOTH_EMPTY:
         _ASSERT(0);
-    case REL_OVERLAP:
+    case SimpleContour::OVERLAP: 
         return res;
-    case REL_B_INSIDE_A:
-    case REL_A_INSIDE_B:
-    case REL_SAME:
-    case REL_APART:
-    case REL_B_IN_HOLE_OF_A:
-    case REL_A_IN_HOLE_OF_B:
-    case REL_IN_HOLE_APART:
+    case SimpleContour::B_INSIDE_A: 
+    case SimpleContour::A_INSIDE_B: 
+    case SimpleContour::SAME: 
+    case SimpleContour::APART:
+    case SimpleContour::B_IN_HOLE_OF_A: 
+    case SimpleContour::A_IN_HOLE_OF_B:
+    case SimpleContour::IN_HOLE_APART:
         break;
     }
 
     auto i = ++begin();
     while (i!=end()) {
-        const relation_t res2 = c.RelationTo(*i, ignore_holes);
+        SimpleContour::result_t res2 = c.RelationTo(*i, ignore_holes);
         if (res2 == res) continue;
         switch (res2) {
-        case REL_A_IS_EMPTY:
-        case REL_B_IS_EMPTY:
-        case REL_BOTH_EMPTY:
+        case SimpleContour::A_IS_EMPTY: 
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
             _ASSERT(0);
-        case REL_OVERLAP:
+        case SimpleContour::OVERLAP: 
             return res;
-        case REL_APART:
-        case REL_B_IN_HOLE_OF_A:
-        case REL_A_IN_HOLE_OF_B:
-        case REL_IN_HOLE_APART:
-            if (result_overlap(res)) return REL_OVERLAP;
-            else res = REL_IN_HOLE_APART;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+        case SimpleContour::A_IN_HOLE_OF_B:
+        case SimpleContour::IN_HOLE_APART:
+            if (SimpleContour::result_overlap(res)) return SimpleContour::OVERLAP;
+            else res = SimpleContour::IN_HOLE_APART;
             break;
-        case REL_B_INSIDE_A:
-        case REL_A_INSIDE_B:
-        case REL_SAME:
-            if (res == REL_SAME) res = res2;
-            else return REL_OVERLAP;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::SAME: 
+            if (res = SimpleContour::SAME) res = res2;
+            else return SimpleContour::OVERLAP;
             break;
         }
         ++i;
@@ -215,48 +215,6 @@ void ContourList::PathDashed(cairo_t *cr, const double pattern[], unsigned num, 
 {
     for (auto i=begin(); i!=end(); i++)
         i->PathDashed(cr, pattern, num, show_hidden, clockwiseonly);
-}
-
-void ContourList::Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const
-{
-    if (IsEmpty() || c.IsEmpty()) return;
-    if (dist_so_far.IsZero()) return;
-    const double bbdist = GetBoundingBox().Distance(c.GetBoundingBox());
-    if (!dist_so_far.ConsiderBB(bbdist)) {
-        dist_so_far.MergeInOut(bbdist);
-        return;
-    }
-    for (auto i = begin(); i!=end(); i++) {
-        const double bbdist = i->GetBoundingBox().Distance(c.GetBoundingBox());
-        if (dist_so_far.ConsiderBB(bbdist))
-            i->Distance(c, dist_so_far);
-        else
-            dist_so_far.MergeInOut(bbdist);
-        if (dist_so_far.IsZero())
-            break;
-    }
-}
-
-void ContourList::Distance(const ContourList &cl, DistanceType &dist_so_far) const
-{
-    if (IsEmpty() || cl.IsEmpty()) return;
-    if (dist_so_far.IsZero()) return;
-    const double bbdist = GetBoundingBox().Distance(cl.GetBoundingBox());
-    if (!dist_so_far.ConsiderBB(bbdist)) {
-        dist_so_far.MergeInOut(bbdist);
-        return;
-    }
-    dist_so_far.SwapPoints();
-    for (auto i = begin(); i!=end(); i++) {
-        const double bbdist = i->GetBoundingBox().Distance(cl.GetBoundingBox());
-        if (dist_so_far.ConsiderBB(bbdist))
-            cl.Distance(*i, dist_so_far);
-        else
-            dist_so_far.MergeInOut(bbdist);
-        if (dist_so_far.IsZero())
-            break;
-    }
-    dist_so_far.SwapPoints();
 }
 
 
@@ -359,11 +317,11 @@ struct node
     node(const SimpleContour &c) : contour(c) {}
 };
 
+
 class ContoursHelper {
 protected:
     const Contour * const C1, * const C2;     //The contours we process
     const bool            const_C1, const_C2; //True if the contours cannot be destroyed
-    const bool            clockwise_C1, clockwise_C2; //save this (C1 and C2 may get destroyed)
     RayCollection         Rays;               //All the rays of an operation for all cps
     link_info::size_type  link_contours_head; //head of the contour loose list
     link_info::size_type  link_cps_head;      //head of the cp loose list
@@ -387,7 +345,7 @@ protected:
     //helpers for adding crosspoints and linking them
     link_info::size_type InsertToLooseList(Ray::list_type type, link_info::size_type index);
     bool InsertToStrictList(Ray::list_type type, link_info::size_type index, link_info::size_type head);
-    bool IsContourInRays(const SimpleContour *c) const;
+    link_info::size_type FindContourHead(const SimpleContour *c) const;
     bool AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, Contour::size_type v, double p, bool i, const RayAngle &a);
     void AddCrosspoint(const XY &xy, bool m_c1, const SimpleContour *c1, Contour::size_type v1, double p1, bool m_c2, const SimpleContour *c2, Contour::size_type v2, double p2);
     unsigned FindCrosspointsHelper(const SimpleContour *i);
@@ -417,7 +375,6 @@ protected:
     void RevalidateAllAfter(std::vector<link_info::size_type> &ray_array, link_info::size_type from) const;
     void Walk(RayPointer start, SimpleContour &result) const;
     //helper for post-processing
-    int CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const;
     node *InsertContour(std::list<node> *list, node &&n) const;
     void InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
                            const Contour *C_other, Contour::operation_t type) const;
@@ -426,11 +383,11 @@ protected:
 
 public:
     //external interface
-    ContoursHelper(const Contour &c) : C1(&c), C2(NULL), const_C1(true), const_C2(true), clockwise_C1(c.GetClockWise()), clockwise_C2(false) {FindCrosspoints();}
-    ContoursHelper(const Contour &c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
-    ContoursHelper(const Contour &c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
-    ContoursHelper(Contour &&c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
-    ContoursHelper(Contour &&c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
+    ContoursHelper(const Contour &c) : C1(&c), C2(NULL), const_C1(true), const_C2(true) {FindCrosspoints();}
+    ContoursHelper(const Contour &c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(true) {FindCrosspoints();}
+    ContoursHelper(const Contour &c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(false) {FindCrosspoints();}
+    ContoursHelper(Contour &&c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(true) {FindCrosspoints();}
+    ContoursHelper(Contour &&c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(false) {FindCrosspoints();}
     void Do(Contour::operation_t type, Contour &result) const;
 };
 
@@ -547,11 +504,11 @@ bool ContoursHelper::InsertToStrictList(Ray::list_type type, link_info::size_typ
 }
 
 //Finds the head of the strict list for a contour
-bool ContoursHelper::IsContourInRays(const SimpleContour *c) const
+link_info::size_type ContoursHelper::FindContourHead(const SimpleContour *c) const
 {
     link_info::size_type u = link_contours_head;
     do {
-        if (Rays[u].contour == c) return true;
+        if (Rays[u].contour == c) break;
         u = Rays[u].link_contours.next;
     } while (u!=link_contours_head);
     return Rays[u].contour == c;
@@ -560,11 +517,12 @@ bool ContoursHelper::IsContourInRays(const SimpleContour *c) const
 //return true if we could add (no duplication)
 bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const SimpleContour *c, Contour::size_type v, double p, bool i, const RayAngle &a)
 {
-    //_ASSERT(c->at(v).Pos2Point(p).test_equal(point));
+    _ASSERT(c->at(v).Pos2Point(p).test_equal(point));
     Rays.push_back(Ray(point, m_c, c, v, p, i, a));
     //link in to the loose lists
     const link_info::size_type index = Rays.size()-1;
     const link_info::size_type contour_head = InsertToLooseList(Ray::LIST_CONTOUR, index);
+    const link_info::size_type cp_head      = InsertToLooseList(Ray::LIST_CP     , index);
     //Insert to strict list of the contours. Stop if already there
     if (!InsertToStrictList(Ray::IN_CONTOUR, index, contour_head)) {
         //OK, this <contour, vertex, pos, incoming> already exists
@@ -572,7 +530,6 @@ bool ContoursHelper::AddCrosspointHelper(const XY &point, bool m_c, const Simple
         Rays.pop_back();
         return false;
     }
-    const link_info::size_type cp_head      = InsertToLooseList(Ray::LIST_CP     , index);
     InsertToStrictList(Ray::IN_CP, index, cp_head);
     return true;
 }
@@ -921,13 +878,13 @@ int ContoursHelper::CalcCoverageHelper(const SimpleContour *sc) const
 //For performance caller should check that ray group has more than one member.
 link_info::size_type ContoursHelper::ClosestNextCP(link_info::size_type from, link_info::size_type to) const
 {
-    double dist = MaxVal(dist);
+    double dist = DBL_MAX;
     link_info::size_type closest=from;
     for (link_info::size_type i = from; i!=to; i = Rays[i].link_in_cp.next) {
         RayPointer p(i);
         Advance (p, !Rays[i].incoming);
         const XY &xy = p.at_vertex ? Rays[i].contour->at(p.vertex).GetStart() : Rays[p.index].xy;
-        const double d = Rays[i].xy.Distance(xy);
+        const double d = (Rays[i].xy - xy).length();
         if (d < dist) {
             dist = d;
             closest = i;
@@ -1163,7 +1120,6 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
             link_info::size_type switch_to = ray.switch_to;
             if (switch_to == link_info::no_link || !Rays[switch_to].valid) {
                 //backtrack to last position
-                link_info::size_type last_chosen;
                 do {
                     if (wdata.size()==0) {
                         //cannot backtrace: give up
@@ -1175,11 +1131,11 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
                     _ASSERT(result.size()>=wdata.rbegin()->result_size);
                     RevalidateAllAfter(ray_array, wdata.rbegin()->rays_size);
                     result.edges.resize(wdata.rbegin()->result_size);
-                    last_chosen = wdata.rbegin()->chosen_outgoing;
+                    const link_info::size_type last_chosen = wdata.rbegin()->chosen_outgoing;
                     wdata.pop_back();
                     switch_to = Rays[last_chosen].link_in_cp.next; //next to pick
                     //if next to pick is another ray group, we need to backtrace one more
-                } while (!Rays[switch_to].angle.IsSimilar(Rays[last_chosen].angle));
+                } while (!Rays[switch_to].angle.IsSimilar(Rays[switch_to].angle));
                 //OK here, wdata, ray_array are restored to correct size
                 //switch_to shows next alternative to try
                 //we even removed this backtrace from wdata, if there are more
@@ -1212,54 +1168,29 @@ void ContoursHelper::Walk(RayPointer start, SimpleContour &result) const
     } while (current.at_vertex || Rays[current.index].seq_num != sn_finish);
 }
 
-//Finds the coverage of "c" among the node elements - assume c does not overlap with any element
-int ContoursHelper::CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const
-{
-    for (auto i=list.begin(); i!=list.end(); i++) 
-        switch(i->contour.CheckContainment(c)) {
-        case REL_OVERLAP: 
-        case REL_A_IS_EMPTY: 
-        case REL_B_IS_EMPTY: 
-        case REL_BOTH_EMPTY: 
-        case REL_SAME: 
-        case REL_A_IN_HOLE_OF_B: 
-        case REL_B_IN_HOLE_OF_A: 
-        case REL_IN_HOLE_APART:
-            _ASSERT(0); //should not happen
-            //fallthrough
-        case REL_A_INSIDE_B: 
-        case REL_APART:     //c is outside "i->contour" check further elements in list
-            continue;
-        case REL_B_INSIDE_A: //"c" is inside "i->contour", dwelve deeper
-            return CoverageInNodeList(i->children, c) + (i->contour.GetClockWise() ? +1 : -1);
-        }
-    return 0;
-}
-
-
 //inserts a node into the tree, returns the resulting inserted node
 node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 {
     for (auto i = list->begin(); i!=list->end(); /*nope*/) {
-        const relation_t res = i->contour.CheckContainment(n.contour);
+        const SimpleContour::result_t res = i->contour.CheckContainment(n.contour);
         switch (res) {
         default:
-        case REL_A_IS_EMPTY:
-        case REL_BOTH_EMPTY:  //nodes already inserted cannot be empty
-        case REL_OVERLAP:     //at this point we cannot have overlap
+        case SimpleContour::A_IS_EMPTY:
+        case SimpleContour::BOTH_EMPTY:  //nodes already inserted cannot be empty
+        case SimpleContour::OVERLAP:     //at this point we cannot have overlap
             _ASSERT(0);
-        case REL_A_INSIDE_B:
+        case SimpleContour::A_INSIDE_B:
             //move "i" from the "list" to "n.children"
             n.children.splice(n.children.end(), *list, i++);
             //continue checking
             break;
-        case REL_B_IS_EMPTY:
-        case REL_SAME:
+        case SimpleContour::B_IS_EMPTY:
+        case SimpleContour::SAME:
             return &*i; //easy, do nothig
-        case REL_B_INSIDE_A:
+        case SimpleContour::B_INSIDE_A:
             //insert into the children of "i" instead;
             return InsertContour(&i->children, std::move(n));
-        case REL_APART:
+        case SimpleContour::APART:
             i++;
             break; //continue checking the remainder of the list
         }
@@ -1275,42 +1206,31 @@ node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
                                        const Contour *C_other, Contour::operation_t type) const
 {
-    if (!Rays.size() || !IsContourInRays(&c->outline)) {
+    if (!Rays.size() || !FindContourHead(&c->outline)) {
         int coverage_in_c;
         if (C2==NULL)
             coverage_in_c = CalcCoverageHelper(&c->outline);
         else {
             //In order to avoid checking ray crossing for all contours, we calculate
             //coverage within "c" using the assumptions on C1 and C2 being nice.
-            //Now, it may be that C_other is already empty, if we have already moved all its
-            //content to "list". In that case we have to traverse the "list"
-            if (C_other->IsEmpty()) {
-                const int cov_from_other = CoverageInNodeList(*list, c->outline);
-                //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
-                //if our whole surface is ccl then 0 or -1
-                const bool clockwise_us = C1==C_other ? clockwise_C2 : clockwise_C1;
-                const int cov_from_us = clockwise_us ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
-                coverage_in_c = cov_from_us + cov_from_other;
-            } else {
-                const is_within_t is_within_other = C_other->IsWithin(c->outline[0].GetStart());
-                _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
-                //if we are outside the other, coverage from that is zero
-                //if we are inside, then coverage is either +1 or -1 depending on dir
-                const int cov_from_other = inside(is_within_other) ? C_other->GetClockWise() ? 1 : -1 : 0;
-                //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
-                //if our whole surface is ccl then 0 or -1
-                const Contour * const C_us = C1==C_other ? C2 : C1;
-                const int cov_from_us = C_us->GetClockWise() ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
-                coverage_in_c = cov_from_us + cov_from_other;
-            }
+            const is_within_t is_within_other = C_other->IsWithin(c->outline[0].GetStart());
+            _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
+            //if we are outside the other, coverage from that is zero
+            //if we are inside, then coverage is either +1 or -1 depending on dir
+            const int cov_from_other = inside(is_within_other) ? C_other->GetClockWise() ? 1 : -1 : 0;
+            //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
+            //if our whole surface is ccl then 0 or -1
+            const Contour * const C_us = C1==C_other ? C2 : C1;
+            const int cov_from_us = C_us->GetClockWise() ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
+            coverage_in_c = cov_from_us + cov_from_other;
         }
         const int coverage_outside_c = coverage_in_c + (c->GetClockWise() ? -1 : +1);
         if (IsCoverageToInclude(coverage_in_c, type) !=
             IsCoverageToInclude(coverage_outside_c, type)) {
             //place into the tree
             //If the contour is not const, we can destroy it.
-            //The below move does only destroy the outline of c, not the holes
-            node *n = InsertContour(list, const_c ? node(c->outline) : node(std::move(const_cast<SimpleContour&&>(c->outline))));
+            //The below move does only destroy the SimpleContour part of c, not the holes
+            node *n = InsertContour(list, const_c ? node(c->outline) : node(std::move(const_cast<ContourWithHoles*>(c)->outline)));
             _ASSERT(n);
             //use its children list for any holes it may have
             list = &n->children;
@@ -1430,39 +1350,6 @@ void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
     _ASSERT(result.IsSane());
 }
 
-double ContourList::Distance(const XY &o, XY &ret) const
-{
-    double d = CONTOUR_INFINITY;
-    for (auto i = begin(); i!=end(); i++) {
-        XY tmp;
-        double dd = i->Distance(o, tmp);
-        if (fabs(dd)<fabs(d)) {
-            d = -dd;
-            ret = tmp;
-            if (d==0) return 0;
-        }
-    }
-    return d;
-}
-
-double ContourList::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
-{
-    double d = CONTOUR_INFINITY;
-    for (auto i = begin(); i!=end(); i++) {
-        XY tmp, _1, _2;
-        double dd = i->DistanceWithTangents(o, tmp, _1, _2);
-        if (fabs(dd)<fabs(d)) {
-            d = -dd;
-            ret = tmp;
-            t1 = _1;
-            t2 = _2;
-            if (d==0) return 0;
-        }
-    }
-    return d;
-}
-
-
 /////////////////////ContourWithHoles
 
 bool ContourWithHoles::IsSane(bool shouldbehole) const
@@ -1492,110 +1379,68 @@ void ContourWithHoles::Expand(EExpandType type4positive, EExpandType type4negati
     }
 }
 
-void ContourWithHoles::Expand2D(const XY &gap, Contour &res) const
+SimpleContour::result_t ContourWithHoles::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
 {
-    if (outline.size()==0) return;
-    if (test_zero(gap.x) && test_zero(gap.y)) {res = *this; return;}
-    outline.Expand2D(gap, res);
-    if (holes.size()==0 || res.IsEmpty()) return;
-    Contour tmp;
-    for (auto i=holes.begin(); i!=holes.end(); i++) {
-        i->Expand2D(gap, tmp);
-        //in case "i" is an actual holes, it is are already inversed, adding is the right op
-        res.Operation(GetClockWise() ? Contour::POSITIVE_UNION : Contour::NEGATIVE_UNION, res, std::move(tmp));
-        tmp.clear();
-    }
-}
-
-relation_t ContourWithHoles::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
-{
-    const relation_t res = outline.RelationTo(c.outline);
+    SimpleContour::result_t res = outline.RelationTo(c.outline);
     if (ignore_holes) return res;
     switch (res) {
     default:
-    case REL_A_IN_HOLE_OF_B:
-    case REL_B_IN_HOLE_OF_A:
-    case REL_IN_HOLE_APART:
+    case SimpleContour::A_IN_HOLE_OF_B:
+    case SimpleContour::B_IN_HOLE_OF_A:
+    case SimpleContour::IN_HOLE_APART:
         _ASSERT(0);
-    case REL_OVERLAP:
-    case REL_A_IS_EMPTY:
-    case REL_B_IS_EMPTY:
-    case REL_BOTH_EMPTY:
-    case REL_APART:
+    case SimpleContour::OVERLAP: 
+    case SimpleContour::A_IS_EMPTY:
+    case SimpleContour::B_IS_EMPTY:
+    case SimpleContour::BOTH_EMPTY:
+    case SimpleContour::APART:
         return res;
-    case REL_SAME:
-        if (holes.RelationTo(c.holes, ignore_holes) == REL_SAME) return REL_SAME;
-        return REL_OVERLAP;
-    case REL_A_INSIDE_B:
+    case SimpleContour::SAME: 
+        if (holes.RelationTo(c.holes, ignore_holes) == SimpleContour::SAME) return SimpleContour::SAME;
+        return SimpleContour::OVERLAP;
+    case SimpleContour::A_INSIDE_B:
         switch (c.holes.RelationTo(outline, ignore_holes)) {
-        case REL_A_IS_EMPTY:
-            return REL_A_INSIDE_B;
-        case REL_B_INSIDE_A:
-        case REL_SAME:
-            return REL_A_IN_HOLE_OF_B;
-        case REL_A_INSIDE_B:
-        case REL_OVERLAP:
-            return REL_OVERLAP;
-        case REL_APART:
-        case REL_B_IN_HOLE_OF_A:
-            return REL_A_INSIDE_B;
-        case REL_A_IN_HOLE_OF_B:
-        case REL_B_IS_EMPTY:
-        case REL_BOTH_EMPTY:
-        case REL_IN_HOLE_APART:
+        case SimpleContour::A_IS_EMPTY: 
+            return SimpleContour::A_INSIDE_B;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::SAME: 
+            return SimpleContour::A_IN_HOLE_OF_B;
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::OVERLAP: 
+            return SimpleContour::OVERLAP;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+            return SimpleContour::A_INSIDE_B;
+        case SimpleContour::A_IN_HOLE_OF_B:
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
+        case SimpleContour::IN_HOLE_APART:
         default:
             _ASSERT(0);
-            return REL_OVERLAP;
+            return SimpleContour::OVERLAP;
         }
-    case REL_B_INSIDE_A:
+    case SimpleContour::B_INSIDE_A:
         switch (holes.RelationTo(c.outline, ignore_holes)) {
-        case REL_A_IS_EMPTY:
-            return REL_B_INSIDE_A;
-        case REL_B_INSIDE_A:
-        case REL_SAME:
-            return REL_B_IN_HOLE_OF_A;
-        case REL_A_INSIDE_B:
-        case REL_OVERLAP:
-            return REL_OVERLAP;
-        case REL_APART:
-        case REL_B_IN_HOLE_OF_A:
-            return REL_B_INSIDE_A;
-        case REL_A_IN_HOLE_OF_B:
-        case REL_B_IS_EMPTY:
-        case REL_BOTH_EMPTY:
-        case REL_IN_HOLE_APART:
+        case SimpleContour::A_IS_EMPTY: 
+            return SimpleContour::B_INSIDE_A;
+        case SimpleContour::B_INSIDE_A: 
+        case SimpleContour::SAME: 
+            return SimpleContour::B_IN_HOLE_OF_A;
+        case SimpleContour::A_INSIDE_B: 
+        case SimpleContour::OVERLAP: 
+            return SimpleContour::OVERLAP;
+        case SimpleContour::APART:
+        case SimpleContour::B_IN_HOLE_OF_A: 
+            return SimpleContour::B_INSIDE_A;
+        case SimpleContour::A_IN_HOLE_OF_B:
+        case SimpleContour::B_IS_EMPTY: 
+        case SimpleContour::BOTH_EMPTY:
+        case SimpleContour::IN_HOLE_APART:
         default:
             _ASSERT(0);
-            return REL_OVERLAP;
+            return SimpleContour::OVERLAP;
         }
     }
-}
-
-void ContourWithHoles::Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const
-{
-    if (dist_so_far.IsZero()) return;
-    DistanceType d = dist_so_far;
-    d.ClearInOut();
-    outline.Distance(c.outline, d);
-    if (d.was_inside) { //one outline is inside another one, consider holes
-        //see which one is in the other
-        DistanceType temp = d;
-        temp.ClearInOut();
-        if (GetBoundingBox().GetArea() < c.GetBoundingBox().GetArea()) {
-            //we are inside, see if we are in the holes of 'c'
-            if (!c.holes.IsEmpty()) {
-                temp.SwapPoints();
-                c.holes.Distance(*this, temp);
-                temp.SwapPoints();
-            }
-        } else {
-            if (!holes.IsEmpty())
-                holes.Distance(c, temp);
-        }
-        temp.SwapInOut();
-        d.Merge(temp);
-    }
-    dist_so_far.Merge(d);
 }
 
 /////////////////////////////////////////  Contour implementation
@@ -1699,32 +1544,18 @@ void Contour::Expand(EExpandType type4positive, EExpandType type4negative, doubl
     _ASSERT(IsSane());
 }
 
-void Contour::Expand2D(const XY &gap, Contour &res) const
-{
-    first.Expand2D(gap, res);
-    if (further.size()==0) return;
-    Contour tmp;
-    for (auto i = further.begin(); i!=further.end(); i++) {
-        i->Expand2D(gap, tmp);
-        res += std::move(tmp);
-        tmp.clear();
-    }
-    _ASSERT(IsSane());
-}
-
-
-//if "ignore holes" is true, it can only return
+//if "ignore holes" is true, it can only return 
 //A_IS_EMPTY, B_IS_EMPTY, BOTH_EMPTY, A_INSIDE_B, B_INSIDE_A, SAME, APART, OVERLAP
 //if false, these additional values may come:
-//A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART
+//A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART 
 //(latter meaning no overlap, but some parts of A is in holes and outside of B)
-relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) const
+Contour::relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) const
 {
-    if (IsEmpty())
-        return c.IsEmpty() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
+    if (IsEmpty()) 
+        return c.IsEmpty() ? SimpleContour::BOTH_EMPTY : SimpleContour::A_IS_EMPTY;
     else if (c.IsEmpty())
-        return REL_B_IS_EMPTY;
-    if (!boundingBox.Overlaps(c.GetBoundingBox())) return REL_APART;
+        return SimpleContour::B_IS_EMPTY;
+    if (!boundingBox.Overlaps(c.GetBoundingBox())) return SimpleContour::APART;
     if (further.IsEmpty() && c.further.IsEmpty()) return first.RelationTo(c.first, ignore_holes);
     //Here we admittedly hack.
     //To avoid writing code again, we append the "first" to "further" and compare
@@ -1732,7 +1563,7 @@ relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) const
     //Then we restore "further" by deleting the appended cwh and restoring the boundingbox
     Contour &c1 = const_cast<Contour&>(*this);
     Contour &c2 = const_cast<Contour&>(c);
-    relation_t res;
+    SimpleContour::result_t res;
     if (further.IsEmpty()) {
         const Block bb(c2.further.boundingBox);
         c2.further.append(c2.first);
@@ -1759,91 +1590,6 @@ relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) const
     return res;
 }
 
-inline bool MergeTangentFroms(bool was, XY clockwise[2], XY cclockwise[2], bool was2, const XY c[2], const XY cc[2])
-{
-    if (was && was2) {
-        clockwise[1]  = minmax_clockwise(clockwise[0], c[1], clockwise[1], true);
-        clockwise[0]  = minmax_clockwise(clockwise[1], c[0], clockwise[0], false);
-        cclockwise[0] = minmax_clockwise(cclockwise[1], cc[0], cclockwise[0], true);
-        cclockwise[1] = minmax_clockwise(cclockwise[0], cc[1], cclockwise[1], false);
-        //clockwise[1]  = minmax_clockwise(clockwise[0], c[1], clockwise[1], true);
-        //clockwise[0]  = minmax_clockwise(clockwise[1], c[0], clockwise[0], false);
-    } else if (was2) {
-        clockwise[1]  = c[1];
-        clockwise[0]  = c[0];
-        cclockwise[0] = cc[0];
-        cclockwise[1] = cc[1];
-    }
-    return was || was2;
-}
 
 
-bool Contour::TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]) const
-{
-    if (IsEmpty() || from.IsEmpty()) return false;
-    bool was = first.outline.TangentFrom(from.first.outline, clockwise, cclockwise);
-    XY c[2], cc[2];
-    for (auto i = from.further.begin(); i!=from.further.end(); i++) {
-        const bool was2 = first.outline.TangentFrom(i->outline, c, cc);
-        was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
-    }
-    for (auto j = further.begin(); j!=further.end(); j++) {
-        const bool was2 = j->outline.TangentFrom(from.first.outline, c, cc);
-        was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
-        for (auto i = from.further.begin(); i!=from.further.end(); i++) {
-            const bool was2 = j->outline.TangentFrom(i->outline, c, cc);
-            was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
-        }
-    }
-    return was;
-}
-
-Range Contour::Cut(const XY &A, const XY &B) const 
-{
-    Range ret = boundingBox.Cut(A, B); //also tests for A==B or invalid bb, which catches empty "this"
-    if (ret.IsInvalid()) return ret;
-    const Edge s(A+(B-A)*ret.from, A+(B-A)*(ret.till+0.1));
-    ret = Cut(s);
-    if (ret.IsInvalid()) return ret;
-    Range ret2;
-    if (fabs(A.x-B.x) > fabs(A.y-B.y)) {
-        const double p1 = s.GetStart().x + (s.GetEnd().x-s.GetStart().x)*ret.from;
-        const double p2 = s.GetStart().x + (s.GetEnd().x-s.GetStart().x)*ret.till;
-        //p1 and p2 are now the x coordinate of the two CP, convert to "pos" on A-B
-        ret2.from = (p1-A.x)/(B.x-A.x);
-        ret2.till = (p2-A.x)/(B.x-A.x);
-    } else { //do it in y coordinates
-        const double p1 = s.GetStart().y + (s.GetEnd().y-s.GetStart().y)*ret.from;
-        const double p2 = s.GetStart().y + (s.GetEnd().y-s.GetStart().y)*ret.till;
-        //p1 and p2 are now the y coordinate of the two CP, convert to "pos" on A-B
-        ret2.from = (p1-A.y)/(B.y-A.y);
-        ret2.till = (p2-A.y)/(B.y-A.y);
-    }
-    return ret2;
-}
-
-
-Range Contour::CutWithTangent(const XY &A, const XY &B, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const
-{
-    Range ret = boundingBox.Cut(A, B); //also tests for A==B or invalid bb, which catches empty "this"
-    if (ret.IsInvalid()) return ret;
-    const Edge s(A+(B-A)*ret.from, A+(B-A)*(ret.till+0.1));
-    ret = CutWithTangent(s, from, till);
-    if (ret.IsInvalid()) return ret;
-    Range ret2;
-    if (fabs(A.x-B.x) > fabs(A.y-B.y)) {
-        const double p1 = s.GetStart().x + (s.GetEnd().x-s.GetStart().x)*ret.from;
-        const double p2 = s.GetStart().x + (s.GetEnd().x-s.GetStart().x)*ret.till;
-        //p1 and p2 are now the x coordinate of the two CP, convert to "pos" on A-B
-        ret2.from = (p1-A.x)/(B.x-A.x);
-        ret2.till = (p2-A.x)/(B.x-A.x);
-    } else { //do it in y coordinates
-        const double p1 = s.GetStart().y + (s.GetEnd().y-s.GetStart().y)*ret.from;
-        const double p2 = s.GetStart().y + (s.GetEnd().y-s.GetStart().y)*ret.till;
-        //p1 and p2 are now the y coordinate of the two CP, convert to "pos" on A-B
-        ret2.from = (p1-A.y)/(B.y-A.y);
-        ret2.till = (p2-A.y)/(B.y-A.y);
-    }
-    return ret2;
-}
 } //namespace
