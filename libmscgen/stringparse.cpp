@@ -1241,12 +1241,6 @@ double StringFormat::spaceWidth(const string &text, MscCanvas &canvas, bool fron
 	return w*s;
 }
 
-double StringFormat::getCharHeight(MscCanvas &canvas) const
-{
-    ApplyFontTo(canvas);
-    return normalFontExtents.ascent + normalFontExtents.descent;
-}
-
 double StringFormat::getFragmentWidth(const string &s, MscCanvas &canvas) const
 {
     if (s.length()==0) return 0;

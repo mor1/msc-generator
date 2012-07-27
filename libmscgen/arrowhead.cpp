@@ -57,18 +57,6 @@ void ArrowHead::Empty() {
     ymul.first = false;
 }
 
-
-void ArrowHead::MakeComplete() 
-{
-    if (!size.first) {size.first = true; size.second= MSC_ARROW_SMALL;}
-    if (!xmul.first) {xmul.first = true; xmul.second= 1;}
-    if (!ymul.first) {ymul.first = true; ymul.second= 1;}
-    if (!endType.first) {endType.first = true; endType.second= MSC_ARROW_SOLID;}
-    if (!midType.first) {midType.first = true; midType.second= MSC_ARROW_SOLID;}
-    if (!startType.first) {startType.first = true; startType.second= MSC_ARROW_NONE;}
-    line.MakeComplete();
-}
-
 ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
 {
     const ArrowHead &a = static_cast<const ArrowHead&>(toadd);
@@ -100,12 +88,8 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     else if (a.EndsWith("midtype")) pType = &midType;
     if (pType) {
         if (a.Is("arrow"))
-            msc->Error.Warning(a, false, "Attribute 'arrow' is deprecated, but understood.",
+            msc->Error.Warning(a, "Option/Attribute 'arrow' is deprecated, but understood.",
                                 "Use 'arrow.type'.");
-        if (pType != &endType && type == NOTE) {
-            msc->Error.Error(a, false, "Only the end type of a note poiner can be set. Ignoring '"+a.name+"' attribute.");
-            return true;
-        }
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t)) {
                 pType->first = false;
@@ -142,7 +126,7 @@ bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
             Convert(a.value, size.second)) {
             size.first = true;
         if (a.Is("arrowsize"))
-            msc->Error.Warning(a, false, "Attribute 'arrowsize' is deprecated, but understood.",
+            msc->Error.Warning(a, "Option/Attribute 'arrowsize' is deprecated, but understood.",
                                "Use 'arrow.size'.");
             return true;
         }
@@ -210,20 +194,20 @@ bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p
 bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscArrowSize size, bool left)
 {
     if (!canvas) return false;
-    const double xx = left ? 0.3 : 0.7;
+    const double xx = left ? 0.9 : 0.7;
     XY xy(HINT_GRAPHIC_SIZE_X*xx, HINT_GRAPHIC_SIZE_Y/2);
     MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
     ArrowHead ah;
     ah.line += MscColorType(0,192,32); //green-blue
     ah.endType.second = type;
     ah.size.second = size;
-    Range cover = ah.EntityLineCover(xy, left, false, MSC_ARROW_END).GetBoundingBox().y;
+    Range cover = ah.EntityLineCover(xy, true, false, MSC_ARROW_END).GetBoundingBox().y;
     canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     if (cover.from>1)
         canvas->Line(XY(xy.x, 1), XY(xy.x, cover.from), eLine);
     if (cover.till<HINT_GRAPHIC_SIZE_Y-1)
         canvas->Line(XY(xy.x, cover.till), XY(xy.x, HINT_GRAPHIC_SIZE_Y-1), eLine);
-    Contour clip = ah.ClipForLine(xy, 0, !left, false, MSC_ARROW_END, Block(0, HINT_GRAPHIC_SIZE_X, 0, HINT_GRAPHIC_SIZE_Y), eLine, eLine);
+    Contour clip = ah.ClipForLine(xy, 0, true, false, MSC_ARROW_END, Block(XY(0,0), canvas->GetSize()), eLine, eLine);
     canvas->Clip(clip);
     canvas->Line(XY(HINT_GRAPHIC_SIZE_X*0.1, xy.y), xy, ah.line);
     canvas->UnClip();
@@ -786,7 +770,7 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
     //for double or triple arrows, second and third line should be shorter, so that 
     //they do not extend to the middle of a double line
     if (arrow_type == MSC_ARROW_DOUBLE_HALF || arrow_type == MSC_ARROW_TRIPLE_HALF) {
-        Block ext1(canvas->GetSize());
+        Block ext1(XY(0,0), canvas->GetSize());
         Block ext2 = ext1;
         ext1.y.from = xy.y + mainline_left.Spacing();
         ext2.y.from = xy.y + mainline_right.Spacing();
@@ -810,7 +794,7 @@ void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowE
     case MSC_ARROW_LINE: /* Two lines */
     case MSC_ARROW_HALF: /* Unfilled half */
         if (MSC_ARROW_IS_HALF(arrow_type)) {
-            Block ext(canvas->GetSize());
+            Block ext(XY(0,0), canvas->GetSize());
             ext.y.from = xy.y;
             canvas->Clip(ext);
         }

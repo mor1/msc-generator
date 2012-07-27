@@ -317,8 +317,6 @@ void Csh::AddCSH_AttrValue(CshPos& pos, const char *value, const char *name)
         //quotation mark, so we add one.
         //If there are no escapes ExtractCSH() does nothing, so the passed 
         //pos will not matter anyway.
-        //For exactly this reason if "AddCSH_AttrValue" is called from
-        //"AddCSH_ColonString" below, it is called with the colon position.
         StringFormat::ExtractCSH(pos.first_pos+1, value, *this);
     } else {
         // No match - regular attribute value
@@ -331,7 +329,7 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
     CshPos colon = pos;
     colon.last_pos = colon.first_pos;
     AddCSH(colon, COLOR_COLON);
-    //pos.first_pos++;
+    pos.first_pos++;
     char *copy = strdup(value);
     if (processComments) {
         char *p = copy;
@@ -363,7 +361,7 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
-"bye", "hspace", "vspace", "symbol", "note", "comment", "title", "subtitle", ""};
+"bye", "hspace", "vspace", "symbol", ""};
 
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
@@ -374,10 +372,6 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "text.bold", "text.italic", "text.underline", 
 "text.gap.up", "text.gap.down", "text.gap.left", "text.gap.right",
 "text.gap.spacing", "text.size.normal", "text.size.small", 
-"lcomment.line.color", "lcomment.line.type", "lcomment.line.width", 
-"rcomment.line.color", "rcomment.line.type", "rcomment.line.width",
-"lcomment.fill.color", "lcomment.fill.color2", "lcomment.fill.gradient",
-"rcomment.fill.color", "rcomment.fill.color2", "rcomment.fill.gradient",
 "angle", ""};
 
 static const char attr_names[][ENUM_STRING_LEN] =
@@ -396,7 +390,7 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "vfill.color", "vfill.color2", "vfill.gradient",
 "shadow.color", "shadow.offset", "shadow.blur", 
 "compressable", "xsize", "ysize", "size", "space", "angle",
-"note.pointer", "note.pos", ""};
+"layout", "shape", "point_to", "point_toward", "ypos", ""};
 
 static const char symbol_names[][ENUM_STRING_LEN] =
 {"arc", "rectangle", "...", ""};
@@ -525,15 +519,6 @@ void Csh::AddCSH_EntityName(CshPos&pos, const char *name)
     was_partial = true;
 }
 
-void Csh::AddCSH_EntityOrMarkerName(CshPos&pos, const char *name)
-{
-    if (EntityNames.find(string(name)) != EntityNames.end()) 
-        AddCSH(pos, COLOR_ENTITYNAME);
-    else
-        AddCSH(pos, COLOR_MARKERNAME);
-}
-
-
 //This is called when a string is after the keyword "symbol"
 // we give KEYWORD or KEYWORD_PARTIAL for full or partial matches
 // and STYLE for no matched
@@ -605,8 +590,11 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     CshList.clear();
     EntityNames.clear();
     MarkerNames.clear();
-    if (!ForcedDesign.empty() && FullDesigns.find(ForcedDesign) != FullDesigns.end())
-        Contexts.back() = FullDesigns[ForcedDesign];
+    Contexts.clear();
+    if (!ForcedDesign.empty() && Designs.find(ForcedDesign) != Designs.end())
+        Contexts.push_back(Designs[ForcedDesign]);
+    else
+        PushContext(true);
     hintStatus = HINT_NONE;
     //Positions returned by yacc contain the first and last char of range
     //so for a 1 char long selection first_pos=last_pos
@@ -643,47 +631,41 @@ MscColorSyntaxType Csh::GetCshAt(int pos)
 
 void CshContext::SetPlain()
 {
-    full = true;
-    for (auto i=ArcBase::defaultDesign.colors.begin(); i!=ArcBase::defaultDesign.colors.end(); i++)
+    Design plain;
+    plain.Reset();
+    for (auto i=plain.colors.begin(); i!=plain.colors.end(); i++)
         Colors[i->first] = i->second;
-    for (auto i=ArcBase::defaultDesign.styles.begin(); i!=ArcBase::defaultDesign.styles.end(); i++)
+    for (auto i=plain.styles.begin(); i!=plain.styles.end(); i++)
         StyleNames.insert(i->first);
 }
 
 Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1)
 {
-    for (auto i=ArcBase::defaultDesign.styles.begin(); i!=ArcBase::defaultDesign.styles.end(); i++)
+    Design plain;
+    plain.Reset();
+    for (auto i=plain.styles.begin(); i!=plain.styles.end(); i++)
         ForbiddenStyles.insert(i->first);
     ForbiddenStyles.erase("weak");
     ForbiddenStyles.erase("strong");
     PushContext(true);
-    Contexts.back().SetPlain();
-    FullDesigns["plain"] = Contexts.back();
 }
 
 void Csh::PushContext(bool empty)
 {
-    if (empty)
+    if (empty){
         Contexts.push_back(CshContext());
-    else 
+        Contexts.back().SetPlain();
+    } else {
         Contexts.push_back(Contexts.back());
+    }
 }
 
-std::string Csh::SetDesignTo(const std::string&design, bool full)
+bool Csh::SetDesignTo(const std::string&design)
 {
-    bool found_full = true;
-    auto i = FullDesigns.find(design);
-    if (i==FullDesigns.end()) {
-        i = PartialDesigns.find(design);
-        if (i==PartialDesigns.end()) {
-            return "Design '" + design + "' not defined earlier.";
-        }
-        found_full = false;
-    }
+    auto i = Designs.find(design);
+    if (i==Designs.end()) return false;
     Contexts.back() += i->second;
-    if (found_full == full) return "";
-    if (found_full) return "Design '" + design + "' is a full design. Use 'msc = ' instead of 'msc += '.";
-    return "Design '" + design + "' is a partial design. Use 'msc += ' instead of 'msc = '.";
+    return true;
 }
 
 CshCursorRelPosType Csh::CursorIn(int a, int b) const
@@ -1004,9 +986,9 @@ bool CshHintGraphicCallbackForDesigns(MscCanvas *canvas, CshHintGraphicParam /*p
     return true;
 }
 
-void Csh::AddDesignsToHints(bool full)
+void Csh::AddDesignsToHints()
 {
-    for (auto i= (full ? FullDesigns : PartialDesigns).begin(); i!=(full ? FullDesigns : PartialDesigns).end(); i++)
+    for (auto i= Designs.begin(); i!=Designs.end(); i++)
         Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
 }
 

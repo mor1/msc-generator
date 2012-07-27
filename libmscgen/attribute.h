@@ -78,8 +78,11 @@ class PtrList : public std::list<Object*>
             {if (o) push_front(o); return this;}
         PtrList *Prepend(PtrList<Object> *l)
 	        {if (l) {_ASSERT(responsible==l->responsible); splice(std::list<Object*>::begin(), *l);} return this;}        
-        void Empty() {if (responsible) for (auto i=this->begin(); i!=this->end(); i++) delete(*i); this->clear();}
-		~PtrList() {Empty();}
+		~PtrList()
+            {typename std::list<Object*>::iterator i=std::list<Object*>::begin();
+             if (responsible)
+                 while (i!=std::list<Object*>::end())
+                    delete *(i++);}
         string Print(int ident=0) const
             {typename std::list<Object*>::const_iterator i = std::list<Object*>::begin();
              string s;;
@@ -248,7 +251,6 @@ public:
     MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, double r) :
         type(true, t), color(true, c), width(true, w), radius(true, r), corner(true, ct) {}
     void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;}
-    bool IsEmpty() const {return !type.first && !color.first && !width.first && !corner.first && !radius.first;}
     bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;}
     void MakeComplete();
     MscLineAttr &operator +=(const MscLineAttr&a);
@@ -360,10 +362,9 @@ public:
         color(true, c), color2(true, c2), gradient(true,g) {}
     void Empty() {color.first = color2.first = gradient.first = false;}
     void MakeComplete();
-    bool IsEmpty() const {return !color.first && !gradient.first;} //color2 is not needed
     bool IsComplete() const {return color.first && gradient.first;} //color2 is not needed
     MscFillAttr &operator +=(const MscFillAttr&a);
-    bool operator == (const MscFillAttr &a) const;
+    bool operator == (const MscFillAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
@@ -392,25 +393,22 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
 
 struct MscNoteAttr {
 public:
-    typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} pointer_t;
-    typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN, LEFT_UP, LEFT_DOWN, RIGHT_UP, RIGHT_DOWN} pos_t;
-	std::pair<bool, pointer_t> pointer;
-    std::pair<bool, int> def_float_dist;
-    std::pair<bool, int> def_float_x;
-    std::pair<bool, int> def_float_y;
+    typedef enum {LAYOUT_INVALID=0, FLOAT, LEFT, RIGHT, LEFTRIGHT} layout_t;
+    typedef enum {BUBBLE_INVALID=0, NONE, RECTANGLE, ARROW} shape_t;
+    typedef enum {POINTO_INVALID=0, CENTER, OUTLINE} point_to_t;
+    std::pair<bool, layout_t> layout;
+	std::pair<bool, shape_t> shape;
+	std::pair<bool, point_to_t> point_to;
     MscNoteAttr() {Empty(); MakeComplete();}
-    void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;}
+    void Empty() {layout.first = shape.first = point_to.first=false;}
     void MakeComplete();
-    bool IsComplete() const {return pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;}
+    bool IsComplete() const {return layout.first && shape.first && point_to.first;}
     MscNoteAttr &operator +=(const MscNoteAttr&a);
     bool operator == (const MscNoteAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
-    static bool CshHintGraphicCallbackForLayout(MscCanvas *canvas, CshHintGraphicParam p);
-    static bool CshHintGraphicCallbackForPointer(MscCanvas *canvas, CshHintGraphicParam p);
-    static bool CshHintGraphicCallbackForPos(MscCanvas *canvas, CshHintGraphicParam p);
 };
 
 

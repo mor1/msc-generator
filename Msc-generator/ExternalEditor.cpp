@@ -213,7 +213,7 @@ void CExternalEditor::Stop(EStopEditor force)
 				if (::IsWindow(*i)) {
 					char buff[1024];
 					::GetWindowText(*i, buff, sizeof(buff)); 
-					if (strstr(buff, "signalling")!=NULL) {
+					if (strstr(buff, "signalling")!=NULL || strstr(buff, "Text of Unsigned")!=NULL) {
 						::SetForegroundWindow(*i);
 						::SendMessage(*i, WM_CLOSE, 0, 0); 
 					}

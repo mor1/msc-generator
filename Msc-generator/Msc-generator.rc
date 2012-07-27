@@ -665,8 +665,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,5,0,0
- PRODUCTVERSION 3,5,0,0
+ FILEVERSION 3,4,20,0
+ PRODUCTVERSION 3,4,20,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -683,12 +683,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "3.5.0.0"
+            VALUE "FileVersion", "3.4.20.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11-12.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "3.5.0.0"
+            VALUE "ProductVersion", "3.4.20.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -964,13 +964,13 @@ BEGIN
     ID_CHECK_EE_OTHER       "Use a user-specified editor as external editor. Specify the command line by pressing the button to the right.\nUser Specified Editor"
     ID_SPIN_PAGE            "Select Page (available only for multi-page charts)\nPage"
     ID_BUTTON_TRACK_COLOR   "Specifies the color of tracking rectangles.\nSet Tracking Color"
-    ID_BUTTON_TRACK_FILL    "Specifies the Line colr"
+    ID_BUTTON_TRACK_FILL    "Specifies the Line color"
 END
 
 STRINGTABLE
 BEGIN
     ID_BUTTON_EDITINTERNAL  "Toggles Internal Editor Window\nInternal Editor"
-    ID_BUTTON_EDITORS       "Text Edtors\nSelects internal & external text editors."
+    ID_BUTTON_EDITORS       "Selects internal & external text editors.\nText Editors"
 END
 
 #endif    // English (United States) resources

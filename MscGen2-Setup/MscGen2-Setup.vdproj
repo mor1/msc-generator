@@ -45,12 +45,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_76EFEA34F8D74229B2D5DF1864EB0C47"
-        "OwnerKey" = "8:_19F8CCEADD6D4FFDA35F9EA669FAEA76"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -489,15 +483,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Msc-generator"
-        "ProductCode" = "8:{B336E104-90CE-45A5-BB8B-46213D2662E6}"
-        "PackageCode" = "8:{8127A3BE-7063-43A2-AA33-1A0F99BDFCFA}"
+        "ProductCode" = "8:{12E5B286-522D-4539-A802-5069F6B8B10F}"
+        "PackageCode" = "8:{1CD298D2-7BFA-4888-92B9-9E8F71BA92DB}"
         "UpgradeCode" = "8:{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:3.5.1"
+        "ProductVersion" = "8:3.4.20"
         "Manufacturer" = "8:Zoltan Turanyi"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1534,20 +1528,6 @@
             "Icon" = "8:"
             "Feature" = "8:"
             }
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_6EF2E1543A0C4C75B8F4FB20035E9FD5"
-            {
-            "Name" = "8:Help"
-            "Arguments" = "8:"
-            "Description" = "8:Windows Help for Msc-generator"
-            "ShowCmd" = "3:1"
-            "IconIndex" = "3:0"
-            "Transitive" = "11:FALSE"
-            "Target" = "8:_1B922D1673AC46F7BBAB1450339B0CCA"
-            "Folder" = "8:_9170C9A931A748898DEC2E233B9401C5"
-            "WorkingFolder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
-            "Icon" = "8:"
-            "Feature" = "8:"
-            }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_72214C96388145BFAD062D3E3EEF4BEC"
             {
             "Name" = "8:Msc-generator"
@@ -1560,20 +1540,6 @@
             "Folder" = "8:_9170C9A931A748898DEC2E233B9401C5"
             "WorkingFolder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
             "Icon" = "8:_8D210BB11DE54BFF9295776C6C22707B"
-            "Feature" = "8:"
-            }
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_B9BB4ECDA26E41248AFC8EC683B63C2E"
-            {
-            "Name" = "8:Users Guide"
-            "Arguments" = "8:"
-            "Description" = "8:A PDF user manual document"
-            "ShowCmd" = "3:1"
-            "IconIndex" = "3:0"
-            "Transitive" = "11:FALSE"
-            "Target" = "8:_AA21D5A4D3D94A47B45FB4ECB8E6F1D6"
-            "Folder" = "8:_9170C9A931A748898DEC2E233B9401C5"
-            "WorkingFolder" = "8:_B0C725E42DB54E1995B14EB9D662DD5B"
-            "Icon" = "8:"
             "Feature" = "8:"
             }
         }
@@ -2019,20 +1985,6 @@
         }
         "MergeModule"
         {
-            "{CEE29DC0-9FBA-4B99-8D47-5BC643D9B626}:_76EFEA34F8D74229B2D5DF1864EB0C47"
-            {
-            "UseDynamicProperties" = "11:TRUE"
-            "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:Microsoft_VC100_CRT_x86.msm"
-                "Properties"
-                {
-                }
-            "LanguageId" = "3:0"
-            "Exclude" = "11:FALSE"
-            "Folder" = "8:"
-            "Feature" = "8:"
-            "IsolateTo" = "8:"
-            }
         }
         "ProjectOutput"
         {

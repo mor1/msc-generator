@@ -106,12 +106,10 @@ public:
 //Drawing related
 	unsigned GetPages() const;
 	CSize GetSize(bool force_page=false, unsigned forced_page=0) const;
-    const Block &GetMscTotal() const;
 	double GetPageYShift() const;
 	double GetBottomWithoutCopyright() const;
     double GetHeadingSize() const;
     void DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
-    void DrawToPrinter(HDC hdc, double x_scale=1.0, double y_scale=1.0) const;
 	void DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page=false, unsigned forced_page=0) const; 
 	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related

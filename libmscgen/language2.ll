@@ -45,7 +45,7 @@
 
 #include "colorsyntax.h"
 #include "language_misc.h"
-#include "commands.h" //MSC_* defs and CommandNote
+#include "arcs.h" //MSC_* defs
 #else
 #include "msc.h"
 #define YYMSC_RESULT_TYPE Msc
@@ -254,9 +254,6 @@ do {                                                \
 (?i:hspace)    yylval_param->str = strdup(yytext); return TOK_COMMAND_HSPACE;
 (?i:symbol)    yylval_param->str = strdup(yytext); return TOK_COMMAND_SYMBOL;
 (?i:note)      yylval_param->str = strdup(yytext); return TOK_COMMAND_NOTE;
-(?i:comment)   yylval_param->str = strdup(yytext); return TOK_COMMAND_COMMENT;
-(?i:title)     yylval_param->str = strdup(yytext); return TOK_COMMAND_TITLE;
-(?i:subtitle)  yylval_param->str = strdup(yytext); return TOK_COMMAND_SUBTITLE;
 
 \.\.\.   yylval_param->arctype=MSC_ARC_DISCO;       return TOK_SPECIAL_ARC;      // ...
 ---      yylval_param->arctype=MSC_ARC_DIVIDER;     return TOK_SPECIAL_ARC;      // ---
@@ -276,7 +273,6 @@ do {                                                \
 \+\+     yylval_param->arctype=MSC_EMPH_DASHED;     return TOK_EMPH;             // ++
 \.\.     yylval_param->arctype=MSC_EMPH_DOTTED;     return TOK_EMPH;             // ..
 ==       yylval_param->arctype=MSC_EMPH_DOUBLE;     return TOK_EMPH;             // ==
-\+=      return TOK_PLUS_EQUAL;
 -        return TOK_DASH;
 \+       return TOK_PLUS;
 =        return TOK_EQUAL;

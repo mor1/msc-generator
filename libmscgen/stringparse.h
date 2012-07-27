@@ -100,7 +100,6 @@ class StringFormat {
         {return ident.first?ident.second:MSC_IDENT_CENTER;}
     string Print() const;
     //Return text geometry
-    double getCharHeight(MscCanvas &) const;
     double getFragmentWidth(const string &, MscCanvas &) const;
     double getFragmentHeightAboveBaseLine(const string &, MscCanvas &) const;
     double getFragmentHeightBelowBaseLine(const string &, MscCanvas &) const;
@@ -162,8 +161,8 @@ public:
     operator std::string() const;
 
     XY getTextWidthHeight(int line=-1) const;
-    Contour Cover(double sx, double dx, double y, double cx=-CONTOUR_INFINITY) const {Contour a; CoverOrDraw(NULL, sx, dx, y, cx, false, &a); return a;}
-    void Draw(MscCanvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
+    Contour Cover(double sx, double dx, double y, double cx=-1, bool isRotated=false) const {Contour a; CoverOrDraw(NULL, sx, dx, y, cx, isRotated, &a); return a;}
+    void Draw(MscCanvas &canvas, double sx, double dx, double y, double cx=-1, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
 };
 
 

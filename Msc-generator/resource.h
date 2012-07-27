@@ -150,7 +150,6 @@
 #define ID_COPY_PAGE7                   32949
 #define ID_COPY_PAGE8                   32950
 #define ID_COPY_PAGE9                   32951
-#define ID_BUTTON4                      32951
 #define ID_COPY_PAGE10                  32952
 #define ID_COPY_PAGE11                  32953
 #define ID_COPY_PAGE12                  32954

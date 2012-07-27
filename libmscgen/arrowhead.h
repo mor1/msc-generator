@@ -69,7 +69,7 @@ protected:
     static double arrowSizePercentage[6];
 
 public:
-    enum ArcType {NONE, ARROW, BIGARROW, ANY, NOTE} type;
+    enum ArcType {NONE, ARROW, BIGARROW, ANY} type;
     MscLineAttr                   line;
     std::pair<bool, MscArrowSize> size;
     std::pair<bool, double>       xmul;
@@ -82,7 +82,6 @@ public:
         endType(true, MSC_ARROW_SOLID), midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
     void Empty();
     bool IsComplete() const {return line.IsComplete() && size.first && endType.first && midType.first && startType.first && xmul.first && ymul.first;}
-    void MakeComplete();
     ArrowHead & operator += (const ArrowHead &);
     bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
@@ -150,9 +149,5 @@ public:
                              const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
                              const Contour *clip=NULL, double angle_radian=0) const;
 };
-
-bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscArrowSize size, bool left);
-bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p);
-
 
 #endif //ARROWHEAD_H

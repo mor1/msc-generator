@@ -218,228 +218,7 @@ void DrawRelation(unsigned i, const Contour &c1, const Contour &c2, const char *
     c.Draw(c2, false, 0, 1, 0, true, 0);
 };
 
-void DrawDistance(unsigned i, const Contour &c1, const Contour &c2, const char *text="")
-{
-    Block b = c1.GetBoundingBox();
-    b += c2.GetBoundingBox();
-    const DistanceType dist = c1.Distance(c2);
-    b += XY(100,100);
-    if (dist.IsValid()) 
-        b += XY(fabs(dist.Distance())+20, fabs(dist.Distance()));
-    char uhh[1000];
-    const bool bad = !dist.IsZero() && !test_equal(fabs(dist.OnMe().Distance(dist.OnOther())), fabs(dist.Distance()));
-    sprintf(uhh, "Distance is %g. %s %s", dist.Distance(), bad ? "BAAAAD" : "", text);
-    CairoContext c(i, b, uhh, false);
-    if (dist.IsValid() && dist.Distance()>=0) {
-        c.Draw(c1.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
-        c.Draw(c2.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
-    }
-    c.Draw(c1, false, 1, 0, 0, true, 0);
-    c.Draw(c2, false, 0, 1, 0, true, 0);
-    if (dist.IsValid() && dist.Distance()<0) {
-        c.Draw(c1.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 1, 0.9, 0.9, true);
-        c.Draw(c2.CreateExpand(dist.Distance(), contour::EXPAND_ROUND), false, 0.9, 1, 0.9, true);
-    }
-    if (dist.IsValid()) {
-        cairo_set_source_rgb(c.cr, 0,0,0);
-        cairo_move_to(c.cr, 10, 20);
-        cairo_line_to(c.cr, 10, 30);
-        cairo_new_sub_path(c.cr);
-        cairo_move_to(c.cr, fabs(dist.Distance())+10, 20);
-        cairo_line_to(c.cr, fabs(dist.Distance())+10, 30);
-        cairo_new_sub_path(c.cr);
-        cairo_move_to(c.cr, 10, 25);
-        cairo_line_to(c.cr, fabs(dist.Distance())+10, 25);
-        cairo_set_line_width(c.cr, 2);
-    }
-    if (dist.OnMe().test_equal(dist.OnOther())) {
-        cairo_arc(c.cr, dist.OnMe().x, dist.OnMe().y, 5, 0, 2*M_PI);
-        cairo_fill(c.cr);
-    } else if (!dist.IsZero()) {
-        cairo_move_to(c.cr, dist.OnMe().x, dist.OnMe().y);
-        cairo_line_to(c.cr, dist.OnOther().x, dist.OnOther().y);
-        cairo_stroke(c.cr);
-    }
-};
-
-void DrawCut(unsigned i, const Contour &c1, unsigned num, const XY s[], const XY e[])
-{
-    Block b = c1.GetBoundingBox();
-    b.Expand(10);
-    const XY origo = b.UpperLeft();
-    b += XY(100,100);
-    b += XY(0,0);
-    CairoContext c(i, b, "", false);
-    c.Draw(c1, false, 1, 0, 0, true, 0);
-    for (unsigned u=0; u<num; u++) {
-        const Range r = c1.Cut(s[u]+origo, e[u]+origo);
-        XY start = origo + s[u], end = origo + e[u];
-        const XY from = origo + s[u] + (e[u]-s[u])*r.from;
-        const XY till = origo + s[u] + (e[u]-s[u])*r.till;
-        if (r.from<0) start = from;
-        if (r.till>1) end = till;
-        cairo_move_to(c.cr, start.x, start.y);
-        cairo_line_to(c.cr, end.x, end.y);
-        cairo_set_source_rgb(c.cr, 0.5, 1, 0.5);
-        cairo_stroke(c.cr);
-        cairo_set_source_rgb(c.cr, 0, 1, 0);
-        cairo_arc(c.cr, s[u].x + origo.x, s[u].y + origo.y, 3, 0, 2*M_PI);
-        cairo_fill(c.cr);
-        cairo_arc(c.cr, e[u].x + origo.x, e[u].y + origo.y, 3, 0, 2*M_PI);
-        cairo_fill(c.cr);
-        if (r.IsInvalid()) continue;
-        cairo_set_source_rgb(c.cr, 0, 0, 1);
-        cairo_arc(c.cr, from.x, from.y, 3, 0, 2*M_PI);
-        cairo_fill(c.cr);
-        cairo_arc(c.cr, till.x, till.y, 3, 0, 2*M_PI);
-        cairo_fill(c.cr);
-    }
-}
-
-void DrawExpand2D(unsigned i, const Contour &c1, const XY &gap, const char *text="")
-{
-    const Contour c2 = c1.CreateExpand2D(gap);
-    Block b = c1.GetBoundingBox();
-    b += c2.GetBoundingBox();
-    b += XY(100,100);
-    CairoContext c(i, b, text, false);
-    c.Draw(c1, false, 1, 0, 0, true, 0);
-    c.Draw(c2, false, 0.5, 1, 0.5, true, 0);
-    cairo_set_source_rgb(c.cr, 0, 0, 0);
-    cairo_rectangle(c.cr, c1[0][0].GetStart().x, c1[0][0].GetStart().y, gap.x, gap.y);
-    cairo_stroke(c.cr);
-    const unsigned edge = 3;
-    if (c1[0].size()>edge) 
-        cairo_rectangle(c.cr, c1[0][edge].GetStart().x, c1[0][edge].GetStart().y, gap.x, -gap.y);
-    cairo_stroke(c.cr);
-};
-
-void DrawTangent(unsigned i, const Contour &c1, const Contour &c2, const char *text="")
-{
-    Block b = c1.GetBoundingBox();
-    b += c2.GetBoundingBox();
-    XY C[2], CC[2];
-    bool was = c1.TangentFrom(c2, C, CC);
-    CairoContext c(i, b, text, false);
-    c.Draw(c1, false, 1, 0, 0, true, 0);
-    c.Draw(c2, false, 0, 1, 0, true, 0);
-    if (was) {
-        cairo_set_source_rgb(c.cr, 0,0,0);
-        cairo_move_to(c.cr, C[0].x, C[0].y);
-        cairo_line_to(c.cr, C[1].x, C[1].y);
-        cairo_stroke(c.cr);
-        cairo_arc(c.cr, C[0].x, C[0].y, 5, 0, 2*M_PI);
-        cairo_fill(c.cr);
-        cairo_arc(c.cr, C[1].x, C[1].y, 5, 0, 2*M_PI);
-        cairo_fill(c.cr);
-        cairo_move_to(c.cr, CC[0].x, CC[0].y);
-        cairo_line_to(c.cr, CC[1].x, CC[1].y);
-        cairo_stroke(c.cr);
-        cairo_arc(c.cr, CC[0].x, CC[0].y, 5, 0, 2*M_PI);
-        cairo_stroke(c.cr);
-        cairo_arc(c.cr, CC[1].x, CC[1].y, 5, 0, 2*M_PI);
-        cairo_stroke(c.cr);
-    }
-};
-
-
-
-namespace generated_forms {
-    Contour tri, boxhole, cooomplex, cooomplex2, cooomplex3;
-    Contour variable, custom, later, raster;
-    Contour circle, circle2, circle3, huhu, boxhole2;
-    Contour part, spart, partxy, spartxy, forexpbevel;
-    Contour lohere1, lohere2, lohere3, lohere4, lohere5, lohere6;
-    Contour rombusz, concave, triangle;
-    bool done = false;
-} //namespace local
-
-void generate_forms() 
-{
-    using namespace generated_forms;
-    if (done) return;
-    done = true;
-    tri = Contour(XY(50,90), XY(100,60), XY(40,20));
-    tri +=  Contour(30,70,60,70);
-
-	boxhole = Contour(130,170,60,70);
-	boxhole += Contour(160,170,60,140);
-	boxhole += Contour(130,140,60,140);
-	boxhole += Contour(130,170,130,140);
-    boxhole += Contour(148,153, 85, 115);
-
-    cooomplex=boxhole+tri;
-
-	cooomplex2 = Contour(110, 200, 80, 120);
-    cooomplex2 -= Contour(120, 190, 90, 110);
-
-    variable = boxhole + cooomplex2;
-	cooomplex2 += cooomplex;
-    later = cooomplex2;
-
-	custom = cooomplex2;
-    cooomplex2 += cooomplex2.CreateShifted(XY(15,15));
-
-    cooomplex2.Shift(XY(200,0));
-	custom. Shift(XY(200,0));
-    
-	const int num_x = 10;
-	const int num_y = 10;
-	for (int i=0; i<num_x; i++)
-		raster += Contour(200+i*20, 215+i*20, 200, 190+num_y*20);
-	for (int j=0; j<num_y; j++)
-		raster += Contour(200, 190+num_x*20, 200+j*20, 215+j*20);
-
-    cooomplex2.ClearHoles();
-
-    cooomplex2 *= Contour(XY(300,101), 100, 50);
-
-    circle = Contour(XY(200, 200), 60, 30, 30);
-	circle += Contour(200,300, 170,190);
-
-    double x=220, y=610;
-	circle2= Contour(XY(x, y), 60, 30, abs(x-y));
-    circle3 = circle2;
-    circle2 += Contour(x,x+100, y+15,y+30);
-
-	boxhole2 = Contour(110, 200, 80, 120);
-	boxhole2 -= Contour(120, 190, 90, 110);
-	huhu = boxhole2;
-	huhu.ClearHoles();
-	huhu *= Contour(XY(130,101), 30,20);
-
-    cooomplex3 = cooomplex2;
-	cooomplex2 = cooomplex3;
-	cooomplex2.RotateAround(XY(350,100), 39);
-    part = cooomplex2[1];
-    spart = cooomplex3[1];
-    partxy = part.CreateSwapXYd();
-    partxy.IsSane();
-    spartxy = spart.CreateSwapXYd();
-    spartxy.IsSane();
-
-    variable.ClearHoles();
-
-    const XY forexpbevel_points[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
-        XY(150,160), XY(100,160)};
-    forexpbevel.assign(forexpbevel_points);
-
-
-    lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25);
-    lohere1 += Contour(XY(25,75), 25);
-    lohere1 += Contour(XY(75,75), 25);
-    lohere2 = Contour(XY(100,100), 100) - Contour(XY(140,100), 120);
-    lohere3 = Contour(0,100, 0,100) - lohere1;
-    lohere4 = Contour(0,100, 0,100) +
-                      Contour(XY(0,0), 50) - Contour(XY(50,0), 50) + 
-                      Contour(XY(0,50), 50) - Contour(XY(50,50), 50);
-    lohere5 = lohere3[0];
-    lohere6 = lohere3[1];
-
-    rombusz = Contour(40,80,40,80).CreateRotatedAround(XY(60,60),45);
-    concave = Contour(0,40,0,100) - Contour(0,20,30,60) + Contour(XY(20,45), 15);
-    triangle = Contour(XY(0,0), XY(100,10), XY(0,20));
-}
+//NOW
 
 
 void contour_test_basic(void)
@@ -538,7 +317,7 @@ void contour_test_basic(void)
 	cooomplex2.RotateAround(XY(350,100), 39);
     Contour part = cooomplex2[1];
     Contour spart = cooomplex3[1];
-    DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, false);
+    DrawExpand(135, EXPAND_MITER, DBL_MAX, part, false);
 
     Draw(117, cooomplex3, cooomplex2, "SwapXY");
     Draw(1171, cooomplex2, cooomplex2.CreateSwapXYd(), "Rotated ellipse swapXY()");
@@ -558,37 +337,37 @@ void contour_test_basic(void)
     const XY forexpbevel[] = {XY(100,100), XY(130, 100), XY(100, 80), XY(150, 80),
         XY(150,160), XY(100,160)};
 
-    DrawExpand(121, EXPAND_MITER, CONTOUR_INFINITY, Contour(forexpbevel), false);
-    DrawExpand(122, EXPAND_ROUND, CONTOUR_INFINITY, Contour(forexpbevel), false);
-    DrawExpand(123, EXPAND_BEVEL, CONTOUR_INFINITY, Contour(forexpbevel), false);
+    DrawExpand(121, EXPAND_MITER, DBL_MAX, Contour(forexpbevel), false);
+    DrawExpand(122, EXPAND_ROUND, DBL_MAX, Contour(forexpbevel), false);
+    DrawExpand(123, EXPAND_BEVEL, DBL_MAX, Contour(forexpbevel), false);
 
     Contour box = Contour(10, 110, 10, 110) - Contour(30, 40, 30, 80) - Contour(80, 90, 30, 80);
-    DrawExpand(124, EXPAND_MITER, CONTOUR_INFINITY, box, false, "box with miter");
-    DrawExpand(125, EXPAND_ROUND, CONTOUR_INFINITY, box, false, "box with round");
-    DrawExpand(126, EXPAND_BEVEL, CONTOUR_INFINITY, box, false, "box with bevel");
-    DrawExpand(127, EXPAND_MITER, CONTOUR_INFINITY, variable, false, "boxhole with miter");
-    DrawExpand(128, EXPAND_ROUND, CONTOUR_INFINITY, variable, false, "boxhole with round");
-    DrawExpand(129, EXPAND_BEVEL, CONTOUR_INFINITY, variable, false, "boxhole with bevel");
-    DrawExpand(130, EXPAND_MITER, CONTOUR_INFINITY, later, false, "later with miter");
-    DrawExpand(131, EXPAND_BEVEL, CONTOUR_INFINITY, later, false, "later with bevel");
-    DrawExpand(132, EXPAND_ROUND, CONTOUR_INFINITY, later, false, "later with round");
-    DrawExpand(133, EXPAND_MITER, CONTOUR_INFINITY, cooomplex, false, "complex with miter");
-    DrawExpand(134, EXPAND_MITER, CONTOUR_INFINITY, huhu, false, "huhu with miter");
+    DrawExpand(124, EXPAND_MITER, DBL_MAX, box, false, "box with miter");
+    DrawExpand(125, EXPAND_ROUND, DBL_MAX, box, false, "box with round");
+    DrawExpand(126, EXPAND_BEVEL, DBL_MAX, box, false, "box with bevel");
+    DrawExpand(127, EXPAND_MITER, DBL_MAX, variable, false, "boxhole with miter");
+    DrawExpand(128, EXPAND_ROUND, DBL_MAX, variable, false, "boxhole with round");
+    DrawExpand(129, EXPAND_BEVEL, DBL_MAX, variable, false, "boxhole with bevel");
+    DrawExpand(130, EXPAND_MITER, DBL_MAX, later, false, "later with miter");
+    DrawExpand(131, EXPAND_BEVEL, DBL_MAX, later, false, "later with bevel");
+    DrawExpand(132, EXPAND_ROUND, DBL_MAX, later, false, "later with round");
+    DrawExpand(133, EXPAND_MITER, DBL_MAX, cooomplex, false, "complex with miter");
+    DrawExpand(134, EXPAND_MITER, DBL_MAX, huhu, false, "huhu with miter");
 
-    DrawExpand(135, EXPAND_MITER, CONTOUR_INFINITY, part, false, "part with miter");
-    DrawExpand(136, EXPAND_ROUND, CONTOUR_INFINITY, part, false, "part with round");
-    DrawExpand(137, EXPAND_BEVEL, CONTOUR_INFINITY, part, true, "part with bevel");
+    DrawExpand(135, EXPAND_MITER, DBL_MAX, part, false, "part with miter");
+    DrawExpand(136, EXPAND_ROUND, DBL_MAX, part, false, "part with round");
+    DrawExpand(137, EXPAND_BEVEL, DBL_MAX, part, true, "part with bevel");
 
-    DrawExpand(138, EXPAND_MITER, CONTOUR_INFINITY, spart, false, "spart with round");
-    DrawExpand(139, EXPAND_ROUND, CONTOUR_INFINITY, spart, false, "spart with round");
-    DrawExpand(140, EXPAND_BEVEL, CONTOUR_INFINITY, spart, false, "spart with round");
+    DrawExpand(138, EXPAND_MITER, DBL_MAX, spart, false, "spart with round");
+    DrawExpand(139, EXPAND_ROUND, DBL_MAX, spart, false, "spart with round");
+    DrawExpand(140, EXPAND_BEVEL, DBL_MAX, spart, false, "spart with round");
 
-    DrawExpand(150, EXPAND_MITER, CONTOUR_INFINITY, cooomplex3, false, "complex3 with miter");
-    DrawExpand(151, EXPAND_BEVEL, CONTOUR_INFINITY, cooomplex3, false, "complex3 with miter");
-    DrawExpand(152, EXPAND_ROUND, CONTOUR_INFINITY, cooomplex3, false, "complex3 with miter");
-    DrawExpand(153, EXPAND_MITER, CONTOUR_INFINITY, cooomplex2, false, "rounded complex3 with miter");
-    DrawExpand(154, EXPAND_BEVEL, CONTOUR_INFINITY, cooomplex2, false, "rounded complex3 with miter");
-    DrawExpand(155, EXPAND_ROUND, CONTOUR_INFINITY, cooomplex2, false, "rounded complex3 with miter");
+    DrawExpand(150, EXPAND_MITER, DBL_MAX, cooomplex3, false, "complex3 with miter");
+    DrawExpand(151, EXPAND_BEVEL, DBL_MAX, cooomplex3, false, "complex3 with miter");
+    DrawExpand(152, EXPAND_ROUND, DBL_MAX, cooomplex3, false, "complex3 with miter");
+    DrawExpand(153, EXPAND_MITER, DBL_MAX, cooomplex2, false, "rounded complex3 with miter");
+    DrawExpand(154, EXPAND_BEVEL, DBL_MAX, cooomplex2, false, "rounded complex3 with miter");
+    DrawExpand(155, EXPAND_ROUND, DBL_MAX, cooomplex2, false, "rounded complex3 with miter");
 
     Contour form1 = Contour(0, 100, 0, 50) + Contour(XY(0, 25), 10, 25) - Contour(XY(100, 25), 10, 25);
     Contour form2 = Contour(0, 100, 0, 50) - Contour(XY(0, 25), 10, 25) + Contour(XY(100, 25), 10, 25);
@@ -597,99 +376,115 @@ void contour_test_basic(void)
     Contour form5 = Contour(0, 100, 0, 50) - Contour(XY(0, 15), 15) - Contour(XY(0, 40), 10);
 
     
-    DrawExpand(160, EXPAND_MITER, CONTOUR_INFINITY, form1, false, "pipe with miter");
-    DrawExpand(161, EXPAND_MITER, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
-    DrawExpand(162, EXPAND_MITER, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(163, EXPAND_MITER, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(164, EXPAND_MITER, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
-    DrawExpand(170, EXPAND_BEVEL, CONTOUR_INFINITY, form1, false, "pipe with miter");
-    DrawExpand(171, EXPAND_BEVEL, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
-    DrawExpand(172, EXPAND_BEVEL, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(173, EXPAND_BEVEL, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(174, EXPAND_BEVEL, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
-    DrawExpand(180, EXPAND_ROUND, CONTOUR_INFINITY, form1, false, "pipe with miter");
-    DrawExpand(181, EXPAND_ROUND, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
-    DrawExpand(182, EXPAND_ROUND, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(183, EXPAND_ROUND, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(184, EXPAND_ROUND, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
+    DrawExpand(160, EXPAND_MITER, DBL_MAX, form1, false, "pipe with miter");
+    DrawExpand(161, EXPAND_MITER, DBL_MAX, form2, false, "reverse pipe with miter");
+    DrawExpand(162, EXPAND_MITER, DBL_MAX, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(163, EXPAND_MITER, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(164, EXPAND_MITER, DBL_MAX, form5, false, "two inverse circles with miter");
+    DrawExpand(170, EXPAND_BEVEL, DBL_MAX, form1, false, "pipe with miter");
+    DrawExpand(171, EXPAND_BEVEL, DBL_MAX, form2, false, "reverse pipe with miter");
+    DrawExpand(172, EXPAND_BEVEL, DBL_MAX, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(173, EXPAND_BEVEL, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(174, EXPAND_BEVEL, DBL_MAX, form5, false, "two inverse circles with miter");
+    DrawExpand(180, EXPAND_ROUND, DBL_MAX, form1, false, "pipe with miter");
+    DrawExpand(181, EXPAND_ROUND, DBL_MAX, form2, false, "reverse pipe with miter");
+    DrawExpand(182, EXPAND_ROUND, DBL_MAX, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(183, EXPAND_ROUND, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(184, EXPAND_ROUND, DBL_MAX, form5, false, "two inverse circles with miter");
 
-    DrawExpand(185, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form1, false, "pipe with miter");
-    DrawExpand(186, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
-    DrawExpand(187, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(188, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(189, EXPAND_MITER_BEVEL, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
+    DrawExpand(185, EXPAND_MITER_BEVEL, DBL_MAX, form1, false, "pipe with miter");
+    DrawExpand(186, EXPAND_MITER_BEVEL, DBL_MAX, form2, false, "reverse pipe with miter");
+    DrawExpand(187, EXPAND_MITER_BEVEL, DBL_MAX, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(188, EXPAND_MITER_BEVEL, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(189, EXPAND_MITER_BEVEL, DBL_MAX, form5, false, "two inverse circles with miter");
 
-    DrawExpand(190, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form1, false, "pipe with miter");
-    DrawExpand(191, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
-    DrawExpand(192, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(193, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(194, EXPAND_MITER_ROUND, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
+    DrawExpand(190, EXPAND_MITER_ROUND, DBL_MAX, form1, false, "pipe with miter");
+    DrawExpand(191, EXPAND_MITER_ROUND, DBL_MAX, form2, false, "reverse pipe with miter");
+    DrawExpand(192, EXPAND_MITER_ROUND, DBL_MAX, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(193, EXPAND_MITER_ROUND, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(194, EXPAND_MITER_ROUND, DBL_MAX, form5, false, "two inverse circles with miter");
 
-    DrawExpand(195, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form1, false, "pipe with miter");
-    DrawExpand(196, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form2, false, "reverse pipe with miter");
-    DrawExpand(197, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form3, false, "pipe with bigger circle with miter");
-    DrawExpand(198, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form4, false, "reverse pipe with bigger circle with miter");
-    DrawExpand(199, EXPAND_MITER_SQUARE, CONTOUR_INFINITY, form5, false, "two inverse circles with miter");
+    DrawExpand(195, EXPAND_MITER_SQUARE, DBL_MAX, form1, false, "pipe with miter");
+    DrawExpand(196, EXPAND_MITER_SQUARE, DBL_MAX, form2, false, "reverse pipe with miter");
+    DrawExpand(197, EXPAND_MITER_SQUARE, DBL_MAX, form3, false, "pipe with bigger circle with miter");
+    DrawExpand(198, EXPAND_MITER_SQUARE, DBL_MAX, form4, false, "reverse pipe with bigger circle with miter");
+    DrawExpand(199, EXPAND_MITER_SQUARE, DBL_MAX, form5, false, "two inverse circles with miter");
 };
 
 void contour_test_lohere(void) 
 {
-    generate_forms();
-    Draw(2181, Contour(XY(25,25), 25) + Contour(XY(75,25), 25));
-    Draw(2182, Contour(XY(25,25), 25) + Contour(XY(75,25), 25) + Contour(XY(25,75), 25));
-    Draw(2183, generated_forms::lohere1);
+    Contour lohere1 = Contour(XY(25,25), 25) + Contour(XY(75,25), 25);
+    Draw(2181, lohere1);
+    lohere1 += Contour(XY(25,75), 25);
+    Draw(2182, lohere1);
+    lohere1 += Contour(XY(75,75), 25);
+    Draw(2183, lohere1);
 
-    Draw(2184, Contour(0,100, 0,100), generated_forms::lohere1, Contour(0,100, 0,100) + generated_forms::lohere1);
-    Draw(2185, Contour(0,100, 0,100), generated_forms::lohere1, Contour(0,100, 0,100) - generated_forms::lohere1);
 
-    Draw(2190, generated_forms::lohere1);
-    Draw(2191, Contour(XY(100,100), 100), Contour(XY(140,100), 120), generated_forms::lohere2);
-    Draw(2192, generated_forms::lohere3);
-    Draw(2193, generated_forms::lohere4);
-    Draw(2194, generated_forms::lohere5);
+    Draw(2184, Contour(0,100, 0,100), lohere1, Contour(0,100, 0,100) + lohere1);
+    Draw(2185, Contour(0,100, 0,100), lohere1, Contour(0,100, 0,100) - lohere1);
 
-    Draw(2195, generated_forms::lohere6);
+    Contour lohere2 = Contour(XY(100,100), 100) - Contour(XY(140,100), 120);
 
-    Contour a = generated_forms::lohere3.CreateExpand(4, EXPAND_BEVEL, EXPAND_BEVEL);
+    Contour lohere3 = Contour(0,100, 0,100) - lohere1;
+    Contour lohere4 = Contour(0,100, 0,100) +
+                      Contour(XY(0,0), 50) - Contour(XY(50,0), 50) + 
+                      Contour(XY(0,50), 50) - Contour(XY(50,50), 50);
+
+    Contour lohere5 = lohere3[0];
+    
+    Draw(2190, lohere1);
+    Draw(2191, Contour(XY(100,100), 100), Contour(XY(140,100), 120), lohere2);
+    Draw(2192, lohere3);
+    Draw(2193, lohere4);
+    Draw(2194, lohere5);
+
+    Contour lohere6 = lohere3[1];
+    Draw(2195, lohere6);
+
+    Contour a = lohere3.CreateExpand(4, EXPAND_BEVEL, EXPAND_BEVEL);
     Contour b = a; b.ClearHoles();
     Draw(2196, a, b);
     Draw (2197,b, b - Contour(10,40,10,40));
     
-    DrawExpand(250, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere1, false);
-    DrawExpand(251, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere2, false);
-    DrawExpand(252, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere3, false);
-    DrawExpand(253, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere4, false);
-    DrawExpand(254, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere5, false);
-    DrawExpand(255, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::lohere6, false);
+    DrawExpand(250, EXPAND_MITER, DBL_MAX,lohere1, false);
+    DrawExpand(251, EXPAND_MITER, DBL_MAX,lohere2, false);
+    DrawExpand(252, EXPAND_MITER, DBL_MAX,lohere3, false);
+    DrawExpand(253, EXPAND_MITER, DBL_MAX,lohere4, false);
+    DrawExpand(254, EXPAND_MITER, DBL_MAX,lohere5, false);
+    DrawExpand(255, EXPAND_MITER, DBL_MAX,lohere6, false);
 
-    DrawExpand(260, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere1, false);
-    DrawExpand(261, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere2, false);
-    DrawExpand(262, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere3, false);
-    DrawExpand(263, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere4, false);
-    DrawExpand(264, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere5, false);
-    DrawExpand(265, EXPAND_BEVEL, CONTOUR_INFINITY, generated_forms::lohere6, false);
+    DrawExpand(260, EXPAND_BEVEL, DBL_MAX,lohere1, false);
+    DrawExpand(261, EXPAND_BEVEL, DBL_MAX,lohere2, false);
+    DrawExpand(262, EXPAND_BEVEL, DBL_MAX,lohere3, false);
+    DrawExpand(263, EXPAND_BEVEL, DBL_MAX,lohere4, false);
+    DrawExpand(264, EXPAND_BEVEL, DBL_MAX,lohere5, false);
+    DrawExpand(265, EXPAND_BEVEL, DBL_MAX,lohere6, false);
 
-    DrawExpand(270, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere1, false);
-    DrawExpand(271, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere2, false);
-    DrawExpand(272, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere3, false);
-    DrawExpand(273, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere4, false);
-    DrawExpand(274, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere5, false);
-    DrawExpand(275, EXPAND_ROUND, CONTOUR_INFINITY, generated_forms::lohere6, false);
+    DrawExpand(270, EXPAND_ROUND, DBL_MAX,lohere1, false);
+    DrawExpand(271, EXPAND_ROUND, DBL_MAX,lohere2, false);
+    DrawExpand(272, EXPAND_ROUND, DBL_MAX,lohere3, false);
+    DrawExpand(273, EXPAND_ROUND, DBL_MAX,lohere4, false);
+    DrawExpand(274, EXPAND_ROUND, DBL_MAX,lohere5, false);
+    DrawExpand(275, EXPAND_ROUND, DBL_MAX,lohere6, false);
 
-    DrawExpand(350, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);
-    DrawExpand(351, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 20), false);
-    DrawExpand(352, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), false);
+    DrawExpand(350, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(60,50), 20), false);
+    DrawExpand(351, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 20), false);
+    DrawExpand(352, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + Contour(XY(50,50), 30,15, 130), false);
 
-    DrawExpand(353, EXPAND_MITER, CONTOUR_INFINITY,Contour(0,40, 0,100) + generated_forms::rombusz, false);
-    DrawExpand(354, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::rombusz + generated_forms::rombusz.CreateShifted(XY(40,0)), false);
+    Contour rombusz = Contour(40,80,40,80).CreateRotatedAround(XY(60,60),45);
+    DrawExpand(353, EXPAND_MITER, DBL_MAX,Contour(0,40, 0,100) + rombusz, false);
+    DrawExpand(354, EXPAND_MITER, DBL_MAX,rombusz +rombusz.CreateShifted(XY(40,0)), false);
 
-    DrawExpand(355, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::concave, false);
+    Contour concave = Contour(0,40,0,100) - Contour(0,20,30,60) + Contour(XY(20,45), 15);
+    DrawExpand(355, EXPAND_MITER, DBL_MAX,concave, false);
 
-    DrawExpand(356, EXPAND_MITER, CONTOUR_INFINITY, generated_forms::triangle, false);
-    DrawExpand(357, EXPAND_MITER, 1.2, generated_forms::triangle, false);
-    DrawExpand(358, EXPAND_MITER, 2, generated_forms::triangle, false);
-    DrawExpand(359, EXPAND_MITER, 1, generated_forms::triangle, false);
-    DrawExpand(360, EXPAND_MITER, 0, generated_forms::triangle, false);
+    Contour triangle(XY(0,0), XY(100,10), XY(0,20));
+    DrawExpand(356, EXPAND_MITER, DBL_MAX, triangle, false);
+    DrawExpand(357, EXPAND_MITER, 1.2, triangle, false);
+    DrawExpand(358, EXPAND_MITER, 2, triangle, false);
+    DrawExpand(359, EXPAND_MITER, 1, triangle, false);
+    DrawExpand(360, EXPAND_MITER, 0, triangle, false);
 };
 
 void contour_test_assign(unsigned num)
@@ -801,141 +596,15 @@ void contour_test_relations(unsigned num)
     DrawRelation(num+20, c1[1]+c2[1], c1[4], "HOLE_MIXED");
 };
 
-void contour_test_distance(unsigned num)
-{
-    Contour c1(30, 100, 30, 100);
-    Contour c2(130, 150, 140, 200);
-    DrawDistance(num++, c1, c2, "");
-
-    Contour c3(XY(120, 200), 40, 60, 20);
-    DrawDistance(num++, c1, c3);
-
-    c3.Shift(XY(30,0));
-    DrawDistance(num++, c1, c3);
-
-    c3.Shift(XY(70,0));
-    DrawDistance(num++, c1, c3);
-    DrawDistance(num++, c1, c3 * Block(180, 400, 0, 500));
-    DrawDistance(num++, c1, c3 * Block(200, 400, 0, 500));
-    DrawDistance(num++, c1, c3 * Block(2300, 400, 0, 500));
-
-    DrawDistance(num++, c3.CreateRotated(30), c3);
-    DrawDistance(num++, c3 * Block(180, 400, 0, 500), (c3 * Block(180, 400, 0, 500)).Rotate(30));
-    DrawDistance(num++, c3 * Block(200, 400, 0, 500), (c3 * Block(200, 400, 0, 500)).Rotate(30));
-
-    Contour c4 = c1 - Block(40, 90, 40, 90);
-    DrawDistance(num++, c4, Contour(XY(60,60), 40, 20));
-    DrawDistance(num++, c4, Contour(XY(60,60), 30, 20));
-    DrawDistance(num++, c4, Contour(XY(60,60), 30, 15));
-    DrawDistance(num++, c4, Contour(XY(60,60), 20, 15));
-    DrawDistance(num++, c4, Contour(XY(60,60), 15, 10));
-
-    DrawDistance(num++, c1, Block(40, 90, 40, 90));
-    DrawDistance(num++, c1, Contour(40, 90, 40, 90) + Contour(140,150,30,40));
-    DrawDistance(num++, c1 - Block(40, 50, 40, 50), Block(60, 70, 60, 70));
-    DrawDistance(num++, c1 - Block(40, 50, 40, 50) - Block (65, 75, 65, 75), Block(60, 70, 60, 70));
-    DrawDistance(num++, c4 + Block(50, 80, 50, 80), Block(60, 70, 60, 70));
-}
-
-void contour_test_cut(unsigned num)
-{
-    generate_forms();
-    const XY start[] = {XY(0,0), XY(20,30), XY(100, 200)};
-    const XY end[] = {XY(30,40), XY(210,20), XY(10, 30)};
-    DrawCut(num++, generated_forms::boxhole.GetBoundingBox(), sizeof(start)/sizeof(XY), start, end);
-    DrawCut(num++, generated_forms::tri, sizeof(start)/sizeof(XY), start, end);
-    DrawCut(num++, generated_forms::raster, sizeof(start)/sizeof(XY), start, end);
-    DrawCut(num++, generated_forms::boxhole, sizeof(start)/sizeof(XY), start, end);
-    DrawCut(num++, generated_forms::cooomplex3, sizeof(start)/sizeof(XY), start, end);
-}
-
-
-void contour_test_expand2D(unsigned num)
-{
-    generate_forms();
-    DrawExpand2D(num++, generated_forms::boxhole, XY(10,10));
-    DrawExpand2D(num++, generated_forms::boxhole, XY(10,20));
-    DrawExpand2D(num++, generated_forms::boxhole, XY(10,30));
-    DrawExpand2D(num++, generated_forms::boxhole, XY(30,10));
-    DrawExpand2D(num++, generated_forms::boxhole, XY(0,100));
-
-    DrawExpand2D(num++, Contour(XY(50,50),40), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40), -XY(5,10));
-
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 00), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 10), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 20), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 30), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 40), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 50), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 60), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 70), XY(30,10));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 80), XY(30,10));
-
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 00), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 10), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 20), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 30), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 40), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 50), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 60), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 70), -XY(10,5));
-    DrawExpand2D(num++, Contour(XY(50,50),40, 20, 80), -XY(10,5));
-
-    DrawExpand2D(num++, generated_forms::tri, XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(10), XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(20), XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(30), XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(40), XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(50), XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(60), XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(70), XY(30,10));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(80), XY(30,10));
-
-    DrawExpand2D(num++, generated_forms::tri, -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(10), -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(20), -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(30), -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(40), -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(50), -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(60), -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(70), -XY(10,5));
-    DrawExpand2D(num++, generated_forms::tri.CreateRotated(80), -XY(10,5));
-
-    DrawExpand2D(num++, generated_forms::circle, XY(30,10));
-    DrawExpand2D(num++, generated_forms::concave, XY(30,10));
-    DrawExpand2D(num++, generated_forms::cooomplex2[0], XY(30,10));
-    DrawExpand2D(num++, generated_forms::cooomplex2[1], XY(30,10));
-    DrawExpand2D(num++, generated_forms::cooomplex2, XY(30,10));
-}
-
-void contour_test_tangent(unsigned num)
-{
-    generate_forms();
-    DrawTangent(num++, generated_forms::boxhole, generated_forms::boxhole.CreateShifted(XY(50,20)));
-    DrawTangent(num++, generated_forms::boxhole, generated_forms::boxhole.CreateShifted(XY(50,-20)));
-    DrawTangent(num++, generated_forms::boxhole, generated_forms::tri.CreateShifted(XY(150,20)));
-    DrawTangent(num++, generated_forms::boxhole, Contour(XY(150,20), 10, 20, 30));
-    DrawTangent(num++, Contour(XY(10,50), 30, 10, -10), Contour(XY(150,20), 10, 20, 30));
-    DrawTangent(num++, generated_forms::boxhole, Contour(generated_forms::cooomplex2[0]).CreateShifted(XY(50,20)));
-    DrawTangent(num++, generated_forms::boxhole, Contour(generated_forms::cooomplex2[1]).CreateShifted(XY(50,20)));
-    DrawTangent(num++, generated_forms::boxhole, generated_forms::cooomplex2.CreateShifted(XY(50,20)));
-    DrawTangent(num++, generated_forms::cooomplex2, Contour(XY(150,20), 10, 20, 30));
-    DrawTangent(num++, generated_forms::cooomplex2.CreateRotated(10), generated_forms::cooomplex2.CreateShifted(XY(100,20)));
-}
 
 
 void contour_test(void)
 {
-    //contour_test_basic();
-    //contour_test_assign(111);
-    //contour_test_lohere();
-    //contour_test_area(400);
-    //contour_test_relations(7000);
-    //contour_test_distance(7100);
-    //contour_test_cut(7300);
-    //contour_test_expand2D(7400);
-    contour_test_tangent(7500);
+//    contour_test_basic();
+//    contour_test_assign(111);
+//    contour_test_lohere();
+//    contour_test_area(400);
+    contour_test_relations(7000);
 }
 
 } //namespace

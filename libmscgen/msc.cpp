@@ -243,9 +243,8 @@ string EntityDistanceMap::Print()
 //CommandEntity in Msc::PostParseProcess()
 Msc::Msc() :
     AllEntities(true), ActiveEntities(false), AutoGenEntities(false),
-    Arcs(true), Notes(false), NoteBlockers(false), 
-    total(0,0,0,0), drawing(0,0,0,0), 
-    comments_right_side(0), copyrightTextHeight(0), headingSize(0)
+    Arcs(true),
+    total(0,0), copyrightTextHeight(0), headingSize(0)
 {
     chartTailGap = 3;
     selfArrowYSize = 12;
@@ -256,25 +255,26 @@ Msc::Msc() :
     arcVGapAbove = 0;
     arcVGapBelow = 3;
     discoVgap = 5;
-    titleVgap = 10;
-    subtitleVgap = 5;
     nudgeSize = 4;
     activeEntitySize = 14;
     compressGap = 2;
     hscaleAutoXGap = 5;
-    sideNoteGap = 5;
     trackFrameWidth = 4;
     trackExpandBy = 2;
 
+    hscale = 1;
     pedantic=false;
     ignore_designs = false;
 
     current_file = Error.AddFile("[config]");
     
-    //Add "plain" style 
-    Designs["plain"].Plain();
-    //Add global context, with "plain" design
-    Contexts.push_back(Designs["plain"]);
+    //Add topmost style and color sets (global context), all empty now
+    Contexts.push_back(Context());
+
+    //Add "plain" style - the default constructor of Design sets that
+    Designs["plain"];
+    //Apply "plain" design
+    SetDesign("plain", true);
 
     //Add virtual entities
     //NoEntity will be the one representing "NULL"
@@ -296,58 +296,32 @@ Msc::Msc() :
     AllEntities.Append(LSide);
     AllEntities.Append(RSide);
     AllEntities.Append(RNote);
-
-    //This sets the global context to "plain" (redundant) 
-    //and adds CommandEntities for lcomment.* and CommandBackground if needed.
-    ArcBase *toadd;
-    SetDesign(true, "plain", true, &toadd); 
-    Arcs.Append(toadd);
 }
 
-Msc::~Msc() 
+bool Msc::SetDesign(const string&name, bool force)
 {
-    //Proper deletion order
-    Arcs.Empty();    //This must be before Notes, since TrackableElement::~ will use chart->Notes
-}
-
-//return value: 0 not found
-//0: found, OK
-//2: found, but is full, whereas should be partial
-//3: found, but is partiall, whereas should be full
-//also appends elements to Arcs !!! (e.g., background)
-int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, const file_line_range &l)
-{
-    *ret = NULL;
-    auto i = Designs.find(name);
+    std::map<string,Design>::const_iterator i = Designs.find(name);
     if (i==Designs.end())
-        return 0;
+        return false;
     if (ignore_designs &&!force)
-        return 1;
-    Contexts.back() += i->second;
-    ArcList list(true);
-    if (!i->second.defBackground.IsEmpty())
-        list.Append((new CommandNewBackground(this, i->second.defBackground))->AddAttributeList(NULL));
-    if (!i->second.defCommentFill.IsEmpty() || !i->second.defCommentLine.IsEmpty()) {
-        MscStyle s; //empty
-        s.vline += i->second.defCommentLine;
-        s.fill += i->second.defCommentFill;
-        list.Append(CEForComments(s, l));
-    }
-    if (list.size())
-        *ret = (new CommandArcList(this, &list))->AddAttributeList(NULL);
-    if (full == i->second.is_full) return 1;
-    return full ? 3 : 2;
+        return true;
+    Contexts.back().numbering = i->second.numbering;
+    Contexts.back().compress  = i->second.compress;
+    hscale = i->second.hscale;
+    for (ColorSet::const_iterator j = i->second.colors.begin(); j!=i->second.colors.end(); j++)
+        Contexts.back().colors[j->first] = j->second;
+    for (StyleSet::const_iterator j = i->second.styles.begin(); j!=i->second.styles.end(); j++)
+        Contexts.back().styles[j->first] = j->second;
+	Contexts.back().numberingStyle = i->second.numberingStyle;
+    return true;
 }
 
-string Msc::GetDesigns(bool full) const
+string Msc::GetDesigns() const
 {
-    string retval;
-    for (auto i = Designs.begin(); i!=Designs.end(); i++)
-        if (i->second.is_full == full) {
-            if (retval.length()) 
-                retval.append(" ");
-            retval.append(i->first);
-        }
+    std::map<string,Design>::const_iterator i = Designs.begin();
+    string retval = i->first;
+    for (i++; i!=Designs.end(); i++)
+        retval.append(" ").append(i->first);
     return retval;
 }
 
@@ -509,108 +483,66 @@ void Msc::AddArcs(ArcList *a)
     delete a;
 }
 
-CommandEntity *Msc::CEForComments(const MscStyle &s, const file_line_range &l)
-{
-    EntityDef *led = new EntityDef(LNOTE_ENT_STR, this);
-    led->SetLineEnd(l);
-    led->style += s;
-    EntityDefHelper *ledh = led->AddAttributeList(NULL, NULL, file_line());
-    EntityDef *red = new EntityDef(RNOTE_ENT_STR, this);
-    red->SetLineEnd(l);
-    red->style += s;
-    EntityDefHelper *redh = red->AddAttributeList(NULL, NULL, file_line());
-    redh->Prepend(ledh);
-    delete ledh;
-    CommandEntity *ce = new CommandEntity(redh, this, true);
-    ce->AddAttributeList(NULL);
-    return ce;
-}
-
-ArcBase *Msc::AddAttribute(const Attribute &a)
+bool Msc::AddAttribute(const Attribute &a)
 {
     //Chart options cannot be styles
-    _ASSERT(a.type != MSC_ATTR_STYLE);
+    assert (a.type != MSC_ATTR_STYLE);
 
-    if (a.Is("msc") || a.Is("msc+")) {
-        const bool full = a.Is("msc");
-        if (!a.CheckType(MSC_ATTR_STRING, Error)) return NULL;
-        const file_line_range line(a.linenum_attr.start, a.linenum_value.end);
-        ArcBase *ret;
-        switch (SetDesign(full, a.value, false, &ret, line)) { 
-        case 0:
-            Error.Error(a, true, "Unknown chart design: '" + a.value +
-                        "'. Ignoring design selection.",
-                        "Available designs are: " + GetDesigns(full) +".");
-            break;
-        case 2:
-            Error.Warning(a, true, "Use of '+=' to set a full design.", "Use 'msc = " + a.value + "' to suppress this warning.");
-            break;
-        case 3:
-            Error.Warning(a, true, "Use of '=' to apply a partial design.", "Use 'msc += " + a.value + "' to suppress this warning.");
-        case 1:
-            break;
-        default:
-            _ASSERT(0);
-            break;
-        }
-        return ret;
+    if (a.Is("msc")) {
+        if (!a.CheckType(MSC_ATTR_STRING, Error)) return true;
+        if (!SetDesign(a.value, false))
+            Error.Warning(a.linenum_value.start, "Unknown chart design: '" + a.value +
+                          "'. Ignoring design selection.",
+                          "Available styles are: " + GetDesigns() +".");
+        return true;
     }
     if (a.Is("hscale")) {
         if (a.type == MSC_ATTR_NUMBER && a.number>=0.01 && a.number <= 100) {
-            Contexts.back().hscale.first = true;
-            Contexts.back().hscale.second = a.number;
-            return NULL;
+            hscale = a.number;
+            return true;
         } else if (a.type == MSC_ATTR_STRING && a.value == "auto") {
-            Contexts.back().hscale.first = true;
-            Contexts.back().hscale.second = -1;
-            return NULL;
+            hscale = -1;
+            return true;
         }
         a.InvalidValueError("0.01..100' or 'auto", Error);
-        return NULL;
+        return true;
     }
     if (a.Is("compress")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
-        Contexts.back().compress.first = true;
-        Contexts.back().compress.second = a.yes;
-        return NULL;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        Contexts.back().compress = a.yes;
+        return true;
     }
     if (a.Is("indicator")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
-        Contexts.back().indicator.first = true;
-        Contexts.back().indicator.second = a.yes;
-        return NULL;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        Contexts.back().indicator = a.yes;
+        return true;
     }
-    if (a.StartsWith("text")) {
-        Contexts.back().text.AddAttribute(a, this, STYLE_OPTION); //generates error if needed
-        return NULL;
-    }
+    if (a.StartsWith("text"))
+        return Contexts.back().text.AddAttribute(a, this, STYLE_OPTION);
     if (a.Is("numbering")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
-        Contexts.back().numbering.first=true;
-        Contexts.back().numbering.second = a.yes;
-        return NULL;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
+        Contexts.back().numbering = a.yes;
+        return true;
     }
     if (a.Is("numbering.pre")) {
-        Contexts.back().numberingStyle.pre.first = true;
-        Contexts.back().numberingStyle.pre.second = a.value;
-        StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre.second, this,
+        Contexts.back().numberingStyle.pre = a.value;
+        StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
-        return NULL;
+        return true;
     }
     if (a.Is("numbering.post")) {
-        Contexts.back().numberingStyle.post.first = true;
-        Contexts.back().numberingStyle.post.second = a.value;
-        StringFormat::ExpandReferences(Contexts.back().numberingStyle.post.second, this,
+        Contexts.back().numberingStyle.post = a.value;
+        StringFormat::ExpandReferences(Contexts.back().numberingStyle.post, this,
                                           a.linenum_value.start, NULL,
                                           true, StringFormat::LABEL);
-        return NULL;
+        return true;
     }
     if (a.Is("numbering.append")) {
         std::vector<NumberingStyleFragment> nsfs;
         if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs))
             Contexts.back().numberingStyle.Push(nsfs);
-        return NULL;
+        return true;
     }
     if (a.Is("numbering.format")) {
         std::vector<NumberingStyleFragment> nsfs;
@@ -623,91 +555,43 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
                 Error.Error(a, true, msg);
             }
         }
-        return NULL;
+        return true;
     }
 
     if (a.Is("pedantic")) {
-        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return true;
         pedantic = a.yes;
-        return NULL;
+        return true;
     }
     if (a.Is("angle")) {
-        if (!a.EnsureNotClear(Error, STYLE_ARC)) return NULL;
-        if (!a.CheckType(MSC_ATTR_NUMBER, Error)) return NULL;
+        if (!a.EnsureNotClear(Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_NUMBER, Error)) return true;
         if (a.number<0 || a.number>45) {
             string x;
             if (a.number<0) x = "0";
             if (a.number>45) x = "45";
-            Error.Warning(a, true, "Using " + x + " degrees instead of the specified value.",
+            Error.Error(a, true, "Using " + x + " degrees instead of the specified value.",
                 "The slant angle must be between 0 and 45 degrees.");
-            if (a.number<0) Contexts.back().slant_angle.second = 0;
-            else if (a.number>45) Contexts.back().slant_angle.second = 45;
-        } else 
-            Contexts.back().slant_angle.second = a.number;
-        Contexts.back().slant_angle.first = true;
-        return NULL;
+            if (a.number<0) Contexts.back().slant_angle = 0;
+            else if (a.number>45) Contexts.back().slant_angle = 45;
+        } else
+            Contexts.back().slant_angle = a.number;
+        return true;
     }
-    if (a.StartsWith("background")) {
-        MscFillAttr fill;
-        fill.Empty();
-        if (fill.AddAttribute(a, this, STYLE_OPTION)) { //generates error if needed
-            Contexts.back().defBackground += fill;
-            return (new CommandNewBackground(this, fill))->AddAttributeList(NULL);
-        }
-        return NULL;
-    }
-    if (a.StartsWith("comment")) {
-        if (CaseInsensitiveBeginsWith(a.name.substr(8), "line") ||
-            CaseInsensitiveBeginsWith(a.name.substr(8), "fill")) {
-            const bool line = CaseInsensitiveBeginsWith(a.name.substr(8), "line");
-            MscStyle toadd; //empty
-            bool OK;
-            if (line) {
-                OK = toadd.line.AddAttribute(a, this, STYLE_OPTION); //generates errors if needed
-                if (OK) std::swap(toadd.line, toadd.vline); //option shall be stored in vline
-            } else
-                OK = toadd.fill.AddAttribute(a, this, STYLE_OPTION); //generates errors if needed
-            if (OK) {
-                Contexts.back().defCommentFill += toadd.fill;
-                Contexts.back().defCommentLine += toadd.vline;
-                return CEForComments(toadd, file_line_range(a.linenum_attr.start, a.linenum_value.end));
-            }
-            //fallthrough till error if not "OK"
-        }
-    }
-    
+
     string ss;
     Error.Error(a, false, "Option '" + a.name + "' not recognized. Ignoring it.");
-    return NULL;
+    return false;
 }
 
 //Add an attribute only if it can be part of a design. Others trigger error.
 //This is called when a design definition is in progress.
 bool Msc::AddDesignAttribute(const Attribute &a)
 {
-    if (a.Is("numbering.append")) 
-        goto error;
-    if (a.Is("numbering.format")) {
-        std::vector<NumberingStyleFragment> nsfs;
-        if (NumberingStyleFragment::Parse(this, a.linenum_value.start, a.value.c_str(), nsfs)) {
-            int off = Contexts.back().numberingStyle.Apply(nsfs);
-            if (off > 0) {
-                string msg = "Only the format of the top level number can be set as part of the design definition.";
-                msg << " Ignoring option.";
-                Error.Error(a, true, msg);
-            }
-        }
-        return true;
-    }
-    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
-        a.StartsWith("text") || a.StartsWith("comment") || a.StartsWith("background")) {
-        ArcBase *ret = AddAttribute(a);
-        if (ret)
-            delete ret;
-        return true;
-    }
-error:
-    Error.Error(a, false, "Cannot set option '" + a.name +
+    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") ||
+        a.StartsWith("text"))
+        return AddAttribute(a);
+    Error.Warning(a, false, "Cannot set attribute '" + a.name +
                   "' as part of a design definition. Ignoring it.");
     return false;
 }
@@ -728,32 +612,12 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.color2", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "background.gradient", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.type", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.width", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.color2", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.fill.gradient", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.radius", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "lcomment.line.corner", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.type", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.line.width", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.color", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.color2", HINT_ATTR_NAME));
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rcomment.fill.gradient", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.radius", HINT_ATTR_NAME));
-    //csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "rnote.line.corner", HINT_ATTR_NAME));
 }
 
 bool Msc::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"msc")) {
-        csh.AddDesignsToHints(true);
-        return true;
-    }
-    if (CaseInsensitiveEqual(attr,"msc+")) {
-        csh.AddDesignsToHints(false);
+        csh.AddDesignsToHints();
         return true;
     }
     if (CaseInsensitiveEqual(attr,"hscale")) {
@@ -770,12 +634,6 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveBeginsWith(attr, "text"))
         return StringFormat::AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWith(attr, "lcomment.line") ||
-        CaseInsensitiveBeginsWith(attr, "rcomment.line"))
-        return MscLineAttr::AttributeValues(attr, csh);
-    if (CaseInsensitiveBeginsWith(attr, "lcomment.fill") ||
-        CaseInsensitiveBeginsWith(attr, "rcomment.fill"))
-        return MscFillAttr::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
         MscFillAttr::AttributeValues(attr, csh);
@@ -799,6 +657,7 @@ void Msc::PushContext(bool empty)
 {
     if (empty) {
         Contexts.push_back(Context());
+        SetDesign("plain", true);
     } else
         Contexts.push_back(Contexts.back());
 }
@@ -806,13 +665,11 @@ void Msc::PushContext(bool empty)
 ArcBase *Msc::PopContext()
 {
     if (Contexts.size()<2) return NULL;
-    const bool full = Contexts.back().is_full;
-    const size_t old_size = full ? Contexts.back().numberingStyle.Size() : 0;
+    size_t old_size = Contexts.back().numberingStyle.Size();
     Contexts.pop_back();
-    //if numbering continues with the same amount of levels (or if this was a partial
-    //context used to specify a design), no action will be needed
+    //if numbering continues with the same amount of levels, no action will be needed
     //in PostParseProcess, so we do not generate any Command arcs.
-    if (!full || old_size == Contexts.back().numberingStyle.Size())
+    if (old_size == Contexts.back().numberingStyle.Size())
         return NULL;
     //if number of levels is less in the outer context, we will need to trim the Numbering list
     //during PostParseProcess after processing all arcs in the inner context, so we insert
@@ -826,6 +683,8 @@ ArcBase *Msc::PopContext()
 
 void Msc::ParseText(const char *input, const char *filename)
 {
+    last_notable_arc = NULL;
+    had_notes = false;
     current_file = Error.AddFile(filename);
     if (strlen(input) > std::numeric_limits<unsigned>::max())
         Error.Error(file_line(), "Input text is longer than 4Gbyte. Bailing out.");
@@ -868,102 +727,39 @@ string Msc::Print(int ident) const
 
 void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
-                                  Numbering &number, bool top_level, TrackableElement **target)
+                                  Numbering &number, bool top_level)
 {
-    if (arcs.size()==0) return;
-    for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
-        //Splice in CommandArcList members
-        CommandArcList *al = dynamic_cast<CommandArcList *>(*i);
-        if (al) {
-            al->MoveContent(arcs, i);
-            //al now empty
-            delete al;
-            arcs.erase(i++);  //we will also check the content of al for further CommandArcLists
-            continue;
-        } else 
-            i++;
-    }
-    //If a CommandNote is immediately after an CommandEntity, take it out 
-    //and temporarily store it in the CommandEntity (for re-insertation further below)
-    for (ArcList::iterator i = ++arcs.begin(); i != arcs.end(); /*none*/) {
-        ArcList::iterator prev = i; prev--;
-        CommandEntity *ce = dynamic_cast<CommandEntity *>(*prev);
-        CommandNote *cn = dynamic_cast<CommandNote *>(*i);
-        if (ce == NULL || cn == NULL) {
-            i++;
-            continue;
-        }
-        ce->TmpStoreNote(cn);
-        arcs.erase(i++);
-    }
-
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
         if (resetiterators) {
             right = left = AllEntities.Find_by_Ptr(NoEntity);
             _ASSERT (left != AllEntities.end());
         }
         //Combine subsequent CommandEntities
-        CommandEntity * const ce = dynamic_cast<CommandEntity *>(*i);
+        CommandEntity *ce = dynamic_cast<CommandEntity *>(*i);
         while (ce) {
             ArcList::iterator j = i;
             j++;
             if (j==arcs.end()) break;
-            CommandEntity * const ce2 = dynamic_cast<CommandEntity *>(*j);
-            if (!ce2 || ce->internally_defined != ce2->internally_defined) break;
+            CommandEntity *ce2 = dynamic_cast<CommandEntity *>(*j);
+            if (!ce2) break;
             ce->Combine(ce2);
             delete ce2;
             arcs.erase(j);
-            //i remains at this very same CommandEntity!
+            continue; //i remains at this very same CommandEntity!
         }
-        TrackableElement * const old_target = *target;
-        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
-        //if the new target is somewhere inside "i" (or is exactly == to "i")
-        //NOTE: *target is never set to NULL, only to DELETE_NOTE or to an Arc
-        if (*target != old_target && replace != (*i)) {
-            //If we remove an arc that could have been noted, we set the target to DELETE_NOTE, as well
-            if (replace == NULL) 
-                *target = DELETE_NOTE;
-            //if we replace to a different Arc, redirect notes to that
-            else if (replace->CanBeNoted())
-                *target = replace;
-            else 
-                *target = old_target;
-        }
+        ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level);
         //Do not add an ArcIndicator, if previous thing was also an ArcIndicator on the same entity
         ArcIndicator *ai = dynamic_cast<ArcIndicator*>(replace);
         if (ai && i!=arcs.begin()) {
             ArcIndicator *ai2 = dynamic_cast<ArcIndicator*>(*--ArcList::iterator(i));
             if (ai2 && ai2->Combine(ai)) {
-                if (*target == replace) //redirect note to previous indicator
-                    *target = ai2;
                 delete replace;
                 replace = NULL;
             }
         }
-
-        //Ok, reinsert temporarily stored notes from commandentities (if any)
-        CommandEntity * const cee = dynamic_cast<CommandEntity *>(replace);
-        if (cee) 
-            cee->ReinsertTmpStoredNotes(arcs, i);
-        
         if (replace == *i) i++;
-        else {
-            delete *i;
-            if (replace == NULL) arcs.erase(i++);
-            else {
-                CommandArcList *al = dynamic_cast<CommandArcList *>(replace);
-                if (al == NULL)
-                    (*i++) = replace;
-                else {
-                    auto j = i;
-                    i++; //next element to PostParseProcess
-                    al->MoveContent(arcs, j);  //this content was ppp'd
-                    //al now empty
-                    delete al;
-                    arcs.erase(j);  //delete replaced element
-                }
-            }
-        }
+        else if (replace != NULL) (*i++) = replace; //TODO: Check for ArcIndicators
+        else arcs.erase(i++);
     }
 }
 
@@ -1024,10 +820,10 @@ void Msc::PostParseProcess(MscCanvas &canvas)
         rightmost = 3*MARGIN;
     }
     //Set the position of the virtual side entities & resort
-    const_cast<double&>(LNote->pos) = 0;
+    const_cast<double&>(LNote->pos) = MARGIN/2;
     const_cast<double&>(LSide->pos) = MARGIN;
     const_cast<double&>(RSide->pos) = rightmost + MARGIN;
-    const_cast<double&>(RNote->pos) = rightmost + MARGIN + MARGIN;
+    const_cast<double&>(RNote->pos) = rightmost + MARGIN + MARGIN/2;
     ActiveEntities.SortByPos();
 
     if (Arcs.size()==0) return;
@@ -1038,7 +834,7 @@ void Msc::PostParseProcess(MscCanvas &canvas)
         //Otherwise, generate a new entity command as first arc
         ArcList::iterator i = Arcs.begin();
         if ((*i)->type != MSC_COMMAND_ENTITY) {
-            CommandEntity *ce = new CommandEntity(new EntityDefHelper, this, false);
+            CommandEntity *ce = new CommandEntity(new EntityDefList, this);
             ce->AddAttributeList(NULL);
             i = Arcs.insert(i, ce);
         }
@@ -1050,11 +846,11 @@ void Msc::PostParseProcess(MscCanvas &canvas)
 
     //Traverse Arc tree and perform post-parse processing
     Numbering number; //starts at a single level from 1
+    last_note_is_on_left = false;
     EIterator dummy1, dummy2;
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
-    TrackableElement *note_target = NULL;
-    PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true, &note_target);
+    PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true);
 }
 
 void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
@@ -1086,10 +882,10 @@ void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
                 //...or an active rectangle may have started earlier
                 else
                     outer_edge.y.from = std::max(show_from, 0.);
-                outer_edge.y.till = std::min(show_till, total.y.till);
+                outer_edge.y.till = std::min(show_till, total.y);
                 outer_edge.x.from = up.x - act_size; 
                 outer_edge.x.till = up.x + act_size;
-                Block clip(total);
+                Block clip(XY(0,0), total);
                 bool doClip = false;
                 if (outer_edge.y.from < up.y) {
                     clip.y.from = up.y;
@@ -1127,8 +923,11 @@ void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &dist
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert((*i)->index);
-    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) 
+    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) {
         (*i)->Width(canvas, distances);
+        for (auto n = (*i)->GetNotes().begin(); n != (*i)->GetNotes().end(); n++)
+            (*n)->Width(canvas, distances);
+    }
 }
 
 //Places a full list of elements starting at y position==0
@@ -1155,7 +954,6 @@ double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::it
     for (ArcList::iterator i = from; i!=to; i++) {
         AreaList arc_cover;
         double h = (*i)->Height(canvas, arc_cover, reflow);
-
         //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
         //maintain at least compressGap/2 amount of space between elements even without compress
         h = std::max(h, arc_cover.GetBoundingBox().y.till);
@@ -1304,7 +1102,7 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     yPageStart.push_back(0);
     HideELinesHere.clear();
     if (Arcs.size()==0) return;
-    if (total.y.Spans() > 0) return; //already done?
+    if (total.y != 0) return; //already done?
     //start with width calculation, that is used by many elements
     //First reset running shown of entities, this will be used during Width() pass
     //for (auto i=AllEntities.begin(); i!=AllEntities.end(); i++)
@@ -1313,22 +1111,17 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
     WidthArcList(canvas, Arcs, distances);
-    distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
-    distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
-    distances.CopyBoxSideToPair(hscaleAutoXGap);
-    
-    double unit = XCoord(1);
-    const double lnote_size = distances.Query(NoEntity->index, LNote->index)/unit;
-    const double rnote_size = distances.Query(RNote->index, RNote->index+1)/unit;
-    total.x.from = 0;
-    total.y.from = 0;
-    if (GetHScale()<0) {
+    if (hscale<0) {
+        distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
+        distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
+        distances.CopyBoxSideToPair(hscaleAutoXGap);
+
         //Now go through all the pairwise requirements and calc actual pos.
         //dist will hold required distance to the right of entity with index []
         vector<double> dist(ActiveEntities.size(), 0);
         dist[0] = 0;
-        dist[LSide->index] = XCoord(MARGIN_HSCALE_AUTO);
-        dist[RSide->index-1] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[1] = XCoord(MARGIN_HSCALE_AUTO);
+        dist[dist.size()-2] = XCoord(MARGIN_HSCALE_AUTO);
         //distances.pairs starts with requiremenst between neighbouring entities
         //and continues with requirements between second neighbours, ... etc.
         //we process these sequentially
@@ -1345,14 +1138,8 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
                                                 i->first.second, toadd);
         }
         //Now dist[i] contains the needed space on the right of entity index i
-        //Consider "sideNoteGap"
-        if (lnote_size) {
-            dist[LNote->index] += 2*sideNoteGap;
-        }
-        if (rnote_size) {
-            dist[RSide->index] += 2*sideNoteGap;
-        }
-        double curr_pos = MARGIN_HSCALE_AUTO; //This is here only for bkw comp!!
+        double unit = XCoord(1);
+        double curr_pos = MARGIN_HSCALE_AUTO;
         unsigned index = 0;
         for (EIterator j = ActiveEntities.begin(); j!=ActiveEntities.end(); j++) {
             (*j)->pos = curr_pos;
@@ -1370,78 +1157,35 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
             //advance curr_pos to the next entity
             curr_pos += ceil(dist[index++])/unit;    //take integer space, so XCoord will return integer
         }
-        total.x.till = XCoord(curr_pos)+1;
+        total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN_HSCALE_AUTO)+1;
     } else {
-        //In postparseprocess we set the virtual entity's pos as follows
-        //in the second column we show how they should be if there are
-        //side commets of L and R size resp. (including 2*sideNoteGap)
-        //Noentity     = 0             |  0                             | 0 
-        //LNote        = 0             |  L/unit                        | L/unit
-        //LSide        = MARGIN        |  L/unit + MARGIN               | L/unit
-        //first entity = 2*MARGIN      |  L/unit + 2*MARGIN             | L/unit
-        //last entity  = x             |  L/unit + x                    | L/unit
-        //RSIDE        = x + MARGIN    |  L/unit + x + MARGIN           | L/unit
-        //RNOTE        = x + 2*MARGIN  |  L/unit + x + 2*MARGIN         | L/unit
-        //rotal.x      = x + 2*MARGIN  |  L/unit + x + 2*MARGIN + R/unit| L/unit + R/unit
-
         //Here we only adjust the space for notes on the side
+        const double lnote_size = distances.Query(LNote->index, LSide->index);
+        const double rnote_size = distances.Query(RSide->index, RNote->index);
         if (lnote_size) {
-            //Shift all entities (use twice of "sideNoteGap")
-            const double diff = lnote_size + sideNoteGap*2/unit;
-            for (auto ei = ActiveEntities.Find_by_Ptr(LNote); ei != ActiveEntities.end(); ei++)
+            const double diff = lnote_size - LSide->pos + LNote->pos;
+            for (auto ei = ActiveEntities.Find_by_Ptr(LSide); ei != ActiveEntities.end(); ei++)
                 (*ei)->pos += diff;
         }
-        total.x.till = XCoord(RNote->pos)+1; //XCoord is always integer
-        if (rnote_size) 
-            total.x.till += rnote_size*unit + 2*sideNoteGap;
+        if (rnote_size)  
+            RNote->pos = RSide->pos + rnote_size;
+        total.x = XCoord((*--(ActiveEntities.end()))->pos+MARGIN)+1; //XCoord is always integer
     }
-    //Consider the copyright text
     StringFormat sf;
     sf.Default();
     XY crTexSize = Label(copyrightText, canvas, sf).getTextWidthHeight().RoundUp();
-    if (total.x.till < crTexSize.x) total.x.till = crTexSize.x;
+    if (total.x<crTexSize.x) total.x = crTexSize.x;
+
     copyrightTextHeight = crTexSize.y;
-    comments_right_side = total.x.till; //save: total.x.till may be later increased by note placement
-
-    //Turn on entity line for side note lines if there are side notes
-    if (lnote_size) 
-        LNote->status.SetStatus(0, EEntityStatus::SHOW_ON);
-    if (rnote_size) 
-        RNote->status.SetStatus(0, EEntityStatus::SHOW_ON);
-
-    drawing.x.from = XCoord(LNote->pos) + sideNoteGap;
-    drawing.x.till = XCoord(RNote->pos) - sideNoteGap;
     AreaList cover;
-    total.y.till = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
-    total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
-    drawing.y = total.y;  
+    total.y = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
+    total.y = ceil(std::max(total.y, cover.GetBoundingBox().y.till));
 }
 
-void Msc::PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
+void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
-        (*j)->PlaceWithMarkers(canvas, autoMarker);
-}
-
-
-void Msc::PlaceFloatingNotes(MscCanvas &canvas)
-{
-    Block new_total;
-    new_total.MakeInvalid();
-    for (auto note = Notes.begin(); note!=Notes.end(); note++) {
-        (*note)->PlaceFloating(canvas);
-        new_total += (*note)->GetAreaToDraw().GetBoundingBox();
-    }
-    if (new_total.IsInvalid()) return;
-    new_total.Expand(sideNoteGap);
-    total += new_total;
-}
-
-
-void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs)
-{
-    for (auto j = arcs.begin(); j != arcs.end(); j++)
-        (*j)->PostPosProcess(canvas);
+        (*j)->PostPosProcess(canvas, autoMarker);
 }
 
 void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
@@ -1455,73 +1199,48 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
     PostParseProcess(canvas); 
-    FinalizeLabelsArcList(Arcs, canvas);
+    FinalizeLabels(canvas);
 
     //Calculate chart size
     CalculateWidthHeight(canvas);
 
     //If the chart ended up empty we may want to display something
-    if (total.y.till <= chartTailGap && avoidEmpty) {
+    if (total.y <= chartTailGap && avoidEmpty) {
         //Add the Empty command
         Arcs.push_front((new CommandEmpty(this))->AddAttributeList(NULL));
-        _ASSERT(Contexts.size() && Contexts.back().hscale.first);
-        Contexts.back().hscale.second = -1;
+        hscale = -1;
         //Redo calculations
-        total.x.till = total.y.till = 0;  //"from" members still zero, only notes can take it negative
+        total.x = total.y = 0;
         CalculateWidthHeight(canvas);
         //Luckily Width and DrawCover calls do not generate error messages,
         //So Errors collected so far are OK even after redoing this
     }
 
-    PlaceWithMarkersArcList(canvas, Arcs, -1);
-    PlaceFloatingNotes(canvas);
-
-    total.x.from = floor(total.x.from);
-    total.y.from = floor(total.y.from);
-    total.x.till = ceil(total.x.till);
-    total.y.till = ceil(total.y.till);
-
     //A final step of prcessing, checking for additional drawing warnings
-    PostPosProcessArcList(canvas, Arcs);
-
-    //Sort elements in AllCovers, so that the ones we draw later show up later
-    struct {
-        bool operator()(const Area &a1, const Area &a2) {
-            _ASSERT(a1.arc!=NULL && a2.arc!=NULL);
-            return a1.arc->draw_pass < a2.arc->draw_pass;
-        }
-    } comp;
-    AllCovers.sort(comp);
-
-    //Delete LSide and RSide actions if there are no side comments
-    if (LNote->pos == LSide->pos) 
-        LSide->status.Reset();
-    if (RNote->pos == RSide->pos) 
-        RSide->status.Reset();
-
+    PostPosProcessArcList(canvas, Arcs, -1);
     Error.Sort();
 }
 
-
-void Msc::DrawArcs(MscCanvas &canvas, DrawPassType pass)
+void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs, ArcBase::DrawPassType pass)
 {
-    DrawArcList(canvas, Arcs, pass);
+    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++)
+        (*i)->Draw(canvas, pass);
 }
 
 //page is 0 for all, 1..n for individual pages
 void Msc::DrawCopyrightText(MscCanvas &canvas, unsigned page)
 {
-    if (total.x.Spans()<=0 || page > yPageStart.size()) return;
+    if (total.x==0 || page > yPageStart.size()) return;
     StringFormat sf;
     sf.Default();
     Label label(copyrightText, canvas, sf);
-    label.Draw(canvas, total.x.from, total.x.till, page==0 || page>=yPageStart.size() ? total.y.till : yPageStart[page]);
+    label.Draw(canvas, 0, total.x, page==0 || page>=yPageStart.size() ? total.y : yPageStart[page]);
 }
 
 void Msc::DrawPageBreaks(MscCanvas &canvas)
 {
     if (yPageStart.size()<=1) return;
-    if (total.y.Spans()<=0) return;
+    if (total.y==0) return;
     MscLineAttr line;
     line.type.second = LINE_DASHED;
     StringFormat format;
@@ -1532,108 +1251,45 @@ void Msc::DrawPageBreaks(MscCanvas &canvas)
         char text[20];
         const double y = yPageStart[page];
         XY d;
-        canvas.Line(XY(total.x.from, y), XY(total.x.till, y), line);
+        canvas.Line(XY(0, y), XY(total.x, y), line);
         sprintf(text, "page %d", page);
         label.Set(text, canvas, format);
-        label.Draw(canvas, total.x.from, total.x.till, y-label.getTextWidthHeight().y);
+        label.Draw(canvas, 0, total.x, y-label.getTextWidthHeight().y);
     }
 }
 
 void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
 {
-    if (total.y.Spans() <= 0) return;
+    if (total.y == 0) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
 	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
-	canvas.Line(XY(total.x.from,total.y.from), XY(total.x.from+1,total.y.from), marker);
-	canvas.Line(XY(total.x.till,total.y.till), XY(total.x.till-1,total.y.till), marker);
+	canvas.Line(XY(0,0), XY(1,0), marker);
+	canvas.Line(XY(total.x,total.y), XY(total.x-1,total.y), marker);
 	//draw background
     if (Background.size()) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
         fill_bkg += Background.begin()->second;
         double y = Background.begin()->first;
 	    for (auto i = ++Background.begin(); i!=Background.end(); i++) {
-            canvas.Fill(Block(XY(total.x.from,y), XY(total.x.till,i->first)), fill_bkg);
+            canvas.Fill(Block(XY(0,y), XY(total.x,i->first)), fill_bkg);
             fill_bkg += i->second;
             y = i->first;
         }
-        if (y < total.y.till) 
-            canvas.Fill(Block(XY(total.x.from,y), XY(total.x.till,total.y.till)), fill_bkg);
-    }
-    //Add background for side notes (if any)
-    for (unsigned u = 0; u<2; u++) {
-        const Entity * const note = u==0 ? LNote : RNote;
-        const Entity * const side = u==0 ? LSide : RSide;
-        if (note->pos == side->pos) continue;
-        const Range x = u==0 ? Range(total.x.from, XCoord(LNote->pos)) : Range(XCoord((RNote)->pos), total.x.till); 
-        double pos = total.y.from, till = total.y.from;
-        do {
-            till = note->status.StyleTill(till);
-            if (till<total.y.till && note->status.GetStyle(pos).fill == note->status.GetStyle(till).fill)
-                continue;  //go until "fill" changes
-            if (till>total.y.till) till = total.y.till;
-            canvas.Fill(Block(x, Range(pos, till)), note->status.GetStyle(pos).fill);
-            pos = till;
-        } while (pos<total.y.till);
+        if (y < total.y) 
+            canvas.Fill(Block(XY(0,y), XY(total.x,total.y)), fill_bkg);
     }
 	//Draw page breaks
     if (pageBreaks)
         DrawPageBreaks(canvas);
-    DrawArcs(canvas, DRAW_BEFORE_ENTITY_LINES);
+    DrawArcList(canvas, Arcs, ArcBase::BEFORE_ENTITY_LINES);
 	//Draw initial set of entity lines (boxes will cover these and redraw)
-    DrawEntityLines(canvas, total.y.from, total.y.till);
-    DrawArcs(canvas, DRAW_AFTER_ENTITY_LINES);
-    DrawArcs(canvas, DRAW_DEFAULT);
-    DrawArcs(canvas, DRAW_AFTER_DEFAULT);
-    DrawArcs(canvas, DRAW_NOTE);
-    DrawArcs(canvas, DRAW_AFTER_NOTE);
-
-    /* Debug: draw Debug Shapes */
-    for (auto i=DebugContours.begin(); i!=DebugContours.end(); i++) {
-        i->fill.MakeComplete();
-        i->line.MakeComplete();
-        canvas.Fill(i->area, i->fill);
-        canvas.Line(i->area, i->line);
-    }
-    // End of debug */
-
-
-    /* Debug: draw entity lines 
-    cairo_set_source_rgb(cr, 0, 0, 1);
-    cairo_set_line_width(cr,2);
-    HideELinesArea.Line(cr);
-    // End of debug */
-
-    /* Debug: draw cover 
-    contour::Bitmap bitmap(unsigned(total.x), unsigned(total.y));
-    bitmap.FillList(AllCovers);
-    bitmap.DrawOnto(canvas.GetContext());
-    // End of debug */
-
-    /* Debug: draw float_map 
-    Bitmap original_map_imp(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    Bitmap original_map_all(unsigned(ceil(total.x)), unsigned(ceil(total.y)));
-    for (auto i = NoteMapImp.begin(); i!=NoteMapImp.end(); i++)
-        original_map_imp.Fill(**i);
-    for (auto i = NoteMapAll.begin(); i!=NoteMapAll.end(); i++)
-        original_map_all.Fill(**i);
-    original_map_all.DrawOnto(canvas.GetContext());
-    // End of debug */
-
-    /* Debug: draw float_map 
-    unsigned m2 = 1;
-    contour::Bitmap bitmap(unsigned(total.x), unsigned(total.y));
-    for (auto i = AllArcs.begin(); i!=AllArcs.end(); i++)
-        bitmap.Fill(i->second->GetNoteMap());
-    bitmap.CreateDownscale(m2).DrawOnto(canvas.GetContext(), m2);
-    Contour tri(XY(0,0), XY(50,30), XY(30,50));
-    contour::Bitmap tri_b(51,51);
-    tri_b.Fill(tri);
-    unsigned x=100, y=100;
-    if (bitmap.Position(tri_b, x, y, Contour(), 4, 100))
-        tri_b.DrawOnto(canvas.GetContext(), 1, x, y);
-    else 
-        tri.Shift(XY(100,100)).Line(canvas.GetContext());
-    // End of debug */
+    DrawEntityLines(canvas, 0, total.y);
+    DrawArcList(canvas, Arcs, ArcBase::AFTER_ENTITY_LINES);
+    DrawArcList(canvas, Arcs, ArcBase::DEFAULT);
+    DrawArcList(canvas, Arcs, ArcBase::AFTER_DEFAULT);
+    //cairo_set_source_rgb(cr, 0, 0, 1);
+    //cairo_set_line_width(cr,2);
+    //HideELinesArea.Line(cr);
 }
 
 void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn, bool bPageBreaks)
@@ -1667,16 +1323,3 @@ void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &
     }
 }
 
-void Msc::InvalidateNotesToThisTarget(const TrackableElement *target)
-{
-    for(auto i=Notes.begin(); i!=Notes.end(); i++) 
-        if ((*i)->GetTarget() == target)
-            (*i)->Invalidate();
-}
-
-void Msc::RemoveFromNotes(const CommandNote *note)
-{
-    for(auto i=Notes.begin(); i!=Notes.end(); /*nope*/) 
-        if (*i==note) Notes.erase(i++);
-        else i++;
-}

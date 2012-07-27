@@ -214,7 +214,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\cairo-1.12.2\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\cairo-1.10\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;CAIRO_WIN32_STATIC_BUILD;_CRTDBG_MAP_ALLOC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -462,7 +462,6 @@
     <ClCompile Include="colorsyntax2.cc" />
     <ClCompile Include="commandline.cpp" />
     <ClCompile Include="area.cpp" />
-    <ClCompile Include="commands.cpp" />
     <ClCompile Include="contour.cpp" />
     <ClCompile Include="contour_edge.cpp" />
     <ClCompile Include="contour_ellipse.cpp" />
@@ -497,10 +496,8 @@
     <ClInclude Include="colorsyntax2.h" />
     <ClInclude Include="commandline.h" />
     <ClInclude Include="area.h" />
-    <ClInclude Include="commands.h" />
     <ClInclude Include="contour.h" />
     <ClInclude Include="contour_basics.h" />
-    <ClInclude Include="contour_distance.h" />
     <ClInclude Include="contour_edge.h" />
     <ClInclude Include="contour_ellipse.h" />
     <ClInclude Include="contour_simple.h" />

@@ -6,9 +6,9 @@
 
 class TrackableElement;
 //plus it has additional stuff, such as arc and mainline
-
 class Area : public contour::Contour
 {
+    friend void test_geo(cairo_t *cr, int x, int y, bool clicked); ///XXX
 public:
     mutable TrackableElement *arc;
     contour::Contour          mainline;
@@ -58,9 +58,9 @@ public:
     Area& SwapXY() {Contour::SwapXY(); mainline.clear(); return *this;}
 
     Area CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                      double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY) const;
+                      double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
     Area &Expand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                 double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY)
+                 double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX)
          {Contour::Expand(gap, et4pos, et4neg, miter_limit_positive, miter_limit_negative); mainline.Expand(gap); return *this;}
 	void ClearHoles() {Contour::ClearHoles();}
 
@@ -80,9 +80,6 @@ public:
     AreaList(AreaList &&al) : cover(std::move(al.cover)), boundingBox(al.boundingBox), mainline(std::move(al.mainline)) {}
     const std::list<Area> &GetCover() const {return cover;}
     void clear() {boundingBox.MakeInvalid(); mainline.clear(); cover.clear();}
-    size_t size() const {return cover.size();}
-    std::list<Area>::const_iterator begin() const {return cover.begin();}
-    std::list<Area>::const_iterator end() const {return cover.end();}
     void swap(AreaList &o) {cover.swap(o.cover); std::swap(boundingBox, o.boundingBox); std::swap(mainline, o.mainline);}
     void SetArc(TrackableElement *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
     AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
@@ -94,17 +91,32 @@ public:
     const contour::Block& GetBoundingBox() const {return boundingBox;}
 
     AreaList CreateExpand(double gap, contour::EExpandType et4pos=contour::EXPAND_MITER_ROUND, contour::EExpandType et4neg=contour::EXPAND_MITER_ROUND,
-                          double miter_limit_positive=CONTOUR_INFINITY, double miter_limit_negative=CONTOUR_INFINITY) const;
+                          double miter_limit_positive=DBL_MAX, double miter_limit_negative=DBL_MAX) const;
 
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
     double OffsetBelow(const AreaList &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline=true) const;
-
-    template <typename T> void sort(T t) {cover.sort(t);}
 
     const Area *InWhich(const contour::XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
     const Area *InWhichFromBack(const contour::XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
     void InvalidateMainLine() {mainline.clear(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.clear();}
 };
+
+class AreaPtrList 
+{
+    std::list<const Area*>  store;
+public:
+    void Append(const Area*a) {store.push_back(a);}
+    void Append(const AreaPtrList &a) {store.insert(store.end(), a.store.begin(), a.store.end());}
+    void Append(AreaPtrList &&a) {store.splice(store.end(), a.store);}
+
+    //This attempts to place "c". If "c" overlaps some, we attempt to move c or below 
+    //elements down. 
+    //"shift" returns how much shall we shift "c" down to fit.
+    //return value shows if another element needs to be pushed down "request" shows by how much
+    //In this function we are limited to shift "c" only up or down
+    TrackableElement *Insert(const contour::Contour &c, double &shift, double &request);
+};
+
 
 inline bool Area::operator <(const Area &b) const
 {

@@ -19,40 +19,24 @@
 #include "msc.h"
 using namespace std;
 
-//Generate a plain design with all the default styles (and colors)
-//will be used by ::AddAttributeNames to see which style components an element has
-//will also be used by CshContext::SetPlain to take default style and color names/defs
-const Context TrackableElement::defaultDesign(true);
-
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
     hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
-    comments(false),
-    indicator_style(m->Contexts.back().styles["indicator"]),
-    draw_pass(DRAW_DEFAULT) 
+    layout_lower(0), all_notes_placed(false),
+    indicator_style(m->Contexts.back().styles["indicator"])
 {
     area.arc = this;
     control_location.MakeInvalid();
 }
 
-TrackableElement::~TrackableElement() 
-{
-    if (chart) 
-        chart->InvalidateNotesToThisTarget(this);
-}
-
-
-//This does not copy comments
+//This does not copy notes!!
 TrackableElement::TrackableElement(const TrackableElement&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
-    area_to_note(o.area_to_note),
-    comments(false), //we do not copy comments!!!
-    area_important(o.area_important), 
-    controls(o.controls), control_location(o.control_location),
-    indicator_style(o.indicator_style),
-    draw_pass(o.draw_pass), file_pos(o.file_pos)
+    note_map(o.note_map), def_note_target(o.def_note_target),
+    layout_lower(o.layout_lower), all_notes_placed(o.all_notes_placed),
+    controls(o.controls), control_location(o.control_location)
 {
     area.arc = this;
 }
@@ -64,50 +48,18 @@ void TrackableElement::SetLineEnd(file_line_range l, bool f)
     file_pos = l;
 }
 
-void TrackableElement::AttachComment(CommandNote *cn)
+void TrackableElement::AttachNote(CommandNote *cn)
 {
     _ASSERT(cn);
-    _ASSERT(!cn->is_float);
-    comments.Append(cn);
+    notes.Append(cn);
 }
 
-//move comments to us    
-void TrackableElement::CombineComments(TrackableElement *te)
+//move notes to us    
+void TrackableElement::CombineNotes(TrackableElement *te)
 {
     _ASSERT(te);
     if (te)
-        comments.splice(comments.end(), te->comments);
-}
-
-template<> const char EnumEncapsulator<DrawPassType>::names[][ENUM_STRING_LEN] =
-    {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
-     "note", "after_note", ""};
-
-
-bool TrackableElement::AddAttribute(const Attribute &a)
-{
-    if (a.Is("draw_time")) {
-        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
-        if (a.type == MSC_ATTR_STRING && Convert(a.value, draw_pass)) return true;
-        a.InvalidValueError(CandidatesFor(draw_pass), chart->Error);
-        return true;
-    }
-    return false;
-}
-
-void TrackableElement::AttributeNames(Csh &csh)
-{
-    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
-}
-
-bool TrackableElement::AttributeValues(const std::string attr, Csh &csh)
-{
-    if (CaseInsensitiveEqual(attr,"draw_time")) {
-        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
-                       HINT_ATTR_VALUE);
-        return true;
-    }
-    return false;
+        notes.splice(notes.end(), te->notes);
 }
 
 void TrackableElement::ShiftBy(double y)
@@ -115,33 +67,32 @@ void TrackableElement::ShiftBy(double y)
     if (y==0) return;
     area.Shift(XY(0, y));
     area_draw.Shift(XY(0, y));
-    area_to_note.Shift(XY(0,y));
-    area_to_note2.Shift(XY(0,y));
-    area_important.Shift(XY(0,y)); 
+    note_map.Shift(XY(0,y)); 
+    def_note_target.y+=y;
     yPos+=y;
     control_location.y += y;
-    for (auto n = comments.begin(); n!=comments.end(); n++)
-        (*n)->ShiftCommentBy(y);
 }
 
-//Here we add to "cover", do not overwrite it
-double TrackableElement::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
+void TrackableElement::PostParseProcessNotes(MscCanvas &canvas, bool hide, bool at_top_level)
 {
-    for (auto n = comments.begin(); n!=comments.end(); n++)
-        (*n)->PlaceSideTo(canvas, cover, (*n)->GetStyle().side.second == SIDE_LEFT ? l : r);
-    return std::max(l, r);
+    //dummy values. CommandNumbers do not update/use those
+    EIterator left, right;
+    Numbering number;
+    for (auto n = notes.begin(); n!=notes.end(); /*nope*/)
+        if (NULL == (*n)->PostParseProcess(canvas, hide, left, right, number, at_top_level))
+            notes.erase(n++);
+        else 
+            n++;
 }
 
 
-void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/)
+
+void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/, double)
 {
     if (!area.IsEmpty()&& !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,
         //we still keep the original stuff.
-        Area expanded_area = area.CreateExpand(chart->trackExpandBy, 
-                                               contour::EXPAND_MITER_ROUND, 
-                                               contour::EXPAND_MITER_ROUND, 
-                                               2, 2);
+        Area expanded_area = area.CreateExpand(chart->trackExpandBy);
         if (!expanded_area.IsEmpty())
             area = expanded_area;
         area.arc = this;
@@ -156,10 +107,7 @@ void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/)
         controls.clear();
     }
     if (!hidden && draw_is_different && !area_draw.IsEmpty() && !area_draw_is_frame)
-        area_draw = area_draw.CreateExpand(chart->trackExpandBy, 
-                                           contour::EXPAND_MITER_ROUND, 
-                                           contour::EXPAND_MITER_ROUND, 
-                                           2, 2);
+        area_draw = area_draw.CreateExpand(chart->trackExpandBy);
     if (!file_pos.IsInvalid())
         chart->AllArcs[file_pos] = this;
 }
