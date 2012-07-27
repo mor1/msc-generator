@@ -59,8 +59,8 @@ BEGIN_MESSAGE_MAP(CInPlaceFrame, COleIPFrameWndEx)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_TOOLBAR, OnUpdateViewToolBar)
 	ON_COMMAND(ID_VIEW_OUTPUT, OnViewOutput)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_OUTPUT, OnUpdateViewOutput)
-	ON_COMMAND(ID_VIEW_EDITOR, OnViewEditor)
-	ON_UPDATE_COMMAND_UI(ID_VIEW_EDITOR, OnUpdateViewEditor)
+	ON_COMMAND(ID_BUTTON_EDITINTERNAL, OnViewEditor)
+	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITINTERNAL, OnUpdateViewEditor)
 END_MESSAGE_MAP()
 
 
@@ -237,7 +237,7 @@ void CInPlaceFrame::OnUpdateViewOutput(CCmdUI* pCmdUI)
 
 void CInPlaceFrame::OnViewEditor()
 {
-	m_ctrlEditor.ShowPane(!m_ctrlEditor.IsVisible(), FALSE, FALSE);
+	m_ctrlEditor.ShowPane(!m_ctrlEditor.IsVisible(), TRUE, TRUE);
 }
 
 void CInPlaceFrame::OnUpdateViewEditor(CCmdUI* pCmdUI)
