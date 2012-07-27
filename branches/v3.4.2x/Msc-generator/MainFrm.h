@@ -95,6 +95,8 @@ public:
 	afx_msg void OnDesignZoom();                             //user changed zoom combo
     afx_msg void OnViewZoomin();                             //zoom in 10%
 	afx_msg void OnViewZoomout();                            //zoom out 10%
+	afx_msg void OnViewInternalEditor();                     //Toggles internal editor
+    afx_msg void OnUpdateViewInternalEditor(CCmdUI *pCmdUI); //Shows if internal editor is on
 };
 
 
