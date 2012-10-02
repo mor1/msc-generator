@@ -400,7 +400,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (replaceto) replaceto->clear();
         if (linenum) {
             file_line l = *linenum;
-            if (3!=sscanf(parameter.c_str(), "%d,%d,%d", &l.file, &l.line, &l.col)) {
+            if (3!=sscanf(parameter.c_str(), "%u,%u,%u", &l.file, &l.line, &l.col)) {
                 if (msc) msc->Error.Error(*linenum, "Internal error: could not parse position escape.");
                 return FORMATTING_OK;
             }

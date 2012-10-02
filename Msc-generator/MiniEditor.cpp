@@ -451,10 +451,10 @@ BOOL CCshRichEditCtrl::PreTranslateMessage(MSG* pMsg)
 		CString spaces(' ', std::max(0, offset)); //empty string if we remove, otherwise as many spaces as we insert
 		for (int l = startLine; l<=endLine; l++) {
 			const long lLineBegin = LineIndex(l);
-			const int current_ident = FindCurrentLineIdent(lLineBegin);
-			const int adjusted_offset = -std::min(current_ident, -offset);  //reduce potential remove if not so many spaces at the beginning
+			const int current_ident2 = FindCurrentLineIdent(lLineBegin);
+			const int adjusted_offset = -std::min(current_ident2, -offset);  //reduce potential remove if not so many spaces at the beginning
 			//empty line - do nothing
-			if (current_ident==-1) continue;
+			if (current_ident2==-1) continue;
 			SetSel(lLineBegin, lLineBegin + std::max(0, -adjusted_offset)); //empty selection if we insert, otherwise the spaces to remove
 			ReplaceSel(spaces);
 

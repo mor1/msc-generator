@@ -133,7 +133,7 @@ void CExternalEditor::JumpToLine(unsigned line, unsigned /*col*/)
 	si.lpReserved2 = NULL;
 	si.cbReserved2 = NULL;
 	PROCESS_INFORMATION pi;
-	CreateProcess(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL,  &si, &pi);
+	CreateProcess(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL,  &si, &pi); //TODO: Leaking process information handle 'pi.hProcess'
 	free(cmdline);
 	free(si.lpTitle);
 }
@@ -213,7 +213,7 @@ void CExternalEditor::Stop(EStopEditor force)
 				if (::IsWindow(*i)) {
 					char buff[1024];
 					::GetWindowText(*i, buff, sizeof(buff)); 
-					if (strstr(buff, "signalling")!=NULL) {
+					if (strstr(buff, "signalling")!=NULL || strstr(buff, "Text of Unsigned")!=NULL) {
 						::SetForegroundWindow(*i);
 						::SendMessage(*i, WM_CLOSE, 0, 0); 
 					}

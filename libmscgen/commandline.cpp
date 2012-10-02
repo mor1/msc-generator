@@ -30,9 +30,9 @@ const char *VersionText(char a, char b, char c)
     if (b<0) b=0;
     if (a<0) a=0;
     if (c!=0)
-        sprintf(buff, "v%d.%d.%d", unsigned(a), unsigned(b), unsigned(c));
+        sprintf(buff, "v%u.%u.%u", unsigned(a), unsigned(b), unsigned(c));
     else
-        sprintf(buff, "v%d.%d", unsigned(a), unsigned(b));
+        sprintf(buff, "v%u.%u", unsigned(a), unsigned(b));
     return buff;
 }
 

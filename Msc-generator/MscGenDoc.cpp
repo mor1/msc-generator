@@ -364,9 +364,11 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
 			char *buff = (char*)malloc(alloc);
 			while (1) {
 				length += ar.Read(buff+length, alloc-1-length);
-				if (length == alloc-1)
-					buff = (char*)realloc(buff, alloc+=16384);
-				else break;
+				if (length == alloc-1) {
+                    char * const buff2 = (char*)realloc(buff, alloc+=16384);
+                    if (buff2) buff = buff2;
+                    else break; //could not allocate more space. Work with truncated file.
+                } else break;
 			} 
 			buff[length] = 0;
 			text = buff;
@@ -436,10 +438,10 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
         case 2:  //since v3.1: read force entity collapse
             ar >> force_entity_size;
             for (unsigned i=0; i<force_entity_size; i++) {
-                CString s; unsigned b;
+                CString s; unsigned b2;
                 ar >> s;
-                ar >> b;
-                chart.ForceEntityCollapse(string(s), bool(b));
+                ar >> b2;
+                chart.ForceEntityCollapse(string(s), bool(b2));
             }
             break;
         }

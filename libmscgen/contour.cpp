@@ -227,11 +227,11 @@ void ContourList::Distance(const ContourWithHoles &c, DistanceType &dist_so_far)
         return;
     }
     for (auto i = begin(); i!=end(); i++) {
-        const double bbdist = i->GetBoundingBox().Distance(c.GetBoundingBox());
-        if (dist_so_far.ConsiderBB(bbdist))
+        const double bbdist2 = i->GetBoundingBox().Distance(c.GetBoundingBox());
+        if (dist_so_far.ConsiderBB(bbdist2))
             i->Distance(c, dist_so_far);
         else
-            dist_so_far.MergeInOut(bbdist);
+            dist_so_far.MergeInOut(bbdist2);
         if (dist_so_far.IsZero())
             break;
     }
@@ -1791,8 +1791,8 @@ bool Contour::TangentFrom(const Contour &from, XY clockwise[2], XY cclockwise[2]
         const bool was2 = j->outline.TangentFrom(from.first.outline, c, cc);
         was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
         for (auto i = from.further.begin(); i!=from.further.end(); i++) {
-            const bool was2 = j->outline.TangentFrom(i->outline, c, cc);
-            was = MergeTangentFroms(was, clockwise, cclockwise, was2, c, cc);
+            const bool was3 = j->outline.TangentFrom(i->outline, c, cc);
+            was = MergeTangentFroms(was, clockwise, cclockwise, was3, c, cc);
         }
     }
     return was;
