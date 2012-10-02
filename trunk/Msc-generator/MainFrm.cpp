@@ -689,7 +689,7 @@ void CMainFrame::OnDesignPrevPage()
 void CMainFrame::FillZoomComboBox(int zoom)
 {
 	CString text;
-	text.Format("%u%%", zoom);
+	text.Format("%d%%", zoom);
     CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
     m_wndRibbonBar.GetElementsByID(ID_DESIGN_ZOOM, arButtons);
     _ASSERT(arButtons.GetSize()==1);
@@ -697,9 +697,9 @@ void CMainFrame::FillZoomComboBox(int zoom)
     static unsigned zoom_values[] = {400, 300, 200, 150, 100, 75, 50, 40, 30, 20, 10, 0};
     if (c->GetCount()!=sizeof(zoom_values)/sizeof(unsigned)-1) {
         for (int i=0; zoom_values[i]>0; i++) {
-            CString text;
-            text.Format("%u%%", zoom_values[i]);
-            c->AddItem(text, zoom_values[i]);
+            CString text2;
+            text2.Format("%u%%", zoom_values[i]);
+            c->AddItem(text2, zoom_values[i]);
         }
     }
     c->SetEditText(text);

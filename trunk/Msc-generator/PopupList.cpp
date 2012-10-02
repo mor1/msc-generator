@@ -211,8 +211,8 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
     label.Draw(canvas, lpItem->rcItem.left+ HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right, lpItem->rcItem.top + y);
     if (item->callback) {
-        int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
-        cairo_translate(canvas.GetContext(), lpItem->rcItem.left, lpItem->rcItem.top + y);
+        const int y2 = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
+        cairo_translate(canvas.GetContext(), lpItem->rcItem.left, lpItem->rcItem.top + y2);
         item->callback(&canvas, item->param);
         //We do not restore the context, we drop it anyway
     }

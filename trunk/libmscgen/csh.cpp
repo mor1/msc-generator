@@ -457,9 +457,11 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
 
 void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color)
 {
+    static const char empty_names[][ENUM_STRING_LEN] = {""};
     const char (*array)[ENUM_STRING_LEN];
     if (color == COLOR_OPTIONNAME) array = opt_names;
-    if (color == COLOR_ATTRNAME) array = attr_names;
+    else if (color == COLOR_ATTRNAME) array = attr_names;
+    else array = empty_names;
     unsigned match_result = find_opt_attr_name(name, array);
     //Honor partial matches only if cursor is right after
     if (pos.last_pos != cursor_pos && match_result == 1)
@@ -1088,7 +1090,7 @@ bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam)
 
 void Csh::AddKeywordsToHints(bool includeParallel)
 {
-    AddToHints(keyword_names+1-includeParallel, HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
+    AddToHints(keyword_names+1-(includeParallel?1:0), HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
                CshHintGraphicCallbackForKeywords);
 }
 

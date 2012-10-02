@@ -239,16 +239,16 @@ DistanceType Edge::Distance(const Edge &o) const
 start_is_closer:
                 XY other;
                 double dummy;
-                const double d = o.ell.Distance(start, other, dummy);
-                ret.Merge(d, start, other);
+                const double d2 = o.ell.Distance(start, other, dummy);
+                ret.Merge(d2, start, other);
                 return ret;
             }
             if (!test_smaller(line_pos,1)) { //"end" is closer
 end_is_closer:
                 XY other;
                 double dummy;
-                const double d = o.ell.Distance(end, other, dummy);
-                ret.Merge(d, end, other);
+                const double d2 = o.ell.Distance(end, other, dummy);
+                ret.Merge(d2, end, other);
                 return ret;
             }
             //"p[1]" contains a point of the line "this" which is closest to the ellipse "o"
@@ -331,9 +331,9 @@ end_is_closer:
     const double d = b.Distance(me, other, dummy);
     ret.Merge(d, me, other);
     for (; r1<r2; r1+=step_arc) {
-        const XY me = a.GetEllipseData().Radian2Point(r1);
-        const double d = b.Distance(me, other, dummy);
-        ret.Merge(d, me, other);
+        const XY me2 = a.GetEllipseData().Radian2Point(r1);
+        const double d2 = b.Distance(me2, other, dummy);
+        ret.Merge(d2, me2, other);
         if (ret.IsZero()) return ret;
     }
     return ret;
@@ -1796,25 +1796,25 @@ bool Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
                 cclockwise[0] = minmax_clockwise(o.start, c, cclockwise[0], true);
         }
     } else {
-        XY c[2], cc[2];
-        if (ell.TangentFrom(o.ell, c, cc)) {
-            if (radianbetween(ell.Point2Radian(c[0])) && o.radianbetween(o.ell.Point2Radian(c[1]))) {
-                clockwise[1]  = minmax_clockwise(clockwise[0], c[1], clockwise[1], true);
-                clockwise[0]  = minmax_clockwise(clockwise[1], c[0], clockwise[0], false);
+        XY c2[2], cc2[2];
+        if (ell.TangentFrom(o.ell, c2, cc2)) {
+            if (radianbetween(ell.Point2Radian(c2[0])) && o.radianbetween(o.ell.Point2Radian(c2[1]))) {
+                clockwise[1]  = minmax_clockwise(clockwise[0], c2[1], clockwise[1], true);
+                clockwise[0]  = minmax_clockwise(clockwise[1], c2[0], clockwise[0], false);
             }
-            if (radianbetween(ell.Point2Radian(cc[0])) && o.radianbetween(o.ell.Point2Radian(cc[1]))) {
-                cclockwise[0] = minmax_clockwise(cclockwise[1], cc[0], cclockwise[0], true);
-                cclockwise[1] = minmax_clockwise(cclockwise[0], cc[1], cclockwise[1], false);
+            if (radianbetween(ell.Point2Radian(cc2[0])) && o.radianbetween(o.ell.Point2Radian(cc2[1]))) {
+                cclockwise[0] = minmax_clockwise(cclockwise[1], cc2[0], cclockwise[0], true);
+                cclockwise[1] = minmax_clockwise(cclockwise[0], cc2[1], cclockwise[1], false);
             }
         }
-        if (o.ell.TangentFrom(ell, c, cc)) {
-            if (radianbetween(ell.Point2Radian(c[1])) && o.radianbetween(o.ell.Point2Radian(c[0]))) {
-                clockwise[1]  = minmax_clockwise(clockwise[0], cc[0], clockwise[1], false);
-                clockwise[0]  = minmax_clockwise(clockwise[1], cc[1], clockwise[0], true);
+        if (o.ell.TangentFrom(ell, c2, cc2)) {
+            if (radianbetween(ell.Point2Radian(c2[1])) && o.radianbetween(o.ell.Point2Radian(c2[0]))) {
+                clockwise[1]  = minmax_clockwise(clockwise[0], cc2[0], clockwise[1], false);
+                clockwise[0]  = minmax_clockwise(clockwise[1], cc2[1], clockwise[0], true);
             }
-            if (radianbetween(ell.Point2Radian(cc[1])) && o.radianbetween(o.ell.Point2Radian(cc[0]))) {
-                cclockwise[0] = minmax_clockwise(cclockwise[1], c[1], cclockwise[0], false);
-                cclockwise[1] = minmax_clockwise(cclockwise[0], c[0], cclockwise[1], true);
+            if (radianbetween(ell.Point2Radian(cc2[1])) && o.radianbetween(o.ell.Point2Radian(cc2[0]))) {
+                cclockwise[0] = minmax_clockwise(cclockwise[1], c2[1], cclockwise[0], false);
+                cclockwise[1] = minmax_clockwise(cclockwise[0], c2[0], cclockwise[1], true);
             }
         }
     }

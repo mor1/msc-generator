@@ -254,20 +254,20 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, fil
     //If we have children, add them to "ret->entities"
     string note_target_name = name;
     if (ch) {
-        for (auto i = ch->begin(); i!=ch->end(); /*nope*/) {
-            CommandEntity * const ce = dynamic_cast<CommandEntity *>(*i);
-            CommandNote * const cn = dynamic_cast<CommandNote *>(*i);
+        for (auto j = ch->begin(); j!=ch->end(); /*nope*/) {
+            CommandEntity * const ce = dynamic_cast<CommandEntity *>(*j);
+            CommandNote * const cn = dynamic_cast<CommandNote *>(*j);
             if (ce!=NULL && !ce->IsFullHeading()) {
                 ce->MoveMyContentAfter(*ret);  //ce is emptied out of all EntityDefs and tmp stored notes
                 note_target_name = (*(ret->entities.rbegin()))->name;
-                i++;
+                j++;
             } else if (cn!=NULL) {
                 ret->notes.Append(cn);
                 ret->note_targets.push_back(note_target_name);
-                ch->erase(i++);
+                ch->erase(j++);
             } else {
-                chart->Error.Error((*i)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
-                i++;
+                chart->Error.Error((*j)->file_pos.start, "Only entity definitions are allowed here. Ignoring this.");
+                j++;
             }
         }
         delete ch;

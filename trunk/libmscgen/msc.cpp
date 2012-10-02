@@ -1533,7 +1533,7 @@ void Msc::DrawPageBreaks(MscCanvas &canvas)
         const double y = yPageStart[page];
         XY d;
         canvas.Line(XY(total.x.from, y), XY(total.x.till, y), line);
-        sprintf(text, "page %d", page);
+        sprintf(text, "page %u", page);
         label.Set(text, canvas, format);
         label.Draw(canvas, total.x.from, total.x.till, y-label.getTextWidthHeight().y);
     }

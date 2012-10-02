@@ -133,7 +133,6 @@
     <None Include="UserImages.bmp">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="res\html1.htm" />
     <None Include="Msc-generator.reg" />
     <None Include="ReadMe.txt" />
     <None Include="..\Todo.txt" />

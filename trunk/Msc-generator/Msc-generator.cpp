@@ -658,7 +658,7 @@ UINT CheckVersionFreshness(LPVOID)
             if (i==2) loc[0]=0;
             char buff[200];
             //Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US)
-            sprintf(buff, "User-Agent: Msc-generator/%s (Windows; U; Windows NT %d.%d%s)", VersionText()+1, 
+            sprintf(buff, "User-Agent: Msc-generator/%s (Windows; U; Windows NT %u.%u%s)", VersionText()+1, 
                 osvi.dwMajorVersion, osvi.dwMinorVersion, loc);
             file->AddRequestHeaders(buff, HTTP_ADDREQ_FLAG_ADD_IF_NEW);
         }

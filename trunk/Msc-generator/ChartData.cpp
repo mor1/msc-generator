@@ -539,9 +539,9 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
     case CACHE_EMF:
         if (!m_cache_EMF) {
             //cache not OK, regenerate
-            HDC hdc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-            m_data->DrawToMetafile(hdc, true, bPageBreaks);
-            m_cache_EMF = CloseEnhMetaFile(hdc);
+            HDC hdc2 = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+            m_data->DrawToMetafile(hdc2, true, bPageBreaks);
+            m_cache_EMF = CloseEnhMetaFile(hdc2);
         }
         CRect full(0,0, int(m_data->GetSize().cx*x_scale), int(m_data->GetSize().cy*y_scale));
         PlayEnhMetaFile(hdc, m_cache_EMF, &full);
