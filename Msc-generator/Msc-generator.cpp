@@ -25,7 +25,6 @@
 #include "Msc-generator.h"
 #include "MainFrm.h"
 
-#include "IpFrame.h"
 #include "MscGenDoc.h"
 #include "MscGenView.h"
 #include "csh.h"
@@ -83,6 +82,8 @@ BOOL CAboutDlg::OnInitDialog( )
 	m_btnLink.SizeToContent();
 	CString text = "Msc-generator Version ";
 	GetDlgItem(IDC_STATIC_VERSION)->SetWindowText(text + (VersionText()+1));
+    text = "(using cairo v";
+	GetDlgItem(IDC_STATIC_CAIRO_VERSION)->SetWindowText(text + cairo_version_string() + ")");
 
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -317,9 +318,7 @@ BOOL CMscGenApp::InitInstance()
 		RUNTIME_CLASS(CMscGenView));
 	if (!pDocTemplate)
 		return FALSE;
-	pDocTemplate->SetServerInfo(
-		IDR_SRVR_EMBEDDED, IDR_SRVR_INPLACE,
-		RUNTIME_CLASS(CInPlaceFrame));
+	pDocTemplate->SetServerInfo(IDR_SRVR_EMBEDDED); //No other parameters, we do not support in-place editing
 	AddDocTemplate(pDocTemplate);
 	// Connect the COleTemplateServer to the document template
 	//  The COleTemplateServer creates new documents on behalf

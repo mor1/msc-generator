@@ -228,7 +228,6 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
 	m_itrEditing = m_charts.begin();
 	m_itrShown = m_charts.end();
 	m_itrSaved = m_itrEditing; //start as unmodified
-	m_itrDoNotSyncForThis = m_charts.end();
 	m_bAttemptingToClose = false;
 }
 
@@ -268,26 +267,6 @@ CDocObjectServer *CMscGenDoc::GetDocObjectServer(LPOLEDOCUMENTSITE pDocSite)
 	return new CDocObjectServer(this, pDocSite);
 }
 
-COleIPFrameWnd *CMscGenDoc::CreateInPlaceFrame(CWnd *pParentWnd) 
-{
-	m_itrDoNotSyncForThis = m_charts.end();
-	m_bAttemptingToClose = false;
-	return COleServerDocEx::CreateInPlaceFrame(pParentWnd);
-}
-
-void CMscGenDoc::DestroyInPlaceFrame(COleIPFrameWnd* pFrameWnd)
-{
-	// Stop editor
-	m_bAttemptingToClose = true;
-	m_ExternalEditor.Stop(STOPEDITOR_WAIT);
-	SyncShownWithEditing("exit in-place editing");
-	//If the user selected not to sync, we save this itrEditing and will not ask again
-	//This is to avoid popping up a sync question window long after the user has 
-	//exited in-place editing in the container app
-	if (m_itrEditing != m_itrShown) 
-		m_itrDoNotSyncForThis = m_itrEditing;
-	COleServerDocEx::DestroyInPlaceFrame(pFrameWnd);
-}
 // CMscGenDoc diagnostics
 #ifdef _DEBUG
 void CMscGenDoc::AssertValid() const
@@ -552,7 +531,6 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	m_charts.erase(m_charts.begin(), m_itrEditing);
 	m_itrSaved = m_itrEditing;
 	ShowEditingChart(true);
-	m_itrDoNotSyncForThis = m_charts.end();
 	CheckIfChanged();     
 
 	// if the app was started only to print, don't set user control
@@ -1273,12 +1251,10 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 	//or if we delete it now
 	bool saved_chart_is_deleted = m_itrSaved == m_charts.end();
 	bool shown_chart_is_deleted = m_itrShown == m_charts.end();
-	bool donot_chart_is_deleted = m_itrDoNotSyncForThis == m_charts.end();
 	IChartData i;
 	for (i = ++IChartData(m_itrEditing); i!=m_charts.end(); i++) {
 		if (i == m_itrSaved) saved_chart_is_deleted = true;
 		if (i == m_itrShown) shown_chart_is_deleted = true;
-		if (i == m_itrDoNotSyncForThis) donot_chart_is_deleted = true;
 	}
 	m_charts.erase(++IChartData(m_itrEditing), m_charts.end());
 	m_charts.push_back(data);
@@ -1287,8 +1263,6 @@ void CMscGenDoc::InsertNewChart(const CChartData &data)
 		m_itrSaved = m_charts.end();
 	if (shown_chart_is_deleted) 
 		m_itrShown = m_charts.end();
-	if (donot_chart_is_deleted) 
-		m_itrDoNotSyncForThis = m_charts.end();
 }
 
 void CMscGenDoc::SyncShownWithEditing(const CString &action) 
@@ -1297,7 +1271,6 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 	ASSERT(pApp != NULL);
     if (pApp->m_bFullScreenViewMode) return;
 	if (m_itrEditing == m_itrShown) return;
-	if (m_itrEditing == m_itrDoNotSyncForThis) return;
 	CString message = "I want to " + action + ", but you have made changes in the text editor.\n";
 	if (m_bAttemptingToClose) 
 		message.Append("Do you want to include the changes (or permanently loose them)?"); 

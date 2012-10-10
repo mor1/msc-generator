@@ -2,8 +2,6 @@
 // Microsoft Visual C++ generated include file.
 // Used by Msc-generator.rc
 //
-#define IDR_SRVR_INPLACE                4
-#define IDR_TOOLBAR_SRVR_INPLACE        4
 #define IDR_SRVR_INPLACE_256            5
 #define IDR_SRVR_EMBEDDED               6
 #define IDP_OLE_INIT_FAILED             100
@@ -76,6 +74,7 @@
 #define IDC_CHECK_SMART_HINT_ENTITY     1015
 #define IDC_STATIC_CURRENT_VERSION      1016
 #define IDC_CHECK_SMART_HINT_ATTR_NAME  1016
+#define IDC_STATIC_CAIRO_VERSION        1016
 #define IDC_STATIC_LATEST_VERSION       1017
 #define IDC_CHECK_SMART_HINT_ATTR_VALUE 1017
 #define IDC_CHECK_SMART_HINT_LINE_START 1018
@@ -99,7 +98,6 @@
 #define IDC_RADIO_SCALING_SCALE         1029
 #define IDC_RADIO_SCALING_X             1030
 #define IDC_STATIC_LATEST               1031
-#define ID_CANCEL_EDIT_SRVR             32769
 #define ID_FILE_EXPORT                  32771
 #define ID_BUTTON_EDITTEXT              32772
 #define ID_EDIT_PREFERENCES             32773

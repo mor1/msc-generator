@@ -36,6 +36,9 @@ ADD: Tip of the day
 ADD: Check if file changed on disk
 ADD: URL's to PNG
 
+In 3.5.2
+REMOVED: In place editing
+
 In 3.5.1
 ADDED: Option to re-open accidentally closed internal editor
 

@@ -137,7 +137,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.12.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\$(Configuration);..\compiled_cairo\cairo-1.12.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -175,7 +175,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\$(Configuration);..\compiled_cairo\cairo-1.12.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -214,7 +214,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\$(Configuration);..\compiled_cairo\cairo-1.12.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -251,7 +251,7 @@
     <Link>
       <RegisterOutput>false</RegisterOutput>
       <AdditionalDependencies>cairo.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\$(Configuration);..\compiled_cairo\cairo-1.12.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -268,13 +268,12 @@
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>..\libmscgen\$(Configuration);..\compiled_cairo\cairo-1.10.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\$(Configuration);..\compiled_cairo\cairo-1.12.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ChartData.cpp" />
     <ClCompile Include="ExternalEditor.cpp" />
-    <ClCompile Include="IpFrame.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MiniEditor.cpp" />
     <ClCompile Include="Msc-generator.cpp" />
@@ -293,7 +292,6 @@
   <ItemGroup>
     <ClInclude Include="ChartData.h" />
     <ClInclude Include="ExternalEditor.h" />
-    <ClInclude Include="IpFrame.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="MiniEditor.h" />
     <ClInclude Include="Msc-generator.h" />
