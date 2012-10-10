@@ -126,17 +126,18 @@ BEGIN
     LTEXT           "(Use %n for file name, %l for line number.)",IDC_STATIC,110,39,140,8
 END
 
-IDD_ABOUTBOX DIALOGEX 0, 0, 238, 55
+IDD_ABOUTBOX DIALOGEX 0, 0, 239, 66
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About Msc-generator"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,17,21,20
     LTEXT           "Msc-generator Version",IDC_STATIC_VERSION,40,10,119,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2008-2011 Zoltan Turanyi",IDC_STATIC,40,25,139,8
-    DEFPUSHBUTTON   "OK",IDOK,181,7,50,16,WS_GROUP
-    PUSHBUTTON      "Go to homepage",IDC_BUTTON_URL,40,38,133,14
-    PUSHBUTTON      "Download latest version",IDC_BUTTON_LATEST_URL,114,38,117,14
+    LTEXT           "Copyright (C) 2008-2011 Zoltan Turanyi",IDC_STATIC,39,32,139,8
+    DEFPUSHBUTTON   "OK",IDOK,182,7,50,16,WS_GROUP
+    PUSHBUTTON      "Go to homepage",IDC_BUTTON_URL,39,45,133,14
+    PUSHBUTTON      "Download latest version",IDC_BUTTON_LATEST_URL,115,45,117,14
+    LTEXT           "(using cairo v",IDC_STATIC_CAIRO_VERSION,40,20,119,8,SS_NOPREFIX
 END
 
 IDD_DIALOG_VERSION DIALOGEX 0, 0, 194, 60
@@ -177,9 +178,9 @@ BEGIN
     IDD_ABOUTBOX, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 231
+        RIGHTMARGIN, 232
         TOPMARGIN, 7
-        BOTTOMMARGIN, 48
+        BOTTOMMARGIN, 59
     END
 
     IDD_DIALOG_VERSION, DIALOG
@@ -252,7 +253,6 @@ IDR_SigChartTYPE        ICON                    "res\\Msc-generatorDoc.ico"
 IDR_TOOLBAR_MAINFRAME_256 BITMAP                  "res\\Toolbar256.bmp"
 IDR_SRVR_INPLACE_256    BITMAP                  "res\\IToolbar256.bmp"
 IDR_TOOLBAR_MAINFRAME   BITMAP                  "res\\mainfram.bmp"
-IDR_TOOLBAR_SRVR_INPLACE BITMAP                  "res\\srvr_inp.bmp"
 IDR_DESIGNBAR           BITMAP                  "res\\toolbar1.bmp"
 IDR_SRVR_INPLACE_257    BITMAP                  "res\\bmp00001.bmp"
 IDB_WRITESMALL          BITMAP                  "res\\writesmall.bmp"
@@ -304,19 +304,6 @@ BEGIN
     BUTTON      ID_VIEW_ZOOMNORMALIZE
     BUTTON      ID_BUTTON_TRACK
     BUTTON      ID_BUTTON_AUTO_SPLIT
-    BUTTON      ID_VIEW_SHOWELEMENTCONTROLS
-END
-
-IDR_TOOLBAR_SRVR_INPLACE TOOLBAR 16, 15
-BEGIN
-    BUTTON      ID_EDIT_COPYENTIRECHART
-    BUTTON      ID_EDIT_PASETENTIRECHART
-    BUTTON      ID_EDIT_UNDO
-    BUTTON      ID_EDIT_REDO
-    SEPARATOR
-    BUTTON      ID_BUTTON_EDITTEXT
-    BUTTON      ID_VIEW_RESETASPECTRATIO_INPLACE
-    BUTTON      ID_BUTTON_TRACK
     BUTTON      ID_VIEW_SHOWELEMENTCONTROLS
 END
 
@@ -413,46 +400,6 @@ BEGIN
         MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS
         MENUITEM "&Full screen\tF11",           ID_VIEW_FULL_SCREEN
     END
-    POPUP "&Help"
-    BEGIN
-        MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
-        MENUITEM "&Help...\tF1",                ID_HELP_HELP
-    END
-END
-
-IDR_SRVR_INPLACE MENU
-BEGIN
-    POPUP "&Edit"
-    BEGIN
-        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
-        MENUITEM "Re&do\tCtrl+Y",               ID_EDIT_REDO
-        MENUITEM SEPARATOR
-        MENUITEM "C&ut (from Internal Editor)\tCtrl+X", ID_EDIT_CUT
-        MENUITEM "&Copy (from Internal Editor)\tCtrl+C", ID_EDIT_COPY
-        MENUITEM "&Paste (into Internal Editor)\tCtrl+V", ID_EDIT_PASTE
-        MENUITEM "C&opy entire chart to clipboard\tShift+Ctrl+C", ID_EDIT_COPYENTIRECHART
-        MENUITEM "P&aste entire chart from clipboard\tShift+Ctrl+V", ID_EDIT_PASETENTIRECHART
-        MENUITEM SEPARATOR
-        MENUITEM "&Export...\tShift+Ctrl+X",    ID_FILE_EXPORT
-        MENUITEM "Update drawing from &Internal Editor\tCtrl+W", ID_EDIT_UPDATE
-        MENUITEM "&Edit in external text editor...\tCtrl+E", ID_BUTTON_EDITTEXT
-        MENUITEM "Pre&ferences...",             ID_EDIT_PREFERENCES
-    END
-    POPUP "&View"
-    BEGIN
-        MENUITEM "&Toolbar",                    ID_VIEW_TOOLBAR
-        MENUITEM "&Errors and Warnings",        ID_VIEW_OUTPUT
-        MENUITEM "&Internal Editor",            ID_VIEW_EDITOR
-        MENUITEM SEPARATOR
-        MENUITEM "Go to &next error\tF8",       ID_VIEW_NEXTERROR
-        MENUITEM "Go to &previous error\tShift+F8", ID_VIEW_PREVERROR
-        MENUITEM "&Redraw\tCtrl+R",             ID_VIEW_REDRAW
-        MENUITEM "Reset &Aspect Ratio to 1:1\tCtrl+1", ID_VIEW_RESETASPECTRATIO_INPLACE
-        MENUITEM "Tracking mode\tCtrl+T",       ID_BUTTON_TRACK
-        MENUITEM "Show Element &Controls",      ID_VIEW_SHOWELEMENTCONTROLS
-    END
-    MENUITEM SEPARATOR
-    MENUITEM SEPARATOR
     POPUP "&Help"
     BEGIN
         MENUITEM "&About Msc-generator...",     ID_APP_ABOUT
@@ -596,31 +543,6 @@ BEGIN
     VK_OEM_PLUS,    ID_VIEW_ZOOMIN,         VIRTKEY, CONTROL, NOINVERT
     "0",            ID_VIEW_ZOOMNORMALIZE,  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_MINUS,   ID_VIEW_ZOOMOUT,        VIRTKEY, CONTROL, NOINVERT
-    VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
-END
-
-IDR_SRVR_INPLACE ACCELERATORS
-BEGIN
-    "E",            ID_BUTTON_EDITTEXT,     VIRTKEY, CONTROL, NOINVERT
-    "T",            ID_BUTTON_TRACK,        VIRTKEY, CONTROL, NOINVERT
-    VK_ESCAPE,      ID_CANCEL_EDIT_SRVR,    VIRTKEY, NOINVERT
-    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
-    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
-    "C",            ID_EDIT_COPYENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
-    "V",            ID_EDIT_PASETENTIRECHART, VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
-    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
-    "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
-    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
-    VK_F2,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
-    VK_F7,          ID_EDIT_UPDATE,         VIRTKEY, NOINVERT
-    "W",            ID_EDIT_UPDATE,         VIRTKEY, CONTROL, NOINVERT
-    "X",            ID_FILE_EXPORT,         VIRTKEY, SHIFT, CONTROL, NOINVERT
-    VK_F1,          ID_HELP_HELP,           VIRTKEY, NOINVERT
-    VK_F8,          ID_VIEW_NEXTERROR,      VIRTKEY, NOINVERT
-    "R",            ID_VIEW_REDRAW,         VIRTKEY, CONTROL, NOINVERT
-    "1",            ID_VIEW_RESETASPECTRATIO_INPLACE, VIRTKEY, CONTROL, NOINVERT
     VK_F8,          ID_VIEW_PREVERROR,      VIRTKEY, SHIFT, NOINVERT
 END
 

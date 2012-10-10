@@ -1818,6 +1818,14 @@ cairo_win32_printing_surface_create (HDC hdc)
     cairo_surface_t *paginated;
     RECT rect;
 
+	/*Zozo added this, verify hdc is good, maybe a better error text is needed */
+		if (OBJ_METADC == GetObjectType(hdc)) { 
+			return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_INVALID_FORMAT));
+		}
+	/* end Zozo */
+
+	
+	
     surface = malloc (sizeof (cairo_win32_printing_surface_t));
     if (surface == NULL)
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
@@ -1851,6 +1859,14 @@ cairo_win32_printing_surface_create (HDC hdc)
     surface->win32.extents.width = rect.right - rect.left;
     surface->win32.extents.height = rect.bottom - rect.top;
 
+	/*Zozo added this, so EMF output is not clipped to screen size*/
+		if (OBJ_ENHMETADC == GetObjectType(hdc)) { 
+			surface->win32.extents.width *= 1000;
+			surface->win32.extents.height *= 1000;
+		}
+	/* end Zozo */
+
+        
     surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc);
     surface->win32.flags |= CAIRO_WIN32_SURFACE_FOR_PRINTING;
 

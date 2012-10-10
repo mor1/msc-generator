@@ -1,13 +1,12 @@
-﻿Build started 6/28/2012 11:38:42 AM.
-     1>Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" on node 2 (build target(s)).
+﻿Build started 10/2/2012 2:57:37 PM.
+     1>Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" on node 2 (Build target(s)).
      1>Build:
          "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\\BuildCairoCairo.bat"
-         Setting environment for using Microsoft Visual Studio 2010 x86 tools.
+         The system cannot find the path specified.
          
          make[1]: Entering directory `/c/Users/ethzrt/Documents/msc-generator/cairo-1.12.2/src'
          
-            Creating library debug/cairo.lib and object debug/cairo.exp
-     1>LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
+         cairo-win32-printing-surface.c
      1>cairo-freed-pool.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
      1>cairo-fixed.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
          Built successfully!
@@ -28,6 +27,7 @@
          
          make[1]: Entering directory `/c/Users/ethzrt/Documents/msc-generator/cairo-1.12.2/src'
          
+         cairo-win32-printing-surface.c
             Creating library release/cairo.lib and object release/cairo.exp
      1>LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
      1>cairo-freed-pool.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
@@ -48,8 +48,8 @@
          	src/release/cairo-static.lib
          make[1]: Leaving directory `/c/Users/ethzrt/Documents/msc-generator/cairo-1.12.2/src'
          Press any key to continue . . . 
-     1>Done Building Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" (build target(s)).
+     1>Done Building Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:16.74
+Time Elapsed 00:00:13.89

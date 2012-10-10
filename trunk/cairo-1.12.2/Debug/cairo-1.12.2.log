@@ -1,33 +1,47 @@
-﻿Build started 6/28/2012 11:17:06 AM.
-     1>Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" on node 2 (build target(s)).
+﻿Build started 10/2/2012 2:39:34 PM.
+     1>Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" on node 2 (Build target(s)).
      1>Build:
          "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\\BuildCairoCairo.bat"
-         Setting environment for using Microsoft Visual Studio 2010 x86 tools.
+         The system cannot find the path specified.
          
          make[1]: Entering directory `/c/Users/ethzrt/Documents/msc-generator/cairo-1.12.2/src'
          
-     1>LINK : fatal error LNK1181: cannot open input file '../../libpng/libpng.lib'
-         make[1]: *** [debug/cairo.dll] Error 157
+         Built successfully!
+         You should copy the following files to a proper place now:
+         
+         	cairo-version.h (NOTE: toplevel, not the src/cairo-version.h one!)
+         	src/cairo-features.h
+         	src/cairo.h
+         	src/cairo-deprecated.h
+         	src/cairo-win32.h
+         	src/cairo-script.h
+         	src/cairo-ps.h
+         	src/cairo-pdf.h
+         	src/cairo-svg.h
+         	src/debug/cairo.dll
+         	src/debug/cairo-static.lib
          make[1]: Leaving directory `/c/Users/ethzrt/Documents/msc-generator/cairo-1.12.2/src'
-         make: *** [cairo] Error 2
          
          make[1]: Entering directory `/c/Users/ethzrt/Documents/msc-generator/cairo-1.12.2/src'
          
-         cairo-win32-printing-surface.c
-         cairo-win32-font.c
-         cairo-png.c
-         cairo-script-surface.c
-         cairo-ps-surface.c
-         cairo-pdf-surface.c
-         cairo-svg-surface.c
-     1>LINK : fatal error LNK1181: cannot open input file '../../libpng/libpng.lib'
-         make[1]: *** [release/cairo.dll] Error 157
+         Built successfully!
+         You should copy the following files to a proper place now:
+         
+         	cairo-version.h (NOTE: toplevel, not the src/cairo-version.h one!)
+         	src/cairo-features.h
+         	src/cairo.h
+         	src/cairo-deprecated.h
+         	src/cairo-win32.h
+         	src/cairo-script.h
+         	src/cairo-ps.h
+         	src/cairo-pdf.h
+         	src/cairo-svg.h
+         	src/release/cairo.dll
+         	src/release/cairo-static.lib
          make[1]: Leaving directory `/c/Users/ethzrt/Documents/msc-generator/cairo-1.12.2/src'
-         make: *** [cairo] Error 2
          Press any key to continue . . . 
-     1>C:\Program Files\MSBuild\Microsoft.Cpp\v4.0\Microsoft.MakeFile.Targets(38,5): error MSB3073: The command ""C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\\BuildCairoCairo.bat"" exited with code -1.
-     1>Done Building Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" (build target(s)) -- FAILED.
+     1>Done Building Project "C:\Users\ethzrt\Documents\msc-generator\cairo-1.12.2\cairo-1.12.2.vcxproj" (Build target(s)).
 
-Build FAILED.
+Build succeeded.
 
-Time Elapsed 00:00:16.74
+Time Elapsed 00:00:15.12
