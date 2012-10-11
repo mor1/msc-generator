@@ -18,9 +18,7 @@
 #define IDS_TOOLBAR_CUSTOMIZE           125
 #define IDS_TOOLBAR_DESIGN              126
 #define IDR_MAINFRAME                   128
-#define IDR_TOOLBAR_MAINFRAME           128
 #define IDR_MAINFRAME_256               129
-#define IDR_TOOLBAR_MAINFRAME_256       129
 #define IDR_SigChartTYPE                130
 #define IDD_DIALOG_OPTIONS              132
 #define IDD_PROGRESSDIALOG              135
@@ -39,7 +37,6 @@
 #define ID_VIEW_APPLOOK_WINDOWS_7       220
 #define IDS_EDIT_MENU                   306
 #define IDR_RIBBON                      307
-#define IDR_DESIGNBAR                   310
 #define IDD_POPUPLIST                   311
 #define IDR_SRVR_INPLACE_257            311
 #define IDD_DIALOG_VERSION              313

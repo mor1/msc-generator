@@ -24,6 +24,7 @@ public:
     using std::map<double, element>::lower_bound;  //looked up only at instantiation time (from base class)
     using std::map<double, element>::begin;        //and not during template compilation (searched in global scope).
     using std::map<double, element>::end;
+    using std::map<double, element>::insert;
 
     DoubleMap() {};
     DoubleMap(const element &e) {insert(typename std::map<double, element>::value_type(-CONTOUR_INFINITY, e));
