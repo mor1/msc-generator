@@ -50,7 +50,6 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_WM_KEYUP()
 	// Standard printing commands
 	ON_COMMAND(ID_FILE_PRINT, &CScrollView::OnFilePrint)
-	ON_COMMAND(ID_CANCEL_EDIT_SRVR, &CMscGenView::OnCancelEditSrvr)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CScrollView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CMscGenView::OnFilePrintPreview)
 	ON_COMMAND(ID_VIEW_REDRAW, OnViewRedraw)
@@ -213,18 +212,6 @@ void CMscGenView::OnRButtonUp(UINT /*nFlags*/, CPoint point)
 void CMscGenView::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 {
 	theApp.GetContextMenuManager()->ShowPopupMenu(IDR_POPUP_EDIT, point.x, point.y, this, TRUE);
-}
-
-// OLE Server support
-
-// The following command handler provides the standard keyboard
-//  user interface to cancel an in-place editing session.  Here,
-//  the server (not the container) causes the deactivation
-void CMscGenView::OnCancelEditSrvr()
-{
-	//We comment it out as it does not handle CDockablePanes well...
-	//So we'd rather not deactivate from the server
-	//GetDocument()->OnDeactivateUI(FALSE);
 }
 
 

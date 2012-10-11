@@ -67,28 +67,35 @@ template <class Object>
 class PtrList : public std::list<Object*>
 {
     bool    responsible;
-    public:
-        explicit PtrList(bool r=true) : std::list<Object*>()
-            {responsible=r;}
-        PtrList *Append(Object *o)
-            {if (o) push_back(o); return this;}
-        PtrList *Append(PtrList<Object> *l)
-		    {if (l) {_ASSERT(responsible==l->responsible); splice(std::list<Object*>::end(), *l);} return this;}
-        PtrList *Prepend(Object *o)
-            {if (o) push_front(o); return this;}
-        PtrList *Prepend(PtrList<Object> *l)
-	        {if (l) {_ASSERT(responsible==l->responsible); splice(std::list<Object*>::begin(), *l);} return this;}        
-        void Empty() {if (responsible) for (auto i=this->begin(); i!=this->end(); i++) delete(*i); this->clear();}
-		~PtrList() {Empty();}
-        string Print(int ident=0) const
-            {typename std::list<Object*>::const_iterator i = std::list<Object*>::begin();
-             string s;;
-             while (i!=std::list<Object*>::end()) {
-                s.append(((*(i++))->Print(ident)));
-                if (i!=std::list<Object*>::end())
-                    s.append("\n");
-             }
-             return s;}
+public:
+    using std::list<Object*>::begin;
+    using std::list<Object*>::end;
+    using std::list<Object*>::push_back;
+    using std::list<Object*>::push_front;
+    using std::list<Object*>::splice;
+    using std::list<Object*>::clear;
+
+    explicit PtrList(bool r=true) : std::list<Object*>()
+        {responsible=r;}
+    PtrList *Append(Object *o)
+        {if (o) push_back(o); return this;}
+    PtrList *Append(PtrList<Object> *l)
+		{if (l) {_ASSERT(responsible==l->responsible); splice(end(), *l);} return this;}
+    PtrList *Prepend(Object *o)
+        {if (o) push_front(o); return this;}
+    PtrList *Prepend(PtrList<Object> *l)
+	    {if (l) {_ASSERT(responsible==l->responsible); splice(begin(), *l);} return this;}        
+    void Empty() 
+        {if (responsible) for (auto i=begin(); i!=end(); i++) delete(*i); clear();}
+	~PtrList() 
+        {Empty();}
+    string Print(int ident=0) const
+        {string s;
+            for (auto i = begin(); i!=end(); i++) {
+                if (i!=begin()) s.append("\n");
+                s.append((*i)->Print(ident));
+            }
+            return s;}
 };
 
 //Enum helper functions////////////////////////////////////////////
