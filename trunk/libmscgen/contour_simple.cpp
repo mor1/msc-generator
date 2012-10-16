@@ -954,7 +954,7 @@ relation_t SimpleContour::RelationTo(const SimpleContour &c) const
     for (size_type u1 = 0; u1<size(); u1++)
         for (size_type u2 = 0; u2<c.size(); u2++)
             if (at(u1).Crossing(c.at(u2), r, one_pos, two_pos))
-                if (one_pos>0 || two_pos>0) //Crosspoint found, we overlap
+                if (one_pos[0]>0 || two_pos[0]>0) //Crosspoint found, we overlap
                     return REL_OVERLAP;
     //No real crosspoint (only perhaps vertices are equal)
     return CheckContainment(c);
