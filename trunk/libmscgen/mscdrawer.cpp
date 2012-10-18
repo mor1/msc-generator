@@ -143,6 +143,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     fake_shadows = false;
     fake_spaces = false;
     needs_arrow_fix = false;
+    avoid_linewidth_1 = false;
     imprecise_positioning = false;
     can_and_shall_clip_total = true;
     avoid_transparency = false;
@@ -173,6 +174,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         needs_arrow_fix = true;         //WMF does not support complex clipping it seems
         //Fallthrough
     case EMF:
+        avoid_linewidth_1 = true;       //EMF needs wider than 1 horizontal lines to avoid clipping them too much
         needs_dots_in_corner = true;
         imprecise_positioning = true;
         fake_gradients = 30;
@@ -300,27 +302,29 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
         return ERR_CANVAS;
     }
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
+    scale_for_shadows = sqrt(scale.y*scale.x);
     if (total.x.Spans() <= 0 || total.y.Spans()<=0) return ERR_OK; //OK
 
-    scale_for_shadows = sqrt(scale.y*scale.x);
     cairo_scale(cr, fake_scale*scale.x, fake_scale*scale.y);
-    if (white_background) {
-        cairo_rectangle(cr, 0, 0, total.x.Spans(), origYSize+copyrightTextHeight);
-        cairo_set_source_rgb(cr, 1., 1., 1.);
-        cairo_fill(cr);
-    }
     if (can_and_shall_clip_total) {
         //clip first to allow for banner text, but not for WIN contexts
         cairo_save(cr);
         cairo_rectangle(cr, 0, 0, total.x.Spans(), origYSize+copyrightTextHeight);
         cairo_clip(cr);
     }
-    if (needs_dots_in_corner) {
-        //dots in the corner for EMF
+    if (white_background) {
+        cairo_rectangle(cr, 0, 0, total.x.Spans(), origYSize+copyrightTextHeight);
+        cairo_set_source_rgb(cr, 1., 1., 1.);
+        cairo_fill(cr);
+    }
+    else if (needs_dots_in_corner) {
+        //Draw small marks in corners, so EMF an WMF spans correctly
+        //(for some reason stroke do not work as intended, so we use fill()s)
         cairo_set_source_rgb(cr, 1, 1, 1);
-        cairo_move_to(cr, 0,               origYSize+copyrightTextHeight);
-        cairo_line_to(cr, total.x.Spans(), origYSize+copyrightTextHeight);
-        cairo_stroke(cr);
+        cairo_rectangle(cr, 0, 0, 1, 1);
+        cairo_fill(cr);
+        cairo_rectangle(cr, total.x.Spans()-1, origYSize+copyrightTextHeight-1, 1, 1);
+        cairo_fill(cr);
     }
     cairo_translate(cr, -total.x.from, -origYOffset);
     if (can_and_shall_clip_total) {
@@ -693,7 +697,7 @@ void MscCanvas::SetLineAttr(MscLineAttr line)
 	if (line.color.first && line.color.second.valid)
         SetColor(line.color.second);
     if (line.width.first)
-        cairo_set_line_width(cr, line.width.second);
+        cairo_set_line_width(cr, line.width.second + (avoid_linewidth_1 ? 0.01 : 0.0));
     if (line.type.first)
         SetDash(line);
 }

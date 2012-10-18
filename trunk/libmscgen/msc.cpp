@@ -1543,9 +1543,9 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
 {
     if (total.y.Spans() <= 0) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
-	MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
-	canvas.Line(XY(total.x.from,total.y.from), XY(total.x.from+1,total.y.from), marker);
-	canvas.Line(XY(total.x.till,total.y.till), XY(total.x.till-1,total.y.till), marker);
+	//MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
+	//canvas.Line(XY(total.x.from,total.y.from), XY(total.x.from+1,total.y.from), marker);
+	//canvas.Line(XY(total.x.till,total.y.till), XY(total.x.till-1,total.y.till), marker);
 	//draw background
     if (Background.size()) {
         MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);

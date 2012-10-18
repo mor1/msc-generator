@@ -35,9 +35,6 @@
 #include "trackable.h"
 #include "stringparse.h"
 
-#define CAIRO_OFF (0.5)
-
-
 ////////////////////Helpers//////////////////////////////////
 
 /***************************************************************************
@@ -65,6 +62,7 @@ protected:
     bool         fake_dash; /* Do not use cairo dash, mimic them with individual dashes */
     bool         fake_spaces; /* Add space for leading & trailing spaces at text(), assuming those are skipped by it */
     bool         needs_arrow_fix; /*Cannot do the convex clipping for arrowheads */
+    bool         avoid_linewidth_1; /* EMF with cairo 1.12.2 needs to have wider lines than 1 */
     bool         imprecise_positioning; /*EMF/WMF has trouble doing lines on 0.5 boundaries*/
     bool         can_and_shall_clip_total;  /* true if we can clip to "total". Does not work for WIN, so we need this flag */
     bool         avoid_transparency; /* true for Win Xp WMFs, where fallback images are slow */
