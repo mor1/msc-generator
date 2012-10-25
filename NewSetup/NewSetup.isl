@@ -383,8 +383,8 @@
 		<row><td>C__F4B34256885143018ECCDFD2C889D02C</td><td>{1CDAC947-2BA9-41E2-9960-A8582F52AED3}</td><td>INSTALLDIR</td><td>6</td><td/><td>_F4B34256885143018ECCDFD2C889D02C</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__F735EEE7D9734819980EC60D92A7E30C</td><td>{31A99B3F-758B-4ADC-B945-6A42B1D353F8}</td><td>INSTALLDIR</td><td>6</td><td/><td>_F735EEE7D9734819980EC60D92A7E30C</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td>{193AA9F8-E5C7-4196-A2DF-54AFE3FAE89F}</td><td>INSTALLDIR</td><td>6</td><td/><td>_F8AE738D0AA641CAB7D8B65901C55A14</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
-		<row><td>C__FBD4B223D4BE437F820A2671D5B60E47</td><td>{1766C18A-A4C4-41AB-A645-B98E44677EED}</td><td>INSTALLDIR</td><td>2</td><td/><td>_FBD4B223D4BE437F820A2671D5B60E47</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td>{43B9C35A-4383-4AF6-B29F-1AD1BEF3D701}</td><td>INSTALLDIR</td><td>6</td><td/><td>_FC302F634BBF45E493B93DB97A6CDDB4</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
+		<row><td>cairo.dll</td><td>{011C34F0-2A7C-44BD-95CA-5B357C6F1809}</td><td>INSTALLDIR</td><td>2</td><td/><td>cairo.dll</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 	</table>
 
 	<table name="Condition">
@@ -1951,8 +1951,8 @@
 		<row><td>AlwaysInstall</td><td>C__F4B34256885143018ECCDFD2C889D02C</td></row>
 		<row><td>AlwaysInstall</td><td>C__F735EEE7D9734819980EC60D92A7E30C</td></row>
 		<row><td>AlwaysInstall</td><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td></row>
-		<row><td>AlwaysInstall</td><td>C__FBD4B223D4BE437F820A2671D5B60E47</td></row>
 		<row><td>AlwaysInstall</td><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td></row>
+		<row><td>AlwaysInstall</td><td>cairo.dll</td></row>
 	</table>
 
 	<table name="File">
@@ -1975,7 +1975,7 @@
 		<row><td>_9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>C__9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>ORIGIN~1.SIG|original_designlib.signalling</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\original_designlib.signalling</td><td>5</td><td/></row>
 		<row><td>_AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>msc-gen.pdf</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\msc-gen.pdf</td><td>5</td><td/></row>
 		<row><td>_E3EC895DEE334AE1955560AD21D3DFAE</td><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td><td>msiexec.exe</td><td>0</td><td/><td/><td>4</td><td>1</td><td>&lt;SystemFolder&gt;\msiexec.exe</td><td>5</td><td/></row>
-		<row><td>_FBD4B223D4BE437F820A2671D5B60E47</td><td>C__FBD4B223D4BE437F820A2671D5B60E47</td><td>cairo.dll</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\compiled_cairo\cairo-1.8.10\cairo.dll</td><td>5</td><td/></row>
+		<row><td>cairo.dll</td><td>cairo.dll</td><td>cairo.dll</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\compiled_cairo\cairo-1.12.6\cairo.dll</td><td>1</td><td/></row>
 	</table>
 
 	<table name="FileSFPCatalog">
@@ -2273,8 +2273,8 @@
 		<row><td>C__F4B34256885143018ECCDFD2C889D02C</td><td/><td/><td>_7367CBEF_AA17_4EFD_8165_B562D186E15F_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__F735EEE7D9734819980EC60D92A7E30C</td><td/><td/><td>_B82D87B2_C0F7_486D_9E74_6D39C9E10E7E_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td/><td/><td>_2011E60F_EC57_4CC6_B66C_E102F657D765_FILTER</td><td/><td/><td/><td/></row>
-		<row><td>C__FBD4B223D4BE437F820A2671D5B60E47</td><td/><td/><td>_83670CCE_EAEF_4FBE_97F6_5B57CE5ABF37_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td/><td/><td>_7C2FFFF4_2B54_4CC7_BF65_36B5A77AC7A5_FILTER</td><td/><td/><td/><td/></row>
+		<row><td>cairo.dll</td><td/><td/><td>_1D81A434_1BF2_49FE_8180_B2581521F232_FILTER</td><td/><td/><td/><td/></row>
 	</table>
 
 	<table name="ISCustomActionReference">

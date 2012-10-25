@@ -69,6 +69,9 @@
       <Project>{4b88e8ef-e18e-4d17-a804-74a3802764a5}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
+    <ProjectReference Include="..\pixman-0.26.0\pixman-0.26.0.vcxproj">
+      <Project>{fa15cfcb-ac28-4855-957b-4da3b1da1588}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\zlib\projects\visualc71\zlib.vcxproj">
       <Project>{71088238-128e-4835-8e4b-4c88b83f1d15}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
