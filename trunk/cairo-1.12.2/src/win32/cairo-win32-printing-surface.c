@@ -1842,6 +1842,10 @@ cairo_win32_printing_surface_create (HDC hdc)
 
     surface->win32.format = CAIRO_FORMAT_RGB24;
     surface->win32.base.content = CAIRO_CONTENT_COLOR_ALPHA;
+    /* Zozo added this fix, since this field is left uninitialized, but is used
+       later throught in this file */
+        surface->content = CAIRO_CONTENT_COLOR_ALPHA;
+    /* Zozo ends */
 
     surface->win32.dc = hdc;
 
