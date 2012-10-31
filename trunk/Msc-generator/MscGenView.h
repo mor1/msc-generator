@@ -36,23 +36,19 @@ protected: // create from serialization only
 
 // Attributes
 public:
-	bool m_DeleteBkg;
+	bool m_DeleteBkg;  //Set to true if we need to erase bkg on next draw
 	// Drawn chart
-	CSize        m_size;
-    CChartCache  m_cache;
-	//stretch for in-place editing
-	double m_stretch_x;
-	double m_stretch_y;
-	//Fading Timer
-	UINT_PTR m_FadingTimer;
-	CPoint m_hoverPoint; //XXX
-	bool m_clicked; //XXX
+	CSize        m_size;         //Original Size of the chart (page) showing
+    CChartCache  m_cache;        //pre-drawn (nonscaled) version of chart (page)
+    CBitmap      m_view;         //Last rendered bitmap of (scaled) chart (page)
+    CRect        m_view_pos;     //origin and size of bitamp above. (empty if invalid)
+	UINT_PTR     m_FadingTimer;  //Handle of Fading Timer
 	//Drag and Drop 
 	COleDropTarget m_DropTarget;
-	DROPEFFECT m_nDropEffect;
+	DROPEFFECT     m_nDropEffect;
 	//Draging
-	CPoint m_DragPoint;
-	CPoint m_DragStartPoint;
+	CPoint         m_DragPoint;
+	CPoint         m_DragStartPoint;
 
 // Operations
 public:
@@ -64,7 +60,7 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in Msc page space)
-			void DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_scale);
+			void DrawTrackRects(cairo_surface_t *surf, CRect clip, double x_scale, double y_scale);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
@@ -95,8 +91,6 @@ public:
 	        BOOL DoMouseWheel(UINT nFlags, short zDelta, CPoint pt); 
 			void ResyncScrollSize(void);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-	afx_msg void ResetAspectRatioInPlace(void);
-	afx_msg void OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI);
 
 	DECLARE_MESSAGE_MAP()
 public:

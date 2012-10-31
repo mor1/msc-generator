@@ -65,7 +65,7 @@
 //Use this to detemine positions/layout
 MscCanvas::MscCanvas(OutputType ot) : 
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
-    outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false)
+    outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, win32_dc(NULL), original_wmf_hdc(NULL)
 #endif
@@ -83,7 +83,7 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight
                      const string &fn, const XY &scale,
                      const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false)
+    total(tot), status(ERR_PARAM), candraw(false), external_surface(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, win32_dc(NULL), original_wmf_hdc(NULL)
 #endif
@@ -122,6 +122,32 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
 }
+
+//This creates a Canvas for cairo recording surfaces. 
+//All commands will be recorded in an area [(0,0)->tot*scale], with both scaling and translation.
+//(in reality scale is only used to do proper shadow faking)
+//Drawing fakes and tweaks will be applied as per "ot"
+//Copyright text is also added
+MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, double copyrightTextHeight, const XY &scale, 
+              const std::vector<double> *yPageStart, unsigned page) :
+    fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
+    outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(true)
+#ifdef CAIRO_HAS_WIN32_SURFACE
+	, win32_dc(NULL), original_wmf_hdc(NULL)
+#endif
+{
+    if (CAIRO_STATUS_SUCCESS != cairo_surface_status(surf)) return; //nodraw state
+    SetLowLevelParams(ot);
+    double origYSize, origYOffset;
+    GetPagePosition(yPageStart, page, origYOffset, origYSize);
+
+    surface = surf;
+    cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
+    status = CreateContextFromSurface(ot, scale, origYSize, origYOffset, copyrightTextHeight);
+    if (status!=ERR_OK) CloseOutput();
+    else candraw = true;
+}
+
 
 cairo_status_t write_func(void * closure, const unsigned char *data, unsigned length)
 {
@@ -343,7 +369,7 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
 MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightTextHeight, 
                      const XY &scale, const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), win32_dc(NULL), original_wmf_hdc(NULL)
+    total(tot), status(ERR_PARAM), candraw(false), external_surface(false), win32_dc(NULL), original_wmf_hdc(NULL)
 {
     if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=PRINTER) 
         return;
@@ -521,7 +547,8 @@ void MscCanvas::CloseOutput()
     if (cr)
         cairo_destroy (cr);
 
-    if (surface) {
+    //Flush and destroy surface, but preserve external ones
+    if (surface && !external_surface) {
         /* Output the image to the disk file in PNG format. */
         switch (outType) {
 #ifdef CAIRO_HAS_PNG_FUNCTIONS

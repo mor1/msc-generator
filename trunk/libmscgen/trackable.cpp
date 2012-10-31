@@ -167,10 +167,9 @@ void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/)
 
 const XY TrackableElement::control_size = XY(25, 25);
 
-void TrackableElement::DrawControls(MscCanvas*canvas, double size)
+void TrackableElement::DrawControls(cairo_t *cr, double size)
 {
-    if (size<0.01 || size>1 || controls.size()==0 || canvas==NULL) return;
-    cairo_t *cr = canvas->GetContext();
+    if (size<0.01 || size>1 || controls.size()==0 || cr==NULL) return;
     cairo_save(cr);
     XY center = control_location.UpperLeft() + control_size/2;
     cairo_translate(cr, center.x, center.y);
@@ -215,8 +214,9 @@ void TrackableElement::DrawControls(MscCanvas*canvas, double size)
                              XY(control_size.x*0.25, 0));
             MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
             MscFillAttr fill(MscColorType(0,128,0), GRADIENT_UP);
-            canvas->Fill(arrow, fill);
-            canvas->Line(arrow, line);
+            arrow.Line(cr);
+            //canvas->Fill(arrow, fill);
+            //canvas->Line(arrow, line);
             break;
         }
         //move down to next control location

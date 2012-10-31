@@ -80,6 +80,7 @@ protected:
     const Block      total; //the full chart area (in unscaled chart coordinates, all pages) excluding copyright
     ErrorType        status;
     bool             candraw;
+    const bool       external_surface; //true if we got the surface in the constructor externally
 
     void SetLowLevelParams(MscCanvas::OutputType ot);
     void GetPagePosition(const std::vector<double> *yPageStart, unsigned page, double &y_offset, double &y_size) const;
@@ -117,6 +118,8 @@ friend class ArcPipe;  //for exotic line joints
 public:
     MscCanvas(OutputType ot);
     MscCanvas(OutputType, const Block &tot, double copyrightTextHeight, const string &fn, const XY &scale=XY(1.,1.),
+              const std::vector<double> *yPageStart=NULL, unsigned page=0);
+    MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, double copyrightTextHeight, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     ErrorType Status() const {return status;}
 #ifdef CAIRO_HAS_WIN32_SURFACE
