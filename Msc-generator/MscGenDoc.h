@@ -70,11 +70,12 @@ public:
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
 	// Track mode related
 	bool m_bTrackMode; //True if mouse is tracked over arcs
+    CCriticalSection m_SectionTrackingMembers; //To protect m_trackArcs below from simultaneous access
 	std::vector<TrackedArc> m_trackArcs;  //arcs to track currently
     std::map<Block, TrackableElement*> m_controlsShowing; //Controls currently appearing
 	CHARRANGE m_saved_charrange;
 	TrackableElement *m_last_arc; //During tracking the arc highlighted in the editor
-	CView *m_pViewFadingTimer;
+	CView *m_pViewFadingTimer;    //Our view in which track rectangles show
 	//Clipboard format
 	static CLIPFORMAT m_cfPrivate;
 	//The external editor object

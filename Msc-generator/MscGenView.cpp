@@ -53,8 +53,6 @@ BEGIN_MESSAGE_MAP(CMscGenView, CScrollView)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CScrollView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CMscGenView::OnFilePrintPreview)
 	ON_COMMAND(ID_VIEW_REDRAW, OnViewRedraw)
-	ON_COMMAND(ID_VIEW_RESETASPECTRATIO_INPLACE, ResetAspectRatioInPlace)
-	ON_UPDATE_COMMAND_UI(ID_VIEW_RESETASPECTRATIO_INPLACE, OnUpdateResetAspectRatioInPlace)
 	ON_WM_LBUTTONDBLCLK()
 	ON_WM_LBUTTONUP()
 	ON_WM_MOUSEHOVER()
@@ -72,14 +70,12 @@ END_MESSAGE_MAP()
 
 CMscGenView::CMscGenView() : m_size(0,0)
 {
-	m_size.SetSize(0,0);
 	// construction code here
 	m_DeleteBkg = false;
-	m_stretch_x = m_stretch_y = 1;
 	m_FadingTimer = NULL;
 	SetScrollSizes(MM_TEXT, m_size);
 	m_nDropEffect = DROPEFFECT_NONE;
-	m_clicked = false;
+    m_view_pos.SetRectEmpty();
 }
 
 CMscGenView::~CMscGenView()
@@ -264,36 +260,43 @@ void CMscGenView::InvalidateBlock(const Block &b)
 }
 
 //Draw tracking rectangles and controls
-//clip is understood as surface coordinates. scale tells me how much to scale m_size to get surface coords.
-void CMscGenView::DrawTrackRects(CDC* pDC, CRect clip, double x_scale, double y_scale)
+//clip is understood as window surface coordinates 
+//scale tells me how much to scale m_size to get surface coords.
+//the DC window origin is at 0,0 here
+void CMscGenView::DrawTrackRects(cairo_surface_t *surf, CRect clip, double x_scale, double y_scale)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (pDoc->m_trackArcs.size()==0 || pDC==NULL) return;
+	if (pDoc->m_trackArcs.size()==0 || NULL==surf) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
-    clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
+    //clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
 	//This is the destination surface
-    MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, pDoc->m_ChartShown.GetMscTotal(), 0, XY(x_scale, y_scale));
-    cairo_set_line_width(canvas.GetContext(), 1);
-	for (auto i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
-        if (i->what == TrackedArc::TRACKRECT) {
-            cairo_set_source_rgba(canvas.GetContext(), GetRValue(pApp->m_trackFillColor)/255., 
-                                                       GetGValue(pApp->m_trackFillColor)/255., 
-                                                       GetBValue(pApp->m_trackFillColor)/255., 
-                                                       GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Fill(canvas.GetContext());
-	        cairo_set_source_rgba(canvas.GetContext(), GetRValue(pApp->m_trackLineColor)/255., 
-                                                       GetGValue(pApp->m_trackLineColor)/255., 
-                                                       GetBValue(pApp->m_trackLineColor)/255., 
-                                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Line(canvas.GetContext());
-        } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls) 
-            i->arc->DrawControls(&canvas, i->fade_value);
-    }
-}
+    const Block tot = pDoc->m_ChartShown.GetMscTotal();
+    cairo_t *cr = cairo_create(surf);
+    cairo_translate(cr, -clip.left, -clip.top);
+    cairo_scale(cr, x_scale, y_scale);
 
+    CSingleLock lock(&pDoc->m_SectionTrackingMembers);
+    lock.Lock();
+    for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
+        if (i->what == TrackedArc::TRACKRECT) {
+            cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
+                                      GetGValue(pApp->m_trackFillColor)/255., 
+                                      GetBValue(pApp->m_trackFillColor)/255., 
+                                      GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
+            i->arc->GetAreaToDraw().Fill(cr);
+	        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
+                                      GetGValue(pApp->m_trackLineColor)/255., 
+                                      GetBValue(pApp->m_trackLineColor)/255., 
+                                      GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
+            i->arc->GetAreaToDraw().Line(cr);
+        } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls && 0) 
+            i->arc->DrawControls(cr, i->fade_value);
+    }
+    cairo_destroy(cr);
+}
 
 void CMscGenView::OnDraw(CDC* pDC)
 {
@@ -302,32 +305,41 @@ void CMscGenView::OnDraw(CDC* pDC)
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (SizeEmpty(m_size)) return;
-    CRect total;
     CRect clip;
-    double x_scale, y_scale;
-	if (pDoc->IsInPlaceActive()) {
-        x_scale = double(pDC->GetViewportExt().cx)/m_size.cx;              
-        y_scale = double(pDC->GetViewportExt().cy)/m_size.cy;              
-        total.SetRect(CPoint(0, 0), CPoint(pDC->GetViewportExt()));
-        clip = total;
-	} else {
-        x_scale = y_scale = pDoc->m_zoom/100.0;
-		total = CRect(CPoint(0, 0), CPoint(int(m_size.cx*x_scale), int(m_size.cy*y_scale)));
-		pDC->GetClipBox(&clip);
-    }
-    CPoint upper = GetScrollPosition();
+    const double scale = pDoc->m_zoom/100.0;
+	pDC->GetClipBox(&clip);
+
 	CDC memDC;
 	memDC.CreateCompatibleDC(pDC);
 	CBitmap bitmap;
 	CBitmap *oldBitmap;
     bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
     oldBitmap = memDC.SelectObject(&bitmap);
-    memDC.SetWindowOrg(clip.left, clip.top);
-    memDC.FillSolidRect(clip, pDC->GetBkColor());
-    m_cache.DrawToWindow(memDC.m_hDC, x_scale, y_scale, clip, pApp->m_bPB_Editing);
-	DrawTrackRects(&memDC, clip, x_scale, y_scale);
-    //pDC->SetMapMode(MM_TEXT);
-    pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, clip.left, clip.top, SRCCOPY);   
+    if (clip != m_view_pos) {
+        CDC memoryDC;
+        memoryDC.CreateCompatibleDC(pDC);
+        m_view.DeleteObject();
+        m_view.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
+        CBitmap *oldBitmap2 = memoryDC.SelectObject(&m_view);
+        memoryDC.FillSolidRect(0,0, clip.Width(), clip.Height(), pDC->GetBkColor());
+        cairo_surface_t *img = cairo_win32_surface_create(memoryDC.m_hDC);
+        m_cache.DrawToSurface(img, scale, scale, clip, pApp->m_bPB_Editing);
+        cairo_surface_destroy(img);
+        memoryDC.SelectObject(oldBitmap2);
+        m_view_pos = clip;
+    }
+    //Copy bitmap to memDC
+    CDC memoryDC;
+    memoryDC.CreateCompatibleDC(pDC);
+    CBitmap *oldBitmap2 = memoryDC.SelectObject(&m_view);
+    memDC.BitBlt(0,0, clip.Width(), clip.Height(), &memoryDC, 0, 0, SRCCOPY);   
+    memoryDC.SelectObject(oldBitmap2);
+    //Draw track records onto it
+    cairo_surface_t *img = cairo_win32_surface_create(memDC.m_hDC);
+    DrawTrackRects(img, clip, scale, scale);
+    cairo_surface_destroy(img);
+    //Copy to client area
+    pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, 0, 0, SRCCOPY);   
 	memDC.SelectObject(oldBitmap);
 }
 
@@ -367,18 +379,9 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
 	//Check if some of the background becomes visible (only if not in-place)
 	CSize new_size = pDoc->m_ChartShown.GetSize();
 	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
-		if (!pDoc->IsInPlaceActive())
-			m_DeleteBkg = true;
+        m_DeleteBkg = true;
 	m_size = new_size;
 
-	//readjust size if inplace active
-	if (pDoc->IsInPlaceActive() && !SizeEmpty(m_size)) {
-		CRect pos;
-		pDoc->GetItemPosition(&pos);
-		pos.right = pos.left + int(m_size.cx*m_stretch_x);
-		pos.bottom = pos.top + int(m_size.cy*m_stretch_y);
-		pDoc->RequestPositionChange(pos);
-	}
 	Invalidate();
 	ResyncScrollSize();
 }
@@ -466,46 +469,10 @@ void CMscGenView::OnSize(UINT /*nType*/, int cx, int cy)
 { 
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	//Calculate stretch (used only for in-place editing)
-	if (!SizeEmpty(m_size)) {
-		m_stretch_x = double(cx)/m_size.cx;
-		m_stretch_y = double(cy)/m_size.cy;
-	} else 
-		m_stretch_x = m_stretch_y = 1;
 	if (!pDoc->IsInPlaceActive() && pDoc->m_ZoomMode == CMscGenDoc::ZOOM_WIDTH)
 		pDoc->ArrangeViews();
 	else 
 		ResyncScrollSize(); 
-}
-
-void CMscGenView::ResetAspectRatioInPlace(void)
-{
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
-	if (!pDoc->IsInPlaceActive() || SizeEmpty(m_size)) return;
-	CRect oldPos;
-	pDoc->GetItemPosition(&oldPos);
-	CSize sizeOld = oldPos.Size();
-	CSize sizeNew(m_size);
-	CClientDC dc(this);
-	dc.LPtoDP(&sizeNew);
-	dc.LPtoDP(&sizeOld);
-	double oldArea = double(sizeOld.cx) * double(sizeOld.cy);
-	double newArea =  double(sizeNew.cx) * double(sizeNew.cy);
-	double scale = sqrt(oldArea / newArea); //Existing scale from Chart area to Client Area
-	sizeNew.cx *= int(scale/2);
-	sizeNew.cy *= int(scale/2);
-	//Keep centerpoint
-	CRect newPos(oldPos.CenterPoint()-sizeNew, oldPos.CenterPoint()+sizeNew);
-	pDoc->RequestPositionChange(newPos);
-	Invalidate();
-}
-
-void CMscGenView::OnUpdateResetAspectRatioInPlace(CCmdUI *pCmdUI)
-{
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
-	pCmdUI->Enable(pDoc->IsInPlaceActive() && !SizeEmpty(m_size));
 }
 
 void CMscGenView::OnLButtonDown(UINT nFlags, CPoint point)
@@ -589,7 +556,6 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	point.x = int(point.x*100./pDoc->m_zoom);
 	point.y = int(point.y*100./pDoc->m_zoom);
 	pDoc->UpdateTrackRects(point);
-	m_hoverPoint = point;
 }
 
 void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
@@ -619,7 +585,6 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
                 if (pDoc->OnControlClicked(i->second, i->second->WhichControl(XY(point.x, point.y))))
                     return; //Chart and "i" is no longer valid pDoc->m_trackArc and m_controlsShown are empty
 	if (pDoc->m_bTrackMode) {
-		m_clicked=true;
 		pDoc->UpdateTrackRects(point);
 	} else {
 		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);

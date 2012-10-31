@@ -22,7 +22,7 @@
 #include <list>
 #undef min
 #undef max
-#include "arcs.h"
+#include "msc.h"
 
 void ReplaceTAB(CString &str, unsigned tabsize=6); //6 seems to be default for RichEditCtrl
 void RemoveCRLF(CString &str);
@@ -113,6 +113,7 @@ public:
     void DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
     void DrawToPrinter(HDC hdc, double x_scale=1.0, double y_scale=1.0) const;
 	void DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page=false, unsigned forced_page=0) const; 
+    void DrawToRecordingSurface(cairo_surface_t *surf, MscCanvas::OutputType ot, bool pageBreaks, bool force_page=false, unsigned forced_page=0) const;
 	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
 	TrackableElement *GetArcByCoordinate(CPoint point) const;
@@ -126,20 +127,23 @@ typedef std::list<CChartData>::const_iterator IChartData_const;
 class CChartCache 
 {
 public:
-    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_BMP} ECacheType;
+    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_BMP, CACHE_RECORDING} ECacheType;
 protected:
-    CDrawingChartData   *m_data;
-    ECacheType   m_cacheType;
-	HENHMETAFILE m_cache_EMF;
-    CBitmap      m_cache_BMP;
-    double       m_cache_BMP_x_scale;
-    double       m_cache_BMP_y_scale;
-    CRect        m_cache_BMP_clip;
+    CDrawingChartData *m_data;
+    ECacheType         m_cacheType;
+	HENHMETAFILE       m_cache_EMF;
+    CBitmap            m_cache_BMP;
+    double             m_cache_BMP_x_scale;
+    double             m_cache_BMP_y_scale;
+    CRect              m_cache_BMP_clip;
+    cairo_surface_t   *m_cache_rec;
 public:
     CChartCache();
     void ClearCache();
     void SetData(CDrawingChartData *data) {ClearCache(); m_data = data;}
     const CDrawingChartData *GetChartData() const {return m_data;}
 	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
+    void DrawToSurface(cairo_surface_t *, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
     void SetCacheType(ECacheType t) {if (m_cacheType!=t) {ClearCache(); m_cacheType=t;}}
+
 };

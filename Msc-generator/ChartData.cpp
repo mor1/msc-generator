@@ -429,6 +429,20 @@ void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, boo
     }
 }
 
+//here force_page==0 means we do not force a particular page, use m_page
+void CDrawingChartData::DrawToRecordingSurface(cairo_surface_t *surf, MscCanvas::OutputType ot, bool pageBreaks, bool force_page, unsigned forced_page) const
+{
+    const unsigned page_to_draw = force_page ? forced_page : m_page;
+    MscCanvas canvas(ot, surf, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
+    if (canvas.Status()==MscCanvas::ERR_OK) {
+        //draw page breaks only if requested and not drawing a single page only
+        m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
+        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
+        m_msc->DrawCopyrightText(canvas, page_to_draw);
+    }
+}
+
 void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, double x_scale, double y_scale) const
 {
 	string fn(fileName?fileName:"Untitled");
@@ -478,7 +492,9 @@ TrackableElement *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) c
 }
 
 CChartCache::CChartCache() :
-m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_BMP_x_scale(0), m_cache_BMP_y_scale(0)
+m_cacheType(CACHE_EMF), m_cache_EMF(NULL), 
+m_cache_BMP_x_scale(0), m_cache_BMP_y_scale(0),
+m_cache_rec(NULL)
 {
 }
 
@@ -491,6 +507,10 @@ void CChartCache::ClearCache()
     if (m_cache_BMP_x_scale) {
         m_cache_BMP_x_scale = 0;
         m_cache_BMP.DeleteObject();
+    }
+    if (m_cache_rec) {
+        cairo_surface_destroy(m_cache_rec);
+        m_cache_rec = NULL;
     }
 }
 
@@ -536,15 +556,50 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
             targetDC.Detach();
         }
         break;
-    case CACHE_EMF:
-        if (!m_cache_EMF) {
-            //cache not OK, regenerate
-            HDC hdc2 = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-            m_data->DrawToMetafile(hdc2, true, bPageBreaks);
-            m_cache_EMF = CloseEnhMetaFile(hdc2);
+    case CACHE_EMF: {
+            if (!m_cache_EMF) {
+                //cache not OK, regenerate
+                HDC hdc2 = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+                m_data->DrawToMetafile(hdc2, true, bPageBreaks);
+                m_cache_EMF = CloseEnhMetaFile(hdc2);
+            }
+            CRect full(0,0, int(m_data->GetSize().cx*x_scale), int(m_data->GetSize().cy*y_scale));
+            PlayEnhMetaFile(hdc, m_cache_EMF, &full);
+            break;
         }
-        CRect full(0,0, int(m_data->GetSize().cx*x_scale), int(m_data->GetSize().cy*y_scale));
-        PlayEnhMetaFile(hdc, m_cache_EMF, &full);
-        break;
+    case CACHE_RECORDING: {
+            if (!m_cache_rec) {
+                //Cache not OK, regenerate
+                m_cache_rec = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL);
+                m_data->DrawToRecordingSurface(m_cache_rec, MscCanvas::WIN, bPageBreaks);
+            }
+            cairo_surface_t *surf = cairo_win32_surface_create(hdc);
+            cairo_t *cr = cairo_create(surf);
+            cairo_scale(cr, x_scale, y_scale);
+            cairo_set_source_surface (cr, m_cache_rec, 0.0, 0.0);
+            cairo_paint (cr);
+            cairo_destroy (cr);
+            cairo_surface_destroy(surf);
+        }
     }
 }
+
+
+void CChartCache::DrawToSurface(cairo_surface_t *surf, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks)
+{
+    if (!m_data) return;
+    m_data->CompileIfNeeded();
+    if (!m_data->m_msc) return;
+    ASSERT(m_cacheType==CACHE_RECORDING);
+    if (!m_cache_rec) {
+        //Cache not OK, regenerate
+        m_cache_rec = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL);
+        m_data->DrawToRecordingSurface(m_cache_rec, MscCanvas::WIN, bPageBreaks);
+    }
+    cairo_t *cr = cairo_create(surf);
+    cairo_scale(cr, x_scale, y_scale);
+    cairo_set_source_surface (cr, m_cache_rec, -clip.left/x_scale, -clip.top/y_scale);
+    cairo_paint (cr);
+    cairo_destroy (cr);
+}
+

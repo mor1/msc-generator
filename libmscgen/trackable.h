@@ -90,7 +90,7 @@ public:
     virtual double NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
     virtual void PostPosProcess(MscCanvas &);
 
-    void DrawControls(MscCanvas*, double size);
+    void DrawControls(cairo_t*, double size);
     MscControlType WhichControl(const XY &xy);
 
     Block GetIndicatorCover(const XY &pos);
