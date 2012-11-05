@@ -35,8 +35,10 @@ END_MESSAGE_MAP()
 CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : m_hintsPopup(parent, this)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    m_tabsize = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABSIZE, 4);
+	if (pApp)
+        m_tabsize = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABSIZE, 4);
+    else 
+        m_tabsize = 4;
 	m_bCshUpdateInProgress = false;  
     m_bWasReturnKey = false;
     m_bUserRequested = false;
@@ -51,8 +53,10 @@ BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd,
     if (!m_hintsPopup.Create(IDD_POPUPLIST, this))
         return false;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    m_designlib_csh.ParseText(pApp->m_ChartSourcePreamble, pApp->m_ChartSourcePreamble.GetLength(), -1, 1);
+	if (pApp)
+        m_designlib_csh.ParseText(pApp->m_ChartSourcePreamble, pApp->m_ChartSourcePreamble.GetLength(), -1, 1);
+    else 
+        m_designlib_csh.ParseText("", 0, -1, 1);
     return true;
 }
 
@@ -102,7 +106,7 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    if (!pApp->m_bSmartIdent || !pApp->m_bDoCshProcessing) return -1;
+    if (!pApp || !pApp->m_bSmartIdent || !pApp->m_bDoCshProcessing) return -1;
 	//Go through the list of color syntax highlight entries
 	for (auto  i = m_csh.CshList.begin(); i!=m_csh.CshList.end(); i++) {
 		//if we do not fall into a label skip
@@ -212,7 +216,8 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	//if color syntax highlighting is not enabled we cannot check for label
-	if (pApp->m_bSmartIdent && pApp->m_bDoCshProcessing) {
+    const bool haveSmartIdent = pApp && pApp->m_bSmartIdent && pApp->m_bDoCshProcessing;
+	if (haveSmartIdent) {
 		MscColorSyntaxType csh_color = m_csh.GetCshAt(pos_to_be_inserted+1);
 		//Dont do anything in a label
 		if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) return -1;
@@ -231,7 +236,7 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 		while(--nLineLength>=0) {
 			if (strLine[nLineLength] != '{' && strLine[nLineLength] != '}') continue;
 			//if color syntax highlighting is not enabled we cannot check for label
-			if (pApp->m_bSmartIdent && pApp->m_bDoCshProcessing) {
+			if (haveSmartIdent) {
 				//if a brace, but in a label, ignore
 				MscColorSyntaxType csh_color = m_csh.GetCshAt(ConvertLineColToPos(nLine, nLineLength)+1);
 				if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) continue;
@@ -538,7 +543,7 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	//Keep running if color syntax highlighting is not enabled, but we are forced to reset csh to normal
-	if (!pApp->m_bDoCshProcessing && !force) return false;
+	if (pApp && !pApp->m_bDoCshProcessing && !force) return false;
 	CHARFORMAT *const scheme = pApp->m_csh_cf[pApp->m_nCshScheme];
     bool ret = false;
 
@@ -622,7 +627,7 @@ void CCshRichEditCtrl::CancelPartialMatch()
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	m_csh.was_partial = false;
-    if (!pApp->m_bShowCsh) return;
+    if (!pApp || !pApp->m_bShowCsh) return;
 
 	SetRedraw(false);
 	m_bCshUpdateInProgress = true;
@@ -649,9 +654,10 @@ bool CCshRichEditCtrl::NotifyDocumentOfChange(bool onlySelChange)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+    if (!pApp) return false;
 	CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
 	ASSERT(pMainWnd!=NULL);
-	if (pMainWnd->GetActiveView() == NULL) return false;
+	if (!pMainWnd || pMainWnd->GetActiveView() == NULL) return false;
 	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
 	if (pDoc == NULL) return false;
 	if (onlySelChange) pDoc->OnInternalEditorSelChange();
@@ -666,9 +672,10 @@ BOOL CCshRichEditCtrl::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+    if (!pApp) return FALSE;
 	CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
 	ASSERT(pMainWnd!=NULL);
-	if (pMainWnd->GetActiveView() != NULL) {
+	if (pMainWnd && pMainWnd->GetActiveView() != NULL) {
 		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
 		if (pDoc != NULL)
 			pDoc->DispatchMouseWheel(nFlags, zDelta, pt);
@@ -806,10 +813,10 @@ CEditorBar::CEditorBar() : m_pFindReplaceDialog(NULL), m_ctrlEditor(this)
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	m_bSuspendNotifications = FALSE;
-	m_bLastMatchCase = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDMATCHCASE, 1);; 
+	m_bLastMatchCase = pApp ? pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDMATCHCASE, 1) : 1; 
 	m_bLastMatchWholeWord = false;
-	m_ptLastFindPos.x = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_X, 0);
-	m_ptLastFindPos.y = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_Y, 0);
+	m_ptLastFindPos.x = pApp ? pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_X, 0) : 0;
+	m_ptLastFindPos.y = pApp ? pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_Y, 0) : 0;
 	CDC dc;
 	dc.CreateCompatibleDC(NULL);
 	CRect r;
@@ -826,10 +833,12 @@ CEditorBar::~CEditorBar()
 	if (m_ptLastFindPos != CPoint(0,0)) {
 		CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 		ASSERT(pApp != NULL);
-		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_X, m_ptLastFindPos.x);
-		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_Y, m_ptLastFindPos.y);
-		pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDMATCHCASE, m_bLastMatchCase);
-	}
+        if (pApp) {
+            pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_X, m_ptLastFindPos.x);
+            pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDWINPOS_Y, m_ptLastFindPos.y);
+            pApp->WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDMATCHCASE, m_bLastMatchCase);
+        }
+    }
 }
 
 int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
@@ -862,7 +871,7 @@ int CEditorBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	CFrameWnd *pMainWnd = dynamic_cast<CFrameWnd*>(pApp->GetMainWnd());
+	CFrameWnd *pMainWnd = pApp ? dynamic_cast<CFrameWnd*>(pApp->GetMainWnd()) : NULL;
 	ASSERT(pMainWnd!=NULL);
 	if (pMainWnd->GetActiveView() != NULL) {
 		CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(pMainWnd->GetActiveView()->GetDocument());
@@ -1028,6 +1037,7 @@ LRESULT CEditorBar::OnFindReplaceMessage(WPARAM /*wParam*/, LPARAM lParam)
 
 	CFindReplaceDialog* pFindReplace = CFindReplaceDialog::GetNotifier(lParam);
     ASSERT(pFindReplace != NULL);
+    if (!pFindReplace) return 0;
 
 	//Store values for next opening or OnEditRepeat
 	m_sLastFindString = pFindReplace->GetFindString();

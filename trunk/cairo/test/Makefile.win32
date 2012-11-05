@@ -1,121 +1,55 @@
 top_srcdir = ..
 include $(top_srcdir)/build/Makefile.win32.common
+include $(top_srcdir)/test/Makefile.sources
 
-CFLAGS += -I../src -I../boilerplate -I./pdiff
-
-LDFLAGS += ./pdiff/pdiff.lib ../src/$(CFG)/cairo-static.lib $(PIXMAN_LIBS) ../boilerplate/$(CFG)/boiler.lib $(EXE_LDFLAGS)
-
-TESTS = 			\
-a8-mask				\
-caps-joins			\
-caps-joins-alpha		\
-caps-sub-paths			\
-clip-all			\
-clip-fill-rule			\
-clip-fill-rule-pixel-aligned	\
-clip-nesting			\
-clip-operator			\
-clip-twice			\
-composite-integer-translate-source \
-composite-integer-translate-over \
-composite-integer-translate-over-repeat \
-create-for-stream		\
-create-from-png			\
-create-from-png-stream		\
-dash-caps-joins			\
-dash-no-dash			\
-dash-offset-negative		\
-dash-scale			\
-dash-zero-length		\
-degenerate-path			\
-device-offset			\
-device-offset-positive		\
-extend-pad			\
-extend-reflect			\
-fill-and-stroke			\
-fill-and-stroke-alpha		\
-fill-and-stroke-alpha-add	\
-fill-rule			\
-filter-nearest-offset		\
-font-face-get-type		\
-font-matrix-translation		\
-glyph-cache-pressure		\
-get-and-set			\
-get-clip			\
-get-group-target		\
-get-path-extents		\
-gradient-alpha			\
-leaky-dash			\
-leaky-polygon			\
-line-width			\
-line-width-scale		\
-linear-gradient			\
-mask				\
-mask-ctm			\
-mask-surface-ctm		\
-move-to-show-surface		\
-new-sub-path			\
-nil-surface			\
-operator-clear			\
-operator-source			\
-paint				\
-paint-source-alpha		\
-paint-with-alpha		\
-pattern-get-type		\
-pattern-getters			\
-pixman-rotate			\
-rectangle-rounding-error	\
-scale-source-surface-paint	\
-select-font-face		\
-select-font-no-show-text	\
-self-copy			\
-self-intersecting		\
-set-source			\
-show-text-current-point		\
-source-clip			\
-source-surface-scale-paint	\
-surface-finish-twice		\
-surface-pattern			\
-text-antialias-gray		\
-text-antialias-none		\
-text-antialias-subpixel		\
-text-cache-crash		\
-text-pattern			\
-text-rotate			\
-transforms			\
-translate-show-surface		\
-trap-clip			\
-unantialiased-shapes		\
-unbounded-operator		\
-user-data			\
-rel-path                        \
-push-group			\
-zero-alpha			\
-$(NULL)
-
-TESTCORE_SOURCES = \
-	cairo-test.c \
-	buffer-diff.c \
+CFLAGS += \
+	-I$(top_srcdir)/boilerplate \
+	-I$(top_srcdir)/util/cairo-script/ \
+	-I./pdiff \
 	$(NULL)
 
-TEST_EXE = $(patsubst %, $(CFG)/%.exe, $(TESTS))
-# TEST_EXE = $(addsuffix .exe,$(TESTS))
+TEST_LIBS = \
+	./pdiff/$(CFG)/pdiff.lib \
+	$(top_builddir)/boilerplate/$(CFG)/boiler.lib \
+	$(top_builddir)/src/$(CFG)/cairo-static.lib \
+	$(NULL)
 
-all: $(TEST_EXE)
+all: inform $(CFG)/cairo-test-suite.exe
 
-$(CFG)/%.exe: %.c ./pdiff/pdiff.lib
-	@mkdir -p $(CFG)
-	@$(CC) $(CFLAGS) -Fe"$@" $<  $(TESTCORE_SOURCES) -link $(LDFLAGS)
+cairo-test-constructors.c: Makefile.sources Makefile.win32 $(test_sources) make-cairo-test-constructors.sh
+	sh ./make-cairo-test-constructors.sh $(test_sources) > $@
 
-./pdiff/pdiff.lib:
-	(cd pdiff ; $(MAKE) -f Makefile.win32)
+SOURCES = $(cairo_test_suite_sources) $(test_sources) cairo-test-constructors.c
 
-test: $(TEST_EXE)
-	@for exe in $(TEST_EXE) ; do \
-		echo $$exe ; \
-		( ./$$exe || exit 0 ) ; \
-	done
+OBJECTS = $(patsubst %.c, $(CFG)/%-static.obj, $(SOURCES))
 
-html:
-	@echo Creating index.html...
-	@perl make-html.pl > index.html
+ANY2PPM_OBJS = \
+	$(CFG)/any2ppm-static.obj \
+	$(top_builddir)/util/cairo-script/$(CFG)/libcairo-script-interpreter.lib \
+	$(top_builddir)/src/$(CFG)/cairo-static.lib \
+	$(NULL)
+
+$(CFG)/cairo-test-suite.exe: $(OBJECTS) $(TEST_LIBS)
+	@$(LD) $(CAIRO_LDFLAGS) -OUT:$@ $(OBJECTS) $(TEST_LIBS) $(CAIRO_LIBS)
+
+$(CFG)/any2ppm.exe: $(ANY2PPM_OBJS)
+	$(LD) $(CAIRO_LDFLAGS) -OUT:$@ $^ $(CAIRO_LIBS)
+
+./pdiff/$(CFG)/pdiff.lib:
+	$(MAKE) -C pdiff -f Makefile.win32
+
+$(top_builddir)/src/$(CFG)/cairo-static.lib:
+	$(MAKE) -C $(top_srcdir)/src -f Makefile.win32
+
+$(top_builddir)/boilerplate/$(CFG)/boiler.lib:
+	$(MAKE) -C $(top_srcdir)/boilerplate -f Makefile.win32
+
+$(top_builddir)/util/cairo-script/$(CFG)/libcairo-script-interpreter.lib:
+	$(MAKE) -C $(top_srcdir)/util/cairo-script -f Makefile.win32
+
+.PHONY: check test
+
+check: inform $(CFG)/any2ppm.exe $(CFG)/cairo-test-suite.exe
+	@ANY2PPM=$(CFG)\\any2ppm.exe $(CFG)/cairo-test-suite.exe
+
+test: inform check

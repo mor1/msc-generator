@@ -25,15 +25,6 @@
 
 #include "cairo-test.h"
 
-static cairo_test_draw_function_t draw;
-
-static const cairo_test_t test = {
-    "long-dashed-lines",
-    "Exercises _cairo_box_intersects_line_segment()",
-    60, 60,
-    draw
-};
-
 static cairo_test_status_t
 draw (cairo_t *cr, int width, int height)
 {
@@ -58,7 +49,7 @@ draw (cairo_t *cr, int width, int height)
     /* completely invisible rectangle */
     cairo_rectangle (cr, -5, -5, 70, 70);
 
-    cairo_set_dash (cr, dashes, sizeof (dashes) / sizeof (dashes[0]), 0.);
+    cairo_set_dash (cr, dashes, ARRAY_LENGTH (dashes), 0.);
     cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
     cairo_set_line_join (cr, CAIRO_LINE_JOIN_BEVEL);
     cairo_set_source_rgb (cr, 0, 0, 0);
@@ -67,8 +58,9 @@ draw (cairo_t *cr, int width, int height)
     return CAIRO_TEST_SUCCESS;
 }
 
-int
-main (void)
-{
-    return cairo_test (&test);
-}
+CAIRO_TEST (long_dashed_lines,
+	    "Exercises _cairo_box_intersects_line_segment()",
+	    "dash, stroke, stress", /* keywords */
+	    NULL, /* requirements */
+	    60, 60,
+	    NULL, draw)

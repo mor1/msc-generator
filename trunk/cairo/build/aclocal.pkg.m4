@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335, USA.
 #
 # As a special exception to the GNU General Public License, if you
 # distribute this file as part of a program that contains a
@@ -92,6 +92,8 @@ fi[]dnl
 # PKG_CHECK_MODULES(VARIABLE-PREFIX, MODULES, [ACTION-IF-FOUND],
 # [ACTION-IF-NOT-FOUND])
 #
+# ACTION-IF-NOT-FOUND is not allowed to be empty, that trigger PKG_CONFIG_PATH error message.
+# Use : or set a dummy variable to avoid that behavior.
 #
 # Note that if there is a possibility the first call to
 # PKG_CHECK_MODULES might not happen, you should be sure to include an

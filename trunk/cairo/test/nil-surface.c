@@ -33,15 +33,6 @@
  *	https://bugs.freedesktop.org/show_bug.cgi?id=9906
  */
 
-static cairo_test_draw_function_t draw;
-
-static const cairo_test_t test = {
-    "nil-surface",
-    "Test that nil surfaces do not make cairo crash.",
-    1, 1,
-    draw
-};
-
 static cairo_test_status_t
 draw (cairo_t *cr, int width, int height)
 {
@@ -163,15 +154,17 @@ draw (cairo_t *cr, int width, int height)
     /* Test that push_group doesn't crash */
     cairo_push_group (cr2);
     cairo_stroke (cr2);
-    cairo_pop_group (cr2);
+    pattern = cairo_pop_group (cr2);
+    cairo_pattern_destroy (pattern);
 
     cairo_destroy (cr2);
 
     return CAIRO_TEST_SUCCESS;
 }
 
-int
-main (void)
-{
-    return cairo_test (&test);
-}
+CAIRO_TEST (nil_surface,
+	    "Test that nil surfaces do not make cairo crash.",
+	    "api", /* keywords */
+	    NULL, /* requirements */
+	    1, 1,
+	    NULL, draw)

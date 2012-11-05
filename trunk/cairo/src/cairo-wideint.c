@@ -12,7 +12,7 @@
  *
  * You should have received a copy of the LGPL along with this library
  * in the file COPYING-LGPL-2.1; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335, USA
  * You should have received a copy of the MPL along with this library
  * in the file COPYING-MPL-1.1
  *
@@ -37,19 +37,83 @@
 
 #if HAVE_UINT64_T
 
+#define uint64_lo32(i)	((i) & 0xffffffff)
+#define uint64_hi32(i)	((i) >> 32)
+#define uint64_lo(i)	((i) & 0xffffffff)
+#define uint64_hi(i)	((i) >> 32)
+#define uint64_shift32(i)   ((i) << 32)
+#define uint64_carry32	(((uint64_t) 1) << 32)
+
 #define _cairo_uint32s_to_uint64(h,l) ((uint64_t) (h) << 32 | (l))
 
-cairo_uquorem64_t
-_cairo_uint64_divrem (cairo_uint64_t num, cairo_uint64_t den)
-{
-    cairo_uquorem64_t	qr;
+#else
 
-    qr.quo = num / den;
-    qr.rem = num % den;
-    return qr;
+#define uint64_lo32(i)	((i).lo)
+#define uint64_hi32(i)	((i).hi)
+
+static cairo_uint64_t
+uint64_lo (cairo_uint64_t i)
+{
+    cairo_uint64_t  s;
+
+    s.lo = i.lo;
+    s.hi = 0;
+    return s;
 }
 
-#else
+static cairo_uint64_t
+uint64_hi (cairo_uint64_t i)
+{
+    cairo_uint64_t  s;
+
+    s.lo = i.hi;
+    s.hi = 0;
+    return s;
+}
+
+static cairo_uint64_t
+uint64_shift32 (cairo_uint64_t i)
+{
+    cairo_uint64_t  s;
+
+    s.lo = 0;
+    s.hi = i.lo;
+    return s;
+}
+
+static const cairo_uint64_t uint64_carry32 = { 0, 1 };
+
+cairo_uint64_t
+_cairo_double_to_uint64 (double i)
+{
+    cairo_uint64_t	q;
+
+    q.hi = i * (1. / 4294967296.);
+    q.lo = i - q.hi * 4294967296.;
+    return q;
+}
+
+double
+_cairo_uint64_to_double (cairo_uint64_t i)
+{
+    return i.hi * 4294967296. + i.lo;
+}
+
+cairo_int64_t
+_cairo_double_to_int64 (double i)
+{
+    cairo_uint64_t	q;
+
+    q.hi = i * (1. / INT32_MAX);
+    q.lo = i - q.hi * (double)INT32_MAX;
+    return q;
+}
+
+double
+_cairo_int64_to_double (cairo_int64_t i)
+{
+    return i.hi * INT32_MAX + i.lo;
+}
 
 cairo_uint64_t
 _cairo_uint32_to_uint64 (uint32_t i)
@@ -317,32 +381,7 @@ _cairo_uint64_divrem (cairo_uint64_t num, cairo_uint64_t den)
 
 #endif /* !HAVE_UINT64_T */
 
-cairo_quorem64_t
-_cairo_int64_divrem (cairo_int64_t num, cairo_int64_t den)
-{
-    int			num_neg = _cairo_int64_negative (num);
-    int			den_neg = _cairo_int64_negative (den);
-    cairo_uquorem64_t	uqr;
-    cairo_quorem64_t	qr;
-
-    if (num_neg)
-	num = _cairo_int64_negate (num);
-    if (den_neg)
-	den = _cairo_int64_negate (den);
-    uqr = _cairo_uint64_divrem (num, den);
-    if (num_neg)
-	qr.rem = _cairo_int64_negate (uqr.rem);
-    else
-	qr.rem = uqr.rem;
-    if (num_neg != den_neg)
-	qr.quo = (cairo_int64_t) _cairo_int64_negate (uqr.quo);
-    else
-	qr.quo = (cairo_int64_t) uqr.quo;
-    return qr;
-}
-
 #if HAVE_UINT128_T
-
 cairo_uquorem128_t
 _cairo_uint128_divrem (cairo_uint128_t num, cairo_uint128_t den)
 {
@@ -418,54 +457,6 @@ _cairo_uint128_sub (cairo_uint128_t a, cairo_uint128_t b)
 	s.hi = _cairo_uint64_sub (s.hi, _cairo_uint32_to_uint64(1));
     return s;
 }
-
-#if HAVE_UINT64_T
-
-#define uint64_lo32(i)	((i) & 0xffffffff)
-#define uint64_hi32(i)	((i) >> 32)
-#define uint64_lo(i)	((i) & 0xffffffff)
-#define uint64_hi(i)	((i) >> 32)
-#define uint64_shift32(i)   ((i) << 32)
-#define uint64_carry32	(((uint64_t) 1) << 32)
-
-#else
-
-#define uint64_lo32(i)	((i).lo)
-#define uint64_hi32(i)	((i).hi)
-
-static cairo_uint64_t
-uint64_lo (cairo_uint64_t i)
-{
-    cairo_uint64_t  s;
-
-    s.lo = i.lo;
-    s.hi = 0;
-    return s;
-}
-
-static cairo_uint64_t
-uint64_hi (cairo_uint64_t i)
-{
-    cairo_uint64_t  s;
-
-    s.lo = i.hi;
-    s.hi = 0;
-    return s;
-}
-
-static cairo_uint64_t
-uint64_shift32 (cairo_uint64_t i)
-{
-    cairo_uint64_t  s;
-
-    s.lo = 0;
-    s.hi = i.lo;
-    return s;
-}
-
-static const cairo_uint64_t uint64_carry32 = { 0, 1 };
-
-#endif
 
 cairo_uint128_t
 _cairo_uint64x64_128_mul (cairo_uint64_t a, cairo_uint64_t b)
@@ -713,7 +704,8 @@ _cairo_int128_divrem (cairo_int128_t num, cairo_int128_t den)
  * bits then the returned remainder is equal to the divisor, and the
  * quotient is the largest representable 64 bit integer.  It is an
  * error to call this function with the high 32 bits of @num being
- * non-zero. */
+ * non-zero.
+ **/
 cairo_uquorem64_t
 _cairo_uint_96by64_32x64_divrem (cairo_uint128_t num,
 				 cairo_uint64_t den)
@@ -843,7 +835,7 @@ _cairo_int_96by64_32x64_divrem (cairo_int128_t num, cairo_int64_t den)
     uqr = _cairo_uint_96by64_32x64_divrem (num, nonneg_den);
     if (_cairo_uint64_eq (uqr.rem, nonneg_den)) {
 	/* bail on overflow. */
-	qr.quo = _cairo_uint32s_to_uint64 (0x7FFFFFFF, -1U);;
+	qr.quo = _cairo_uint32s_to_uint64 (0x7FFFFFFF, -1U);
 	qr.rem = den;
 	return qr;
     }

@@ -51,33 +51,6 @@ BeOS surface support
 BeOS Surfaces
 
 
-<!-- ##### SECTION ./tmpl/cairo-glitz.sgml:Long_Description ##### -->
-<para>
-The Glitz surface is used to render cairo graphics targeting the
-OpenGL hardware using the Glitz library.
-</para>
-
-
-<!-- ##### SECTION ./tmpl/cairo-glitz.sgml:See_Also ##### -->
-<para>
-<itemizedlist>
-<listitem>#cairo_surface_t</listitem>
-</itemizedlist>
-</para>
-
-
-<!-- ##### SECTION ./tmpl/cairo-glitz.sgml:Short_Description ##### -->
-OpenGL accelerated rendering using the Glitz library
-
-
-<!-- ##### SECTION ./tmpl/cairo-glitz.sgml:Stability_Level ##### -->
-
-
-
-<!-- ##### SECTION ./tmpl/cairo-glitz.sgml:Title ##### -->
-Glitz Surfaces
-
-
 <!-- ##### SECTION ./tmpl/cairo-xcb-xrender.sgml:Long_Description ##### -->
 <para>
 The XCB surface is used to render cairo graphics to X Window System
@@ -106,37 +79,6 @@ X Window System rendering using the XCB library and the X Render extension
 
 
 <!-- ##### SECTION ./tmpl/cairo-xcb-xrender.sgml:Title ##### -->
-XCB Surfaces
-
-
-<!-- ##### SECTION ./tmpl/cairo-xcb.sgml:Long_Description ##### -->
-<para>
-The XCB surface is used to render cairo graphics to X Window System
-windows and pixmaps using the XCB library.
-</para>
-<para>
-Note that the XCB surface automatically takes advantage of the X render
-extension if it is available.
-</para>
-
-
-<!-- ##### SECTION ./tmpl/cairo-xcb.sgml:See_Also ##### -->
-<para>
-<itemizedlist>
-<listitem>#cairo_surface_t</listitem>
-</itemizedlist>
-</para>
-
-
-<!-- ##### SECTION ./tmpl/cairo-xcb.sgml:Short_Description ##### -->
-X Window System rendering using the XCB library
-
-
-<!-- ##### SECTION ./tmpl/cairo-xcb.sgml:Stability_Level ##### -->
-
-
-
-<!-- ##### SECTION ./tmpl/cairo-xcb.sgml:Title ##### -->
 XCB Surfaces
 
 

@@ -1,13 +1,13 @@
 set PATH=%PATH%;C:\Program Files\msys\bin
-call "C:\Program Files\Microsoft Visual Studio 10.0\Common7\Tools\vsvars32.bat"
+call "C:\Program Files\Microsoft Visual Studio 12.0\Common7\Tools\vsvars32.bat"
 
 set ROOTDIR=%CD%\..
 
 set INCLUDE=%INCLUDE%;%ROOTDIR%\zlib
 set INCLUDE=%INCLUDE%;%ROOTDIR%\libpng
-set INCLUDE=%INCLUDE%;%ROOTDIR%\pixman\pixman
-set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo\boilerplate
-set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo\src
+set INCLUDE=%INCLUDE%;%ROOTDIR%\pixman-0.26.0\pixman
+set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo-1.12.6\boilerplate
+set INCLUDE=%INCLUDE%;%ROOTDIR%\cairo-1.12.6\cairo\src
 
 set LIB_SAVE=%LIB%
 

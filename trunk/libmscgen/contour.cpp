@@ -248,11 +248,11 @@ void ContourList::Distance(const ContourList &cl, DistanceType &dist_so_far) con
     }
     dist_so_far.SwapPoints();
     for (auto i = begin(); i!=end(); i++) {
-        const double bbdist = i->GetBoundingBox().Distance(cl.GetBoundingBox());
-        if (dist_so_far.ConsiderBB(bbdist))
+        const double bbdist2 = i->GetBoundingBox().Distance(cl.GetBoundingBox());
+        if (dist_so_far.ConsiderBB(bbdist2))
             cl.Distance(*i, dist_so_far);
         else
-            dist_so_far.MergeInOut(bbdist);
+            dist_so_far.MergeInOut(bbdist2);
         if (dist_so_far.IsZero())
             break;
     }
