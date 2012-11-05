@@ -263,17 +263,14 @@ void CMscGenView::InvalidateBlock(const Block &b)
 //clip is understood as window surface coordinates 
 //scale tells me how much to scale m_size to get surface coords.
 //the DC window origin is at 0,0 here
-void CMscGenView::DrawTrackRects(cairo_surface_t *surf, CRect clip, double x_scale, double y_scale)
+void CMscGenView::DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect clip)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (pDoc->m_trackArcs.size()==0 || NULL==surf) return;
+	if (pDoc->m_trackArcs.size()==0 || NULL==pDC) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	//Adjust clip for pDoc->m_nTrackBottomClip. We do not draw a tackrect onto the copyright line.
-    //clip.bottom = std::min(clip.bottom, (LONG)ceil(y_scale*pDoc->m_ChartShown.GetBottomWithoutCopyright()));
-	//This is the destination surface
-    const Block tot = pDoc->m_ChartShown.GetMscTotal();
+    cairo_surface_t *surf = cairo_win32_surface_create(pDC->m_hDC);
     cairo_t *cr = cairo_create(surf);
     cairo_translate(cr, -clip.left, -clip.top);
     cairo_scale(cr, x_scale, y_scale);
@@ -292,10 +289,11 @@ void CMscGenView::DrawTrackRects(cairo_surface_t *surf, CRect clip, double x_sca
                                       GetBValue(pApp->m_trackLineColor)/255., 
                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
             i->arc->GetAreaToDraw().Line(cr);
-        } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls && 0) 
+        } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls) 
             i->arc->DrawControls(cr, i->fade_value);
     }
     cairo_destroy(cr);
+    cairo_surface_destroy(surf);
 }
 
 void CMscGenView::OnDraw(CDC* pDC)
@@ -335,9 +333,7 @@ void CMscGenView::OnDraw(CDC* pDC)
     memDC.BitBlt(0,0, clip.Width(), clip.Height(), &memoryDC, 0, 0, SRCCOPY);   
     memoryDC.SelectObject(oldBitmap2);
     //Draw track records onto it
-    cairo_surface_t *img = cairo_win32_surface_create(memDC.m_hDC);
-    DrawTrackRects(img, clip, scale, scale);
-    cairo_surface_destroy(img);
+    DrawTrackRects(&memDC, scale, scale, clip );
     //Copy to client area
     pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, 0, 0, SRCCOPY);   
 	memDC.SelectObject(oldBitmap);
@@ -367,6 +363,8 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
 
     m_cache.SetCacheType(pApp->m_cacheType);
     m_cache.SetData(&pDoc->m_ChartShown);
+    m_view.DeleteObject();
+    m_view_pos.SetRectEmpty();
 
 	//Delete the cached bitmap
 	if (pDoc->m_ChartShown.IsEmpty()) {
@@ -439,6 +437,8 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	pos -= pt;
 	if (pos.x < 0) pos.x = 0;
 	if (pos.y < 0) pos.y = 0;
+    m_view.DeleteObject();
+    m_view_pos.SetRectEmpty();
 	SetRedraw(false);
 	pDoc->SetZoom(zoom);
 	ScrollToDevicePosition(pos);

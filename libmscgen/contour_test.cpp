@@ -59,9 +59,9 @@ CairoContext::CairoContext(unsigned i, const Block &pl, const char *text, bool t
         else {_ASSERT(0);}
     }
     if (sub>=0) 
-        sprintf(fileName, "test%d_%03d.png", i, sub);
+        sprintf(fileName, "test%u_%03u.png", i, sub);
     else
-        sprintf(fileName, "test%d.png", i);
+        sprintf(fileName, "test%u.png", i);
     outFile=NULL;
     surface=NULL;
     cr=NULL;

@@ -24,8 +24,9 @@
  * Author: Carl D. Worth <cworth@cworth.org>
  */
 
-#include "cairo-boilerplate.h"
-#include "cairo-boilerplate-svg-private.h"
+#include "cairo-boilerplate-private.h"
+
+#if CAIRO_CAN_TEST_SVG_SURFACE
 
 #include <cairo-svg.h>
 #include <cairo-svg-surface-private.h>
@@ -36,11 +37,19 @@
 #include <signal.h>
 #endif
 
+#if HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+
+#if ! CAIRO_HAS_RECORDING_SURFACE
+#define CAIRO_SURFACE_TYPE_RECORDING CAIRO_INTERNAL_SURFACE_TYPE_RECORDING
+#endif
+
 static const cairo_user_data_key_t svg_closure_key;
 
 typedef struct _svg_target_closure {
     char    *filename;
-    int	    width, height;
+    int     width, height;
     cairo_surface_t	*target;
 } svg_target_closure_t;
 
@@ -48,12 +57,11 @@ static cairo_surface_t *
 _cairo_boilerplate_svg_create_surface (const char		 *name,
 				       cairo_content_t		  content,
 				       cairo_svg_version_t	  version,
-				       int			  width,
-				       int			  height,
-				       int			  max_width,
-				       int			  max_height,
-				       cairo_boilerplate_mode_t	  mode,
-				       int                        id,
+				       double			  width,
+				       double			  height,
+				       double			  max_width,
+				       double			  max_height,
+				       cairo_boilerplate_mode_t   mode,
 				       void			**closure)
 {
     svg_target_closure_t *ptc;
@@ -62,10 +70,10 @@ _cairo_boilerplate_svg_create_surface (const char		 *name,
 
     *closure = ptc = xmalloc (sizeof (svg_target_closure_t));
 
-    ptc->width = width;
-    ptc->height = height;
+    ptc->width = ceil (width);
+    ptc->height = ceil (height);
 
-    xasprintf (&ptc->filename, "%s-out.svg", name);
+    xasprintf (&ptc->filename, "%s.out.svg", name);
     xunlink (ptc->filename);
 
     surface = cairo_svg_surface_create (ptc->filename, width, height);
@@ -79,7 +87,7 @@ _cairo_boilerplate_svg_create_surface (const char		 *name,
 	ptc->target = surface;
 	surface = cairo_surface_create_similar (ptc->target,
 						CAIRO_CONTENT_COLOR,
-						width, height);
+						ptc->width, ptc->height);
 	if (cairo_surface_status (surface))
 	    goto CLEANUP_TARGET;
     } else
@@ -100,50 +108,48 @@ _cairo_boilerplate_svg_create_surface (const char		 *name,
     return surface;
 }
 
-cairo_surface_t *
-_cairo_boilerplate_svg11_create_surface (const char		 *name,
-					 cairo_content_t	  content,
-					 int			  width,
-					 int			  height,
-					 int			  max_width,
-					 int			  max_height,
-					 cairo_boilerplate_mode_t	  mode,
-					 int                        id,
-					 void			**closure)
+static cairo_surface_t *
+_cairo_boilerplate_svg11_create_surface (const char		   *name,
+					 cairo_content_t	    content,
+					 double 		    width,
+					 double 		    height,
+					 double 		    max_width,
+					 double 		    max_height,
+					 cairo_boilerplate_mode_t   mode,
+					 void			  **closure)
 {
     /* current default, but be explicit in case the default changes */
     return _cairo_boilerplate_svg_create_surface (name, content,
 						  CAIRO_SVG_VERSION_1_1,
 						  width, height,
 						  max_width, max_height,
-						  mode, id,
+						  mode,
 						  closure);
 }
 
-cairo_surface_t *
-_cairo_boilerplate_svg12_create_surface (const char		 *name,
-					 cairo_content_t	  content,
-					 int			  width,
-					 int			  height,
-					 int			  max_width,
-					 int			  max_height,
-					 cairo_boilerplate_mode_t	  mode,
-					 int                        id,
-					 void			**closure)
+static cairo_surface_t *
+_cairo_boilerplate_svg12_create_surface (const char		   *name,
+					 cairo_content_t	    content,
+					 double 		    width,
+					 double 		    height,
+					 double 		    max_width,
+					 double 		    max_height,
+					 cairo_boilerplate_mode_t   mode,
+					 void			  **closure)
 {
     return _cairo_boilerplate_svg_create_surface (name, content,
 						  CAIRO_SVG_VERSION_1_2,
 						  width, height,
 						  max_width, max_height,
-						  mode, id,
+						  mode,
 						  closure);
 }
 
-cairo_status_t
-_cairo_boilerplate_svg_finish_surface (cairo_surface_t		*surface)
+static cairo_status_t
+_cairo_boilerplate_svg_finish_surface (cairo_surface_t *surface)
 {
     svg_target_closure_t *ptc = cairo_surface_get_user_data (surface,
-	                                                     &svg_closure_key);
+							     &svg_closure_key);
     cairo_status_t status;
 
     /* Both surface and ptc->target were originally created at the
@@ -183,11 +189,12 @@ _cairo_boilerplate_svg_finish_surface (cairo_surface_t		*surface)
     return CAIRO_STATUS_SUCCESS;
 }
 
-cairo_status_t
-_cairo_boilerplate_svg_surface_write_to_png (cairo_surface_t *surface, const char *filename)
+static cairo_status_t
+_cairo_boilerplate_svg_surface_write_to_png (cairo_surface_t *surface,
+					     const char      *filename)
 {
     svg_target_closure_t *ptc = cairo_surface_get_user_data (surface,
-	                                                     &svg_closure_key);
+							     &svg_closure_key);
     char    command[4096];
     int exitstatus;
 
@@ -214,11 +221,11 @@ _cairo_boilerplate_svg_convert_to_image (cairo_surface_t *surface)
     return cairo_boilerplate_convert_to_image (ptc->filename, 0);
 }
 
-cairo_surface_t *
+static cairo_surface_t *
 _cairo_boilerplate_svg_get_image_surface (cairo_surface_t *surface,
-					  int page,
-					  int width,
-					  int height)
+					  int		   page,
+					  int		   width,
+					  int		   height)
 {
     cairo_surface_t *image;
 
@@ -235,19 +242,22 @@ _cairo_boilerplate_svg_get_image_surface (cairo_surface_t *surface,
     return surface;
 }
 
-void
+static void
 _cairo_boilerplate_svg_cleanup (void *closure)
 {
     svg_target_closure_t *ptc = closure;
-    if (ptc->target)
+    if (ptc->target != NULL) {
+	cairo_surface_finish (ptc->target);
 	cairo_surface_destroy (ptc->target);
+    }
     free (ptc->filename);
     free (ptc);
 }
 
-void
+static void
 _cairo_boilerplate_svg_force_fallbacks (cairo_surface_t *abstract_surface,
-	                                unsigned int flags)
+				       double		 x_pixels_per_inch,
+				       double		 y_pixels_per_inch)
 {
     svg_target_closure_t *ptc = cairo_surface_get_user_data (abstract_surface,
 							     &svg_closure_key);
@@ -261,4 +271,74 @@ _cairo_boilerplate_svg_force_fallbacks (cairo_surface_t *abstract_surface,
     paginated = (cairo_paginated_surface_t*) abstract_surface;
     surface = (cairo_svg_surface_t*) paginated->target;
     surface->force_fallbacks = TRUE;
+    cairo_surface_set_fallback_resolution (&paginated->base,
+					   x_pixels_per_inch,
+					   y_pixels_per_inch);
 }
+
+static const cairo_boilerplate_target_t targets[] = {
+    /* It seems we should be able to round-trip SVG content perfectly
+     * through librsvg and cairo, but for some mysterious reason, some
+     * systems get an error of 1 for some pixels on some of the text
+     * tests. XXX: I'd still like to chase these down at some point.
+     * For now just set the svg error tolerance to 1. */
+    {
+	"svg11", "svg", ".svg", NULL,
+	CAIRO_SURFACE_TYPE_SVG, CAIRO_CONTENT_COLOR_ALPHA, 1,
+	"cairo_svg_surface_create",
+	_cairo_boilerplate_svg11_create_surface,
+	cairo_surface_create_similar,
+	_cairo_boilerplate_svg_force_fallbacks,
+	_cairo_boilerplate_svg_finish_surface,
+	_cairo_boilerplate_svg_get_image_surface,
+	_cairo_boilerplate_svg_surface_write_to_png,
+	_cairo_boilerplate_svg_cleanup,
+	NULL, NULL, FALSE, TRUE, TRUE
+    },
+    {
+	"svg11", "svg", ".svg", NULL,
+	CAIRO_SURFACE_TYPE_RECORDING, CAIRO_CONTENT_COLOR, 1,
+	"cairo_svg_surface_create",
+	_cairo_boilerplate_svg11_create_surface,
+	cairo_surface_create_similar,
+	_cairo_boilerplate_svg_force_fallbacks,
+	_cairo_boilerplate_svg_finish_surface,
+	_cairo_boilerplate_svg_get_image_surface,
+	_cairo_boilerplate_svg_surface_write_to_png,
+	_cairo_boilerplate_svg_cleanup,
+	NULL, NULL, FALSE, TRUE, TRUE
+    },
+    {
+	"svg12", "svg", ".svg", NULL,
+	CAIRO_SURFACE_TYPE_SVG, CAIRO_CONTENT_COLOR_ALPHA, 1,
+	"cairo_svg_surface_create",
+	_cairo_boilerplate_svg12_create_surface,
+	cairo_surface_create_similar,
+	_cairo_boilerplate_svg_force_fallbacks,
+	_cairo_boilerplate_svg_finish_surface,
+	_cairo_boilerplate_svg_get_image_surface,
+	_cairo_boilerplate_svg_surface_write_to_png,
+	_cairo_boilerplate_svg_cleanup,
+	NULL, NULL, FALSE, TRUE, TRUE
+    },
+    {
+	"svg12", "svg", ".svg", NULL,
+	CAIRO_SURFACE_TYPE_RECORDING, CAIRO_CONTENT_COLOR, 1,
+	"cairo_svg_surface_create",
+	_cairo_boilerplate_svg12_create_surface,
+	cairo_surface_create_similar,
+	_cairo_boilerplate_svg_force_fallbacks,
+	_cairo_boilerplate_svg_finish_surface,
+	_cairo_boilerplate_svg_get_image_surface,
+	_cairo_boilerplate_svg_surface_write_to_png,
+	_cairo_boilerplate_svg_cleanup,
+	NULL, NULL, FALSE, TRUE, TRUE
+    },
+};
+CAIRO_BOILERPLATE (svg, targets)
+
+#else
+
+CAIRO_NO_BOILERPLATE (svg)
+
+#endif

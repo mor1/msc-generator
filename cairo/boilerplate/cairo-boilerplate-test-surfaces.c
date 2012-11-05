@@ -24,65 +24,157 @@
  * Author: Carl D. Worth <cworth@cworth.org>
  */
 
-#include "cairo-boilerplate.h"
-#include "cairo-boilerplate-test-surfaces-private.h"
+#include "../cairo-version.h"
 
-#include <test-fallback-surface.h>
-#include <test-meta-surface.h>
+#include "cairo-boilerplate-private.h"
+
+#include <cairo-types-private.h>
+
+#include <test-compositor-surface.h>
+#include <test-null-compositor-surface.h>
+#if CAIRO_HAS_TEST_PAGINATED_SURFACE
 #include <test-paginated-surface.h>
+#endif
 
-#include <assert.h>
-
-cairo_surface_t *
-_cairo_boilerplate_test_fallback_create_surface (const char			 *name,
-						 cairo_content_t		  content,
-						 int				  width,
-						 int				  height,
-						 int				  max_width,
-						 int				  max_height,
-						 cairo_boilerplate_mode_t	  mode,
-						 int                              id,
-						 void				**closure)
+static cairo_surface_t *
+_cairo_boilerplate_test_base_compositor_create_surface (const char		   *name,
+							cairo_content_t	    content,
+							double		    width,
+							double		    height,
+							double		    max_width,
+							double		    max_height,
+							cairo_boilerplate_mode_t mode,
+							void		  **closure)
 {
     *closure = NULL;
-    return _cairo_test_fallback_surface_create (content, width, height);
+    return _cairo_test_base_compositor_surface_create (content, ceil (width), ceil (height));
 }
 
-cairo_surface_t *
-_cairo_boilerplate_test_meta_create_surface (const char			 *name,
-					     cairo_content_t		  content,
-					     int			  width,
-					     int			  height,
-					     int			  max_width,
-					     int			  max_height,
-					     cairo_boilerplate_mode_t	  mode,
-					     int                          id,
-					     void			**closure)
+
+static cairo_surface_t *
+_cairo_boilerplate_test_fallback_compositor_create_surface (const char		   *name,
+							    cairo_content_t	    content,
+							    double		    width,
+							    double		    height,
+							    double		    max_width,
+							    double		    max_height,
+							    cairo_boilerplate_mode_t mode,
+							    void		  **closure)
 {
     *closure = NULL;
-    return _cairo_test_meta_surface_create (content, width, height);
+    return _cairo_test_fallback_compositor_surface_create (content, ceil (width), ceil (height));
 }
 
+static cairo_surface_t *
+_cairo_boilerplate_test_mask_compositor_create_surface (const char		   *name,
+							 cairo_content_t	    content,
+							 double			    width,
+							 double			    height,
+							 double			    max_width,
+							 double			    max_height,
+							 cairo_boilerplate_mode_t   mode,
+							 void			  **closure)
+{
+    *closure = NULL;
+    return _cairo_test_mask_compositor_surface_create (content, ceil (width), ceil (height));
+}
+
+
+static cairo_surface_t *
+_cairo_boilerplate_test_traps_compositor_create_surface (const char		   *name,
+							 cairo_content_t	    content,
+							 double			    width,
+							 double			    height,
+							 double			    max_width,
+							 double			    max_height,
+							 cairo_boilerplate_mode_t   mode,
+							 void			  **closure)
+{
+    *closure = NULL;
+    return _cairo_test_traps_compositor_surface_create (content, ceil (width), ceil (height));
+}
+
+static cairo_surface_t *
+_cairo_boilerplate_test_spans_compositor_create_surface (const char		   *name,
+							 cairo_content_t	    content,
+							 double			    width,
+							 double			    height,
+							 double			    max_width,
+							 double			    max_height,
+							 cairo_boilerplate_mode_t   mode,
+							 void			  **closure)
+{
+    *closure = NULL;
+    return _cairo_test_spans_compositor_surface_create (content, ceil (width), ceil (height));
+}
+
+static cairo_surface_t *
+_cairo_boilerplate_test_no_fallback_compositor_create_surface (const char		   *name,
+							       cairo_content_t	    content,
+							       double			    width,
+							       double			    height,
+							       double			    max_width,
+							       double			    max_height,
+							       cairo_boilerplate_mode_t   mode,
+							       void			  **closure)
+{
+    if (mode == CAIRO_BOILERPLATE_MODE_TEST)
+	return NULL;
+
+    *closure = NULL;
+    return _cairo_test_no_fallback_compositor_surface_create (content, ceil (width), ceil (height));
+}
+
+static cairo_surface_t *
+_cairo_boilerplate_test_no_traps_compositor_create_surface (const char		   *name,
+							 cairo_content_t	    content,
+							 double			    width,
+							 double			    height,
+							 double			    max_width,
+							 double			    max_height,
+							 cairo_boilerplate_mode_t   mode,
+							 void			  **closure)
+{
+    if (mode == CAIRO_BOILERPLATE_MODE_TEST)
+	return NULL;
+
+    *closure = NULL;
+    return _cairo_test_no_traps_compositor_surface_create (content, ceil (width), ceil (height));
+}
+
+static cairo_surface_t *
+_cairo_boilerplate_test_no_spans_compositor_create_surface (const char		   *name,
+							 cairo_content_t	    content,
+							 double			    width,
+							 double			    height,
+							 double			    max_width,
+							 double			    max_height,
+							 cairo_boilerplate_mode_t   mode,
+							 void			  **closure)
+{
+    if (mode == CAIRO_BOILERPLATE_MODE_TEST)
+	return NULL;
+
+    *closure = NULL;
+    return _cairo_test_no_spans_compositor_surface_create (content, ceil (width), ceil (height));
+}
+
+#if CAIRO_HAS_TEST_PAGINATED_SURFACE
 static const cairo_user_data_key_t test_paginated_closure_key;
 
 typedef struct {
-    unsigned char *data;
-    cairo_content_t content;
-    int width;
-    int height;
-    int stride;
+    cairo_surface_t *target;
 } test_paginated_closure_t;
 
-cairo_surface_t *
-_cairo_boilerplate_test_paginated_create_surface (const char			 *name,
-						  cairo_content_t		  content,
-						  int				  width,
-						  int				  height,
-						  int				  max_width,
-						  int				  max_height,
-						  cairo_boilerplate_mode_t	  mode,
-						  int                             id,
-						  void				**closure)
+static cairo_surface_t *
+_cairo_boilerplate_test_paginated_create_surface (const char		    *name,
+						  cairo_content_t	     content,
+						  double		     width,
+						  double		     height,
+						  double		     max_width,
+						  double		     max_height,
+						  cairo_boilerplate_mode_t   mode,
+						  void			   **closure)
 {
     test_paginated_closure_t *tpc;
     cairo_format_t format;
@@ -92,18 +184,10 @@ _cairo_boilerplate_test_paginated_create_surface (const char			 *name,
     *closure = tpc = xmalloc (sizeof (test_paginated_closure_t));
 
     format = cairo_boilerplate_format_from_content (content);
+    tpc->target = cairo_image_surface_create (format,
+					      ceil (width), ceil (height));
 
-    tpc->content = content;
-    tpc->width = width;
-    tpc->height = height;
-    tpc->stride = cairo_format_stride_for_width (format, width);
-    tpc->data = xcalloc (tpc->stride, height);
-
-    surface = _cairo_test_paginated_surface_create_for_data (tpc->data,
-							     tpc->content,
-							     tpc->width,
-							     tpc->height,
-							     tpc->stride);
+    surface = _cairo_test_paginated_surface_create (tpc->target);
     if (cairo_surface_status (surface))
 	goto CLEANUP;
 
@@ -116,8 +200,9 @@ _cairo_boilerplate_test_paginated_create_surface (const char			 *name,
     cairo_surface_destroy (surface);
     surface = cairo_boilerplate_surface_create_in_error (status);
 
+    cairo_surface_destroy (tpc->target);
+
   CLEANUP:
-    free (tpc->data);
     free (tpc);
     return surface;
 }
@@ -128,17 +213,15 @@ _cairo_boilerplate_test_paginated_create_surface (const char			 *name,
  *
  * If we didn't implement this function then the default
  * cairo_surface_write_to_png would result in the paginated_surface's
- * acquire_source_image function replaying the meta-surface to an
+ * acquire_source_image function replaying the recording-surface to an
  * intermediate image surface. And in that case the
  * test_paginated_surface would not be involved and wouldn't be
  * tested.
  */
-cairo_status_t
-_cairo_boilerplate_test_paginated_surface_write_to_png (cairo_surface_t	*surface,
-						        const char	*filename)
+static cairo_status_t
+_cairo_boilerplate_test_paginated_surface_write_to_png (cairo_surface_t *surface,
+							const char	*filename)
 {
-    cairo_surface_t *image;
-    cairo_format_t format;
     test_paginated_closure_t *tpc;
     cairo_status_t status;
 
@@ -149,28 +232,15 @@ _cairo_boilerplate_test_paginated_surface_write_to_png (cairo_surface_t	*surface
 	return status;
 
     tpc = cairo_surface_get_user_data (surface, &test_paginated_closure_key);
-
-    format = cairo_boilerplate_format_from_content (tpc->content);
-
-    image = cairo_image_surface_create_for_data (tpc->data,
-						 format,
-						 tpc->width,
-						 tpc->height,
-						 tpc->stride);
-
-    status = cairo_surface_write_to_png (image, filename);
-    cairo_surface_destroy (image);
-
-    return status;
+    return cairo_surface_write_to_png (tpc->target, filename);
 }
 
-cairo_surface_t *
+static cairo_surface_t *
 _cairo_boilerplate_test_paginated_get_image_surface (cairo_surface_t *surface,
-						     int page,
-						     int width,
-						     int height)
+						     int	      page,
+						     int	      width,
+						     int	      height)
 {
-    cairo_format_t format;
     test_paginated_closure_t *tpc;
     cairo_status_t status;
 
@@ -185,37 +255,208 @@ _cairo_boilerplate_test_paginated_get_image_surface (cairo_surface_t *surface,
 	return cairo_boilerplate_surface_create_in_error (status);
 
     tpc = cairo_surface_get_user_data (surface, &test_paginated_closure_key);
-
-    format = cairo_boilerplate_format_from_content (tpc->content);
-
-    if (0) {
-	return cairo_image_surface_create_for_data (tpc->data + tpc->stride * (tpc->height - height) + 4 * (tpc->width - width), /* hide the device offset */
-						    format,
-						    width,
-						    height,
-						    tpc->stride);
-    } else {
-	cairo_surface_t *image, *surface;
-
-	image = cairo_image_surface_create_for_data (tpc->data,
-						     format,
-						     tpc->width,
-						     tpc->height,
-						     tpc->stride);
-	cairo_surface_set_device_offset (image,
-					 tpc->width - width,
-					 tpc->height - height);
-	surface = _cairo_boilerplate_get_image_surface (image, 0, width, height);
-	cairo_surface_destroy (image);
-	return surface;
-    }
+    return _cairo_boilerplate_get_image_surface (tpc->target, 0, width, height);
 }
 
-void
+static void
 _cairo_boilerplate_test_paginated_cleanup (void *closure)
 {
     test_paginated_closure_t *tpc = closure;
 
-    free (tpc->data);
+    cairo_surface_destroy (tpc->target);
     free (tpc);
 }
+#endif
+
+static const cairo_boilerplate_target_t targets[] = {
+    {
+	"test-base", "base", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_base_compositor_surface_create",
+	_cairo_boilerplate_test_base_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, TRUE, FALSE, FALSE
+    },
+    {
+	"test-base", "base", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR, 0,
+	"_cairo_test_base_compositor_surface_create",
+	_cairo_boilerplate_test_base_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, FALSE, FALSE, FALSE
+    },
+
+    {
+	"test-fallback", "image", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_fallback_compositor_surface_create",
+	_cairo_boilerplate_test_fallback_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, FALSE, FALSE, FALSE
+    },
+    {
+	"test-fallback", "image", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR, 0,
+	"_cairo_test_fallback_compositor_surface_create",
+	_cairo_boilerplate_test_fallback_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, FALSE, FALSE, FALSE
+    },
+
+    {
+	"test-mask", "mask", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_mask_compositor_surface_create",
+	_cairo_boilerplate_test_mask_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, TRUE, FALSE, FALSE
+    },
+    {
+	"test-mask", "mask", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR, 0,
+	"_cairo_test_mask_compositor_surface_create",
+	_cairo_boilerplate_test_mask_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, FALSE, FALSE, FALSE
+    },
+
+    {
+	"test-traps", "traps", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_traps_compositor_surface_create",
+	_cairo_boilerplate_test_traps_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, TRUE, FALSE, FALSE
+    },
+    {
+	"test-traps", "traps", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR, 0,
+	"_cairo_test_traps_compositor_surface_create",
+	_cairo_boilerplate_test_traps_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, FALSE, FALSE, FALSE
+    },
+
+    {
+	"test-spans", "spans", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_spans_compositor_surface_create",
+	_cairo_boilerplate_test_spans_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, TRUE, FALSE, FALSE
+    },
+    {
+	"test-spans", "spans", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR, 0,
+	"_cairo_test_spans_compositor_surface_create",
+	_cairo_boilerplate_test_spans_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, FALSE, FALSE, FALSE
+    },
+
+    {
+	"no-fallback", "image", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_no_fallback_compositor_surface_create",
+	_cairo_boilerplate_test_no_fallback_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, FALSE, FALSE, FALSE
+    },
+    {
+	"no-traps", "traps", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_no_traps_compositor_surface_create",
+	_cairo_boilerplate_test_no_traps_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, TRUE, FALSE, FALSE
+    },
+    {
+	"no-spans", "spans", NULL, NULL,
+	CAIRO_SURFACE_TYPE_IMAGE,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_no_spans_compositor_surface_create",
+	_cairo_boilerplate_test_no_spans_compositor_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_get_image_surface,
+	cairo_surface_write_to_png,
+	NULL, NULL, NULL, TRUE, FALSE, FALSE
+    },
+#if CAIRO_HAS_TEST_PAGINATED_SURFACE
+    {
+	"test-paginated", "image", NULL, NULL,
+	CAIRO_INTERNAL_SURFACE_TYPE_TEST_PAGINATED,
+	CAIRO_CONTENT_COLOR_ALPHA, 0,
+	"_cairo_test_paginated_surface_create",
+	_cairo_boilerplate_test_paginated_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_test_paginated_get_image_surface,
+	_cairo_boilerplate_test_paginated_surface_write_to_png,
+	_cairo_boilerplate_test_paginated_cleanup,
+	NULL, NULL, FALSE, TRUE, FALSE
+    },
+    {
+	"test-paginated", "image", NULL, NULL,
+	CAIRO_INTERNAL_SURFACE_TYPE_TEST_PAGINATED,
+	CAIRO_CONTENT_COLOR, 0,
+	"_cairo_test_paginated_surface_create",
+	_cairo_boilerplate_test_paginated_create_surface,
+	cairo_surface_create_similar,
+	NULL, NULL,
+	_cairo_boilerplate_test_paginated_get_image_surface,
+	_cairo_boilerplate_test_paginated_surface_write_to_png,
+	_cairo_boilerplate_test_paginated_cleanup,
+	NULL, NULL, FALSE, TRUE, FALSE
+    },
+#endif
+};
+CAIRO_BOILERPLATE (test, targets)

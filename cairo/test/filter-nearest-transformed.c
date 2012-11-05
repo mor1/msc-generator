@@ -32,14 +32,6 @@
  */
 
 static const char png_filename[] = "romedalen.png";
-static cairo_test_draw_function_t draw;
-
-static const cairo_test_t test = {
-    "filter-nearest-transformed",
-    "Test sample position when drawing transformed images with FILTER_NEAREST",
-    14, 14,
-    draw
-};
 
 /* A single, black pixel */
 static const uint32_t black_pixel = 0xff000000;
@@ -87,7 +79,7 @@ draw (cairo_t *cr, int width, int height)
 
     cairo_set_antialias (cr, CAIRO_ANTIALIAS_NONE);
 
-    for (k = 0; k < sizeof (transform) / sizeof (transform[0]); k++) {
+    for (k = 0; k < ARRAY_LENGTH (transform); k++) {
 	/* draw a "large" section from an image */
 	cairo_save (cr); {
 	    cairo_set_matrix(cr, &ctx_transform[k]);
@@ -120,8 +112,9 @@ draw (cairo_t *cr, int width, int height)
     return CAIRO_TEST_SUCCESS;
 }
 
-int
-main (void)
-{
-    return cairo_test (&test);
-}
+CAIRO_TEST (filter_nearest_transformed,
+	    "Test sample position when drawing transformed images with FILTER_NEAREST",
+	    "filter, nearest", /* keywords */
+	    NULL,
+	    14, 14,
+	    NULL, draw)

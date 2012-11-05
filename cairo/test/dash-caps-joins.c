@@ -31,19 +31,9 @@
 
 #include "cairo-test.h"
 
-#define LINE_WIDTH 	10.
-#define SIZE 		(5 * LINE_WIDTH)
+#define LINE_WIDTH	10.
+#define SIZE		(5 * LINE_WIDTH)
 #define PAD		(2 * LINE_WIDTH)
-
-static cairo_test_draw_function_t draw;
-
-static const cairo_test_t test = {
-    "dash-caps-joins",
-    "Test caps and joins when dashing",
-    3 * (PAD + SIZE) + PAD,
-    PAD + SIZE + PAD + SIZE + PAD,
-    draw
-};
 
 static void
 make_path (cairo_t *cr)
@@ -74,7 +64,7 @@ draw (cairo_t *cr, int width, int height)
     for (i=0; i<2; i++) {
 	cairo_save (cr);
 	cairo_set_line_width (cr, LINE_WIDTH);
-	cairo_set_dash (cr, dash, sizeof(dash)/sizeof(dash[0]), dash_offset);
+	cairo_set_dash (cr, dash, ARRAY_LENGTH (dash), dash_offset);
 
 	cairo_translate (cr, PAD, PAD);
 
@@ -105,8 +95,10 @@ draw (cairo_t *cr, int width, int height)
     return CAIRO_TEST_SUCCESS;
 }
 
-int
-main (void)
-{
-    return cairo_test (&test);
-}
+CAIRO_TEST (dash_caps_joins,
+	    "Test caps and joins when dashing",
+	    "dash, stroke", /* keywords */
+	    NULL, /* requirements */
+	    3 * (PAD + SIZE) + PAD,
+	    PAD + SIZE + PAD + SIZE + PAD,
+	    NULL, draw)

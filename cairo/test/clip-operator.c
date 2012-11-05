@@ -122,18 +122,8 @@ static void (* const draw_funcs[])(cairo_t *cr, int x, int y) = {
 
 #define N_OPERATORS (1 + CAIRO_OPERATOR_SATURATE - CAIRO_OPERATOR_CLEAR)
 
-#define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
 #define IMAGE_WIDTH (N_OPERATORS * (WIDTH + PAD) + PAD)
-#define IMAGE_HEIGHT (ARRAY_SIZE (draw_funcs) * (HEIGHT + PAD) + PAD)
-
-static cairo_test_draw_function_t draw;
-
-static const cairo_test_t test = {
-    "clip-operator",
-    "Surface clipping with different operators",
-    IMAGE_WIDTH, IMAGE_HEIGHT,
-    draw
-};
+#define IMAGE_HEIGHT (ARRAY_LENGTH (draw_funcs) * (HEIGHT + PAD) + PAD)
 
 static cairo_test_status_t
 draw (cairo_t *cr, int width, int height)
@@ -143,12 +133,12 @@ draw (cairo_t *cr, int width, int height)
     cairo_operator_t op;
     cairo_pattern_t *pattern;
 
-    cairo_select_font_face (cr, "Bitstream Vera Sans",
+    cairo_select_font_face (cr, CAIRO_TEST_FONT_FAMILY " Sans",
 			    CAIRO_FONT_SLANT_NORMAL,
 			    CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size (cr, 0.9 * HEIGHT);
 
-    for (j = 0; j < ARRAY_SIZE (draw_funcs); j++) {
+    for (j = 0; j < ARRAY_LENGTH (draw_funcs); j++) {
 	for (op = CAIRO_OPERATOR_CLEAR; op < N_OPERATORS; op++) {
 	    x = op * (WIDTH + PAD) + PAD;
 	    y = j * (HEIGHT + PAD) + PAD;
@@ -189,8 +179,10 @@ draw (cairo_t *cr, int width, int height)
     return CAIRO_TEST_SUCCESS;
 }
 
-int
-main (void)
-{
-    return cairo_test (&test);
-}
+CAIRO_TEST (clip_operator,
+	    "Surface clipping with different operators",
+	    "clip", /* keywords */
+	    NULL, /* requirements */
+	    IMAGE_WIDTH, IMAGE_HEIGHT,
+	    NULL, draw)
+

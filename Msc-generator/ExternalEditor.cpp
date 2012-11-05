@@ -80,6 +80,7 @@ void CExternalEditor::Start(CString filename)
 	//Fire up editor process
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+    if (!pApp) return;
 	CString cmdLine = pApp->m_sStartTextEditor;
 	cmdLine.Replace("%n", "\"" + CString(m_FileName) + "\"");
 	char* cmdline = strdup(cmdLine);
@@ -114,6 +115,7 @@ void CExternalEditor::JumpToLine(unsigned line, unsigned /*col*/)
 	if (line==0) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+    if (!pApp) return;
 	//Jump in the external editor
 	if (m_FileName.GetLength()==0 || m_ProcessId==0) return;
 	if (pApp->m_sJumpToLine.GetLength()==0) return;
@@ -133,8 +135,10 @@ void CExternalEditor::JumpToLine(unsigned line, unsigned /*col*/)
 	si.lpReserved2 = NULL;
 	si.cbReserved2 = NULL;
 	PROCESS_INFORMATION pi;
-	CreateProcess(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL,  &si, &pi); //TODO: Leaking process information handle 'pi.hProcess'
-	free(cmdline);
+	CreateProcess(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL,  &si, &pi); 
+	CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    free(cmdline);
 	free(si.lpTitle);
 }
 //Check if editor process is still running - shuts us down if not
@@ -251,7 +255,7 @@ void CExternalEditor::Stop(EStopEditor force)
 	}
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	if (pApp->IsInternalEditorRunning()) 
+	if (pApp && pApp->IsInternalEditorRunning()) 
 		pApp->m_pWndEditor->SetReadOnly(false);
 }
 

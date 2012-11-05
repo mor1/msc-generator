@@ -4118,8 +4118,8 @@
 		<row><td>ARPPRODUCTICON.exe</td><td/><td>&lt;ISProductFolder&gt;\redist\Language Independent\OS Independent\setupicon.ico</td><td>0</td></row>
 		<row><td>_33FEAC39B1684B839_E41CD9C6A23E43D0853AACD617A8529E.exe</td><td/><td>&lt;SystemFolder&gt;\msiexec.exe</td><td>0</td></row>
 		<row><td>_5E125467F681458D962C1CD0B0ABA74C.exe</td><td/><td>C:\Users\ethzrt\Documents\msc-generator\Release\Msc-generator.exe</td><td>0</td></row>
-		<row><td>_6EF2E1543A0C4C75B_F00792C1499F44ADB5D555A5C701CD1B.exe</td><td/><td>&lt;WindowsFolder&gt;\winhlp32.exe</td><td>0</td></row>
-		<row><td>_72214C96388145BFA_85DF6065B1CA4F1390F5D4AAE4CB8291.exe</td><td/><td>C:\Users\ethzrt\Documents\msc-generator\Msc-generator\res\Msc-generator.ico</td><td>0</td></row>
+		<row><td>_6EF2E1543A0C4C75B_21A1C3DBBFDC411FAF23283C796FCFC9.exe</td><td/><td>&lt;WindowsFolder&gt;\winhlp32.exe</td><td>0</td></row>
+		<row><td>_72214C96388145BFA_CA5AFD3E84154079A66D3FA9AD9BC185.exe</td><td/><td>C:\Users\ethzrt\Documents\msc-generator\Release\Msc-generator.exe</td><td>0</td></row>
 		<row><td>_72214C96388145BFA_DF53842E1108416B8214ABA34CC16417.exe</td><td/><td>C:\Users\ethzrt\Documents\msc-generator\Release\Msc-generator.exe</td><td>0</td></row>
 		<row><td>_B9BB4ECDA26E41248_6B12352909AF46D8A195F49E55C89969.exe</td><td/><td>&lt;ProgramFilesFolder&gt;\Adobe\Reader 10.0\Reader\AcroRd32.exe</td><td>0</td></row>
 		<row><td>_E6C08F46_9CE0_42C9_8442_4ED25A78A3B9</td><td/><td>C:\Users\ethzrt\Documents\msc-generator\Msc-generator\res\Msc-generatorDoc.ico</td><td>0</td></row>
@@ -4716,32 +4716,32 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 		<row><td>_43BB7BE9D0B7418B8F7229A60059EF34</td><td>0</td><td>Mscgen.Chart\protocol\StdFileEditing\verb\1</td><td/><td>&amp;Open</td><td>C__43BB7BE9D0B7418B8F7229A60059EF34</td><td/></row>
 		<row><td>_44FFA83A8E9342C28818FE88115C61C4</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\AuxUserType\2</td><td/><td>Signalling Chart</td><td>C__44FFA83A8E9342C28818FE88115C61C4</td><td/></row>
 		<row><td>_51279055C00947D3B0E91D5862DB341C</td><td>1</td><td>Software\[Manufacturer]\[ProductName]\Settings</td><td/><td/><td>C__51279055C00947D3B0E91D5862DB341C</td><td/></row>
-		<row><td>_52E44F42E41D40DA898196E8D2CF3AFB</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\LocalServer</td><td/><td>[TARGETDIR]Msc-generator.EXE</td><td>C__52E44F42E41D40DA898196E8D2CF3AFB</td><td/></row>
+		<row><td>_52E44F42E41D40DA898196E8D2CF3AFB</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\LocalServer</td><td/><td>[INSTALLDIR]Msc-generator.EXE</td><td>C__52E44F42E41D40DA898196E8D2CF3AFB</td><td/></row>
 		<row><td>_565786E7BE334F42BC71D87005D9FE85</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\ProgId</td><td/><td>Mscgen.Chart</td><td>C__565786E7BE334F42BC71D87005D9FE85</td><td/></row>
 		<row><td>_62AB3882E8CD4DF5991EB1E19025578E</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\DocObject</td><td/><td>0</td><td>C__62AB3882E8CD4DF5991EB1E19025578E</td><td/></row>
 		<row><td>_6D4E20C7B36344E8ACEC37BC13110370</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\Printable</td><td/><td/><td>C__6D4E20C7B36344E8ACEC37BC13110370</td><td/></row>
-		<row><td>_72320A0F080E42DDA34972ADF90006F7</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\LocalServer32</td><td/><td>[TARGETDIR]Msc-generator.EXE</td><td>C__72320A0F080E42DDA34972ADF90006F7</td><td/></row>
+		<row><td>_72320A0F080E42DDA34972ADF90006F7</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\LocalServer32</td><td/><td>[INSTALLDIR]Msc-generator.EXE</td><td>C__72320A0F080E42DDA34972ADF90006F7</td><td/></row>
 		<row><td>_8A8B8C2893E444A4B4BB275940376D4F</td><td>0</td><td>Mscgen.Chart\shell\printto\command\ddeexec</td><td/><td>[PrintTo \"%1\",\"%2\",\"%3\",\"%4\"]</td><td>C__8A8B8C2893E444A4B4BB275940376D4F</td><td/></row>
 		<row><td>_9BF9C7C34D094309A69A3DD8E38B581B</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\verb\1</td><td/><td>&amp;Open,0,2</td><td>C__9BF9C7C34D094309A69A3DD8E38B581B</td><td/></row>
 		<row><td>_A50A29EAB7BB4B159E3F3ED11E635DD9</td><td>0</td><td>Mscgen.Chart\shell\printto\command\ddeexec\application</td><td/><td>Msc-generator</td><td>C__A50A29EAB7BB4B159E3F3ED11E635DD9</td><td/></row>
 		<row><td>_AE5C2A531006478898E4F0E450839EDD</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}</td><td/><td>Msc-generator Signalling Chart</td><td>C__AE5C2A531006478898E4F0E450839EDD</td><td/></row>
-		<row><td>_AF9A23BF99EF41F686DAB23F77E0717F</td><td>0</td><td>Mscgen.Chart\shell\printto\command</td><td/><td>[TARGETDIR]Msc-generator.EXE /pt \"%1\" \"%2\" \"%3\" \"%4\"</td><td>C__AF9A23BF99EF41F686DAB23F77E0717F</td><td/></row>
+		<row><td>_AF9A23BF99EF41F686DAB23F77E0717F</td><td>0</td><td>Mscgen.Chart\shell\printto\command</td><td/><td>[INSTALLDIR]Msc-generator.EXE /pt \"%1\" \"%2\" \"%3\" \"%4\"</td><td>C__AF9A23BF99EF41F686DAB23F77E0717F</td><td/></row>
 		<row><td>_C451F5A9EFD54A09870797DE8530092C</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\InprocHandler32</td><td/><td>ole32.dll</td><td>C__C451F5A9EFD54A09870797DE8530092C</td><td/></row>
 		<row><td>_C480A37AA58C4F7383825FB98100EEA7</td><td>0</td><td>Mscgen.Chart\Insertable</td><td/><td/><td>C__C480A37AA58C4F7383825FB98100EEA7</td><td/></row>
-		<row><td>_C63CDD2595C54453859A075E4B55BC77</td><td>0</td><td>Mscgen.Chart\shell\open\command</td><td/><td>[TARGETDIR]Msc-generator.EXE \"%1\"</td><td>C__C63CDD2595C54453859A075E4B55BC77</td><td/></row>
+		<row><td>_C63CDD2595C54453859A075E4B55BC77</td><td>0</td><td>Mscgen.Chart\shell\open\command</td><td/><td>[INSTALLDIR]Msc-generator.EXE \"%1\"</td><td>C__C63CDD2595C54453859A075E4B55BC77</td><td/></row>
 		<row><td>_C6CB1A70B7AD49CEB7B55862EB18F09D</td><td>0</td><td>Mscgen.Chart\shell\print\command\ddeexec</td><td/><td>[PrintTo(\"%1\")]</td><td>C__C6CB1A70B7AD49CEB7B55862EB18F09D</td><td/></row>
 		<row><td>_CD8935823771416CA932361FD8D0996E</td><td>0</td><td>Mscgen.Chart</td><td/><td>Msc-generator Signalling Chart</td><td>C__CD8935823771416CA932361FD8D0996E</td><td/></row>
 		<row><td>_D787D483853A46DAB0DD7A7BB1830311</td><td>0</td><td>Mscgen.Chart\DocObject</td><td/><td>0</td><td>C__D787D483853A46DAB0DD7A7BB1830311</td><td/></row>
 		<row><td>_E26052C6342741C989801C3656E669DA</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\verb\0</td><td/><td>&amp;Edit,0,0</td><td>C__E26052C6342741C989801C3656E669DA</td><td/></row>
-		<row><td>_E4F9B4F761AC48F49FF93125B344C06C</td><td>0</td><td>Mscgen.Chart\shell\print\command</td><td/><td>[TARGETDIR]Msc-generator.EXE /p \"%1\"</td><td>C__E4F9B4F761AC48F49FF93125B344C06C</td><td/></row>
-		<row><td>_E8A3A805A98C444384CC122F535F50FA</td><td>0</td><td>Mscgen.Chart\DefaultIcon</td><td/><td>[TARGETDIR]Msc-generator.EXE,1</td><td>C__E8A3A805A98C444384CC122F535F50FA</td><td/></row>
-		<row><td>_E9568D03A9C44E1886516CF803DA4DDD</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\DefaultIcon</td><td/><td>[TARGETDIR]Msc-generator.EXE,1</td><td>C__E9568D03A9C44E1886516CF803DA4DDD</td><td/></row>
+		<row><td>_E4F9B4F761AC48F49FF93125B344C06C</td><td>0</td><td>Mscgen.Chart\shell\print\command</td><td/><td>[INSTALLDIR]Msc-generator.EXE /p \"%1\"</td><td>C__E4F9B4F761AC48F49FF93125B344C06C</td><td/></row>
+		<row><td>_E8A3A805A98C444384CC122F535F50FA</td><td>0</td><td>Mscgen.Chart\DefaultIcon</td><td/><td>[INSTALLDIR]Msc-generator.EXE,1</td><td>C__E8A3A805A98C444384CC122F535F50FA</td><td/></row>
+		<row><td>_E9568D03A9C44E1886516CF803DA4DDD</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\DefaultIcon</td><td/><td>[INSTALLDIR]Msc-generator.EXE,1</td><td>C__E9568D03A9C44E1886516CF803DA4DDD</td><td/></row>
 		<row><td>_EAF20D0570294FB09F52E15F89FD5301</td><td>0</td><td>Mscgen.Chart\shell\open\command\ddeexec\application</td><td/><td>Msc-generator</td><td>C__EAF20D0570294FB09F52E15F89FD5301</td><td/></row>
 		<row><td>_F1F311127E68414A85E3F8636D8B0ECD</td><td>0</td><td>Mscgen.Chart\CLSID</td><td/><td>{453AC3C8-F260-4D88-832A-EC957E92FDEC}</td><td>C__F1F311127E68414A85E3F8636D8B0ECD</td><td/></row>
 		<row><td>_F28A9DE1AC1B446EAF374D32833E9C5C</td><td>1</td><td>Software\[Manufacturer]\[ProductName]\Settings</td><td>TextEditorType</td><td>#1</td><td>C__F28A9DE1AC1B446EAF374D32833E9C5C</td><td/></row>
 		<row><td>_F4B34256885143018ECCDFD2C889D02C</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\verb\2</td><td/><td>&amp;View Full Screen,0,3</td><td>C__F4B34256885143018ECCDFD2C889D02C</td><td/></row>
 		<row><td>_F735EEE7D9734819980EC60D92A7E30C</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\DefaultExtension</td><td/><td>.signalling, Msc-generator Signalling Charts (*.signalling)</td><td>C__F735EEE7D9734819980EC60D92A7E30C</td><td/></row>
-		<row><td>_F8AE738D0AA641CAB7D8B65901C55A14</td><td>0</td><td>Mscgen.Chart\protocol\StdFileEditing\server</td><td/><td>[TARGETDIR]Msc-generator.EXE</td><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td/></row>
+		<row><td>_F8AE738D0AA641CAB7D8B65901C55A14</td><td>0</td><td>Mscgen.Chart\protocol\StdFileEditing\server</td><td/><td>[INSTALLDIR]Msc-generator.EXE</td><td>C__F8AE738D0AA641CAB7D8B65901C55A14</td><td/></row>
 		<row><td>_FC302F634BBF45E493B93DB97A6CDDB4</td><td>0</td><td>CLSID\{453AC3C8-F260-4D88-832A-EC957E92FDEC}\AuxUserType\3</td><td/><td>Msc-generator</td><td>C__FC302F634BBF45E493B93DB97A6CDDB4</td><td/></row>
 	</table>
 
@@ -4841,8 +4841,8 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 		<col def="S255">ISShortcutName</col>
 		<col def="I4">ISAttributes</col>
 		<row><td>_33FEAC39B1684B8397E267182D3781A4</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Uninstall Msc-generator</td><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td><td>AlwaysInstall</td><td>/x [ProductCode]</td><td/><td/><td>_33FEAC39B1684B839_E41CD9C6A23E43D0853AACD617A8529E.exe</td><td>1</td><td>1</td><td>SystemFolder</td><td/><td/><td/><td/><td/><td/><td/></row>
-		<row><td>_6EF2E1543A0C4C75B8F4FB20035E9FD5</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Help</td><td>C__1B922D1673AC46F7BBAB1450339B0CCA</td><td>AlwaysInstall</td><td/><td>Windows Help for Msc-generator</td><td/><td>_6EF2E1543A0C4C75B_F00792C1499F44ADB5D555A5C701CD1B.exe</td><td>1</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
-		<row><td>_72214C96388145BFAD062D3E3EEF4BEC</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Msc-generator</td><td>C__8D210BB11DE54BFF9295776C6C22707B</td><td>AlwaysInstall</td><td/><td>Starts Msc-generator</td><td/><td>_72214C96388145BFA_85DF6065B1CA4F1390F5D4AAE4CB8291.exe</td><td>0</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
+		<row><td>_6EF2E1543A0C4C75B8F4FB20035E9FD5</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Help</td><td>C__1B922D1673AC46F7BBAB1450339B0CCA</td><td>AlwaysInstall</td><td/><td>Windows Help for Msc-generator</td><td/><td>_6EF2E1543A0C4C75B_21A1C3DBBFDC411FAF23283C796FCFC9.exe</td><td>1</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
+		<row><td>_72214C96388145BFAD062D3E3EEF4BEC</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Msc-generator</td><td>C__8D210BB11DE54BFF9295776C6C22707B</td><td>AlwaysInstall</td><td/><td>Starts Msc-generator</td><td/><td>_72214C96388145BFA_CA5AFD3E84154079A66D3FA9AD9BC185.exe</td><td>1</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
 		<row><td>_B9BB4ECDA26E41248AFC8EC683B63C2E</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Users Guide</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>AlwaysInstall</td><td/><td>A PDF user manual document</td><td/><td>_B9BB4ECDA26E41248_6B12352909AF46D8A195F49E55C89969.exe</td><td>1</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
 	</table>
 

@@ -12,7 +12,7 @@
  *
  * You should have received a copy of the LGPL along with this library
  * in the file COPYING-LGPL-2.1; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335, USA
  * You should have received a copy of the MPL along with this library
  * in the file COPYING-MPL-1.1
  *
@@ -64,6 +64,7 @@
 #define TT_TAG_loca   MAKE_TT_TAG('l','o','c','a')
 #define TT_TAG_maxp   MAKE_TT_TAG('m','a','x','p')
 #define TT_TAG_name   MAKE_TT_TAG('n','a','m','e')
+#define TT_TAG_OS2    MAKE_TT_TAG('O','S','/','2')
 #define TT_TAG_post   MAKE_TT_TAG('p','o','s','t')
 #define TT_TAG_prep   MAKE_TT_TAG('p','r','e','p')
 
@@ -174,6 +175,18 @@ typedef struct _tt_name {
 } tt_name_t;
 
 
+/* bitmask for fsSelection field */
+#define TT_FS_SELECTION_ITALIC   1
+#define TT_FS_SELECTION_BOLD    32
+
+/* _unused fields are defined in TT spec but not used by cairo */
+typedef struct _tt_os2 {
+    uint16_t   _unused1[2];
+    uint16_t   usWeightClass;
+    uint16_t   _unused2[28];
+    uint16_t   fsSelection;
+    uint16_t   _unused3[11];
+} tt_os2_t;
 
 /* composite_glyph_t flags */
 #define TT_ARG_1_AND_2_ARE_WORDS     0x0001
@@ -185,7 +198,7 @@ typedef struct _tt_name {
 typedef struct _tt_composite_glyph {
     uint16_t flags;
     uint16_t index;
-    uint16_t args[7]; /* 1 to 7 arguments depending on value of flags */
+    uint16_t args[6]; /* 1 to 6 arguments depending on value of flags */
 } tt_composite_glyph_t;
 
 typedef struct _tt_glyph_data {
