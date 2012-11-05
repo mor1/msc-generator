@@ -50,6 +50,7 @@
 #include "cairo-surface-private.h"
 
 #include <pixman.h>
+#include <string.h>
 
 typedef struct _cairo_xlib_display cairo_xlib_display_t;
 typedef struct _cairo_xlib_shm_display cairo_xlib_shm_display_t;
@@ -215,6 +216,13 @@ struct _cairo_xlib_proxy {
     struct _cairo_xlib_source source;
     cairo_surface_t *owner;
 };
+
+inline static cairo_bool_t
+_cairo_xlib_vendor_is_xorg (Display *dpy)
+{
+    const char *const vendor = ServerVendor (dpy);
+    return strstr (vendor, "X.Org") || strstr (vendor, "Xorg");
+}
 
 cairo_private cairo_status_t
 _cairo_xlib_surface_get_gc (cairo_xlib_display_t *display,

@@ -401,6 +401,7 @@ extern void _register_scale_offset_similar (void);
 extern void _register_scale_source_surface_paint (void);
 extern void _register_scaled_font_zero_matrix (void);
 extern void _register_stroke_ctm_caps (void);
+extern void _register_stroke_clipped (void);
 extern void _register_stroke_image (void);
 extern void _register_stroke_open_box (void);
 extern void _register_select_font_face (void);
@@ -920,6 +921,7 @@ _cairo_test_runner_register_tests (void)
     _register_scale_source_surface_paint ();
     _register_scaled_font_zero_matrix ();
     _register_stroke_ctm_caps ();
+    _register_stroke_clipped ();
     _register_stroke_image ();
     _register_stroke_open_box ();
     _register_select_font_face ();
