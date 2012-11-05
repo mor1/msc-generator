@@ -557,8 +557,10 @@ composite_aligned_boxes (const cairo_spans_compositor_t		*compositor,
 
     TRACE ((stderr, "%s: need_clip_mask=%d, is-bounded=%d\n",
 	    __FUNCTION__, need_clip_mask, extents->is_bounded));
-    if (need_clip_mask && ! extents->is_bounded)
+    if (need_clip_mask && ! extents->is_bounded) {
+	TRACE ((stderr, "%s: unsupported clip\n", __FUNCTION__));
 	return CAIRO_INT_STATUS_UNSUPPORTED;
+    }
 
     no_mask = extents->mask_pattern.base.type == CAIRO_PATTERN_TYPE_SOLID &&
 	CAIRO_COLOR_IS_OPAQUE (&extents->mask_pattern.solid.color);
@@ -570,8 +572,10 @@ composite_aligned_boxes (const cairo_spans_compositor_t		*compositor,
 
     if (op == CAIRO_OPERATOR_SOURCE && (need_clip_mask || ! no_mask)) {
 	/* SOURCE with a mask is actually a LERP in cairo semantics */
-	if ((compositor->flags & CAIRO_SPANS_COMPOSITOR_HAS_LERP) == 0)
+	if ((compositor->flags & CAIRO_SPANS_COMPOSITOR_HAS_LERP) == 0) {
+	    TRACE ((stderr, "%s: unsupported lerp\n", __FUNCTION__));
 	    return CAIRO_INT_STATUS_UNSUPPORTED;
+	}
     }
 
     /* Are we just copying a recording surface? */
@@ -700,8 +704,10 @@ composite_boxes (const cairo_spans_compositor_t *compositor,
 
     TRACE ((stderr, "%s\n", __FUNCTION__));
     _cairo_box_from_rectangle (&box, &extents->unbounded);
-    if (composite_needs_clip (extents, &box))
+    if (composite_needs_clip (extents, &box)) {
+	TRACE ((stderr, "%s: unsupported clip\n", __FUNCTION__));
 	return CAIRO_INT_STATUS_UNSUPPORTED;
+    }
 
     _cairo_rectangular_scan_converter_init (&converter, &extents->unbounded);
     for (chunk = &boxes->chunks; chunk != NULL; chunk = chunk->next) {
@@ -738,10 +744,13 @@ composite_polygon (const cairo_spans_compositor_t	*compositor,
     cairo_bool_t needs_clip;
     cairo_int_status_t status;
 
-    needs_clip = ! extents->is_bounded &&
-	(! _clip_is_region (extents->clip) || extents->clip->num_boxes > 1);
+    if (extents->is_bounded)
+	needs_clip = extents->clip->path != NULL;
+    else
+	needs_clip = !_clip_is_region (extents->clip) || extents->clip->num_boxes > 1;
     TRACE ((stderr, "%s - needs_clip=%d\n", __FUNCTION__, needs_clip));
     if (needs_clip) {
+	TRACE ((stderr, "%s: unsupported clip\n", __FUNCTION__));
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 	converter = _cairo_clip_tor_scan_converter_create (extents->clip,
 							   polygon,
@@ -992,7 +1001,9 @@ _cairo_spans_compositor_stroke (const cairo_compositor_t	*_compositor,
     const cairo_spans_compositor_t *compositor = (cairo_spans_compositor_t*)_compositor;
     cairo_int_status_t status;
 
+    TRACE ((stderr, "%s\n", __FUNCTION__));
     TRACE_ (_cairo_debug_print_path (stderr, path));
+    TRACE_ (_cairo_debug_print_clip (stderr, extents->clip));
 
     status = CAIRO_INT_STATUS_UNSUPPORTED;
     if (_cairo_path_fixed_stroke_is_rectilinear (path)) {

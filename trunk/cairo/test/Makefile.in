@@ -243,8 +243,8 @@ am__cairo_test_suite_SOURCES_DIST = buffer-diff.c cairo-test.c \
 	rounded-rectangle-fill.c rounded-rectangle-stroke.c sample.c \
 	scale-down-source-surface-paint.c scale-offset-image.c \
 	scale-offset-similar.c scale-source-surface-paint.c \
-	scaled-font-zero-matrix.c stroke-ctm-caps.c stroke-image.c \
-	stroke-open-box.c select-font-face.c \
+	scaled-font-zero-matrix.c stroke-ctm-caps.c stroke-clipped.c \
+	stroke-image.c stroke-open-box.c select-font-face.c \
 	select-font-no-show-text.c self-copy.c self-copy-overlap.c \
 	self-intersecting.c set-source.c show-glyphs-advance.c \
 	show-glyphs-many.c show-text-current-point.c \
@@ -623,6 +623,7 @@ am__objects_27 = cairo_test_suite-a1-bug.$(OBJEXT) \
 	cairo_test_suite-scale-source-surface-paint.$(OBJEXT) \
 	cairo_test_suite-scaled-font-zero-matrix.$(OBJEXT) \
 	cairo_test_suite-stroke-ctm-caps.$(OBJEXT) \
+	cairo_test_suite-stroke-clipped.$(OBJEXT) \
 	cairo_test_suite-stroke-image.$(OBJEXT) \
 	cairo_test_suite-stroke-open-box.$(OBJEXT) \
 	cairo_test_suite-select-font-face.$(OBJEXT) \
@@ -1169,8 +1170,8 @@ test_sources = a1-bug.c a1-clip.c a1-fill.c a1-image-sample.c \
 	rounded-rectangle-fill.c rounded-rectangle-stroke.c sample.c \
 	scale-down-source-surface-paint.c scale-offset-image.c \
 	scale-offset-similar.c scale-source-surface-paint.c \
-	scaled-font-zero-matrix.c stroke-ctm-caps.c stroke-image.c \
-	stroke-open-box.c select-font-face.c \
+	scaled-font-zero-matrix.c stroke-ctm-caps.c stroke-clipped.c \
+	stroke-image.c stroke-open-box.c select-font-face.c \
 	select-font-no-show-text.c self-copy.c self-copy-overlap.c \
 	self-intersecting.c set-source.c show-glyphs-advance.c \
 	show-glyphs-many.c show-text-current-point.c \
@@ -1836,6 +1837,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cairo_test_suite-source-surface-scale-paint.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cairo_test_suite-spline-decomposition.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cairo_test_suite-stride-12-image.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cairo_test_suite-stroke-clipped.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cairo_test_suite-stroke-ctm-caps.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cairo_test_suite-stroke-image.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cairo_test_suite-stroke-open-box.Po@am__quote@
@@ -6058,6 +6060,20 @@ cairo_test_suite-stroke-ctm-caps.obj: stroke-ctm-caps.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stroke-ctm-caps.c' object='cairo_test_suite-stroke-ctm-caps.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(cairo_test_suite_CFLAGS) $(CFLAGS) -c -o cairo_test_suite-stroke-ctm-caps.obj `if test -f 'stroke-ctm-caps.c'; then $(CYGPATH_W) 'stroke-ctm-caps.c'; else $(CYGPATH_W) '$(srcdir)/stroke-ctm-caps.c'; fi`
+
+cairo_test_suite-stroke-clipped.o: stroke-clipped.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(cairo_test_suite_CFLAGS) $(CFLAGS) -MT cairo_test_suite-stroke-clipped.o -MD -MP -MF $(DEPDIR)/cairo_test_suite-stroke-clipped.Tpo -c -o cairo_test_suite-stroke-clipped.o `test -f 'stroke-clipped.c' || echo '$(srcdir)/'`stroke-clipped.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/cairo_test_suite-stroke-clipped.Tpo $(DEPDIR)/cairo_test_suite-stroke-clipped.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stroke-clipped.c' object='cairo_test_suite-stroke-clipped.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(cairo_test_suite_CFLAGS) $(CFLAGS) -c -o cairo_test_suite-stroke-clipped.o `test -f 'stroke-clipped.c' || echo '$(srcdir)/'`stroke-clipped.c
+
+cairo_test_suite-stroke-clipped.obj: stroke-clipped.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(cairo_test_suite_CFLAGS) $(CFLAGS) -MT cairo_test_suite-stroke-clipped.obj -MD -MP -MF $(DEPDIR)/cairo_test_suite-stroke-clipped.Tpo -c -o cairo_test_suite-stroke-clipped.obj `if test -f 'stroke-clipped.c'; then $(CYGPATH_W) 'stroke-clipped.c'; else $(CYGPATH_W) '$(srcdir)/stroke-clipped.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/cairo_test_suite-stroke-clipped.Tpo $(DEPDIR)/cairo_test_suite-stroke-clipped.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stroke-clipped.c' object='cairo_test_suite-stroke-clipped.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(cairo_test_suite_CFLAGS) $(CFLAGS) -c -o cairo_test_suite-stroke-clipped.obj `if test -f 'stroke-clipped.c'; then $(CYGPATH_W) 'stroke-clipped.c'; else $(CYGPATH_W) '$(srcdir)/stroke-clipped.c'; fi`
 
 cairo_test_suite-stroke-image.o: stroke-image.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(cairo_test_suite_CFLAGS) $(CFLAGS) -MT cairo_test_suite-stroke-image.o -MD -MP -MF $(DEPDIR)/cairo_test_suite-stroke-image.Tpo -c -o cairo_test_suite-stroke-image.o `test -f 'stroke-image.c' || echo '$(srcdir)/'`stroke-image.c
