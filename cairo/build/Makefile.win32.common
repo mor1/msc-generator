@@ -23,8 +23,8 @@ CFG_CFLAGS := -MD -O2
 CFG_LDFLAGS :=
 endif
 
-PIXMAN_CFLAGS := -I$(top_srcdir)/../pixman-0.26.0/pixman
-PIXMAN_LIBS := $(top_builddir)/../pixman-0.26.0/pixman/$(CFG)/pixman-1.lib
+PIXMAN_CFLAGS := -I$(top_srcdir)/../pixman/pixman
+PIXMAN_LIBS := $(top_builddir)/../pixman/pixman/$(CFG)/pixman-1.lib
 
 CAIRO_LIBS =  gdi32.lib msimg32.lib user32.lib
 ifeq ($(CAIRO_HAS_PNG_FUNCTIONS),1)
