@@ -67,7 +67,7 @@ MscCanvas::MscCanvas(OutputType ot) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
     outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, win32_dc(NULL), original_wmf_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
 #endif
 {
     SetLowLevelParams(ot);
@@ -85,7 +85,7 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), external_surface(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, win32_dc(NULL), original_wmf_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
 #endif
 {
     _ASSERT(ot!=WIN);
@@ -133,7 +133,7 @@ MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, dou
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
     outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(true)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, win32_dc(NULL), original_wmf_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
 #endif
 {
     if (CAIRO_STATUS_SUCCESS != cairo_surface_status(surf)) return; //nodraw state
@@ -369,7 +369,8 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
 MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightTextHeight, 
                      const XY &scale, const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), external_surface(false), win32_dc(NULL), original_wmf_hdc(NULL)
+    total(tot), status(ERR_PARAM), candraw(false), external_surface(false), 
+    stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
 {
     if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=PRINTER) 
         return;
@@ -469,18 +470,20 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
     return 1;
 }
 
-void PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTricks)
+
+//returns the size of the resulting WMF in bytes
+size_t PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTricks)
 {
-    if (hemf == NULL || hdc == NULL) return;
+    if (hemf == NULL || hdc == NULL) return 0;
     HDC refDC = GetDC(NULL);
     SetMapMode(refDC, MM_ANISOTROPIC);
     SetWindowExtEx(refDC, r.right, r.bottom, NULL);
     SetViewportExtEx(refDC, r.right, r.bottom, NULL);
-    unsigned size = GetWinMetaFileBits(hemf, 0, NULL, MM_ANISOTROPIC, refDC);
+    size_t size = GetWinMetaFileBits(hemf, 0, NULL, MM_ANISOTROPIC, refDC);
     BYTE *buff = (BYTE*)malloc(size);
 	if (buff==NULL) {
 		ReleaseDC(NULL, refDC);
-		return;
+		return 0;
 	}
     size = GetWinMetaFileBits(hemf, size, buff, MM_ANISOTROPIC, refDC);
     ReleaseDC(NULL, refDC);
@@ -490,7 +493,9 @@ void PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTricks
         EnumMetaFile(hdc, hwmf, EnumProc, NULL);
     else
         PlayMetaFile(hdc, hwmf);
+    size = GetMetaFileBitsEx(hwmf, 0, NULL);
     DeleteMetaFile(hwmf);
+    return size;
 }
 
 //HENHMETAFILE MscCanvas::CloseOutputRetainHandleEMF()
@@ -572,34 +577,23 @@ void MscCanvas::CloseOutput()
             cairo_surface_show_page(surface);
             cairo_surface_destroy (surface);
             if (outType==MscCanvas::EMF) {
-                if (win32_dc)
-                    DeleteEnhMetaFile(CloseEnhMetaFile(win32_dc)); //this does not delete the metafile on disk, if so
+                if (win32_dc) {
+                    HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
+                    stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
+                    DeleteEnhMetaFile(hemf); //this does not delete the metafile on disk, if so
+                }
             } else { //WMF or PRINTER
                 if (original_wmf_hdc) { //Opened via MscCanvas() with an existing HDC
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
-                    //Get saved extent (includes scale & fake_scale)
-                    //ENHMETAHEADER emh;
-                    //GetEnhMetaFileHeader(hemf, sizeof(emh), &emh);
                     RECT r;
-                    //SetRect(&r, emh.rclFrame.left, emh.rclFrame.top, emh.rclFrame.right, emh.rclFrame.bottom);
-                    //SetRect(&r, 0, 0, int(total.x.Spans()), int(total.y.Spans()));
                     SetRect(&r, 0, 0, int(original_size_for_printing.x), int(original_size_for_printing.y));
-                            //HDC hDCmeta = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-                            //PaintEMFonWMFdc(hemf, hDCmeta, r, true); 
-                            //HENHMETAFILE hemf2 = CloseEnhMetaFile(hDCmeta);
-                            //PlayEnhMetaFile(original_wmf_hdc, hemf2, &r);
-                            //DeleteEnhMetaFile(hemf2);
-                            //::MoveToEx(original_wmf_hdc, r.left, r.top, NULL);
-                            //::LineTo(original_wmf_hdc, r.right, r.bottom);
-                    
-                    
-                    PaintEMFonWMFdc(hemf, original_wmf_hdc, r, true); 
-                    
-
+                    stored_metafile_size = PaintEMFonWMFdc(hemf, original_wmf_hdc, r, true); 
                     DeleteEnhMetaFile(hemf);
                     original_wmf_hdc = NULL;
                 } else { //Opened via MscCanvas() with a filename, win32_dc is an EMF DC
-                    DeleteEnhMetaFile(CloseEnhMetaFile(win32_dc));
+                    HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
+                    stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
+                    DeleteEnhMetaFile(hemf); //this does not delete the metafile on disk, if so
                 }
             }
             win32_dc = NULL;

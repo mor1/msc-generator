@@ -416,17 +416,22 @@ void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) c
 
 
 //here force_page==0 means we do not force a particular page, use m_page
-void CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page) const
+//returns the size of the WMF or EMF
+size_t CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
     MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
                      XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
-    if (canvas.Status()==MscCanvas::ERR_OK) {
-        //draw page breaks only if requested and not drawing a single page only
-        m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
-        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(canvas, page_to_draw);
-    }
+    if (canvas.Status()!=MscCanvas::ERR_OK) return 0;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	if (pApp)
+        canvas.SetFallbackImageResolution(pApp->m_uFallbackResolution);
+    //draw page breaks only if requested and not drawing a single page only
+    m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
+    canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
+    m_msc->DrawCopyrightText(canvas, page_to_draw);
+    canvas.CloseOutput();
+    return canvas.GetMetaFileSize();
 }
 
 //here force_page==0 means we do not force a particular page, use m_page

@@ -125,9 +125,12 @@ public:
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, original_wmf_hdc;
     XY original_size_for_printing;
+    size_t stored_metafile_size; //when rendering on WMF, store the size of the resulting file
     MscCanvas(OutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
+    size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF); return stored_metafile_size;} //Works only after CloseOutput()
 #endif
+    void SetFallbackImageResolution(double res) {if (status==ERR_OK) cairo_surface_set_fallback_resolution(surface, res/fake_scale, res/fake_scale);}
     void PrepareForCopyrightText();
     void CloseOutput();
     ~MscCanvas() {if (status==ERR_OK) CloseOutput();}

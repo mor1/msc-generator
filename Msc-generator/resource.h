@@ -150,9 +150,11 @@
 #define ID_COPY_PAGE11                  32953
 #define ID_COPY_PAGE12                  32954
 #define ID_COPY_PAGE13                  32955
+#define ID_CONTEXT_EMBEDDEDOPTIONS      32955
 #define ID_COPY_PAGE14                  32956
 #define ID_COPY_PAGE15                  32957
 #define ID_COPY_PAGE16                  32958
+#define ID_EMBEDDEDOPTIONS_SIZENOW      32958
 #define ID_COPY_PAGE17                  32959
 #define ID_COPY_PAGE18                  32960
 #define ID_COPY_PAGE19                  32961
@@ -160,6 +162,7 @@
 #define ID_COPY_PAGE99                  33041
 #define ID_BUTTON_EDITINTERNAL          33050
 #define ID_BUTTON_EDITORS               33051
+#define ID_EMBEDDEDOPTIONS_FALLBACK_RES 33052
 #define ID_INDICATOR_TRK                59200
 #define ID_VIEW_OUTPUT                  59394
 
@@ -168,7 +171,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        319
-#define _APS_NEXT_COMMAND_VALUE         32955
+#define _APS_NEXT_COMMAND_VALUE         32961
 #define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           317
 #endif

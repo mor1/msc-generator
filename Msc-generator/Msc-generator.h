@@ -67,7 +67,8 @@ public:
 	bool m_Warnings;
 	bool m_bPB_Editing;
 	bool m_bPB_Embedded;
-	CString m_ChartSourcePreamble;
+	unsigned m_uFallbackResolution;
+    CString m_ChartSourcePreamble;
 	CString m_SetOfDesigns;
 	CString m_CopyrightText;
 	bool m_bAlwaysOpen;
@@ -146,6 +147,7 @@ public:
     afx_msg void OnUpdateCheckSmartHintBoxes(CCmdUI *pCmdUI);
     afx_msg void OnUpdateCheckHints(CCmdUI *pCmdUI);
     afx_msg void OnButtonTrackColor();
+    afx_msg void OnEmbeddedoptionsFallbackRes();
 };
 
 extern CMscGenApp theApp;
@@ -156,6 +158,7 @@ extern CMscGenApp theApp;
 #define REG_KEY_WARNINGS "Warnings"
 #define REG_KEY_PB_EDITING "PageBreak_Editing"
 #define REG_KEY_PB_EMBEDDED "PageBreak_Embedded"
+#define REG_KEY_FALLBACK_RESOLUTION "Default_Fallback_Resolution"
 #define REG_KEY_ALWAYSOPEN "AlwaysOpen"
 #define REG_KEY_TEXTEDITORTYPE "TextEditorType"
 #define REG_KEY_STARTTEXTEDITOR "TextEditorCommand"

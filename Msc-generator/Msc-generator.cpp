@@ -212,6 +212,7 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_SMART_HINT_ATTR_VALUE, &CMscGenApp::OnUpdateCheckSmartHintBoxes)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_HINTS, &CMscGenApp::OnUpdateCheckHints)
     ON_COMMAND(ID_BUTTON_TRACK_COLOR, &CMscGenApp::OnButtonTrackColor)
+    ON_COMMAND(ID_EMBEDDEDOPTIONS_FALLBACK_RES, &CMscGenApp::OnEmbeddedoptionsFallbackRes)
 END_MESSAGE_MAP()
 
 
@@ -450,6 +451,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	m_Warnings = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, TRUE);
 	m_bPB_Editing     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
 	m_bPB_Embedded    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, FALSE);
+    m_uFallbackResolution = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FALLBACK_RESOLUTION, 300);
 	m_bAlwaysOpen     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, TRUE);
 	m_bShowCsh        = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
 	m_nCshScheme      = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
@@ -746,9 +748,9 @@ void CMscGenApp::OnCheckPbEditing()
 {
     m_bPB_Editing = !m_bPB_Editing;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing);
-    //recompile if it was a recently compiled and is showing all pages
+    //recompile if showing all pages
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->m_itrShown == pDoc->m_itrEditing)
+    if (pDoc->m_itrEditing->GetPage()>0)
         pDoc->ShowEditingChart(false);
 }
 
@@ -763,9 +765,9 @@ void CMscGenApp::OnCheckPbEmbedded()
 {
     m_bPB_Embedded = !m_bPB_Embedded;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded);
-    //recompile if it is embdedded and was recently compiled and is showing all pages
+    //recompile if it is embdedded and is showing all pages
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->IsEmbedded() && pDoc->m_itrShown == pDoc->m_itrEditing && pDoc->m_itrEditing->GetPage()>0)
+    if (pDoc->IsEmbedded() && pDoc->m_itrEditing->GetPage()>0)
         pDoc->ShowEditingChart(false);
 }
 
@@ -1040,4 +1042,24 @@ void CMscGenApp::OnButtonTrackColor()
     const unsigned char b = GetBValue(c); 
     m_trackFillColor = RGBA(r, g, b, 128); //50% transparent
     m_trackLineColor = RGBA(r/2, g/2, b/2, 255); //50% darker, fully opaque
+}
+
+
+void CMscGenApp::OnEmbeddedoptionsFallbackRes()
+{
+    CMainFrame *pMainWnd = dynamic_cast<CMainFrame*>(GetMainWnd());
+    if (!pMainWnd) return;
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    pMainWnd->m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_FALLBACK_RES, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
+    if (!s) return;
+    if (m_uFallbackResolution == s->GetPos()) return; //nothing to do
+    m_uFallbackResolution = s->GetPos();
+
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FALLBACK_RESOLUTION, m_uFallbackResolution);
+    //recompile if it is embdedded
+    CMscGenDoc *pDoc = GetDoc();
+    if (pDoc->IsEmbedded())
+        pDoc->ShowEditingChart(false);
 }

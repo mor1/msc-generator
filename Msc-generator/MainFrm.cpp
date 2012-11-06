@@ -179,6 +179,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     m_wndRibbonBar.GetElementsByID(IDC_COMBO_CSH, arButtons);
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
+    _ASSERT(c);
     c->SelectItem(pApp->m_nCshScheme);
 
     //Set initial value for tracking color button
@@ -190,7 +191,18 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     unsigned char g = GetGValue(pApp->m_trackFillColor); 
     unsigned char b = GetBValue(pApp->m_trackFillColor); 
     cb->SetColor(RGB(r, g, b));
-    
+    //Set initial values for ths embedded options
+
+    m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_FALLBACK_RES, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
+    if (s) s->SetPos(pApp->m_uFallbackResolution);
+                
+    m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EMBEDDED, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCButton *butt = dynamic_cast<CMFCButton *>(arButtons[0]);
+    if (butt) butt->SetCheck(pApp->m_bPB_Embedded);
+
     return 0;
 }
 
@@ -738,6 +750,25 @@ void CMainFrame::OnDesignZoom()
 	} else {
 		pDoc->SetZoom(atoi(text));
 	}
+}
+
+void CMainFrame::FillEmbeddedSizeNow(size_t size)
+{
+    m_wndRibbonBar.ShowContextCategories(ID_CONTEXT_EMBEDDEDOPTIONS);
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_SIZENOW, arButtons);
+    _ASSERT(arButtons.GetSize()==1);
+    CMFCRibbonEdit *e = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
+    CString sizeText; 
+    if (size>=1024*1024) 
+        sizeText.AppendFormat("%.2f MB", size/1024./1024.);
+    else if (size>=1024)
+        sizeText.AppendFormat("%.2f KB", size/1024.);
+    else if (size>0)
+        sizeText.AppendFormat("%u bytes", size);
+    if (e) {
+        e->SetEditText(sizeText);
+    }
 }
 
 void CMainFrame::OnViewInternalEditor()
