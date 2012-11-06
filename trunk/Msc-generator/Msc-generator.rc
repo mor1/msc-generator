@@ -533,8 +533,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,5,2,0
- PRODUCTVERSION 3,5,2,0
+ FILEVERSION 3,5,3,0
+ PRODUCTVERSION 3,5,3,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -551,12 +551,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Open Source"
             VALUE "FileDescription", "Msc-generator"
-            VALUE "FileVersion", "3.5.2.0"
+            VALUE "FileVersion", "3.5.3.0"
             VALUE "InternalName", "Msc-generator.exe"
             VALUE "LegalCopyright", "(c) Zoltan Turanyi 2008-9-10-11-12.  All rights reserved."
             VALUE "OriginalFilename", "Msc-generator.exe"
             VALUE "ProductName", "Msc-generator"
-            VALUE "ProductVersion", "3.5.2.0"
+            VALUE "ProductVersion", "3.5.3.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -839,6 +839,14 @@ STRINGTABLE
 BEGIN
     ID_BUTTON_EDITINTERNAL  "Toggles Internal Editor Window\nInternal Editor"
     ID_BUTTON_EDITORS       "Text Edtors\nSelects internal & external text editors."
+    ID_EMBEDDEDOPTIONS_FALLBACK_RES 
+                            "Specify the resolution of the fallback images used for transparency and gradients, not supported by Windows for Embedded Objects. Larger values result in better quality but larger document sizes.\nResolution of fallback images."
+END
+
+STRINGTABLE
+BEGIN
+    ID_EMBEDDEDOPTIONS_SIZENOW 
+                            "Shows the size the embedded signalling chart uses up in its container document.\nSize of chart in Document"
 END
 
 #endif    // English (United States) resources

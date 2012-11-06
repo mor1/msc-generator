@@ -60,7 +60,7 @@ CMscGenSrvrItem::~CMscGenSrvrItem()
 
 
 //depending on the invocation mode, returns the chart to draw/save/extent
-CDrawingChartData & CMscGenSrvrItem::GetChart()
+CDrawingChartData & CMscGenSrvrItem::GetChart() const
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
@@ -70,7 +70,7 @@ CDrawingChartData & CMscGenSrvrItem::GetChart()
 }
 
 //depending on linking/embedding, returns the page to draw/extent
-unsigned CMscGenSrvrItem::GetPage()
+unsigned CMscGenSrvrItem::GetPage() const
 {
     if (IsLinkedItem()) return m_forcePage;
     return GetChart().GetPage();
@@ -126,14 +126,17 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 		return FALSE;
 
 	// Remove this if you use rSize
-	UNREFERENCED_PARAMETER(rSize);
-
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
+	UNREFERENCED_PARAMETER(rSize);    
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-    CDrawingChartData &chart = pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
-	chart.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded, true, GetPage());
+	size_t size = GetChart().DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded, true, GetPage());
+    size += serialize_doc_overhead + GetChart().GetText().GetLength();
+    CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+    CFrameWnd* pFrameWnd = pDoc ? pDoc->GetFirstFrame() : NULL;
+	CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pFrameWnd);
+    if (pMainFrame)
+        pMainFrame->FillEmbeddedSizeNow(size);
 	return TRUE;
 }
 
@@ -236,41 +239,67 @@ BOOL CMscGenSrvrItem::GetTextData(LPFORMATETC lpFormatEtc , LPSTGMEDIUM lpStgMed
 
 void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
 {
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-	if (iVerb == 2) {
+    if (pApp==NULL) return; //WTF
+	CMscGenDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+    CFrameWnd* pFrameWnd = pDoc ? pDoc->GetFirstFrame() : NULL;
+	CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pFrameWnd);
+
+    //Calculate how many bytes are added by the serialize system to the
+    //chart text
+    CMemFile mem;
+    {
+        CArchive ar(&mem, CArchive::store);
+        Serialize(ar);
+    }
+    serialize_doc_overhead = mem.GetLength();
+    if (GetChart().GetText().GetLength() < serialize_doc_overhead)
+        serialize_doc_overhead -= GetChart().GetText().GetLength();
+    else 
+        serialize_doc_overhead = 0;
+
+    if (iVerb == 2) {
 		//If the embedded object has been activated with this verb (Full Screen View)
 		//The CMainFrame is already loaded with CMainFrame::LoadFrame, but is not shown yet
-		CFrameWnd* pFrameWnd;
-		if ((pFrameWnd = pDoc->GetFirstFrame()) != NULL) {
-			CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pFrameWnd);
-			if (pMainFrame) {
-				//Signal to MscGenDoc that chart is read only and "nothing" works, just viewing
-				pApp->m_bFullScreenViewMode = true;
-				//Switch to full screen
-				pMainFrame->ShowFullScreen();
-                pMainFrame->AddToFullScreenToolbar();
-				if (pApp->IsInternalEditorRunning()) 
-                    pApp->m_pWndEditor->SetReadOnly(true);
-				//Finally show the CMainFrame Window
-				CDocObjectServerItem::OnDoVerb(1); //Open
-				//Hide menu, seems to be needed, or else a native menu appears
-				pMainFrame->SetMenu(NULL); 
-				return;
-			}
-		} 
+		if (pMainFrame) {
+			//Signal to MscGenDoc that chart is read only and "nothing" works, just viewing
+			pApp->m_bFullScreenViewMode = true;
+			//Switch to full screen
+			pMainFrame->ShowFullScreen();
+            pMainFrame->AddToFullScreenToolbar();
+			if (pApp->IsInternalEditorRunning()) 
+                pApp->m_pWndEditor->SetReadOnly(true);
+			//Finally show the CMainFrame Window
+			CDocObjectServerItem::OnDoVerb(1); //Open
+			//Hide menu, seems to be needed, or else a native menu appears
+			pMainFrame->SetMenu(NULL); 
+			return;
+		}
 		//We could not do full screen, do nothing
+        return;
 	} else {
 		pApp->m_bFullScreenViewMode = false;
-		//Avoid in-place editing (verb 0) if user set this option
-		if (pApp->m_bAlwaysOpen || 1) 
-			switch (iVerb) {
-			case OLEIVERB_PRIMARY: //primary verb is edit (in-place)
-			case OLEIVERB_SHOW:    //this is the show (in-place edit command ==-1)
-				iVerb = 1; //The secondary verb, which is open
-			}
+		//Avoid in-place editing 
+		switch (iVerb) {
+		case OLEIVERB_PRIMARY: //primary verb is edit (in-place)
+		case OLEIVERB_SHOW:    //this is the show (in-place edit command ==-1)
+        case OLEIVERB_INPLACEACTIVATE:
+        case OLEIVERB_OPEN:
+            iVerb = 1; //The secondary verb, which is open
+		}
+        //Show embedded objects context category on the ribbon
+        if (iVerb==1 && pMainFrame) {
+            size_t size = serialize_doc_overhead + GetChart().GetText().GetLength();
+            HDC hdc = CreateMetaFile(NULL);
+            size += GetChart().DrawToMetafile(hdc, false, pApp->m_bPB_Embedded, true, GetPage());
+            DeleteMetaFile(CloseMetaFile(hdc));
+            pMainFrame->FillEmbeddedSizeNow(size);
+            pMainFrame->m_wndRibbonBar.ShowContextCategories(ID_CONTEXT_EMBEDDEDOPTIONS);            
+            pMainFrame->m_wndRibbonBar.RecalcLayout();
+        }
+
 		CDocObjectServerItem::OnDoVerb(iVerb);
 	}
 

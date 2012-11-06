@@ -301,14 +301,17 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &forced_page, bool force_p
 	} /* not IsStoring */
 }
 
+
 //if "force_page" is true, we force a certain page (or all) stored in "forced_page" (only at store)
 //else we use the page in "chart"
 #define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
 void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page) 
 {
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
 	if (ar.IsStoring()) {
 		ar << CString(NEW_VERSION_STRING); //if format starts with this string, we have file version afterwards
-		ar << unsigned(4); //file format version
+		ar << unsigned(5); //file format version
 		ar << chart.GetDesign();
 		ar << (force_page ? forced_page : chart.GetPage());
 		ar << chart.GetText();
@@ -329,6 +332,8 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
         ar << unsigned(chart.GetForcedEntityCollapse().size());
         for (auto i = chart.GetForcedEntityCollapse().begin(); i!=chart.GetForcedEntityCollapse().end(); i++)
             ar << CString(i->first.c_str()) << unsigned(i->second);
+        ar << pApp->m_uFallbackResolution;
+        ar << pApp->m_bPB_Embedded;
 	} else {
 		CString text;
 		CString design;
@@ -355,29 +360,22 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
 		} else {
 			//New file format
 			ar >> file_version;
-			switch (file_version) {
-				case 0:  //since v2.3.4
-					char *buff;
-					unsigned length;
-					ar >> design;
-					ar >> read_page;
-					ar >> length;
-					buff = (char*)malloc(length+1);
-					ar.Read(buff, length);
-					buff[length] = 0;
-					text = buff;
-					free(buff);
-					break;
-				case 1:  //since ???
-				case 2:  //since v3.1
-                case 3:  //since 3.1.3
-                case 4:  //since 3.4.3
-				default: //any future version
-					ar >> design;
-					ar >> read_page;
-					ar >> text;
-					break;
-			}
+			if (file_version ==0 ) {//since v2.3.4
+				char *buff;
+				unsigned length;
+				ar >> design;
+				ar >> read_page;
+				ar >> length;
+				buff = (char*)malloc(length+1);
+				ar.Read(buff, length);
+				buff[length] = 0;
+				text = buff;
+				free(buff);
+            } else { //later versions use this
+				ar >> design;
+				ar >> read_page;
+				ar >> text;
+            }
 		}
 		EnsureCRLF(text);
 		ReplaceTAB(text);
@@ -386,17 +384,13 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
         chart.SetPage(read_page);
         unsigned force_entity_size, force_arc_size;
         unsigned a=0, b=0, c=0;
-        switch (file_version) {
-        case 0:
-        case 1: 
-            break; //nothing to read besides design, page and text
-        default: //any future version 
-        case 4: //since 3.4.3
+        if (file_version >= 4) { //since 3.4.3
             if (force_page)
                 ar >> forced_page; //read forced page for links (unused, quite much)
             else 
-                ar >> a; //dummy, "a" will be overwritten below
-        case 3: //since 3.1.3 : read version and force arc collapse
+                ar >> a; //keep "forced_page" intact, "a" is dummy, will be overwritten below
+        }
+        if (file_version >= 3) { //since 3.1.3 : read version and force arc collapse
             ar >> a;
             ar >> b;
             ar >> c;
@@ -413,8 +407,8 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
                 ar >> a;
                 chart.ForceArcCollapse(as, BoxCollapseType(a));
             }
-            //Fallthrough
-        case 2:  //since v3.1: read force entity collapse
+        }
+        if (file_version >= 2) { //since v3.1: read force entity collapse
             ar >> force_entity_size;
             for (unsigned i=0; i<force_entity_size; i++) {
                 CString s; unsigned b2;
@@ -422,7 +416,23 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
                 ar >> b2;
                 chart.ForceEntityCollapse(string(s), bool(b2));
             }
-            break;
+        }
+        if (file_version >= 5) { //since 3.5.3
+            ar >> pApp->m_uFallbackResolution;
+            ar >> pApp->m_bPB_Embedded;
+            CMainFrame *pMainWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+            if (pMainWnd) {
+                CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+                pMainWnd->m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_FALLBACK_RES, arButtons);
+                _ASSERT(arButtons.GetSize()==1);
+                CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
+                if (s) s->SetPos(pApp->m_uFallbackResolution);
+                
+                pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EMBEDDED, arButtons);
+                _ASSERT(arButtons.GetSize()==1);
+                CMFCButton *b = dynamic_cast<CMFCButton *>(arButtons[0]);
+                if (b) b->SetCheck(pApp->m_bPB_Embedded);
+            }
         }
 	} /* not IsStoring */
 }

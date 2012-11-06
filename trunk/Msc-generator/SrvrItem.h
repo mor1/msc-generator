@@ -24,7 +24,7 @@
 class CMscGenSrvrItem : public CDocObjectServerItem
 {
 	DECLARE_DYNAMIC(CMscGenSrvrItem)
-
+    size_t serialize_doc_overhead;
 // Constructors
 public:
 	CMscGenSrvrItem(CMscGenDoc* pContainerDoc, unsigned forcePage);
@@ -35,9 +35,9 @@ public:
     unsigned m_forcePage;     //0 if no page forced, 1..n if one is forced
 
     //depending on the invocation mode, returns the chart to draw/save/extent
-    CDrawingChartData & GetChart();
+    CDrawingChartData & GetChart() const;
     //depending on linking/embedding, returns the page to draw/extent
-    unsigned GetPage();
+    unsigned GetPage() const;
 
 // Overrides
 public:
