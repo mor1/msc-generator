@@ -10,10 +10,6 @@ Two helpers needed:
 
 
 PLANNED in future releases
-CHANGE: Switched to cairo 1.10 and the new pixman after summer.
-   - Bug1: hints drawing into popubox
-   - Bug2: EMF re-scaling
-CHANGE: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
 ADD: shadow to arrows and labels
 Divider package
 	ADD: Make divider only within a box
@@ -35,6 +31,19 @@ CHANGE: Mesh gradients.
 ADD: Tip of the day
 ADD: Check if file changed on disk
 ADD: URL's to PNG
+
+In 3.5.4
+FIXED: Printing sucks: added EMF layer in-between
+FIX: Layout Engine
+FIX: Recompile if pbembedded is changed
+FIX: Add more linewidth to labels
+FIX: Embedded objects loose text
+
+In 3.5.3
+CHANGED: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
+CHANGED: Switched to cairo 1.12.8 and the new pixman 
+ADDED: Embedded Object Context Category to the Ribbon
+ADDED: PB Embedded and fallback resolution is now saved with embedded object
 
 In 3.5.2
 REMOVED: In place editing

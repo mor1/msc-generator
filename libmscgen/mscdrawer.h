@@ -123,8 +123,8 @@ public:
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     ErrorType Status() const {return status;}
 #ifdef CAIRO_HAS_WIN32_SURFACE
-    HDC win32_dc, original_wmf_hdc;
-    XY original_size_for_printing;
+    HDC win32_dc, original_hdc;
+    XY original_hdc_size;
     size_t stored_metafile_size; //when rendering on WMF, store the size of the resulting file
     MscCanvas(OutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);

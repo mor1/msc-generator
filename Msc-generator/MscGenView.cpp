@@ -194,9 +194,11 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
 	//DeleteEnhMetaFile(hemf);
 }
 
-void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
+void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
 {
 	// cleanup after printing
+    CDrawingChartData *const pData = (CDrawingChartData *)pInfo->m_lpUserData;
+    delete pData;
 }
 
 void CMscGenView::OnRButtonUp(UINT /*nFlags*/, CPoint point)

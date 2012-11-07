@@ -67,7 +67,7 @@ MscCanvas::MscCanvas(OutputType ot) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
     outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
 {
     SetLowLevelParams(ot);
@@ -85,7 +85,7 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), external_surface(false)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
 {
     _ASSERT(ot!=WIN);
@@ -133,7 +133,7 @@ MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, dou
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
     outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(true)
 #ifdef CAIRO_HAS_WIN32_SURFACE
-	, stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
+	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
 {
     if (CAIRO_STATUS_SUCCESS != cairo_surface_status(surf)) return; //nodraw state
@@ -192,14 +192,15 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         //Setting fake_scale higher than 10 seems to result in wrong image fallback positioning, I am not sure why.
         if (total.x.Spans()>0 && total.y.Spans()>0)
             fake_scale = std::min(std::min(30000./total.x.Spans(), 30000./total.y.Spans()), 10.);  
-        //Fallthrough
-    case PRINTER:
         individual_chars = true;        //do this so that it is easier to convert to WMF
         use_text_path_rotated = true;   //WMF has no support for this
         fake_dash = true;               //WMF has no support for this
         needs_arrow_fix = true;         //WMF does not support complex clipping it seems
         //Fallthrough
     case EMF:
+    case PRINTER:
+        if (ot==PRINTER)
+            fallback_resolution = 50;
         avoid_linewidth_1 = true;       //EMF needs wider than 1 horizontal lines to avoid clipping them too much
         needs_dots_in_corner = true;
         imprecise_positioning = true;
@@ -295,11 +296,11 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
 	case MscCanvas::WMF:
         // Create the Metafile on disk
         if (fileName.length() > 0)
-            original_wmf_hdc = CreateMetaFile(fileName.c_str());
+            original_hdc = CreateMetaFile(fileName.c_str());
         else
-            original_wmf_hdc = CreateMetaFile(NULL);
+            original_hdc = CreateMetaFile(NULL);
         // Did you get a good metafile?
-        if( original_wmf_hdc == NULL ) 
+        if( original_hdc == NULL ) 
             return ERR_CANVAS;
         // Create the Enhanced Metafile
         win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
@@ -370,7 +371,7 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
                      const XY &scale, const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), external_surface(false), 
-    stored_metafile_size(0), win32_dc(NULL), original_wmf_hdc(NULL)
+    stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 {
     if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=PRINTER) 
         return;
@@ -394,13 +395,10 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
         break;
     case MscCanvas::WMF:
     case MscCanvas::PRINTER:
-        //Save the extent (including this page, the copyright, scale & fake_scale)
-        //SetRect(&r,0,0,(int)size.x, (int)size.y);
-        //win32_dc = CreateEnhMetaFile(NULL, NULL, &r, NULL);
         win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
         if( win32_dc == NULL ) return;
-        original_wmf_hdc = hdc;
-        original_size_for_printing = size;
+        original_hdc = hdc;
+        original_hdc_size = size;
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
     default:
@@ -576,29 +574,42 @@ void MscCanvas::CloseOutput()
 #ifdef CAIRO_HAS_WIN32_SURFACE
             cairo_surface_show_page(surface);
             cairo_surface_destroy (surface);
-            if (outType==MscCanvas::EMF) {
-                if (win32_dc) {
+            if (original_hdc) { 
+                //Opened via either 
+                //1. with an existing WMF HDC (OutType==WMF)
+                //2. with a WMF filw (OutType==WMF), the DC was created by "this"
+                //3. with an existing printing DC (OutType==PRINTER)
+                //For 1-2, we need to convert from WMF to EMF, but otherwise can close 
+                //"original_hdc" the same way. 
+                //For #3, we just copy. (This is a fix, we cannot draw onto a printer DC
+                //with cairo directly, so we use an EMF in-between.)
+                //win32_DC is an EMF DC opened by "this"
+                //"original_dc" contains the original target to draw on
+                HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
+                RECT r;
+                SetRect(&r, 0, 0, int(original_hdc_size.x), int(original_hdc_size.y));
+                if (outType==WMF) 
+                    stored_metafile_size = PaintEMFonWMFdc(hemf, original_hdc, r, true); 
+                else 
+                    PlayEnhMetaFile(original_hdc, hemf, &r);
+                size_t emf_size = GetEnhMetaFileBits(hemf, 0, NULL);
+                DeleteEnhMetaFile(hemf);
+                original_hdc = NULL;
+            } else {
+                //OutType is EMF here
+                _ASSERT(outType==EMF);
+                if (win32_dc) { 
+                    //opened via MscCanvas and a filename, win32_dc is the EMF file  
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
                     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
                     DeleteEnhMetaFile(hemf); //this does not delete the metafile on disk, if so
-                }
-            } else { //WMF or PRINTER
-                if (original_wmf_hdc) { //Opened via MscCanvas() with an existing HDC
-                    HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
-                    RECT r;
-                    SetRect(&r, 0, 0, int(original_size_for_printing.x), int(original_size_for_printing.y));
-                    stored_metafile_size = PaintEMFonWMFdc(hemf, original_wmf_hdc, r, true); 
-                    DeleteEnhMetaFile(hemf);
-                    original_wmf_hdc = NULL;
-                } else { //Opened via MscCanvas() with a filename, win32_dc is an EMF DC
-                    HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
-                    stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
-                    DeleteEnhMetaFile(hemf); //this does not delete the metafile on disk, if so
+                } else {
+                    //Opened onto an existing EMF DC - nothing to do.
                 }
             }
             win32_dc = NULL;
             break;
-            //Fallthrough if no WIN32 surface
+            //Fallthrough if cairo has no WIN32 surface
 #endif
         case MscCanvas::WIN:
             cairo_surface_destroy (surface);
