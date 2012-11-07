@@ -1117,12 +1117,20 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     for (unsigned iiii = 0; iiii<middle.size(); iiii++) 
         act_size.push_back(std::max(0., cos_slant*(*middle[iiii])->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
     act_size.push_back(std::max(0., cos_slant*(*dst)->GetRunningWidth(chart->activeEntitySize)/2)/cos_slant);
-    //Insert a small extra spacing for the arrow line
-    if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
-        parsed_label.AddSpacing(0, style.line.LineWidth()+
-                                ARROW_TEXT_VSPACE_ABOVE+ARROW_TEXT_VSPACE_BELOW);
     return this;
 }
+
+void ArcDirArrow::FinalizeLabels(MscCanvas &canvas)
+{
+    ArcArrow::FinalizeLabels(canvas);
+    //Insert a small extra spacing for the arrow line
+    double lw_max = style.line.LineWidth();
+    for (unsigned i=0; i<segment_lines.size(); i++)
+        lw_max = std::max(lw_max, segment_lines[i].LineWidth());
+    if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
+        parsed_label.AddSpacing(0, ARROW_TEXT_VSPACE_ABOVE + lw_max + ARROW_TEXT_VSPACE_BELOW);
+}
+
 
 void ArcDirArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {

@@ -522,7 +522,7 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 		for (int i=0; i<COLOR_MAX; i++) 
 			ConvertMscCshAppearanceToCHARFORMAT(MscCshAppearanceList[scheme][i], m_csh_cf[scheme][i]);
 
-    m_cacheType = CChartCache::CACHE_RECORDING; //This works on all platforms
+    m_cacheType = CChartCache::CACHE_RECORDING;
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.

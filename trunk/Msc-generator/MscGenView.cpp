@@ -299,15 +299,13 @@ void CMscGenView::OnDraw(CDC* pDC)
     bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
     oldBitmap = memDC.SelectObject(&bitmap);
     if (clip != m_view_pos) {
-        CDC memoryDC;
+        CDC memoryDC; 
         memoryDC.CreateCompatibleDC(pDC);
         m_view.DeleteObject();
         m_view.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
         CBitmap *oldBitmap2 = memoryDC.SelectObject(&m_view);
         memoryDC.FillSolidRect(0,0, clip.Width(), clip.Height(), pDC->GetBkColor());
-        cairo_surface_t *img = cairo_win32_surface_create(memoryDC.m_hDC);
-        m_cache.DrawToSurface(img, scale, scale, clip, pApp->m_bPB_Editing);
-        cairo_surface_destroy(img);
+        m_cache.DrawToMemDC(memoryDC, scale, scale, clip, pApp->m_bPB_Editing);
         memoryDC.SelectObject(oldBitmap2);
         m_view_pos = clip;
     }

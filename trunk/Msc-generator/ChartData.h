@@ -127,23 +127,17 @@ typedef std::list<CChartData>::const_iterator IChartData_const;
 class CChartCache 
 {
 public:
-    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_BMP, CACHE_RECORDING} ECacheType;
+    typedef enum {CACHE_NONE, CACHE_EMF, CACHE_RECORDING} ECacheType;
 protected:
     CDrawingChartData *m_data;
     ECacheType         m_cacheType;
 	HENHMETAFILE       m_cache_EMF;
-    CBitmap            m_cache_BMP;
-    double             m_cache_BMP_x_scale;
-    double             m_cache_BMP_y_scale;
-    CRect              m_cache_BMP_clip;
     cairo_surface_t   *m_cache_rec;
 public:
-    CChartCache();
+    CChartCache() : m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_rec(NULL) {};
     void ClearCache();
     void SetData(CDrawingChartData *data) {ClearCache(); m_data = data;}
     const CDrawingChartData *GetChartData() const {return m_data;}
-	void DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
-    void DrawToSurface(cairo_surface_t *, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
     void SetCacheType(ECacheType t) {if (m_cacheType!=t) {ClearCache(); m_cacheType=t;}}
-
+    void DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
 };
