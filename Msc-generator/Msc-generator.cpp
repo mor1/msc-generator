@@ -748,9 +748,9 @@ void CMscGenApp::OnCheckPbEditing()
 {
     m_bPB_Editing = !m_bPB_Editing;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing);
-    //recompile if showing all pages
+    //recompile
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->m_itrEditing->GetPage()>0)
+    if (pDoc)
         pDoc->ShowEditingChart(false);
 }
 
@@ -765,10 +765,12 @@ void CMscGenApp::OnCheckPbEmbedded()
 {
     m_bPB_Embedded = !m_bPB_Embedded;
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded);
-    //recompile if it is embdedded and is showing all pages
+    //recompile if it is embdedded
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->IsEmbedded() && pDoc->m_itrEditing->GetPage()>0)
+    if (pDoc && pDoc->IsEmbedded()) {
+        m_bPB_Editing = m_bPB_Embedded;
         pDoc->ShowEditingChart(false);
+    }
 }
 
 
@@ -1060,6 +1062,6 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FALLBACK_RESOLUTION, m_uFallbackResolution);
     //recompile if it is embdedded
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc->IsEmbedded())
+    if (pDoc && pDoc->IsEmbedded())
         pDoc->ShowEditingChart(false);
 }

@@ -183,15 +183,6 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     CWaitCursor wait;
 	pData->SetPage(pInfo->m_nCurPage);
     pData->DrawToPrinter(pDC->m_hDC, scale, scale);
-
-	//CRect r(0, 0, orig_size.cx*fzoom, orig_size.cy*fzoom);
-	//HENHMETAFILE hemf = data.GetEMF(true);
-	//ENHMETAHEADER header;
-	//GetEnhMetaFileHeader(hemf, sizeof(header), &header);
-	//r.SetRect(header.rclBounds.left*fzoom, header.rclBounds.top*fzoom,
-	//	      header.rclBounds.right*fzoom, header.rclBounds.bottom*fzoom); 
-	//PlayEnhMetaFile(pDC->m_hDC, hemf, r);
-	//DeleteEnhMetaFile(hemf);
 }
 
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
@@ -246,18 +237,10 @@ void CMscGenView::InvalidateBlock(const Block &b)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	//pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
-	double scale = pDoc->m_zoom / 100.; 
-
-	//double pageTop = pDoc->m_ChartShown.GetPageYShift();
-
-	//CPoint point = GetDeviceScrollPosition();
-	////inflate by 2 pixels, as track rects cover a bigger area
-	////Shift so that we are in page coordinates
-	////then scale to device units
-	////then shift by the scroll position
-    CRect r(int(b.x.from*scale-1), int(b.y.from*scale-1), int(b.x.till*scale+1), int(b.y.till*scale+1));
+	//double scale = pDoc->m_zoom / 100.; 
+    //CRect r(int(b.x.from*scale-1), int(b.y.from*scale-1), int(b.x.till*scale+1), int(b.y.till*scale+1));
 	//InvalidateRect(&r);
+    //Invalidate the whole client area, so that we can cache it
     Invalidate();
 }
 
@@ -721,19 +704,6 @@ BOOL CMscGenView::OnDrop(COleDataObject* pDataObject, DROPEFFECT /*dropEffect*/,
 	pDoc->DoPasteData(*pDataObject);
 	return TRUE;
 }
-
-//void CMscGenView::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
-//{
-//    CScrollView::OnActivate(nState, pWndOther, bMinimized);
-//
-//    //Set focus to internal editor
-//	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-//	ASSERT(pApp != NULL);
-//    if (nState != WA_INACTIVE)
-//        if (pApp->IsInternalEditorRunning() && pApp->m_pWndEditor->IsVisible())
-//            pApp->m_pWndEditor->SetFocus();
-//}
-
 
 void CMscGenView::OnViewShowElementControls()
 {

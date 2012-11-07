@@ -289,7 +289,8 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
 		 ** an extent bigger than the one reported by GetClipBox(), if the 
 		 ** DC passed is an EMF DC.
          ** This is to avoid dropping glyphs outside the DC's extent.
-         ** I could not make a metafile DC to have larger extent that 1600x1200
+         ** I could not make a metafile DC to have larger extent than
+         ** the current screen size.
          */
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
@@ -454,8 +455,6 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
         //buff[len]=0;
         //ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, buff, len, NULL);
         ExtTextOut(hDC, pTO->toX, pTO->toY, 0, NULL, pTO->string, len, NULL);
-        //DBEUG ::MoveToEx(hDC, pTO->toX, pTO->toY, NULL);
-        //DBEUG ::LineTo(hDC, pTO->toX, pTO->toY+10);
     } else 
     if (lpMFR->rdFunction == META_CREATEFONTINDIRECT) {
         LOGFONT16* const plogfont = ( LOGFONT16* )(&lpMFR->rdParm[0]);
@@ -464,7 +463,6 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
     } else {
         b=PlayMetaFileRecord(hDC, lpHTable, lpMFR, nObj);
     }
-    //DEMO: if (!b) FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,NULL,GetLastError(),0, buff,4096,NULL );
     return 1;
 }
 
@@ -496,45 +494,6 @@ size_t PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTric
     return size;
 }
 
-//HENHMETAFILE MscCanvas::CloseOutputRetainHandleEMF()
-//{
-//    if (status!=ERR_OK) return NULL;
-//    cairo_destroy(cr);
-//    outFile=NULL;
-//    cr=NULL;
-//    fileName.clear();
-//    if (surface==NULL) return NULL;
-//    cairo_status_t st = cairo_surface_status(surface);
-//    cairo_surface_show_page(surface);
-//    cairo_surface_destroy(surface);
-//    surface=NULL;
-//    if (outType == EMF || outType == WMF) 
-//        return CloseEnhMetaFile(win32_dc);
-//    return NULL;
-//}
-//HMETAFILE MscCanvas::CloseOutputRetainHandleWMF()
-//{
-//    if (status!=ERR_OK) return NULL;
-//    cairo_destroy(cr);
-//    outFile=NULL;
-//    cr=NULL;
-//    fileName.clear();
-//    if (surface==NULL) return NULL;
-//    cairo_status_t st = cairo_surface_status(surface);
-//    cairo_surface_show_page(surface);
-//    cairo_surface_destroy(surface);
-//    surface=NULL;
-//    if (outType == EMF || outType == WMF) {
-//        HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
-//        RECT r;
-//        SetRect(&r, 0, 0, int(total.x), int(total.y));
-//        HDC hdc = CreateMetaFile(NULL);
-//        PaintEMFonWMFdc(hemf, hdc, r, true); //true means we fiddle with fonts & textout
-//        DeleteEnhMetaFile(hemf);
-//        return CloseMetaFile(hdc);
-//    }
-//    return NULL;
-//}
 #endif //WIN32
 
 void MscCanvas::PrepareForCopyrightText()
@@ -1015,6 +974,8 @@ void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
 //
 //}
 //
+
+
 ////////////////////// Fill routines
 
 
@@ -1252,15 +1213,16 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double 
     _ASSERT(candraw);
     _ASSERT(shadow.IsComplete());
     if (shadow.offset.second==0 || area.IsEmpty()) return;
+    const bool clip = false;
     //Clip out the actual shape we are the shadow of
-    //if (clip) {
-    //    area.Path(cr);
-    //    cairo_new_sub_path(cr);
-    //    cairo_rectangle(cr, area.GetBoundingBox().x.from-1, area.GetBoundingBox().y.from-1,
-    //                        area.GetBoundingBox().x.Spans()+2+shadow.offset.second, area.GetBoundingBox().y.Spans()+2+shadow.offset.second);
-    //    cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
-    //    cairo_clip(cr);
-    //}
+    if (clip) {
+        area.Path(cr, true);
+        cairo_new_sub_path(cr);
+        cairo_rectangle(cr, area.GetBoundingBox().x.from-1, area.GetBoundingBox().y.from-1,
+                            area.GetBoundingBox().x.Spans()+2+shadow.offset.second, area.GetBoundingBox().y.Spans()+2+shadow.offset.second);
+        cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
+        cairo_clip(cr);
+    }
     const Contour &substract = area;//.CreateExpand(-0.5);
     Contour outer(area), inner;
     XY off(shadow.offset.second, shadow.offset.second);
@@ -1296,8 +1258,8 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double 
             SetColor(shadow.color.second);
     }
     (outer-=substract).Fill(cr);
-    //if (clip)
-    //    cairo_restore(cr);
+    if (clip)
+        cairo_restore(cr);
 }
 
 /* Set clip, if the rectangle of which this is the shadow of is not opaque */

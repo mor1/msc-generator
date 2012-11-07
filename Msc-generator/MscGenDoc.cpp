@@ -420,6 +420,7 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
         if (file_version >= 5) { //since 3.5.3
             ar >> pApp->m_uFallbackResolution;
             ar >> pApp->m_bPB_Embedded;
+            pApp->m_bPB_Editing = pApp->m_bPB_Embedded;
             CMainFrame *pMainWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
             if (pMainWnd) {
                 CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
@@ -432,6 +433,11 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
                 _ASSERT(arButtons.GetSize()==1);
                 CMFCButton *b = dynamic_cast<CMFCButton *>(arButtons[0]);
                 if (b) b->SetCheck(pApp->m_bPB_Embedded);
+
+                pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EDITING, arButtons);
+                _ASSERT(arButtons.GetSize()==1);
+                b = dynamic_cast<CMFCButton *>(arButtons[0]);
+                if (b) b->SetCheck(pApp->m_bPB_Editing);
             }
         }
 	} /* not IsStoring */
@@ -1426,7 +1432,8 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
     m_trackArcs.clear();
     lock.Unlock();
 	SetTrackMode(false);
-	NotifyChanged(); 
+	NotifyChanged();
+    SetModifiedFlag(TRUE);
 
 	if (!m_bAttemptingToClose) {
 		UpdateAllViews(NULL);

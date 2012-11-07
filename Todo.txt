@@ -34,10 +34,10 @@ ADD: URL's to PNG
 
 In 3.5.4
 FIXED: Printing sucks: added EMF layer in-between
+FIXED: Recompile if pbembedded is changed
+FIXED: Embedded objects loose text
 FIX: Layout Engine
-FIX: Recompile if pbembedded is changed
 FIX: Add more linewidth to labels
-FIX: Embedded objects loose text
 
 In 3.5.3
 CHANGED: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed
