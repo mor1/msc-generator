@@ -496,22 +496,11 @@ TrackableElement *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) c
 	return itr->second;
 }
 
-CChartCache::CChartCache() :
-m_cacheType(CACHE_EMF), m_cache_EMF(NULL), 
-m_cache_BMP_x_scale(0), m_cache_BMP_y_scale(0),
-m_cache_rec(NULL)
-{
-}
-
 void CChartCache::ClearCache() 
 {
     if (m_cache_EMF) {
         DeleteEnhMetaFile(m_cache_EMF);
         m_cache_EMF = NULL;
-    }
-    if (m_cache_BMP_x_scale) {
-        m_cache_BMP_x_scale = 0;
-        m_cache_BMP.DeleteObject();
     }
     if (m_cache_rec) {
         cairo_surface_destroy(m_cache_rec);
@@ -519,47 +508,19 @@ void CChartCache::ClearCache()
     }
 }
 
-void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks) 
+//Here the "memDC" contains a bitmap as large as the visible part of the screen
+//"scale" contains the magnification factor we shall display the chart with
+//"clip" contains the coordinates of the visible part of the screen in scaled chart coordinates.
+//E.g., if the chart is 100x100, scale is 2, and we can see 80x80 pixels in the middle of the
+//chart (a small window), then the scaled chart is 200x200 and clip will be (60x60)->(140x140)
+void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks) 
 {
     if (!m_data) return;
     m_data->CompileIfNeeded();
     if (!m_data->m_msc) return;
     switch (m_cacheType) {
     case CACHE_NONE:
-        m_data->DrawToWindow(hdc, x_scale, y_scale);
-        break;
-    case CACHE_BMP:
-        //GetClipBox(hdc, &clip);
-        if (m_cache_BMP_x_scale != x_scale || m_cache_BMP_y_scale != y_scale || m_cache_BMP_clip != clip) {
-            //Cache not ok, regenerate
-            if (m_cache_BMP_x_scale) 
-                m_cache_BMP.DeleteObject(); //Delete old cached object
-            m_cache_BMP_clip = clip;
-            m_cache_BMP_x_scale = x_scale;
-            m_cache_BMP_y_scale = y_scale;
-            CDC targetDC;
-            targetDC.Attach(hdc);
-	        CDC memDC;
-	        memDC.CreateCompatibleDC(&targetDC);
-            m_cache_BMP.CreateCompatibleBitmap(&targetDC, clip.Width(), clip.Height());
-            CBitmap *oldBitmap = memDC.SelectObject(&m_cache_BMP);
-            memDC.SetWindowOrg(clip.left, clip.top);
-            memDC.FillSolidRect(clip, targetDC.GetBkColor());
-            m_data->DrawToWindow(memDC.m_hDC, x_scale, y_scale);
-            targetDC.BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, clip.left, clip.top, SRCCOPY);   
-            memDC.SelectObject(oldBitmap); //select our cached bitmap out from the temp context
-            targetDC.Detach();
-        } else {
-            //Copy cache to target
-            CDC targetDC;
-            targetDC.Attach(hdc);
-	        CDC memDC;
-	        memDC.CreateCompatibleDC(&targetDC);
-	        CBitmap *oldBitmap = memDC.SelectObject(&m_cache_BMP);
-            targetDC.BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, 0, 0, SRCCOPY);   
-            memDC.SelectObject(oldBitmap); //select our cached bitmap out from the temp context
-            targetDC.Detach();
-        }
+        m_data->DrawToWindow(memDC.m_hDC, x_scale, y_scale);
         break;
     case CACHE_EMF: {
             if (!m_cache_EMF) {
@@ -569,7 +530,10 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
                 m_cache_EMF = CloseEnhMetaFile(hdc2);
             }
             CRect full(0,0, int(m_data->GetSize().cx*x_scale), int(m_data->GetSize().cy*y_scale));
-            PlayEnhMetaFile(hdc, m_cache_EMF, &full);
+            memDC.SaveDC();
+            memDC.SetWindowOrg(clip.left, clip.top);
+            memDC.PlayMetaFile(m_cache_EMF, &full);
+            memDC.RestoreDC(1);
             break;
         }
     case CACHE_RECORDING: {
@@ -578,33 +542,14 @@ void CChartCache::DrawToWindow(HDC hdc, double x_scale, double y_scale, const CR
                 m_cache_rec = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL);
                 m_data->DrawToRecordingSurface(m_cache_rec, MscCanvas::WIN, bPageBreaks);
             }
-            cairo_surface_t *surf = cairo_win32_surface_create(hdc);
+            cairo_surface_t *surf = cairo_win32_surface_create(memDC.m_hDC);
             cairo_t *cr = cairo_create(surf);
             cairo_scale(cr, x_scale, y_scale);
-            cairo_set_source_surface (cr, m_cache_rec, 0.0, 0.0);
+            cairo_set_source_surface (cr, m_cache_rec, -clip.left/x_scale, -clip.top/y_scale);
             cairo_paint (cr);
             cairo_destroy (cr);
             cairo_surface_destroy(surf);
+            break;
         }
     }
 }
-
-
-void CChartCache::DrawToSurface(cairo_surface_t *surf, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks)
-{
-    if (!m_data) return;
-    m_data->CompileIfNeeded();
-    if (!m_data->m_msc) return;
-    ASSERT(m_cacheType==CACHE_RECORDING);
-    if (!m_cache_rec) {
-        //Cache not OK, regenerate
-        m_cache_rec = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL);
-        m_data->DrawToRecordingSurface(m_cache_rec, MscCanvas::WIN, bPageBreaks);
-    }
-    cairo_t *cr = cairo_create(surf);
-    cairo_scale(cr, x_scale, y_scale);
-    cairo_set_source_surface (cr, m_cache_rec, -clip.left/x_scale, -clip.top/y_scale);
-    cairo_paint (cr);
-    cairo_destroy (cr);
-}
-

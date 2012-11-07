@@ -278,6 +278,7 @@ public:
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
+    virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
