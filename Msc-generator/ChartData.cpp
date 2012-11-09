@@ -529,7 +529,8 @@ void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const 
                 m_data->DrawToMetafile(hdc2, true, bPageBreaks);
                 m_cache_EMF = CloseEnhMetaFile(hdc2);
             }
-            CRect full(0,0, int(m_data->GetSize().cx*x_scale), int(m_data->GetSize().cy*y_scale));
+            const CSize size = m_data->GetSize();
+            const CRect full(0,0, int(size.cx*x_scale), int(size.cy*y_scale));
             memDC.SaveDC();
             memDC.SetWindowOrg(clip.left, clip.top);
             memDC.PlayMetaFile(m_cache_EMF, &full);

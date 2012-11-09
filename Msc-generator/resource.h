@@ -61,6 +61,7 @@
 #define IDC_CHECK_ALWAYSOPEN            1008
 #define IDC_CHECK_PB_EDITING            1009
 #define IDC_INTERNAL_EDITOR             1009
+#define IDC_CHECK_PAGEBREAKS            1009
 #define IDC_CHECK_PB_EMBEDDED           1010
 #define IDC_CHECK_CSH                   1011
 #define IDC_CHECK_SMART_IDENT           1012

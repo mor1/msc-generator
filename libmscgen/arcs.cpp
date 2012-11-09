@@ -853,7 +853,6 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
 {
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
-    modifyFirstLineSpacing = true;
     segment_types.push_back(t);
     if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
 };
@@ -1123,12 +1122,12 @@ ArcBase *ArcDirArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 void ArcDirArrow::FinalizeLabels(MscCanvas &canvas)
 {
     ArcArrow::FinalizeLabels(canvas);
+    if (parsed_label.getTextWidthHeight().y==0) return;
     //Insert a small extra spacing for the arrow line
     double lw_max = style.line.LineWidth();
     for (unsigned i=0; i<segment_lines.size(); i++)
         lw_max = std::max(lw_max, segment_lines[i].LineWidth());
-    if (parsed_label.getTextWidthHeight().y && modifyFirstLineSpacing)
-        parsed_label.AddSpacing(0, ARROW_TEXT_VSPACE_ABOVE + lw_max + ARROW_TEXT_VSPACE_BELOW);
+    parsed_label.AddSpacing(0, ARROW_TEXT_VSPACE_ABOVE + lw_max + ARROW_TEXT_VSPACE_BELOW);
 }
 
 
@@ -1437,7 +1436,6 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
  ArcDirArrow(dirarrow), sig(NULL)
 {
     SetStyleWithText(&s);
-    modifyFirstLineSpacing = false;
 }
 
 //This invocation is from ArcBoxSeries::PostParseProcess
@@ -1445,7 +1443,6 @@ ArcBigArrow::ArcBigArrow(const EntityList &el, bool bidir, const ArcLabelled &al
     const ArcSignature *s)
     : ArcDirArrow(el, bidir, al), sig(s)
 {
-    modifyFirstLineSpacing = false;
     slant_angle = 0;
 }
 
@@ -1504,6 +1501,13 @@ ArcBase* ArcBigArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     style.arrow.line = style.line;
     return ret;
 }
+
+void ArcBigArrow::FinalizeLabels(MscCanvas &canvas)
+{
+    //Skip the part in ArcDirArrow adding first line spacing
+    ArcArrow::FinalizeLabels(canvas);
+}
+
 
 void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {

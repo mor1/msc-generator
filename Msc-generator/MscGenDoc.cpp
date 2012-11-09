@@ -292,12 +292,11 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &forced_page, bool force_p
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (ar.IsStoring()) {
-        SerializeHelper(ar, pApp->m_bFullScreenViewMode ? m_ChartSerializedIn : m_ChartShown, forced_page, force_page);
+        SerializeHelper(ar, m_ChartShown, forced_page, force_page);
     } else {
         CChartData chart;
         SerializeHelper(ar, chart, forced_page, force_page);
         InsertNewChart(chart);
-        m_ChartSerializedIn = chart;
 	} /* not IsStoring */
 }
 
@@ -333,7 +332,7 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
         for (auto i = chart.GetForcedEntityCollapse().begin(); i!=chart.GetForcedEntityCollapse().end(); i++)
             ar << CString(i->first.c_str()) << unsigned(i->second);
         ar << pApp->m_uFallbackResolution;
-        ar << pApp->m_bPB_Embedded;
+        ar << pApp->m_bPageBreaks;
 	} else {
 		CString text;
 		CString design;
@@ -419,8 +418,7 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
         }
         if (file_version >= 5) { //since 3.5.3
             ar >> pApp->m_uFallbackResolution;
-            ar >> pApp->m_bPB_Embedded;
-            pApp->m_bPB_Editing = pApp->m_bPB_Embedded;
+            ar >> pApp->m_bPageBreaks;
             CMainFrame *pMainWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
             if (pMainWnd) {
                 CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
@@ -429,15 +427,15 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
                 CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
                 if (s) s->SetPos(pApp->m_uFallbackResolution);
                 
-                pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EMBEDDED, arButtons);
-                _ASSERT(arButtons.GetSize()==1);
-                CMFCButton *b = dynamic_cast<CMFCButton *>(arButtons[0]);
-                if (b) b->SetCheck(pApp->m_bPB_Embedded);
+                //pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EMBEDDED, arButtons);
+                //_ASSERT(arButtons.GetSize()==1);
+                //CMFCButton *b = dynamic_cast<CMFCButton *>(arButtons[0]);
+                //if (b) b->SetCheck(pApp->m_bPB_Embedded);
 
-                pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EDITING, arButtons);
-                _ASSERT(arButtons.GetSize()==1);
-                b = dynamic_cast<CMFCButton *>(arButtons[0]);
-                if (b) b->SetCheck(pApp->m_bPB_Editing);
+                //pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EDITING, arButtons);
+                //_ASSERT(arButtons.GetSize()==1);
+                //b = dynamic_cast<CMFCButton *>(arButtons[0]);
+                //if (b) b->SetCheck(pApp->m_bPB_Editing);
             }
         }
 	} /* not IsStoring */
@@ -1033,7 +1031,11 @@ void CMscGenDoc::ChangePage(unsigned page)
 {
 	if (page == m_ChartShown.GetPage())
 		return;
-	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    //if we are not viewing read-only, then duplicate current chart, loose redo
+    if (pApp && !pApp->m_bFullScreenViewMode) 
+        InsertNewChart(CChartData(*m_itrEditing)); 
 	m_itrEditing->SetPage(page);  //set new page
 	ShowEditingChart(true);
 	CheckIfChanged();     
@@ -1047,10 +1049,7 @@ void CMscGenDoc::StepPage(signed int step)
     if (page > m_ChartShown.GetPages()) page = m_ChartShown.GetPages();
     if (page < 0 ) page = 0;
     if (page == m_ChartShown.GetPage()) return;
-	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo
-	m_itrEditing->SetPage(page);  //set new page
-	ShowEditingChart(true);
-	CheckIfChanged();     
+    ChangePage(page);
 }
 
 
@@ -1095,7 +1094,8 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 	if (pos == NULL) return;
     CMscGenView* pView = static_cast<CMscGenView*>(GetNextView(pos));
   	if (!pView->IsKindOf(RUNTIME_CLASS(CMscGenView))) return;
-	if (pView->m_size.cx==0 || pView->m_size.cy==0) return;
+    const CSize size = m_ChartShown.GetSize();
+	if (size.cx==0 || size.cy==0) return;
 	CMainFrame *pWnd = static_cast<CMainFrame *>(AfxGetMainWnd());
 	if (!pWnd->IsKindOf(RUNTIME_CLASS(CMainFrame))) return;
 
@@ -1133,16 +1133,16 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			pView->GetClientRect(&view);
 
 			//See which dimension is limiting
-			if (double(y)/double(x) > double(pView->m_size.cy)/double(pView->m_size.cx)) 
-				zoom = unsigned(double(x)/double(pView->m_size.cx)*100.);
+			if (double(y)/double(x) > double(size.cy)/double(size.cx)) 
+				zoom = unsigned(double(x)/double(size.cx)*100.);
 			else 
-				zoom = unsigned(double(y)/double(pView->m_size.cy)*100.);
+				zoom = unsigned(double(y)/double(size.cy)*100.);
 			if (zoom > 100) zoom = 100;
 			SetZoom(zoom);
 			//If not fullscreen, adjust window size, too
 			if (!pWnd->IsFullScreen()) {
-				x = zoom*pView->m_size.cx/100 + 1;
-				y = zoom*pView->m_size.cy/100 + 1;
+				x = zoom*size.cx/100 + 1;
+				y = zoom*size.cy/100 + 1;
 				//now xy contains is the required client size
 				x += (window.right-window.left) - (view.right-view.left);
 				y += (window.bottom-window.top) - (view.bottom-view.top);
@@ -1161,14 +1161,14 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			//Try fit real size
 			zoom = 100;
 			//if window is big enough do nothing
-			if (view.right-view.left > zoom*pView->m_size.cx/100 + 1) break;
+			if (view.right-view.left > zoom*size.cx/100 + 1) break;
 			//adjust zoom if there is not enough space
-			if (zoom*pView->m_size.cx/100 + 1 > x)
-				zoom = unsigned((x-1)*100./pView->m_size.cx);
+			if (zoom*size.cx/100 + 1 > x)
+				zoom = unsigned((x-1)*100./size.cx);
 			SetZoom(zoom);
 			//If not fullscreen, adjust window size, too
 			if (!pWnd->IsFullScreen()) {
-				x = zoom*pView->m_size.cx/100 + 1;
+				x = zoom*size.cx/100 + 1;
 				if (x < 550) x = 580;
 				if (window.left + x > screen.right - SCREEN_MARGIN)
 					window.left = screen.right - SCREEN_MARGIN - x;
@@ -1176,7 +1176,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			}
 			break;
 		case CMscGenDoc::ZOOM_WIDTH:
-			zoom = unsigned((view.right-view.left)*100./pView->m_size.cx);
+			zoom = unsigned((view.right-view.left)*100./size.cx);
 			if (zoom>150) zoom = 150;
 			SetZoom(zoom);
 			break;
@@ -1317,6 +1317,9 @@ not_modified:
 	return;
 modified:
 	SetModifiedFlag(TRUE);
+    NotifyChanged();
+    if (IsEmbedded())
+        m_itrSaved = m_itrShown;
 }
 
 void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 
@@ -1397,9 +1400,12 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
 	}
 
-	m_itrShown = m_itrEditing;
-	m_itrShown->m_wasDrawn = true;
-	m_ChartShown = *m_itrEditing;
+    //Change showing only if not viewing in full screen mode
+    if (!pApp->m_bFullScreenViewMode || m_charts.size()==1) {
+        m_itrShown = m_itrEditing;
+        m_itrShown->m_wasDrawn = true;
+        m_ChartShown = *m_itrEditing;
+    }
 
 	int max_page = m_ChartShown.GetPages(); //This GetPages compiles
 	if (max_page == 1) max_page=0;
@@ -1432,8 +1438,7 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
     m_trackArcs.clear();
     lock.Unlock();
 	SetTrackMode(false);
-	NotifyChanged();
-    SetModifiedFlag(TRUE);
+    CheckIfChanged();
 
 	if (!m_bAttemptingToClose) {
 		UpdateAllViews(NULL);

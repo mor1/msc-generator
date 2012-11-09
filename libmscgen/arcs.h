@@ -252,7 +252,6 @@ protected:
     std::vector<file_line>   linenum_middle;
     std::vector<MscArcType>  segment_types; //one for each segment ([0] is the one from src), set during AddSegment()s
     std::vector<MscLineAttr> segment_lines; //one for each segment ([0] is the one from src), set during AddAttributeList()
-    bool                     modifyFirstLineSpacing;
     const bool               specified_as_forward; //true if user specified "a->b", false if "b<-a"
     double                   slant_angle;
 
@@ -312,6 +311,7 @@ public:
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
+    virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 

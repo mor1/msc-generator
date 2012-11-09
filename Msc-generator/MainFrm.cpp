@@ -191,18 +191,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     unsigned char g = GetGValue(pApp->m_trackFillColor); 
     unsigned char b = GetBValue(pApp->m_trackFillColor); 
     cb->SetColor(RGB(r, g, b));
-    //Set initial values for ths embedded options
 
+    //Set initial values for thes embedded options
     m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_FALLBACK_RES, arButtons);
     _ASSERT(arButtons.GetSize()==1);
     CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
     if (s) s->SetPos(pApp->m_uFallbackResolution);
                 
-    m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EMBEDDED, arButtons);
-    _ASSERT(arButtons.GetSize()==1);
-    CMFCButton *butt = dynamic_cast<CMFCButton *>(arButtons[0]);
-    if (butt) butt->SetCheck(pApp->m_bPB_Embedded);
-
     return 0;
 }
 

@@ -31,11 +31,9 @@ public:
 
 // Attributes
 	CMscGenDoc* GetDocument() const
-		{ return reinterpret_cast<CMscGenDoc*>(CDocObjectServerItem::GetDocument()); }
+		{ return dynamic_cast<CMscGenDoc*>(CDocObjectServerItem::GetDocument()); }
     unsigned m_forcePage;     //0 if no page forced, 1..n if one is forced
 
-    //depending on the invocation mode, returns the chart to draw/save/extent
-    CDrawingChartData & GetChart() const;
     //depending on linking/embedding, returns the page to draw/extent
     unsigned GetPage() const;
 

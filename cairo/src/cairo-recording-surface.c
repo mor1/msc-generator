@@ -210,7 +210,17 @@ bbtree_add (struct bbtree *bbt,
     if (box->p1.x == bbt->extents.p1.x && box->p1.y == bbt->extents.p1.y &&
 	box->p2.x == bbt->extents.p2.x && box->p2.y == bbt->extents.p2.y)
     {
-	header->chain = bbt->chain;
+        /* Zozo: here we need to prepend header before bbt->chain
+        ** However, header may contain a chain, too.
+        */
+    cairo_command_header_t *last = header;
+    while (last->chain) 
+        last = last->chain;
+	last->chain = bbt->chain;
+    /* original was below 
+    ** header->chain = bbt->chain 
+    ** Zozo ends.
+    */
 	bbt->chain = header;
 	return CAIRO_STATUS_SUCCESS;
     }
