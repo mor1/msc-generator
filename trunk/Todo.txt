@@ -37,8 +37,8 @@ FIXED: Printing sucks: added EMF layer in-between
 FIXED: Recompile if pbembedded is changed
 FIXED: Embedded objects loose text
 FIXED: Add more linewidth to labels
+FIXED: recording bug (a cairo bug in recording_surface->bbtree)
 FIX: Layout Engine
-FIX: recording bug 
 
 In 3.5.3
 CHANGED: Use cairo meta surfaces in Windows - they do not work in 1.10 as needed

@@ -65,8 +65,7 @@ public:
 //Options
 	bool m_Pedantic;
 	bool m_Warnings;
-	bool m_bPB_Editing;
-	bool m_bPB_Embedded;
+	bool m_bPageBreaks;
 	unsigned m_uFallbackResolution;
     CString m_ChartSourcePreamble;
 	CString m_SetOfDesigns;
@@ -116,10 +115,8 @@ public:
     afx_msg void OnUpdateCheckPedantic(CCmdUI *pCmdUI);
     afx_msg void OnCheckWarnings();
     afx_msg void OnUpdateCheckWarnings(CCmdUI *pCmdUI);
-    afx_msg void OnCheckPbEditing();
-    afx_msg void OnUpdateCheckPbEditing(CCmdUI *pCmdUI);
-    afx_msg void OnCheckPbEmbedded();
-    afx_msg void OnUpdateCheckPbEmbedded(CCmdUI *pCmdUI);
+    afx_msg void OnCheckPageBreaks();
+    afx_msg void OnUpdateCheckPageBreaks(CCmdUI *pCmdUI);
     afx_msg void OnCheckCsh();
     afx_msg void OnComboCsh();
     afx_msg void OnUpdateCheckCsh(CCmdUI *pCmdUI);
@@ -157,7 +154,6 @@ extern CMscGenApp theApp;
 #define REG_KEY_PEDANTIC "Pedantic"
 #define REG_KEY_WARNINGS "Warnings"
 #define REG_KEY_PB_EDITING "PageBreak_Editing"
-#define REG_KEY_PB_EMBEDDED "PageBreak_Embedded"
 #define REG_KEY_FALLBACK_RESOLUTION "Default_Fallback_Resolution"
 #define REG_KEY_ALWAYSOPEN "AlwaysOpen"
 #define REG_KEY_TEXTEDITORTYPE "TextEditorType"

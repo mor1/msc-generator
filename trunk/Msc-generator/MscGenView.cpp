@@ -68,12 +68,12 @@ END_MESSAGE_MAP()
 
 // CMscGenView construction/destruction
 
-CMscGenView::CMscGenView() : m_size(0,0)
+CMscGenView::CMscGenView() 
 {
 	// construction code here
 	m_DeleteBkg = false;
 	m_FadingTimer = NULL;
-	SetScrollSizes(MM_TEXT, m_size);
+	SetScrollSizes(MM_TEXT, CSize(0,0));
 	m_nDropEffect = DROPEFFECT_NONE;
     m_view_pos.SetRectEmpty();
 }
@@ -95,29 +95,11 @@ BOOL CMscGenView::PreCreateWindow(CREATESTRUCT& cs)
 void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 {
 	CScrollView::OnPrepareDC(pDC, pInfo);
-	if (SizeEmpty(m_size)) return;
 	CMscGenDoc* pDoc = GetDocument();
 	if (pDoc==NULL) return; 
 
-	if (pDoc->IsInPlaceActive()) {
-		pDC->SetMapMode(MM_ANISOTROPIC);
-		pDC->SetWindowExt(m_size);
-
-		CSize sizeNum, sizeDenom;
-		pDoc->GetZoomFactor(&sizeNum, &sizeDenom);
-
-		int xLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSX);
-		int yLogPixPerInch = pDC->GetDeviceCaps(LOGPIXELSY);
-
-		long xExt = (long)m_size.cx * xLogPixPerInch * sizeNum.cx;
-		xExt /= 100 * (long)sizeDenom.cx;
-		long yExt = (long)m_size.cy * yLogPixPerInch * sizeNum.cy;
-		yExt /= 100 * (long)sizeDenom.cy;
-		pDC->SetViewportExt((int)xExt, (int)yExt);
-	} else {
-		pDC->SetMapMode(MM_TEXT);
-		pDC->SetWindowExt(ScaleSize(m_size, pDoc->m_zoom/100.0));
-	}
+	pDC->SetMapMode(MM_TEXT);
+    pDC->SetWindowExt(ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
 }
 
 
@@ -176,7 +158,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     if (pData==NULL || pData->IsEmpty())
 		return;
 
-    CSize orig_size = pData->GetSize();
+    const CSize orig_size = pData->GetSize();
 	double scale = double(pInfo->m_rectDraw.Width())/orig_size.cx;
     scale = std::min(scale, 10.);
 
@@ -287,7 +269,6 @@ void CMscGenView::OnDraw(CDC* pDC)
 	ASSERT_VALID(pApp);
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (SizeEmpty(m_size)) return;
     CRect clip;
     const double scale = pDoc->m_zoom/100.0;
 	pDC->GetClipBox(&clip);
@@ -305,7 +286,7 @@ void CMscGenView::OnDraw(CDC* pDC)
         m_view.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
         CBitmap *oldBitmap2 = memoryDC.SelectObject(&m_view);
         memoryDC.FillSolidRect(0,0, clip.Width(), clip.Height(), pDC->GetBkColor());
-        m_cache.DrawToMemDC(memoryDC, scale, scale, clip, pApp->m_bPB_Editing);
+        m_cache.DrawToMemDC(memoryDC, scale, scale, clip, pApp->m_bPageBreaks);
         memoryDC.SelectObject(oldBitmap2);
         m_view_pos = clip;
     }
@@ -351,17 +332,10 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
 
 	//Delete the cached bitmap
 	if (pDoc->m_ChartShown.IsEmpty()) {
-		m_size.cx = m_size.cy = 0;
 		m_DeleteBkg = true;
 		Invalidate();
 		return;
 	}
-
-	//Check if some of the background becomes visible (only if not in-place)
-	CSize new_size = pDoc->m_ChartShown.GetSize();
-	if (m_size.cx > new_size.cx || m_size.cy > new_size.cy)
-        m_DeleteBkg = true;
-	m_size = new_size;
 
 	Invalidate();
 	ResyncScrollSize();
@@ -401,8 +375,9 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 		CPoint pos = GetScrollPosition();
 		pos.y -= amount;
 		if (pos.y<0) pos.y = 0;
-		if (pos.y + client.bottom > m_size.cy*pDoc->m_zoom/100)
-			pos.y = m_size.cy*pDoc->m_zoom/100 - client.bottom;
+        const double ysize = pDoc->m_ChartShown.GetSize().cy;
+		if (pos.y + client.bottom > ysize*pDoc->m_zoom/100)
+			pos.y = int(ysize*pDoc->m_zoom/100 - client.bottom);
 		//See that we do not go out of the map
 		ScrollToPosition(pos);
 		return TRUE;
@@ -434,18 +409,7 @@ void CMscGenView::ResyncScrollSize(void)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	if (SizeEmpty(m_size)) {
-		SetScrollSizes(MM_TEXT, CSize(0,0));
-		return;
-	}
-	if (pDoc->IsInPlaceActive()) {
-		//Set the doc size equal to the view size: no scrollbars
-		CRect posView;
-		pDoc->GetItemPosition(&posView);
-		SetScrollSizes(MM_TEXT, posView.Size());
-	} else {
-		SetScrollSizes(MM_TEXT, ScaleSize(m_size, pDoc->m_zoom/100.0));
-	}
+    SetScrollSizes(MM_TEXT, ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
 }
 
 void CMscGenView::OnSize(UINT /*nType*/, int cx, int cy)
@@ -504,10 +468,11 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 		if (pos.y<0) pos.y = 0;
 		CRect client;
 		GetClientRect(client);
-		if (pos.x + client.right > m_size.cx*pDoc->m_zoom/100)
-			pos.x = m_size.cx*pDoc->m_zoom/100 - client.right;
-		if (pos.y + client.bottom > m_size.cy*pDoc->m_zoom/100)
-			pos.y = m_size.cy*pDoc->m_zoom/100 - client.bottom;
+        const CSize size = pDoc->m_ChartShown.GetSize();
+		if (pos.x + client.right > size.cx*pDoc->m_zoom/100)
+			pos.x = size.cx*pDoc->m_zoom/100 - client.right;
+		if (pos.y + client.bottom > size.cy*pDoc->m_zoom/100)
+			pos.y = size.cy*pDoc->m_zoom/100 - client.bottom;
 		ScrollToPosition(pos);
 		//Now apply the same x scroll for the other view(s)
 		POSITION p = pDoc->GetFirstViewPosition();

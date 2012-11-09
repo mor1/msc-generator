@@ -130,8 +130,8 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight
 //Copyright text is also added
 MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, double copyrightTextHeight, const XY &scale, 
               const std::vector<double> *yPageStart, unsigned page) :
-    fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
-    outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(true)
+    fake_dash_offset(0), outFile(NULL), surface(surf), cr(NULL), 
+    outType(ot), total(tot), status(ERR_PARAM), candraw(false), external_surface(true)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -141,7 +141,6 @@ MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, dou
     double origYSize, origYOffset;
     GetPagePosition(yPageStart, page, origYOffset, origYSize);
 
-    surface = surf;
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
     status = CreateContextFromSurface(ot, scale, origYSize, origYOffset, copyrightTextHeight);
     if (status!=ERR_OK) CloseOutput();
@@ -207,9 +206,9 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         fake_gradients = 30;
         fake_shadows = true;
         break;
-        //Fallthrough
     case WIN:
-        can_and_shall_clip_total = false;  //this just do not work for direct windows targets
+        //(Highest quality) Default image surface settings will do
+        //no need to clear bkg, as we always do that when drawing to the client area
 #endif
     default:
         break;
@@ -344,8 +343,7 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
         cairo_rectangle(cr, 0, 0, total.x.Spans(), origYSize+copyrightTextHeight);
         cairo_set_source_rgb(cr, 1., 1., 1.);
         cairo_fill(cr);
-    }
-    else if (needs_dots_in_corner) {
+    } else if (needs_dots_in_corner) {
         //Draw small marks in corners, so EMF an WMF spans correctly
         //(for some reason stroke do not work as intended, so we use fill()s)
         cairo_set_source_rgb(cr, 1, 1, 1);

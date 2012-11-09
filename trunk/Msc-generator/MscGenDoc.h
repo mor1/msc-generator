@@ -63,7 +63,6 @@ public:
 	IChartData m_itrEditing; //The chart that is the current one in the editor
 	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
 	CDrawingChartData m_ChartShown; //The chart that is currently showing
-    CDrawingChartData m_ChartSerializedIn; //Any chart serialized in is stored here for full screen view
 
 	// Zoom related 
 	unsigned m_zoom; //In percentage. 100 is normal

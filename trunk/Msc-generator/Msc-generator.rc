@@ -747,7 +747,7 @@ END
 STRINGTABLE
 BEGIN
     IDC_OUTPUT_LIST         "Output"
-    IDC_INTERNAL_EDITOR     "Show page break indicators for multi-page charts in the Msc-generator window\nShow Page Indicators"
+    IDC_INTERNAL_EDITOR     "Show page break indicators for multi-page charts\nShow Page Indicators"
     IDC_CHECK_PB_EMBEDDED   "Show page break indicators for multi-page charts in embedded charts\nShow Page Indicators in Embedded Charts"
     IDC_CHECK_CSH           "Enable Color Syntax Highlighting\nEnable Color Syntax Highlighting"
     IDC_CHECK_SMART_IDENT   "Automatically ident subsequent lines of a multi-line label to the first line.\nEnable Smart Ident"

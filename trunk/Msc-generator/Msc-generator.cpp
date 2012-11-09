@@ -176,10 +176,8 @@ BEGIN_MESSAGE_MAP(CMscGenApp, CWinAppEx)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_PEDANTIC, &CMscGenApp::OnUpdateCheckPedantic)
     ON_COMMAND(IDC_CHECK_WARNINGS, &CMscGenApp::OnCheckWarnings)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_WARNINGS, &CMscGenApp::OnUpdateCheckWarnings)
-    ON_COMMAND(IDC_CHECK_PB_EDITING, &CMscGenApp::OnCheckPbEditing)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK_PB_EDITING, &CMscGenApp::OnUpdateCheckPbEditing)
-    ON_COMMAND(IDC_CHECK_PB_EMBEDDED, &CMscGenApp::OnCheckPbEmbedded)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK_PB_EMBEDDED, &CMscGenApp::OnUpdateCheckPbEmbedded)
+    ON_COMMAND(IDC_CHECK_PAGEBREAKS, &CMscGenApp::OnCheckPageBreaks)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK_PAGEBREAKS, &CMscGenApp::OnUpdateCheckPageBreaks)
     ON_COMMAND(IDC_CHECK_CSH, &CMscGenApp::OnCheckCsh)
     ON_COMMAND(IDC_COMBO_CSH, &CMscGenApp::OnComboCsh)
     ON_UPDATE_COMMAND_UI(IDC_CHECK_CSH, &CMscGenApp::OnUpdateCheckCsh)
@@ -447,14 +445,13 @@ void ConvertMscCshAppearanceToCHARFORMAT(const MscColorSyntaxAppearance &app, CH
 void CMscGenApp::ReadRegistryValues(bool reportProblem) 
 {
 	//Load Registry values
-	m_Pedantic = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, FALSE);
-	m_Warnings = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, TRUE);
-	m_bPB_Editing     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
-	m_bPB_Embedded    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, FALSE);
+	m_Pedantic       = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PEDANTIC, FALSE);
+	m_Warnings       = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_WARNINGS, TRUE);
+	m_bPageBreaks    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, FALSE);
     m_uFallbackResolution = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FALLBACK_RESOLUTION, 300);
-	m_bAlwaysOpen     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, TRUE);
-	m_bShowCsh        = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
-	m_nCshScheme      = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
+	m_bAlwaysOpen    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_ALWAYSOPEN, TRUE);
+	m_bShowCsh       = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHENABLED, TRUE);
+	m_nCshScheme     = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHSCHEME, 1);
 	if (m_nCshScheme >= CSH_SCHEME_MAX) m_nCshScheme = 1;
 	m_bSmartIdent    = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_SMARTIDENT, TRUE);
 	m_bShowCshErrors = GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_CSHERRORS, TRUE);
@@ -744,10 +741,10 @@ void CMscGenApp::OnUpdateCheckWarnings(CCmdUI *pCmdUI)
 }
 
 
-void CMscGenApp::OnCheckPbEditing()
+void CMscGenApp::OnCheckPageBreaks()
 {
-    m_bPB_Editing = !m_bPB_Editing;
-    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPB_Editing);
+    m_bPageBreaks = !m_bPageBreaks;
+    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPageBreaks);
     //recompile
     CMscGenDoc *pDoc = GetDoc();
     if (pDoc)
@@ -755,28 +752,9 @@ void CMscGenApp::OnCheckPbEditing()
 }
 
 
-void CMscGenApp::OnUpdateCheckPbEditing(CCmdUI *pCmdUI)
+void CMscGenApp::OnUpdateCheckPageBreaks(CCmdUI *pCmdUI)
 {
-    pCmdUI->SetCheck(m_bPB_Editing);
-}
-
-
-void CMscGenApp::OnCheckPbEmbedded()
-{
-    m_bPB_Embedded = !m_bPB_Embedded;
-    WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EMBEDDED, m_bPB_Embedded);
-    //recompile if it is embdedded
-    CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->IsEmbedded()) {
-        m_bPB_Editing = m_bPB_Embedded;
-        pDoc->ShowEditingChart(false);
-    }
-}
-
-
-void CMscGenApp::OnUpdateCheckPbEmbedded(CCmdUI *pCmdUI)
-{
-    pCmdUI->SetCheck(m_bPB_Embedded);
+    pCmdUI->SetCheck(m_bPageBreaks);
 }
 
 

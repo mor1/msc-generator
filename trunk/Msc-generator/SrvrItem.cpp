@@ -59,21 +59,13 @@ CMscGenSrvrItem::~CMscGenSrvrItem()
 }
 
 
-//depending on the invocation mode, returns the chart to draw/save/extent
-CDrawingChartData & CMscGenSrvrItem::GetChart() const
-{
-	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT_VALID(pApp);
-    return pApp->m_bFullScreenViewMode ? pDoc->m_ChartSerializedIn : pDoc->m_ChartShown;
-}
-
 //depending on linking/embedding, returns the page to draw/extent
 unsigned CMscGenSrvrItem::GetPage() const
 {
     if (IsLinkedItem()) return m_forcePage;
-    return GetChart().GetPage();
+    CMscGenDoc* pDoc = GetDocument();
+    ASSERT_VALID(pDoc);
+    return pDoc ? pDoc->m_ChartShown.GetPage() : 0;
 }
 
 
@@ -105,7 +97,10 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
 
 	// CMscGenSrvrItem::OnGetExtent is called to get the extent in
 	//  HIMETRIC units of the entire item.  
-	rSize = GetChart().GetSize(true, GetPage());
+    CMscGenDoc* pDoc = GetDocument();
+    ASSERT_VALID(pDoc);
+    if (!pDoc) return FALSE;
+    rSize = pDoc->m_ChartShown.GetSize(true, GetPage());
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -129,12 +124,12 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
 	UNREFERENCED_PARAMETER(rSize);    
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT_VALID(pApp);
-	size_t size = GetChart().DrawToMetafile(pDC->m_hDC, false, pApp->m_bPB_Embedded, true, GetPage());
-    size += serialize_doc_overhead + GetChart().GetText().GetLength();
     CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
-    CFrameWnd* pFrameWnd = pDoc ? pDoc->GetFirstFrame() : NULL;
-	CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pFrameWnd);
+    ASSERT_VALID(pDoc);
+    if (!pDoc || !pApp) return FALSE;
+    size_t size = pDoc->m_ChartShown.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPageBreaks, true, GetPage());
+    size += serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
+	CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
     if (pMainFrame)
         pMainFrame->FillEmbeddedSizeNow(size);
 	return TRUE;
@@ -244,8 +239,8 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
     if (pApp==NULL) return; //WTF
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-    CFrameWnd* pFrameWnd = pDoc ? pDoc->GetFirstFrame() : NULL;
-	CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pFrameWnd);
+    if (pDoc==NULL) return; //WTF
+	CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
 
     //Calculate how many bytes are added by the serialize system to the
     //chart text
@@ -255,8 +250,8 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
         Serialize(ar);
     }
     serialize_doc_overhead = mem.GetLength();
-    if (GetChart().GetText().GetLength() < serialize_doc_overhead)
-        serialize_doc_overhead -= GetChart().GetText().GetLength();
+    if (pDoc->m_ChartShown.GetText().GetLength() < serialize_doc_overhead)
+        serialize_doc_overhead -= pDoc->m_ChartShown.GetText().GetLength();
     else 
         serialize_doc_overhead = 0;
 
@@ -291,9 +286,9 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
 		}
         //Show embedded objects context category on the ribbon
         if (iVerb==1 && pMainFrame) {
-            size_t size = serialize_doc_overhead + GetChart().GetText().GetLength();
+            size_t size = serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
             HDC hdc = CreateMetaFile(NULL);
-            size += GetChart().DrawToMetafile(hdc, false, pApp->m_bPB_Embedded, true, GetPage());
+            size += pDoc->m_ChartShown.DrawToMetafile(hdc, false, pApp->m_bPageBreaks, true, GetPage());
             DeleteMetaFile(CloseMetaFile(hdc));
             pMainFrame->FillEmbeddedSizeNow(size);
             pMainFrame->m_wndRibbonBar.ShowContextCategories(ID_CONTEXT_EMBEDDEDOPTIONS);            
