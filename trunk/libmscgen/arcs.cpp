@@ -698,7 +698,7 @@ bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
 
 ArcSelfArrow::ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
                            Msc *msc, const MscStyle &st, double ys) :
-    ArcArrow(t, msc, st), YSize(ys)
+    ArcArrow(t, msc, st), YSize(ys), XSizeUnit(0.375)
 {
     src = chart->FindAllocEntity(s, sl);
 }
@@ -758,7 +758,7 @@ ArcBase* ArcSelfArrow::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
 void ArcSelfArrow::Width(MscCanvas &, EntityDistanceMap &distances)
 {
     if (!valid) return;
-    distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(0.375)+src_act);
+    distances.Insert((*src)->index, DISTANCE_RIGHT, chart->XCoord(XSizeUnit)+src_act+style.line.LineWidth()/2);
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
 
@@ -771,7 +771,7 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
     xy_s.y = ceil(xy_s.y);
     xy_e.y = ceil(xy_e.y);
-    wh.x = ceil(chart->XCoord(0.375));
+    wh.x = ceil(chart->XCoord(XSizeUnit));
     wh.y = ceil(2*YSize);
     dx = chart->XCoord(src);
     sx = 0;

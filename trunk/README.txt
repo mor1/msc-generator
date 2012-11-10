@@ -7,7 +7,7 @@ I know it is ugly, but
 
 So for anyone, who wants to compile msc-generator for windows, this is the easiest.
 
-To compile, you need Visual C++ 2010 and gnu make. 
+To compile, you need Visual C++ 2012 and gnu make. 
 
 First compile cairo.sln both for "Debug" and "Release" (first one will return an error, that is OK).
 This will (collectively) compile both the debug and release cairo.dll (including my fix)
@@ -15,7 +15,7 @@ This will (collectively) compile both the debug and release cairo.dll (including
 However, you do not need to compile cairo, as I have included compiled binaries in the "compiled_cairo" 
 directory. This is where Msc-generator.sln takes the compiled binary.
 
-Then you can compile Msc-generator.sln. It will always include the release version of cairo.dll.
+Then you can compile Msc-generator.sln. It will include the release or debug version of cairo.dll, as appropriate.
 
 Enjoy and send feedback.
 

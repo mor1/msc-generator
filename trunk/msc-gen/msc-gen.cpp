@@ -25,6 +25,7 @@
 #include <fstream>
 #include <assert.h>
 #include "commandline.h"
+#include "cairo.h"
 
 using namespace std;
 
