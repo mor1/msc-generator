@@ -223,6 +223,7 @@ class ArcSelfArrow : public ArcArrow
 protected:
     EIterator src;
     double    YSize;
+    const double XSizeUnit;
 
     mutable XY xy_s, xy_e, wh; //arrow parameters
     mutable double sx, dx;     //text parameters

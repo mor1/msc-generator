@@ -1,0 +1,6 @@
+Client->Server-Backend: Request
+     [arrow.midtype=dot];
+Client<-Server-Backend: Response
+     [arrow.type=line];
+Client<<>>Server-Backend: Query
+     [arrow.type=empty];
