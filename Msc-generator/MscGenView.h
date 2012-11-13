@@ -38,6 +38,7 @@ protected: // create from serialization only
 public:
 	bool m_DeleteBkg;  //Set to true if we need to erase bkg on next draw
 	// Drawn chart
+    XY           m_chartOrigin;  //The upper left corner of the chart in chart coordinate space
     CChartCache  m_cache;        //pre-drawn (nonscaled) version of chart (page)
     CBitmap      m_view;         //Last rendered bitmap of (scaled) chart (page)
     CRect        m_view_pos;     //origin and size of bitamp above. (empty if invalid)

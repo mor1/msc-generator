@@ -372,7 +372,7 @@ const Block &CDrawingChartData::GetMscTotal() const
 double CDrawingChartData::GetPageYShift() const
 {
     const Msc &msc = *GetMsc();
-    if (m_page==0) return 0;
+    if (m_page==0) return msc.GetTotal().y.from;
     if (m_page <= msc.yPageStart.size()) return msc.yPageStart[m_page-1]-msc.GetTotal().y.from;
     return msc.GetTotal().y.Spans();
 }

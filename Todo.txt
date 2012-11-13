@@ -9,7 +9,7 @@ Two helpers needed:
  Allow new function only for metafiles
 
 
-PLANNED in future releases
+In future releases
 ADD: shadow to arrows and labels
 Divider package
 	ADD: Make divider only within a box
@@ -34,7 +34,9 @@ ADD: URL's to PNG
 
 
 In 3.5.5
-FIX: cairo bug with text on scaled contexts
+FIXED: cairo bug with text on scaled contexts
+FIXED: Controls, mouse events, track rects adjusted for pages & non-00 origins
+FIX: Installation issue
 
 
 In 3.5.4
