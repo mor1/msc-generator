@@ -328,7 +328,15 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(MscCanvas::OutputType /
         CloseOutput();
         return ERR_CANVAS;
     }
+    //Set line cap to butts
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
+    //Turn font metric hints off. This way scaling the fonts will not change layout.
+    cairo_font_options_t *fopt = cairo_font_options_create();
+    cairo_get_font_options(cr, fopt);
+    cairo_font_options_set_hint_metrics(fopt, CAIRO_HINT_METRICS_OFF);
+    cairo_set_font_options(cr, fopt);
+    cairo_font_options_destroy(fopt);
+
     scale_for_shadows = sqrt(scale.y*scale.x);
     if (total.x.Spans() <= 0 || total.y.Spans()<=0) return ERR_OK; //OK
 

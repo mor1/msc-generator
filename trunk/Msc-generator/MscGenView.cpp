@@ -241,6 +241,7 @@ void CMscGenView::DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect
     cairo_t *cr = cairo_create(surf);
     cairo_translate(cr, -clip.left, -clip.top);
     cairo_scale(cr, x_scale, y_scale);
+    cairo_translate(cr, -m_chartOrigin.x, -m_chartOrigin.y);
 
     CSingleLock lock(&pDoc->m_SectionTrackingMembers);
     lock.Lock();
@@ -327,6 +328,8 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
 
     m_cache.SetCacheType(pApp->m_cacheType);
     m_cache.SetData(&pDoc->m_ChartShown);
+    m_chartOrigin.x = pDoc->m_ChartShown.GetMscTotal().x.from;
+    m_chartOrigin.y = pDoc->m_ChartShown.GetPageYShift();
     m_view.DeleteObject();
     m_view_pos.SetRectEmpty();
 

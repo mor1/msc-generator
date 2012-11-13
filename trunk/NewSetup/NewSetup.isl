@@ -373,7 +373,6 @@
 		<row><td>C__CD8935823771416CA932361FD8D0996E</td><td>{B8AA1E05-63FA-41A2-9E77-DCA9C8130E20}</td><td>INSTALLDIR</td><td>6</td><td/><td>_CD8935823771416CA932361FD8D0996E</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__D787D483853A46DAB0DD7A7BB1830311</td><td>{3044033C-5F2D-4145-B2EF-2000334152C0}</td><td>INSTALLDIR</td><td>6</td><td/><td>_D787D483853A46DAB0DD7A7BB1830311</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__E26052C6342741C989801C3656E669DA</td><td>{338774B9-BB8A-4B8A-9B53-B9971BB7DB34}</td><td>INSTALLDIR</td><td>6</td><td/><td>_E26052C6342741C989801C3656E669DA</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
-		<row><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td><td>{6555B830-A054-43AC-94D0-5024427AD1F0}</td><td>SystemFolder</td><td>82</td><td>Not Installed</td><td>_E3EC895DEE334AE1955560AD21D3DFAE</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__E4F9B4F761AC48F49FF93125B344C06C</td><td>{368809E9-65D0-4AAE-92D7-80A31DE53D0F}</td><td>INSTALLDIR</td><td>6</td><td/><td>_E4F9B4F761AC48F49FF93125B344C06C</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__E8A3A805A98C444384CC122F535F50FA</td><td>{95208132-7CCD-408F-841D-D74C8017DD35}</td><td>INSTALLDIR</td><td>6</td><td/><td>_E8A3A805A98C444384CC122F535F50FA</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
 		<row><td>C__E9568D03A9C44E1886516CF803DA4DDD</td><td>{4452843B-31E5-4D03-9D3F-3994BB28B8F1}</td><td>INSTALLDIR</td><td>6</td><td/><td>_E9568D03A9C44E1886516CF803DA4DDD</td><td>17</td><td/><td/><td/><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td><td>/LogFile=</td></row>
@@ -1110,6 +1109,7 @@
 		<row><td>ISSelfRegisterCosting</td><td>1</td><td>ISSELFREG.DLL</td><td>ISSelfRegisterCosting</td><td/><td/></row>
 		<row><td>ISSelfRegisterFiles</td><td>3073</td><td>ISSELFREG.DLL</td><td>ISSelfRegisterFiles</td><td/><td/></row>
 		<row><td>ISSelfRegisterFinalize</td><td>1</td><td>ISSELFREG.DLL</td><td>ISSelfRegisterFinalize</td><td/><td/></row>
+		<row><td>ISSetAllUsers</td><td>257</td><td>SetAllUsers.dll</td><td>SetAllUsers</td><td/><td/></row>
 		<row><td>ISUnSelfRegisterFiles</td><td>3073</td><td>ISSELFREG.DLL</td><td>ISUnSelfRegisterFiles</td><td/><td/></row>
 		<row><td>LaunchProgramFileFromSetupCompleteSuccess</td><td>1</td><td>NewBinary19</td><td>LaunchProgram</td><td/><td/></row>
 		<row><td>SetARPINSTALLLOCATION</td><td>51</td><td>ARPINSTALLLOCATION</td><td>[INSTALLDIR]</td><td/><td/></row>
@@ -1941,7 +1941,6 @@
 		<row><td>AlwaysInstall</td><td>C__CD8935823771416CA932361FD8D0996E</td></row>
 		<row><td>AlwaysInstall</td><td>C__D787D483853A46DAB0DD7A7BB1830311</td></row>
 		<row><td>AlwaysInstall</td><td>C__E26052C6342741C989801C3656E669DA</td></row>
-		<row><td>AlwaysInstall</td><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td></row>
 		<row><td>AlwaysInstall</td><td>C__E4F9B4F761AC48F49FF93125B344C06C</td></row>
 		<row><td>AlwaysInstall</td><td>C__E8A3A805A98C444384CC122F535F50FA</td></row>
 		<row><td>AlwaysInstall</td><td>C__E9568D03A9C44E1886516CF803DA4DDD</td></row>
@@ -1974,7 +1973,6 @@
 		<row><td>_8D210BB11DE54BFF9295776C6C22707B</td><td>C__8D210BB11DE54BFF9295776C6C22707B</td><td>Msc-generator.Primary Output</td><td>0</td><td/><td/><td>512</td><td>1</td><td>&lt;Msc-generator&gt;|Built</td><td>7</td><td/></row>
 		<row><td>_9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>C__9A89BFC4BEBF45EFB4374ED2BE2E1924</td><td>ORIGIN~1.SIG|original_designlib.signalling</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\original_designlib.signalling</td><td>5</td><td/></row>
 		<row><td>_AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>msc-gen.pdf</td><td>0</td><td/><td/><td>512</td><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\doc\msc-gen.pdf</td><td>5</td><td/></row>
-		<row><td>_E3EC895DEE334AE1955560AD21D3DFAE</td><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td><td>msiexec.exe</td><td>0</td><td/><td/><td>4</td><td>1</td><td>&lt;SystemFolder&gt;\msiexec.exe</td><td>5</td><td/></row>
 		<row><td>cairo.dll</td><td>cairo.dll</td><td>cairo.dll</td><td>0</td><td/><td/><td/><td>1</td><td>C:\Users\ethzrt\Documents\msc-generator\compiled_cairo\cairo-1.12.8\cairo.dll</td><td>1</td><td/></row>
 	</table>
 
@@ -2263,7 +2261,6 @@
 		<row><td>C__CD8935823771416CA932361FD8D0996E</td><td/><td/><td>_B2BBC37D_7F04_4B7F_BA0E_EF05CB3DEB7E_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__D787D483853A46DAB0DD7A7BB1830311</td><td/><td/><td>_3B8ADFA1_BF59_4DC9_9E3B_6BC2472EE551_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__E26052C6342741C989801C3656E669DA</td><td/><td/><td>_21D94075_D795_426E_9062_D7F36F3AE505_FILTER</td><td/><td/><td/><td/></row>
-		<row><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td><td/><td/><td>_00D84D73_1DDB_42C1_8A5A_B66E632CFABC_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__E4F9B4F761AC48F49FF93125B344C06C</td><td/><td/><td>_ABF8FC40_D0D3_44E9_BEAB_60A4A80BE7E8_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__E8A3A805A98C444384CC122F535F50FA</td><td/><td/><td>_CA439BC8_E994_41D2_B25E_21125954C176_FILTER</td><td/><td/><td/><td/></row>
 		<row><td>C__E9568D03A9C44E1886516CF803DA4DDD</td><td/><td/><td>_A9FA8E70_1A47_450D_8765_0524C2ADF7A2_FILTER</td><td/><td/><td/><td/></row>
@@ -2376,6 +2373,8 @@
 		<col key="yes" def="s38">Feature_</col>
 		<col key="yes" def="s255">ISMergeModule_</col>
 		<col key="yes" def="i2">Language_</col>
+		<row><td>AlwaysInstall</td><td>Microsoft_VC110_CRT_x86.F9D0B380_EB85_31D4_96AC_C6CB40086A55</td><td>0</td></row>
+		<row><td>AlwaysInstall</td><td>Microsoft_VC110_MFC_x86.F9D0B380_EB85_31D4_96AC_C6CB40086A55</td><td>0</td></row>
 	</table>
 
 	<table name="ISFeatureSetupPrerequisites">
@@ -2498,6 +2497,8 @@
 		<col def="s255">Name</col>
 		<col def="S255">Destination</col>
 		<col def="I4">ISAttributes</col>
+		<row><td>Microsoft_VC110_CRT_x86.F9D0B380_EB85_31D4_96AC_C6CB40086A55</td><td>0</td><td>Visual C++ 11.0 CRT (x86)</td><td/><td/></row>
+		<row><td>Microsoft_VC110_MFC_x86.F9D0B380_EB85_31D4_96AC_C6CB40086A55</td><td>0</td><td>Visual C++ 11.0 MFC (x86)</td><td/><td/></row>
 	</table>
 
 	<table name="ISMergeModuleCfgValues">
@@ -4168,6 +4169,7 @@
 		<row><td>ISSelfRegisterCosting</td><td/><td>2201</td><td/><td/></row>
 		<row><td>ISSelfRegisterFiles</td><td/><td>5601</td><td/><td/></row>
 		<row><td>ISSelfRegisterFinalize</td><td/><td>6601</td><td/><td/></row>
+		<row><td>ISSetAllUsers</td><td>Not Installed</td><td>10</td><td/><td/></row>
 		<row><td>ISUnSelfRegisterFiles</td><td/><td>2202</td><td/><td/></row>
 		<row><td>InstallFiles</td><td/><td>4000</td><td>InstallFiles</td><td/></row>
 		<row><td>InstallFinalize</td><td/><td>6600</td><td>InstallFinalize</td><td/></row>
@@ -4238,8 +4240,8 @@
 		<col def="S0">Value</col>
 		<row><td>ActiveLanguage</td><td>1033</td></row>
 		<row><td>Comments</td><td/></row>
-		<row><td>CurrentMedia</td><td dt:dt="bin.base64" md5="6d78a46bf2c52ee27034bbcad20f7f95">
-QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
+		<row><td>CurrentMedia</td><td dt:dt="bin.base64" md5="de9f554a3bc05c12be9c31b998217995">
+UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 			</td></row>
 		<row><td>DefaultProductConfiguration</td><td>Express</td></row>
 		<row><td>EnableSwidtag</td><td>0</td></row>
@@ -4286,6 +4288,7 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 		<row><td>FileCost</td><td/><td>900</td><td>FileCost</td><td/></row>
 		<row><td>FindRelatedProducts</td><td/><td>430</td><td>FindRelatedProducts</td><td/></row>
 		<row><td>ISPreventDowngrade</td><td>ISFOUNDNEWERPRODUCTVERSION</td><td>450</td><td>ISPreventDowngrade</td><td/></row>
+		<row><td>ISSetAllUsers</td><td>Not Installed</td><td>10</td><td/><td/></row>
 		<row><td>InstallWelcome</td><td>Not Installed</td><td>1210</td><td>InstallWelcome</td><td/></row>
 		<row><td>IsolateComponents</td><td/><td>950</td><td>IsolateComponents</td><td/></row>
 		<row><td>LaunchConditions</td><td>Not Installed</td><td>410</td><td>LaunchConditions</td><td/></row>
@@ -4315,6 +4318,7 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 	<table name="LaunchCondition">
 		<col key="yes" def="s255">Condition</col>
 		<col def="l255">Description</col>
+		<row><td>(Not Version9X) And (Not VersionNT=400) And (Not VersionNT=500) And (Not VersionNT=501) And (Not VersionNT=502) And (Not (VersionNT=600 And Not (MsiNTProductType=1))) And (Not (VersionNT=601 And Not (MsiNTProductType=1)))</td><td>##IDPROP_EXPRESS_LAUNCH_CONDITION_OS##</td></row>
 	</table>
 
 	<table name="ListBox">
@@ -4653,7 +4657,7 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 		<row><td>SERIALNUMBER</td><td/><td/></row>
 		<row><td>SERIALNUMVALSUCCESSRETVAL</td><td>1</td><td/></row>
 		<row><td>SHOWLAUNCHPROGRAM</td><td>-1</td><td/></row>
-		<row><td>SecureCustomProperties</td><td>ISFOUNDNEWERPRODUCTVERSION;USERNAME;COMPANYNAME;ISX_SERIALNUM;SUPPORTDIR</td><td/></row>
+		<row><td>SecureCustomProperties</td><td>ISFOUNDNEWERPRODUCTVERSION;USERNAME;COMPANYNAME;ISX_SERIALNUM;SUPPORTDIR;ISACTIONPROP2</td><td/></row>
 		<row><td>SelectedSetupType</td><td>##IDS__DisplayName_Typical##</td><td/></row>
 		<row><td>SetupType</td><td>Typical</td><td/></row>
 		<row><td>UpgradeCode</td><td>{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}</td><td/></row>
@@ -4751,7 +4755,6 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 		<col def="L255">FileName</col>
 		<col def="s72">DirProperty</col>
 		<col def="i2">InstallMode</col>
-		<row><td>_33FEAC39B1684B8397E267182D3781A4</td><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td><td/><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>2</td></row>
 		<row><td>_6EF2E1543A0C4C75B8F4FB20035E9FD5</td><td>C__1B922D1673AC46F7BBAB1450339B0CCA</td><td/><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>2</td></row>
 		<row><td>_72214C96388145BFAD062D3E3EEF4BEC</td><td>C__8D210BB11DE54BFF9295776C6C22707B</td><td/><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>2</td></row>
 		<row><td>_B9BB4ECDA26E41248AFC8EC683B63C2E</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td/><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>2</td></row>
@@ -4840,7 +4843,6 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 		<col def="S255">ISComments</col>
 		<col def="S255">ISShortcutName</col>
 		<col def="I4">ISAttributes</col>
-		<row><td>_33FEAC39B1684B8397E267182D3781A4</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Uninstall Msc-generator</td><td>C__E3EC895DEE334AE1955560AD21D3DFAE</td><td>AlwaysInstall</td><td>/x [ProductCode]</td><td/><td/><td>_33FEAC39B1684B839_E41CD9C6A23E43D0853AACD617A8529E.exe</td><td>1</td><td>1</td><td>SystemFolder</td><td/><td/><td/><td/><td/><td/><td/></row>
 		<row><td>_6EF2E1543A0C4C75B8F4FB20035E9FD5</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Help</td><td>C__1B922D1673AC46F7BBAB1450339B0CCA</td><td>AlwaysInstall</td><td/><td>Windows Help for Msc-generator</td><td/><td>_6EF2E1543A0C4C75B_21A1C3DBBFDC411FAF23283C796FCFC9.exe</td><td>1</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
 		<row><td>_72214C96388145BFAD062D3E3EEF4BEC</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Msc-generator</td><td>C__8D210BB11DE54BFF9295776C6C22707B</td><td>AlwaysInstall</td><td/><td>Starts Msc-generator</td><td/><td>_72214C96388145BFA_CA5AFD3E84154079A66D3FA9AD9BC185.exe</td><td>1</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
 		<row><td>_B9BB4ECDA26E41248AFC8EC683B63C2E</td><td>_9AA62F9CE9B648F9963F9446EB6D4BEB</td><td>Users Guide</td><td>C__AA21D5A4D3D94A47B45FB4ECB8E6F1D6</td><td>AlwaysInstall</td><td/><td>A PDF user manual document</td><td/><td>_B9BB4ECDA26E41248_6B12352909AF46D8A195F49E55C89969.exe</td><td>1</td><td>1</td><td>INSTALLDIR</td><td/><td/><td/><td/><td/><td/><td/></row>
@@ -4966,6 +4968,7 @@ QwBEAF8AUgBPAE0AAQBFAHgAcAByAGUAcwBzAA==
 		<col def="s72">ActionProperty</col>
 		<col def="S72">ISDisplayName</col>
 		<row><td>{00000000-0000-0000-0000-000000000000}</td><td>***ALL_VERSIONS***</td><td></td><td></td><td>2</td><td/><td>ISFOUNDNEWERPRODUCTVERSION</td><td>ISPreventDowngrade</td></row>
+		<row><td>{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}</td><td>3.4.20</td><td>3.5.3</td><td>1033</td><td>512</td><td/><td>ISACTIONPROP2</td><td>From All previous versions</td></row>
 	</table>
 
 	<table name="Verb">
