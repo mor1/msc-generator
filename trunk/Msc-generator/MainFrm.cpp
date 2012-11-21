@@ -340,7 +340,7 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	}
 
 	//Actualize combo box values
-	CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
+	CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
 	if (pDoc) {
 		FillDesignComboBox(pDoc->m_itrEditing->GetDesign(), true);
 		FillPageComboBox(pDoc->m_ChartShown.GetPages(), pDoc->m_ChartShown.GetPage());
@@ -401,7 +401,7 @@ void CMainFrame::OnViewFullScreen()
             AddToFullScreenToolbar();
         } else {
             //If we are cancelling full screen update the zoom combo box with current value
-			CMscGenDoc *pDoc = static_cast<CMscGenDoc *>(GetActiveDocument());
+			CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
 			if (pDoc) 
 				pDoc->SetZoom(); 
             ShowFullScreen();

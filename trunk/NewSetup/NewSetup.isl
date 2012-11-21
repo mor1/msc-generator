@@ -2373,8 +2373,8 @@
 		<col key="yes" def="s38">Feature_</col>
 		<col key="yes" def="s255">ISMergeModule_</col>
 		<col key="yes" def="i2">Language_</col>
-		<row><td>AlwaysInstall</td><td>Microsoft_VC100_CRT_x86.DF495DFD_79F6_34DF_BB1E_E58DB5BDCF2C</td><td>0</td></row>
-		<row><td>AlwaysInstall</td><td>Microsoft_VC100_MFC_x86.DF495DFD_79F6_34DF_BB1E_E58DB5BDCF2C</td><td>0</td></row>
+		<row><td>AlwaysInstall</td><td>Microsoft_VC100_CRT_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td></row>
+		<row><td>AlwaysInstall</td><td>Microsoft_VC100_MFC_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td></row>
 	</table>
 
 	<table name="ISFeatureSetupPrerequisites">
@@ -2497,8 +2497,8 @@
 		<col def="s255">Name</col>
 		<col def="S255">Destination</col>
 		<col def="I4">ISAttributes</col>
-		<row><td>Microsoft_VC100_CRT_x86.DF495DFD_79F6_34DF_BB1E_E58DB5BDCF2C</td><td>0</td><td>Visual C++ 10.0 CRT (x86)</td><td/><td/></row>
-		<row><td>Microsoft_VC100_MFC_x86.DF495DFD_79F6_34DF_BB1E_E58DB5BDCF2C</td><td>0</td><td>Visual C++ 10.0 MFC (x86)</td><td/><td/></row>
+		<row><td>Microsoft_VC100_CRT_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td><td>Visual C++ 10.0 CRT (x86)</td><td/><td/></row>
+		<row><td>Microsoft_VC100_MFC_x86.AFA96EB4_FA9F_335C_A7CB_36079407553D</td><td>0</td><td>Visual C++ 10.0 MFC (x86)</td><td/><td/></row>
 	</table>
 
 	<table name="ISMergeModuleCfgValues">

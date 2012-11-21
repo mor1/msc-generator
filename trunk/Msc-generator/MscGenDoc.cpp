@@ -1070,16 +1070,15 @@ void CMscGenDoc::SetZoom(int zoom)
 	m_zoom = zoom;
 	POSITION pos = GetFirstViewPosition();
 	while (pos != NULL) {
-        CMscGenView* pView = static_cast<CMscGenView*>(GetNextView(pos));
-  	    if (pView->IsKindOf(RUNTIME_CLASS(CMscGenView))) {
+        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+  	    if (pView) {
 	        pView->ResyncScrollSize();
 			pView->Invalidate();
 		}
 	}
-	CMainFrame *pWnd = static_cast<CMainFrame *>(AfxGetMainWnd());
-	if (!pWnd->IsKindOf(RUNTIME_CLASS(CMainFrame))) return;
-
-    pWnd->FillZoomComboBox(m_zoom);
+	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+	if (pWnd)
+        pWnd->FillZoomComboBox(m_zoom);
     return;
 }
 
@@ -1092,12 +1091,12 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 	if (IsInPlaceActive()) return;
 	POSITION pos = GetFirstViewPosition();
 	if (pos == NULL) return;
-    CMscGenView* pView = static_cast<CMscGenView*>(GetNextView(pos));
-  	if (!pView->IsKindOf(RUNTIME_CLASS(CMscGenView))) return;
+    CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+  	if (!pView) return;
     const CSize size = m_ChartShown.GetSize();
 	if (size.cx==0 || size.cy==0) return;
-	CMainFrame *pWnd = static_cast<CMainFrame *>(AfxGetMainWnd());
-	if (!pWnd->IsKindOf(RUNTIME_CLASS(CMainFrame))) return;
+	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+	if (!pWnd) return;
 
 	//Query size of the view, the main window and the screen
 	RECT view, window, screen;
@@ -1128,8 +1127,8 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			//Re-query view size		
 			pos = GetFirstViewPosition();
 			if (pos == NULL) return;
-			pView = static_cast<CMscGenView*>(GetNextView(pos));
-  			if (!pView->IsKindOf(RUNTIME_CLASS(CMscGenView))) return;
+			pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+  			if (!pView) return;
 			pView->GetClientRect(&view);
 
 			//See which dimension is limiting
@@ -1244,11 +1243,10 @@ bool CMscGenDoc::DispatchMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	POSITION pos = GetFirstViewPosition();
 	while (pos != NULL) {
-        CMscGenView* pView = static_cast<CMscGenView*>(GetNextView(pos));
-  	    if (pView->IsKindOf(RUNTIME_CLASS(CMscGenView))) {
+        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+  	    if (pView)
 			//Each view handles this message only if pt is within its area
 	        if (pView->DoMouseWheel(nFlags, zDelta, pt)) return true;
-		}
 	}
 	//None of the views had it, try the internal editor
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());

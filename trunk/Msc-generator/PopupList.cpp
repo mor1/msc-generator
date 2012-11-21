@@ -57,7 +57,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         const bool filter_by_uc = pApp->m_bHintFilter && !userRequest;
         CDC* pDC = GetDC();
         {
-            MscCanvas canvas(MscCanvas::WIN, pDC->m_hAttribDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
+            MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
             csh.ProcessHints(canvas, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
             //Destroy canvas before the DC
         }
@@ -114,7 +114,7 @@ CSize CHintListBox::SetHintsToCurrent()
 
 inline CRect ConvertABCDToCRect(const CshHint *p) 
 {
-    return CRect(p->ul_x, p->ul_y, p->br_x, p->br_y);
+    return CRect(p->ul_x-1, p->ul_y-1, p->br_x+1, p->br_y+1);
 }
 
 void CHintListBox::SetStringUnderCursor(const char *uc)
@@ -187,28 +187,30 @@ void CHintListBox::ChangeSelectionTo(int index, CshHintItemSelectionState state)
     if (index==-1) return;
     const CshHint *item= GetHint(index);
     item->state = state;
+    const CRect rect = ConvertABCDToCRect(item);
     SetCurSel(index);
-    InvalidateRect(ConvertABCDToCRect(item));
+    //InvalidateRect(rect);
+    //Invalidate();
 }
 
 void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 {
     if (lpItem->itemID==-1) return;
+    const Block b(lpItem->rcItem.left+1, lpItem->rcItem.right-1, lpItem->rcItem.top, lpItem->rcItem.bottom-1);
     MscCanvas canvas(MscCanvas::WIN, lpItem->hDC);
-    CshHint *item= (CshHint*)lpItem->itemData;
+    const CshHint *item= (CshHint*)lpItem->itemData;
     Label label(item->decorated, canvas, m_format);
-    XY wh = label.getTextWidthHeight();
-    Block b(lpItem->rcItem.left+1, lpItem->rcItem.right-1, lpItem->rcItem.top, lpItem->rcItem.bottom-1);
-    MscColorType black(0,0,0);
-    MscFillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
-    MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
+    const XY wh = label.getTextWidthHeight();
+    const MscColorType black(0,0,0);
+    const MscFillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
+    const MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
     switch (item->state) {
     case HINT_ITEM_SELECTED:
         canvas.Fill(b, line, fill);
     case HINT_ITEM_SELECTED_HALF:
         canvas.Line(b, line);
     }
-    int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
+    const int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
     label.Draw(canvas, lpItem->rcItem.left+ HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right, lpItem->rcItem.top + y);
     if (item->callback) {
         const int y2 = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;

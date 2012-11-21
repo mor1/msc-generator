@@ -480,8 +480,8 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 		//Now apply the same x scroll for the other view(s)
 		POSITION p = pDoc->GetFirstViewPosition();
 		while (p != NULL) {
-			CMscGenView* pView = static_cast<CMscGenView*>(pDoc->GetNextView(p));
-			if (pView != this) pView->Invalidate();
+			CMscGenView* pView = dynamic_cast<CMscGenView*>(pDoc->GetNextView(p));
+			if (pView && pView != this) pView->Invalidate();
 		}
 	} else {
 		TRACKMOUSEEVENT tme;
