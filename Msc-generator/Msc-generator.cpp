@@ -277,6 +277,12 @@ BOOL CMscGenApp::InitInstance()
 
 	CWinAppEx::InitInstance();
 
+    //Prevent some MFC bug
+    //See http://www.mombu.com/microsoft/mmc/t-activation-context-error-in-mmc-sxs-when-using-windows-vista-610122.html
+    //and http://www.prof-uis.com/prof-uis/tech-support/support-forum/activateactctx-and-dactivateactctx-65396.aspx
+    afxAmbientActCtx = FALSE; 
+
+
 	// Initialize OLE libraries
 	if (!AfxOleInit())
 	{
