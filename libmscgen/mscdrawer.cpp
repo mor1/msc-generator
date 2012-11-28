@@ -542,7 +542,7 @@ void MscCanvas::CloseOutput()
             if (original_hdc) { 
                 //Opened via either 
                 //1. with an existing WMF HDC (OutType==WMF)
-                //2. with a WMF filw (OutType==WMF), the DC was created by "this"
+                //2. with a WMF file (OutType==WMF), the DC was created by "this"
                 //3. with an existing printing DC (OutType==PRINTER)
                 //For 1-2, we need to convert from WMF to EMF, but otherwise can close 
                 //"original_hdc" the same way. 
@@ -985,7 +985,7 @@ void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
 ////////////////////// Fill routines
 
 
-void _add_color_stop(cairo_pattern_t *pattern, double offset, MscColorType color)
+inline void _add_color_stop(cairo_pattern_t *pattern, double offset, MscColorType color)
 {
     cairo_pattern_add_color_stop_rgba(pattern, offset,
                                       color.r/255., color.g/255.,
@@ -1034,6 +1034,7 @@ void MscCanvas::linearGradient(MscColorType from, MscColorType to, const XY &s, 
         break;
     }
     cairo_set_source(cr, pattern);
+    cairo_pattern_destroy(pattern);
 }
 
 void MscCanvas::fakeLinearGrad(MscColorType from, MscColorType to, const XY &s, const XY &d, 

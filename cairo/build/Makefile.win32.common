@@ -16,10 +16,10 @@ LD := link
 AR := lib
 
 ifeq ($(CFG),debug)
-CFG_CFLAGS := -MDd -Od -Zi
+CFG_CFLAGS := $(LIBCFLAG)d -Od -Zi
 CFG_LDFLAGS := -DEBUG
 else
-CFG_CFLAGS := -MD -O2
+CFG_CFLAGS := $(LIBCFLAG) -O2
 CFG_LDFLAGS :=
 endif
 
