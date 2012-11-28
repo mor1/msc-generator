@@ -195,29 +195,62 @@ void CHintListBox::ChangeSelectionTo(int index, CshHintItemSelectionState state)
 
 void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
 {
+    //Do not draw focus rectangle (or anything else) for empty lists
     if (lpItem->itemID==-1) return;
-    const Block b(lpItem->rcItem.left+1, lpItem->rcItem.right-1, lpItem->rcItem.top, lpItem->rcItem.bottom-1);
-    MscCanvas canvas(MscCanvas::WIN, lpItem->hDC);
+    //We do not differentiate in appearance whether we have the focus or not,
+    //so for ODA_FOCUS, nothing to do
+    if (lpItem->itemAction != ODA_DRAWENTIRE && lpItem->itemAction != ODA_SELECT) return;
+
+    /* Cairo 1.12.8 has a bug with Windows Display surfaces, when the original clip of the
+    surface is nonzero. This results in the surface having a nonzero extent origin. When
+    operations requiring fallback are done, the map_to_image function screws up. 
+    This bug applies here as the DC we get here is clipped to the actual item.
+    We work around by first creating a DIB-based DC (no clip, zero extent origin)
+    and by BitBlt-ing that to the original DC.*/
+    
+    CDC origDC, memDC;
+    origDC.Attach(lpItem->hDC);
+	memDC.CreateCompatibleDC(&origDC);
+	CBitmap bitmap;
+	CBitmap *oldBitmap;
+    bitmap.CreateCompatibleBitmap(&origDC, lpItem->rcItem.right-lpItem->rcItem.left,
+                                           lpItem->rcItem.bottom - lpItem->rcItem.top);
+    oldBitmap = memDC.SelectObject(&bitmap);
+    memDC.FillSolidRect(0,0,lpItem->rcItem.right-lpItem->rcItem.left,
+                                           lpItem->rcItem.bottom - lpItem->rcItem.top, origDC.GetBkColor());
+    MscCanvas canvas(MscCanvas::WIN, memDC.m_hDC);
     const CshHint *item= (CshHint*)lpItem->itemData;
     Label label(item->decorated, canvas, m_format);
-    const XY wh = label.getTextWidthHeight();
     const MscColorType black(0,0,0);
     const MscFillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
     const MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
+    const Block b(0,lpItem->rcItem.right-lpItem->rcItem.left,
+                  0,lpItem->rcItem.bottom - lpItem->rcItem.top);
     switch (item->state) {
     case HINT_ITEM_SELECTED:
         canvas.Fill(b, line, fill);
     case HINT_ITEM_SELECTED_HALF:
         canvas.Line(b, line);
+    default:
+        break;
     }
     const int y = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - item->y_size)/2;
-    label.Draw(canvas, lpItem->rcItem.left+ HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right, lpItem->rcItem.top + y);
+    label.Draw(canvas, HINT_GRAPHIC_SIZE_X, lpItem->rcItem.right-lpItem->rcItem.left, y);
     if (item->callback) {
         const int y2 = ((lpItem->rcItem.bottom - lpItem->rcItem.top) - HINT_GRAPHIC_SIZE_Y)/2;
-        cairo_translate(canvas.GetContext(), lpItem->rcItem.left, lpItem->rcItem.top + y2);
+        cairo_translate(canvas.GetContext(), 0, y2);
         item->callback(&canvas, item->param);
         //We do not restore the context, we drop it anyway
     }
+
+    canvas.CloseOutput();
+    origDC.BitBlt(lpItem->rcItem.left, lpItem->rcItem.top,  
+                  lpItem->rcItem.right-lpItem->rcItem.left,
+                  lpItem->rcItem.bottom - lpItem->rcItem.top,
+                  &memDC, 0, 0, SRCCOPY);
+    memDC.SelectObject(oldBitmap);
+    origDC.Detach();
+    
     item->ul_x = lpItem->rcItem.left;
     item->ul_y = lpItem->rcItem.top;
     item->br_x = lpItem->rcItem.right;

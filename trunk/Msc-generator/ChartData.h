@@ -134,7 +134,7 @@ protected:
 	HENHMETAFILE       m_cache_EMF;
     cairo_surface_t   *m_cache_rec;
 public:
-    CChartCache() : m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_rec(NULL) {};
+    CChartCache() : m_data(NULL), m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_rec(NULL) {};
     void ClearCache();
     void SetData(CDrawingChartData *data) {ClearCache(); m_data = data;}
     const CDrawingChartData *GetChartData() const {return m_data;}
