@@ -384,13 +384,14 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
         return;
 
     SetLowLevelParams(ot);
+    original_scale = scale*fake_scale;
 
     double origYSize, origYOffset;
     GetPagePosition(yPageStart, page, origYOffset, origYSize);
-    XY size(total.x.Spans(), origYSize);
-    size.y += copyrightTextHeight;
-    size.x *= fake_scale*scale.x;
-    size.y *= fake_scale*scale.y;
+    original_device_size.x = total.x.Spans();
+    original_device_size.y = origYSize + copyrightTextHeight;
+    original_device_size.x *= original_scale.x;
+    original_device_size.y *= original_scale.y;
     RECT r;
 
     switch (ot) {
@@ -405,7 +406,6 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
         win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
         if( win32_dc == NULL ) return;
         original_hdc = hdc;
-        original_hdc_size = size;
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
     default:
@@ -500,6 +500,62 @@ size_t PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTric
     return size;
 }
 
+int CALLBACK EnhMetaFileProc( HDC hDC,
+                              HANDLETABLE *lpHTable,
+                              const ENHMETARECORD *lpEMFR,
+                              int nObj,
+                              LPARAM lpData)
+{
+    switch (lpEMFR->iType) {
+        //operations modifying the transformation matrix
+    case EMR_MODIFYWORLDTRANSFORM:
+    case EMR_SETWORLDTRANSFORM:
+    case EMR_SETVIEWPORTEXTEX:
+    case EMR_SETVIEWPORTORGEX:
+    case EMR_SETWINDOWEXTEX:
+    case EMR_SETWINDOWORGEX:
+    case EMR_SAVEDC:
+    case EMR_RESTOREDC:
+    case EMR_SCALEVIEWPORTEXTEX:
+    case EMR_SCALEWINDOWEXTEX:
+        PlayEnhMetaFileRecord(hDC, lpHTable, lpEMFR, nObj);
+        break;
+    case EMR_STRETCHDIBITS:
+        Block b;
+        const EMRSTRETCHDIBITS * const s = reinterpret_cast<const EMRSTRETCHDIBITS*>(lpEMFR);
+        b.x.from = s->xDest;
+        b.x.till = b.x.from + s->cxDest;
+        b.y.from = s->yDest;
+        b.y.till = b.y.from + s->cyDest;
+
+        //Apply the world transform to block b
+        //See http://msdn.microsoft.com/en-us/library/windows/desktop/dd145228(v=vs.85).aspx
+        XFORM xForm;
+        GetWorldTransform(hDC, &xForm);
+        //We omit page to device translations now.
+        //For those, see http://msdn.microsoft.com/en-us/library/windows/desktop/dd145045(v=vs.85).aspx
+        XY points[4] = {
+            b.UpperLeft().Transform(xForm.eM11, xForm.eM12, xForm.eM21, xForm.eM22, xForm.eDx, xForm.eDy),
+            b.UpperRight().Transform(xForm.eM11, xForm.eM12, xForm.eM21, xForm.eM22, xForm.eDx, xForm.eDy),
+            b.LowerRight().Transform(xForm.eM11, xForm.eM12, xForm.eM21, xForm.eM22, xForm.eDx, xForm.eDy),
+            b.LowerLeft().Transform(xForm.eM11, xForm.eM12, xForm.eM21, xForm.eM22, xForm.eDx, xForm.eDy)
+        };
+        reinterpret_cast<Contour*>(lpData)->operator+=(Contour(points));
+    } 
+    return 1;
+}
+
+Contour FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
+{
+    Contour c;
+    HDC hDC = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
+    EnumEnhMetaFile(hDC, hemf, EnhMetaFileProc, &c, lpRECT);
+    DeleteObject(CloseEnhMetaFile(hDC));
+    return c;
+}
+
+
+
 #endif //WIN32
 
 void MscCanvas::PrepareForCopyrightText()
@@ -539,6 +595,8 @@ void MscCanvas::CloseOutput()
 #ifdef CAIRO_HAS_WIN32_SURFACE
             cairo_surface_show_page(surface);
             cairo_surface_destroy (surface);
+            RECT r;
+            SetRect(&r, 0, 0, int(original_device_size.x), int(original_device_size.y));
             if (original_hdc) { 
                 //Opened via either 
                 //1. with an existing WMF HDC (OutType==WMF)
@@ -551,13 +609,13 @@ void MscCanvas::CloseOutput()
                 //win32_DC is an EMF DC opened by "this"
                 //"original_dc" contains the original target to draw on
                 HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
-                RECT r;
-                SetRect(&r, 0, 0, int(original_hdc_size.x), int(original_hdc_size.y));
+                stored_fallback_image_places = FallbackImages(hemf, &r);                
                 if (outType==WMF) 
                     stored_metafile_size = PaintEMFonWMFdc(hemf, original_hdc, r, true); 
-                else 
+                else {
                     PlayEnhMetaFile(original_hdc, hemf, &r);
-                size_t emf_size = GetEnhMetaFileBits(hemf, 0, NULL);
+                    stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
+                }
                 DeleteEnhMetaFile(hemf);
                 original_hdc = NULL;
             } else {
@@ -566,12 +624,15 @@ void MscCanvas::CloseOutput()
                 if (win32_dc) { 
                     //opened via MscCanvas and a filename, win32_dc is the EMF file  
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
+                    stored_fallback_image_places = FallbackImages(hemf, &r);
                     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
                     DeleteEnhMetaFile(hemf); //this does not delete the metafile on disk, if so
                 } else {
                     //Opened onto an existing EMF DC - nothing to do.
                 }
             }
+            //Scale the fallback image places back to chart space (but with page origin at y==0)
+            stored_fallback_image_places.Scale(1/original_scale.x); //TODO: assumes original_scale.x==original_scale.y
             win32_dc = NULL;
             break;
             //Fallthrough if cairo has no WIN32 surface

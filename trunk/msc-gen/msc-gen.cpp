@@ -26,6 +26,7 @@
 #include <assert.h>
 #include "commandline.h"
 #include "cairo.h"
+#include "cairo-win32.h"
 
 using namespace std;
 
