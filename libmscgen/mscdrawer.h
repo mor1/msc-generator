@@ -124,8 +124,10 @@ public:
     ErrorType Status() const {return status;}
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, original_hdc;
-    XY original_hdc_size;
-    size_t stored_metafile_size; //when rendering on WMF, store the size of the resulting file
+    XY original_device_size;
+    XY original_scale;
+    size_t stored_metafile_size; //when rendering on WMF or EMF, store the size of the resulting file
+    Contour stored_fallback_image_places; //when rendering on WMF or EMF, store the location of fallback images in chart space
     MscCanvas(OutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF); return stored_metafile_size;} //Works only after CloseOutput()

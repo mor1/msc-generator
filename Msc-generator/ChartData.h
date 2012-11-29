@@ -112,7 +112,7 @@ public:
     double GetHeadingSize() const;
     void DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
     void DrawToPrinter(HDC hdc, double x_scale=1.0, double y_scale=1.0) const;
-	size_t DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page=false, unsigned forced_page=0) const; 
+	size_t DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page=false, unsigned forced_page=0, Contour *fallback_images=NULL) const; 
     void DrawToRecordingSurface(cairo_surface_t *surf, MscCanvas::OutputType ot, bool pageBreaks, bool force_page=false, unsigned forced_page=0) const;
 	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
@@ -133,6 +133,7 @@ protected:
     ECacheType         m_cacheType;
 	HENHMETAFILE       m_cache_EMF;
     cairo_surface_t   *m_cache_rec;
+    Contour            fallback_image_places;
 public:
     CChartCache() : m_data(NULL), m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_rec(NULL) {};
     void ClearCache();

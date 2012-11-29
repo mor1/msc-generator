@@ -417,7 +417,7 @@ void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) c
 
 //here force_page==0 means we do not force a particular page, use m_page
 //returns the size of the WMF or EMF
-size_t CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page) const
+size_t CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page, Contour *fallback_images) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
     MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
@@ -431,6 +431,8 @@ size_t CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, b
     canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
     m_msc->DrawCopyrightText(canvas, page_to_draw);
     canvas.CloseOutput();
+    if (fallback_images)
+        *fallback_images = std::move(canvas.stored_fallback_image_places);
     return canvas.GetMetaFileSize();
 }
 
@@ -526,7 +528,7 @@ void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const 
             if (!m_cache_EMF) {
                 //cache not OK, regenerate
                 HDC hdc2 = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-                m_data->DrawToMetafile(hdc2, true, bPageBreaks);
+                m_data->DrawToMetafile(hdc2, true, bPageBreaks, false, 0, &fallback_image_places);
                 m_cache_EMF = CloseEnhMetaFile(hdc2);
             }
             const CSize size = m_data->GetSize();

@@ -104,6 +104,8 @@ public:
     double Distance(const XY &p) const    {return sqrt((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y));}
     double DistanceSqr(const XY &p) const {return (x-p.x)*(x-p.x)+(y-p.y)*(y-p.y);}
     XY     ProjectOntoLine(const XY&A, const XY&B) const {if (A.test_equal(B)) return A; const XY d = A-B; return B + d*d.DotProduct(*this-B)/d.length_sqr();}
+    XY     Transform(double xx, double xy, double yx, double yy, double dx, double dy)
+                                          {return XY(x*xx + y*xy + dx, x*yx + y*yy + dy);}
 };
 
 inline XY operator*(double a, const XY &xy) {return xy*a;}
