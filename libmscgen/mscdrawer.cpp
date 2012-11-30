@@ -399,8 +399,6 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
         surface = cairo_win32_surface_create(hdc);
         break;
     case MscCanvas::EMF:
-        surface = cairo_win32_printing_surface_create(hdc);
-        break;
     case MscCanvas::WMF:
     case MscCanvas::PRINTER:
         win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
@@ -545,7 +543,7 @@ int CALLBACK EnhMetaFileProc( HDC hDC,
     return 1;
 }
 
-Contour FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
+Contour MscCanvas::FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
 {
     Contour c;
     HDC hDC = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
@@ -600,9 +598,10 @@ void MscCanvas::CloseOutput()
             if (original_hdc) { 
                 //Opened via either 
                 //1. with an existing WMF HDC (OutType==WMF)
-                //2. with a WMF file (OutType==WMF), the DC was created by "this"
-                //3. with an existing printing DC (OutType==PRINTER)
-                //For 1-2, we need to convert from WMF to EMF, but otherwise can close 
+                //2. with an existing EMF HDC (outType==EMF);
+                //3. with a WMF file (OutType==WMF), the DC was created by "this"
+                //4. with an existing printing DC (OutType==PRINTER)
+                //For 1&3, we need to convert from EMF to WMF, but otherwise can close 
                 //"original_hdc" the same way. 
                 //For #3, we just copy. (This is a fix, we cannot draw onto a printer DC
                 //with cairo directly, so we use an EMF in-between.)
@@ -612,7 +611,7 @@ void MscCanvas::CloseOutput()
                 stored_fallback_image_places = FallbackImages(hemf, &r);                
                 if (outType==WMF) 
                     stored_metafile_size = PaintEMFonWMFdc(hemf, original_hdc, r, true); 
-                else {
+                else { //EMF or PRINTER
                     PlayEnhMetaFile(original_hdc, hemf, &r);
                     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
                 }

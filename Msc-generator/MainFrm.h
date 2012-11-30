@@ -52,6 +52,8 @@ protected:
 	COutputViewBar    m_wndOutputView;
 	CEditorBar        m_ctrlEditor;
     bool m_bAutoSplit;         //True if autosplit mode is on
+public:
+    bool m_at_embedded_object_category;
 
 
 protected:
@@ -98,6 +100,9 @@ public:
     void FillEmbeddedSizeNow(size_t size);
 	afx_msg void OnViewInternalEditor();                     //Toggles internal editor
     afx_msg void OnUpdateViewInternalEditor(CCmdUI *pCmdUI); //Shows if internal editor is on
+            void TriggerIfRibbonCategoryChange();
+    afx_msg void OnUpdateEmbeddedoptionsSizenow(CCmdUI *pCmdUI);
+    afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
 };
 
 

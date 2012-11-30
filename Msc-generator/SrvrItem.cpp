@@ -128,8 +128,8 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
     ASSERT_VALID(pDoc);
     if (!pDoc || !pApp) return FALSE;
     size_t size = pDoc->m_ChartShown.DrawToMetafile(pDC->m_hDC, false, pApp->m_bPageBreaks, true, GetPage());
-    size += serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
-	CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
+    size += pDoc->serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
+    CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
     if (pMainFrame)
         pMainFrame->FillEmbeddedSizeNow(size);
 	return TRUE;
@@ -249,11 +249,11 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
         CArchive ar(&mem, CArchive::store);
         Serialize(ar);
     }
-    serialize_doc_overhead = mem.GetLength();
-    if (pDoc->m_ChartShown.GetText().GetLength() < serialize_doc_overhead)
-        serialize_doc_overhead -= pDoc->m_ChartShown.GetText().GetLength();
+    pDoc->serialize_doc_overhead = mem.GetLength();
+    if (pDoc->m_ChartShown.GetText().GetLength() < pDoc->serialize_doc_overhead)
+        pDoc->serialize_doc_overhead -= pDoc->m_ChartShown.GetText().GetLength();
     else 
-        serialize_doc_overhead = 0;
+        pDoc->serialize_doc_overhead = 0;
 
     if (iVerb == 2) {
 		//If the embedded object has been activated with this verb (Full Screen View)
@@ -286,7 +286,7 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
 		}
         //Show embedded objects context category on the ribbon
         if (iVerb==1 && pMainFrame) {
-            size_t size = serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
+            size_t size = pDoc->serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
             HDC hdc = CreateMetaFile(NULL);
             size += pDoc->m_ChartShown.DrawToMetafile(hdc, false, pApp->m_bPageBreaks, true, GetPage());
             DeleteMetaFile(CloseMetaFile(hdc));

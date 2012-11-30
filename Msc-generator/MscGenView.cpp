@@ -25,6 +25,7 @@
 #include "MscGenDoc.h"
 #include "MscGenView.h"
 #include "SrvrItem.h"
+#include "MainFrm.h"
 #include "cairo.h"
 #include "cairo-win32.h"
 
@@ -217,8 +218,8 @@ BOOL CMscGenView::OnEraseBkgnd(CDC * /*pDC*/)
 
 void CMscGenView::InvalidateBlock(const Block &b) 
 {
-	CMscGenDoc *pDoc = GetDocument();
-	ASSERT(pDoc);
+	//CMscGenDoc *pDoc = GetDocument();
+	//ASSERT(pDoc);
 	//double scale = pDoc->m_zoom / 100.; 
     //CRect r(int(b.x.from*scale-1), int(b.y.from*scale-1), int(b.x.till*scale+1), int(b.y.till*scale+1));
 	//InvalidateRect(&r);
@@ -247,16 +248,17 @@ void CMscGenView::DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect
     lock.Lock();
     for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
         if (i->what == TrackedArc::TRACKRECT) {
+            const Contour &draw_area = i->arc ? i->arc->GetAreaToDraw() : pDoc->m_fallback_image_location;
             cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                      GetGValue(pApp->m_trackFillColor)/255., 
-                                      GetBValue(pApp->m_trackFillColor)/255., 
-                                      GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Fill(cr);
+                                        GetGValue(pApp->m_trackFillColor)/255., 
+                                        GetBValue(pApp->m_trackFillColor)/255., 
+                                        GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
+            draw_area.Fill(cr);
 	        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
                                       GetGValue(pApp->m_trackLineColor)/255., 
                                       GetBValue(pApp->m_trackLineColor)/255., 
                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Line(cr);
+            draw_area.Line(cr);
         } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls) 
             i->arc->DrawControls(cr, i->fade_value);
     }
@@ -290,6 +292,16 @@ void CMscGenView::OnDraw(CDC* pDC)
         m_cache.DrawToMemDC(memoryDC, scale, scale, clip, pApp->m_bPageBreaks);
         memoryDC.SelectObject(oldBitmap2);
         m_view_pos = clip;
+
+        //If we show the WMF, let us update the embedded object size shown in the ribbon
+        if (m_cache.GetCacheType() == CChartCache::CACHE_EMF) {
+            const size_t size = m_cache.GetWMFSize() + pDoc->serialize_doc_overhead + 
+                                pDoc->m_ChartShown.GetText().GetLength();
+            CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
+            if (pMainFrame)
+                pMainFrame->FillEmbeddedSizeNow(size);
+            pDoc->StartTrackFallbackImageLocations(m_cache.GetWMFFallbackImagePos());
+        }
     }
     //Copy bitmap to memDC
     CDC memoryDC;
@@ -298,7 +310,7 @@ void CMscGenView::OnDraw(CDC* pDC)
     memDC.BitBlt(0,0, clip.Width(), clip.Height(), &memoryDC, 0, 0, SRCCOPY);   
     memoryDC.SelectObject(oldBitmap2);
     //Draw track records onto it
-    DrawTrackRects(&memDC, scale, scale, clip );
+    DrawTrackRects(&memDC, scale, scale, clip);
     //Copy to client area
     pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, 0, 0, SRCCOPY);   
 	memDC.SelectObject(oldBitmap);
@@ -322,11 +334,13 @@ void CMscGenView::OnInitialUpdate()
 void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/)
 {
 	CMscGenDoc* pDoc = GetDocument();
-	ASSERT_VALID(pDoc);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT_VALID(pApp);
+    CMainFrame *pMain = (CMainFrame *)AfxGetMainWnd();
+    _ASSERT(pDoc && pApp && pMain);
+    if (!pDoc || !pApp || !pMain) return;
 
-    m_cache.SetCacheType(pApp->m_cacheType);
+    const CChartCache::ECacheType should_be = pMain->m_at_embedded_object_category ? CChartCache::CACHE_EMF : CChartCache::CACHE_RECORDING;
+    m_cache.SetCacheType(should_be);
     m_cache.SetData(&pDoc->m_ChartShown);
     m_chartOrigin.x = pDoc->m_ChartShown.GetMscTotal().x.from;
     m_chartOrigin.y = pDoc->m_ChartShown.GetPageYShift();

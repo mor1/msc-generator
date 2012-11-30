@@ -133,12 +133,17 @@ protected:
     ECacheType         m_cacheType;
 	HENHMETAFILE       m_cache_EMF;
     cairo_surface_t   *m_cache_rec;
-    Contour            fallback_image_places;
+    Contour            m_fallback_image_places;
+    size_t             m_wmf_size;
 public:
-    CChartCache() : m_data(NULL), m_cacheType(CACHE_EMF), m_cache_EMF(NULL), m_cache_rec(NULL) {};
+    CChartCache() : m_data(NULL), m_cacheType(CACHE_NONE), m_cache_EMF(NULL), m_cache_rec(NULL) {};
     void ClearCache();
     void SetData(CDrawingChartData *data) {ClearCache(); m_data = data;}
     const CDrawingChartData *GetChartData() const {return m_data;}
     void SetCacheType(ECacheType t) {if (m_cacheType!=t) {ClearCache(); m_cacheType=t;}}
+    ECacheType GetCacheType() const {return m_cacheType;}
     void DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks);
+
+    size_t GetWMFSize() const {_ASSERT(m_cacheType==CACHE_EMF && m_cache_EMF); return m_wmf_size;}
+    const Contour &GetWMFFallbackImagePos() const {_ASSERT(m_cacheType==CACHE_EMF && m_cache_EMF); return m_fallback_image_places;}
 };

@@ -87,7 +87,6 @@ public:
     bool m_bHintAttrValue;
     bool m_bHintFilter;
     bool m_bHintCompact;
-    CChartCache::ECacheType m_cacheType;
     bool m_bShowControls;
 
 	//Editor related
