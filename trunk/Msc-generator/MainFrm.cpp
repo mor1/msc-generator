@@ -90,6 +90,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
 	ON_COMMAND(ID_BUTTON_EDITINTERNAL, OnViewInternalEditor)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITINTERNAL, OnUpdateViewInternalEditor)
+    ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_SIZENOW, &CMainFrame::OnUpdateEmbeddedoptionsSizenow)
+    ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, &CMainFrame::OnUpdateButtonDefaultText)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -107,6 +109,7 @@ CMainFrame::CMainFrame()
 {
 	theApp.m_nAppLook = theApp.GetInt(_T("ApplicationLook"), ID_VIEW_APPLOOK_VS_2005);
     m_bAutoSplit = false;
+    m_at_embedded_object_category = false;
 }
 
 CMainFrame::~CMainFrame()
@@ -776,3 +779,29 @@ void CMainFrame::OnUpdateViewInternalEditor(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(m_ctrlEditor.IsVisible());
 }
 
+
+void CMainFrame::TriggerIfRibbonCategoryChange()
+{
+    const bool category_is_embedded = !strcmp("Embedded Object", m_wndRibbonBar.GetActiveCategory()->GetName());
+    if (category_is_embedded == m_at_embedded_object_category) return;
+    m_at_embedded_object_category = category_is_embedded;
+    CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (!pDoc) return;
+    pDoc->UpdateAllViews(NULL);
+}
+
+
+void CMainFrame::OnUpdateEmbeddedoptionsSizenow(CCmdUI *pCmdUI)
+{
+    //This is just used to test if we have switched to "Embedded Object" category
+    //This is only called if this category is visible
+    TriggerIfRibbonCategoryChange();
+}
+
+
+void CMainFrame::OnUpdateButtonDefaultText(CCmdUI *pCmdUI)
+{
+    //This is just used to test if we have switched to "Embedded Object" category
+    //This is only called if this category is visible
+    TriggerIfRibbonCategoryChange();
+}

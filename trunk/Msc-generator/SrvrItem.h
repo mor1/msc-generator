@@ -24,7 +24,6 @@
 class CMscGenSrvrItem : public CDocObjectServerItem
 {
 	DECLARE_DYNAMIC(CMscGenSrvrItem)
-    size_t serialize_doc_overhead;
 // Constructors
 public:
 	CMscGenSrvrItem(CMscGenDoc* pContainerDoc, unsigned forcePage);

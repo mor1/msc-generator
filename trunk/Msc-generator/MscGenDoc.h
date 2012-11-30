@@ -64,12 +64,16 @@ public:
 	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
 	CDrawingChartData m_ChartShown; //The chart that is currently showing
 
+    unsigned m_uSavedFallbackResolution; //for embedded charts 
+    bool     m_bSavedPageBreaks;          //for embedded charts 
+
 	// Zoom related 
 	unsigned m_zoom; //In percentage. 100 is normal
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
 	// Track mode related
 	bool m_bTrackMode; //True if mouse is tracked over arcs
     CCriticalSection m_SectionTrackingMembers; //To protect m_trackArcs below from simultaneous access
+    Contour m_fallback_image_location;
 	std::vector<TrackedArc> m_trackArcs;  //arcs to track currently
     std::map<Block, TrackableElement*> m_controlsShowing; //Controls currently appearing
 	CHARRANGE m_saved_charrange;
@@ -81,6 +85,7 @@ public:
 	CExternalEditor m_ExternalEditor; //A hidden window to do external editor functions
 	//Status flags
 	bool m_bAttemptingToClose; //This indicates to OnSaveDocument if we are closing 
+    size_t serialize_doc_overhead;  //for embedded objects this calcualtes serialization overhead
 
 //Menu and toolbar functions
 public:
@@ -149,7 +154,7 @@ public:
 public:
 	void InsertNewChart(const CChartData &);             //insert a new chart into the list (destroys redo, updates iterators)
 	void SyncShownWithEditing(const CString &action);    //Ask the user what to do if editing iterator != shown iterator
-	void CheckIfChanged();                               //Check if we have changed and updates SetModifiedFlag
+	bool CheckIfChanged();                               //Check if we have changed and updates SetModifiedFlag
     void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
@@ -159,6 +164,7 @@ public:
 	bool DoFading();                                     //Do one step fading. Return true if there are still elements in the process of fading
 	bool AddTrackArc(TrackableElement *, 
                  TrackedArc::ElementType, int delay=-1); //Add a tracking element to the list. Updates Views if needed & rets ture if so
+    void StartTrackFallbackImageLocations(const Contour &);
 	void StartFadingAll(const TrackableElement *except); //Start the fading process for all rectangles (even for delay<0, except one)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)

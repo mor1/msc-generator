@@ -508,6 +508,8 @@ void CChartCache::ClearCache()
         cairo_surface_destroy(m_cache_rec);
         m_cache_rec = NULL;
     }
+    m_wmf_size = 0;
+    m_fallback_image_places.clear();
 }
 
 //Here the "memDC" contains a bitmap as large as the visible part of the screen
@@ -528,7 +530,8 @@ void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const 
             if (!m_cache_EMF) {
                 //cache not OK, regenerate
                 HDC hdc2 = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-                m_data->DrawToMetafile(hdc2, true, bPageBreaks, false, 0, &fallback_image_places);
+                const bool use_emf_carrier = true;
+                m_wmf_size = m_data->DrawToMetafile(hdc2, use_emf_carrier, bPageBreaks, false, 0, &m_fallback_image_places);
                 m_cache_EMF = CloseEnhMetaFile(hdc2);
             }
             const CSize size = m_data->GetSize();

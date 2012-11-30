@@ -243,7 +243,6 @@ CMscGenApp::CMscGenApp()
 	m_pWndOutputView = 0;
 	m_pWndEditor = 0;
 	m_bFullScreenViewMode = false;
-    m_cacheType = CChartCache::CACHE_NONE;
     m_bShowControls = false;
 }
 
@@ -524,8 +523,6 @@ void CMscGenApp::ReadRegistryValues(bool reportProblem)
 	for (int scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
 		for (int i=0; i<COLOR_MAX; i++) 
 			ConvertMscCshAppearanceToCHARFORMAT(MscCshAppearanceList[scheme][i], m_csh_cf[scheme][i]);
-
-    m_cacheType = CChartCache::CACHE_RECORDING;
 }
 
 //Read the designs from m_DesignDir, display a modal dialog if there is a problem.
@@ -1046,6 +1043,6 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FALLBACK_RESOLUTION, m_uFallbackResolution);
     //recompile if it is embdedded
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->IsEmbedded())
+    if (pDoc && pDoc->IsEmbedded()) 
         pDoc->ShowEditingChart(false);
 }
