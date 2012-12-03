@@ -90,8 +90,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_COMMAND(ID_VIEW_ZOOMOUT, OnViewZoomout)
 	ON_COMMAND(ID_BUTTON_EDITINTERNAL, OnViewInternalEditor)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITINTERNAL, OnUpdateViewInternalEditor)
-    ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_SIZENOW, &CMainFrame::OnUpdateEmbeddedoptionsSizenow)
-    ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, &CMainFrame::OnUpdateButtonDefaultText)
+    ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, OnUpdateButtonDefaultText)
+    ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_FALLBACK_RES, OnUpdateEmbeddedoptionsFallbackRes)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -110,6 +110,7 @@ CMainFrame::CMainFrame()
 	theApp.m_nAppLook = theApp.GetInt(_T("ApplicationLook"), ID_VIEW_APPLOOK_VS_2005);
     m_bAutoSplit = false;
     m_at_embedded_object_category = false;
+    m_has_fallback_image = false;
 }
 
 CMainFrame::~CMainFrame()
@@ -130,6 +131,18 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_wndRibbonBar.Create(this);
 	m_wndRibbonBar.LoadFromResource(IDR_RIBBON);
+
+    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+    m_wndRibbonBar.GetElementsByID(0, arButtons);
+    for (unsigned i = 0; i<arButtons.GetSize(); i++) {
+        const char *c = arButtons[i]->GetText();
+        if (!strcmp("ObjectSize", c))
+            m_labelObjectSize = dynamic_cast<CMFCRibbonLabel*>(arButtons[i]);
+        else if (!strcmp("FallbackImage", c))
+            m_labelFallbackImage = dynamic_cast<CMFCRibbonLabel*>(arButtons[i]);
+    }
+    _ASSERT(m_labelFallbackImage);
+    _ASSERT(m_labelObjectSize);
 
 	// prevent the menu bar from taking the focus on activation
 	CMFCPopupMenu::SetForceMenuFocus(FALSE);
@@ -178,7 +191,6 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 
     //Set inital value of CSH scheme combo box
-    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
     m_wndRibbonBar.GetElementsByID(IDC_COMBO_CSH, arButtons);
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
@@ -750,23 +762,30 @@ void CMainFrame::OnDesignZoom()
 	}
 }
 
-void CMainFrame::FillEmbeddedSizeNow(size_t size)
+void CMainFrame::FillEmbeddedPanel(size_t size, double percent)
 {
     m_wndRibbonBar.ShowContextCategories(ID_CONTEXT_EMBEDDEDOPTIONS);
-    CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
-    m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_SIZENOW, arButtons);
-    _ASSERT(arButtons.GetSize()==1);
-    CMFCRibbonEdit *e = dynamic_cast<CMFCRibbonEdit*>(arButtons[0]);
-    CString sizeText; 
-    if (size>=1024*1024) 
-        sizeText.AppendFormat("%.2f MB", size/1024./1024.);
-    else if (size>=1024)
-        sizeText.AppendFormat("%.2f KB", size/1024.);
-    else if (size>0)
-        sizeText.AppendFormat("%u bytes", size);
-    if (e) {
-        e->SetEditText(sizeText);
+    if (m_labelObjectSize) {
+        CString sizeText = "Object size: ";
+        if (size>=1536*1024) 
+            sizeText.AppendFormat("%.2f MB", size/1024./1024.);
+        else if (size>=1536)
+            sizeText.AppendFormat("%.2f KB", size/1024.);
+        else if (size>0)
+            sizeText.AppendFormat("%u bytes", size);
+        m_labelObjectSize->SetText(sizeText);
     }
+    if (m_labelFallbackImage) {
+        m_has_fallback_image = bool(percent);
+        if (m_has_fallback_image) {
+            CString fi;
+            fi.AppendFormat("%u%% of chart area is fallback image", abs(int(floor(percent+0.5))));
+            m_labelFallbackImage->SetText(fi);
+        } else
+            m_labelFallbackImage->SetText("No fallback images in this chart.");
+    }
+    if (m_labelFallbackImage || m_labelObjectSize) 
+        m_wndRibbonBar.ForceRecalcLayout();
 }
 
 void CMainFrame::OnViewInternalEditor()
@@ -791,16 +810,16 @@ void CMainFrame::TriggerIfRibbonCategoryChange()
 }
 
 
-void CMainFrame::OnUpdateEmbeddedoptionsSizenow(CCmdUI *pCmdUI)
+void CMainFrame::OnUpdateButtonDefaultText(CCmdUI *pCmdUI)
 {
     //This is just used to test if we have switched to "Embedded Object" category
     //This is only called if this category is visible
     TriggerIfRibbonCategoryChange();
 }
 
-
-void CMainFrame::OnUpdateButtonDefaultText(CCmdUI *pCmdUI)
+void CMainFrame::OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI)
 {
+    pCmdUI->Enable(m_has_fallback_image);
     //This is just used to test if we have switched to "Embedded Object" category
     //This is only called if this category is visible
     TriggerIfRibbonCategoryChange();

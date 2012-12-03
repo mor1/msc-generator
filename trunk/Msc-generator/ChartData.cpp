@@ -417,10 +417,13 @@ void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) c
 
 //here force_page==0 means we do not force a particular page, use m_page
 //returns the size of the WMF or EMF
-size_t CDrawingChartData::DrawToMetafile(HDC hdc, bool isEMF, bool pageBreaks, bool force_page, unsigned forced_page, Contour *fallback_images) const
+size_t CDrawingChartData::DrawToMetafile(HDC hdc, MscCanvas::OutputType type, bool pageBreaks, bool force_page, unsigned forced_page, Contour *fallback_images) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
-    MscCanvas canvas(isEMF ? MscCanvas::EMF : MscCanvas::WMF, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+    _ASSERT(type==MscCanvas::WMF || type==MscCanvas::EMF || MscCanvas::EMFWMF);
+    if (type!=MscCanvas::WMF && type!=MscCanvas::EMF && type!=MscCanvas::EMFWMF)
+        return 0;
+    MscCanvas canvas(type, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
                      XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
     if (canvas.Status()!=MscCanvas::ERR_OK) return 0;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
@@ -530,8 +533,7 @@ void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const 
             if (!m_cache_EMF) {
                 //cache not OK, regenerate
                 HDC hdc2 = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-                const bool use_emf_carrier = true;
-                m_wmf_size = m_data->DrawToMetafile(hdc2, use_emf_carrier, bPageBreaks, false, 0, &m_fallback_image_places);
+                m_wmf_size = m_data->DrawToMetafile(hdc2, MscCanvas::EMFWMF, bPageBreaks, false, 0, &m_fallback_image_places);
                 m_cache_EMF = CloseEnhMetaFile(hdc2);
             }
             const CSize size = m_data->GetSize();

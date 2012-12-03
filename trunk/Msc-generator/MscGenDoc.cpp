@@ -1529,11 +1529,10 @@ bool CMscGenDoc::DoFading()
 //Add a tracking element to the list. Updates Views if needed & rets ture if so
 bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type, int delay)
 {
-    //If we get arc==NULL, we mean the fallback image pos, MUST be tracking rect
-    if (arc==NULL) type = TrackedArc::TRACKRECT;
+    _ASSERT (type==TrackedArc::FALLBACK_IMAGE || arc);
 	//Do not add if it has no visual element
-    const Contour &draw = arc ? arc->GetAreaToDraw() : m_fallback_image_location;
-    if (type == TrackedArc::TRACKRECT && draw.IsEmpty()) 
+    const Contour &draw = type==TrackedArc::FALLBACK_IMAGE ? m_fallback_image_location : arc->GetAreaToDraw();
+    if (type != TrackedArc::CONTROL && draw.IsEmpty()) 
 		return false;
 	bool found = false;
     Block b; b.MakeInvalid();
@@ -1550,13 +1549,13 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type
 				found = true;
 			}
 		} 
-        
-        b += (i->arc ? i->arc->GetAreaToDraw() : m_fallback_image_location).GetBoundingBox();
+
+        b += (i->what == TrackedArc::FALLBACK_IMAGE ? m_fallback_image_location : i->arc->GetAreaToDraw()).GetBoundingBox();
     }
     //We always redraw all the tracked rectangles, to look better
 	if (!found) {
-        const int appear = type == TrackedArc::TRACKRECT ? 300 : 100;
-        const int disapp = type == TrackedArc::TRACKRECT ? 300 : 100;
+        const int appear = type == TrackedArc::TRACKRECT ? 300 : type == TrackedArc::FALLBACK_IMAGE ? 1 : 100;
+        const int disapp = type == TrackedArc::TRACKRECT ? 300 : type == TrackedArc::FALLBACK_IMAGE ? 1500 : 100;
 		m_trackArcs.push_back(TrackedArc(arc, type, delay, appear, disapp));
         if (type == TrackedArc::CONTROL) {
             _ASSERT(arc);
@@ -1579,8 +1578,8 @@ bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type
 void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 {
     m_fallback_image_location = c;
-    AddTrackArc(NULL, TrackedArc::TRACKRECT);
-    StartFadingAll(NULL);
+    AddTrackArc(NULL, TrackedArc::FALLBACK_IMAGE, 0);
+    StartFadingTimer();
 }
 
 

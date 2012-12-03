@@ -43,9 +43,10 @@
 class MscCanvas 
 {
 public:
-    //WMF does the same as EMF, but uses features only that can be in WMFs
-    //PRINTER is a WMF, with no false scaling
-    typedef enum {PNG, EPS, PDF, SVG, EMF, WMF, WIN, PRINTER} OutputType;
+    //WMF internally uses an EMF with limited features and converts to a MetaFile
+    //EMFWMF produces an EMF file, but only uses features compatible with a WMF
+    //PRINTER is equal to EMF
+    typedef enum {PNG, EPS, PDF, SVG, EMF, WMF, EMFWMF, WIN, PRINTER} OutputType;
     typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_PARAM, ERR_DONE} ErrorType;
 protected:
     /* Low-level options */
@@ -130,7 +131,7 @@ public:
     Contour stored_fallback_image_places; //when rendering on WMF or EMF, store the location of fallback images in chart space
     MscCanvas(OutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
-    size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF); return stored_metafile_size;} //Works only after CloseOutput()
+    size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF); return stored_metafile_size;} //Works only after CloseOutput()
     static Contour FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT);
 #endif
     void SetFallbackImageResolution(double res) {if (status==ERR_OK) cairo_surface_set_fallback_resolution(surface, res/fake_scale, res/fake_scale);}
