@@ -190,7 +190,9 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         //So if we have total calculated already, we select fake_scale as 10, or smaller if this would result in >30K coords.
         //Setting fake_scale higher than 10 seems to result in wrong image fallback positioning, I am not sure why.
         if (total.x.Spans()>0 && total.y.Spans()>0)
-            fake_scale = std::min(std::min(30000./total.x.Spans(), 30000./total.y.Spans()), 10.);  
+            fake_scale = std::min(std::min(30000./total.x.Spans(), 30000./total.y.Spans()), 1.);  
+        //Fallthrough (larger (say 5-10) fake scale does not seem to work with EMFWMF, for unknown reasons
+    case EMFWMF:
         individual_chars = true;        //do this so that it is easier to convert to WMF
         use_text_path_rotated = true;   //WMF has no support for this
         fake_dash = true;               //WMF has no support for this
@@ -380,7 +382,7 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
     total(tot), status(ERR_PARAM), candraw(false), external_surface(false), 
     stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 {
-    if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=PRINTER) 
+    if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=EMFWMF && ot!=PRINTER) 
         return;
 
     SetLowLevelParams(ot);
@@ -395,12 +397,13 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
     RECT r;
 
     switch (ot) {
-    case MscCanvas::WIN:
+    case WIN:
         surface = cairo_win32_surface_create(hdc);
         break;
-    case MscCanvas::EMF:
-    case MscCanvas::WMF:
-    case MscCanvas::PRINTER:
+    case EMF:
+    case WMF:
+    case EMFWMF:
+    case PRINTER:
         win32_dc = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
         if( win32_dc == NULL ) return;
         original_hdc = hdc;
@@ -575,21 +578,22 @@ void MscCanvas::CloseOutput()
         /* Output the image to the disk file in PNG format. */
         switch (outType) {
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
-        case MscCanvas::PNG:
+        case PNG:
             if (outFile)
                 cairo_surface_write_to_png_stream (surface, write_func, outFile);
             //fallthrough
 #endif
-        case MscCanvas::EPS:
-        case MscCanvas::PDF:
-        case MscCanvas::SVG:
+        case EPS:
+        case PDF:
+        case SVG:
             cairo_surface_destroy (surface);
             if (outFile)
                 fclose(outFile);
             break;
-        case MscCanvas::EMF:
-        case MscCanvas::WMF:
-        case MscCanvas::PRINTER:
+        case EMF:
+        case WMF:
+        case EMFWMF:
+        case PRINTER:
 #ifdef CAIRO_HAS_WIN32_SURFACE
             cairo_surface_show_page(surface);
             cairo_surface_destroy (surface);
@@ -598,7 +602,7 @@ void MscCanvas::CloseOutput()
             if (original_hdc) { 
                 //Opened via either 
                 //1. with an existing WMF HDC (OutType==WMF)
-                //2. with an existing EMF HDC (outType==EMF);
+                //2. with an existing EMF HDC (outType==EMF or EMFWMF);
                 //3. with a WMF file (OutType==WMF), the DC was created by "this"
                 //4. with an existing printing DC (OutType==PRINTER)
                 //For 1&3, we need to convert from EMF to WMF, but otherwise can close 
@@ -611,15 +615,15 @@ void MscCanvas::CloseOutput()
                 stored_fallback_image_places = FallbackImages(hemf, &r);                
                 if (outType==WMF) 
                     stored_metafile_size = PaintEMFonWMFdc(hemf, original_hdc, r, true); 
-                else { //EMF or PRINTER
+                else { //EMF, EMFWMF or PRINTER
                     PlayEnhMetaFile(original_hdc, hemf, &r);
                     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
                 }
                 DeleteEnhMetaFile(hemf);
                 original_hdc = NULL;
             } else {
-                //OutType is EMF here
-                _ASSERT(outType==EMF);
+                //OutType is EMF or EMFWMF here
+                _ASSERT(outType==EMF || outType==EMFWMF);
                 if (win32_dc) { 
                     //opened via MscCanvas and a filename, win32_dc is the EMF file  
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
@@ -636,7 +640,7 @@ void MscCanvas::CloseOutput()
             break;
             //Fallthrough if cairo has no WIN32 surface
 #endif
-        case MscCanvas::WIN:
+        case WIN:
             cairo_surface_destroy (surface);
         }
     }

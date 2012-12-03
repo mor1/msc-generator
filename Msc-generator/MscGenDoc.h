@@ -30,7 +30,7 @@ class CMscGenSrvrItem;
 
 struct TrackedArc {
 	TrackableElement * arc;
-    enum ElementType {CONTROL, TRACKRECT} what;
+    enum ElementType {CONTROL, TRACKRECT, FALLBACK_IMAGE} what;
     enum {APPEARING, SHOWING, FADING, OFF} status;
 	int    fade_delay;  //After appear this much delay is there to fade in ms. <0 never fade
     int    appe_time;

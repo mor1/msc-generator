@@ -77,6 +77,8 @@ CMscGenView::CMscGenView()
 	SetScrollSizes(MM_TEXT, CSize(0,0));
 	m_nDropEffect = DROPEFFECT_NONE;
     m_view_pos.SetRectEmpty();
+    m_recalc_embeddded_object_data = false;
+    m_highlight_fallback_images = false;
 }
 
 CMscGenView::~CMscGenView()
@@ -248,17 +250,35 @@ void CMscGenView::DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect
     lock.Lock();
     for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
         if (i->what == TrackedArc::TRACKRECT) {
-            const Contour &draw_area = i->arc ? i->arc->GetAreaToDraw() : pDoc->m_fallback_image_location;
             cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                        GetGValue(pApp->m_trackFillColor)/255., 
-                                        GetBValue(pApp->m_trackFillColor)/255., 
-                                        GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
-            draw_area.Fill(cr);
+                                      GetGValue(pApp->m_trackFillColor)/255., 
+                                      GetBValue(pApp->m_trackFillColor)/255., 
+                                      GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
+            i->arc->GetAreaToDraw().Fill(cr);
 	        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
                                       GetGValue(pApp->m_trackLineColor)/255., 
                                       GetBValue(pApp->m_trackLineColor)/255., 
                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
-            draw_area.Line(cr);
+            i->arc->GetAreaToDraw().Line(cr);
+        } else if (i->what == TrackedArc::FALLBACK_IMAGE) {
+            if (!pDoc->m_fallback_image_location.IsEmpty()) {
+                cairo_save(cr);
+                const Block &total = m_cache.GetChartData()->GetMscTotal();
+                const double width = 0.2;
+                const double off = (width*4 + 1.0)*(1-i->fade_value);
+                cairo_pattern_t *pattern = cairo_pattern_create_linear(total.x.from, total.y.from, total.x.till, total.y.till);
+                cairo_pattern_add_color_stop_rgba(pattern, off+width*0.0, 1, 1, 1, 0);
+                cairo_pattern_add_color_stop_rgba(pattern, off+width*0.5, 1, 1, 1, 1);
+                cairo_pattern_add_color_stop_rgba(pattern, off+width*1.5, 0, 0, 0, 1);
+                cairo_pattern_add_color_stop_rgba(pattern, off+width*2.0, 0, 0, 0, 0);
+                cairo_set_source(cr, pattern);
+                cairo_set_line_width(cr, 3);
+                cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+                pDoc->m_fallback_image_location.Path(cr, true);
+                cairo_stroke(cr);
+                cairo_pattern_destroy(pattern);
+                cairo_restore(cr);
+            }
         } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls) 
             i->arc->DrawControls(cr, i->fade_value);
     }
@@ -294,13 +314,19 @@ void CMscGenView::OnDraw(CDC* pDC)
         m_view_pos = clip;
 
         //If we show the WMF, let us update the embedded object size shown in the ribbon
-        if (m_cache.GetCacheType() == CChartCache::CACHE_EMF) {
+        if (m_recalc_embeddded_object_data) {
+            m_recalc_embeddded_object_data = false;
             const size_t size = m_cache.GetWMFSize() + pDoc->serialize_doc_overhead + 
                                 pDoc->m_ChartShown.GetText().GetLength();
             CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
-            if (pMainFrame)
-                pMainFrame->FillEmbeddedSizeNow(size);
-            pDoc->StartTrackFallbackImageLocations(m_cache.GetWMFFallbackImagePos());
+            if (pMainFrame) {
+                const double total = double(m_cache.GetChartData()->GetSize().cx)*m_cache.GetChartData()->GetSize().cy;
+                pMainFrame->FillEmbeddedPanel(size, 100*m_cache.GetWMFFallbackImagePos().GetArea() / total);
+            }
+            if (m_highlight_fallback_images) {
+                pDoc->StartTrackFallbackImageLocations(m_cache.GetWMFFallbackImagePos());
+                m_highlight_fallback_images = false;
+            }
         }
     }
     //Copy bitmap to memDC
@@ -339,7 +365,10 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
     _ASSERT(pDoc && pApp && pMain);
     if (!pDoc || !pApp || !pMain) return;
 
+    m_recalc_embeddded_object_data = pMain->m_at_embedded_object_category; //set to true only for EMF
     const CChartCache::ECacheType should_be = pMain->m_at_embedded_object_category ? CChartCache::CACHE_EMF : CChartCache::CACHE_RECORDING;
+    if (pMain->m_at_embedded_object_category && m_cache.GetCacheType()!=CChartCache::CACHE_EMF )
+        m_highlight_fallback_images = true;
     m_cache.SetCacheType(should_be);
     m_cache.SetData(&pDoc->m_ChartShown);
     m_chartOrigin.x = pDoc->m_ChartShown.GetMscTotal().x.from;

@@ -42,8 +42,10 @@ protected: // create from serialization only
 // Attributes
 public:
 	CMscGenSplitterWnd m_wndSplitter;
-	CMFCRibbonBar     m_wndRibbonBar;
-	CMFCStatusBar     m_wndStatusBar;
+	CMFCRibbonBar      m_wndRibbonBar;
+	CMFCStatusBar      m_wndStatusBar;
+    CMFCRibbonLabel   *m_labelObjectSize, *m_labelFallbackImage;
+
 protected:  
     friend class CMscGenSplitterWnd;
 	CMFCRibbonApplicationButton m_MainButton;
@@ -54,6 +56,7 @@ protected:
     bool m_bAutoSplit;         //True if autosplit mode is on
 public:
     bool m_at_embedded_object_category;
+    bool m_has_fallback_image;
 
 
 protected:
@@ -97,12 +100,12 @@ public:
 	afx_msg void OnDesignZoom();                             //user changed zoom combo
     afx_msg void OnViewZoomin();                             //zoom in 10%
 	afx_msg void OnViewZoomout();                            //zoom out 10%
-    void FillEmbeddedSizeNow(size_t size);
 	afx_msg void OnViewInternalEditor();                     //Toggles internal editor
     afx_msg void OnUpdateViewInternalEditor(CCmdUI *pCmdUI); //Shows if internal editor is on
-            void TriggerIfRibbonCategoryChange();
-    afx_msg void OnUpdateEmbeddedoptionsSizenow(CCmdUI *pCmdUI);
+    void FillEmbeddedPanel(size_t size, double percent);     //Set Embedded Object panel Labels
+    void TriggerIfRibbonCategoryChange();
     afx_msg void OnUpdateButtonDefaultText(CCmdUI *pCmdUI);
+    afx_msg void OnUpdateEmbeddedoptionsFallbackRes(CCmdUI *pCmdUI);
 };
 
 

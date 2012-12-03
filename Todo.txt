@@ -34,8 +34,8 @@ ADD: URL's to PNG
 
 In 3.5.6
 FIX: What is exactly the size of the WMF image?
-FIX: Nicer tracking of fallback image
-FIX: Update ribbon with fallback percentage & two panels: Fallback image and Object size
+FIXED: Nicer tracking of fallback image
+FIXED: Update ribbon with fallback percentage & two panels: Fallback image and Object size
 
 
 In 3.5.5

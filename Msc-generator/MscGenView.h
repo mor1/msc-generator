@@ -43,6 +43,8 @@ public:
     CBitmap      m_view;         //Last rendered bitmap of (scaled) chart (page)
     CRect        m_view_pos;     //origin and size of bitamp above. (empty if invalid)
 	UINT_PTR     m_FadingTimer;  //Handle of Fading Timer
+    bool m_recalc_embeddded_object_data; //pass trigger from OnUpdate() to OnDraw()
+    bool m_highlight_fallback_images;
 	//Drag and Drop 
 	COleDropTarget m_DropTarget;
 	DROPEFFECT     m_nDropEffect;
