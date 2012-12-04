@@ -1,0 +1,5 @@
+Client<=>Server<>Backend:
+    Request with optional part;
+Client=>Server-Backend: Request;
+Client<=Server-Backend: Response;
+Client<<>>Server-Backend: Query;
