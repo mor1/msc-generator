@@ -33,7 +33,7 @@ ADD: Check if file changed on disk
 ADD: URL's to PNG
 
 In 3.5.6
-FIX: What is exactly the size of the WMF image?
+CANCELLED: What is exactly the size of the WMF image?
 FIXED: Nicer tracking of fallback image
 FIXED: Update ribbon with fallback percentage & two panels: Fallback image and Object size
 
@@ -41,7 +41,7 @@ FIXED: Update ribbon with fallback percentage & two panels: Fallback image and O
 In 3.5.5
 FIXED: cairo bug with text on scaled contexts
 FIXED: Controls, mouse events, track rects adjusted for pages & non-00 origins
-FIX: Installation issue
+FIXED: Installation issue
 
 
 In 3.5.4

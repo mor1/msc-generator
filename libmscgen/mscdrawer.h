@@ -133,6 +133,7 @@ public:
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     size_t GetMetaFileSize() const {_ASSERT(outType==WMF||outType==EMF||outType==EMFWMF); return stored_metafile_size;} //Works only after CloseOutput()
     static Contour FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT);
+    HENHMETAFILE CloseAndGetEMF();
 #endif
     void SetFallbackImageResolution(double res) {if (status==ERR_OK) cairo_surface_set_fallback_resolution(surface, res/fake_scale, res/fake_scale);}
     void PrepareForCopyrightText();

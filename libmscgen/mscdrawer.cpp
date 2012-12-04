@@ -184,15 +184,14 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         break;
 #ifdef CAIRO_HAS_WIN32_SURFACE
     case WMF:
+    case EMFWMF:
         //determine scaling so that no coordinate is larger than 30K - a built-in limit of WMF
         //but scale up, so that coordinates are large, since WMF handles only integer coordinates,
         //thus fonts are bad if we do not scale up.
         //So if we have total calculated already, we select fake_scale as 10, or smaller if this would result in >30K coords.
         //Setting fake_scale higher than 10 seems to result in wrong image fallback positioning, I am not sure why.
         if (total.x.Spans()>0 && total.y.Spans()>0)
-            fake_scale = std::min(std::min(30000./total.x.Spans(), 30000./total.y.Spans()), 1.);  
-        //Fallthrough (larger (say 5-10) fake scale does not seem to work with EMFWMF, for unknown reasons
-    case EMFWMF:
+            fake_scale = std::min(std::min(30000./total.x.Spans(), 30000./total.y.Spans()), 10.);  
         individual_chars = true;        //do this so that it is easier to convert to WMF
         use_text_path_rotated = true;   //WMF has no support for this
         fake_dash = true;               //WMF has no support for this
@@ -555,7 +554,35 @@ Contour MscCanvas::FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
     return c;
 }
 
+HENHMETAFILE MscCanvas::CloseAndGetEMF()
+{
+    _ASSERT(outType == EMF || outType==EMFWMF);
+    _ASSERT(original_hdc == NULL);
+    _ASSERT(surface);
+    _ASSERT(!external_surface);
 
+    if (status!=ERR_OK) 
+        return NULL;
+    /* Destroy our context */
+    if (cr)
+        cairo_destroy (cr);
+    cairo_surface_show_page(surface);
+    cairo_surface_destroy (surface);
+    RECT r;
+    SetRect(&r, 0, 0, int(original_device_size.x), int(original_device_size.y));
+    HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
+    stored_fallback_image_places = FallbackImages(hemf, &r);                
+    stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
+    stored_fallback_image_places.Scale(1/original_scale.x); //TODO: assumes original_scale.x==original_scale.y
+    win32_dc = NULL;
+    outFile=NULL;
+    surface=NULL;
+    cr=NULL;
+    fileName.clear();
+    if (status==ERR_OK) status = ERR_DONE; //preserve other errors
+    candraw = false;
+    return hemf;
+}
 
 #endif //WIN32
 

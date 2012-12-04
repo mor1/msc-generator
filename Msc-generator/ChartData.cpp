@@ -440,6 +440,33 @@ size_t CDrawingChartData::DrawToMetafile(HDC hdc, MscCanvas::OutputType type, bo
 }
 
 //here force_page==0 means we do not force a particular page, use m_page
+//returns the size of the WMF or EMF
+HENHMETAFILE CDrawingChartData::DrawToEMF(MscCanvas::OutputType type, bool pageBreaks, bool force_page, unsigned forced_page, size_t *size, Contour *fallback_images) const
+{
+    const unsigned page_to_draw = force_page ? forced_page : m_page;
+    _ASSERT(type==MscCanvas::WMF || type==MscCanvas::EMF || MscCanvas::EMFWMF);
+    if (type!=MscCanvas::WMF && type!=MscCanvas::EMF && type!=MscCanvas::EMFWMF)
+        return 0;
+    MscCanvas canvas(type, (HDC)NULL, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
+    if (canvas.Status()!=MscCanvas::ERR_OK) return NULL;
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	if (pApp)
+        canvas.SetFallbackImageResolution(pApp->m_uFallbackResolution);
+    //draw page breaks only if requested and not drawing a single page only
+    m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
+    canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
+    m_msc->DrawCopyrightText(canvas, page_to_draw);
+    HENHMETAFILE hemf = canvas.CloseAndGetEMF();
+    if (size)
+        *size = canvas.GetMetaFileSize();
+    if (fallback_images)
+        *fallback_images = std::move(canvas.stored_fallback_image_places);
+    return hemf;
+}
+
+
+//here force_page==0 means we do not force a particular page, use m_page
 void CDrawingChartData::DrawToRecordingSurface(cairo_surface_t *surf, MscCanvas::OutputType ot, bool pageBreaks, bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
@@ -532,9 +559,7 @@ void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const 
     case CACHE_EMF: {
             if (!m_cache_EMF) {
                 //cache not OK, regenerate
-                HDC hdc2 = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
-                m_wmf_size = m_data->DrawToMetafile(hdc2, MscCanvas::EMFWMF, bPageBreaks, false, 0, &m_fallback_image_places);
-                m_cache_EMF = CloseEnhMetaFile(hdc2);
+                m_cache_EMF = m_data->DrawToEMF(MscCanvas::EMFWMF, bPageBreaks, false, 0, &m_wmf_size, &m_fallback_image_places);
             }
             const CSize size = m_data->GetSize();
             const CRect full(0,0, int(size.cx*x_scale), int(size.cy*y_scale));

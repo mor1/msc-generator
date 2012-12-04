@@ -417,29 +417,20 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
                 chart.ForceEntityCollapse(string(s), bool(b2));
             }
         }
+        pApp->m_uFallbackResolution = 300; //default before 3.5.3
         if (file_version >= 5) { //since 3.5.3
             ar >> pApp->m_uFallbackResolution;
             m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
             ar >> pApp->m_bPageBreaks;
             m_bSavedPageBreaks = pApp->m_bPageBreaks;
-            CMainFrame *pMainWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-            if (pMainWnd) {
-                CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
-                pMainWnd->m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_FALLBACK_RES, arButtons);
-                _ASSERT(arButtons.GetSize()==1);
-                CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
-                if (s) s->SetPos(pApp->m_uFallbackResolution);
-                
-                //pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EMBEDDED, arButtons);
-                //_ASSERT(arButtons.GetSize()==1);
-                //CMFCButton *b = dynamic_cast<CMFCButton *>(arButtons[0]);
-                //if (b) b->SetCheck(pApp->m_bPB_Embedded);
-
-                //pMainWnd->m_wndRibbonBar.GetElementsByID(IDC_CHECK_PB_EDITING, arButtons);
-                //_ASSERT(arButtons.GetSize()==1);
-                //b = dynamic_cast<CMFCButton *>(arButtons[0]);
-                //if (b) b->SetCheck(pApp->m_bPB_Editing);
-            }
+        }
+        CMainFrame *pMainWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+        if (pMainWnd) {
+            CArray<CMFCRibbonBaseElement*, CMFCRibbonBaseElement*> arButtons;
+            pMainWnd->m_wndRibbonBar.GetElementsByID(ID_EMBEDDEDOPTIONS_FALLBACK_RES, arButtons);
+            _ASSERT(arButtons.GetSize()==1);
+            CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
+            if (s) s->SetPos(pApp->m_uFallbackResolution);
         }
 	} /* not IsStoring */
 }

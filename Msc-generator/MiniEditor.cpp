@@ -120,7 +120,7 @@ int CCshRichEditCtrl::FindColonLabelIdent(long lStart, int *line)
 		ConvertPosToLineCol(i->first_pos, nLine, nCol);
 		CString strLine;
 		int nLineLength = GetLineString(nLine, strLine);
-		int pos = nCol-1;
+		int pos = nCol;
 		while (pos>0 && pos<nLineLength && (strLine[pos]==' ' || strLine[pos]=='\t')) pos++;
 		//if there is such a non-space in the label on the same line as the colon
 		if (pos>0 && pos<nLineLength) {
