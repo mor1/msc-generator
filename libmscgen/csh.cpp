@@ -1082,7 +1082,7 @@ bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
     MscColorType color(128, 64, 64);
-    canvas->Clip(Contour(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.6));
+    canvas->Clip(Contour(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.4));
     canvas->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
     canvas->UnClip();
     return true;
@@ -1117,7 +1117,7 @@ bool CshHintGraphicCallbackForEntities(MscCanvas *canvas, CshHintGraphicParam /*
 void Csh::AddEntitiesToHints()
 {
     for (auto i=EntityNames.begin(); i!=EntityNames.end(); i++)
-        AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForEntities));
+        AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ENTITY, true, CshHintGraphicCallbackForEntities));
 }
 
 void Csh::ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)

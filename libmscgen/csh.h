@@ -136,11 +136,11 @@ typedef enum {
 } CshHintStatus;
 
 typedef enum {
+    HINT_ENTITY,
+    HINT_KEYWORD,
     HINT_ATTR_NAME,
     HINT_ATTR_VALUE,
-    HINT_ENTITY,
     HINT_MARKER,
-    HINT_KEYWORD,
     HINT_LINE_START
 } CshHintType;
 
@@ -261,7 +261,7 @@ public:
     void AddDesignOptionsToHints();
     void AddKeywordsToHints(bool includeParallel=true);
     void AddEntitiesToHints();
-    void AddLineBeginToHints(bool includeParallel=true) {AddOptionsToHints(); AddKeywordsToHints(includeParallel); AddEntitiesToHints();}
+    void AddLineBeginToHints(bool includeParallel=true) {AddEntitiesToHints(); AddKeywordsToHints(includeParallel); AddOptionsToHints();}
     //fill in size, plain and filter/compact if needed
     void ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
 };
