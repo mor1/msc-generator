@@ -44,6 +44,11 @@
 	ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 	DEALINGS IN THE SOFTWARE.
 */
+ 
+/** @file contour_ellipse.cpp Defines EllipseData and
+ * non-inline functions from contour_basics.h.
+ * @ingroup contour_files
+ */
 
 #include <cassert>
 #include <vector>
@@ -53,11 +58,13 @@
 namespace contour {
 
 
-//calculates how the line "A"->"B" crosses the rectangle
-//if no crossing, an invalid range is returned
-//if there is a crossing, "pos" values are returned
-//0 corresponds to "A", 1 corresponds to "B", values in between
-//correspond to the section A->B; and outside likewise
+/** Calculates how the line `A`->`B` crosses the rectangle.
+ *
+ * If no crossing, an invalid range is returned.
+ * If there is a crossing, "pos" values are returned, as follows.
+ * `0` corresponds to `A`, `1` corresponds to `B`, values in between
+ * correspond to the section `A`->`B` and outside likewise.
+ */
 Range Block::Cut(const XY &A, const XY &B) const
 {
     Range ret;
@@ -105,7 +112,7 @@ valid:
 
 //////////////////Helper functions
 
-//safe cubic root
+///< Safe cubic root.
 inline double curt(double n)
 {
     if (n==0) return 0;
@@ -113,12 +120,18 @@ inline double curt(double n)
     else return pow(n, 1./3);
 }
 
+///< Square
 inline double sqr(double n)
 {
     return n*n;
 }
 
-//Solve quadratic equation m_afCoeff[0] is the constant, m_afCoeff[2] is the coeff of x^2
+/** Solve quadratic equation.
+ *
+ * @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[2]` is the coeff of `x^2`.
+ * @param [out] afRoot Returns the root(s).
+ * @returns the number of roots [0..2].
+ */
 unsigned solve_degree2 (const double m_afCoeff[3], double afRoot[2])
 {
     // compute real roots to c[2]x^2+c[1]*x+c[0] = 0
@@ -153,7 +166,12 @@ unsigned solve_degree2 (const double m_afCoeff[3], double afRoot[2])
     return 0;
 }
 
-//Solve cubic equation m_afCoeff[0] is the constant, m_afCoeff[3] is the coeff of x^3
+/** Solve qubic equation.
+ *
+ * @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[3]` is the coeff of `x^3`.
+ * @param [out] afRoot Returns the root(s).
+ * @returns the number of roots [1..3].
+ */
 unsigned solve_degree3 (const double m_afCoeff[4], double afRoot[3])
 {
     // compute real roots to c[3]*x^3+c[2]*x^2+c[1]*x+c[0] = 0
@@ -221,9 +239,14 @@ unsigned solve_degree3 (const double m_afCoeff[4], double afRoot[3])
     return true;
 }
 
-//Solve 4th degree equation m_afCoeff[0] is the constant, m_afCoeff[4] is the coeff of x^4
-//Based on David Eberly's code at
-//http://svn.berlios.de/wsvn/lwpp/incubator/deeppurple/math/FreeMagic/Source/Core/MgcPolynomial.cpp
+/** Solve quadratic equation.
+ *
+ * Based on David Eberly's code at
+ * <http://svn.berlios.de/wsvn/lwpp/incubator/deeppurple/math/FreeMagic/Source/Core/MgcPolynomial.cpp>
+ * @param [in] m_afCoeff Parameters of the equation. `m_afCoeff[0]` is the constant, `m_afCoeff[4]` is the coeff of `x^4`.
+ * @param [out] afRoot Returns the root(s).
+ * @returns the number of roots [0..4]
+ */
 unsigned solve_degree4(const double m_afCoeff[5], double afRoot[4])
 {
     // compute real roots to c[4]*x^4+c[3]*x^3+c[2]*x^2+c[1]*x+c[0] = 0
@@ -306,7 +329,12 @@ unsigned solve_degree4(const double m_afCoeff[5], double afRoot[4])
     return 0;
 }
 
-//arc-length in the clockwise dir (msc space!) from s to e
+/** Return the arc-length in radians in the clockwise dir from `s` to `e`.
+ *
+ * The span of the full circle is `2*PI`, what you cannot get as a
+ * result from this function (always smaller).
+ * If 'e < s' we warp, thus return `2*PI-radianspan(e,s)`.
+ */
 inline double radianspan(double s, double e)
 {
     s = fmod_negative_safe(s, 2*M_PI);
@@ -315,25 +343,28 @@ inline double radianspan(double s, double e)
     return 2*M_PI - (s-e);
 }
 
-//helper class for ellipsis intersection calculation
-// The quadratic equation representing the ellipse is
-//   Q(x,y) = a*x^2 + b*x*y + c*y^2 + d*x + e*y + f = 0
-// where b*b < 4*a*c is required for this to represent an ellipse.
+/** Helper class for ellipse intersection calculation.
+ *
+ * The quadratic equation representing the ellipse is
+ * `Q(x,y) = a*x^2 + b*x*y + c*y^2 + d*x + e*y + f = 0`
+ * where `b*b < 4*a*c` is required for this to represent an ellipse.
+ */
 struct quadratic_xy_t
 {
-    double A;
-    double B;
-    double C;
-    double D;
-    double E;
-    double F;
+    double A;  ///< coefficient of `x^2`
+    double B;  ///< coefficient of `x*y`
+    double C;  ///< coefficient of `y^2`
+    double D;  ///< coefficient of `x`
+    double E;  ///< coefficient of `y`
+    double F;  ///< constant
     quadratic_xy_t() {}
-    quadratic_xy_t(const EllipseData &arc);
+    quadratic_xy_t(const EllipseData &arc); ///< Initialize from an ellipse.
 };
 
 quadratic_xy_t::quadratic_xy_t(const EllipseData &arc)
 {
     if (!arc.tilted) {
+        //fast path
         //equation for non-tilt ellypses is (x-Cx)^2/radius1^2 + (y-Cy)^2/radius2^2 = 1;
         A = 1/sqr(arc.radius1);                                 //*x^2
         B = 0;                                                  //*xy
@@ -355,6 +386,8 @@ quadratic_xy_t::quadratic_xy_t(const EllipseData &arc)
     }
 }
 
+/** Calculate the Bezout determinant
+ */
 void get_bezout_determinant (const quadratic_xy_t &one, const quadratic_xy_t & two, double res[5])
 {
     // polynomial is constructed as a Bezout determinant
@@ -379,10 +412,8 @@ void get_bezout_determinant (const quadratic_xy_t &one, const quadratic_xy_t & t
     res[4] = fAB*fBC-fAC*fAC;
 }
 
-//finds a crosspoint of two infinite lines defined by AB and MN
-//rets LINE_CROSSING_PARALLEL if parallel
-//rets LINE_CROSSING_OUTSIDE if the crosspoint is outside M-N.
-//rets LINE_CROSSING_INSIDE if the crosspoint is within (M-N) and (A-B)
+/** Finds a crosspoint of two infinite lines defined by `A`->`B` and `M`->`N`
+ */
 ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r)
 {
 	const double perp = (B-A).PerpProduct(N-M);
@@ -395,7 +426,13 @@ ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, cons
     return between01_approximate_inclusive(s) ? LINE_CROSSING_INSIDE : LINE_CROSSING_OUTSIDE;
 }
 
-//refines the location of a point using crosspoints of tangents
+/** Refines the location of a crosspoint of two ellipses. A helper.
+ * 
+ * This is done using the crosspoints of tangents.
+ * @param [in] B The other ellipse we calculate the crosspoints with.
+ * @param p The location of the crosspoint, shall be on both ellipses.
+ * @returns True if success. False if `p` was not on the ellipses.
+ */
 bool EllipseData::refine_point(const EllipseData &B, XY &p) const
 {
     int max_itr = 32;
@@ -420,8 +457,8 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
         //We operate on the assumption that the intersection of two tangents is closer to the
         //intersection of the ellipses
         XY p_new;
-        if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL) 
-            p_new = (A1+B1)/2; //no intersection. Lines are parallel 
+        if (crossing_line_line(A1, A2, B1, B2, p_new) == LINE_CROSSING_PARALLEL)
+            p_new = (A1+B1)/2; //no intersection. Lines are parallel
         if ((p-p_new).length_sqr()<1e-30)
             return true; //no improvement, exit
         p = p_new;
@@ -429,7 +466,14 @@ bool EllipseData::refine_point(const EllipseData &B, XY &p) const
     return true;
 }
 
-//refines the location of a point using crosspoints of tangents
+/** Refines the location of a crosspoint of an ellipse and a line. A helper.
+ * 
+ * This is done using the crosspoints of tangents.
+ * @param [in] A A point on the line we calculate the crosspoints with.
+ * @param [in] B Another (different) point on the line we calculate the crosspoints with.
+ * @param p The location of the crosspoint, shall be on both ellipses.
+ * @returns Ture if success. False if `p` was not on the ellipses.
+ */
 bool EllipseData::refine_point(const XY &A, const XY &B, XY &p) const
 {
     int max_itr = 32;
@@ -455,7 +499,20 @@ bool EllipseData::refine_point(const XY &A, const XY &B, XY &p) const
     return true;
 }
 
-//take the relevant crosspoints and refine them
+/** Take relevant crosspoints and refine them.
+ *
+ * This function takes a number of solutions of the intersection equations
+ * for y coordinate, and figures out which solutions are actual crosspoints.
+ * Then we need to refine crosspoints because the numeric calculations return
+ * somewhat limited precision.
+ * @param [in] num_y The number of solutions for y.
+ * @param [in] y The y coordinates of possible crosspoints.
+ * @param [in] B The other ellipse, we calculate the crosspoints with.
+ * @param [in] one The equation for our ellipse.
+ * @param [in] two The equation for the `B` ellipse.
+ * @param [out] p The resulting (actual, refined) crosspoints.
+ * @returns The number of actual crosspoints.
+ */
 int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
                                 const quadratic_xy_t &one, const quadratic_xy_t &/*two*/, XY p[]) const
 {
@@ -494,7 +551,7 @@ int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
     }
     if (num==1 && !IsTilted() && !B.IsTilted()) {
         if (test_equal(center.x, B.center.x)) {
-            _ASSERT(test_equal(radius2+B.radius2, fabs(center.y-B.center.y)) || 
+            _ASSERT(test_equal(radius2+B.radius2, fabs(center.y-B.center.y)) ||
                     test_equal(fabs(radius2-B.radius2), fabs(center.y-B.center.y)));
             p[0].x = center.x;
             if (fabs(center.y-radius2-p[0].y) < fabs(center.y+radius2-p[0].y))
@@ -502,7 +559,7 @@ int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
             else
                 p[0].y = center.y+radius2;
         } else if (test_equal(center.y, B.center.y)) {
-            _ASSERT(test_equal(radius1+B.radius1, fabs(center.x-B.center.x)) || 
+            _ASSERT(test_equal(radius1+B.radius1, fabs(center.x-B.center.x)) ||
                     test_equal(fabs(radius1-B.radius1), fabs(center.x-B.center.x)));
             p[0].y = center.y;
             if (fabs(center.x-radius1-p[0].x) < fabs(center.x+radius1-p[0].x))
@@ -514,6 +571,8 @@ int EllipseData::refine_crosspoints(int num_y, double y[], const EllipseData &B,
     return num;
 }
 
+/** Transpose the ellipse. Works only if not tilted.
+ */
 inline void EllipseData::transpose_curvy_non_tilted()
 {
     _ASSERT(!tilted);
@@ -521,6 +580,9 @@ inline void EllipseData::transpose_curvy_non_tilted()
     std::swap(radius1, radius2);
 }
 
+/** Helper that fills in members `extreme_radian` and `extreme` 
+ * from `center`, radiuses and `tilt`.
+ */
 void EllipseData::calculate_extremes()
 {
     if (tilted) {
@@ -547,6 +609,18 @@ void EllipseData::calculate_extremes()
     }
 }
 
+/** Rotate the ellipse around its center.
+ *
+ * @param [in] cos The (pre-computed) cosine of `radian`.
+ * @param [in] sin The (pre-computed) sine of `radian`.
+ * @param [in] radian The amount to rotate (positive if clockwise).
+ * @return How much too upgrade radians. This can be an integer multiple of PI/2.
+ *         This is returned, since `tilt` is always between [0..PI/2) and if we
+ *         rotate by more than this, we re-arrange axes, etc. For example,
+ *         if we rotate a non-tilted ellipse by exactly PI/2, the ellipse remains
+ *         untilted, just its two radians are swapped. In this case any radian 
+ *         values have to be adjusted by PI/2. This adjustment is returned.
+ */
 double EllipseData::add_to_tilt(double cos, double sin, double radian)
 {
     _ASSERT(radian>=0 && radian<=2*M_PI);
@@ -572,9 +646,9 @@ double EllipseData::add_to_tilt(double cos, double sin, double radian)
         costilt = cos;
         sintilt = sin;
     }
-    const double new_tilt = tilted ? tilt : 0;
-    return fmod_negative_safe(radian-(new_tilt-old_tilt), 2*M_PI);
 	_ASSERT((tilt>=0 && tilt<2*M_PI) || !tilted);
+    const double new_tilt = tilted ? tilt : 0; 
+    return fmod_negative_safe(radian-(new_tilt-old_tilt), 2*M_PI); 
 }
 
 EllipseData::EllipseData(const XY &c, double radius_x, double radius_y, double tilt_degree) :
@@ -597,7 +671,16 @@ center(c), radius1(fabs(radius_x)), radius2(fabs(radius_y)), tilted(false), circ
 	calculate_extremes();
 }
 
-//return positive distance no matter if inside or outside
+/** Calculate the distance of a point from ellipse contour. 
+ * 
+ * We return a positive distance no matter if the point is inside or outside.
+ * Note that we cheat with ellipses, we do not return real distance, just the
+ * distance between `p` and the intersection of the `p`->`center` line and the ellipse.
+ * @param [in] p The point to seek distance from.
+ * @param [out] point Returns a point at the contour of ellipse.
+ * @param [out] rad The radiant corresponding to `point`.
+ * @returns The distance.
+ */
 double EllipseData::Distance(const XY &p, XY &point, double &rad) const
 {
     if (p.test_equal(center)) {
@@ -620,12 +703,18 @@ double EllipseData::Distance(const XY &p, XY &point, double &rad) const
     return p.Distance(point);
 }
 
-//This caluclates the distance between the (infinite long) line of (start-end)
-//and the ellipse
-//if distance returned is
-// - zero then the line touches or crosses the ellipse and both p[0] and p[1] return the crosspoint
-// - negative, the line crosses the ellipse and p[0] and p[1] returns the two crosspoints
-// - positive, the line is apart and "p[0]" returns the closest point on the ell, "p[1]" on the line
+/** Caluclates the distance between an (infinite long) line and the ellipse.
+ *
+ * If the distance returned is
+ * - zero then the line touches the ellipse and `p[0]` return the touchpoint.
+ * - negative, the line crosses the ellipse and `p[0]` and `p[1]` returns the two crosspoints.
+ * - positive, the line is apart and `p[0]` returns the closest point on the ellipse, 
+ *   while `p[1]` on the line.
+ * @param [in] start A point on the line.
+ * @param [in] end A second point on the line.
+ * @param [out] p Returns two relevant points, see above.
+ * @returns The distance.
+ */
 double EllipseData::Distance(const XY &start, const XY &end, XY p[2]) const
 {
     int num = CrossingStraight(start, end, p, true);
@@ -642,6 +731,8 @@ double EllipseData::Distance(const XY &start, const XY &end, XY p[2]) const
     }
 }
 
+/** Translate the ellipse.
+ */
 void EllipseData::Shift(const XY &xy)
 {
     center += xy;
@@ -649,6 +740,8 @@ void EllipseData::Shift(const XY &xy)
         extreme[i] += xy;
 }
 
+/** Change the size of the ellipse (scale center, as well).
+ */
 void EllipseData::Scale(double sc)
 {
     center *= sc;
@@ -657,7 +750,13 @@ void EllipseData::Scale(double sc)
     if (circumference_cache>=0) circumference_cache *= fabs(sc);
 }
 
-//returns how much radians modify
+/** Roatates ellipse around the origin. 
+ *
+ * @param [in] cos The (pre-computed) cosine of `radian`.
+ * @param [in] sin The (pre-computed) sine of `radian`.
+ * @param [in] radian The amount to rotate (positive if clockwise).
+ * @return The new tilt
+ */
 double EllipseData::Rotate(double cos, double sin, double radian)
 {
     center.Rotate(cos, sin);
@@ -666,7 +765,14 @@ double EllipseData::Rotate(double cos, double sin, double radian)
     return ret;
 }
 
-//returns how much radians modify
+/** Roatates ellipse around `c`.
+ *
+ * @param [in] c The point arount which to rotate.
+ * @param [in] cos The (pre-computed) cosine of `radian`.
+ * @param [in] sin The (pre-computed) sine of `radian`.
+ * @param [in] radian The amount to rotate (positive if clockwise).
+ * @return The new tilt 
+ */
 double EllipseData::RotateAround(const XY&c, double cos, double sin, double radian)
 {
     center.RotateAround(c, cos, sin);
@@ -675,6 +781,8 @@ double EllipseData::RotateAround(const XY&c, double cos, double sin, double radi
     return ret;
 }
 
+/** Transposes the ellipse: swaps x & y coordinates of all its points.
+ */
 void EllipseData::SwapXY()
 {
     center.SwapXY();
@@ -686,7 +794,13 @@ void EllipseData::SwapXY()
     }
 }
 
-
+/** Returns the centroid of a sector multiplied by the area of the sector.
+ * 
+ * @param [in] from The radian from which the sector start clockwise.
+ * @param [out] to The radian at which the sector ends. Wraps around if 
+ *                      `till` < `from`.
+ * @returns The location of the centroid of the sector, multiplied by the sector area.
+ */
 XY EllipseData::SectorCentroidTimesArea(double from, double to) const
 {
     //Here we calculate width a circle sector and approximate it
@@ -707,7 +821,17 @@ XY EllipseData::SectorCentroidTimesArea(double from, double to) const
 }
 
 
-//Return -1 if the two ellipses are equal
+/** Calculates the crosspoint(s) with another ellipse.
+ *
+ * This is the end-user function to call. Handles all cases, does refining, etc.
+ * Returns distinct crosspoints, so that toucing ellipses have just one.
+ *
+ * @param [in] B The other ellipse.
+ * @param [out] r The crosspoint coordinates.
+ * @param [out] radian_us The radians of the respective crosspoints in our ellipse.
+ * @param [out] radian_b The radians  of the respective crosspoints in B.
+ * @returns The number of crosspoints [0..4], or -1 if the two ellipses are identical.
+ */
 int EllipseData::CrossingEllipse(const EllipseData &B, XY r[], double radian_us[], double radian_b[]) const
 {
     //Now this is scary shit. Above there is a suite to solve 4th degree equations, we use those
@@ -780,7 +904,13 @@ int EllipseData::CrossingEllipse(const EllipseData &B, XY r[], double radian_us[
     return num;
 }
 
-//returns [0..1] if p is on MN, other value if not
+/** Calculates `pos` on a straight segment.
+ * 
+ * @param [in] M Start of the segment.
+ * @param [in] N End of the segment.
+ * @param [in] p Point to calculate pos for. Assumed to be on the line of `M`->`N`.
+ * @returns pos value. [0..1] if p is inside MN, other value if not.
+ */
 double point2pos_straight(const XY &M, const XY&N, const XY &p)
 {
     if (M.test_equal(N)) {
@@ -798,7 +928,16 @@ double point2pos_straight(const XY &M, const XY&N, const XY &p)
     return -1;
 }
 
-//In case of no crosspoints, "r" still contains the point closest to the line of A-B
+/** Calculates the crosspoint(s) with an infinite line.
+ *
+ * @param [in] A One point on the line
+ * @param [in] B Another point on the line. Should be different (somewhat apart from) `A`.
+ * @param [out] r The crosspoint coordinates.
+ * @param [in] want_closest If true, and the line does not cross the ellipse,
+               we return the closest point on the line to the ellipse in `r`.
+               Setting it to false saves some computations.
+ * @returns The number of crosspoints [0..2].
+ */
 int EllipseData::CrossingStraight(const XY &A, const XY &B, XY *r, bool want_closest) const
 {
     const XY M = conv_to_circle_space(A);
@@ -853,8 +992,21 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B, XY *r, bool want_clo
     return num;
 }
 
+/** Calculates the crosspoint(s) with an infinite line.
+ *
+ * This is the end-user function to call. Handles all cases, does refining, etc.
+ * Returns distinct crosspoints, so that toucing ellipses have just one.
+ *
+ * @param [in] A One point on the line
+ * @param [in] B Another point on the line. Should be different (somewhat apart from) `A`.
+ * @param [out] r The crosspoint coordinates.
+ * @param [out] radian_us The radians of the respective crosspoints in our ellipse.
+ * @param [out] pos_b The pos values of the respective crosspoints on the `A`->`B` line.
+                Zero at `A`, one at `B` and linear in-between or outside them.
+ * @returns The number of crosspoints [0..2].
+ */
 int EllipseData::CrossingStraight(const XY &A, const XY &B,
-  	                          XY *r, double *radian_us, double *pos_b) const
+  	                          XY r[], double radian_us[], double pos_b[]) const
 {
 
     int num = CrossingStraight(A, B, r, false);
@@ -868,7 +1020,14 @@ int EllipseData::CrossingStraight(const XY &A, const XY &B,
     return num;
 }
 
-//return the number of crosspoints. 1 means a touch
+/** Calculates the crosspoint of the ellipse with a vertical line.
+ *
+ * This function is cheaper than CrossingStraight.
+ * @param [in] x The x coordinate of the vertical line.
+ * @param [out] y The y coordinates of the crosspoints.
+ * @param [out] radian The radian values for the respective crosspoints.
+ * @returns The number of crosspoints. 1 means a touch.
+ */
 int EllipseData::CrossingVertical(double x, double y[], double radian[]) const
 {
     if (tilted) {
@@ -889,7 +1048,17 @@ int EllipseData::CrossingVertical(double x, double y[], double radian[]) const
     return 2;
 }
 
-
+/** Calculates a point of a tangent.
+ * 
+ * A *tangent* is a line touching the ellipse. This function takes a
+ * radian that specifies a point on the contour of the ellipse. 
+ * It then returns a point on the line touching the ellipse in the 
+ * said point. The returned point is sufficiently distant from the touchpoint.
+ * @param [in] radian The radian at which the tangent is requested.
+ * @param [in] next If true the point returned will be in clockwise direction, 
+ *                  else counterclockwise.
+ * @returns A point on the tangent.
+ */
 XY EllipseData::Tangent(double radian, bool next) const
 {
     const double x = cos(radian);
@@ -939,6 +1108,8 @@ inline double cayley(double x)
 }
 
 
+/** Calculates the circumference of the ellipse and stores it in the internal cache.
+*/
 void EllipseData::CalcCircumferenceEllipse() const
 {
     //This is copied from http://www.numericana.com/answer/ellipse.htm#high
@@ -953,11 +1124,12 @@ void EllipseData::CalcCircumferenceEllipse() const
 
 
 
-//This returns the length of the 0->to arc (always positive)
-//Here a computation of incomplete elliptic integral of the second kind is needed
-//See http://www.numericana.com/answer/geometry.htm#ellipticarc
+/** A helper, calculating the length of the `0`->`to` arc (always positive).
+*/
 double EllipseData::CircumferenceHelper(double to) const
 {
+    //Here a computation of incomplete elliptic integral of the second kind is needed
+    //See http://www.numericana.com/answer/geometry.htm#ellipticarc
     unsigned num_of_quarters;
     double a, b;
     if (radius1 < radius2) {
@@ -984,6 +1156,12 @@ double EllipseData::CircumferenceHelper(double to) const
     return num_of_quarters*FullCircumference()/4 + (to<0 ? -L : L);
 }
 
+/** Expand the ellipse by `gap`.
+ * 
+ * Done by adding `gap` to the radiuses.
+ * @param [in] gap The value to expand with. Negative value results in shrinkage.
+ * @returns 1 if OK, 0 if the ellipse degenerated to a section, -1 if it degenerated to a point.
+ */
 int EllipseData::Expand(double gap)
 {
     circumference_cache = -1; //invalidate perimiter cache
@@ -1014,6 +1192,17 @@ double EllipseData::OffsetAbove(const XY&, const XY&) const
     return 0;
 }
 
+/** Calculates the touchpoint of tangents drawn from a given point.
+ * 
+ * Given the point `from` draw tangents to the ellipse (two can be drawn)
+ * and calculate where these tangents touch the ellipse.
+ * In this context the *clockwise tangent* is the one which is traversed from 
+ * `from` towards the ellipse touches the ellipse in the clockwise direction.
+ * @param [in] from The point from which the tangents are drawn.
+ * @param [out] clockwise The point where the clockwise tangent touches the ellipse.
+ * @param [out] cclockwise The point where the counterclockwise tangent touches the ellipse.
+ * @returns True if success, false if `from` is inside or on the ellipse.
+ */
 bool EllipseData::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
 {
     const XY a = conv_to_circle_space(from);
@@ -1024,6 +1213,18 @@ bool EllipseData::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) con
     return true;
 }
 
+/** Calculates the touchpoint of tangents drawn to touch two ellipses.
+ * 
+ * Given the two ellipses, four such tangents can be drawn, here we focus on the two 
+ * outer ones, the ones that touch either both ellipses clockwise or both of them
+ * counterclockwise, but not mixed.
+ * @param [in] from The ellipse from which the tangents are drawn.
+ * @param [out] clockwise The points where the clockwise tangent touches our ellipse
+ *                        (clockwise[0]) and `from` (clockwise[1]).
+ * @param [out] cclockwise The points where the counterclockwise tangent touches our ellipse
+ *                         (cclockwise[0]) and `from` (cclockwise[1]).
+ * @returns True if success, false if `from` is inside us.
+ */
 bool EllipseData::TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const
 {
     //TODO: Assume they do not touch
