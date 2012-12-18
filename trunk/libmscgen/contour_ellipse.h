@@ -17,6 +17,11 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/** @file contour_ellipse.h Declares class EllipseData.
+ * @ingroup contour_files
+ */
+
+
 #if !defined(CONTOUR_ELLIPSE_H)
 #define CONTOUR_ELLIPSE_H
 
@@ -31,26 +36,50 @@
 #include "contour_distance.h"
 
 namespace contour {
-//helper class for ellipsis intersection calculation
+
+/** @addtogroup contour_internal
+ * @{
+ */
+
 struct quadratic_xy_t;
 
-//A helper class implementing an ellipse, its crosspoints with ellipses and lines
-//it always represents a full ellipse, not just a section of it
+/**A helper class implementing an ellipse.
+ *
+ * The class implements crosspoints with ellipses and lines.
+ * The ellipse can be tilted (rotated, making its axises not align with the X and Y axises,
+ * but it always represents a full ellipse, not just a section of it.
+ *
+ * Radian values are often used to describe a point on the circumference
+ * of the ellipse. These values are meant
+ * - in radians, between 0 and 2*PI (not taking the latter value);
+ * - clockwise growing from the zero value at the leftmost extreme (if not tilted). Bear in mind
+ *   that since y coordinate grows downward, clockwise starts toward growing y coordinate from zero
+ *   radian; and
+ * - irrespective of tilt. Thus if a radian value marks a point on the circumference, if the
+ *   ellipse is tilted, the point tilts with it.
+ */
 class EllipseData
 {
     friend struct quadratic_xy_t;
 protected:
-    XY     center;
-    double radius1, radius2;
-    bool tilted;
-    double tilt;                //supposedly between [0..pi/2)
-    double sintilt, costilt;    //pre-computed values
-	XY     extreme[4];          //pre-computed left, rightmost, topmost, bottommost point, resp
-	double extreme_radian[4];
-    mutable double circumference_cache; //if nonnegative it caches the cirumference
+    XY     center;     ///< Center of the ellipse.
+    double radius1;    ///< x coordinate radius.
+    double radius2;    ///< y coordinate radius.
+    bool   tilted;     ///< True if the ellipse is tilted and `tilt` shall be considered.
+    double tilt;       ///< The (clockwise) tilt of the ellipse in radians. Shall be between [0..pi/2).
+    double sintilt;    ///< Pre-computed values of `sin(tilt)`, if `tilted` is set.
+    double costilt;    ///< Pre-computed values of `cos(tilt)`, if `tilted` is set.
+    XY     extreme[4]; ///< Pre-computed values of the leftmost, rightmost, topmost, bottommost point of the ellipse, respectively.
+    /** Radian values corresponding to the extreme points (same order as `extreme`).
+     *
+     * These are to be understood compared to the main axes of the ellipse.
+     * Thus to calculate the extreme point from `extreme_radian` you can calculate
+     * the point first as if the ellipse were not tilted, and then simply rotate
+     * the point around `center` by `tilt`.
+     */
+    double extreme_radian[4];
+    mutable double circumference_cache; ///< If nonnegative it caches the length of the cirumference.
 
-    //for tilted ellipses translate from msc space to a space, where
-    //  the ellipse is a non-tilted unit circle
     XY   conv_to_circle_space(const XY &p) const;
     XY   conv_to_real_space(const XY &p) const;
     int  refine_crosspoints(int num_y, double y[], const EllipseData &b,
@@ -69,29 +98,29 @@ public:
     bool operator ==(const EllipseData& p) const;
     bool operator <(const EllipseData& p) const;
     bool IsTilted() const {return tilted;}
-    const XY & GetCenter() const {return center;}
-    double GetRadius1() const {return radius1;}
-    double GetRadius2() const {return radius2;}
-    double GetTilt() const {return tilted ? tilt : 0;}
-	double GetExtreme(unsigned n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
+    const XY & GetCenter() const {return center;}      ///<Return the center of the ellipse.
+    double GetRadius1() const {return radius1;}        ///<Return the x-axis radius 
+    double GetRadius2() const {return radius2;}        ///<Return the y-axis radius 
+    double GetTilt() const {return tilted ? tilt : 0;} ///<Return the tilt of the ellipse
+    double GetExtreme(unsigned n, XY &xy) const {xy = extreme[n]; return extreme_radian[n];}
     double FindExtreme(double rad, bool after, XY &p) const;
     double Distance(const XY &p, XY &point, double &rad) const;
     double Distance(const XY &start, const XY &end, XY p[2]) const;
     void Shift(const XY &xy);
     void Scale(double sc);
-	double Rotate(double cos, double sin, double radian);
-	double RotateAround(const XY&c, double cos, double sin, double radian);
+    double Rotate(double cos, double sin, double radian);
+    double RotateAround(const XY&c, double cos, double sin, double radian);
     void SwapXY();
 
     //calculate one point on the tangent at pos (between 0..1) either in the
     //  forward direction (next==true) or in the backward direction
     XY Tangent(double radian, bool next) const;
     double Point2Radian(const XY &p) const;
-    XY Radian2Point(double r) const {return conv_to_real_space(XY(cos(r), sin(r)));}
+    XY Radian2Point(double r) const {return conv_to_real_space(XY(cos(r), sin(r)));} ///< Returns the ccordinates of the point on the contour of the ellipse for `radian`.
     //this returns positive always and assumes clockwise arc
     double SectorCircumference(double from, double to) const;
-    double FullCircumference() const {if (circumference_cache<0) {if (radius1 == radius2) circumference_cache = 2*M_PI*radius1; else CalcCircumferenceEllipse();} return circumference_cache;}
-    double SectorArea(double from, double to) const {return radius1*radius2*fmod_negative_safe(to-from, 2*M_PI)/2;}
+    double FullCircumference() const {if (circumference_cache<0) {if (radius1 == radius2) circumference_cache = 2*M_PI*radius1; else CalcCircumferenceEllipse();} return circumference_cache;} ///< Return the length of circumference of the whole ellipsys.
+    double SectorArea(double from, double to) const {return radius1*radius2*fmod_negative_safe(to-from, 2*M_PI)/2;} ///< Return the area between the two radians `from` and `to` considering warping.
     double FullArea() const {return radius1*radius2*M_PI;}
     XY     SectorCentroidTimesArea(double from, double to) const;
 
@@ -105,18 +134,69 @@ public:
     int CrossingVertical(double x, double y[], double radian[]) const;
 
     int Expand(double gap); //returns -1 if completely disappear, 0 if degrades to line, 1 if OK
-	void TransformForDrawing(cairo_t *cr) const;
+    void TransformForDrawing(cairo_t *cr) const;
 
-	//return a positive number if the two can be moved closer together
-	//return Infinity() if the two do not overlap in x coordinates
-	double OffsetBelow(const EllipseData&) const;
-	double OffsetBelow(const XY&A, const XY&B) const;
-	double OffsetAbove(const XY&A, const XY&B) const;
+    //return a positive number if the two can be moved closer together
+    //return Infinity() if the two do not overlap in x coordinates
+    double OffsetBelow(const EllipseData&) const;
+    double OffsetBelow(const XY&A, const XY&B) const;
+    double OffsetAbove(const XY&A, const XY&B) const;
 
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const EllipseData &from, XY clockwise[2], XY cclockwise[2]) const;
 };
 
+/** Returns true if `r` is in [0..1]
+ */
+inline bool between01(double r)
+{
+    return r>=0 && r<=1;
+}
+
+/** Returns true if `r` is in [0..1] or just outside by max SMALL_NUM.
+ */
+inline bool between01_approximate_inclusive(double r)
+{
+    return !(test_smaller(r, 0) || test_smaller(1, r));
+}
+
+/** Returns true if `n` is significantly smaller than 1 and not significantly
+ * smaller than zero. Ensures `n` is nonzero at return.
+ */
+inline bool between01_adjust(double &n)
+{
+    if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
+        return false;
+    if (!test_smaller(0,n)) n=0; //if n~=0;
+    return true;
+}
+
+/** Converts between degrees and radians.
+ */
+inline double deg2rad(double degree)
+{
+    return fmod_negative_safe(degree, 360.)*(M_PI/180);
+}
+
+/** Converts between radians and degrees.
+ */
+inline double rad2deg(double degree)
+{
+	return fmod_negative_safe(degree, 2*M_PI)*(180/M_PI);
+}
+
+/** Defines how two (finite length) sections can cross each other.
+ */
+typedef enum {
+    LINE_CROSSING_PARALLEL, ///< No crossing, the two sections are parallel.
+    LINE_CROSSING_INSIDE,   ///< Real crossing, the crosspoint is inside both sections.
+    LINE_CROSSING_OUTSIDE   ///< The line of the two lines cross, but the crosspoint is outside at least one of the sections.
+} ELineCrossingType;
+
+ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
+double point2pos_straight(const XY &M, const XY&N, const XY &p);
+
+/** @} */ //addtogroup contour_internal 
 
 inline bool EllipseData::operator ==(const EllipseData& p) const
 {
@@ -136,6 +216,8 @@ inline bool EllipseData::operator < (const EllipseData& p) const
     return false; //they are equal
 }
 
+/** Translate from chart space to a space, where the ellipse is a non-tilted unit circle.
+ */
 inline XY EllipseData::conv_to_real_space(const XY &p) const
 {
     if (!tilted)
@@ -145,6 +227,8 @@ inline XY EllipseData::conv_to_real_space(const XY &p) const
            radius1 * p.x * sintilt + radius2 * p.y * costilt);
 }
 
+/** Translate from space, where the ellipse is a non-tilted unit circle back to chart space.
+ */
 inline XY EllipseData::conv_to_circle_space(const XY &p) const
 {
     if (!tilted)
@@ -153,6 +237,12 @@ inline XY EllipseData::conv_to_circle_space(const XY &p) const
               (-(p.x-center.x)*sintilt + (p.y-center.y)*costilt)/radius2);
 }
 
+/** Finds the radian value for a point on the circumference of the unit circle.
+ *
+ * If the point is not on the circumference, then we take the intersection
+ * of the unit circle and a line between the center of the ellipse and `p`.
+ * If `p` is at the center of the ellipse, we throw a divide by zero exception.
+ */
 inline double circle_space_point2radian_curvy(XY p)
 {
     double r = asin(p.y/p.length()); //calc angle normalized to 1
@@ -162,21 +252,26 @@ inline double circle_space_point2radian_curvy(XY p)
     return r;
 }
 
-//returns the radian
+/** Finds the radian value for a point on the circumference of the ellipse.
+ *
+ * If the point is not on the circumference, then we take the intersection
+ * of the ellipse and a line between the center of the ellipse and `p`.
+ * If `p` is at the center of the ellipse, we throw a divide by zero exception.
+ */
 inline double EllipseData::Point2Radian(const XY &p) const
 {
     XY q = conv_to_circle_space(p);
     const double d = q.length();
     const double r = circle_space_point2radian_curvy(q/d);
     return r;
-    //if (inout) {
-    //	if (test_smaller(d,1)) *inout = WI_INSIDE;
-    //	else if (test_smaller(1,d)) *inout = WI_OUTSIDE;
-    //	else if (test_equal(r,s) || test_equal(r,e)) *inout = WI_ON_VERTEX;
-    //	else *inout = WI_ON_EDGE;
-    //}
 }
 
+/** Calculate the length of the Circumference between two radians `from` and `to`.
+ *
+ * Note that if `from` is larger than `to`, we calculate for a wrapped section.
+ * That is the result will be the same as the total length of the circumference of
+ * the full ellipse minus `SectorCircumference(to, from)`.
+ */
 inline double EllipseData::SectorCircumference(double from, double to) const
 {
     if (radius1 == radius2) return fmod_negative_safe(to-from, 2*M_PI)*radius1;
@@ -187,6 +282,8 @@ inline double EllipseData::SectorCircumference(double from, double to) const
 }
 
 
+/** Transform a cairo context, so that this ellipse becomes the unit circle
+ */
 inline void EllipseData::TransformForDrawing(cairo_t *cr) const
 {
     cairo_translate(cr, center.x, center.y);
@@ -195,42 +292,19 @@ inline void EllipseData::TransformForDrawing(cairo_t *cr) const
     cairo_scale(cr, radius1, radius2);
 }
 
-inline bool between01(double r)
-{
-    return r>=0 && r<=1;
-}
 
-inline bool between01_approximate_inclusive(double r)
-{
-    return !(test_smaller(r, 0) || test_smaller(1, r));
-}
-
-inline bool between01_adjust(double &n)
-{
-	if (!test_smaller(n,1) || test_smaller(n,0)) //if n>1 or n~=1 or n<<0
-		return false;
-	if (!test_smaller(0,n)) n=0; //if n~=0;
-	return true;
-}
-
-inline double deg2rad(double degree)
-{
-	return fmod_negative_safe(degree, 360.)*(M_PI/180);
-}
-
-inline double rad2deg(double degree)
-{
-	return fmod_negative_safe(degree, 2*M_PI)*(180/M_PI);
-}
-
-typedef enum {LINE_CROSSING_PARALLEL, LINE_CROSSING_INSIDE, LINE_CROSSING_OUTSIDE} ELineCrossingType;
-
-ELineCrossingType crossing_line_line(const XY &A, const XY &B, const XY &M, const XY &N,  XY &r);
-double point2pos_straight(const XY &M, const XY&N, const XY &p);
-
-
-//finds the radian of the extreme just after or before "rad"
-//if "rad" is exactly on an extreme, we return another one
+/** Finds the radian of the extreme close to the radian `rad`.
+ *
+ * A specialty of this helper function is that if `rad` is exactly
+ * on an extreme (well, within SMALL_NUM), we return another extreme,
+ * not the one `rad` is on.
+ *
+ * @param [in] rad The radian we start from
+ * @param [in] after If true we return an extreme clockwise from `rad`, else counterclockwise
+ * @param [out] p We return the coordinates of the extreme here.
+ * @returns The radian of the extreme.
+ *
+ */
 inline double EllipseData::FindExtreme(double rad, bool after, XY &p) const
 {
     double maxdiff = MaxVal(maxdiff);

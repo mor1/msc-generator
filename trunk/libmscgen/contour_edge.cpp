@@ -17,6 +17,11 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/** @file contour_edge.cpp Defines Edge.
+ * @ingroup contour_files
+ */
+
+
 #include <cassert>
 #include <vector>
 #include <algorithm>
@@ -26,12 +31,9 @@ namespace contour {
 
 //////////////////Helper functions
 
-//returns -1 if a==b
-//returns -2 if a==c
-//returns -3 if b==c
-//returns -4 if a==b==c
-//returns 0 if a, b and c are on the same line
-//returns 1 if a->b->c is clockwise, 2 otherwise
+/** Returns the relation of the three points `a`, `b`, `c`.
+ * @ingroup contour_internal
+ */
 triangle_dir_t triangle_dir(XY a, XY b, XY c)
 {
     if (a == b) return b==c ? ALL_EQUAL : A_EQUAL_B;
@@ -51,8 +53,23 @@ triangle_dir_t triangle_dir(XY a, XY b, XY c)
     }
 }
 
-//returns a value [0..4) that is representative of clockwise angle: bigger angle->bigger value, but not linear
-//-1 is error
+/** Returns the *fake angle* of the `base`->`A` and the `base`->`B` segments.
+ * @ingroup contour_internal
+ *
+ * In order to save computation we do not use the angles in radian
+ * merely its sine, since we only do comparison with these values, no summation
+ * or other arithmetics. We call this *fake angle*.
+ * Values between [0..1] thus correspond to radians [0..PI/2], values
+ * between [1..2] to radians [PI/2..PI], etc.
+ *
+ * We return an angle that follows clockwise and can be larger than 180 degrees.
+ * So if `B` is just a bit cunterclockwise from `A`, we get a value close to 360
+ * degree (that is the fake value 4).
+ * @param base The base of the angle.
+ * @param A one end
+ * @param B the other end.
+ * @returns The fake angle from 'A' to 'B'. -1 on error (degenerate cases)
+ */
 double angle(XY base, XY A, XY B)
 {
     bool clockwise;
@@ -102,7 +119,13 @@ Edge::Edge(const XY &c, double radius_x, double radius_y, double tilt_deg, doubl
     CalculateBoundingBox();
 }
 
-
+/** Return the distance of a point from the edge.
+ *
+ * @param [in] p The distance is from this point.
+ * @param [out] point A point on the edge closes to `p`.
+ * @param [out] pos The pos value [0..1] corresponding to `point`.
+ * @returns The distance.
+ */
 double Edge::Distance(const XY &p, XY &point, double &pos) const
 {
     if (type==STRAIGHT) {
@@ -164,7 +187,8 @@ double Edge::Distance(const XY &p, XY &point, double &pos) const
         {point = end; pos = 1; return end.Distance(p);}
 }
 
-//This one assumes an empty "ret", which gets filled in, with a nonnegative value
+/** Calculates the distance to another edge
+ */
 DistanceType Edge::Distance(const Edge &o) const
 {
     DistanceType ret;
@@ -340,7 +364,12 @@ end_is_closer:
 }
 
 
-
+/** Roatates edge around the origin. 
+ *
+ * @param [in] cos The (pre-computed) cosine of `radian`.
+ * @param [in] sin The (pre-computed) sine of `radian`.
+ * @param [in] radian The amount to rotate (positive if clockwise).
+ */
 void Edge::Rotate(double cos, double sin, double radian)
 {
     start.Rotate(cos, sin);
@@ -356,6 +385,13 @@ void Edge::Rotate(double cos, double sin, double radian)
     _ASSERT(IsSane());
 }
 
+/** Roatates ellipse around the `c`.
+ *
+ * @param [in] c The point to rotate around.
+ * @param [in] cos The (pre-computed) cosine of `radian`.
+ * @param [in] sin The (pre-computed) sine of `radian`.
+ * @param [in] radian The amount to rotate (positive if clockwise).
+ */
 void Edge::RotateAround(const XY&c, double cos, double sin, double radian)
 {
     start.RotateAround(c, cos, sin);
@@ -371,6 +407,8 @@ void Edge::RotateAround(const XY&c, double cos, double sin, double radian)
     _ASSERT(IsSane());
 }
 
+/** Transposes the edge: swaps x & y coordinates of all its points.
+ */
 void Edge::SwapXY()
 {
     start.SwapXY();
@@ -388,10 +426,18 @@ void Edge::SwapXY()
     }
 }
 
-
-//This must ensure that we do not return pos values that are very close to 0 or 1
-//such values are to be rounded to 0 or 1 and in that case exatly the endpoint of the arc
-//shall be returned
+/** Calculates the crosspoints with another edge.
+ * 
+ * This must ensure that we do not return pos values that are very close to 0 or 1
+ * such values are to be rounded to 0 or 1 and in that case exatly the endpoint of the arc
+ * shall be returned.
+ *
+ * @param [in] o The other edge.
+ * @param [out] r The crosspoins.
+ * @param [out] pos_my The pos values of the corresponding crosspoints on me.
+ * @param [out] pos_other The pos values of the corresponding crosspoints on the other edge.
+ * @returns The number of crosspoins found [0..4].
+ */
 unsigned Edge::Crossing(const Edge &o, XY r[], double pos_my[], double pos_other[]) const
 {
     //First check bounding boxes
@@ -684,13 +730,20 @@ inline bool test_arc_end(const XY &a, double x, double y)
     return a.x==x && test_equal(a.y, y);
 }
 
-//Where does an edge or arc corss a vertical line? (for the purposes of SimpleContour::IsWithin)
-//1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
-//2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
-//in short: we include the endpoint with the larger x coordinate
-//returns 0 if no crossing, 1/2 if there are crosspoints and -1 if it is a vertical line.
-//in forward we return true if the line at x is crossed from left to right (so inside of contour
-//is below y).
+/** Calculates where an edge crosses a vertical line.
+ *
+ * This is done for the purposes of SimpleContour::IsWithin.
+ * Certain rules apply to the case when the vertical line crosses one of the ends of the edge.
+ * 1. a leftward edge includes its starting endpoint, and excludes its final endpoint;
+ * 2. a rightward edge excludes its starting endpoint, and includes its final endpoint;
+ * In short: we include the endpoint with the larger x coordinate only.
+ * @param [in] x The x coordinate of the vertical line.
+ * @param [out] y The y coordinates of the crosspoints.
+ * @param [out] pos The pos values for the respective crosspoints [0..1]
+ * @param [out] forward True for a crosspoint if the line at x is crossed from left to right 
+ *              (so inside of contour is below y).
+ * @returns The number of crosspoints, or -1 if edhe is a vertical line exacty on x.
+ */
 int Edge::CrossingVertical(double x, double y[], double pos[], bool forward[]) const
 {
     if (type==STRAIGHT) {
@@ -774,10 +827,16 @@ int Edge::CrossingVertical(double x, double y[], double pos[], bool forward[]) c
 
 
 
-//Path a dashed/dotted line
-//We also assume cairo dash is set to continuous: we fake dash here
-//The pattern contains lengths of alternating on/off segments, num contains the number of elements in pattern
-//pos shows which pattern element we shall start at, offset shows at which point. We return updated versions of these
+/** Put a dashed/dotted path into a cairo context. Needed for backends not supporting dashed lines.
+ *
+ * We also assume cairo dash is set to continuous: we fake dash here.
+ * @param [in] cr The cairo context.
+ * @param [in] pattern Contains lengths of alternating on/off segments.
+ * @param [in] num contains the number of elements in pattern.
+ * @param pos Shows which pattern element we shall start at (updated on return).
+ * @param offset Shows at which point we shall start at within the segment selected by `pos` (updated on return).
+ * @param reverse If true the path is drawn from `end` to `start`.
+ */
 void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &pos, double &offset, bool reverse) const
 {
     _ASSERT(num);
@@ -890,6 +949,7 @@ void Edge::PathDashed(cairo_t *cr, const double pattern[], unsigned num, int &po
 
 ///////////////////////////////////////////////////////////////////////////////////
 
+/** Equality test for curvy edges */
 bool Edge::equal_curvy(const Edge& o) const
 {
     _ASSERT(type != STRAIGHT);
@@ -900,6 +960,7 @@ bool Edge::equal_curvy(const Edge& o) const
     return true;
 }
 
+/** Comparison for curvy edges */
 bool Edge::smaller_curvy(const Edge& o) const
 {
     if (s!=o.s) return s<o.s;
@@ -911,7 +972,7 @@ bool Edge::smaller_curvy(const Edge& o) const
 }
 
 
-//calculates bb
+/** Calculates bounding box for curvy edges */
 void Edge::calcbb_curvy()
 {
     //boundingBox.MakeInvalid(); already invalidated in CalculateBoundingBox()
@@ -931,7 +992,7 @@ void Edge::calcbb_curvy()
     }
 }
 
-//assumes cairo position is at start
+/** Draws cairo arc for curvy edges */
 void Edge::pathto_curvy(cairo_t *cr) const
 {
     cairo_save(cr);
@@ -947,7 +1008,7 @@ void Edge::pathto_curvy(cairo_t *cr) const
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-//helper for curvy or tilted
+/** Return true if the point represented by radian `r` is on the arc (between `s` and `e`). */
 bool Edge::radianbetween(double r) const
 {
     _ASSERT(type!=STRAIGHT);
@@ -962,7 +1023,7 @@ bool Edge::radianbetween(double r) const
     }
 }
 
-//convert from pos [0..1] to actual radian. Guaranteed between [0..2pi)
+/** Convert from pos [0..1] to actual radian. Guaranteed between [0..2pi) */
 double Edge::pos2radian(double r) const
 {
     if (test_zero(r)) return s;
@@ -989,7 +1050,7 @@ double Edge::pos2radian(double r) const
     return ret;
 }
 
-//can return outside [0..1] if point is not between s and e
+/** Convert from radian to the pos value. Can return outside [0..1] if point is not between `s` and `e`. */
 double Edge::radian2pos(double r) const
 {
     _ASSERT(type!=STRAIGHT);
@@ -1014,24 +1075,6 @@ double Edge::radian2pos(double r) const
     return (s-r)/(s-e+2*M_PI);
 }
 
-//Here is how area calculation works
-// for straight edges
-// ==========> =========>    (Since in contour we treat y coordinates as
-//  +++++        ------      growing downwards, we call these functions
-//  __+++        ------      "xxAreaAbove", meaning the area between edge & X axis.)
-//  |\+++        \-----      The dotted area is the area above an edge.
-//    \++         \ ---      It is counted as positive in the first example;
-//     \+          \---      and negative in the second. If we sum all such
-//      \           \--      areas, we get the area of the contour (positive for
-//                  _\|      clockwise and negative for counterclockwise, as it
-//                           should be.
-// Now, the formula for the above for an edge (X1,Y1)->(X2,Y2) is
-// AreaAbove = (X1-X2)*(Y1+Y2)/2 = (X1*Y1 - X2*Y2)/2 + (X1*Y2 - X2*Y1)/2
-// If we sum this for all edges of a connected contour the first term will
-// cancel out. Thus in the edge::xxAreaAboveAdjusted functions we return
-// the second term only (twice 2), thus we return
-// AreaAbove*2 - (X1*Y1 - X2*Y2).
-// In the below we return it for curvy edges.
 
 double Edge::getAreaAboveAdjusted_curvy() const
 {
@@ -1062,6 +1105,7 @@ double Edge::getAreaAboveAdjusted_curvy() const
            - (end.x - start.x)*ell.GetCenter().y + (end.y-start.y)*ell.GetCenter().x;
 }
 
+/** Returns true if the edge is OK */
 bool Edge::IsSane() const
 {
     if (!IsSaneNoBoundingBox()) return false;
@@ -1070,6 +1114,7 @@ bool Edge::IsSane() const
     return true;
 }
 
+/** Returns if the edge is OK, not considering the value in `boundinBox`. */
 bool Edge::IsSaneNoBoundingBox() const
 {
     if (type == ARC)
@@ -1082,13 +1127,7 @@ bool Edge::IsSaneNoBoundingBox() const
 }
 
 
-
-//In angle1 return the angle (in false angles in [0..4]) of a tangent to this edge at pos
-//depending on incoming or outgoing.
-//For curvy edges angle2 will be set according to which direction the curve goes
-//and how wide the arc is.
-//These two values will be used to order rays in a crosspoint
-//p and pos must agree
+/** Helper for Angle() for curvy edges */
 RayAngle Edge::angle_curvy(bool incoming, const XY &p, double pos) const
 {
     _ASSERT(!incoming || (pos!=0));
@@ -1110,7 +1149,7 @@ RayAngle Edge::angle_curvy(bool incoming, const XY &p, double pos) const
     return ret;
 };
 
-//the radian difference between two radians
+/** Helper: The radian difference between two radians */
 inline double radian_diff_abs(double a, double b)
 {
     _ASSERT(std::min(fabs(a-b), fabs(a>b ? 2*M_PI-(a-b) : 2*M_PI-(b-a)))<2*M_PI);
@@ -1118,8 +1157,8 @@ inline double radian_diff_abs(double a, double b)
 }
 
 
-//pos lists a series of pos values. We find the one that is closest to
-//"rad", which is in radians. We return the radian.
+/** Helper: `pos` lists a series of pos values. We find the one that is closest to
+ * `rad`, which is in radians. We return the radian. */
 double Edge::FindRadianOfClosestPos(unsigned num, double pos[], double rad)
 {
     _ASSERT(type!=STRAIGHT);
@@ -1135,8 +1174,8 @@ double Edge::FindRadianOfClosestPos(unsigned num, double pos[], double rad)
     return ret;
 }
 
-//flip clockwise if new_s and new_e would be an arc of opposite dir
-//ret true if we did so
+/** Helper: Flip `clockwise` if `new_s` and `new_e` would be an arc of opposite 
+ * clockwisedness. Return true if we did so. */
 bool Edge::UpdateClockWise(double new_s, double new_e)
 {
     //check which is the smallest diff: s<->new_s plus e<->new_e or the other
@@ -1147,7 +1186,7 @@ bool Edge::UpdateClockWise(double new_s, double new_e)
     return true;
 }
 
-
+/** Helper for SwapXY */
 void Edge::SwapXYcurvy()
 {
     _ASSERT(type!=STRAIGHT);
@@ -1163,7 +1202,7 @@ void Edge::SwapXYcurvy()
 };
 
 
-
+/** Return the radian at the middle of the arc */
 double Edge::GetRadianMidPoint() const
 {
     _ASSERT(type!=STRAIGHT);
@@ -1173,6 +1212,7 @@ double Edge::GetRadianMidPoint() const
     return fmod_negative_safe((s+e)/2+M_PI, 2*M_PI);
 }
 
+/** Return the point on the edge corresponding to `pos`. */
 XY Edge::Pos2Point(double pos) const
 {
     _ASSERT(pos>=-0 && pos<=1);
@@ -1190,7 +1230,7 @@ XY Edge::Pos2Point(double pos) const
 
 
 
-//Removes the part of the edge or curve before point p. Assumes p lies on us.
+/** Removes the part of the edge before point `p`. Assumes p lies on us. */
 Edge& Edge::SetStartStrict(const XY &p, double pos, bool keep_full_circle)
 {
     start = p;
@@ -1210,9 +1250,11 @@ Edge& Edge::SetStartStrict(const XY &p, double pos, bool keep_full_circle)
     return *this;
 }
 
-//Removes the part of the edge or curve before point p. Does not assumes p lies on us,
-//this can be used to extend an edge
-//We do not check if an arc wraps or not!!!
+/** Removes the part of the edge before point p. Does not assumes p lies on us.
+ *
+ * This can be used to extend an edge.
+ * We do not check if an arc wraps or not!!!
+ */
 Edge& Edge::SetStartLiberal(const XY &p, bool keep_full_circle)
 {
     start = p;
@@ -1231,8 +1273,8 @@ Edge& Edge::SetStartLiberal(const XY &p, bool keep_full_circle)
 }
 
 
-//Checks if this edge and "next" can be combined into a single edge
-//if so, also update "this" to be the combined edge & return true
+/** Checks if this edge and `next` can be combined into a single edge.
+ * If so, also update "this" to be the combined edge & return true. */
 bool Edge::CheckAndCombine(const Edge &next)
 {
     //if next is a degenerate (zero length) arc, we just skip that
@@ -1300,8 +1342,14 @@ XY Edge::getcentroidareaaboveupscaled_curvy() const
     return ret;
 }
 
-//return false if curvy edge disappears
-//Destroys bounding box!!!
+/** Expands the edge.
+ * 
+ * This takes the direction of the edge to determine the 'outside' side of the 
+ * edge to expand towards (or away from in case of a negative `gap`).
+ * Destroys bounding box!
+ * @param [in] gap The amount to expand (or shrink if <0)
+ * @returns False if a curvy edge degenerates to a line or disappears due to shrinkage.
+ */
 bool Edge::Expand(double gap)
 {
 	if (type!=STRAIGHT) {
@@ -1338,8 +1386,8 @@ bool Edge::Expand(double gap)
     return true;
 }
 
-//distance of two radians between -pi and +pi
-//true that diff+b == a(+-2pi)
+/** Helper: Fistance of two radians between -pi and +pi.
+ * true that diff+b == a(+-2pi) */
 double rad_dist(double a, double b)
 {
     _ASSERT(a>=0 && a<=2*M_PI && b>=0 && b<=2*M_PI);
@@ -1348,9 +1396,16 @@ double rad_dist(double a, double b)
     return a-b;
 }
 
-//p is the original radian of the crosspoint, r are the radians of the cps of the expanded edges
-//We find among the r values the one that is closes (in circle distance) to p
-//In case of a tie, we pick the larger "larger" is ture
+/** Helper: Find closest point to a radian after expansion.
+ *
+ * We find among the 'r' values the one that is closest (in circle distance) to `p`
+ * 
+ * @param [in] r The radians of the crosspointss of the expanded edges.
+ * @param [in] num The number of crosspoints in `r`.
+ * @param [in] p The original radian of the crosspoint.
+ * @param [in] larger If true then in case of a tie, we pick the larger radian value.
+ * @return The index of the crosspoint picked.
+ */
 int find_closest(int num, const double r[], double p, bool larger)
 {
     if (num==0) return -1;
@@ -1367,23 +1422,32 @@ int find_closest(int num, const double r[], double p, bool larger)
 	return pos;
 }
 
-//"this" and "M" are two expanded edges
-//"oldcp" is their old intersection point, before expansion
-//in "newcp" we return their new crosspoint
-//The whole logic of this function assumes EXPAND_MITER, but this is called for all types of
-//expansions to see how two edges relate.
-//return value is
-//DEGENERATE: One of the edges have start==end
-//  "newcp" is undefined on return
-//SAME_ELLIPSIS: two arc of the same ellipses (no cp returned, radians not checked)
-//  "newcp" is undefined on return
-//CP_REAL: The two edges actually cross (between "start" and "end")
-//CP_EXTENDED: The two edges do not meet but their extension does
-//NO_CP_CONVERGE: Not even the extension of the two edges meet, but a linear extrapolation does
-//  "newcp" is the convergence point: can be reached by adding linear segments
-//NO_CP_PARALLEL: Either the two edges are parallel or their linear extrapolation
-//  "newcp" is a calculated convergence point: can be reached by adding linear segments
-
+/** Find the new crosspoint of two originally neighbouring expanded edges.
+ *
+ * `this` and `M` are two expanded edges.
+ * The whole logic of this function assumes EXPAND_MITER, but this is called for all types of
+ * expansions to see how two edges relate.
+ * return value is
+ * DEGENERATE: One of the edges have start==end
+ *  (`newcp` is undefined on return)
+ * SAME_ELLIPSIS: the two edges are two arc of the same ellipses 
+ *  (`newcp` is undefined on return)
+ * CP_REAL: The two edges actually cross (between "start" and "end")
+ *  (we return their crosspoint in `newcp`)
+ * CP_EXTENDED: The two edges do not meet but their extension does. Here extension means
+ * the continuation of the curve for curvy edges.
+ *  (we return their crosspoint in `newcp`)
+ * NO_CP_CONVERGE: Not even the extension of the two edges meet, but a linear extension does.
+ * This can happen if one (or both) is curvy and appending a tangent to the edge do cross the other
+ * edge, but the continuation of the curve does not.
+ *   (`newcp` is the convergence point: can be reached by adding linear segments)
+ * NO_CP_PARALLEL: Either the two edges are parallel or their linear extension is such.
+ *   (`newcp` is a calculated convergence point: can be reached by adding linear segments)
+ *
+ * @param [in] M The other expanded edge.
+ * @param [out] newcp Returns their new crosspoint.
+ * @returns The relation of the two expanded edges.
+ */
 Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
 {
     if (start.test_equal(end) || M.start.test_equal(M.end)) return DEGENERATE;
@@ -1469,7 +1533,10 @@ Edge::EExpandCPType Edge::FindExpandedEdgesCP(const Edge&M, XY &newcp) const
     }
 }
 
-
+/** Expand helper: Set the startpoint and endpoint to 'S' and 'E' 
+ *
+ * We assume S and E are on the edge (or an extension)
+ */
 void Edge::SetStartEndForExpand(const XY &S, const XY &E)
 {
     double new_s, new_e;
@@ -1507,6 +1574,7 @@ void Edge::SetStartEndForExpand(const XY &S, const XY &E)
     end = E;
 }
 
+/** Expand helper: Check if `S`->`E` is an opposite direction arc than us now. */
 bool Edge::IsOpposite(const XY &S, const XY &E) const
 {
 	if (start.test_equal(end)) return false;
@@ -1523,6 +1591,7 @@ bool Edge::IsOpposite(const XY &S, const XY &E) const
            radian_diff_abs(e, new_s) + radian_diff_abs(s, new_e);
 }
 
+/** Helper for CreateExpand2D for curvy edges */
 void Edge::CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype, int &etype) const
 {
     _ASSERT(type!=STRAIGHT);
@@ -1576,95 +1645,17 @@ void Edge::CreateExpand2DCurvy(const XY &gap, std::vector<Edge> &ret, int &stype
 }
 
 
-//int Edge::CombineExpandedEdges(Edge&M, EExpandType et, const XY &old, Edge &res)
-//{
-//    XY cp;
-//    if (M.type == STRAIGHT) {
-//        if (type == STRAIGHT) {
-//            if (!crossing_line_line(start, end, M.start, M.end, cp))
-//                return -1;
-//        } else {
-//            XY r[8];
-//            double radian_us[8], pos_M[8];
-//            int num = ell.CrossingStraight(M.start, M.end, r, radian_us, pos_M);
-//            int pos = find_closest(num, radian_us, e, !clockwise_arc);
-//            if (pos==-1) return -1;
-//            cp = r[pos];
-//        }
-//    } else {
-//        XY r[8];
-//        double radian_us[8], radian_M[8];
-//        int num;
-//        if (type == STRAIGHT)
-//            num = M.ell.CrossingStraight(start, end, r, radian_M, radian_us);
-//        else {
-//            if (ell == M.ell) return false; //we combine two segments of the same ellipse - all must be OK
-//            num = ell.CrossingEllipse(M.ell, r, radian_us, radian_M);
-//        }
-//        int pos = find_closest(num, radian_M, M.s, M.clockwise_arc);
-//        //arc does not intersect with a straight edge: add line
-//        if (pos == -1) return -1;
-//        cp = r[pos];
-//        _ASSERT(cp.x>-1000000 && cp.x<10000000);
-//    }
-//
-//    //We get here if the two edges join "normally"
-//    //"cp" contains their crosspoint
-//    switch (et) {
-//    default:
-//        _ASSERT(0);
-//    case EXPAND_MITER:
-//        SetEndLiberal(cp);
-//        M.SetStartLiberal(cp);
-//        return false;
-//    case EXPAND_BEVEL:
-//        res.type = STRAIGHT;
-//        res.start = end;
-//        res.end = M.start;
-//        return true;
-//    case EXPAND_ROUND:
-//        _ASSERT(test_equal((old-end).length(), (old-M.start).length()));
-//        res = Edge(old, (old-end).length()); //full circle
-//        res.SetStartLiberal(end);
-//        res.SetEndLiberal(M.start);
-//        return true;
-//    }
-//}
-
-
+/** Helper: Radian `r` is between `s` and `e`? */
 inline bool radbw(double r, double s, double e)
 {
 	if (s<e) return s<=r && r<=e;
     else return r>=s || r<=e;
 }
 
-//M is the same edge as *this (straight & ell) with different start and endpoints
-//(so if *this is straight then "this" is parallel to "M")
-//return 0 if start->end lies in the same direction on as M.start->M.end
-//return 1, if they lie in the opposite dir or if start~~end
-//return 2, if *this is a circle, the direction has changed,
-//   but the M curve span more than 180 degrees
-//int Edge::IsOppositeDir(const Edge &M) const
-//{
-//	if (start.test_equal(end)) return 1;
-//	if (type==STRAIGHT) {
-//		if (fabs(start.x-end.x) > fabs(start.y-end.y))
-//			return (start.x<end.x) != (M.start.x<M.end.x);
-//		else
-//			return (start.y<end.y) != (M.start.y<M.end.y);
-//	}
-//    //exception: if any is exactly 180 degrees, we return same direction
-//    if (fabs(s-e) == M_PI || fabs(M.s-M.e) == M_PI) return 0;
-//	const bool dir_us = (e>s && (e-s)<M_PI) || (s>e && (s-e)>=M_PI);
-//	const bool dir_M = (M.e>M.s && (M.e-M.s)<M_PI) || (M.s>M.e && (M.s-M.e)>=M_PI);
-//    if (dir_us == dir_M) return 0;
-//	//OK, dir has changed on a curyv edge
-//	//Now see, if the original s->e was more than 180 degrees
-//	return M.GetSpan()>M_PI ? 2 : 1;
-//}
-//
+/** Defines how long segments we break an arc to when testing OffsetBelow */
 #define CURVY_OFFSET_BELOW_GRANULARIRY 5
 
+/** Helper to OffsetBelow for curvy edges */
 double Edge::offsetbelow_curvy_straight(const Edge &M, bool straight_is_up, double &touchpoint) const
 {
     _ASSERT(type!=STRAIGHT);
@@ -1699,8 +1690,18 @@ double Edge::offsetbelow_curvy_straight(const Edge &M, bool straight_is_up, doub
     return ret;
 }
 
-//both must be curvy edges
-//"this" is higher than o
+/** Determine the relative vertical position of two edges. 
+ *
+ * Assuming we are higher than `o` (lower y coordinates), how much can `o`
+ * be shifted upwards before it collides with us.
+ * If `o` and us do not share any poins with the same x coordinate, CONTOUR_INFINITY is returned
+ * (`o` can pass infinitely up besides us without collision).
+ * If `o` and us share such points, but `o` is above us, we return a negative value, since
+ * `o` needs to be pulled down to be below us. This is normal operation.
+ * @param [in] o The other edge below us.
+ * @param [out] touchpoint After moving `o` up, we return the point on us where we touched.
+ * @return How much `o` was moved up before it hit us. Negative if `o` must be moved down to be below us.
+ */
 double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
 {
     if (o.GetType() == STRAIGHT) {
@@ -1765,8 +1766,18 @@ double Edge::OffsetBelow(const Edge &o, double &touchpoint) const
 }
 
 
-//here we merge to clockwise and counterclockwise
-//directions are viewed from "this" toward "o"
+/** Calculates the touchpoint of tangents drawn to touch two edges.
+ * 
+ * Given the two edges, four such tangents can be drawn, here we focus on the two 
+ * outer ones, the ones that touch either both edges from above or both from below,
+ * but not mixed.
+ * @param [in] o The other edge.
+ * @param [out] clockwise The points where the clockwise tangent touches us
+ *                        (clockwise[0]) and `from` (clockwise[1]).
+ * @param [out] cclockwise The points where the counterclockwise tangent touches us
+ *                         (cclockwise[0]) and `from` (cclockwise[1]).
+ * @returns True if success, false if `o` is inside us.
+ */
 bool Edge::TangentFrom(const Edge &o, XY clockwise[2], XY cclockwise[2]) const
 {
     XY c, cc;

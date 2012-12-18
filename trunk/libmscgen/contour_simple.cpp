@@ -16,6 +16,11 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+/** @file contour_simple.cpp Defines SimpleContour.
+ * @ingroup contour_files
+ */
+
 #include <cassert>
 #include <algorithm>
 #include <map>
@@ -46,14 +51,25 @@ SimpleContour::SimpleContour(XY a, XY b, XY c)
         break;
     }
     boundingBox.MakeInvalid();
-    for (size_type i=0; i<size(); i++)
+    for (size_t i=0; i<size(); i++)
         boundingBox += at(i).GetBoundingBox();
     clockwise = true;
     area_cache.first=false;
 }
 
+/** Create an ellipse (or ellipse slice) shape.
+ *
+ * @param [in] c Centerpoint
+ * @param [in] radius_x Radius in the x direction. Its absolute value is used.
+ * @param [in] radius_y Radius in the y direction (same as `radius_x` if omitted = circle) Its absolute value is used.
+ * @param [in] tilt_deg The tilt of the ellipse in degrees. 0 if omitted.
+ * @param [in] s_deg The startpoint of the arc.
+ * @param [in] d_deg The endpoint of the arc. If equal to `s_deg` a full ellipse results, else a straight line is added to close the arc.
+ * If `radius_x` is zero, we return an empty shape. If `radius_y` is zero, we assume it to be the same as `radius_x` (circle).
+*/
 SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, double tilt_deg, double s_deg, double d_deg)
 {
+    if (radius_x==0) return;
     clockwise = true;
     if (radius_y==0) radius_y = radius_x;
     Edge edge(c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
@@ -65,6 +81,7 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
     edges.rbegin()->visible = false;
 }
 
+/** Clear the shape and assign a rectangle shape. */
 SimpleContour &SimpleContour::operator =(const Block &b)
 {
     clear();
@@ -80,21 +97,27 @@ SimpleContour &SimpleContour::operator =(const Block &b)
     return *this;
 }
 
+/** Revert the clockwisedness of the shape by reverting, all edges and their order. */
 void SimpleContour::Invert()
 {
-    for (size_type i=0; i<size(); i++)
+    for (size_t i=0; i<size(); i++)
         at(i).Invert();
-    for (size_type i=0; i<size()/2; i++)
+    for (size_t i=0; i<size()/2; i++)
         std::swap(at(i), at(size()-1-i));
     clockwise = !clockwise;
     area_cache.second = -area_cache.second;
 }
 
-//in p* return the number of vertex or edge we have fallen on if result is such
-//if strict is false, any point that is even _close_ to an edge will snap to the edge
-//for counterclockwise contours, 'inside' is mean to be the limited space enclosed by
-//the contour
-is_within_t SimpleContour::IsWithin(XY p, size_type *edge, double *pos, bool strict) const
+/** Calculate the relation of a point and the shape.
+ *
+ * @param [in] p The point in question.
+ * @param [out] edge If not NULL it can receive the number of the edge if `p` lies on an edge/vertex.
+ * @param [out] pos If not NULL it can receive the position of `p` on the edge if `p` lies on one.
+ * @param [in] strict If false, points close to edges will be reported as on the edge.
+ * @returns The relation. Note that for counerclockwise 'inside' is the same as if the
+            contour were clockwise, that is in the limited space enclosed.
+ */
+is_within_t SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool strict) const
 {
     if (size()==0 || boundingBox.IsWithin(p)==WI_OUTSIDE) return WI_OUTSIDE;
 
@@ -106,8 +129,8 @@ is_within_t SimpleContour::IsWithin(XY p, size_type *edge, double *pos, bool str
     //3. vertical edges are excluded; and
     //4. the edge-ray intersection point must be strictly below of the point P.
     //4b: since we say containment also for edge points, if the egde goes through p, we stop
-    size_type count = 0;
-    size_type e;
+    size_t count = 0;
+    size_t e;
     for (e = 0; e<size(); e++) {
         if (edge) *edge = e;      //return value
         if (at(e).GetStart().test_equal(p)) return WI_ON_VERTEX;
@@ -174,14 +197,14 @@ inline bool really_between04_warp (double q, double a, double b)
     return test_smaller(a,q) || test_smaller(q,b);
 }
 
-//Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A
+//Can result SAME, APRT, A_INSIDE_B or B_INSIDE_A.
 //It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
 //clockwiseness is ignored: the inside of a counterclockwise contour is the limited space
 //it encircles.
 relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 {
-    size_type edge;
-    for (size_type i=0; i<size(); i++) {
+    size_t edge;
+    for (size_t i=0; i<size(); i++) {
         double pos;
         const XY p = at(i).GetStart();
         //if we are a single ellipsis, use our center point, else use a vertex
@@ -219,8 +242,12 @@ relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 }
 
 
-//Gives valid result only if the two contours have no crosspoints
-//clockwiseness fully ignored: inside of cclwise contours is the limited space it encloses
+/** Determines the relation of two simplecontours assuming none of their edges cross.
+ *
+ * Gives valid result only if the two contours have no crosspoints.
+ * Clockwiseness fully ignored: the inside of counterclockwise contours is the 
+ * limited space they encloses.
+ */
 relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
 {
     //special case of two full ellipses touching - not caught otherwise
@@ -259,7 +286,7 @@ relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
 //    if (size()>2) {
 //        double angles = 0;
 //        XY prev = PrevTangentPoint(0, 0.0);
-//        for (size_type i=0; i<size(); i++)
+//        for (size_t i=0; i<size(); i++)
 //            switch (at(i).GetType()) {
 //            case Edge::STRAIGHT:
 //				_ASSERT(!at(i).GetStart().test_equal(at_next(i).GetStart()));
@@ -319,6 +346,7 @@ relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
 //    return;
 //}
 
+/** Set the `clockwise` member according to how edges go. */
 void SimpleContour::CalculateClockwise()
 {
     //determine if this is clockwise.
@@ -330,10 +358,15 @@ void SimpleContour::CalculateClockwise()
         clockwise = GetArea()>0;
 }
 
-//Appends an edge.
-//Checks that we do not append a zero long edge
-//Checks if the edge to append is a direct continuation of the last edge
-//WE DO NOT UPDATE area_cache, clockwise, bounding box
+/** Appends an edge and makes checks. Used during walking.
+ *
+ * Appends an edge to the (yet incomplete, not closed) shape.
+ * Checks that we do not append a degenerate (start==end) edge.
+ * Checks if the edge to append is a direct continuation of the last edge, in which case
+ * we merge the two.
+ * WE DO NOT UPDATE `area_cache`, `clockwise`, `boundingBox` and do not ensure 
+ * we leave the shape closed.
+ */
 void SimpleContour::AppendDuringWalk(const Edge &edge)
 {
     _ASSERT(edge.IsSaneNoBoundingBox());
@@ -350,14 +383,18 @@ void SimpleContour::AppendDuringWalk(const Edge &edge)
 };
 
 
-//Clean up the contour after a walk
-//-Check repeated points at the end
-//-Set "e" values for curvy edges
-//-Calculate edge and contour bounding boxes
-//Also, do a lot of sanity checks:
-//-a contour with one edge must be a full ellipse. If it is straight, we clear()
-//-a contour with two edges must have at least one curvy edge, if not, we clear()
-//returns true if contour is OK
+/** Clean up and sanitize the contour after a walk.
+ *
+ * Cleanup consists of
+ * - Check repeated points at the end
+ * - Set `e` values for curvy edges
+ * - Calculate edge and contour bounding boxes
+ *
+ * Also, do a lot of sanity checks:
+ * - a contour with one edge must be a full ellipse. If it is straight, we clear()
+ * - a contour with two edges must have at least one curvy edge, if not, we clear()
+ * returns true if contour is OK.
+ */
 bool SimpleContour::PostWalk()
 {
     boundingBox.MakeInvalid();
@@ -368,7 +405,7 @@ bool SimpleContour::PostWalk()
         edges.pop_back();
 
     //set "end" values. Not known previously
-    for (size_type i=0; i<size(); i++)
+    for (size_t i=0; i<size(); i++)
         at(i).SetEndLiberal(at_next(i).GetStart(), true);
 
     //Also, the beginning point (at(0]) can fall on an edge
@@ -407,16 +444,16 @@ void SimpleContour::assign_dont_check(const std::vector<XY> &v)
 {
     clear();
     if (v.size()<2) return;
-    for (size_type i=0; i<v.size(); i++)
+    for (size_t i=0; i<v.size(); i++)
         edges.push_back(Edge(v[i], v[(i+1)%v.size()]));
     Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
 }
 
-void SimpleContour::assign_dont_check(const XY v[], size_type size)
+void SimpleContour::assign_dont_check(const XY v[], size_t size)
 {
     clear();
     if (size < 2) return;
-    for (size_type i=0; i<size; i++)
+    for (size_t i=0; i<size; i++)
         edges.push_back(Edge(v[i], v[(i+1)%size]));
     Sanitize();  //includes CalculateBoundingBox() and CalculateClockwise()
 }
@@ -429,11 +466,11 @@ void SimpleContour::assign_dont_check(const std::vector<Edge> &v)
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
 
-void SimpleContour::assign_dont_check(const Edge v[], size_type size)
+void SimpleContour::assign_dont_check(const Edge v[], size_t size)
 {
     clear();
     if (size < 2) return;
-    for (size_type i=0; i<size; i++)
+    for (size_t i=0; i<size; i++)
         edges.push_back(v[i]);
     Sanitize();  //includes includes CalculateBoundingBox() and CalculateClockwise()
 }
@@ -443,7 +480,7 @@ bool SimpleContour::IsSane() const
     if (size()==0) return true;
     if (size()==1)
         return at(0).GetType() == Edge::FULL_CIRCLE;
-    for (size_type u=0; u<size(); u++) {
+    for (size_t u=0; u<size(); u++) {
         if (at(u).GetStart().test_equal(at(u).GetEnd()) &&
             at(u).GetType() != Edge::FULL_CIRCLE)
             return false;
@@ -454,8 +491,10 @@ bool SimpleContour::IsSane() const
     return true;
 }
 
-//returns true if we were sane.
-//returns false if changes were needed
+/** Fix problems in a shape (edges not joint, etc).
+ *
+ * @returns true if we were sane, false if changes were needed.
+ */
 bool SimpleContour::Sanitize()
 {
     area_cache.first=false;
@@ -465,7 +504,7 @@ bool SimpleContour::Sanitize()
         if (at(0).GetType() == Edge::FULL_CIRCLE) return true;
         goto clear;
     }
-    for (size_type u=0; u<size(); /*nope*/)
+    for (size_t u=0; u<size(); /*nope*/)
         if (at(u).GetType()!=Edge::FULL_CIRCLE && at(u).GetStart().test_equal(at(u).GetEnd())) {
             edges.erase(edges.begin()+u);
             ret = false;
@@ -482,7 +521,7 @@ bool SimpleContour::Sanitize()
         /*fallthrough*/
     default:
         //ensure that edges connect
-        for (size_type u=0; u<size(); u++)
+        for (size_t u=0; u<size(); u++)
             if (!at(u).GetEnd().test_equal(at_next(u).GetStart()))
                 goto clear;
     }
@@ -494,19 +533,25 @@ clear:
     return false;
 }
 
-
+/** Calculate the boundingBox of edges and the whole shape. */
 const Block &SimpleContour::CalculateBoundingBox()
 {
     boundingBox.MakeInvalid();
-    for(size_type i=0; i<size(); i++)
+    for(size_t i=0; i<size(); i++)
         boundingBox += at(i).CalculateBoundingBox();
     return boundingBox;
 }
 
-//If the edge to insert starts at the last point, we replace the last edge to it.
-//(makes sense if we replace a straight edge to a curve or vice versa)
-//If the last edge is a curve, we anyway replace the edge to be inserted.
-//If we insert a curve, which does not
+/** This takes a sane shape and adds an edge to the end. Leaves a sane shape.
+ *
+ * If the edge to insert starts at the last point, we replace the last edge to it.
+ * (makes sense if we replace a straight edge to a curve or vice versa)
+ * If the last edge is a curve, we anyway replace the edge to be inserted.
+ * If we insert a curve, which does not.
+ * Finally, if the edge does not end at the first vertex, we add a line to close the shape.
+ * @param [in] edge The edge to insert.
+ * @returns true if edge inserted successfully. False if it would have leaved the shape flopped.
+ */
 bool SimpleContour::AddAnEdge(const Edge &edge)
 {
     XY dum1[8];
@@ -521,7 +566,7 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
     }
     //insert edge
     ret.edges.push_back(edge);
-    size_type num_to_check = 1;
+    size_t num_to_check = 1;
     //if edge is curvy and does not end in at(0).start, insert a straight edge afterwards
     if (edge.GetType()!=Edge::STRAIGHT) {
         if (!edge.GetEnd().test_equal(ret[0].GetStart())) {
@@ -535,8 +580,8 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
     //now check if inserted edges cross any of the ones before
     //check if edge->end is crossing any existing edges
     ret.CalculateBoundingBox(); //needed by crossing
-    for (size_type i = 0; i<ret.size()-num_to_check-1; i++)
-        for (size_type j = ret.size()-num_to_check-1; j<ret.size(); j++)
+    for (size_t i = 0; i<ret.size()-num_to_check-1; i++)
+        for (size_t j = ret.size()-num_to_check-1; j<ret.size(); j++)
             if (ret[i].Crossing(ret[j], dum1, dum2, dum2))
                 return false;
     //OK, we can have these edges inserted
@@ -545,41 +590,67 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
     return true;
 }
 
-//This is based on http://www.mathopenref.com/coordpolygonarea.html
-//For each edge, we calculate the area above it (the area between the edge and Y axis,
-//but since y grows downward, the area is "above" the edge).
-//The value is signed. If the edge is from right to left it is positive, else negative.
-//Since (for straight edges) the area would contain "start.x*start.y-end.x*end.y",
-//which will cancel out. Plus it is easier to return twice the area.
-//Thus we request edge to return
-//"2*(area_above_edge - start.x*start.y + end.x*end.y)", this is what
-//Edge::GetAreaAboveAdjusted() returns;
+/** Calculate & cache the surface area of the shape.
+ *
+ * This is based on <http://www.mathopenref.com/coordpolygonarea.html>
+ * For each edge, we calculate the area above it (the area between the edge and Y axis,
+ * but since y grows downward, the area is "above" the edge).
+ * The value is signed. If the edge is from right to left it is positive, else negative.
+ * Since (for straight edges) the area would contain "start.x*start.y-end.x*end.y",
+ * which will cancel out. Plus it is easier to return twice the area.
+ * Thus we request edge to return
+ * "2*(area_above_edge - start.x*start.y + end.x*end.y)", this is what
+ * Edge::GetAreaAboveAdjusted() returns.
+ *
+ * After this function the area cache will hold this value for instant access.
+ *
+ * @returns the calculated area. Negative if shape is counterclockwise.
+ */
 double SimpleContour::CalcualteArea() const
 {
     register double ret = 0;
-    for (size_type i=0; i<size(); i++)
+    for (size_t i=0; i<size(); i++)
         ret += at(i).GetAreaAboveAdjusted();
     area_cache.first = true;
     return area_cache.second = ret /2;
 }
 
+/** Calculate the circumference length of the shape.
+ *
+ * @param [in] include_hidden If false, we leave out edges marked as non-visible.
+ * @returns Length of the circumference.
+ */
 double SimpleContour::GetCircumference(bool include_hidden) const
 {
     register double ret = 0;
-    for (size_type i=0; i<size(); i++)
+    for (size_t i=0; i<size(); i++)
         if (include_hidden || at(i).visible)
             ret += at(i).GetLength();
     return ret;
 }
 
+/** Returns the coordinates of the centroid of the shape multiplied by its (signed) area. */
 XY SimpleContour::CentroidUpscaled() const
 {
     XY ret (0,0);
-    for (size_type i=0; i<size(); i++)
-            ret += at(i).GetCentroidAreaAboveUpscaled();
+    for (size_t i=0; i<size(); i++)
+        ret += at(i).GetCentroidAreaAboveUpscaled();
     return ret;
 }
 
+/** Calculates the touchpoint of tangents drawn from a given point.
+ * 
+ * Given the point `from` draw tangents to the shape (two can be drawn)
+ * and calculate where these tangents touch the shape.
+ * Tangent is anything touching the shape (at a vertex, at the middle of a curvy edge
+ * or going along, in parallel with a full straight edge).
+ * In this context the *clockwise tangent* is the one which is traversed from 
+ * `from` towards the shape touches the shape in the clockwise direction.
+ * @param [in] from The point from which the tangents are drawn.
+ * @param [out] clockwise The point where the clockwise tangent touches the shape.
+ * @param [out] cclockwise The point where the counterclockwise tangent touches the shape.
+ * @returns True if success, false if `from` is inside or on the shape.
+ */
 bool SimpleContour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const
 {
     if (size()==0 || IsWithin(from)!=WI_OUTSIDE) return false;
@@ -595,6 +666,20 @@ bool SimpleContour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) c
     return was;
 }
 
+/** Calculates the touchpoint of tangents drawn to touch two shapes.
+ * 
+ * Given the two shapes, four such tangents can be drawn, here we focus on the two 
+ * outer ones, the ones that touch either both shapes clockwise or both of them
+ * counterclockwise, but not mixed.
+ * Tangent is anything touching the shape (at a vertex, at the middle of a curvy edge
+ * or going along, in parallel with a full straight edge).
+ * @param [in] from The other shape to the tangents are drawn.
+ * @param [out] clockwise The points where the clockwise tangent touches our shape
+ *                        (clockwise[0]) and `from` (clockwise[1]).
+ * @param [out] cclockwise The points where the counterclockwise tangent touches our shape
+ *                         (cclockwise[0]) and `from` (cclockwise[1]).
+ * @returns True if success, false if `from` is inside us.
+ */
 bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const
 {
     if (size()==0 || from.size()==0) return false;
@@ -610,6 +695,15 @@ bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY c
 
 //////////////////////////////////SimpleContour::Expand implementation
 
+/** Helper that creates a half circle for EXPAND_ROUND or EXPAND_MITER_ROUND type expansion,
+ * where expanded edges are parallel.
+ * 
+ * @param [in] start The start of the half circle (end of the previous expanded edge)
+ * @param [in] end The end of the half circle (the start of the next previous edge)
+ * @param [in] old The position of the vertex before expanding the edges.
+ * @param [in] clockwise The clockwisedness of the original shape.
+ * @returns A half circle connecting to previous and following expanded edges.
+ */
 Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise)
 {
     XY center = old;
@@ -630,22 +724,43 @@ Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const X
     return edge;
 }
 
-//miter_limit tells us that with EXPAND_MITER_* how long the miter
-//edges can be in terms of the "gap"
-//E.g., miter_limit=2 says they can be as long as 2*gap
-//the rest is cut away with a bevel-like edge
+/** Expands a shape.
+ *
+ * Expansion aims to create a shape whose edges run parallel along the edges of the 
+ * original, but at `gap` pixels away. Positive `gap` values result in actual expansion
+ * negative values in shrinkage (the new shape is inside the original). 
+ * The function works for counterclockwise shapes, the meaning of the sign of `gap` is
+ * reversed.
+ * 
+ * After the expansion, we check if there are edges crossing each other and 
+ * remove them by walking. In this space we also may end up in multiple separate 
+ * SimpleContours. (E.g., shrinking a dog-bone shape may lead us to two circles, 
+ * like `O=O` becomes `o o`.) This is why the result is stored in a full Contour
+ * which may hold multiple SimpleContours.
+ *
+ * @param [in] type There are multiple typical ways to handle edge joins, see EExpandType.
+ * @param [in] gap The amount of expansion/shrinkage. No-op if zero.
+ * @param [out] res The expanded shape.
+ * @param miter_limit Tells us that with EXPAND_MITER_* how long the miter edges can be 
+ *                    in terms of the `gap`. 
+ *                    E.g., miter_limit=2 says they can be as long as `2*gap`.
+ *                    The rest is cut away with a bevel-like edge.
+ */
 void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double miter_limit) const
 {
+    //Return us if nothing to do.
     if (gap==0) {
         res = *this;
         return;
     }
+    //if we shrink beyond our bounding box, we become empty
     const double shrink_by = clockwise ? -gap : gap;
     if (size()==0 || boundingBox.x.Spans() < 2*shrink_by || boundingBox.y.Spans() < 2*shrink_by)
-        return;
+        return; //empty "res" assumed
 
-    SimpleContour r(*this);
-    SimpleContour o(*this);
+    SimpleContour r(*this);  //In this we perform the expansion
+    SimpleContour o(*this);  //In this we keep track of the original edges
+    //If a full circle, do it quick.
     if (size()==1) {
         _ASSERT(at(0).GetType()==Edge::FULL_CIRCLE);
         if (!r[0].Expand(gap)) return; //full circle disappeared, we return empty "res"
@@ -656,43 +771,54 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     }
 
     //Expand all the edges
-    for (size_type i = 0; i<r.size(); i++)
-        if (!r[i].Expand(gap)) {  //circles that disappear are replaced with straight lines
+    for (size_t i = 0; i<r.size(); i++)
+        if (!r[i].Expand(gap)) {  
+            //Expand() returns false if a circle has shrunken to degenerate into a line or point.
+            //If so, we replace them with straight lines
             r[i] = o[i];
             r[i].type = Edge::STRAIGHT;
             r[i].Expand(gap);
         }
 
-    if (r.size()==0) return;
-    if (r.size()==1 && r[0].GetType()==Edge::STRAIGHT)
-        return;
+    //We had two arcs, both became straight lines, we became empty.
     if (r.size()==2 && r[0].GetType()==Edge::STRAIGHT && r[1].GetType()==Edge::STRAIGHT)
         return;
 
 
-    //Now find how and where expanded edges meet and how
-    std::vector<Edge::EExpandCPType> cross_type (r.size());
-    std::vector<XY>                     cross_point(r.size());
-    for (size_type i = 0; i<r.size(); i++) {
+    //Find how and where expanded edges meet
+    std::vector<Edge::EExpandCPType> cross_type (r.size()); //Stores the type of crossing between edge #i and #i+1 (wrapped around)
+    std::vector<XY>                  cross_point(r.size()); //Stores the cp between edge #i and #i+1 (wrapped around)
+    for (size_t i = 0; i<r.size(); i++) {
         cross_type[i] = r[i].FindExpandedEdgesCP(r.at_next(i), cross_point[i]);
         _ASSERT(cross_type[i] != Edge::DEGENERATE);
     }
 
-    //now kill the ones that changed direction
+    //Remove those edges which changed direction
+    // This may happen especially at shrinkage, see the example below.
+    //     +->-+                          
+    //    /     \      after shrinkage    +---+ 
+    //   /       \     this becomes ->     \ /
+    //  /         \                         o
+    // /           \                       / \
+    //
+    // Here the top horizontal edge is walked in the opposite direction (from right to left)
+    // as before the expansion (left to right). Such edges (and the small triangle associated
+    // shall be removed from the result). This is what we do below.
     if (type == EXPAND_MITER ||
         type == EXPAND_MITER_ROUND ||
         type == EXPAND_MITER_BEVEL ||
         type == EXPAND_MITER_SQUARE) {   //for bevel and round we check this after inserting bevel & round
-        size_type prev_size;
+        size_t prev_size;
         do {
             prev_size = r.size();
             XY tmp_point;
             Edge::EExpandCPType tmp_type;
-            //Kill edges if they have good crosspoints with both prev and next
-            //.. and if the new endpoins that we will use below are in reverse order
-            //     than the originals
-            //.. and the prev has a good cp with next
-            for (size_type i = 0; i<r.size(); /*nope*/) {
+            //Kill edges if 
+            //1. they have good crosspoints with both previus and next edge;
+            //2. if those good crosspoints are in opposite order than the originals; and
+            //3. if the previous and next edges has a good cp with each other.
+            //   (So if we skip the edge in between we get a meaningful result.)
+            for (size_t i = 0; i<r.size(); /*nope*/) {
                 if (Edge::HasCP(cross_type[r.prev(i)]) && Edge::HasCP(cross_type[i]) &&
                     r[i].IsOpposite(cross_point[r.prev(i)], cross_point[i])) {
                     tmp_type = r.at_prev(i).FindExpandedEdgesCP(r.at_next(i), tmp_point);
@@ -703,6 +829,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         o.edges.erase(o.edges.begin()+i);
                         cross_type.erase(cross_type.begin()+i);
                         cross_point.erase(cross_point.begin()+i);
+                        //Here we removed also from "o" to maintain indices
                         continue;
                     }
                 }
@@ -711,10 +838,12 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         } while (prev_size != r.size());
     }
 
-    //OK, now adjust the edges and/or insert additional ones
-    Contour res_before_untangle;
-    SimpleContour &r2 = res_before_untangle.first.outline;
-    r2.edges.reserve(size()*3);
+    //Adjust the start and end of the edges to the crosspoints
+    //and insert additional edges, if needed
+    Contour res_before_untangle;                           //This is where we collect the result...
+    SimpleContour &r2 = res_before_untangle.first.outline; //... well actually into the "first.outline" of it
+    r2.edges.reserve(size()*3);                            //We can have at most this many edges in result.
+    //Calculate actual max miter length.
     const double gap_limit = fabs(miter_limit) < MaxVal(miter_limit) ? fabs(gap)*fabs(miter_limit) : MaxVal(gap_limit);
     switch (type) {
     default:
@@ -723,33 +852,43 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     case EXPAND_MITER_ROUND:
     case EXPAND_MITER_BEVEL:
     case EXPAND_MITER_SQUARE:
-        for (size_type i = 0; i<r.size(); i++) {
+        //In these cases we have already removed edges that changed direction.
+        for (size_t i = 0; i<r.size(); i++) {
+            //The new start and endpoint for us (edge #i)
             XY new_start = Edge::HasCP(cross_type[r.prev(i)]) ? cross_point[r.prev(i)] : r[i].GetStart();
             XY new_end   = Edge::HasCP(cross_type[i])         ? cross_point[i]         : r[i].GetEnd();
 
-            //if we are a too sharp miter, we limit its length
+            //If we connected to previous edge via a too long miter, we limit its length
+            //The bevel needed in this case was added when we processed the previous edge.
             if (cross_type[r.prev(i)] == Edge::CP_EXTENDED &&
                    new_start.Distance(r[i].GetStart()) > gap_limit)
                 new_start = r[i].GetStart() + (new_start-r[i].GetStart()).Normalize()*gap_limit;
+            //Check if we connect to the next edge via a too long miter.
             bool need_miter_limit_bevel = false;
             if (cross_type[i] == Edge::CP_EXTENDED &&
                    new_end.Distance(r[i].GetEnd()) > gap_limit) {
+                //Adjust the endpoint of us to where the miter shall end.
                 new_end = r[i].GetEnd() + (new_end-r[i].GetEnd()).Normalize()*gap_limit;
                 need_miter_limit_bevel = true;
             }
             _ASSERT(new_start.length() < 10000);
             _ASSERT(new_end.length() < 10000);
 
+            //If we did not degenerate to a point, insert us to the end result.
             if (!new_start.test_equal(new_end)) {
                 //insert existin edge (updated)
                 Edge tmp = r[i];
                 tmp.SetStartEndForExpand(new_start, new_end);
                 r2.edges.push_back(tmp);
             } else {
-                //existing edge got degenerate, do not insert
-                cross_point[i] = new_end = new_start; //use this from now on
+                //We got degenerate, do not insert
+                cross_point[i] = new_end = new_start; //Use this from now on.
             }
+            //See below if we need to insert additional edges 
             if (Edge::HasCP(cross_type[i])) {
+                //If we have a normal crosspoint, the only reason to add an edge if
+                //the miter would be too long. In this case we need to add a straight
+                //edge that "cuts" the miter.
                 if (need_miter_limit_bevel) {
                     const XY bevel_end = r.at_next(i).GetStart() +
                         (cross_point[i]-r.at_next(i).GetStart()).Normalize()*gap_limit;
@@ -758,22 +897,27 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                         r2.edges.push_back(Edge(new_end, bevel_end));
                 }
             } else
-                //no natural crosspoint: see if we need to add a line, circle or square
+                //No natural crosspoint: see if we need to add a line, circle or square
                 switch (type) {
                 default:
                     _ASSERT(0);
                 case EXPAND_MITER:
+                    //We add two lines (two miters)
+                    //Remember, crosspoint[i] contains a point in between the two lines.
                     r2.edges.push_back(Edge(new_end, cross_point[i]));
                     r2.edges.push_back(Edge(cross_point[i], r.at_next(i).GetStart()));
                     break;
                 case EXPAND_MITER_ROUND:
+                    //We add a half circe
                     r2.edges.push_back(CreateRoundForExpand(new_end, r.at_next(i).GetStart(),
                         o[i].GetEnd(), clockwise ^ (gap<0)));
                     break;
                 case EXPAND_MITER_BEVEL:
+                    //We simply add a line between our end and the start of the next edge
                     r2.edges.push_back(Edge(new_end, r.at_next(i).GetStart()));
                     break;
                 case EXPAND_MITER_SQUARE:
+                    //Here we add 3 edges of a half-square
                     const XY &next_start = r.at_next(i).GetStart();
                     const double dist = new_end.Distance(next_start)/2;
                     const XY first_tangent = r[i].NextTangentPoint(1.0);
@@ -789,15 +933,26 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         break; //EXPAND_MITER_*
     case EXPAND_BEVEL:
     case EXPAND_ROUND:
-        enum EEdgeType {EXISTING, EXISTING_CHANGED_DIR, INSERTED};
-        std::vector<EEdgeType> edge_type;  edge_type.reserve(200);
-        std::vector<size_type> edge_orig;        edge_orig.reserve(200);
-        for (size_type i = 0; i<r.size(); i++) {
+        //Here we have not yet removed edges that changed dir, so we rate them here.
+        //We actually allow edges that change dir to persist and will remove them during 
+        //an untangle at the end. We do this because with round or bevel modes, the inserted
+        //join element (a round edge or bevel) may replace such an edge that changed direction
+        //resulting in better outcome.
+        enum EEdgeType {
+            EXISTING,             //An edge that comes from the original shape
+            EXISTING_CHANGED_DIR, //An edge that comes from the original shape, but changed direction
+            INSERTED              //An edge we have inserted
+        };
+        std::vector<EEdgeType> edge_type;  edge_type.reserve(200);  //the type of edge in "r2"
+        std::vector<size_t> edge_orig;     edge_orig.reserve(200);  //its place in "o" if not INSERTED
+        for (size_t i = 0; i<r.size(); i++) {
             XY new_start = cross_type[r.prev(i)] == Edge::CP_REAL ? cross_point[r.prev(i)] : r[i].GetStart();
             XY new_end =   cross_type[i] == Edge::CP_REAL         ? cross_point[i]         : r[i].GetEnd();
 
             if (!new_start.test_equal(new_end)) {
+                //If edge is not degenerate after expansion...
                 const bool changed_dir = r[i].IsOpposite(new_start, new_end);
+                //...we insert with new start and end (the crosspoints if any)
                 r[i].SetStartEndForExpand(new_start, new_end);
                 r2.edges.push_back(r[i]);
                 edge_type.push_back(changed_dir ? EXISTING_CHANGED_DIR : EXISTING);
@@ -806,9 +961,10 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 //existing edge got degenerate
                 cross_point[i] = new_end = new_start; //use this from now on
             }
-            if (cross_type[i] == Edge::CP_REAL) continue; //no need to insert
+            if (cross_type[i] == Edge::CP_REAL) continue; //no need to insert bevel or round
+            //We insert a bevel or round
             edge_type.push_back(INSERTED);
-            edge_orig.push_back(size_type(-1));
+            edge_orig.push_back(size_t(-1));
             if (type==EXPAND_BEVEL ||
                 o[i].GetEnd() != o.at_next(i).GetStart()) //a missing edge
                 r2.edges.push_back(Edge(new_end, r.at_next(i).GetStart()));  //insert line
@@ -816,59 +972,63 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 r2.edges.push_back(CreateRoundForExpand(new_end, r.at_next(i).GetStart(),
                                                   o[i].GetEnd(), gap>0));  //circle
         }
-        //Now check all inserted edge.
-        //If any neighbouring original edge has changed direction and the
-        //inserted edge has a good cp with the edge beyond the neighbour that
-        //changed dir, skip the neighbour that changed dir.
+        //Now check all inserted edges.
+        //If any edge in "r2" befor or after an inserted edge 
+        //1. is an original edge; 
+        //2. has changed direction; and he
+        //3. the inserted edge has a good cp with the edge beyond the neighbour 
+        //then skip the neighbour that changed dir.
         bool all_orig_changed_dir = true;
-        for (size_type u = 0; u<r2.size(); u++) {
+        for (size_t u = 0; u<r2.size(); u++) {
             if (edge_type[u]!=INSERTED) {
+                //We do nothing for original edges, merely note if all of them changed dir or not
                 if (edge_type[u]!=EXISTING_CHANGED_DIR)
                     all_orig_changed_dir = false;
                 continue;
             }
             XY tmp_point;
-            Edge::EExpandCPType tmp_type;
-            //first check out the original edge before the inserted one
-            const size_type prev = r2.prev(u);
-            if (edge_type[prev] == EXISTING_CHANGED_DIR) {
-                const size_type prevprev = r2.prev(prev);
-                tmp_type = r2[prevprev].FindExpandedEdgesCP(r2[u], tmp_point);
-                if (tmp_type == Edge::CP_REAL || tmp_type==Edge::CP_EXTENDED) {
-                    //set the inserted bevel/round to end in cp
+            //First check out the original edge before the inserted one
+            const size_t prev = r2.prev(u);
+            if (edge_type[prev] == EXISTING_CHANGED_DIR) { //1. an original edge and 2. changed dir...
+                const size_t prevprev = r2.prev(prev);
+                const Edge::EExpandCPType tmp_type = r2[prevprev].FindExpandedEdgesCP(r2[u], tmp_point);
+                if (Edge::HasCP(tmp_type)) {   //... and 3. has a good cp with the one beyond.
+                    //Set the inserted bevel/round to end in cp
                     r2[u].SetStartLiberal(tmp_point);
                     r2[prevprev].SetEndLiberal(tmp_point);
-                    //erase "prev"
+                    //Erase "prev"
                     r2.edges.erase(r2.edges.begin()+prev);
                     edge_type.erase(edge_type.begin()+prev);
                     edge_orig.erase(edge_orig.begin()+prev);
-                    //update "u"
+                    //decrement "u", so that we can u++ in the "for" statement
                     if (prev<u) u--; //this way u was >=1, can decrement
-                    //else u==0 && prev==size()-1 => "u" can remain
+                    //else u==0 and prev==size()-1 => "u" can be incremented in "for"
                 }
             }
-            //now do the same for the original edge *after* the inserted one
-            const size_type next = r2.next(u);
-            if (edge_type[next] == EXISTING_CHANGED_DIR) {
-                const size_type nextnext = r2.next(next);
-                tmp_type = r2[u].FindExpandedEdgesCP(r2[nextnext], tmp_point);
-                if (tmp_type == Edge::CP_REAL || tmp_type==Edge::CP_EXTENDED) {
-                    //set the inserted bevel/round to end in cp
+            //Now do the same for the original edge *after* the inserted one
+            const size_t next = r2.next(u);
+            if (edge_type[next] == EXISTING_CHANGED_DIR) {  //1. an original edge and 2. changed dir...
+                const size_t nextnext = r2.next(next);
+                const Edge::EExpandCPType tmp_type = r2[u].FindExpandedEdgesCP(r2[nextnext], tmp_point);
+                if (Edge::HasCP(tmp_type)) {  //... and 3. has a good cp with the one beyond.
+                    //Set the inserted bevel/round to end in cp
                     r2[u].SetEndLiberal(tmp_point);
                     r2[nextnext].SetStartLiberal(tmp_point);
-                    //erase "next"
+                    //Erase "next"
                     r2.edges.erase(r2.edges.begin()+next);
                     edge_type.erase(edge_type.begin()+next);
                     edge_orig.erase(edge_orig.begin()+next);
-                    //update "u"
-                    if (next<u) u--; //this way u was >=1, can decrement
+                    //decrement "u", so that we can u++ in the "for" statement
+                    if (prev<u) u--; //this way u was >=1, can decrement
+                    //else u==0 and prev==size()-1 => "u" can be incremented in "for"
                 }
             }
         }
+        //If all edges changed dir, we became an empty shape
         if (all_orig_changed_dir) return;
     }
-    r2.Sanitize(); //calculates clockwise and boundingbox, as well
-    if (r2.size()==0) return;
+    r2.Sanitize(); //calculates clockwise and boundingbox, as well. Now r2 is sane, but not res_before_untangle
+    if (r2.size()==0) return; //An empty shape
     if (r2.size()==1) {
         r2[0].SetFullCircle();
         res_before_untangle.boundingBox = r2.CalculateBoundingBox();  //also calculates bounding boxes of edges
@@ -876,7 +1036,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
         return;
     }
     //OK, now untangle - use 'res_before_untangle' instead of r2
-    res_before_untangle.boundingBox = r2.boundingBox; //copy bb to outer
+    res_before_untangle.boundingBox = r2.boundingBox; //copy bb to outer, now res_before_untangle is sane
     res.Operation(clockwise ? Contour::EXPAND_POSITIVE : Contour::EXPAND_NEGATIVE, std::move(res_before_untangle));
 }
 
@@ -915,8 +1075,13 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
     }
 }
 
-//This one will create a contour such that any gap*2 block centered outside of the
-//resulting contour will not overlap with "this"
+/** Expand2D the shape. 
+ *
+ * See the contour library definition on what Expand2D means. 
+ *
+ * @param [in] gap The rectangle used for the expansion.
+ * @param [out] res The result.
+ */
 void SimpleContour::Expand2D(const XY &gap, Contour &res) const
 {
     if (gap.x==0 && gap.y==0) {
@@ -944,15 +1109,15 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
 }
 
 
-
+/** Determines the relation of two shapes with no prior assumptions. */
 relation_t SimpleContour::RelationTo(const SimpleContour &c) const
 {
     if (!boundingBox.Overlaps(c.boundingBox)) return REL_APART;
     //Look for crosspoints
     XY r[4];
     double one_pos[4], two_pos[4];
-    for (size_type u1 = 0; u1<size(); u1++)
-        for (size_type u2 = 0; u2<c.size(); u2++)
+    for (size_t u1 = 0; u1<size(); u1++)
+        for (size_t u2 = 0; u2<c.size(); u2++)
             if (at(u1).Crossing(c.at(u2), r, one_pos, two_pos))
                 if (one_pos[0]>0 || two_pos[0]>0) //Crosspoint found, we overlap
                     return REL_OVERLAP;
@@ -960,13 +1125,17 @@ relation_t SimpleContour::RelationTo(const SimpleContour &c) const
     return CheckContainment(c);
 }
 
-
+/** Draw the shape as a path to a cairo context. 
+ *
+ * @param [in] cr The cairo context.
+ * @param [in] show_hidden If false, we skip edges marked not visible.
+ */
 void SimpleContour::Path(cairo_t *cr, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
     bool closed = true;
     cairo_move_to(cr, at(0).GetStart().x, at(0).GetStart().y);
-    for (size_type i = 0; i<size(); i++)
+    for (size_t i = 0; i<size(); i++)
         if (show_hidden || at(i).visible)
             at(i).PathTo(cr);
         else {
@@ -977,6 +1146,15 @@ void SimpleContour::Path(cairo_t *cr, bool show_hidden) const
         cairo_close_path(cr);
 }
 
+/** Draw the shape in dashed lines to the path of a cairo context. Needed for backends not supporting dashed lines.
+ *
+ * We also assume cairo dash is set to continuous: we fake dash here.
+ * @param [in] cr The cairo context.
+ * @param [in] pattern Contains lengths of alternating on/off segments.
+ * @param [in] num contains the number of elements in pattern.
+ * @param [in] show_hidden If false, we skip edges marked not visible.
+ */
+
 void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num, bool show_hidden) const
 {
     if (size()==0 || cr==NULL) return;
@@ -986,19 +1164,21 @@ void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num
     }
     double offset = 0;
     int pos = 0;
-    for (size_type i = 0; i<size(); i++)
+    for (size_t i = 0; i<size(); i++)
         if (at(i).visible)
             at(i).PathDashed(cr, pattern, num, pos, offset);
 }
 
-//True for all of the OffsetBelow() functions (except Edge:: ones):
-//if the "offset" received is not changed (did not find a smaller one), "touchpoint" is also
-//left unchanged
+/** Determine the relative vertical distance between two shapes. 
+ *
+ * This is a helper for OffsetBelow, that is called if the x range of bounding boxes 
+ * actually overlap and there is a chance of resuling in an offset less than infinity.
+ */
 double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset) const
 {
     double tp = 0;
-    for (size_type i = 0; i<size(); i++)
-        for (size_type j = 0; j<below.size(); j++)
+    for (size_t i = 0; i<size(); i++)
+        for (size_t j = 0; j<below.size(); j++)
             if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
                 double off = at(i).OffsetBelow(below.at(j), tp);
                 if (off < offset) {
@@ -1009,21 +1189,34 @@ double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpo
     return offset;
 }
 
+/** Creates a cross-section of the SimpleContour along a vertical line.
+ *
+ * @param [in] x The x coordinate of the vertical line
+ * @param section A DoubleMap containing true for points inside the shape, false for outside. May contain entries already.
+ */
 void SimpleContour::VerticalCrossSection(double x, DoubleMap<bool> &section) const
 {
     double y[2], pos[2];
     bool forward[2];
-    for (size_type i=0; i<size(); i++) {
+    for (size_t i=0; i<size(); i++) {
         const int num = at(i).CrossingVertical(x, y, pos, forward);
         for (int j = 0; j<num; j++)
             section.Set(y[j], forward[j] == clockwise);
     }
 }
-//The distance of the two contours and two points on them
-//returns negative one is inside the other, zero if partial overlap only (two points equal)
-//"inside" here ignores clockwiseness
-//ret can contain the result of previous searches
-//we do not check bb, assume caller calls us if needed
+
+/** Calculates the distance between two shapes by finding their two closest points.
+ *
+ * @param [in] o The other shape to take the distance from.
+ * @param ret We return the distance of the two closest points and the two points themselves.
+ *            Distance is negative one is inside the other, zero if partial overlap only (two points equal)
+ *            'Inside' here ignores clockwiseness. Distance is `CONTOUR_INFINITY` if one of the shapes is empty.
+ *            Note that `ret` can contain the result of previous searches, we update it if we find two points
+ *            with a smaller distance (in absolute value).
+ *
+ * Note that we do not check if the bounding box of the two shapes are further apart than the distance received in
+ * `ret`. We assume caller does not call us in that case, but only if needed.
+ */
 void SimpleContour::Distance(const SimpleContour &o, DistanceType &ret) const
 {
     if (IsEmpty() || o.IsEmpty()) return;
@@ -1049,6 +1242,12 @@ final_merge:
     ret.Merge(running);
 }
 
+/** Calculates the distance between a point and us by finding our closest point.
+ *
+ * @param [in] o The point to take the distance from.
+ * @param [out] ret We return the point on our contour closes to `o`.
+ * @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty.
+ */
 double SimpleContour::Distance(const XY &o, XY &ret) const
 {
     if (IsEmpty()) return CONTOUR_INFINITY;
@@ -1068,6 +1267,17 @@ double SimpleContour::Distance(const XY &o, XY &ret) const
     return r;
 }
 
+/** Calculates the distance between a point and us by finding our closest point and returns two tangent points.
+ *
+ * Same as Distance(const XY &o, XY &ret), but in addition we return two tangent points 
+ * from the tangent of the shape at `ret`. See @ref contour for a description of tangents.
+ *
+ * @param [in] o The point to take the distance from.
+ * @param [out] ret We return the point on our contour closes to `o`.
+ * @param [out] t1 The forward tangent point.
+ * @param [out] t2 The backward tangent point.
+ * @return The distance, negative if `o` is inside us. `CONTOUR_INFINITY` if we are empty.
+ */
 double SimpleContour::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2) const
 {
     if (IsEmpty()) return CONTOUR_INFINITY;
@@ -1090,7 +1300,15 @@ double SimpleContour::DistanceWithTangents(const XY &o, XY &ret, XY &t1, XY &t2)
 }
 
 
-
+/** Returns a cut of the shape along an edge.
+ *
+ * Takes all crosspoints of a (finite length, possibly curvy) edge and the shape
+ * and returns the two outermost. We return `pos` values corresponding to the edge,
+ * thus both values are between 0 and 1. It is possible that a single value is
+ * returned if the edge touches the shape or if its start is inside the shape, but
+ * its end is outside. If the edge does not cross or touch the shape, an invalid
+ * range is returned.
+ */
 Range SimpleContour::Cut(const Edge &s) const
 {
     Range ret;
@@ -1103,6 +1321,18 @@ Range SimpleContour::Cut(const Edge &s) const
     return ret;
 }
 
+/** Returns a cut of the shape along an edge.
+ *
+ * Same as Cut(const Edge &s), but also returns the coordinates of the positions
+ * returned and a forward tangent point for them. In case the edge cuts the shape
+ * at a non-smooth vertex, then we take the tangent line of both edges of the vertex
+ * average them and return a point from this middle line in the forward direction.
+ * 
+ * @param [in] e The edge to cut with.
+ * @param [out] from Values correspond to the position returned in `from`. `first` is the coordinate of the point, `second` is the forward tangent point.
+ * @param [out] till Values correspond to the position returned in `till`. `first` is the coordinate of the point, `second` is the forward tangent point.
+ * @return The `pos` value corresponding to the two outmost crosspoints.
+ */
 Range SimpleContour::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std::pair<XY, XY> &till) const
 {
     Range ret;
@@ -1138,7 +1368,16 @@ Range SimpleContour::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std:
 }
 
 
-
+/** Creates a cross-section (or cut) of the SimpleContour along a straight line.
+ *
+ * We return all crosspoints of an infinite line specified by `A` and `B`.
+ * We return them in `pos` terms, that is, at `A` we return 0, at `B` we return 1 and
+ * linearly intrapolate and extrapolate between them and outside, respectively.
+ *
+ * @param [in] A One point of the infinite line.
+ * @param [in] B Another point of the infinite line.
+ * @param [out] map A DoubleMap containing true for points inside the shape, false for outside. 
+ */
 void SimpleContour::Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const
 {
     const Range ret = boundingBox.Cut(A, B); //also tests for A==B or invalid bb, which catches empty "this"
