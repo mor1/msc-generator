@@ -16,6 +16,10 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file csh.cpp The definition of classes for Color Syntax Highlighting.
+ * @ingroup libmscgen_files */
+/** @defgroup libmscgen_hintpopup_callbacks Callback functions for hint popup listbox symbols
+ * @ingroup libmscgen*/
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -39,7 +43,7 @@ void CshErrorList::Add(CshPos &pos, const char *t)
     e.color = COLOR_ERROR;
     if (t) e.text=t;
 }
-    
+
 MscColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 void MscInitializeCshAppearanceList(void)
 {
@@ -163,12 +167,13 @@ void MscInitializeCshAppearanceList(void)
     l[3][COLOR_ERROR].      SetColor(255,  0,  0);        l[3][COLOR_ERROR].effects = COLOR_FLAG_UNDERLINE;
 }
 
+/** State of coloring */
 struct CurrentState {
-    unsigned effects;
-    MscColorType color;
+    unsigned effects;    ///<What effects are in effect
+    MscColorType color;  ///<What is the color
     CurrentState() : effects(0) {}
-    void Apply(const MscColorSyntaxAppearance &appearance);
-    string Print(bool fakeDash=true) const;
+    void Apply(const MscColorSyntaxAppearance &appearance);  ///<Apply coloring for a language element type to us.
+    string Print(bool fakeDash=true) const;                  ///<Print a set of string formatting escapes to represent the status. Do \\377 (octal 255) instead of slashes if fakeDash is true.
     bool operator == (const CurrentState &other) const
     {return effects == other.effects && color == other.color;}
 };
@@ -197,7 +202,16 @@ string CurrentState::Print(bool fakeDash) const
     return ret;
 }
 
-//Takes a chart description and makes it into a color syntax highlighted label
+/** Turn a chart text into another chart text, which when drawn produces the colored version of the original chart text.
+ *
+ * This is done by creating no entities, but a series of labels each representing a 
+ * line in the original chart.
+ * @param [in] input The original chart text.
+ * @param [in] len The length of the chart text.
+ * @param [in] cshList The identified colored language elements.
+ * @param [in] cshStyle The number of the coloring scheme to use.
+ * @param [in] textformat Some formatting escapes defining the default font to use,
+ */
 string Cshize(const char *input, unsigned len, const CshListType &cshList, unsigned cshStyle,
               const char *textformat)
 {
@@ -359,12 +373,19 @@ void Csh::AddCSH_ColonString(CshPos& pos, const char *value, bool processComment
     free(copy);
 }
 
-
+/** Names of keywords for coloring.
+ *
+ * All keywords shall be repeated here, not only known by the parser.
+ * We color only these where keywords should come.*/
 static const char keyword_names[][ENUM_STRING_LEN] =
 {"", "parallel", "block", "pipe", "nudge", "heading", "newpage", "defstyle",
 "defcolor", "defdesign", "vertical", "mark", "show", "hide", "activate", "deactivate",
 "bye", "hspace", "vspace", "symbol", "note", "comment", "title", "subtitle", ""};
 
+/** Names of chart options for coloring.
+ *
+ * All options shall be repeated here, not only known by class Msc.
+ * We color only these where options should come.*/
 static const char opt_names[][ENUM_STRING_LEN] =
 {"msc", "hscale", "compress", "numbering", "indicator", 
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
@@ -380,6 +401,11 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "rcomment.fill.color", "rcomment.fill.color2", "rcomment.fill.gradient",
 "angle", ""};
 
+/** Names of attributes for coloring.
+ *
+ * All attribute shall be repeated here, not only known by the parser.
+ * We color only these where attributes should come. 
+ * We do not distinguish which arc the attribute belongs to.*/
 static const char attr_names[][ENUM_STRING_LEN] =
 {"draw_time", "compress", "color", "label", "refname", "number", "indicator", "collapsed", 
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
@@ -398,13 +424,21 @@ static const char attr_names[][ENUM_STRING_LEN] =
 "compressable", "xsize", "ysize", "size", "space", "angle",
 "note.pointer", "note.pos", ""};
 
+/** Names of symbols for coloring
+ *
+ * All keywords shall be repeated here, not only known by the parser.
+ * We only color these as keywords where a symbol name is expected (after 'symbol' keyword).*/
 static const char symbol_names[][ENUM_STRING_LEN] =
 {"arc", "rectangle", "...", ""};
 
+/** Names of extended vertical position designators for coloring
+ *
+ * All keywords shall be repeated here, not only known by the parser.
+ * We only color these as keywords where a extended vertical position designator is expected (e.g., after 'vertical' keyword).*/
 static const char extvxpos_designator_names[][ENUM_STRING_LEN] =
 {"left", "right", "center", ""};
 
-
+/** Helper to check if 'name' us in the 'array' of string constants.*/
 unsigned find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN])
 {
     for (unsigned i=0; array[i][0]; i++)
@@ -415,14 +449,18 @@ unsigned find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN
     return 0;
 }
 
-//This is called when a string is at the beginning of the line and is not part
-//of a valid option: it can either be a command or an entity definition
-// we give KEYWORD or KEYWORD_PARTIAL for full or partial keyword matches
-// and ENTITYNAME or ENTITYNAME_FIRST for no matches
-// optionnames are not searched
-//All-in-all partial matches are only given if the cursor is just after the
-//string in question. In this case we also store the partial match in
-// Csh::partial_at_cursor_pos
+/** At this point it is either a keyword or an entity - decide and add appropriate coloring.
+ *
+ * This is called when a string is at the beginning of the line and is not part
+ * of a valid option (e.g., has no '=' after it): it can either be a command or an entity definition
+ * we give KEYWORD or KEYWORD_PARTIAL coloring for full or partial keyword matches;
+ * ENTITYNAME if no keyword match, but an entity does and ENTITYNAME_FIRST otherwise.
+ * Optionnames are not searched.
+ * All-in-all partial matches are only given if the cursor is just after the
+ * string in question. In this case we also store the partial match in
+ * Csh::partial_at_cursor_pos
+ * @param [in] pos The range to color 
+ * @param [in] name The content of the range: the supposed keyword or entity.*/
 void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
 {
     MscColorSyntaxType type = COLOR_KEYWORD;
@@ -578,7 +616,8 @@ void Csh::AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name)
     //if no keyword match, we assume an entityname
 }
 
-
+/** Callback for drawing a symbol before marker names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForMarkers(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
@@ -599,6 +638,12 @@ bool CshHintGraphicCallbackForMarkers(MscCanvas *canvas, CshHintGraphicParam /*p
     return true;
 }
 
+/** Parse chart text for color syntax and hint info
+ *
+ * @param [in] input The chart text
+ * @param [in] len The length of the chart text
+ * @param [in] cursor_p The current position of the cursor.
+ * @param [in] scheme The number of the color syntax scheme to use.*/
 void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme)
 {
     //initialize data struct
@@ -671,6 +716,12 @@ void Csh::PushContext(bool empty)
         Contexts.push_back(Contexts.back());
 }
 
+/** Set the chart design. 
+ *
+ * Used when an msc= or msc+= option is found during csh parse 
+ * @param [in] design The name of the design. 
+ * @param [in] full True if the option was msc=, false if it was msc+=
+ * @returns An error message if the design is not found or not of appropriate type. Empty if OK. */
 std::string Csh::SetDesignTo(const std::string&design, bool full)
 {
     bool found_full = true;
@@ -700,9 +751,16 @@ CshCursorRelPosType Csh::CursorIn(int a, int b) const
     return CURSOR_AFTER;
 }
 
-//Checks if the cursor is between the two ranges and if so, it applies
-//the hinttype with LOCATED. It sets hintsForcedOnly to false
-//If the cursor is immediately at the beginning of the second range we do nothing
+/** Mark hint status to HINT_LOCATED if cursor is between two ranges
+ *
+ * Checks if the cursor is between the two ranges and if so, it applies
+ * the hinttype with status HINT_LOCATED. It sets hintsForcedOnly to false.
+ * If the cursor is immediately at the beginning of the second range we do nothing.
+ * @param [in] one The first range
+ * @param [in] two The second range
+ * @param [in] ht The type of hint appropriate to the position in the file.
+ * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
+ * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
 {
     switch (CursorIn(one.last_pos+1, two.first_pos-1)) {
@@ -720,9 +778,20 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht,
     }
 }
 
-//Checks if the cursor is between the two ranges (but one char after the firts) and if so, it applies
-//the hinttype with LOCATED. It sets hintsForcedOnly to false
-//If the cursor is immediately at the beginning of the second range we do nothing
+/** Mark hint status to HINT_LOCATED if cursor is between two ranges, not touching the first.
+ *
+ * Checks if the cursor is between the two ranges, but not immediately after the first.
+ * If so, it applies
+ * the hinttype with status HINT_LOCATED. It sets hintsForcedOnly to false.
+ * If the cursor is immediately at the beginning of the second range we do nothing.
+ * This function is used if the hint we want to provide cannot be written immediately after
+ * the preceeding element. (E.g., the preceeding element ends in a letter and our hint starts
+ * with a letter. In this case concatenating the two without a space would yield a bad result.)
+ * @param [in] one The first range
+ * @param [in] two The second range
+ * @param [in] ht The type of hint appropriate to the position in the file.
+ * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
+ * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
 {
     if  (CursorIn(one.last_pos+1, two.first_pos-1) == CURSOR_IN) {
@@ -736,9 +805,22 @@ bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintT
     }
     return false;
 }
-//Checks if the cursor is between one and lookahead or if atEnd==true then right after one
-//if so then set the hinttype with LOCATED. It sets hintsForcedOnly to false
-//If the cursor is immediately at the beginning of the second range we do nothing
+
+/** Mark hint status to HINT_LOCATED if cursor is after a range.
+ *
+ * Checks if the cursor is between 'one' and 'lookahead'.
+ * If 'atEnd' is true we trigger only if the cursor is immediately after
+ *'one'. If so, it applies
+ * the hinttype with status HINT_LOCATED. It sets hintsForcedOnly to false.
+ * This function is used when we want to hint something at the end of a yacc rule.
+ * In this case lookahead contains the location of the next token. 
+ * If the cursor is immediately at the beginning of the lookahead symbol we do nothing
+ * @param [in] one The first range
+ * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
+ * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
+ * @param [in] ht The type of hint appropriate to the position in the file.
+ * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
+ * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name)
 {
     if (atEnd) {
@@ -767,10 +849,21 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
     return true;
 }
 
-//Checks if the cursor is between one char beyond "one" and "lookahead" or 
-//if atEnd==true then right after one char beyond "one"
-//if so then set the hinttype with LOCATED. It sets hintsForcedOnly to false
-//If the cursor is immediately at the beginning of the second range we do nothing
+/** Mark hint status to HINT_LOCATED if cursor is after a range, but not immediately after.
+ *
+ * Checks if the cursor is between 'one' and 'lookahead', but not immediately after 'one'.
+ * If 'atEnd' is true we trigger only if the cursor is exactly one character after
+ *'one'. If so, it applies
+ * the hinttype with status HINT_LOCATED. It sets hintsForcedOnly to false.
+ * This function is used when we want to hint something at the end of a yacc rule.
+ * In this case lookahead contains the location of the next token. 
+ * If the cursor is immediately at the beginning of the lookahead symbol we do nothing
+ * @param [in] one The first range
+ * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
+ * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
+ * @param [in] ht The type of hint appropriate to the position in the file.
+ * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
+ * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name)
 {
     if (one.last_pos >= lookahead.first_pos) return false;
@@ -779,54 +872,17 @@ bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool
     return CheckHintAfter(one_oneAfter, lookahead, atEnd, ht, a_name);
 }
 
-//Check specifically for entity hints and if true, add entities to hints & set to HINT_READY
-bool Csh::CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two)
-{
-    if (!CheckHintAtAndBefore(one, two, HINT_ENTITY)) return false;
-    AddEntitiesToHints();
-    hintStatus = HINT_READY;
-    return true;
-}
-
-//Check specifically for entity hints and if true, add entities to hints & set to HINT_READY
-//Does not result in hints if cursor is exactly after "one"
-bool Csh::CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two)
-{
-    if (one.last_pos >= two.first_pos) return false;
-    CshPos one_oneAfter = one;
-    one_oneAfter.last_pos++;
-    return CheckEntityHintAtAndBefore(one_oneAfter, two);
-}
-
-bool Csh::CheckEntityHintAt(const CshPos &one)
-{
-    if (!CheckHintAt(one, HINT_ENTITY)) return false;
-    AddEntitiesToHints();
-    hintStatus = HINT_READY;
-    return true;
-}
-
-bool Csh::CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd)
-{
-    if (!CheckHintAfter(one, lookahead, atEnd, HINT_ENTITY)) return false;
-    AddEntitiesToHints();
-    hintStatus = HINT_READY;
-    return true;
-}
-
-
-bool Csh::CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd)
-{
-    if (!CheckHintAfterPlusOne(one, lookahead, atEnd, HINT_ENTITY)) return false;
-    AddEntitiesToHints();
-    hintStatus = HINT_READY;
-    return true;
-}
-
-//Checks if the cursor is between one and two or inside two
-//If so, it sets status to HINT_LOCATED. If cursor is inside two, hintedStringPos
-//is set to two. hintsForcedOnly is set to true if the cursor is truely before two
-//or is at the end of two
+/** Mark hint status to HINT_LOCATED if cursor is between two ranges or inside the second one.
+ *
+ * Checks if the cursor is between the two ranges or inside the second. If so, it applies
+ * the hinttype with status HINT_LOCATED. If cursor is inside two, hintedStringPos
+ * is set to two. hintsForcedOnly is set to true iff the cursor is truely before two
+ * or is at the end of two.
+ * @param [in] one The first range
+ * @param [in] two The second range
+ * @param [in] ht The type of hint appropriate to the position in the file.
+ * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
+ * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
 {
     if (CursorIn(one.last_pos+1, two.last_pos)<=CURSOR_AFTER) return false;
@@ -844,6 +900,18 @@ bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType
     return true;
 }
 
+/** Mark hint status to HINT_LOCATED if cursor is between two ranges or inside the second one, but not immediately after the first one.
+ *
+ * Checks if the cursor is between the two ranges or inside the second, but not 
+ * immediately after the first. If so, it applies
+ * the hinttype with status HINT_LOCATED. If cursor is inside two, hintedStringPos
+ * is set to two. hintsForcedOnly is set to true iff the cursor is truely before two
+ * or is at the end of two.
+ * @param [in] one The first range
+ * @param [in] two The second range
+ * @param [in] ht The type of hint appropriate to the position in the file.
+ * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
+ * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
 {
     CshPos one_oneAfter = one;
@@ -852,10 +920,16 @@ bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, CshH
 }
 
 
-//Checks if the cursor is between one and two or inside two
-//If so, it sets status to HINT_LOCATED. If cursor is inside two, hintedStringPos
-//is set to two. hintsForcedOnly is set to true if the cursor is truely before two
-//or is at the end of two
+/** Mark hint status to HINT_LOCATED if cursor is inside, just before or just after a range.
+ *
+ * Checks if the cursor is inside, just before or just after a range.
+ * If so, it applies the hinttype with status HINT_LOCATED. hintedStringPos
+ * is set to 'one'. hintsForcedOnly is set to true if the cursor is just before one
+ * or is at the end of one
+ * @param [in] one The range
+ * @param [in] ht The type of hint appropriate to the position in the file.
+ * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
+ * @returns True if the cursor is in this hintable place.*/
 bool Csh::CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name)
 {
     if (CursorIn(one)<=CURSOR_AFTER) return false;
@@ -869,8 +943,111 @@ bool Csh::CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name)
     return true;
 }
 
-//If the hint had been located, is in the "location_to_check" and equals to "ht", 
-//we set it ready and return true
+/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is between two ranges or inside the second one.
+ *
+ * Checks if the cursor is between the two ranges or inside the second. If so, it sets hint type to 
+ * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * If cursor is inside two, hintedStringPos
+ * is set to two. hintsForcedOnly is set to true iff the cursor is truely before two
+ * or is at the end of two.
+ * @param [in] one The first range
+ * @param [in] two The second range
+ * @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two)
+{
+    if (!CheckHintAtAndBefore(one, two, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
+/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is between two range or inside the second one, but not immediately after the first one.
+ *
+ * Checks if the cursor is between the two ranges or inside the second, but not 
+ * immediately after the first. If so, sets hint type to 
+ * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * If cursor is inside two, hintedStringPos
+ * is set to two. hintsForcedOnly is set to true iff the cursor is truely before two
+ * or is at the end of two. * @param [in] one The first range
+ * @param [in] two The second range
+ * @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two)
+{
+    if (one.last_pos >= two.first_pos) return false;
+    CshPos one_oneAfter = one;
+    one_oneAfter.last_pos++;
+    return CheckEntityHintAtAndBefore(one_oneAfter, two);
+}
+
+/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is inside, just before or just after a range.
+ *
+ * Checks if the cursor is inside, just before or just after a range.
+ * If so, sets hint type to 
+ * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * hintedStringPos
+ * is set to 'one'. hintsForcedOnly is set to true if the cursor is just before one
+ * or is at the end of one
+ * @param [in] one The range
+ * @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckEntityHintAt(const CshPos &one)
+{
+    if (!CheckHintAt(one, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
+/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is after a range.
+ *
+ * Checks if the cursor is between 'one' and 'lookahead'.
+ * If 'atEnd' is true we trigger only if the cursor is immediately after
+ *'one'.  If so, sets hint type to 
+ * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * It sets hintsForcedOnly to false.
+ * This function is used when we want to hint an entity at the end of a yacc rule.
+ * In this case lookahead contains the location of the next token. 
+ * If the cursor is immediately at the beginning of the lookahead symbol we do nothing
+ * @param [in] one The first range
+ * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
+ * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
+ * @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd)
+{
+    if (!CheckHintAfter(one, lookahead, atEnd, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
+
+/** Mark hint type to HINT_ENTITY and status to HINT_READY if cursor is after a range, but not immediately after.
+ *
+ * Checks if the cursor is between 'one' and 'lookahead', but not immediately after 'one'.
+ * If 'atEnd' is true we trigger only if the cursor is exactly one character after
+ *'one'. If so, sets hint type to 
+ * HINT_ENTITY and status to HINT_READY and adds the entities collected so far to the hints.
+ * It sets hintsForcedOnly to false.
+ * This function is used when we want to hint something at the end of a yacc rule.
+ * In this case lookahead contains the location of the next token. 
+ * If the cursor is immediately at the beginning of the lookahead symbol we do nothing
+ * @param [in] one The first range
+ * @param [in] lookahead The range occupied by the lookahead symbol of yacc.
+ * @param [in] atEnd If true, a hint is produced if the cursor is immediately after 'one',
+ * @returns True if the cursor is in this hintable place.*/
+bool Csh::CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd)
+{
+    if (!CheckHintAfterPlusOne(one, lookahead, atEnd, HINT_ENTITY)) return false;
+    AddEntitiesToHints();
+    hintStatus = HINT_READY;
+    return true;
+}
+
+
+
+/** Check if a hint has been previously located with specific properties.
+ *
+ * If the hint had been located and its location is fully inside the "location_to_check" 
+ * and its type equals to "ht" we set its status to HINT_READY and return true.*/
 bool Csh::CheckHintLocated(CshHintType ht, const CshPos &location_to_check)
 {
     if (hintStatus!=HINT_LOCATED || hintType!=ht)
@@ -893,7 +1070,8 @@ std::string Csh::HintPrefix(MscColorSyntaxType t) const
     return state.Print(false);
 }
 
-
+/** Callback for drawing a symbol before attribute names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForAttributeNames(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
@@ -909,6 +1087,7 @@ bool CshHintGraphicCallbackForAttributeNames(MscCanvas *canvas, CshHintGraphicPa
     return true;
 }
 
+/** Insert a hint to the list of hints.*/
 void Csh::AddToHints(CshHint &&h) 
 {
     if (hintStatus == HINT_READY) return; //we add no more
@@ -919,6 +1098,12 @@ void Csh::AddToHints(CshHint &&h)
     Hints.insert(std::move(h));
 }
 
+/** Append a bunch of hints to the hint list.
+ * 
+ * @param [in] names The text of the hints in a 2D char array. The last one shall be "".
+ * @param [in] prefix A string to prepend to each hint.
+ * @param [in] t The type of the hints.
+ * @param [in] c The callback function to use. The index of the hints in 'names' will be passed as parameter to the callback. */
 void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, CshHintType t, 
                      CshHintGraphicCallback c)
 {
@@ -927,6 +1112,13 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
         AddToHints(CshHint(prefix+names[i], t, true, c, CshHintGraphicParam(i)));
 }
 
+/** Append a bunch of hints to the hint list.
+ * 
+ * @param [in] names The text of the hints in a 2D char array. The last one shall be "".
+ * @param [in] prefix A string to prepend to each hint.
+ * @param [in] t The type of the hints.
+ * @param [in] c The callback function to use. 
+ * @param [in] p The parameter to pass to the callback.*/
 void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, CshHintType t, 
                      CshHintGraphicCallback c, CshHintGraphicParam p)
 {
@@ -935,6 +1127,8 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
         AddToHints(CshHint(prefix+names[i], t, true, c, p));
 }
 
+/** Callback for drawing a symbol before color names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForColors(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -958,6 +1152,8 @@ bool CshHintGraphicCallbackForColors(MscCanvas *canvas, CshHintGraphicParam p)
     return true;
 }
 
+/** Add colors available at the cursor to the list of hints.
+ * We also add 4 explanatory hints on color syntax.*/
 void Csh::AddColorValuesToHints()
 {
     AddToHints(CshHint(HintPrefixNonSelectable()+"<\"red,green,blue\">", HINT_ATTR_VALUE, false));
@@ -972,6 +1168,8 @@ void Csh::AddColorValuesToHints()
     }
 }
 
+/** Callback for drawing a symbol before design names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForDesigns(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
@@ -1006,12 +1204,16 @@ bool CshHintGraphicCallbackForDesigns(MscCanvas *canvas, CshHintGraphicParam /*p
     return true;
 }
 
+/** Add design available at the cursor to the list of hints.
+ * @param [in] full Decides if full or partial design names shall be added.*/
 void Csh::AddDesignsToHints(bool full)
 {
     for (auto i= (full ? FullDesigns : PartialDesigns).begin(); i!=(full ? FullDesigns : PartialDesigns).end(); i++)
         Hints.insert(CshHint(HintPrefix(COLOR_ATTRVALUE) + i->first, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForDesigns));
 }
 
+/** Callback for drawing a symbol before style names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
@@ -1040,6 +1242,8 @@ bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam)
     return true;
 }
 
+/** Callback for drawing a symbol before style names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
@@ -1060,7 +1264,7 @@ bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam)
     return true;
 }
 
-
+/** Add styles available at the cursor to the list of hints. */
 void Csh::AddStylesToHints()
 {
     for (auto i=Contexts.back().StyleNames.begin(); i!=Contexts.back().StyleNames.end(); i++)
@@ -1068,16 +1272,20 @@ void Csh::AddStylesToHints()
             AddToHints(CshHint(HintPrefix(COLOR_STYLENAME) + *i, HINT_ATTR_VALUE, true, CshHintGraphicCallbackForStyles));
 }
 
+/** Add chart option names to the list of hints. */
 void Csh::AddOptionsToHints() 
 {
     Msc::AttributeNames(*this, false);
 }
 
+/** Add names of chart options that are valid inside a design definition to the list of hints. */
 void Csh::AddDesignOptionsToHints() 
 {
     Msc::AttributeNames(*this, true);
 }
 
+/** Callback for drawing a symbol before keywords in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
@@ -1088,12 +1296,15 @@ bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam)
     return true;
 }
 
+/** Add keywords to the list of hints. */
 void Csh::AddKeywordsToHints(bool includeParallel)
 {
     AddToHints(keyword_names+1-(includeParallel?1:0), HintPrefix(COLOR_KEYWORD), HINT_ATTR_VALUE, 
                CshHintGraphicCallbackForKeywords);
 }
 
+/** Callback for drawing a symbol before entities in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForEntities(MscCanvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
@@ -1114,13 +1325,30 @@ bool CshHintGraphicCallbackForEntities(MscCanvas *canvas, CshHintGraphicParam /*
     return true;
 }
 
+/** Add entities defined up to now to the list of hints. */
 void Csh::AddEntitiesToHints()
 {
     for (auto i=EntityNames.begin(); i!=EntityNames.end(); i++)
         AddToHints(CshHint(HintPrefix(COLOR_ENTITYNAME) + *i, HINT_ENTITY, true, CshHintGraphicCallbackForEntities));
 }
 
-void Csh::ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same)
+/** Post-process the list of hints.
+ * 
+ * Fill in the 'size' and 'plain' members.
+ * Fill and compact the list. Compact means here that entries having the same beginning
+ * up to a dot will be combined to a single hint.
+ * For example, if we have two hints "line.width" and "line.color" and the user has so
+ * far typed "lin" we compact the two into "line.*". If, however, the user has already
+ * typed "line.w" we do not compact (but perhaps filter line.color away if filterin is on).
+ * Hints are also sorted.
+ * @param [in] canvas A canvas to use at size calculation.
+ * @param [in] format The text format to use at size calculation.
+ * @param [in] uc The string under the cursor. Used as prefix for filtering and grouping.
+ * @param [in] filter_by_uc If true we remove those hints that do not start by 'uc'.
+ * @param [in] compact_same We do compaction as described above if true.
+ */
+void Csh::ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, 
+                       bool filter_by_uc, bool compact_same)
 {
     StringFormat f;
     f.Default();
@@ -1204,10 +1432,11 @@ void Csh::ProcessHints(MscCanvas &canvas, StringFormat *format, const std::strin
     }
 }
 
-//returns -1 if txt is ""
-//returns 0 if txt is not in coll
-//returns 1 if txt is a prefix of something in coll, but not equals anything
-//returns 2 if txt equals to something in coll
+/** Helper to find a prefix in a set of strings.
+ * returns -1 if txt is ""
+ * returns 0 if txt is not in coll
+ * returns 1 if txt is a prefix of something in coll, but not equals anything
+ * returns 2 if txt equals to something in coll*/
 int FindPrefix(const std::set<std::string> &coll, const char *txt)
 {
     if (txt == NULL || txt[0]==0) return -1;

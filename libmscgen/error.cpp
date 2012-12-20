@@ -17,6 +17,9 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/** @file error.cpp The definition of classes for error registration.
+ * @ingroup libmscgen_files */
+
 #include <algorithm>
 #include "msc.h"
 
@@ -35,6 +38,13 @@ unsigned MscError::AddFile(const string &filename)
     return (unsigned)Files.size()-1;
 }
 
+/** Formulate an error element - used internally. 
+ * @param [in] linenum The line number to show.
+ * @param [in] linenum_ord The line number to use at ordering.
+ * @param [in] is_err True if this is an error, false if a Warning. 
+ * @param [in] is_once True if the message is to be displayed only once.
+ * @param [in] msg The message to display
+ * @returns The error element. */
 ErrorElement MscError::FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const
 {
     ErrorElement e;
@@ -61,6 +71,14 @@ ErrorElement MscError::FormulateElement(file_line linenum, file_line linenum_ord
     return e;
 }
 
+/**Adds an error/warning related to an attribute.
+ *
+ * Line numbers are deducted from the Attribute.
+ * @param [in] a The faulty attribute.
+ * @param [in] atValue True if the problem is with the value of the attr, false if with its name.
+ * @param [in] s The message to display
+ * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.
+ * @param [in] is_err True if this is an error, false if a Warning. */
 void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once, bool is_err)
 {
     if (a.error) return;
@@ -71,6 +89,13 @@ void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const
         Add(a.linenum_attr.start, a.linenum_attr.start, s, once, is_err);
 }
 
+/**Adds an error/warning.
+ *
+ * @param [in] linenum The line number to show.
+ * @param [in] linenum_ord The line number to use at ordering.
+ * @param [in] s The message to display
+ * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.
+ * @param [in] is_err True if this is an error, false if a Warning. */
 void MscError::Add(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once, bool is_err)
 {
     ErrorElement e1 = FormulateElement(linenum, linenum_ord, is_err, false, s);

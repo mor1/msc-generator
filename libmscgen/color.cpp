@@ -16,6 +16,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file color.cpp The definition of classes for colors.
+ * @ingroup libmscgen_files */
+
 #include <sstream>
 #include "msc.h"
 
@@ -66,7 +69,16 @@ string MscColorType::Print(void) const
     return ss.str();
 }
 
-bool ColorSet::AddColor(const std::string alias, const std::string colordef,
+/** Add an element to the collection.
+ *
+ * If the color definition is not valid, no color is added to the collection,
+ * but an error is generated.
+ * @param [in] alias The name of the color to add.
+ * @param [in] colordef The textual definition of the color.
+ * @param error This is where we add errors if the color description is not valid.
+ * @param [in] linenum The location of `colordef` in the input file.
+ */
+bool ColorSet::AddColor(const std::string &alias, const std::string &colordef,
                         MscError &error, file_line_range linenum)
 {
     MscColorType c = GetColor(colordef);
@@ -89,16 +101,24 @@ inline string remove_spaces(const string &s)
     return s.substr(a, b-a+1);
 }
 
+/** Return a color from the collection by name.
+ *
+ * The name can also be an rgb color definition or a variation of 
+ * an existing color, one of the following.
+ * 1. a color name
+ * 2. a color name, followed by a comma and an alpha value
+ * 3. a color name followed by {+-} and a percentage of lightness
+ * 4. a color name, followed by a comma and an alpha value,  followed by {+-} and a percentage of lightness
+ * 5. three int value separated by commas (rgb)
+ * 6. four int values separated by commas (rgba)
+ *
+ * In the first 4 case we consult the collection in the last case we return
+ * a value irrespective of the collection content.
+ * @param [in] s_original The description of the color.
+ * @returns A color, which may be invalid if the description is invalid or not in the collection.
+ */
 MscColorType ColorSet::GetColor(const std::string &s_original) const
 {
-    /* s can be one of four things
-     * 1. a color name
-     * 2. a color name, followed by a comma and an alpha value
-     * 3. a color name followed by {+-} and a percentage of lightness
-     * 4. a color name, followed by a comma and an alpha value,  followed by {+-} and a percentage of lightness
-     * 5. three int value separated by commas (rgb)
-     * 6. four int values separated by commas (rgba)
-     */
     string s = remove_spaces(s_original);
     const_iterator i = find(s);
     //if #1, return the value for the color name

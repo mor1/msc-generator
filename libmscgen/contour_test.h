@@ -17,6 +17,11 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
+/** @file contour_test.h Declares contour_test().
+ * @ingroup contour_files
+ */
+
 #include "contour.h"
 
 namespace contour {
