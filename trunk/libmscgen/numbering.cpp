@@ -139,8 +139,8 @@ out:
     return (unsigned)number.length()-pos;
 }
 
-bool NumberingStyleFragment::FindReplaceNumberFormatToken(string &text, file_line l,
-                                                          string::size_type pos)
+bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, file_line l,
+                                                          std::string::size_type pos)
 {
     char const *formats[] = {"123", "arabic","ARABIC",
                              "iii", "xxx", "roman", "III", "XXX", "ROMAN",

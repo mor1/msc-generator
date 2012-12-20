@@ -268,7 +268,7 @@ protected:
 public:
     ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
         const char *d, file_line_range dl, Msc *msc, bool fw, const MscStyle &);
-    ArcDirArrow(const EntityList &, bool bidir, const ArcLabelled &al);
+    ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
     virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
     ArcBase *AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);

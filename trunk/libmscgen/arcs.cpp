@@ -17,27 +17,97 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/*
-    Here is how the lifecycle of an Arc goes.
+/** @defgroup libmscgen The engine of Msc-generator.
+ 
+  The mscgen library contains functions to 
+  - parse signalling charts 
+  - to lay out charts
+  - to draw the chart onto carious cairo surfaces
+  - to parse the chart for color syntax highlighting purposes, 
+    collect and organize hints; and
+  - to help a Windows client with auxiliary functions (controls, grouping state,
+    tracking rectangle generation, header size calculation for autosplit, etc.)
 
-    <parsing starts>
+  # Terminology
 
+  - An *entity* is something the messages go in between. They have three classes
+    in libmscgen: one Entity per entity of the chart, one EntityDef for every
+    occurence of that entity (definition, change of status, etc.) and an
+    CommandEntity for each group of entities mentioned together.
+  - An entity is a *group entity* if it contains other entities. We call these
+    *child* and the group entity the *parent*.
+  - A group entity is *collapsed* if its 'collapsed' attribute says so,
+    and thus its child entities are not shown.
+  - An entity is *active* if it shows on the chart. It is not active if
+    it is a child of a collapsed group entity.
+  - An *arc* is a command in the chart terminated by a semicolon. An arc
+    can be an arrow, an entity definition, a box, an option, etc.
+    All arcs are descendants of ArcBase.
+  - The chart is represented by an Msc object. It incorporates all arcs,
+    entities and settings.
+  - A *context* is a set of settings valid at a given place in the file during 
+    parse. It includes the current definition of colors, styles and a few global
+    option, such as 'compress', 'numbering', 'indicator', 'slant_angle' and 'hscale'.
+    They also include the current comment line and fill style, the default font
+    and current numbering style. Contexts are captured by class Context.
+  - A *scope* in the chart file is an area enclosed between '{' and '} symbols.
+    Any change you make to the context is valid only inside the scope.
+  - A *style* is a set of attributes (line, vline, fill, vfill, shadow, 
+    arrow, text, note, solid, side, numbering, compress, indicator and
+    makeroom). Not all attributes have to be set (making a style *incomplete*)
+    and in some cases not all of them *can be set*. Styles are capture by
+    class Style.
+
+  # Parsing
+
+  Parsing is defined in language.yy and language2.ll yacc and lex files.
+  There are two parsing processes (MscParse and CshParse), one for
+  generating the drawable Msc class and another to collect color syntax
+  highlighting and hinting data into class Csh. Both parsing process
+  is described in the same yacc and lex file, but those are compiled twice
+  with different options and type definitions one for Msc one for Csh.
+  The former are language.h, language.cc, language2.h, language2.cc; whereas
+  the latter result in colorsyntax.h, colorsyntax.cc, colorsyntax2.h and
+  colorsyntax2.cc. Using the same yacc and lex sources enables easy
+  consistency between drawn charts and CSH.
+
+  The parsing for Msc uses a location type (YYLTYPE) that consists of a line and col
+  number, since this is how we display error messages. Whereas the csh parsing
+  uses a location type that contains the number of bytes since the beginning 
+  of the file, since the Windows RichEdit control uses such location values.
+
+  During both parsing type we maintain a stack of contexts. For Msc it is a
+  stack of Context classes, for csh it is a stack of CshContext classes.
+  The latter one is simpler, it merely contains the colors and style names,
+  because only these are needed for autocompletion.
+
+  When parsing for Csh, we also collect potential extensions of a fragment
+  under the cursor. We call these 'Hints'.
+
+  When parsing for Msc, we collect Entities and Arcs. Further layout and drawing
+  operations (all called from a member of Msc) work on the list (or rather tree)
+  of arcs. Tree, because arcs may contain other arcs, as in case of a box, for
+  example.
+
+  # The lifecycle of an Arc.
+
+    @<parsing starts>
     1. Construction: Only basic initialization is done here. For arcs with style (descendants of ArcLabelled)
        we fetch the appropriate style from Msc::Contexts.back()
        We also look up entities the arc refers to (and create them if needed), so after this point
-       we have EIterators pointing to the AllEntities list.
+       we have EIterators pointing to the Msc::AllEntities list.
        When a CommandNote is constructed, it is attached to the last element that can be 
-       attached to (by calling Msc::last_notable_arc->AttachNote()). By this ownership of the
+       attached to (by calling Msc::last_notable_arc->AttachNote()). By this the ownership of the
        CommandNote object falls to its targeted arc.
-    2. AddAttributeList: Add attributes to arc. This function must be called (with NULL if no attributes)
+    2. AddAttributeList: Add attributes to arc. This function must always be called (with NULL if no attributes)
        We have to do this before we can create a list of Active Entities, since attributes can 
        result in the implicit definition of new entities.
     3. Additional small functions (SetLineEnd, ArcBox::SetPipe, CommandEntity::ApplyPrefix, etc.)
 
-    <parsing ends>
-    <here we construct a list of active entities from AllEntities to ActiveEntities>
+    @<parsing ends>
+    @<here we construct a list of active entities from AllEntities to ActiveEntities>
 
-    4. PostParseProcess: This is called recursive to do the following.
+    4. PostParseProcess: This is called (also recursively for children arcs in the tree) to do the following.
        a) Determine the non-specified entities for boxes, pipes and arrows. Note that the EIterators 
           received as parameters ("left", "right") are iterators of AllEntities and not ActiveEntities.
        b) Calculate numering for labels. Also, if the entity has a name, store the arc in 
@@ -53,7 +123,7 @@
           We also have to ensure that for auto-sizing entities (e.g., " .. : label { <content> }") we
           keep the size as would be the case for a non-collapsed box. Also, content that does not show, but
           influence appearance (e.g., entity commands, page breaks, background changes, etc.) are 
-          still kept as content and steps below (#6-9) shall be performed on them. See #h below.
+          still kept as content and steps below (\#6-9) shall be performed on them. See \#h below.
        e) Combine CommandEntities and ArcIndicators one after the other
        f) Set up some extra variables
        g) Print error messages. 
@@ -77,7 +147,7 @@
        If hcale!=auto, entities have fixed positions, but this function is still called (so as it can be used
        to calculate cached values).
 
-    <here we calculate the Entity::pos for all entities in ActiveEntities in Msc::CalculateWidthHeight>
+    @<here we calculate the Entity::pos for all entities in ActiveEntities in Msc::CalculateWidthHeight>
 
     7. Height: This is a key function, returning the vertical space an element(/arc) occupies. It also places
        the contour of the element in its "cover" parameter. The former (height) is used when compress is off and
@@ -109,18 +179,18 @@
     
     <here we place floating notes in Msc::PlaceFloatingNotes>
 
-    9. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
+   10. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
        Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
        to decide. We also expand all "area" and "area_draw" members, so that contours look better in tracking mode.
        No error messages shall be printed after this function.
-   10. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely cached 
+   11. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely cached 
        values in the elements. It can be called several times and should not change state of the element 
        including the cached values.
-   11. Destructor.
+   12. Destructor.
 
-       All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
-       the remainder from the Msc:: memeber functions of similar names, with the exception of ShiftBy, which is
-       called from Msc::Height and Msc::PlaceListUnder.
+    All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
+    the remainder from the Msc:: memeber functions of similar names, with the exception of ShiftBy, which is
+    called from Msc::Height and Msc::PlaceListUnder.
 
     Color Syntax Highlighting support also has functions in Arcs.
     1. AttributeNames: A static function that inserts the attributes valid for this type of arc into a Csh object.
@@ -129,6 +199,12 @@
     are in fact only used for the hinting process and not for actual syntax highlighting (which requires no
     support from Arc objects, since those are not created during a Csh parse.
 */
+
+/** @defgroup libmscgen_files The files of the mscgen library.
+ * @ingroup libmscgen
+ * @file arcs.cpp The basic definitions or arcs that are not commands.
+ * @ingroup libmscgen_files */
+
 #include <math.h>
 #include <cassert>
 #include <iostream>
@@ -857,7 +933,7 @@ ArcDirArrow::ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
     if (chart) slant_angle = chart->Contexts.back().slant_angle.second;
 };
 
-ArcDirArrow::ArcDirArrow(const class EntityList &el, bool bidir, const ArcLabelled &al) :
+ArcDirArrow::ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al) :
     ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, al), specified_as_forward(false), slant_angle(0)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());

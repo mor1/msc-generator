@@ -16,6 +16,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file contour_test.cpp Defines contour_test().
+ * @ingroup contour_files
+ */
 #include <string>
 #include "contour.h"
 
@@ -925,6 +928,10 @@ void contour_test_tangent(unsigned num)
 }
 
 
+/** A set of drawing operations drawing interesting test cases.
+ * @ingroup contour_internal
+ * Not very sophisticated, I admit.
+ */
 void contour_test(void)
 {
     //contour_test_basic();
