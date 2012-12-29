@@ -32,6 +32,11 @@ ADD: Tip of the day
 ADD: Check if file changed on disk
 ADD: URL's to PNG
 
+In 3.5.7
+FIX: PDF format bad
+FIX: Allow multiple pages in a single PDF output file
+ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+
 In 3.5.6
 CANCELLED: What is exactly the size of the WMF image?
 FIXED: Nicer tracking of fallback image

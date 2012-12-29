@@ -33,11 +33,6 @@ unsigned CaseInsensitiveCommonPrefixLen(const char *a, const char *b)
     return i;
 }
 
-//0 if a does not begin with b
-//1 if a begins with b
-//2 if a == b
-//Rule 1: "" begins with a NULL, but is not equal to it
-//Rule 2: every string begins with a "" or a NULL
 int CaseInsensitiveBeginsWith(const char *a, const char *b)
 {
     if (b==NULL) return a==NULL?2:1;
@@ -58,9 +53,15 @@ bool CaseInsensitiveEndsWith(const char *base, const char *a)
             return false;
         i1--; i2--;
     }
+    //Here the end of `base` equals to `a`.
+    //If i2<0 then `a` must equal to `base`, which is a true return.
+    //Else, we return true only if `a` comes in `base` strictly after a dot.
     return i2<0 || base[i2]=='.';
 }
 
+/** Converts the attribute to a string
+ * @param [in] ident Tells how much space to prepend each line.
+ * @returns The string */
 string Attribute::Print(int ident) const
 {
     string s(ident*2,' ');
@@ -85,12 +86,13 @@ string Attribute::Print(int ident) const
     return s;
 };
 
-//Case insensitive comparison with name
+/** True if the (one or more) last (dot-separated) segments of the attribute name equal `a` (case insensitive)*/
 bool Attribute::EndsWith(const char *a) const
 {
     return CaseInsensitiveEndsWith(name.c_str(), a);
 }
 
+/** True if the (one or more) first (dot-separated) segments of the attribute name equal `a` (case insensitive)*/
 bool Attribute::StartsWith(const char *a) const
 {
     unsigned i=0;
@@ -102,6 +104,13 @@ bool Attribute::StartsWith(const char *a) const
     return a[i]==0 && (i==name.length() || name[i]=='.');
 }
 
+/** Ensure that the attribute is of a certain type.
+ *
+ * If the attribute is not of type `t` we generate an error into `error` and
+ * mark the attribute as one in error (which will result in ignoring it). 
+ * @param [in] t The type the attribute shall be.
+ * @param error The object we shall add our error message to.
+ * @returns True if the types matched.*/
 bool Attribute::CheckType(MscAttrType t, MscError &error) const
 {
     if (type == t) return true;
@@ -132,6 +141,15 @@ bool Attribute::CheckType(MscAttrType t, MscError &error) const
     return false;
 }
 
+/** Ensure that the attribute value specifies a color.
+ *
+ * If the attribute value is not a string that conforms to color specifications
+ * (that is, not a name of a color and not an rgb value 
+ * triplet, etc., see ColorSet::GetColor()) we generate an error into `error` and
+ * mark the attribute as one in error (which will result in ignoring it). 
+ * @param [in] colors A set of color names, we search the color name in.
+ * @param error The object we shall add our error message to.
+ * @returns True if the value specifies a color.*/
 bool Attribute::CheckColor(const ColorSet &colors, MscError &error) const
 {
     if (type==MSC_ATTR_STRING) {
@@ -144,6 +162,10 @@ bool Attribute::CheckColor(const ColorSet &colors, MscError &error) const
     return false;
 }
 
+/** Marks the attribute as one having an invalid value and generates an appropriate error message.
+ *
+ * @param [in] candidates The slash ("/") separated list of value candidates that could be used instead of the faulty value.
+ * @param error The object we shall add the error message to.*/
 void Attribute::InvalidValueError(const string &candidates, MscError &error) const
 {
     string s = string("Invalid value '");
@@ -159,6 +181,9 @@ void Attribute::InvalidValueError(const string &candidates, MscError &error) con
     error.Error(*this, true, s);
 }
 
+/** Marks the attribute as not applicable here and generates an appropriate error message.
+ *
+ * @param error The object we shall add the error message to.*/
 void Attribute::InvalidAttrError(MscError &error) const
 {
     string s;
@@ -166,13 +191,24 @@ void Attribute::InvalidAttrError(MscError &error) const
     error.Error(*this, false, s);
 }
 
+/** Marks the attribute an unknown style and generates an appropriate error message.
+ *
+ * We assume the attribute specifies a style (is of MSC_ATTR_STYLE type).
+ * @param error The object we shall add the error message to.*/
 void Attribute::InvalidStyleError(MscError &error) const
 {
+    _ASSERT(type==MSC_ATTR_STYLE);
     string s;
     s << "Undefined style: '" << name << "'. Ignoring it.";
     error.Error(*this, false, s);
 }
 
+/** Ensures the attribute has a value after the "=" sign.
+ *
+ * We generate an error message if not so.
+ * Some attributes cannot be unset (or cleared), we check this here.
+ * @param error The object we shall add the error message to.
+ * @param [in] t The type of style the attribute is part of. */
 bool Attribute::EnsureNotClear(MscError &error, StyleType t) const
 {
     if (type != MSC_ATTR_CLEAR) return true;
@@ -197,10 +233,12 @@ bool Attribute::EnsureNotClear(MscError &error, StyleType t) const
 
 /////////////////////////////////////////////////////////////////////////////
 
+/** Possible values for a line type*/
 template<> const char EnumEncapsulator<MscLineType>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "solid", "dotted", "dashed", "long_dashed", "dash_dotted", 
      "double", "triple", "triple_thick", ""};
 
+/** Possible values for a rectangle corner type*/
 template<> const char EnumEncapsulator<MscCornerType>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "round", "bevel", "note", ""};
 

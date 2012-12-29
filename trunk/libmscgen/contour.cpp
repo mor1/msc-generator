@@ -410,10 +410,12 @@ struct node
  * of the two contours. In this case the `o` cp
  * is evaluated as follows. From the north ray, we have to switch to the east ray and vice versa.
  * Also, the east is eligible to start the walk with. (Starting at the north would yield in a 
- * counterclockwise result and here we are after a clockwise union.)
+ * counterclockwise result and here we are after a clockwise union. This is because we always
+ * start *outwards* from a cp, irrespective of edge direction. Sometimes we have to walk *against*
+ * edge direction, e.g., for XOR operations, thus we mostly ignore edge direction on walking.)
  * The other two rays should never be arrived on (they will not be part of the union, since they are
  * inside it), thus these are marked as *error*. Similar for `x` if we arrive on the west ray we shall 
- * continue on the south one and vice versa (and we can start with the east one); while the other two
+ * continue on the south one and vice versa (and we can start with the west one); while the other two
  * represent errors.
  * For the case of the intersection operation, the east and south ray of `o` would be valid ones
  * where for `x` the north and east ones. See EvaluateCrosspoints().
@@ -421,14 +423,19 @@ struct node
  * ### Walking
  *
  * After evaluation we start walking from one of the eligible rays. (See Walk().) We follow the edges
- * of the Simplecontour we are on until we hit a crosspoint. There we follow the result of the evaluation
+ * of the SimpleContour we are on until we hit a crosspoint. There we follow the result of the evaluation
  * for the ray we arrived to the crosspoint. Eventually we arrive back to where we started from.
- * (In fact we may terminate the walk after arriving back to another ray of the same cp. To this end
+ * (In fact we may terminate the walk after arriving back to another ray of the same cp. To this end,
  * rays in the cp are assigned a *sequence number*. If we arrive back to a ray with the same
  * sequence number we stop the walk. Note that at one crosspoint there may be rays with different 
- * sequence numbers if the walk is to be continued.)
+ * sequence numbers. Sometimes we have to continue the walk even if we arrived back to the cp until
+ * we get back on the right ray, see the example below at Untangling.)
+ * Note that during walk we ignore the original direction of edges. Sometimes we have to walk them
+ * in the opposite direction (for XOR, or see the example below for Untangling.)
+ *
  * In the meantime we mark all rays we crossed, so that we do not start a walk resulting in this very
- * SimpleContour again. If there are eligible starting rays, we do another walk, as long as we have ones left.
+ * SimpleContour again. If there are eligible starting rays, we do another walk, as long as we have ones left -
+ * each walk generating a separate, non-flipped, disjoint SimpleContour, which however, may be inside one another.
  * See for example the two shapes ('A' forming an upside-down U-shape and 'B' forming a rectangle) below 
  * and assume we do an intersection operation.
  * @verbatim
@@ -450,7 +457,7 @@ struct node
  *
  * ### Post-processing
  *
- * After completing all the walks we have a set of non-overlapping SimpleContours. Note that 
+ * After completing all the walks we have a set of SimpleContours, whose edges do not cross. Note that 
  * even if we hunt for a clockwise union or intersection, some of them can be counterclockwise.
  * Take the above example and assume a union operation. In this case the result will have a hole
  * marked with 'H'. The eligible rays for the same 4 cps are north for '1' and '3'; east for '2' 
@@ -466,26 +473,41 @@ struct node
  * ## Untangling
  *
  * A few words about untangling. In this case we have only a single shape - which is not a 
- * valid contour, but at least its edges connect. There are two rules on which part the 
+ * valid contour, but we know that its neighbouring edges connect. There are two rules on which part the 
  * result shall contain.
  *     - *Winding* rule: If the original shape crosses the ray from left-to-right, counts +1. 
  *       If the path crosses the ray from right to left, counts -1. (Left and right are determined from the 
  *       perspective of looking along the ray from the starting point.) 
  *       If the total count is non-zero, the point will be included in the untangled shape.
- *     - Counts the total number of intersections, without regard to the orientation of the contour. 
+ *     - *Even-odd* rule: Counts the total number of intersections, without regard to the orientation of the contour. 
  *       If the total number of intersections is odd, the point will be included in the untangled shape.
  *
  * See the below example.
  * @verbatim
-   +--->---------------+
-   |      +-->---+     |
-   |      |  B   |     |
-   ^      +--<---o--<--+
-   |  A          |
-   +-------<-----+
+   +--->---------------+  +--->---------------+   +--->---------------+  
+   |                   |  |...................|   |...................|
+   |      +-->---+     |  |...................|   |......+--<---+.....|
+   |      |  B   |     |  |...................|   |......|      |.....|
+   ^      +--<---o--<--+  ^.............+--<--+   ^..... +-->---+--<--+
+   |  A          |        |...winding...|         |..even-odd...|
+   +-------<-----+        +-------<-----+         +-------<-----+
  @endverbatim
  * In case the winding rule, the final shape would contain 'B', where in case of the evenodd rule
- * it would not. (The counter would be +2 for points inside 'B'.)
+ * it would not, see the two shapes on the right, where dots indicate the areas covered. 
+ * (The counter would be +2 for points inside 'B'.)
+ *
+ * Note that for the evenodd rule the direction of the edges of 'B' had been reversed. Also note that the crosspoint
+ * is walked across two times: once when coming from the east and continuing north and the second
+ * time when coming from the west and continuing south. This is one of the occasions when just by getting
+ * back to the same crosspoint we shall not stop the walk. Assuming we start in the north direction from
+ * this crosspoint (the only one eligible), we shall not stop the walk when we get back from the east.
+ * Only when we get back from the west. This is achieved by assigning different sequence numbers
+ * to the north/west rays and the east/south rays.
+ * Finally note that we could stop the walk every time we get back to the same cp. In the above
+ * example for evenodd that would result in a SimpleContour identical to the middle example and
+ * a hole in it - that would also be a completely legal representation according to contour library principles.
+ * We just do it the former way.
+ *
  * Basically the process is very similar to the above one. We take crosspoints, evaluate and walk.
  * However, the crosspoints are taken between the edges of the single shape.
  * 
@@ -495,24 +517,31 @@ struct node
  * We have Ray. They represent half lines going outwards from or inwards to crosspoints.
  * In fact they can be curvy, for curvy edges.
  * When two edges cross (and form a cp), there are 4 rays: two incoming and two outgoing
- * (as edges are directed).
+ * (as edges are directed). Rays have an *angle* which is the clockwise angle from the positive x axis
+ * and the outgoing tangent of the ray. The angle of the ray does not consider whether the ray is incoming
+ * or outgoing. Thus for the examples above east rays (both incoming and outgoing) have angle of zero,
+ * south rays the angle of 90 degrees, west rays 180 degrees and north rays 270 degrees. (Note that we
+ * store the 'false angle' not the precise one as we just use it for soriting.) This angle is
+ * used to sorth the rays around a crosspoint in clockwise order. To be able to sort curvy edges with the 
+ * same tangent, we also store the curvyness of the ange, which is the inverse of the curve radius at the
+ * crosspoint (thus zero for straight lines). See RayAngle.
  *
  * Rays are stored in a big vector (ContoursHelper::Rays) and are arranged in 4 doubly linked lists.
- * For each contour part of the operation we have a circular list that indexes rays according
+ * For each SimpleContour that is part of the operation we have a circular list that indexes rays according
  * to their order along the contour, by increasing <edge_no, pos_on_the_edge, incoming>.
- * (incoming rays are earlier than their outgoing pair).
- * There is a separate such circular list for each contour, the head of such lists are the rays with
+ * (incoming rays are earlier in the list than their outgoing pair).
+ * There is a separate such circular list for each SimpleContour, the head of such lists are the rays with
  * the smallest triplet for each contour.
- * In addition the heads of the circular lists are themselves organized into another list (circular),
- * which links only the heads. This second list contains as many elements as there are contours.
+ * In addition, the heads of the circular lists are themselves organized into another list (circular),
+ * which links only the heads. This second list contains as many elements as there are SimpleContour with crosspoints.
  * I call the first list "strict" since it contains all rays (in one of the circular lists), and the
  * latter loose, as it only contains head rays.
  * 
- * In addition, there is a third list which lists rays associated with a crosspoint in clockwise order.
+ * Furthermore, there is a third list which lists rays associated with a crosspoint in clockwise order.
  * In fact they are ordered by <false angle, curve angle> and the head is the ray closest to <0, -inf>.
  * E.g., for a simple corsspoint of two edges crossing, we will have 4 rays in the circular list, two
  * for each edge. This is also a strict list, since all rays belong to one such list.
- * Finally, a fourth list links the heads of the per crosspoint lists. This is a loose list. 
+ * Finally, a fourth list links the heads of the per-crosspoint lists. This is a loose list. 
  * For loose lists: only heads of the strict lists are doubly linked, 
  * any other ray has its `next` member set to themselves and `prev` member set to the respective strict list head.
  * For strict lists: a separate circular list is maintained for each contour and cp. 
@@ -520,7 +549,7 @@ struct node
  *
  * Each Ray structure contains four link_info members with `prev` and `next` members for the four lists, resp.
  * Rays that are not part of a loose list have these members set to "no_link" for that loose list.
- * This enables us to move both along the endges of a contour and also rotate around a crosspoint easily.
+ * This enables us to move both along the endges of a SimpleContour during walking and also to rotate around crosspoints easily.
  *
  * ### Ray groups
  * 
@@ -530,7 +559,7 @@ struct node
  * downward). We use fake angles here with curvature values, see RayAngle.
  *
  * A ray group is a set of rays around a cp with exactly the same angle (within numeric precision)
- * and curvature number.
+ * and curvature angle.
  * This means that they lie exactly on each other. See the three examples below.
  * @verbatim
    +-->-----o=====o----+    +-->--o=====o->---+        +--->--+
@@ -542,7 +571,7 @@ struct node
  * Here the two shapes have some parts of their edges common. In the first two case the common 
  * segments share the same direction, but in the third they are opposite. In all cases the 
  * crosspoints marked by `o` have three ray groups. Two of the ray groups have a single ray,
- * whereas the third one has two.
+ * whereas a third one has two.
  *
  * What follows from the above definition is that if we have to continue 
  * the walk along one of the rays of a ray group, we can (at least in theory) pick any of them. 
@@ -1245,7 +1274,7 @@ size_t ContoursHelper::ClosestNextCP(size_t from, size_t to) const
  * Coverage values add up, thus if a point is covered by two clockwise surfaces,
  * we say that the coverage at that point is +2.
  *
- * See the examples below. We show two edges for each, with two rays per edge. 
+ * See the examples below. We show two edges for each example, with two rays per edge. 
  * @verbatim
        (A1)
         |                       0
@@ -1263,13 +1292,12 @@ size_t ContoursHelper::ClosestNextCP(size_t from, size_t to) const
  * whereas incoming edges *decrease*. So if we know the coverage just before any ray it is easy to
  * calculate it for any place around a cp.
  *
- * Thus the evaluation starts by determining the coverage just before the smallest RayAngle value,
+ * Thus the evaluation starts by determining the coverage just before the smallest possible RayAngle value,
  * which is angle zero (tangent is horizontal to the right) and curvature -inf, which is a counterclockwise
- * curve with infinite small radius.
+ * curve with infinitely small radius. Depending on the operation this can be calculated as below.
  *
- * - If we make operations on sane and untangled shapes, we merely calculate how many of the contours 
- *   include a point that is just before this (hypothetical) ray of minimum RayAngle value.
- *   In this case we can be sure that if we walk along an edge, to our left is the outside of the 
+ * - If we make operations on sane and untangled shapes 
+ *   we can be sure that if we walk along an edge, to our left is the outside of the 
  *   surface and to our right is the inside of the surface. 
  *   Thus (knowing if the shape is clockwise or counterclockwise) we can detemine the coverage outside
  *   (always zero) and inside (+1 or -1). So we merely check each edge 
@@ -1286,7 +1314,7 @@ size_t ContoursHelper::ClosestNextCP(size_t from, size_t to) const
  *
  * After we have determined the coverage at RayAngle (0, -inf), we use IsCoverageToInclude() to can see 
  * if this area shall be included in the result or not. We then walk arount the cp in clockwise fashion
- * until we see a change in the inclusion. This then enables us to pair rays along the contour of the
+ * updating the coverage at each edge, until we see a change in the inclusion. This then enables us to pair rays along the contour of the
  * result shape. This will be stored in the 'switch_to' member of the Ray. 
  *
  * We also set the 'seq_num' member of the ray to set which rays are equivalent from a stopping perspective.
