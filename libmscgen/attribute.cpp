@@ -16,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file attribute.cpp The definition of basic classes for attributes and basic styles.
+ * @ingroup libmscgen_files */
 #include <cassert>
 #include <cstring>
 #include "msc.h"
@@ -242,12 +244,20 @@ template<> const char EnumEncapsulator<MscLineType>::names[][ENUM_STRING_LEN] =
 template<> const char EnumEncapsulator<MscCornerType>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "round", "bevel", "note", ""};
 
+/**Create a fully specified default line style. 
+ * Solid line, black color, width of 1, zero radius and no corner. 
+ * All attributes (`first` members) are set.*/
 MscLineAttr::MscLineAttr() :
     type(true, LINE_SOLID), color(true, MscColorType(0,0,0)), width(true, 1.),
     radius(true, 0), corner(true, CORNER_NONE)
 {
 }
 
+/**Make the style fully specified using default line style values.
+ * If the `first` member of any attribute is false, we set it true and
+ * use the default value (Solid line, black color, width of 1, zero radius and no corner.)
+ * All attributes (`first` members) are eventually set.
+ * No change made to an already fully specified style.*/
 void MscLineAttr::MakeComplete()
 {
     if (!type.first) {type.first = true; type.second = LINE_SOLID;}
@@ -301,6 +311,16 @@ bool MscLineAttr::operator == (const MscLineAttr &a)
     return true;
 }
 
+/** Take an attribute and apply it to us.
+ *
+ * We consider attributes ending with 'color', 'width', 'type', 'corner' and 'radius'; 
+ * or any style at the current context in `msc`. We also accept the clearing of
+ * an attribute if `t` is STYLE_STYLE, that is for style definitions only.
+ * At a problem, we generate an error into msc->Error.
+ * @param [in] a The attribute to apply.
+ * @param msc The chart we build.
+ * @param [in] t The situation we set the attribute.
+ * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
 bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -389,6 +409,7 @@ bool MscLineAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
+/** Add the attribute names we take to `csh`.*/
 void MscLineAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
@@ -396,6 +417,8 @@ void MscLineAttr::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
+/** Callback for drawing a symbol before line type names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForLineType(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -405,6 +428,8 @@ bool CshHintGraphicCallbackForLineType(MscCanvas *canvas, CshHintGraphicParam p)
     return true;
 }
 
+/** Callback for drawing a symbol before corner type names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForCornerType(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -417,7 +442,7 @@ bool CshHintGraphicCallbackForCornerType(MscCanvas *canvas, CshHintGraphicParam 
     return true;
 }
 
-
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
@@ -445,6 +470,7 @@ bool MscLineAttr::AttributeValues(const std::string &attr, Csh &csh)
     return false;
 }
 
+/** Print the line style to a string.*/
 string MscLineAttr::Print(int) const
 {
     string ss = "line(";
@@ -514,12 +540,28 @@ Contour MscLineAttr::CreateRectangle_Midline(double x1, double x2, double y1, do
     return ret;
 }
 
-//This one considers linewidth and returns the middle of the inner line (for double or triple)
-//It assumes double or triple lines.
-//"this->radius" corresponds to the radius at the middle of the line
-//"x1, x2, y1, y2" corresponds to the midline 
-//For CORNER_NOTE it creates the inner line and the triangle
-//(//ret[0] will be the body and ret[1] will be the triangle)
+/** Returns the fill area of a note-styled rectangle for double or triple line styles.
+ *
+ * The function assumes double or triple line style and CORNER_NOTE corner style. It 
+ * considers line style, see an example below for
+ * single, double and triple line styles.
+ * @verbatim
+
+   +------\       +----------\        +--------------\
+   |       \      | +----+ |\ \       | +-----------\ \
+   |       |      | |    | +-\ \      | | +-------+ |\ \ 
+   +-------+      | |    +----+ \     | | |       | +-\ \
+                  | |         | |     | | |       +--+ \ \
+                  | +---------+ |     | | |          | | |
+                  +-------------+     | | +----------+ | |
+                                      | +--------------+ |
+                                      +------------------+
+   @endverbatim
+ * It returns two SimpleContours, one L-shaped rectangle and the midline 
+ * of the inner line of the double line; plus a small triangle, also at the middle of its line.
+ * ret[0] will be the body and ret[1] will be the triangle.
+ * At call time `this->radius` corresponds to the radius at the middle of the (double or triple) line.
+ * `x1, x2, y1, y2` corresponds to the midline of the rectangle.*/
 Contour MscLineAttr::CreateRectangle_ForFill_Note(double x1, double x2, double y1, double y2) const
 {
     _ASSERT(IsComplete());
@@ -562,10 +604,28 @@ Contour MscLineAttr::CreateRectangle_ForFill_Note(double x1, double x2, double y
     return ret;
 }
 
-//This one considers linewidth and returns the inner edge of the inner line 
-//"this->radius" corresponds to the radius at the middle of the line
-//"x1, x2, y1, y2" corresponds to the midline 
-//For CORNER_NOTE it creates the inner line only
+/** Returns the inner area of a note-styled rectangle.
+ *
+ * The function assumes CORNER_NOTE corner style. It 
+ * considers line style, see an example below for
+ * single, double and triple line styles.
+ * @verbatim
+
+   +------\       +----------\        +--------------\
+   |       \      | +----+ |\ \       | +-----------\ \
+   |       |      | |    | +-\ \      | | +-------+ |\ \ 
+   +-------+      | |    +----+ \     | | |       | +-\ \
+                  | |         | |     | | |       +--+ \ \
+                  | +---------+ |     | | |          | | |
+                  +-------------+     | | +----------+ | |
+                                      | +--------------+ |
+                                      +------------------+
+   @endverbatim
+ * It returns one SimpleContour, the copped one for single lines and one L-shaped rectangle 
+ * for double and triple line styles. The returned shape represents the inner edge of the line
+ * surrounding it, thus inside it, nothing will be painted when we draw the line of the rectangle.
+ * At call time `this->radius` corresponds to the radius at the middle of the (double or triple) line.
+ * `x1, x2, y1, y2` corresponds to the midline of the rectangle.*/
 Contour MscLineAttr::CreateRectangle_InnerEdge_Note(double x1, double x2, double y1, double y2) const
 {
     _ASSERT(IsComplete());
@@ -588,19 +648,40 @@ Contour MscLineAttr::CreateRectangle_InnerEdge_Note(double x1, double x2, double
 }
 
 
-
-//This assumes that we draw a rectangle at outer edge y position rect_top 
-//with the corner specified in "this".
-//And checks how much margin the text needs form the _outer_edge_ of the rectangle
-//This is at least lineWidth() (if radius==0)
-//return first contains the left margin and second the right one
-//This one assumes that the radius corresponds to the midline
+/** Calculates how wide a rectangle should be when drawing one around a text label.
+ *
+ * See the situation below. @verbatim
+      /---------------\
+     /AAAAAAAAAAAAAAAAA\
+    /                   \
+   /                     \
+   |                     |
+   @endverbatim
+ * Here we see the top of a bevelled rectangle with a label 'AAAAAAAAA' in it.
+ * We can see that the vertical sides of the rectangle are spaced further apart than
+ * the length of the label - this is because of the bevelled corners.
+ * 
+ * In this function the label is already laid out on the surface - its extent is captured in `textCover`.
+ * We want the very top of the rectangle (the outer edge of its upper horizontal line) 
+ * to be at the y coordinate `rect_top`. The rectangle is supposed to have corner style and radius
+ * as specified in `this` along with the line width. (Radius corresponds to the midline.)
+ * And checks how much margin the text needs form the _outer_edge_ of the rectangle
+ * This is at least lineWidth() (if radius==0)
+ * return first contains the left margin and second the right one
+ * This one assumes that the 
+ * @param [in] textCover The extents of the label
+ * @param [in] rect_top The y coordinate of the outer edge of the upper horizontal line of the rectangle.
+ * @returns The left and right margin to be used from the leftmost and rightmost point of `textCover`, resp 
+ *          till the *outer* edge of the vertical sides of the rectangle.
+ *          This margin is at least as much as the line width then. We return (0,0) if `textCover` is empty.
+ */
 DoublePair MscLineAttr::CalculateTextMargin(Contour textCover, double rect_top) const
 {
+    _ASSERT(IsComplete());
     DoublePair ret(0,0);
     if (textCover.IsEmpty()) return ret;
     const double lw = LineWidth();
-    if (radius.second <= LineWidth()) return DoublePair(lw, lw);
+    if (radius.second <= LineWidth() || corner.second==CORNER_NONE) return DoublePair(lw, lw);
     //create a path at the inner edge of the rectangle 
     const XY lr = textCover.GetBoundingBox().LowerRight();
     const Block inner(lw/2, radius.second*3, rect_top+lw/2, rect_top+lw/2 +lr.y+radius.second*2);
@@ -627,13 +708,23 @@ DoublePair MscLineAttr::CalculateTextMargin(Contour textCover, double rect_top) 
 
 
 
-
+/**Create a fully specified default fill style. 
+ * White color, no gradients and color2 is not set.
+ * (Fill is considered complete even if color2 is not set, because then
+ * we derive it from the primary color.*/
 MscFillAttr::MscFillAttr() :
     color(true, MscColorType(255,255,255)), color2(false, MscColorType(255,255,255)), 
     gradient(true, GRADIENT_NONE)
 {
 }
 
+/**Make the style fully specified using default fill style values.
+ * If the `first` member of any attribute is false, we set it true and
+ * use the default value (White color, no gradients.) We leave `color2` as is.
+ * (Fill is considered complete even if `color2` is not set, because then
+ * we derive it from the primary color.)
+ * All attributes (`first` members) are eventually set, except perhaps `color2`.
+ * No change made to an already fully specified style.*/
 void MscFillAttr::MakeComplete()
 {
     if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = color.second.a = 255;}
@@ -661,9 +752,20 @@ bool MscFillAttr::operator == (const MscFillAttr &a) const
     return true;
 }
 
+/** Possible values for fill gradients.*/
 template<> const char EnumEncapsulator<MscGradientType>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "out", "in", "down", "up", "left", "right", "button", ""};
 
+/** Take an attribute and apply it to us.
+ *
+ * We consider attributes ending with 'color', 'color2' and 'gradient'; 
+ * or any style at the current context in `msc`. We also accept the clearing of
+ * an attribute if `t` is STYLE_STYLE, that is for style definitions only.
+ * At a problem, we generate an error into msc->Error.
+ * @param [in] a The attribute to apply.
+ * @param msc The chart we build.
+ * @param [in] t The situation we set the attribute.
+ * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
 bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -703,6 +805,8 @@ bool MscFillAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
+/** Callback for drawing a symbol before gradient names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForGradient(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -720,6 +824,7 @@ bool CshHintGraphicCallbackForGradient(MscCanvas *canvas, CshHintGraphicParam p)
 }
 
 
+/** Add the attribute names we take to `csh`.*/
 void MscFillAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
@@ -727,6 +832,7 @@ void MscFillAttr::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color") || CaseInsensitiveEndsWith(attr, "color2")) {
@@ -741,6 +847,7 @@ bool MscFillAttr::AttributeValues(const std::string &attr, Csh &csh)
     return false;
 }
 
+/** Print the line style to a string.*/
 string MscFillAttr::Print(int) const
 {
     string ss = "fill(";
@@ -751,10 +858,17 @@ string MscFillAttr::Print(int) const
 }
 
 
+/**Create a fully specified default shadow style. 
+ * Black color, no offset (effectively no shadow) and no blur.*/
 MscShadowAttr::MscShadowAttr() :
     color(true, MscColorType(0,0,0)), offset(true, 0), blur(true, 0)
 {}
 
+/**Make the style fully specified using default shadow style values.
+ * If the `first` member of any attribute is false, we set it true and
+ * use the default value (Black color, no offset, no blur.) 
+ * All attributes (`first` members) are eventually set.
+ * No change made to an already fully specified style.*/
 void MscShadowAttr::MakeComplete()
 {
     if (!color.first) {color.first = true; color.second.r = color.second.g = color.second.b = 0; color.second.a = 255;}
@@ -781,6 +895,16 @@ bool MscShadowAttr::operator == (const MscShadowAttr &a)
     return true;
 }
 
+/** Take an attribute and apply it to us.
+ *
+ * We consider attributes ending with 'color', 'offset' and 'blur'; 
+ * or any style at the current context in `msc`. We also accept the clearing of
+ * an attribute if `t` is STYLE_STYLE, that is for style definitions only.
+ * At a problem, we generate an error into msc->Error.
+ * @param [in] a The attribute to apply.
+ * @param msc The chart we build.
+ * @param [in] t The situation we set the attribute.
+ * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
 bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -834,6 +958,7 @@ bool MscShadowAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
+/** Add the attribute names we take to `csh`.*/
 void MscShadowAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
@@ -841,6 +966,7 @@ void MscShadowAttr::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
@@ -856,6 +982,7 @@ bool MscShadowAttr::AttributeValues(const std::string &attr, Csh &csh)
 }
 
 
+/** Print the line style to a string.*/
 string MscShadowAttr::Print(int) const
 {
     string ss = "shadow(";
@@ -866,6 +993,8 @@ string MscShadowAttr::Print(int) const
 }
 
 
+/** Callback for drawing a symbol before 'yes' or 'no' in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -895,6 +1024,11 @@ bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p)
 
 /////////////////////////////////////////////////////////////////////////////
 
+/**Make the style fully specified using default note style values.
+ * If the `first` member of any attribute is false, we set it true and
+ * use the default value (Callout type, no specific position preference.) 
+ * All attributes (`first` members) are eventually set.
+ * No change made to an already fully specified style.*/
 void MscNoteAttr::MakeComplete()
 {
     if (!pointer.first) {pointer.first = true; pointer.second = CALLOUT;}
@@ -925,6 +1059,16 @@ bool MscNoteAttr::operator == (const MscNoteAttr &a)
     return true;
 }
 
+/** Take an attribute and apply it to us.
+ *
+ * We consider attributes ending with 'pointer' and 'pos'; 
+ * or any style at the current context in `msc`. We also accept the clearing of
+ * an attribute if `t` is STYLE_STYLE, that is for style definitions only.
+ * At a problem, we generate an error into msc->Error.
+ * @param [in] a The attribute to apply.
+ * @param msc The chart we build.
+ * @param [in] t The situation we set the attribute.
+ * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
 bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -979,6 +1123,7 @@ bool MscNoteAttr::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
     return false;
 }
 
+/** Add the attribute names we take to `csh`.*/
 void MscNoteAttr::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
@@ -986,12 +1131,15 @@ void MscNoteAttr::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
+/** Possible values for a note pointer type*/
 template<> const char EnumEncapsulator<MscNoteAttr::pointer_t>::names[][ENUM_STRING_LEN] =
     {"invalid", "none", "callout", "arrow", "blockarrow", ""};
 
+/** Possible values for a note pos attribute*/
 template<> const char EnumEncapsulator<MscNoteAttr::pos_t>::names[][ENUM_STRING_LEN] =
     {"invalid", "near", "far", "left", "right", "up", "down", "left_up", "left_down", "right_up", "right_down", ""};
 
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool MscNoteAttr::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "pointer")) {
@@ -1007,6 +1155,8 @@ bool MscNoteAttr::AttributeValues(const std::string &attr, Csh &csh)
     return false;
 }
 
+/** Callback for drawing a symbol before note pointer type names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool MscNoteAttr::CshHintGraphicCallbackForPointer(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -1060,6 +1210,8 @@ bool MscNoteAttr::CshHintGraphicCallbackForPointer(MscCanvas *canvas, CshHintGra
     return true;
 }
 
+/** Callback for drawing a symbol before names of values for the note positions in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool MscNoteAttr::CshHintGraphicCallbackForPos(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -1115,6 +1267,7 @@ bool MscNoteAttr::CshHintGraphicCallbackForPos(MscCanvas *canvas, CshHintGraphic
 }
 
 
+/** Print the line style to a string.*/
 string MscNoteAttr::Print(int) const
 {
     string ss = "note(";

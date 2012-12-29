@@ -1,3 +1,25 @@
+/*
+    This file is part of Msc-generator.
+    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/** @file numbering.h The declaration of basic classes for numbering styles.
+ * @ingroup libmscgen_files */
+
 #if !defined(NUMBERING_H)
 #define NUMBERING_H
 #include <string>
@@ -7,13 +29,21 @@
 
 class Msc;
 
+/**Specifies the style of a segment in a multi-level number, such as "A.1"*/
 class NumberingStyleFragment {
 public:
-    typedef enum {ARABIC, ROMAN_UPPER, ROMAN_LOWER, ABC_UPPER, ABC_LOWER} ENumberingStyle;
-    ENumberingStyle type;
-    std::string     pre;
-    std::string     post;
-
+    /**Describes the type of number to use.*/
+    typedef enum {
+        ARABIC,      ///<Arabic numbers, such as 1, 8 or 14.
+        ROMAN_UPPER, ///<Uppercase roman numbers, such as I, VIII or XIV.
+        ROMAN_LOWER, ///<Uppercase roman numbers, such as i, viii or xiv. 
+        ABC_UPPER,   ///<Uppercase letters, such as A, H or N.
+        ABC_LOWER    ///<Uppercase letters, such as a, h or n.
+    } ENumberingStyle;
+    ENumberingStyle type; ///<The type of number to use in this segment
+    std::string     pre;  ///<Text to prepend to this segment, like '.' to achieve "A.1" for example
+    std::string     post; ///<Text to append to this segment
+    /** Create a style fragment with the given or default attributes*/
     explicit NumberingStyleFragment(ENumberingStyle t=ARABIC, std::string pr="", std::string po=""): type(t), pre(pr), post(po) {}
     static bool Parse(Msc *, file_line linenum, const char *text, std::vector<NumberingStyleFragment> &result);
     std::string Print(int n) const;
