@@ -17,7 +17,7 @@
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/** @file attribute.h The declaration of basic classes for attribue handling, line, fill and shadows.
+/** @file attribute.h The declaration of basic classes for attribue handling, line, fill, shadows and notes.
  * @ingroup libmscgen_files */
 
 #if !defined(ATTRIBUTE_H)
@@ -319,46 +319,57 @@ typedef enum {
     CORNER_NOTE         ///<Only the right-upper corner is special: a small note flip
 } MscCornerType;
 
-/** Returns how much the corner radius is to be adjusted*/
+/** Returns by how much the corner radius is to be increased if the rectangle is expanded by 1 pixel.*/
 inline double RadiusIncMultiplier(MscCornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL || t==CORNER_NOTE ? tan(22.5*M_PI/180) : 0;}
 
-/** Stores the properties of a line.*/
+/** Stores the properties of a line (including rectangle corner style).*/
 class MscLineAttr {
 protected:
     Contour CreateRectangle_ForFill_Note(double x1, double x2, double y1, double y2) const;  
     Contour CreateRectangle_InnerEdge_Note(double x1, double x2, double y1, double y2) const;  
 public:
-    std::pair<bool, MscLineType>   type;
-    std::pair<bool, MscColorType>  color;
-    std::pair<bool, double>        width;
-    std::pair<bool, double>        radius;
-    std::pair<bool, MscCornerType> corner;
-    MscLineAttr();
-    MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}
-    MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
+    std::pair<bool, MscLineType>   type;   ///<The style of the line. Not set if `first` is false.
+    std::pair<bool, MscColorType>  color;  ///<The color of the line. Not set if `first` is false.
+    std::pair<bool, double>        width;  ///<The width of the line. Not set if `first` is false.
+    ///<The radius of the corners. Not set if `first` is false. 
+    ///<Ignored if `corner` is CORNER_NONE. It is also used for pipes to set the size of the oval
+    ///<and also for ArcSelfArrow to set the radius of the arrow.
+    std::pair<bool, double>        radius; 
+    std::pair<bool, MscCornerType> corner; ///<The style of the corners. Not set if `first` is false. 
+    MscLineAttr();   
+    MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}  ///<Creates an empty style, where only the type is set to `t`.
+    MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
     MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, double r) :
-        type(true, t), color(true, c), width(true, w), radius(true, r), corner(true, ct) {}
-    void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;}
-    bool IsEmpty() const {return !type.first && !color.first && !width.first && !corner.first && !radius.first;}
-    bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;}
+        type(true, t), color(true, c), width(true, w), radius(true, r), corner(true, ct) {} ///<Creates a fully specified line style with the attributes given.
+    void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;} ///<Clear all content from the line style.
+    bool IsEmpty() const {return !type.first && !color.first && !width.first && !corner.first && !radius.first;} ///<False if any of the line attributes are set.
+    bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;} ///<True if all of the line attributes are set.
     void MakeComplete();
-    MscLineAttr &operator +=(const MscLineAttr&a);
+    MscLineAttr &operator +=(const MscLineAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
     bool operator == (const MscLineAttr &a);
 
     //functions about line style
-    bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);}
-    bool IsDouble() const {_ASSERT(type.first); return IsLineTypeDouble(type.second);}
-    bool IsTriple() const {_ASSERT(type.first); return IsLineTypeTriple(type.second);}
-    bool IsDoubleOrTriple() const {return IsDouble() || IsTriple();}
+    bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);} ///<True if the line style is continuous.
+    bool IsDouble() const {_ASSERT(type.first); return IsLineTypeDouble(type.second);} ///<True if the line style is double.
+    bool IsTriple() const {_ASSERT(type.first); return IsLineTypeTriple(type.second);} ///<True if the line style is triple.
+    bool IsDoubleOrTriple() const {return IsDouble() || IsTriple();} ///<True if the line style is double or triple.
+    /** Returns how much the midline of the outer lines are spaced from the midline of the total line.
+     * For single lines return 0. For doubles it returns the width. For triple it returns 2x the width, for triple thick, it returns 2.5 x the width.*/
     double Spacing() const {_ASSERT(width.first); return width.second * (IsDouble() ? 1 : IsTriple() ? (type.second == LINE_TRIPLE_THICK)?2.5:2.0 : 0);}
+    /** Assuming a triple line, how wide is the middle line.*/
     double TripleMiddleWidth() const {_ASSERT(IsTriple()&&width.first); return width.second*((type.second == LINE_TRIPLE_THICK)?2.0:1.0);}
+    /** Returns the total line width.*/
     double LineWidth() const {_ASSERT(type.first && width.first); return width.second * LineWidthMultiplier(type.second);}
     //double RadiusIncMul() const {_ASSERT(type.first); return ::RadiusIncMultiplier(corner.second);}
+    /** Updates the `radius` if a corresponding rectangle is expanded by `gap`.*/
     MscLineAttr& Expand(double gap) {_ASSERT(IsComplete()); if (radius.second>0 && corner.second != CORNER_NONE) radius.second = std::max(0., radius.second + gap*::RadiusIncMultiplier(corner.second)); return *this;}
-    //the box here is the midline 
+    /** If given the midline of a box by (x1,x2,y1,y2), what is the maximum radius for our line width and style.*/
     double MaxRadius(double x1, double x2, double y1, double y2) const {return std::max(0., std::min(fabs(x2-x1), fabs(y2-y1)-LineWidth())/2);}
+    /** If given the midline of a box by (x1,x2,y1,y2), sanitize our `radius`.*/
     double SaneRadius(double x1, double x2, double y1, double y2) const {return std::max(0., std::min(radius.second, MaxRadius(x1, x2, y1, y2)));}
+    /** If given the midline of a box by `b`, sanitize our `radius`.*/
     double SaneRadius(const Block &b) const {return SaneRadius(b.x.from, b.x.till, b.y.from, b.y.till);}
+    /** Return the dash pattern to be used for this line style. `num` returns the length of the pattern.*/
     const double * DashPattern(unsigned &num) const;
 
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
@@ -366,39 +377,83 @@ public:
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 
-    //This one does not assume anything about wether the resulting rectange should be the
-    //outer edge or inner edge of the line - just uses the radius value and coordinates
-    //as they are.
-    //"this->radius" corresponds to the radius at the middle of the line
-    //"x1, x2, y1, y2" corresponds to the midline -> this is what is returned
-    //For CORNER_NOTE it creates the outer line only 
+    /** @name Rectangle shape creators.
+     * The below 12 functions creates various rectangle contours using the line style
+     * corner style, line width and radius of us. Four functions, each having three variants in how
+     * the input rectangle is specified (four coordinates, two XY structs or a Block). 
+     * In each case the input rectangle specifies the midline of the final rectangle, that is
+     * the middle of the line around the rectangle. The line then lies halfway outside and
+     * halfway inside around this contour. Similar, the radius attribute of us is understood
+     * as the radius at the midline (the outer edge will have a somewhat larger radius, whereas
+     * the inner edge a somewhat smaller one).*/
+    /** @{ */
+
+    /** Creates the midline of the rectange according to corner style. 
+     * This one does not assume anything about wether the resulting rectange should be the
+     * outer edge or inner edge of the line - just uses the radius value and coordinates
+     * as they are. Here we simply add round and bevel corners if applicable.
+     * For CORNER_NOTE it creates the outer line only.
+     * You can specify a radius different from the one stored in us. Leaving that out
+     * defaults to the radius stored in `this`*/ 
     Contour CreateRectangle_Midline(double x1, double x2, double y1, double y2, double r = -1) const;  
+    /** Creates the midline of the rectange according to corner style. 
+     * This one does not assume anything about wether the resulting rectange should be the
+     * outer edge or inner edge of the line - just uses the radius value and coordinates
+     * as they are. Here we simply add round and bevel corners if applicable.
+     * For CORNER_NOTE it creates the outer line only.*/ 
     Contour CreateRectangle_Midline(const XY &s, const XY &d) const {return CreateRectangle_Midline(s.x, d.x, s.y, d.y);}
+    /** Creates the midline of the rectange according to corner style. 
+     * This one does not assume anything about wether the resulting rectange should be the
+     * outer edge or inner edge of the line - just uses the radius value and coordinates
+     * as they are. Here we simply add round and bevel corners if applicable.
+     * For CORNER_NOTE it creates the outer line only.*/ 
     Contour CreateRectangle_Midline(const Block &b) const {return CreateRectangle_Midline(b.x.from, b.x.till, b.y.from, b.y.till);}
     
-    //This one considers linewidth and returns the outer edge of the line
-    //"this->radius" corresponds to the radius at the middle of the line
-    //"x1, x2, y1, y2" corresponds to the midline 
-    //For CORNER_NOTE it creates the outer line only 
+    /** Creates a contour representing the outer edge of the rectangle.
+     * This one considers linewidth and returns the outer edge of the line.
+     * For CORNER_NOTE it creates the outer line only.*/
     Contour CreateRectangle_OuterEdge(double x1, double x2, double y1, double y2) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(x1-lw2, x2+lw2, y1-lw2, y2+lw2, radius.second+lw2*::RadiusIncMultiplier(corner.second));}
+    /** Creates a contour representing the outer edge of the rectangle.
+     * This one considers linewidth and returns the outer edge of the line.
+     * For CORNER_NOTE it creates the outer line only.*/
     Contour CreateRectangle_OuterEdge(const XY &s, const XY &d) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(s.x-lw2, d.x+lw2, s.y-lw2, d.y+lw2, radius.second+lw2*::RadiusIncMultiplier(corner.second));}
+    /** Creates a contour representing the outer edge of the rectangle.
+     * This one considers linewidth and returns the outer edge of the line.
+     * For CORNER_NOTE it creates the outer line only.*/
     Contour CreateRectangle_OuterEdge(const Block &b) const {const double lw2 = LineWidth()/2; return CreateRectangle_Midline(b.x.from-lw2, b.x.till+lw2, b.y.from-lw2, b.y.till+lw2, radius.second+lw2*::RadiusIncMultiplier(corner.second));}
     
-    //This one considers linewidth and returns the middle of the inner line (for double or triple)
-    //(or the middle of the line for single)
-    //"this->radius" corresponds to the radius at the middle of the line
-    //For CORNER_NOTE it creates the inner line and the triangle
-    //(//ret[0] will be the body and ret[1] will be the triangle)
+    /** Returns the area to fill for a rectangle.
+     * This one considers linewidth and returns the middle of the inner line (for double or triple)
+     * (or the middle of the line for single).
+     * For CORNER_NOTE it creates the inner line and the triangle
+     * (ret[0] will be the body and ret[1] will be the triangle).*/
     Contour CreateRectangle_ForFill(double x1, double x2, double y1, double y2) const;  
+    /** Returns the area to fill for a rectangle.
+     * This one considers linewidth and returns the middle of the inner line (for double or triple)
+     * (or the middle of the line for single).
+     * For CORNER_NOTE it creates the inner line and the triangle
+     * (ret[0] will be the body and ret[1] will be the triangle).*/
     Contour CreateRectangle_ForFill(const XY &s, const XY &d) const {return CreateRectangle_ForFill(s.x, d.x, s.y, d.y);}
+    /** Returns the area to fill for a rectangle.
+     * This one considers linewidth and returns the middle of the inner line (for double or triple)
+     * (or the middle of the line for single).
+     * For CORNER_NOTE it creates the inner line and the triangle
+     * (ret[0] will be the body and ret[1] will be the triangle).*/
     Contour CreateRectangle_ForFill(const Block &b) const {return CreateRectangle_ForFill(b.x.from, b.x.till, b.y.from, b.y.till);}
     
-    //This one considers linewidth and returns the inner edge of the inner line 
-    //"this->radius" corresponds to the radius at the middle of the line
-    //For CORNER_NOTE it creates the inner line only
+    /** Returns the inner edge of the line around a rectangle.
+     * This one considers linewidth and returns the inner edge of the inner line 
+     * For CORNER_NOTE it creates the inner line only.*/
     Contour CreateRectangle_InnerEdge(double x1, double x2, double y1, double y2) const;  
+    /** Returns the inner edge of the line around a rectangle.
+     * This one considers linewidth and returns the inner edge of the inner line 
+     * For CORNER_NOTE it creates the inner line only.*/
     Contour CreateRectangle_InnerEdge(const XY &s, const XY &d) const {return CreateRectangle_InnerEdge(s.x, d.x, s.y, d.y);}
+    /** Returns the inner edge of the line around a rectangle.
+     * This one considers linewidth and returns the inner edge of the inner line 
+     * For CORNER_NOTE it creates the inner line only.*/
     Contour CreateRectangle_InnerEdge(const Block &b) const {return CreateRectangle_InnerEdge(b.x.from, b.x.till, b.y.from, b.y.till);}
+    /** @} */
 
     DoublePair CalculateTextMargin(Contour textCover, double rect_top) const; 
 };
@@ -423,37 +478,38 @@ inline Contour MscLineAttr::CreateRectangle_InnerEdge(double x1, double x2, doub
     return CreateRectangle_Midline(x1+lw2, x2-lw2, y1+lw2, y2-lw2);
 }
 
-
+/** Describes gradient fill direction*/
 typedef enum {
-    GRADIENT_INVALID = 0,
-    GRADIENT_NONE,
-    GRADIENT_OUT,
-    GRADIENT_IN,
-    GRADIENT_DOWN,
-    GRADIENT_UP,
-    GRADIENT_LEFT,
-    GRADIENT_RIGHT,
-    GRADIENT_BUTTON
+    GRADIENT_INVALID = 0,  ///<The invalid value
+    GRADIENT_NONE, ///<No gradient in fill - single color only
+    GRADIENT_OUT,  ///<Radial gradient outwards from center
+    GRADIENT_IN,   ///<Radial gradient inwards toward center
+    GRADIENT_DOWN, ///<Linear gradient downwards
+    GRADIENT_UP,   ///<Linear gradient upwards
+    GRADIENT_LEFT, ///<Linear gradient leftwards
+    GRADIENT_RIGHT,///<Linear gradient rightwards
+    GRADIENT_BUTTON///<Linear gradient with multiple changes creating a button effect 
 } MscGradientType;
 
+/** Stores the properties of a fill (color and gradient).*/
 struct MscFillAttr {
 public:
-    std::pair<bool, MscColorType> color;
-    std::pair<bool, MscColorType> color2;
-    std::pair<bool, MscGradientType> gradient;
+    std::pair<bool, MscColorType> color;        ///<The color of the fill. Not set if `first` is false.
+    std::pair<bool, MscColorType> color2;       ///<The secondary color of the fill if we use a gradient. Not set if `first` is false.
+    std::pair<bool, MscGradientType> gradient;  ///<The gradient of the fill. Not set if `first` is false.
     MscFillAttr();
-    MscFillAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
+    MscFillAttr(MscColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
     MscFillAttr(MscColorType c, MscGradientType g) :
-        color(true, c), gradient(true,g) {}
+        color(true, c), gradient(true,g) {} ///<Creates a fully specified fill style with the attributes given.
     MscFillAttr(MscColorType c, MscColorType c2) : 
-        color(true, c), color2(true, c2), gradient(false, GRADIENT_INVALID) {}
+        color(true, c), color2(true, c2), gradient(false, GRADIENT_INVALID) {} ///<Creates an incomplete fill style with two colors given.
     MscFillAttr(MscColorType c, MscColorType c2, MscGradientType g) :
-        color(true, c), color2(true, c2), gradient(true,g) {}
-    void Empty() {color.first = color2.first = gradient.first = false;}
+        color(true, c), color2(true, c2), gradient(true,g) {} ///<Creates a fully specified fill style with the attributes given.
+    void Empty() {color.first = color2.first = gradient.first = false;} ///<Clear all content from the fill style.
     void MakeComplete();
-    bool IsEmpty() const {return !color.first && !gradient.first;} //color2 is not needed
-    bool IsComplete() const {return color.first && gradient.first;} //color2 is not needed
-    MscFillAttr &operator +=(const MscFillAttr&a);
+    bool IsEmpty() const {return !color.first && !color2.first && !gradient.first;} ///<False if any of the line attributes are set. 
+    bool IsComplete() const {return color.first && gradient.first;} ///<True if all of the line attributes are set. (But color2 is not needed.)
+    MscFillAttr &operator +=(const MscFillAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
     bool operator == (const MscFillAttr &a) const;
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
@@ -461,17 +517,18 @@ public:
     string Print(int ident = 0) const;
 };
 
+/** Stores the properties of shadows (color, offset and blur depth).*/
 struct MscShadowAttr {
 public:
-    std::pair<bool, MscColorType> color;
-	std::pair<bool, double> offset;
-	std::pair<bool, double> blur;
+    std::pair<bool, MscColorType> color; ///<The color of the shadow at its darkest - can be somewhat transparent. Not set if `first` is false.
+	std::pair<bool, double> offset;      ///<The offset of the shadow from the object, indicating how much the object is above the surface. Not set if `first` is false.
+	std::pair<bool, double> blur;        ///<Indicating how many pixels are blurred at the edge of the shadow. Not set if `first` is false.
     MscShadowAttr();
-    MscShadowAttr(MscColorType c) {Empty(); color.first = true; color.second = c;}
-    void Empty() {color.first = offset.first = blur.first=false;}
+    MscShadowAttr(MscColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
+    void Empty() {color.first = offset.first = blur.first=false;} ///<Clear all content from the shadow style.
     void MakeComplete();
-    bool IsComplete() const {return color.first && offset.first && blur.first;}
-    MscShadowAttr &operator +=(const MscShadowAttr&a);
+    bool IsComplete() const {return color.first && offset.first && blur.first;} ///<True if all of the shadow attributes are set. 
+    MscShadowAttr &operator +=(const MscShadowAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
     bool operator == (const MscShadowAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);
@@ -481,6 +538,7 @@ public:
 
 bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
 
+/** Stores the properties of notes (pointer type and position).*/
 struct MscNoteAttr {
 public:
     typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} pointer_t;
@@ -489,11 +547,11 @@ public:
     std::pair<bool, int> def_float_dist;
     std::pair<bool, int> def_float_x;
     std::pair<bool, int> def_float_y;
-    MscNoteAttr() {Empty(); MakeComplete();}
-    void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;}
+    MscNoteAttr() {Empty(); MakeComplete();} ///<Create a fully specified note style with default values (Callout type, no specific position preference.)
+    void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;} ///<Clear all content from the note style.
     void MakeComplete();
-    bool IsComplete() const {return pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;}
-    MscNoteAttr &operator +=(const MscNoteAttr&a);
+    bool IsComplete() const {return pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;} ///<True if all of the note attributes are set. 
+    MscNoteAttr &operator +=(const MscNoteAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
     bool operator == (const MscNoteAttr &a);
     virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
     static void AttributeNames(Csh &csh);

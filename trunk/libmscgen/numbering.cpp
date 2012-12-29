@@ -21,10 +21,15 @@
 #include "numbering.h"
 #include "msc.h"
 
+/** Helper to store roman numbering boundaries*/
 int const   romandata_value[] =   {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1, 0};
+/** Helper to store roman numbering letters for each boundary*/
 char const *romandata_numeral[] = {"M", "CM","D", "CD", "C", "XC", "L","XL", "X", "IX", "V", "IV", "I", NULL};
+/** Helper to store repetition times for each letter.*/
 int const   romandata_times[] =   {10, 1, 1, 1, 3, 1, 1, 1, 3, 1, 1, 1, 3, 0};
 
+/**Converts a number to a string representation in our style.
+ * Does not apply `pre` and `post`.*/
 std::string NumberingStyleFragment::Print(int n) const
 {
     if (n==0)
@@ -58,6 +63,15 @@ std::string NumberingStyleFragment::Print(int n) const
     else return ret;
 };
 
+/** Parses a string into a sequence of numbering style fragments.
+ * This is used to parse numbering syntax specifications, but assumes that 
+ * FindReplaceNumberFormatToken() has already been called to the string and hence.
+ * each fragment begins with a special character ESCAPE_STRING_NUMBERFORMAT.
+ * @param msc The chart we build.
+ * @param [in] linenum The location of the first character of the string in the input file (for error messages).
+ * @param [in] text The string to parse.
+ * @param [out] result The list of fragments parsed.
+ * @returns True if no error.*/
 bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text, std::vector<NumberingStyleFragment> &result)
 {
     string str(text);
@@ -90,9 +104,11 @@ bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text
     return true;
 }
 
-//Reads in a string value and converts it to int
-//Returns how many characters it could not understand at the end (0 = fully OK)
-//At a complete error, it leaves value unchanged
+
+/** Converts a string to a number assuming our style.
+ * @param [in] number The string to parse.
+ * @param [out] value The number we ended up with. At a complete error, this remains unchanged.
+ * @returns How many characters it could not understand at the end (0 = fully OK).*/ 
 unsigned NumberingStyleFragment::Input(const std::string &number, int &value)
 {
     _ASSERT(number.length()<std::numeric_limits<unsigned>::max());
@@ -139,6 +155,21 @@ out:
     return (unsigned)number.length()-pos;
 }
 
+/** Converts a numbering style token (specified by the user) to an escape sequence.
+ * A numbering style token is what the user uses to describe the numbering style,
+ * such as 'arabic' or `123' or 'roman' etc.
+ * The escape sequence begins with a backslash ('\') continues with a character of
+ * ESCAPE_STRING_NUMBERFORMAT (0x2 if I am not mistaken) finally ends in a character
+ * specifying the numbering type.
+ *
+ * Since we potentially change the length of a substring, we take care to insert a 
+ * linenum escape just after the inserted numbering escape to indicate what was the file
+ * position after the token we removed.
+ * @param text The text in we replace
+ * @param [in] l The position of the `pos`'th character of `text` in the input file.
+ * @param [in] pos The position after which to expect the numbering style token.
+ * @returns True if we made a replacement.
+ */
 bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, file_line l,
                                                           std::string::size_type pos)
 {
@@ -153,7 +184,7 @@ bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, fil
     for (unsigned i=0; formats[i]!=NULL; i++) {
         string::size_type pos2 = text.find(formats[i], pos);
         if (pos2 == string::npos) continue;
-        l.col += (unsigned)strlen(formats[i]);
+        l.col += (unsigned)strlen(formats[i]) + pos2 -pos;
         string esc("\\" ESCAPE_STRING_NUMBERFORMAT);
         esc += codes[i];
         text.replace(pos2, strlen(formats[i]), esc + l.Print());
