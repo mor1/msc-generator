@@ -202,6 +202,9 @@
 
 /** @defgroup libmscgen_files The files of the mscgen library.
  * @ingroup libmscgen
+ *
+ * The files are organized in 
+
  * @file arcs.cpp The basic definitions or arcs that are not commands.
  * @ingroup libmscgen_files */
 

@@ -193,6 +193,10 @@ bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, fil
     return false;
 }
 
+/** Increase or decrease the number of levels.
+ * If we add levels and `decrementOnAddingLevels` is true,
+ * we decrement the last number.
+ * When adding levels, we set their value to `1`. */
 void Numbering::SetSize(unsigned n)
 {
     if (n==0) return;
@@ -214,18 +218,10 @@ NumberingStyle &NumberingStyle::operator +=(const NumberingStyle&o)
     return *this;
 }
 
-
-void NumberingStyle::CopyShifted(const NumberingStyle &ns, unsigned start)
-{
-    _ASSERT(IsComplete());
-    elements.second.clear();
-    for (unsigned i = start; i<ns.elements.second.size(); i++)
-        elements.second.push_back(ns.elements.second[i]);
-    if (elements.second.size() == 0) //too much shift
-        elements.second.push_back(NumberingStyleFragment());
-    startAt = start + ns.startAt;
-}
-
+/** Copies a list of fragment style specifications to us, but keeps our length.
+ * If the `nsfs` is longer than us, no copy is made and we return our size.
+ * If `nsfs` is shorter than us, we assume `nsfs` describes the last
+ * segments, thus the first segments will be left unspecified via `startAt`. */
 int NumberingStyle::Apply(const std::vector<NumberingStyleFragment> &nsfs)
 {
     int off = startAt + (int)elements.second.size() - (int)nsfs.size();
