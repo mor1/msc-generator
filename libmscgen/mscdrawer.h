@@ -47,7 +47,22 @@ public:
     //EMFWMF produces an EMF file, but only uses features compatible with a WMF
     //PRINTER is equal to EMF
     typedef enum {PNG, EPS, PDF, SVG, EMF, WMF, EMFWMF, WIN, PRINTER} OutputType;
-    typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_PARAM, ERR_DONE} ErrorType;
+    typedef enum {ERR_OK=0, ERR_FILE, ERR_CANVAS, ERR_PARAM, ERR_MARGIN, ERR_DONE} ErrorType;
+    typedef enum {
+        NO_PAGE=1,
+        A0P, A0L,
+        A1P, A1L,
+        A2P, A2L,
+        A3P, A3L,
+        A4P, A4L,
+        A5P, A5L,
+        A6P, A6L,
+        LETTER_P, LETTER_L,
+        LEGAL_P, LEGAL_L,
+        LEDGER, TABLOID,
+        MAX_PAGE
+    } EPageSize;
+    static EPageSize ConvertPageSize(const char *);
 protected:
     /* Low-level options */
     bool         white_background; /* Draw a white background */
@@ -82,12 +97,14 @@ protected:
     ErrorType        status;
     bool             candraw;
     const bool       external_surface; //true if we got the surface in the constructor externally
+    Block            raw_page_clip;  //used with multi-page surfaces only. Contains the raw page minus margins.
 
     void SetLowLevelParams(MscCanvas::OutputType ot);
     void GetPagePosition(const std::vector<double> *yPageStart, unsigned page, double &y_offset, double &y_size) const;
     ErrorType CreateSurface(const XY &size); 
     ErrorType CreateContextFromSurface(OutputType, const XY &scale, double origYSize, 
-                                       double origYOffset, double copyrightTextHeight);
+                                       double origYOffset, double copyrightTextHeight,
+                                       const Block *clip_raw=NULL);
 
     void ArcPath(const contour::EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
@@ -117,12 +134,26 @@ friend class ArcPipe;  //for exotic line joints
     void Text(XY p, const string &s, bool isRotated);
 
 public:
+    /** Creates an empty canvas to query font sizes */
     MscCanvas(OutputType ot);
-    MscCanvas(OutputType, const Block &tot, double copyrightTextHeight, const string &fn, const XY &scale=XY(1.,1.),
+    /**Creates a canvas to draw one page or all of the chart to a (single-page) file.*/
+    MscCanvas(OutputType, const Block &tot, double copyrightTextHeight, const string &fn, 
+              const XY &scale=XY(1.,1.), 
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
-    MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, double copyrightTextHeight, const XY &scale=XY(1.,1.),
+    /** Creates a canvas to draw the chart to a mult-page file & starts page #1.*/
+    MscCanvas(OutputType, const Block &tot, const string &fn, const XY &scale, 
+              EPageSize pageSize, const double margins[4],
+              double copyrightTextHeight, const std::vector<double> *yPageStart);
+    /**Creates a canvas to draw one page or all of the chart to a recording surface.*/
+    MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, 
+              double copyrightTextHeight, const XY &scale=XY(1.,1.),
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     ErrorType Status() const {return status;}
+    static XY GetPhysicalPageSize(EPageSize);
+    void TurnPage(double copyrightTextHeight, const XY &scale, 
+                  const std::vector<double> *yPageStart, unsigned next_page, 
+                  MscError *error=NULL);
+    bool ErrorAfterCreation(MscError *error,  const std::vector<double> *yPageStart);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, original_hdc;
     XY original_device_size;

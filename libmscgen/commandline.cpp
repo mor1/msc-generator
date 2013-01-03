@@ -66,14 +66,15 @@ char *ReadFile(FILE *in)
 static void usage()
 {
     printf(
-"Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno]\n"
-"               [--pedantic] [[-x=<width>] [-y=<height>] | [-s=<scale>]\n"
+"Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno] [--pedantic]\n"
+"               [-p[=<page size>] [-m{lrud}=<margin>]]\n"
+"               [-x=<width>] [-y=<height>] [-s=<scale>]\n"
 "               [--<chart_option>=<value> ...] [--<chart_design>]\n"
 "       msc-gen -l\n"
 "\n"
 "Where:\n"
 " -T <type>   Specifies the output file type, which maybe one of 'png', 'eps',\n"
-"             'pdf', 'svg' or 'wmf' (if supported on your system).\n"
+"             'pdf', 'svg' or 'emf' (if supported on your system).\n"
 "             Default is 'png'.\n"
 " -o <file>   Write output to the named file.  If omitted, the input filename\n"
 "             will be appended by an extension suitable for the output format.\n"
@@ -81,13 +82,31 @@ static void usage()
 "             used.\n"
 " <infile>    The file from which to read input.  If omitted or specified as\n"
 "             '-', input will be read from stdin.\n"
+" -p=[<page size]\n"
+"             Full-page PDF output. In this case the chart is drawn on\n"
+"             fixed-size pages (following pagination) with one pixel equalling\n"
+"             to 1/72 inches. If a chart page is larger than a physcal page it\n"
+"             is simply cropped with a warning. Setting the scale with the -s\n"
+"             option enables zooming. Page size can be set to 'A4p', 'A4l',\n"
+"             'A3p' and 'A3l', where 'p' and 'l' refer to portrait and\n"
+"             landscape, respecitively. Deafult is 'A4p'.\n"
+" -m{lrud}=<margin>\n"
+"             Useful only for full-page output, specifies the margin.\n"
+"             A separate option is needed to specify the left, right, upwards\n"
+"             and downwards margins, denoted by the second letter of the option.\n"
+"             Margins are to be specified in inches (number only) or in\n"
+"             centimeters, if appended with 'cm' (no spaces). The default\n"
+"             margin is 2 inches everywhere.\n"
 " -Wno        No warnings displayed.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
-" -x=<width>  Specifies chart width (in pixels).\n"
+" -x=<width>  Specifies chart width (in pixels). Only for PNG output.\n"
 " -y=<height> Specifies chart height (in pixels). If only one of -x or -y\n"
-"             is specified, the aspect ratio is kept.\n"
+"             is specified, the aspect ratio is kept. Only for PNG output.\n"
 " -s=<scale>  Can be used to scale chart size up or down. Default is 1.0.\n"
 "             Cannot be used together with any of -x or -y.\n"
+"             Only for PNG or multi-page PDF output. For multi-page PDF\n"
+"             output, you can set <scale> to 'auto' which results in the\n"
+"             chart width being set to the page width.\n"
 " --<chart_option>=<value>\n"
 "             These options will be evaluated before the input file. Any value\n"
 "             here will be overwritten by a conflicting option in the file.\n"
@@ -97,7 +116,7 @@ static void usage()
 " -l          Display program licence and exit.\n"
 " -h          Display this help and exit.\n"
 "\n"
-"Msc-generator version %s, Copyright (C) 2008-9 Zoltan Turanyi,\n"
+"Msc-generator version %s, Copyright (C) 2008-2013 Zoltan Turanyi,\n"
 "Msc-generator comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it under certain\n"
 "conditions; type `mscgen -l' for details.\n",
@@ -111,7 +130,7 @@ static void licence()
     printf(
 "Msc-generator, a message sequence chart renderer.\n"
 "This file is part of Msc-generator.\n"
-"Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi\n"
+"Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi\n"
 "Distributed under GNU Affero General Public License.\n"
 "\n"
 "Msc-generator is free software: you can redistribute it and/or modify\n"
@@ -139,6 +158,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
     int                   oX = -1;
     int                   oY = -1;
     double                oScale = 0;
+    MscCanvas::EPageSize  oPageSize = MscCanvas::NO_PAGE;
+    double                margins[] = {144, 144, 144, 144}; // two inches everywhere
     string ss;
 
     Msc msc;
@@ -172,11 +193,41 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 oY = -1;
             }
         } else if (i->at(0) == '-' && i->at(1) == 's') {
-            if (i->at(2) != '=' || sscanf(i->c_str()+3, "%lf", &oScale)!=1)
+            if (i->at(2) != '=' || (sscanf(i->c_str()+3, "%lf", &oScale)!=1 && i->substr(3) != "auto"))
                 msc.Error.Error(opt_pos, "Missing scale after '-s='. Using native size.");
+            else if (i->substr(3) == "auto")
+                oScale = -1;
             else if (oScale<=0.001 || oScale>100) {
                 msc.Error.Error(opt_pos, "Invalid scale, it should be between [0.001..100]. Ignoring it.");
                 oScale = 0;
+            }
+        } else if (i->at(0) == '-' && i->at(1) == 'p') {
+            if (i->length()==2) 
+                oPageSize = MscCanvas::A4P;
+            else 
+                oPageSize = i->at(2)=='=' ? MscCanvas::ConvertPageSize(i->c_str()+3) : MscCanvas::NO_PAGE;
+            if (oPageSize == MscCanvas::NO_PAGE) {
+                msc.Error.Error(opt_pos, "Invalid page size. Should be one of the ISO A-series, such as 'A4p' or 'A3l', or 'letter', 'legal', 'ledger' or 'tabloid'. Using 'A4p' as default.");
+                oPageSize = MscCanvas::A4P;
+            }
+        } else if (i->at(0) == '-' && i->at(1) == 'm') {
+            static const char *dirs = "lrud";
+            const char *at = strchr(dirs, tolower(i->at(2)));
+            if (at==NULL) 
+                msc.Error.Error(opt_pos, "Invalid margin selector. Use one of '-ml', '-mr', '-mu' or '-md' for left, right, upper or lower margins, respectively.  Ignoring this.");
+            else if (i->at(3) != '=')
+                msc.Error.Error(opt_pos, "After the marging option, I need a number with no spaces, like '-mu=1.2cm'. Ignoring this.");
+            else {
+                double mul = 72; //pixels per unit. Default is inch.
+                char *buff = (char*)malloc(i->length());
+                buff[0] = 0;
+                if (sscanf(i->c_str()+4, "%lf%s", margins+(at-dirs), buff)==0)
+                    msc.Error.Error(opt_pos, "After the marging option, I need a number with no spaces, like '-mu=1.2cm'. Ignoring this.");            
+                if (!strcmp("cm", buff)) mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+                else if (buff[0] && strcmp("in", buff)) 
+                    msc.Error.Error(opt_pos, "After margin size value, specify the measurement unit: 'in' or 'cm'.");            
+                free(buff);
+                margins[at-dirs] *= mul;
             }
         } else if (*i == "-o") {
             if (i==--args.end()) {
@@ -350,6 +401,15 @@ int do_main(const std::list<std::string> &args, const char *designs,
         }
     }
 
+    //Determine option compatibility
+    if (oPageSize!=MscCanvas::NO_PAGE && oOutType != MscCanvas::PDF) {
+        msc.Error.Error(file_line(), "-p can only be used with PDF output. Ignoring it.");
+        oPageSize = MscCanvas::NO_PAGE;
+    }
+    if (oScale<0 && oPageSize == MscCanvas::NO_PAGE) {
+        msc.Error.Error(file_line(), "-s=auto can only be used with multi-page PDF output. Using default scale of 1.0.");
+        oScale = 0;
+    }
     if (fail_options) {
         //Problem with switches
         std::cerr << msc.Error.Print(oWarning);
@@ -411,12 +471,14 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 scale.x = scale.y = double(oX)/double(msc.GetTotal().x.Spans());
             else if (oY>0)
                 scale.x = scale.y = double(oY)/double(msc.GetTotal().y.Spans());
-        } else if (oScale)
+        } else if (oScale==-1)  //auto
+            scale.x = scale.y = 0;
+        else if (oScale) //specified
             scale.x = scale.y = oScale;
 
+        //Now cycle through pages and write them to individual files or a multi-page one
+        msc.DrawToOutput(oOutType, scale, oOutputFile, false, oPageSize, margins, true);
         std::cerr << msc.Error.Print(oWarning);
-        //Now cycle through pages and write them to individual files
-        msc.DrawToOutput(oOutType, scale, oOutputFile, false);
     }
 
     free(input);

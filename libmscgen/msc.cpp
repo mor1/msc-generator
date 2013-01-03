@@ -1636,34 +1636,35 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
     // End of debug */
 }
 
-void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn, bool bPageBreaks)
+/** Draws the chart into one of more files.
+ * 'pageSize' can only be other than NO_PAGE if file format is PDF (which supports multiple pages). In that
+ * case `scale` can be <zero,zero> indicating that the chart should be fitted to page width.
+ * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
+*/
+void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn, bool bPageBreaks, 
+                       MscCanvas::EPageSize pageSize, const double margins[4], bool generateErrors)
 {
-    if (yPageStart.size()<=1) {
-        MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale);
-        switch (canvas.Status()) {
-        case MscCanvas::ERR_FILE: Error.Error(file_line(0, 0), "Could not open file '" + fn + "'."); return;
-        case MscCanvas::ERR_PARAM: Error.Error(file_line(0, 0), "Internal param problem when opening canvas."); return;
-        case MscCanvas::ERR_CANVAS: Error.Error(file_line(0, 0), "Could not open canvas."); return;
-        case MscCanvas::ERR_DONE: Error.Error(file_line(0, 0), "Whops, internal error."); return;
-        default: break;
+    const unsigned from = yPageStart.size()<=1 ? 0 : 1;
+    const unsigned till = yPageStart.size()<=1 ? 0 : yPageStart.size();
+    if (yPageStart.size()>1) bPageBreaks = false;
+    if (pageSize==MscCanvas::NO_PAGE) 
+        for (unsigned page=from; page<=till; page++) {
+            MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale, &yPageStart, page);
+            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart)) return;
+            Draw(canvas, bPageBreaks);
+            canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
+            DrawCopyrightText(canvas, page);
         }
-        Draw(canvas, bPageBreaks);
-        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
-        DrawCopyrightText(canvas);
-        return;
-    }
-    for (unsigned page=1; page<=yPageStart.size(); page++) {
-        MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale, &yPageStart, page);
-        switch (canvas.Status()) {
-        case MscCanvas::ERR_FILE: Error.Error(file_line(0, 0), "Could not open file '" + fn + "'."); return;
-        case MscCanvas::ERR_PARAM: Error.Error(file_line(0, 0), "Internal param problem when opening canvas."); return;
-        case MscCanvas::ERR_CANVAS: Error.Error(file_line(0, 0), "Could not open canvas."); return;
-        case MscCanvas::ERR_DONE: Error.Error(file_line(0, 0), "Whops, internal error."); return;
-        default: break;
+    else {
+        MscCanvas canvas(ot, total, fn, scale, pageSize, margins, copyrightTextHeight, &yPageStart);
+        if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart)) return;
+        for (unsigned page=from; page<=till; page++) {
+            Draw(canvas, bPageBreaks);
+            canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
+            DrawCopyrightText(canvas, page);
+            if (page<till) 
+                canvas.TurnPage(copyrightTextHeight, scale, &yPageStart, page+1, generateErrors ? &Error : NULL);
         }
-        Draw(canvas, false);
-        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
-        DrawCopyrightText(canvas, page);
     }
 }
 
