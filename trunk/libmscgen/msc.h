@@ -305,7 +305,9 @@ public:
     void Draw(MscCanvas &canvas, bool pageBreaks);
     void DrawCopyrightText(MscCanvas &canvas, unsigned page=0);
     void DrawPageBreaks(MscCanvas &canvas);
-    void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &fn, bool bPageBreaks);
+    void DrawToOutput(MscCanvas::OutputType, const XY &scale, const string &fn, bool bPageBreaks, 
+                      MscCanvas::EPageSize pageSize=MscCanvas::NO_PAGE, const double margins[4]=NULL, 
+                      bool generateErrors=false);
 
     void InvalidateNotesToThisTarget(const TrackableElement *target);
     void RemoveFromNotes(const CommandNote *note);

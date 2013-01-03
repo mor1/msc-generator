@@ -182,6 +182,8 @@ public:
     /** Get the text of an error, including line numbers and all. */
     const char *GetErrorText(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].text.c_str();}
     ErrorElement FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const ;
+    /** Clearing all collected errors and warnings, but keeps the files.*/
+    void Clear() {Errors.clear(); ErrorsAndWarnings.clear();}
 };
 
 #endif
