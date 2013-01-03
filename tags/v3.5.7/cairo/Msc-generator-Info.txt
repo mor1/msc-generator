@@ -1,0 +1,8 @@
+The following files are changed compared to the cairo distro.
+
+BuildCairoCairo.bat (added, to compile under VS)
+cairo.vcxproj (added, to compile under VS)
+build/Makefile.win32.common (updated to reflect zlib, libpng and pixman location)
+src/win32/cairo-win32-printing-surface.c (bugfixes there)
+src/win32/cairo-win32-display-surface.c (bugfixes there)
+src/cairo-recording-surface.c (bugfix in bbtree)

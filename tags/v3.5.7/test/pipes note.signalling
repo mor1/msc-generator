@@ -1,0 +1,39 @@
+a, b, c, d; note: note\nhere;
+{pipe a--b: simple; note: note\nhere;
+pipe a==b: double; note: note\nhere;
+pipe a==b: triple [line.type=triple]; note: note\nhere;
+}
+{pipe c--d: simple [color=red]{
+    c->: huhu; note: note\nhere;
+}; note: note\nhere;
+pipe c==d: double [color=red]{
+    c->: huhu; note: note\nhere;
+}; note: note\nhere;
+pipe c==d: triple [color=red, line.type=triple]{
+    c->: huhu; note: note\nhere;
+}; note: note\nhere;
+
+pipe c--d: simple [color=red, solid=255] {
+    c->: huhu; note: note\nhere;
+}; note: note\nhere;
+pipe c==d: double [color=red, solid=0]{
+    c->: huhu; note: note\nhere;
+}; note: note\nhere;
+pipe c==d: triple [color=red, line.type=triple]; note: note\nhere;
+}; note: note\nhere;
+
+pipe a--b: okey [color=green]
+==c
+==d [line.type=triple]; note: note\nhere;
+
+pipe a--b: okey [color=green, side=left]
+==c
+==d [line.type=triple] {
+    a->; note: note\nhere;
+}; note: note\nhere;
+
+pipe a--b: okey [color="blue+50", side=left, line.radius=4]
+==c [color=green]
+==d [line.type=triple] {
+    a->; note: note\nhere;
+}; note: note\nhere;
