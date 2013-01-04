@@ -118,11 +118,13 @@ class StringFormat {
     //Taking all potential escape sequence at the beginning of the string
     //into account
     static void AddNumbering(string &label, const string &num, const string &pre_num_post);
-    //This converts color names to RGBA numbers, returns the list of
-    //unrecognized color escapes are left intact
-    static void ExpandReferences(string &escape, Msc *msc, file_line linenum,
+    //This converts color, style references to primitives
+    //unrecognized escapes are left intact
+    static void ExpandReferences(string &text, Msc *msc, file_line linenum,
                                  const StringFormat *basic, bool ignore,
                                  ETextType textType);
+    //Expands \r() escapes
+    static void ExpandElementReferences(string &text, Msc *msc, file_line linenum);
     static int FindNumberingFormatEscape(const char *text);
     static void RemovePosEscapes(string &text);
     static void ConvertToPlainText(string &text);

@@ -32,10 +32,18 @@ ADD: Tip of the day
 ADD: Check if file changed on disk
 ADD: URL's to PNG
 
-In 3.5.7
-FIX: PDF format bad
-FIX: Allow multiple pages in a single PDF output file
+Later
 ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+ADD: Pagination options to the GUI (preferably in print preview)
+ADD: Automatic pagination
+
+In 3.5.8
+FIXED: Element references were empty.
+ADDED: -va, -ha and multiple -s options for full page output in commandline
+
+In 3.5.7
+FIXED: PDF format bad
+FIXED: Allow multiple pages in a single PDF output file
 
 In 3.5.6
 CANCELLED: What is exactly the size of the WMF image?

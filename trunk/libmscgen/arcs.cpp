@@ -136,6 +136,8 @@
        i) If the node is kept, we move its floating notes to "Msc::FloatingNotes" via "MoveNotesToChart"
           called from "Msc::PostParseProcessArcList".
        j) For notes and comments, we decide who is the real target and attach the note/command here.
+       k) For labels, we replace the remaining escapes to actual values, except for \r()
+          element references. Those will be done in FinalizeLabels().
        This function can only be called once, as it changes arcs (e.g., you do not want to
        increment numbering twice). Often the arc needs to be changed to a different one, in this case the
        return pointer shall be used. If the return pointer == this, the arc shall not be replaced.
@@ -696,6 +698,16 @@ ArcBase *ArcLabelled::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
         if (concrete_number >= 0)
             number.Last() = concrete_number;
         number_text = numberingStyle.Print(number);
+        //Now remove escapes from the number text (if any)
+        //Recreate the text style at the point where the label will be inserted
+        StringFormat basic = style.text;
+        basic.Apply(label.c_str());
+        //At this point the number text must be processed using StringFormat::ExpandReferences
+        //to expand remaining empty \c(), \s(), etc escapes.
+        //We use a dummy linenum, as we should not get ANY errors here...
+        StringFormat::ExpandReferences(number_text, chart, file_line(), &basic,
+            true, StringFormat::LABEL);
+        //insert us among the references if we have any name
         if (refname.length()) 
             chart->ReferenceNames[refname].number_text = number_text;
         ++number;
@@ -716,13 +728,15 @@ void ArcLabelled::FinalizeLabels(MscCanvas &canvas)
         //At this point the number text must be processed using StringFormat::ExpandReferences
         //to expand remaining empty \c(), \s(), etc escapes.
         //We use a dummy linenum, as we should not get ANY errors here...
-        StringFormat::ExpandReferences(number_text, chart, file_line(), &basic,
-            true, StringFormat::LABEL);
         StringFormat::ExpandReferences(pre_num_post, chart, file_line(), &basic,
             true, StringFormat::LABEL);
     }
     //We add empty num and pre_num_post if numberin is turned off, to remove \N escapes
     StringFormat::AddNumbering(label, number_text, pre_num_post);
+    //Add reference numbers to labels
+    //we can start with a dummy pos, since the label's pos is prepended
+    //during parse for colon labels and during AddAttributeList for others
+    StringFormat::ExpandElementReferences(label, chart, file_line());
     parsed_label.Set(label, canvas, style.text);
 }
 
