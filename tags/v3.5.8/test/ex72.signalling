@@ -1,0 +1,24 @@
+hscale=auto;
+C: Client;
+S: Server;
+B: Backend;
+C=>S: Request;
+S--B: Server gets info {
+    S->B: Query;
+    S<-B: Response;
+};
+C<=S: Reply;
+---: Again...;
+C=>S: Request;
+S--B: Server gets info [collapsed=yes] {
+    S->B: Query;
+    S<-B: Response;
+};
+C<=S: Reply;
+---: And again...;
+C=>S: Request;
+S--B: Server gets info [collapsed=arrow] {
+    S->B: Query;
+    S<-B: Response;
+};
+C<=S: Reply;
