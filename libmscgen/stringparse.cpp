@@ -139,7 +139,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 //- a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
 //- just regular characters (NON_ESCAPE)
 //- a \n escape (LINE_BREAK)
-//- a \r(xxx) escape (REFERENCE)
+//- a \r(xxx) escape (REFERENCE) - no lookups or replacement is offered if `do_refs` is false
 //- a \N or \r() escape (NUMBERING) - the location of the number in this label
 //- a \0x2{1aAiI} escape (NUMBERING_FORMAT)
 //- a lone '\' at the end of the string (SOLO_ESCAPE)
@@ -483,25 +483,10 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             if (linenum) linenum->col += length;
             return NUMBERING;
         }
-        if (!msc) {
-            if (apply || resolve) //drop silently if there is a reference in a place where it should not be
-                goto nok;
-            else	   //if we are just parsing (probably for csh) keep as is.
-                goto ok;
-        } else {
-            auto itr = msc->ReferenceNames.find(parameter);
-            if (itr!=msc->ReferenceNames.end()) {
-                if (replaceto) replaceto->assign(itr->second.number_text); 
-                if (linenum) linenum->col += length;
-                return REFERENCE;
-            } else { 
-                //here we did not find the reference
-                if (linenum)
-                    msc->Error.Error(*linenum, "Unrecognized reference '" + parameter +
-                                     "'. Ignoring it.", "References are case-sensitive.");
-                goto nok;
-            }
-        }
+        //just recognize, do not replace
+        if (replaceto) replaceto->assign(input, length);
+        if (linenum) linenum->col += length;
+        return REFERENCE;
     case 'f':
         if (length==4) { // this is a "\f()"
             if (basic == NULL) {
@@ -696,7 +681,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     }
 }
 
-//Replaces style, color and element references to actual definitions found in msc->Contexts.back()
+//Replaces style, color names to actual definitions found in msc->Contexts.back()
 //and in msc->ReferenceNames
 //Also performs syntax error checking and generates errors/warnings
 //escape contais the string to parse (and change)
@@ -708,7 +693,8 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 //textType is NUMBER_FORMAT if this string is a number format (cannot contain \N)
 //or it is LABEL or a TEXT_FORMAT (cannot contain \0x2{1aAiI}
 void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
-                                    const StringFormat *basic, bool ignore, ETextType textType)
+                                    const StringFormat *basic, bool ignore, 
+                                    ETextType textType)
 {
     //We have three cases regarding linenum
     //1. it is a colon-label, in which case msc_process_colon_string() inserted
@@ -728,9 +714,10 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
     while(text.length()>pos) {
         unsigned length;
         file_line beginning_of_escape = linenum;
-        switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, basic, msc, &linenum, ignore)) {
+        switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, 
+                                 basic, msc, &linenum, ignore)) {
         case FORMATTING_OK: //do nothing, just replace as below
-        case REFERENCE:     //a valid \r(xxx) escape. Replace text returned
+        case REFERENCE:     //a valid \r(xxx) escape. Replace will not change it.
             break; 
         case INVALID_ESCAPE:
             if (ignore) break;  //replaceto is empty here, we will remove the bad escape
@@ -769,6 +756,44 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
         //    text.insert(pos, pos_escape);
         //    pos += pos_escape.length();
         //}
+    }
+}
+
+//Replaces element references to actual numbers found in msc->ReferenceNames.
+//Errors returned only related to \r escapes.
+//`text` contais the string to parse (and change)
+void StringFormat::ExpandElementReferences(string &text, Msc *msc, file_line linenum)
+{
+    //We have three cases regarding linenum
+    //1. it is a colon-label, in which case msc_process_colon_string() inserted
+    //   a position escape to the beginning of the string, so the linenum we got
+    //   here will be overridden
+    //2. it is an unquoted string, which cannot contain escapes, hence neither
+    //   errors, so the linenum we got as parameter here will not be used
+    //3. it is a quoted string. In this case we do not start by a pos escape
+    //   and we may need the linenum parameter to report an error. In this case
+    //   we know that the linenum parameter points to the opening quotation mark
+    //   so we increment it at the beginning - for cases #1 and #2 it does not matter
+    linenum.col++;
+    string::size_type pos=0;
+    StringFormat sf;
+    while(text.length()>pos) {
+        unsigned length;
+        if (REFERENCE == sf.ProcessEscape(text.c_str()+pos, length, false, false, NULL, NULL, NULL, &linenum)) {
+            //a valid \r(xxx) escape. Replace text returned (equal to original if do_refs is false)
+            const string parameter = text.substr(pos+3, length-4);
+            auto itr = msc->ReferenceNames.find(parameter);
+            if (itr!=msc->ReferenceNames.end()) {
+                text.replace(pos, length, itr->second.number_text);
+                pos += itr->second.number_text.length();
+            } else { 
+                //here we did not find the reference
+                msc->Error.Error(linenum, "Unrecognized reference '" + parameter +
+                                        "'. Ignoring it.", "References are case-sensitive.");
+                pos += length;
+            }
+        } else
+            pos += length;
     }
 }
 

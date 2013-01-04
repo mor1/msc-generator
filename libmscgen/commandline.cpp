@@ -83,20 +83,27 @@ static void usage()
 " <infile>    The file from which to read input.  If omitted or specified as\n"
 "             '-', input will be read from stdin.\n"
 " -p=[<page size]\n"
-"             Full-page PDF output. In this case the chart is drawn on\n"
-"             fixed-size pages (following pagination) with one pixel equalling\n"
-"             to 1/72 inches. If a chart page is larger than a physcal page it\n"
-"             is simply cropped with a warning. Setting the scale with the -s\n"
-"             option enables zooming. Page size can be set to 'A4p', 'A4l',\n"
-"             'A3p' and 'A3l', where 'p' and 'l' refer to portrait and\n"
-"             landscape, respecitively. Deafult is 'A4p'.\n"
+"             Full-page output. (PDF only now.) In this case the chart is \n"
+"             drawn on fixed-size pages (following pagination) with one pixel\n"
+"             equalling to 1/72 inches. If a chart page is larger than a physcal\n"
+"             page it is simply cropped with a warning. Setting the scale with\n"
+"             the -s option enables zooming. Page size can be set to ISO sizes\n"
+"             from A0 to A6, and to US sizes, such as letter, legal, ledger and\n"
+"             tabloid. Append a 'p' or an 'l' for portrait and landscape,\n"
+"             respectively (except for 'tabloid' and 'ledger', which are\n"
+"             by definition portrait and landscape, resp.). E.g., use 'A4p',\n"
+"             'A2l' or 'letter_l'. Deafult is 'A4p'.\n"
 " -m{lrud}=<margin>\n"
 "             Useful only for full-page output, specifies the margin.\n"
 "             A separate option is needed to specify the left, right, upwards\n"
 "             and downwards margins, denoted by the second letter of the option.\n"
 "             Margins are to be specified in inches (number only) or in\n"
 "             centimeters, if appended with 'cm' (no spaces). The default\n"
-"             margin is 2 inches everywhere.\n"
+"             margin is half inches everywhere.\n"
+" -va=<center|up|down>\n"
+" -ha=<center|left|right>\n"
+"             Set the vertical and horizontal alignment within a page for full-\n"
+"             page output.\n"
 " -Wno        No warnings displayed.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
 " -x=<width>  Specifies chart width (in pixels). Only for PNG output.\n"
@@ -104,9 +111,14 @@ static void usage()
 "             is specified, the aspect ratio is kept. Only for PNG output.\n"
 " -s=<scale>  Can be used to scale chart size up or down. Default is 1.0.\n"
 "             Cannot be used together with any of -x or -y.\n"
-"             Only for PNG or multi-page PDF output. For multi-page PDF\n"
-"             output, you can set <scale> to 'auto' which results in the\n"
-"             chart width being set to the page width.\n"
+"             Only for PNG or full-page output (-p).\n" 
+"             For full-page output, you can set <scale> to 'width' which\n"
+"             results in the chart width being set to the page width, or\n"
+"             'auto', which scales such that all pages fits. For full-page\n"
+"             output, you can specify multiple -s options, which makes\n"
+"             msc-gen to try them in the order specified until one is\n"
+"             found for which no pages need to be cropped. If none is\n"
+"             such, the last one will be used and a warning will be given.\n"
 " --<chart_option>=<value>\n"
 "             These options will be evaluated before the input file. Any value\n"
 "             here will be overwritten by a conflicting option in the file.\n"
@@ -157,9 +169,10 @@ int do_main(const std::list<std::string> &args, const char *designs,
     bool                  oCshize = false;
     int                   oX = -1;
     int                   oY = -1;
-    double                oScale = 0;
+    std::vector<double>   oScale; //-2=auto, -1=width, other values = given scale
     MscCanvas::EPageSize  oPageSize = MscCanvas::NO_PAGE;
-    double                margins[] = {144, 144, 144, 144}; // two inches everywhere
+    int                   oVA = -2, oHA =-2; //-1=left/top, 0=center, +1=right/bottom (-2==not set)
+    double                margins[] = {36, 36, 36, 36}; // half inches everywhere
     string ss;
 
     Msc msc;
@@ -171,7 +184,6 @@ int do_main(const std::list<std::string> &args, const char *designs,
     const file_line opt_pos(msc.current_file,0,0);
     const file_line_range opt_pos_range(opt_pos, opt_pos);
     bool show_usage = false;
-    bool fail_options = false;
 
     //Load deisgn definitions
     if (designs)
@@ -193,14 +205,18 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 oY = -1;
             }
         } else if (i->at(0) == '-' && i->at(1) == 's') {
-            if (i->at(2) != '=' || (sscanf(i->c_str()+3, "%lf", &oScale)!=1 && i->substr(3) != "auto"))
+            double os;
+            if (i->at(2) != '=' || 
+                (sscanf(i->c_str()+3, "%lf", &os)!=1 && tolower(i->at(3)) != 'a' && tolower(i->at(3)) != 'w'))
                 msc.Error.Error(opt_pos, "Missing scale after '-s='. Using native size.");
-            else if (i->substr(3) == "auto")
-                oScale = -1;
-            else if (oScale<=0.001 || oScale>100) {
+            else if (tolower(i->at(3)) == 'a')
+                oScale.push_back(-2); //auto
+            else if (tolower(i->at(3)) == 'w')
+                oScale.push_back(-1); //width
+            else if (os<=0.001 || os>100) 
                 msc.Error.Error(opt_pos, "Invalid scale, it should be between [0.001..100]. Ignoring it.");
-                oScale = 0;
-            }
+            else 
+                oScale.push_back(os); 
         } else if (i->at(0) == '-' && i->at(1) == 'p') {
             if (i->length()==2) 
                 oPageSize = MscCanvas::A4P;
@@ -209,6 +225,20 @@ int do_main(const std::list<std::string> &args, const char *designs,
             if (oPageSize == MscCanvas::NO_PAGE) {
                 msc.Error.Error(opt_pos, "Invalid page size. Should be one of the ISO A-series, such as 'A4p' or 'A3l', or 'letter', 'legal', 'ledger' or 'tabloid'. Using 'A4p' as default.");
                 oPageSize = MscCanvas::A4P;
+            }
+        } else if (i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') && 
+                   i->at(2) == 'a') {
+            if (i->length()<5 || i->at(3) != '=')
+                msc.Error.Error(opt_pos, "I need a value for " + i->substr(0,3) + ". Ignoring this.");
+            else {
+                static const char h[] = "lcr", v[] = "ucd";
+                static const char h_err[] = "left/center/right", v_err[] = "up/center/down";
+                const char * const at = strchr(i->at(1)=='h' ? h : v, tolower(i->at(4)));
+                if (at==NULL)
+                    msc.Error.Error(opt_pos, "Bad value for "+ i->substr(0,3) + ". Use one of " + 
+                                   (i->at(1)=='h' ? h_err : v_err) + ". Ignoring this.");
+                else
+                    (i->at(1)=='h' ? oHA : oVA) = int(at - (i->at(1)=='h' ? h : v)) - 1;
             }
         } else if (i->at(0) == '-' && i->at(1) == 'm') {
             static const char *dirs = "lrud";
@@ -221,20 +251,21 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 double mul = 72; //pixels per unit. Default is inch.
                 char *buff = (char*)malloc(i->length());
                 buff[0] = 0;
-                if (sscanf(i->c_str()+4, "%lf%s", margins+(at-dirs), buff)==0)
+                double res;
+                if (sscanf(i->c_str()+4, "%lf%s", &res, buff)==0)
                     msc.Error.Error(opt_pos, "After the marging option, I need a number with no spaces, like '-mu=1.2cm'. Ignoring this.");            
-                if (!strcmp("cm", buff)) mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
-                else if (buff[0] && strcmp("in", buff)) 
-                    msc.Error.Error(opt_pos, "After margin size value, specify the measurement unit: 'in' or 'cm'.");            
-                free(buff);
-                margins[at-dirs] *= mul;
+                else {
+                    if (!strcmp("cm", buff)) mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
+                    else if (buff[0] && strcmp("in", buff)) 
+                        msc.Error.Error(opt_pos, "After margin size value, specify the measurement unit: 'in' or 'cm'. Assuming inches.");            
+                    free(buff);
+                    margins[at-dirs] = res*mul;
+                }
             }
         } else if (*i == "-o") {
             if (i==--args.end()) {
-                msc.Error.Error(opt_pos,
-                                "Missing output filename after '-o'.");
+                msc.Error.FatalError(opt_pos, "Missing output filename after '-o'.");
                 show_usage = true;
-                fail_options = true;
             } else
                 oOutputFile = *(++i);
         } else if (*i == "-T") {
@@ -403,87 +434,123 @@ int do_main(const std::list<std::string> &args, const char *designs,
 
     //Determine option compatibility
     if (oPageSize!=MscCanvas::NO_PAGE && oOutType != MscCanvas::PDF) {
-        msc.Error.Error(file_line(), "-p can only be used with PDF output. Ignoring it.");
+        msc.Error.Error(opt_pos, "-p can only be used with PDF output. Ignoring it.");
         oPageSize = MscCanvas::NO_PAGE;
     }
-    if (oScale<0 && oPageSize == MscCanvas::NO_PAGE) {
-        msc.Error.Error(file_line(), "-s=auto can only be used with multi-page PDF output. Using default scale of 1.0.");
-        oScale = 0;
+    bool has_auto_or_width = false;
+    for (unsigned s=0; s<oScale.size() && !has_auto_or_width; s++)
+        has_auto_or_width = oScale[s]<=0;
+    if (has_auto_or_width && oPageSize == MscCanvas::NO_PAGE) {
+        msc.Error.Error(opt_pos, "-s=auto and -s=width can only be used with full-page output. Using default scale of 1.0.");
+        oScale.resize(1);
+        oScale[0] = 1;
     }
-    if (fail_options) {
-        //Problem with switches
-        std::cerr << msc.Error.Print(oWarning);
-        if (show_usage) usage();
-        std::cerr << "Bailing out." << std::endl;
-        return EXIT_FAILURE;
+    if (oScale.size()>1 && oPageSize == MscCanvas::NO_PAGE) {
+        msc.Error.Error(opt_pos, "Multiple -s options can only be applied to full-page output. Using default scale of 1.0.");
+        oScale.resize(1);
+        oScale[0] = 1;
+    }
+    if (oPageSize!=MscCanvas::NO_PAGE && oHA!=-2) {
+        msc.Error.Error(opt_pos, "-ha can only be used with full-page outputoutput. Ignoring it.");
+        oHA = -1;
+    }
+    if (oPageSize!=MscCanvas::NO_PAGE && oVA!=-2) {
+        msc.Error.Error(opt_pos, "-va can only be used with full-page output. Ignoring it.");
+        oVA = -1;
     }
 
-    char *input;
+    if (msc.Error.hasFatal()) goto fatal;
 
     /* Parse input, either from a file, or stdin */
+    char *input;
     if (oInputFile == "" || oInputFile == "-") {
         input = ReadFile(stdin);
     } else {
         FILE *in = fopen(oInputFile.c_str(), "r");
 
-        if(!in) {
-            std::cerr<< "Error: Failed to open input file '" << oInputFile << "'.\n";
-            std::cerr << "Bailing out." << std::endl;
-            return EXIT_FAILURE;
-        }
-        input = ReadFile(in);
-        fclose(in);
+        if(in) {
+            input = ReadFile(in);
+            fclose(in);
+        } else
+            msc.Error.FatalError(opt_pos, "Failed to open input file '" + oInputFile +"'.");
     }
-    //Replace chart text with the cshized version of it
+    if (msc.Error.hasFatal()) goto fatal;
+
     if (oCshize) {
+        //Replace chart text with the cshized version of it
         MscInitializeCshAppearanceList();
         Csh csh;
-        if (strlen(input)>std::numeric_limits<string::size_type>::max()-10)  {
-            std::cerr << "Error: Msc-generator cannot handle files longer than " << std::numeric_limits<string::size_type>::max()-10 << ".";
-            std::cerr << "The input '" << oInputFile << "' is longer than this (" << strlen(input) << ").";
-            std::cerr << "Bailing out." << std::endl;
-            return EXIT_FAILURE;
+        if (strlen(input)>std::numeric_limits<string::size_type>::max()-10) {
+            string err = "The input '";
+            err << oInputFile << "' is too long (" << strlen(input) << " bytes).";
+            msc.Error.FatalError(opt_pos, err);
+            err = "Error: Msc-generator cannot handle files longer than ";
+            err << std::numeric_limits<string::size_type>::max()-10 << ".";
+            msc.Error.Error(opt_pos, opt_pos, err);
+        } else {
+            csh.ParseText(input, (unsigned)strlen(input), -1, 1);
+            string tmp = Cshize(input, (unsigned)strlen(input), csh.CshList, 1, csh_textformat.c_str());
+            FILE *out = fopen(oOutputFile.c_str(), "w");
+            if (out) {
+                fwrite(tmp.c_str(), 1, tmp.length(), out);
+                fclose(out);
+            } else
+                msc.Error.FatalError(opt_pos, "Failed to open input file '" + oOutputFile +"'.");
         }
-        csh.ParseText(input, (unsigned)strlen(input), -1, 1);
-        string tmp = Cshize(input, (unsigned)strlen(input), csh.CshList, 1, csh_textformat.c_str());
-        FILE *out = fopen(oOutputFile.c_str(), "w");
-        if (!out) {
-            std::cerr<< "Error: Failed to open output file '" << oOutputFile << "'.\n";
-            std::cerr << "Bailing out." << std::endl;
-            return EXIT_FAILURE;
-        }
-        fwrite(tmp.c_str(), 1, tmp.length(), out);
-        fclose(out);
     } else {
         //parse input text;
         msc.ParseText(input, oInputFile.c_str());
         msc.CompleteParse(oOutType, true);
 
         //Determine scaling
-        XY scale(1., 1.);
+        std::vector<XY> scale(std::max(1U, oScale.size()), XY(1., 1.));
         if (oX>0 || oY>0) {
-            if (oScale)
+            if (oScale.size())
                 msc.Error.Error(opt_pos, "Conflicting scaing options. Use either -s or one/both of -x/-y. Using no scaling.");
             else if (oX>0 && oY>0) {
-                scale.x = double(oX)/double(msc.GetTotal().x.Spans());
-                scale.y = double(oY)/double(msc.GetTotal().y.Spans());
+                scale[0].x = double(oX)/double(msc.GetTotal().x.Spans());
+                scale[0].y = double(oY)/double(msc.GetTotal().y.Spans());
             } else if (oX>0)
-                scale.x = scale.y = double(oX)/double(msc.GetTotal().x.Spans());
+                scale[0].x = scale[0].y = double(oX)/double(msc.GetTotal().x.Spans());
             else if (oY>0)
-                scale.x = scale.y = double(oY)/double(msc.GetTotal().y.Spans());
-        } else if (oScale==-1)  //auto
-            scale.x = scale.y = 0;
-        else if (oScale) //specified
-            scale.x = scale.y = oScale;
+                scale[0].x = scale[0].y = double(oY)/double(msc.GetTotal().y.Spans());
+        } else if (oScale.size()==1)  //one specified
+            scale[0].x = scale[0].y = oScale[0];
+        else if (oScale.size()>1) { //multiple specified
+            if (oPageSize == MscCanvas::NO_PAGE) {
+                for (unsigned u = 0; u<oScale.size(); u++)
+                    if (oScale[u]>0) {
+                        oScale[0] = oScale[u];
+                        break;
+                    }
+                oScale.resize(1);
+                string s = "Multiple -s options are valid for full-page output (-p). Using scale of ";
+                s << oScale[0] << ".";
+                msc.Error.Error(opt_pos, s);
+            } else
+                for (unsigned u = 0; u<oScale.size(); u++)
+                    scale[u].x = scale[u].y = oScale[u];
+        }
 
-        //Now cycle through pages and write them to individual files or a multi-page one
-        msc.DrawToOutput(oOutType, scale, oOutputFile, false, oPageSize, margins, true);
-        std::cerr << msc.Error.Print(oWarning);
+        //Now cycle through pages and write them to individual files or a full-page  one
+        msc.DrawToOutput(oOutType, scale, oOutputFile, false, oPageSize, margins, oHA, oVA, true);
     }
-
     free(input);
+    if (msc.Error.hasFatal()) goto fatal;
 
-    std::cerr << "Success." << std::endl;
+    std::cerr << msc.Error.Print(oWarning);
     if (show_usage) usage();
+    if (msc.Error.hasErrors())
+        std::cerr << "There were errors, but a chart has been produced." << std::endl;
+    else
+        std::cerr << "Success." << std::endl;
     return EXIT_SUCCESS;
+
+fatal:
+    //Serious problems
+    std::cerr << msc.Error.Print(oWarning);
+    if (show_usage) usage();
+    std::cerr << "Bailing out." << std::endl;
+    return EXIT_FAILURE;
 }
+

@@ -65,8 +65,9 @@
 //Use this to detemine positions/layout
 MscCanvas::MscCanvas(OutputType ot) : 
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
-    outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), external_surface(false),
-    raw_page_clip(0,0,0,0)
+    outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), 
+    external_surface(false), copyrightTextHeight(0), 
+    raw_page_clip(0,0,0,0), user_scale(1,1), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -74,18 +75,19 @@ MscCanvas::MscCanvas(OutputType ot) :
     SetLowLevelParams(ot);
     status = CreateSurface(XY(0,0));
     if (status!=ERR_OK) return;
-    status = CreateContextFromSurface(ot, XY(1.,1.), 0, 0, 0);
+    status = CreateContextFromSurface(0, 0);
     if (status!=ERR_OK) CloseOutput();
 }
 
 //page numbering starts from 0
 //Use this to save to a file 
-MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight, 
+MscCanvas::MscCanvas(OutputType ot, const Block &tot, double ctexth, 
                      const string &fn, const XY &scale,
                      const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), external_surface(false),
-    raw_page_clip(0,0,0,0)
+    total(tot), status(ERR_PARAM), candraw(false), 
+    external_surface(false), copyrightTextHeight(ctexth),
+    raw_page_clip(0,0,0,0), user_scale(scale), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -123,18 +125,19 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double copyrightTextHeight
     }
     status = CreateSurface(size);
     if (status!=ERR_OK) return;
-    status = CreateContextFromSurface(ot, scale, origYSize, origYOffset, copyrightTextHeight);
+    status = CreateContextFromSurface(origYSize, origYOffset);
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
 }
 
-    //Margins[] is left,right, up,down and in pixels
-MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const XY &scale, 
-                     MscCanvas::EPageSize pageSize, const double margins[4], 
-                     double copyrightTextHeight, const std::vector<double> *yPageStart) :
+//Margins[] is left,right, up,down and in pixels
+MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const std::vector<XY>  &scale, 
+                     MscCanvas::EPageSize pageSize, const double margins[4],  int ha, int va, 
+                     double ctexth, const std::vector<double> *yPageStart) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), external_surface(false), 
-    raw_page_clip(0,0,0,0)
+    total(tot), status(ERR_PARAM), candraw(false), 
+    copyrightTextHeight(ctexth), external_surface(false), 
+    raw_page_clip(0,0,0,0), h_alignment(ha), v_alignment(va)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -143,14 +146,17 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const XY
     _ASSERT(fn.length()>0);
 
     SetLowLevelParams(ot);
+    _ASSERT(fake_scale==1); //We cannot increase scale with fixed paper sizes...
     fileName = fn;
     outFile = fopen(fileName.c_str(), "wb");
     if (!outFile) {
         status = ERR_FILE;
         return;
     }
-    double origYSize, origYOffset;
-    GetPagePosition(yPageStart, 1, origYOffset, origYSize);
+    status = CreateSurface(GetPhysicalPageSize(pageSize));
+    if (status!=ERR_OK) return;
+
+    //Determine net page size (physical size - margins)
     raw_page_clip = Block(XY(0,0), GetPhysicalPageSize(pageSize));
     if (margins) {
         raw_page_clip.x.from += margins[0];
@@ -163,17 +169,39 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const XY
         status = ERR_MARGIN;
         return; //too big margins
     }
-    //Check auto-scaling
-    XY effective_scale;
-    if (scale.x>0 && scale.y>0) 
-        effective_scale = scale;
-    else if (total.x.Spans()>0.1)
-        effective_scale.x = effective_scale.y = raw_page_clip.x.Spans()/total.x.Spans();
-    else
-        effective_scale.x = effective_scale.y = 1;
-    status = CreateSurface(GetPhysicalPageSize(pageSize));
-    if (status!=ERR_OK) return;
-    status = CreateContextFromSurface(ot, effective_scale, origYSize, origYOffset, copyrightTextHeight, &raw_page_clip);
+    //Determine scaling
+    double origYSize, origYOffset;
+    for (unsigned s=0; s<scale.size(); s++) {
+        if (scale[s].x<=0) { //auto or width
+            _ASSERT(scale[s].x==-2 || scale[s].x==-1);
+            _ASSERT(scale[s].y==scale[s].x);
+            //Set scale to what is dictated by width
+            user_scale.x = raw_page_clip.x.Spans()/total.x.Spans();
+            if (scale[s].x==-2) { //auto
+                //check if we need to reduce scale for all page length to fit, as well
+                for (unsigned p = 1; p<=yPageStart->size(); p++) {
+                    GetPagePosition(yPageStart, p, origYOffset, origYSize);
+                    user_scale.x = std::min(user_scale.x, raw_page_clip.y.Spans()/(origYSize+copyrightTextHeight));
+                }
+                user_scale.y = user_scale.x;
+                break; //auto always fits
+            }
+            user_scale.y = user_scale.x;
+        } else 
+            user_scale = scale[s];
+        //Check if we fit
+        bool oversize = raw_page_clip.x.Spans() < total.x.Spans()*user_scale.x;
+        if (!oversize) 
+            for (unsigned p = 1; p<=yPageStart->size(); p++) {
+                GetPagePosition(yPageStart, p, origYOffset, origYSize);
+                oversize = raw_page_clip.x.Spans() < (origYSize+copyrightTextHeight)*user_scale.y;
+                if (oversize) break;
+            }
+        if (!oversize) break; //if all pages fit, we stick to this user_scale
+    }
+    //Create context for first page
+    GetPagePosition(yPageStart, 1, origYOffset, origYSize);
+    status = CreateContextFromSurface(origYSize, origYOffset);
     if (status!=ERR_OK) {
         CloseOutput();
         return;
@@ -181,60 +209,58 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const XY
     candraw = true;
 }
 
-void MscCanvas::TurnPage(double copyrightTextHeight, const XY &scale, 
-                         const std::vector<double> *yPageStart, unsigned next_page, MscError *error) 
+void MscCanvas::TurnPage(const std::vector<double> *yPageStart, unsigned next_page, 
+                         MscError *error) 
 {
     if (status!=ERR_OK) 
         return;
+    //Complete the old page
     cairo_destroy(cr);
     cairo_surface_show_page(surface);
+    //Cretate context for next page
     double origYSize, origYOffset;
     GetPagePosition(yPageStart, next_page, origYOffset, origYSize);
-    XY effective_scale;
-    if (scale.x>0 && scale.y>0) 
-        effective_scale = scale;
-    else if (total.x.Spans()>0.1)
-        effective_scale.x = effective_scale.y = raw_page_clip.x.Spans()/total.x.Spans();
-    else
-        effective_scale.x = effective_scale.y = 1;
-    status = CreateContextFromSurface(outType, effective_scale, origYSize, origYOffset, copyrightTextHeight, &raw_page_clip);
+    status = CreateContextFromSurface(origYSize, origYOffset);
     if (status!=ERR_OK) {
         CloseOutput();
-        ErrorAfterCreation(error, yPageStart);
+        ErrorAfterCreation(error, yPageStart, false);
         candraw = false;
         return;
     }
-    if (error && raw_page_clip.y.Spans() < origYSize) {
+    //Complain if this page is too 
+    if (error && raw_page_clip.y.Spans() < (origYSize+copyrightTextHeight)*user_scale.y) {
         string err = "Page #";
         err << next_page << " is ";
-        err << ceil(origYSize*100./raw_page_clip.y.Spans()-100);
+        err << ceil((origYSize+copyrightTextHeight)*user_scale.y*100./raw_page_clip.y.Spans()-100);
         error->Warning(file_line(0, 0), err + "% longer than the paper size and will be cropped."); 
     }
     candraw = true;
 }
 
-bool MscCanvas::ErrorAfterCreation(MscError *error,  const std::vector<double> *yPageStart)
+bool MscCanvas::ErrorAfterCreation(MscError *error,  const std::vector<double> *yPageStart, bool fatal)
 {
     if (error==NULL) return status!=ERR_OK;
+    typedef void (MscError::*TFunc)(file_line , const std::string &, const std::string &);
+    const TFunc func = fatal ? &MscError::FatalError : (TFunc)&MscError::Error;
     switch (status) {
     default: _ASSERT(0); return true;
-    case MscCanvas::ERR_FILE: error->Error(file_line(0, 0), "Could not open file '" + fileName + "'."); return true;
-    case MscCanvas::ERR_PARAM: error->Error(file_line(0, 0), "Internal param problem when opening canvas."); return true;
-    case MscCanvas::ERR_CANVAS: error->Error(file_line(0, 0), "Could not open canvas."); return true;
-    case MscCanvas::ERR_MARGIN: error->Error(file_line(0, 0), "Too big margins - no print area left!"); return true;
-    case MscCanvas::ERR_DONE: error->Error(file_line(0, 0), "Whops, internal error."); return true;
+    case MscCanvas::ERR_FILE: error->FatalError(file_line(0, 0), "Could not open file '" + fileName + "'."); return true;
+    case MscCanvas::ERR_PARAM: (error->*func)(file_line(0, 0), "Internal param problem when opening canvas.", ""); return true;
+    case MscCanvas::ERR_CANVAS: (error->*func)(file_line(0, 0), "Could not open canvas.", ""); return true;
+    case MscCanvas::ERR_MARGIN: error->FatalError(file_line(0, 0), "Too big margins - no print area left!", ""); return true;
+    case MscCanvas::ERR_DONE: (error->*func)(file_line(0, 0), "Whops, internal error.", ""); return true;
     case MscCanvas::ERR_OK: 
         if (raw_page_clip.x.till==0 || raw_page_clip.y.till==0) return false;
-        if (raw_page_clip.x.Spans() < total.x.Spans()) {
+        if (raw_page_clip.x.Spans() < total.x.Spans()*user_scale.x) {
             string err = "Chart is ";
-            err << ceil(total.x.Spans()*100./raw_page_clip.x.Spans()-100);
+            err << ceil(total.x.Spans()*user_scale.x*100./raw_page_clip.x.Spans()-100);
             error->Warning(file_line(0, 0), err + "% wider than the paper size and will be cropped."); 
         }
         double origYSize, origYOffset;
         GetPagePosition(yPageStart, 1, origYOffset, origYSize);
-        if (raw_page_clip.y.Spans() <origYSize) {
+        if (raw_page_clip.y.Spans() <origYSize*user_scale.y) {
             string err = "First page is ";
-            err << ceil(origYSize*100./raw_page_clip.y.Spans()-100);
+            err << ceil(origYSize*user_scale.y*100./raw_page_clip.y.Spans()-100);
             error->Warning(file_line(0, 0), err + "% longer than the paper size and will be cropped."); 
         }
         return false;
@@ -245,7 +271,7 @@ bool MscCanvas::ErrorAfterCreation(MscError *error,  const std::vector<double> *
 MscCanvas::EPageSize MscCanvas::ConvertPageSize(const char *c)
 {
     if (tolower(c[0])=='a' && '0'<=c[1] && c[1]<='6' && 
-        (tolower(c[2])=='l' || tolower(c[2])=='p') && c[3]==0) {
+        (c[2]==0 || ((tolower(c[2])=='l' || tolower(c[2])=='p') && c[3]==0))) {
             unsigned hm =(c[1] - '0' + 1)*2 + (tolower(c[2])=='l'); 
             return EPageSize(hm);
     }
@@ -295,11 +321,12 @@ XY MscCanvas::GetPhysicalPageSize(EPageSize ps)
 //(in reality scale is only used to do proper shadow faking)
 //Drawing fakes and tweaks will be applied as per "ot"
 //Copyright text is also added
-MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, double copyrightTextHeight, const XY &scale, 
+MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, double ctexth, const XY &scale, 
               const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(surf), cr(NULL), 
-    outType(ot), total(tot), status(ERR_PARAM), candraw(false), external_surface(true),
-    raw_page_clip(0,0,0,0)
+    outType(ot), total(tot), status(ERR_PARAM), candraw(false), 
+    external_surface(true), copyrightTextHeight(ctexth),
+    raw_page_clip(0,0,0,0), user_scale(scale), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -310,7 +337,7 @@ MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, dou
     GetPagePosition(yPageStart, page, origYOffset, origYSize);
 
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
-    status = CreateContextFromSurface(ot, scale, origYSize, origYOffset, copyrightTextHeight);
+    status = CreateContextFromSurface(origYSize, origYOffset);
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
 }
@@ -489,10 +516,9 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
 }
 
 //Creates a context from the surface
-//if clip_raw contains something, we clip the native surface and translates to the clip upper left
-MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(
-    MscCanvas::OutputType /*ot*/, const XY &scale, double origYSize, double origYOffset, 
-    double copyrightTextHeight, const Block *clip_raw) 
+//if raw_page_clip contains something, we clip the native surface and 
+//translates accorindg to h_alignment and v_alignment
+MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(double origYSize, double origYOffset) 
 {
     cr = cairo_create (surface);
     cairo_status_t st = cairo_status(cr);
@@ -509,16 +535,35 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(
     cairo_set_font_options(cr, fopt);
     cairo_font_options_destroy(fopt);
 
-    scale_for_shadows = sqrt(scale.y*scale.x);
+    scale_for_shadows = sqrt(user_scale.y*user_scale.x);
     if (total.x.Spans() <= 0 || total.y.Spans()<=0) return ERR_OK; //OK
 
-    if (clip_raw) {
-        cairo_translate(cr, clip_raw->x.from, clip_raw->y.from);
-        cairo_rectangle(cr, 0, 0, clip_raw->x.Spans(), clip_raw->y.Spans());
+    if (raw_page_clip.y.till>0) {
+        cairo_rectangle(cr, raw_page_clip.x.from, raw_page_clip.y.from, raw_page_clip.x.Spans(), raw_page_clip.y.Spans());
         cairo_clip(cr);
+        XY off = raw_page_clip.UpperLeft();
+        switch (v_alignment) {
+        case +1: //bottom
+            off.y += raw_page_clip.y.Spans() - (origYSize+copyrightTextHeight)*user_scale.y; break;
+        case 0: //center
+            off.y += (raw_page_clip.y.Spans() - (origYSize+copyrightTextHeight)*user_scale.y)/2; break;
+        case -1://top
+            break;
+        default: _ASSERT(0);
+        }
+        switch (h_alignment) {
+        case 1: //right
+            off.x += raw_page_clip.x.Spans() - total.x.Spans()*user_scale.x; break;
+        case 0:  //center
+            off.x += (raw_page_clip.x.Spans() - total.x.Spans()*user_scale.x)/2; break;
+        case -1: //left
+            break;
+        default: _ASSERT(0);
+        }
+        cairo_translate(cr, off.x, off.y);
     }
 
-    cairo_scale(cr, fake_scale*scale.x, fake_scale*scale.y);
+    cairo_scale(cr, fake_scale*user_scale.x, fake_scale*user_scale.y);
     if (can_and_shall_clip_total) {
         //clip first to allow for banner text, but not for WIN contexts
         cairo_save(cr);
@@ -552,24 +597,25 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(
 
 //Draw to a DC that is either a display/printer DC or a metafile
 //Use this to display a chart, use other constructors without a DC to save the chart to a file
-MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightTextHeight, 
+MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double ctexth, 
                      const XY &scale, const std::vector<double> *yPageStart, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), external_surface(false), 
+    total(tot), status(ERR_PARAM), candraw(false), 
+    external_surface(false), copyrightTextHeight(ctexth),
+    raw_page_clip(0,0,0,0), user_scale(scale), h_alignment(0), v_alignment(0),
     stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 {
     if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=EMFWMF && ot!=PRINTER) 
         return;
 
     SetLowLevelParams(ot);
-    original_scale = scale*fake_scale;
 
     double origYSize, origYOffset;
     GetPagePosition(yPageStart, page, origYOffset, origYSize);
     original_device_size.x = total.x.Spans();
     original_device_size.y = origYSize + copyrightTextHeight;
-    original_device_size.x *= original_scale.x;
-    original_device_size.y *= original_scale.y;
+    original_device_size.x *= scale.x*fake_scale;
+    original_device_size.y *= scale.y*fake_scale;
     RECT r;
 
     switch (ot) {
@@ -589,7 +635,7 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double copyrightT
         _ASSERT(0);
     }
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
-    status = CreateContextFromSurface(ot, scale, origYSize, origYOffset, copyrightTextHeight);
+    status = CreateContextFromSurface(origYSize, origYOffset);
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
 }
@@ -750,7 +796,7 @@ HENHMETAFILE MscCanvas::CloseAndGetEMF()
     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
     stored_fallback_image_places = FallbackImages(hemf, &r);                
     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
-    stored_fallback_image_places.Scale(1/original_scale.x); //TODO: assumes original_scale.x==original_scale.y
+    stored_fallback_image_places.Scale(1/(user_scale.x*fake_scale)); //TODO: assumes user_scale.x==user_scale.y
     win32_dc = NULL;
     outFile=NULL;
     surface=NULL;
@@ -839,7 +885,7 @@ void MscCanvas::CloseOutput()
                 }
             }
             //Scale the fallback image places back to chart space (but with page origin at y==0)
-            stored_fallback_image_places.Scale(1/original_scale.x); //TODO: assumes original_scale.x==original_scale.y
+            stored_fallback_image_places.Scale(1/(user_scale.x*fake_scale)); //TODO: assumes user_scale.x==user_scale.y
             win32_dc = NULL;
             break;
             //Fallthrough if cairo has no WIN32 surface

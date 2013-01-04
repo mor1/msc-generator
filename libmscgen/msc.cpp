@@ -1640,30 +1640,35 @@ void Msc::Draw(MscCanvas &canvas, bool pageBreaks)
  * 'pageSize' can only be other than NO_PAGE if file format is PDF (which supports multiple pages). In that
  * case `scale` can be <zero,zero> indicating that the chart should be fitted to page width.
  * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
+ * Scale contains a list of scales to try.
 */
-void Msc::DrawToOutput(MscCanvas::OutputType ot, const XY &scale, const string &fn, bool bPageBreaks, 
-                       MscCanvas::EPageSize pageSize, const double margins[4], bool generateErrors)
+void Msc::DrawToOutput(MscCanvas::OutputType ot, const std::vector<XY> &scale, 
+                       const string &fn, bool bPageBreaks, 
+                       MscCanvas::EPageSize pageSize, const double margins[4], 
+                        int ha, int va, bool generateErrors)
 {
+    _ASSERT(scale.size()>0);
+    _ASSERT(scale.size()==1 || pageSize != MscCanvas::NO_PAGE); //Multiple scales must be fixed-size output
     const unsigned from = yPageStart.size()<=1 ? 0 : 1;
     const unsigned till = yPageStart.size()<=1 ? 0 : yPageStart.size();
     if (yPageStart.size()>1) bPageBreaks = false;
     if (pageSize==MscCanvas::NO_PAGE) 
         for (unsigned page=from; page<=till; page++) {
-            MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale, &yPageStart, page);
-            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart)) return;
+            MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &yPageStart, page);
+            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart, true)) return;
             Draw(canvas, bPageBreaks);
             canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
             DrawCopyrightText(canvas, page);
         }
     else {
-        MscCanvas canvas(ot, total, fn, scale, pageSize, margins, copyrightTextHeight, &yPageStart);
-        if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart)) return;
+        MscCanvas canvas(ot, total, fn, scale, pageSize, margins, ha, va, copyrightTextHeight, &yPageStart);
+        if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart, true)) return;
         for (unsigned page=from; page<=till; page++) {
             Draw(canvas, bPageBreaks);
             canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutput()
             DrawCopyrightText(canvas, page);
             if (page<till) 
-                canvas.TurnPage(copyrightTextHeight, scale, &yPageStart, page+1, generateErrors ? &Error : NULL);
+                canvas.TurnPage(&yPageStart, page+1, generateErrors ? &Error : NULL);
         }
     }
 }

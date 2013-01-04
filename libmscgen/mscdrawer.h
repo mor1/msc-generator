@@ -97,14 +97,16 @@ protected:
     ErrorType        status;
     bool             candraw;
     const bool       external_surface; //true if we got the surface in the constructor externally
-    Block            raw_page_clip;  //used with multi-page surfaces only. Contains the raw page minus margins.
+    const double     copyrightTextHeight;
+    XY               user_scale;     //stores the scale user specified at construction.
+    //fix-page values stored in constructor
+    Block            raw_page_clip;  //used with multi-page surfaces only. Contains the raw page minus margins. All zero if not a fixed page output.
+    const int        h_alignment, v_alignment; //left/center/right, up/center/down alignment
 
     void SetLowLevelParams(MscCanvas::OutputType ot);
     void GetPagePosition(const std::vector<double> *yPageStart, unsigned page, double &y_offset, double &y_size) const;
     ErrorType CreateSurface(const XY &size); 
-    ErrorType CreateContextFromSurface(OutputType, const XY &scale, double origYSize, 
-                                       double origYOffset, double copyrightTextHeight,
-                                       const Block *clip_raw=NULL);
+    ErrorType CreateContextFromSurface(double origYSize, double origYOffset);
 
     void ArcPath(const contour::EllipseData &ell, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
     void ArcPath(const XY &c, double r1, double r2=0, double s_rad=0, double e_rad=2*M_PI, bool reverse=false);
@@ -141,8 +143,9 @@ public:
               const XY &scale=XY(1.,1.), 
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     /** Creates a canvas to draw the chart to a mult-page file & starts page #1.*/
-    MscCanvas(OutputType, const Block &tot, const string &fn, const XY &scale, 
-              EPageSize pageSize, const double margins[4],
+    MscCanvas(OutputType, const Block &tot, const string &fn, 
+              const std::vector<XY> &scale, EPageSize pageSize, 
+              const double margins[4],  int ha, int va, 
               double copyrightTextHeight, const std::vector<double> *yPageStart);
     /**Creates a canvas to draw one page or all of the chart to a recording surface.*/
     MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, 
@@ -150,14 +153,12 @@ public:
               const std::vector<double> *yPageStart=NULL, unsigned page=0);
     ErrorType Status() const {return status;}
     static XY GetPhysicalPageSize(EPageSize);
-    void TurnPage(double copyrightTextHeight, const XY &scale, 
-                  const std::vector<double> *yPageStart, unsigned next_page, 
+    void TurnPage(const std::vector<double> *yPageStart, unsigned next_page, 
                   MscError *error=NULL);
-    bool ErrorAfterCreation(MscError *error,  const std::vector<double> *yPageStart);
+    bool ErrorAfterCreation(MscError *error,  const std::vector<double> *yPageStart, bool fatal);
 #ifdef CAIRO_HAS_WIN32_SURFACE
     HDC win32_dc, original_hdc;
     XY original_device_size;
-    XY original_scale;
     size_t stored_metafile_size; //when rendering on WMF or EMF, store the size of the resulting file
     Contour stored_fallback_image_places; //when rendering on WMF or EMF, store the location of fallback images in chart space
     MscCanvas(OutputType, HDC hdc, const Block &tot=Block(0,0,0,0), double copyrightTextHeight=0, const XY &scale=XY(1.,1.),

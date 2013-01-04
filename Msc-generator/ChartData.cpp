@@ -501,8 +501,7 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
         ot = MscCanvas::PNG;
         fn += ".png";
     }
-	//Ignore useTextPaths
-    GetMsc()->DrawToOutput(ot, XY(x_scale, y_scale), fn, bPageBreaks);
+    GetMsc()->DrawToOutput(ot, std::vector<XY>(1, XY(x_scale, y_scale)), fn, bPageBreaks);
 }
 
 TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const

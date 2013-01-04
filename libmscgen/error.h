@@ -117,6 +117,7 @@ struct ErrorElement
 /** Helper class to contain and display files and errors/warnings.*/
 class MscError {
 protected:
+    bool hadFatal; ///<Indicates if FatalError() was called. Such errors result in no chart being produced. Used to adjust command-line messages.
     std::vector<ErrorElement> Errors;             ///<Contains the error messages and their related auxiliary info
     std::vector<ErrorElement> ErrorsAndWarnings;  ///<Contains both error and warning messages and their related auxiliary info
     const std::vector<ErrorElement> &get_store(bool oWarnings) const {return oWarnings?ErrorsAndWarnings:Errors;} ///<returns the smesage store to use.
@@ -127,6 +128,7 @@ protected:
 
 public:
     std::vector<std::string> Files; ///<The list of files we parsed in
+    MscError() : hadFatal(false) {}
     unsigned AddFile(const std::string &filename);  ///<Add another file to the list of files.
     /** Adds a warning.
      * @param [in] linenum The location of the warning.
@@ -168,11 +170,19 @@ public:
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
     void Error(const Attribute &a, bool atValue, const std::string &s, const std::string &once="")
         {Add(a, atValue, s, once, true);}
+    /** Adds a fatal an error that prevented chart generation.
+     * @param [in] linenum The location of the error.
+     * @param [in] s The message to display
+     * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
+    void FatalError(file_line linenum, const std::string &s, const std::string &once="")
+        {Add(linenum, linenum, s, once, true); hadFatal=true;}
 
     /** Print all the errors (and warnings) onto a string*/
     std::string Print(bool oWarnings) const;
     /** True if there were errors added*/
     bool hasErrors() const {return Errors.size()>0;}
+    /** True if there were fatal errors added*/
+    bool hasFatal() const {return hadFatal;}
     /** Sort errors and warnings by location */
     void Sort() {_sort(Errors); _sort(ErrorsAndWarnings);}
     /** Returns the number of errors (includes warnings if oWarnings is true).*/
@@ -183,7 +193,7 @@ public:
     const char *GetErrorText(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].text.c_str();}
     ErrorElement FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const ;
     /** Clearing all collected errors and warnings, but keeps the files.*/
-    void Clear() {Errors.clear(); ErrorsAndWarnings.clear();}
+    void Clear() {Errors.clear(); ErrorsAndWarnings.clear(); hadFatal=false;}
 };
 
 #endif
