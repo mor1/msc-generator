@@ -450,12 +450,12 @@ int do_main(const std::list<std::string> &args, const char *designs,
         oScale.resize(1);
         oScale[0] = 1;
     }
-    if (oPageSize!=MscCanvas::NO_PAGE && oHA!=-2) {
-        msc.Error.Error(opt_pos, "-ha can only be used with full-page outputoutput. Ignoring it.");
+    if (oPageSize==MscCanvas::NO_PAGE && oHA!=-2) {
+        msc.Error.Error(opt_pos, "-ha can only be used with full-page output (-p). Ignoring it.");
         oHA = -1;
     }
-    if (oPageSize!=MscCanvas::NO_PAGE && oVA!=-2) {
-        msc.Error.Error(opt_pos, "-va can only be used with full-page output. Ignoring it.");
+    if (oPageSize==MscCanvas::NO_PAGE && oVA!=-2) {
+        msc.Error.Error(opt_pos, "-va can only be used with full-page output (-p). Ignoring it.");
         oVA = -1;
     }
 
