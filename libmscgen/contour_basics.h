@@ -304,6 +304,7 @@ struct Range {
     double from;  ///< The lower (smaller) end of the range.
     double till;  ///< The higher (larger) end of the range.
     Range() {}
+    Range(bool) {MakeInvalid();}
     Range(double s, double d) : from(s), till(d) {}
     void MakeInvalid() {from = MaxVal(from); till = -MaxVal(till);}
     bool IsInvalid() const {return from == CONTOUR_INFINITY && till == -CONTOUR_INFINITY;}

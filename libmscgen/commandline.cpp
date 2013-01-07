@@ -500,7 +500,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     } else {
         //parse input text;
         msc.ParseText(input, oInputFile.c_str());
-        msc.CompleteParse(oOutType, true);
+        msc.CompleteParse(oOutType, true, 0, false);
 
         //Determine scaling
         std::vector<XY> scale(std::max(1U, oScale.size()), XY(1., 1.));

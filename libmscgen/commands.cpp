@@ -606,6 +606,22 @@ void CommandEntity::ShiftBy(double y)
     ArcCommand::ShiftBy(y);
 }
 
+//We never split a heading. Here we sould add a full_header if addHeader is set: TODO.
+//Rght now we just updtae the running state in Msc::AllEntities
+double CommandEntity::SplitByPageBreak(double /*breakPos*/, bool &/*addCommandNewPage*/, bool addHeading)
+{
+    if (!addHeading) return -1;
+    for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) {
+        Entity *ent = *(*i_def)->itr;
+        ent->running_draw_pass = (*i_def)->draw_pass;
+        //We ignore active state, just store on/off
+        ent->running_shown = (*i_def)->draw_heading ? EEntityStatus::SHOW_ON : EEntityStatus::SHOW_OFF;
+        ent->running_style = (*i_def)->style;
+    }
+    return -1; //we could not split
+}
+
+
 void CommandEntity::PostPosProcess(MscCanvas &canvas)
 {
     if (!valid) return;
@@ -655,7 +671,7 @@ double CommandNewpage::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
     return 0;
 }
 
-void CommandNewpage::PostPosProcess(MscCanvas &/*canvas*/)
+void CommandNewpage::CollectPageBreak(void)
 {
     if (!valid) return;
     chart->yPageStart.push_back(yPos);

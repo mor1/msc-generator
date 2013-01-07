@@ -4318,7 +4318,7 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 	<table name="LaunchCondition">
 		<col key="yes" def="s255">Condition</col>
 		<col def="l255">Description</col>
-		<row><td>(Not Version9X) And (Not VersionNT=400) And (Not VersionNT=500) And (Not VersionNT=501) And (Not VersionNT=502) And (Not (VersionNT=600 And Not (MsiNTProductType=1))) And (Not (VersionNT=601 And Not (MsiNTProductType=1)))</td><td>##IDPROP_EXPRESS_LAUNCH_CONDITION_OS##</td></row>
+		<row><td>(Not Version9X) And (Not VersionNT=400) And (Not VersionNT=500) And (Not VersionNT=502) And (Not (VersionNT=600 And Not (MsiNTProductType=1))) And (Not (VersionNT=601 And Not (MsiNTProductType=1)))</td><td>##IDPROP_EXPRESS_LAUNCH_CONDITION_OS##</td></row>
 	</table>
 
 	<table name="ListBox">
@@ -4968,7 +4968,7 @@ UwBpAG4AZwBsAGUASQBtAGEAZwBlAAEARQB4AHAAcgBlAHMAcwA=
 		<col def="s72">ActionProperty</col>
 		<col def="S72">ISDisplayName</col>
 		<row><td>{00000000-0000-0000-0000-000000000000}</td><td>***ALL_VERSIONS***</td><td></td><td></td><td>2</td><td/><td>ISFOUNDNEWERPRODUCTVERSION</td><td>ISPreventDowngrade</td></row>
-		<row><td>{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}</td><td>3.4.20</td><td>3.5.3</td><td>1033</td><td>512</td><td/><td>ISACTIONPROP2</td><td>From All previous versions</td></row>
+		<row><td>{C78101FB-6F91-46C7-9F58-ED8CB16FEECA}</td><td>3.4.20</td><td>3.5.3</td><td>1033</td><td>0</td><td/><td>ISACTIONPROP2</td><td>From All previous versions</td></row>
 	</table>
 
 	<table name="Verb">

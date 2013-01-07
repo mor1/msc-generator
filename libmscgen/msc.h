@@ -178,6 +178,7 @@ public:
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
+    double                        paginationHint; ///<Page size for automatic pagination - infinite if no automatic pagination
 
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
     PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
@@ -286,7 +287,11 @@ public:
                           double top_y, const AreaList &area_top, bool reflow,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
-    void CalculateWidthHeight(MscCanvas &canvas);
+    double PageBreakArcList(MscCanvas &canvas, ArcList &arcs,
+                            double pageBreak, bool &addCommandNewPage, bool addHeading);
+    void CollectPageBreakArcList(ArcList &arcs) {for (auto i= arcs.begin(); i!=arcs.end(); i++) (*i)->CollectPageBreak();}
+    void AutoPaginate(MscCanvas &canvas, double pageSize, bool addHeading);
+    void CalculateWidthHeight(MscCanvas &canvas, double pageSize, bool addHeading);
     void PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
     void PlaceFloatingNotes(MscCanvas &canvas);
 
@@ -294,7 +299,7 @@ public:
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs);
 
-    void CompleteParse(MscCanvas::OutputType, bool avoidEmpty);
+    void CompleteParse(MscCanvas::OutputType, bool avoidEmpty, double pageSize, bool addHeading);
 
     void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(MscCanvas &canvas, double y, double height)
