@@ -269,6 +269,8 @@ Msc::Msc() :
     pedantic=false;
     ignore_designs = false;
 
+    paginationHint = std::numeric_limits<decltype(paginationHint)>::max();
+
     current_file = Error.AddFile("[config]");
     
     //Add "plain" style 
@@ -1135,6 +1137,7 @@ void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &dist
 //Calls Height() for each element (recursively) and takes "compress" and "parallel" into account
 //We always place each element on an integer coordinates
 //returns the total height of the list and its coverage in "cover"
+//Automatic pagination is ignored by this, with the exception 
 double Msc::HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover, bool reflow)
 {
     cover.clear();
@@ -1260,6 +1263,123 @@ void Msc::ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y)
         (*from++)->ShiftBy(y);
 }
 
+double Msc::PageBreakArcList(MscCanvas &canvas, ArcList &arcs, 
+                             double pageBreak, bool &addCommandNewPage, bool addHeading)
+{
+    double shift = 0;
+    /** Indicates which element was the first in a series of elemenst
+     * where all of them have `keep_with_next` or `parallel` set.
+     * Will be maintained only as long as `shift` is zero and used only 
+     * when it becomes non-zero, thus we abandon its value after. */
+    ArcList::iterator keep_with_next__from = arcs.end(); 
+    for (auto i=arcs.begin(); i!=arcs.end(); i++) {
+        double new_shift = shift;
+        const Range r = (*i)->YExtent();
+        if (r.IsWithin(pageBreak) == contour::WI_INSIDE) {
+            //If page break cuts through `i` and it cannot rearrange itself,
+            //we shift it as much as needed to get to the next page, but at least 
+            //as much as above elements were shifted.
+            //If it can rearrange itself, we do not shift it, but record, how much
+            //its bottom has shifted - following elements need at least as much shift
+            if ((*i)->IsKeepTogether()) 
+                new_shift = std::max(shift, pageBreak - r.from);
+            else {
+                double s = (*i)->SplitByPageBreak(pageBreak, addCommandNewPage, addHeading);
+                if (s==-2) {
+                    //ignore (verticals, etc)
+                    //keep_with_next__from = to; //but break keep_with_next
+                    continue; 
+                } else if (s==-1) 
+                    new_shift = std::max(shift, pageBreak - r.from);
+                else {
+                    shift = std::max(shift, s); //increase shift for later elements 
+                    continue; //we do not shift `i`, if it rearranged itself.
+                } 
+            }
+        }
+        //still above the page break, just check keep_with_next
+        if (new_shift==0) {
+            if ((*i)->IsKeepWithNext() || (*i)->IsParallel()) {
+                if (keep_with_next__from == arcs.end()) 
+                    keep_with_next__from = i;
+            } else
+                keep_with_next__from = arcs.end();
+            continue;
+        }
+        //If we introduced shift here, we need to insert a page break
+        if (shift==0) {
+            shift = new_shift;
+            //Here is the page break, we shift this element
+            //and all elements above that wanted to keep with their next.
+            if (keep_with_next__from != arcs.end()) {
+                //First calculate amount to shift
+                for (auto ii = keep_with_next__from; ii!=i; ii++)
+                    shift = std::max(shift, pageBreak - (*i)->GetAreaToSearch().GetBoundingBox().y.from); 
+                //then shift
+                for (auto ii = keep_with_next__from; ii!=i; ii++)
+                    (*ii)->ShiftBy(shift);
+            } else
+                keep_with_next__from = i; //noone before us: mark where the page break is to be inserted.
+            //insert CommandPageBreak if needed
+            if (addCommandNewPage) {
+                CommandNewpage *cnp = new CommandNewpage(this);
+                cnp->AddAttributeList(NULL);
+                //We skip PostParseProcess & FinalizeLabels
+                //this will leave at_top_level uninitialized, but heck!
+                AreaList dummy;
+                cnp->Height(canvas, dummy, false);
+                cnp->ShiftBy(pageBreak);
+                arcs.insert(keep_with_next__from, cnp);
+                if (addHeading) {
+                    //CommandEntity *ce = new Co
+                }
+            }
+        } else if (shift < new_shift)
+            shift = new_shift;
+        //Here we just need to shift us
+        (*i)->ShiftBy(shift);
+    }
+    return shift;
+}
+
+void Msc::AutoPaginate(MscCanvas &canvas, double pageSize, bool addHeading)
+{
+    //Here `total` is set, `drawing` is set the same
+    //All elements (except notes, verticals and floating symbols) have been placed.
+    //But page and entity status is not yet collected.
+
+    yPageStart.resize(1);
+    yPageStart[0] = 0;
+    CollectPageBreakArcList(Arcs);
+    yPageStart.push_back(total.y.till); //not really a page start, but helps us
+    for (unsigned u=0; u<yPageStart.size()-1; u++) {
+        if (yPageStart[u+1] - yPageStart[u] < pageSize) continue;
+
+        //We need to insert a page break
+        bool addCommandNewPage = true;
+        //Here we re-use Entity::running_* members of AllEntities.
+        //(These were used during parsing, not needed any longer.)
+        //We re-create the running status so that if we need to insert a heading,
+        //we know what to insert.
+        if (addHeading)
+            for (auto i = AllEntities.begin(); i!=AllEntities.end(); i++) 
+                (*i)->running_shown = EEntityStatus::SHOW_OFF;
+        total.y.till += PageBreakArcList(canvas, Arcs, yPageStart[u] + pageSize, 
+                                         addCommandNewPage, addHeading);
+        //Regenerate page breaks
+        yPageStart.resize(1);
+        yPageStart[0] = 0;
+        CollectPageBreakArcList(Arcs);
+        yPageStart.push_back(total.y.till); //not really a page start, but helps us
+    }
+    yPageStart.pop_back();
+    drawing.y = total.y; //keep this invariant before placing notes
+}
+
+                             
+
+
+
 //Find the smallest elements between indexes [i, j) and bring them up to the
 //value of the second smallest element, but overall do not add more than
 //max_sum (round up). Return how much of max_sum has remained.
@@ -1298,7 +1418,7 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 
 
 //Calculate total.x and y. Ensure they are integers
-void Msc::CalculateWidthHeight(MscCanvas &canvas)
+void Msc::CalculateWidthHeight(MscCanvas &canvas, double pageSize, bool addHeading)
 {
     yPageStart.clear();
     yPageStart.push_back(0);
@@ -1415,6 +1535,11 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas)
     total.y.till = HeightArcList(canvas, Arcs.begin(), Arcs.end(), cover, false) + chartTailGap;
     total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
     drawing.y = total.y;  
+
+    if (pageSize) 
+        AutoPaginate(canvas, pageSize, addHeading);
+    else
+        CollectPageBreakArcList(Arcs);
 }
 
 void Msc::PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
@@ -1444,7 +1569,7 @@ void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs)
         (*j)->PostPosProcess(canvas);
 }
 
-void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
+void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty, double pageSize, bool addHeading)
 {
 
     //Allocate (non-sized) output object and assign it to the chart
@@ -1458,7 +1583,7 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
     FinalizeLabelsArcList(Arcs, canvas);
 
     //Calculate chart size
-    CalculateWidthHeight(canvas);
+    CalculateWidthHeight(canvas, pageSize, addHeading);
 
     //If the chart ended up empty we may want to display something
     if (total.y.till <= chartTailGap && avoidEmpty) {
@@ -1468,7 +1593,7 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty)
         Contexts.back().hscale.second = -1;
         //Redo calculations
         total.x.till = total.y.till = 0;  //"from" members still zero, only notes can take it negative
-        CalculateWidthHeight(canvas);
+        CalculateWidthHeight(canvas, 0, false);  //no automatic pagination here
         //Luckily Width and DrawCover calls do not generate error messages,
         //So Errors collected so far are OK even after redoing this
     }

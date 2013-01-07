@@ -36,6 +36,8 @@ Later
 ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
 ADD: Pagination options to the GUI (preferably in print preview)
 ADD: Automatic pagination
+DOC: Add Hide/Show to commands. Document Activate/deactivate better.
+DOC: Document full page printing.
 
 In 3.5.8
 FIXED: Element references were empty.

@@ -65,6 +65,7 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
+    virtual double SplitByPageBreak(double /*breakPos*/, bool &/*addCommandNewPage*/, bool addHeading);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -79,7 +80,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
-    virtual void PostPosProcess(MscCanvas &cover);
+    virtual void CollectPageBreak(void);
 };
 
 class CommandNewBackground : public ArcCommand
@@ -213,6 +214,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
+    /** We are to be ignored if we are off-line (outer_edge is valid) or we cannot rearrange if in-line */
+    virtual double SplitByPageBreak(double /*breakPos*/, bool &/*addCommandNewPage*/, bool /*addHeading*/) {return outer_edge.y.IsInvalid() ? -2 : -1;}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -287,6 +290,8 @@ public:
     void Append(ArcBase *p) {content.Append(p);}
     void Append(ArcList *l) {content.splice(content.end(), *l);}
     void MoveContent(ArcList &list, ArcList::iterator after) {list.splice(++after, content);}
+    virtual double SplitByPageBreak(double /*breakPos*/) {_ASSERT(0); return -1;}
+
 };
 
 

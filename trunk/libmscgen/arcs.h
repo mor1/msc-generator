@@ -102,6 +102,8 @@ protected:
     bool         at_top_level; /* if at top level by PostParseProcess() */
     bool         compress;     /* if compress mechanism is on for this arc */
     bool         parallel;     /* if so, it will not set the area.mainline.till in DrawHeight */
+    bool         keep_together; /* do not split this by automatic pagination.*/
+    bool         keep_with_next; /* do not separate this from following element by automatic pagination */
     string         refname;    /* given by the "refname" attribute, to reference numbers & others*/
     mutable double height;     /* calculated by Height() and Reflow() */
 public:
@@ -114,6 +116,8 @@ public:
     void SetParallel() {parallel = true;}
     bool IsParallel() const {return parallel;}
     bool IsCompressed() const {return compress;}
+    bool IsKeepTogether() const {return keep_together;}
+    bool IsKeepWithNext() const {return keep_with_next;}
     virtual bool CanBeNoted() const {return false;}
     double GetPos() const {return yPos;}
     //Get an (ordered) list of entities that this arrow/box touches
@@ -144,6 +148,12 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y);}}
+    /* Collect the y position of page breaks into Msc::yPageStart. */
+    virtual void CollectPageBreak(void) {}
+    /** Tells if page break crosses us and how much we need to be shifted down. 0 if not crossed. */
+    virtual Range YExtent() {return area.GetBoundingBox().y;}
+    /** Split the element into two by a page break. Maintain running_state of entities. Return the amount the element has grown. -1 if we cannot rearrange, -2 if we are to ignore.*/
+    virtual double SplitByPageBreak(double /*breakPos*/, bool &/*addCommandNewPage*/, bool /*addHeading*/) {return -1;}
     /* Goes through the tree to place verticals. All height & pos info final by now, except on verticals & notes */
     virtual void PlaceWithMarkers(MscCanvas &/*cover*/, double /*autoMarker*/) {}
     /* This goes through the tree once more for drawing warnings that need height. */
@@ -364,6 +374,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
+    virtual Range YExtent() {return Range(false);}
+    virtual double SplitByPageBreak(double /*breakPos*/, bool &/*addCommandNewPage*/, bool /*addHeading*/) {return -2;}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -425,6 +437,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
+    virtual void CollectPageBreak(void);
+    virtual Range YExtent();
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -484,6 +498,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
+    virtual void CollectPageBreak(void);
+    virtual Range YExtent() {return (*content.begin())->YExtent();}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -535,6 +551,8 @@ public:
     virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
+    virtual void CollectPageBreak(void);
+    virtual Range YExtent() {return Range(yPos, yPos+height);} //TODO: Fix this
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);

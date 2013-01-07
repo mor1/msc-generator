@@ -175,20 +175,31 @@
        notes have been placed. Elements containing ArcLists must prepare that the height of those
        will change. The task is otherwise the same as for Height(): fill in internal values,
        return height and cover. Before calling reflow, the element have been ShiftBy'ed back to 0.
-    9. PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
+    9. CollectPageBreaks: This walks the tree of elements and each CommandPageBreak places its
+       y coordinate into Msc::yPageStart. This function can be called multiple times during
+       automatic pagination, but only once if no automatic pagination is done.
+   10. PageBreak: This is called by an automatic pagination process (if any), when the element is
+       cut in half by a page break. The element can rearrange itself to accomodate the page break, by 
+       shifting half of it down or can indicate that it cannot rearrange itself and shall be fully 
+       shifted to the next page. Elements with `keep_together` set to false are not called, those are
+       simply cut in half abruptly.
+       This function can be called multiple times, if the element spans multiple page breaks. In the
+       second and subsequent calls only the last chunk shall be split.
+   11. PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
        (Comments are also placed with their target.) We go through the tree and calculate position & cover for
        verticals. This is needed as a separate run, just to do it before placing notes.
     
     <here we place floating notes in Msc::PlaceFloatingNotes>
 
-   10. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
+   12. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
        Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
        to decide. We also expand all "area" and "area_draw" members, so that contours look better in tracking mode.
-       No error messages shall be printed after this function.
-   11. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely cached 
+       No error messages shall be printed after this function by arc objects. (Msc will print some, if
+       page sizes do not fit, but that is under control there.)
+   13. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
        values in the elements. It can be called several times and should not change state of the element 
        including the cached values.
-   12. Destructor.
+   14. Destructor.
 
     All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
     the remainder from the Msc:: memeber functions of similar names, with the exception of ShiftBy, which is
@@ -222,6 +233,7 @@ template class PtrList<ArcBase>;
 
 ArcBase::ArcBase(MscArcType t, Msc *msc) :
     TrackableElement(msc), valid(true), compress(false), parallel(false),
+    keep_together(true), keep_with_next(false),
     type(t)
 {
     if (msc) 
@@ -278,6 +290,18 @@ bool ArcBase::AddAttribute(const Attribute &a)
         }
         chart->Error.Error(a, true, "The reference name '" + a.value + "' is already assigned. Ignoring it.");
         chart->Error.Error(i->second.linenum, a.linenum_value.start, "This is the location of the previous assignment.");
+        return true;
+    }
+    if (a.Is("keep_together")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        keep_together = a.yes;
+        return true;
+    }
+    if (a.Is("keep_with_next")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        keep_with_next = a.yes;
         return true;
     }
     return TrackableElement::AddAttribute(a);
@@ -342,7 +366,6 @@ double ArcBase::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         height = 0;
     return std::max(height, NoteHeight(canvas, cover));
 }
-
 
 void ArcBase::PostPosProcess(MscCanvas &canvas)
 {
@@ -2286,6 +2309,7 @@ ArcBoxSeries::ArcBoxSeries(ArcBox *first) :
 {
     series.Append(first);
     draw_pass = first->draw_pass;
+    keep_together = true; //we will do our own pagination if needed, we shall not be cut in half by Msc::ArcHeightList()
 }
 
 
@@ -2835,6 +2859,20 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
+void ArcBoxSeries::CollectPageBreak(void) 
+{
+    if (!valid) return;
+    for (auto i=series.begin(); i!=series.end(); i++) 
+        chart->CollectPageBreakArcList((*i)->content);
+}
+
+Range ArcBoxSeries::YExtent()
+{
+    return Range((*series.begin())->area.GetBoundingBox().y.from,
+                 (*series.rbegin())->area.GetBoundingBox().y.till);
+}
+
+
 void ArcBoxSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
     for (auto i = series.begin(); i!=series.end(); i++)
@@ -2989,6 +3027,7 @@ ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
     ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
 {
     series.Append(first);
+    keep_together = true; //we will do our own pagination if needed, we shall not be cut in half by Msc::ArcHeightList()
 }
 
 ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
@@ -3636,6 +3675,12 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
+void ArcPipeSeries::CollectPageBreak(void) 
+{
+    chart->CollectPageBreakArcList(content);
+}
+
+
 void ArcPipeSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
     if (content.size())
@@ -4059,6 +4104,13 @@ void ArcParallel::ShiftBy(double y)
     for (auto i=blocks.begin(); i!=blocks.end(); i++)
         chart->ShiftByArcList((*i)->begin(), (*i)->end(), y);
     ArcBase::ShiftBy(y);
+}
+
+void ArcParallel::CollectPageBreak()
+{
+    if (!valid) return;
+    for (auto i=blocks.begin(); i!=blocks.end(); i++)
+        chart->CollectPageBreakArcList(**i);
 }
 
 void ArcParallel::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
