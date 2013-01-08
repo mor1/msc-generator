@@ -399,7 +399,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
 "rcomment.line.color", "rcomment.line.type", "rcomment.line.width",
 "lcomment.fill.color", "lcomment.fill.color2", "lcomment.fill.gradient",
 "rcomment.fill.color", "rcomment.fill.color2", "rcomment.fill.gradient",
-"angle", ""};
+"angle", "classic_parallel_layout", ""};
 
 /** Names of attributes for coloring.
  *
@@ -407,7 +407,8 @@ static const char opt_names[][ENUM_STRING_LEN] =
  * We color only these where attributes should come. 
  * We do not distinguish which arc the attribute belongs to.*/
 static const char attr_names[][ENUM_STRING_LEN] =
-{"draw_time", "compress", "color", "label", "refname", "number", "indicator", "collapsed", 
+{"draw_time", "compress", "color", "label", "refname", "number", "indicator", "collapsed",
+"keep_with_next", "keep_together",
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "text.font.face", "text.font.type", 

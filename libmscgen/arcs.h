@@ -151,9 +151,11 @@ public:
     /* Collect the y position of page breaks into Msc::yPageStart. */
     virtual void CollectPageBreak(void) {}
     /** Tells if page break crosses us and how much we need to be shifted down. 0 if not crossed. */
-    virtual Range YExtent() {return area.GetBoundingBox().y;}
+    virtual Range YExtent() const {return Range(yPos, yPos+height);}
     /** Split the element into two by a page break. Maintain running_state of entities. Return the amount the element has grown. -1 if we cannot rearrange, -2 if we are to ignore.*/
-    virtual double SplitByPageBreak(double /*breakPos*/, bool &/*addCommandNewPage*/, bool /*addHeading*/) {return -1;}
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
+                                    double /*pageBreak*/, double &/*headingSize*/, 
+                                    bool /*addHeading*/) {return -1;}
     /* Goes through the tree to place verticals. All height & pos info final by now, except on verticals & notes */
     virtual void PlaceWithMarkers(MscCanvas &/*cover*/, double /*autoMarker*/) {}
     /* This goes through the tree once more for drawing warnings that need height. */
@@ -375,7 +377,9 @@ public:
 
     virtual void ShiftBy(double y);
     virtual Range YExtent() {return Range(false);}
-    virtual double SplitByPageBreak(double /*breakPos*/, bool &/*addCommandNewPage*/, bool /*addHeading*/) {return -2;}
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
+                                    double /*pageBreak*/, double &/*headingSize*/, 
+                                    bool /*addHeading*/) {return -2;}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -438,7 +442,6 @@ public:
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(void);
-    virtual Range YExtent();
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -499,7 +502,6 @@ public:
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(void);
-    virtual Range YExtent() {return (*content.begin())->YExtent();}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -537,11 +539,10 @@ public:
 class ArcParallel : public ArcBase
 {
 protected:
-    PtrList<ArcList> blocks;
-    std::vector<double> heights;  //max height of previous blocks
+    std::vector<ArcList> blocks;
 public:
     ArcParallel(Msc *msc) : ArcBase(MSC_ARC_PARALLEL, msc) {}
-    ArcParallel* AddArcList(ArcList*l) {blocks.push_back(l); return this;}
+    ArcParallel* AddArcList(ArcList*l) {if (l) {blocks.push_back(std::move(*l)); l->clear(); delete l;} return this;}
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -552,7 +553,9 @@ public:
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(void);
-    virtual Range YExtent() {return Range(yPos, yPos+height);} //TODO: Fix this
+    virtual double SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
+                                    double pageBreak, double &headingSize, 
+                                    bool addHeading);
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);

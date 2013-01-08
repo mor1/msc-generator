@@ -812,6 +812,8 @@ CEditorBar::CEditorBar() : m_pFindReplaceDialog(NULL), m_ctrlEditor(this)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
+    m_lInitialSearchPos = 0;
+    m_bFirstSearch = true;
 	m_bSuspendNotifications = FALSE;
 	m_bLastMatchCase = pApp ? pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_FINDMATCHCASE, 1) : 1; 
 	m_bLastMatchWholeWord = false;

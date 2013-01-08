@@ -178,7 +178,7 @@ public:
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
     std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
-    double                        paginationHint; ///<Page size for automatic pagination - infinite if no automatic pagination
+    std::vector<bool>             yPageStartType; ///< True if an explicit, user specified break, false if automatic.
 
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
     PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
@@ -228,6 +228,7 @@ public:
     /* Parse Options */
     bool         pedantic;   /* if we require pre-defined entities. */
     bool         ignore_designs; /* ignore design changes */
+    bool         simple_arc_parallel_layout; /* if false, we use Msc::HeightArcLists() to lay out ArcParallel*/
 
     //Collapse/Expand instructions from and feedback to the GUI
     EntityCollapseCatalog force_entity_collapse; //these entities must be collapsed/expanded
@@ -282,13 +283,16 @@ public:
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
     void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
-    double HeightArcList(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, AreaList &cover, bool reflow);
-    double PlaceListUnder(MscCanvas &canvas, ArcList::iterator from, ArcList::iterator to, double start_y,
+    double HeightArcList(MscCanvas &canvas, ArcList &arcs, AreaList &cover, bool reflow);
+    std::vector<double> HeightArcLists(MscCanvas &canvas, std::vector<ArcList> &arcs, AreaList &cover, bool reflow);
+    double PlaceListUnder(MscCanvas &canvas, ArcList &arcs, double start_y,
                           double top_y, const AreaList &area_top, bool reflow,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
-    void ShiftByArcList(ArcList::iterator from, ArcList::iterator to, double y);
-    double PageBreakArcList(MscCanvas &canvas, ArcList &arcs,
-                            double pageBreak, bool &addCommandNewPage, bool addHeading);
+    void ShiftByArcList(ArcList &arcs, double y);
+    void InsertAutoPageBreak(MscCanvas &canvas, ArcList &arcs, ArcList::iterator i, 
+                             double pageBreak, double &headingSize, bool addHeading);
+    double PageBreakArcList(MscCanvas &canvas, ArcList &arcs, double prevPageBreak,
+                            double pageBreak, double &headingSize, bool addHeading);
     void CollectPageBreakArcList(ArcList &arcs) {for (auto i= arcs.begin(); i!=arcs.end(); i++) (*i)->CollectPageBreak();}
     void AutoPaginate(MscCanvas &canvas, double pageSize, bool addHeading);
     void CalculateWidthHeight(MscCanvas &canvas, double pageSize, bool addHeading);

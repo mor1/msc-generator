@@ -38,6 +38,7 @@ ADD: Pagination options to the GUI (preferably in print preview)
 ADD: Automatic pagination
 DOC: Add Hide/Show to commands. Document Activate/deactivate better.
 DOC: Document full page printing.
+CHANGED: Parallel layout - add switch to reset to old behaviour 'classic_parallel_layout'
 
 In 3.5.8
 FIXED: Element references were empty.

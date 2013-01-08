@@ -1633,7 +1633,8 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
     //if we do not display tracking rectangles, exit
 	if (!m_bTrackMode) return;
     //Re-add tracking rectangle under cursor
-	AddTrackArc(arc, TrackedArc::TRACKRECT);
+    if (arc) 
+        AddTrackArc(arc, TrackedArc::TRACKRECT);
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
 		return;
