@@ -288,7 +288,7 @@ void CDrawingChartData::CompileIfNeeded() const
 	    if (pApp) 
 		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	    //Do postparse, compile, calculate sizes and sort errors by line
-	    m_msc->CompleteParse(MscCanvas::PNG, true, 100, false);
+	    m_msc->CompleteParse(MscCanvas::PNG, true, 150, true);
         //See which of the forced entity/box collapse directives remained
         //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and
         //EntityDef::AddAttributeList

@@ -312,15 +312,19 @@ void ArcBase::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "compress", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "parallel", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "refname", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_together", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "keep_with_next", HINT_ATTR_NAME));
     TrackableElement::AttributeNames(csh);
 }
 
 bool ArcBase::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"compress")||
-        CaseInsensitiveEqual(attr,"parallel")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
+        CaseInsensitiveEqual(attr,"parallel") ||
+        CaseInsensitiveEqual(attr,"keep_together") ||
+        CaseInsensitiveEqual(attr,"keep_with_next")) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         return true;
     }
     if (CaseInsensitiveEqual(attr,"refname")) 
@@ -686,8 +690,8 @@ bool ArcLabelled::AttributeValues(const std::string attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEqual(attr,"number")) {
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE));
-        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "no", HINT_ATTR_VALUE));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
         csh.AddToHints(CshHint(csh.HintPrefixNonSelectable() + "<number>", HINT_ATTR_VALUE, false));
         return true;
     }
@@ -2538,6 +2542,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator 
     //If first segment is compressed or parallel, copy that to full series
     compress = (*series.begin())->compress;
     //parallel = (*series.begin())->parallel;
+    keep_with_next = (*series.rbegin())->keep_with_next;
 
     ArcBase *ret = this;
     EIterator src, dst;
@@ -2763,8 +2768,9 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
                 limit += Contour(sx-lw/2, dx+lw/2, 0, y+lw+limiter_line.radius.second) - 
                          limiter_line.CreateRectangle_InnerEdge(b);
             }
-            const double content_y = chart->PlaceListUnder(canvas, (*i)->content.begin(), (*i)->content.end(),
-                                      y+th, y, limit, reflow, compress, &content_cover);  //no extra margin below text
+            const double content_y = chart->PlaceListUnder(canvas, (*i)->content, y+th, 
+                                                           y, limit, reflow, compress, 
+                                                           &content_cover);  //no extra margin below text
             y = std::max(y+th, content_y);
         } else {
             y += th; //no content, just add textheight
@@ -2847,7 +2853,7 @@ void ArcBox::ShiftBy(double y)
     text_cover.Shift(XY(0,y));
     ArcLabelled::ShiftBy(y);
     if (content.size())
-        chart->ShiftByArcList(content.begin(), content.end(), y);
+        chart->ShiftByArcList(content, y);
 }
 
 void ArcBoxSeries::ShiftBy(double y)
@@ -2865,13 +2871,6 @@ void ArcBoxSeries::CollectPageBreak(void)
     for (auto i=series.begin(); i!=series.end(); i++) 
         chart->CollectPageBreakArcList((*i)->content);
 }
-
-Range ArcBoxSeries::YExtent()
-{
-    return Range((*series.begin())->area.GetBoundingBox().y.from,
-                 (*series.rbegin())->area.GetBoundingBox().y.till);
-}
-
 
 void ArcBoxSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
@@ -3166,6 +3165,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
 
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
+    keep_with_next = (*series.rbegin())->keep_with_next;
     //set the last element as a note target (coming after us)
     *target = *series.rbegin();
 
@@ -3507,8 +3507,8 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //Calculate the Height of the content
     AreaList content_cover;
     if (content.size())
-        y = ceil(chart->PlaceListUnder(canvas, content.begin(), content.end(), ceil(y),
-                                        lowest_line_bottom, label_covers, reflow, false, &content_cover));
+        y = ceil(chart->PlaceListUnder(canvas, content, ceil(y), lowest_line_bottom, 
+                                       label_covers, reflow, false, &content_cover));
     //now y contains the bottom of the content arrows (if any),
     //adjust if an opaque pipe's label was not yet considered in y
     y = std::max(y, lowest_label_on_opaque_segments_bottom);
@@ -3671,7 +3671,7 @@ void ArcPipeSeries::ShiftBy(double y)
     for (auto i=series.begin(); i!=series.end(); i++) 
         (*i)->ShiftBy(y);    
     if (content.size())
-        chart->ShiftByArcList(content.begin(), content.end(), y);
+        chart->ShiftByArcList(content, y);
     ArcBase::ShiftBy(y);
 }
 
@@ -4031,7 +4031,7 @@ MscDirType ArcParallel::GetToucedEntities(class EntityList &el) const
 {
     MscDirType dir = MSC_DIR_INDETERMINATE;
     for (auto i = blocks.begin(); i!=blocks.end(); i++)
-        dir = chart->GetTouchedEntitiesArcList(**i, el, dir);
+        dir = chart->GetTouchedEntitiesArcList(*i, el, dir);
     return dir;
 }
 
@@ -4040,10 +4040,10 @@ string ArcParallel::Print(int ident) const
     string ss;
     ss << string(ident*2, ' ');
     ss << PrintType() << "\n";
-    for (PtrList<ArcList>::const_iterator i = blocks.begin(); i!=blocks.end(); i++) {
+    for (auto i = blocks.begin(); i!=blocks.end(); i++) {
         if (i!=blocks.begin())
             ss << string(ident*2+2, ' ') << "---\n";
-        ss << (*i)->Print(ident+2);
+        ss << i->Print(ident+2);
         if (i!=blocks.end())
             ss << "\n";
     }
@@ -4055,16 +4055,16 @@ ArcBase* ArcParallel::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
 {
     if (!valid) return NULL;
     at_top_level = top_level;
-    for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
-        chart->PostParseProcessArcList(canvas, hide, **i, false, left, right, number, false, target);
+    for (auto i=blocks.begin(); i != blocks.end(); i++)
+        chart->PostParseProcessArcList(canvas, hide, *i, false, left, right, number, false, target);
     if (hide) return NULL;
     return this;
 }
 
 void ArcParallel::FinalizeLabels(MscCanvas &canvas)
 {
-    for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
-        chart->FinalizeLabelsArcList(**i, canvas);
+    for (auto i=blocks.begin(); i != blocks.end(); i++)
+        chart->FinalizeLabelsArcList(*i, canvas);
     ArcBase::FinalizeLabels(canvas);
 }
 
@@ -4072,8 +4072,8 @@ void ArcParallel::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     EntityDistanceMap d;
-    for (PtrList<ArcList>::iterator i=blocks.begin(); i != blocks.end(); i++)
-        chart->WidthArcList(canvas, **i, d);
+    for (auto i=blocks.begin(); i != blocks.end(); i++)
+        chart->WidthArcList(canvas, *i, d);
     d.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     d.CombineLeftRightToPair_Single(chart->hscaleAutoXGap);
     d.CopyBoxSideToPair(chart->hscaleAutoXGap);
@@ -4083,16 +4083,19 @@ void ArcParallel::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 double ArcParallel::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 {
     if (!valid) return 0;
-    heights.clear();
-    heights.reserve(blocks.size());
     height = 0;
-    for (auto i=blocks.begin(); i != blocks.end(); i++) {
-        AreaList cover_block;
-        //Each parallel block is compressed without regard to the others
-        double h = chart->HeightArcList(canvas, (*i)->begin(), (*i)->end(), cover_block, reflow);
-        height = std::max(height, h);
-        heights.push_back(height);
-        cover += cover_block;
+    if (chart->simple_arc_parallel_layout) {
+        for (auto i=blocks.begin(); i != blocks.end(); i++) {
+            AreaList cover_block;
+            //Each parallel block is compressed without regard to the others
+            double h = chart->HeightArcList(canvas, *i, cover_block, reflow);
+            height = std::max(height, h);
+            cover += cover_block;
+        }
+    } else {
+        std::vector<double> heights = chart->HeightArcLists(canvas, blocks, cover, reflow);
+        for (unsigned u = 0; u<blocks.size(); u++)
+            height = std::max(height, heights[u]);
     }
     //Do not expand cover, it has already been expanded
     return std::max(height, NoteHeight(canvas, cover));
@@ -4102,7 +4105,7 @@ void ArcParallel::ShiftBy(double y)
 {
     if (!valid) return;
     for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->ShiftByArcList((*i)->begin(), (*i)->end(), y);
+        chart->ShiftByArcList(*i, y);
     ArcBase::ShiftBy(y);
 }
 
@@ -4110,17 +4113,37 @@ void ArcParallel::CollectPageBreak()
 {
     if (!valid) return;
     for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->CollectPageBreakArcList(**i);
+        chart->CollectPageBreakArcList(*i);
+}
+
+double ArcParallel::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
+                                    double pageBreak, double &headingSize, 
+                                    bool addHeading)
+{
+    //First merge our content to a single list
+    if (blocks.size()>1) {
+        struct {
+            bool operator()(const ArcBase * const a, const ArcBase * const b) const
+            {return a->YExtent().from < b->YExtent().from;}
+        } comp;
+        for (auto b=++blocks.begin(); b!=blocks.end(); b++)
+            blocks[0].Append(&*b);
+        blocks.resize(1);
+        //sort the list
+        blocks[0].sort(comp);
+    }
+    return chart->PageBreakArcList(canvas, blocks[0], prevPageBreak, 
+                                   pageBreak, headingSize, addHeading);
 }
 
 void ArcParallel::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
     if (!valid) return;
     int n=0;
-    //For automarker, give the bottom of the largest of previous blocks
+    //For automarker, give the bottom of the largest blocks
     for (auto i=blocks.begin(); i!=blocks.end(); i++, n++)
-        chart->PlaceWithMarkersArcList(canvas, *(*i),
-            n>0 && heights[n-1]>0 ? yPos + heights[n-1] : autoMarker);
+        chart->PlaceWithMarkersArcList(canvas, *i,
+            n>0 ? yPos + height : autoMarker);
 }
 
 void ArcParallel::PostPosProcess(MscCanvas &canvas)
@@ -4128,13 +4151,13 @@ void ArcParallel::PostPosProcess(MscCanvas &canvas)
     if (!valid) return;
     ArcBase::PostPosProcess(canvas);
     for (auto i=blocks.begin(); i!=blocks.end(); i++)
-        chart->PostPosProcessArcList(canvas, *(*i));
+        chart->PostPosProcessArcList(canvas, *i);
 }
 
 void ArcParallel::Draw(MscCanvas &canvas, DrawPassType pass)
 {
     if (!valid) return;
     for (auto i=blocks.begin(); i != blocks.end(); i++)
-        chart->DrawArcList(canvas, *(*i), pass);
+        chart->DrawArcList(canvas, *i, pass);
 }
 

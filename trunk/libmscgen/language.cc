@@ -3893,7 +3893,7 @@ yyreduce:
   #ifdef C_S_H_IS_COMPILED
         csh.AddCSH((yylsp[(1) - (1)]), COLOR_KEYWORD);
   #else
-        (yyval.arcbase) = (new CommandNewpage(&msc))->AddAttributeList(NULL);
+        (yyval.arcbase) = (new CommandNewpage(&msc, true))->AddAttributeList(NULL);
   #endif
     free((yyvsp[(1) - (1)].str));
 }
@@ -3911,7 +3911,7 @@ yyreduce:
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         CommandNewpage::AttributeValues(csh.hintAttrName, csh);
   #else
-    (yyval.arcbase) = (new CommandNewpage(&msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
+    (yyval.arcbase) = (new CommandNewpage(&msc, true))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
   #endif
     free((yyvsp[(1) - (2)].str));
 }

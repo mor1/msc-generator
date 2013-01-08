@@ -132,6 +132,10 @@ public:
     using std::list<Object*>::clear;
 
     explicit PtrList(bool r=true) : std::list<Object*>(), responsible(r) {}
+    PtrList(const PtrList<Object> &o) : std::list<Object*>(o), responsible(o.responsible) {_ASSERT(!responsible);}
+    PtrList(PtrList<Object> &&o) : std::list<Object*>(std::move(static_cast<std::list<Object*>&>(o))), responsible(o.responsible) {o.clear();}
+    PtrList & operator = (const PtrList<Object> &o) {std::list<Object*>::operator=(o); const_cast<bool&>(responsible)=o.responsible; _ASSERT(!responsible); return *this;}
+    PtrList & operator = (PtrList<Object> &&o) {std::list<Object*>::operator=(std::move(o)); const_cast<bool&>(responsible)=o.responsible; return *this;}
     PtrList *Append(Object *o)
         {if (o) push_back(o); return this;} ///<Append a pointer to the list
     PtrList *Append(PtrList<Object> *l)
