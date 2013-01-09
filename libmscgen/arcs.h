@@ -95,6 +95,9 @@ struct ArcSignature {
 
 class ArcBase : public TrackableElement
 {
+protected: 
+    friend int yyparse (Msc &, void *);
+    void SetParallel() {parallel = true;}
 private:
     bool had_add_attr_list;    //TODO: debug only, remove
 protected:
@@ -105,21 +108,23 @@ protected:
     bool         keep_together; /* do not split this by automatic pagination.*/
     bool         keep_with_next; /* do not separate this from following element by automatic pagination */
     string         refname;    /* given by the "refname" attribute, to reference numbers & others*/
-    mutable double height;     /* calculated by Height() and Reflow() */
+    mutable double height;     /* calculated by Layout()*/
 public:
     const MscArcType type;
 
     ArcBase(MscArcType t, Msc *msc);
-    virtual ~ArcBase() {};
     bool IsValid() const {return valid;}
     virtual const ArcSignature* GetSignature() const {return NULL;}
-    void SetParallel() {parallel = true;}
     bool IsParallel() const {return parallel;}
     bool IsCompressed() const {return compress;}
     bool IsKeepTogether() const {return keep_together;}
     bool IsKeepWithNext() const {return keep_with_next;}
     virtual bool CanBeNoted() const {return false;}
     double GetPos() const {return yPos;}
+    /* Return the height of the element with its side comments */
+    double GetHeight() const {return std::max(height, comment_height);}
+    /** Tells if page break crosses us and how much we need to be shifted down. 0 if not crossed. */
+    virtual Range GetYExtent() const {return Range(yPos, yPos+GetHeight());}
     //Get an (ordered) list of entities that this arrow/box touches
     virtual MscDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
     //expands the contour to a cover used for compress
@@ -145,17 +150,15 @@ public:
     virtual void Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*/) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y);}}
     /* Collect the y position of page breaks into Msc::yPageStart. */
     virtual void CollectPageBreak(void) {}
-    /** Tells if page break crosses us and how much we need to be shifted down. 0 if not crossed. */
-    virtual Range YExtent() const {return Range(yPos, yPos+height);}
     /** Split the element into two by a page break. Maintain running_state of entities. Return the amount the element has grown. -1 if we cannot rearrange, -2 if we are to ignore.*/
     virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
                                     double /*pageBreak*/, double &/*headingSize*/, 
-                                    bool /*addHeading*/) {return -1;}
+                                    bool /*addHeading*/, ArcList &/*res*/) {return -1;}
     /* Goes through the tree to place verticals. All height & pos info final by now, except on verticals & notes */
     virtual void PlaceWithMarkers(MscCanvas &/*cover*/, double /*autoMarker*/) {}
     /* This goes through the tree once more for drawing warnings that need height. */
@@ -181,7 +184,7 @@ public:
     virtual MscDirType GetToucedEntities(class EntityList &el) const;
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -249,7 +252,7 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -292,7 +295,7 @@ public:
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     void CalculateMainline(double thickness);
     MscArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
@@ -326,7 +329,7 @@ public:
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover);
@@ -373,13 +376,13 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual Range YExtent() {return Range(false);}
     virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
                                     double /*pageBreak*/, double &/*headingSize*/, 
-                                    bool /*addHeading*/) {return -2;}
+                                    bool /*addHeading*/, ArcList &/*res*/) {return -2;}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -415,7 +418,7 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;} //will never be called
+    virtual void Layout(MscCanvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
     virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {} //will never be called
 };
@@ -438,10 +441,13 @@ public:
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(void);
+    virtual double SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
+                                    double pageBreak, double &headingSize, 
+                                    bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -472,7 +478,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual double Height(MscCanvas &/*canvas*/, AreaList &/*cover*/) {return 0;} //will never be called
+    virtual void Layout(MscCanvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
     void DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bool backSide, bool shadow,
                   bool text, double next_lw, int drawing_variant);
@@ -498,10 +504,14 @@ public:
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    void CalculateContours(Area *pipe_body_cover=NULL);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(void);
+    virtual double SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
+                                    double pageBreak, double &headingSize, 
+                                    bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -529,7 +539,7 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void PostPosProcess(MscCanvas &cover);
@@ -542,20 +552,20 @@ protected:
     std::vector<ArcList> blocks;
 public:
     ArcParallel(Msc *msc) : ArcBase(MSC_ARC_PARALLEL, msc) {}
-    ArcParallel* AddArcList(ArcList*l) {if (l) {blocks.push_back(std::move(*l)); l->clear(); delete l;} return this;}
+    ArcParallel* AddArcList(ArcList*l) {if (l) {blocks.push_back(std::move(*l)); l->clear(); delete l; keep_together = false;} return this;}
     virtual MscDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(void);
     virtual double SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
                                     double pageBreak, double &headingSize, 
-                                    bool addHeading);
+                                    bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);

@@ -151,59 +151,53 @@
 
     @<here we calculate the Entity::pos for all entities in ActiveEntities in Msc::CalculateWidthHeight>
 
-    7. Height: This is a key function, returning the vertical space an element(/arc) occupies. It also places
+    7. Layout: This is a key function, returning the vertical space an element(/arc) occupies. It also places
        the contour of the element in its "cover" parameter. The former (height) is used when compress is off and
        the latter (contour) if compress is on. In the latter case the entity will be placed just below entities
-       abover such that their contours just touch but do not overlap. 
-       Here we call Height() with "reflow=false" (indicating this is the first layout pass).
-       Height, called with reflow=false also fills in
+       abover such that their contours just touch but do not overlap. Also fills in
        TrackableElement::area and area_draw with contours that will be used to detect if a mouse pointer is
        inside the arc or not and to draw a tracking contour over the arc. Observe
        - contour returned in cover is used for placement and should contain shadows
        - area is used to detect if the mouse is within, should not contain shadows
        - area_draw is used to draw, it should be a frame for boxes and pipes with content, not the contour of the box.
-       Height can also store some pre-computed values and contours to make drawing faster.
-       Height always places the element at the vertical position=0. Any contour should assume that.
-       Finally, Height() also fills in "area_important", containing the 'important' part of the
+       Layout can also store some pre-computed values and contours to make drawing faster.
+       Layout always places the element at the vertical position=0. Any contour should assume that.
+       Finally, Layout() also fills in "area_important", containing the 'important' part of the
        element's cover (text, arrowheads, symbols). The Note layout engine will use this, to avoid
        covering these areas. Also, "def_note_target" is filled in, this is where a note points to
        by default.
     7. ShiftBy: During the placement process this is called to shift an entity in the vertical direction
        (usually downwards). This should update area, area_draw and any other cached variable.
        ArcBase::yPos contains the sum of these shifts. This function can be called multiple times.
-    8. Reflow: We may call Height() again with reflow=true after (some)
-       notes have been placed. Elements containing ArcLists must prepare that the height of those
-       will change. The task is otherwise the same as for Height(): fill in internal values,
-       return height and cover. Before calling reflow, the element have been ShiftBy'ed back to 0.
-    9. CollectPageBreaks: This walks the tree of elements and each CommandPageBreak places its
+    8. CollectPageBreaks: This walks the tree of elements and each CommandPageBreak places its
        y coordinate into Msc::yPageStart. This function can be called multiple times during
        automatic pagination, but only once if no automatic pagination is done.
-   10. PageBreak: This is called by an automatic pagination process (if any), when the element is
+    9. PageBreak: This is called by an automatic pagination process (if any), when the element is
        cut in half by a page break. The element can rearrange itself to accomodate the page break, by 
        shifting half of it down or can indicate that it cannot rearrange itself and shall be fully 
        shifted to the next page. Elements with `keep_together` set to false are not called, those are
        simply cut in half abruptly.
        This function can be called multiple times, if the element spans multiple page breaks. In the
        second and subsequent calls only the last chunk shall be split.
-   11. PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
+   10. PlaceWithMarkers: By now all positions and height values are final, except for notes & verticals. 
        (Comments are also placed with their target.) We go through the tree and calculate position & cover for
        verticals. This is needed as a separate run, just to do it before placing notes.
     
     <here we place floating notes in Msc::PlaceFloatingNotes>
 
-   12. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
+   11. PostPosProcess: Called after the last call to ShiftBy. Here all x and y positions of all elements are set.
        Here entity lines are hidden behind text and warnings/errors are generated which require vertical position 
        to decide. We also expand all "area" and "area_draw" members, so that contours look better in tracking mode.
        No error messages shall be printed after this function by arc objects. (Msc will print some, if
        page sizes do not fit, but that is under control there.)
-   13. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
+   12. Draw: This function actually draws the chart to the "canvas" parameter. This function can rely on cached 
        values in the elements. It can be called several times and should not change state of the element 
        including the cached values.
-   14. Destructor.
+   13. Destructor.
 
     All the above functions are called from the Msc object. #1-#3 are called from Msc::ParseText, whereas
     the remainder from the Msc:: memeber functions of similar names, with the exception of ShiftBy, which is
-    called from Msc::Height and Msc::PlaceListUnder.
+    called from Msc::Layout and Msc::PlaceListUnder.
 
     Color Syntax Highlighting support also has functions in Arcs.
     1. AttributeNames: A static function that inserts the attributes valid for this type of arc into a Csh object.
@@ -362,13 +356,10 @@ void ArcBase::FinalizeLabels(MscCanvas &)
         chart->ReferenceNames[refname].arc = this;
 }
 
-double ArcBase::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcBase::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (reflow)
-        cover = GetCover4Compress(area);
-    else
-        height = 0;
-    return std::max(height, NoteHeight(canvas, cover));
+    height = 0;
+    CommentHeight(canvas, cover);
 }
 
 void ArcBase::PostPosProcess(MscCanvas &canvas)
@@ -434,20 +425,19 @@ void ArcIndicator::Width(MscCanvas &, EntityDistanceMap &distances)
     distances.InsertBoxSide((*src)->index,   width, 0);
 }
 
-double ArcIndicator::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcIndicator::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (reflow) return ArcBase::Height(canvas, cover, reflow);
     yPos = chart->emphVGapOutside;
     const double x = (chart->XCoord((*src)->pos) + chart->XCoord((*dst)->pos))/2;
     const Block b = GetIndicatorCover(XY(x, chart->emphVGapOutside));
     area = b;
     area.mainline = Block(chart->GetDrawing().x, b.y);
     area_important = b;
-    if (!reflow) chart->NoteBlockers.Append(this);
+    chart->NoteBlockers.Append(this);
     height = b.y.till + chart->emphVGapOutside;
     //TODO add shadow to cover
     cover = GetCover4Compress(area);
-    return std::max(height, NoteHeight(canvas, cover));
+    CommentHeight(canvas, cover);
 }
 
 void ArcIndicator::Draw(MscCanvas &canvas, DrawPassType pass) 
@@ -882,10 +872,10 @@ void ArcSelfArrow::Width(MscCanvas &, EntityDistanceMap &distances)
     distances.Insert((*src)->index, DISTANCE_LEFT, parsed_label.getTextWidthHeight().x+src_act);
 }
 
-double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcSelfArrow::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return height = 0;
-    if (reflow) return ArcBase::Height(canvas, cover, reflow);
+    height = 0;
+    if (!valid) return;
     yPos = 0;
     xy_s = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_START);
     xy_e = style.arrow.getWidthHeight(isBidir(), MSC_ARROW_END);
@@ -916,10 +906,10 @@ double ArcSelfArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         point.y-chart->compressGap/2, point.y+chart->compressGap/2);
     else
         area_important += style.arrow.Cover(point, 0, false, isBidir(), MSC_ARROW_END, style.line, style.line);
-    if (!reflow) chart->NoteBlockers.Append(this);
+    chart->NoteBlockers.Append(this);
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow;
     cover = GetCover4Compress(area);
-    return std::max(height, NoteHeight(canvas, cover));
+    CommentHeight(canvas, cover);
 }
 
 void ArcSelfArrow::PostPosProcess(MscCanvas &canvas)
@@ -1291,10 +1281,10 @@ MscArrowEnd ArcDirArrow::WhichArrow(unsigned i)
     return MSC_ARROW_END;
 }
 
-double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcDirArrow::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return height = 0;
-    if (reflow) return ArcBase::Height(canvas, cover, reflow);
+    height = 0;
+    if (!valid) return;
     yPos = 0;
     area.clear();
     sx = chart->XCoord(src);
@@ -1403,13 +1393,13 @@ double ArcDirArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         text_cover.RotateAround(c, slant_angle); 
         clip_area.RotateAround(c, slant_angle); 
     }
-    if (!reflow) chart->NoteBlockers.Append(this);
+    chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
     if (slant_angle==0)
         height = std::max(y+max(aH, lw_max/2), chart->arcVGapAbove + text_wh.y) + chart->arcVGapBelow;
     else
         height = area.GetBoundingBox().y.till;
-    return std::max(height, NoteHeight(canvas, cover));
+    CommentHeight(canvas, cover);
 }
 
 
@@ -1454,7 +1444,7 @@ void ArcDirArrow::CheckSegmentOrder(double y)
 
     //Check if all entities involved are actually turned on.
     //we can only do this check here, as entity status is filled
-    //During the Height() process, and can be considered complete only here
+    //During the Layout() process, and can be considered complete only here
     vector<EIterator> temp = middle;
     vector<file_line> linenum_temp = linenum_middle;
     temp.insert(temp.begin(), src);
@@ -1738,10 +1728,9 @@ void ArcBigArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 }
 
 
-double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcBigArrow::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return 0;
-    if (reflow) return ArcBase::Height(canvas, cover, reflow);
+    if (!valid) return;
     yPos = 0;
 
     //Reuse sy and dy set in Width()
@@ -1784,11 +1773,11 @@ double ArcBigArrow::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         area_important.RotateAround(c, slant_angle); 
         area_to_note2.RotateAround(c, slant_angle);
     }
-    if (!reflow) chart->NoteBlockers.Append(this);
+    chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
 
     height = area.GetBoundingBox().y.till + chart->arcVGapBelow + style.shadow.offset.second;
-    return std::max(height, NoteHeight(canvas, cover));
+    CommentHeight(canvas, cover);
 }
 
 void ArcBigArrow::ShiftBy(double y)
@@ -2121,10 +2110,11 @@ void ArcVerticalArrow::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-double ArcVerticalArrow::Height(MscCanvas &, AreaList &, bool)
+void ArcVerticalArrow::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    //We will not have notes, so no need to call NoteHeight()
-    return height = 0;
+    //We will not have notes or comments, so no need to call CommentHeight()
+    height = 0;
+    _ASSERT(comments.size()==0);
 }
 
 void ArcVerticalArrow::ShiftBy(double y)
@@ -2326,6 +2316,7 @@ ArcBox* ArcBox::AddArcList(ArcList*l)
         delete l;
     }
     SetStyleWithText("box");
+    keep_together = false;
     return this;
 }
 
@@ -2721,10 +2712,10 @@ void ArcBoxSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     distances += d;
 }
 
-//We do the same for reflow = {true and false} just pass it on to content.
-double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcBoxSeries::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return height = 0;
+    height = 0;
+    if (!valid) return;
     //A few explanations of the variables exact meaning
     //the upper edge of the upper line of each segment is at yPos
     //total_height includes linewidths and shadow, but not emphVGapOutside (contrary for pipes)
@@ -2738,14 +2729,15 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
 
     double y = chart->emphVGapOutside;
     yPos = y;
-    double note_end=y;
+    double comment_end=y;
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->yPos = y; //"y" now points to the *top* of the line of the top edge of this box
         
         //Place side comments. This will update "cover" and thus force the content
         //downward if the content also has side notes
         double l=y, r=y;
-        note_end = (*i)->NoteHeightHelper(canvas, cover, l, r);
+        (*i)->CommentHeightHelper(canvas, cover, l, r);
+        comment_end = (*i)->comment_height;
 
         //Advance upper line and spacing
         y += (*i)->style.line.LineWidth() + chart->emphVGapInside;
@@ -2769,7 +2761,7 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
                          limiter_line.CreateRectangle_InnerEdge(b);
             }
             const double content_y = chart->PlaceListUnder(canvas, (*i)->content, y+th, 
-                                                           y, limit, reflow, compress, 
+                                                           y, limit, compress, 
                                                            &content_cover);  //no extra margin below text
             y = std::max(y+th, content_y);
         } else {
@@ -2789,7 +2781,7 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         }
         y += chart->emphVGapInside;
         //increase the size of the box by the side notes, except for the last box
-        if (i!=--series.end()) y = std::max(y, note_end);
+        if (i!=--series.end()) y = std::max(y, comment_end);
         //Make segment as tall as needed to accomodate curvature
         //if (style.line.radius.second>0) {
         //    double we_need_this_much_for_radius = (*i)->style.line.LineWidth();
@@ -2832,7 +2824,7 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             (*i)->area_draw_is_frame = false;
         }
         (*i)->area_important = (*i)->text_cover;
-        if (!reflow) chart->NoteBlockers.Append(*i);
+        chart->NoteBlockers.Append(*i);
     }
     const double &offset = main_style.shadow.offset.second;
     if (offset)
@@ -2840,9 +2832,9 @@ double ArcBoxSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     overall_box.mainline = Block(chart->GetDrawing().x, b.y);
     cover = GetCover4Compress(overall_box);
     height = yPos + total_height + offset + chart->emphVGapOutside;
-    //We do not call NoteHeight for "this" since a box series cannot take notes, only its
+    //We do not call CommentHeight for "this" since a box series cannot take notes, only its
     //box elements do and those were handled above
-    return std::max(height, note_end);
+    comment_height = comment_end;
 }
 
 void ArcBox::ShiftBy(double y)
@@ -2871,6 +2863,93 @@ void ArcBoxSeries::CollectPageBreak(void)
     for (auto i=series.begin(); i!=series.end(); i++) 
         chart->CollectPageBreakArcList((*i)->content);
 }
+
+double ArcBoxSeries::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
+                                       double pageBreak, double &headingSize, 
+                                       bool addHeading, ArcList &res)
+{
+    if (series.size()==0) return -1; //we cannot split if no content
+    if (pageBreak <= yPos || pageBreak >= yPos + GetHeight()) return -1; //pb does not cut us
+    //if pageBreak goes through a label (or is above) we cannot split there
+    auto kwn_from = series.end();
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        if (pageBreak >= (*i)->GetPos()+(*i)->GetHeight()) {
+            if ((*i)->IsKeepWithNext()) {
+                if (kwn_from == series.end())
+                    kwn_from = i;
+            } else
+                kwn_from = series.end();
+            continue;
+        }
+        //We need to break in 'i'
+        //if we have content and the pageBreak goes through the content
+        //(top: if we have a label, use the bottom of that, if not then y_text)
+        //(bottom: height contains height without the lower line)
+        if ((*i)->content.size() && !(*i)->keep_together && 
+            ((*i)->text_cover.IsEmpty() ? (*i)->y_text : (*i)->text_cover.GetBoundingBox().y.till) <= pageBreak &&
+            ((*i)->yPos + (*i)->height) >= pageBreak) {
+            //break the list
+            const double ret = chart->PageBreakArcList(canvas, (*i)->content, prevPageBreak,
+                                                       pageBreak, headingSize, addHeading);
+            //enlarge us
+            (*i)->height_w_lower_line += ret;
+            (*i)->height += ret;
+            //shift the remaining
+            while (++i!=series.end())
+                (*i)->ShiftBy(ret);
+            height += ret;
+            total_height += ret;
+            return ret;
+        }
+        //we cannot break inside 'i'
+        //break just before 'kwn_from' or 'i'
+        if (kwn_from == series.end()) kwn_from = i;
+        if (kwn_from == series.begin()) return -1; //we cannot break
+        //move the remainder of the series to a new object
+        ArcBoxSeries *abs = new ArcBoxSeries(*kwn_from);
+        series.erase(kwn_from++);
+        abs->series.splice(abs->series.end(), series, kwn_from, series.end());
+        //compute shift. ArcBox::yPos points to the "top" of the upper line
+        //"height" is meant without the lower line
+        const double shift_top = (*series.begin())->style.line.LineWidth();
+        const double increase_top = shift_top - (*abs->series.begin())->style.line.LineWidth();
+        const double shift_rest = shift_top + increase_top;
+        //copy line style to the first one
+        (*abs->series.begin())->style.line = (*series.begin())->style.line;
+        (*--series.end())->height_w_lower_line += increase_top; 
+        (*abs->series.begin())->height += increase_top;
+        (*abs->series.begin())->height_w_lower_line += increase_top;
+        (*abs->series.begin())->ShiftBy(shift_rest);
+        (*abs->series.begin())->yPos -= shift_top;
+        abs->yPos = (*abs->series.begin())->yPos;
+        abs->AddAttributeList(NULL);
+        abs->at_top_level = at_top_level;
+        abs->compress = compress;
+        abs->parallel = parallel;
+        abs->keep_together = keep_together;
+        abs->keep_with_next = keep_with_next;
+        abs->left_space = left_space;
+        abs->right_space = right_space;
+        abs->drawing_variant = drawing_variant;
+
+        total_height = shift_top;
+        for (auto ii = series.begin(); ii!=series.end(); ii++)
+            total_height += (*ii)->height;
+        abs->total_height = shift_top;
+        for (auto ii = abs->series.begin(); ii!=abs->series.end(); ii++) 
+            abs->total_height += (*ii)->height;
+        for (auto ii = ++abs->series.begin(); ii!=abs->series.end(); ii++) 
+            (*ii)->ShiftBy(shift_rest);
+        res.Append(abs);
+        return shift_rest;
+    }
+    //if we got here, the pb did not go through any member
+    //we must be at the very end...
+    return -1;
+}
+
+
+
 
 void ArcBoxSeries::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)
 {
@@ -3026,7 +3105,7 @@ ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
     ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
 {
     series.Append(first);
-    keep_together = true; //we will do our own pagination if needed, we shall not be cut in half by Msc::ArcHeightList()
+    keep_together = true; //we can be cut in half
 }
 
 ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
@@ -3165,7 +3244,9 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
 
     //parallel flag can be either on the series or on the first element
     parallel |= (*series.begin())->parallel;
-    keep_with_next = (*series.rbegin())->keep_with_next;
+    //copy keep_with_next to Series
+    for (auto i = series.begin(); i!=series.end(); i++)
+        keep_with_next |= (*i)->keep_with_next;
     //set the last element as a note target (coming after us)
     *target = *series.rbegin();
 
@@ -3366,6 +3447,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
             //disallow transparency if too low power
             if ((*i)->style.solid.second!=255) 
                 (*i)->style.solid.second = 0;
+
     return this;
 }
 
@@ -3444,87 +3526,19 @@ void ArcPipeSeries::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     distances += d;
 }
 
-double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+//Takes the pipe_body member of each pipe and calculates their contours used for drawing.
+//returns the total body cover if not NULL
+void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
 {
-    if (!valid) return 0;
-    //Collect cover information from labels and linewidth, so compression of content arrows can be done
-    //Determine thickest line for precise pipe alignment
-    double max_lineWidth = 0;
-    for (auto i = series.begin(); i!=series.end(); i++)
-        max_lineWidth = std::max(max_lineWidth, (*i)->style.line.LineWidth());
-    double lowest_line_bottom =  max_lineWidth + chart->emphVGapInside;
-    //Determine highest label and collect all text covers
-    //Also calcualte all x positioning
-    double lowest_label_on_transculent_bottom = lowest_line_bottom;
-    double lowest_label_on_opaque_segments_bottom = lowest_line_bottom;
-    Area label_covers(this);
     //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
     const MscSideType side = (*series.begin())->style.side.second;
     const double radius = (*series.begin())->style.line.radius.second;
-    double note_l=0, note_r=0;
-    for (auto i = series.begin(); i!=series.end(); i++) {
-        //Variables already set (all of them rounded):
-        //pipe_connect true if a segment connects to us directly
-        //left_space, right_space contains how much our content expands beyond the entity line,
-        (*i)->yPos = 0;
-        (*i)->area.clear();
-        (*i)->area_draw.clear();
-        (*i)->draw_is_different = false;
-
-        //Place side comments. This will update "cover" and thus force the content
-        //downward if the content also has side notes
-        (*i)->NoteHeightHelper(canvas, cover, note_l, note_r);
-
-        //Set pipe_block.x, sx_text, dx_text in each segment, in the meantime
-        //pipe_block contains the outside of the pipe, with the exception of the curvature (since it is a rect)
-        (*i)->y_text = ceil(chart->emphVGapOutside + (*i)->style.line.LineWidth() +
-                        chart->emphVGapInside);
-        (*i)->area.clear();
-        (*i)->pipe_block.x.from = chart->XCoord((*i)->src) - (*i)->left_space; //already rounded
-        (*i)->pipe_block.x.till = chart->XCoord((*i)->dst) + (*i)->right_space;
-        (*i)->sx_text = (*i)->pipe_block.x.from + (*i)->style.line.LineWidth() + chart->emphVGapInside; //not rounded
-        (*i)->dx_text = (*i)->pipe_block.x.till - (*i)->style.line.LineWidth() - chart->emphVGapInside;
-        switch (side) {
-        case SIDE_RIGHT: (*i)->dx_text -= radius; break;
-        case SIDE_LEFT:  (*i)->sx_text += radius; break;
-        default: _ASSERT(0);
-        }
-        (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
-        // omit text cover for pipes if the pipe is fully opaque,
-        // in that case content can be drawn at same position as label - opaque pipe will cover anyway
-        double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
-        if (y == (*i)->y_text && content.size()==0)
-            y += (*i)->style.text.getCharHeight(canvas);
-        if ((*i)->style.solid.second < 255) {
-            label_covers += (*i)->text_cover;
-            lowest_label_on_transculent_bottom = std::max(lowest_label_on_transculent_bottom, y);
-        } else {
-            //collect the highest label of opaque segments for later use
-            lowest_label_on_opaque_segments_bottom = std::max(lowest_label_on_opaque_segments_bottom, y);
-        }
-    }
-    double y = lowest_label_on_transculent_bottom;
-    //Calculate the Height of the content
-    AreaList content_cover;
-    if (content.size())
-        y = ceil(chart->PlaceListUnder(canvas, content, ceil(y), lowest_line_bottom, 
-                                       label_covers, reflow, false, &content_cover));
-    //now y contains the bottom of the content arrows (if any),
-    //adjust if an opaque pipe's label was not yet considered in y
-    y = std::max(y, lowest_label_on_opaque_segments_bottom);
-    y += chart->emphVGapInside + max_lineWidth;
-    //now y contains the bottommost pixel of the pipe itself
-    total_height = y = ceil(y);
-    //Now set the y coordinate in all segments
-    //Also calculate the Contour that will be used for drawing
+    //the largest of the shadow offsets
     double max_offset = 0;
-    Area pipe_body_cover(this);
     for (auto i = series.begin(); i!=series.end(); i++) {
+        //No need to clean up. If any of the pipe_* or area, area_draw, area_important
+        //has values here, they will get simply overwritten
         const double ilw = (*i)->style.line.LineWidth();
-
-        //fill in pipe_block.y (both are integer)
-        (*i)->pipe_block.y.from = chart->emphVGapOutside;
-        (*i)->pipe_block.y.till = y;
 
         XY cs((*i)->pipe_block.x.from, (*i)->pipe_block.y.MidPoint());
         XY cd((*i)->pipe_block.x.till, (*i)->pipe_block.y.MidPoint());
@@ -3614,13 +3628,14 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
             (*i)->area_draw_is_frame = true;
             (*i)->draw_is_different = true;
         }
-        //now determine the cover to be used for placement
-        const double offset = (*i)->style.shadow.offset.second;
-        if (offset)
-            pipe_body_cover += (*i)->pipe_shadow + (*i)->pipe_shadow.CreateShifted(XY(offset, offset));
-        else
-            pipe_body_cover += (*i)->pipe_shadow;
-        max_offset = std::max(max_offset, offset);
+        if (pipe_body_cover) {
+            //now determine the cover to be used for placement
+            const double offset = (*i)->style.shadow.offset.second;
+            if (offset)
+                *pipe_body_cover += (*i)->pipe_shadow + (*i)->pipe_shadow.CreateShifted(XY(offset, offset));
+            else
+                *pipe_body_cover += (*i)->pipe_shadow;
+        }
         //merge shadows of connected previous segment to ours
         if ((*i)->pipe_connect_back) {
             auto i_neigh = i; i_neigh--;
@@ -3630,10 +3645,95 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         (*i)->area_important = (*i)->text_cover;
         (*i)->area_important += forw_end;
         (*i)->area_important += back_end;
-        if (!reflow) chart->NoteBlockers.Append(*i);
     }
     for (auto i = series.begin(); i!=series.end(); i++)
         (*i)->pipe_shadow = (*i)->pipe_shadow.CreateExpand(-(*i)->style.line.width.second/2);
+}
+
+void ArcPipeSeries::Layout(MscCanvas &canvas, AreaList &cover)
+{
+    height = 0;
+    if (!valid) return;
+    //Collect cover information from labels and linewidth, so compression of content arrows can be done
+    //Determine thickest line for precise pipe alignment
+    double max_lineWidth = 0;
+    for (auto i = series.begin(); i!=series.end(); i++)
+        max_lineWidth = std::max(max_lineWidth, (*i)->style.line.LineWidth());
+    double lowest_line_bottom =  max_lineWidth + chart->emphVGapInside;
+    //Determine highest label and collect all text covers
+    //Also calcualte all x positioning
+    double lowest_label_on_transculent_bottom = lowest_line_bottom;
+    double lowest_label_on_opaque_segments_bottom = lowest_line_bottom;
+    Area label_covers(this);
+    //A few shortcuts. "side" and "radius" must be the same in any pipe element, so we take the first
+    const MscSideType side = (*series.begin())->style.side.second;
+    const double radius = (*series.begin())->style.line.radius.second;
+    double note_l=0, note_r=0;
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //Variables already set (all of them rounded):
+        //pipe_connect true if a segment connects to us directly
+        //left_space, right_space contains how much our content expands beyond the entity line,
+        (*i)->yPos = 0;
+        (*i)->area.clear();
+        (*i)->area_draw.clear();
+        (*i)->draw_is_different = false;
+
+        //Place side comments. This will update "cover" and thus force the content
+        //downward if the content also has side notes
+        (*i)->CommentHeightHelper(canvas, cover, note_l, note_r);
+
+        //Set pipe_block.x, sx_text, dx_text in each segment, in the meantime
+        //pipe_block contains the outside of the pipe, with the exception of the curvature (since it is a rect)
+        (*i)->y_text = ceil(chart->emphVGapOutside + (*i)->style.line.LineWidth() +
+                        chart->emphVGapInside);
+        (*i)->area.clear();
+        (*i)->pipe_block.x.from = chart->XCoord((*i)->src) - (*i)->left_space; //already rounded
+        (*i)->pipe_block.x.till = chart->XCoord((*i)->dst) + (*i)->right_space;
+        (*i)->sx_text = (*i)->pipe_block.x.from + (*i)->style.line.LineWidth() + chart->emphVGapInside; //not rounded
+        (*i)->dx_text = (*i)->pipe_block.x.till - (*i)->style.line.LineWidth() - chart->emphVGapInside;
+        switch (side) {
+        case SIDE_RIGHT: (*i)->dx_text -= radius; break;
+        case SIDE_LEFT:  (*i)->sx_text += radius; break;
+        default: _ASSERT(0);
+        }
+        (*i)->text_cover = (*i)->parsed_label.Cover((*i)->sx_text, (*i)->dx_text, (*i)->y_text);
+        // omit text cover for pipes if the pipe is fully opaque,
+        // in that case content can be drawn at same position as label - opaque pipe will cover anyway
+        double y = (*i)->y_text + (*i)->parsed_label.getTextWidthHeight().y;
+        if (y == (*i)->y_text && content.size()==0)
+            y += (*i)->style.text.getCharHeight(canvas);
+        if ((*i)->style.solid.second < 255) {
+            label_covers += (*i)->text_cover;
+            lowest_label_on_transculent_bottom = std::max(lowest_label_on_transculent_bottom, y);
+        } else {
+            //collect the highest label of opaque segments for later use
+            lowest_label_on_opaque_segments_bottom = std::max(lowest_label_on_opaque_segments_bottom, y);
+        }
+    }
+    double y = lowest_label_on_transculent_bottom;
+    //Calculate the Height of the content
+    AreaList content_cover;
+    if (content.size())
+        y = ceil(chart->PlaceListUnder(canvas, content, ceil(y), lowest_line_bottom, 
+                                       label_covers, false, &content_cover));
+    //now y contains the bottom of the content arrows (if any),
+    //adjust if an opaque pipe's label was not yet considered in y
+    y = std::max(y, lowest_label_on_opaque_segments_bottom);
+    y += chart->emphVGapInside + max_lineWidth;
+    //now y contains the bottommost pixel of the pipe itself
+    total_height = y = ceil(y);
+    //Now set the y coordinate in all segments
+    double max_shadow_offset = 0;
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        //fill in pipe_block.y (both are integer)
+        (*i)->pipe_block.y.from = chart->emphVGapOutside;
+        (*i)->pipe_block.y.till = y;
+        chart->NoteBlockers.Append(*i);
+        max_shadow_offset = std::max(max_shadow_offset, (*i)->style.shadow.offset.second);
+    }
+    //Calculate contours in all pipes from pipe_block
+    Area pipe_body_cover(this);
+    CalculateContours(&pipe_body_cover);
     //Add content to cover (may "come out" from pipe)
     cover += content_cover;
     //If we have no valid content, set mainline to that of pipe, else the content's mainline will be used
@@ -3641,9 +3741,9 @@ double ArcPipeSeries::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         pipe_body_cover.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, chart->emphVGapOutside, total_height);  //totalheight includes the top emphvgapoutside 
     //Expand cover, but not content (that is already expanded)
     cover += GetCover4Compress(pipe_body_cover);
-    height = yPos + total_height + max_offset + chart->emphVGapOutside;
+    height = yPos + total_height + max_shadow_offset + chart->emphVGapOutside;
     //We do not call NoteHeight here as a PipeSeries will not have notes, only its elements
-    return std::max(height, std::max(note_l, note_r));
+    comment_height = std::max(note_l, note_r);
 }
 
 
@@ -3678,6 +3778,25 @@ void ArcPipeSeries::ShiftBy(double y)
 void ArcPipeSeries::CollectPageBreak(void) 
 {
     chart->CollectPageBreakArcList(content);
+}
+
+double ArcPipeSeries::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
+                                       double pageBreak, double &headingSize, 
+                                       bool addHeading, ArcList &/*res*/)
+{
+    if (content.size()==0) return -1; //we cannot split if no content
+    //if pageBreak goes through a label (or is above) we cannot split there
+    for (auto i = series.begin(); i!=series.end(); i++)
+        if ((*i)->text_cover.GetBoundingBox().y.till > pageBreak || (*i)->keep_together)
+            return -1;
+    const double ret = chart->PageBreakArcList(canvas, content, prevPageBreak,
+                                               pageBreak, headingSize, addHeading);
+    height += ret;
+    total_height += ret;
+    for (auto i=series.begin(); i!=series.end(); i++)
+        (*i)->pipe_block.y.till += ret;
+    CalculateContours();
+    return ret;
 }
 
 
@@ -3929,16 +4048,18 @@ void ArcDivider::Width(MscCanvas &, EntityDistanceMap &distances)
         distances.Insert(chart->LSide->index, chart->RSide->index, width);
 }
 
-double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcDivider::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return height = 0;
-    if (reflow) return ArcBase::Height(canvas, cover, reflow);
+    height = 0;
+    if (!valid) return;
     yPos = 0;
     if (nudge) {
         Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, chart->nudgeSize);
         area.mainline = area = b;
         cover = GetCover4Compress(area);
-        return height = chart->nudgeSize;
+        height = chart->nudgeSize;
+        CommentHeight(canvas, cover);
+        return;
     }
     double y = wide ? 0 : chart->arcVGapAbove;
     y += extra_space;
@@ -3976,9 +4097,9 @@ double ArcDivider::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     else
         area.mainline = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
                               centerline-charheight/2, centerline+charheight/2);
-    if (!reflow) chart->NoteBlockers.Append(this);
+    chart->NoteBlockers.Append(this);
     cover = GetCover4Compress(area);
-    return std::max(height, NoteHeight(canvas, cover));
+    CommentHeight(canvas, cover);
 }
 
 void ArcDivider::ShiftBy(double y)
@@ -4080,25 +4201,25 @@ void ArcParallel::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     distances += d;
 }
 
-double ArcParallel::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void ArcParallel::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return 0;
     height = 0;
+    if (!valid) return;
     if (chart->simple_arc_parallel_layout) {
         for (auto i=blocks.begin(); i != blocks.end(); i++) {
             AreaList cover_block;
             //Each parallel block is compressed without regard to the others
-            double h = chart->HeightArcList(canvas, *i, cover_block, reflow);
+            double h = chart->LayoutArcList(canvas, *i, cover_block);
             height = std::max(height, h);
             cover += cover_block;
         }
     } else {
-        std::vector<double> heights = chart->HeightArcLists(canvas, blocks, cover, reflow);
+        std::vector<double> heights = chart->LayoutArcLists(canvas, blocks, cover);
         for (unsigned u = 0; u<blocks.size(); u++)
             height = std::max(height, heights[u]);
     }
     //Do not expand cover, it has already been expanded
-    return std::max(height, NoteHeight(canvas, cover));
+    CommentHeight(canvas, cover);
 }
 
 void ArcParallel::ShiftBy(double y)
@@ -4118,19 +4239,18 @@ void ArcParallel::CollectPageBreak()
 
 double ArcParallel::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
                                     double pageBreak, double &headingSize, 
-                                    bool addHeading)
+                                    bool addHeading, ArcList &/*res*/)
 {
+    if (keep_together) return -1;
     //First merge our content to a single list
     if (blocks.size()>1) {
         struct {
             bool operator()(const ArcBase * const a, const ArcBase * const b) const
-            {return a->YExtent().from < b->YExtent().from;}
+            {return a->GetPos() < b->GetPos();}
         } comp;
         for (auto b=++blocks.begin(); b!=blocks.end(); b++)
-            blocks[0].Append(&*b);
+            blocks[0].merge(*b, comp);
         blocks.resize(1);
-        //sort the list
-        blocks[0].sort(comp);
     }
     return chart->PageBreakArcList(canvas, blocks[0], prevPageBreak, 
                                    pageBreak, headingSize, addHeading);

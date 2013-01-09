@@ -27,6 +27,7 @@ public:
     ArcCommand(MscArcType t, Msc *msc) : ArcBase(t, msc) {};
     bool AddAttribute(const Attribute &) {return false;}
     string Print(int ident=0) const;
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
     virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {}
 };
 
@@ -61,13 +62,13 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
                                     double /*pageBreak*/, double &/*headingSize*/, 
-                                    bool /*addHeading*/);
+                                    bool /*addHeading*/, ArcList &/*res*/);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -81,7 +82,6 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void CollectPageBreak(void);
 };
@@ -93,7 +93,6 @@ public:
 
     CommandNewBackground(Msc *msc, MscFillAttr f)
         : ArcCommand(MSC_COMMAND_NEWBACKGROUND, msc), fill(f) {}
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void PostPosProcess(MscCanvas &cover);
 };
@@ -120,7 +119,6 @@ public:
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
 
     virtual void ShiftBy(double y);
 };
@@ -131,7 +129,7 @@ class CommandEmpty : public ArcCommand
 public:
     CommandEmpty(Msc *msc);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
 };
@@ -178,7 +176,7 @@ public:
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
 };
 
@@ -214,11 +212,14 @@ public:
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     /** We are to be ignored if we are off-line (outer_edge is valid) or we cannot rearrange if in-line */
-    virtual double SplitByPageBreak(double /*breakPos*/, double &/*headingSize*/, bool /*addHeading*/) {return outer_edge.y.IsInvalid() ? -2 : -1;}
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
+                                    double /*pageBreak*/, double &/*headingSize*/, 
+                                    bool /*addHeading*/, ArcList &/*res*/) 
+                                       {return outer_edge.y.IsInvalid() ? -2 : -1;}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -256,7 +257,7 @@ public:
                                       Numbering &number, bool top_level, TrackableElement **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual double Height(MscCanvas &canvas, AreaList &cover, bool reflow);
+    virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     Contour CoverBody(MscCanvas &canvas, const XY &center) const; //places upper left corner to 0,0
     Contour CoverPointer(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
@@ -293,7 +294,10 @@ public:
     void Append(ArcBase *p) {content.Append(p);}
     void Append(ArcList *l) {content.splice(content.end(), *l);}
     void MoveContent(ArcList &list, ArcList::iterator after) {list.splice(++after, content);}
-    virtual double SplitByPageBreak(double /*breakPos*/, double &/*headingSize*/, bool /*addHeading*/) {_ASSERT(0); return -1;}
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
+                                    double /*pageBreak*/, double &/*headingSize*/, 
+                                    bool /*addHeading*/, ArcList &/*res*/) 
+                                             {_ASSERT(0); return -1;}
 
 };
 
