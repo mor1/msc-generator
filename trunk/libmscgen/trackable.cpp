@@ -27,7 +27,7 @@ const Context TrackableElement::defaultDesign(true);
 TrackableElement::TrackableElement(Msc *m) : chart(m), 
     hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
-    comments(false),
+    comments(false), comment_height(0),
     indicator_style(m->Contexts.back().styles["indicator"]),
     draw_pass(DRAW_DEFAULT) 
 {
@@ -48,7 +48,7 @@ TrackableElement::TrackableElement(const TrackableElement&o) :
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
     area_to_note(o.area_to_note),
-    comments(false), //we do not copy comments!!!
+    comments(false), comment_height(0),//we do not copy comments!!!
     area_important(o.area_important), 
     controls(o.controls), control_location(o.control_location),
     indicator_style(o.indicator_style),
@@ -125,11 +125,11 @@ void TrackableElement::ShiftBy(double y)
 }
 
 //Here we add to "cover", do not overwrite it
-double TrackableElement::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
+void TrackableElement::CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
 {
-    for (auto n = comments.begin(); n!=comments.end(); n++)
-        (*n)->PlaceSideTo(canvas, cover, (*n)->GetStyle().side.second == SIDE_LEFT ? l : r);
-    return std::max(l, r);
+    for (auto c = comments.begin(); c!=comments.end(); c++)
+        (*c)->PlaceSideTo(canvas, cover, (*c)->GetStyle().side.second == SIDE_LEFT ? l : r);
+    comment_height = std::max(l, r);
 }
 
 

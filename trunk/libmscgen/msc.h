@@ -283,10 +283,10 @@ public:
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
     void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
-    double HeightArcList(MscCanvas &canvas, ArcList &arcs, AreaList &cover, bool reflow);
-    std::vector<double> HeightArcLists(MscCanvas &canvas, std::vector<ArcList> &arcs, AreaList &cover, bool reflow);
+    double LayoutArcList(MscCanvas &canvas, ArcList &arcs, AreaList &cover);
+    std::vector<double> LayoutArcLists(MscCanvas &canvas, std::vector<ArcList> &arcs, AreaList &cover);
     double PlaceListUnder(MscCanvas &canvas, ArcList &arcs, double start_y,
-                          double top_y, const AreaList &area_top, bool reflow,
+                          double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList &arcs, double y);
     void InsertAutoPageBreak(MscCanvas &canvas, ArcList &arcs, ArcList::iterator i, 

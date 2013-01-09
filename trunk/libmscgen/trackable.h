@@ -52,7 +52,8 @@ protected:
     Contour         area_to_note;       //if not empty the notes will point towards this area
     Contour         area_to_note2;      //if a note with "at" clause does not hit the above, try this
 
-    CommandNoteList comments;           // Notes attached to this element
+    CommandNoteList comments;           // Comments attached to this element
+    double          comment_height;     // Total height of the comments attached (max of the two sides)
     Contour         area_important;     /* those parts of our coverage, which must not be covered by notes */
 
     std::vector<MscControlType> 
@@ -85,11 +86,11 @@ public:
         {return area_to_note.IsEmpty() ? area : area_to_note;}
     const Contour &GetAreaToNote2() const {return area_to_note2;}
     const std::vector<MscControlType>& GetControls() const {return controls;}
-    const Block &GetControlLocation() const {return control_location;}
-    double NoteHeight(MscCanvas &canvas, AreaList &cover) {double l=0, r=0; return NoteHeightHelper(canvas, cover, l, r);}
-    virtual double NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
+    void CommentHeight(MscCanvas &canvas, AreaList &cover) {double l=0, r=0; CommentHeightHelper(canvas, cover, l, r);}
+    virtual void CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
     virtual void PostPosProcess(MscCanvas &);
 
+    const Block &GetControlLocation() const {return control_location;}
     void DrawControls(cairo_t*, double size);
     MscControlType WhichControl(const XY &xy);
 

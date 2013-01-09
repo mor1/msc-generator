@@ -31,6 +31,18 @@ string ArcCommand::Print(int ident) const
     return ss;
 }
 
+void ArcCommand::Layout(MscCanvas &canvas, AreaList &cover)
+{
+    height = 0;
+    if (!valid) return;
+    Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
+            -chart->nudgeSize/2, chart->nudgeSize/2);
+    area_draw = b;
+    draw_is_different = true; //area is empty - never find this
+    _ASSERT(comments.size()==0);
+}
+
+
 //////////////////////////////////////////////////////////////////////////////////////
 
 CommandEntity::CommandEntity(EntityDefHelper *e, Msc *msc, bool in)
@@ -541,21 +553,16 @@ void CommandEntity::Width(MscCanvas &, EntityDistanceMap &distances)
 }
 
 //Here we add to "cover", do not overwrite it
-double CommandEntity::NoteHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
+void CommandEntity::CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
 {
-    TrackableElement::NoteHeightHelper(canvas, cover, l, r);
     for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) 
-        (*i_def)->NoteHeightHelper(canvas, cover, l, r);
-    return std::max(l, r);
+        (*i_def)->CommentHeightHelper(canvas, cover, l, r);
+    TrackableElement::CommentHeightHelper(canvas, cover, l, r); //sets comment_height
 }
 
-double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void CommandEntity::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid || hidden) return height=0;
-    if (reflow) {
-        cover = cover_at_0;
-        return std::max(height, NoteHeight(canvas, cover));
-    }
+    if (!valid || hidden) return;
     Range hei(0,0);
     //Those entities explicitly listed will have their own EntityDef for this line.
     //Thus their area will be stored there and not in CommandEntity->area
@@ -567,7 +574,7 @@ double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     unsigned num_showing = 0;
     for (auto i = entities.rbegin(); !(i==entities.rend()); i++) {
         if (!(*i)->draw_heading) {
-            if (!reflow) (*i)->AddAreaImportantWhenNotShowing();
+            (*i)->AddAreaImportantWhenNotShowing();
             continue;
         }
         //Collect who is my children in this list
@@ -587,15 +594,16 @@ double CommandEntity::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
         area_to_note += (*i)->GetAreaToNote();
         num_showing ++;
     }
-    if (!num_showing) 
-        return height = 0; //if no headings show
-    _ASSERT(!internally_defined); //internally defined entitydefs should not show a heading
-    //Ensure overall startpos is zero
-    ShiftBy(-hei.from + chart->headingVGapAbove);
-    cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));
-    cover_at_0 = cover;
-    height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
-    return std::max(height, NoteHeight(canvas, cover));
+    if (num_showing) {
+        _ASSERT(!internally_defined); //internally defined entitydefs should not show a heading
+        //Ensure overall startpos is zero
+        ShiftBy(-hei.from + chart->headingVGapAbove);
+        cover.Shift(XY(0,-hei.from + chart->headingVGapAbove));
+        cover_at_0 = cover;
+        height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
+    } else
+        height = 0; //if no headings show
+    CommentHeight(canvas, cover);
 }
 
 void CommandEntity::ShiftBy(double y)
@@ -610,7 +618,7 @@ void CommandEntity::ShiftBy(double y)
 //Rght now we just updtae the running state in Msc::AllEntities
 double CommandEntity::SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
                                     double /*pageBreak*/, double &/*headingSize*/, 
-                                    bool addHeading)
+                                    bool addHeading, ArcList &/*res*/)
 {
     if (addHeading) 
         for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) {
@@ -662,17 +670,6 @@ bool CommandNewpage::AttributeValues(const std::string, Csh &)
     return false;
 }
 
-double CommandNewpage::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
-{
-    height = 0;
-    if (!valid || reflow) return 0;
-    Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
-            -chart->nudgeSize/2, chart->nudgeSize/2);
-    area_draw = b;
-    draw_is_different = true; //area is empty - never find this
-    return 0;
-}
-
 void CommandNewpage::CollectPageBreak(void)
 {
     if (!valid) return;
@@ -681,17 +678,6 @@ void CommandNewpage::CollectPageBreak(void)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-
-double CommandNewBackground::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
-{
-    height = 0;
-    if (!valid || reflow) return 0;
-    Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
-            -chart->nudgeSize/2, chart->nudgeSize/2);
-    area_draw = b;
-    draw_is_different = true; //area is empty - never find this
-    return 0;
-}
 
 void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/)
 {
@@ -762,17 +748,6 @@ bool CommandMark::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-double CommandMark::Height(MscCanvas &/*canvas*/, AreaList &, bool reflow)
-{
-    height = 0;
-    if (!valid || reflow) return 0;
-    Block b(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 
-            offset-chart->nudgeSize/2, offset+chart->nudgeSize/2);
-    area_draw = b;
-    draw_is_different = true; //area is empty - never find this
-    return 0;
-}
-
 void CommandMark::ShiftBy(double y)
 {
     if (!valid) return;
@@ -802,16 +777,17 @@ void CommandEmpty::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     distances.Insert(lside_index, rside_index, width);
 }
 
-double CommandEmpty::Height(MscCanvas &canvas, AreaList &cover, bool)
+void CommandEmpty::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return height = 0;
+    height = 0;
+    if (!valid) return;
     yPos = 0;
     const XY wh = parsed_label.getTextWidthHeight();
     const double mid = chart->GetDrawing().x.MidPoint();
     const Area a(Block(mid-wh.x/2, mid+wh.x/2, EMPTY_MARGIN_Y, EMPTY_MARGIN_Y+wh.y), this);
     cover = GetCover4Compress(a);
     height = wh.y + EMPTY_MARGIN_Y*2;
-    return std::max(height, NoteHeight(canvas, cover));
+    _ASSERT(comments.size()==0);
 }
 
 void CommandEmpty::Draw(MscCanvas &canvas, DrawPassType pass)
@@ -840,6 +816,7 @@ void CommandEmpty::Draw(MscCanvas &canvas, DrawPassType pass)
     canvas.Shadow(b, line, shadow);
     canvas.Fill(b, line, fill);
     canvas.Line(b, line);
+    parsed_label.Draw(canvas, mid-width/2, mid+width/2, yPos+EMPTY_MARGIN_Y);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -1011,21 +988,20 @@ ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     return this;
 }
 
-double CommandVSpace::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void CommandVSpace::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (reflow) return ArcCommand::Height(canvas, cover, reflow);
     double dist = space.second;
     if (label.second.length())
         dist += Label(label.second, canvas, format).getTextWidthHeight().y;
     if (dist<0)
         chart->Error.Error(file_pos.start, "The vertical space specified is negative. Ignoring it.");
     if (dist<=0)
-        return height = 0;
-    if (!compressable) {
+        dist = 0;
+    else if (!compressable) {
         area = Block(chart->GetDrawing().x.from, chart->GetDrawing().x.till, 0, dist);
         cover = GetCover4Compress(area);
     }
-    return height = dist;
+    height = dist;
 }
 
 
@@ -1245,16 +1221,8 @@ void CommandSymbol::Width(MscCanvas &canvas, EntityDistanceMap &distances)
 }
 
 
-double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
+void CommandSymbol::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (reflow) {
-        if (style.shadow.offset.second)
-            cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
-        else
-            cover = area;
-        return std::max(height, NoteHeight(canvas, cover));
-    }
-
     //Calculate x positions
     const double lw = style.line.LineWidth();
     double x1 = hpos1.CalculatePos(*chart);
@@ -1299,20 +1267,21 @@ double CommandSymbol::Height(MscCanvas &canvas, AreaList &cover, bool reflow)
     //else we are done here
     if (vpos.src.length() || vpos.dst.length()) {
         outer_edge.y.MakeInvalid();
-        return height = 0;
-    }
+        height = 0;
+        return; //No call to CommentHeight(), it will be done in postposprocess?
+    } 
     outer_edge.y.from = 0;
     outer_edge.y.till = lw + ysize.second;
 
     CalculateAreaFromOuterEdge();
     area_important = area;
-    if (!reflow) chart->NoteBlockers.Append(this);
+    chart->NoteBlockers.Append(this);
     if (style.shadow.offset.second)
         cover = area + area.CreateShifted(XY(style.shadow.offset.second, style.shadow.offset.second));
     else
         cover = area;
     height = outer_edge.y.till + style.shadow.offset.second;
-    return std::max(height, NoteHeight(canvas, cover));
+    CommentHeight(canvas, cover);
 }
 
 void CommandSymbol::ShiftBy(double y)
@@ -1518,12 +1487,12 @@ void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     }
 }
 
-double CommandNote::Height(MscCanvas &/*canvas*/, AreaList &/*cover*/, bool reflow) 
+void CommandNote::Layout(MscCanvas &canvas, AreaList &cover)
 {
-    if (!valid) return 0;
-    if (!is_float && !reflow)  //Only comments, notes will be added after placement
+    if (!valid) return;
+    if (!is_float)  //Only comments added here. Notes will be added after their placement
         chart->NoteBlockers.Append(this); 
-    return height = 0;
+    height = 0;
 }
 
 Contour CommandNote::CoverBody(MscCanvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
@@ -2013,7 +1982,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //  We consider elements expanded by "halfsize": if the center of the note falls inside
     //  the map - the note will not overlap with the elements in NoteMapAll.
     //"map_imp" contains a hole for the important parts of elements. Each element
-    //  specifies this during "Height()" and we expand2d it smae as for above.
+    //  specifies this during "Layout()" and we expand2d it smae as for above.
     //"map_pointer_all" is inverse: it contains a positive surface for all elements
     //  inside AOI this is used to calculate how much the arrow covers
     //"map_pointer_imp" is also inverse, it just contains the important parts
@@ -2322,7 +2291,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 }
 
 //return height, but place to "y" (below other notes)
-//This is called from Height() of the target for comments
+//This is called from Layout() of the target for comments
 void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
 {
    if (!valid) return;
