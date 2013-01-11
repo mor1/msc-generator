@@ -30,7 +30,7 @@ template<> const char EnumEncapsulator<MscArrowType>::names[][ENUM_STRING_LEN] =
 template<> const char EnumEncapsulator<MscArrowSize>::names[][ENUM_STRING_LEN] =
     {"invalid", "tiny", "small", "normal", "big", "huge", ""};
 
-double ArrowHead::arrowSizePercentage[6] = {
+const double ArrowHead::arrowSizePercentage[6] = {
     20,  /* INVALID, value is set for big arrow hint pictograms */
     30,  /* MSC_ARROW_TINY */
     50,  /* MSC_ARROW_SMALL */
@@ -39,10 +39,10 @@ double ArrowHead::arrowSizePercentage[6] = {
     130   /* MSC_ARROW_HUGE */
 };
 
-double ArrowHead::baseArrowWidth = 17;    /* Arrow size for BIG */
-double ArrowHead::baseArrowHeight = 10;    /* Half Arrow size for BIG */
-double ArrowHead::baseDiamondSize = 10;    /* Half Diamond size for BIG */
-double ArrowHead::baseDotSize = 9;    /* Dot radius for BIG */
+const double ArrowHead::baseArrowWidth = 17;    /* Arrow size for BIG */
+const double ArrowHead::baseArrowHeight = 10;    /* Half Arrow size for BIG */
+const double ArrowHead::baseDiamondSize = 10;    /* Half Diamond size for BIG */
+const double ArrowHead::baseDotSize = 9;    /* Dot radius for BIG */
 
 const double SHARP_MUL_1 = 1.2;  /* How much wider is a sharp arrow than a normal one */
 const double SHARP_MUL_2 = 0.7;  /* What percentage of the width of a sharp arrow is at the line */
@@ -82,7 +82,11 @@ ArrowHead & ArrowHead::operator += (const ArrowHead &toadd)
     return *this;
 }
 
-
+/** Take an Attribute object and add its value to us.
+ * We recognize 'arrow', '*.type', '*.endtyoe', 
+ * '*.midtype', '*.starttype', '*.size', 'arrowsize',
+ * '*.xmul', '*.ymul', '*.color' and '*.line.width'.
+ */
 bool ArrowHead::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -178,8 +182,12 @@ void ArrowHead::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
+/** Callback for drawing a symbol before arrowhead type names for line arrows in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscArrowSize size, bool left);
 
+/** Callback for drawing a symbol before arrowhead type names for block arrows in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -232,6 +240,8 @@ bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscAr
     return true;
 }
 
+/** Callback for drawing a symbol before arrowhead type names (in general) in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForArrowTypes(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!MSC_ARROW_OK_FOR_ARROWS((MscArrowType)(int)p)) {
@@ -242,6 +252,8 @@ bool CshHintGraphicCallbackForArrowTypes(MscCanvas *canvas, CshHintGraphicParam 
     return CshHintGraphicCallbackForArrows(canvas, (MscArrowType)(int)p, MSC_ARROW_SMALL, false);
 }
 
+/** Callback for drawing a symbol before arrowhead size names in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForArrowSizes(MscCanvas *canvas, CshHintGraphicParam p)
 {
     return CshHintGraphicCallbackForArrows(canvas, MSC_ARROW_SOLID, (MscArrowSize)(int)p, true);
@@ -299,10 +311,15 @@ MscArrowType ArrowHead::GetType(bool bidir, MscArrowEnd which) const
     return MSC_ARROW_NONE;
 }
 
-//"forward" is true if arrow is from left to right
-//"left" is true if we are interested in the arrow to draw to the left side of the entity line
-//for symmetric types (dot) this gives the same irrespective of "left"
-//this can return MSC_ARROW_INVALID for start and end arrows (outside part)
+/** Return the type of arrowhead at the end specified by `which`.
+ * This considers a whole arrow, including the two sides of middle arrowheads.
+ * Say for 'a<->b<->c' we actually draw two triangles around 'b'.
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] left True if we are interested in the arrow to draw to the left side of the entity line.
+ *                  For symmetric types (dot) this gives the same irrespective of `left`.
+ * @param [in] bidir True if the arrow is bi-directional, that is like a<->b and not a->b.
+ * @param [in] which Tells us which end are we interested in (or middle).
+ * @return The arrowhead type to use. Can return MSC_ARROW_INVALID for start and end arrows (outside part).*/
 MscArrowType ArrowHead::GetType(bool forward, bool bidir, MscArrowEnd which, bool left) const
 {
     MscArrowType ret = GetType(bidir, which);
@@ -322,11 +339,25 @@ MscArrowType ArrowHead::GetType(bool forward, bool bidir, MscArrowEnd which, boo
 
 
 //Transformation functions for angled arrows
-//In the transformed space (sx,y) will be the same, the space will be rotated by "radian".
+//In the transformed space (sx,y) will be the same, the space will be rotated by "radian"
+//and the arrow will be vertical
+
+//Transformation functions for angled arrows
 //"radian" is assumed to be between -45..+45 degrees (but in radian)
 
-//Transform the space such that if we draw a vertical arrow, it will be of angle="radian" on the canvas
-//saves cairo context, call UntransformCanvas() to kill it.
+/** Transform the space for angled arrows. 
+ * Useful, so that we can draw angled arrows as if they were horizontal.
+ * Transform space such that if we draw a horizontal arrow, it will be of 
+ * angle="radian" on the canvas. 
+ * In the transformed space (sx,y) will be the same, the space will be rotated by "radian".
+ * @param [in] degree The angle to rotate clockwise (with y growing downwards. 
+ *                    Assumed to be between -45..+45 degrees.
+ * @param [in] sx The x coordinate of the center of the rotation.
+ * @param [in] y The y coordinate of the center of the rotation.
+ * @param canvas The canvas to rotate.
+ *
+ * Saves cairo context, always call ArrowHead::UntransformCanvas() to kill it, 
+ * when done.*/
 void ArrowHead::TransformCanvasForAngle(double degree, MscCanvas &canvas, double sx, double y) const
 {
     cairo_t *cr = canvas.GetContext();
@@ -336,6 +367,7 @@ void ArrowHead::TransformCanvasForAngle(double degree, MscCanvas &canvas, double
     cairo_translate(cr, -sx, -y);
 }
 
+/** Rotates back the canvas rotated by ArrowHead::TransformCanvasForAngle()*/
 void ArrowHead::UnTransformCanvas(MscCanvas &canvas) const 
 {
     canvas.UnClip();
@@ -430,15 +462,12 @@ double ArrowHead::getTriWidth(bool bidir, MscArrowEnd which) const
     }
 }
 
-
-/* return value:
- * - first is the extent on the left side of the entity line
- * - second is the extent on the right side of the entity line
- * formard is true if the start entiry of the arrow is left from its destination (like -> and not like <-)
- * if which is start, we swap the two values (as we should, to get the above)
- * If forLine is true, we return how much of the arrow line the arrowhead covers
- * If false, we return how much the text margin should be from the entity line
- */
+/** Tells how much of the arrow line is covered by the arrowhead (on both sides of the entity line). 
+ * Used for text margin calculation. 
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] bidir True if the arrow is bi-directional, that is like a<->b and not a->b.
+ * @param [in] which Tells us which end are we interested in (or middle).
+ * @return `first` is the extent on the left side of the entity line, `second` is on the right side. */
 DoublePair ArrowHead::getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &) const
 {
     DoublePair ret(0,0);
@@ -489,7 +518,12 @@ Contour diamond(XY xy, XY wh)
     return Contour(points, 4);
 }
 
-/** Return the Y range for which the entity line shall not be drawn
+/** Return the area for which the entity line shall not be drawn.
+ * Only dots and diamonds cover it, for others an empty Contour is returned.
+ * @param [in] xy The tip of the arrowhead.
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] which Which end of the arrow (or middle).
+ * @returns The contour of the dot or diamond.
  */
 Contour ArrowHead::EntityLineCover(XY xy, bool /*forward*/, bool bidir, MscArrowEnd which) const
 {
@@ -511,10 +545,22 @@ Contour ArrowHead::EntityLineCover(XY xy, bool /*forward*/, bool bidir, MscArrow
     return ret;
 }
 
-//This returns an area which will be used to clip the arrow line.
-//E.g., for empty dots this is a big block, with a hole in it => line will be not drawn in the hole.
-//"total" is a block used as the basis, it is guaranteed that the whole line will fit into this.
-//if no clipping is needed (all of the line can be shown at this arrowhead, we return "total".
+/** Returns an area which will be used to clip the arrow line.
+ * E.g., for empty dots this is a big block, with a hole in it 
+ * => line will be not drawn in the hole.
+ * @param [in] xy The tip of the arrowhead.
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] which Which end of the arrow (or middle).
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] act_size Zero if the entity is not active at this point. Else it contains the 
+ *                      half-width of the activated entity line.
+ * @param [in] total A block used as the basis, it is guaranteed that the whole line will fit 
+                     into this.
+ * @param [in] mainline_left The line style of the arrow line on the left side.
+ * @param [in] mainline_right The line style of the arrow line on the right side.
+ * @returns An area covering all of `total` except where the arrowhead is drawn.
+ *          If no clipping is needed (all of the line can be shown at this arrowhead, 
+ *          we return `total`.*/
 Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
     const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const
 {
@@ -631,7 +677,14 @@ Contour ArrowHead::ClipForLine(XY xy, double act_size, bool forward, bool bidir,
     return area;
 }
 
-
+/** Returns a contour covering the arrowhead.
+ * @param [in] xy The tip of the arrowhead.
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] which Which end of the arrow (or middle).
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] act_size Zero if the entity is not active at this point. Else it contains the 
+ *                      half-width of the activated entity line.
+ * @returns the contour of the arrowhead.*/
 Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which,
                          const MscLineAttr &/*mainline_left*/, const MscLineAttr &/*mainline_right*/) const
 {
@@ -713,9 +766,16 @@ Contour ArrowHead::Cover(XY xy, double act_size, bool forward, bool bidir, MscAr
 
 
 /** Draw an arrowhead pointing to the right or to the left.
- * x,y is the tip of the arrow
- * which is 0 for destination, 1 for middle, 2 for source end of arrow
- */
+ * @param [in] xy The tip of the arrowhead.
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] which Which end of the arrow (or middle).
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] act_size Zero if the entity is not active at this point. Else it contains the 
+ *                      half-width of the activated entity line.
+ * @param [in] mainline_left The line style of the arrow line on the left side.
+ * @param [in] mainline_right The line style of the arrow line on the right side.
+ * @param canvas The canvas onto which we draw.
+*/
 void ArrowHead::Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, 
                      const MscLineAttr &mainline_left, const MscLineAttr &mainline_right, 
                      MscCanvas *canvas) const
@@ -867,8 +927,14 @@ XY ArrowHead::getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) con
     return ret;
 }
 
-//The values returned here are used to determine spacing between entities
-//the value returned counts from the midline of the entity line
+/** The full width of the arrowhead (on both sides of the entity line). 
+ * The values returned here are used to determine spacing between entities
+ * in for ArcBigArrow::Width().
+ * @param [in] type The type of the arrowhead
+ * @param [in] act_size The (half) width of the entity line due to entity activation.
+ * @param [in] ltype The line style that will be used to draw the block arrow.
+ * @returns The size of the arrowhead from the middle of the entity line towards the 
+ *          middle on the arrow. */
 double ArrowHead::getBigWidthsForSpace(bool /*bidir*/, MscArrowType type, MscArrowEnd /*which*/, 
                                        double /*body_height*/, double act_size, const MscLineAttr &ltype) const
 {
@@ -881,12 +947,23 @@ double ArrowHead::getBigWidthsForSpace(bool /*bidir*/, MscArrowType type, MscArr
     }
 }
 
-//Determines the margin of the text (from the entity line). Can be negative
-//"margin_side_is_left" tells us if we need the left or right margin for the text
-//"type" tells us what type of arrowhead do we have on the side of the text pointed by "left"
-//   (this type will be either a segmenting (non-symmetric) arrowhead or the start/end head)
-//sy and dy tells us where is the outer line of the body
-//(should be equal to the y aspect of the bounding box of text_cover + plus two linewidths
+/** Determines how much margin is needed for a text with a given cover.
+ * Determines the margin of the text (from the entity line). Can be negative, 
+ * if the block arrowhead spans over the entity line (e.g., dot does) and
+ * hence the text can be wider than the space between the entity lines.
+ * (sx, sy) should be equal to the y aspect of the bounding box of text_cover
+ * plus two linewidths.
+ *
+ * @param [in] text_cover The cover of the label.
+ * @param [in] sy The top of the arrow body (outer edge of the line).
+ * @param [in] dy The bottom of the arrow body (outer edge of the line).
+ * @param [in[ margin_side_is_left If we need the left or right margin for the text.
+ * @param [in] type The type of the arrowhead we have on the side of the text pointed by 
+ *                  `margin_side_is_left`. This type will be either a segmenting 
+ *                  (non-symmetric) arrowhead or the start/end head.
+ * @param [in] ltype The line style that will be used to draw the block arrow.
+ * @param [in] bidir True if bi-directional arrow.
+ */
 double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool margin_side_is_left, 
                                bool bidir, MscArrowType type, const MscLineAttr &ltype) const
 {
@@ -921,10 +998,15 @@ double ArrowHead::getBigMargin(Contour text_cover, double sy, double dy, bool ma
     }
 }
 
-//if lines == NULL, we assume there are no middle arrowheads (single segment) and "this->line" is the
-//line type
-//else we use the linewidths in "lines" to estimate top height, except if mid arrowhead is not segmenting
-//we assume "lines" is ordered in increasing x coordinate. "forward" tells us if the arrow is -> or <-
+/** Tells how much the arrow (overall) extends above or below the body.
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] bidir True if the arrow is bi-directional, that is like a<->b and not a->b.
+ * @param [in] lines Specifies the line style for each segment.
+ *                   If NULL, we assume there are no middle arrowheads (arrow is of a 
+ *                   single segment) and `this->line` is the line type.
+ *                   Else we use the linewidths in 'lines' to estimate top height, 
+ *                   except if mid arrowhead is not segmenting.
+ *                   We assume `lines` is ordered in increasing x coordinate. */
 double ArrowHead::bigYExtent(bool bidir, bool forward, const std::vector<MscLineAttr> *lines) const
 {
     if (lines==NULL || lines->size()==0 || MSC_ARROW_IS_SYMMETRIC(midType.second)) {
@@ -952,7 +1034,23 @@ double ArrowHead::bigYExtent(bool bidir, bool forward, const std::vector<MscLine
 }
 
 
-//Draw one arrowhead. either on the left or the right side of the entity line
+/** Returns the contours of one arrowhead. 
+ * Either on the left or the right side of the entity line.
+ * @param [in] xy The tip of the arrowhead.
+ * @param [in] act_size Zero if the entity is not active at this point. Else it contains the 
+ *                      half-width of the activated entity line.
+ * @param [in] sy The top of the arrow body (outer edge of the line).
+ * @param [in] dy The bottom of the arrow body (outer edge of the line).
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] type The type of arrowhead to draw.
+ * @param [in] which Which end of the arrow (or middle).
+ * @param [in] left True if we are interested in the arrow to draw to the left side of the entity line.
+ *                  For symmetric types (dot) this gives the same irrespective of `left`.
+ * @param [in] ltype The line style that will be used to draw the block arrow.
+ * @param [out] body_margin The space from the entity line the body shoud end at.
+ *                          Essentially the width of the arrowhead.
+ * @returns The contour of the arrowhead.
+ */
 Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, double dy, bool bidir,
                                        MscArrowType type, MscArrowEnd which, const MscLineAttr &ltype, 
                                        bool left, double *body_margin) const
@@ -1060,8 +1158,25 @@ Contour ArrowHead::BigContourOneEntity(double x, double act_size, double sy, dou
     return area;
 }
 
-//returns the outer line of the block arrow, each segment in a separate
-//Contour. If mid-arrow does not segment only one Contour is returned
+/** Returns the outer line of the block arrow, each segment in a separate Contour.
+ * If mid-arrow does not segment only one Contour is returned
+ * @param [in] xPos The x coordinate of entities the arrow visits. If the arrow is
+ *                  slanted, these shall be spaced somewhat wider apart than in the
+ *                  horizontal direction. This must be done by the caller.
+ * @param [in] act_size The activation status for each visited entity. 
+ *                      Zero if the entity is not active at this point. Else it contains the 
+ *                      half-width of the activated entity line.
+ * @param [in] sy The top of the arrow body (outer edge of the line).
+ * @param [in] dy The bottom of the arrow body (outer edge of the line).
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] lines Specifies the line style for each segment.
+ *                   If NULL, we assume there are no middle arrowheads (arrow is of a 
+ *                   single segment) and `this->line` is the line type.
+ *                   We assume `lines` is ordered in increasing x coordinate. 
+ * @param [out] result The contours for individual segments. Only one if there is
+ *                     only one segment.
+ * @returns The union of segment contours.*/ 
 Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                               double sy, double dy, bool forward, bool bidir, 
                               const std::vector<MscLineAttr> *lines,
@@ -1123,9 +1238,24 @@ Contour ArrowHead::BigContour(const std::vector<double> &xPos, const std::vector
     return area_overall;
 }
 
-//returns the outer line of the heads of the block arrow.
-//If the two ends are ARROW_NONE, a small block is added.
-//This is used to place float notes
+/** Returns the outer line of the heads of the block arrow, but not of the body.
+ * If the two ends are ARROW_NONE, a small block is added.
+ * This is used to place float notes.
+ * @param [in] xPos The x coordinate of entities the arrow visits.
+ * @param [in] act_size The activation status for each visited entity. 
+ *                      Zero if the entity is not active at this point. Else it contains the 
+ *                      half-width of the activated entity line.
+ * @param [in] sy The top of the arrow body (outer edge of the line).
+ * @param [in] dy The bottom of the arrow body (outer edge of the line).
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] lines Specifies the line style for each segment.
+ *                   If NULL, we assume there are no middle arrowheads (arrow is of a 
+ *                   single segment) and `this->line` is the line type.
+ *                   We assume `lines` is ordered in increasing x coordinate. 
+ * @param [in] compressGap How far we shall be.
+ * @returns The contours of the heads, but no body.
+ */
 Contour ArrowHead::BigHeadContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                                   double sy, double dy, bool forward, bool bidir, 
                                   const std::vector<MscLineAttr> *lines, double compressGap) const
@@ -1172,7 +1302,21 @@ Contour ArrowHead::BigHeadContour(const std::vector<double> &xPos, const std::ve
     return ret;
 }
 
-//We assume the space around us is rotated angle_degree
+/** Draw the block arrow, assuming we already calculated its contour.
+ * 
+ * @param [out] result The contours for individual segments. Only one if there is
+ *                     only one segment.
+ * @param [in] lines Specifies the line style for each segment.
+ *                   If NULL, we assume there are no middle arrowheads (arrow is of a 
+ *                   single segment) and `this->line` is the line type.
+ *                   We assume `lines` is ordered in increasing x coordinate. 
+ * @param [in] fill The fill we shall use inside the block arrow.
+ * @param [in] shadow The shadow we shall use below the block arrow.
+ * @param canvas The canvas to draw on.
+ * @param [in] angle_radian Our slant. We assume the space around us is rotated 
+                            this much when we are called. We also assume 
+                            the contours are enlengthtened already. This value
+                            is used to adjust the shadow to be in the right dir. */
 void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
                  const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
                  double angle_radian) const
@@ -1186,11 +1330,14 @@ void ArrowHead::BigDrawFromContour(std::vector<Contour> &result, const std::vect
         canvas.Line  (midline, l);
     }
 }
+
+/** I have no clue right now, why this exists.
+ * Here are my notes: 
+ * If we have empty_dot or empty_diamond middle arrow types, draw them in addition
+ * ..but clip the drawing area, so that text is not disturbed*/
 void ArrowHead::BigDrawEmptyMid(const std::vector<double> &xPos, double sy, double dy, 
                                 MscCanvas &canvas, const Contour *clip) const
 {
-    //if we have empty_dot or empty_diamond middle arrow types, draw them in addition
-    //..but clip the drawing area, so that text is not disturbed
     if (xPos.size()<=2 || (midType.second!=MSC_ARROW_DOT_EMPTY && midType.second==MSC_ARROW_DIAMOND_EMPTY)) 
         return;
     if (clip) canvas.ClipInverse(*clip);
@@ -1204,6 +1351,25 @@ void ArrowHead::BigDrawEmptyMid(const std::vector<double> &xPos, double sy, doub
     if (clip) canvas.UnClip();
 }
 
+/** Calculate the geometry of an arrow and draw it on a canvas.
+ * @param [in] xPos The x coordinate of entities the arrow visits. If the arrow is
+ *                  slanted, these shall be spaced somewhat wider apart than in the
+ *                  horizontal direction. This must be done by the caller.
+ * @param [in] act_size The activation status for each visited entity. 
+ *                      Zero if the entity is not active at this point. Else it contains the 
+ *                      half-width of the activated entity line.
+ * @param [in] sy The top of the arrow body (outer edge of the line).
+ * @param [in] dy The bottom of the arrow body (outer edge of the line).
+ * @param [in] forward True if arrow points from left to right, that is a->b and not a<-b.
+ * @param [in] bidir If the arrowhead is bidirectional
+ * @param [in] fill The fill we shall use inside the block arrow.
+ * @param [in] shadow The shadow we shall use below the block arrow.
+ * @param canvas The canvas to draw on.
+ * @param [in] clip Some clip value, not sure what.
+ * @param [in] angle_radian Our slant. We assume the space around us is rotated 
+                            this much when we are called. We also assume 
+                            the contours are enlengthtened already. This value
+                            is used to adjust the shadow to be in the right dir. */
 void ArrowHead::BigCalculateAndDraw(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                                     double sy, double dy, bool forward, bool bidir,
                                     const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
