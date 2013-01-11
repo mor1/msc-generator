@@ -2289,6 +2289,7 @@ ArcBox::ArcBox(MscArcType t, const char *s, file_line_range sl,
     if (*src!=chart->NoEntity && *dst!=chart->NoEntity)
         if ((*src)->pos > (*dst)->pos) 
             std::swap(src, dst);
+    keep_together = true;
 }
 
 const ArcSignature* ArcBox::GetSignature() const
@@ -2857,15 +2858,15 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcBoxSeries::CollectPageBreak(void) 
+void ArcBoxSeries::CollectPageBreak(double /*hSize*/) 
 {
     if (!valid) return;
     for (auto i=series.begin(); i!=series.end(); i++) 
         chart->CollectPageBreakArcList((*i)->content);
 }
 
-double ArcBoxSeries::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
-                                       double pageBreak, double &headingSize, 
+double ArcBoxSeries::SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+                                       double pageBreak, bool &addCommandNewpage, 
                                        bool addHeading, ArcList &res)
 {
     if (series.size()==0) return -1; //we cannot split if no content
@@ -2889,8 +2890,8 @@ double ArcBoxSeries::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
             ((*i)->text_cover.IsEmpty() ? (*i)->y_text : (*i)->text_cover.GetBoundingBox().y.till) <= pageBreak &&
             ((*i)->yPos + (*i)->height) >= pageBreak) {
             //break the list
-            const double ret = chart->PageBreakArcList(canvas, (*i)->content, prevPageBreak,
-                                                       pageBreak, headingSize, addHeading);
+            const double ret = chart->PageBreakArcList(canvas, (*i)->content, netPrevPageSize,
+                                                       pageBreak, addCommandNewpage, addHeading, false);
             //enlarge us
             (*i)->height_w_lower_line += ret;
             (*i)->height += ret;
@@ -3105,7 +3106,7 @@ ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
     ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
 {
     series.Append(first);
-    keep_together = true; //we can be cut in half
+    keep_together = false; //we can be cut in half
 }
 
 ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
@@ -3775,22 +3776,22 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcPipeSeries::CollectPageBreak(void) 
+void ArcPipeSeries::CollectPageBreak(double /*hSize*/) 
 {
     chart->CollectPageBreakArcList(content);
 }
 
-double ArcPipeSeries::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
-                                       double pageBreak, double &headingSize, 
+double ArcPipeSeries::SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+                                       double pageBreak, bool &addCommandNewpage, 
                                        bool addHeading, ArcList &/*res*/)
 {
-    if (content.size()==0) return -1; //we cannot split if no content
+    if (content.size()==0 || keep_together) return -1; //we cannot split if no content
     //if pageBreak goes through a label (or is above) we cannot split there
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->text_cover.GetBoundingBox().y.till > pageBreak || (*i)->keep_together)
             return -1;
-    const double ret = chart->PageBreakArcList(canvas, content, prevPageBreak,
-                                               pageBreak, headingSize, addHeading);
+    const double ret = chart->PageBreakArcList(canvas, content, netPrevPageSize,
+                                               pageBreak, addCommandNewpage, addHeading, false);
     height += ret;
     total_height += ret;
     for (auto i=series.begin(); i!=series.end(); i++)
@@ -4230,30 +4231,58 @@ void ArcParallel::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcParallel::CollectPageBreak()
+void ArcParallel::CollectPageBreak(double /*hSize*/)
 {
     if (!valid) return;
     for (auto i=blocks.begin(); i!=blocks.end(); i++)
         chart->CollectPageBreakArcList(*i);
 }
 
-double ArcParallel::SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
-                                    double pageBreak, double &headingSize, 
+
+//step with 'e' as long as we hit an element of nonzero height
+//if w hit the end of the list, we splice the whole list to
+//result
+void FindFirstNonZero(ArcList::iterator &e, ArcList *list, ArcList &result) 
+{
+    while (e != list->end() && (*e)->GetHeight() == 0)
+        e++;
+    if (e == list->end()) 
+        result.Append(list);
+}
+
+
+double ArcParallel::SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+                                    double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &/*res*/)
 {
     if (keep_together) return -1;
     //First merge our content to a single list
     if (blocks.size()>1) {
-        struct {
-            bool operator()(const ArcBase * const a, const ArcBase * const b) const
-            {return a->GetPos() < b->GetPos();}
-        } comp;
-        for (auto b=++blocks.begin(); b!=blocks.end(); b++)
-            blocks[0].merge(*b, comp);
+        //We cannot use simple merge here, because in case of compress
+        //a zero-height element between two compressed non-zero
+        //may start later (at the touchpoint) than the subsequent element.
+        //The rule here is to move zero-height elements along with the
+        //subsequent non-zero element after them. If they are at the end
+        //of a block, then move them with the non-zero element before them.
+        for (auto b=++blocks.begin(); b!=blocks.end(); b++) {
+            ArcList result;
+            ArcList *list[2] = {&blocks[0], &*b};
+            ArcList::iterator e[2] = {list[0]->begin(), list[1]->begin()};
+            FindFirstNonZero(e[0], list[0], result);
+            FindFirstNonZero(e[1], list[1], result);
+            while (list[0]->size() >0 && list[0]->size() > 0) {
+                unsigned u = (*e[0])->GetPos() > (*e[1])->GetPos();
+                result.splice(result.end(), *list[u], list[u]->begin(), ++e[u]);
+                FindFirstNonZero(e[u], list[u], result);
+            }
+            if (list[0]->size()) result.splice(result.end(), *list[0]);
+            if (list[1]->size()) result.splice(result.end(), *list[1]);
+            blocks[0].swap(result); //move the result to "block[0]"
+        }
         blocks.resize(1);
     }
-    return chart->PageBreakArcList(canvas, blocks[0], prevPageBreak, 
-                                   pageBreak, headingSize, addHeading);
+    return chart->PageBreakArcList(canvas, blocks[0], netPrevPageSize, 
+                                   pageBreak, addCommandNewpage, addHeading, false);
 }
 
 void ArcParallel::PlaceWithMarkers(MscCanvas &canvas, double autoMarker)

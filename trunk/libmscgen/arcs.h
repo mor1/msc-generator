@@ -153,11 +153,11 @@ public:
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {if (valid) {TrackableElement::ShiftBy(y);}}
-    /* Collect the y position of page breaks into Msc::yPageStart. */
-    virtual void CollectPageBreak(void) {}
+    /* Collect the y position of page breaks into Msc::yPageStart. next is the Arc immediately after us.*/
+    virtual void CollectPageBreak(double /*hSize*/) {}
     /** Split the element into two by a page break. Maintain running_state of entities. Return the amount the element has grown. -1 if we cannot rearrange, -2 if we are to ignore.*/
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
-                                    double /*pageBreak*/, double &/*headingSize*/, 
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/) {return -1;}
     /* Goes through the tree to place verticals. All height & pos info final by now, except on verticals & notes */
     virtual void PlaceWithMarkers(MscCanvas &/*cover*/, double /*autoMarker*/) {}
@@ -380,8 +380,8 @@ public:
 
     virtual void ShiftBy(double y);
     virtual Range YExtent() {return Range(false);}
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
-                                    double /*pageBreak*/, double &/*headingSize*/, 
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/) {return -2;}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
@@ -444,9 +444,9 @@ public:
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
-    virtual void CollectPageBreak(void);
-    virtual double SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
-                                    double pageBreak, double &headingSize, 
+    virtual void CollectPageBreak(double hSize);
+    virtual double SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+                                    double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
@@ -508,9 +508,9 @@ public:
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
-    virtual void CollectPageBreak(void);
-    virtual double SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
-                                    double pageBreak, double &headingSize, 
+    virtual void CollectPageBreak(double hSize);
+    virtual double SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+                                    double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);
@@ -562,9 +562,9 @@ public:
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
-    virtual void CollectPageBreak(void);
-    virtual double SplitByPageBreak(MscCanvas &canvas, double prevPageBreak,
-                                    double pageBreak, double &headingSize, 
+    virtual void CollectPageBreak(double hSize);
+    virtual double SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+                                    double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     virtual void PostPosProcess(MscCanvas &cover);

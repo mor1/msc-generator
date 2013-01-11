@@ -66,8 +66,8 @@ public:
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
-                                    double /*pageBreak*/, double &/*headingSize*/, 
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/);
     virtual void PostPosProcess(MscCanvas &cover);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -76,14 +76,18 @@ public:
 class CommandNewpage : public ArcCommand
 {
 public:
+    CommandEntity *const autoHeading; ///<For automatically inserted PBs, this can be a heading that follows
     const bool manual; ///<True if this was inserted by the user manually
-    CommandNewpage(Msc *msc, bool m)
-        : ArcCommand(MSC_COMMAND_NEWPAGE, msc), manual(m) {compress=false;}
+    CommandNewpage(Msc *msc, bool m, CommandEntity *ah)
+        : ArcCommand(MSC_COMMAND_NEWPAGE, msc), autoHeading(ah), 
+        manual(m) {compress=false;}
+    ~CommandNewpage() {if (autoHeading) delete autoHeading;}
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
 
-    virtual void CollectPageBreak(void);
+    virtual void ShiftBy(double y);
+    virtual void CollectPageBreak(double hSize);
 };
 
 class CommandNewBackground : public ArcCommand
@@ -216,9 +220,9 @@ public:
 
     virtual void ShiftBy(double y);
     /** We are to be ignored if we are off-line (outer_edge is valid) or we cannot rearrange if in-line */
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
-                                    double /*pageBreak*/, double &/*headingSize*/, 
-                                    bool /*addHeading*/, ArcList &/*res*/) 
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
+                                    bool /*addHeading*/, ArcList &/*res*/)
                                        {return outer_edge.y.IsInvalid() ? -2 : -1;}
     virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
@@ -276,7 +280,6 @@ public:
     void PlaceFloating(MscCanvas &canvas);
     void PlaceSideTo(MscCanvas &canvas, AreaList &cover, double &y);
 
-    virtual void ShiftBy(double /*y*/) {} //shift only along the target
     virtual void ShiftCommentBy(double y);
     //virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
     virtual void Draw(MscCanvas &canvas, DrawPassType pass);
@@ -294,9 +297,9 @@ public:
     void Append(ArcBase *p) {content.Append(p);}
     void Append(ArcList *l) {content.splice(content.end(), *l);}
     void MoveContent(ArcList &list, ArcList::iterator after) {list.splice(++after, content);}
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
-                                    double /*pageBreak*/, double &/*headingSize*/, 
-                                    bool /*addHeading*/, ArcList &/*res*/) 
+    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
+                                    bool /*addHeading*/, ArcList &/*res*/)
                                              {_ASSERT(0); return -1;}
 
 };

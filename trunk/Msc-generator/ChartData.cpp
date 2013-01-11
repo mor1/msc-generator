@@ -288,7 +288,7 @@ void CDrawingChartData::CompileIfNeeded() const
 	    if (pApp) 
 		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	    //Do postparse, compile, calculate sizes and sort errors by line
-	    m_msc->CompleteParse(MscCanvas::PNG, true, 150, true);
+	    m_msc->CompleteParse(MscCanvas::PNG, false);
         //See which of the forced entity/box collapse directives remained
         //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and
         //EntityDef::AddAttributeList
@@ -349,6 +349,7 @@ unsigned CDrawingChartData::GetPages() const
 
 //In CDrawingChartData we hide that the Msc chart does not originate in (0,0) by 
 //shifting all coordinates.
+//The returned page here contains autoHeaders and copyRightText
 CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_measure = force_page ? forced_page : m_page;
@@ -357,9 +358,15 @@ CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
     if (page_to_measure==0) 
         ret.cy = int(msc.GetTotal().y.Spans() + msc.copyrightTextHeight);
     else if (page_to_measure < msc.yPageStart.size()) 
-        ret.cy = int(msc.yPageStart[page_to_measure] - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
+        ret.cy = int(msc.yPageStart[page_to_measure].y - 
+                     msc.yPageStart[page_to_measure-1].y + 
+                     msc.yPageStart[page_to_measure].autoHeadingSize +
+                     msc.copyrightTextHeight);
     else if (page_to_measure == msc.yPageStart.size()) 
-        ret.cy = int(msc.GetTotal().y.till - msc.yPageStart[page_to_measure-1] + msc.copyrightTextHeight);
+        ret.cy = int(msc.GetTotal().y.till - 
+                     msc.yPageStart[page_to_measure-1].y + 
+                     msc.yPageStart[page_to_measure].autoHeadingSize +
+                     msc.copyrightTextHeight);
     return ret;
 }
 
@@ -373,7 +380,8 @@ double CDrawingChartData::GetPageYShift() const
 {
     const Msc &msc = *GetMsc();
     if (m_page==0) return msc.GetTotal().y.from;
-    if (m_page <= msc.yPageStart.size()) return msc.yPageStart[m_page-1]-msc.GetTotal().y.from;
+    if (m_page <= msc.yPageStart.size()) 
+        return msc.yPageStart[m_page-1].y - msc.GetTotal().y.from;
     return msc.GetTotal().y.Spans();
 }
 
@@ -395,9 +403,7 @@ void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, 
                      XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
-        m_msc->Draw(canvas, bPageBreaks && m_page==0);
-        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(canvas, m_page);
+        m_msc->DrawComplete(canvas, bPageBreaks, m_page);
     }
 }
 
@@ -407,9 +413,7 @@ void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) c
                      XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
-        m_msc->Draw(canvas, false);
-        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(canvas, m_page);
+        m_msc->DrawComplete(canvas, false, m_page);
     }
 }
 
@@ -430,9 +434,7 @@ size_t CDrawingChartData::DrawToMetafile(HDC hdc, MscCanvas::OutputType type, bo
 	if (pApp)
         canvas.SetFallbackImageResolution(pApp->m_uFallbackResolution);
     //draw page breaks only if requested and not drawing a single page only
-    m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
-    canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-    m_msc->DrawCopyrightText(canvas, page_to_draw);
+    m_msc->DrawComplete(canvas, pageBreaks, page_to_draw==0);
     canvas.CloseOutput();
     if (fallback_images)
         *fallback_images = std::move(canvas.stored_fallback_image_places);
@@ -454,9 +456,7 @@ HENHMETAFILE CDrawingChartData::DrawToEMF(MscCanvas::OutputType type, bool pageB
 	if (pApp)
         canvas.SetFallbackImageResolution(pApp->m_uFallbackResolution);
     //draw page breaks only if requested and not drawing a single page only
-    m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
-    canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-    m_msc->DrawCopyrightText(canvas, page_to_draw);
+    m_msc->DrawComplete(canvas, pageBreaks, page_to_draw);
     HENHMETAFILE hemf = canvas.CloseAndGetEMF();
     if (size)
         *size = canvas.GetMetaFileSize();
@@ -474,9 +474,7 @@ void CDrawingChartData::DrawToRecordingSurface(cairo_surface_t *surf, MscCanvas:
                      XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
     if (canvas.Status()==MscCanvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
-        m_msc->Draw(canvas, pageBreaks && page_to_draw==0);
-        canvas.PrepareForCopyrightText(); //Unclip the banner text exclusion clipped in SetOutputWin32()
-        m_msc->DrawCopyrightText(canvas, page_to_draw);
+        m_msc->DrawComplete(canvas, pageBreaks, page_to_draw);
     }
 }
 
@@ -508,7 +506,7 @@ TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
 	CompileIfNeeded();
 	if (m_page>0)
-		point.y += LONG(m_msc->yPageStart[m_page-1]);
+		point.y += LONG(m_msc->yPageStart[m_page-1].y);
     const XY point_msc(point.x + m_msc->GetTotal().x.from, point.y + m_msc->GetTotal().y.from);
     const Area *area = m_msc->AllCovers.InWhichFromBack(point_msc);
 	if (area==NULL) return NULL;
