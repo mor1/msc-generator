@@ -67,7 +67,7 @@ static void usage()
 {
     printf(
 "Usage: msc-gen [-T <type>] [-o <file>] [<infile>] [-Wno] [--pedantic]\n"
-"               [-p[=<page size>] [-m{lrud}=<margin>]]\n"
+"               [-p[=<page size>] [-m{lrud}=<margin>]] [-a[h]]\n"
 "               [-x=<width>] [-y=<height>] [-s=<scale>]\n"
 "               [--<chart_option>=<value> ...] [--<chart_design>]\n"
 "       msc-gen -l\n"
@@ -104,6 +104,9 @@ static void usage()
 " -ha=<center|left|right>\n"
 "             Set the vertical and horizontal alignment within a page for full-\n"
 "             page output.\n"
+" -a[h]       Automatic pagination. Used only with full-page output. If\n"
+"             specified, scale cannot be 'auto'. Specifying -ah will\n"
+"             insert a heading after automatically inserted page breaks.\n"
 " -Wno        No warnings displayed.\n"
 " --pedantic  When used, all entities must be declared before being used.\n"
 " -x=<width>  Specifies chart width (in pixels). Only for PNG output.\n"
@@ -173,6 +176,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
     MscCanvas::EPageSize  oPageSize = MscCanvas::NO_PAGE;
     int                   oVA = -2, oHA =-2; //-1=left/top, 0=center, +1=right/bottom (-2==not set)
     double                margins[] = {36, 36, 36, 36}; // half inches everywhere
+    bool                  oA = false;
+    bool                  oAH = false;
     string ss;
 
     Msc msc;
@@ -262,6 +267,10 @@ int do_main(const std::list<std::string> &args, const char *designs,
                     margins[at-dirs] = res*mul;
                 }
             }
+        } else if (*i == "-a") {
+            oA = true; oAH=false;
+        } else if (*i == "-ah") {
+            oA = true; oAH=true;
         } else if (*i == "-o") {
             if (i==--args.end()) {
                 msc.Error.FatalError(opt_pos, "Missing output filename after '-o'.");
@@ -442,21 +451,44 @@ int do_main(const std::list<std::string> &args, const char *designs,
         has_auto_or_width = oScale[s]<=0;
     if (has_auto_or_width && oPageSize == MscCanvas::NO_PAGE) {
         msc.Error.Error(opt_pos, "-s=auto and -s=width can only be used with full-page output. Using default scale of 1.0.");
-        oScale.resize(1);
-        oScale[0] = 1;
+        oScale.assign(1, 1.0);
     }
     if (oScale.size()>1 && oPageSize == MscCanvas::NO_PAGE) {
         msc.Error.Error(opt_pos, "Multiple -s options can only be applied to full-page output. Using default scale of 1.0.");
-        oScale.resize(1);
-        oScale[0] = 1;
+        oScale.assign(1, 1.0);
     }
     if (oPageSize==MscCanvas::NO_PAGE && oHA!=-2) {
         msc.Error.Error(opt_pos, "-ha can only be used with full-page output (-p). Ignoring it.");
         oHA = -1;
     }
+    if (oHA == -2) oHA = -1;
     if (oPageSize==MscCanvas::NO_PAGE && oVA!=-2) {
         msc.Error.Error(opt_pos, "-va can only be used with full-page output (-p). Ignoring it.");
         oVA = -1;
+    }
+    if (oVA == -2) oVA = -1;
+    if (oPageSize==MscCanvas::NO_PAGE && oA) {
+        msc.Error.Error(opt_pos, "-a can only be used with full-page output (-p). Ignoring it.");
+        oA = false;
+    }
+    if (oA) {
+        bool had_auto = false;
+        for (int s=0; s<oScale.size() && !had_auto; s++) 
+            if (oScale[s]==-2) {
+                had_auto = true;
+                oScale.erase(oScale.begin()+s);
+                s--;
+            }
+        if (had_auto && oScale.size())
+            msc.Error.Error(opt_pos, "Scale to fit page ('auto') cannot be used with automatic pagination (-a). Ignoring it.");
+        else if (had_auto && oScale.size()==0) {
+            msc.Error.Error(opt_pos, "Scale to fit page ('auto') cannot be used with automatic pagination (-a). Replacing with scale to fit page width ('width').");
+            oScale.push_back(-1);
+        }
+        if (oScale.size()>1) {
+            msc.Error.Error(opt_pos, "Multiple -s options cannot be applied to automatic pagination. Using default scale of 1.0.");
+            oScale.assign(1, 1.0);
+        }
     }
 
     if (msc.Error.hasFatal()) goto fatal;
@@ -500,7 +532,17 @@ int do_main(const std::list<std::string> &args, const char *designs,
     } else {
         //parse input text;
         msc.ParseText(input, oInputFile.c_str());
-        msc.CompleteParse(oOutType, true, 0, false);
+        XY pageSize(0,0);
+        if (oA) {
+            pageSize = MscCanvas::GetPhysicalPageSize(oPageSize);
+            pageSize.x -= margins[0] + margins[1];
+            pageSize.y -= margins[2] + margins[3];
+            if (oScale[0]>0) 
+                pageSize /= oScale[0];
+            if (pageSize.x<10 || pageSize.y<10) 
+                oA=false;
+        }
+        msc.CompleteParse(oOutType, true, oA, oAH, pageSize, oScale.size() ? oScale[0]==-1 : false);
 
         //Determine scaling
         std::vector<XY> scale(std::max(1U, oScale.size()), XY(1., 1.));

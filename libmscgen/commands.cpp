@@ -616,8 +616,8 @@ void CommandEntity::ShiftBy(double y)
 
 //We never split a heading. Here we sould add a full_header if addHeader is set: TODO.
 //Rght now we just updtae the running state in Msc::AllEntities
-double CommandEntity::SplitByPageBreak(MscCanvas &/*canvas*/, double /*prevPageBreak*/,
-                                    double /*pageBreak*/, double &/*headingSize*/, 
+double CommandEntity::SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool addHeading, ArcList &/*res*/)
 {
     if (addHeading) 
@@ -670,11 +670,19 @@ bool CommandNewpage::AttributeValues(const std::string, Csh &)
     return false;
 }
 
-void CommandNewpage::CollectPageBreak(void)
+void CommandNewpage::ShiftBy(double y)
+{
+    ArcCommand::ShiftBy(y);
+    //Shift autoheading to be just above us.
+    if (autoHeading)
+        autoHeading->ShiftBy(yPos-autoHeading->GetHeight() - autoHeading->GetPos());
+}
+
+
+void CommandNewpage::CollectPageBreak(double hSize)
 {
     if (!valid) return;
-    chart->yPageStart.push_back(yPos);
-    chart->yPageStartType.push_back(manual);
+    chart->yPageStart.push_back(PBData(yPos, manual, autoHeading));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

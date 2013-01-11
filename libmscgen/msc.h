@@ -138,7 +138,15 @@ public:
 
 /////////////////////////////////////////////////////////////////////
 
-class ArcVerticalArrow;
+struct PBData {
+    double y;
+    bool manual;
+    CommandEntity *autoHeading;
+    double autoHeadingSize;
+    PBData(double _y, bool m, CommandEntity *ce=NULL, double h=0) : 
+        y(_y), manual(m), autoHeading(ce), autoHeadingSize(h ? h : ce ? ce->GetHeight() : 0) {}
+};
+
 
 class Msc {
 public:
@@ -177,8 +185,7 @@ public:
     LineToArcMapType              AllArcs;
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
-    std::vector<double>           yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
-    std::vector<bool>             yPageStartType; ///< True if an explicit, user specified break, false if automatic.
+    PBDataVector                  yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
     PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
@@ -194,6 +201,7 @@ public:
     double comments_right_side;  //the right side of comments (or the drawing area if no rcomments)
     double copyrightTextHeight;  //Y size of the copyright text calculated
     double headingSize;          //Y size of first heading row collected during PostPosProcess(?)
+    Range yDrawing;              //Restrict drawing to this range
 
     //These below should have an integer value for nice drawing
     /** Gap at the bottom of the page for lengthening entity lines */
@@ -290,12 +298,14 @@ public:
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList &arcs, double y);
     void InsertAutoPageBreak(MscCanvas &canvas, ArcList &arcs, ArcList::iterator i, 
-                             double pageBreak, double &headingSize, bool addHeading);
-    double PageBreakArcList(MscCanvas &canvas, ArcList &arcs, double prevPageBreak,
-                            double pageBreak, double &headingSize, bool addHeading);
-    void CollectPageBreakArcList(ArcList &arcs) {for (auto i= arcs.begin(); i!=arcs.end(); i++) (*i)->CollectPageBreak();}
+                             double pageBreak, bool addHeading);
+    double PageBreakArcList(MscCanvas &canvas, ArcList &arcs, double netPrevPageSize,
+                            double pageBreak, bool &addCommandNewpage, bool addHeading, 
+                            bool canChangePBPos);
+    void CollectPageBreakArcList(ArcList &arcs);
     void AutoPaginate(MscCanvas &canvas, double pageSize, bool addHeading);
-    void CalculateWidthHeight(MscCanvas &canvas, double pageSize, bool addHeading);
+    void CalculateWidthHeight(MscCanvas &canvas, 
+                              bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth);
     void PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
     void PlaceFloatingNotes(MscCanvas &canvas);
 
@@ -303,17 +313,20 @@ public:
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs);
 
-    void CompleteParse(MscCanvas::OutputType, bool avoidEmpty, double pageSize, bool addHeading);
+    void CompleteParse(MscCanvas::OutputType, bool avoidEmpty, 
+                       bool autoPaginate=false, bool addHeading=true, XY pageSize=XY(0,0), bool fitWidth=true);
 
     void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
     void DrawEntityLines(MscCanvas &canvas, double y, double height)
          {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
-    template<typename list> void DrawArcList(MscCanvas &canvas, list &arcs, DrawPassType pass) {for (auto i = arcs.begin();i!=arcs.end(); i++) (*i)->Draw(canvas, pass);}
-    void DrawArcs(MscCanvas &canvas, DrawPassType pass);
-    void Draw(MscCanvas &canvas, bool pageBreaks);
-    void DrawCopyrightText(MscCanvas &canvas, unsigned page=0);
+    void DrawArcList(MscCanvas &canvas, ArcList &arcs, DrawPassType pass);
+    void DrawChart(MscCanvas &canvas, bool pageBreaks);
+
+    void DrawCopyrightTextAndAutoHeading(MscCanvas &canvas, unsigned page=0);
     void DrawPageBreaks(MscCanvas &canvas);
+    void DrawComplete(MscCanvas &canvas, bool pageBreaks, unsigned page);
+
     void DrawToOutput(MscCanvas::OutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks, 
                       MscCanvas::EPageSize pageSize=MscCanvas::NO_PAGE, const double margins[4]=NULL, 
                       int ha=-1, int va=-1, bool generateErrors=false);
