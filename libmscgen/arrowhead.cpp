@@ -1,6 +1,6 @@
 /*
     This file is part of Msc-generator.
-    Copyright 2008,2009,2010,2011,2012 Zoltan Turanyi
+    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
     Distributed under GNU Affero General Public License.
 
     Msc-generator is free software: you can redistribute it and/or modify
@@ -16,6 +16,9 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file arrowhead.cpp The implementation of arrowhead styles and drawing including block arrows.
+ * @ingroup libmscgen_files */
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <algorithm>

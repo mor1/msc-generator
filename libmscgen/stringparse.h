@@ -1,3 +1,25 @@
+/*
+    This file is part of Msc-generator.
+    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/** @file stringparse.h The declaration of arrowhead styles.
+ * @ingroup libmscgen_files */
+
 #if !defined(STRINGPARSE_H)
 #define STRINGPARSE_H
 #include <set>
@@ -11,27 +33,33 @@ class MscCanvas;
 
 using std::string;
 
+/** Describes text identation */
 typedef enum
 {
-    MSC_IDENT_INVALID = 0,
-    MSC_IDENT_LEFT,
-    MSC_IDENT_CENTER,
-    MSC_IDENT_RIGHT
+    MSC_IDENT_INVALID = 0, ///<The invalid value
+    MSC_IDENT_LEFT,        ///<Left-aligned
+    MSC_IDENT_CENTER,      ///<Centered
+    MSC_IDENT_RIGHT        ///<Right-aligned
 }
 MscIdentType;
 
+/**  Describes text characteristics */
 typedef enum 
 {
-    MSC_FONT_NORMAL=0, 
-    MSC_FONT_SMALL=1, 
-    MSC_FONT_SUPERSCRIPT=2, 
-    MSC_FONT_SUBSCRIPT=3
+    MSC_FONT_NORMAL=0,      ///<Regular text
+    MSC_FONT_SMALL=1,       ///<Small font
+    MSC_FONT_SUPERSCRIPT=2, ///<Small font superscript
+    MSC_FONT_SUBSCRIPT=3    ///<Small font subscript
 }
 MscFontType;
 
+/** Describes, set, unset and invert for text attributes*/
 enum tristate {no=0, yes, invert};
 
+/** Escape character showing the location in the input file.
+ * Preceeded by backslash and followed by a file_line in parenthesis.*/
 #define ESCAPE_CHAR_LOCATION ((char)1)
+/** Same as ESCAPE_CHAR_LOCATION, but in string*/
 #define ESCAPE_STRING_LOCATION "\x01"
 #define ESCAPE_CHAR_NUMBERFORMAT ((char)2)
 #define ESCAPE_STRING_NUMBERFORMAT "\x02"
