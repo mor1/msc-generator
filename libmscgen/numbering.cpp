@@ -76,7 +76,7 @@ bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text
 {
     string str(text);
     //We keep \s() \c() etc escapes, but remove the erroneous ones.
-    StringFormat::ExpandReferences(str, msc, linenum, NULL, true, StringFormat::NUMBER_FORMAT);
+    StringFormat::ExpandReferences(str, msc, linenum, NULL, false, true, StringFormat::NUMBER_FORMAT);
     //Now find a numbering format escape and separate pre and post
     int pos_of_number = StringFormat::FindNumberingFormatEscape(str.c_str());
     if (pos_of_number == -1) {

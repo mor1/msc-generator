@@ -387,7 +387,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, fil
         string orig_label = label.first?label.second:name;
         string proc_label = orig_label;
         StringFormat::ExpandReferences(proc_label, chart, linenum_label_value,
-                                          &style_to_use.text, true, StringFormat::LABEL);
+                                          &style_to_use.text, false, true, StringFormat::LABEL);
 
         //Allocate new entity with correct label and children and style
         Entity *e = new Entity(name, proc_label, orig_label, position, position_exp,
