@@ -16,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file stringparse.cpp Implementation of StringFormat and Label for text functions.
+ * @ingroup libmscgen_files */
 #include <assert.h>
 #include <iostream>
 #include "csh.h"
@@ -23,13 +25,16 @@
 
 //////////////////////////////////////////////////////////////////////////////////
 
+/** Values for text.ident attribute*/
 template<> const char EnumEncapsulator<MscIdentType>::names[][ENUM_STRING_LEN] =
     {"invalid", "left", "center", "right", ""};
 
+/** Values for text.type attribute*/
 template<> const char EnumEncapsulator<MscFontType>::names[][ENUM_STRING_LEN] =
     {"invalid", "normal", "small", "superscript", "subscript", ""};
 
 
+/** Merge two tristate values.*/
 void AddTristate(std::pair<bool, tristate> &a, const std::pair<bool, tristate> b)
 {
     if (!b.first) return;
@@ -85,6 +90,10 @@ bool StringFormat::IsComplete() const
         smallFontSize.first;
 }
 
+/** Sets the fully specified default font. 
+ * Font sizes are 16 and 10 point, all margins at 2,
+ * no line spacing, centered, black, not bold, not italic,
+ * not underlined, face name is "Arial". */
 void StringFormat::Default() 
 {
     normalFontSize.first = true; normalFontSize.second = 16; 
@@ -131,69 +140,100 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
     return *this;
 }
 
-//Recognize and potentially process one escape sequence in the beginning of input
-//Return what is at that location:
-//- a valid format-changing escape sequence (FORMATTING_OK)
-//- an escape resulting in no formatting, but also no characters (FORMATTING_OK)
-//- an invalid escape sequence (INVALID_ESCAPE)
-//- a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
-//- just regular characters (NON_ESCAPE)
-//- a \n escape (LINE_BREAK)
-//- a \r(xxx) escape (REFERENCE) - no lookups or replacement is offered if `do_refs` is false
-//- a \N or \r() escape (NUMBERING) - the location of the number in this label
-//- a \0x2{1aAiI} escape (NUMBERING_FORMAT)
-//- a lone '\' at the end of the string (SOLO_ESCAPE)
-//In length return the length of the escape found (or for NON_ESCAPE the offset to the next '\').
-//for FORMATTING_OK in replaceto return what to replace the escape to:
-//  - color names are resolved to actual numbers
-//  - style names are resolved to actual formatting instructions
-//  - empty parenthesis \c(), \s(), \f(), \mX() are filled in with the value in "basic" or if NULL, then ignored
-//for NON_FORMATTING in replaceto return the character represented by the escape (can be zero length for "\|")
-//for NON_ESCAPE return the text verbatim
-//for INVALID_ESCAPE return empty string
-//for NUMBERING and NUMBERING_FORMAT return the actual escape
-//What do we do:
-//- if apply==true: Apply the string formatting escape to "this". (or do nothing for invalid escapes)
-//- if resolve==true we resolve color/style references (stored in msc->Contexts). 
-//  (If msc==NULL, or we do not find the stye/color we return INVALID_ESCAPE)
-//  if apply==true, resolve parameter is ignored, we assume resolve==true.
-//  resolve has no impact on other than \s \c and has impact only if msc!=NULL && apply==false
-//- if linenum!=NULL: any problem generates an Error/Warning. if sayIgnore the we say we ignore the error,
-//                    otherwise we say we keep the problematic escape as verbatim text.
-//In general linenum carries the location of the first char of input. When we return, it contains the position
-//of the character in input+length. (In the original input file this can e.g., be in a different line.)
-//"length" returns the length of the escape (or non-escape string) we have processed
-//"basic" carries the formatting we use to resolve \s() \c() \f() and \mX(). If NULL, we apply nothing even if "apply" is
-//true and we keep the escape in replaceto unchanged. Basic must be a fully specified StringFormat (all .first == true)
-#define PER_S_DEPRECATED_MSG "The use of '\\s' control escape to indicate small text is deprecated. Use '\\-' instead."
-#define MAX_ESCAPE_M_VALUE 500
-#define TOO_LARGE_M_VALUE_MSG  "Use an integer between [0..500]."
+/** Recognize and process one escape sequence.
+ * The escape is sought for at at the beginning of `input`. The string iteself is not
+ * changed, but a suggested replacement/resolution is returned in `replaceto`.
+ * References to styles and colors are resolved from the top of `msc->Contexts`,
+ * references to the default style, color, etc. (via "\s()" or "\c()") are taken
+ * from `basic` if supplied.
+ * In general, `linenum` carries the location of the first char of input. 
+ * `When` we return, it contains the position
+ * of the character in `input`+`length`. (In the original input file this can e.g., 
+ * be in a different line.)
+ * If `linenum`!=NULL then any problem generates an Error/Warning. 
+ * If `sayIgnore` is true the we say we ignore the error,
+ * otherwise we say we keep the problematic escape verbatim.
+ *
+ * This function recognize the following escape sequences:
+ * - "\-" - switch to small font (also "\s")
+ * - "\+" - switch to normal font
+ * - "\^" - switch to superscript
+ * - "\_" - swucth to subscript
+ * - "\mX(num) - set text margings (X=_u_p, _d_own, _l_eft, _r_ight)
+ * -             and font size (X=_s_mall, _n_ormal)
+ * -             E.g. \mu(7) sets upper margin to 7.
+ * - "\c(color) - set color, E.g., \c(0,0,0) is black
+ * - "\pX"- set paragraph ident to _c_enter, _l_eft, _r_ight
+ * - "\0".."\9" - keep this much of line space after the line
+ * - "\\" - an escaped "\"
+ * - \#[]{}"; - an escaped chars
+ * - "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
+ * - "\n" - a line break
+ * - "\N" - insert line number here - should not appear in a numbering format
+ * - "\r(ref)" - insert the line number of another entity here - \r() equals \N
+ * - "\0x21" "\0x2a" "\0x2A" "\0x2i" "\0x2I" - used to define numbering formats, should not appear in a label
+ * - "\0x1(file,line,col)" - notes the position of the next char in the original file
+ *
+ * @param [in] input The string to recognize.
+ * @param [out] length Returns the length of the escape found 
+ *                     (or for NON_ESCAPE the offset to the next '\').
+ * @param [in] resolve If true we resolve color/style references (stored in Msc::Contexts). 
+ *   (If msc==NULL, or we do not find the stye/color we return INVALID_ESCAPE)
+ *   If apply==true, resolve parameter is ignored, we assume resolve==true.
+ *   This parameter has impact only on \s and \c escapes and only if msc!=NULL.
+ * @param [in] apply If true then besides parsing, we apply the string formatting escape 
+ *                   to "this". (Do nothing for invalid escapes.)
+ * @param [out] replaceto If not NULL, return a suggested resolution for the escape.
+ * - for FORMATTING_OK we return what to replace the escape to:
+ *    + color names are resolved to actual RGBA numbers in a syntax suitable for MscColor::MscColor();
+ *    + style names are resolved to actual formatting instructions (a lot of \b\i and similar escapes);
+ *    + empty parenthesis escapes \c(), \s(), \f(), \mX() are replaced with the respective 
+ *      value in `basic` or if that is NULL, then are left in place.
+ * - for NON_FORMATTING we return the character represented by the escape (can be zero length for "\|")
+ * - for NON_ESCAPE we return the text verbatim
+ * - for LINE_BREAK and INVALID_ESCAPE we return empty string
+ * - for REFERENCE we attempt to resolve it to an element number if `references` is 
+ *   true. If so and we do not find this reference, we generate an error. If 
+ *   `references` is false, we return the escape verbatim.
+ * - for NUMBERING and NUMBERING_FORMAT we return the actual escape verbatim
+ * - for SOLO_ESCAPE we return a single backslash
+ * @param [in] basic This is a string format that is used for resolving empty \c(), \s(), \f(), \mX()
+ *                   escapes. If NULL than those are returned verbatim in `replaceto`.
+ * @param msc This object is used as a source of context for style, color names and references.
+ *            We also use it to send errors to. If NULL, we do not generate errors nor do we
+ *            resolve style, color names and references.
+ * @param [in] numbers If true, indicates that msc->References is complete and therefore we attempt 
+ *                     to replace \r escapes with actual numbers. (Empty "\r()" is always treated
+ *                     as equal to "\N" and we return NUMBERING.)
+ * @param linenumm When called, this contains the position of the first character of `input`.
+ *                 At return it is updated (if not NULL) to point to the first character after
+ *                 the escape.
+ * @param [in] sayIgnore If true we use language in error messages that say we ignore
+ *                       a bad escape. If false, we say that we keep it verbatim.
+ * @returns The code for what is found at the beginning of `input`:
+ * - a valid format-changing escape sequence (FORMATTING_OK)
+ * - an escape resulting in no formatting, but also no characters (FORMATTING_OK)
+ * - an invalid escape sequence (INVALID_ESCAPE)
+ * - a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
+ * - just literal text up until the next escape (NON_ESCAPE)
+ * - a \n escape (LINE_BREAK)
+ * - a \r(xxx) escape (REFERENCE) - no lookups or replacement is offered if `do_refs` is false
+ * - a \N or \r() escape (NUMBERING) - the location of the number in this label
+ * - a \0x2{1aAiI} escape (NUMBERING_FORMAT)
+ * - a lone '\' at the end of the string (SOLO_ESCAPE)
+ */
 StringFormat::EEscapeType StringFormat::ProcessEscape(
 	const char * const input, unsigned &length,
 	bool resolve, bool apply, string *replaceto, const StringFormat *basic,
-	Msc *msc, file_line *linenum, bool sayIgnore)
+	Msc *msc, bool references, file_line *linenum, bool sayIgnore)
 {
-    /*
-     ** Recognize the following escape sequences
-     ** "\-" - switch to small font (also "\s")
-     ** "\+" - switch to normal font
-     ** "\^" - switch to superscript
-     ** "\_" - swucth to subscript
-     ** "\mX(num) - set text margings (X=_u_p, _d_own, _l_eft, _r_ight)
-     **             and font size (X=_s_mall, _n_ormal)
-     **             E.g. \mu(7) sets upper margin to 7.
-     ** "\c(color) - set color, E.g., \c(0,0,0) is black
-     ** "\pX"- set paragraph ident to _c_enter, _l_eft, _r_ight
-     ** "\0".."\9" - keep this much of line space after the line
-     ** "\\" - an escaped "\"
-     ** \#[]{}"; - an escaped chars
-     ** "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
-     ** \n - a line break
-     ** \N - insert line number here - should not appear in a numbering format
-     ** \r(ref) - insert the line number of another entity here - \r() equals \N
-     ** \0x21 \0x2a \0x2A \0x2i \0x2I - used to define numbering formats, should not appear in a label
-     ** \0x1(file,line,col) - notes the position of the next char in the original file
-     */
+    /** The message saying that the use of '\s' escape for small text is deprecated.*/
+    static const char PER_S_DEPRECATED_MSG[] = 
+        "The use of '\\s' control escape to indicate small text is deprecated. Use '\\-' instead.";
+    /** Maximum margin for text margins */
+    static const double MAX_ESCAPE_M_VALUE = 500;
+    /** The explanatory message for out-of bound margins */
+    static const char TOO_LARGE_M_VALUE_MSG[] = "Use an integer between [0..500].";
 
     MscColorType c;
     string parameter;
@@ -483,8 +523,20 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             if (linenum) linenum->col += length;
             return NUMBERING;
         }
-        //just recognize, do not replace
-        if (replaceto) replaceto->assign(input, length);
+        //suggest the number
+        if (replaceto && msc && references) {
+            string parameter = input + 3;
+            parameter.erase(length-4);
+            auto itr = msc->ReferenceNames.find(parameter);
+            if (itr!=msc->ReferenceNames.end()) {
+                replaceto->assign(parameter);
+            } else if (linenum){ 
+                //here we did not find the reference
+                msc->Error.Error(*linenum, "Unrecognized reference '" + parameter +
+                                        "'. Ignoring it.", "References are case-sensitive.");
+            }
+        } else if (replaceto) 
+            replaceto->assign(input, length);
         if (linenum) linenum->col += length;
         return REFERENCE;
     case 'f':
@@ -633,7 +685,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         return FORMATTING_OK;
 }
 
-//This one tells if the string has any escape character or not
+/** Tells if the string has any escape character or not*/
 bool StringFormat::HasEscapes(const char *text) 
 {
     if (text==NULL || text[0]==0) return false;
@@ -649,6 +701,11 @@ bool StringFormat::HasEscapes(const char *text)
 }
 
 
+/** Adds CSH entries to csh for each formatting escape. 
+ * Malformed \c and \s arguments are assumed OK
+ * @param [in] startpos The location of the first byte of `text` in the input file.
+ * @param [in] text The text to process.
+ * @param csh The object collecting the entries.*/
 void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
 {
     if (text==NULL) return;
@@ -681,20 +738,25 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     }
 }
 
-//Replaces style, color names to actual definitions found in msc->Contexts.back()
-//and in msc->ReferenceNames
-//Also performs syntax error checking and generates errors/warnings
-//escape contais the string to parse (and change)
-//if ignore then in errors we say we ignore the erroneous escape and also remove it from the str
-//if not then we say we keep verbatim and we do so
-//basic contains the baseline style and color, must be a fully specified StringFormat
-//(the one to return to at \s() and \c() and \f(), mX())
-//if NULL, those escapes remain in unchanged
-//textType is NUMBER_FORMAT if this string is a number format (cannot contain \N)
-//or it is LABEL or a TEXT_FORMAT (cannot contain \0x2{1aAiI}
+/** Replaces style, color names to actual definitions.
+ * Definitions are pulled from in msc->Contexts.back()
+ * and in msc->ReferenceNames.
+ * Also performs syntax error checking and generates errors/warnings into msc->Error.
+ * @param text The text to process.
+ * @param msc The chart to add errors to and a source for style, color and reference names.
+ * @param [in] linenum The location of the first byte of `text` in the input file.
+ * @param [in] basic The formatting to use for empty \s() \c() \mX() and \f() escapes. 
+ *                   Can be NULL if not available, in this case the above escapes are left as is.
+ *                   If not null, it must point to a fully specified StringFormat object.
+ * @param [in] references True if the msc->References are complete. If false, \r escapes left intact.
+ * @param [in] ignore If true then in error messages we say we ignore the erroneous escape and also 
+ *                    remove it from the string, if not then we say we keep verbatim and we do so.
+ * @param [in] textType The type of text we process. This is to generate the right errors. 
+ *                      NUMBER_FORMAT cannot contain \N, whereas LABEL and TEXT_FORMAT cannot contain 
+ *                      numbering format token escapes ("\0x2{1aAiI}").*/
 void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
-                                    const StringFormat *basic, bool ignore, 
-                                    ETextType textType)
+                                    const StringFormat *basic, bool references,
+                                    bool ignore,  ETextType textType)
 {
     //We have three cases regarding linenum
     //1. it is a colon-label, in which case msc_process_colon_string() inserted
@@ -715,10 +777,10 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
         unsigned length;
         file_line beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, 
-                                 basic, msc, &linenum, ignore)) {
+                                 basic, msc, references, &linenum, ignore)) {
         case FORMATTING_OK: //do nothing, just replace as below
-        case REFERENCE:     //a valid \r(xxx) escape. Replace will not change it.
-            break; 
+        case REFERENCE:     //a valid \r(xxx) escape. If we "references" is true we have the number
+            break;          //if not, we keep the escape as is.
         case INVALID_ESCAPE:
             if (ignore) break;  //replaceto is empty here, we will remove the bad escape
             //fallthrough, if we do not ignore: this will set replaceto to the bad escape
@@ -735,7 +797,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
                 replaceto.clear();
             }
             break;
-        case NUMBERING:         //keep \NN as is
+        case NUMBERING:         //keep \N as is
             if (textType == NUMBER_FORMAT) {
                 msc->Error.Error(beginning_of_escape, "The '\\N' escape can not be used for numbering formatting options. Ignoring it.");
                 replaceto.clear();
@@ -759,44 +821,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
     }
 }
 
-//Replaces element references to actual numbers found in msc->ReferenceNames.
-//Errors returned only related to \r escapes.
-//`text` contais the string to parse (and change)
-void StringFormat::ExpandElementReferences(string &text, Msc *msc, file_line linenum)
-{
-    //We have three cases regarding linenum
-    //1. it is a colon-label, in which case msc_process_colon_string() inserted
-    //   a position escape to the beginning of the string, so the linenum we got
-    //   here will be overridden
-    //2. it is an unquoted string, which cannot contain escapes, hence neither
-    //   errors, so the linenum we got as parameter here will not be used
-    //3. it is a quoted string. In this case we do not start by a pos escape
-    //   and we may need the linenum parameter to report an error. In this case
-    //   we know that the linenum parameter points to the opening quotation mark
-    //   so we increment it at the beginning - for cases #1 and #2 it does not matter
-    linenum.col++;
-    string::size_type pos=0;
-    StringFormat sf;
-    while(text.length()>pos) {
-        unsigned length;
-        if (REFERENCE == sf.ProcessEscape(text.c_str()+pos, length, false, false, NULL, NULL, NULL, &linenum)) {
-            //a valid \r(xxx) escape. Replace text returned (equal to original if do_refs is false)
-            const string parameter = text.substr(pos+3, length-4);
-            auto itr = msc->ReferenceNames.find(parameter);
-            if (itr!=msc->ReferenceNames.end()) {
-                text.replace(pos, length, itr->second.number_text);
-                pos += itr->second.number_text.length();
-            } else { 
-                //here we did not find the reference
-                msc->Error.Error(linenum, "Unrecognized reference '" + parameter +
-                                        "'. Ignoring it.", "References are case-sensitive.");
-                pos += length;
-            }
-        } else
-            pos += length;
-    }
-}
-
+/** Returns the offset of first numbering format escape, -1 if none*/
 int StringFormat::FindNumberingFormatEscape(const char *text)
 {
     StringFormat sf;
@@ -811,6 +836,7 @@ int StringFormat::FindNumberingFormatEscape(const char *text)
 	return -1;
 }
 
+/** Removes any potential leftover position escape ("\0x1(xxx)")*/
 void StringFormat::RemovePosEscapes(string &text)
 {
     StringFormat sf;
@@ -826,6 +852,7 @@ void StringFormat::RemovePosEscapes(string &text)
     }
 }
 
+/** Removes all escapes, except line breaks, which are replaced with "\n"*/
 void StringFormat::ConvertToPlainText(string &text)
 {
     StringFormat sf;
@@ -849,9 +876,6 @@ void StringFormat::ConvertToPlainText(string &text)
 }
 
 
-//Parse the string as long as valid escape sequences come and apply their meaning
-//If you hit something not a valid format changing escape char, stop & return
-//return the #of characters processed
 unsigned StringFormat::Apply(const char *text)
 {
     unsigned pos = 0;
@@ -991,6 +1015,18 @@ string StringFormat::Print() const
     return ret;
 }
 
+/** Take an attribute and apply it to us.
+ *
+ * We consider attributes ending with 'color', 'ident', 'format', 'font.face',
+ * 'font.type', 'bold', 'italics', 'underline', 'gap.*', 'size.normal' and
+ * 'size.small' or any style at the current context in `msc`. 
+ * We also accept the clearing of
+ * an attribute if `t` is STYLE_STYLE, that is for style definitions only.
+ * At a problem, we generate an error into msc->Error.
+ * @param [in] a The attribute to apply.
+ * @param msc The chart we build.
+ * @param [in] t The situation we set the attribute.
+ * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
 bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -1035,7 +1071,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         string tmp = a.value;
         if (tmp.length()==0) return true;
 
-        StringFormat::ExpandReferences(tmp, msc, a.linenum_value.start, this, true, TEXT_FORMAT);
+        StringFormat::ExpandReferences(tmp, msc, a.linenum_value.start, this, false, true, TEXT_FORMAT);
 
         StringFormat sf(tmp);
         RemovePosEscapes(tmp);
@@ -1049,7 +1085,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         operator += (sf);
         return true;
     }
-    if (a.EndsWith("text.font.face")) {
+    if (a.EndsWith("font.face")) {
         if (a.type == MSC_ATTR_CLEAR) {
             if (a.EnsureNotClear(msc->Error, t))
                 face.first = false;
@@ -1117,6 +1153,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
 
 }
 
+/** Add the attribute names we take to `csh`.*/
 void StringFormat::AttributeNames(Csh &csh)
 {
     static const char names[][ENUM_STRING_LEN] =
@@ -1128,6 +1165,8 @@ void StringFormat::AttributeNames(Csh &csh)
     csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
 }
 
+/** Callback for drawing a symbol before text ident types in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -1151,6 +1190,7 @@ bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p
     return true;
 }
 
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 {
     if (CaseInsensitiveEndsWith(attr, "color")) {
@@ -1197,9 +1237,15 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 }
 
 
+/** Adds numbering to a label. 
+ * By default to the beginning of it, unless \N escape directs it elsewhere. 
+ * If we find a \N escape in the label we replace that to `num` (for multiple \Ns, if needed).
+ * If we find no such escape, we add `pre_num_post` to the beginning, 
+ * but after the initial formatting strings.
+ * @param label The label to add numbers to.
+ * @param [in] num The number to replace \N with.
+ * @param [in[ pre_num_post The number to add to the beginning.*/
 //This shall be called only after StringFormat::ExpandReferences on a label and both num strings
-//If we find a \N escape in the label we replace that to num (for multiple \Ns, if needed)
-//If we find no such escape, we add it to the beginning, but after the initial formatting strings
 void StringFormat::AddNumbering(string &label, const string &num, const string &pre_num_post)
 {
     if (label.length()==0) return;
@@ -1225,6 +1271,9 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
         label.insert(beginning_pos, pre_num_post);
 }
 
+/** Apply the formatting in us to `canvas`.
+ * After this putting text to the canvas will use 
+ * our formatting*/
 void StringFormat::ApplyFontTo(MscCanvas &canvas) const
 {
     _ASSERT(IsComplete()); 
@@ -1243,7 +1292,13 @@ void StringFormat::ApplyFontTo(MscCanvas &canvas) const
     canvas.SetColor(color.second);
 }
 
-//front is yes if we want heading space width and false if trailing
+/** Returns the width of spaces at the beginning or at the end of a string.
+ * This is because cairo removes these spaces and sometimes we need
+ * them.
+ * @param [in] text The text in which we look for heading/trailing spaces.
+ * @param canvas A canvas used to query font sizes
+ * @param [in] front If true we return the width of heading spaces, else trailing.
+ * @returns The width of the spaces in pixels. */
 double StringFormat::spaceWidth(const string &text, MscCanvas &canvas, bool front) const
 {
     if (text.length()==0 || !canvas.fake_spaces) return 0;
@@ -1328,6 +1383,15 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
     return 0;
 }
 
+/** Draw a piece of text with our (uniform) formatting. 
+ * All drawing is strictly in english. Left to right and ASCII only.
+ * @param [in] s The text to output.
+ * @param canvas The canvas to draw to. 
+ * @param [in] xy The starting point. `y` specifies the baseline of the text, not the
+ *                upper left corner. (Baseline is not meant in cairo sense.)
+ * @param [in] isRotated If true, and the canvas cannot display rotated text,
+ *                       the canvas will use cairo_text_path() as fallback.
+ * @returns The y advancement.*/
 double StringFormat::drawFragment(const string &s, MscCanvas &canvas, XY xy, bool isRotated) const
 {
     if (s.length()==0) return 0;
@@ -1447,11 +1511,9 @@ void ParsedLine::Draw(XY xy, MscCanvas &canvas, bool isRotated) const
 //////////////////////////////////////////////////
 
 
-/** Split a string to substrings based on '\n' delimiters.
- * Then parse the strings for escape control characters
- */
-unsigned Label::AddText(const string &input, MscCanvas &canvas, StringFormat format)
+unsigned Label::Set(const string &input, MscCanvas &canvas, StringFormat format)
 {
+    clear();
     size_t pos = 0, line_start = 0;
     unsigned length=0;
     while (pos < input.length()) {

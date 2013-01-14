@@ -596,7 +596,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         Contexts.back().numberingStyle.pre.second = a.value;
         StringFormat::ExpandReferences(Contexts.back().numberingStyle.pre.second, this,
                                           a.linenum_value.start, NULL,
-                                          true, StringFormat::LABEL);
+                                          false, true, StringFormat::LABEL);
         return NULL;
     }
     if (a.Is("numbering.post")) {
@@ -604,7 +604,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         Contexts.back().numberingStyle.post.second = a.value;
         StringFormat::ExpandReferences(Contexts.back().numberingStyle.post.second, this,
                                           a.linenum_value.start, NULL,
-                                          true, StringFormat::LABEL);
+                                          false, true, StringFormat::LABEL);
         return NULL;
     }
     if (a.Is("numbering.append")) {
