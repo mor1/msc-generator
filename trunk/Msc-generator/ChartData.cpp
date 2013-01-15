@@ -502,7 +502,7 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
     GetMsc()->DrawToOutput(ot, std::vector<XY>(1, XY(x_scale, y_scale)), fn, bPageBreaks);
 }
 
-TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
+Element *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
 	CompileIfNeeded();
 	if (m_page>0)
@@ -513,7 +513,7 @@ TrackableElement *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 	return area->arc;
 }
 
-TrackableElement *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
+Element *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
 {
 	CompileIfNeeded();
 	file_line linenum(m_msc->Error.Files.size()-1, line, col);

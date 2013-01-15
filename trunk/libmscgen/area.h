@@ -1,22 +1,46 @@
+/*
+    This file is part of Msc-generator.
+    Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
+    Distributed under GNU Affero General Public License.
+
+    Msc-generator is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Msc-generator is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/** @file area.h The declaration of Area.
+ * @ingroup libmscgen_files */
 #if !defined(CONTOUR_XAREA_H)
 #define CONTOUR_XAREA_H
 
 #include <list>
 #include "contour.h"
 
-class TrackableElement;
-//plus it has additional stuff, such as arc and mainline
+class Element;
 
+/** Defines coverage and mainline for chart elements.
+ * Basically a Contour that includes a backpointer to an arc,
+ * plus another mainline contour.
+ * Basically redefines all Contour operations for the above content.*/
 class Area : public contour::Contour
 {
 public:
-    mutable TrackableElement *arc;
+    mutable Element *arc;
     contour::Contour          mainline;
 
-    explicit Area(TrackableElement *a=NULL) : arc(a) {}
-    Area(const Contour &cl, TrackableElement *a=NULL) : Contour(cl), arc(a) {}
-    Area(Contour &&cl, TrackableElement *a=NULL) : Contour(std::move(cl)), arc(a) {}
-    Area(const contour::Block &b, TrackableElement *a=NULL) : Contour(b), arc(a) {}
+    explicit Area(Element *a=NULL) : arc(a) {}
+    Area(const Contour &cl, Element *a=NULL) : Contour(cl), arc(a) {}
+    Area(Contour &&cl, Element *a=NULL) : Contour(std::move(cl)), arc(a) {}
+    Area(const contour::Block &b, Element *a=NULL) : Contour(b), arc(a) {}
 
     void clear() {Contour::clear(); mainline.clear();}
     void swap(Area &a);
@@ -67,12 +91,20 @@ public:
     double OffsetBelow(const Area &below, double &touchpoint, double offset=CONTOUR_INFINITY, bool bMainline = true) const;
 };
 
+/** A list of Area objects.
+ * No effort is made to avoid overlap, thus addition 
+ * operations are indeed just appends to the list.
+ * We maintain a total boundingBox and mainline and
+ * these are actually combined to a single block and 
+ * contour, respectively.
+ * Ordering is important in the list for InWhich*
+ * functions.*/
 class AreaList
 {
-    std::list<Area>  cover;
-    contour::Block   boundingBox;
+    std::list<Area>  cover;       ///<The list of Areas.
+    contour::Block   boundingBox; ///<The combined bounding box.
 public:
-    contour::Contour mainline;
+    contour::Contour mainline;    ///<A combined total mainline.
     AreaList() {boundingBox.MakeInvalid();}
     AreaList(const Area &area) {boundingBox.MakeInvalid(); operator+=(area);}
     AreaList(Area &&area) {boundingBox.MakeInvalid(); operator+=(std::move(area));}
@@ -85,7 +117,7 @@ public:
     std::list<Area>::const_iterator begin() const {return cover.begin();}
     std::list<Area>::const_iterator end() const {return cover.end();}
     void swap(AreaList &o) {cover.swap(o.cover); std::swap(boundingBox, o.boundingBox); std::swap(mainline, o.mainline);}
-    void SetArc(TrackableElement *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
+    void SetArc(Element *a) const {for(auto i=cover.begin(); i!=cover.end(); i++) i->arc = a;}
     AreaList &operator+=(const Area &b) {cover.push_back(b); boundingBox+=b.GetBoundingBox(); mainline+=b.mainline; return *this;}
     AreaList &operator+=(Area &&b) {cover.push_back(std::move(b)); boundingBox+=b.GetBoundingBox(); mainline+=std::move(b.mainline); return *this;}
     AreaList &operator+=(const AreaList &g) {cover.insert(cover.end(), g.cover.begin(), g.cover.end()); boundingBox+=g.boundingBox; mainline+=g.mainline; return *this;}
@@ -102,7 +134,9 @@ public:
 
     template <typename T> void sort(T t) {cover.sort(t);}
 
+    /** Determines which area `p` falls in. Searches from the beginning of the list and returns the first hit.*/
     const Area *InWhich(const contour::XY &p) const {for (auto i=cover.begin(); i!=cover.end(); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
+    /** Determines which area `p` falls in. Searches from the end of the list and returns the first hit.*/
     const Area *InWhichFromBack(const contour::XY &p) const {for (auto i=cover.rbegin(); !(i==cover.rend()); i++) if (inside(i->IsWithin(p))) return &*i; return NULL;}
     void InvalidateMainLine() {mainline.clear(); for (auto i=cover.begin(); i!=cover.end(); i++) i->mainline.clear();}
 };

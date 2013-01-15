@@ -151,12 +151,12 @@ public:
     XY getWidthHeight(bool bidir, MscArrowEnd which) const;
     /** Tells how wide one triangle is. Same as getWidthHeight() for simple arrowheads, but differs from it for DOUBLE and TRIPLE ones.*/
     double getTriWidth(bool bidir, MscArrowEnd which) const;
-    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &mainline) const;
-    Contour EntityLineCover(XY xy, bool forward, bool bidir, MscArrowEnd which) const;
+    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &) const;
+    Contour EntityLineCover(XY xy, bool /*forward*/, bool bidir, MscArrowEnd which) const;
     Contour ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
                         const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
     Contour Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which,
-                  const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
+                  const MscLineAttr &/*mainline_left*/, const MscLineAttr &/*mainline_right*/) const;
     //This actually draws an arrowhead
     void Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, 
               const MscLineAttr &mainline_left, const MscLineAttr &mainline_right, MscCanvas *) const;
@@ -166,8 +166,8 @@ public:
      * @{ */
     /** The characteristic size of arrowhead. Internal.*/
     XY getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) const;
-    double getBigWidthsForSpace(bool bidir, MscArrowType type, MscArrowEnd which, 
-                                double body_height, double act_size, const MscLineAttr &ltype) const;
+    double getBigWidthsForSpace(bool /*bidir*/, MscArrowType type, MscArrowEnd /*which*/, 
+                                double /*body_height*/, double act_size, const MscLineAttr &ltype) const;
     double getBigMargin(Contour text_cover, double sy, double dy, bool margin_side_is_left, 
                         bool bidir, MscArrowType type, const MscLineAttr &ltype) const;
     double bigYExtent(bool bidir, bool forward=true, const std::vector<MscLineAttr> *lines=NULL) const;

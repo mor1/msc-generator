@@ -22,6 +22,15 @@
 
 template class PtrList<Entity>;
 
+/** Creates a new entity.
+ * @param [in] n The name of the entity.
+ * @param [in] l The label of the entity.
+ * @param [in] ol The label of the entity as specified by the user.
+ * @param [in] p The position of the entity.
+ * @param [in] pe The position of the entity, if all group entities were expanded.
+ * @param [in] entity_style The style of the entity at definition.
+ * @param [in] fp The location of the entity definition in the input file.
+ * @param [in] coll True if we are group, but show collapsed. */
 Entity::Entity(const string &n, const string &l, const string &ol,
     double p, double pe, const MscStyle &entity_style, const file_line &fp,
                bool coll) :
@@ -32,9 +41,14 @@ Entity::Entity(const string &n, const string &l, const string &ol,
 {
 }
 
-//Check that all entities in "children" have no parent; exist; are defined by this
-//EntityDef in "children". Then add them to children list and make us their parent
-//Also set their and our "pos" to the leftmost of them, if we are collapsed
+/** Add a list of child entities, making us a group one.
+ * Check that all entities in "children" 
+ * - have no parent; 
+ * - exist in chart->AllEntities; 
+ * - are actually defined now by this very EntityDef that is included in "children". 
+ * 
+ * Then add them to our children list and make us their parent.
+ * Also set their and our "pos" to the leftmost of them, if we are collapsed*/
 void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
 {
     if (!children || children->size()==0) return;
@@ -70,10 +84,10 @@ void Entity::AddChildrenList(const EntityDefList *children, Msc *chart)
         running_style += chart->Contexts.back().styles[collapsed?"collapsed_entity":"expanded_entity"];
 }
 
-//returns the width of the entityline taking active status into account
-//relies on running_shown, running_style into account
-//use this during the PostParseProcess
-//returns 0 if no entity line (turned off)
+/** Returns the width of the entityline taking active and onoff status into account.
+ * It relies on running_shown, running_style.
+ * Use this during PostParseProcess.
+ * Returns 0 if no entity line (turned off)*/
 double Entity::GetRunningWidth(double activeEntitySize) const
 {
     if (!running_shown.IsOn()) return 0;
@@ -81,6 +95,7 @@ double Entity::GetRunningWidth(double activeEntitySize) const
     return running_style.vline.LineWidth();
 }
 
+/** Prints the entity name and position*/
 string Entity::Print(int ident) const
 {
     string ss;
@@ -88,6 +103,7 @@ string Entity::Print(int ident) const
     return ss;
 }
 
+/** True if the position of `e1` is smaller than that of `e2`. NULL is smaller than everything.*/
 inline bool SmallerByPos(Entity *e1, Entity *e2)
 {
     if (e1==NULL) return true;
@@ -95,6 +111,7 @@ inline bool SmallerByPos(Entity *e1, Entity *e2)
     return e1->pos < e2->pos;
 }
 
+/** True if the `pos_exp` of `e1` is smaller than that of `e2`. NULL is smaller than everything.*/
 inline bool SmallerByPosExp(Entity *e1, Entity *e2)
 {
     if (e1==NULL) return true;
@@ -112,7 +129,10 @@ void EntityList::SortByPosExp(void)
     PtrList<Entity>::sort(SmallerByPosExp);
 }
 
-EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc),
+/** Create an EntityDef for entity named `s` onto the chart `chart`
+ * Make all attributes unset, empty the style (but activate those style
+ * elements that are set in the default entity style in chart->Contexts*/
+EntityDef::EntityDef(const char *s, Msc* msc) : Element(msc),
     name(s),
     label(false, "", file_line()),
     pos(false, 0, file_line()),                    //field 'pos.second' is used even if no such attribute
@@ -129,6 +149,14 @@ EntityDef::EntityDef(const char *s, Msc* msc) : TrackableElement(msc),
     style.Empty();
 }
 
+/** Take an attribute and apply it to us.
+ *
+ * We consider attributes 'label`, `pos`, `relative`, `show`, `collapsed`,
+ * 'actve', 'color', applicable style attributes and any style at the current 
+ * context in `chart`. 
+ * At a problem, we generate an error into chart->Error.
+ * @param [in] a The attribute to apply.
+ * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
 bool EntityDef::AddAttribute(const Attribute& a)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -217,16 +245,26 @@ bool EntityDef::AddAttribute(const Attribute& a)
         chart->Error.Error(a, false, s, "Try '\\^' inside a label for superscript.");
         return false;
     }
-    if (TrackableElement::AddAttribute(a)) return true;
+    if (Element::AddAttribute(a)) return true;
     a.InvalidAttrError(chart->Error);
     return false;
 };
 
-//This function is always called, even if there are no attributes specified (l will be NULL in that case)
-//Except for automatically generated entities
-//Any children are already defined at this point, so we can modify their "parent_name" field
-//"ch" contains an arclist specified after the entity definition in braces: our chlidrens
-//We return an EntityDefList which contains us and our children (if any)
+/** Add a list of attributes to us and a list of potential child objects.
+ * This function is always called, even if there are no attributes specified 
+ * (l will be NULL in that case), except for automatically generated entities.
+ * (Or rather to the automatically generated EntityDef of automatically generated
+ * Entity objects.)
+ * If the Entity named by this EntityDef does not yet exist, we create one, set all
+ * its parameters and add it to chart->AllEntities.
+ * Any children are already defined at this point, so we can modify their "parent_name" field.
+ * @param al The list of attributes to apply.
+ * @param ch The list of arcs, we shall take our children from. This is specified 
+ *           specified after the entity definition in braces. These may contain objects
+ *           other than CommandEntity and CommandNote, in that case we need to give an error.
+ * @param [in] l The position of the EntityDef in the file.
+ * @return An EntityDefHelper which contains us and our children (if any), plus all notes.
+ *         We will be the first EntityDef in the returned list, children will come after.*/
 EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, file_line l)
 {
     EIterator i = chart->AllEntities.Find_by_Name(name);
@@ -437,6 +475,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, fil
 }
 
 
+/** Add the attribute names we take to `csh`.*/
 void EntityDef::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "color", HINT_ATTR_NAME));
@@ -447,9 +486,10 @@ void EntityDef::AttributeNames(Csh &csh)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "relative", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "active", HINT_ATTR_NAME));
     defaultDesign.styles.GetStyle("entity").AttributeNames(csh);
-    TrackableElement::AttributeNames(csh);
+    Element::AttributeNames(csh);
 }
 
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"color")) {
@@ -473,11 +513,12 @@ bool EntityDef::AttributeValues(const std::string attr, Csh &csh)
         csh.AddEntitiesToHints();
         return true;
     }
-    if (TrackableElement::AttributeValues(attr, csh)) return true;
+    if (Element::AttributeValues(attr, csh)) return true;
     if (defaultDesign.styles.GetStyle("entity").AttributeValues(attr, csh)) return true;
     return false;
 }
 
+/** Prints the attributes of EntityDef*/
 string EntityDef::Print(int ident) const
 {
     string ss;
@@ -491,7 +532,11 @@ string EntityDef::Print(int ident) const
     return ss;
 };
 
-//moves notes to us, combines show, active & style
+/** Merges EntityDef objects referring to the same entity.
+ * Used if the same entity is mentioned twice on the same list
+ * or in a following list.
+ * This function moves notes of `ed` to us, 
+ * combines show, active & style members.*/
 void EntityDef::Combine(EntityDef *ed)
 {
     if (ed->show.first) 
@@ -502,7 +547,7 @@ void EntityDef::Combine(EntityDef *ed)
     CombineComments(ed);
  }
 
-//returns how wide the entity is, not including its shadow
+/** Returns how wide the entity is with this formatting, not including its shadow.*/
 double EntityDef::Width() const
 {
     double inner = parsed_label.getTextWidthHeight().x;
@@ -512,7 +557,17 @@ double EntityDef::Width() const
     return width + fmod_negative_safe(width, 2.); //always return an even number
 }
 
-//Must not be called when reflow!!! or else we add note_map twice
+/** Lay out the entity head at y position zero.
+ * We fill in `indicator_ypos_offset`, `outer_edge` and `area`, `area_draw`
+ * and `area_important`. We add ourselves to the list of elements
+ * which should not be covered by notes. In short this is a mini version of
+ * the ArcBase::Layout() function called from CommandEntity::Layout().
+ * Called only if the EntityDef displays a header.
+ * Must not be called twice.
+ * @param [out] cover Returns our cover and mainline.
+ * @param [in] children A list of our children showing here, already laid out.
+ * @returns The y range we occupy. Can `from` be negative if we are a group entity, 
+ *          since non-group children entities will be laid out to y==0. */
 Range EntityDef::Height(Area &cover, const EntityDefList &children)
 {
     const XY wh = parsed_label.getTextWidthHeight();
@@ -566,6 +621,8 @@ Range EntityDef::Height(Area &cover, const EntityDefList &children)
     return Range(outer_edge.y.from, outer_edge.y.till + style.shadow.offset.second);
 }
 
+/** Add a small block blocking notes for EntityDef objects displaying no heading.
+ * This function is called iff the EntityDef shows no header.*/
 void EntityDef::AddAreaImportantWhenNotShowing()
 {
     //we do not draw this, but nevertheless define a small block here
@@ -579,13 +636,17 @@ void EntityDef::AddAreaImportantWhenNotShowing()
     chart->NoteBlockers.Append(this);
 }
 
-
+/** Record y-position dependent status of the Entity. 
+ * Called when the EntityDef is ShiftBy()ed to its final position.
+ * We hide entity lines behind us, record our style and status
+ * in Entity::status and if we are a group entity we
+ * create a control (for the GUI).*/
 void EntityDef::PostPosProcess(MscCanvas &canvas)
 {
     if (draw_heading && !hidden) {
         chart->HideEntityLines(outer_edge);
         if ((*itr)->children_names.size())
-            TrackableElement::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);
+            Element::controls.push_back((*itr)->collapsed ? MSC_CONTROL_EXPAND : MSC_CONTROL_COLLAPSE);
     }
     const EEntityStatus old_status = (*itr)->status.GetStatus(yPos);
     EEntityStatus new_status = old_status;
@@ -604,10 +665,12 @@ void EntityDef::PostPosProcess(MscCanvas &canvas)
     //        chart->Error.Warning(file_pos.start, "Entity '" + name + "' is not shown at to this line, but is later turned "
     //                             "on in a parallel block above this position.", "May not be what intended.");
     //}
-    TrackableElement::PostPosProcess(canvas);
+    Element::PostPosProcess(canvas);
 }
 
-
+/** Draw an entity heading 
+ * We use the layout calculated in Height() and affected by ShiftBy()
+ * and we use the style we finalized in CommandEntity::PostParseProcess()*/
 void EntityDef::Draw(MscCanvas &canvas)
 {
     const double lw = style.line.LineWidth();
