@@ -157,7 +157,7 @@ public:
         ArcBase  *arc;         // the arc or NULL if not shown (set in FinalizeLabels())
         RefType() : arc(NULL) {}
     };
-    typedef std::map<file_line_range, TrackableElement*, file_line_range_length_compare>
+    typedef std::map<file_line_range, Element*, file_line_range_length_compare>
             LineToArcMapType;
     struct ContourAttr {
         Contour     area;
@@ -188,7 +188,7 @@ public:
     PBDataVector                  yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
 
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
-    PtrList<const TrackableElement> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
+    PtrList<const Element> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
     
     std::list<ContourAttr>        DebugContours;
 
@@ -279,7 +279,7 @@ public:
     void ParseText(const char *input, const char *filename);
 
     void PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
-                                 EIterator &right, Numbering &number, bool top_level, TrackableElement **note_target);
+                                 EIterator &right, Numbering &number, bool top_level, Element **note_target);
     void PostParseProcess(MscCanvas &canvas);
     template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
 
@@ -331,7 +331,7 @@ public:
                       MscCanvas::EPageSize pageSize=MscCanvas::NO_PAGE, const double margins[4]=NULL, 
                       int ha=-1, int va=-1, bool generateErrors=false);
 
-    void InvalidateNotesToThisTarget(const TrackableElement *target);
+    void InvalidateNotesToThisTarget(const Element *target);
     void RemoveFromNotes(const CommandNote *note);
 };
 

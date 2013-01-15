@@ -581,7 +581,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	if (pDoc->m_bTrackMode) {
 		pDoc->UpdateTrackRects(point);
 	} else {
-		TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
+		Element *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
 			pDoc->StartFadingAll(NULL);
 			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, int(delay_before_fade));
@@ -613,7 +613,7 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	point.y = int(point.y*100./pDoc->m_zoom);
 
     //If the click is on an element that has controls, activate the first one
-	TrackableElement *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
+	Element *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
     if (arc && arc->GetControls().size()) {
         pDoc->OnControlClicked(arc, *arc->GetControls().begin());
         return; //Whole chart will be redrawn

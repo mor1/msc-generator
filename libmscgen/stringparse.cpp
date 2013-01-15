@@ -159,10 +159,10 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - "\+" - switch to normal font
  * - "\^" - switch to superscript
  * - "\_" - swucth to subscript
- * - "\mX(num) - set text margings (X=_u_p, _d_own, _l_eft, _r_ight)
+ * - "\mX(num)" - set text margings (X=_u_p, _d_own, _l_eft, _r_ight)
  * -             and font size (X=_s_mall, _n_ormal)
- * -             E.g. \mu(7) sets upper margin to 7.
- * - "\c(color) - set color, E.g., \c(0,0,0) is black
+ * -             E.g. "\mu(7)" sets upper margin to 7.
+ * - "\c(color)" - set color, E.g., "\c(0,0,0)" is black
  * - "\pX"- set paragraph ident to _c_enter, _l_eft, _r_ight
  * - "\0".."\9" - keep this much of line space after the line
  * - "\\" - an escaped "\"
@@ -170,7 +170,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - "\|" - a zero length non-formatting escape. Can be used to separate number from initial escapes.
  * - "\n" - a line break
  * - "\N" - insert line number here - should not appear in a numbering format
- * - "\r(ref)" - insert the line number of another entity here - \r() equals \N
+ * - "\r(ref)" - insert the line number of another entity here - "\r()" equals "\N"
  * - "\0x21" "\0x2a" "\0x2A" "\0x2i" "\0x2I" - used to define numbering formats, should not appear in a label
  * - "\0x1(file,line,col)" - notes the position of the next char in the original file
  *
@@ -180,14 +180,14 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * @param [in] resolve If true we resolve color/style references (stored in Msc::Contexts). 
  *   (If msc==NULL, or we do not find the stye/color we return INVALID_ESCAPE)
  *   If apply==true, resolve parameter is ignored, we assume resolve==true.
- *   This parameter has impact only on \s and \c escapes and only if msc!=NULL.
+ *   This parameter has impact only on "\s" and "\c" escapes and only if msc!=NULL.
  * @param [in] apply If true then besides parsing, we apply the string formatting escape 
  *                   to "this". (Do nothing for invalid escapes.)
  * @param [out] replaceto If not NULL, return a suggested resolution for the escape.
  * - for FORMATTING_OK we return what to replace the escape to:
  *    + color names are resolved to actual RGBA numbers in a syntax suitable for MscColor::MscColor();
- *    + style names are resolved to actual formatting instructions (a lot of \b\i and similar escapes);
- *    + empty parenthesis escapes \c(), \s(), \f(), \mX() are replaced with the respective 
+ *    + style names are resolved to actual formatting instructions (a lot of "\b\i" and similar escapes);
+ *    + empty parenthesis escapes "\c()", "\s()", "\f()", "\mX()" are replaced with the respective 
  *      value in `basic` or if that is NULL, then are left in place.
  * - for NON_FORMATTING we return the character represented by the escape (can be zero length for "\|")
  * - for NON_ESCAPE we return the text verbatim
@@ -197,17 +197,17 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  *   `references` is false, we return the escape verbatim.
  * - for NUMBERING and NUMBERING_FORMAT we return the actual escape verbatim
  * - for SOLO_ESCAPE we return a single backslash
- * @param [in] basic This is a string format that is used for resolving empty \c(), \s(), \f(), \mX()
+ * @param [in] basic This is a string format that is used for resolving empty "\c()", "\s()", "\f()", "\mX()"
  *                   escapes. If NULL than those are returned verbatim in `replaceto`.
  * @param msc This object is used as a source of context for style, color names and references.
  *            We also use it to send errors to. If NULL, we do not generate errors nor do we
  *            resolve style, color names and references.
- * @param [in] numbers If true, indicates that msc->References is complete and therefore we attempt 
- *                     to replace \r escapes with actual numbers. (Empty "\r()" is always treated
- *                     as equal to "\N" and we return NUMBERING.)
- * @param linenumm When called, this contains the position of the first character of `input`.
- *                 At return it is updated (if not NULL) to point to the first character after
- *                 the escape.
+ * @param [in] references If true, indicates that msc->References is complete and therefore we attempt 
+ *                        to replace "\r" escapes with actual numbers. (Empty "\r()" is always treated
+ *                        as equal to "\N" and we return NUMBERING.)
+ * @param linenum When called, this contains the position of the first character of `input`.
+ *                At return it is updated (if not NULL) to point to the first character after
+ *                the escape.
  * @param [in] sayIgnore If true we use language in error messages that say we ignore
  *                       a bad escape. If false, we say that we keep it verbatim.
  * @returns The code for what is found at the beginning of `input`:
@@ -216,10 +216,10 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
  * - an invalid escape sequence (INVALID_ESCAPE)
  * - a non-format-changing escape sequence (e.g., \\) (NON_FORMATTING)
  * - just literal text up until the next escape (NON_ESCAPE)
- * - a \n escape (LINE_BREAK)
- * - a \r(xxx) escape (REFERENCE) - no lookups or replacement is offered if `do_refs` is false
- * - a \N or \r() escape (NUMBERING) - the location of the number in this label
- * - a \0x2{1aAiI} escape (NUMBERING_FORMAT)
+ * - a "\n" escape (LINE_BREAK)
+ * - a "\r(xxx)" escape (REFERENCE) - no lookups or replacement is offered if `references` is false
+ * - a "\N" or "\r()" escape (NUMBERING) - the location of the number in this label
+ * - a "\0x2{1aAiI}" escape (NUMBERING_FORMAT)
  * - a lone '\' at the end of the string (SOLO_ESCAPE)
  */
 StringFormat::EEscapeType StringFormat::ProcessEscape(
@@ -227,7 +227,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
 	bool resolve, bool apply, string *replaceto, const StringFormat *basic,
 	Msc *msc, bool references, file_line *linenum, bool sayIgnore)
 {
-    /** The message saying that the use of '\s' escape for small text is deprecated.*/
+    /** The message saying that the use of "\s" escape for small text is deprecated.*/
     static const char PER_S_DEPRECATED_MSG[] = 
         "The use of '\\s' control escape to indicate small text is deprecated. Use '\\-' instead.";
     /** Maximum margin for text margins */
@@ -702,7 +702,7 @@ bool StringFormat::HasEscapes(const char *text)
 
 
 /** Adds CSH entries to csh for each formatting escape. 
- * Malformed \c and \s arguments are assumed OK
+ * Malformed "\c" and "\s" arguments are assumed OK
  * @param [in] startpos The location of the first byte of `text` in the input file.
  * @param [in] text The text to process.
  * @param csh The object collecting the entries.*/
@@ -745,14 +745,14 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
  * @param text The text to process.
  * @param msc The chart to add errors to and a source for style, color and reference names.
  * @param [in] linenum The location of the first byte of `text` in the input file.
- * @param [in] basic The formatting to use for empty \s() \c() \mX() and \f() escapes. 
+ * @param [in] basic The formatting to use for empty "\s()" "\c()" "\mX()" and "\f()" escapes. 
  *                   Can be NULL if not available, in this case the above escapes are left as is.
  *                   If not null, it must point to a fully specified StringFormat object.
- * @param [in] references True if the msc->References are complete. If false, \r escapes left intact.
+ * @param [in] references True if the msc->References are complete. If false, "\r" escapes left intact.
  * @param [in] ignore If true then in error messages we say we ignore the erroneous escape and also 
  *                    remove it from the string, if not then we say we keep verbatim and we do so.
  * @param [in] textType The type of text we process. This is to generate the right errors. 
- *                      NUMBER_FORMAT cannot contain \N, whereas LABEL and TEXT_FORMAT cannot contain 
+ *                      NUMBER_FORMAT cannot contain "\N", whereas LABEL and TEXT_FORMAT cannot contain 
  *                      numbering format token escapes ("\0x2{1aAiI}").*/
 void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
                                     const StringFormat *basic, bool references,
@@ -1238,13 +1238,13 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
 
 
 /** Adds numbering to a label. 
- * By default to the beginning of it, unless \N escape directs it elsewhere. 
- * If we find a \N escape in the label we replace that to `num` (for multiple \Ns, if needed).
+ * By default to the beginning of it, unless "\N" escape directs it elsewhere. 
+ * If we find a "\N" escape in the label we replace that to `num` (for multiple "\N"s, if needed).
  * If we find no such escape, we add `pre_num_post` to the beginning, 
  * but after the initial formatting strings.
  * @param label The label to add numbers to.
- * @param [in] num The number to replace \N with.
- * @param [in[ pre_num_post The number to add to the beginning.*/
+ * @param [in] num The number to replace "\N" with.
+ * @param [in] pre_num_post The number to add to the beginning.*/
 //This shall be called only after StringFormat::ExpandReferences on a label and both num strings
 void StringFormat::AddNumbering(string &label, const string &num, const string &pre_num_post)
 {

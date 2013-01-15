@@ -154,13 +154,13 @@ class StringFormat {
      * formatting one or one that includes style/color name, stop, 
      * _remove the processed escapes_ and return.
      * @param [in] text The text to parse.
-     * @return The #of characters processed.*/
+     * @return The number of characters processed.*/
     unsigned Apply(string &text); 
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad formatting one or 
      * one that includes style/color name, stop and return.
      * @param [in] s The text to parse.
-     * @return The #of characters processed.*/
+     * @return The number of characters processed.*/
     unsigned Apply(const char *s);
     /** Parse a sequence of escapes and apply the formatting to us. 
      * If you hit something like a non-formatting escapea or a bad formatting one or 
@@ -229,8 +229,9 @@ public:
     operator std::string() const;
     /** Draws the line to a canvas.
      * @param [in] xy Where the text shall be placed, y is the height of the baseline.
+     * @param canvas The canvas to draw on.
      * @param [in] isRotated If true, the canvas will use text paths as fallback for surfaces not supporting rotated text (WMF).*/
-    void Draw(XY xy, MscCanvas &, bool isRotated) const;
+    void Draw(XY xy, MscCanvas &canvas, bool isRotated) const;
     /** Returns the width and height of the line.*/
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}
@@ -258,8 +259,8 @@ public:
      * Then parse the strings for escape control characters and
      * determine geometry (width and height of each line and in total).
      * @param [in] s The (potentially multi-line) text (potentially with escapes) to set to.
-     * @param canvas The canvas to use to determine geometry.
-     * @param [in] sf The starting text format.*/
+     * @param c The canvas to use to determine geometry.
+     * @param [in] f The starting text format.*/
     unsigned Set(const string &s, MscCanvas &c, StringFormat f);
     /** Add extra spacing below a line */
     void AddSpacing(unsigned line, double spacing);

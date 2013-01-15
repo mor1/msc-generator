@@ -16,9 +16,13 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file style.cpp The implementation of styles (MscStyle) and contexts (Context).
+ * @ingroup libmscgen_files */
+
 
 #include "msc.h"
 
+/** Create an empty style that contains all possible attributes.*/
 MscStyle::MscStyle(StyleType tt) : type(tt)
 {
     f_line=f_vline=f_fill=f_vfill=f_shadow=f_text=true;
@@ -28,6 +32,23 @@ MscStyle::MscStyle(StyleType tt) : type(tt)
     Empty();
 }
 
+/** Create an empty style that contains only some of the attributes.
+ * @param [in] tt The type of style instance.
+ * @param [in] a What type of arrows we accept.
+ * @param [in] t True if the style shall contain text attributes.
+ * @param [in] l True if the style shall contain line attributes.
+ * @param [in] f True if the style shall contain fill attributes.
+ * @param [in] s True if the style shall contain shadow attributes.
+ * @param [in] vl True if the style shall contain vline attributes.
+ * @param [in] so True if the style shall contain the 'solid' attribute.
+ * @param [in] nu True if the style shall contain the 'number' attribute.
+ * @param [in] co True if the style shall contain the `compress` attribute.
+ * @param [in] si True if the style shall contain the `side` attribute.
+ * @param [in] i True if the style shall contain the `indicator` attribute.
+ * @param [in] vf True if the style shall contain vfill attributes.
+ * @param [in] mr True if the style shall contain the `makeroom` attribute.
+ * @param [in] n True if the style shall contain note attributes.
+ */
 MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
                    bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n) :
     arrow(a), type(tt), f_line(l), f_vline(vl), f_fill(f), f_vfill(vf), f_shadow(s),
@@ -37,7 +58,12 @@ MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, b
     Empty();
 }
 
-//This one leaves "text" empty!!
+/** Make a style complete by setting the default values - but leave text attributes empty.
+ * Default attributes are half solid, right side, no numbering, no compress, indicator yes,
+ * makeroom yes and the default of other attribute classes (specified there).
+ * We skip text styles, since we have a global text attribute per chart and 
+ * we set the default there.
+ */
 void MscStyle::MakeCompleteButText() 
 {
     if (f_line) line.MakeComplete();
@@ -69,6 +95,7 @@ void MscStyle::MakeCompleteButText()
     else note.Empty();
 }
 
+/** Make the style empty be unsetting all attributes it contains.*/
 void MscStyle::Empty()
 {
     line.Empty();
@@ -87,6 +114,7 @@ void MscStyle::Empty()
     note.Empty();
 }
 
+/** Merge another style to us by copying the value of those attributes which are contained by both and are set in `toadd`.*/
 MscStyle & MscStyle::operator +=(const MscStyle &toadd)
 {
     if (toadd.f_line && f_line) line += toadd.line;
@@ -106,10 +134,14 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
     return *this;
 }
 
+/** Possible values for the 'side' attribute.*/
 template<> const char EnumEncapsulator<MscSideType>::names[][ENUM_STRING_LEN] =
     {"invalid", "left", "right", ""};
 
 
+/** Apply an attribute to us.
+ * Generate an error if the we recognize the attribute, but bad value.
+ * Do not recognize attribute names that correspond to attributes we do not contain.*/
 bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
 {
     if (a.type == MSC_ATTR_STYLE) {
@@ -223,6 +255,7 @@ bool MscStyle::AddAttribute(const Attribute &a, Msc *msc)
     return false;
 }
 
+/** Add the attribute names we take to `csh`.*/
 void MscStyle::AttributeNames(Csh &csh) const
 {
     static const char names[][ENUM_STRING_LEN] =
@@ -249,6 +282,8 @@ void MscStyle::AttributeNames(Csh &csh) const
     csh.AddStylesToHints();
 }
 
+/** Callback for drawing a symbol before side values in the hints popup list box.
+ * @ingroup libmscgen_hintpopup_callbacks*/
 bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
@@ -272,6 +307,7 @@ bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p)
     return true;
 }
 
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
 bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
 {
     if (CaseInsensitiveEqual(attr, "line.width")) {
@@ -322,6 +358,7 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
 
 }
 
+/**Print the content of the style*/
 string MscStyle::Print(int) const
 {
     string s = "style:(";
@@ -341,6 +378,7 @@ string MscStyle::Print(int) const
     return s;
 }
 
+/** Look up a style by name. Return the default style if not found.*/
 const MscStyle &StyleSet::GetStyle(const string &s) const
 {
     const_iterator i = find(s);

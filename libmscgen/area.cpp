@@ -16,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file area.cpp The implementation of Area.
+ * @ingroup libmscgen_files */
 #include <cassert>
 #include "area.h"
 #include "commands.h"

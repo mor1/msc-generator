@@ -117,8 +117,8 @@ public:
     void DrawToRecordingSurface(cairo_surface_t *surf, MscCanvas::OutputType ot, bool pageBreaks, bool force_page=false, unsigned forced_page=0) const;
 	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
 //Cover related
-	TrackableElement *GetArcByCoordinate(CPoint point) const;
-	TrackableElement *GetArcByLine(unsigned line, unsigned col) const;
+	Element *GetArcByCoordinate(CPoint point) const;
+	Element *GetArcByLine(unsigned line, unsigned col) const;
 	//unsigned GetCoversByArc(void *arc, int page_shown, TrackRect *result, int max_size, int &bottom_clip) const;
 };
 

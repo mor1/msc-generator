@@ -144,7 +144,7 @@ void CScaleDlg::OnBnClicked()
     GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
 }
 
-TrackedArc::TrackedArc(TrackableElement *a, ElementType et, int delay, 
+TrackedArc::TrackedArc(Element *a, ElementType et, int delay, 
                        int appear, int disappear) :
     arc(a), what(et), status(APPEARING), fade_value(0), fade_delay(delay),
     appe_time(appear), disa_time(disappear)
@@ -1518,7 +1518,7 @@ bool CMscGenDoc::DoFading()
 
 
 //Add a tracking element to the list. Updates Views if needed & rets ture if so
-bool CMscGenDoc::AddTrackArc(TrackableElement *arc, TrackedArc::ElementType type, int delay)
+bool CMscGenDoc::AddTrackArc(Element *arc, TrackedArc::ElementType type, int delay)
 {
     _ASSERT (type==TrackedArc::FALLBACK_IMAGE || arc);
 	//Do not add if it has no visual element
@@ -1575,7 +1575,7 @@ void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 
 
 //Start the fading process for all rectangles (even for delay<0)
-void CMscGenDoc::StartFadingAll(const TrackableElement *except) 
+void CMscGenDoc::StartFadingAll(const Element *except) 
 {
     CSingleLock lock(&m_SectionTrackingMembers);
     lock.Lock();
@@ -1622,7 +1622,7 @@ void CMscGenDoc::SetTrackMode(bool on)
 void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
     //Start fading all controls and track rectangles, except the one under cursor
-	TrackableElement *arc = m_ChartShown.GetArcByCoordinate(mouse);
+	Element *arc = m_ChartShown.GetArcByCoordinate(mouse);
 	StartFadingAll(arc); 
     //re-add those controls which are under mouse
     for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
@@ -1660,7 +1660,7 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 	editor.SetEventMask(eventmask);
 }
 
-void CMscGenDoc::HighLightArc(const TrackableElement *arc)
+void CMscGenDoc::HighLightArc(const Element *arc)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -1678,7 +1678,7 @@ void CMscGenDoc::HighLightArc(const TrackableElement *arc)
 	editor.Invalidate();
 }
 
-bool CMscGenDoc::OnControlClicked(TrackableElement *arc, MscControlType t)
+bool CMscGenDoc::OnControlClicked(Element *arc, MscControlType t)
 {
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
     CChartData chart(*m_itrEditing);

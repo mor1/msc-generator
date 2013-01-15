@@ -960,7 +960,7 @@ double ArrowHead::getBigWidthsForSpace(bool /*bidir*/, MscArrowType type, MscArr
  * @param [in] text_cover The cover of the label.
  * @param [in] sy The top of the arrow body (outer edge of the line).
  * @param [in] dy The bottom of the arrow body (outer edge of the line).
- * @param [in[ margin_side_is_left If we need the left or right margin for the text.
+ * @param [in] margin_side_is_left If we need the left or right margin for the text.
  * @param [in] type The type of the arrowhead we have on the side of the text pointed by 
  *                  `margin_side_is_left`. This type will be either a segmenting 
  *                  (non-symmetric) arrowhead or the start/end head.
@@ -1039,7 +1039,7 @@ double ArrowHead::bigYExtent(bool bidir, bool forward, const std::vector<MscLine
 
 /** Returns the contours of one arrowhead. 
  * Either on the left or the right side of the entity line.
- * @param [in] xy The tip of the arrowhead.
+ * @param [in] x The x coordinate of the tip of the arrowhead.
  * @param [in] act_size Zero if the entity is not active at this point. Else it contains the 
  *                      half-width of the activated entity line.
  * @param [in] sy The top of the arrow body (outer edge of the line).

@@ -60,7 +60,7 @@ public:
     EntityDef* FindAddEntityDefForEntity(const string &entity, const file_line_range &l);
     EEntityStatus GetCombinedStatus(const std::set<string>& children) const;
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, TrackableElement **note_target);
+                                      Numbering &number, bool top_level, Element **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual void CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
@@ -111,7 +111,7 @@ public:
     CommandNumbering(Msc *msc, EAction a, size_t l=0)
         : ArcCommand(MSC_COMMAND_NUMBERING, msc), action(a), length(l) {if (l) action = EAction(action | SIZE); AddAttributeList(NULL);}
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, TrackableElement **note_target);
+                                      Numbering &number, bool top_level, Element **note_target);
 };
 
 class CommandMark : public ArcCommand
@@ -162,7 +162,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, TrackableElement **note_target);
+                                      Numbering &number, bool top_level, Element **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
 };
 
@@ -179,7 +179,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, TrackableElement **note_target);
+                                      Numbering &number, bool top_level, Element **note_target);
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
 };
@@ -214,7 +214,7 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, TrackableElement **note_target);
+                                      Numbering &number, bool top_level, Element **note_target);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(MscCanvas &canvas, AreaList &cover);
 
@@ -236,7 +236,7 @@ class CommandNote : public ArcLabelled
 public:
     const bool            is_float;
 protected:
-    TrackableElement *    target;
+    Element *    target;
     string                point_toward; //an entity or NoEntity for center of target
     file_line_range       point_toward_pos;
     std::pair<bool, int>  float_dist; //user preferences of floating note placement
@@ -251,14 +251,14 @@ public:
     CommandNote(Msc*, bool is_note, const char *pt=NULL, const file_line_range &ptm=file_line_range());
     ~CommandNote();
     virtual bool CanBeNoted() const {return false;}
-    TrackableElement *GetTarget() const {return target;}
+    Element *GetTarget() const {return target;}
     void SetTarget(EntityDef *e) {target = e;}
     void Invalidate() {valid = false;} //called by Msc::InvalidateNotesToThisTarget if target becomes hidden
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool is_float);
     static bool AttributeValues(const std::string attr, Csh &csh, bool is_float);
     virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
-                                      Numbering &number, bool top_level, TrackableElement **note_target);
+                                      Numbering &number, bool top_level, Element **note_target);
     virtual void FinalizeLabels(MscCanvas &canvas);
     virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(MscCanvas &canvas, AreaList &cover);

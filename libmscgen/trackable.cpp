@@ -16,15 +16,15 @@
     You should have received a copy of the GNU Affero General Public License
     along with Msc-generator.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file trackable.h The implementation of class Element.
+ * @ingroup libmscgen_files */
+
 #include "msc.h"
 using namespace std;
 
-//Generate a plain design with all the default styles (and colors)
-//will be used by ::AddAttributeNames to see which style components an element has
-//will also be used by CshContext::SetPlain to take default style and color names/defs
-const Context TrackableElement::defaultDesign(true);
+const Context Element::defaultDesign(true);
 
-TrackableElement::TrackableElement(Msc *m) : chart(m), 
+Element::Element(Msc *m) : chart(m), 
     hidden(false), linenum_final(false),  yPos(0),
     draw_is_different(false), area_draw_is_frame(false),
     comments(false), comment_height(0),
@@ -35,15 +35,14 @@ TrackableElement::TrackableElement(Msc *m) : chart(m),
     control_location.MakeInvalid();
 }
 
-TrackableElement::~TrackableElement() 
+Element::~Element() 
 {
     if (chart) 
         chart->InvalidateNotesToThisTarget(this);
 }
 
 
-//This does not copy comments
-TrackableElement::TrackableElement(const TrackableElement&o) :
+Element::Element(const Element&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
     area(o.area), yPos(o.yPos), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
@@ -57,34 +56,45 @@ TrackableElement::TrackableElement(const TrackableElement&o) :
     area.arc = this;
 }
 
-void TrackableElement::SetLineEnd(file_line_range l, bool f)
+/** Record the location of the element in the input file
+ * @param [in] l The range the element occupies in the input file to record.
+ * @param [in] f If true, the recording is final - any more calls to SetLineEnd() will be ignored.*/
+void Element::SetLineEnd(file_line_range l, bool f)
 {
     if (linenum_final) return;
     linenum_final = f;
     file_pos = l;
 }
 
-void TrackableElement::AttachComment(CommandNote *cn)
+/** Attach a comment to us.
+ * The caller will remain responsible do delete `cn`, when the time comes.*/
+void Element::AttachComment(CommandNote *cn)
 {
     _ASSERT(cn);
     _ASSERT(!cn->is_float);
     comments.Append(cn);
 }
 
-//move comments to us    
-void TrackableElement::CombineComments(TrackableElement *te)
+/** Move the comments from `te` to us.
+ * Comments are moved in order after our comments (if any).*/
+void Element::CombineComments(Element *te)
 {
     _ASSERT(te);
     if (te)
         comments.splice(comments.end(), te->comments);
 }
 
+/** Textual representation of drawing passes*/
 template<> const char EnumEncapsulator<DrawPassType>::names[][ENUM_STRING_LEN] =
     {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
      "note", "after_note", ""};
 
 
-bool TrackableElement::AddAttribute(const Attribute &a)
+/** Applies an Attribute to us.
+ * We only accept `draw_time` attribute.
+ * @param [in] a The attribute to add.
+ * @return true if we recognized the attribute as ours.*/
+bool Element::AddAttribute(const Attribute &a)
 {
     if (a.Is("draw_time")) {
         if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
@@ -95,12 +105,15 @@ bool TrackableElement::AddAttribute(const Attribute &a)
     return false;
 }
 
-void TrackableElement::AttributeNames(Csh &csh)
+
+/** Add the attribute names we take to `csh`.*/
+void Element::AttributeNames(Csh &csh)
 {
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "draw_time", HINT_ATTR_NAME));
 }
 
-bool TrackableElement::AttributeValues(const std::string attr, Csh &csh)
+/** Add a list of possible attribute value names to `csh` for attribute `attr`.*/
+bool Element::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"draw_time")) {
         csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
@@ -110,7 +123,11 @@ bool TrackableElement::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-void TrackableElement::ShiftBy(double y)
+/** Shift an elememt up or down 
+ * Shifts all `area_*` members, `yPos`, `control_location` and
+ * all our comments;
+ */
+void Element::ShiftBy(double y)
 {
     if (y==0) return;
     area.Shift(XY(0, y));
@@ -120,12 +137,17 @@ void TrackableElement::ShiftBy(double y)
     area_important.Shift(XY(0,y)); 
     yPos+=y;
     control_location.y += y;
-    for (auto n = comments.begin(); n!=comments.end(); n++)
-        (*n)->ShiftCommentBy(y);
+    for (auto c = comments.begin(); c!=comments.end(); c++)
+        (*c)->ShiftCommentBy(y);
 }
 
-//Here we add to "cover", do not overwrite it
-void TrackableElement::CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
+/** A helper placing comments.
+ * @param canvas The canvas used to determine comment geometry
+ * @param cover We add the cover of the placed comments to this.
+ * @param l At call says where we shall start laying out left comments from, at return the height of he comments on the left.
+ * @param r At call says where we shall start laying out right comments from, at return the height of he comments on the right.
+ */
+void Element::LayoutCommentsHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
 {
     for (auto c = comments.begin(); c!=comments.end(); c++)
         (*c)->PlaceSideTo(canvas, cover, (*c)->GetStyle().side.second == SIDE_LEFT ? l : r);
@@ -133,7 +155,11 @@ void TrackableElement::CommentHeightHelper(MscCanvas &canvas, AreaList &cover, d
 }
 
 
-void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/)
+/** Do processing after our positioning on the chart is known.
+ * We expand `area` and `area_draw` by `cahrt->trackExpandBy`
+ * if we show; set `control_location` and register us in
+ * chart->AllArcs.*/
+void Element::PostPosProcess(MscCanvas &/*canvas*/)
 {
     if (!area.IsEmpty()&& !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,
@@ -144,6 +170,8 @@ void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/)
                                                2, 2);
         if (!expanded_area.IsEmpty())
             area = expanded_area;
+        else 
+            _ASSERT(0);
         area.arc = this;
         chart->AllCovers += area;
         //Determine, where the controls shall be shown
@@ -165,9 +193,13 @@ void TrackableElement::PostPosProcess(MscCanvas &/*canvas*/)
 }
 
 
-const XY TrackableElement::control_size = XY(25, 25);
+const XY Element::control_size = XY(25, 25);
 
-void TrackableElement::DrawControls(cairo_t *cr, double size)
+/** Draw GUI controls (if any)
+ * @param cr The cairo context to draw the controls to. 
+ *           The transformation matrix shall be so that we can draw on chart space.
+ * @param [in] size A number between [0.01..1] indicating a scale factor. */
+void Element::DrawControls(cairo_t *cr, double size)
 {
     if (size<0.01 || size>1 || controls.size()==0 || cr==NULL) return;
     cairo_save(cr);
@@ -225,24 +257,32 @@ void TrackableElement::DrawControls(cairo_t *cr, double size)
     cairo_restore(cr);
 }
 
-MscControlType TrackableElement::WhichControl(const XY &xy)
+/** Return the type of GUI control `xy` points to.
+ * @param [in] xy The coordinates are in chart space.
+ * @returns The type of control or MSC_CONTROL_INVALID, if xy does not point to any control.*/
+MscControlType Element::WhichControl(const XY &xy)
 {
     if (!inside(control_location.IsWithin(xy))) return MSC_CONTROL_INVALID;
     return controls[unsigned((xy.y - control_location.y.from)/control_size.y)];
 }
 
 
-const XY TrackableElement::indicator_size = XY(25, 10);
+const XY Element::indicator_size = XY(25, 10);
 
-//The outer Edge of indicators
-Block TrackableElement::GetIndicatorCover(const XY &pos)
+/** Return the outer Edge of indicators.
+ * @param [in] pos The middle of the top edge of the indicator shall be here.
+ * @returns The outer edge.*/
+Block Element::GetIndicatorCover(const XY &pos)
 {
     Block b(pos.x-indicator_size.x/2, pos.x+indicator_size.x/2,
             pos.y, pos.y+indicator_size.y);
     return b.Expand(indicator_style.line.LineWidth());
 }
 
-void TrackableElement::DrawIndicator(XY pos, MscCanvas *canvas)
+/** Draw an indicator.
+ * @param [in] pos The middle of the top edge of the indicator shall be here.
+ * @param canvas The canvas to draw on.*/
+void Element::DrawIndicator(XY pos, MscCanvas *canvas)
 {
     if (canvas==NULL) return;
 

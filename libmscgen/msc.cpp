@@ -308,7 +308,7 @@ Msc::Msc() :
 Msc::~Msc() 
 {
     //Proper deletion order
-    Arcs.Empty();    //This must be before Notes, since TrackableElement::~ will use chart->Notes
+    Arcs.Empty();    //This must be before Notes, since Element::~ will use chart->Notes
 }
 
 //return value: 0 not found
@@ -876,7 +876,7 @@ string Msc::Print(int ident) const
 
 void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
-                                  Numbering &number, bool top_level, TrackableElement **target)
+                                  Numbering &number, bool top_level, Element **target)
 {
     if (arcs.size()==0) return;
     for (ArcList::iterator i = arcs.begin(); i != arcs.end(); /*none*/) {
@@ -923,7 +923,7 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
             arcs.erase(j);
             //i remains at this very same CommandEntity!
         }
-        TrackableElement * const old_target = *target;
+        Element * const old_target = *target;
         ArcBase *replace = (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
         //if the new target is somewhere inside "i" (or is exactly == to "i")
         //NOTE: *target is never set to NULL, only to DELETE_NOTE or to an Arc
@@ -1061,7 +1061,7 @@ void Msc::PostParseProcess(MscCanvas &canvas)
     EIterator dummy1, dummy2;
     dummy2 = dummy1 = AllEntities.Find_by_Ptr(NoEntity);
     _ASSERT(dummy1 != AllEntities.end());
-    TrackableElement *note_target = NULL;
+    Element *note_target = NULL;
     PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true, &note_target);
 }
 
@@ -1419,7 +1419,7 @@ void Msc::InsertAutoPageBreak(MscCanvas &canvas, ArcList &arcs, ArcList::iterato
         EIterator dummy1 = AllEntities.Find_by_Ptr(NoEntity);
         EIterator dummy2 = AllEntities.Find_by_Ptr(NoEntity);
         Numbering dummy3;
-        TrackableElement *dummy4;
+        Element *dummy4;
         //at_to_level must be true, or else it complains...
         ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, true, &dummy4);
         ce->Layout(canvas, dummy); 
@@ -1465,12 +1465,14 @@ void clear_keep_with_next__from(ArcList &arcs, ArcList::iterator &keep_with_next
  * @param canvas Used to determine the size of the heading to insert.
  * @param arcs The list to walk. Can get modified if we insert a page
  *             break, plus some elements may get shifted down.
- * @param [in] prevPageBreak The location of the previous page break.
+ * @param [in] netPrevPageSize The size of the page before the pageBreak to insert.
  *             Used to determine if a non-splittable object is larger 
  *             than the full page. In this case we break it.
+ * @param [in] pageBreak The y coordinate where we shall insert the page break.
+ *                       Essentially the bottom of the page.
  * @param addCommandNewpage True if no CommandNewPage is added yet and it needs 
  *                    to be added. If we have inserted the CommandNewPage
- *                    object, then false is returned in it..
+ *                    object, then false is returned in it.
  * @param [in] addHeading True if we shall add a heading after automatic
  *                        page breaks.
  * @param [in] canChangePBPos If true, we can change the page break 
@@ -2139,7 +2141,7 @@ void Msc::DrawToOutput(MscCanvas::OutputType ot, const std::vector<XY> &scale,
     }
 }
 
-void Msc::InvalidateNotesToThisTarget(const TrackableElement *target)
+void Msc::InvalidateNotesToThisTarget(const Element *target)
 {
     for(auto i=Notes.begin(); i!=Notes.end(); i++) 
         if ((*i)->GetTarget() == target)

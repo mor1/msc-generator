@@ -329,7 +329,7 @@ EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children)
 
 //TODO: What if multiple entitydefs are present for the same entity? We should merge them
 ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                         Numbering &, bool top_level, TrackableElement **target)
+                                         Numbering &, bool top_level, Element **target)
 {
     if (!valid) return NULL;
     at_top_level = top_level;
@@ -557,7 +557,7 @@ void CommandEntity::CommentHeightHelper(MscCanvas &canvas, AreaList &cover, doub
 {
     for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) 
         (*i_def)->CommentHeightHelper(canvas, cover, l, r);
-    TrackableElement::CommentHeightHelper(canvas, cover, l, r); //sets comment_height
+    Element::CommentHeightHelper(canvas, cover, l, r); //sets comment_height
 }
 
 void CommandEntity::Layout(MscCanvas &canvas, AreaList &cover)
@@ -699,7 +699,7 @@ void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/)
 
 //////////////////////////////////////////////////////////////////////////////////////
 ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
-                                            Numbering &number, bool /*top_level*/, TrackableElement ** /*target*/)
+                                            Numbering &number, bool /*top_level*/, Element ** /*target*/)
 {
     if (!valid) return NULL;
     if (hide) hidden = true;
@@ -892,7 +892,7 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
 
 ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     EIterator &/*left*/, EIterator &/*right*/, 
-    Numbering &/*number*/, bool /*top_level*/, TrackableElement ** /*target*/)
+    Numbering &/*number*/, bool /*top_level*/, Element ** /*target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -986,7 +986,7 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
 
 ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     EIterator &/*left*/, EIterator &/*right*/, 
-    Numbering &/*number*/, bool /*top_level*/, TrackableElement ** /*target*/)
+    Numbering &/*number*/, bool /*top_level*/, Element ** /*target*/)
 {
     if (!valid) return NULL;
     if (!label.first && !space.first) {
@@ -1153,7 +1153,7 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
 }
 
 ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
-                                         Numbering &/*number*/, bool /*top_level*/, TrackableElement ** target)
+                                         Numbering &/*number*/, bool /*top_level*/, Element ** target)
 {
     *target = this;
     if (!valid) return NULL;
@@ -1431,7 +1431,7 @@ bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_floa
 }
 
 ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
-                                       Numbering &number, bool top_level, TrackableElement **note_target)
+                                       Numbering &number, bool top_level, Element **note_target)
 {
     if (!valid) return NULL;
     if (label.length()==0) {

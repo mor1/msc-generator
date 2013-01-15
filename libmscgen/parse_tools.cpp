@@ -31,13 +31,16 @@ int isatty (int) {return 0;}
 
 
 
+/** Move `loc` to the beginning of the next line*/
 void msc_jump_line(YYLTYPE *loc)
 {
     loc->last_line = loc->first_line+1;
-    loc->last_column=1;
+    loc->last_column=1; //yacc column numbering starts at 1
 };
 
-/* in-place removal of whitespace. Returns new head */
+/** In-place removal of whitespace. 
+ * Remove heading and trailing whitespace, by 
+ * returning a new head of string and adding a '0' to the end of it.*/
 char *msc_remove_head_tail_whitespace(char *s)
 {
     size_t a=0;
@@ -50,13 +53,18 @@ char *msc_remove_head_tail_whitespace(char *s)
     return r;
 }
 
-/* remove heading and trailing whitespace from a string
-** remove any internal CR or CRLF (and surrounding whitespaces) & replace to \n
-** Remove comments between # and lineend, except if # is preceeded by even number of \s
-** (copies to new memory)
-** update loc to point to the end of the token
-** also insert \l(file,line,col) escapes where needed
-*/
+/** Preprocess a colon-initiated label.
+ * We do all the following:
+ * - Remove heading and trailing whitespace.
+ * - Replace any internal CR or CRLF (and surrounding whitespaces) to "\n".
+ * - Remove comments between # and lineend, except if # is preceeded by an odd 
+ *   number of backslashes.
+ * - Update `loc` to point to the end of the token
+ * - Insert \0x2(file,line,col) escapes where needed we changed the length of the
+ *   preceeding string, so that if we generate an error to any escapes thereafter
+ *   those will have the right location in the input file.
+ * 
+ * The function copies the result to new memory and the caller shall free().*/
 char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
 {
     std::string ret;
@@ -137,6 +145,9 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
     return strdup(ret.c_str());
 }
 
+/** Converts 'emphasis' (a deprecated style name) to 'box' and emits warning if doing so.
+ * We return 'box' or 'emptybox' if the input style name was 'emphasis' or
+ * 'emptyemphasis' and generate a warning. Else we return `style`.*/
 string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc &msc)
 {
     const char *newname = style == "emphasis"?"box":"emptybox";
@@ -149,10 +160,14 @@ string ConvertEmphasisToBox(const string &style, const YYLTYPE *loc, Msc &msc)
     return style;
 }
 
-/* yyerror
- *  Error handling function.  The TOK_XXX names are substituted for more
- *  understandable values that make more sense to the user.
- */
+/** The error handling function required by yacc. 
+ * The TOK_XXX names are substituted for more
+ *  understandable values that make more sense to the user and
+ * the error is added to `msc`.
+ * @param [in] loc The location of the error.
+ * @param msc The chart to add the error to.
+ * @param yyscanner The state of the parser
+ * @param [in] str The message we need to beautify and emit into `msc`.*/
 void yyerror(YYLTYPE*loc, Msc &msc, void *yyscanner, const char *str)
 {
     static const std::pair<string, string> tokens[] = {
