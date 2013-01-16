@@ -36,18 +36,18 @@ class Attribute;
  * 
  * We may parse multiple files in succession, thus we number them, so we can
  * refer to a location in any of them.*/
-class file_line
+class FileLineCol
 {
 public:
     int file;      ///<The number of the file. Names are stored in MscError::Files. -1 if invalid location.
     unsigned line; ///<The line of the location
     unsigned col;  ///<The character inside the line. First char is index zero.
-    file_line() {MakeInvalid();}
-    file_line(unsigned a, unsigned b, unsigned c=0) : file(a), line(b), col(c) {}
+    FileLineCol() {MakeInvalid();}
+    FileLineCol(unsigned a, unsigned b, unsigned c=0) : file(a), line(b), col(c) {}
     void MakeInvalid() {file = -1;}
     bool IsInvalid() const {return file<0;}
-    bool operator == (const file_line&a) const {return file==a.file && line==a.line && col==a.col;}
-    bool operator < (const file_line&a) const {
+    bool operator == (const FileLineCol&a) const {return file==a.file && line==a.line && col==a.col;}
+    bool operator < (const FileLineCol&a) const {
         if (file==a.file) {
             if (line==a.line)
                 return col<a.col;
@@ -56,7 +56,7 @@ public:
         }
         else return file < a.file;
     }
-    bool operator > (const file_line &a) const {
+    bool operator > (const FileLineCol &a) const {
         if (file==a.file) {
             if (line==a.line)
                 return col>a.col;
@@ -65,33 +65,33 @@ public:
         }
         else return file>a.file;
     }
-    bool operator <= (const file_line &a) const {
+    bool operator <= (const FileLineCol &a) const {
         return !operator>(a);
     }
-    bool operator >= (const file_line &a) const {
+    bool operator >= (const FileLineCol &a) const {
         return !operator<(a);
     }
-    file_line NextChar() const {return file_line(file, line, col+1);}
+    FileLineCol NextChar() const {return FileLineCol(file, line, col+1);}
     std::string Print();
 };
 
 /** A structure to describe a range within a file.*/
-struct file_line_range {
-    file_line start; ///< The first character of the range
-    file_line end;   ///< The last character of the range. Equals `start` for single character ranges.
-    file_line_range() {MakeInvalid();}
-    file_line_range(file_line s, file_line e) : start(s), end(e) {}
-    file_line_range &IncStartCol(unsigned i=1) {start.col+=i; return *this;}
+struct FileLineColRange {
+    FileLineCol start; ///< The first character of the range
+    FileLineCol end;   ///< The last character of the range. Equals `start` for single character ranges.
+    FileLineColRange() {MakeInvalid();}
+    FileLineColRange(FileLineCol s, FileLineCol e) : start(s), end(e) {}
+    FileLineColRange &IncStartCol(unsigned i=1) {start.col+=i; return *this;}
     void MakeInvalid() {start.MakeInvalid(); end.MakeInvalid();}
     bool IsInvalid() const {return start.IsInvalid() || end.IsInvalid();}
-    bool operator ==(const file_line_range &o) const {return start==o.start && end==o.end;}
-    bool operator <(const file_line_range &o) const {return start==o.start ? end<o.end : start<o.start;}
+    bool operator ==(const FileLineColRange &o) const {return start==o.start && end==o.end;}
+    bool operator <(const FileLineColRange &o) const {return start==o.start ? end<o.end : start<o.start;}
 };
 
 /** Returns which of two ranges are shorter.*/
 struct file_line_range_length_compare
 {
-    bool operator() (const file_line_range &a, const file_line_range &b) const {
+    bool operator() (const FileLineColRange &a, const FileLineColRange &b) const {
         if (b.end.file - b.start.file == a.end.file - a.start.file) {
             if (b.end.line - b.start.line == a.end.line - a.start.line) {
                 if (b.end.col - b.start.col == a.end.col - a.start.col)
@@ -105,12 +105,12 @@ struct file_line_range_length_compare
 /** Describes an Error, a Warning or auxiliary information for one of them.*/
 struct ErrorElement
 {
-    file_line relevant_line; ///<The location to which the information applies. This is shown.
-    file_line ordering_line; ///<The location used at ordering the errors. Different for auxiliary info.
-    bool isError;            ///<Ture if this is an error 
-    bool isOnlyOnce;         ///<True if messages with this text shall only be displayed once.
-    std::string text;        ///<The full text of the error/warning including location, etc.
-    std::string message;     ///<The original text of the error/warning.
+    FileLineCol relevant_line; ///<The location to which the information applies. This is shown.
+    FileLineCol ordering_line; ///<The location used at ordering the errors. Different for auxiliary info.
+    bool isError;              ///<Ture if this is an error 
+    bool isOnlyOnce;           ///<True if messages with this text shall only be displayed once.
+    std::string text;          ///<The full text of the error/warning including location, etc.
+    std::string message;       ///<The original text of the error/warning.
     bool operator < (const ErrorElement &other) const {return ordering_line < other.ordering_line;}
 };
 
@@ -123,7 +123,7 @@ protected:
     const std::vector<ErrorElement> &get_store(bool oWarnings) const {return oWarnings?ErrorsAndWarnings:Errors;} ///<returns the smesage store to use.
     void _sort(std::vector<ErrorElement> &store); ///<Sorts the messages based on ordering_line. Removes duplicates if isOnlyOnce is true.
 
-    void Add(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once, bool is_err);
+    void Add(FileLineCol linenum, FileLineCol linenum_ord, const std::string &s, const std::string &once, bool is_err);
     void Add(const Attribute &a, bool atValue, const std::string &s, const std::string &once, bool is_err);
 
 public:
@@ -134,14 +134,14 @@ public:
      * @param [in] linenum The location of the warning.
      * @param [in] s The message to display
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
-    void Warning(file_line linenum, const std::string &s, const std::string &once="")
+    void Warning(FileLineCol linenum, const std::string &s, const std::string &once="")
         {Add(linenum, linenum, s, once, false);}
     /** Adds a warning auxiliary info.
      * @param [in] linenum The location of the warning to show.
      * @param [in] linenum_ord The location to use at ordering.
      * @param [in] s The message to display
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
-    void Warning(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once="")
+    void Warning(FileLineCol linenum, FileLineCol linenum_ord, const std::string &s, const std::string &once="")
         {Add(linenum, linenum_ord, "("+s+")", once, false);}
     /** Adds a warning for an attribute.
      * @param [in] a The faulty attribute.
@@ -154,14 +154,14 @@ public:
      * @param [in] linenum The location of the error.
      * @param [in] s The message to display
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
-    void Error(file_line linenum, const std::string &s, const std::string &once="")
+    void Error(FileLineCol linenum, const std::string &s, const std::string &once="")
         {Add(linenum, linenum, s, once, true);}
     /** Adds a error auxiliary info.
      * @param [in] linenum The location of the error to show.
      * @param [in] linenum_ord The location to use at ordering.
      * @param [in] s The message to display
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
-    void Error(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once="")
+    void Error(FileLineCol linenum, FileLineCol linenum_ord, const std::string &s, const std::string &once="")
         {Add(linenum, linenum_ord, "("+s+")", once, true);}
     /** Adds a error for an attribute.
      * @param [in] a The faulty attribute.
@@ -174,7 +174,7 @@ public:
      * @param [in] linenum The location of the error.
      * @param [in] s The message to display
      * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.*/
-    void FatalError(file_line linenum, const std::string &s, const std::string &once="")
+    void FatalError(FileLineCol linenum, const std::string &s, const std::string &once="")
         {Add(linenum, linenum, s, once, true); hadFatal=true;}
 
     /** Print all the errors (and warnings) onto a string*/
@@ -188,10 +188,10 @@ public:
     /** Returns the number of errors (includes warnings if oWarnings is true).*/
     unsigned GetErrorNum(bool oWarnings) const {return (unsigned)get_store(oWarnings).size();}
     /** Get the location of an error */
-    file_line GetErrorLoc(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].relevant_line;}
+    FileLineCol GetErrorLoc(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].relevant_line;}
     /** Get the text of an error, including line numbers and all. */
     const char *GetErrorText(unsigned num, bool oWarnings) const {return get_store(oWarnings)[num].text.c_str();}
-    ErrorElement FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const ;
+    ErrorElement FormulateElement(FileLineCol linenum, FileLineCol linenum_ord, bool is_err, bool is_once, const std::string &msg) const ;
     /** Clearing all collected errors and warnings, but keeps the files.*/
     void Clear() {Errors.clear(); ErrorsAndWarnings.clear(); hadFatal=false;}
 };

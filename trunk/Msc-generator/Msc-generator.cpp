@@ -439,7 +439,7 @@ DWORD ConvertMscColorSyntaxFlagsToCHARFORMATFlags(int input)
 		   ((input & COLOR_FLAG_COLOR    ) ? CFM_COLOR     : 0);
 }
 
-void ConvertMscCshAppearanceToCHARFORMAT(const MscColorSyntaxAppearance &app, CHARFORMAT &cf)
+void ConvertMscCshAppearanceToCHARFORMAT(const ColorSyntaxAppearance &app, CHARFORMAT &cf)
 {
 	cf.cbSize      = sizeof(cf);
 	cf.dwMask      = ConvertMscColorSyntaxFlagsToCHARFORMATFlags(app.mask);

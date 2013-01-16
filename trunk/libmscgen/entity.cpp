@@ -32,7 +32,7 @@ template class PtrList<Entity>;
  * @param [in] fp The location of the entity definition in the input file.
  * @param [in] coll True if we are group, but show collapsed. */
 Entity::Entity(const string &n, const string &l, const string &ol,
-    double p, double pe, const MscStyle &entity_style, const file_line &fp,
+    double p, double pe, const MscStyle &entity_style, const FileLineCol &fp,
                bool coll) :
     name(n), label(l), orig_label(ol), file_pos(fp), pos(p), pos_exp(pe),
     index(0), status(entity_style),
@@ -134,12 +134,12 @@ void EntityList::SortByPosExp(void)
  * elements that are set in the default entity style in chart->Contexts*/
 EntityDef::EntityDef(const char *s, Msc* msc) : Element(msc),
     name(s),
-    label(false, "", file_line()),
-    pos(false, 0, file_line()),                    //field 'pos.second' is used even if no such attribute
-    rel(false, "", file_line()),
-    collapsed(false, false, file_line()),
+    label(false, "", FileLineCol()),
+    pos(false, 0, FileLineCol()),                    //field 'pos.second' is used even if no such attribute
+    rel(false, "", FileLineCol()),
+    collapsed(false, false, FileLineCol()),
     show(true, true),                              //if no attributes, we are ON if defined
-    active(true, false, file_line()),              //if no attributes, we are not active if defined
+    active(true, false, FileLineCol()),              //if no attributes, we are not active if defined
     show_is_explicit(false),
     active_is_explicit(false),
     style(msc->Contexts.back().styles["entity"]),  //we will Empty it but use it for f_* values
@@ -265,7 +265,7 @@ bool EntityDef::AddAttribute(const Attribute& a)
  * @param [in] l The position of the EntityDef in the file.
  * @return An EntityDefHelper which contains us and our children (if any), plus all notes.
  *         We will be the first EntityDef in the returned list, children will come after.*/
-EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, file_line l)
+EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, FileLineCol l)
 {
     EIterator i = chart->AllEntities.Find_by_Name(name);
     if (*i != chart->NoEntity) {
@@ -437,7 +437,7 @@ EntityDefHelper* EntityDef::AddAttributeList(AttributeList *al, ArcList *ch, fil
         if (!chart->IsVirtualEntity(e))
             ret->target = name;  //if we were a group entity, use us as target for a subsequent note
     } else {
-        file_line p;
+        FileLineCol p;
         // An existing entity. Disallow attributes that change drawing positions
         if (label.first && label.second != (*i)->label)
             chart->Error.Error(p = label.third,
@@ -641,7 +641,7 @@ void EntityDef::AddAreaImportantWhenNotShowing()
  * We hide entity lines behind us, record our style and status
  * in Entity::status and if we are a group entity we
  * create a control (for the GUI).*/
-void EntityDef::PostPosProcess(MscCanvas &canvas)
+void EntityDef::PostPosProcess(Canvas &canvas)
 {
     if (draw_heading && !hidden) {
         chart->HideEntityLines(outer_edge);
@@ -671,12 +671,12 @@ void EntityDef::PostPosProcess(MscCanvas &canvas)
 /** Draw an entity heading 
  * We use the layout calculated in Height() and affected by ShiftBy()
  * and we use the style we finalized in CommandEntity::PostParseProcess()*/
-void EntityDef::Draw(MscCanvas &canvas)
+void EntityDef::Draw(Canvas &canvas)
 {
     const double lw = style.line.LineWidth();
 
     Block b(outer_edge);
-    MscLineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
+    LineAttr line2 = style.line;   //style.line.radius corresponds to midpoint of line
     line2.radius.second = std::min(std::min(outer_edge.y.Spans()/2 - lw, outer_edge.x.Spans()/2 - lw),
                                     line2.radius.second);
     if (line2.radius.second>0)

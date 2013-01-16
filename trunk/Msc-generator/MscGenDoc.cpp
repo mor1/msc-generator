@@ -1678,7 +1678,7 @@ void CMscGenDoc::HighLightArc(const Element *arc)
 	editor.Invalidate();
 }
 
-bool CMscGenDoc::OnControlClicked(Element *arc, MscControlType t)
+bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
 {
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
     CChartData chart(*m_itrEditing);

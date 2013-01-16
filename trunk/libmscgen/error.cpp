@@ -23,7 +23,7 @@
 #include <algorithm>
 #include "msc.h"
 
-std::string file_line::Print()
+std::string FileLineCol::Print()
 {
     std::string ret("\\" ESCAPE_STRING_LOCATION "(");
     ret << file << "," << line << "," << col << ")";
@@ -45,7 +45,7 @@ unsigned MscError::AddFile(const string &filename)
  * @param [in] is_once True if the message is to be displayed only once.
  * @param [in] msg The message to display
  * @returns The error element. */
-ErrorElement MscError::FormulateElement(file_line linenum, file_line linenum_ord, bool is_err, bool is_once, const std::string &msg) const
+ErrorElement MscError::FormulateElement(FileLineCol linenum, FileLineCol linenum_ord, bool is_err, bool is_once, const std::string &msg) const
 {
     ErrorElement e;
     e.message = msg;
@@ -96,7 +96,7 @@ void MscError::Add(const Attribute &a, bool atValue, const std::string &s, const
  * @param [in] s The message to display
  * @param [in] once Auxiliary info, a type of hint on what to do. Added as a separate element, but only once.
  * @param [in] is_err True if this is an error, false if a Warning. */
-void MscError::Add(file_line linenum, file_line linenum_ord, const std::string &s, const std::string &once, bool is_err)
+void MscError::Add(FileLineCol linenum, FileLineCol linenum_ord, const std::string &s, const std::string &once, bool is_err)
 {
     ErrorElement e1 = FormulateElement(linenum, linenum_ord, is_err, false, s);
     if (is_err)

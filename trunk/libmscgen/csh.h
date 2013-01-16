@@ -73,14 +73,14 @@ typedef enum
     COLOR_ERROR,           ///<A place where an error was detected.
     COLOR_COMMENT,         ///<A comment
     COLOR_MAX              ///<No specific element, simply the maximum value
-} MscColorSyntaxType;
+} EColorSyntaxType;
 
 /** Describes a colored range in the input file.*/
 struct CshEntry
 {
     int first_pos;            ///<The first char in the range
     int last_pos;             ///<The last char in the range
-    MscColorSyntaxType color; ///<The type of the language element in the range
+    EColorSyntaxType color; ///<The type of the language element in the range
 };
 
 /** An ordered collection of colored ranges.*/
@@ -111,10 +111,10 @@ typedef enum
     COLOR_FLAG_ITALICS = 2,
     COLOR_FLAG_UNDERLINE = 4,
     COLOR_FLAG_COLOR = 8
-} MscColorSyntaxFlag;
+} EColorSyntaxFlag;
 
 /** Describes the appearance of colored text*/
-struct MscColorSyntaxAppearance {
+struct ColorSyntaxAppearance {
     unsigned effects;    ///<Value of flags 
     unsigned mask;       ///<Mask for the flags. Needed to be able to combine.
     unsigned char r;     ///<Red value
@@ -128,7 +128,7 @@ struct MscColorSyntaxAppearance {
 #define CSH_SCHEME_MAX 4
 
 /** Definition of the appearance of language elements for each coloring scheme.*/
-extern MscColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
+extern ColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 /** Initializes the coloring schemes*/
 void MscInitializeCshAppearanceList(void);
 
@@ -136,7 +136,7 @@ std::string Cshize(const char *input, unsigned len, const CshListType &cshList, 
                    const char *textformat=NULL);
 
 
-class MscCanvas;
+class Canvas;
 class StringFormat;
 /** The X size of small symbols in the hint popup.*/
 #define HINT_GRAPHIC_SIZE_X 25
@@ -144,7 +144,7 @@ class StringFormat;
 #define HINT_GRAPHIC_SIZE_Y 18
 typedef unsigned CshHintGraphicParam;
 /** A callback to draw the small symbols in hint popups.*/
-typedef bool (*CshHintGraphicCallback)(MscCanvas*, CshHintGraphicParam);
+typedef bool (*CshHintGraphicCallback)(Canvas*, CshHintGraphicParam);
 
 /** The current context during a csh parse.*/
 class CshContext
@@ -171,7 +171,7 @@ typedef enum {
     HINT_LOCATED,  ///<We have located the type (e.g., attribute name or keyword) and location, but hints need filling
     HINT_FILLING,  ///<We have located the type and location and are in the process of adding hints
     HINT_READY     ///<We have a complete set of hints ready (may be empty)
-} CshHintStatus;
+} EHintStatus;
 
 /** The type of language element under the cursor that we shall provide alternatives (hints) for.*/
 typedef enum {
@@ -181,7 +181,7 @@ typedef enum {
     HINT_ATTR_VALUE, ///<Attribute values
     HINT_MARKER,     ///<Marker names
     HINT_LINE_START  ///<Anything that can be at the beginning of a line (keyword, option, entity)
-} CshHintType;
+} EHintType;
 
 /** The relative position of the cursor to a range in the input file.
  *
@@ -192,19 +192,19 @@ typedef enum {
     CURSOR_AT_BEGINNING=1, ///<The cursor is immediately before the beginning of the range
     CURSOR_IN=2,           ///<The cursor is inside the range
     CURSOR_AT_END=3        ///<The cursor is right after the last character of the range
-} CshCursorRelPosType;
+} ECursorRelPosType;
 
 /** Describes the selection status of a hint in the popup window.*/
 typedef enum {
     HINT_ITEM_NOT_SELECTED,  ///<Not selected
     HINT_ITEM_SELECTED_HALF, ///<Selected, but the hint is not one that can be inserted into the text
     HINT_ITEM_SELECTED       ///<Selected and can be inserted into the chart text
-} CshHintItemSelectionState;
+} EHintItemSelectionState;
 
 /** One possibility for autocompletion valid at the cursor */
 struct CshHint {
     std::string  decorated;         ///<Full text of the hint with formatting escapes
-    CshHintType  type;              ///<The type of the hint.
+    EHintType  type;                ///<The type of the hint.
     bool selectable;                ///<True if this hint can be inserted to the chart text, false if it is just an explanation
     CshHintGraphicCallback callback;///<A procedure that draws the small symbol before the hint text
     CshHintGraphicParam    param;   ///<A parameter to pass to the callback
@@ -218,9 +218,9 @@ struct CshHint {
     mutable int ul_y;           ///<Size of the rectange shown in list box
     mutable int br_x;           ///<Size of the rectange shown in list box
     mutable int br_y;           ///<Size of the rectange shown in list box
-    mutable CshHintItemSelectionState state; ///<Will show if this hint is selected or not
+    mutable EHintItemSelectionState state; ///<Will show if this hint is selected or not
     /** @} */
-    CshHint(const std::string &d, CshHintType t, bool s = true, CshHintGraphicCallback c=NULL, CshHintGraphicParam p=0)  : 
+    CshHint(const std::string &d, EHintType t, bool s = true, CshHintGraphicCallback c=NULL, CshHintGraphicParam p=0)  : 
         decorated(d), type(t), selectable(s), callback(c), param(p), keep(false) {}
     void swap(CshHint &o);
     bool operator < (const CshHint &o) const {if (type==o.type) return decorated<o.decorated; return type<o.type;}
@@ -237,7 +237,7 @@ struct CshHint {
  * For example, we have yacc rues describing how an attribute looks like, that is "name = value". 
  * In this rule we can realize that the cursor is inside value (or we match to a rule saying
  * "name =" and realize that the cursor is just after). Here we can conclude that the hint
- * will be a sort of attribute value. (So we pick CshHintType of HINT_ATTRVALUE.) But we do not know
+ * will be a sort of attribute value. (So we pick EHintType of HINT_ATTRVALUE.) But we do not know
  * what values the attribute can take, because that depens on what arc we are parsing. So after we macth
  * the low level rule, we set the hint type only and when processing the higher level rule for the
  * full arc, do we fill in the actual hints. In the meantime we set the hintStatus member to
@@ -264,8 +264,8 @@ public:
     std::map<std::string, CshContext> FullDesigns;    ///<The names and content of full designs defined so far
     std::map<std::string, CshContext> PartialDesigns; ///<The names and content of partial designs defined so far
     std::list<CshContext>             Contexts;       ///<The context stack
-    CshHintType                       hintType;       ///<The type of hint we found the cursor is at
-    CshHintStatus                     hintStatus;     ///<Shows if we have located the hint type and if we have filled in the hints or not
+    EHintType                       hintType;       ///<The type of hint we found the cursor is at
+    EHintStatus                     hintStatus;     ///<Shows if we have located the hint type and if we have filled in the hints or not
     CshPos                            hintedStringPos;///<The actual text location the hints refer to (can be the cursor only, which is a zero length range)
     std::string                       hintAttrName;   ///<In case of an ATTR_VALUE contains the name of the attribute
     bool                              addMarkersAtEnd;///<Set to true if at the end of the csh parsing we shall add the name of the markers to the hint list.
@@ -282,12 +282,12 @@ public:
 
     /** @name Functions to add a CSH entry 
      * @{  */
-    void AddCSH(CshPos&, MscColorSyntaxType); ///<The basic variant: color a range to this language element type
+    void AddCSH(CshPos&, EColorSyntaxType); ///<The basic variant: color a range to this language element type
     void AddCSH_Error(CshPos&pos, const char *text) {CshErrors.Add(pos, text);} ///<The basic variant for errors: add error "text" at this location
     void AddCSH_ErrorAfter(CshPos&pos, const char *text); ///<Add an error just after this range
     void AddCSH_KeywordOrEntity(CshPos&pos, const char *name); 
     void AddCSH_ColonString(CshPos& pos, const char *value, bool processComments); ///<This is a colon followed by a label. if processComments is true, search for @# comments and color them so. (False for quoted colon strings.)
-    void AddCSH_AttrName(CshPos&, const char *name, MscColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
+    void AddCSH_AttrName(CshPos&, const char *name, EColorSyntaxType); ///<At pos there is either an option or attribute name (specified by the type). Search and color.
     void AddCSH_AttrValue(CshPos& pos, const char *value, const char *name); ///<At pos there is an attribute value. If the attribute name indicates a label, color the escapes, too.
     void AddCSH_StyleOrAttrName(CshPos&pos, const char *name); ///<At pos there is either an attribute name or a style. Decide and color.
     void AddCSH_EntityName(CshPos&pos, const char *name); ///<At pos there is an entity name. Search and color.
@@ -297,44 +297,44 @@ public:
     void AddErrorsToCsh() {for (unsigned i=0; i<CshErrors.size(); i++) CshList.AddToFront(CshErrors[i]);} ///<Add error coloring for each error collected.
     /** @}*/
     void ParseText(const char *input, unsigned len, int cursor_p, unsigned scheme); 
-    MscColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
+    EColorSyntaxType GetCshAt(int pos); ///<After parsing return what is the language element at character 'pos'.
 
     void PushContext(bool empty=false);       ///<Push the context stack. If empty is false copy what was on top.
     void PopContext() {Contexts.pop_back();}  ///<Pop the context stack.
     std::string SetDesignTo(const std::string&design, bool full); 
     /** Returns the relation of the cursor pos to a range in the input file.*/
-    CshCursorRelPosType CursorIn(const CshPos &p) const {return CursorIn(p.first_pos, p.last_pos);}
+    ECursorRelPosType CursorIn(const CshPos &p) const {return CursorIn(p.first_pos, p.last_pos);}
     /** Returns the relation of the cursor pos to a range in the input file.*/
-    CshCursorRelPosType CursorIn(int a, int b) const;
+    ECursorRelPosType CursorIn(int a, int b) const;
     /** @name Set hint status if cursor position is at a hintable place.
      * @{ */
-    bool CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
-    bool CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
-    bool CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
-    bool CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name=NULL);
-    bool CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name=NULL);
-    bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name=NULL);
-    bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name=NULL);
+    bool CheckHintBetween(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
+    bool CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
+    bool CheckHintAtAndBefore(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
+    bool CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name=NULL);
+    bool CheckHintAt(const CshPos &one, EHintType ht, const char *a_name=NULL);
+    bool CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name=NULL);
+    bool CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name=NULL);
     bool CheckEntityHintAtAndBefore(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two);
     bool CheckEntityHintAt(const CshPos &one);
     bool CheckEntityHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd);
     bool CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd);
-    bool CheckHintLocated(CshHintType ht, const CshPos  &location_to_check);
+    bool CheckHintLocated(EHintType ht, const CshPos  &location_to_check);
     /** @}*/
     
     /** Tells what formatting prefix to append to an information-only hint that should not be inserted to chart text.*/
     std::string HintPrefixNonSelectable() const {return "\\i";}
     /** Tells what formatting prefix to append to a hint of a given type.*/
-    std::string HintPrefix(MscColorSyntaxType) const;
+    std::string HintPrefix(EColorSyntaxType) const;
 
     /** @name Add specific items to the list of hints.
      * @{ */
     void AddToHints(CshHint &&h);
     void AddToHints(const CshHint &h) {AddToHints(CshHint(h));} ///<Insert a hint to the list of hints.
-    void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, CshHintType t, 
+    void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, EHintType t, 
                     CshHintGraphicCallback c=NULL);
-    void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, CshHintType t, 
+    void AddToHints(const char names[][ENUM_STRING_LEN], const std::string &prefix, EHintType t, 
                     CshHintGraphicCallback c, CshHintGraphicParam);
     void AddColorValuesToHints();
     void AddDesignsToHints(bool full);
@@ -347,7 +347,7 @@ public:
     void AddLineBeginToHints(bool includeParallel=true) {AddEntitiesToHints(); AddKeywordsToHints(includeParallel); AddOptionsToHints();}
     /** @}*/
     //fill in size, plain and filter/compact if needed
-    void ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
+    void ProcessHints(Canvas &canvas, StringFormat *format, const std::string &uc, bool filter_by_uc, bool compact_same);
 };
 
 void CshParse(Csh &csh, const char *buff, unsigned len);

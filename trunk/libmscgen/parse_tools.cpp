@@ -87,7 +87,7 @@ char* msc_process_colon_string(const char *s, YYLTYPE *loc, unsigned file_no)
         //term_line can be smaller than start_line here if line is empty
         while (term_line>=start_line && (s[term_line]==' ' || s[term_line]=='\t')) term_line--;
         //Generate a \l(file,line,col) escape and append
-        file_line pos(file_no, loc->last_line,
+        FileLineCol pos(file_no, loc->last_line,
                       loc->last_column + (start_line-old_pos));
         ret += pos.Print();
         //now append the line (without the whitespaces)

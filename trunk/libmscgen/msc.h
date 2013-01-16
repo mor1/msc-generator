@@ -28,7 +28,7 @@
 #include <set>
 #include <vector>
 #include <stack>
-#include "trackable.h"
+#include "element.h"
 #include "style.h"
 #include "entity.h"
 #include "mscdrawer.h"
@@ -138,34 +138,34 @@ public:
 
 /////////////////////////////////////////////////////////////////////
 
-struct PBData {
+struct PageBreakData {
     double y;
     bool manual;
     CommandEntity *autoHeading;
     double autoHeadingSize;
-    PBData(double _y, bool m, CommandEntity *ce=NULL, double h=0) : 
+    PageBreakData(double _y, bool m, CommandEntity *ce=NULL, double h=0) : 
         y(_y), manual(m), autoHeading(ce), autoHeadingSize(h ? h : ce ? ce->GetHeight() : 0) {}
 };
 
 
 class Msc {
 public:
-    typedef std::pair<file_line, double> MarkerType;
+    typedef std::pair<FileLineCol, double> MarkerType;
     struct RefType {
         string    number_text; // the number of the arc
-        file_line linenum;     //position of the value of the "refname" attr
+        FileLineCol linenum;     //position of the value of the "refname" attr
         ArcBase  *arc;         // the arc or NULL if not shown (set in FinalizeLabels())
         RefType() : arc(NULL) {}
     };
-    typedef std::map<file_line_range, Element*, file_line_range_length_compare>
+    typedef std::map<FileLineColRange, Element*, file_line_range_length_compare>
             LineToArcMapType;
     struct ContourAttr {
         Contour     area;
-        MscLineAttr line;
-        MscFillAttr fill;
-        ContourAttr() : fill(MscColorType(0,0,0,0)) {} //transparent
-        ContourAttr(const Contour &c, const MscLineAttr &l=MscLineAttr(), const MscFillAttr &f=MscFillAttr(MscColorType(0,0,0,0))) : area(c), line(l), fill(f) {}
-        ContourAttr(const Contour &c, const MscFillAttr &f) : area(c), line(LINE_NONE), fill(f) {}
+        LineAttr line;
+        FillAttr fill;
+        ContourAttr() : fill(ColorType(0,0,0,0)) {} //transparent
+        ContourAttr(const Contour &c, const LineAttr &l=LineAttr(), const FillAttr &f=FillAttr(ColorType(0,0,0,0))) : area(c), line(l), fill(f) {}
+        ContourAttr(const Contour &c, const FillAttr &f) : area(c), line(LINE_NONE), fill(f) {}
     };
 
     MscError     Error;
@@ -180,12 +180,12 @@ public:
     std::map<string, Context>     Designs;
     std::map<string, MarkerType>  Markers;
     std::map<string, RefType>     ReferenceNames;
-    std::map<double, MscFillAttr> Background;
+    std::map<double, FillAttr> Background;
     std::string                   copyrightText;
     LineToArcMapType              AllArcs;
     AreaList                      AllCovers;
     Contour                       HideELinesHere;
-    PBDataVector                  yPageStart; /** The starting ypos of each page, one for each page. yPageStart[0] is always 0. */
+    PBDataVector                  pageBreakData; /** The starting ypos of each page, one for each page. pageBreakData[0] is always 0. */
 
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
     PtrList<const Element> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
@@ -247,10 +247,10 @@ public:
     ~Msc();
 
     void AddStandardDesigns(void);
-    int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const file_line_range &l = file_line_range(file_line(0,0,0), file_line(0,0,0)));
+    int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const FileLineColRange &l = FileLineColRange(FileLineCol(0,0,0), FileLineCol(0,0,0)));
     string GetDesigns(bool full) const;
 
-    CommandEntity *CEForComments(const MscStyle &s, const file_line_range &l);
+    CommandEntity *CEForComments(const MscStyle &s, const FileLineColRange &l);
     ArcBase *AddAttribute(const Attribute&);
     bool AddDesignAttribute(const Attribute&);
     static void AttributeNames(Csh &csh, bool designOnly);
@@ -259,76 +259,76 @@ public:
     EIterator EntityMinMaxByPos(EIterator i, EIterator j, bool min) const;
     EIterator EntityMinByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, true);}
     EIterator EntityMaxByPos(EIterator i, EIterator j) const {return EntityMinMaxByPos(i, j, false);}
-    EIterator FindAllocEntity(const char *, file_line_range);
+    EIterator FindAllocEntity(const char *, FileLineColRange);
     EIterator FindLeftRightDescendant(EIterator, bool left, bool stop_at_collapsed);
     EIterator FindActiveParentEntity(EIterator);
     EIterator FindWhoIsShowingInsteadOf(EIterator, bool left);
     string ListGroupedEntityChildren(EIterator ei);
-    bool ErrorIfEntityGrouped(EIterator, file_line l);
+    bool ErrorIfEntityGrouped(EIterator, FileLineCol l);
     bool IsMyParentEntity(const string &children, const string &parent);
     double GetEntityMaxPos() const;
     double GetEntityMaxPosExp() const;
     bool IsVirtualEntity(const Entity*e) const {return e==NoEntity || e==LNote || e==LSide || e==RSide || e==RNote;}
     void AddArcs(ArcList *a);
-    ArcArrow *CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
-                             const char*d, bool fw, file_line_range dl);
+    ArcArrow *CreateArcArrow(EArcType t, const char*s, FileLineColRange sl,
+                             const char*d, bool fw, FileLineColRange dl);
     ArcBigArrow *CreateArcBigArrow(const ArcBase *);
     void PushContext(bool empty=false);
     ArcBase *PopContext();
 
     void ParseText(const char *input, const char *filename);
 
-    void PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
+    void PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level, Element **note_target);
-    void PostParseProcess(MscCanvas &canvas);
-    template <typename list> void FinalizeLabelsArcList(list &arcs, MscCanvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
+    void PostParseProcess(Canvas &canvas);
+    template <typename list> void FinalizeLabelsArcList(list &arcs, Canvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
 
-    MscDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, MscDirType dir=MSC_DIR_INDETERMINATE) const;
+    EDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, EDirType dir=MSC_DIR_INDETERMINATE) const;
 
     virtual string Print(int ident=0) const;
     double GetHScale() const {_ASSERT(Contexts.size() && Contexts.back().hscale.first); return Contexts.back().hscale.second;}
     double XCoord(double pos) const {return floor(pos*130*(GetHScale()>0?GetHScale():1)+0.5);} //rounded
     double XCoord(EIterator i) const {return XCoord((*i)->pos);} //rounded
 
-    void WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
-    double LayoutArcList(MscCanvas &canvas, ArcList &arcs, AreaList &cover);
-    std::vector<double> LayoutArcLists(MscCanvas &canvas, std::vector<ArcList> &arcs, AreaList &cover);
-    double PlaceListUnder(MscCanvas &canvas, ArcList &arcs, double start_y,
+    void WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances);
+    double LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover);
+    std::vector<double> LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList &cover);
+    double PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
                           double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList &arcs, double y);
-    void InsertAutoPageBreak(MscCanvas &canvas, ArcList &arcs, ArcList::iterator i, 
+    void InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i, 
                              double pageBreak, bool addHeading);
-    double PageBreakArcList(MscCanvas &canvas, ArcList &arcs, double netPrevPageSize,
+    double PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSize,
                             double pageBreak, bool &addCommandNewpage, bool addHeading, 
                             bool canChangePBPos);
     void CollectPageBreakArcList(ArcList &arcs);
-    void AutoPaginate(MscCanvas &canvas, double pageSize, bool addHeading);
-    void CalculateWidthHeight(MscCanvas &canvas, 
+    void AutoPaginate(Canvas &canvas, double pageSize, bool addHeading);
+    void CalculateWidthHeight(Canvas &canvas, 
                               bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth);
-    void PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker);
-    void PlaceFloatingNotes(MscCanvas &canvas);
+    void PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker);
+    void PlaceFloatingNotes(Canvas &canvas);
 
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
-    void PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs);
+    void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
 
-    void CompleteParse(MscCanvas::OutputType, bool avoidEmpty, 
+    void CompleteParse(Canvas::EOutputType, bool avoidEmpty, 
                        bool autoPaginate=false, bool addHeading=true, XY pageSize=XY(0,0), bool fitWidth=true);
 
-    void DrawEntityLines(MscCanvas &canvas, double y, double height, EIterator from, EIterator to);
-    void DrawEntityLines(MscCanvas &canvas, double y, double height)
+    void DrawEntityLines(Canvas &canvas, double y, double height, EIterator from, EIterator to);
+    void DrawEntityLines(Canvas &canvas, double y, double height)
          {DrawEntityLines(canvas, y, height, ActiveEntities.begin(), ActiveEntities.end());}
 
-    void DrawArcList(MscCanvas &canvas, ArcList &arcs, DrawPassType pass);
-    void DrawChart(MscCanvas &canvas, bool pageBreaks);
+    void DrawArcList(Canvas &canvas, ArcList &arcs, EDrawPassType pass);
+    void DrawChart(Canvas &canvas, bool pageBreaks);
 
-    void DrawCopyrightTextAndAutoHeading(MscCanvas &canvas, unsigned page=0);
-    void DrawPageBreaks(MscCanvas &canvas);
-    void DrawComplete(MscCanvas &canvas, bool pageBreaks, unsigned page);
+    void DrawCopyrightTextAndAutoHeading(Canvas &canvas, unsigned page=0);
+    void DrawPageBreaks(Canvas &canvas);
+    void DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page);
 
-    void DrawToOutput(MscCanvas::OutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks, 
-                      MscCanvas::EPageSize pageSize=MscCanvas::NO_PAGE, const double margins[4]=NULL, 
+    void DrawToOutput(Canvas::EOutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks, 
+                      Canvas::EPageSize pageSize=Canvas::NO_PAGE, const double margins[4]=NULL, 
                       int ha=-1, int va=-1, bool generateErrors=false);
 
     void InvalidateNotesToThisTarget(const Element *target);

@@ -27,7 +27,7 @@
 #include <climits>
 #include <cmath>
 #include <utility>
-#include "error.h" //for file_line
+#include "error.h" //for FileLineCol
 #include "area.h"  //for Area
 #include "style.h" //for style
 
@@ -37,7 +37,7 @@ typedef enum {
     MSC_CONTROL_EXPAND,   ///<A control to expand a collapsed element
     MSC_CONTROL_COLLAPSE, ///<A control to collapse an expanded group element (box or group entity, etc)
     MSC_CONTROL_ARROW     ///<A control to collapse a box to a block arrow
-} MscControlType;
+} EGUIControlType;
 
 /** A list of drawing passes.*/
 typedef enum {
@@ -48,10 +48,10 @@ typedef enum {
     DRAW_AFTER_DEFAULT,       ///<A drawing pass after the default pass
     DRAW_NOTE,                ///<A drawing pass to draw floating notes
     DRAW_AFTER_NOTE           ///<The last drawing pass: after drawing floating notes.
-} DrawPassType;
+} EDrawPassType;
 
 class Msc;
-class MscCanvas;
+class Canvas;
 class CommandNote;
 class EntityDistanceMap;
 
@@ -89,7 +89,7 @@ protected:
     double          comment_height;     ///<Total height of the comments attached (max of the two sides)
     Contour         area_important;     ///<Those parts of `area`, which must not be covered by notes.
 
-    std::vector<MscControlType> 
+    std::vector<EGUIControlType> 
            controls;           ///<GUI controls of this element.
     Block  control_location;   ///<The area the GUI controls occupy.
     const MscStyle 
@@ -98,14 +98,14 @@ protected:
     XY GetIndiactorSize() const {const double a = indicator_style.shadow.offset.second+indicator_style.line.LineWidth()*2; return indicator_size+XY(a,a);}
 
 public:
-    DrawPassType    draw_pass; ///<Gives the Z-order position of this arc 
-    file_line_range file_pos;  ///<The location of the element in the source file.
+    EDrawPassType    draw_pass; ///<Gives the Z-order position of this arc 
+    FileLineColRange file_pos;  ///<The location of the element in the source file.
 
     explicit Element(Msc *m);
     /** Copy constructor, but does not copy comments*/
     Element(const Element&);
     virtual ~Element();
-    void SetLineEnd(file_line_range l, bool f=true);
+    void SetLineEnd(FileLineColRange l, bool f=true);
     virtual void AttachComment(CommandNote *cn);
     void CombineComments(Element *); //move comments to us
     virtual bool AddAttribute(const Attribute &);
@@ -127,19 +127,19 @@ public:
     /** An second try for an area to the edge of which notes with an 'at' clause will point to*/
     const Contour &GetAreaToNote2() const {return area_to_note2;}
     /** Return the list of GUI controls associated with this Element*/
-    const std::vector<MscControlType>& GetControls() const {return controls;}
+    const std::vector<EGUIControlType>& GetControls() const {return controls;}
     /** Lay out our comments & return their combined coverage in `cover`*/
-    void LayoutComments(MscCanvas &canvas, AreaList &cover) {double l=0, r=0; LayoutCommentsHelper(canvas, cover, l, r);}
-    virtual void LayoutCommentsHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
-    virtual void PostPosProcess(MscCanvas &);
+    void LayoutComments(Canvas &canvas, AreaList &cover) {double l=0, r=0; LayoutCommentsHelper(canvas, cover, l, r);}
+    virtual void LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r);
+    virtual void PostPosProcess(Canvas &);
 
     /** Return the location of our GUI controls*/
     const Block &GetControlLocation() const {return control_location;}
     void DrawControls(cairo_t*, double size);
-    MscControlType WhichControl(const XY &xy);
+    EGUIControlType WhichControl(const XY &xy);
 
     Block GetIndicatorCover(const XY &pos);
-    void DrawIndicator(XY pos, MscCanvas *canvas);
+    void DrawIndicator(XY pos, Canvas *canvas);
 };
 
 

@@ -23,7 +23,7 @@
 #include "msc.h"
 
 /** Create an empty style that contains all possible attributes.*/
-MscStyle::MscStyle(StyleType tt) : type(tt)
+MscStyle::MscStyle(EStyleType tt) : type(tt)
 {
     f_line=f_vline=f_fill=f_vfill=f_shadow=f_text=true;
     f_solid=f_numbering=f_compress=f_side=f_indicator=true;
@@ -49,7 +49,7 @@ MscStyle::MscStyle(StyleType tt) : type(tt)
  * @param [in] mr True if the style shall contain the `makeroom` attribute.
  * @param [in] n True if the style shall contain note attributes.
  */
-MscStyle::MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
+MscStyle::MscStyle(EStyleType tt, ArrowHead::EArcArrowType a, bool t, bool l, bool f, bool s, bool vl, 
                    bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n) :
     arrow(a), type(tt), f_line(l), f_vline(vl), f_fill(f), f_vfill(vf), f_shadow(s),
     f_text(t), f_solid(so), f_numbering(nu), f_compress(co), f_side(si),
@@ -135,7 +135,7 @@ MscStyle & MscStyle::operator +=(const MscStyle &toadd)
 }
 
 /** Possible values for the 'side' attribute.*/
-template<> const char EnumEncapsulator<MscSideType>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<ESideType>::names[][ENUM_STRING_LEN] =
     {"invalid", "left", "right", ""};
 
 
@@ -263,10 +263,10 @@ void MscStyle::AttributeNames(Csh &csh) const
     static const char names2[][ENUM_STRING_LEN] =
     {"", "vfill.color", "vfill.color2", "vfill.gradient", ""};
 
-    if (f_line) MscLineAttr::AttributeNames(csh);
-    if (f_fill) MscFillAttr::AttributeNames(csh);
+    if (f_line) LineAttr::AttributeNames(csh);
+    if (f_fill) FillAttr::AttributeNames(csh);
     if (f_arrow!=ArrowHead::NONE) ArrowHead::AttributeNames(csh);
-    if (f_shadow) MscShadowAttr::AttributeNames(csh);
+    if (f_shadow) ShadowAttr::AttributeNames(csh);
     if (f_text) StringFormat::AttributeNames(csh);
     if (f_solid) 
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"solid", HINT_ATTR_NAME));
@@ -278,28 +278,28 @@ void MscStyle::AttributeNames(Csh &csh) const
     if (f_compress) csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME)+"compress", HINT_ATTR_NAME));
     if (f_vline) csh.AddToHints(names, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
     if (f_vfill) csh.AddToHints(names2, csh.HintPrefix(COLOR_ATTRNAME), HINT_ATTR_NAME);
-    if (f_note) MscNoteAttr::AttributeNames(csh);
+    if (f_note) NoteAttr::AttributeNames(csh);
     csh.AddStylesToHints();
 }
 
 /** Callback for drawing a symbol before side values in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
-    const MscSideType t = (MscSideType)(int)p;
+    const ESideType t = (ESideType)(int)p;
     std::vector<double> xPos(2); 
     xPos[0] = t==SIDE_LEFT ? 0 : HINT_GRAPHIC_SIZE_X*0.3;
     xPos[1] = t==SIDE_LEFT ? HINT_GRAPHIC_SIZE_X*0.7 : HINT_GRAPHIC_SIZE_X;
-    MscLineAttr eLine(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
+    LineAttr eLine(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
     canvas->Clip(XY(HINT_GRAPHIC_SIZE_X*0.1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     ArrowHead ah(ArrowHead::BIGARROW);
-    ah.line += MscColorType(0,32,192); //blue-green
+    ah.line += ColorType(0,32,192); //blue-green
     ah.endType.second =   t==SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
     ah.startType.second = t!=SIDE_LEFT ? MSC_ARROW_SOLID : MSC_ARROW_NONE;
     ah.size.second = MSC_ARROWS_INVALID;
-    MscShadowAttr shadow;
-    MscFillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
+    ShadowAttr shadow;
+    FillAttr fill(ah.line.color.second.Lighter(0.7), GRADIENT_UP);
     std::vector<double> active(2,0.);
     ah.BigCalculateAndDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, 
                            true, false, fill, shadow, *canvas);
@@ -342,7 +342,7 @@ bool MscStyle::AttributeValues(const std::string &attr, Csh &csh) const
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "side")) {
-        csh.AddToHints(EnumEncapsulator<MscSideType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+        csh.AddToHints(EnumEncapsulator<ESideType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE, CshHintGraphicCallbackForSide); 
         return true;
     }
@@ -549,15 +549,15 @@ void Context::Plain()
     text.Default();
 
     colors.clear();
-    colors["none"]  = MscColorType(  0,   0,   0, 0);
-    colors["black"] = MscColorType(  0,   0,   0);
-    colors["white"] = MscColorType(255, 255, 255);
-    colors["red"]   = MscColorType(255,   0,   0);
-    colors["green"] = MscColorType(  0, 255,   0);
-    colors["blue"]  = MscColorType(  0,   0, 255);
-    colors["yellow"]= MscColorType(255, 255,   0);
-    colors["gray"]  = MscColorType(150, 150, 150);
-    colors["lgray"] = MscColorType(200, 200, 200);
+    colors["none"]  = ColorType(  0,   0,   0, 0);
+    colors["black"] = ColorType(  0,   0,   0);
+    colors["white"] = ColorType(255, 255, 255);
+    colors["red"]   = ColorType(255,   0,   0);
+    colors["green"] = ColorType(  0, 255,   0);
+    colors["blue"]  = ColorType(  0,   0, 255);
+    colors["yellow"]= ColorType(255, 255,   0);
+    colors["gray"]  = ColorType(150, 150, 150);
+    colors["lgray"] = ColorType(200, 200, 200);
 
     styles["arrow"].MakeCompleteButText();
     styles["arrow"].compress.first = false;
@@ -683,14 +683,14 @@ void Context::Plain()
     styles["title"].MakeCompleteButText();
     styles["title"].vline.type.second = LINE_NONE;
     styles["title"].line.type.second = LINE_NONE;
-    styles["title"].fill.color.second = MscColorType(0,0,0,0); //no fill
+    styles["title"].fill.color.second = ColorType(0,0,0,0); //no fill
     styles["title"].text += "\\mn(28)\\ms(18)\\B";
     styles["subtitle"] = styles["title"];
     styles["subtitle"].text += "\\mn(22)\\ms(14)\\B";
     
     //Ok, now "weak" and "strong"
     MscStyle style = MscStyle(STYLE_STYLE); //has everything, but is empty
-    MscLineAttr line(MscColorType(150,150,150));
+    LineAttr line(ColorType(150,150,150));
     style.line += line;;
     style.vline += line;
     style.arrow.line += line;

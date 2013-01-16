@@ -145,7 +145,7 @@ void MscParse(YYMSC_RESULT_TYPE &RESULT, const char *buff, unsigned len)
     CHAR_IF_CSH(ArcBoxSeries)     *arcboxseries;
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
-    CHAR_IF_CSH(MscArcType)        arctype;
+    CHAR_IF_CSH(EArcType)        arctype;
     CHAR_IF_CSH(EntityDef)        *entity;
     CHAR_IF_CSH(EntityDefHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
@@ -843,7 +843,7 @@ arc:           arcrel
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, @2))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, true);
   #else
-    const MscArcType t = CaseInsensitiveEqual("title", $1) ? MSC_COMMAND_TITLE :
+    const EArcType t = CaseInsensitiveEqual("title", $1) ? MSC_COMMAND_TITLE :
                          CaseInsensitiveEqual("subtitle", $1) ? MSC_COMMAND_SUBTITLE :
                          MSC_ARC_INVALID;
     $$ = (new ArcDivider(t, &msc))->AddAttributeList($2);
@@ -1004,7 +1004,7 @@ entityrel: entity_string TOK_DASH
     csh.AddCSH(@2, COLOR_SYMBOL);
     csh.CheckEntityHintAfter(@2, yylloc, yychar==YYEOF);
   #else
-    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+    $$ = new NamePair($1, MSC_POS(@1), NULL, FileLineColRange());
   #endif
     free($1);
 }
@@ -1015,7 +1015,7 @@ entityrel: entity_string TOK_DASH
     csh.AddCSH_EntityName(@2, $2);
     csh.CheckEntityHintAt(@2);
   #else
-    $$ = new NamePair(NULL, file_line_range(), $2, MSC_POS(@2));
+    $$ = new NamePair(NULL, FileLineColRange(), $2, MSC_POS(@2));
   #endif
     free($2);
 }
@@ -1048,7 +1048,7 @@ entityrel: entity_string TOK_DASH
     csh.AddCSH_EntityName(@1, $1);
     csh.CheckEntityHintAt(@1);
   #else
-    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+    $$ = new NamePair($1, MSC_POS(@1), NULL, FileLineColRange());
   #endif
     free($1);
 };
@@ -1060,7 +1060,7 @@ entityrel: entity_string TOK_DASH
 //    csh.AddCSH(@1, COLOR_MARKERNAME);
 //    csh.CheckHintAt(@1, HINT_MARKER);
 //  #else
-//    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+//    $$ = new NamePair($1, MSC_POS(@1), NULL, FileLineColRange());
 //  #endif
 //    free($1);
 //};
@@ -1075,7 +1075,7 @@ markerrel_no_string: entity_string TOK_DASH
     csh.CheckHintAt(@1, HINT_MARKER);
     csh.CheckHintAfter(@2, yylloc, yychar==YYEOF, HINT_MARKER);
   #else
-    $$ = new NamePair($1, MSC_POS(@1), NULL, file_line_range());
+    $$ = new NamePair($1, MSC_POS(@1), NULL, FileLineColRange());
   #endif
     free($1);
 }
@@ -1086,7 +1086,7 @@ markerrel_no_string: entity_string TOK_DASH
     csh.AddCSH(@2, COLOR_MARKERNAME);
     csh.CheckHintAt(@2, HINT_MARKER);
   #else
-    $$ = new NamePair(NULL, file_line_range(), $2, MSC_POS(@2));
+    $$ = new NamePair(NULL, FileLineColRange(), $2, MSC_POS(@2));
   #endif
     free($2);
 }
@@ -1371,7 +1371,7 @@ entity:       entity_string full_arcattrlist_with_label
   #else
     EntityDef *ed = new EntityDef($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
-    $$ = ed->AddAttributeList($2, NULL, file_line());
+    $$ = ed->AddAttributeList($2, NULL, FileLineCol());
   #endif
     free($1);
 }
@@ -1383,7 +1383,7 @@ entity:       entity_string full_arcattrlist_with_label
   #else
     EntityDef *ed = new EntityDef($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
-    $$ = ed->AddAttributeList(NULL, NULL, file_line());
+    $$ = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
     free($1);
 }
@@ -1430,7 +1430,7 @@ first_entity:  entity_string full_arcattrlist_with_label
   #else
     EntityDef *ed = new EntityDef($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
-    $$ = ed->AddAttributeList($2, NULL, file_line());
+    $$ = ed->AddAttributeList($2, NULL, FileLineCol());
   #endif
     free($1);
 }
@@ -1445,7 +1445,7 @@ first_entity:  entity_string full_arcattrlist_with_label
   #else
     EntityDef *ed = new EntityDef($1, &msc);
     ed->SetLineEnd(MSC_POS(@$));
-    $$ = ed->AddAttributeList(NULL, NULL, file_line());
+    $$ = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
     free($1);
 }
@@ -1588,7 +1588,7 @@ colordef : TOK_STRING TOK_EQUAL string
     csh.AddCSH(@1, COLOR_COLORNAME);
     csh.AddCSH(@2, COLOR_EQUAL);
     csh.AddCSH(@3, COLOR_COLORDEF);
-    MscColorType color = csh.Contexts.back().Colors.GetColor($3);
+    ColorType color = csh.Contexts.back().Colors.GetColor($3);
     if (color.valid)
         csh.Contexts.back().Colors[$1] = color;
   #else

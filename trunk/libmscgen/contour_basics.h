@@ -159,7 +159,7 @@ typedef enum {
     REL_A_IN_HOLE_OF_B,     ///< The first contour is fully inside a hole of the second.
     REL_B_IN_HOLE_OF_A,     ///< The second contour is fully inside a hole of the first.
     REL_IN_HOLE_APART       ///< The two contours have no overlapping area, but each as a part in a hole of the other.
-} relation_t;
+} EContourRelationType;
 
 /** @addtogroup contour_internal
  * @{
@@ -198,11 +198,11 @@ template <typename real> int fsign(real a) {return a>0 ? +1 : a<0 ? -1 : 0;}
 /** Returns true if the relation means that the two contours
  * have non empty overlapping area.
  */
-inline bool result_overlap(relation_t t) {return t==REL_OVERLAP || t==REL_A_INSIDE_B || t==REL_B_INSIDE_A || t==REL_SAME;}
+inline bool result_overlap(EContourRelationType t) {return t==REL_OVERLAP || t==REL_A_INSIDE_B || t==REL_B_INSIDE_A || t==REL_SAME;}
 /** Returns the relation with the role of the two contours
  * swapped.
  */
-inline relation_t switch_side(relation_t t)
+inline EContourRelationType switch_side(EContourRelationType t)
 {
     switch (t) {
     default: _ASSERT(0); //fallthrough
@@ -287,12 +287,12 @@ typedef enum {
     WI_ON_EDGE,   ///< The point is on (the middle of) an edge.
     WI_ON_VERTEX, ///< The point is exactly at a vertex.
     WI_IN_HOLE    ///< The point is in a hole of the contour.
-} is_within_t;
+} EPointRelationType;
 
 /** Returns true, if the point is inside or at the edge of the contour.
  * @ingroup contour_internal
 */
-inline bool inside(is_within_t t) {return t!=WI_OUTSIDE && t!=WI_IN_HOLE;}
+inline bool inside(EPointRelationType t) {return t!=WI_OUTSIDE && t!=WI_IN_HOLE;}
 
 /** The structure for a one-dimensional range.
  * @ingroup contour
@@ -325,7 +325,7 @@ struct Range {
     Range operator*(const Range &a) const
         {return Range(std::max(a.from, from), std::min(a.till, till));}  ///< Returns the intersection with range `a`. Note, this is _not_ a scale operation.
 
-    is_within_t IsWithin(double p) const {
+    EPointRelationType IsWithin(double p) const {
 		if (p==from || p == till) return WI_ON_VERTEX;
                 return from<p && p<till ? WI_INSIDE : WI_OUTSIDE;
     }                                                                    ///< Checks if a value is within, at the end or outside of a range.
@@ -349,7 +349,7 @@ struct Range {
     Range & RoundCloser() {from = ceil(from); till=floor(till); return *this;}         ///< Round ends inward (`from` upward, `till` downward)
 
     double Distance(double a) const {_ASSERT(!IsInvalid()); return minabs(from-a,a-till);}  ///< Returns the distance between a range and a point. Negative result if point is inside the range.
-    relation_t RelationTo(const Range &c) const {
+    EContourRelationType RelationTo(const Range &c) const {
         if (IsInvalid()) return c.IsInvalid() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
         if (c.IsInvalid()) return REL_B_IS_EMPTY;
         if (from>=c.till || c.from>=till) return REL_APART;
@@ -410,7 +410,7 @@ struct Block {
         {return XY(x.Spans(), y.Spans());}        ///< Returns the witdth and the height of the rectangle.
     double GetArea() const {return IsInvalid() ? 0 : x.Spans()*y.Spans();}  ///< Returns the size of the area occupied by the rectangle.
     double GetCircumference() const {return IsInvalid() ? 0 : 2*(x.Spans()+y.Spans());} ///< Returns the length of the circumference of the rectangle.
-    is_within_t IsWithin(const XY &p) const {
+    EPointRelationType IsWithin(const XY &p) const {
         if (x.IsWithin(p.x) == WI_OUTSIDE   || y.IsWithin(p.y) == WI_OUTSIDE)   return WI_OUTSIDE;
         if (x.IsWithin(p.x) == WI_INSIDE    && y.IsWithin(p.y) == WI_INSIDE)    return WI_INSIDE;
         if (x.IsWithin(p.x) == WI_ON_VERTEX && y.IsWithin(p.y) == WI_ON_VERTEX) return WI_ON_VERTEX;
@@ -441,10 +441,10 @@ struct Block {
     double Distance(const XY &xy) const;
     double Distance(const Block &b) const;
     Range Cut(const XY &A, const XY &B) const;
-    relation_t RelationTo(const Block &c) const {
+    EContourRelationType RelationTo(const Block &c) const {
         if (IsInvalid()) return c.IsInvalid() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
         if (c.IsInvalid()) return REL_B_IS_EMPTY;
-        const relation_t rx = x.RelationTo(c.x), ry = y.RelationTo(c.y);
+        const EContourRelationType rx = x.RelationTo(c.x), ry = y.RelationTo(c.y);
         if (rx == ry) return rx;
         if (rx == REL_APART || ry == REL_APART) return REL_APART;
         return REL_OVERLAP;

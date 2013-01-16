@@ -59,7 +59,7 @@ Element::Element(const Element&o) :
 /** Record the location of the element in the input file
  * @param [in] l The range the element occupies in the input file to record.
  * @param [in] f If true, the recording is final - any more calls to SetLineEnd() will be ignored.*/
-void Element::SetLineEnd(file_line_range l, bool f)
+void Element::SetLineEnd(FileLineColRange l, bool f)
 {
     if (linenum_final) return;
     linenum_final = f;
@@ -85,7 +85,7 @@ void Element::CombineComments(Element *te)
 }
 
 /** Textual representation of drawing passes*/
-template<> const char EnumEncapsulator<DrawPassType>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<EDrawPassType>::names[][ENUM_STRING_LEN] =
     {"invalid", "before_entity_lines", "after_entity_lines", "default", "after_default", 
      "note", "after_note", ""};
 
@@ -116,7 +116,7 @@ void Element::AttributeNames(Csh &csh)
 bool Element::AttributeValues(const std::string attr, Csh &csh)
 {
     if (CaseInsensitiveEqual(attr,"draw_time")) {
-        csh.AddToHints(EnumEncapsulator<DrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
+        csh.AddToHints(EnumEncapsulator<EDrawPassType>::names, csh.HintPrefix(COLOR_ATTRVALUE), 
                        HINT_ATTR_VALUE);
         return true;
     }
@@ -147,7 +147,7 @@ void Element::ShiftBy(double y)
  * @param l At call says where we shall start laying out left comments from, at return the height of he comments on the left.
  * @param r At call says where we shall start laying out right comments from, at return the height of he comments on the right.
  */
-void Element::LayoutCommentsHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
+void Element::LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r)
 {
     for (auto c = comments.begin(); c!=comments.end(); c++)
         (*c)->PlaceSideTo(canvas, cover, (*c)->GetStyle().side.second == SIDE_LEFT ? l : r);
@@ -159,7 +159,7 @@ void Element::LayoutCommentsHelper(MscCanvas &canvas, AreaList &cover, double &l
  * We expand `area` and `area_draw` by `cahrt->trackExpandBy`
  * if we show; set `control_location` and register us in
  * chart->AllArcs.*/
-void Element::PostPosProcess(MscCanvas &/*canvas*/)
+void Element::PostPosProcess(Canvas &/*canvas*/)
 {
     if (!area.IsEmpty()&& !hidden) {
         //TODO: Pipe segments suck here, so if expand cannot do it,
@@ -206,9 +206,9 @@ void Element::DrawControls(cairo_t *cr, double size)
     XY center = control_location.UpperLeft() + control_size/2;
     cairo_translate(cr, center.x, center.y);
     cairo_scale(cr, size, size);
-    MscLineAttr l_rect(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_ROUND, (control_size.x+control_size.y)/10);
-    MscFillAttr f_rect(MscColorType(0,0,0), MscColorType(64,64,64), GRADIENT_DOWN);
-    MscShadowAttr s_rect(MscColorType(0,0,0));
+    LineAttr l_rect(LINE_SOLID, ColorType(0,0,0), 2, CORNER_ROUND, (control_size.x+control_size.y)/10);
+    FillAttr f_rect(ColorType(0,0,0), ColorType(64,64,64), GRADIENT_DOWN);
+    ShadowAttr s_rect(ColorType(0,0,0));
     s_rect.offset.first = s_rect.blur.first = true;
     s_rect.offset.second = 5;
     s_rect.blur.second = 5;
@@ -244,8 +244,8 @@ void Element::DrawControls(cairo_t *cr, double size)
             arrow += Contour(XY(-control_size.x*0.1, -control_size.y*0.25),
                              XY(-control_size.x*0.1,  control_size.y*0.25),
                              XY(control_size.x*0.25, 0));
-            MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
-            MscFillAttr fill(MscColorType(0,128,0), GRADIENT_UP);
+            LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
+            FillAttr fill(ColorType(0,128,0), GRADIENT_UP);
             arrow.Line(cr);
             //canvas->Fill(arrow, fill);
             //canvas->Line(arrow, line);
@@ -260,7 +260,7 @@ void Element::DrawControls(cairo_t *cr, double size)
 /** Return the type of GUI control `xy` points to.
  * @param [in] xy The coordinates are in chart space.
  * @returns The type of control or MSC_CONTROL_INVALID, if xy does not point to any control.*/
-MscControlType Element::WhichControl(const XY &xy)
+EGUIControlType Element::WhichControl(const XY &xy)
 {
     if (!inside(control_location.IsWithin(xy))) return MSC_CONTROL_INVALID;
     return controls[unsigned((xy.y - control_location.y.from)/control_size.y)];
@@ -282,7 +282,7 @@ Block Element::GetIndicatorCover(const XY &pos)
 /** Draw an indicator.
  * @param [in] pos The middle of the top edge of the indicator shall be here.
  * @param canvas The canvas to draw on.*/
-void Element::DrawIndicator(XY pos, MscCanvas *canvas)
+void Element::DrawIndicator(XY pos, Canvas *canvas)
 {
     if (canvas==NULL) return;
 
@@ -293,7 +293,7 @@ void Element::DrawIndicator(XY pos, MscCanvas *canvas)
 
     cairo_save(canvas->GetContext());
     cairo_set_line_cap(canvas->GetContext(), CAIRO_LINE_CAP_ROUND);
-    MscLineAttr line(indicator_style.line);
+    LineAttr line(indicator_style.line);
     line.width.second = area.y.Spans()/4;
     line.type.second = LINE_SOLID;
     pos.y += indicator_size.y/2;

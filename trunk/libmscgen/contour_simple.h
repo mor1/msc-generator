@@ -191,7 +191,7 @@ private:
     bool   clockwise;          ///<Tells if the shape is clockwise or counterclockwise
     mutable std::pair<bool, double> area_cache; ///<A cache: if `first` is true, `second` tells the surface area of the shape. Negative for counterclockwise shapes.
 
-    relation_t CheckContainmentHelper(const SimpleContour &b) const;
+    EContourRelationType CheckContainmentHelper(const SimpleContour &b) const;
     double do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
 
     const Block &CalculateBoundingBox();
@@ -238,15 +238,15 @@ protected:
     SimpleContour &operator =(SimpleContour &&p) {if (this!=&p) swap(p);  return *this;}
     SimpleContour &operator =(const SimpleContour &p) {if (this!=&p) {if (p.size()) {edges=p.edges; boundingBox=p.boundingBox; clockwise=p.clockwise; area_cache=p.area_cache;} else clear();} return *this;}
     Edge &operator[](size_t edge) {return at(edge);}  ///<Returns reference to edge at index `i`.
-    Edge *operator[](const XY &p) {size_t edge; is_within_t r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;}  ///<Returns pointer to edge `p` is at, NULL if `p` is not on the contour.
-    const Edge *operator[](const XY &p) const {size_t edge; is_within_t r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;} ///<Returns const pointer to edge `p` is at, NULL if `p` is not on the contour.
+    Edge *operator[](const XY &p) {size_t edge; EPointRelationType r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;}  ///<Returns pointer to edge `p` is at, NULL if `p` is not on the contour.
+    const Edge *operator[](const XY &p) const {size_t edge; EPointRelationType r = IsWithin(p, &edge); return r==WI_ON_EDGE||r==WI_ON_VERTEX ? &at(edge) : NULL;} ///<Returns const pointer to edge `p` is at, NULL if `p` is not on the contour.
 
     bool AddAnEdge(const Edge &edge);
     void Invert();
 
-    relation_t CheckContainment(const SimpleContour &b) const;
+    EContourRelationType CheckContainment(const SimpleContour &b) const;
 
-    is_within_t IsWithin(XY p, size_t *edge=NULL, double *pos=NULL, bool strict=true) const;
+    EPointRelationType IsWithin(XY p, size_t *edge=NULL, double *pos=NULL, bool strict=true) const;
     void Shift(const XY &xy) {boundingBox.Shift(xy); for (size_t i=0; i<size(); i++) at(i).Shift(xy);} ///<Translates the shape.
     void Scale(double sc) {boundingBox.Scale(sc); for (size_t i=0; i<size(); i++) at(i).Scale(sc); area_cache.second*=sc*sc;} ///<Scale the shape.
     void SwapXY() {_ASSERT(IsSane()); boundingBox.SwapXY(); for (size_t i=0; i<size(); i++) at(i).SwapXY(); Invert(); clockwise=!clockwise; area_cache.second*=-1;} ///<Transpose the shape: swap XY coordinates (but keep clockwisedness).
@@ -254,7 +254,7 @@ protected:
     void RotateAround(const XY&c, double cos, double sin, double radian) {for (size_t i=0; i<size(); i++) at(i).RotateAround(c, cos, sin, radian); CalculateBoundingBox();} ///<Rotate the shape by `radian` around `c`. `sin` and `cos` are pre-computed values.
 
     static Edge CreateRoundForExpand(const XY &start, const XY &end, const XY& old, bool clockwise);
-    relation_t RelationTo(const SimpleContour &c) const;
+    EContourRelationType RelationTo(const SimpleContour &c) const;
 public:
     bool operator < (const SimpleContour &b) const;
     bool operator ==(const SimpleContour &b) const;
@@ -301,7 +301,7 @@ public:
     void Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const;
     bool TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) const;
     bool TangentFrom(const SimpleContour &from, XY clockwise[2], XY cclockwise[2]) const;
-    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const;
+    EPointRelationType Tangents(const XY &p, XY &t1, XY &t2) const;
 };
 
 /** Simple comparison operator for container ordering */

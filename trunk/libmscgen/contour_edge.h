@@ -44,9 +44,9 @@ typedef enum {
     IN_LINE,         ///<Three separate points on a line.
     CLOCKWISE,       ///<`A`->`B`->`C` define a non-degenerate clockwise triangle.
     COUNTERCLOCKWISE ///<`A`->`B`->`C` define a non-degenerate counterclockwise triangle.
-} triangle_dir_t;
+} ETriangleDirType;
 
-triangle_dir_t triangle_dir(XY a, XY b, XY c);
+ETriangleDirType triangle_dir(XY a, XY b, XY c);
 
 /** A helper class describing how an edge arrives/leaves a crosspoint.
  * 

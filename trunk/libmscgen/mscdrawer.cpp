@@ -27,6 +27,7 @@
 #include "msc.h"
 
 #ifndef M_PI
+/** My own definition of PI*/
 #define M_PI 3.14159265358979323846
 #endif
 
@@ -52,38 +53,47 @@
 #endif
 
 
-/* This is a class implementing a lot of useful helpers for drawing on top of cairo.
- * These include faking some effects for some targets (such as gradient or dash lines for WMF) and
- * drawing/filling complete contours plus shadowing them.
- *
- * Comments on drawing.
- * Cairo draws lines on integer coordinates halfway to both adoining pixels.
- * This should be avoided, especially for thin lines.
- * However, we do not do it here - call each Fill/Line etc function with the appropriate coordinates.
- */
-
-//Use this to detemine positions/layout
-MscCanvas::MscCanvas(OutputType ot) : 
+/** Creates an empty canvas to query font sizes 
+ * Drawing on this will fire a debug assertion or
+ * do nothing for a release build.*/
+Canvas::Canvas(EOutputType ot) : 
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
-    outType(ot), total(0,0,0,0), status(ERR_PARAM), candraw(false), 
+    outType(PNG), total(0,0,0,0), status(ERR_PARAM), candraw(false), 
     external_surface(false), copyrightTextHeight(0), 
     raw_page_clip(0,0,0,0), user_scale(1,1), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
 {
-    SetLowLevelParams(ot);
+    SetLowLevelParams();
     status = CreateSurface(XY(0,0));
     if (status!=ERR_OK) return;
-    status = CreateContextFromSurface(0, 0, 0);
+    status = CreateContext(0, 0, 0);
     if (status!=ERR_OK) CloseOutput();
 }
 
-//page numbering starts from 0
-//Use this to save to a file 
-MscCanvas::MscCanvas(OutputType ot, const Block &tot, double ctexth, 
-                     const string &fn, const XY &scale,
-                     const PBDataVector *yPageStart, unsigned page) :
+/**Creates a canvas to draw one page or all of the chart to a (single-page) file.
+  After creation you can start drawing in chart coordinates and the right
+  page will show. Call PrepareForHeaderFoorter() before drawing the 
+  automatic heading and copyright text.
+  @param [in] ot The type of the file. Cannot be WIN or PRINTER, since
+                 these are not to be written to a file. These create a 
+                 Canvas in error.
+  @param [in] tot The total size of the chart in the canvas coordinate space.
+  @param [in] ctexth The height of the copyright text.
+  @param [in] fn The filename.
+  @param [in] scale The output shall be this much bigger than `tot`.
+  @param [in] pageBreakData The collection of page break associated data 
+                            generated during parsing. This function only
+                            uses the y coordinate of the page break and
+                            the size of the automatically inserted heading
+                            (if any).
+  @param [in] page Specifies which page we the Canvas for, the index of
+                   the first page is 1. 0 means we want to treat 
+                   the whole chart as one page.*/
+Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth, 
+               const string &fn, const XY &scale,
+               const PBDataVector *pageBreakData, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), 
     external_surface(false), copyrightTextHeight(ctexth),
@@ -97,10 +107,10 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double ctexth,
     if (fn.length()==0 || ot==WIN || ot==PRINTER) 
         return; //fail
 
-    SetLowLevelParams(ot);
+    SetLowLevelParams();
     
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(yPageStart, page, origYOffset, origYSize, autoHeadingSize);
+    GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
     XY size(total.x.Spans(), origYSize);
     size.y += copyrightTextHeight;
     size.x *= fake_scale*scale.x;
@@ -125,15 +135,42 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, double ctexth,
     }
     status = CreateSurface(size);
     if (status!=ERR_OK) return;
-    status = CreateContextFromSurface(origYSize, origYOffset, autoHeadingSize);
+    status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
 }
 
-//Margins[] is left,right, up,down and in pixels
-MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const std::vector<XY>  &scale, 
-                     MscCanvas::EPageSize pageSize, const double margins[4],  int ha, int va, 
-                     double ctexth, const PBDataVector *yPageStart) :
+/** Creates a canvas to draw the chart to a fixed-page-size multi-page file & starts page No. 1.
+  After creation you can start drawing in chart coordinates and the first page
+  page will appear. Call PrepareForHeaderFoorter() before drawing the 
+  automatic heading and copyright text. Then call TurnPage and repeat
+  for second page and so on.
+  @param [in] ot The type of the file. Currently must be PDF, since
+                 this is the onl format supporting multiple pages in a single
+                 file. Others create a Canvas in error.
+  @param [in] tot The total size of the chart in the canvas coordinate space.
+  @param [in] fn The filename.
+  @param [in] scale A series of scale factors to try. We go through them
+                    and see if the pages of the chart fit the fixed page size
+                    with the scale factor. We try in the list until we find
+                    a scale factor that fits. -1 value means "fit width",
+                    -2 value means "fit page" - this one scales to fit the 
+                    largest page and uses the same factor for all pages and
+                    always fits. If none of the values fit, we use the last one.
+  @param [in] pageSize The size of the fixed page in points/pixels.
+  @param [in] margins The margin size in points/pixels. The order is
+                      left,right, up,down.
+  @param [in] ha The horizontal alignment -1=left, 0=center, 1=right
+  @param [in] va The vertical alignment -1=up, 0=center, 1=down
+  @param [in] ctexth The height of the copyright text.
+  @param [in] pageBreakData The collection of page break associated data 
+                            generated during parsing. This function only
+                            uses the y coordinate of the page break and
+                            the size of the automatically inserted heading
+                            (if any.)*/
+Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::vector<XY>  &scale, 
+                     Canvas::EPageSize pageSize, const double margins[4],  int ha, int va, 
+                     double ctexth, const PBDataVector *pageBreakData) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), 
     copyrightTextHeight(ctexth), external_surface(false), 
@@ -145,7 +182,7 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const st
     _ASSERT(ot==PDF);
     _ASSERT(fn.length()>0);
 
-    SetLowLevelParams(ot);
+    SetLowLevelParams();
     _ASSERT(fake_scale==1); //We cannot increase scale with fixed paper sizes...
     fileName = fn;
     outFile = fopen(fileName.c_str(), "wb");
@@ -179,8 +216,8 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const st
             user_scale.x = raw_page_clip.x.Spans()/total.x.Spans();
             if (scale[s].x==-2) { //auto
                 //check if we need to reduce scale for all page length to fit, as well
-                for (unsigned p = 1; p<=yPageStart->size(); p++) {
-                    GetPagePosition(yPageStart, p, origYOffset, origYSize, autoHeadingSize);
+                for (unsigned p = 1; p<=pageBreakData->size(); p++) {
+                    GetPagePosition(pageBreakData, p, origYOffset, origYSize, autoHeadingSize);
                     user_scale.x = std::min(user_scale.x, raw_page_clip.y.Spans()/(autoHeadingSize+origYSize+copyrightTextHeight));
                 }
                 user_scale.y = user_scale.x;
@@ -192,16 +229,16 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const st
         //Check if we fit
         bool oversize = raw_page_clip.x.Spans() < total.x.Spans()*user_scale.x;
         if (!oversize) 
-            for (unsigned p = 1; p<=yPageStart->size(); p++) {
-                GetPagePosition(yPageStart, p, origYOffset, origYSize, autoHeadingSize);
+            for (unsigned p = 1; p<=pageBreakData->size(); p++) {
+                GetPagePosition(pageBreakData, p, origYOffset, origYSize, autoHeadingSize);
                 oversize = raw_page_clip.x.Spans() < (autoHeadingSize+origYSize+copyrightTextHeight)*user_scale.y;
                 if (oversize) break;
             }
         if (!oversize) break; //if all pages fit, we stick to this user_scale
     }
     //Create context for first page
-    GetPagePosition(yPageStart, 1, origYOffset, origYSize, autoHeadingSize);
-    status = CreateContextFromSurface(origYSize, origYOffset, autoHeadingSize);
+    GetPagePosition(pageBreakData, 1, origYOffset, origYSize, autoHeadingSize);
+    status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) {
         CloseOutput();
         return;
@@ -209,7 +246,26 @@ MscCanvas::MscCanvas(OutputType ot, const Block &tot, const string &fn, const st
     candraw = true;
 }
 
-void MscCanvas::TurnPage(const PBDataVector *yPageStart, unsigned next_page, 
+/** Prepares a multi-page Canvas to print a new page.
+  We flush the previous page and change the translation matrix for the 
+  new page. After this call you can start drawing in chart coordinates 
+  and page `next_page` page will appear. Call PrepareForHeaderFoorter() 
+  before drawing the automatic heading and copyright text for `next_page`. 
+  @param [in] pageBreakData The collection of page break associated data 
+                            generated during parsing. This function only
+                            uses the y coordinate of the page break and
+                            the size of the automatically inserted heading
+                            (if any).
+  @param [in] next_page Specifies which page the next page will be.
+                        The index of the first page is 1. 0 means we want 
+                        to treat the whole chart as one page.
+                        In principle you can print a page multiple times
+                        or in whatever order or print the whole chart as
+                        one of the pages - but why would you do so?
+  @param error If the height next page does not fit the output page size
+               This is where we emit a warning (if not NULL).
+*/
+ void Canvas::TurnPage(const PBDataVector *pageBreakData, unsigned next_page, 
                          MscError *error) 
 {
     if (status!=ERR_OK) 
@@ -219,11 +275,11 @@ void MscCanvas::TurnPage(const PBDataVector *yPageStart, unsigned next_page,
     cairo_surface_show_page(surface);
     //Cretate context for next page
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(yPageStart, next_page, origYOffset, origYSize, autoHeadingSize);
-    status = CreateContextFromSurface(origYSize, origYOffset, autoHeadingSize);
+    GetPagePosition(pageBreakData, next_page, origYOffset, origYSize, autoHeadingSize);
+    status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) {
         CloseOutput();
-        ErrorAfterCreation(error, yPageStart, false);
+        ErrorAfterCreation(error, pageBreakData, false);
         candraw = false;
         return;
     }
@@ -232,43 +288,61 @@ void MscCanvas::TurnPage(const PBDataVector *yPageStart, unsigned next_page,
         string err = "Page #";
         err << next_page << " is ";
         err << ceil((origYSize+copyrightTextHeight)*user_scale.y*100./raw_page_clip.y.Spans()-100);
-        error->Warning(file_line(0, 0), err + "% longer than the paper size and will be cropped."); 
+        error->Warning(FileLineCol(0, 0), err + "% longer than the paper size and will be cropped."); 
     }
     candraw = true;
 }
 
-bool MscCanvas::ErrorAfterCreation(MscError *error,  const PBDataVector *yPageStart, bool fatal)
+/** Records the errors/warnings happened during any constructor.
+  Possible errors we record are
+  - Could not open file
+  - Internal error
+  - Could not open canvas (cairo error)
+  - Too big margins 
+  - And a warning if the page with is higher than a fixed page width (minus margins)
+  - And a warining if for multi-page output the first page is taller than 
+    the paper height (minus margins).
+  @param error This is where the errors are reported.
+  @param [in] pageBreakData The collection of page break associated data 
+                            generated during parsing. This function only
+                            uses the y coordinate of the page break and
+                            the size of the automatically inserted heading
+                            (if any).
+  @param [in] fatal If true then the file open and margin errors will be reported
+                    as fatal.*/
+bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakData, 
+                                bool fatal)
 {
     if (error==NULL) return status!=ERR_OK;
-    typedef void (MscError::*TFunc)(file_line , const std::string &, const std::string &);
+    typedef void (MscError::*TFunc)(FileLineCol , const std::string &, const std::string &);
     const TFunc func = fatal ? &MscError::FatalError : (TFunc)&MscError::Error;
     switch (status) {
     default: _ASSERT(0); return true;
-    case MscCanvas::ERR_FILE: error->FatalError(file_line(0, 0), "Could not open file '" + fileName + "'."); return true;
-    case MscCanvas::ERR_PARAM: (error->*func)(file_line(0, 0), "Internal param problem when opening canvas.", ""); return true;
-    case MscCanvas::ERR_CANVAS: (error->*func)(file_line(0, 0), "Could not open canvas.", ""); return true;
-    case MscCanvas::ERR_MARGIN: error->FatalError(file_line(0, 0), "Too big margins - no print area left!", ""); return true;
-    case MscCanvas::ERR_DONE: (error->*func)(file_line(0, 0), "Whops, internal error.", ""); return true;
-    case MscCanvas::ERR_OK: 
+    case Canvas::ERR_FILE: error->FatalError(FileLineCol(0, 0), "Could not open file '" + fileName + "'."); return true;
+    case Canvas::ERR_PARAM: (error->*func)(FileLineCol(0, 0), "Internal param problem when opening canvas.", ""); return true;
+    case Canvas::ERR_CANVAS: (error->*func)(FileLineCol(0, 0), "Could not open canvas.", ""); return true;
+    case Canvas::ERR_MARGIN: error->FatalError(FileLineCol(0, 0), "Too big margins - no print area left!", ""); return true;
+    case Canvas::ERR_DONE: (error->*func)(FileLineCol(0, 0), "Whops, internal error.", ""); return true;
+    case Canvas::ERR_OK: 
         if (raw_page_clip.x.till==0 || raw_page_clip.y.till==0) return false;
         if (raw_page_clip.x.Spans() < total.x.Spans()*user_scale.x) {
             string err = "Chart is ";
             err << ceil(total.x.Spans()*user_scale.x*100./raw_page_clip.x.Spans()-100);
-            error->Warning(file_line(0, 0), err + "% wider than the paper size and will be cropped."); 
+            error->Warning(FileLineCol(0, 0), err + "% wider than the paper size and will be cropped."); 
         }
         double origYSize, origYOffset, autoHeadingSize;
-        GetPagePosition(yPageStart, 1, origYOffset, origYSize, autoHeadingSize);
+        GetPagePosition(pageBreakData, 1, origYOffset, origYSize, autoHeadingSize);
         if (raw_page_clip.y.Spans() <origYSize*user_scale.y) {
             string err = "First page is ";
             err << ceil(origYSize*user_scale.y*100./raw_page_clip.y.Spans()-100);
-            error->Warning(file_line(0, 0), err + "% longer than the paper size and will be cropped."); 
+            error->Warning(FileLineCol(0, 0), err + "% longer than the paper size and will be cropped."); 
         }
         return false;
     }
 }
 
 
-MscCanvas::EPageSize MscCanvas::ConvertPageSize(const char *c)
+Canvas::EPageSize Canvas::ConvertPageSize(const char *c)
 {
     if (tolower(c[0])=='a' && '0'<=c[1] && c[1]<='6' && 
         (c[2]==0 || ((tolower(c[2])=='l' || tolower(c[2])=='p') && c[3]==0))) {
@@ -293,7 +367,7 @@ MscCanvas::EPageSize MscCanvas::ConvertPageSize(const char *c)
 
 
 /** Returns the page size in points (1/72 inch)*/
-XY MscCanvas::GetPhysicalPageSize(EPageSize ps)
+XY Canvas::GetPhysicalPageSize(EPageSize ps)
 {
     if (ps>=MAX_PAGE || ps<=NO_PAGE) return XY(0,0);
     static const double ISO_size[] = {118.9, 84.1, 59.4, 42.0, 29.7, 21.0, 14.8, 10.5};
@@ -316,13 +390,30 @@ XY MscCanvas::GetPhysicalPageSize(EPageSize ps)
     return ret;
 }
 
-//This creates a Canvas for cairo recording surfaces. 
-//All commands will be recorded in an area [(0,0)->tot*scale], with both scaling and translation.
-//(in reality scale is only used to do proper shadow faking)
-//Drawing fakes and tweaks will be applied as per "ot"
-//Copyright text is also added
-MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, double ctexth, const XY &scale, 
-              const PBDataVector *yPageStart, unsigned page) :
+/**Creates a canvas to draw one page or all of the chart to a cairo recording surface.*
+
+  All chart elements will be recorded in an area `tot*fake_scale` 
+  (for showing all the chart). (But `fake_scale` is one for all output types
+  other than WMF.)
+  Preparation for heading and copyright text is also added.
+  After Canvas creation, draw chart in chart coordinates, call
+  PrepareForHeaderFoorter() and draw automatic heading and copyright text.
+
+  @param [in] ot The type of the output - Drawing fakes and tweaks will be applied 
+                 as per this. Does not really influence output target - that 
+                 is a cairo recording surface here.
+  @param [in] tot The total size of the chart in the canvas coordinate space.
+  @param [in] ctexth The height of the copyright text.
+  @param [in] pageBreakData The collection of page break associated data 
+                            generated during parsing. This function only
+                            uses the y coordinate of the page break and
+                            the size of the automatically inserted heading
+                            (if any.)
+  @param [in] page Specifies which page we the Canvas for, the index of
+                   the first page is 1. 0 means we want to treat 
+                   the whole chart as one page.*/
+Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double ctexth, const XY &scale, 
+              const PBDataVector *pageBreakData, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(surf), cr(NULL), 
     outType(ot), total(tot), status(ERR_PARAM), candraw(false), 
     external_surface(true), copyrightTextHeight(ctexth),
@@ -332,17 +423,22 @@ MscCanvas::MscCanvas(OutputType ot, cairo_surface_t *surf, const Block &tot, dou
 #endif
 {
     if (CAIRO_STATUS_SUCCESS != cairo_surface_status(surf)) return; //nodraw state
-    SetLowLevelParams(ot);
+    SetLowLevelParams();
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(yPageStart, page, origYOffset, origYSize, autoHeadingSize);
+    GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
 
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
-    status = CreateContextFromSurface(origYSize, origYOffset, autoHeadingSize);
+    status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
 }
 
 
+/** A callback to write data to a FILE 
+  @param closure The FILE* to write to.
+  @param [in] data The data to write
+  @param [in] length The length of the data
+  @returns Either CAIRO_STATUS_WRITE_ERROR or CAIRO_STATUS_SUCCESS.*/
 cairo_status_t write_func(void * closure, const unsigned char *data, unsigned length)
 {
     if (closure==NULL) return CAIRO_STATUS_SUCCESS;
@@ -352,7 +448,8 @@ cairo_status_t write_func(void * closure, const unsigned char *data, unsigned le
         return CAIRO_STATUS_WRITE_ERROR;
 }
 
-void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
+/** Set the low-level compatibility options according to our output type.*/
+void Canvas::SetLowLevelParams()
 {
     /* Set defaults */
     use_text_path = false;
@@ -373,8 +470,8 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     needs_dots_in_corner = false;
 
     //Customize as per target type
-    switch (ot) {
-    case MscCanvas::PNG:
+    switch (outType) {
+    case Canvas::PNG:
         white_background = true;
         break;
 #ifdef CAIRO_HAS_WIN32_SURFACE
@@ -394,7 +491,7 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
         //Fallthrough
     case EMF:
     case PRINTER:
-        if (ot==PRINTER)
+        if (outType==PRINTER)
             fallback_resolution = 50;
         avoid_linewidth_1 = true;       //EMF needs wider than 1 horizontal lines to avoid clipping them too much
         needs_dots_in_corner = true;
@@ -411,35 +508,54 @@ void MscCanvas::SetLowLevelParams(MscCanvas::OutputType ot)
     }
 }
 
-//page numbering starts from 0, -1 means all of the chart (ignoring page breaks)
-//This one does not take bottom banner into account
-void MscCanvas::GetPagePosition(const PBDataVector *yPageStart, unsigned page, double &y_offset, 
+/** Return position information about a page of the chart
+ * All values returned are in chart coordinates.
+ * @param [in] pageBreakData The collection of page break associated data 
+ *                           generated during parsing. This function only
+ *                           uses the y coordinate of the page break and
+ *                           the size of the automatically inserted heading
+ *                           (if any).
+ * @param [in] page Specifies which page we want data for, the index of
+ *                  the first page is zero. -1 means we want to treat 
+ *                  the whole chart as one page.
+ * @param [out] y_offset The y coordinate of the top of the page.
+ * @param [out] y_size The length of the page (not including the automatically
+ *                     inserted heading (if any) and the copyright text.
+ * @param [out] autoHeadingSize The size of the automatically inserted heading
+ *                              at the top of the page (if any). These headings
+ *                              are not included in the chart space. */
+void Canvas::GetPagePosition(const PBDataVector *pageBreakData, unsigned page, double &y_offset, 
                                 double &y_size, double &autoHeadingSize) const
 {
-    if (page==0 || yPageStart==NULL || yPageStart->size()==0) {
+    if (page==0 || pageBreakData==NULL || pageBreakData->size()==0) {
         y_offset = total.y.from;
         y_size = total.y.Spans();
         autoHeadingSize = 0;
-    } else if (page>yPageStart->size()) { //too large page
+    } else if (page>pageBreakData->size()) { //too large page
         y_offset = total.y.till;
         y_size = 0; //nothing drawn
         autoHeadingSize = 0;
-    } else if (page==yPageStart->size()) { //last page
-        y_offset = yPageStart->at(page-1).y;
-        y_size = total.y.till - yPageStart->at(page-1).y;
-        autoHeadingSize = yPageStart->at(page-1).autoHeadingSize;
+    } else if (page==pageBreakData->size()) { //last page
+        y_offset = pageBreakData->at(page-1).y;
+        y_size = total.y.till - pageBreakData->at(page-1).y;
+        autoHeadingSize = pageBreakData->at(page-1).autoHeadingSize;
     } else {
-        y_size = yPageStart->at(page).y - yPageStart->at(page-1).y;
-        y_offset =  yPageStart->at(page-1).y;
-        autoHeadingSize = yPageStart->at(page-1).autoHeadingSize;
+        y_size = pageBreakData->at(page).y - pageBreakData->at(page-1).y;
+        y_offset =  pageBreakData->at(page-1).y;
+        autoHeadingSize = pageBreakData->at(page-1).autoHeadingSize;
     }
 }
 
 
-//Creates a surface of size XY (can be null)
-//uses "outType" and "fileName" members
-//returns true is success
-MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
+/** Creates a surface of a given size.
+ * Uses the `outType` member to determine what type of surface to create.
+ * Uses the `fileName` members to open an EMF file, if not empty.
+ * Uses the 'outFile' memeber to direct EPS and SVG output into it.
+ * @param [in] xy The native size of the surface (can be 0,0), that is 
+ *                if the user specifies a scale of 2, this shall be twice the
+ *                chart (page) size.
+ * @returns Any error or ERR_OK.*/
+Canvas::EErrorType Canvas::CreateSurface(const XY &size)
 {
     const int x = int(size.x);
     const int y = int(size.y);
@@ -447,18 +563,18 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
     default:
         return ERR_PARAM;
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
-    case MscCanvas::PNG:
+    case Canvas::PNG:
         surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24, x, y);
         break;
 #endif
 #ifdef CAIRO_HAS_PS_SURFACE
-    case MscCanvas::EPS:
+    case Canvas::EPS:
         surface = cairo_ps_surface_create_for_stream(write_func, outFile, x, y);
         cairo_ps_surface_set_eps(surface, true);
         break;
 #endif
 #ifdef CAIRO_HAS_PDF_SURFACE
-    case MscCanvas::PDF:
+    case Canvas::PDF:
         surface = cairo_pdf_surface_create_for_stream(write_func, outFile, x, y);
 #if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1,10,0)
         //Limit to PDF version 1.4 if possible (appeared in cairo 1.10)
@@ -470,12 +586,12 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
         break;
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
-    case MscCanvas::SVG:
+    case Canvas::SVG:
         surface = cairo_svg_surface_create_for_stream(write_func, outFile, x, y);
         break;
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
-    case MscCanvas::EMF:
+    case Canvas::EMF:
         // Create the Enhanced Metafile
         if (fileName.length() > 0)
             win32_dc = CreateEnhMetaFile(NULL, fileName.c_str(), NULL, "Msc-generator\0\0");
@@ -494,7 +610,7 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
          */
         surface = cairo_win32_printing_surface_create(win32_dc);
         break;
-	case MscCanvas::WMF:
+	case Canvas::WMF:
         // Create the Metafile on disk
         if (fileName.length() > 0)
             original_hdc = CreateMetaFile(fileName.c_str());
@@ -520,14 +636,28 @@ MscCanvas::ErrorType MscCanvas::CreateSurface(const XY &size)
     return ERR_OK;
 }
 
-//Creates a context from the surface
-//if raw_page_clip contains something, we clip the native surface and 
-//translates accorindg to h_alignment and v_alignment
-//Also, we create two layers of stacked stuff. The top of the stack will be used
-//to draw chart content and starts from origYOffset (no autoheader, no clip)
-//the second allows to draw autoHeader and copyrighttext
-MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(double origYSize, double origYOffset, 
-                                                         double autoHeadingSize) 
+/** Creates a cairo context for an already created surface.
+ * We not only create a surface, but set the transformation matrix
+ * to reflect page alignment, scaling pagination and low-level 
+ * compatibility options.
+ * We use cairo_save twice to create two drawing situations.
+ * - The topmost (available on return) will have clipping for the page content
+ *   That is drawing the objects of the chart in chart coordinates will 
+ *   send the content of the page specified by the input parameters of this
+ *   function to the output.
+ * - The second situation will contain a larger clip area allowing to 
+ *   draw the automatic heading (if any) at the top of the page and the
+ *   copyright notice at the bottom.
+ *
+ * If `raw_page_clip` contains something, we clip the native surface and 
+ * translates accorindg to `h_alignment` and `v_alignment`.
+ * We also draw the white background and the dots in the corner, if needed.
+ * @param [in] origYSize The height of the page in chart coordinates.
+ * @param [in] origYOffset The top of the page in chart coordinates.
+ * @param [in] autoHeadingSize The height of the automatic header at the
+ *                             top of the page (if any).*/
+Canvas::EErrorType Canvas::CreateContext(double origYSize, double origYOffset, 
+                                         double autoHeadingSize) 
 {
     cr = cairo_create (surface);
     cairo_status_t st = cairo_status(cr);
@@ -604,10 +734,25 @@ MscCanvas::ErrorType MscCanvas::CreateContextFromSurface(double origYSize, doubl
 
 #ifdef CAIRO_HAS_WIN32_SURFACE
 
-//Draw to a DC that is either a display/printer DC or a metafile
+/** Create a Canvas to a Windows Device Conetxt that is either a display/printer DC or a metafile.
+  After Canvas creation, draw chart in chart coordinates, call
+  PrepareForHeaderFoorter() and draw automatic heading and copyright text.
+
+  @param [in] ot The type of the output - WIN, WMF, EMF, EMFWMF and PRINTER.
+  @param [in] tot The total size of the chart in the canvas coordinate space.
+  @param [in] ctexth The height of the copyright text.
+  @param [in] scale Scales the output to be this much bigger
+  @param [in] pageBreakData The collection of page break associated data 
+                            generated during parsing. This function only
+                            uses the y coordinate of the page break and
+                            the size of the automatically inserted heading
+                            (if any.)
+  @param [in] page Specifies which page we the Canvas for, the index of
+                   the first page is 1. 0 means we want to treat 
+                   the whole chart as one page.*/
 //Use this to display a chart, use other constructors without a DC to save the chart to a file
-MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double ctexth, 
-                     const XY &scale, const PBDataVector *yPageStart, unsigned page) :
+Canvas::Canvas(EOutputType ot, HDC hdc, const Block &tot, double ctexth, 
+                     const XY &scale, const PBDataVector *pageBreakData, unsigned page) :
     fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
     total(tot), status(ERR_PARAM), candraw(false), 
     external_surface(false), copyrightTextHeight(ctexth),
@@ -617,12 +762,12 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double ctexth,
     if (ot!=WIN && ot!=WMF && ot!=EMF && ot!=EMFWMF && ot!=PRINTER) 
         return;
 
-    SetLowLevelParams(ot);
+    SetLowLevelParams();
 
     double origYSize, origYOffset, autoHeadingSize;
-    GetPagePosition(yPageStart, page, origYOffset, origYSize, autoHeadingSize);
+    GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
     original_device_size.x = total.x.Spans();
-    original_device_size.y = origYSize + copyrightTextHeight;
+    original_device_size.y = autoHeadingSize + origYSize + copyrightTextHeight;
     original_device_size.x *= scale.x*fake_scale;
     original_device_size.y *= scale.y*fake_scale;
     RECT r;
@@ -644,11 +789,12 @@ MscCanvas::MscCanvas(OutputType ot, HDC hdc, const Block &tot, double ctexth,
         _ASSERT(0);
     }
     cairo_surface_set_fallback_resolution(surface, fallback_resolution/fake_scale, fallback_resolution/fake_scale);
-    status = CreateContextFromSurface(origYSize, origYOffset, autoHeadingSize);
+    status = CreateContext(origYSize, origYOffset, autoHeadingSize);
     if (status!=ERR_OK) CloseOutput();
     else candraw = true;
 }
 
+/** Metafile record for text output*/
 typedef struct tagEXTTO { // lf
     _int16 toY;
     _int16 toX;
@@ -657,6 +803,7 @@ typedef struct tagEXTTO { // lf
     char   string[1];
 } EXTTO;
 
+/** Metafile record for changing font options*/
 typedef struct tagLOGFONT16 { // lf
     _int16 lfHeight;
     _int16 lfWidth;
@@ -674,6 +821,14 @@ typedef struct tagLOGFONT16 { // lf
     char   lfFaceName[LF_FACESIZE];
 } LOGFONT16;
 
+/** Callback to process a WMF record.
+  I use this callback to adjust erroneous WMF records
+  which are badly converted from EMF.
+  @param hDC handle to DC
+  @param lpHTable metafile handle table
+  @param lpMFR metafile record
+  @param nObj count of objects
+  @returns 1 if we shall continue processing records*/
 int CALLBACK EnumProc(HDC hDC,                // handle to DC
                       HANDLETABLE *lpHTable,  // metafile handle table
                       METARECORD *lpMFR,      // metafile record
@@ -705,7 +860,12 @@ int CALLBACK EnumProc(HDC hDC,                // handle to DC
 }
 
 
-//returns the size of the resulting WMF in bytes
+/** Converts and paints an EMF on a WMF DC.
+  @param [in] hemf the Enhanced Metafile
+  @param hdc The WMF DC to draw on
+  @param [in] r The size of the enhanced metafile
+  @param [in] applyTricks Whether we shall apply my convesion trciks (adviseable)
+  @returns The size of the resulting WMF in bytes.*/
 size_t PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTricks)
 {
     if (hemf == NULL || hdc == NULL) return 0;
@@ -732,6 +892,8 @@ size_t PaintEMFonWMFdc(HENHMETAFILE hemf, HDC hdc, const RECT &r, bool applyTric
     return size;
 }
 
+/** Callback to process an EMF record.
+  I use this to collect fallback image (StetchDIBits records) location*/
 int CALLBACK EnhMetaFileProc( HDC hDC,
                               HANDLETABLE *lpHTable,
                               const ENHMETARECORD *lpEMFR,
@@ -777,7 +939,11 @@ int CALLBACK EnhMetaFileProc( HDC hDC,
     return 1;
 }
 
-Contour MscCanvas::FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
+/** Determine the location of fallback images in an enhanced metafile.
+  @param [in] hemf The enhanced metafile.
+  @param [in] lpRECT The total size of the chart. If set correctly
+                     the resulting image locations will be in chart coordinates.*/
+Contour Canvas::FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
 {
     Contour c;
     HDC hDC = CreateEnhMetaFile(NULL, NULL, NULL, NULL);
@@ -786,7 +952,10 @@ Contour MscCanvas::FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
     return c;
 }
 
-HENHMETAFILE MscCanvas::CloseAndGetEMF()
+/** Close the output and return the resulting emf file.
+ * Valid only for EMF and EMFWMF outputs.
+ * A complete replacement for CloseOutput().*/
+HENHMETAFILE Canvas::CloseAndGetEMF()
 {
     _ASSERT(outType == EMF || outType==EMFWMF);
     _ASSERT(original_hdc == NULL);
@@ -818,13 +987,13 @@ HENHMETAFILE MscCanvas::CloseAndGetEMF()
 
 #endif //WIN32
 
-void MscCanvas::PrepareForCopyrightText()
+void Canvas::PrepareForHeaderFoorter()
 {
     if (status==ERR_OK)
         cairo_restore(cr);
 }
 
-void MscCanvas::CloseOutput()
+void Canvas::CloseOutput()
 {
     if (status!=ERR_OK) 
         return;
@@ -884,7 +1053,7 @@ void MscCanvas::CloseOutput()
                 //OutType is EMF or EMFWMF here
                 _ASSERT(outType==EMF || outType==EMFWMF);
                 if (win32_dc) { 
-                    //opened via MscCanvas and a filename, win32_dc is the EMF file  
+                    //opened via Canvas and a filename, win32_dc is the EMF file  
                     HENHMETAFILE hemf = CloseEnhMetaFile(win32_dc);
                     stored_fallback_image_places = FallbackImages(hemf, &r);
                     stored_metafile_size = GetEnhMetaFileBits(hemf, 0, NULL);
@@ -912,13 +1081,13 @@ void MscCanvas::CloseOutput()
 }
 
 
-cairo_line_join_t MscCanvas::SetLineJoin(cairo_line_join_t t)
+cairo_line_join_t Canvas::SetLineJoin(cairo_line_join_t t)
 {
     cairo_line_join_t tt = cairo_get_line_join(cr);
     cairo_set_line_join(cr, t);
     return tt;
 }
-cairo_line_cap_t MscCanvas::SetLineCap(cairo_line_cap_t t)
+cairo_line_cap_t Canvas::SetLineCap(cairo_line_cap_t t)
 {
     cairo_line_cap_t tt = cairo_get_line_cap(cr);
     cairo_set_line_cap(cr, t);
@@ -926,7 +1095,7 @@ cairo_line_cap_t MscCanvas::SetLineCap(cairo_line_cap_t t)
 }
 
 
-void MscCanvas::Clip(const contour::EllipseData &ellipse)
+void Canvas::Clip(const contour::EllipseData &ellipse)
 {
     cairo_save(cr);
     cairo_save(cr);
@@ -936,7 +1105,7 @@ void MscCanvas::Clip(const contour::EllipseData &ellipse)
     cairo_clip(cr);
 }
 
-void MscCanvas::Clip(const Block &b, const MscLineAttr &line)
+void Canvas::Clip(const Block &b, const LineAttr &line)
 {
     _ASSERT(line.IsComplete());
     cairo_save(cr);
@@ -947,7 +1116,7 @@ void MscCanvas::Clip(const Block &b, const MscLineAttr &line)
     cairo_clip(cr);
 }
 
-void MscCanvas::ClipInverse(const Contour &area)
+void Canvas::ClipInverse(const Contour &area)
 {
     cairo_save(cr);
     Block outer(total);
@@ -962,8 +1131,21 @@ void MscCanvas::ClipInverse(const Contour &area)
     cairo_set_fill_rule(cr, old);
 }
 
-//rotates such that a 
-void MscCanvas::Transform_Rotate90(double s, double d, bool clockwise)
+/** Rotate the canvas by 90 degrees.
+  @param [in] clockwise True if the rotation is clockwise. That is, 
+                        if after transformation you draw
+                        a horizontal line to the right (like this ->) , 
+                        then it will appear on the canvas as going up.
+  @param [in] s This is an y coordinate for clockwise rotation. Points 
+                with this y coordinate will have this x coordinate 
+                after the translation. For counterclockwise swap x and y.
+  @param [in] d This is an y coordinate for clockwise rotation. Points 
+                with this y coordinate will have this x coordinate 
+                after the translation. For counterclockwise swap x and y.
+
+  I admit I do not get this either.
+ */
+void Canvas::Transform_Rotate90(double s, double d, bool clockwise)
 {
     cairo_save(cr);
     cairo_matrix_t matrix;
@@ -983,7 +1165,7 @@ void MscCanvas::Transform_Rotate90(double s, double d, bool clockwise)
     cairo_transform(cr, &matrix);
 }
 
-void MscCanvas::Transform_SwapXY()
+void Canvas::Transform_SwapXY()
 {
     cairo_save(cr);
     cairo_matrix_t matrix;
@@ -996,7 +1178,7 @@ void MscCanvas::Transform_SwapXY()
     cairo_transform(cr, &matrix);
 }
 
-void MscCanvas::Transform_FlipHorizontal(double y)
+void Canvas::Transform_FlipHorizontal(double y)
 {
     cairo_save(cr);
     cairo_matrix_t matrix;
@@ -1009,7 +1191,7 @@ void MscCanvas::Transform_FlipHorizontal(double y)
     cairo_transform(cr, &matrix);
 }
 
-void MscCanvas::SetColor(MscColorType pen)
+void Canvas::SetColor(ColorType pen)
 {
 	if (pen.valid) {
         if (AvoidTransparency())
@@ -1018,7 +1200,7 @@ void MscCanvas::SetColor(MscColorType pen)
     }
 }
 
-void MscCanvas::SetLineAttr(MscLineAttr line)
+void Canvas::SetLineAttr(LineAttr line)
 {
 	if (line.color.first && line.color.second.valid)
         SetColor(line.color.second);
@@ -1028,7 +1210,7 @@ void MscCanvas::SetLineAttr(MscLineAttr line)
         SetDash(line);
 }
 
-void MscCanvas::SetDash(MscLineAttr line)
+void Canvas::SetDash(LineAttr line)
 {
     unsigned num;
     const double * const pattern = line.DashPattern(num);
@@ -1038,14 +1220,14 @@ void MscCanvas::SetDash(MscLineAttr line)
         cairo_set_dash(cr, pattern, num, 0); 
 }
 
-void MscCanvas::SetFontFace(const char*face, bool italics, bool bold)
+void Canvas::SetFontFace(const char*face, bool italics, bool bold)
 {
     cairo_select_font_face (cr, face,
                             italics?CAIRO_FONT_SLANT_ITALIC:CAIRO_FONT_SLANT_NORMAL,
                             bold?CAIRO_FONT_WEIGHT_BOLD:CAIRO_FONT_WEIGHT_NORMAL);
 }
 
-void MscCanvas::Text(XY xy, const string &s, bool isRotated)
+void Canvas::Text(XY xy, const string &s, bool isRotated)
 {
     _ASSERT(candraw);
     cairo_move_to (cr, xy.x, xy.y);
@@ -1065,7 +1247,7 @@ void MscCanvas::Text(XY xy, const string &s, bool isRotated)
     }
 }
 
-void MscCanvas::ArcPath(const contour::EllipseData &ell, double s_rad, double e_rad, bool reverse)
+void Canvas::ArcPath(const contour::EllipseData &ell, double s_rad, double e_rad, bool reverse)
 {
     cairo_save (cr);
     ell.TransformForDrawing(cr);
@@ -1076,7 +1258,7 @@ void MscCanvas::ArcPath(const contour::EllipseData &ell, double s_rad, double e_
     cairo_restore (cr);
 }
 
-void MscCanvas::ArcPath(const XY &c, double r1, double r2, double s_rad, double e_rad, bool reverse)
+void Canvas::ArcPath(const XY &c, double r1, double r2, double s_rad, double e_rad, bool reverse)
 {
     cairo_save(cr);
     cairo_translate(cr, c.x, c.y);
@@ -1088,7 +1270,7 @@ void MscCanvas::ArcPath(const XY &c, double r1, double r2, double s_rad, double 
     cairo_restore (cr);
 }
 
-void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy)
+void Canvas::RectanglePath(double sx, double dx, double sy, double dy)
 {
     cairo_new_path(cr);
     cairo_move_to(cr, sx, sy);
@@ -1099,7 +1281,7 @@ void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy)
 }
 
 //for CORNER_NOTE it draws the outer edge
-void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy, const MscLineAttr &line)
+void Canvas::RectanglePath(double sx, double dx, double sy, double dy, const LineAttr &line)
 {
     cairo_new_path(cr);
     if (!line.radius.first || line.radius.second==0 ||
@@ -1143,7 +1325,7 @@ void MscCanvas::RectanglePath(double sx, double dx, double sy, double dy, const 
 
 ////////////////////// Line routines
 
-void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
+void Canvas::singleLine(const Block &b, const LineAttr &line)
 {
     _ASSERT(candraw);
     unsigned num=0;
@@ -1156,7 +1338,7 @@ void MscCanvas::singleLine(const Block &b, const MscLineAttr &line)
     cairo_stroke(cr);
 }
 
-void MscCanvas::singleLine(const Contour&cl, const MscLineAttr &line)
+void Canvas::singleLine(const Contour&cl, const LineAttr &line)
 {
     _ASSERT(candraw);
     unsigned num=0;
@@ -1169,7 +1351,7 @@ void MscCanvas::singleLine(const Contour&cl, const MscLineAttr &line)
     cairo_stroke(cr);
 }
 
-void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
+void Canvas::Line(const Edge& edge, const LineAttr &line)
 {
     _ASSERT(candraw);
     _ASSERT(line.IsComplete());
@@ -1206,7 +1388,7 @@ void MscCanvas::Line(const Edge& edge, const MscLineAttr &line)
     cairo_stroke(cr);
 }
 
-void MscCanvas::Line(const Block &b, const MscLineAttr &line)
+void Canvas::Line(const Block &b, const LineAttr &line)
 {
     _ASSERT(candraw);
     _ASSERT(line.IsComplete());
@@ -1215,7 +1397,7 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
     SetLineAttr(line);
     const double spacing = line.Spacing();
     const double r = line.SaneRadius(b);
-    MscLineAttr line2(line);
+    LineAttr line2(line);
     line2.radius.second = r;
     if (line.corner.second!=CORNER_NOTE || r==0) {
         if (line.IsDoubleOrTriple()) {
@@ -1260,7 +1442,7 @@ void MscCanvas::Line(const Block &b, const MscLineAttr &line)
     }
 }
 
-void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
+void Canvas::Line(const Contour &c, const LineAttr &line)
 {
     _ASSERT(candraw);
     _ASSERT(line.IsComplete());
@@ -1280,7 +1462,7 @@ void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
 ////The first element in the list is the overall contour, the remaining ones are disjoint ones
 ////that collectively cover the same area as the first one.
 ////This is especially useful for double/triple lines
-//void MscDrawer::LineWithJoints(const std::list<Contour> &clist, const MscLineAttr &line)
+//void MscDrawer::LineWithJoints(const std::list<Contour> &clist, const LineAttr &line)
 //{
 //    if (clist.size()==0) return;
 //    if (clist.size()==1) {
@@ -1308,14 +1490,14 @@ void MscCanvas::Line(const Contour &c, const MscLineAttr &line)
 ////////////////////// Fill routines
 
 
-inline void _add_color_stop(cairo_pattern_t *pattern, double offset, MscColorType color)
+inline void _add_color_stop(cairo_pattern_t *pattern, double offset, ColorType color)
 {
     cairo_pattern_add_color_stop_rgba(pattern, offset,
                                       color.r/255., color.g/255.,
                                       color.b/255., color.a/255.);
 }
 
-void MscCanvas::linearGradient(MscColorType from, MscColorType to, const XY &s, const XY &d, MscGradientType type)
+void Canvas::linearGradient(ColorType from, ColorType to, const XY &s, const XY &d, EGradientType type)
 {
     cairo_pattern_t *pattern;
     switch(type) {
@@ -1360,7 +1542,7 @@ void MscCanvas::linearGradient(MscColorType from, MscColorType to, const XY &s, 
     cairo_pattern_destroy(pattern);
 }
 
-void MscCanvas::fakeLinearGrad(MscColorType from, MscColorType to, const XY &s, const XY &d, 
+void Canvas::fakeLinearGrad(ColorType from, ColorType to, const XY &s, const XY &d, 
                                bool dir_is_x, unsigned steps)
 {
     _ASSERT(candraw);
@@ -1391,7 +1573,7 @@ void MscCanvas::fakeLinearGrad(MscColorType from, MscColorType to, const XY &s, 
     }
 }
 
-void MscCanvas::radialGradient(MscColorType from, MscColorType to, const XY &s, double outer_radius, double inner_radius, MscGradientType type)
+void Canvas::radialGradient(ColorType from, ColorType to, const XY &s, double outer_radius, double inner_radius, EGradientType type)
 {
     cairo_pattern_t *pattern;
     switch(type) {
@@ -1416,7 +1598,7 @@ void MscCanvas::radialGradient(MscColorType from, MscColorType to, const XY &s, 
 }
 
 //from is from the outside, caller must apply clipping!!!
-void MscCanvas::fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, double outer_radius, double inner_radius,
+void Canvas::fakeRadialGrad(ColorType from, ColorType to, const XY &s, double outer_radius, double inner_radius,
                  unsigned steps, bool rectangle, double rad_from, double rad_to)
 {
     _ASSERT(candraw);
@@ -1453,7 +1635,7 @@ void MscCanvas::fakeRadialGrad(MscColorType from, MscColorType to, const XY &s, 
     }
 }
 
-void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
+void Canvas::Fill(const Block &b, const FillAttr &fill)
 {
     _ASSERT(candraw);
     _ASSERT(fill.IsComplete());
@@ -1464,8 +1646,8 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
 	//so let us not fake gradients either
     if (fill.gradient.second!=GRADIENT_NONE && fake_gradients && fill.color.second.a==255) {
         Clip(b);
-        MscColorType color = fill.color.second;
-        MscColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
+        ColorType color = fill.color.second;
+        ColorType color2 = fill.color2.first ? fill.color2.second : fill.color.second.Lighter(0.8);
         if (AvoidTransparency()) {
             color.FlattenAlpha();
             color2.FlattenAlpha();
@@ -1502,7 +1684,7 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
         }
         UnClip();
     } else {
-        MscColorType to = fill.color.second, from;
+        ColorType to = fill.color.second, from;
         if (!fill.color2.first) 
             switch(fill.gradient.second) {
             case GRADIENT_OUT:
@@ -1538,7 +1720,7 @@ void MscCanvas::Fill(const Block &b, const MscFillAttr &fill)
 //Angle degree is 0 then shadow is offset +off in both y and x dir
 //angle grows clockwise (y grows downward) and means the rotation of the object. 
 //From that we need to calculate the offset of the shadow assuming that the space is already rotated.
-void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double angle_radian)
+void Canvas::Shadow(const Contour &area, const ShadowAttr &shadow, double angle_radian)
 {
     _ASSERT(candraw);
     _ASSERT(shadow.IsComplete());
@@ -1558,7 +1740,7 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double 
     XY off(shadow.offset.second, shadow.offset.second);
     off.Rotate(cos(-angle_radian), sin(-angle_radian));
     outer.Shift(off);
-    MscColorType color = shadow.color.second;
+    ColorType color = shadow.color.second;
     if (shadow.blur.second>0) {
         const unsigned steps = unsigned(std::min(shadow.blur.second, shadow.offset.second)*scale_for_shadows + 0.5);
         const double transp_step = double(color.a)/(steps+1);
@@ -1573,7 +1755,7 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double 
             alpha += transp_step;
             color.a = (unsigned char)alpha;
             if (fake_shadows)
-                SetColor(MscColorType(color).FlattenAlpha());
+                SetColor(ColorType(color).FlattenAlpha());
             else
                 SetColor(color);
             //since clip is not working so well, we substract the original area
@@ -1583,7 +1765,7 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double 
     }
     if (shadow.blur.second <= shadow.offset.second) {
         if (fake_shadows)  //we still use a blurred shadow color
-            SetColor(MscColorType(shadow.color.second).FlattenAlpha());
+            SetColor(ColorType(shadow.color.second).FlattenAlpha());
         else
             SetColor(shadow.color.second);
     }
@@ -1593,7 +1775,7 @@ void MscCanvas::Shadow(const Contour &area, const MscShadowAttr &shadow, double 
 }
 
 /* Set clip, if the rectangle of which this is the shadow of is not opaque */
-void MscCanvas::Shadow(const Block &b, const MscLineAttr &line, const MscShadowAttr &shadow, double angle_radian)
+void Canvas::Shadow(const Block &b, const LineAttr &line, const ShadowAttr &shadow, double angle_radian)
 {
     _ASSERT(candraw);
     _ASSERT(shadow.IsComplete() && line.radius.first);

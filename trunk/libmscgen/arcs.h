@@ -71,14 +71,14 @@ typedef enum
 
     MSC_ARC_ARCLIST,
     MSC_ARC_INDICATOR
-} MscArcType;
+} EArcType;
 
 typedef enum {
     MSC_DIR_INDETERMINATE,
     MSC_DIR_RIGHT, /*forward*/
     MSC_DIR_LEFT,
     MSC_DIR_BIDIR
-} MscDirType;
+} EDirType;
 
 class EntityDistanceMap;
 struct ArcSignature;
@@ -87,7 +87,7 @@ struct ArcSignature;
 enum BoxCollapseType {BOX_COLLAPSE_INVALID=0, BOX_COLLAPSE_EXPAND, BOX_COLLAPSE_COLLAPSE, BOX_COLLAPSE_BLOCKARROW};
 typedef std::map<ArcSignature, BoxCollapseType> ArcSignatureCatalog;
 struct ArcSignature {
-    file_line_range file_pos;
+    FileLineColRange file_pos;
     bool operator == (const ArcSignature&o) const;
     bool operator < (const ArcSignature&o) const;
     ArcSignatureCatalog::iterator WhichIsSimilar(ArcSignatureCatalog &cat) const;
@@ -110,9 +110,9 @@ protected:
     string         refname;    /* given by the "refname" attribute, to reference numbers & others*/
     mutable double height;     /* calculated by Layout()*/
 public:
-    const MscArcType type;
+    const EArcType type;
 
-    ArcBase(MscArcType t, Msc *msc);
+    ArcBase(EArcType t, Msc *msc);
     bool IsValid() const {return valid;}
     virtual const ArcSignature* GetSignature() const {return NULL;}
     bool IsParallel() const {return parallel;}
@@ -126,7 +126,7 @@ public:
     /** Tells if page break crosses us and how much we need to be shifted down. 0 if not crossed. */
     virtual Range GetYExtent() const {return Range(yPos, yPos+GetHeight());}
     //Get an (ordered) list of entities that this arrow/box touches
-    virtual MscDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
+    virtual EDirType GetToucedEntities(EntityList &) const {return MSC_DIR_INDETERMINATE;}
     //expands the contour to a cover used for compress
     Area GetCover4Compress(const Area &a) const;
 
@@ -142,29 +142,29 @@ public:
 
     //These functions are called recursively for all arcs in this order
     /* This is called after parsing and adding attributes. Entity order and collapse/expand is already known here */
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
     /* This is called to substitute name references in labels & process all escapes */
-    virtual void FinalizeLabels(MscCanvas &canvas);
+    virtual void FinalizeLabels(Canvas &canvas);
     /* This fills in distances for hscale=auto mechanism */
-    virtual void Width(MscCanvas &/*canvas*/, EntityDistanceMap &/*distances*/) {}
+    virtual void Width(Canvas &/*canvas*/, EntityDistanceMap &/*distances*/) {}
     /* Calculates the height, and sets up the area at yPos==0, returns its cover to use at placement*/
     /* Cover or area does not include any spacing left around such as chart->emphVGapAbove*/
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
     /* One can move the arc to its position with ShiftBy. This can be called multiple times. */
     virtual void ShiftBy(double y) {if (valid) {Element::ShiftBy(y);}}
-    /* Collect the y position of page breaks into Msc::yPageStart. next is the Arc immediately after us.*/
+    /* Collect the y position of page breaks into Msc::pageBreakData. next is the Arc immediately after us.*/
     virtual void CollectPageBreak(double /*hSize*/) {}
     /** Split the element into two by a page break. Maintain running_state of entities. Return the amount the element has grown. -1 if we cannot rearrange, -2 if we are to ignore.*/
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/) {return -1;}
     /* Goes through the tree to place verticals. All height & pos info final by now, except on verticals & notes */
-    virtual void PlaceWithMarkers(MscCanvas &/*cover*/, double /*autoMarker*/) {}
+    virtual void PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/) {}
     /* This goes through the tree once more for drawing warnings that need height. */
-    virtual void PostPosProcess(MscCanvas &cover);
+    virtual void PostPosProcess(Canvas &cover);
     /* This will actually draw the arc */
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass) = 0;
+    virtual void Draw(Canvas &canvas, EDrawPassType pass) = 0;
 };
 
 typedef PtrList<ArcBase> ArcList;
@@ -175,18 +175,18 @@ class ArcIndicator : public ArcBase
     EIterator src;  //Shall always point to ActiveEntities
     EIterator dst;  //Shall always point to ActiveEntities
 public:
-    ArcIndicator(Msc *chart, const MscStyle &st, const file_line_range &l);
-    ArcIndicator(Msc *chart, EIterator s, const MscStyle &st, const file_line_range &l);
+    ArcIndicator(Msc *chart, const MscStyle &st, const FileLineColRange &l);
+    ArcIndicator(Msc *chart, EIterator s, const MscStyle &st, const FileLineColRange &l);
     bool IsComplete() const;
     void SetEntities(EIterator s, EIterator d) {src=s; dst=d;}
     bool Combine(const ArcIndicator *o);
     double GetXCoord() const;
-    virtual MscDirType GetToucedEntities(class EntityList &el) const;
+    virtual EDirType GetToucedEntities(class EntityList &el) const;
     virtual string Print(int ident = 0) const {return string(ident*2, ' ')+"Indicator";}
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class ArcLabelled : public ArcBase
@@ -200,31 +200,31 @@ protected:
     NumberingStyle  numberingStyle;  //This is not part of styles in general, but of contexts
     string          number_text;     //the formatted number (for references, e.g., notes)
 public:
-    ArcLabelled(MscArcType t, Msc *msc, const MscStyle &);
-    ArcLabelled(MscArcType t, const ArcLabelled &al);
+    ArcLabelled(EArcType t, Msc *msc, const MscStyle &);
+    ArcLabelled(EArcType t, const ArcLabelled &al);
     const MscStyle &GetStyle() const {return style;}
     virtual bool CanBeNoted() const {return true;}
     void SetStyleWithText(const char *style_name); //set style to this name, but combine it with default text style
     void SetStyleWithText(const MscStyle *style_to_use=NULL); //set style to this name, but combine it with default text style
-    virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
+    virtual const MscStyle *GetRefinementStyle(EArcType t) const;
     ArcBase* AddAttributeList(AttributeList *);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
     const string &GetNumberText() const {return number_text;}
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void PostPosProcess(MscCanvas &cover);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void PostPosProcess(Canvas &cover);
 };
 
 class ArcArrow : public ArcLabelled
 {
 public:
-    ArcArrow(MscArcType t, Msc *msc, const MscStyle &s) : ArcLabelled(t, msc, s) {}
-    ArcArrow(MscArcType t, const ArcLabelled &al) : ArcLabelled(t, al) {}
-    virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l) = 0;
+    ArcArrow(EArcType t, Msc *msc, const MscStyle &s) : ArcLabelled(t, msc, s) {}
+    ArcArrow(EArcType t, const ArcLabelled &al) : ArcLabelled(t, al) {}
+    virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l) = 0;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -244,18 +244,18 @@ protected:
     mutable double sx, dx;     //text parameters
     mutable double src_act;
 public:
-    ArcSelfArrow(MscArcType t, const char *s, file_line_range sl,
+    ArcSelfArrow(EArcType t, const char *s, FileLineColRange sl,
         Msc *msc, const MscStyle &, double ys);
-    virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
-    virtual MscDirType GetToucedEntities(EntityList &el) const;
+    virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
+    virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 
@@ -263,11 +263,11 @@ class ArcDirArrow : public ArcArrow
 {
 protected:
     EIterator                src, dst;
-    file_line                linenum_src, linenum_dst;
+    FileLineCol                linenum_src, linenum_dst;
     std::vector<EIterator>   middle;
-    std::vector<file_line>   linenum_middle;
-    std::vector<MscArcType>  segment_types; //one for each segment ([0] is the one from src), set during AddSegment()s
-    std::vector<MscLineAttr> segment_lines; //one for each segment ([0] is the one from src), set during AddAttributeList()
+    std::vector<FileLineCol>   linenum_middle;
+    std::vector<EArcType>  segment_types; //one for each segment ([0] is the one from src), set during AddSegment()s
+    std::vector<LineAttr> segment_lines; //one for each segment ([0] is the one from src), set during AddAttributeList()
     const bool               specified_as_forward; //true if user specified "a->b", false if "b<-a"
     double                   slant_angle;
 
@@ -281,35 +281,35 @@ protected:
     mutable double centerline; //y offset of line compared to yPos
     mutable Contour clip_area; //Used only by DirArrow to mask out the line at arrowheads
 public:
-    ArcDirArrow(MscArcType t, const char *s, file_line_range sl,
-        const char *d, file_line_range dl, Msc *msc, bool fw, const MscStyle &);
+    ArcDirArrow(EArcType t, const char *s, FileLineColRange sl,
+        const char *d, FileLineColRange dl, Msc *msc, bool fw, const MscStyle &);
     ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
-    virtual ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
+    virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     ArcBase *AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual MscDirType GetToucedEntities(EntityList &el) const;
+    virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     void CalculateMainline(double thickness);
-    MscArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
+    EArrowEnd WhichArrow(unsigned i); //from the index of xPos or marging give MSC_ARROW_{START,MIDDLE,END}
     virtual void ShiftBy(double y);
     void CheckSegmentOrder(double y);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class ArcBigArrow : public ArcDirArrow
 {
 protected:
     const ArcSignature * const sig;   //non-null if created from a collapsed box with content
-    XY getArrowWidthHeight(MscArrowSize) const;
+    XY getArrowWidthHeight(EArrowSize) const;
 
     mutable double sy, dy;    //The middle of the contour of the body: set in Width already
     mutable double ind_off;   //if we draw an indicator inside, this is its y offset from top of text
@@ -320,26 +320,26 @@ public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);
     ArcBigArrow(const EntityList &, bool bidir, const ArcLabelled &al, const ArcSignature *s);
     ~ArcBigArrow() {if (sig) delete sig;}
-    virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
+    virtual const MscStyle *GetRefinementStyle(EArcType t) const;
     virtual const ArcSignature* GetSignature() const {return sig;}
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 struct VertXPos {
     bool valid;
     EIterator entity1, entity2;
-    file_line_range e1line, e2line;
+    FileLineColRange e1line, e2line;
     /** AT is at the entity
      ** CENTER is between the two entities
      ** BY is immediately at the line, but not overlapping it
@@ -348,8 +348,8 @@ struct VertXPos {
         POS_LEFT_BY, POS_LEFT_SIDE,
         POS_RIGHT_BY, POS_RIGHT_SIDE} pos;
     double offset;
-    VertXPos(Msc&m, const char *e1, file_line_range e1l, const char *e2, file_line_range e2l, postype p=POS_AT, double off=0);
-    VertXPos(Msc&m, const char *e1, file_line_range e1l, postype p=POS_AT, double off=0);
+    VertXPos(Msc&m, const char *e1, FileLineColRange e1l, const char *e2, FileLineColRange e2l, postype p=POS_AT, double off=0);
+    VertXPos(Msc&m, const char *e1, FileLineColRange e1l, postype p=POS_AT, double off=0);
     explicit VertXPos(Msc&m);
     double CalculatePos(Msc &m, double width=0, double gap=-1) const;
 };
@@ -365,27 +365,27 @@ protected:
     mutable double xpos, width;
     mutable std::vector<Contour> outer_contours;
 public:
-    ArcVerticalArrow(MscArcType t, const char *s, const char *d, Msc *msc);
-    ArcArrow *AddSegment(MscArcType t, const char *m, file_line_range ml, file_line_range l);
+    ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc);
+    ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     ArcVerticalArrow* AddXpos(VertXPos *p);
-    virtual const MscStyle *GetRefinementStyle(MscArcType t) const;
+    virtual const MscStyle *GetRefinementStyle(EArcType t) const;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual Element* AttachNote(CommandNote *);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual Range YExtent() {return Range(false);}
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/) {return -2;}
-    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class ArcBox : public ArcLabelled
@@ -405,8 +405,8 @@ protected:
     mutable Contour text_cover;
 public:
     //Constructor to construct the first box/pipe in a series
-    ArcBox(MscArcType t, const char *s, file_line_range sl,
-        const char *d, file_line_range dl, Msc *msc);
+    ArcBox(EArcType t, const char *s, FileLineColRange sl,
+        const char *d, FileLineColRange dl, Msc *msc);
     virtual bool CanBeNoted() const {return true;}
     virtual const ArcSignature* GetSignature() const;
     ArcBox* AddArcList(ArcList*l);
@@ -415,12 +415,12 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void Layout(MscCanvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
-    virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {} //will never be called
+    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {} //will never be called
 };
 
 class ArcBoxSeries : public ArcBase
@@ -435,22 +435,22 @@ public:
     //Constructor to construct the first box/pipe in a series
     ArcBoxSeries(ArcBox *first);
     ArcBoxSeries* AddFollow(ArcBox *f);
-    virtual MscDirType GetToucedEntities(EntityList &el) const;
+    virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
-    virtual double SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+    virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class ArcPipe : public ArcLabelled
@@ -478,11 +478,11 @@ public:
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     string Print(int ident=0) const;
-    virtual void Layout(MscCanvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
+    virtual void Layout(Canvas &/*canvas*/, AreaList &/*cover*/) {_ASSERT(0);}
     virtual void ShiftBy(double y);
-    void DrawPipe(MscCanvas &canvas, bool topSideFill, bool topSideLine, bool backSide, bool shadow,
+    void DrawPipe(Canvas &canvas, bool topSideFill, bool topSideLine, bool backSide, bool shadow,
                   bool text, double next_lw, int drawing_variant);
-    virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {} //will never be called
+    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {} //will never be called
 };
 
 class ArcPipeSeries : public ArcBase
@@ -498,23 +498,23 @@ public:
     ArcPipeSeries(ArcPipe *first);
     ArcPipeSeries* AddFollowWithAttributes(ArcPipe*f, AttributeList *l);
     ArcPipeSeries* AddArcList(ArcList*l);
-    virtual MscDirType GetToucedEntities(EntityList &el) const;
+    virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     void CalculateContours(Area *pipe_body_cover=NULL);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
-    virtual double SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+    virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 
@@ -531,19 +531,19 @@ protected:
     mutable double text_margin, line_margin;
     mutable Contour text_cover;
 public:
-    ArcDivider(MscArcType t, Msc *msc);
-    static const char *MyStyleName(MscArcType t);
+    ArcDivider(EArcType t, Msc *msc);
+    static const char *MyStyleName(EArcType t);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool nudge, bool title);
     static bool AttributeValues(const std::string attr, Csh &csh, bool nudge, bool title);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class ArcParallel : public ArcBase
@@ -553,22 +553,22 @@ protected:
 public:
     ArcParallel(Msc *msc) : ArcBase(MSC_ARC_PARALLEL, msc) {}
     ArcParallel* AddArcList(ArcList*l) {if (l) {blocks.push_back(std::move(*l)); l->clear(); delete l; keep_together = false;} return this;}
-    virtual MscDirType GetToucedEntities(EntityList &el) const;
+    virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
-    virtual double SplitByPageBreak(MscCanvas &canvas, double netPrevPageSize,
+    virtual double SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
                                     double pageBreak, bool &addCommandNewpage, 
                                     bool addHeading, ArcList &res);
-    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 

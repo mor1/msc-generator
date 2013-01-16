@@ -24,11 +24,11 @@
 class ArcCommand : public ArcBase
 {
 public:
-    ArcCommand(MscArcType t, Msc *msc) : ArcBase(t, msc) {};
+    ArcCommand(EArcType t, Msc *msc) : ArcBase(t, msc) {};
     bool AddAttribute(const Attribute &) {return false;}
     string Print(int ident=0) const;
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
-    virtual void Draw(MscCanvas &/*canvas*/, DrawPassType /*pass*/) {}
+    virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/) {}
 };
 
 class CommandEntity : public ArcCommand
@@ -57,20 +57,20 @@ public:
     void ApplyShowToChildren(const string &name, bool show);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    EntityDef* FindAddEntityDefForEntity(const string &entity, const file_line_range &l);
+    EntityDef* FindAddEntityDefForEntity(const string &entity, const FileLineColRange &l);
     EEntityStatus GetCombinedStatus(const std::set<string>& children) const;
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/);
-    virtual void PostPosProcess(MscCanvas &cover);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class CommandNewpage : public ArcCommand
@@ -93,12 +93,12 @@ public:
 class CommandNewBackground : public ArcCommand
 {
 public:
-    MscFillAttr fill;
+    FillAttr fill;
 
-    CommandNewBackground(Msc *msc, MscFillAttr f)
+    CommandNewBackground(Msc *msc, FillAttr f)
         : ArcCommand(MSC_COMMAND_NEWBACKGROUND, msc), fill(f) {}
 
-    virtual void PostPosProcess(MscCanvas &cover);
+    virtual void PostPosProcess(Canvas &cover);
 };
 
 class CommandNumbering : public ArcCommand
@@ -110,7 +110,7 @@ public:
 
     CommandNumbering(Msc *msc, EAction a, size_t l=0)
         : ArcCommand(MSC_COMMAND_NUMBERING, msc), action(a), length(l) {if (l) action = EAction(action | SIZE); AddAttributeList(NULL);}
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
 };
 
@@ -119,7 +119,7 @@ class CommandMark : public ArcCommand
 public:
     string name;
     double offset;
-    CommandMark(const char *m, file_line_range ml, Msc *msc);
+    CommandMark(const char *m, FileLineColRange ml, Msc *msc);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -132,19 +132,19 @@ class CommandEmpty : public ArcCommand
     Label parsed_label;
 public:
     CommandEmpty(Msc *msc);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class NamePair
 {
 public:
     string src, dst;
-    file_line_range sline, dline;
-    NamePair(const char *s, const file_line_range &sl,
-                   const char *d, const file_line_range &dl) :
+    FileLineColRange sline, dline;
+    NamePair(const char *s, const FileLineColRange &sl,
+                   const char *d, const FileLineColRange &dl) :
         src(s ? s : ""), dst(d ? d : ""), sline(sl), dline(dl) {}
 };
 
@@ -152,7 +152,7 @@ class CommandHSpace : public ArcCommand
 {
 protected:
     EIterator src, dst;
-    file_line_range sline, dline;
+    FileLineColRange sline, dline;
     StringFormat format;
     std::pair<bool, string> label;
     std::pair<bool, double> space;
@@ -161,9 +161,9 @@ public:
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
 };
 
 class CommandVSpace : public ArcCommand
@@ -178,9 +178,9 @@ public:
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
 };
 
@@ -188,23 +188,23 @@ class ExtVertXPos : public VertXPos
 {
 public:
     enum {LEFT=0, CENTER=1, RIGHT=2, NONE=3, BAD_SIDE} side;
-    file_line_range side_line;
+    FileLineColRange side_line;
     explicit ExtVertXPos(Msc&m) : VertXPos(m), side(NONE) {}
-    ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p);
+    ExtVertXPos(const char *s, const FileLineColRange &sl, const VertXPos *p);
     ExtVertXPos(const VertXPos *p);
 };
 
 class CommandSymbol : public ArcCommand
 {
 protected:
-    typedef enum {ARC, RECTANGLE, ELLIPSIS} SymbolType;
+    typedef enum {ARC, RECTANGLE, ELLIPSIS} ESymbolType;
     static const double ellipsis_space_ratio;
-    SymbolType              symbol_type;
+    ESymbolType              symbol_type;
     MscStyle                style;
     ExtVertXPos             hpos1, hpos2;
     NamePair                vpos;
     std::pair<bool, double> xsize, ysize;  //used for 'arc' and 'rectangle'
-    MscArrowSize            size;          //used for '...'
+    EArrowSize              size;          //used for '...'
     mutable Block outer_edge;
 public:
     CommandSymbol(Msc*, const char *symbol, const NamePair *enp,
@@ -213,20 +213,20 @@ public:
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
     virtual void ShiftBy(double y);
     /** We are to be ignored if we are off-line (outer_edge is valid) or we cannot rearrange if in-line */
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/)
                                        {return outer_edge.y.IsInvalid() ? -2 : -1;}
-    virtual void PlaceWithMarkers(MscCanvas &cover, double autoMarker);
+    virtual void PlaceWithMarkers(Canvas &cover, double autoMarker);
     void CalculateAreaFromOuterEdge();
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 struct score_t;
@@ -238,7 +238,7 @@ public:
 protected:
     Element *    target;
     string                point_toward; //an entity or NoEntity for center of target
-    file_line_range       point_toward_pos;
+    FileLineColRange       point_toward_pos;
     std::pair<bool, int>  float_dist; //user preferences of floating note placement
     int                   float_dir_x;
     int                   float_dir_y;
@@ -246,9 +246,9 @@ protected:
     mutable XY            halfsize, pos_center, point_to;
     mutable EIterator     point_toward_iterator;
     double pointer_width(double distance) const;
-    Contour cover_pointer(MscCanvas &canvas, const XY &point_to, const XY &center) const; //places upper left corner of the body to 0,0
+    Contour cover_pointer(Canvas &canvas, const XY &point_to, const XY &center) const; //places upper left corner of the body to 0,0
 public:
-    CommandNote(Msc*, bool is_note, const char *pt=NULL, const file_line_range &ptm=file_line_range());
+    CommandNote(Msc*, bool is_note, const char *pt=NULL, const FileLineColRange &ptm=FileLineColRange());
     ~CommandNote();
     virtual bool CanBeNoted() const {return false;}
     Element *GetTarget() const {return target;}
@@ -257,32 +257,32 @@ public:
     virtual bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool is_float);
     static bool AttributeValues(const std::string attr, Csh &csh, bool is_float);
-    virtual ArcBase* PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right,
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
-    virtual void FinalizeLabels(MscCanvas &canvas);
-    virtual void Width(MscCanvas &canvas, EntityDistanceMap &distances);
-    virtual void Layout(MscCanvas &canvas, AreaList &cover);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
 
-    Contour CoverBody(MscCanvas &canvas, const XY &center) const; //places upper left corner to 0,0
-    Contour CoverPointer(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
+    Contour CoverBody(Canvas &canvas, const XY &center) const; //places upper left corner to 0,0
+    Contour CoverPointer(Canvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
         {return cover_pointer(canvas, pointto, center) - CoverBody(canvas, center);}
-    Contour CoverAll(MscCanvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
+    Contour CoverAll(Canvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
         {return cover_pointer(canvas, pointto, center) + CoverBody(canvas, center);}
     static Contour GetRegionMask(const Block &outer, const XY &center, int dir_x, int dir_y);
     std::vector<std::pair<XY, XY>> GetPointerTarget() const;
-    void CoverPenalty(const XY &pointto, const XY &center, MscCanvas &canvas,
+    void CoverPenalty(const XY &pointto, const XY &center, Canvas &canvas,
                       const Contour &block_all, const Contour &block_imp,
                       score_t &cover_penalty) const;
     void SlantPenalty(const XY &pointto, const XY &center, const XY &tangent, 
                       score_t &slant_penalty) const;
     static bool GetAPointInside(const Contour &c, const XY &p1, const XY &p2, XY&ret);
     static bool GetAPointInside(const DoubleMap<bool> &map, double &ret);
-    void PlaceFloating(MscCanvas &canvas);
-    void PlaceSideTo(MscCanvas &canvas, AreaList &cover, double &y);
+    void PlaceFloating(Canvas &canvas);
+    void PlaceSideTo(Canvas &canvas, AreaList &cover, double &y);
 
     virtual void ShiftCommentBy(double y);
-    //virtual void PostPosProcess(MscCanvas &cover, double autoMarker);
-    virtual void Draw(MscCanvas &canvas, DrawPassType pass);
+    //virtual void PostPosProcess(Canvas &cover, double autoMarker);
+    virtual void Draw(Canvas &canvas, EDrawPassType pass);
 };
 
 class CommandArcList : public ArcCommand
@@ -297,7 +297,7 @@ public:
     void Append(ArcBase *p) {content.Append(p);}
     void Append(ArcList *l) {content.splice(content.end(), *l);}
     void MoveContent(ArcList &list, ArcList::iterator after) {list.splice(++after, content);}
-    virtual double SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+    virtual double SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool /*addHeading*/, ArcList &/*res*/)
                                              {_ASSERT(0); return -1;}

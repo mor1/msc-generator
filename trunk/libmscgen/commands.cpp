@@ -31,7 +31,7 @@ string ArcCommand::Print(int ident) const
     return ss;
 }
 
-void ArcCommand::Layout(MscCanvas &canvas, AreaList &cover)
+void ArcCommand::Layout(Canvas &canvas, AreaList &cover)
 {
     height = 0;
     if (!valid) return;
@@ -232,7 +232,7 @@ void CommandEntity::ApplyShowToChildren(const string &name, bool show)
                 return;
             }
         EntityDef *ed = new EntityDef(name.c_str(), chart);
-        ed->AddAttribute(Attribute("show", show, file_line_range(), file_line_range(), NULL));
+        ed->AddAttribute(Attribute("show", show, FileLineColRange(), FileLineColRange(), NULL));
         entities.Append(ed);
     } else {
         for (auto s = (*j_ent)->children_names.begin(); s != (*j_ent)->children_names.end(); s++) 
@@ -242,7 +242,7 @@ void CommandEntity::ApplyShowToChildren(const string &name, bool show)
 
 
 //Adds and entitydef for "entity" uses running_show and running_style
-EntityDef* CommandEntity::FindAddEntityDefForEntity(const string &entity, const file_line_range &l)
+EntityDef* CommandEntity::FindAddEntityDefForEntity(const string &entity, const FileLineColRange &l)
 {
     //find if already have a def for this
     for (auto i_def = entities.begin(); i_def != entities.end(); i_def++) 
@@ -328,7 +328,7 @@ EEntityStatus CommandEntity::GetCombinedStatus(const std::set<string>& children)
  */
 
 //TODO: What if multiple entitydefs are present for the same entity? We should merge them
-ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+ArcBase* CommandEntity::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
                                          Numbering &, bool top_level, Element **target)
 {
     if (!valid) return NULL;
@@ -481,7 +481,7 @@ ArcBase* CommandEntity::PostParseProcess(MscCanvas &canvas, bool hide, EIterator
 //be drawn as containing other entities.
 //Since parents are in the beginning of the list, we will go and add distances from the back
 //and use the added distances later in the cycle when processing parents
-void CommandEntity::Width(MscCanvas &, EntityDistanceMap &distances)
+void CommandEntity::Width(Canvas &, EntityDistanceMap &distances)
 {
     if (!valid || hidden) return;
     //Add distances for entity heading
@@ -553,14 +553,14 @@ void CommandEntity::Width(MscCanvas &, EntityDistanceMap &distances)
 }
 
 //Here we add to "cover", do not overwrite it
-void CommandEntity::CommentHeightHelper(MscCanvas &canvas, AreaList &cover, double &l, double &r)
+void CommandEntity::LayoutCommentsHelper(Canvas &canvas, AreaList &cover, double &l, double &r)
 {
     for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) 
-        (*i_def)->CommentHeightHelper(canvas, cover, l, r);
-    Element::CommentHeightHelper(canvas, cover, l, r); //sets comment_height
+        (*i_def)->LayoutCommentsHelper(canvas, cover, l, r);
+    Element::LayoutCommentsHelper(canvas, cover, l, r); //sets comment_height
 }
 
-void CommandEntity::Layout(MscCanvas &canvas, AreaList &cover)
+void CommandEntity::Layout(Canvas &canvas, AreaList &cover)
 {
     if (!valid || hidden) return;
     Range hei(0,0);
@@ -603,7 +603,7 @@ void CommandEntity::Layout(MscCanvas &canvas, AreaList &cover)
         height = chart->headingVGapAbove + hei.Spans() + chart->headingVGapBelow;
     } else
         height = 0; //if no headings show
-    CommentHeight(canvas, cover);
+    LayoutComments(canvas, cover);
 }
 
 void CommandEntity::ShiftBy(double y)
@@ -616,7 +616,7 @@ void CommandEntity::ShiftBy(double y)
 
 //We never split a heading. Here we sould add a full_header if addHeader is set: TODO.
 //Rght now we just updtae the running state in Msc::AllEntities
-double CommandEntity::SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPageSize*/,
+double CommandEntity::SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
                                     double /*pageBreak*/, bool &/*addCommandNewpage*/, 
                                     bool addHeading, ArcList &/*res*/)
 {
@@ -632,7 +632,7 @@ double CommandEntity::SplitByPageBreak(MscCanvas &/*canvas*/, double /*netPrevPa
 }
 
 
-void CommandEntity::PostPosProcess(MscCanvas &canvas)
+void CommandEntity::PostPosProcess(Canvas &canvas)
 {
     if (!valid) return;
     ArcCommand::PostPosProcess(canvas);
@@ -644,7 +644,7 @@ void CommandEntity::PostPosProcess(MscCanvas &canvas)
     }
 }
 
-void CommandEntity::Draw(MscCanvas &canvas, DrawPassType pass)
+void CommandEntity::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
     for (auto i = entities.begin(); i!=entities.end(); i++) {
@@ -682,12 +682,12 @@ void CommandNewpage::ShiftBy(double y)
 void CommandNewpage::CollectPageBreak(double hSize)
 {
     if (!valid) return;
-    chart->yPageStart.push_back(PBData(yPos, manual, autoHeading));
+    chart->pageBreakData.push_back(PageBreakData(yPos, manual, autoHeading));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/)
+void CommandNewBackground::PostPosProcess(Canvas &/*canvas*/)
 {
     if (!valid) return;
     auto i = chart->Background.find(yPos);
@@ -698,7 +698,7 @@ void CommandNewBackground::PostPosProcess(MscCanvas &/*canvas*/)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
+ArcBase* CommandNumbering::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
                                             Numbering &number, bool /*top_level*/, Element ** /*target*/)
 {
     if (!valid) return NULL;
@@ -714,7 +714,7 @@ ArcBase* CommandNumbering::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EI
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandMark::CommandMark(const char *m, file_line_range ml, Msc *msc) :
+CommandMark::CommandMark(const char *m, FileLineColRange ml, Msc *msc) :
     ArcCommand(MSC_COMMAND_MARK, msc), name(m)
 {
     map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
@@ -772,7 +772,7 @@ CommandEmpty::CommandEmpty(Msc *msc) : ArcCommand(MSC_COMMAND_EMPTY, msc)
 {
 }
 
-void CommandEmpty::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void CommandEmpty::Width(Canvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     StringFormat format;
@@ -785,7 +785,7 @@ void CommandEmpty::Width(MscCanvas &canvas, EntityDistanceMap &distances)
     distances.Insert(lside_index, rside_index, width);
 }
 
-void CommandEmpty::Layout(MscCanvas &canvas, AreaList &cover)
+void CommandEmpty::Layout(Canvas &canvas, AreaList &cover)
 {
     height = 0;
     if (!valid) return;
@@ -798,22 +798,22 @@ void CommandEmpty::Layout(MscCanvas &canvas, AreaList &cover)
     _ASSERT(comments.size()==0);
 }
 
-void CommandEmpty::Draw(MscCanvas &canvas, DrawPassType pass)
+void CommandEmpty::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid) return;
     if (pass!=draw_pass) return;
     const double width  = parsed_label.getTextWidthHeight().x;
     const double height = parsed_label.getTextWidthHeight().y;
-    MscLineAttr line;
+    LineAttr line;
     line.width.second = 3;
     line.corner.second = CORNER_ROUND;
     line.radius.second = 10;
 
-    MscFillAttr fill;
-    fill.color.second = MscColorType(0,0,128);
+    FillAttr fill;
+    fill.color.second = ColorType(0,0,128);
     fill.gradient.second = GRADIENT_BUTTON;
 
-    MscShadowAttr shadow;
+    ShadowAttr shadow;
     shadow.offset.second = 5;
     shadow.blur.second = 5;
 
@@ -890,7 +890,7 @@ bool CommandHSpace::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
+ArcBase* CommandHSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
     EIterator &/*left*/, EIterator &/*right*/, 
     Numbering &/*number*/, bool /*top_level*/, Element ** /*target*/)
 {
@@ -911,7 +911,7 @@ ArcBase* CommandHSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
 }
 
 
-void CommandHSpace::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
 {
     if (!valid) return;
     double dist = space.second; //0 if not specified by user
@@ -984,7 +984,7 @@ bool CommandVSpace::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
+ArcBase* CommandVSpace::PostParseProcess(Canvas &/*canvas*/, bool /*hide*/,
     EIterator &/*left*/, EIterator &/*right*/, 
     Numbering &/*number*/, bool /*top_level*/, Element ** /*target*/)
 {
@@ -996,7 +996,7 @@ ArcBase* CommandVSpace::PostParseProcess(MscCanvas &/*canvas*/, bool /*hide*/,
     return this;
 }
 
-void CommandVSpace::Layout(MscCanvas &canvas, AreaList &cover)
+void CommandVSpace::Layout(Canvas &canvas, AreaList &cover)
 {
     double dist = space.second;
     if (label.second.length())
@@ -1015,7 +1015,7 @@ void CommandVSpace::Layout(MscCanvas &canvas, AreaList &cover)
 
 //////////////////////////////////////////////////////////////////////////////////
 
-ExtVertXPos::ExtVertXPos(const char *s, const file_line_range &sl, const VertXPos *p) :
+ExtVertXPos::ExtVertXPos(const char *s, const FileLineColRange &sl, const VertXPos *p) :
 VertXPos(*p), side_line(sl)
 {
     if (!valid) {
@@ -1050,7 +1050,7 @@ CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
     style(chart->Contexts.back().styles["symbol"]),
     hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
     hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
-    vpos(enp ? *enp : NamePair(NULL, file_line_range(), NULL, file_line_range())),
+    vpos(enp ? *enp : NamePair(NULL, FileLineColRange(), NULL, FileLineColRange())),
     xsize(false, 0), ysize(false, 0), size(MSC_ARROW_SMALL)
 {
     if (CaseInsensitiveEqual(symbol, "arc"))
@@ -1152,7 +1152,7 @@ bool CommandSymbol::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
+ArcBase* CommandSymbol::PostParseProcess(Canvas &/*canvas*/, bool hide, EIterator &/*left*/, EIterator &/*right*/, 
                                          Numbering &/*number*/, bool /*top_level*/, Element ** target)
 {
     *target = this;
@@ -1223,13 +1223,13 @@ ArcBase* CommandSymbol::PostParseProcess(MscCanvas &/*canvas*/, bool hide, EIter
     return this;
 }
 
-void CommandSymbol::Width(MscCanvas &canvas, EntityDistanceMap &distances)
+void CommandSymbol::Width(Canvas &canvas, EntityDistanceMap &distances)
 {
     ArcCommand::Width(canvas, distances);
 }
 
 
-void CommandSymbol::Layout(MscCanvas &canvas, AreaList &cover)
+void CommandSymbol::Layout(Canvas &canvas, AreaList &cover)
 {
     //Calculate x positions
     const double lw = style.line.LineWidth();
@@ -1289,7 +1289,7 @@ void CommandSymbol::Layout(MscCanvas &canvas, AreaList &cover)
     else
         cover = area;
     height = outer_edge.y.till + style.shadow.offset.second;
-    CommentHeight(canvas, cover);
+    LayoutComments(canvas, cover);
 }
 
 void CommandSymbol::ShiftBy(double y)
@@ -1299,7 +1299,7 @@ void CommandSymbol::ShiftBy(double y)
     outer_edge.y.Shift(y);
 }
 
-void CommandSymbol::PlaceWithMarkers(MscCanvas &/*cover*/, double /*autoMarker*/)
+void CommandSymbol::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
 {
     if (!outer_edge.y.IsInvalid()) return;
     //We used markers, caculate "area" and "outer_edge.y" now
@@ -1345,7 +1345,7 @@ void CommandSymbol::CalculateAreaFromOuterEdge()
     area.mainline = Block(chart->GetDrawing().x, area.GetBoundingBox().y);
 }
 
-void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
+void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (pass!=draw_pass) return;
     switch (symbol_type) {
@@ -1368,7 +1368,7 @@ void CommandSymbol::Draw(MscCanvas &canvas, DrawPassType pass)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandNote::CommandNote(Msc*msc, bool is_note, const char *pt, const file_line_range &ptm)
+CommandNote::CommandNote(Msc*msc, bool is_note, const char *pt, const FileLineColRange &ptm)
     : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles[is_note ? "note" : "comment"]),
     is_float(is_note), target(NULL), point_toward(pt ? pt : ""), point_toward_pos(ptm),
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
@@ -1389,7 +1389,7 @@ bool CommandNote::AddAttribute(const Attribute &a)
     if (is_float && a.EndsWith("pos")) {
         if (!a.CheckType(MSC_ATTR_STRING, chart->Error)) return true;
         //MSC_ATTR_CLEAR is OK above with value = ""        
-        MscNoteAttr::pos_t tmp;
+        NoteAttr::EPosType tmp;
         if (a.value.length()==0) {
             //delete even the default orientation
             float_dir_x = float_dir_y = 0;
@@ -1399,17 +1399,17 @@ bool CommandNote::AddAttribute(const Attribute &a)
         } else if (Convert(a.value, tmp)) {
             switch(tmp) {
             default:
-            case MscNoteAttr::POS_INVALID: _ASSERT(0); break;
-            case MscNoteAttr::POS_NEAR: float_dist.first=true; float_dist.second=-1; break;
-            case MscNoteAttr::POS_FAR:  float_dist.first=true; float_dist.second=+1; break;
-            case MscNoteAttr::LEFT:     float_dir_x=-1; float_dir_y=0; break;
-            case MscNoteAttr::RIGHT:    float_dir_x=+1; float_dir_y=0; break;
-            case MscNoteAttr::UP:       float_dir_x=0; float_dir_y=-1; break;
-            case MscNoteAttr::DOWN:     float_dir_x=0; float_dir_y=+1; break;
-            case MscNoteAttr::LEFT_UP:    float_dir_x=-1; float_dir_y=-1; break;
-            case MscNoteAttr::LEFT_DOWN:  float_dir_x=-1; float_dir_y=+1; break;
-            case MscNoteAttr::RIGHT_UP:   float_dir_x=+1; float_dir_y=-1; break;
-            case MscNoteAttr::RIGHT_DOWN: float_dir_x=+1; float_dir_y=+1; break;
+            case NoteAttr::POS_INVALID: _ASSERT(0); break;
+            case NoteAttr::POS_NEAR: float_dist.first=true; float_dist.second=-1; break;
+            case NoteAttr::POS_FAR:  float_dist.first=true; float_dist.second=+1; break;
+            case NoteAttr::LEFT:     float_dir_x=-1; float_dir_y=0; break;
+            case NoteAttr::RIGHT:    float_dir_x=+1; float_dir_y=0; break;
+            case NoteAttr::UP:       float_dir_x=0; float_dir_y=-1; break;
+            case NoteAttr::DOWN:     float_dir_x=0; float_dir_y=+1; break;
+            case NoteAttr::LEFT_UP:    float_dir_x=-1; float_dir_y=-1; break;
+            case NoteAttr::LEFT_DOWN:  float_dir_x=-1; float_dir_y=+1; break;
+            case NoteAttr::RIGHT_UP:   float_dir_x=+1; float_dir_y=-1; break;
+            case NoteAttr::RIGHT_DOWN: float_dir_x=+1; float_dir_y=+1; break;
             }
         } else 
             a.InvalidValueError(CandidatesFor(tmp), chart->Error);
@@ -1430,7 +1430,7 @@ bool CommandNote::AttributeValues(const std::string attr, Csh &csh, bool is_floa
     return ArcLabelled::AttributeValues(attr, csh);
 }
 
-ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &left, EIterator &right, 
+ArcBase* CommandNote::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right, 
                                        Numbering &number, bool top_level, Element **note_target)
 {
     if (!valid) return NULL;
@@ -1466,7 +1466,7 @@ ArcBase* CommandNote::PostParseProcess(MscCanvas &canvas, bool hide, EIterator &
     return ret;
 }
 
-void CommandNote::FinalizeLabels(MscCanvas &canvas)
+void CommandNote::FinalizeLabels(Canvas &canvas)
 {
     if (!valid) return;
     const ArcLabelled *al = dynamic_cast<const ArcLabelled*>(target);
@@ -1479,7 +1479,7 @@ void CommandNote::FinalizeLabels(MscCanvas &canvas)
     ArcLabelled::FinalizeLabels(canvas);
 }
 
-void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
+void CommandNote::Width(Canvas &/*canvas*/, EntityDistanceMap &distances)
 {
     if (!valid) return;
     //ArcCommand::Width(canvas, distances); We may not have notes, do NOT call ancerstor
@@ -1495,7 +1495,7 @@ void CommandNote::Width(MscCanvas &/*canvas*/, EntityDistanceMap &distances)
     }
 }
 
-void CommandNote::Layout(MscCanvas &canvas, AreaList &cover)
+void CommandNote::Layout(Canvas &canvas, AreaList &cover)
 {
     if (!valid) return;
     if (!is_float)  //Only comments added here. Notes will be added after their placement
@@ -1503,7 +1503,7 @@ void CommandNote::Layout(MscCanvas &canvas, AreaList &cover)
     height = 0;
 }
 
-Contour CommandNote::CoverBody(MscCanvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
+Contour CommandNote::CoverBody(Canvas &/*canvas*/, const XY &center) const//places upper left corner to 0,0
 {
     _ASSERT(is_float);
     return style.line.CreateRectangle_Midline(center-halfsize, center+halfsize);
@@ -1516,18 +1516,18 @@ double CommandNote::pointer_width(double distance) const
     _ASSERT(is_float);
     switch (style.note.pointer.second) {
     default: _ASSERT(0);
-    case MscNoteAttr::NONE:
+    case NoteAttr::NONE:
         return 0;
-    case MscNoteAttr::CALLOUT:
+    case NoteAttr::CALLOUT:
         return std::min(pointer_width_max, pointer_width_min + distance/pointer_width_div);
-    case MscNoteAttr::BLOCKARROW:
+    case NoteAttr::BLOCKARROW:
         return style.arrow.getBigWidthHeight(style.arrow.endType.second, style.line).y;
-    case MscNoteAttr::ARROW:
+    case NoteAttr::ARROW:
         return style.line.LineWidth();
     }
 }
 
-Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
+Contour CommandNote::cover_pointer(Canvas &/*canvas*/, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
 {
     _ASSERT(is_float);
     const double l = center.Distance(pointto);
@@ -1536,12 +1536,12 @@ Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, con
     _ASSERT(style.note.IsComplete());
     switch (style.note.pointer.second) {
     default: _ASSERT(0);
-    case MscNoteAttr::NONE: return Contour();
-    case MscNoteAttr::CALLOUT: {
+    case NoteAttr::NONE: return Contour();
+    case NoteAttr::CALLOUT: {
         const XY a = (center-pointto).Rotate90CCW()/l*width/2;
         return Contour(pointto, center-a, center+a); }
-    case MscNoteAttr::BLOCKARROW:
-    case MscNoteAttr::ARROW:
+    case NoteAttr::BLOCKARROW:
+    case NoteAttr::ARROW:
         break;
     }
     //Do an arrow between pointto - XY(l,0) and pointto
@@ -1549,7 +1549,7 @@ Contour CommandNote::cover_pointer(MscCanvas &/*canvas*/, const XY &pointto, con
     v[0] = pointto.x - l; v[1] = pointto.x;
     a[0] = a[1] = 0;
     Contour ret;
-    if (style.note.pointer.second == MscNoteAttr::BLOCKARROW) {
+    if (style.note.pointer.second == NoteAttr::BLOCKARROW) {
         const double size_mul = 3;
         std::vector<Contour> vc;
         v[0] *= size_mul;
@@ -1770,7 +1770,7 @@ double ScoreRegion(const std::pair<bool, int> &wanted_dist,
     return score;
 }
 
-void CommandNote::CoverPenalty(const XY &pointto, const XY &center, MscCanvas &canvas,
+void CommandNote::CoverPenalty(const XY &pointto, const XY &center, Canvas &canvas,
                                const Contour &block_all, const Contour &block_imp,
                                score_t &cover_penalty) const
 {
@@ -1872,7 +1872,7 @@ bool CommandNote::GetAPointInside(const DoubleMap<bool> &map, double &ret)
 }
 
 //This is called for notes from Msc::CompleteParse, just before PostPosProcess
-void CommandNote::PlaceFloating(MscCanvas &canvas)
+void CommandNote::PlaceFloating(Canvas &canvas)
 {
    if (!valid) return;
     _ASSERT(is_float);
@@ -2014,8 +2014,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
     //does not block us
     //block_all -= contour_target;
     //block_imp += contour_target;
-    //chart->DebugContours.push_back(Msc::ContourAttr(block_all, MscFillAttr(MscColorType(255,128,255, 128))));
-    //chart->DebugContours.push_back(Msc::ContourAttr(block_imp, MscFillAttr(MscColorType(255,255,128, 128))));
+    //chart->DebugContours.push_back(Msc::ContourAttr(block_all, FillAttr(ColorType(255,128,255, 128))));
+    //chart->DebugContours.push_back(Msc::ContourAttr(block_imp, FillAttr(ColorType(255,255,128, 128))));
 
     XY best_center;
     XY best_pointto;
@@ -2042,8 +2042,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
         if (region.IsEmpty()) continue; 
         Contour region_rot; //Preallocate - rotation does not change number of elements
         
-        //chart->DebugContours.push_back(Msc::ContourAttr(map, MscFillAttr(MscColorType(255,255,0, 50))));
-        //chart->DebugContours.push_back(Msc::ContourAttr(region_mask, MscLineAttr(), MscFillAttr(MscColorType(0,0,255, 128))));
+        //chart->DebugContours.push_back(Msc::ContourAttr(map, FillAttr(ColorType(255,255,0, 50))));
+        //chart->DebugContours.push_back(Msc::ContourAttr(region_mask, LineAttr(), FillAttr(ColorType(0,0,255, 128))));
 
         const score_t region_penalty = penalty_for_covered_region_mul * 
             (1 - region.GetArea()/region_mask.GetArea());
@@ -2071,8 +2071,8 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 const Contour arrowspace = region + Contour(tp, c, cc);
                 //if (Contour::IsResultOverlapping(arrowspace.RelationTo(contour_target, true)))
                 //    continue;
-                //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
-                //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
+                //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, FillAttr(ColorType(0,0,0, 128))));
+                //chart->DebugContours.push_back(Msc::ContourAttr(region, FillAttr(ColorType(255,0,0, 128))));
 
                 for (double angle_step = angle_step_unit, 
                             angle = start_angle;
@@ -2127,9 +2127,9 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
             const Contour region_block_all = block_all * arrowspace;
             const Contour region_block_imp = block_imp * arrowspace;
 
-            //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, MscFillAttr(MscColorType(0,0,0, 128))));
-            //chart->DebugContours.push_back(Msc::ContourAttr(region, MscFillAttr(MscColorType(255,0,0, 128))));
-            //chart->DebugContours.push_back(Msc::ContourAttr(block_imp, MscFillAttr(MscColorType(255,128,255, 128))));
+            //chart->DebugContours.push_back(Msc::ContourAttr(arrowspace, FillAttr(ColorType(0,0,0, 128))));
+            //chart->DebugContours.push_back(Msc::ContourAttr(region, FillAttr(ColorType(255,0,0, 128))));
+            //chart->DebugContours.push_back(Msc::ContourAttr(block_imp, FillAttr(ColorType(255,128,255, 128))));
 
             //From here we try to place both the body inside 'region' and its pointer
             //simultaneously. We go by angle. The arrow of a note should preferably be
@@ -2239,7 +2239,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
                 //Now we have a valid "center" and "pointto" with their
                 //"local_coverage_penalty" calculated.
                 //Calculate penalty if note body or pointer covers something.
-                //chart->DebugContours.push_back(Msc::ContourAttr(Contour(pointto,5), MscLineAttr(), MscFillAttr(MscColorType(255,0,0, 50))));
+                //chart->DebugContours.push_back(Msc::ContourAttr(Contour(pointto,5), LineAttr(), FillAttr(ColorType(255,0,0, 50))));
                 SlantPenalty(pointto, center, tangent, local_penalty);
                 if (local_penalty < penalty) continue; //futile, try next angle
                 CoverPenalty(pointto, center, canvas, block_all, block_imp, local_penalty);
@@ -2300,7 +2300,7 @@ void CommandNote::PlaceFloating(MscCanvas &canvas)
 
 //return height, but place to "y" (below other notes)
 //This is called from Layout() of the target for comments
-void CommandNote::PlaceSideTo(MscCanvas &, AreaList &cover, double &y)
+void CommandNote::PlaceSideTo(Canvas &, AreaList &cover, double &y)
 {
    if (!valid) return;
     _ASSERT(!is_float);
@@ -2330,12 +2330,12 @@ void CommandNote::ShiftCommentBy(double y)
 }
 
 
-void CommandNote::Draw(MscCanvas &canvas, DrawPassType pass)
+void CommandNote::Draw(Canvas &canvas, EDrawPassType pass)
 {
     if (!valid || pass!=draw_pass) return;
     if (is_float) {
         Contour cover;
-        if (style.note.pointer.second == MscNoteAttr::ARROW) {
+        if (style.note.pointer.second == NoteAttr::ARROW) {
             cover = CoverBody(canvas, pos_center);
             const Range r = cover.CreateExpand(style.line.Spacing()).Cut(point_to, pos_center);
             const double len = r.from * point_to.Distance(pos_center);

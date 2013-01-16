@@ -169,7 +169,7 @@ public:
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 	void HighLightArc(const Element *arc);      //Select in internal editor
-    bool OnControlClicked(Element *arc, MscControlType t); //Do what is needed if a control is clicked. Ture if chart invalidated.
+    bool OnControlClicked(Element *arc, EGUIControlType t); //Do what is needed if a control is clicked. Ture if chart invalidated.
 	afx_msg void OnHelpHelp();
     afx_msg void OnEditSelectAll();
 };
