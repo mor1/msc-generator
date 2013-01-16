@@ -54,22 +54,22 @@ typedef enum {
     MSC_ARROW_EMPTY_INV,    ///<Block only: Inward trinagle as wide as body
     MSC_ARROW_STRIPES,      ///<Block only: Three rectangles of increasing size
     MSC_ARROW_TRIANGLE_STRIPES ///<Block only: Three triangles of increasing size
-} MscArrowType;
+} EArrowType;
 
 /** True if the type is applicable for line arrows */
-inline bool MSC_ARROW_OK_FOR_ARROWS(MscArrowType t) {return t>0 && t<=MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_OK_FOR_ARROWS(EArrowType t) {return t>0 && t<=MSC_ARROW_TRIPLE_HALF;}
 /** True if type is of double. */
-inline bool MSC_ARROW_IS_DOUBLE(MscArrowType t) {return t>=MSC_ARROW_DOUBLE && t<=MSC_ARROW_DOUBLE_HALF;}
+inline bool MSC_ARROW_IS_DOUBLE(EArrowType t) {return t>=MSC_ARROW_DOUBLE && t<=MSC_ARROW_DOUBLE_HALF;}
 /** True if type is of triple */
-inline bool MSC_ARROW_IS_TRIPLE(MscArrowType t) {return t>=MSC_ARROW_TRIPLE && t<=MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_IS_TRIPLE(EArrowType t) {return t>=MSC_ARROW_TRIPLE && t<=MSC_ARROW_TRIPLE_HALF;}
 /** True if type is a single line sort*/
-inline bool MSC_ARROW_IS_HALF(MscArrowType t) {return t==MSC_ARROW_HALF || t==MSC_ARROW_DOUBLE_HALF || t==MSC_ARROW_TRIPLE_HALF;}
+inline bool MSC_ARROW_IS_HALF(EArrowType t) {return t==MSC_ARROW_HALF || t==MSC_ARROW_DOUBLE_HALF || t==MSC_ARROW_TRIPLE_HALF;}
 /** True if type is line-like.*/
-inline bool MSC_ARROW_IS_LINE(MscArrowType t) {return t==MSC_ARROW_LINE || t==MSC_ARROW_DOUBLE_LINE || t==MSC_ARROW_TRIPLE_LINE;}
+inline bool MSC_ARROW_IS_LINE(EArrowType t) {return t==MSC_ARROW_LINE || t==MSC_ARROW_DOUBLE_LINE || t==MSC_ARROW_TRIPLE_LINE;}
 /** True if the type is applicable for block arrows */
-inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(MscArrowType t) {return t>0 && (t<=MSC_ARROW_SHARP_EMPTY || t>=MSC_ARROW_EMPTY_INV);}
+inline bool MSC_ARROW_OK_FOR_BIG_ARROWS(EArrowType t) {return t>0 && (t<=MSC_ARROW_SHARP_EMPTY || t>=MSC_ARROW_EMPTY_INV);}
 /** True if the type symmetric to a horizontal line. */
-inline bool MSC_ARROW_IS_SYMMETRIC(MscArrowType t) {return t==MSC_ARROW_NONE || (MSC_ARROW_DIAMOND<=t && t<=MSC_ARROW_DOT_EMPTY);}
+inline bool MSC_ARROW_IS_SYMMETRIC(EArrowType t) {return t==MSC_ARROW_NONE || (MSC_ARROW_DIAMOND<=t && t<=MSC_ARROW_DOT_EMPTY);}
 
 /** Describes the size of the arrowhead, see ArrowHead::arrowSizePercentage*/
 typedef enum {
@@ -79,16 +79,16 @@ typedef enum {
     MSC_ARROW_NORMAL,///<75% size
     MSC_ARROW_BIG,   ///<100% size
     MSC_ARROW_HUGE   ///<150% size
-} MscArrowSize;
+} EArrowSize;
 
 /** Describes the position of the arrowhead in the arrow.*/
 typedef enum {
     MSC_ARROW_END,   ///<The arrowhead in the 'to' direction, e.g., in case of 'a->b', the arrowhead at 'b'. Both ends are like this for bidirectional arrows.
     MSC_ARROW_MIDDLE,///<An arrowhead at the middle of a multi-segment arrow, e.g., for 'a->b->c' the one at 'b'.
     MSC_ARROW_START  ///<The arrowhead in the 'from' direction, e.g., in case of 'a->b', the arrowhead at 'a'.
-} MscArrowEnd;
+} EArrowEnd;
 
-class MscCanvas;
+class Canvas;
 
 /** Describes and draws arrowheads and block arrow contours.*/
 class ArrowHead
@@ -99,31 +99,31 @@ protected:
     static const double baseArrowHeight;  ///<half of the Y-size of triangle for 100% size
     static const double baseDiamondSize;  ///<X and Y size for a diamond for 100% size
     static const double baseDotSize;      ///<circle radius for dots for 100% size
-    static const double arrowSizePercentage[6]; ///<Percentage values for MscArrowSize enum.
+    static const double arrowSizePercentage[6]; ///<Percentage values for EArrowSize enum.
 
 public:
     /** Describes the overall type of an arrow */
-    enum ArcType {
+    enum EArcArrowType {
         NONE,     ///<Invalid
         ARROW,    ///<Line arrow
         BIGARROW, ///<Block arrow
         ANY,      ///<Can be either type
         NOTE      ///<Arrowhead for notes (CommandNote)
     } type;
-    MscLineAttr                   line;     ///<The line style for the arrowhead
-    std::pair<bool, MscArrowSize> size;     ///<The size of the arrowhead. Not set if `first` is false.
-    std::pair<bool, double>       xmul;     ///<The x-size multipler of the arrowhead. Not set if `first` is false.
-    std::pair<bool, double>       ymul;     ///<The y-size multipler of the arrowhead. Not set if `first` is false.
-    std::pair<bool, MscArrowType> endType;  ///<The type of the arrowhead at the end of the arrow (also start for bidirectional arrows). Not set if `first` is false.
-    std::pair<bool, MscArrowType> midType;  ///<The type of the arrowhead at the midpoint of a multi-segment of the arrow. Not set if `first` is false.
-    std::pair<bool, MscArrowType> startType;///<The type of the arrowhead at the start of the arrow. Not set if `first` is false.
+    LineAttr                    line;     ///<The line style for the arrowhead
+    std::pair<bool, EArrowSize> size;     ///<The size of the arrowhead. Not set if `first` is false.
+    std::pair<bool, double>     xmul;     ///<The x-size multipler of the arrowhead. Not set if `first` is false.
+    std::pair<bool, double>     ymul;     ///<The y-size multipler of the arrowhead. Not set if `first` is false.
+    std::pair<bool, EArrowType> endType;  ///<The type of the arrowhead at the end of the arrow (also start for bidirectional arrows). Not set if `first` is false.
+    std::pair<bool, EArrowType> midType;  ///<The type of the arrowhead at the midpoint of a multi-segment of the arrow. Not set if `first` is false.
+    std::pair<bool, EArrowType> startType;///<The type of the arrowhead at the start of the arrow. Not set if `first` is false.
 
     /** Creates a default arrowhead style.
      * The style will accept any type (both line or block arrow types), 
      * small size, no size multipliers, solid triangle type, both at the end 
      * and in the middle, no arrowhead at the start and default line style
      * (black, solid, width of 1).*/
-    explicit ArrowHead(ArcType t=ANY) : type(t), size(true, MSC_ARROW_SMALL), xmul(true, 1), ymul(true, 1),
+    explicit ArrowHead(EArcArrowType t=ANY) : type(t), size(true, MSC_ARROW_SMALL), xmul(true, 1), ymul(true, 1),
         endType(true, MSC_ARROW_SOLID), midType(true, MSC_ARROW_SOLID),  startType(true, MSC_ARROW_NONE) {}
     /** Deletes all content, by setting all `first` to false*/
     void Empty();
@@ -133,68 +133,68 @@ public:
     void MakeComplete();
     /** Merge another arrowhead style to us by copying any attribute that is set there.*/
     ArrowHead & operator += (const ArrowHead &);
-    bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     /** Add a list of attribute names we accept to `csh`.*/
     static void AttributeNames(Csh &csh);
     /** Add a list of attribute values we accept for attribute `attr` to `csh`.*/
-    static bool AttributeValues(const std::string &attr, Csh &csh, ArcType t);
+    static bool AttributeValues(const std::string &attr, Csh &csh, EArcArrowType t);
     /** Return the type of arrowhead at the end specified by `which`.*/
-    MscArrowType GetType(bool bidir, MscArrowEnd which) const;
-    MscArrowType GetType(bool forward, bool bidir, MscArrowEnd which, bool left) const;
+    EArrowType GetType(bool bidir, EArrowEnd which) const;
+    EArrowType GetType(bool forward, bool bidir, EArrowEnd which, bool left) const;
 
-    void TransformCanvasForAngle(double degree, MscCanvas &canvas, double sx, double y) const; 
-    void UnTransformCanvas(MscCanvas &canvas) const;
+    void TransformCanvasForAngle(double degree, Canvas &canvas, double sx, double y) const; 
+    void UnTransformCanvas(Canvas &canvas) const;
 
     /** @name Functions for line arrowheads
      * @{ */
     /** Tells how wide and high a specific arrowhead. The y coordinate is just half the height.*/
-    XY getWidthHeight(bool bidir, MscArrowEnd which) const;
+    XY getWidthHeight(bool bidir, EArrowEnd which) const;
     /** Tells how wide one triangle is. Same as getWidthHeight() for simple arrowheads, but differs from it for DOUBLE and TRIPLE ones.*/
-    double getTriWidth(bool bidir, MscArrowEnd which) const;
-    DoublePair getWidths(bool forward, bool bidir, MscArrowEnd which, const MscLineAttr &) const;
-    Contour EntityLineCover(XY xy, bool /*forward*/, bool bidir, MscArrowEnd which) const;
-    Contour ClipForLine(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, const Block &total,
-                        const MscLineAttr &mainline_left, const MscLineAttr &mainline_right) const;
-    Contour Cover(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which,
-                  const MscLineAttr &/*mainline_left*/, const MscLineAttr &/*mainline_right*/) const;
+    double getTriWidth(bool bidir, EArrowEnd which) const;
+    DoublePair getWidths(bool forward, bool bidir, EArrowEnd which, const LineAttr &) const;
+    Contour EntityLineCover(XY xy, bool /*forward*/, bool bidir, EArrowEnd which) const;
+    Contour ClipForLine(XY xy, double act_size, bool forward, bool bidir, EArrowEnd which, const Block &total,
+                        const LineAttr &mainline_left, const LineAttr &mainline_right) const;
+    Contour Cover(XY xy, double act_size, bool forward, bool bidir, EArrowEnd which,
+                  const LineAttr &/*mainline_left*/, const LineAttr &/*mainline_right*/) const;
     //This actually draws an arrowhead
-    void Draw(XY xy, double act_size, bool forward, bool bidir, MscArrowEnd which, 
-              const MscLineAttr &mainline_left, const MscLineAttr &mainline_right, MscCanvas *) const;
+    void Draw(XY xy, double act_size, bool forward, bool bidir, EArrowEnd which, 
+              const LineAttr &mainline_left, const LineAttr &mainline_right, Canvas *) const;
     /** @} */
 
     /** @name Functions for block arrowheads
      * @{ */
     /** The characteristic size of arrowhead. Internal.*/
-    XY getBigWidthHeight(MscArrowType type, const MscLineAttr &ltype) const;
-    double getBigWidthsForSpace(bool /*bidir*/, MscArrowType type, MscArrowEnd /*which*/, 
-                                double /*body_height*/, double act_size, const MscLineAttr &ltype) const;
+    XY getBigWidthHeight(EArrowType type, const LineAttr &ltype) const;
+    double getBigWidthsForSpace(bool /*bidir*/, EArrowType type, EArrowEnd /*which*/, 
+                                double /*body_height*/, double act_size, const LineAttr &ltype) const;
     double getBigMargin(Contour text_cover, double sy, double dy, bool margin_side_is_left, 
-                        bool bidir, MscArrowType type, const MscLineAttr &ltype) const;
-    double bigYExtent(bool bidir, bool forward=true, const std::vector<MscLineAttr> *lines=NULL) const;
+                        bool bidir, EArrowType type, const LineAttr &ltype) const;
+    double bigYExtent(bool bidir, bool forward=true, const std::vector<LineAttr> *lines=NULL) const;
     Contour BigContourOneEntity(double x, double act_size, double sy, double dy, bool bidir,
-                                MscArrowType type, MscArrowEnd which, const MscLineAttr &ltype, 
+                                EArrowType type, EArrowEnd which, const LineAttr &ltype, 
                                 bool left, double *body_margin=NULL) const;
     Contour BigContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                        double sy, double dy, bool forward, bool bidir, 
-                       const std::vector<MscLineAttr> *lines, 
+                       const std::vector<LineAttr> *lines, 
                        std::vector<Contour> &result) const;
     Contour BigHeadContour(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                            double sy, double dy, bool forward, bool bidir, 
-                           const std::vector<MscLineAttr> *lines, double compressGap) const;
-    void BigDrawFromContour(std::vector<Contour> &result, const std::vector<MscLineAttr> *lines,
-                 const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
+                           const std::vector<LineAttr> *lines, double compressGap) const;
+    void BigDrawFromContour(std::vector<Contour> &result, const std::vector<LineAttr> *lines,
+                 const FillAttr &fill, const ShadowAttr &shadow, Canvas &canvas,
                  double angle_radian=0) const;
     void BigDrawEmptyMid(const std::vector<double> &xPos, double sy, double dy, 
-                         MscCanvas &canvas, const Contour *clip=NULL) const;
+                         Canvas &canvas, const Contour *clip=NULL) const;
     void BigCalculateAndDraw(const std::vector<double> &xPos, const std::vector<double> &act_size, 
                              double sy, double dy, bool forward, bool bidir,
-                             const MscFillAttr &fill, const MscShadowAttr &shadow, MscCanvas &canvas,
+                             const FillAttr &fill, const ShadowAttr &shadow, Canvas &canvas,
                              const Contour *clip=NULL, double angle_radian=0) const;
     /** @} */
 };
 
-bool CshHintGraphicCallbackForArrows(MscCanvas *canvas, MscArrowType type, MscArrowSize size, bool left);
-bool CshHintGraphicCallbackForBigArrows(MscCanvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForArrows(Canvas *canvas, EArrowType type, EArrowSize size, bool left);
+bool CshHintGraphicCallbackForBigArrows(Canvas *canvas, CshHintGraphicParam p);
 
 
 #endif //ARROWHEAD_H

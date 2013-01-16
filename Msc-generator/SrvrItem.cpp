@@ -127,7 +127,7 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
     CMscGenDoc* pDoc = GetDocument();
     ASSERT_VALID(pDoc);
     if (!pDoc || !pApp) return FALSE;
-    size_t size = pDoc->m_ChartShown.DrawToMetafile(pDC->m_hDC, MscCanvas::WMF, pApp->m_bPageBreaks, true, GetPage());
+    size_t size = pDoc->m_ChartShown.DrawToMetafile(pDC->m_hDC, Canvas::WMF, pApp->m_bPageBreaks, true, GetPage());
     size += pDoc->serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
     //CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
     //if (pMainFrame)
@@ -288,7 +288,7 @@ void CMscGenSrvrItem::OnDoVerb(LONG iVerb)
         if (iVerb==1 && pMainFrame) {
             //size_t size = pDoc->serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
             //HDC hdc = CreateMetaFile(NULL);
-            //size += pDoc->m_ChartShown.DrawToMetafile(hdc, MscCanvas::WMF, pApp->m_bPageBreaks, true, GetPage());
+            //size += pDoc->m_ChartShown.DrawToMetafile(hdc, Canvas::WMF, pApp->m_bPageBreaks, true, GetPage());
             //DeleteMetaFile(CloseMetaFile(hdc));
             //pMainFrame->FillEmbeddedSizeNow(size);
             pMainFrame->m_wndRibbonBar.ShowContextCategories(ID_CONTEXT_EMBEDDEDOPTIONS);            

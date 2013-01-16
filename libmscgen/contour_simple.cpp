@@ -117,7 +117,7 @@ void SimpleContour::Invert()
  * @returns The relation. Note that for counerclockwise 'inside' is the same as if the
             contour were clockwise, that is in the limited space enclosed.
  */
-is_within_t SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool strict) const
+EPointRelationType SimpleContour::IsWithin(XY p, size_t *edge, double *pos, bool strict) const
 {
     if (size()==0 || boundingBox.IsWithin(p)==WI_OUTSIDE) return WI_OUTSIDE;
 
@@ -201,7 +201,7 @@ inline bool really_between04_warp (double q, double a, double b)
 //It can also return OVERLAP, which means one of our point is outside b, can either be APART or b may be in us
 //clockwiseness is ignored: the inside of a counterclockwise contour is the limited space
 //it encircles.
-relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
+EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
 {
     size_t edge;
     for (size_t i=0; i<size(); i++) {
@@ -248,7 +248,7 @@ relation_t SimpleContour::CheckContainmentHelper(const SimpleContour &b) const
  * Clockwiseness fully ignored: the inside of counterclockwise contours is the 
  * limited space they encloses.
  */
-relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
+EContourRelationType SimpleContour::CheckContainment(const SimpleContour &other) const
 {
     //special case of two full ellipses touching - not caught otherwise
     if (size()==1 && other.size()==1 && at(0).GetStart() == other.at(0).GetStart()) {
@@ -265,7 +265,7 @@ relation_t SimpleContour::CheckContainment(const SimpleContour &other) const
         }
         return REL_APART;
     }
-    relation_t this_in_other = CheckContainmentHelper(other);
+    EContourRelationType this_in_other = CheckContainmentHelper(other);
     if (this_in_other != REL_OVERLAP) return this_in_other;
     switch (other.CheckContainmentHelper(*this)) {
     default:
@@ -1110,7 +1110,7 @@ void SimpleContour::Expand2D(const XY &gap, Contour &res) const
 
 
 /** Determines the relation of two shapes with no prior assumptions. */
-relation_t SimpleContour::RelationTo(const SimpleContour &c) const
+EContourRelationType SimpleContour::RelationTo(const SimpleContour &c) const
 {
     if (!boundingBox.Overlaps(c.boundingBox)) return REL_APART;
     //Look for crosspoints

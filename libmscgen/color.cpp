@@ -25,7 +25,7 @@
 using namespace std;
 
 //string may or may not have enclosing parenthesis
-MscColorType::MscColorType(const string&text)
+ColorType::ColorType(const string&text)
 {
     valid=false;
     size_t pos = 0;
@@ -50,7 +50,7 @@ MscColorType::MscColorType(const string&text)
     valid = true;
 }
 
-MscColorType::MscColorType(unsigned p)
+ColorType::ColorType(unsigned p)
 {
     r = (((unsigned)(p))>>24)&255;
     g = (((unsigned)(p))>>16)&255;
@@ -59,7 +59,7 @@ MscColorType::MscColorType(unsigned p)
     valid = true;
 }
 
-string MscColorType::Print(void) const
+string ColorType::Print(void) const
 {
     if (!valid) return "-invalid-";
     std::ostringstream ss;
@@ -79,9 +79,9 @@ string MscColorType::Print(void) const
  * @param [in] linenum The location of `colordef` in the input file.
  */
 bool ColorSet::AddColor(const std::string &alias, const std::string &colordef,
-                        MscError &error, file_line_range linenum)
+                        MscError &error, FileLineColRange linenum)
 {
-    MscColorType c = GetColor(colordef);
+    ColorType c = GetColor(colordef);
     if (c.valid) {
         this->operator[](alias) = c;
         return true;
@@ -117,7 +117,7 @@ inline string remove_spaces(const string &s)
  * @param [in] s_original The description of the color.
  * @returns A color, which may be invalid if the description is invalid or not in the collection.
  */
-MscColorType ColorSet::GetColor(const std::string &s_original) const
+ColorType ColorSet::GetColor(const std::string &s_original) const
 {
     string s = remove_spaces(s_original);
     const_iterator i = find(s);
@@ -125,16 +125,16 @@ MscColorType ColorSet::GetColor(const std::string &s_original) const
     if (this->end()!=i) return i->second;
 	string::size_type pos = s.find_first_of(",+-");
     //if no comma, + or - and not #1, return invalid color
-    if (pos == string::npos) return MscColorType();
+    if (pos == string::npos) return ColorType();
     string name = remove_spaces(s.substr(0, pos));
     i = find(name);
     //if first element in collection, see if followidered by an alpha value and/or lightness
     if (this->end()!=i) {
-        MscColorType color = i->second;
+        ColorType color = i->second;
         if (s[pos] == ',') {
             double alpha;
-            if (sscanf(s.c_str()+pos+1,"%lf",&alpha)!=1) return MscColorType();
-            if (alpha<0 || alpha>255) return MscColorType();
+            if (sscanf(s.c_str()+pos+1,"%lf",&alpha)!=1) return ColorType();
+            if (alpha<0 || alpha>255) return ColorType();
             if (alpha <= 1.0) color.a = (unsigned char)(alpha*255);
             else color.a = (unsigned char)(alpha);
             //now search for + or -
@@ -145,18 +145,18 @@ MscColorType ColorSet::GetColor(const std::string &s_original) const
         //s[pos] is either + or - here, either case #3 or #4
         double lighter;
         //include sign, too
-        if (sscanf(s.c_str()+pos,"%lf",&lighter)!=1) return MscColorType();
-        if (lighter<-200 || lighter >200) return MscColorType();
+        if (sscanf(s.c_str()+pos,"%lf",&lighter)!=1) return ColorType();
+        if (lighter<-200 || lighter >200) return ColorType();
         if (lighter<-1.0 || lighter>1.0) lighter /= 100;
         if (lighter>=0) return color.Lighter(lighter);
         else return color.Darker(-lighter);
     }
     //if first element not in collection, it is either #5 or #6 (or completely invalid)
-    //MscColorType constructor can handle these
-    return  MscColorType(s);
+    //ColorType constructor can handle these
+    return  ColorType(s);
 }
 
-/*MscColorType &MscColorType::operator +=(const MscColorType &c)
+/*ColorType &ColorType::operator +=(const ColorType &c)
 {
     a = 255;
     r = (unsigned(255-c.a)*r + unsigned(c.a)*c.r)/255;
@@ -165,9 +165,9 @@ MscColorType ColorSet::GetColor(const std::string &s_original) const
     return *this;
     } */
 
-MscColorType MscColorType::operator +(const MscColorType &c) const
+ColorType ColorType::operator +(const ColorType &c) const
 {
-    return MscColorType((unsigned(255-c.a)*r + unsigned(c.a)*c.r)/255,
+    return ColorType((unsigned(255-c.a)*r + unsigned(c.a)*c.r)/255,
                         (unsigned(255-c.a)*g + unsigned(c.a)*c.g)/255,
                         (unsigned(255-c.a)*b + unsigned(c.a)*c.b)/255,
                         255);

@@ -69,8 +69,8 @@ class ContourList : protected std::list<ContourWithHoles>
     void Rotate(double cos, double sin, double radian);
     void RotateAround(const XY&c, double cos, double sin, double radian);
 
-    relation_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
-    relation_t RelationTo(const ContourList &c, bool ignore_holes) const;
+    EContourRelationType RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
+    EContourRelationType RelationTo(const ContourList &c, bool ignore_holes) const;
     void Distance(const ContourWithHoles &c, DistanceType &dist_so_far) const;
     void Distance(const ContourList &cl, DistanceType &dist_so_far) const;
 public:
@@ -87,8 +87,8 @@ public:
     double GetCircumference(bool consider_holes=true, bool include_hidden=false) const;
     XY CentroidUpscaled() const;
 
-    is_within_t IsWithin(const XY &p) const;
-    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const;
+    EPointRelationType IsWithin(const XY &p) const;
+    EPointRelationType Tangents(const XY &p, XY &t1, XY &t2) const;
     void VerticalCrossSection(double x, DoubleMap<bool> &section) const;
     double OffsetBelow(const SimpleContour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
     double OffsetBelow(const Contour &below, double &touchpoint, double offset=CONTOUR_INFINITY) const;
@@ -167,8 +167,8 @@ protected:
     void Expand(EExpandType type4positive, EExpandType type4negative, double gap, Contour &res,
                 double miter_limit_positive, double miter_limit_negative) const;
     void Expand2D(const XY &gap, Contour &res) const;
-    relation_t RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
-    relation_t RelationTo(const ContourList &c, bool ignore_holes) const {return switch_side(c.RelationTo(*this, ignore_holes));} ///<Retermine a relation to a list of shapes.
+    EContourRelationType RelationTo(const ContourWithHoles &c, bool ignore_holes) const;
+    EContourRelationType RelationTo(const ContourList &c, bool ignore_holes) const {return switch_side(c.RelationTo(*this, ignore_holes));} ///<Retermine a relation to a list of shapes.
 
     void Distance(const ContourWithHoles &c, DistanceType &ret) const;
 
@@ -190,8 +190,8 @@ public:
     bool IsSane(bool shouldbehole=false) const;
     bool IsEmpty() const {return outline.IsEmpty();} ///<True if shape has no outline (and holes).
 
-    is_within_t IsWithin(const XY &p) const;
-    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const;
+    EPointRelationType IsWithin(const XY &p) const;
+    EPointRelationType Tangents(const XY &p, XY &t1, XY &t2) const;
     bool HasHoles() const {return !holes.IsEmpty();} ///<True if shape has holes.
     const ContourList &Holes() const {return holes;} ///<Return the holes
     const Block &GetBoundingBox(void) const {return outline.GetBoundingBox();} ///<Return the bounding box.
@@ -270,8 +270,8 @@ class Contour
         NEGATIVE_INTERSECT,   ///<Take the intersection of two (or more) negative (counterclockwise) shapes (holes). The resulting hole will include places included in all of the holes.
         NEGATIVE_XOR,         ///<Take the xor of two (or more) negative (counterclockwise) shapes (holes). The resulting hole will include places included in an odd number of the holes.
         EXPAND_NEGATIVE       ///<Untangle a contour resulting from expanding a counterclockwise SimpleContour.
-    } operation_t;
-    static bool is_positive(operation_t t) {return t<=EXPAND_POSITIVE;} ///<True if the operation works on and hence produces clockwise shapes.
+    } EOperationType;
+    static bool is_positive(EOperationType t) {return t<=EXPAND_POSITIVE;} ///<True if the operation works on and hence produces clockwise shapes.
     /** The first contigous shape in the list of disjoint shapes.
      * 
      * The first such shape is a separate member. This is to reduce heap operations, 
@@ -306,9 +306,9 @@ class Contour
     /** @name Private constructors
      * @{ */
     /** Create a contour by executing an operation on two contours */
-    Contour(operation_t type, const Contour &c1, const Contour &c2) {Operation(type, c1, c2);} 
-    Contour(operation_t type, const Contour &c1, Contour &&c2) {Operation(type, c1, std::move(c2));}
-    Contour(operation_t type, Contour &&c1, Contour &&c2) {Operation(type, std::move(c1), std::move(c2));}
+    Contour(EOperationType type, const Contour &c1, const Contour &c2) {Operation(type, c1, c2);} 
+    Contour(EOperationType type, const Contour &c1, Contour &&c2) {Operation(type, c1, std::move(c2));}
+    Contour(EOperationType type, Contour &&c1, Contour &&c2) {Operation(type, std::move(c1), std::move(c2));}
     //@} 
 protected:
     void append(const ContourWithHoles &p) {if (p.IsEmpty()) return; if (IsEmpty()) {boundingBox = p.GetBoundingBox(); first.assign(p);} else {boundingBox+=p.GetBoundingBox(); further.append(p);}} ///<Append a shape assuming it is disjoint.
@@ -323,11 +323,11 @@ protected:
     /** @name Operation() varianta. 
      * Performs an operation on one or two contours and stores the result in `this`. Used internally.*/
     /** @{ */
-    void Operation(operation_t type, const Contour &c1);
-    void Operation(operation_t type, Contour &&c1);
-    void Operation(operation_t type, const Contour &c1, const Contour &c2);
-    void Operation(operation_t type, const Contour &c1, Contour &&c2);
-    void Operation(operation_t type, Contour &&c1, Contour &&c2);
+    void Operation(EOperationType type, const Contour &c1);
+    void Operation(EOperationType type, Contour &&c1);
+    void Operation(EOperationType type, const Contour &c1, const Contour &c2);
+    void Operation(EOperationType type, const Contour &c1, Contour &&c2);
+    void Operation(EOperationType type, Contour &&c1, Contour &&c2);
     //@} 
 
     /** Helper: Expands the shape and stores the result in res.
@@ -638,14 +638,14 @@ public:
      * These functions keep the contour intact, merely provide information about it.
      * @{ */
     /** Returns the relation of a point and the shape. */
-    is_within_t IsWithin(const XY &p) const {is_within_t ret = first.IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
+    EPointRelationType IsWithin(const XY &p) const {EPointRelationType ret = first.IsWithin(p); if (ret==WI_OUTSIDE) ret = further.IsWithin(p); return ret;}
     /** Returns the touchpoint of tangents drawn from a point to the shape.
      * 
      * @param [in] p The point to draw the tangents from.
      * @param [out] t1 The point where the first tangent touches the shape. 
      * @param [out] t2 The point where the second tangent touches the shape. 
      * @returns The relation of the point to the shape. Meaningful tangents can only be drawn if this is WI_OUTSIDE.*/
-    is_within_t Tangents(const XY &p, XY &t1, XY &t2) const {is_within_t ret = first.Tangents(p, t1, t2); if (ret==WI_OUTSIDE) ret = further.Tangents(p, t1, t2); return ret;}
+    EPointRelationType Tangents(const XY &p, XY &t1, XY &t2) const {EPointRelationType ret = first.Tangents(p, t1, t2); if (ret==WI_OUTSIDE) ret = further.Tangents(p, t1, t2); return ret;}
     /** Returns the relation of two shapes.
      *
      * If `ignore holes` is true we consider only the outline of the shapes. In this case only
@@ -653,9 +653,9 @@ public:
      * If false, these additional values may come:
      * A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART.
      * (Latter meaning no overlap, but some parts of A is in holes and outside of B.) */
-    relation_t RelationTo(const Contour &c, bool ignore_holes) const;
+    EContourRelationType RelationTo(const Contour &c, bool ignore_holes) const;
     /** Returns if a relation means overlap */
-    bool Overlaps(relation_t t) const {return result_overlap(t);}
+    bool Overlaps(EContourRelationType t) const {return result_overlap(t);}
     /** Returns true if the two contours overlap (surface area of intersection is nonzero) */
     bool Overlaps(const Contour &c) const {return Overlaps(RelationTo(c, true));}
     /** Not implemented on purpose. Declaration here to prevent unintended use (similar function of Block exist). */
@@ -868,18 +868,18 @@ inline const ContourWithHoles & ContourList::operator[](size_type i) const
 }
 
 
-inline is_within_t ContourList::IsWithin(const XY &p) const
+inline EPointRelationType ContourList::IsWithin(const XY &p) const
 {
-    is_within_t ret = boundingBox.IsWithin(p);
+    EPointRelationType ret = boundingBox.IsWithin(p);
     if (ret==WI_OUTSIDE) return WI_OUTSIDE;
     for (auto i = begin(); i!=end(); i++)
         if (WI_OUTSIDE != (ret=i->IsWithin(p))) return ret; //we also return IN_HOLE
     return WI_OUTSIDE;
 }
 
-inline is_within_t ContourList::Tangents(const XY &p, XY &t1, XY &t2) const
+inline EPointRelationType ContourList::Tangents(const XY &p, XY &t1, XY &t2) const
 {
-    is_within_t ret = boundingBox.IsWithin(p);
+    EPointRelationType ret = boundingBox.IsWithin(p);
     if (ret==WI_OUTSIDE) return WI_OUTSIDE;
     for (auto i = begin(); i!=end(); i++)
         if (WI_OUTSIDE != (ret=i->Tangents(p, t1, t2))) return ret; //we also return IN_HOLE
@@ -1020,9 +1020,9 @@ inline bool ContourList::TangentFrom(const XY &from, XY &clockwise, XY &cclockwi
 }
 ///////Contour///////////////////////////////////////
 
-inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
+inline EPointRelationType ContourWithHoles::IsWithin(const XY &p) const
 {
-    is_within_t ret = outline.IsWithin(p);
+    EPointRelationType ret = outline.IsWithin(p);
     if (ret!=WI_INSIDE || holes.size()==0) return ret;
     ret = holes.IsWithin(p);
     switch (ret) {
@@ -1033,11 +1033,11 @@ inline is_within_t ContourWithHoles::IsWithin(const XY &p) const
     }
 }
 
-inline is_within_t ContourWithHoles::Tangents(const XY &p, XY &t1, XY &t2) const
+inline EPointRelationType ContourWithHoles::Tangents(const XY &p, XY &t1, XY &t2) const
 {
     size_t edge;
     double pos;
-    is_within_t ret = outline.IsWithin(p, &edge, &pos);
+    EPointRelationType ret = outline.IsWithin(p, &edge, &pos);
     if (ret==WI_ON_EDGE || ret==WI_ON_VERTEX) {
         t1 = outline.PrevTangentPoint(edge, pos);
         t2 = outline.NextTangentPoint(edge, pos);

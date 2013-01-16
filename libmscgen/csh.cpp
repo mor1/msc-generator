@@ -44,11 +44,11 @@ void CshErrorList::Add(CshPos &pos, const char *t)
     if (t) e.text=t;
 }
 
-MscColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
+ColorSyntaxAppearance MscCshAppearanceList[CSH_SCHEME_MAX][COLOR_MAX];
 void MscInitializeCshAppearanceList(void)
 {
     //shorter alias to make things easier to see below
-    MscColorSyntaxAppearance (&l)[CSH_SCHEME_MAX][COLOR_MAX] = MscCshAppearanceList;
+    ColorSyntaxAppearance (&l)[CSH_SCHEME_MAX][COLOR_MAX] = MscCshAppearanceList;
 
     //Set the mask to default: we set all parameters
     for (unsigned scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
@@ -170,15 +170,15 @@ void MscInitializeCshAppearanceList(void)
 /** State of coloring */
 struct CurrentState {
     unsigned effects;    ///<What effects are in effect
-    MscColorType color;  ///<What is the color
+    ColorType color;  ///<What is the color
     CurrentState() : effects(0) {}
-    void Apply(const MscColorSyntaxAppearance &appearance);  ///<Apply coloring for a language element type to us.
+    void Apply(const ColorSyntaxAppearance &appearance);  ///<Apply coloring for a language element type to us.
     string Print(bool fakeDash=true) const;                  ///<Print a set of string formatting escapes to represent the status. Do \\377 (octal 255) instead of slashes if fakeDash is true.
     bool operator == (const CurrentState &other) const
     {return effects == other.effects && color == other.color;}
 };
 
-void CurrentState::Apply(const MscColorSyntaxAppearance &appearance)
+void CurrentState::Apply(const ColorSyntaxAppearance &appearance)
 {
     effects &= !appearance.mask;
     effects |= appearance.effects & appearance.mask;
@@ -296,7 +296,7 @@ void CshHint::swap(CshHint &o)
 
 
 ////////////////////////////////////////////////////////////////////
-void Csh::AddCSH(CshPos&pos, MscColorSyntaxType i)
+void Csh::AddCSH(CshPos&pos, EColorSyntaxType i)
 {
     if (pos.first_pos>pos.last_pos) return;
     CshEntry e;
@@ -464,7 +464,7 @@ unsigned find_opt_attr_name(const char *name, const char array[][ENUM_STRING_LEN
  * @param [in] name The content of the range: the supposed keyword or entity.*/
 void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
 {
-    MscColorSyntaxType type = COLOR_KEYWORD;
+    EColorSyntaxType type = COLOR_KEYWORD;
     unsigned match_result = find_opt_attr_name(name, keyword_names);
     unsigned match_result_options = find_opt_attr_name(name, opt_names);
     //If options fit better, we switch to them
@@ -479,7 +479,7 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
     }
     //Partial match but currently typing...
     if (pos.last_pos == cursor_pos && match_result == 1) {
-        AddCSH(pos, MscColorSyntaxType(type+1));
+        AddCSH(pos, EColorSyntaxType(type+1));
         partial_at_cursor_pos.first_pos = pos.first_pos;
         partial_at_cursor_pos.last_pos = pos.last_pos;
         if (EntityNames.find(string(name)) == EntityNames.end())
@@ -494,7 +494,7 @@ void Csh::AddCSH_KeywordOrEntity(CshPos&pos, const char *name)
     return;
 }
 
-void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color)
+void Csh::AddCSH_AttrName(CshPos&pos, const char *name, EColorSyntaxType color)
 {
     static const char empty_names[][ENUM_STRING_LEN] = {""};
     const char (*array)[ENUM_STRING_LEN];
@@ -509,7 +509,7 @@ void Csh::AddCSH_AttrName(CshPos&pos, const char *name, MscColorSyntaxType color
     case 2: AddCSH(pos, color); return;
     case 0: AddCSH(pos, COLOR_ERROR); return;
     case 1:
-        AddCSH(pos, MscColorSyntaxType(color+1));
+        AddCSH(pos, EColorSyntaxType(color+1));
         partial_at_cursor_pos.first_pos = pos.first_pos;
         partial_at_cursor_pos.last_pos = pos.last_pos;
         partial_at_cursor_pos.color = COLOR_NORMAL;
@@ -619,12 +619,12 @@ void Csh::AddCSH_ExtvxposDesignatorName(CshPos&pos, const char *name)
 
 /** Callback for drawing a symbol before marker names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForMarkers(MscCanvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForMarkers(Canvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
-    MscLineAttr line(LINE_SOLID, MscColorType(64,0,255), 1, CORNER_NONE, 0);
-    MscFillAttr fill(MscColorType(64,0,255).Lighter(0.2), GRADIENT_UP);
-    MscShadowAttr shadow(MscColorType(0,0,0));
+    LineAttr line(LINE_SOLID, ColorType(64,0,255), 1, CORNER_NONE, 0);
+    FillAttr fill(ColorType(64,0,255).Lighter(0.2), GRADIENT_UP);
+    ShadowAttr shadow(ColorType(0,0,0));
     shadow.offset.first=true;
     shadow.offset.second=3;
     shadow.blur.first=true;
@@ -681,7 +681,7 @@ void Csh::ParseText(const char *input, unsigned len, int cursor_p, unsigned sche
     //Find the plain text for all hints <-- What was this??
 }
 
-MscColorSyntaxType Csh::GetCshAt(int pos)
+EColorSyntaxType Csh::GetCshAt(int pos)
 {
     //Search labels backwards
     for (auto i = CshList.rbegin(); !(i==CshList.rend()); i++)
@@ -740,7 +740,7 @@ std::string Csh::SetDesignTo(const std::string&design, bool full)
     return "Design '" + design + "' is a partial design. Use 'msc += ' instead of 'msc = '.";
 }
 
-CshCursorRelPosType Csh::CursorIn(int a, int b) const
+ECursorRelPosType Csh::CursorIn(int a, int b) const
 {
     //cursor_pos is in CRichEdit context and is zero based
     //a and b are yacc contex based, are one-based
@@ -762,7 +762,7 @@ CshCursorRelPosType Csh::CursorIn(int a, int b) const
  * @param [in] ht The type of hint appropriate to the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
-bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name)
 {
     switch (CursorIn(one.last_pos+1, two.first_pos-1)) {
     case CURSOR_AT_BEGINNING:
@@ -793,7 +793,7 @@ bool Csh::CheckHintBetween(const CshPos &one, const CshPos &two, CshHintType ht,
  * @param [in] ht The type of hint appropriate to the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
-bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name)
 {
     if  (CursorIn(one.last_pos+1, two.first_pos-1) == CURSOR_IN) {
         hintStatus = HINT_LOCATED;
@@ -822,7 +822,7 @@ bool Csh::CheckHintBetweenPlusOne(const CshPos &one, const CshPos &two, CshHintT
  * @param [in] ht The type of hint appropriate to the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
-bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name)
+bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name)
 {
     if (atEnd) {
         switch (CursorIn(one)) {
@@ -865,7 +865,7 @@ bool Csh::CheckHintAfter(const CshPos &one, const CshPos &lookahead, bool atEnd,
  * @param [in] ht The type of hint appropriate to the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
-bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, CshHintType ht, const char *a_name)
+bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool atEnd, EHintType ht, const char *a_name)
 {
     if (one.last_pos >= lookahead.first_pos) return false;
     CshPos one_oneAfter = one;
@@ -884,7 +884,7 @@ bool Csh::CheckHintAfterPlusOne(const CshPos &one, const CshPos &lookahead, bool
  * @param [in] ht The type of hint appropriate to the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
-bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name)
 {
     if (CursorIn(one.last_pos+1, two.last_pos)<=CURSOR_AFTER) return false;
     hintStatus = HINT_LOCATED;
@@ -893,7 +893,7 @@ bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType
     if (ht==HINT_MARKER)
         addMarkersAtEnd = true;
     hintAttrName = a_name?a_name:"";
-    CshCursorRelPosType in_two = CursorIn(two);
+    ECursorRelPosType in_two = CursorIn(two);
     if (in_two==CURSOR_AT_END || in_two==CURSOR_BEFORE)
         hintsForcedOnly = true;
     if (in_two>=CURSOR_AT_BEGINNING)
@@ -913,7 +913,7 @@ bool Csh::CheckHintAtAndBefore(const CshPos &one, const CshPos &two, CshHintType
  * @param [in] ht The type of hint appropriate to the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
-bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, CshHintType ht, const char *a_name)
+bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, EHintType ht, const char *a_name)
 {
     CshPos one_oneAfter = one;
     one_oneAfter.last_pos++;
@@ -931,7 +931,7 @@ bool Csh::CheckHintAtAndBeforePlusOne(const CshPos &one, const CshPos &two, CshH
  * @param [in] ht The type of hint appropriate to the position in the file.
  * @param [in] a_name The name of the attribute if the hint type is HINT_ATTRVALUE
  * @returns True if the cursor is in this hintable place.*/
-bool Csh::CheckHintAt(const CshPos &one, CshHintType ht, const char *a_name)
+bool Csh::CheckHintAt(const CshPos &one, EHintType ht, const char *a_name)
 {
     if (CursorIn(one)<=CURSOR_AFTER) return false;
     hintStatus = HINT_LOCATED;
@@ -1049,7 +1049,7 @@ bool Csh::CheckEntityHintAfterPlusOne(const CshPos &one, const CshPos &lookahead
  *
  * If the hint had been located and its location is fully inside the "location_to_check" 
  * and its type equals to "ht" we set its status to HINT_READY and return true.*/
-bool Csh::CheckHintLocated(CshHintType ht, const CshPos &location_to_check)
+bool Csh::CheckHintLocated(EHintType ht, const CshPos &location_to_check)
 {
     if (hintStatus!=HINT_LOCATED || hintType!=ht)
         return false;
@@ -1064,7 +1064,7 @@ bool Csh::CheckHintLocated(CshHintType ht, const CshPos &location_to_check)
     return true;
 }
 
-std::string Csh::HintPrefix(MscColorSyntaxType t) const
+std::string Csh::HintPrefix(EColorSyntaxType t) const
 {
     CurrentState state;
     state.Apply(MscCshAppearanceList[cshScheme][t]);
@@ -1073,16 +1073,16 @@ std::string Csh::HintPrefix(MscColorSyntaxType t) const
 
 /** Callback for drawing a symbol before attribute names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForAttributeNames(MscCanvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForAttributeNames(Canvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
     const double w = 0.4*HINT_GRAPHIC_SIZE_X;
     const double h = 0.08*HINT_GRAPHIC_SIZE_Y;
     const double off = 0.35*HINT_GRAPHIC_SIZE_Y;
-    MscColorType color(0, 0, 0);
-    MscLineAttr line;
+    ColorType color(0, 0, 0);
+    LineAttr line;
     line.radius.second = 3;
-    MscFillAttr fill(color, GRADIENT_NONE);
+    FillAttr fill(color, GRADIENT_NONE);
     canvas->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, off), XY((HINT_GRAPHIC_SIZE_X+w)/2, off+h), line, fill);
     canvas->Fill(XY((HINT_GRAPHIC_SIZE_X-w)/2, HINT_GRAPHIC_SIZE_Y-off-h), XY((HINT_GRAPHIC_SIZE_X+w)/2, HINT_GRAPHIC_SIZE_Y-off), line, fill);
     return true;
@@ -1105,7 +1105,7 @@ void Csh::AddToHints(CshHint &&h)
  * @param [in] prefix A string to prepend to each hint.
  * @param [in] t The type of the hints.
  * @param [in] c The callback function to use. The index of the hints in 'names' will be passed as parameter to the callback. */
-void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, CshHintType t, 
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, EHintType t, 
                      CshHintGraphicCallback c)
 {
     //index==0 is usually "invalid"
@@ -1120,7 +1120,7 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
  * @param [in] t The type of the hints.
  * @param [in] c The callback function to use. 
  * @param [in] p The parameter to pass to the callback.*/
-void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, CshHintType t, 
+void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, EHintType t, 
                      CshHintGraphicCallback c, CshHintGraphicParam p)
 {
     //index==0 is usually "invalid"
@@ -1130,26 +1130,26 @@ void Csh::AddToHints(const char names[][ENUM_STRING_LEN], const string &prefix, 
 
 /** Callback for drawing a symbol before color names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForColors(MscCanvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForColors(Canvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
     const int size = HINT_GRAPHIC_SIZE_Y-3;
     const int off_x = (HINT_GRAPHIC_SIZE_X - size)/2;
     const int off_y = 1;
-    MscColorType color(p);
+    ColorType color(p);
     Block b(XY(off_x, off_y), XY(off_x+size, off_y+size));
     b.Round();
     if (color.a<255) {
-        MscFillAttr fill(MscColorType(255,255,255), GRADIENT_NONE);
+        FillAttr fill(ColorType(255,255,255), GRADIENT_NONE);
         canvas->Fill(b.Centroid(), b.UpperLeft(), fill);
         canvas->Fill(b.Centroid(), b.LowerRight(), fill);
-        fill.color.second = MscColorType(196,196,196);
+        fill.color.second = ColorType(196,196,196);
         canvas->Fill(b.Centroid(), b.UpperRight(), fill);
         canvas->Fill(b.Centroid(), b.LowerLeft(), fill);
     }
-    canvas->Fill(b, MscFillAttr(color, GRADIENT_NONE));
+    canvas->Fill(b, FillAttr(color, GRADIENT_NONE));
     b.Expand(0.5);
-    canvas->Line(b, MscLineAttr(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0));
+    canvas->Line(b, LineAttr(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0));
     return true;
 }
 
@@ -1171,13 +1171,13 @@ void Csh::AddColorValuesToHints()
 
 /** Callback for drawing a symbol before design names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForDesigns(MscCanvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForDesigns(Canvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
     const XY ul(0.2*HINT_GRAPHIC_SIZE_X, 0.2*HINT_GRAPHIC_SIZE_Y);
     const XY br(0.8*HINT_GRAPHIC_SIZE_X, 0.8*HINT_GRAPHIC_SIZE_Y);
-    MscColorType color(0, 0, 0);
-    MscLineAttr line;
+    ColorType color(0, 0, 0);
+    LineAttr line;
     line.radius.second = 2;
     canvas->Clip(ul, br, line);
     cairo_pattern_t *pattern = cairo_pattern_create_linear(ul.x, ul.y, br.x, br.y);
@@ -1215,12 +1215,12 @@ void Csh::AddDesignsToHints(bool full)
 
 /** Callback for drawing a symbol before style names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam)
+bool CshHintGraphicCallbackForStyles(Canvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_ROUND, 1);
-    MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
-    MscShadowAttr shadow(MscColorType(0,0,0));
+    LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_ROUND, 1);
+    FillAttr fill(ColorType(0,255,0), GRADIENT_UP);
+    ShadowAttr shadow(ColorType(0,0,0));
     shadow.offset.first=true;
     shadow.offset.second=2;
     shadow.blur.first=true;
@@ -1231,12 +1231,12 @@ bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam)
     canvas->Line(b, line);
 
     b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
-    fill.color.second = MscColorType(255,0,0);
+    fill.color.second = ColorType(255,0,0);
     canvas->Fill(b, fill);
     canvas->Line(b, line);
 
     b.Shift(XY(HINT_GRAPHIC_SIZE_X*0.15, HINT_GRAPHIC_SIZE_X*0.15));
-    fill.color.second = MscColorType(0,0,255);
+    fill.color.second = ColorType(0,0,255);
     canvas->Shadow(b, shadow);
     canvas->Fill(b, fill);
     canvas->Line(b, line);
@@ -1245,7 +1245,7 @@ bool CshHintGraphicCallbackForStyles(MscCanvas *canvas, CshHintGraphicParam)
 
 /** Callback for drawing a symbol before style names in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam)
+bool CshHintGraphicCallbackForStyles2(Canvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
     std::vector<double> xPos(2); 
@@ -1253,11 +1253,11 @@ bool CshHintGraphicCallbackForStyles2(MscCanvas *canvas, CshHintGraphicParam)
     xPos[1] = HINT_GRAPHIC_SIZE_X*0.8;
     canvas->Clip(XY(1,1), XY(HINT_GRAPHIC_SIZE_X-1, HINT_GRAPHIC_SIZE_Y-1));
     ArrowHead ah(ArrowHead::BIGARROW);
-    ah.line += MscColorType(0,0,0); //black
+    ah.line += ColorType(0,0,0); //black
     ah.endType.second = MSC_ARROW_SOLID;
     ah.size.second = MSC_ARROWS_INVALID;
-    MscShadowAttr shadow;
-    MscFillAttr fill(MscColorType(0,255,0), GRADIENT_UP);
+    ShadowAttr shadow;
+    FillAttr fill(ColorType(0,255,0), GRADIENT_UP);
     std::vector<double> active(2,0.);
     ah.BigCalculateAndDraw(xPos, active, HINT_GRAPHIC_SIZE_Y*0.3, HINT_GRAPHIC_SIZE_Y*0.7, 
                            true, false, fill, shadow, *canvas);
@@ -1287,12 +1287,12 @@ void Csh::AddDesignOptionsToHints()
 
 /** Callback for drawing a symbol before keywords in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForKeywords(MscCanvas *canvas, CshHintGraphicParam)
+bool CshHintGraphicCallbackForKeywords(Canvas *canvas, CshHintGraphicParam)
 {
     if (!canvas) return false;
-    MscColorType color(128, 64, 64);
+    ColorType color(128, 64, 64);
     canvas->Clip(Contour(XY(HINT_GRAPHIC_SIZE_X/2, HINT_GRAPHIC_SIZE_Y/2), HINT_GRAPHIC_SIZE_Y*0.4));
-    canvas->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), MscFillAttr(color, GRADIENT_DOWN));
+    canvas->Fill(XY(0,0), XY(HINT_GRAPHIC_SIZE_X, HINT_GRAPHIC_SIZE_Y), FillAttr(color, GRADIENT_DOWN));
     canvas->UnClip();
     return true;
 }
@@ -1306,13 +1306,13 @@ void Csh::AddKeywordsToHints(bool includeParallel)
 
 /** Callback for drawing a symbol before entities in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForEntities(MscCanvas *canvas, CshHintGraphicParam /*p*/)
+bool CshHintGraphicCallbackForEntities(Canvas *canvas, CshHintGraphicParam /*p*/)
 {
     if (!canvas) return false;
-    MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
-    MscLineAttr vline(LINE_SOLID, MscColorType(0,0,0), 2, CORNER_NONE, 0);
-    MscFillAttr fill(MscColorType(192,192,192), GRADIENT_UP);
-    MscShadowAttr shadow(MscColorType(0,0,0));
+    LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
+    LineAttr vline(LINE_SOLID, ColorType(0,0,0), 2, CORNER_NONE, 0);
+    FillAttr fill(ColorType(192,192,192), GRADIENT_UP);
+    ShadowAttr shadow(ColorType(0,0,0));
     shadow.offset.first=true;
     shadow.offset.second=2;
     shadow.blur.first=true;
@@ -1348,7 +1348,7 @@ void Csh::AddEntitiesToHints()
  * @param [in] filter_by_uc If true we remove those hints that do not start by 'uc'.
  * @param [in] compact_same We do compaction as described above if true.
  */
-void Csh::ProcessHints(MscCanvas &canvas, StringFormat *format, const std::string &uc, 
+void Csh::ProcessHints(Canvas &canvas, StringFormat *format, const std::string &uc, 
                        bool filter_by_uc, bool compact_same)
 {
     StringFormat f;

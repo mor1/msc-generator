@@ -26,16 +26,16 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 /** Values for text.ident attribute*/
-template<> const char EnumEncapsulator<MscIdentType>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<EIdentType>::names[][ENUM_STRING_LEN] =
     {"invalid", "left", "center", "right", ""};
 
 /** Values for text.type attribute*/
-template<> const char EnumEncapsulator<MscFontType>::names[][ENUM_STRING_LEN] =
+template<> const char EnumEncapsulator<EFontType>::names[][ENUM_STRING_LEN] =
     {"invalid", "normal", "small", "superscript", "subscript", ""};
 
 
-/** Merge two tristate values.*/
-void AddTristate(std::pair<bool, tristate> &a, const std::pair<bool, tristate> b)
+/** Merge two ETriState values.*/
+void AddTristate(std::pair<bool, ETriState> &a, const std::pair<bool, ETriState> b)
 {
     if (!b.first) return;
     if (!a.first || b.second != invert) {
@@ -104,7 +104,7 @@ void StringFormat::Default()
     textVGapBelow.first = true; textVGapBelow.second = 2;
     textVGapLineSpacing.first = true; textVGapLineSpacing.second = 0; 
     ident.first = true; ident.second = MSC_IDENT_CENTER;
-    color.first = true; color.second =  MscColorType(0,0,0); 
+    color.first = true; color.second =  ColorType(0,0,0); 
     fontType.first = true; fontType.second = MSC_FONT_NORMAL;
     spacingBelow.first = true; spacingBelow.second =  0; 
     face.first = true; face.second =  "Arial";
@@ -225,7 +225,7 @@ StringFormat &StringFormat::operator =(const StringFormat &f)
 StringFormat::EEscapeType StringFormat::ProcessEscape(
 	const char * const input, unsigned &length,
 	bool resolve, bool apply, string *replaceto, const StringFormat *basic,
-	Msc *msc, bool references, file_line *linenum, bool sayIgnore)
+	Msc *msc, bool references, FileLineCol *linenum, bool sayIgnore)
 {
     /** The message saying that the use of "\s" escape for small text is deprecated.*/
     static const char PER_S_DEPRECATED_MSG[] = 
@@ -235,7 +235,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     /** The explanatory message for out-of bound margins */
     static const char TOO_LARGE_M_VALUE_MSG[] = "Use an integer between [0..500].";
 
-    MscColorType c;
+    ColorType c;
     string parameter;
     string maybe_s_msg;
     StyleSet::const_iterator i;
@@ -250,7 +250,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             //If there is an unescaped ']' or '}' in the verbatim string give a warning
             if (linenum && msc)
                 if (input[length] == '}' || input[length] == ']') 
-                    msc->Error.Warning(file_line(linenum->file, linenum->line, linenum->col+length),
+                    msc->Error.Warning(FileLineCol(linenum->file, linenum->line, linenum->col+length),
                     string("'") + input[length] + "' character found in label without escape. Is this what you want?",
                     "Insert a '\\' in front of it to remove this warning.");
             length++;
@@ -274,26 +274,26 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case '_':    // subscript
         if (apply) {
             fontType.first = true;
-            fontType.second = (MscFontType)string("+-^_").find(input[1]);
+            fontType.second = (EFontType)string("+-^_").find(input[1]);
         }
         goto ok2; //valid formatting character of length 2
 
     case 'b':    // bold font
     case 'B':
         if (apply)
-            AddTristate(bold, std::pair<bool,tristate>(true, input[1]=='B'?yes:invert));
+            AddTristate(bold, std::pair<bool,ETriState>(true, input[1]=='B'?yes:invert));
         goto ok2; //valid formatting character of length 2
 
     case 'i':    // bold font
     case 'I':
         if (apply)
-            AddTristate(italics, std::pair<bool,tristate>(true, input[1]=='I'?yes:invert));
+            AddTristate(italics, std::pair<bool,ETriState>(true, input[1]=='I'?yes:invert));
         goto ok2; //valid formatting character of length 2
 
     case 'u':    // bold font
     case 'U':
         if (apply)
-            AddTristate(underline, std::pair<bool,tristate>(true, input[1]=='U'?yes:invert));
+            AddTristate(underline, std::pair<bool,ETriState>(true, input[1]=='U'?yes:invert));
         goto ok2; //valid formatting character of length 2
 
     case '0': //Line spacing mark
@@ -313,7 +313,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         goto ok2; //valid formatting character of length 2
 
     case 'p':
-        MscIdentType id;
+        EIdentType id;
         switch (input[2]) {
         case 'c': id = MSC_IDENT_CENTER; break;
         case 'l': id = MSC_IDENT_LEFT; break;
@@ -322,7 +322,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         if (id == MSC_IDENT_INVALID) {
             if (msc && linenum) {
-                file_line l = *linenum;
+                FileLineCol l = *linenum;
                 l.col += 2;
                 msc->Error.Warning(l, "Escape '\\p' shall be followed by one of 'lrc'." + errorAction);
             }
@@ -405,7 +405,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
 
         if (msc && linenum) {
-            file_line l = *linenum;
+            FileLineCol l = *linenum;
             l.col += 2+was_m;
             msc->Error.Error(l, "Missing parameter after " + string(input, length) +
                              " control escape." + errorAction,
@@ -439,7 +439,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
     case ESCAPE_CHAR_LOCATION:
         if (replaceto) replaceto->clear();
         if (linenum) {
-            file_line l = *linenum;
+            FileLineCol l = *linenum;
             if (3!=sscanf(parameter.c_str(), "%d,%u,%u", &l.file, &l.line, &l.col)) {
                 if (msc) msc->Error.Error(*linenum, "Internal error: could not parse position escape.");
                 return FORMATTING_OK;
@@ -461,7 +461,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         if (msc)
             c = msc->Contexts.back().colors.GetColor(parameter); //consider color names and defs
         else if (apply || resolve) //try to resolve this if we are applying
-            c = MscColorType(parameter);  //just consider defs
+            c = ColorType(parameter);  //just consider defs
         else	   //if we are just parsing (probably for csh) keep as is.
             goto ok;
         if (c.valid) {
@@ -474,7 +474,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             return FORMATTING_OK;
         }
         if (msc && linenum) {
-            file_line l = *linenum;
+            FileLineCol l = *linenum;
             l.col += 3;
             msc->Error.Error(l, "Unrecognized color name or definition: '" + parameter + "'." + errorAction);
         }
@@ -572,7 +572,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
         }
         if (!p) {
             if (msc && linenum) {
-                file_line l = *linenum;
+                FileLineCol l = *linenum;
                 l.col += 2;
                 msc->Error.Warning(l, "Escape '\\m' shall be followed by one of 'udlrins'." + errorAction);
             }
@@ -618,7 +618,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
                 else
                     msg.append(" Keeping escape as verbatim text.");
                 if (msc && linenum) {
-                    file_line l = *linenum;
+                    FileLineCol l = *linenum;
                     l.col += 4;
                     msc->Error.Error(l, msg, TOO_LARGE_M_VALUE_MSG);
                 }
@@ -627,7 +627,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             msg.append(" Using value '").append(parameter.substr(0, local_pos));
             msg.append("' instead.");
             if (msc && linenum) {
-                file_line l = *linenum;
+                FileLineCol l = *linenum;
                 l.col += 4;
                 msc->Error.Error(l, msg, TOO_LARGE_M_VALUE_MSG);
             }
@@ -640,7 +640,7 @@ StringFormat::EEscapeType StringFormat::ProcessEscape(
             else
                 msg.append(" Keeping escape as verbatim text.");
             if (msc && linenum) {
-                file_line l = *linenum;
+                FileLineCol l = *linenum;
                 l.col += 4;
                 msc->Error.Error(*linenum, msg, TOO_LARGE_M_VALUE_MSG);
             }
@@ -712,7 +712,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
     unsigned pos=0;
     StringFormat sf;
     while (pos<strlen(text)) {
-        MscColorSyntaxType color = COLOR_NORMAL;
+        EColorSyntaxType color = COLOR_NORMAL;
         unsigned length;
         switch (sf.ProcessEscape(text+pos, length)) {
         case NUMBERING_FORMAT:
@@ -754,7 +754,7 @@ void StringFormat::ExtractCSH(int startpos, const char *text, Csh &csh)
  * @param [in] textType The type of text we process. This is to generate the right errors. 
  *                      NUMBER_FORMAT cannot contain "\N", whereas LABEL and TEXT_FORMAT cannot contain 
  *                      numbering format token escapes ("\0x2{1aAiI}").*/
-void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
+void StringFormat::ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
                                     const StringFormat *basic, bool references,
                                     bool ignore,  ETextType textType)
 {
@@ -775,7 +775,7 @@ void StringFormat::ExpandReferences(string &text, Msc *msc, file_line linenum,
     string ignoreText = ignore?" Ignoring it.":"";
     while(text.length()>pos) {
         unsigned length;
-        file_line beginning_of_escape = linenum;
+        FileLineCol beginning_of_escape = linenum;
         switch (sf.ProcessEscape(text.c_str()+pos, length, true, false, &replaceto, 
                                  basic, msc, references, &linenum, ignore)) {
         case FORMATTING_OK: //do nothing, just replace as below
@@ -896,7 +896,7 @@ unsigned StringFormat::Apply(string &text)
 }
 
 
-void StringFormat::SetColor(MscColorType c)
+void StringFormat::SetColor(ColorType c)
 {
     color.first = true;
     color.second = c;
@@ -1027,7 +1027,7 @@ string StringFormat::Print() const
  * @param msc The chart we build.
  * @param [in] t The situation we set the attribute.
  * @returns True, if the attribute was recognized as ours (may have been a bad value though).*/
-bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
+bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
 {
     if (a.type == MSC_ATTR_STYLE) {
         StyleSet::const_iterator i = msc->Contexts.back().styles.find(a.name);
@@ -1110,7 +1110,7 @@ bool StringFormat::AddAttribute(const Attribute &a, Msc *msc, StyleType t)
         a.InvalidValueError(CandidatesFor(fontType.second), msc->Error);
         return true;
     }
-    std::pair<bool, tristate> *tri = NULL;
+    std::pair<bool, ETriState> *tri = NULL;
     if (a.EndsWith("bold")) tri = &bold;
     else if (a.EndsWith("italic")) tri = &italics;
     else if (a.EndsWith("underline")) tri = &underline;
@@ -1167,12 +1167,12 @@ void StringFormat::AttributeNames(Csh &csh)
 
 /** Callback for drawing a symbol before text ident types in the hints popup list box.
  * @ingroup libmscgen_hintpopup_callbacks*/
-bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p)
+bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p)
 {
     if (!canvas) return false;
-    const MscIdentType t = (MscIdentType)(int)p;
+    const EIdentType t = (EIdentType)(int)p;
     const static double sizePercentage[] = {50, 30, 60};
-    const MscLineAttr line(LINE_SOLID, MscColorType(0,0,0), 1, CORNER_NONE, 0);
+    const LineAttr line(LINE_SOLID, ColorType(0,0,0), 1, CORNER_NONE, 0);
     double y = floor(HINT_GRAPHIC_SIZE_Y*0.2)+0.5;
     double y_inc = ceil(HINT_GRAPHIC_SIZE_Y*0.3/(sizeof(sizePercentage)/sizeof(double)-1));
     for (unsigned i=0; i<sizeof(sizePercentage)/sizeof(double); i++) {
@@ -1198,7 +1198,7 @@ bool StringFormat::AttributeValues(const std::string &attr, Csh &csh)
         return true;
     }
     if (CaseInsensitiveEndsWith(attr, "ident")) {
-        csh.AddToHints(EnumEncapsulator<MscIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE), HINT_ATTR_VALUE,
+        csh.AddToHints(EnumEncapsulator<EIdentType>::names, csh.HintPrefix(COLOR_ATTRVALUE), HINT_ATTR_VALUE,
             CshHintGraphicCallbackForTextIdent);
         return true;
     }
@@ -1274,7 +1274,7 @@ void StringFormat::AddNumbering(string &label, const string &num, const string &
 /** Apply the formatting in us to `canvas`.
  * After this putting text to the canvas will use 
  * our formatting*/
-void StringFormat::ApplyFontTo(MscCanvas &canvas) const
+void StringFormat::ApplyFontTo(Canvas &canvas) const
 {
     _ASSERT(IsComplete()); 
     canvas.SetFontFace(face.second.c_str(), italics.first && italics.second,
@@ -1299,7 +1299,7 @@ void StringFormat::ApplyFontTo(MscCanvas &canvas) const
  * @param canvas A canvas used to query font sizes
  * @param [in] front If true we return the width of heading spaces, else trailing.
  * @returns The width of the spaces in pixels. */
-double StringFormat::spaceWidth(const string &text, MscCanvas &canvas, bool front) const
+double StringFormat::spaceWidth(const string &text, Canvas &canvas, bool front) const
 {
     if (text.length()==0 || !canvas.fake_spaces) return 0;
     size_t s;
@@ -1321,13 +1321,13 @@ double StringFormat::spaceWidth(const string &text, MscCanvas &canvas, bool fron
 	return w*s;
 }
 
-double StringFormat::getCharHeight(MscCanvas &canvas) const
+double StringFormat::getCharHeight(Canvas &canvas) const
 {
     ApplyFontTo(canvas);
     return normalFontExtents.ascent + normalFontExtents.descent;
 }
 
-double StringFormat::getFragmentWidth(const string &s, MscCanvas &canvas) const
+double StringFormat::getFragmentWidth(const string &s, Canvas &canvas) const
 {
     if (s.length()==0) return 0;
     ApplyFontTo(canvas);
@@ -1348,7 +1348,7 @@ double StringFormat::getFragmentWidth(const string &s, MscCanvas &canvas) const
 }
 
 double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
-                                                      MscCanvas &canvas) const
+                                                      Canvas &canvas) const
 {
     if (s.length()==0) return 0;
     ApplyFontTo(canvas);
@@ -1366,7 +1366,7 @@ double StringFormat::getFragmentHeightAboveBaseLine(const string &s,
 }
 
 double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
-                                                      MscCanvas &canvas) const
+                                                      Canvas &canvas) const
 {
     if (s.length()==0) return 0;
     ApplyFontTo(canvas);
@@ -1392,7 +1392,7 @@ double StringFormat::getFragmentHeightBelowBaseLine(const string &s,
  * @param [in] isRotated If true, and the canvas cannot display rotated text,
  *                       the canvas will use cairo_text_path() as fallback.
  * @returns The y advancement.*/
-double StringFormat::drawFragment(const string &s, MscCanvas &canvas, XY xy, bool isRotated) const
+double StringFormat::drawFragment(const string &s, Canvas &canvas, XY xy, bool isRotated) const
 {
     if (s.length()==0) return 0;
     ApplyFontTo(canvas);
@@ -1418,14 +1418,14 @@ double StringFormat::drawFragment(const string &s, MscCanvas &canvas, XY xy, boo
     if (underline.first && underline.second) {
         xy.y++;
         XY xy2(xy.x+advance, xy.y);
-        canvas.Line(xy, xy2, MscLineAttr(LINE_SOLID, color.second, 1, CORNER_NONE, 0));
+        canvas.Line(xy, xy2, LineAttr(LINE_SOLID, color.second, 1, CORNER_NONE, 0));
     }
     return advance;
 }
 
 //////////////////////////////////////////////////////////////
 
-ParsedLine::ParsedLine(const string &in, MscCanvas &canvas, StringFormat &format) :
+ParsedLine::ParsedLine(const string &in, Canvas &canvas, StringFormat &format) :
     line(in), width(0), heightAboveBaseLine(0), heightBelowBaseLine(0)
 {
     format.Apply(line); //eats away initial formatting, ensures we do not start with escape
@@ -1481,7 +1481,7 @@ ParsedLine::operator std::string() const
     return ret;
 }
 
-void ParsedLine::Draw(XY xy, MscCanvas &canvas, bool isRotated) const
+void ParsedLine::Draw(XY xy, Canvas &canvas, bool isRotated) const
 {
     StringFormat format(startFormat);
     size_t pos = 0;
@@ -1511,7 +1511,7 @@ void ParsedLine::Draw(XY xy, MscCanvas &canvas, bool isRotated) const
 //////////////////////////////////////////////////
 
 
-unsigned Label::Set(const string &input, MscCanvas &canvas, StringFormat format)
+unsigned Label::Set(const string &input, Canvas &canvas, StringFormat format)
 {
     clear();
     size_t pos = 0, line_start = 0;
@@ -1588,7 +1588,7 @@ XY Label::getTextWidthHeight(int line) const
     return xy;
 };
 
-void Label::CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const
+void Label::CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const
 {
     if (size()==0) return;
     XY xy;

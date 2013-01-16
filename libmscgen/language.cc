@@ -347,7 +347,7 @@ typedef union YYSTYPE
     CHAR_IF_CSH(ArcBoxSeries)     *arcboxseries;
     CHAR_IF_CSH(ArcPipeSeries)    *arcpipeseries;
     CHAR_IF_CSH(ArcParallel)      *arcparallel;
-    CHAR_IF_CSH(MscArcType)        arctype;
+    CHAR_IF_CSH(EArcType)        arctype;
     CHAR_IF_CSH(EntityDef)        *entity;
     CHAR_IF_CSH(EntityDefHelper)  *entitylist;
     CHAR_IF_CSH(Attribute)        *attrib;
@@ -3838,7 +3838,7 @@ yyreduce:
     else if (csh.CheckHintLocated(HINT_ATTR_VALUE, (yylsp[(2) - (2)])))
         ArcDivider::AttributeValues(csh.hintAttrName, csh, false, true);
   #else
-    const MscArcType t = CaseInsensitiveEqual("title", (yyvsp[(1) - (2)].str)) ? MSC_COMMAND_TITLE :
+    const EArcType t = CaseInsensitiveEqual("title", (yyvsp[(1) - (2)].str)) ? MSC_COMMAND_TITLE :
                          CaseInsensitiveEqual("subtitle", (yyvsp[(1) - (2)].str)) ? MSC_COMMAND_SUBTITLE :
                          MSC_ARC_INVALID;
     (yyval.arcbase) = (new ArcDivider(t, &msc))->AddAttributeList((yyvsp[(2) - (2)].attriblist));
@@ -4051,7 +4051,7 @@ yyreduce:
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_SYMBOL);
     csh.CheckEntityHintAfter((yylsp[(2) - (2)]), yylloc, yychar==YYEOF);
   #else
-    (yyval.namerel) = new NamePair((yyvsp[(1) - (2)].str), MSC_POS((yylsp[(1) - (2)])), NULL, file_line_range());
+    (yyval.namerel) = new NamePair((yyvsp[(1) - (2)].str), MSC_POS((yylsp[(1) - (2)])), NULL, FileLineColRange());
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -4067,7 +4067,7 @@ yyreduce:
     csh.AddCSH_EntityName((yylsp[(2) - (2)]), (yyvsp[(2) - (2)].str));
     csh.CheckEntityHintAt((yylsp[(2) - (2)]));
   #else
-    (yyval.namerel) = new NamePair(NULL, file_line_range(), (yyvsp[(2) - (2)].str), MSC_POS((yylsp[(2) - (2)])));
+    (yyval.namerel) = new NamePair(NULL, FileLineColRange(), (yyvsp[(2) - (2)].str), MSC_POS((yylsp[(2) - (2)])));
   #endif
     free((yyvsp[(2) - (2)].str));
 }
@@ -4115,7 +4115,7 @@ yyreduce:
     csh.AddCSH_EntityName((yylsp[(1) - (1)]), (yyvsp[(1) - (1)].str));
     csh.CheckEntityHintAt((yylsp[(1) - (1)]));
   #else
-    (yyval.namerel) = new NamePair((yyvsp[(1) - (1)].str), MSC_POS((yylsp[(1) - (1)])), NULL, file_line_range());
+    (yyval.namerel) = new NamePair((yyvsp[(1) - (1)].str), MSC_POS((yylsp[(1) - (1)])), NULL, FileLineColRange());
   #endif
     free((yyvsp[(1) - (1)].str));
 }
@@ -4132,7 +4132,7 @@ yyreduce:
     csh.CheckHintAt((yylsp[(1) - (2)]), HINT_MARKER);
     csh.CheckHintAfter((yylsp[(2) - (2)]), yylloc, yychar==YYEOF, HINT_MARKER);
   #else
-    (yyval.namerel) = new NamePair((yyvsp[(1) - (2)].str), MSC_POS((yylsp[(1) - (2)])), NULL, file_line_range());
+    (yyval.namerel) = new NamePair((yyvsp[(1) - (2)].str), MSC_POS((yylsp[(1) - (2)])), NULL, FileLineColRange());
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -4148,7 +4148,7 @@ yyreduce:
     csh.AddCSH((yylsp[(2) - (2)]), COLOR_MARKERNAME);
     csh.CheckHintAt((yylsp[(2) - (2)]), HINT_MARKER);
   #else
-    (yyval.namerel) = new NamePair(NULL, file_line_range(), (yyvsp[(2) - (2)].str), MSC_POS((yylsp[(2) - (2)])));
+    (yyval.namerel) = new NamePair(NULL, FileLineColRange(), (yyvsp[(2) - (2)].str), MSC_POS((yylsp[(2) - (2)])));
   #endif
     free((yyvsp[(2) - (2)].str));
 }
@@ -4511,7 +4511,7 @@ yyreduce:
   #else
     EntityDef *ed = new EntityDef((yyvsp[(1) - (2)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
-    (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (2)].attriblist), NULL, file_line());
+    (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (2)].attriblist), NULL, FileLineCol());
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -4528,7 +4528,7 @@ yyreduce:
   #else
     EntityDef *ed = new EntityDef((yyvsp[(1) - (1)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
-    (yyval.entitylist) = ed->AddAttributeList(NULL, NULL, file_line());
+    (yyval.entitylist) = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
     free((yyvsp[(1) - (1)].str));
 }
@@ -4589,7 +4589,7 @@ yyreduce:
   #else
     EntityDef *ed = new EntityDef((yyvsp[(1) - (2)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
-    (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (2)].attriblist), NULL, file_line());
+    (yyval.entitylist) = ed->AddAttributeList((yyvsp[(2) - (2)].attriblist), NULL, FileLineCol());
   #endif
     free((yyvsp[(1) - (2)].str));
 }
@@ -4609,7 +4609,7 @@ yyreduce:
   #else
     EntityDef *ed = new EntityDef((yyvsp[(1) - (1)].str), &msc);
     ed->SetLineEnd(MSC_POS((yyloc)));
-    (yyval.entitylist) = ed->AddAttributeList(NULL, NULL, file_line());
+    (yyval.entitylist) = ed->AddAttributeList(NULL, NULL, FileLineCol());
   #endif
     free((yyvsp[(1) - (1)].str));
 }
@@ -4785,7 +4785,7 @@ yyreduce:
     csh.AddCSH((yylsp[(1) - (3)]), COLOR_COLORNAME);
     csh.AddCSH((yylsp[(2) - (3)]), COLOR_EQUAL);
     csh.AddCSH((yylsp[(3) - (3)]), COLOR_COLORDEF);
-    MscColorType color = csh.Contexts.back().Colors.GetColor((yyvsp[(3) - (3)].str));
+    ColorType color = csh.Contexts.back().Colors.GetColor((yyvsp[(3) - (3)].str));
     if (color.valid)
         csh.Contexts.back().Colors[(yyvsp[(1) - (3)].str)] = color;
   #else

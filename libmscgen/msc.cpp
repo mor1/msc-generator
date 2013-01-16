@@ -282,15 +282,15 @@ Msc::Msc() :
     //Arrows come between left_side and right_side.
     //Notes on the side come between left_note and left_side; and right_side & right_note
     NoEntity = new Entity(NONE_ENT_STR, NONE_ENT_STR, NONE_ENT_STR, -1002, -1002,
-                          Contexts.back().styles["entity"], file_line(current_file, 0), false);
+                          Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
     LNote = new Entity(LNOTE_ENT_STR, LNOTE_ENT_STR, LNOTE_ENT_STR, -1001, -1001,
-                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
     LSide = new Entity(LSIDE_ENT_STR, LSIDE_ENT_STR, LSIDE_ENT_STR, -1000, -1000,
-                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
     RSide = new Entity(RSIDE_ENT_STR, RSIDE_ENT_STR, RSIDE_ENT_STR, 10000, 10000,
-                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
     RNote = new Entity(RNOTE_ENT_STR, RNOTE_ENT_STR, RNOTE_ENT_STR, 10001, 10001,
-                       Contexts.back().styles["entity"], file_line(current_file, 0), false);
+                       Contexts.back().styles["entity"], FileLineCol(current_file, 0), false);
     
     AllEntities.Append(NoEntity);
     AllEntities.Append(LNote);
@@ -316,7 +316,7 @@ Msc::~Msc()
 //2: found, but is full, whereas should be partial
 //3: found, but is partiall, whereas should be full
 //also appends elements to Arcs !!! (e.g., background)
-int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, const file_line_range &l)
+int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, const FileLineColRange &l)
 {
     *ret = NULL;
     auto i = Designs.find(name);
@@ -366,7 +366,7 @@ EIterator Msc::EntityMinMaxByPos(EIterator i, EIterator j, bool min) const
 };
 
 /* Finds an entity in AllEntities. If not found, it creates one */
-EIterator Msc::FindAllocEntity(const char *e, file_line_range l)
+EIterator Msc::FindAllocEntity(const char *e, FileLineColRange l)
 {
     if (e==NULL || e[0] == 0) {
         _ASSERT (AllEntities.Find_by_Ptr(NoEntity) != AllEntities.end());
@@ -445,7 +445,7 @@ string Msc::ListGroupedEntityChildren(EIterator ei)
 }
 
 //Check if the entity is a grouped one. If so, return true and give an error msg
-bool Msc::ErrorIfEntityGrouped(EIterator ei, file_line l) 
+bool Msc::ErrorIfEntityGrouped(EIterator ei, FileLineCol l) 
 {
     if ((*ei)->children_names.size()==0) return false;
     Error.Error(l, "Group entity '" + (*ei)->name + "' cannot be used here.", 
@@ -482,8 +482,8 @@ double Msc::GetEntityMaxPosExp() const
     return ret;
 }
             
-ArcArrow *Msc::CreateArcArrow(MscArcType t, const char*s, file_line_range sl,
-                              const char*d, bool fw, file_line_range dl)
+ArcArrow *Msc::CreateArcArrow(EArcType t, const char*s, FileLineColRange sl,
+                              const char*d, bool fw, FileLineColRange dl)
 {
     if (strcmp(s,d))
         return new ArcDirArrow(t, s, sl, d, dl, this, fw, Contexts.back().styles["arrow"]);
@@ -510,16 +510,16 @@ void Msc::AddArcs(ArcList *a)
     delete a;
 }
 
-CommandEntity *Msc::CEForComments(const MscStyle &s, const file_line_range &l)
+CommandEntity *Msc::CEForComments(const MscStyle &s, const FileLineColRange &l)
 {
     EntityDef *led = new EntityDef(LNOTE_ENT_STR, this);
     led->SetLineEnd(l);
     led->style += s;
-    EntityDefHelper *ledh = led->AddAttributeList(NULL, NULL, file_line());
+    EntityDefHelper *ledh = led->AddAttributeList(NULL, NULL, FileLineCol());
     EntityDef *red = new EntityDef(RNOTE_ENT_STR, this);
     red->SetLineEnd(l);
     red->style += s;
-    EntityDefHelper *redh = red->AddAttributeList(NULL, NULL, file_line());
+    EntityDefHelper *redh = red->AddAttributeList(NULL, NULL, FileLineCol());
     redh->Prepend(ledh);
     delete ledh;
     CommandEntity *ce = new CommandEntity(redh, this, true);
@@ -535,7 +535,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
     if (a.Is("msc") || a.Is("msc+")) {
         const bool full = a.Is("msc");
         if (!a.CheckType(MSC_ATTR_STRING, Error)) return NULL;
-        const file_line_range line(a.linenum_attr.start, a.linenum_value.end);
+        const FileLineColRange line(a.linenum_attr.start, a.linenum_value.end);
         ArcBase *ret;
         switch (SetDesign(full, a.value, false, &ret, line)) { 
         case 0:
@@ -649,7 +649,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         return NULL;
     }
     if (a.StartsWith("background")) {
-        MscFillAttr fill;
+        FillAttr fill;
         fill.Empty();
         if (fill.AddAttribute(a, this, STYLE_OPTION)) { //generates error if needed
             Contexts.back().defBackground += fill;
@@ -671,7 +671,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
             if (OK) {
                 Contexts.back().defCommentFill += toadd.fill;
                 Contexts.back().defCommentLine += toadd.vline;
-                return CEForComments(toadd, file_line_range(a.linenum_attr.start, a.linenum_value.end));
+                return CEForComments(toadd, FileLineColRange(a.linenum_attr.start, a.linenum_value.end));
             }
             //fallthrough till error if not "OK"
         }
@@ -780,13 +780,13 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
         return StringFormat::AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWith(attr, "lcomment.line") ||
         CaseInsensitiveBeginsWith(attr, "rcomment.line"))
-        return MscLineAttr::AttributeValues(attr, csh);
+        return LineAttr::AttributeValues(attr, csh);
     if (CaseInsensitiveBeginsWith(attr, "lcomment.fill") ||
         CaseInsensitiveBeginsWith(attr, "rcomment.fill"))
-        return MscFillAttr::AttributeValues(attr, csh);
+        return FillAttr::AttributeValues(attr, csh);
 
     if (CaseInsensitiveBeginsWith(attr,"background")) {
-        MscFillAttr::AttributeValues(attr, csh);
+        FillAttr::AttributeValues(attr, csh);
         return true;
     }
     if (CaseInsensitiveEqual(attr,"numbering.pre")||
@@ -836,16 +836,16 @@ void Msc::ParseText(const char *input, const char *filename)
 {
     current_file = Error.AddFile(filename);
     if (strlen(input) > std::numeric_limits<unsigned>::max())
-        Error.Error(file_line(), "Input text is longer than 4Gbyte. Bailing out.");
+        Error.Error(FileLineCol(), "Input text is longer than 4Gbyte. Bailing out.");
     else 
         MscParse(*this, input, (unsigned)strlen(input));
 }
 
-MscDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, MscDirType dir) const
+EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, EDirType dir) const
 {
     for (auto i = al.begin(); i!=al.end(); i++) {
         EntityList el2(false);
-        MscDirType dir2 = (*i)->GetToucedEntities(el2);
+        EDirType dir2 = (*i)->GetToucedEntities(el2);
         //update combined direction
         switch (dir2) {
         case MSC_DIR_BIDIR:
@@ -874,7 +874,7 @@ string Msc::Print(int ident) const
     return s;
 }
 
-void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
+void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool resetiterators,
                                   EIterator &left, EIterator &right,
                                   Numbering &number, bool top_level, Element **target)
 {
@@ -975,7 +975,7 @@ void Msc::PostParseProcessArcList(MscCanvas &canvas, bool hide, ArcList &arcs, b
     }
 }
 
-void Msc::PostParseProcess(MscCanvas &canvas)
+void Msc::PostParseProcess(Canvas &canvas)
 {
     //remove those entities from "force_entity_collapse" which are not defined as entities
     for (auto i = force_entity_collapse.begin(); i!=force_entity_collapse.end(); /*nope*/)
@@ -1065,7 +1065,7 @@ void Msc::PostParseProcess(MscCanvas &canvas)
     PostParseProcessArcList(canvas, false, Arcs, true, dummy1, dummy2, number, true, &note_target);
 }
 
-void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
+void Msc::DrawEntityLines(Canvas &canvas, double y, double height,
                           EIterator from, EIterator to)
 {
     //No checking of iterators!! Call with caution
@@ -1127,7 +1127,7 @@ void Msc::DrawEntityLines(MscCanvas &canvas, double y, double height,
     canvas.UnClip();
 }
 
-void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &distances)
+void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distances)
 {
     //Indicate entities active and showing already at the beginning of the list
     //(this will be updated with entities activated later)
@@ -1146,7 +1146,7 @@ void Msc::WidthArcList(MscCanvas &canvas, ArcList &arcs, EntityDistanceMap &dist
 //Automatic pagination is ignored by this
 //Ensures that elements in the list will have non-decreasing yPos order - thus a later
 //element will have same or higher yPos as any previous
-double Msc::LayoutArcList(MscCanvas &canvas, ArcList &arcs, AreaList &cover)
+double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
 {
     cover.clear();
     double y = 0;              //vertical position of the current element
@@ -1250,7 +1250,7 @@ struct TY {
 //Automatic pagination is ignored by this
 //Ensures that elements in each column will have non-decreasing yPos order - thus a later
 //element will have same or higher yPos as any previous
-std::vector<double> Msc::LayoutArcLists(MscCanvas &canvas, std::vector<ArcList> &arcs, AreaList &cover)
+std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &arcs, AreaList &cover)
 {
     //we will never shift compress higher than this runnning value
     //(any element marked with "parallel" will set this to its top)
@@ -1381,7 +1381,7 @@ std::vector<double> Msc::LayoutArcLists(MscCanvas &canvas, std::vector<ArcList> 
 //No matter what input parameters we get we always place the list at an integer
 //y coordinate
 //If ret_cover is not null, we return the rsulting cover of the list at the pos where placed
-double Msc::PlaceListUnder(MscCanvas &canvas, ArcList &arcs, double start_y,
+double Msc::PlaceListUnder(Canvas &canvas, ArcList &arcs, double start_y,
                            double top_y, const AreaList &area_top, bool forceCompress,
                            AreaList *ret_cover)
 {
@@ -1409,7 +1409,7 @@ void Msc::ShiftByArcList(ArcList &arcs, double y)
         (*i)->ShiftBy(y);
 }
 
-void Msc::InsertAutoPageBreak(MscCanvas &canvas, ArcList &arcs, ArcList::iterator i, 
+void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i, 
                               double pageBreak, bool addHeading)
 {
     CommandEntity *ce;
@@ -1481,7 +1481,7 @@ void clear_keep_with_next__from(ArcList &arcs, ArcList::iterator &keep_with_next
                               the top level Msc::Arcs list.
  * @returns How much the list got longer.
  */
-double Msc::PageBreakArcList(MscCanvas &canvas, ArcList &arcs, double netPrevPageSize,
+double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSize,
                              double pageBreak, bool &addCommandNewpage, bool addHeading, 
                              bool canChangePBPos)
 {
@@ -1663,22 +1663,22 @@ void Msc::CollectPageBreakArcList(ArcList &arcs)
 }
 
 
-void Msc::AutoPaginate(MscCanvas &canvas, double pageSize, bool addHeading)
+void Msc::AutoPaginate(Canvas &canvas, double pageSize, bool addHeading)
 {
     _ASSERT(floor(pageSize)==pageSize);
     //Here `total` is set, `drawing` is set the same
     //All elements (except notes, verticals and floating symbols) have been placed.
     //But page and entity status is not yet collected.
-    yPageStart.assign(1, PBData(0.0, false));
+    pageBreakData.assign(1, PageBreakData(0.0, false));
     CollectPageBreakArcList(Arcs);
-    yPageStart.push_back(PBData(total.y.till, false)); //not really a page start, but helps us
-    for (unsigned u=0; u<yPageStart.size()-1; u++) {
-        if (yPageStart[u+1].y - yPageStart[u].y < pageSize) 
+    pageBreakData.push_back(PageBreakData(total.y.till, false)); //not really a page start, but helps us
+    for (unsigned u=0; u<pageBreakData.size()-1; u++) {
+        if (pageBreakData[u+1].y - pageBreakData[u].y < pageSize) 
             continue; 
         //We need to insert a page break, find the effiective size of the page
         double netPrevPageSize = pageSize;
-        if (yPageStart[u].autoHeadingSize < pageSize)
-            netPrevPageSize -= yPageStart[u].autoHeadingSize;
+        if (pageBreakData[u].autoHeadingSize < pageSize)
+            netPrevPageSize -= pageBreakData[u].autoHeadingSize;
         bool addCommandNewpage = true;
         //Here we re-use Entity::running_* members of AllEntities.
         //(These were used during parsing, not needed any longer.)
@@ -1687,14 +1687,14 @@ void Msc::AutoPaginate(MscCanvas &canvas, double pageSize, bool addHeading)
         if (addHeading)
             for (auto i = AllEntities.begin(); i!=AllEntities.end(); i++) 
                 (*i)->running_shown = EEntityStatus::SHOW_OFF;
-        total.y.till += PageBreakArcList(canvas, Arcs, netPrevPageSize, yPageStart[u].y + netPrevPageSize, 
+        total.y.till += PageBreakArcList(canvas, Arcs, netPrevPageSize, pageBreakData[u].y + netPrevPageSize, 
                                          addCommandNewpage, addHeading, true);
         //Regenerate page breaks
-        yPageStart.assign(1, PBData(0.0, false));
+        pageBreakData.assign(1, PageBreakData(0.0, false));
         CollectPageBreakArcList(Arcs);
-        yPageStart.push_back(PBData(total.y.till, false)); //not really a page start, but helps us
+        pageBreakData.push_back(PageBreakData(total.y.till, false)); //not really a page start, but helps us
     }
-    yPageStart.pop_back();
+    pageBreakData.pop_back();
     drawing.y = total.y; //keep this invariant before placing notes
 }
 
@@ -1737,10 +1737,10 @@ double  MscSpreadBetweenMins(vector<double> &v, unsigned i, unsigned j, double m
 
 
 //Calculate total.x and y. Ensure they are integers
-void Msc::CalculateWidthHeight(MscCanvas &canvas, bool autoPaginate, 
+void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate, 
                                bool addHeading, XY pageSize, bool fitWidth)
 {
-    yPageStart.assign(1, PBData(0.0, false));
+    pageBreakData.assign(1, PageBreakData(0.0, false));
     HideELinesHere.clear();
     if (Arcs.size()==0) return;
     if (total.y.Spans() > 0) return; //already done?
@@ -1866,14 +1866,14 @@ void Msc::CalculateWidthHeight(MscCanvas &canvas, bool autoPaginate,
         CollectPageBreakArcList(Arcs);
 }
 
-void Msc::PlaceWithMarkersArcList(MscCanvas &canvas, ArcList &arcs, double autoMarker)
+void Msc::PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
         (*j)->PlaceWithMarkers(canvas, autoMarker);
 }
 
 
-void Msc::PlaceFloatingNotes(MscCanvas &canvas)
+void Msc::PlaceFloatingNotes(Canvas &canvas)
 {
     Block new_total;
     new_total.MakeInvalid();
@@ -1887,7 +1887,7 @@ void Msc::PlaceFloatingNotes(MscCanvas &canvas)
 }
 
 
-void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs)
+void Msc::PostPosProcessArcList(Canvas &canvas, ArcList &arcs)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++)
         (*j)->PostPosProcess(canvas);
@@ -1896,12 +1896,12 @@ void Msc::PostPosProcessArcList(MscCanvas &canvas, ArcList &arcs)
 //If autoPaginate is true, pagesize.y is the page height.
 //If fitWidth is true, we page height to get a scaling 
 //so that the chart fits the width.
-void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty, 
+void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty, 
                         bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth)
 {
     //Allocate (non-sized) output object and assign it to the chart
     //From this point on, the chart sees xy dimensions
-    MscCanvas canvas(ot);
+    Canvas canvas(ot);
 
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
@@ -1956,23 +1956,23 @@ void Msc::CompleteParse(MscCanvas::OutputType ot, bool avoidEmpty,
     Error.Sort();
 }
 
-void Msc::DrawArcList(MscCanvas &canvas, ArcList &arcs, DrawPassType pass) 
+void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, EDrawPassType pass) 
 {
     for (auto i = arcs.begin();i!=arcs.end(); i++) 
         if ((*i)->GetYExtent().Overlaps(yDrawing)) 
             (*i)->Draw(canvas, pass);
 }
 
-void Msc::DrawChart(MscCanvas &canvas, bool pageBreaks)
+void Msc::DrawChart(Canvas &canvas, bool pageBreaks)
 {
     if (total.y.Spans() <= 0) return;
 	//Draw small marks in corners, so EMF an WMF spans correctly
-	//MscLineAttr marker(LINE_SOLID, MscColorType(255,255,255), 0.1, CORNER_NONE, 0);
+	//LineAttr marker(LINE_SOLID, ColorType(255,255,255), 0.1, CORNER_NONE, 0);
 	//canvas.Line(XY(total.x.from,total.y.from), XY(total.x.from+1,total.y.from), marker);
 	//canvas.Line(XY(total.x.till,total.y.till), XY(total.x.till-1,total.y.till), marker);
 	//draw background
     if (Background.size()) {
-        MscFillAttr fill_bkg(MscColorType(255,255,255), GRADIENT_NONE);
+        FillAttr fill_bkg(ColorType(255,255,255), GRADIENT_NONE);
         fill_bkg += Background.begin()->second;
         double y = Background.begin()->first;
 	    for (auto i = ++Background.begin(); i!=Background.end(); i++) {
@@ -2060,19 +2060,19 @@ void Msc::DrawChart(MscCanvas &canvas, bool pageBreaks)
     // End of debug */
 }
 
-void Msc::DrawPageBreaks(MscCanvas &canvas)
+void Msc::DrawPageBreaks(Canvas &canvas)
 {
-    if (yPageStart.size()<=1) return;
+    if (pageBreakData.size()<=1) return;
     if (total.y.Spans()<=0) return;
-    MscLineAttr line;
+    LineAttr line;
     StringFormat format;
     format.Default();
     format.Apply("\\pr\\-");
     Label label;
-    for (unsigned page=1; page<yPageStart.size(); page++) {
+    for (unsigned page=1; page<pageBreakData.size(); page++) {
         char text[20];
-        const double y = yPageStart[page].y;
-        line.type.second = yPageStart[page].manual ? LINE_DASHED : LINE_DOTTED;
+        const double y = pageBreakData[page].y;
+        line.type.second = pageBreakData[page].manual ? LINE_DASHED : LINE_DOTTED;
         canvas.Line(XY(total.x.from, y), XY(total.x.till, y), line);
         sprintf(text, "page %u", page);
         label.Set(text, canvas, format);
@@ -2083,28 +2083,28 @@ void Msc::DrawPageBreaks(MscCanvas &canvas)
 /** Draws one chart page or all pages onto a context.*/
 //page is 0 for all, 1..n for individual pages
 //Expects the context to be prepared and will unprpare it
-void Msc::DrawComplete(MscCanvas &canvas, bool pageBreaks, unsigned page)
+void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
 {
-    if (page>yPageStart.size() || total.x.Spans()<=0) return;
+    if (page>pageBreakData.size() || total.x.Spans()<=0) return;
     if (page) {
-        yDrawing.from = yPageStart[page-1].y;
-        yDrawing.till = page < yPageStart.size() ? yPageStart[page].y : total.y.till;
+        yDrawing.from = pageBreakData[page-1].y;
+        yDrawing.till = page < pageBreakData.size() ? pageBreakData[page].y : total.y.till;
     } else
         yDrawing = total.y;
     DrawChart(canvas, page ? false : pageBreaks);
 
-    canvas.PrepareForCopyrightText();
+    canvas.PrepareForHeaderFoorter();
 
     //Draw Copyright Text
     StringFormat sf;
     sf.Default();
     Label label(copyrightText, canvas, sf);
-    label.Draw(canvas, total.x.from, total.x.till, page==0 || page>=yPageStart.size() ? total.y.till : yPageStart[page].y);
+    label.Draw(canvas, total.x.from, total.x.till, page==0 || page>=pageBreakData.size() ? total.y.till : pageBreakData[page].y);
 
     //Draw autoheading, if any
-    if (page && yPageStart[page-1].autoHeadingSize > 0) 
+    if (page && pageBreakData[page-1].autoHeadingSize > 0) 
         //autoHeading is supposedly shifted to just above the page break
-        yPageStart[page-1].autoHeading->Draw(canvas, yPageStart[page-1].autoHeading->draw_pass);
+        pageBreakData[page-1].autoHeading->Draw(canvas, pageBreakData[page-1].autoHeading->draw_pass);
     yDrawing = total.y;
 }
 
@@ -2114,29 +2114,29 @@ void Msc::DrawComplete(MscCanvas &canvas, bool pageBreaks, unsigned page)
  * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
  * Scale contains a list of scales to try.
 */
-void Msc::DrawToOutput(MscCanvas::OutputType ot, const std::vector<XY> &scale, 
+void Msc::DrawToOutput(Canvas::EOutputType ot, const std::vector<XY> &scale, 
                        const string &fn, bool bPageBreaks, 
-                       MscCanvas::EPageSize pageSize, const double margins[4], 
+                       Canvas::EPageSize pageSize, const double margins[4], 
                         int ha, int va, bool generateErrors)
 {
     _ASSERT(scale.size()>0);
-    _ASSERT(scale.size()==1 || pageSize != MscCanvas::NO_PAGE); //Multiple scales must be fixed-size output
-    const unsigned from = yPageStart.size()<=1 ? 0 : 1;
-    const unsigned till = yPageStart.size()<=1 ? 0 : yPageStart.size();
-    if (yPageStart.size()>1) bPageBreaks = false;
-    if (pageSize==MscCanvas::NO_PAGE) 
+    _ASSERT(scale.size()==1 || pageSize != Canvas::NO_PAGE); //Multiple scales must be fixed-size output
+    const unsigned from = pageBreakData.size()<=1 ? 0 : 1;
+    const unsigned till = pageBreakData.size()<=1 ? 0 : pageBreakData.size();
+    if (pageBreakData.size()>1) bPageBreaks = false;
+    if (pageSize==Canvas::NO_PAGE) 
         for (unsigned page=from; page<=till; page++) {
-            MscCanvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &yPageStart, page);
-            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart, true)) return;
+            Canvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &pageBreakData, page);
+            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return;
             DrawComplete(canvas, bPageBreaks, page);
         }
     else {
-        MscCanvas canvas(ot, total, fn, scale, pageSize, margins, ha, va, copyrightTextHeight, &yPageStart);
-        if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &yPageStart, true)) return;
+        Canvas canvas(ot, total, fn, scale, pageSize, margins, ha, va, copyrightTextHeight, &pageBreakData);
+        if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return;
         for (unsigned page=from; page<=till; page++) {
             DrawComplete(canvas, bPageBreaks, page);
             if (page<till) 
-                canvas.TurnPage(&yPageStart, page+1, generateErrors ? &Error : NULL);
+                canvas.TurnPage(&pageBreakData, page+1, generateErrors ? &Error : NULL);
         }
     }
 }

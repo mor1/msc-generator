@@ -266,7 +266,7 @@ void CDrawingChartData::CompileIfNeeded() const
             msg << ver_a << "." << ver_b;
             if (ver_c) msg << "." << ver_c;
             msg << ", which is newer than the current version. Please update Msc-generator, see Help|About...";
-            m_msc->Error.Warning(file_line(0, 0, 0), msg);
+            m_msc->Error.Warning(FileLineCol(0, 0, 0), msg);
         }
         //compile preamble and set forced design
 	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
@@ -288,7 +288,7 @@ void CDrawingChartData::CompileIfNeeded() const
 	    if (pApp) 
 		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	    //Do postparse, compile, calculate sizes and sort errors by line
-	    m_msc->CompleteParse(MscCanvas::PNG, false);
+	    m_msc->CompleteParse(Canvas::PNG, false);
         //See which of the forced entity/box collapse directives remained
         //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and
         //EntityDef::AddAttributeList
@@ -341,7 +341,7 @@ CString CDrawingChartData::GetDesigns() const
 
 unsigned CDrawingChartData::GetPages() const
 {
-    return GetMsc()->yPageStart.size();
+    return GetMsc()->pageBreakData.size();
 }
 
 //if force_page==false, return the size of m_page (or the entire chart if m_page==0)
@@ -357,15 +357,15 @@ CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
     CSize ret(int(msc.GetTotal().x.Spans()), int(msc.copyrightTextHeight));
     if (page_to_measure==0) 
         ret.cy = int(msc.GetTotal().y.Spans() + msc.copyrightTextHeight);
-    else if (page_to_measure < msc.yPageStart.size()) 
-        ret.cy = int(msc.yPageStart[page_to_measure].y - 
-                     msc.yPageStart[page_to_measure-1].y + 
-                     msc.yPageStart[page_to_measure].autoHeadingSize +
+    else if (page_to_measure < msc.pageBreakData.size()) 
+        ret.cy = int(msc.pageBreakData[page_to_measure].y - 
+                     msc.pageBreakData[page_to_measure-1].y + 
+                     msc.pageBreakData[page_to_measure].autoHeadingSize +
                      msc.copyrightTextHeight);
-    else if (page_to_measure == msc.yPageStart.size()) 
+    else if (page_to_measure == msc.pageBreakData.size()) 
         ret.cy = int(msc.GetTotal().y.till - 
-                     msc.yPageStart[page_to_measure-1].y + 
-                     msc.yPageStart[page_to_measure].autoHeadingSize +
+                     msc.pageBreakData[page_to_measure-1].y + 
+                     msc.pageBreakData[page_to_measure].autoHeadingSize +
                      msc.copyrightTextHeight);
     return ret;
 }
@@ -380,8 +380,8 @@ double CDrawingChartData::GetPageYShift() const
 {
     const Msc &msc = *GetMsc();
     if (m_page==0) return msc.GetTotal().y.from;
-    if (m_page <= msc.yPageStart.size()) 
-        return msc.yPageStart[m_page-1].y - msc.GetTotal().y.from;
+    if (m_page <= msc.pageBreakData.size()) 
+        return msc.pageBreakData[m_page-1].y - msc.GetTotal().y.from;
     return msc.GetTotal().y.Spans();
 }
 
@@ -399,9 +399,9 @@ double CDrawingChartData::GetHeadingSize() const
 
 void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, double y_scale) const
 {
-    MscCanvas canvas(MscCanvas::WIN, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
-                     XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
-    if (canvas.Status()==MscCanvas::ERR_OK) {
+    Canvas canvas(Canvas::WIN, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(x_scale, y_scale), &GetMsc()->pageBreakData, m_page);
+    if (canvas.Status()==Canvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
         m_msc->DrawComplete(canvas, bPageBreaks, m_page);
     }
@@ -409,9 +409,9 @@ void CDrawingChartData::DrawToWindow(HDC hdc, bool bPageBreaks, double x_scale, 
 
 void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) const
 {
-    MscCanvas canvas(MscCanvas::PRINTER, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
-                     XY(x_scale, y_scale), &GetMsc()->yPageStart, m_page);
-    if (canvas.Status()==MscCanvas::ERR_OK) {
+    Canvas canvas(Canvas::PRINTER, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(x_scale, y_scale), &GetMsc()->pageBreakData, m_page);
+    if (canvas.Status()==Canvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
         m_msc->DrawComplete(canvas, false, m_page);
     }
@@ -421,15 +421,15 @@ void CDrawingChartData::DrawToPrinter(HDC hdc, double x_scale, double y_scale) c
 
 //here force_page==0 means we do not force a particular page, use m_page
 //returns the size of the WMF or EMF
-size_t CDrawingChartData::DrawToMetafile(HDC hdc, MscCanvas::OutputType type, bool pageBreaks, bool force_page, unsigned forced_page, Contour *fallback_images) const
+size_t CDrawingChartData::DrawToMetafile(HDC hdc, Canvas::EOutputType type, bool pageBreaks, bool force_page, unsigned forced_page, Contour *fallback_images) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
-    _ASSERT(type==MscCanvas::WMF || type==MscCanvas::EMF || MscCanvas::EMFWMF);
-    if (type!=MscCanvas::WMF && type!=MscCanvas::EMF && type!=MscCanvas::EMFWMF)
+    _ASSERT(type==Canvas::WMF || type==Canvas::EMF || Canvas::EMFWMF);
+    if (type!=Canvas::WMF && type!=Canvas::EMF && type!=Canvas::EMFWMF)
         return 0;
-    MscCanvas canvas(type, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
-                     XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
-    if (canvas.Status()!=MscCanvas::ERR_OK) return 0;
+    Canvas canvas(type, hdc, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(1., 1.), &GetMsc()->pageBreakData, page_to_draw);
+    if (canvas.Status()!=Canvas::ERR_OK) return 0;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	if (pApp)
         canvas.SetFallbackImageResolution(pApp->m_uFallbackResolution);
@@ -437,21 +437,21 @@ size_t CDrawingChartData::DrawToMetafile(HDC hdc, MscCanvas::OutputType type, bo
     m_msc->DrawComplete(canvas, pageBreaks, page_to_draw==0);
     canvas.CloseOutput();
     if (fallback_images)
-        *fallback_images = std::move(canvas.stored_fallback_image_places);
+        *fallback_images = std::move(canvas.GetFallbackImagePlaces());
     return canvas.GetMetaFileSize();
 }
 
 //here force_page==0 means we do not force a particular page, use m_page
 //returns the size of the WMF or EMF
-HENHMETAFILE CDrawingChartData::DrawToEMF(MscCanvas::OutputType type, bool pageBreaks, bool force_page, unsigned forced_page, size_t *size, Contour *fallback_images) const
+HENHMETAFILE CDrawingChartData::DrawToEMF(Canvas::EOutputType type, bool pageBreaks, bool force_page, unsigned forced_page, size_t *size, Contour *fallback_images) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
-    _ASSERT(type==MscCanvas::WMF || type==MscCanvas::EMF || MscCanvas::EMFWMF);
-    if (type!=MscCanvas::WMF && type!=MscCanvas::EMF && type!=MscCanvas::EMFWMF)
+    _ASSERT(type==Canvas::WMF || type==Canvas::EMF || Canvas::EMFWMF);
+    if (type!=Canvas::WMF && type!=Canvas::EMF && type!=Canvas::EMFWMF)
         return 0;
-    MscCanvas canvas(type, (HDC)NULL, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
-                     XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
-    if (canvas.Status()!=MscCanvas::ERR_OK) return NULL;
+    Canvas canvas(type, (HDC)NULL, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(1., 1.), &GetMsc()->pageBreakData, page_to_draw);
+    if (canvas.Status()!=Canvas::ERR_OK) return NULL;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	if (pApp)
         canvas.SetFallbackImageResolution(pApp->m_uFallbackResolution);
@@ -461,18 +461,18 @@ HENHMETAFILE CDrawingChartData::DrawToEMF(MscCanvas::OutputType type, bool pageB
     if (size)
         *size = canvas.GetMetaFileSize();
     if (fallback_images)
-        *fallback_images = std::move(canvas.stored_fallback_image_places);
+        *fallback_images = std::move(canvas.GetFallbackImagePlaces());
     return hemf;
 }
 
 
 //here force_page==0 means we do not force a particular page, use m_page
-void CDrawingChartData::DrawToRecordingSurface(cairo_surface_t *surf, MscCanvas::OutputType ot, bool pageBreaks, bool force_page, unsigned forced_page) const
+void CDrawingChartData::DrawToRecordingSurface(cairo_surface_t *surf, Canvas::EOutputType ot, bool pageBreaks, bool force_page, unsigned forced_page) const
 {
     const unsigned page_to_draw = force_page ? forced_page : m_page;
-    MscCanvas canvas(ot, surf, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
-                     XY(1., 1.), &GetMsc()->yPageStart, page_to_draw);
-    if (canvas.Status()==MscCanvas::ERR_OK) {
+    Canvas canvas(ot, surf, GetMsc()->GetTotal(), GetMsc()->copyrightTextHeight, 
+                     XY(1., 1.), &GetMsc()->pageBreakData, page_to_draw);
+    if (canvas.Status()==Canvas::ERR_OK) {
         //draw page breaks only if requested and not drawing a single page only
         m_msc->DrawComplete(canvas, pageBreaks, page_to_draw);
     }
@@ -487,16 +487,16 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
         fn += ".png";
     }
     CString ext = fn.substr(pos+1).c_str();
-    MscCanvas::OutputType ot;
-    if (ext.CompareNoCase("png")==0) ot = MscCanvas::PNG;
-    else if (ext.CompareNoCase("png")==0) ot = MscCanvas::PNG;
-    else if (ext.CompareNoCase("emf")==0) ot = MscCanvas::EMF;
-    else if (ext.CompareNoCase("svg")==0) ot = MscCanvas::SVG;
-    else if (ext.CompareNoCase("pdf")==0) ot = MscCanvas::PDF;
-    else if (ext.CompareNoCase("eps")==0) ot = MscCanvas::EPS;
-    else if (ext.CompareNoCase("wmf")==0) ot = MscCanvas::WMF;
+    Canvas::EOutputType ot;
+    if (ext.CompareNoCase("png")==0) ot = Canvas::PNG;
+    else if (ext.CompareNoCase("png")==0) ot = Canvas::PNG;
+    else if (ext.CompareNoCase("emf")==0) ot = Canvas::EMF;
+    else if (ext.CompareNoCase("svg")==0) ot = Canvas::SVG;
+    else if (ext.CompareNoCase("pdf")==0) ot = Canvas::PDF;
+    else if (ext.CompareNoCase("eps")==0) ot = Canvas::EPS;
+    else if (ext.CompareNoCase("wmf")==0) ot = Canvas::WMF;
     else {
-        ot = MscCanvas::PNG;
+        ot = Canvas::PNG;
         fn += ".png";
     }
     GetMsc()->DrawToOutput(ot, std::vector<XY>(1, XY(x_scale, y_scale)), fn, bPageBreaks);
@@ -506,7 +506,7 @@ Element *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
 	CompileIfNeeded();
 	if (m_page>0)
-		point.y += LONG(m_msc->yPageStart[m_page-1].y);
+		point.y += LONG(m_msc->pageBreakData[m_page-1].y);
     const XY point_msc(point.x + m_msc->GetTotal().x.from, point.y + m_msc->GetTotal().y.from);
     const Area *area = m_msc->AllCovers.InWhichFromBack(point_msc);
 	if (area==NULL) return NULL;
@@ -516,7 +516,7 @@ Element *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 Element *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
 {
 	CompileIfNeeded();
-	file_line linenum(m_msc->Error.Files.size()-1, line, col);
+	FileLineCol linenum(m_msc->Error.Files.size()-1, line, col);
 	Msc::LineToArcMapType::const_iterator itr;
 	//in the map linenum_ranges are sorted by increasing length, we search the shortest first
 	for (itr = m_msc->AllArcs.begin(); itr!=m_msc->AllArcs.end(); itr++)
@@ -556,7 +556,7 @@ void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const 
     case CACHE_EMF: {
             if (!m_cache_EMF) {
                 //cache not OK, regenerate
-                m_cache_EMF = m_data->DrawToEMF(MscCanvas::EMFWMF, bPageBreaks, false, 0, &m_wmf_size, &m_fallback_image_places);
+                m_cache_EMF = m_data->DrawToEMF(Canvas::EMFWMF, bPageBreaks, false, 0, &m_wmf_size, &m_fallback_image_places);
             }
             const CSize size = m_data->GetSize();
             const CRect full(0,0, int(size.cx*x_scale), int(size.cy*y_scale));
@@ -570,7 +570,7 @@ void CChartCache::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const 
             if (!m_cache_rec) {
                 //Cache not OK, regenerate
                 m_cache_rec = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL);
-                m_data->DrawToRecordingSurface(m_cache_rec, MscCanvas::WIN, bPageBreaks);
+                m_data->DrawToRecordingSurface(m_cache_rec, Canvas::WIN, bPageBreaks);
             }
             cairo_surface_t *surf = cairo_win32_surface_create(memDC.m_hDC);
             cairo_t *cr = cairo_create(surf);

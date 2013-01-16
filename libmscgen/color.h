@@ -28,7 +28,7 @@
 #include "error.h"
 
 /** Describes a color with transparency. */
-class MscColorType
+class ColorType
 {
 public:
     unsigned char r; ///<Red component
@@ -36,52 +36,52 @@ public:
     unsigned char b; ///<Blue component
     unsigned char a; ///<Alpha component governing transparency, 255 is opaque
     bool          valid; ///<True if the color is valid
-    MscColorType() : r(0), g(0), b(0), a(255), valid(false) {}
-    MscColorType(unsigned char R, unsigned char G, unsigned char B, unsigned char A=255) :
+    ColorType() : r(0), g(0), b(0), a(255), valid(false) {}
+    ColorType(unsigned char R, unsigned char G, unsigned char B, unsigned char A=255) :
         r(R), g(G), b(B), a(A), valid(true) {}
-    explicit MscColorType(const std::string&);
+    explicit ColorType(const std::string&);
     /** Converts a 32-bit unsigned value to a color.*/
-    explicit MscColorType(unsigned);
+    explicit ColorType(unsigned);
     /** Converts the color to a 32-bit value.*/
     unsigned ConvertToUnsigned() const {return ((unsigned(r))<<24) + ((unsigned(g))<<16) + ((unsigned(b))<<8) + (unsigned(a));}
-    bool operator==(const MscColorType &x) const
+    bool operator==(const ColorType &x) const
         {return (r==x.r && g==x.g && b==x.b && a==x.a && valid && x.valid) ||
                 (!valid && !x.valid);}
     std::string Print(void) const; ///<Prints the color description of color into a string.
-//    MscColorType &operator +=(const MscColorType &c);
+//    ColorType &operator +=(const ColorType &c);
     /** Mixes two colors.*/
-    MscColorType operator +(const MscColorType &c) const; 
+    ColorType operator +(const ColorType &c) const; 
     /** Creates a lighter version with same transparency.
      * @param [in] p How much lighter we shall be. Zero means no change, 1 is completely white./
      * @returns The lighter version.*/
-    MscColorType Lighter(double p) const
-        {return MscColorType((unsigned char)(r+p*(255-r)), (unsigned char)(g+p*(255-g)), (unsigned char)(b+p*(255-b)), (unsigned char)a);}
+    ColorType Lighter(double p) const
+        {return ColorType((unsigned char)(r+p*(255-r)), (unsigned char)(g+p*(255-g)), (unsigned char)(b+p*(255-b)), (unsigned char)a);}
     /** Creates a darker version with same transparency.
      * @param [in] p How much darker we shall be. Zero means no change, 1 is completely black./
      * @returns The lighter version.*/
-    MscColorType Darker(double p) const
-        {return MscColorType((unsigned char)(r*(1-p)), (unsigned char)(g*(1-p)), (unsigned char)(b*(1-p)), (unsigned char)a);}
+    ColorType Darker(double p) const
+        {return ColorType((unsigned char)(r*(1-p)), (unsigned char)(g*(1-p)), (unsigned char)(b*(1-p)), (unsigned char)a);}
     /** Creates a more transparent version.
      * @param [in] p How much more transparent we shall be. Zero means no change, 1 is completely transparent./
      * @returns The lighter version.*/
-    MscColorType MoreTransparent(double p) const
-        {return MscColorType(r, g, b, (unsigned char)(a*(1-p)));}
+    ColorType MoreTransparent(double p) const
+        {return ColorType(r, g, b, (unsigned char)(a*(1-p)));}
     /** Creates a less transparent version.
      * @param [in] p How much less transparent we shall be. Zero means no change, 1 is completely opaque./
      * @returns The lighter version.*/
-    MscColorType MoreOpaque(double p) const
-        {return MscColorType(r, g, b, (unsigned char)(a+p*(255-a)));}
+    ColorType MoreOpaque(double p) const
+        {return ColorType(r, g, b, (unsigned char)(a+p*(255-a)));}
     /** Creates a non-transparent version as if on white background*/
-	MscColorType FlattenAlpha(void) const
-	    {return MscColorType(unsigned(255-r)*(255-a)/255+r, unsigned(255-g)*(255-a)/255+g, unsigned(255-b)*(255-a)/255+b);}
+	ColorType FlattenAlpha(void) const
+	    {return ColorType(unsigned(255-r)*(255-a)/255+r, unsigned(255-g)*(255-a)/255+g, unsigned(255-b)*(255-a)/255+b);}
 };
 
 /** A collection of named colors*/
-class ColorSet : public std::map<std::string, MscColorType>
+class ColorSet : public std::map<std::string, ColorType>
 {
 public:
-    bool AddColor(const std::string&, const std::string&, MscError &error, file_line_range linenum);
-    MscColorType GetColor(const std::string &s) const;
+    bool AddColor(const std::string&, const std::string&, MscError &error, FileLineColRange linenum);
+    ColorType GetColor(const std::string &s) const;
 };
 
 

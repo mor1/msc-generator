@@ -222,7 +222,7 @@ typedef enum
     MSC_ATTR_NUMBER,     ///<The attribute was assigned a (floating-point) number
     MSC_ATTR_STYLE       ///<The construct was not an attribute, but a style specification (no "=" sign, like "strong")
 }
-MscAttrType;
+EAttrType;
 
 /** Describes the context of the use of a style or attribute.*/
 typedef enum
@@ -231,7 +231,7 @@ typedef enum
     STYLE_DEFAULT, ///<The attribute is to be applied to a default style or the style is a default stlye such as "box" or "arrow" or "->"
     STYLE_ARC,     ///<The attribute is to be applied to an arc or the style object is part of an arc describing it
     STYLE_OPTION   ///<The attribute is indeed a chart option
-} StyleType;
+} EStyleType;
 
 /** Stores a "<name>=<value>" construct during parsing.
  *
@@ -243,29 +243,29 @@ typedef enum
 class Attribute
 {
 public:
-    MscAttrType     type;           ///<The type of value the attribute was assigned
+    EAttrType     type;           ///<The type of value the attribute was assigned
     string          name;           ///<The name of the attribute: the string before the "=" sign
     string          value;          ///<The string representation of the value of the attribute: the string after the "=" sign. Set even if the type is not MSC_ATTR_STRING.
     double          number;         ///<If the type is MSC_ATTR_NUMBER, this contains the value
     bool            yes;            ///<If the type is MSC_ATTR_BOOL, this contains the value
-    file_line_range linenum_attr;   ///<The location of the attribute name in the source file
-    file_line_range linenum_value;  ///<The location of the attribute value in the source file
+    FileLineColRange linenum_attr;   ///<The location of the attribute name in the source file
+    FileLineColRange linenum_value;  ///<The location of the attribute value in the source file
     mutable bool    error;          ///<True if the attribute specification had an error.XXX
 
     /** Creates a string attribute or one with no value (MSC_ATTR_CLEAR) */
-    Attribute(const char*a, const char *s, file_line_range l, file_line_range v) :
+    Attribute(const char*a, const char *s, FileLineColRange l, FileLineColRange v) :
         type(s?MSC_ATTR_STRING:MSC_ATTR_CLEAR), name(a), value(s?s:""),
         linenum_attr(l), linenum_value(v), error(false) {}
     /** Creates an attribute with a number as value */
-    Attribute(const char*a, double n, file_line_range l, file_line_range v, const char *s) :
+    Attribute(const char*a, double n, FileLineColRange l, FileLineColRange v, const char *s) :
         type(MSC_ATTR_NUMBER), name(a), value(s), number(n),
         linenum_attr(l), linenum_value(v), error(false)  {}
     /** Creates an attribute with a bool as value */
-    Attribute(const char*a, bool b, file_line_range l, file_line_range v, const char *s) :
+    Attribute(const char*a, bool b, FileLineColRange l, FileLineColRange v, const char *s) :
         type(MSC_ATTR_BOOL), name(a), value(s), yes(b),
         linenum_attr(l), linenum_value(v), error(false) {}
     /** Creates a style specification */
-    Attribute(const char*a, file_line_range l) :
+    Attribute(const char*a, FileLineColRange l) :
         type(MSC_ATTR_STYLE), name(a),
         linenum_attr(l), linenum_value(l), error(false) {}
 
@@ -274,12 +274,12 @@ public:
         {return CaseInsensitiveEqual(a, name);}  ///<Returns true if the name of the attribute equals `a` (case insensitive)
     bool EndsWith(const char *a) const;
     bool StartsWith(const char *a) const;
-    bool CheckType(MscAttrType t, MscError &error) const;
+    bool CheckType(EAttrType t, MscError &error) const;
     bool CheckColor(const ColorSet &colors, MscError &error) const;
     void InvalidValueError(const string &candidates, MscError &error) const;
     void InvalidAttrError(MscError &error) const;
     void InvalidStyleError(MscError &error) const;
-    bool EnsureNotClear(MscError &error, StyleType type) const;
+    bool EnsureNotClear(MscError &error, EStyleType type) const;
 };
 
 /** A list of Attribute object pointers*/
@@ -301,18 +301,18 @@ typedef enum {
     LINE_DOUBLE,       ///<Continuous double line
     LINE_TRIPLE,       ///<Continuous triple line
     LINE_TRIPLE_THICK  ///<Continuous triple line, with the middle line being thicker
-} MscLineType;
+} ELineType;
 
 /** True if the line type is continuous (single, double or triple).*/
-inline bool IsLineTypeContinuous(MscLineType t) {return t!=LINE_DOTTED && t!=LINE_DASHED && t!=LINE_LONG_DASHED && t!=LINE_DASH_DOT;}
+inline bool IsLineTypeContinuous(ELineType t) {return t!=LINE_DOTTED && t!=LINE_DASHED && t!=LINE_LONG_DASHED && t!=LINE_DASH_DOT;}
 /** True if the line is of double type*/
-inline bool IsLineTypeDouble(MscLineType t) {return t==LINE_DOUBLE;}
+inline bool IsLineTypeDouble(ELineType t) {return t==LINE_DOUBLE;}
 /** True if the line is of triple type*/
-inline bool IsLineTypeTriple(MscLineType t) {return t==LINE_TRIPLE || t==LINE_TRIPLE_THICK;}
+inline bool IsLineTypeTriple(ELineType t) {return t==LINE_TRIPLE || t==LINE_TRIPLE_THICK;}
 /** True if the line is either of double or triple type*/
-inline bool IsLineTypeDoubleOrTriple(MscLineType t) {return IsLineTypeDouble(t) || IsLineTypeTriple(t);}
+inline bool IsLineTypeDoubleOrTriple(ELineType t) {return IsLineTypeDouble(t) || IsLineTypeTriple(t);}
 /** Returns how thick is the line if line width is 1. E.g., a double line is 3x thicker, two for the two lines and one for the space in between.*/
-inline double LineWidthMultiplier(MscLineType t) {return t==LINE_NONE ? 0 : t==LINE_DOUBLE ? 3 : t==LINE_TRIPLE ? 5 : t==LINE_TRIPLE_THICK ? 6 : 1;}
+inline double LineWidthMultiplier(ELineType t) {return t==LINE_NONE ? 0 : t==LINE_DOUBLE ? 3 : t==LINE_TRIPLE ? 5 : t==LINE_TRIPLE_THICK ? 6 : 1;}
 
 /** Describes the possible rectangle corner types*/
 typedef enum {
@@ -321,36 +321,36 @@ typedef enum {
     CORNER_ROUND,       ///<The corner is rounded
     CORNER_BEVEL,       ///<The corner is chopped 
     CORNER_NOTE         ///<Only the right-upper corner is special: a small note flip
-} MscCornerType;
+} ECornerType;
 
 /** Returns by how much the corner radius is to be increased if the rectangle is expanded by 1 pixel.*/
-inline double RadiusIncMultiplier(MscCornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL || t==CORNER_NOTE ? tan(22.5*M_PI/180) : 0;}
+inline double RadiusIncMultiplier(ECornerType t) {return t==CORNER_ROUND ? 1 : t==CORNER_BEVEL || t==CORNER_NOTE ? tan(22.5*M_PI/180) : 0;}
 
 /** Stores the properties of a line (including rectangle corner style).*/
-class MscLineAttr {
+class LineAttr {
 protected:
     Contour CreateRectangle_ForFill_Note(double x1, double x2, double y1, double y2) const;  
     Contour CreateRectangle_InnerEdge_Note(double x1, double x2, double y1, double y2) const;  
 public:
-    std::pair<bool, MscLineType>   type;   ///<The style of the line. Not set if `first` is false.
-    std::pair<bool, MscColorType>  color;  ///<The color of the line. Not set if `first` is false.
-    std::pair<bool, double>        width;  ///<The width of the line. Not set if `first` is false.
+    std::pair<bool, ELineType> type;   ///<The style of the line. Not set if `first` is false.
+    std::pair<bool, ColorType> color;  ///<The color of the line. Not set if `first` is false.
+    std::pair<bool, double>    width;  ///<The width of the line. Not set if `first` is false.
     ///<The radius of the corners. Not set if `first` is false. 
     ///<Ignored if `corner` is CORNER_NONE. It is also used for pipes to set the size of the oval
     ///<and also for ArcSelfArrow to set the radius of the arrow.
     std::pair<bool, double>        radius; 
-    std::pair<bool, MscCornerType> corner; ///<The style of the corners. Not set if `first` is false. 
-    MscLineAttr();   
-    MscLineAttr(MscLineType t)  {Empty(); type.first = true;  type.second = t;}  ///<Creates an empty style, where only the type is set to `t`.
-    MscLineAttr(MscColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
-    MscLineAttr(MscLineType t, MscColorType c, double w, MscCornerType ct, double r) :
+    std::pair<bool, ECornerType> corner; ///<The style of the corners. Not set if `first` is false. 
+    LineAttr();   
+    LineAttr(ELineType t)  {Empty(); type.first = true;  type.second = t;}  ///<Creates an empty style, where only the type is set to `t`.
+    LineAttr(ColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
+    LineAttr(ELineType t, ColorType c, double w, ECornerType ct, double r) :
         type(true, t), color(true, c), width(true, w), radius(true, r), corner(true, ct) {} ///<Creates a fully specified line style with the attributes given.
     void Empty() {type.first = color.first = width.first = corner.first = radius.first = false;} ///<Clear all content from the line style.
     bool IsEmpty() const {return !type.first && !color.first && !width.first && !corner.first && !radius.first;} ///<False if any of the line attributes are set.
     bool IsComplete() const {return type.first && color.first && width.first && corner.first && radius.first;} ///<True if all of the line attributes are set.
     void MakeComplete();
-    MscLineAttr &operator +=(const MscLineAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
-    bool operator == (const MscLineAttr &a);
+    LineAttr &operator +=(const LineAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
+    bool operator == (const LineAttr &a);
 
     //functions about line style
     bool IsContinuous() const {_ASSERT(type.first); return IsLineTypeContinuous(type.second);} ///<True if the line style is continuous.
@@ -366,7 +366,7 @@ public:
     double LineWidth() const {_ASSERT(type.first && width.first); return width.second * LineWidthMultiplier(type.second);}
     //double RadiusIncMul() const {_ASSERT(type.first); return ::RadiusIncMultiplier(corner.second);}
     /** Updates the `radius` if a corresponding rectangle is expanded by `gap`.*/
-    MscLineAttr& Expand(double gap) {_ASSERT(IsComplete()); if (radius.second>0 && corner.second != CORNER_NONE) radius.second = std::max(0., radius.second + gap*::RadiusIncMultiplier(corner.second)); return *this;}
+    LineAttr& Expand(double gap) {_ASSERT(IsComplete()); if (radius.second>0 && corner.second != CORNER_NONE) radius.second = std::max(0., radius.second + gap*::RadiusIncMultiplier(corner.second)); return *this;}
     /** If given the midline of a box by (x1,x2,y1,y2), what is the maximum radius for our line width and style.*/
     double MaxRadius(double x1, double x2, double y1, double y2) const {return std::max(0., std::min(fabs(x2-x1), fabs(y2-y1)-LineWidth())/2);}
     /** If given the midline of a box by (x1,x2,y1,y2), sanitize our `radius`.*/
@@ -376,7 +376,7 @@ public:
     /** Return the dash pattern to be used for this line style. `num` returns the length of the pattern.*/
     const double * DashPattern(unsigned &num) const;
 
-    virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
@@ -463,18 +463,18 @@ public:
 };
 
 
-inline Contour MscLineAttr::CreateRectangle_ForFill(double x1, double x2, double y1, double y2) const
+inline Contour LineAttr::CreateRectangle_ForFill(double x1, double x2, double y1, double y2) const
 {
     if (!IsDoubleOrTriple()) 
         return CreateRectangle_Midline(x1, x2, y1, y2);
     if (corner.second != CORNER_NOTE) { //We have double or triple line here
         const double s = Spacing();
-        return MscLineAttr(*this).Expand(-s).CreateRectangle_Midline(x1+s, x2-s, y1+s, y2-s);
+        return LineAttr(*this).Expand(-s).CreateRectangle_Midline(x1+s, x2-s, y1+s, y2-s);
     }
     return CreateRectangle_ForFill_Note(x1, x2, y1, y2);    
 }
 
-inline Contour MscLineAttr::CreateRectangle_InnerEdge(double x1, double x2, double y1, double y2) const
+inline Contour LineAttr::CreateRectangle_InnerEdge(double x1, double x2, double y1, double y2) const
 {
     if (corner.second == CORNER_NOTE) 
         return CreateRectangle_InnerEdge_Note(x1, x2, y1, y2);    
@@ -493,77 +493,77 @@ typedef enum {
     GRADIENT_LEFT, ///<Linear gradient leftwards
     GRADIENT_RIGHT,///<Linear gradient rightwards
     GRADIENT_BUTTON///<Linear gradient with multiple changes creating a button effect 
-} MscGradientType;
+} EGradientType;
 
 /** Stores the properties of a fill (color and gradient).*/
-struct MscFillAttr {
+struct FillAttr {
 public:
-    std::pair<bool, MscColorType> color;        ///<The color of the fill. Not set if `first` is false.
-    std::pair<bool, MscColorType> color2;       ///<The secondary color of the fill if we use a gradient. Not set if `first` is false.
-    std::pair<bool, MscGradientType> gradient;  ///<The gradient of the fill. Not set if `first` is false.
-    MscFillAttr();
-    MscFillAttr(MscColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
-    MscFillAttr(MscColorType c, MscGradientType g) :
+    std::pair<bool, ColorType> color;        ///<The color of the fill. Not set if `first` is false.
+    std::pair<bool, ColorType> color2;       ///<The secondary color of the fill if we use a gradient. Not set if `first` is false.
+    std::pair<bool, EGradientType> gradient;  ///<The gradient of the fill. Not set if `first` is false.
+    FillAttr();
+    FillAttr(ColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
+    FillAttr(ColorType c, EGradientType g) :
         color(true, c), gradient(true,g) {} ///<Creates a fully specified fill style with the attributes given.
-    MscFillAttr(MscColorType c, MscColorType c2) : 
+    FillAttr(ColorType c, ColorType c2) : 
         color(true, c), color2(true, c2), gradient(false, GRADIENT_INVALID) {} ///<Creates an incomplete fill style with two colors given.
-    MscFillAttr(MscColorType c, MscColorType c2, MscGradientType g) :
+    FillAttr(ColorType c, ColorType c2, EGradientType g) :
         color(true, c), color2(true, c2), gradient(true,g) {} ///<Creates a fully specified fill style with the attributes given.
     void Empty() {color.first = color2.first = gradient.first = false;} ///<Clear all content from the fill style.
     void MakeComplete();
     bool IsEmpty() const {return !color.first && !color2.first && !gradient.first;} ///<False if any of the line attributes are set. 
     bool IsComplete() const {return color.first && gradient.first;} ///<True if all of the line attributes are set. (But color2 is not needed.)
-    MscFillAttr &operator +=(const MscFillAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
-    bool operator == (const MscFillAttr &a) const;
-    virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    FillAttr &operator +=(const FillAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
+    bool operator == (const FillAttr &a) const;
+    virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
 /** Stores the properties of shadows (color, offset and blur depth).*/
-struct MscShadowAttr {
+struct ShadowAttr {
 public:
-    std::pair<bool, MscColorType> color; ///<The color of the shadow at its darkest - can be somewhat transparent. Not set if `first` is false.
+    std::pair<bool, ColorType> color; ///<The color of the shadow at its darkest - can be somewhat transparent. Not set if `first` is false.
 	std::pair<bool, double> offset;      ///<The offset of the shadow from the object, indicating how much the object is above the surface. Not set if `first` is false.
 	std::pair<bool, double> blur;        ///<Indicating how many pixels are blurred at the edge of the shadow. Not set if `first` is false.
-    MscShadowAttr();
-    MscShadowAttr(MscColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
+    ShadowAttr();
+    ShadowAttr(ColorType c) {Empty(); color.first = true; color.second = c;} ///<Creates an empty style, where only the color is set to `c`.
     void Empty() {color.first = offset.first = blur.first=false;} ///<Clear all content from the shadow style.
     void MakeComplete();
     bool IsComplete() const {return color.first && offset.first && blur.first;} ///<True if all of the shadow attributes are set. 
-    MscShadowAttr &operator +=(const MscShadowAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
-    bool operator == (const MscShadowAttr &a);
-    virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    ShadowAttr &operator +=(const ShadowAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
+    bool operator == (const ShadowAttr &a);
+    virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
 };
 
-bool CshHintGraphicCallbackForYesNo(MscCanvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForYesNo(Canvas *canvas, CshHintGraphicParam p);
 
 /** Stores the properties of notes (pointer type and position).*/
-struct MscNoteAttr {
+struct NoteAttr {
 public:
-    typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} pointer_t;
-    typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN, LEFT_UP, LEFT_DOWN, RIGHT_UP, RIGHT_DOWN} pos_t;
-	std::pair<bool, pointer_t> pointer;
+    typedef enum {POINTER_INVALID=0, NONE, CALLOUT, ARROW, BLOCKARROW} EPointerType;
+    typedef enum {POS_INVALID=0, POS_NEAR, POS_FAR, LEFT, RIGHT, UP, DOWN, LEFT_UP, LEFT_DOWN, RIGHT_UP, RIGHT_DOWN} EPosType;
+	std::pair<bool, EPointerType> pointer;
     std::pair<bool, int> def_float_dist;
     std::pair<bool, int> def_float_x;
     std::pair<bool, int> def_float_y;
-    MscNoteAttr() {Empty(); MakeComplete();} ///<Create a fully specified note style with default values (Callout type, no specific position preference.)
+    NoteAttr() {Empty(); MakeComplete();} ///<Create a fully specified note style with default values (Callout type, no specific position preference.)
     void Empty() {pointer.first = def_float_dist.first = def_float_x.first = def_float_y.first = false;} ///<Clear all content from the note style.
     void MakeComplete();
     bool IsComplete() const {return pointer.first && def_float_dist.first && def_float_x.first && def_float_y.first;} ///<True if all of the note attributes are set. 
-    MscNoteAttr &operator +=(const MscNoteAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
-    bool operator == (const MscNoteAttr &a);
-    virtual bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    NoteAttr &operator +=(const NoteAttr&a); ///<Applies `a` to us: sets all our attributes, which are set in `a` to the value in `a`; leaves the rest unchanged.
+    bool operator == (const NoteAttr &a);
+    virtual bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
     string Print(int ident = 0) const;
-    static bool CshHintGraphicCallbackForLayout(MscCanvas *canvas, CshHintGraphicParam p);
-    static bool CshHintGraphicCallbackForPointer(MscCanvas *canvas, CshHintGraphicParam p);
-    static bool CshHintGraphicCallbackForPos(MscCanvas *canvas, CshHintGraphicParam p);
+    static bool CshHintGraphicCallbackForLayout(Canvas *canvas, CshHintGraphicParam p);
+    static bool CshHintGraphicCallbackForPointer(Canvas *canvas, CshHintGraphicParam p);
+    static bool CshHintGraphicCallbackForPos(Canvas *canvas, CshHintGraphicParam p);
 };
 
 

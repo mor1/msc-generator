@@ -146,7 +146,7 @@ FIXED: Diamond and dot arrowheads at end are drawn badly for block arrows
 FIXED: Diamond and dot normal arrowheads do not align with middle of entity line
 FIXED: Block arrows ->a-> should keep gap if a is active
 CANCELLED: why cannot I defstyle entity [active=yes]? (Because it is not a style attr. Now we give error.)
-FIXED: MscCanvas and MscBase and Msc
+FIXED: Canvas and MscBase and Msc
 FIXED: Block arrowheads draw well
 FIXED: Block arrow space for sharp - take linewidth into account: add line formatting to big calls
 FIXED: Line segment stuff not copied to all segments

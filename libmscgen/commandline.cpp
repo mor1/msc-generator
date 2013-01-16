@@ -165,7 +165,7 @@ static void licence()
 int do_main(const std::list<std::string> &args, const char *designs,
             string csh_textformat)
 {
-    MscCanvas::OutputType oOutType=MscCanvas::PNG;
+    Canvas::EOutputType oOutType=Canvas::PNG;
     string                oOutputFile;
     string                oInputFile;
     bool                  oWarning = true;
@@ -173,7 +173,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     int                   oX = -1;
     int                   oY = -1;
     std::vector<double>   oScale; //-2=auto, -1=width, other values = given scale
-    MscCanvas::EPageSize  oPageSize = MscCanvas::NO_PAGE;
+    Canvas::EPageSize  oPageSize = Canvas::NO_PAGE;
     int                   oVA = -2, oHA =-2; //-1=left/top, 0=center, +1=right/bottom (-2==not set)
     double                margins[] = {36, 36, 36, 36}; // half inches everywhere
     bool                  oA = false;
@@ -186,8 +186,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
     msc.copyrightText.append(VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
 
     msc.Error.AddFile("[options]");
-    const file_line opt_pos(msc.current_file,0,0);
-    const file_line_range opt_pos_range(opt_pos, opt_pos);
+    const FileLineCol opt_pos(msc.current_file,0,0);
+    const FileLineColRange opt_pos_range(opt_pos, opt_pos);
     bool show_usage = false;
 
     //Load deisgn definitions
@@ -224,12 +224,12 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 oScale.push_back(os); 
         } else if (i->at(0) == '-' && i->at(1) == 'p') {
             if (i->length()==2) 
-                oPageSize = MscCanvas::A4P;
+                oPageSize = Canvas::A4P;
             else 
-                oPageSize = i->at(2)=='=' ? MscCanvas::ConvertPageSize(i->c_str()+3) : MscCanvas::NO_PAGE;
-            if (oPageSize == MscCanvas::NO_PAGE) {
+                oPageSize = i->at(2)=='=' ? Canvas::ConvertPageSize(i->c_str()+3) : Canvas::NO_PAGE;
+            if (oPageSize == Canvas::NO_PAGE) {
                 msc.Error.Error(opt_pos, "Invalid page size. Should be one of the ISO A-series, such as 'A4p' or 'A3l', or 'letter', 'legal', 'ledger' or 'tabloid'. Using 'A4p' as default.");
-                oPageSize = MscCanvas::A4P;
+                oPageSize = Canvas::A4P;
             }
         } else if (i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') && 
                    i->at(2) == 'a') {
@@ -282,7 +282,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 msc.Error.Error(opt_pos,
                                 "Missing output type after '-T'.",
                                 "Assuming 'png'.");
-                oOutType = MscCanvas::PNG;
+                oOutType = Canvas::PNG;
                 show_usage = true;
             } else {
                 i++;
@@ -291,30 +291,30 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 else
 #ifdef CAIRO_HAS_PNG_FUNCTIONS
                 if (*i == "png")
-                    oOutType = MscCanvas::PNG;
+                    oOutType = Canvas::PNG;
                 else
 #endif
 #ifdef CAIRO_HAS_PS_SURFACE
                  if (*i == "eps")
-                     oOutType = MscCanvas::EPS;
+                     oOutType = Canvas::EPS;
                  else
 #endif
 #ifdef CAIRO_HAS_PDF_SURFACE
                  if (*i == "pdf")
-                     oOutType = MscCanvas::PDF;
+                     oOutType = Canvas::PDF;
                  else
 #endif
 #ifdef CAIRO_HAS_SVG_SURFACE
                  if (*i == "svg")
-                     oOutType = MscCanvas::SVG;
+                     oOutType = Canvas::SVG;
                  else
 #endif
 #ifdef CAIRO_HAS_WIN32_SURFACE
                  if (*i == "emf")
-                     oOutType = MscCanvas::EMF;
+                     oOutType = Canvas::EMF;
                  else
                  if (*i == "wmf")  //undocumented
-                     oOutType = MscCanvas::WMF;
+                     oOutType = Canvas::WMF;
                  else
 #endif
                  {
@@ -337,7 +337,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                      " 'emf'"
 #endif
                      " or 'csh'. Using 'png'.");
-                     oOutType = MscCanvas::PNG;
+                     oOutType = Canvas::PNG;
                  }
             }
         } else if (*i == "-l") {
@@ -426,15 +426,15 @@ int do_main(const std::list<std::string> &args, const char *designs,
         if (oCshize)
             oOutputFile.append(".csh");
         else switch (oOutType) {
-        case MscCanvas::PNG:
+        case Canvas::PNG:
             oOutputFile.append(".png"); break;
-        case MscCanvas::EPS:
+        case Canvas::EPS:
             oOutputFile.append(".eps"); break;
-        case MscCanvas::PDF:
+        case Canvas::PDF:
             oOutputFile.append(".pdf"); break;
-        case MscCanvas::SVG:
+        case Canvas::SVG:
             oOutputFile.append(".svg"); break;
-        case MscCanvas::EMF:
+        case Canvas::EMF:
             oOutputFile.append(".emf"); break;
         default:
             assert(0);
@@ -442,32 +442,32 @@ int do_main(const std::list<std::string> &args, const char *designs,
     }
 
     //Determine option compatibility
-    if (oPageSize!=MscCanvas::NO_PAGE && oOutType != MscCanvas::PDF) {
+    if (oPageSize!=Canvas::NO_PAGE && oOutType != Canvas::PDF) {
         msc.Error.Error(opt_pos, "-p can only be used with PDF output. Ignoring it.");
-        oPageSize = MscCanvas::NO_PAGE;
+        oPageSize = Canvas::NO_PAGE;
     }
     bool has_auto_or_width = false;
     for (unsigned s=0; s<oScale.size() && !has_auto_or_width; s++)
         has_auto_or_width = oScale[s]<=0;
-    if (has_auto_or_width && oPageSize == MscCanvas::NO_PAGE) {
+    if (has_auto_or_width && oPageSize == Canvas::NO_PAGE) {
         msc.Error.Error(opt_pos, "-s=auto and -s=width can only be used with full-page output. Using default scale of 1.0.");
         oScale.assign(1, 1.0);
     }
-    if (oScale.size()>1 && oPageSize == MscCanvas::NO_PAGE) {
+    if (oScale.size()>1 && oPageSize == Canvas::NO_PAGE) {
         msc.Error.Error(opt_pos, "Multiple -s options can only be applied to full-page output. Using default scale of 1.0.");
         oScale.assign(1, 1.0);
     }
-    if (oPageSize==MscCanvas::NO_PAGE && oHA!=-2) {
+    if (oPageSize==Canvas::NO_PAGE && oHA!=-2) {
         msc.Error.Error(opt_pos, "-ha can only be used with full-page output (-p). Ignoring it.");
         oHA = -1;
     }
     if (oHA == -2) oHA = -1;
-    if (oPageSize==MscCanvas::NO_PAGE && oVA!=-2) {
+    if (oPageSize==Canvas::NO_PAGE && oVA!=-2) {
         msc.Error.Error(opt_pos, "-va can only be used with full-page output (-p). Ignoring it.");
         oVA = -1;
     }
     if (oVA == -2) oVA = -1;
-    if (oPageSize==MscCanvas::NO_PAGE && oA) {
+    if (oPageSize==Canvas::NO_PAGE && oA) {
         msc.Error.Error(opt_pos, "-a can only be used with full-page output (-p). Ignoring it.");
         oA = false;
     }
@@ -534,7 +534,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         msc.ParseText(input, oInputFile.c_str());
         XY pageSize(0,0);
         if (oA) {
-            pageSize = MscCanvas::GetPhysicalPageSize(oPageSize);
+            pageSize = Canvas::GetPhysicalPageSize(oPageSize);
             pageSize.x -= margins[0] + margins[1];
             pageSize.y -= margins[2] + margins[3];
             if (oScale[0]>0) 
@@ -559,7 +559,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         } else if (oScale.size()==1)  //one specified
             scale[0].x = scale[0].y = oScale[0];
         else if (oScale.size()>1) { //multiple specified
-            if (oPageSize == MscCanvas::NO_PAGE) {
+            if (oPageSize == Canvas::NO_PAGE) {
                 for (unsigned u = 0; u<oScale.size(); u++)
                     if (oScale[u]>0) {
                         oScale[0] = oScale[u];

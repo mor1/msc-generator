@@ -34,9 +34,9 @@ typedef enum {
     SIDE_INVALID = 0,///<The invalid value.
     SIDE_LEFT,       ///<The left side
     SIDE_RIGHT       ///<The right side
-} MscSideType;
+} ESideType;
 
-bool CshHintGraphicCallbackForSide(MscCanvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForSide(Canvas *canvas, CshHintGraphicParam p);
 
 /** A class bringing together all style-related attributes.
  * An instance of MscStyle may not *contain* all possible attributes.
@@ -69,25 +69,25 @@ class MscStyle
 {
 protected:
     friend class Context;
-    MscStyle(StyleType tt, ArrowHead::ArcType a, bool t, bool l, bool f, bool s, bool vl, 
+    MscStyle(EStyleType tt, ArrowHead::EArcArrowType a, bool t, bool l, bool f, bool s, bool vl, 
              bool so, bool nu, bool co, bool si, bool i, bool vf, bool mr, bool n);
 public:
-    MscLineAttr line;     ///<The line attributes
-    MscLineAttr vline;    ///<The vline attributes
-    MscFillAttr fill;     ///<The fill attributes
-    MscFillAttr vfill;    ///<The vfill attributes
-    MscShadowAttr shadow; ///<The shadow attributes
+    LineAttr line;     ///<The line attributes
+    LineAttr vline;    ///<The vline attributes
+    FillAttr fill;     ///<The fill attributes
+    FillAttr vfill;    ///<The vfill attributes
+    ShadowAttr shadow; ///<The shadow attributes
     ArrowHead arrow;      ///<The arrow attributes
     StringFormat text;    ///<The text attributes
     std::pair<bool, unsigned char> solid;    ///<The value of the 'solid' attribute (for pipes). Not set if `first` is false.
-    std::pair<bool, MscSideType>   side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
+    std::pair<bool, ESideType>   side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
     std::pair<bool, bool>          numbering;///<The value of the 'number' attribute. Not set if `first` is false.
     std::pair<bool, bool>          compress; ///<The value of the 'compress' attribute. Not set if `first` is false.
     std::pair<bool, bool>          indicator;///<The value of the 'indicator' attribute. Not set if `first` is false.
     std::pair<bool, bool>          makeroom; ///<The value of the 'makeroom' attribute (for verticals and notes). Not set if `first` is false.
-    MscNoteAttr note;     ///<The note attributes
+    NoteAttr note;     ///<The note attributes
 
-    StyleType type;       ///<The context in which this instance is used.
+    EStyleType type;       ///<The context in which this instance is used.
 
     bool f_line;       ///<True if the style contains line attributes.
     bool f_vline;      ///<True if the style contains vline attributes.
@@ -102,9 +102,9 @@ public:
     bool f_indicator;  ///<True if the style contains the 'indicator' attributes.
     bool f_makeroom;   ///<True if the style contains the 'makeroom' attributes.
     bool f_note;       ///<True if the style contains note attributes.
-    ArrowHead::ArcType f_arrow; ///<Shows which type of arrow attributes the style contains.
+    ArrowHead::EArcArrowType f_arrow; ///<Shows which type of arrow attributes the style contains.
 
-    MscStyle(StyleType tt=STYLE_STYLE); //Has all the components, but is empty
+    MscStyle(EStyleType tt=STYLE_STYLE); //Has all the components, but is empty
     void Empty();
     void MakeCompleteButText();
     MscStyle &operator +=(const MscStyle &toadd);
@@ -157,9 +157,9 @@ public:
     std::pair<bool, bool>   compress;    ///<The 'compress' chart option, unset if `second` is false.
     std::pair<bool, bool>   indicator;   ///<The 'indicator' chart option, unset if `second` is false.
     std::pair<bool, double> slant_angle; ///<The 'slant_angle' chart option, unset if `second` is false.
-    MscLineAttr defCommentLine;          ///<The style of the comment line 
-    MscFillAttr defCommentFill;          ///<The fill of the comment area 
-    MscFillAttr defBackground;           ///<The background 
+    LineAttr defCommentLine;          ///<The style of the comment line 
+    FillAttr defCommentFill;          ///<The fill of the comment area 
+    FillAttr defBackground;           ///<The background 
     StringFormat            text;        ///<The default text style
     StyleSet                styles;      ///<The set of named styles defined here
     ColorSet                colors;      ///<The set of named colors defined here

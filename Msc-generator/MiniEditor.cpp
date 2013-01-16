@@ -218,7 +218,7 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 	//if color syntax highlighting is not enabled we cannot check for label
     const bool haveSmartIdent = pApp && pApp->m_bSmartIdent && pApp->m_bDoCshProcessing;
 	if (haveSmartIdent) {
-		MscColorSyntaxType csh_color = m_csh.GetCshAt(pos_to_be_inserted+1);
+		EColorSyntaxType csh_color = m_csh.GetCshAt(pos_to_be_inserted+1);
 		//Dont do anything in a label
 		if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) return -1;
 	}
@@ -238,7 +238,7 @@ int CCshRichEditCtrl::FindIdentForClosingBrace(int pos_to_be_inserted)
 			//if color syntax highlighting is not enabled we cannot check for label
 			if (haveSmartIdent) {
 				//if a brace, but in a label, ignore
-				MscColorSyntaxType csh_color = m_csh.GetCshAt(ConvertLineColToPos(nLine, nLineLength)+1);
+				EColorSyntaxType csh_color = m_csh.GetCshAt(ConvertLineColToPos(nLine, nLineLength)+1);
 				if (csh_color == COLOR_LABEL_TEXT || csh_color == COLOR_LABEL_ESCAPE) continue;
 			}
 			if (strLine[nLineLength] == '}') num_braces++;
@@ -598,7 +598,7 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
                     ConvertPosToLineCol(i->first_pos, line, col);
                     line++; col++; //XXX WTF This is needed
                     error_pos.push_back(std::pair<int,int>(line, col));
-                    errors.push_back(Error.FormulateElement(file_line(0, line, col), file_line(0, line, col), true, false, i->text).text.c_str());
+                    errors.push_back(Error.FormulateElement(FileLineCol(0, line, col), FileLineCol(0, line, col), true, false, i->text).text.c_str());
                 }
                 pApp->m_pWndOutputView->ShowCshErrors(errors, error_pos);
             }

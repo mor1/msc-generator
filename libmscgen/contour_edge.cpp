@@ -34,7 +34,7 @@ namespace contour {
 /** Returns the relation of the three points `a`, `b`, `c`.
  * @ingroup contour_internal
  */
-triangle_dir_t triangle_dir(XY a, XY b, XY c)
+ETriangleDirType triangle_dir(XY a, XY b, XY c)
 {
     if (a == b) return b==c ? ALL_EQUAL : A_EQUAL_B;
     if (a == c) return A_EQUAL_C;

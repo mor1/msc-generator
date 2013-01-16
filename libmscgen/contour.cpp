@@ -57,7 +57,7 @@ void ContourList::SwapXY()
     boundingBox.SwapXY();
 }
 
-relation_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
+EContourRelationType ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
 {
     if (IsEmpty())
         return c.IsEmpty() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
@@ -66,7 +66,7 @@ relation_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes)
 
     if (!boundingBox.Overlaps(c.GetBoundingBox())) return REL_APART;
 
-    relation_t res = begin()->RelationTo(c, ignore_holes);
+    EContourRelationType res = begin()->RelationTo(c, ignore_holes);
     switch (res) {
     default:
     case REL_A_IS_EMPTY:
@@ -87,7 +87,7 @@ relation_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes)
 
     auto i = ++begin();
     while (i!=end()) {
-        const relation_t res2 = i->RelationTo(c, ignore_holes);
+        const EContourRelationType res2 = i->RelationTo(c, ignore_holes);
         if (res2 == res) continue;
         switch (res2) {
         case REL_A_IS_EMPTY:
@@ -115,7 +115,7 @@ relation_t ContourList::RelationTo(const ContourWithHoles &c, bool ignore_holes)
     return res;
 }
 
-relation_t ContourList::RelationTo(const ContourList &c, bool ignore_holes) const
+EContourRelationType ContourList::RelationTo(const ContourList &c, bool ignore_holes) const
 {
     if (IsEmpty())
         return c.IsEmpty() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
@@ -124,7 +124,7 @@ relation_t ContourList::RelationTo(const ContourList &c, bool ignore_holes) cons
 
     if (!boundingBox.Overlaps(c.GetBoundingBox())) return REL_APART;
 
-    relation_t res = c.RelationTo(*begin(), ignore_holes);
+    EContourRelationType res = c.RelationTo(*begin(), ignore_holes);
     switch (res) {
     default:
     case REL_A_IS_EMPTY:
@@ -145,7 +145,7 @@ relation_t ContourList::RelationTo(const ContourList &c, bool ignore_holes) cons
 
     auto i = ++begin();
     while (i!=end()) {
-        const relation_t res2 = c.RelationTo(*i, ignore_holes);
+        const EContourRelationType res2 = c.RelationTo(*i, ignore_holes);
         if (res2 == res) continue;
         switch (res2) {
         case REL_A_IS_EMPTY:
@@ -656,17 +656,17 @@ protected:
     unsigned FindCrosspointsHelper(bool m_c1, const ContourList *c1, bool m_c2, const ContourList *c2);
     /**Finds the crosspoints between C1 and C2 or just in C1. Adds them to 'Rays' & return their number.*/
     unsigned FindCrosspoints();  
-    bool OperationWithAnEmpty(Contour::operation_t type, bool clockwise) const;
-    bool IsCoverageToInclude(int cov, Contour::operation_t type) const;
+    bool OperationWithAnEmpty(Contour::EOperationType type, bool clockwise) const;
+    bool IsCoverageToInclude(int cov, Contour::EOperationType type) const;
     size_t FindRayGroupEnd(size_t from, int &coverage, size_t abort_at1, size_t abort_at2) const;
-    bool GoToCoverage(size_t &from, size_t &to, int &cov_now, Contour::operation_t type, bool start, size_t abort_at) const;
+    bool GoToCoverage(size_t &from, size_t &to, int &cov_now, Contour::EOperationType type, bool start, size_t abort_at) const;
     int  CalcCoverageHelper(const XY &xy, const ContourWithHoles *cwh) const;
     int  CalcCoverageHelper(const XY &xy) const;
     int  CalcCoverageHelper(size_t cp_head) const;
     int  CalcCoverageHelper(const SimpleContour *sc) const;
     size_t ClosestNextCP(size_t from, size_t to) const;
     void ResetCrosspoints() const;    //make them valid and set switch_action to ERROR
-    void EvaluateCrosspoints(Contour::operation_t type) const; //Fills in switch actions and StartRays
+    void EvaluateCrosspoints(Contour::EOperationType type) const; //Fills in switch actions and StartRays
     //helpers for walking
     void Advance(RayPointer &p, bool forward) const;
     void MarkAllInRayGroupOf(size_t ray, bool valid) const;
@@ -676,9 +676,9 @@ protected:
     int CoverageInNodeList(const std::list<node> &list, const SimpleContour &c) const;
     node *InsertContour(std::list<node> *list, node &&n) const;
     void InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
-                           const Contour *C_other, Contour::operation_t type) const;
-    void ConvertNode(Contour::operation_t type, std::list<node> &&list, Contour &result, bool positive) const;
-    void ConvertNode(Contour::operation_t type, std::list<node> &&list, ContourList &result, bool positive) const;
+                           const Contour *C_other, Contour::EOperationType type) const;
+    void ConvertNode(Contour::EOperationType type, std::list<node> &&list, Contour &result, bool positive) const;
+    void ConvertNode(Contour::EOperationType type, std::list<node> &&list, ContourList &result, bool positive) const;
 
 public:
     //external interface
@@ -687,7 +687,7 @@ public:
     ContoursHelper(const Contour &c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(true), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
     ContoursHelper(Contour &&c1, const Contour &c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(true), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
     ContoursHelper(Contour &&c1, Contour &&c2) : C1(&c1), C2(&c2), const_C1(false), const_C2(false), clockwise_C1(c1.GetClockWise()), clockwise_C2(c2.GetClockWise()) {FindCrosspoints();}
-    void Do(Contour::operation_t type, Contour &result) const;
+    void Do(Contour::EOperationType type, Contour &result) const;
 };
 
 //returns the head of the strict list
@@ -1075,7 +1075,7 @@ void ContoursHelper::ResetCrosspoints() const
  *                 surface cover an area, coverage there is +2.
  * @param [in] type The type of operation we perform.
  * @returns True if the area shall be included in the result of the operation.*/
-inline bool ContoursHelper::IsCoverageToInclude(int cov, Contour::operation_t type) const
+inline bool ContoursHelper::IsCoverageToInclude(int cov, Contour::EOperationType type) const
 {
     switch (type) {
     default: _ASSERT(0); /*fallthrough*/
@@ -1126,7 +1126,7 @@ inline size_t ContoursHelper::FindRayGroupEnd(size_t from, int &coverage, size_t
  * @param [in] start If true we search for a ray group after which coverage becomes eligible, else ineligible.
  * @param [in] abort_at Stop search here. 'to' will be set to this (and 'cov_now' is set appropriately).
  * @return True if coverage is eligible/ineligible just before to as requested by 'start'. */
-bool ContoursHelper::GoToCoverage(size_t &from, size_t &to, int &cov_now, Contour::operation_t type, bool start, size_t abort_at) const
+bool ContoursHelper::GoToCoverage(size_t &from, size_t &to, int &cov_now, Contour::EOperationType type, bool start, size_t abort_at) const
 {
     const size_t started = to = from;
     do {
@@ -1325,7 +1325,7 @@ size_t ContoursHelper::ClosestNextCP(size_t from, size_t to) const
      //Copy the processed crosspoints from the set to the bycont, where they are sorted by <contour,edge,pos>.
     //(each contour has its own bycont).
     //Fill in startrays with incoming rays marked as can_start_here
-void ContoursHelper::EvaluateCrosspoints(Contour::operation_t type) const
+void ContoursHelper::EvaluateCrosspoints(Contour::EOperationType type) const
 {
     if (Rays.size()==0) return;
     StartRays.clear();
@@ -1653,7 +1653,7 @@ int ContoursHelper::CoverageInNodeList(const std::list<node> &list, const Simple
 node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
 {
     for (auto i = list->begin(); i!=list->end(); /*nope*/) {
-        const relation_t res = i->contour.CheckContainment(n.contour);
+        const EContourRelationType res = i->contour.CheckContainment(n.contour);
         switch (res) {
         default:
         case REL_A_IS_EMPTY:
@@ -1695,7 +1695,7 @@ node * ContoursHelper::InsertContour(std::list<node> *list, node &&n) const
  * @param [in] type The operation we perform.
  */
 void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithHoles *c, bool const_c,
-                                       const Contour *C_other, Contour::operation_t type) const
+                                       const Contour *C_other, Contour::EOperationType type) const
 {
     if (!Rays.size() || !IsContourInRays(&c->outline)) {
         int coverage_in_c;
@@ -1714,7 +1714,7 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
                 const int cov_from_us = clockwise_us ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
                 coverage_in_c = cov_from_us + cov_from_other;
             } else {
-                const is_within_t is_within_other = C_other->IsWithin(c->outline[0].GetStart());
+                const EPointRelationType is_within_other = C_other->IsWithin(c->outline[0].GetStart());
                 _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
                 //if we are outside the other, coverage from that is zero
                 //if we are inside, then coverage is either +1 or -1 depending on dir
@@ -1751,7 +1751,7 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
  * @param [out] result The result.
  * @param [in] positive True if we want to have a clockwise Contour at the end.
  */
-void ContoursHelper::ConvertNode(Contour::operation_t type, std::list<node> &&list, Contour &result, bool positive) const
+void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &&list, Contour &result, bool positive) const
 {
     for (auto i = list.begin(); i!=list.end(); i++) {
         if (i->contour.clockwise != positive) i->contour.Invert();
@@ -1770,7 +1770,7 @@ void ContoursHelper::ConvertNode(Contour::operation_t type, std::list<node> &&li
  * @param [out] result The result.
  * @param [in] positive True if we want to have a clockwise Contour at the end.
  */
-void ContoursHelper::ConvertNode(Contour::operation_t type, std::list<node> &&list, ContourList &result, bool positive) const
+void ContoursHelper::ConvertNode(Contour::EOperationType type, std::list<node> &&list, ContourList &result, bool positive) const
 {
     for (auto i = list.begin(); i!=list.end(); i++) {
         if (i->contour.clockwise != positive) i->contour.Invert();
@@ -1788,7 +1788,7 @@ void ContoursHelper::ConvertNode(Contour::operation_t type, std::list<node> &&li
  * @param type The type of operation we do.
  * @param clockwise The clockwiseness of the non-empty shape.
  * @returns True if the non-empty contour shall be returned, false if an empty one. */
-inline bool ContoursHelper::OperationWithAnEmpty(Contour::operation_t type, bool clockwise) const
+inline bool ContoursHelper::OperationWithAnEmpty(Contour::EOperationType type, bool clockwise) const
 {
     //if the sole non-empty contoutr is to be included, we return this
     return IsCoverageToInclude(clockwise ? 1 : 0, type);
@@ -1799,7 +1799,7 @@ inline bool ContoursHelper::OperationWithAnEmpty(Contour::operation_t type, bool
  * @param [in] type The type of operation we do.
  * @param [out] result The resulting Contour.
  */
-void ContoursHelper::Do(Contour::operation_t type, Contour &result) const
+void ContoursHelper::Do(Contour::EOperationType type, Contour &result) const
 {
     //"result" may be the identical to "C1" or "C2"
     if (C2==NULL) {
@@ -1961,9 +1961,9 @@ void ContourWithHoles::Expand2D(const XY &gap, Contour &res) const
     }
 }
 
-relation_t ContourWithHoles::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
+EContourRelationType ContourWithHoles::RelationTo(const ContourWithHoles &c, bool ignore_holes) const
 {
-    const relation_t res = outline.RelationTo(c.outline);
+    const EContourRelationType res = outline.RelationTo(c.outline);
     if (ignore_holes) return res;
     switch (res) {
     default:
@@ -2107,33 +2107,33 @@ void Contour::Invert()
     Operation(tmp.GetClockWise() ? EXPAND_POSITIVE : EXPAND_NEGATIVE, std::move(tmp));
 }
 
-void Contour::Operation(operation_t type, const Contour &c1)
+void Contour::Operation(EOperationType type, const Contour &c1)
 {
     ContoursHelper h(c1);
     h.Do(type, *this);
 
 }
 
-void Contour::Operation(operation_t type, Contour &&c1)
+void Contour::Operation(EOperationType type, Contour &&c1)
 {
     ContoursHelper h(std::move(c1));
     h.Do(type, *this);
 }
 
-void Contour::Operation(operation_t type, const Contour &c1, const Contour &c2)
+void Contour::Operation(EOperationType type, const Contour &c1, const Contour &c2)
 {
     ContoursHelper h(c1, c2);
     h.Do(type, *this);
 }
 
 
-void Contour::Operation(operation_t type, const Contour &c1, Contour &&c2)
+void Contour::Operation(EOperationType type, const Contour &c1, Contour &&c2)
 {
     ContoursHelper h(c1, std::move(c2));
     h.Do(type, *this);
 }
 
-void Contour::Operation(operation_t type, Contour &&c1, Contour &&c2)
+void Contour::Operation(EOperationType type, Contour &&c1, Contour &&c2)
 {
     ContoursHelper h(std::move(c1), std::move(c2));
     h.Do(type, *this);
@@ -2172,7 +2172,7 @@ void Contour::Expand2D(const XY &gap, Contour &res) const
 //if false, these additional values may come:
 //A_IN_HOLE_OF_B, B_IN_HOLE_OF_A, IN_HOLE_APART
 //(latter meaning no overlap, but some parts of A is in holes and outside of B)
-relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) const
+EContourRelationType Contour::RelationTo(const Contour &c, bool ignore_holes) const
 {
     if (IsEmpty())
         return c.IsEmpty() ? REL_BOTH_EMPTY : REL_A_IS_EMPTY;
@@ -2186,7 +2186,7 @@ relation_t Contour::RelationTo(const Contour &c, bool ignore_holes) const
     //Then we restore "further" by deleting the appended cwh and restoring the boundingbox
     Contour &c1 = const_cast<Contour&>(*this);
     Contour &c2 = const_cast<Contour&>(c);
-    relation_t res;
+    EContourRelationType res;
     if (further.IsEmpty()) {
         const Block bb(c2.further.boundingBox);
         c2.further.append(c2.first);

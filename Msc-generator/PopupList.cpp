@@ -57,7 +57,7 @@ bool CHintListBox::PreprocessHints(Csh &csh, const std::string &uc, bool userReq
         const bool filter_by_uc = pApp->m_bHintFilter && !userRequest;
         CDC* pDC = GetDC();
         {
-            MscCanvas canvas(MscCanvas::WIN, pDC->m_hDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
+            Canvas canvas(Canvas::WIN, pDC->m_hDC, Block(0,HINT_GRAPHIC_SIZE_X, 0,HINT_GRAPHIC_SIZE_Y));
             csh.ProcessHints(canvas, &m_format, uc, filter_by_uc, pApp->m_bHintCompact);
             //Destroy canvas before the DC
         }
@@ -174,7 +174,7 @@ void CHintListBox::ChangeSelectionTo(int index)
         ChangeSelectionTo(index, HINT_ITEM_NOT_SELECTED); //second param is dummy
 }
 
-void CHintListBox::ChangeSelectionTo(int index, CshHintItemSelectionState state)
+void CHintListBox::ChangeSelectionTo(int index, EHintItemSelectionState state)
 {
     if (index == m_cur_sel) return;
     const CshHint *item_orig = (m_cur_sel>=0) ? GetHint(m_cur_sel) : NULL;
@@ -218,12 +218,12 @@ void CHintListBox::DrawItem(LPDRAWITEMSTRUCT lpItem)
     oldBitmap = memDC.SelectObject(&bitmap);
     memDC.FillSolidRect(0,0,lpItem->rcItem.right-lpItem->rcItem.left,
                                            lpItem->rcItem.bottom - lpItem->rcItem.top, origDC.GetBkColor());
-    MscCanvas canvas(MscCanvas::WIN, memDC.m_hDC);
+    Canvas canvas(Canvas::WIN, memDC.m_hDC);
     const CshHint *item= (CshHint*)lpItem->itemData;
     Label label(item->decorated, canvas, m_format);
-    const MscColorType black(0,0,0);
-    const MscFillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
-    const MscLineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
+    const ColorType black(0,0,0);
+    const FillAttr fill(black.Lighter(0.75), GRADIENT_DOWN);
+    const LineAttr line(LINE_SOLID, black.Lighter(0.5), 1, CORNER_ROUND, 3);
     const Block b(0,lpItem->rcItem.right-lpItem->rcItem.left,
                   0,lpItem->rcItem.bottom - lpItem->rcItem.top);
     switch (item->state) {

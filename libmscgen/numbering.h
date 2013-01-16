@@ -45,10 +45,10 @@ public:
     std::string     post; ///<Text to append to this segment
     /** Create a style fragment with the given or default attributes*/
     explicit NumberingStyleFragment(ENumberingStyle t=ARABIC, std::string pr="", std::string po=""): type(t), pre(pr), post(po) {}
-    static bool Parse(Msc *, file_line linenum, const char *text, std::vector<NumberingStyleFragment> &result);
+    static bool Parse(Msc *, FileLineCol linenum, const char *text, std::vector<NumberingStyleFragment> &result);
     std::string Print(int n) const;
     unsigned Input(const std::string &number, int &value);
-    static bool FindReplaceNumberFormatToken(std::string &text, file_line l, std::string::size_type pos=0);
+    static bool FindReplaceNumberFormatToken(std::string &text, FileLineCol l, std::string::size_type pos=0);
 };
 
 /** Describes the current (multi-level) label number - essentially a list of numbers.

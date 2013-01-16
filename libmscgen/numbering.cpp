@@ -72,7 +72,7 @@ std::string NumberingStyleFragment::Print(int n) const
  * @param [in] text The string to parse.
  * @param [out] result The list of fragments parsed.
  * @returns True if no error.*/
-bool NumberingStyleFragment::Parse(Msc *msc, file_line linenum, const char *text, std::vector<NumberingStyleFragment> &result)
+bool NumberingStyleFragment::Parse(Msc *msc, FileLineCol linenum, const char *text, std::vector<NumberingStyleFragment> &result)
 {
     string str(text);
     //We keep \s() \c() etc escapes, but remove the erroneous ones.
@@ -170,7 +170,7 @@ out:
  * @param [in] pos The position after which to expect the numbering style token.
  * @returns True if we made a replacement.
  */
-bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, file_line l,
+bool NumberingStyleFragment::FindReplaceNumberFormatToken(std::string &text, FileLineCol l,
                                                           std::string::size_type pos)
 {
     char const *formats[] = {"123", "arabic","ARABIC",

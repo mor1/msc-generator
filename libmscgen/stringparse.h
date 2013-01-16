@@ -29,7 +29,7 @@
 #include "csh.h"
 
 class Label;
-class MscCanvas;
+class Canvas;
 
 using std::string;
 
@@ -41,7 +41,7 @@ typedef enum
     MSC_IDENT_CENTER,      ///<Centered
     MSC_IDENT_RIGHT        ///<Right-aligned
 }
-MscIdentType;
+EIdentType;
 
 /**  Describes text characteristics */
 typedef enum 
@@ -51,13 +51,13 @@ typedef enum
     MSC_FONT_SUPERSCRIPT=2, ///<Small font superscript
     MSC_FONT_SUBSCRIPT=3    ///<Small font subscript
 }
-MscFontType;
+EFontType;
 
 /** Describes, set, unset and invert for text attributes*/
-enum tristate {no=0, yes, invert};
+enum ETriState {no=0, yes, invert};
 
 /** Escape character showing the location in the input file.
- * Preceeded by backslash and followed by a file_line in parenthesis.*/
+ * Preceeded by backslash and followed by a FileLineCol in parenthesis.*/
 #define ESCAPE_CHAR_LOCATION ((char)1)
 /** Same as ESCAPE_CHAR_LOCATION, but in string*/
 #define ESCAPE_STRING_LOCATION "\x01"
@@ -67,11 +67,11 @@ enum tristate {no=0, yes, invert};
 /** Same as ESCAPE_CHAR_NUMBERFORMAT, but in string*/
 #define ESCAPE_STRING_NUMBERFORMAT "\x02"
 
-bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p);
+bool CshHintGraphicCallbackForTextIdent(Canvas *canvas, CshHintGraphicParam p);
 
 /**This class stores string formatting (bold, color, fontsize, etc.)
- * Contrary to other attribute types (MscLineAttr, MscFillAttr, MscShadowAttr,
- * ArrowHead and MscNoteAttr) its default constructor creates an empty set.
+ * Contrary to other attribute types (LineAttr, FillAttr, ShadowAttr,
+ * ArrowHead and NoteAttr) its default constructor creates an empty set.
  * The Msc::defaultStringFormat value is used for elements not set, 
  * whenever applied to a context.
  * This class contains the functions to parse labels and resolve
@@ -83,28 +83,28 @@ bool CshHintGraphicCallbackForTextIdent(MscCanvas *canvas, CshHintGraphicParam p
  *  - It draw a fragment using a drawing context. */
 class StringFormat {
   protected:
-    std::pair<bool, MscColorType> color;              ///<The color of the font. Not set if `first` is false.
-    std::pair<bool, MscFontType>  fontType;           ///<The size/index of the font. Not set if `first` is false.
-    std::pair<bool, double>       spacingBelow;       ///<The extra spacing to add below this line. Not set if `first` is false.
-    std::pair<bool, tristate>     bold;               ///<Indicates if the font is thick. Not set if `first` is false.
-    std::pair<bool, tristate>     italics;            ///<Indicates if the font is italic. Not set if `first` is false.
-    std::pair<bool, tristate>     underline;          ///<Indicates if the font is underlined. Not set if `first` is false.
-    std::pair<bool, std::string>  face;               ///<The face name of the font. Not set if `first` is false.
+    std::pair<bool, ColorType>   color;             ///<The color of the font. Not set if `first` is false.
+    std::pair<bool, EFontType>   fontType;          ///<The size/index of the font. Not set if `first` is false.
+    std::pair<bool, double>      spacingBelow;      ///<The extra spacing to add below this line. Not set if `first` is false.
+    std::pair<bool, ETriState>   bold;              ///<Indicates if the font is thick. Not set if `first` is false.
+    std::pair<bool, ETriState>   italics;           ///<Indicates if the font is italic. Not set if `first` is false.
+    std::pair<bool, ETriState>   underline;         ///<Indicates if the font is underlined. Not set if `first` is false.
+    std::pair<bool, std::string> face;              ///<The face name of the font. Not set if `first` is false.
 
-    std::pair<bool, double>       textHGapPre;        ///<The margin left of the text. Not set if `first` is false.
-    std::pair<bool, double>       textHGapPost;       ///<The margin right of the text. Not set if `first` is false.
-    std::pair<bool, double>       textVGapAbove;      ///<The margin above the text. Not set if `first` is false.
-    std::pair<bool, double>       textVGapBelow;      ///<The margin below the text. Not set if `first` is false.
-    std::pair<bool, double>       textVGapLineSpacing;///<The spacing between the lines of the text. Not set if `first` is false.
-    std::pair<bool, MscIdentType> ident;              ///<The identation/alignment of the text. Not set if `first` is false.
+    std::pair<bool, double>     textHGapPre;        ///<The margin left of the text. Not set if `first` is false.
+    std::pair<bool, double>     textHGapPost;       ///<The margin right of the text. Not set if `first` is false.
+    std::pair<bool, double>     textVGapAbove;      ///<The margin above the text. Not set if `first` is false.
+    std::pair<bool, double>     textVGapBelow;      ///<The margin below the text. Not set if `first` is false.
+    std::pair<bool, double>     textVGapLineSpacing;///<The spacing between the lines of the text. Not set if `first` is false.
+    std::pair<bool, EIdentType> ident;              ///<The identation/alignment of the text. Not set if `first` is false.
 
-    std::pair<bool, double>       normalFontSize;     ///<The height of normal-sized font. Not set if `first` is false.
-    std::pair<bool, double>       smallFontSize;      ///<The height of small, superscript and subscript font. Not set if `first` is false.
+    std::pair<bool, double>      normalFontSize;    ///<The height of normal-sized font. Not set if `first` is false.
+    std::pair<bool, double>      smallFontSize;     ///<The height of small, superscript and subscript font. Not set if `first` is false.
 
-    mutable cairo_font_extents_t smallFontExtents;    ///<Cached extent of small fonts.
-    mutable cairo_font_extents_t normalFontExtents;   ///<Cached extent of normal-sized fonts.
-    void ApplyFontTo(MscCanvas &) const;
-    double spaceWidth(const string &, MscCanvas &, bool front) const;
+    mutable cairo_font_extents_t smallFontExtents;  ///<Cached extent of small fonts.
+    mutable cairo_font_extents_t normalFontExtents; ///<Cached extent of normal-sized fonts.
+    void ApplyFontTo(Canvas &) const;
+    double spaceWidth(const string &, Canvas &, bool front) const;
 
     /** Describes the type of an escape sequence, see StringFormat::ProcessEscape(). */
     typedef enum {
@@ -122,7 +122,7 @@ class StringFormat {
                               bool resolve=false, bool apply=false, string *replaceto=NULL, 
                               const StringFormat *basic=NULL,
                               Msc *msc=NULL, bool references=false, 
-                              file_line *linenum=NULL, bool sayIgnore=true);
+                              FileLineCol *linenum=NULL, bool sayIgnore=true);
     friend class Label;
     friend class ParsedLine;
 
@@ -169,13 +169,13 @@ class StringFormat {
     /** Merge another StringFormat to us by copying all attributes where `first` is set there.*/
     StringFormat &operator +=(const StringFormat& toadd);
     /** Set the color of the format */
-    void SetColor(MscColorType c);
-    bool AddAttribute(const Attribute &a, Msc *msc, StyleType t);
+    void SetColor(ColorType c);
+    bool AddAttribute(const Attribute &a, Msc *msc, EStyleType t);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string &attr, Csh &csh);
 
     /** Returns the ident value, a MSC_IDENT_CENTER if not set.*/
-    MscIdentType GetIdent() const
+    EIdentType GetIdent() const
         {return ident.first?ident.second:MSC_IDENT_CENTER;}
     /** Returns the extra spacing below this line, 0 if not set.*/
     double getSpacingBelow(void) const
@@ -188,7 +188,7 @@ class StringFormat {
     static bool HasEscapes(const char *text);
     static void ExtractCSH(int startpos, const char *text, Csh &csh);
     static void AddNumbering(string &label, const string &num, const string &pre_num_post);
-    static void ExpandReferences(string &text, Msc *msc, file_line linenum,
+    static void ExpandReferences(string &text, Msc *msc, FileLineCol linenum,
                                  const StringFormat *basic, bool references, 
                                  bool ignore, ETextType textType);
     static int FindNumberingFormatEscape(const char *text);
@@ -199,14 +199,14 @@ class StringFormat {
     /** @name Graphics: text geometry and drawing.
      * @{ */
     /** Return the total character height of normal-sized text. */
-    double getCharHeight(MscCanvas &) const;
+    double getCharHeight(Canvas &) const;
     /** Return the width of a piece of text with our formatting */
-    double getFragmentWidth(const string &, MscCanvas &) const;
+    double getFragmentWidth(const string &, Canvas &) const;
     /** Return the height of a piece of text above the base line with our formatting */
-    double getFragmentHeightAboveBaseLine(const string &, MscCanvas &) const;
+    double getFragmentHeightAboveBaseLine(const string &, Canvas &) const;
     /** Return the height of a piece of text below the base line with our formatting */
-    double getFragmentHeightBelowBaseLine(const string &, MscCanvas &) const;
-    double drawFragment(const string &, MscCanvas &, XY, bool isRotated) const;
+    double getFragmentHeightBelowBaseLine(const string &, Canvas &) const;
+    double drawFragment(const string &, Canvas &, XY, bool isRotated) const;
     /** @}*/
 };
 
@@ -224,14 +224,14 @@ public:
      * We also specify a canvas to be used at calculating the geometry
      * and a starting format. The latter contains the formatting at the
      * end of the line. We pre-parse the text and determine geometry.*/
-    ParsedLine(const string&, MscCanvas &, StringFormat &sf);
+    ParsedLine(const string&, Canvas &, StringFormat &sf);
     /** Converts the line to an escape-free string*/
     operator std::string() const;
     /** Draws the line to a canvas.
      * @param [in] xy Where the text shall be placed, y is the height of the baseline.
      * @param canvas The canvas to draw on.
      * @param [in] isRotated If true, the canvas will use text paths as fallback for surfaces not supporting rotated text (WMF).*/
-    void Draw(XY xy, MscCanvas &canvas, bool isRotated) const;
+    void Draw(XY xy, Canvas &canvas, bool isRotated) const;
     /** Returns the width and height of the line.*/
     XY getWidthHeight(void) const
         {return XY(width, heightAboveBaseLine+heightBelowBaseLine);}
@@ -244,12 +244,12 @@ class Label : public std::vector<ParsedLine>
     using std::vector<ParsedLine>::at;
 protected:
     /** Helper to determine cover & to draw*/
-    void CoverOrDraw(MscCanvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const;
+    void CoverOrDraw(Canvas *canvas, double sx, double dx, double y, double cx, bool isRotated, Contour *area) const;
 public:
     /** Creates a Label from a string.
      * We also specify a canvas to be used at calculating the geometry
      * and a starting format. We pre-parse the text and determine geometry.*/
-    Label(const string &s, MscCanvas &c , const StringFormat &f)
+    Label(const string &s, Canvas &c , const StringFormat &f)
         {Set(s,c,f);}
     /** Creates an empty label*/
     Label() {}
@@ -261,7 +261,7 @@ public:
      * @param [in] s The (potentially multi-line) text (potentially with escapes) to set to.
      * @param c The canvas to use to determine geometry.
      * @param [in] f The starting text format.*/
-    unsigned Set(const string &s, MscCanvas &c, StringFormat f);
+    unsigned Set(const string &s, Canvas &c, StringFormat f);
     /** Add extra spacing below a line */
     void AddSpacing(unsigned line, double spacing);
     /** Converts the line to an escape-free string*/
@@ -295,7 +295,7 @@ public:
      *                as little as possible (thus we center around `(sx+dx)/2`.
      * @param [in] isRotated If true then the canvas will fall back to text_path
      *                       for surfaces that do not support rotated text (WMF)*/
-    void Draw(MscCanvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
+    void Draw(Canvas &canvas, double sx, double dx, double y, double cx=-CONTOUR_INFINITY, bool isRotated=false) const {CoverOrDraw(&canvas, sx, dx, y, cx, isRotated, NULL);}
 };
 
 

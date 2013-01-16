@@ -30,13 +30,13 @@
 
 #include "language.h"
 
-/** A macro creating a file_line_range both starting and ending at `A`*/
+/** A macro creating a FileLineColRange both starting and ending at `A`*/
 #define MSC_POS(A) MSC_POS2(A,A) 
-/** A macro creating a file_line_range starting at `A` and ending at `B`.*/
+/** A macro creating a FileLineColRange starting at `A` and ending at `B`.*/
 // yacc column numbers start with 1 - we substract one here
-#define MSC_POS2(A, B) file_line_range(                                                          \
-            file_line(msc.current_file, (A).first_line, (A).first_column - 1), \
-            file_line(msc.current_file, (B).last_line,  (B).last_column  - 1))
+#define MSC_POS2(A, B) FileLineColRange(                                                          \
+            FileLineCol(msc.current_file, (A).first_line, (A).first_column - 1), \
+            FileLineCol(msc.current_file, (B).last_line,  (B).last_column  - 1))
 
 void msc_jump_line(YYLTYPE *loc);
 char *msc_remove_head_tail_whitespace(char *s);

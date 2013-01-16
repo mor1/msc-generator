@@ -33,7 +33,7 @@ public:
     CSize SetHintsToCurrent();
     void SetStringUnderCursor(const char *uc);
     void UpDownKey(int offset);
-    void ChangeSelectionTo(int index, CshHintItemSelectionState state);
+    void ChangeSelectionTo(int index, EHintItemSelectionState state);
     void ChangeSelectionTo(int index);
     const CshHint* GetSelectedHint() {return GetHint(m_cur_sel);}
     const CshHint* GetHint(int i) {return (0<=i && i<GetCount()) ? (const CshHint*)GetItemData(i) : NULL;}

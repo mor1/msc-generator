@@ -22,7 +22,7 @@
 #if !defined(ENTITY_H)
 #define ENTITY_H
 
-#include "trackable.h"
+#include "element.h"
 #include "style.h"
 
 /** Describes the status of an entity, like shown, hidden or active.
@@ -98,14 +98,14 @@ public:
     const string     name;      ///<Name of entity as referenced in src file
     const string     label;     ///<Label of the entity (==name if none)
     const string     orig_label;///<The text the user specified for label (for error msgs)
-    const file_line  file_pos;  ///<The location of the definition of this entity in the input file (the first character of its name)
+    const FileLineCol  file_pos;  ///<The location of the definition of this entity in the input file (the first character of its name)
     double           pos;       ///<The position of the entity with hscale=1. E.g., 0 for the 1st, 1 for 2nd, etc. 1.5 for one in-between
     const double     pos_exp;   ///<The position of the entity if all group entities were expanded (for a->b->c sanity checking)
     unsigned         index;     ///<The index of the entity, counting entities left to right
     EntityStatusMap  status;    ///<Contains vertical line status & type & color and on/off active/inactive status.
     MscStyle         running_style;     ///<Used during PostParse process to make EntityDef::style's fully specified. Also used in AutoPaginate to gather the style for automatically inserted headers.
     EEntityStatus    running_shown;     ///<Used during PostParse process to see if it is shown/hidden active/inactive.
-    DrawPassType     running_draw_pass; ///<The running Z-order position of this arc during PostParse process
+    EDrawPassType     running_draw_pass; ///<The running Z-order position of this arc during PostParse process
     double           maxwidth;          ///<Used during PostParse process to collect the maximum width of the entity
 
     string           parent_name;    ///<Empty if we are not part of an entity group, otherwise the name of the parent entity.
@@ -113,7 +113,7 @@ public:
     const bool       collapsed;      ///<True if we are group, but show collapsed
 
     Entity(const string &n, const string &l, const string &ol, double p, double pe,
-           const MscStyle &entity_style, const file_line &fp, bool coll);
+           const MscStyle &entity_style, const FileLineCol &fp, bool coll);
     void AddChildrenList(const EntityDefList *children, Msc *chart);
     double GetRunningWidth(double activeEntitySize) const;
     string Print(int ident = 0) const;
@@ -222,13 +222,13 @@ class EntityDef : public Element
 {
 public:
     const string                   name;                ///<The name of the Entity
-    triplet<bool,string,file_line> label;               ///<The label specified at this mention of the entity (if any). `third` contains the position of the attribute (name).
-    file_line                      linenum_label_value; ///<Locatin of label text (attribute value) in the input file (if any). Only a minor difference to `label.third`.
-    triplet<bool,double,file_line> pos;                 ///<The `pos=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
-    triplet<bool,string,file_line> rel;                 ///<The `rel=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
-    triplet<bool,bool,file_line>   collapsed;           ///<The `collapsed=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
+    triplet<bool,string,FileLineCol> label;               ///<The label specified at this mention of the entity (if any). `third` contains the position of the attribute (name).
+    FileLineCol                      linenum_label_value; ///<Locatin of label text (attribute value) in the input file (if any). Only a minor difference to `label.third`.
+    triplet<bool,double,FileLineCol> pos;                 ///<The `pos=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
+    triplet<bool,string,FileLineCol> rel;                 ///<The `rel=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
+    triplet<bool,bool,FileLineCol>   collapsed;           ///<The `collapsed=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     std::pair<bool,bool>           show;                ///<The `show=` attribute if specified by the user.
-    triplet<bool,bool,file_line>   active;              ///<The `active=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
+    triplet<bool,bool,FileLineCol>   active;              ///<The `active=` attribute if specified by the user. `third` contains the location of the attribute (name) in the input file.
     bool                           show_is_explicit;    ///<True if a show attribute was specified by the user. In this case a "show/hide" command/prefix will not override the `show` member.
     bool                           active_is_explicit;  ///<True if an active attribute was specified by the user. In this case an "activate/deactivate" command/prefix will not override the `active` member.
 
@@ -248,7 +248,7 @@ public:
     explicit EntityDef(const char *s, Msc* chart);
 
     virtual bool AddAttribute(const Attribute&);
-    EntityDefHelper* AddAttributeList(AttributeList *, ArcList *children, file_line l);
+    EntityDefHelper* AddAttributeList(AttributeList *, ArcList *children, FileLineCol l);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
     virtual string Print(int ident=0) const;
@@ -258,8 +258,8 @@ public:
     Range Height(Area &cover, const EntityDefList &edl);
     void AddAreaImportantWhenNotShowing();
     void ShiftBy(double y) {Element::ShiftBy(y); outer_edge.Shift(XY(0,y));}
-    virtual void PostPosProcess(MscCanvas &);
-    void Draw(MscCanvas &);
+    virtual void PostPosProcess(Canvas &);
+    void Draw(Canvas &);
 };
 
 
