@@ -984,7 +984,7 @@ void CMscGenDoc::DoViewNexterror(bool next)
 
     //Turn tracking off
 	if (m_bTrackMode) SetTrackMode(false);
-	else StartFadingAll(NULL);
+	else StartFadingAll();
 
     //Jump in the internal and external editors
     if (pApp->IsInternalEditorRunning()) 
@@ -1068,6 +1068,7 @@ void CMscGenDoc::SetZoom(int zoom)
         CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
   	    if (pView) {
 	        pView->ResyncScrollSize();
+            pView->ClearViewCache();
 			pView->Invalidate();
 		}
 	}
@@ -1175,7 +1176,17 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			SetZoom(zoom);
 			break;
 	}
+	pos = GetFirstViewPosition();
+	while (pos != NULL) {
+        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
+  	    if (pView) {
+	        pView->ResyncScrollSize();
+            pView->ClearViewCache();
+			pView->Invalidate();
+		}
+	}
 }
+
 void CMscGenDoc::OnViewZoomnormalize()
 {
 	ArrangeViews(OVERVIEW);
@@ -1341,7 +1352,7 @@ void CMscGenDoc::OnInternalEditorChange()
 	if (m_bTrackMode) 
 		SetTrackMode(false);
 	else 
-		StartFadingAll(NULL);
+		StartFadingAll();
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	ASSERT(pApp->IsInternalEditorRunning());
@@ -1374,7 +1385,7 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	int line, col;
 	pApp->m_pWndEditor->m_ctrlEditor.ConvertPosToLineCol(start, line, col);
 	//Add new track arc and update the views if there is a change
-	StartFadingAll(NULL);
+	StartFadingAll();
 	AddTrackArc(m_ChartShown.GetArcByLine(line+1, col+1), TrackedArc::TRACKRECT); 
 }
 
@@ -1469,7 +1480,7 @@ bool CMscGenDoc::DoFading()
     CSingleLock lock(&m_SectionTrackingMembers);
     lock.Lock();
 	for (auto ta = m_trackArcs.begin(); ta != m_trackArcs.end(); /*nope*/) {
-        const Contour &draw_area = ta->arc ? ta->arc->GetAreaToDraw() : m_fallback_image_location;
+        const Contour &draw_area = ta->what == TrackedArc::FALLBACK_IMAGE ? m_fallback_image_location : ta->arc->GetAreaToDraw();
         switch (ta->status) {
             case TrackedArc::SHOWING:
                 if (ta->fade_delay>0) 
@@ -1520,7 +1531,9 @@ bool CMscGenDoc::DoFading()
 //Add a tracking element to the list. Updates Views if needed & rets ture if so
 bool CMscGenDoc::AddTrackArc(Element *arc, TrackedArc::ElementType type, int delay)
 {
-    _ASSERT (type==TrackedArc::FALLBACK_IMAGE || arc);
+    //For fallback images we set the "arc" to 0x1
+    if (type==TrackedArc::FALLBACK_IMAGE) arc = (Element*)1;
+    else if (arc==NULL) return false;
 	//Do not add if it has no visual element
     const Contour &draw = type==TrackedArc::FALLBACK_IMAGE ? m_fallback_image_location : arc->GetAreaToDraw();
     if (type != TrackedArc::CONTROL && draw.IsEmpty()) 
@@ -1531,7 +1544,7 @@ bool CMscGenDoc::AddTrackArc(Element *arc, TrackedArc::ElementType type, int del
     CSingleLock lock(&m_SectionTrackingMembers);
     lock.Lock();
 	for (auto i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) {
-		if (i->arc == arc && i->what == type) {
+        if (i->what == type && (type == TrackedArc::FALLBACK_IMAGE || i->arc == arc)) {
 			i->fade_delay = delay;
 			if (i->status == TrackedArc::SHOWING) 
 				return false; //we found and it is fully highlighted
@@ -1575,12 +1588,14 @@ void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 
 
 //Start the fading process for all rectangles (even for delay<0)
-void CMscGenDoc::StartFadingAll(const Element *except) 
+void CMscGenDoc::StartFadingAll(TrackedArc::ElementType type, const Element *except) 
 {
     CSingleLock lock(&m_SectionTrackingMembers);
     lock.Lock();
     for (auto i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) 
-        if (i->arc != except)
+        if (type == i->what && (type == TrackedArc::FALLBACK_IMAGE || i->arc == except)) 
+            continue;
+        else
             i->status = TrackedArc::FADING;
     lock.Unlock();
 	//If fading in progress we exit
@@ -1599,7 +1614,7 @@ void CMscGenDoc::SetTrackMode(bool on)
 	m_bTrackMode = on;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	StartFadingAll(NULL); //Delete trackrects from screen (even if turned on)
+	StartFadingAll(); //Delete trackrects from screen (even if turned on)
 	if (on) {
 		SyncShownWithEditing("turn tracking on");
 		//We have already saved the internal editor selection state into m_saved_charrange in MscGenView::OnLButtonUp
@@ -1623,7 +1638,7 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
     //Start fading all controls and track rectangles, except the one under cursor
 	Element *arc = m_ChartShown.GetArcByCoordinate(mouse);
-	StartFadingAll(arc); 
+	StartFadingAll(TrackedArc::TRACKRECT, arc); 
     //re-add those controls which are under mouse
     for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
         if (inside(i->first.IsWithin(XY(mouse.x, mouse.y))))

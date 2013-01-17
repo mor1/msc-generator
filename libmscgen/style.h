@@ -80,7 +80,7 @@ public:
     ArrowHead arrow;      ///<The arrow attributes
     StringFormat text;    ///<The text attributes
     std::pair<bool, unsigned char> solid;    ///<The value of the 'solid' attribute (for pipes). Not set if `first` is false.
-    std::pair<bool, ESideType>   side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
+    std::pair<bool, ESideType>     side;     ///<The value of the 'side' attribute (for pipes, verticals or notes). Not set if `first` is false.
     std::pair<bool, bool>          numbering;///<The value of the 'number' attribute. Not set if `first` is false.
     std::pair<bool, bool>          compress; ///<The value of the 'compress' attribute. Not set if `first` is false.
     std::pair<bool, bool>          indicator;///<The value of the 'indicator' attribute. Not set if `first` is false.
@@ -152,14 +152,15 @@ class Context
 {
 public:
     bool is_full;                        ///<True if the context contains a setting for all chart options and a complete value for all default styles.
-    std::pair<bool, double> hscale;      ///<The 'hscale' chart option, unset if `second` is false.
-    std::pair<bool, bool>   numbering;   ///<The 'numbering' chart option, unset if `second` is false.
-    std::pair<bool, bool>   compress;    ///<The 'compress' chart option, unset if `second` is false.
-    std::pair<bool, bool>   indicator;   ///<The 'indicator' chart option, unset if `second` is false.
-    std::pair<bool, double> slant_angle; ///<The 'slant_angle' chart option, unset if `second` is false.
-    LineAttr defCommentLine;          ///<The style of the comment line 
-    FillAttr defCommentFill;          ///<The fill of the comment area 
-    FillAttr defBackground;           ///<The background 
+    std::pair<bool, double> hscale;      ///<The 'hscale' chart option, unset if `first` is false.
+    std::pair<bool, bool>   numbering;   ///<The 'numbering' chart option, unset if `first` is false.
+    std::pair<bool, bool>   compress;    ///<The 'compress' chart option, unset if `first` is false.
+    std::pair<bool, bool>   indicator;   ///<The 'indicator' chart option, unset if `first` is false.
+    std::pair<bool, double> slant_angle; ///<The 'slant_angle' chart option, unset if `first` is false.
+    std::pair<bool, bool>   auto_heading;///<The 'auto_heading' chart option, unset if `first` is false.
+    LineAttr defCommentLine;             ///<The style of the comment line 
+    FillAttr defCommentFill;             ///<The fill of the comment area 
+    FillAttr defBackground;              ///<The background 
     StringFormat            text;        ///<The default text style
     StyleSet                styles;      ///<The set of named styles defined here
     ColorSet                colors;      ///<The set of named colors defined here

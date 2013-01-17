@@ -259,6 +259,7 @@
     <ClCompile Include="contour_ellipse.cpp" />
     <ClCompile Include="contour_simple.cpp" />
     <ClCompile Include="csh.cpp" />
+    <ClCompile Include="element.cpp" />
     <ClCompile Include="entity.cpp" />
     <ClCompile Include="error.cpp" />
     <ClCompile Include="language.cc" />
@@ -274,7 +275,6 @@
     <ClCompile Include="stringparse.cpp" />
     <ClCompile Include="style.cpp" />
     <ClCompile Include="contour_test.cpp" />
-    <ClCompile Include="trackable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arcs.h" />
@@ -293,6 +293,7 @@
     <ClInclude Include="contour_ellipse.h" />
     <ClInclude Include="contour_simple.h" />
     <ClInclude Include="csh.h" />
+    <ClInclude Include="element.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="error.h" />
     <ClInclude Include="language.h" />
@@ -305,7 +306,6 @@
     <ClInclude Include="stringparse.h" />
     <ClInclude Include="style.h" />
     <ClInclude Include="contour_test.h" />
-    <ClInclude Include="trackable.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>

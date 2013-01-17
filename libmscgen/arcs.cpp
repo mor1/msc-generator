@@ -2938,18 +2938,23 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         if ((*i)->content.size() && !(*i)->keep_together && 
             ((*i)->text_cover.IsEmpty() ? (*i)->y_text : (*i)->text_cover.GetBoundingBox().y.till) <= pageBreak &&
             ((*i)->yPos + (*i)->height) >= pageBreak) {
-            //break the list
+            //break the list, but do not shift all of it to the next page
             const double ret = chart->PageBreakArcList(canvas, (*i)->content, netPrevPageSize,
-                                                       pageBreak, addCommandNewpage, addHeading, false);
-            //enlarge us
-            (*i)->height_w_lower_line += ret;
-            (*i)->height += ret;
-            //shift the remaining
-            while (++i!=series.end())
-                (*i)->ShiftBy(ret);
-            height += ret;
-            total_height += ret;
-            return ret;
+                                                       pageBreak, addCommandNewpage, addHeading, 
+                                                       false, true);
+            if (ret>=0) {
+                //if we did split the list somewhere in its middle
+                //enlarge us
+                (*i)->height_w_lower_line += ret;
+                (*i)->height += ret;
+                //shift the remaining
+                while (++i!=series.end())
+                    (*i)->ShiftBy(ret);
+                height += ret;
+                total_height += ret;
+                return ret;
+            }
+            //else we cannot break somewhere in `i`
         }
         //we cannot break inside 'i'
         //break just before 'kwn_from' or 'i'
@@ -3840,7 +3845,11 @@ double ArcPipeSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         if ((*i)->text_cover.GetBoundingBox().y.till > pageBreak || (*i)->keep_together)
             return -1;
     const double ret = chart->PageBreakArcList(canvas, content, netPrevPageSize,
-                                               pageBreak, addCommandNewpage, addHeading, false);
+                                               pageBreak, addCommandNewpage, addHeading, 
+                                               false, true);
+    //if pb makes *all* of the list go to the next page, just shift the
+    //whole pipe series to the next page
+    if (ret<0) return -1;
     height += ret;
     total_height += ret;
     for (auto i=series.begin(); i!=series.end(); i++)
@@ -4330,8 +4339,10 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         }
         blocks.resize(1);
     }
+    //We may return -1 if all of us would move to the next page
     return chart->PageBreakArcList(canvas, blocks[0], netPrevPageSize, 
-                                   pageBreak, addCommandNewpage, addHeading, false);
+                                   pageBreak, addCommandNewpage, addHeading, 
+                                   false, true);
 }
 
 void ArcParallel::PlaceWithMarkers(Canvas &canvas, double autoMarker)

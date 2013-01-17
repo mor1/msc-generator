@@ -301,7 +301,7 @@ public:
                              double pageBreak, bool addHeading);
     double PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSize,
                             double pageBreak, bool &addCommandNewpage, bool addHeading, 
-                            bool canChangePBPos);
+                            bool canChangePBPos, bool dontshiftall);
     void CollectPageBreakArcList(ArcList &arcs);
     void AutoPaginate(Canvas &canvas, double pageSize, bool addHeading);
     void CalculateWidthHeight(Canvas &canvas, 

@@ -655,25 +655,69 @@ void CommandEntity::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-bool CommandNewpage::AddAttribute(const Attribute &)
+CommandNewpage::CommandNewpage(Msc *msc, bool m, CommandEntity *ah)
+        : ArcCommand(MSC_COMMAND_NEWPAGE, msc), 
+        auto_heading_attr(msc->Contexts.back().auto_heading.second), 
+        autoHeading(ah), manual(m) 
 {
+    compress=false;
+}
+
+bool CommandNewpage::AddAttribute(const Attribute &a)
+{
+    if (a.Is("auto_heading")) {
+        if (!a.EnsureNotClear(chart->Error, STYLE_ARC)) return true;
+        if (!a.CheckType(MSC_ATTR_BOOL, chart->Error)) return true;
+        auto_heading_attr = a.yes;
+        return true;
+    }
     return false;
 }
 
-void CommandNewpage::AttributeNames(Csh &)
+void CommandNewpage::AttributeNames(Csh &csh)
 {
-
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRNAME) + "auto_heading", HINT_ATTR_NAME));
 }
 
-bool CommandNewpage::AttributeValues(const std::string, Csh &)
+bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
 {
+    if (CaseInsensitiveEqual(attr,"auto_heading")) {
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
+        csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE)+"no", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(0)));
+        return true;
+    }
     return false;
+}
+
+ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, 
+                                          EIterator &right, Numbering &number, 
+                                          bool top_level, Element **note_target)
+{
+    if (auto_heading_attr && !autoHeading) {
+        autoHeading = static_cast<CommandEntity*>((new CommandEntity(NULL, chart, false))->AddAttributeList(NULL));
+        EIterator dummy1 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
+        EIterator dummy2 = chart->AllEntities.Find_by_Ptr(chart->NoEntity);
+        Numbering dummy3;
+        Element *dummy4;
+        //at_to_level must be true, or else it complains...
+        autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, true, &dummy4);
+    }
+    return ArcCommand::PostParseProcess(canvas, hide, left, right, number, top_level, note_target);
+}
+
+void CommandNewpage::Layout(Canvas &canvas, AreaList &cover)
+{
+    ArcCommand::Layout(canvas, cover);
+    if (autoHeading) {
+        AreaList dummy;
+        autoHeading->Layout(canvas, dummy); 
+    }
 }
 
 void CommandNewpage::ShiftBy(double y)
 {
     ArcCommand::ShiftBy(y);
-    //Shift autoheading to be just above us.
+    //Shift autoheading to be just above us, irrespective of where it was before
     if (autoHeading)
         autoHeading->ShiftBy(yPos-autoHeading->GetHeight() - autoHeading->GetPos());
 }

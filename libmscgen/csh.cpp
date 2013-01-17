@@ -387,7 +387,7 @@ static const char keyword_names[][ENUM_STRING_LEN] =
  * All options shall be repeated here, not only known by class Msc.
  * We color only these where options should come.*/
 static const char opt_names[][ENUM_STRING_LEN] =
-{"msc", "hscale", "compress", "numbering", "indicator", 
+{"msc", "hscale", "compress", "numbering", "indicator", "auto_heading",
 "numbering.pre", "numbering.post", "numbering.append", "numbering.format",
 "pedantic", "background.color", "background.color2", "background.gradient", 
 "text.color", "text.format", "text.ident", 
@@ -408,7 +408,7 @@ static const char opt_names[][ENUM_STRING_LEN] =
  * We do not distinguish which arc the attribute belongs to.*/
 static const char attr_names[][ENUM_STRING_LEN] =
 {"draw_time", "compress", "color", "label", "refname", "number", "indicator", "collapsed",
-"keep_with_next", "keep_together",
+"keep_with_next", "keep_together", "auto_heading",
 "pos", "relative", "show", "active", "makeroom", "side", "offset", "solid",
 "text.color", "text.ident", "ident", "text.format",
 "text.font.face", "text.font.type", 

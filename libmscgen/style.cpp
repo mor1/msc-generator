@@ -394,6 +394,7 @@ Context &Context::operator +=(const Context &o)
     if (o.compress.first) compress = o.compress;
     if (o.indicator.first) indicator = o.indicator;
     if (o.slant_angle.first) slant_angle = o.slant_angle;
+    if (o.auto_heading.first) auto_heading = o.auto_heading;
     defCommentLine += o.defCommentLine;
     defCommentFill += o.defCommentFill;
     defBackground += o.defBackground;
@@ -419,6 +420,7 @@ void Context::Empty()
     compress.first = false;
     indicator.first = false;
     slant_angle.first = false;
+    auto_heading.first = false;
     defCommentLine.Empty();
     defCommentFill.Empty();
     defBackground.Empty();
@@ -535,6 +537,8 @@ void Context::Plain()
     indicator.second = true;
     slant_angle.first = true;
     slant_angle.second = 0;
+    auto_heading.first = true;
+    auto_heading.second = false;
     defCommentLine.MakeComplete();
     defCommentFill.MakeComplete();
     defBackground.MakeComplete();

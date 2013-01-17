@@ -62,6 +62,7 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in Msc page space)
+            void ClearViewCache(); //Clear the bitmap cache
 			void DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect clip);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();

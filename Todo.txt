@@ -33,12 +33,15 @@ ADD: Check if file changed on disk
 ADD: URL's to PNG
 
 Later
+ADD: Progress feedback (both to command-line and GUI)
 ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
 ADD: Pagination options to the GUI (preferably in print preview)
-ADD: Automatic pagination
+ADDED: Automatic pagination
 DOC: Add Hide/Show to commands. Document Activate/deactivate better.
+DOC: auto_heading chart option and attribute.
 DOC: Document full page printing.
 CHANGED: Parallel layout - add switch to reset to old behaviour 'classic_parallel_layout'
+DOC: classic_parallel_layout
 
 In 3.5.8
 FIXED: Element references were empty.
