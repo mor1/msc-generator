@@ -581,6 +581,12 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         Contexts.back().indicator.second = a.yes;
         return NULL;
     }
+    if (a.Is("auto_heading")) {
+        if (!a.CheckType(MSC_ATTR_BOOL, Error)) return NULL;
+        Contexts.back().auto_heading.first = true;
+        Contexts.back().auto_heading.second = a.yes;
+        return NULL;
+    }
     if (a.StartsWith("text")) {
         Contexts.back().text.AddAttribute(a, this, STYLE_OPTION); //generates error if needed
         return NULL;
@@ -705,7 +711,7 @@ bool Msc::AddDesignAttribute(const Attribute &a)
         }
         return true;
     }
-    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
+    if (a.StartsWith("numbering") || a.Is("compress") || a.Is("auto_heading") || a.Is("hscale") || a.Is("msc") || a.Is("msc+") ||
         a.StartsWith("text") || a.StartsWith("comment") || a.StartsWith("background")) {
         ArcBase *ret = AddAttribute(a);
         if (ret)
@@ -723,6 +729,7 @@ void Msc::AttributeNames(Csh &csh, bool designOnly)
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "msc", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "hscale", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "compress", HINT_ATTR_NAME));
+    csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "auto_heading", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.pre", HINT_ATTR_NAME));
     csh.AddToHints(CshHint(csh.HintPrefix(COLOR_OPTIONNAME) + "numbering.post", HINT_ATTR_NAME));
@@ -770,6 +777,7 @@ bool Msc::AttributeValues(const std::string attr, Csh &csh)
     }
     if (CaseInsensitiveEqual(attr,"compress") ||
         CaseInsensitiveEqual(attr,"numbering") ||
+        CaseInsensitiveEqual(attr,"auto_heading") ||
         CaseInsensitiveEqual(attr,"classic_parallel_layout") ||
         CaseInsensitiveEqual(attr,"pednatic")) {
         csh.AddToHints(CshHint(csh.HintPrefix(COLOR_ATTRVALUE) + "yes", HINT_ATTR_VALUE, true, CshHintGraphicCallbackForYesNo, CshHintGraphicParam(1)));
@@ -1422,8 +1430,6 @@ void Msc::InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i
         Element *dummy4;
         //at_to_level must be true, or else it complains...
         ce->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, true, &dummy4);
-        ce->Layout(canvas, dummy); 
-        ce->ShiftBy(pageBreak);
     } else {
         ce = NULL;
     }
@@ -1470,6 +1476,10 @@ void clear_keep_with_next__from(ArcList &arcs, ArcList::iterator &keep_with_next
  *             than the full page. In this case we break it.
  * @param [in] pageBreak The y coordinate where we shall insert the page break.
  *                       Essentially the bottom of the page.
+ *                       Note that due to rounding errors, all elements shifted
+ *                       to the next page will see the page to start at
+ *                       `pageBreak+1`. Also, we shift or split elements if they 
+ *                       are not completely above `pageBreak-1`
  * @param addCommandNewpage True if no CommandNewPage is added yet and it needs 
  *                    to be added. If we have inserted the CommandNewPage
  *                    object, then false is returned in it.
@@ -1479,11 +1489,16 @@ void clear_keep_with_next__from(ArcList &arcs, ArcList::iterator &keep_with_next
                               position. Due to the fact that we do a single-
                               step process, this shall be set only for
                               the top level Msc::Arcs list.
- * @returns How much the list got longer.
+   @param [in] dontshiftall If true and all elements of the list need to be
+                            shifted to the next page, do nothing. This is used
+                            for boxes, when the label of the box wants to be kept
+                            on the same page as the first contenet element.
+   @returns How much the list got longer, or -1 if `dontshiftall` was true
+            and all elements of the page would need to be shifted.
  */
 double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSize,
                              double pageBreak, bool &addCommandNewpage, bool addHeading, 
-                             bool canChangePBPos)
+                             bool canChangePBPos, bool dontshiftall)
 {
     //if no arcs or we are all below the page Break, there is nothing to do
     if (arcs.size()==0 || (*arcs.begin())->GetPos() > pageBreak) return 0;
@@ -1493,8 +1508,8 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
      * Will be maintained only as long as `shift` is zero and used only 
      * when it becomes non-zero, thus we abandon its value after. */
     ArcList::iterator keep_with_next__from = arcs.end(); 
-    double lowest_on_prev_page = pageBreak - netPrevPageSize;
-    double lowest_on_next_page = pageBreak;
+    double lowest_on_prev_page = pageBreak - netPrevPageSize+1;
+    double lowest_on_next_page = pageBreak+1;
     double topmost_in_kwn;
     for (auto i=arcs.begin(); i!=arcs.end(); i++) {
         /* Our rules on how to handle stuff.
@@ -1564,15 +1579,21 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
             shift = ceil(std::max(shift, s)); //increase shift for later elements
             //we do not shift `i`, but perhaps later elements we got in 'res'
             //we also clear kwn_from so that we do not get shifted by a later element
-            arcs, keep_with_next__from = arcs.end();
-            lowest_on_prev_page = pageBreak; //previous page is full.
+            keep_with_next__from = arcs.end();
+            lowest_on_prev_page = pageBreak-1; //previous page is full.
+            dontshiftall = false; //we kept something on previous page, so we will not shift all anyway
             continue; 
         }
         _ASSERT(res.size()==0);
         _ASSERT(s==-1); 
         //if the element is fully above the page break,
         //we do nothing, just maintain keep_with_next__from
-        if (r.till <= pageBreak) {
+        if (r.till <= pageBreak-1) {
+            //if we keep an element of nonzero height on the
+            //previous page, clean `dontshiftall`, since we will not shift
+            //all by now.
+            if (r.from < r.till) 
+                dontshiftall = false;
             if (!(*i)->IsKeepWithNext() && !(*i)->IsParallel()) {
                 clear_keep_with_next__from(arcs, keep_with_next__from, i, lowest_on_prev_page);
                 continue; 
@@ -1584,14 +1605,13 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                 topmost_in_kwn = std::min(topmost_in_kwn, r.from);
             continue;
         }
-        //if the element falls of the page break or is below
-        //- we clear keep_with_next__from since that shall only contain
-        //  elements above the page break.
+        //if the element falls on the page break or is below and cannot split itself
+        //- we check `dontshiftall` - if true we return from this function with -1
         //- we insert PB (if not yet inserted) 
         //- adjust the shift, so that we do not overshift
 
-        clear_keep_with_next__from(arcs, keep_with_next__from, i, lowest_on_prev_page);
-        
+        if (dontshiftall) return -1; //we may have not shifted anyone yet - the ist is intact
+
         if (addCommandNewpage) {
             //Insert CommandPageBreak if needed. It may modify headingSize.
             //Insert only if next element is not a page break.
@@ -1612,7 +1632,7 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
                                     pageBreak, addHeading);
                 addCommandNewpage = false;
             }
-            lowest_on_next_page = std::max(lowest_on_next_page, pageBreak);
+            lowest_on_next_page = std::max(lowest_on_next_page, pageBreak+1);
         }
 
         //ensure we fall on the next page
@@ -1621,12 +1641,12 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
             keep_with_next__from = i;
         } 
         const double old_shift = shift;
-        shift = ceil(std::max(shift, pageBreak - topmost_in_kwn));
+        shift = ceil(std::max(shift, pageBreak+1 - topmost_in_kwn));
         //if we shift a whole page, do not shift at all - this is an element bigger than a page
         if (shift >= netPrevPageSize) {
             shift = old_shift;
             keep_with_next__from = arcs.end();
-            lowest_on_prev_page = pageBreak; //previous page is full.
+            lowest_on_prev_page = pageBreak-1; //previous page is full.
             continue;
         }
         //Test if we shift too much
@@ -1645,12 +1665,12 @@ double Msc::PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSi
 
     //Now test if we can move the page break up
     lowest_on_prev_page = ceil(lowest_on_prev_page);
-    if (!canChangePBPos || lowest_on_prev_page >= pageBreak) 
+    if (!canChangePBPos || lowest_on_prev_page >= pageBreak-1) 
         return shift;
     for (auto i = arcs.begin(); i!=arcs.end(); i++)
         if ((*i)->GetPos()>=pageBreak)
-            (*i)->ShiftBy(lowest_on_prev_page - pageBreak); //negative
-    return shift + lowest_on_prev_page - pageBreak;
+            (*i)->ShiftBy(lowest_on_prev_page - (pageBreak-1)); //negative
+    return shift + lowest_on_prev_page - (pageBreak-1);
 }
 
 void Msc::CollectPageBreakArcList(ArcList &arcs) 
@@ -1662,7 +1682,6 @@ void Msc::CollectPageBreakArcList(ArcList &arcs)
     }
 }
 
-
 void Msc::AutoPaginate(Canvas &canvas, double pageSize, bool addHeading)
 {
     _ASSERT(floor(pageSize)==pageSize);
@@ -1673,7 +1692,7 @@ void Msc::AutoPaginate(Canvas &canvas, double pageSize, bool addHeading)
     CollectPageBreakArcList(Arcs);
     pageBreakData.push_back(PageBreakData(total.y.till, false)); //not really a page start, but helps us
     for (unsigned u=0; u<pageBreakData.size()-1; u++) {
-        if (pageBreakData[u+1].y - pageBreakData[u].y < pageSize) 
+        if (pageBreakData[u+1].y - pageBreakData[u].y < pageSize-2) 
             continue; 
         //We need to insert a page break, find the effiective size of the page
         double netPrevPageSize = pageSize;
@@ -1687,8 +1706,8 @@ void Msc::AutoPaginate(Canvas &canvas, double pageSize, bool addHeading)
         if (addHeading)
             for (auto i = AllEntities.begin(); i!=AllEntities.end(); i++) 
                 (*i)->running_shown = EEntityStatus::SHOW_OFF;
-        total.y.till += PageBreakArcList(canvas, Arcs, netPrevPageSize, pageBreakData[u].y + netPrevPageSize, 
-                                         addCommandNewpage, addHeading, true);
+        total.y.till += PageBreakArcList(canvas, Arcs, netPrevPageSize, pageBreakData[u].y + netPrevPageSize+1, 
+                                         addCommandNewpage, addHeading, true, false);
         //Regenerate page breaks
         pageBreakData.assign(1, PageBreakData(0.0, false));
         CollectPageBreakArcList(Arcs);
@@ -2092,6 +2111,7 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
     } else
         yDrawing = total.y;
     DrawChart(canvas, page ? false : pageBreaks);
+    yDrawing = total.y;
 
     canvas.PrepareForHeaderFoorter();
 
@@ -2102,10 +2122,9 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
     label.Draw(canvas, total.x.from, total.x.till, page==0 || page>=pageBreakData.size() ? total.y.till : pageBreakData[page].y);
 
     //Draw autoheading, if any
-    if (page && pageBreakData[page-1].autoHeadingSize > 0) 
+    if (page && pageBreakData[page-1].autoHeading) 
         //autoHeading is supposedly shifted to just above the page break
         pageBreakData[page-1].autoHeading->Draw(canvas, pageBreakData[page-1].autoHeading->draw_pass);
-    yDrawing = total.y;
 }
 
 /** Draws the chart into one of more files.

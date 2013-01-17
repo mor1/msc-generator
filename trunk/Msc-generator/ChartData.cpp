@@ -288,7 +288,7 @@ void CDrawingChartData::CompileIfNeeded() const
 	    if (pApp) 
 		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
 	    //Do postparse, compile, calculate sizes and sort errors by line
-	    m_msc->CompleteParse(Canvas::PNG, false);
+	    m_msc->CompleteParse(Canvas::PNG, false);//, true, true, XY(28*210,28*297), true);
         //See which of the forced entity/box collapse directives remained
         //ones with no entity/box or equal state as chart were removed in Msc::PostParseProcess and
         //EntityDef::AddAttributeList
@@ -360,12 +360,12 @@ CSize CDrawingChartData::GetSize(bool force_page, unsigned forced_page) const
     else if (page_to_measure < msc.pageBreakData.size()) 
         ret.cy = int(msc.pageBreakData[page_to_measure].y - 
                      msc.pageBreakData[page_to_measure-1].y + 
-                     msc.pageBreakData[page_to_measure].autoHeadingSize +
+                     msc.pageBreakData[page_to_measure-1].autoHeadingSize +
                      msc.copyrightTextHeight);
     else if (page_to_measure == msc.pageBreakData.size()) 
         ret.cy = int(msc.GetTotal().y.till - 
                      msc.pageBreakData[page_to_measure-1].y + 
-                     msc.pageBreakData[page_to_measure].autoHeadingSize +
+                     msc.pageBreakData[page_to_measure-1].autoHeadingSize +
                      msc.copyrightTextHeight);
     return ret;
 }

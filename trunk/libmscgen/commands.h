@@ -75,17 +75,19 @@ public:
 
 class CommandNewpage : public ArcCommand
 {
+    bool auto_heading_attr;
+    CommandEntity *autoHeading; ///<automatically inserted heading that follows
 public:
-    CommandEntity *const autoHeading; ///<For automatically inserted PBs, this can be a heading that follows
     const bool manual; ///<True if this was inserted by the user manually
-    CommandNewpage(Msc *msc, bool m, CommandEntity *ah)
-        : ArcCommand(MSC_COMMAND_NEWPAGE, msc), autoHeading(ah), 
-        manual(m) {compress=false;}
+    CommandNewpage(Msc *msc, bool m, CommandEntity *ah);
     ~CommandNewpage() {if (autoHeading) delete autoHeading;}
-    bool AddAttribute(const Attribute &);
+    bool AddAttribute(const Attribute &a);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
 
+    virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
+                                      Numbering &number, bool top_level, Element **note_target);
+    virtual void Layout(Canvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
 };
@@ -262,6 +264,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList &cover);
+    virtual void ShiftBy(double y) {} //Comments are shifted by their owner, notes are laid out last and shall not be shifted anyway
 
     Contour CoverBody(Canvas &canvas, const XY &center) const; //places upper left corner to 0,0
     Contour CoverPointer(Canvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0

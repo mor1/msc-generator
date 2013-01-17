@@ -229,6 +229,12 @@ void CMscGenView::InvalidateBlock(const Block &b)
     Invalidate();
 }
 
+void CMscGenView::ClearViewCache() 
+{
+    m_view.DeleteObject();
+    m_view_pos.SetRectEmpty();
+}
+
 //Draw tracking rectangles and controls
 //clip is understood as window surface coordinates 
 //scale tells me how much to scale m_size to get surface coords.
@@ -373,8 +379,7 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
     m_cache.SetData(&pDoc->m_ChartShown);
     m_chartOrigin.x = pDoc->m_ChartShown.GetMscTotal().x.from;
     m_chartOrigin.y = pDoc->m_ChartShown.GetPageYShift();
-    m_view.DeleteObject();
-    m_view_pos.SetRectEmpty();
+    ClearViewCache();
 
 	//Delete the cached bitmap
 	if (pDoc->m_ChartShown.IsEmpty()) {
@@ -441,8 +446,7 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	pos -= pt;
 	if (pos.x < 0) pos.x = 0;
 	if (pos.y < 0) pos.y = 0;
-    m_view.DeleteObject();
-    m_view_pos.SetRectEmpty();
+    ClearViewCache();
 	SetRedraw(false);
 	pDoc->SetZoom(zoom);
 	ScrollToDevicePosition(pos);
@@ -583,7 +587,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	} else {
 		Element *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
-			pDoc->StartFadingAll(NULL);
+			pDoc->StartFadingAll();
 			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, int(delay_before_fade));
 			pDoc->HighLightArc(arc);
 			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());

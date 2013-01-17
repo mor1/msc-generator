@@ -871,8 +871,8 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 new_end = r[i].GetEnd() + (new_end-r[i].GetEnd()).Normalize()*gap_limit;
                 need_miter_limit_bevel = true;
             }
-            _ASSERT(new_start.length() < 10000);
-            _ASSERT(new_end.length() < 10000);
+            _ASSERT(fabs(new_start.length()) < 100000);
+            _ASSERT(fabs(new_end.length()) < 100000);
 
             //If we did not degenerate to a point, insert us to the end result.
             if (!new_start.test_equal(new_end)) {

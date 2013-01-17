@@ -112,7 +112,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
     double origYSize, origYOffset, autoHeadingSize;
     GetPagePosition(pageBreakData, page, origYOffset, origYSize, autoHeadingSize);
     XY size(total.x.Spans(), origYSize);
-    size.y += copyrightTextHeight;
+    size.y += autoHeadingSize + copyrightTextHeight;
     size.x *= fake_scale*scale.x;
     size.y *= fake_scale*scale.y;
 

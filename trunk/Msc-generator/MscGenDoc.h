@@ -165,7 +165,7 @@ public:
 	bool AddTrackArc(Element *, 
                  TrackedArc::ElementType, int delay=-1); //Add a tracking element to the list. Updates Views if needed & rets ture if so
     void StartTrackFallbackImageLocations(const Contour &);
-	void StartFadingAll(const Element *except); //Start the fading process for all rectangles (even for delay<0, except one)
+    void StartFadingAll(TrackedArc::ElementType type=TrackedArc::TRACKRECT, const Element *except=NULL); //Start the fading process for all rectangles (even for delay<0, except one)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 	void HighLightArc(const Element *arc);      //Select in internal editor
