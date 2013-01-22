@@ -717,7 +717,7 @@ void CMscGenApp::OnCheckPedantic()
     //recompile if it was a recently compiled
     CMscGenDoc *pDoc = GetDoc();
     if (pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->ShowEditingChart(false);
+        pDoc->StartShowingEditingChart(false);
 }
 
 
@@ -734,7 +734,7 @@ void CMscGenApp::OnCheckWarnings()
     //recompile if it was a recently compiled
     CMscGenDoc *pDoc = GetDoc();
     if (pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->ShowEditingChart(false);
+        pDoc->StartShowingEditingChart(false);
 }
 
 
@@ -750,8 +750,11 @@ void CMscGenApp::OnCheckPageBreaks()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_PB_EDITING, m_bPageBreaks);
     //recompile
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc)
-        pDoc->ShowEditingChart(false);
+    if (pDoc) {
+        pDoc->m_ChartShown.SetPageBreaks(m_bPageBreaks);
+        pDoc->UpdateAllViews(NULL);
+    }
+
 }
 
 
@@ -1044,5 +1047,5 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
     //recompile if it is embdedded
     CMscGenDoc *pDoc = GetDoc();
     if (pDoc && pDoc->IsEmbedded()) 
-        pDoc->ShowEditingChart(false);
+        pDoc->m_ChartShown.SetFallbackResolution(m_uFallbackResolution);
 }

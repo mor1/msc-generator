@@ -290,6 +290,11 @@ ArcBase::ArcBase(EArcType t, Msc *msc) :
     had_add_attr_list = false;
 }
 
+ArcBase::~ArcBase()
+{
+	//chart->Progress.UnRegisterArc(GetProgressCategory());
+}
+
 Area ArcBase::GetCover4Compress(const Area &a) const
 {
     Area ret(static_cast<const Contour &>(a).CreateExpand(chart->compressGap/2, 
@@ -303,6 +308,7 @@ Area ArcBase::GetCover4Compress(const Area &a) const
 //l can be an empty list
 ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 {
+	chart->Progress.RegisterArc(GetProgressCategory());
     had_add_attr_list = true;
     if (l==NULL || !valid) return this;
     for (AttributeList::iterator i=l->begin(); i!=l->end(); i++)

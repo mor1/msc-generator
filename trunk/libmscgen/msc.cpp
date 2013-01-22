@@ -843,10 +843,12 @@ ArcBase *Msc::PopContext()
 void Msc::ParseText(const char *input, const char *filename)
 {
     current_file = Error.AddFile(filename);
-    if (strlen(input) > std::numeric_limits<unsigned>::max())
-        Error.Error(FileLineCol(), "Input text is longer than 4Gbyte. Bailing out.");
+	const size_t len = strlen(input);
+    Progress.RegisterBulk(MscProgress::PARSE, len);
+    if (len > std::numeric_limits<unsigned>::max())
+        Error.FatalError(FileLineCol(), "Input text is longer than 4Gbyte. Bailing out.");
     else 
-        MscParse(*this, input, (unsigned)strlen(input));
+        MscParse(*this, input, (unsigned)len);
 }
 
 EDirType Msc::GetTouchedEntitiesArcList(const ArcList &al, EntityList &el, EDirType dir) const
@@ -962,15 +964,19 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
         if (cee) 
             cee->ReinsertTmpStoredNotes(arcs, i);
         
-        if (replace == *i) i++;
-        else {
+		//Below we only report elements done, that we do not delete
+        if (replace == *i) {
+			Progress.DoneItem(MscProgress::POST_PARSE, (*i)->GetProgressCategory());
+			i++;
+		} else {
             delete *i;
             if (replace == NULL) arcs.erase(i++);
             else {
                 CommandArcList *al = dynamic_cast<CommandArcList *>(replace);
-                if (al == NULL)
+                if (al == NULL) {
+					Progress.DoneItem(MscProgress::POST_PARSE, replace->GetProgressCategory());
                     (*i++) = replace;
-                else {
+				} else {
                     auto j = i;
                     i++; //next element to PostParseProcess
                     al->MoveContent(arcs, j);  //this content was ppp'd
@@ -985,6 +991,7 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
 
 void Msc::PostParseProcess(Canvas &canvas)
 {
+	Progress.StartSection(MscProgress::POST_PARSE);
     //remove those entities from "force_entity_collapse" which are not defined as entities
     for (auto i = force_entity_collapse.begin(); i!=force_entity_collapse.end(); /*nope*/)
         if (*AllEntities.Find_by_Name(i->first) == NoEntity)
@@ -1143,8 +1150,10 @@ void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distanc
     for (auto i = ActiveEntities.begin(); i!=ActiveEntities.end(); i++) 
         if ((*i)->running_shown == EEntityStatus::SHOW_ACTIVE_ON) 
             distances.was_activated.insert((*i)->index);
-    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) 
+    for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) {
         (*i)->Width(canvas, distances);
+		Progress.DoneItem(MscProgress::WIDTH, (*i)->GetProgressCategory());
+	}
 }
 
 //Places a full list of elements starting at y position==0
@@ -1174,6 +1183,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
     for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) {
         AreaList arc_cover;
         (*i)->Layout(canvas, arc_cover);
+        Progress.DoneItem(MscProgress::LAYOUT, (*i)->GetProgressCategory());
         double h = (*i)->GetHeight();
 
         //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
@@ -1295,6 +1305,7 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
         for (; i!=arcs[col].end(); i++)  {
             AreaList arc_cover;
             (*i)->Layout(canvas, arc_cover);
+            Progress.DoneItem(MscProgress::LAYOUT, (*i)->GetProgressCategory());
             double h = (*i)->GetHeight();
 
             //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
@@ -1770,6 +1781,7 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
     EntityDistanceMap distances;
     //Add distance for arcs,
     //needed for hscale=auto, but also for entity width calculation and side note size calculation
+	Progress.StartSection(MscProgress::WIDTH);
     WidthArcList(canvas, Arcs, distances);
     distances.CombineLeftRightToPair_Max(hscaleAutoXGap, activeEntitySize/2);
     distances.CombineLeftRightToPair_Single(hscaleAutoXGap);
@@ -1869,6 +1881,8 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
 
     drawing.x.from = XCoord(LNote->pos) + sideNoteGap;
     drawing.x.till = XCoord(RNote->pos) - sideNoteGap;
+
+    Progress.StartSection(MscProgress::LAYOUT);
     AreaList cover;
     total.y.till = LayoutArcList(canvas, Arcs, cover) + chartTailGap;
     total.y.till = ceil(std::max(total.y.till, cover.GetBoundingBox().y.till));
@@ -1880,15 +1894,19 @@ void Msc::CalculateWidthHeight(Canvas &canvas, bool autoPaginate,
         pageSize.y = floor(pageSize.y);
         //This scaling may be screwed if notes expand the chart in the Y direction.
         //But what can we do..?
+        Progress.StartSection(MscProgress::AUTOPAGINATE);
         AutoPaginate(canvas, pageSize.y - copyrightTextHeight, addHeading);
+        Progress.DoneItem(MscProgress::AUTOPAGINATE, 1);
     } else
         CollectPageBreakArcList(Arcs);
 }
 
 void Msc::PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker)
 {
-    for (auto j = arcs.begin(); j != arcs.end(); j++)
+    for (auto j = arcs.begin(); j != arcs.end(); j++) {
         (*j)->PlaceWithMarkers(canvas, autoMarker);
+        Progress.DoneItem(MscProgress::PLACEWITHMARKERS, (*j)->GetProgressCategory());
+    }
 }
 
 
@@ -1899,6 +1917,7 @@ void Msc::PlaceFloatingNotes(Canvas &canvas)
     for (auto note = Notes.begin(); note!=Notes.end(); note++) {
         (*note)->PlaceFloating(canvas);
         new_total += (*note)->GetAreaToDraw().GetBoundingBox();
+        Progress.DoneItem(MscProgress::NOTES, (*note)->GetProgressCategory());
     }
     if (new_total.IsInvalid()) return;
     new_total.Expand(sideNoteGap);
@@ -1906,10 +1925,27 @@ void Msc::PlaceFloatingNotes(Canvas &canvas)
 }
 
 
+void Msc::InvalidateNotesToThisTarget(const Element *target)
+{
+    for(auto i=Notes.begin(); i!=Notes.end(); i++) 
+        if ((*i)->GetTarget() == target)
+            (*i)->Invalidate();
+}
+
+void Msc::RemoveFromNotes(const CommandNote *note)
+{
+    for(auto i=Notes.begin(); i!=Notes.end(); /*nope*/) 
+        if (*i==note) Notes.erase(i++);
+        else i++;
+}
+
+
 void Msc::PostPosProcessArcList(Canvas &canvas, ArcList &arcs)
 {
-    for (auto j = arcs.begin(); j != arcs.end(); j++)
+    for (auto j = arcs.begin(); j != arcs.end(); j++) {
         (*j)->PostPosProcess(canvas);
+		Progress.DoneItem(MscProgress::POST_POS, (*j)->GetProgressCategory());
+	}
 }
 
 //If autoPaginate is true, pagesize.y is the page height.
@@ -1918,6 +1954,9 @@ void Msc::PostPosProcessArcList(Canvas &canvas, ArcList &arcs)
 void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty, 
                         bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth)
 {
+    if (autoPaginate)
+        Progress.RegisterBulk(MscProgress::AUTOPAGINATE, 1);
+
     //Allocate (non-sized) output object and assign it to the chart
     //From this point on, the chart sees xy dimensions
     Canvas canvas(ot);
@@ -1925,7 +1964,9 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
+	Progress.StartSection(MscProgress::POST_PARSE);
     PostParseProcess(canvas); 
+	Progress.StartSection(MscProgress::FINALIZE_LABELS);
     FinalizeLabelsArcList(Arcs, canvas);
 
     //Calculate chart size
@@ -1944,7 +1985,9 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
         //So Errors collected so far are OK even after redoing this
     }
 
+    Progress.StartSection(MscProgress::PLACEWITHMARKERS);
     PlaceWithMarkersArcList(canvas, Arcs, -1);
+    Progress.StartSection(MscProgress::NOTES);
     PlaceFloatingNotes(canvas);
 
     total.x.from = floor(total.x.from);
@@ -1954,6 +1997,7 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
 
     yDrawing = total.y;
 
+    Progress.StartSection(MscProgress::POST_POS);
     //A final step of prcessing, checking for additional drawing warnings
     PostPosProcessArcList(canvas, Arcs);
 
@@ -1978,8 +2022,11 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
 void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, EDrawPassType pass) 
 {
     for (auto i = arcs.begin();i!=arcs.end(); i++) 
-        if ((*i)->GetYExtent().Overlaps(yDrawing)) 
+        if ((*i)->GetYExtent().Overlaps(yDrawing)) {
             (*i)->Draw(canvas, pass);
+            if ((*i)->draw_pass == pass)
+                Progress.DoneItem(MscProgress::DRAW, (*i)->GetProgressCategory());
+        }
 }
 
 void Msc::DrawChart(Canvas &canvas, bool pageBreaks)
@@ -2104,6 +2151,7 @@ void Msc::DrawPageBreaks(Canvas &canvas)
 //Expects the context to be prepared and will unprpare it
 void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
 {
+    Progress.StartSection(MscProgress::DRAW);
     if (page>pageBreakData.size() || total.x.Spans()<=0) return;
     if (page) {
         yDrawing.from = pageBreakData[page-1].y;
@@ -2132,11 +2180,12 @@ void Msc::DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page)
  * case `scale` can be <zero,zero> indicating that the chart should be fitted to page width.
  * This is the only drawing function that can place an error into 'Error' if generateErrors is set.
  * Scale contains a list of scales to try.
+ * @returns False on error (but not on warning) irrespective of `generateErrors`.
 */
-void Msc::DrawToOutput(Canvas::EOutputType ot, const std::vector<XY> &scale, 
-                       const string &fn, bool bPageBreaks, 
-                       Canvas::EPageSize pageSize, const double margins[4], 
-                        int ha, int va, bool generateErrors)
+bool Msc::DrawToFile(Canvas::EOutputType ot, const std::vector<XY> &scale, 
+                     const string &fn, bool bPageBreaks, 
+                     Canvas::EPageSize pageSize, const double margins[4], 
+                     int ha, int va, bool generateErrors)
 {
     _ASSERT(scale.size()>0);
     _ASSERT(scale.size()==1 || pageSize != Canvas::NO_PAGE); //Multiple scales must be fixed-size output
@@ -2146,30 +2195,98 @@ void Msc::DrawToOutput(Canvas::EOutputType ot, const std::vector<XY> &scale,
     if (pageSize==Canvas::NO_PAGE) 
         for (unsigned page=from; page<=till; page++) {
             Canvas canvas(ot, total, copyrightTextHeight, fn, scale[0], &pageBreakData, page);
-            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return;
+            if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
             DrawComplete(canvas, bPageBreaks, page);
         }
     else {
         Canvas canvas(ot, total, fn, scale, pageSize, margins, ha, va, copyrightTextHeight, &pageBreakData);
-        if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return;
+        if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return false;
         for (unsigned page=from; page<=till; page++) {
             DrawComplete(canvas, bPageBreaks, page);
             if (page<till) 
-                canvas.TurnPage(&pageBreakData, page+1, generateErrors ? &Error : NULL);
+                if (!canvas.TurnPage(&pageBreakData, page+1, generateErrors ? &Error : NULL))
+                    return false;
         }
     }
+    return true;
 }
 
-void Msc::InvalidateNotesToThisTarget(const Element *target)
+#ifdef CAIRO_HAS_WIN32_SURFACE
+HENHMETAFILE Msc::DrawToMetaFile(Canvas::EOutputType ot,  
+                                 unsigned page, bool bPageBreaks, 
+                                 double fallback_image_resolution, 
+                                 size_t *metafile_size,
+                                 Contour *fallback_images,
+                                 bool generateErrors)
 {
-    for(auto i=Notes.begin(); i!=Notes.end(); i++) 
-        if ((*i)->GetTarget() == target)
-            (*i)->Invalidate();
+    _ASSERT(ot==Canvas::WMF || ot==Canvas::EMF || ot==Canvas::EMFWMF);
+    if (ot!=Canvas::WMF && ot!=Canvas::EMF && ot!=Canvas::EMFWMF)
+        return 0;
+    if (page>0) bPageBreaks = false;
+    Canvas canvas(ot, HDC(NULL), total, copyrightTextHeight, XY(1,1), &pageBreakData, page);
+    if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return 0;
+	if (fallback_image_resolution>0)
+        canvas.SetFallbackImageResolution(fallback_image_resolution);
+    DrawComplete(canvas, bPageBreaks, page);
+    HENHMETAFILE ret = canvas.CloseAndGetEMF();
+    if (fallback_images)
+        *fallback_images = std::move(canvas.GetFallbackImagePlaces());
+    if (metafile_size)
+        *metafile_size = canvas.GetMetaFileSize();
+    return ret;
 }
 
-void Msc::RemoveFromNotes(const CommandNote *note)
+bool Msc::DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
+                   unsigned page, bool bPageBreaks,
+                   double fallback_image_resolution, bool generateErrors)
 {
-    for(auto i=Notes.begin(); i!=Notes.end(); /*nope*/) 
-        if (*i==note) Notes.erase(i++);
-        else i++;
+    _ASSERT(ot == Canvas::WMF || ot == Canvas::EMF || 
+            ot == Canvas::EMFWMF || ot == Canvas::PRINTER);
+    if (page>0) bPageBreaks = false;
+    Canvas canvas(ot, hdc, total, copyrightTextHeight, scale, &pageBreakData, page);
+    if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) return 0;
+	if (fallback_image_resolution>0)
+        canvas.SetFallbackImageResolution(fallback_image_resolution);
+    DrawComplete(canvas, bPageBreaks, page);
+    return canvas.CloseAndGetEMF();
+}
+
+#endif
+
+cairo_surface_t *Msc::DrawToRecordingSurface(Canvas::EOutputType ot, bool bPageBreaks, 
+                                             bool generateErrors)
+{
+    cairo_surface_t *ret = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL);
+    cairo_status_t status = cairo_surface_status(ret);
+    if (status != CAIRO_STATUS_SUCCESS) {
+        cairo_surface_destroy(ret);
+        return NULL;
+    }
+    Canvas canvas(ot, ret, total, copyrightTextHeight, XY(1., 1.), &pageBreakData);
+    if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) {
+        cairo_surface_destroy(ret);
+        return NULL;
+    }
+    DrawComplete(canvas, bPageBreaks, 0);
+    return ret;
+}
+
+cairo_surface_t *Msc::ReDrawOnePage(cairo_surface_t *full, unsigned page, 
+                                    bool generateErrors)
+{
+    cairo_surface_t *ret = cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, NULL);
+    cairo_status_t status = cairo_surface_status(ret);
+    if (status != CAIRO_STATUS_SUCCESS) {
+        cairo_surface_destroy(ret);
+        return NULL;
+    }
+    Canvas canvas(Canvas::SVG, ret, total, copyrightTextHeight, XY(1., 1.), &pageBreakData, page);
+    if (canvas.ErrorAfterCreation(generateErrors ? &Error : NULL, &pageBreakData, true)) {
+        cairo_surface_destroy(ret);
+        return NULL;
+    }
+    cairo_set_source_surface(canvas.GetContext(), full, 0, 0);
+    cairo_paint(canvas.GetContext());
+    //TODO: Add heading and copyright!!!
+    return ret;
 }

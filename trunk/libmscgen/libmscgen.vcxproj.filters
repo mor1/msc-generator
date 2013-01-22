@@ -93,6 +93,9 @@
     <ClCompile Include="element.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="progress.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arcs.h">
@@ -183,6 +186,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="element.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="progress.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

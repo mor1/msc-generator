@@ -39,12 +39,9 @@ public:
 	bool m_DeleteBkg;  //Set to true if we need to erase bkg on next draw
 	// Drawn chart
     XY           m_chartOrigin;  //The upper left corner of the chart in chart coordinate space
-    CChartCache  m_cache;        //pre-drawn (nonscaled) version of chart (page)
     CBitmap      m_view;         //Last rendered bitmap of (scaled) chart (page)
     CRect        m_view_pos;     //origin and size of bitamp above. (empty if invalid)
 	UINT_PTR     m_FadingTimer;  //Handle of Fading Timer
-    bool m_recalc_embeddded_object_data; //pass trigger from OnUpdate() to OnDraw()
-    bool m_highlight_fallback_images;
 	//Drag and Drop 
 	COleDropTarget m_DropTarget;
 	DROPEFFECT     m_nDropEffect;
@@ -63,7 +60,7 @@ public:
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in Msc page space)
             void ClearViewCache(); //Clear the bitmap cache
-			void DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect clip);
+			void DrawAnimation(CDC *pDC, const XY &scale, CRect clip);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

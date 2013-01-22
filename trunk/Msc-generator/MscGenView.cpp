@@ -77,8 +77,6 @@ CMscGenView::CMscGenView()
 	SetScrollSizes(MM_TEXT, CSize(0,0));
 	m_nDropEffect = DROPEFFECT_NONE;
     m_view_pos.SetRectEmpty();
-    m_recalc_embeddded_object_data = false;
-    m_highlight_fallback_images = false;
 }
 
 CMscGenView::~CMscGenView()
@@ -102,7 +100,8 @@ void CMscGenView::OnPrepareDC(CDC* pDC, CPrintInfo* pInfo)
 	if (pDoc==NULL) return; 
 
 	pDC->SetMapMode(MM_TEXT);
-    pDC->SetWindowExt(ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
+    pDC->SetWindowExt(ScaleSize(pDoc->m_ChartShown.GetSize(), 
+                      pDoc->m_zoom/100.0));
 }
 
 
@@ -144,6 +143,7 @@ BOOL CMscGenView::OnPreparePrinting(CPrintInfo* pInfo)
 		pDoc->m_ExternalEditor.Restart(STOPEDITOR_WAIT);
 	pDoc->SyncShownWithEditing("print");
     CDrawingChartData *pData = new CDrawingChartData(pDoc->m_ChartShown);
+
 	pInfo->SetMaxPage(pData->GetPages()); //This one compiles copied chart
     pInfo->m_lpUserData = pData;
 	// default preparation
@@ -166,8 +166,7 @@ void CMscGenView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
     scale = std::min(scale, 10.);
 
     CWaitCursor wait;
-	pData->SetPage(pInfo->m_nCurPage);
-    pData->DrawToPrinter(pDC->m_hDC, scale, scale);
+    pData->DrawToDC(Canvas::PRINTER, pDC->m_hDC, XY(scale, scale), pInfo->m_nCurPage, false);
 }
 
 void CMscGenView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* pInfo)
@@ -239,23 +238,27 @@ void CMscGenView::ClearViewCache()
 //clip is understood as window surface coordinates 
 //scale tells me how much to scale m_size to get surface coords.
 //the DC window origin is at 0,0 here
-void CMscGenView::DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect clip)
+void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, CRect clip)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
-	if (pDoc->m_trackArcs.size()==0 || NULL==pDC) return;
+	if (pDoc->m_animations.size()==0 || NULL==pDC) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
     cairo_surface_t *surf = cairo_win32_surface_create(pDC->m_hDC);
     cairo_t *cr = cairo_create(surf);
+    cairo_save(cr);
     cairo_translate(cr, -clip.left, -clip.top);
-    cairo_scale(cr, x_scale, y_scale);
+    cairo_scale(cr, scale.x, scale.y);
     cairo_translate(cr, -m_chartOrigin.x, -m_chartOrigin.y);
 
-    CSingleLock lock(&pDoc->m_SectionTrackingMembers);
+    double grey_fade_value = 0;
+    CSingleLock lock(&pDoc->m_SectionAnimations);
     lock.Lock();
-    for (std::vector<TrackedArc>::const_iterator i = pDoc->m_trackArcs.begin(); i!=pDoc->m_trackArcs.end(); i++) {
-        if (i->what == TrackedArc::TRACKRECT) {
+    for (std::vector<AnimationElement>::const_iterator i = pDoc->m_animations.begin(); 
+         i!=pDoc->m_animations.end(); i++) 
+        switch (i->what) {
+        case AnimationElement::TRACKRECT:
             cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
                                       GetGValue(pApp->m_trackFillColor)/255., 
                                       GetBValue(pApp->m_trackFillColor)/255., 
@@ -266,10 +269,11 @@ void CMscGenView::DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect
                                       GetBValue(pApp->m_trackLineColor)/255., 
                                       GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
             i->arc->GetAreaToDraw().Line(cr);
-        } else if (i->what == TrackedArc::FALLBACK_IMAGE) {
+            break;
+        case AnimationElement::FALLBACK_IMAGE:
             if (!pDoc->m_fallback_image_location.IsEmpty()) {
                 cairo_save(cr);
-                const Block &total = m_cache.GetChartData()->GetMscTotal();
+                const Block &total = pDoc->m_ChartShown.GetMscTotal();
                 const double width = 0.2;
                 const double off = (width*4 + 1.0)*(1-i->fade_value);
                 cairo_pattern_t *pattern = cairo_pattern_create_linear(total.x.from, total.y.from, total.x.till, total.y.till);
@@ -285,8 +289,50 @@ void CMscGenView::DrawTrackRects(CDC *pDC, double x_scale, double y_scale, CRect
                 cairo_pattern_destroy(pattern);
                 cairo_restore(cr);
             }
-        } else if (i->what == TrackedArc::CONTROL && pApp->m_bShowControls) 
-            i->arc->DrawControls(cr, i->fade_value);
+            break;
+        case AnimationElement::CONTROL:
+            if (pApp->m_bShowControls) 
+                i->arc->DrawControls(cr, i->fade_value);
+            break;
+        case AnimationElement::COMPILING_GREY:
+            grey_fade_value = i->fade_value;
+            break;
+        default:
+            _ASSERT(0);
+        }
+    //Do grey only once and at last
+    if (grey_fade_value) {
+        cairo_restore(cr); //remove clip & translation
+        cairo_rectangle(cr, clip.left, clip.top, clip.Width(), clip.Height());
+        cairo_pattern_t *pattern = cairo_pattern_create_linear(0,0, 3, 3);
+        cairo_pattern_add_color_stop_rgba(pattern, 0, 1, 1, 1, grey_fade_value*0.9);
+        cairo_pattern_add_color_stop_rgba(pattern, 1, 0.7, 0.7, 0.7, grey_fade_value*0.9);
+        cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REFLECT);
+        cairo_set_source(cr, pattern);
+        cairo_fill(cr);
+        cairo_pattern_destroy(pattern);
+        if (grey_fade_value==1.0) {
+            const double w = clip.Width()/3;
+            clip.left += w;
+            clip.right -=w;
+            const double m = (clip.top+clip.bottom)/2;
+            clip.top = m-10;
+            clip.bottom = m+10;
+            cairo_rectangle(cr, clip.left, clip.top, clip.Width(), clip.Height());
+            cairo_set_source_rgb(cr, 1, 1, 1);
+            cairo_fill(cr);
+            cairo_rectangle(cr, clip.left, clip.top, clip.Width()*pDoc->m_Progress, clip.Height());
+            cairo_pattern_t *pattern = cairo_pattern_create_linear(0,0, 3, 3);
+            cairo_pattern_add_color_stop_rgb(pattern, 0, 0, 1, 0);
+            cairo_pattern_add_color_stop_rgb(pattern, 1, 0, 0.7, 0);
+            cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REFLECT);
+            cairo_set_source(cr, pattern);
+            cairo_fill(cr);
+            cairo_pattern_destroy(pattern);
+            cairo_rectangle(cr, clip.left, clip.top, clip.Width(), clip.Height());
+            cairo_set_source_rgb(cr, 0, 0, 0);
+            cairo_stroke(cr);
+        }
     }
     cairo_destroy(cr);
     cairo_surface_destroy(surf);
@@ -315,25 +361,9 @@ void CMscGenView::OnDraw(CDC* pDC)
         m_view.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
         CBitmap *oldBitmap2 = memoryDC.SelectObject(&m_view);
         memoryDC.FillSolidRect(0,0, clip.Width(), clip.Height(), pDC->GetBkColor());
-        m_cache.DrawToMemDC(memoryDC, scale, scale, clip, pApp->m_bPageBreaks);
+        pDoc->m_ChartShown.DrawToMemDC(memoryDC, scale, scale, clip, pApp->m_bPageBreaks);
         memoryDC.SelectObject(oldBitmap2);
         m_view_pos = clip;
-
-        //If we show the WMF, let us update the embedded object size shown in the ribbon
-        if (m_recalc_embeddded_object_data) {
-            m_recalc_embeddded_object_data = false;
-            const size_t size = m_cache.GetWMFSize() + pDoc->serialize_doc_overhead + 
-                                pDoc->m_ChartShown.GetText().GetLength();
-            CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
-            if (pMainFrame) {
-                const double total = double(m_cache.GetChartData()->GetSize().cx)*m_cache.GetChartData()->GetSize().cy;
-                pMainFrame->FillEmbeddedPanel(size, 100*m_cache.GetWMFFallbackImagePos().GetArea() / total);
-            }
-            if (m_highlight_fallback_images) {
-                pDoc->StartTrackFallbackImageLocations(m_cache.GetWMFFallbackImagePos());
-                m_highlight_fallback_images = false;
-            }
-        }
     }
     //Copy bitmap to memDC
     CDC memoryDC;
@@ -342,7 +372,7 @@ void CMscGenView::OnDraw(CDC* pDC)
     memDC.BitBlt(0,0, clip.Width(), clip.Height(), &memoryDC, 0, 0, SRCCOPY);   
     memoryDC.SelectObject(oldBitmap2);
     //Draw track records onto it
-    DrawTrackRects(&memDC, scale, scale, clip);
+    DrawAnimation(&memDC, XY(scale, scale),  clip);
     //Copy to client area
     pDC->BitBlt(clip.left, clip.top, clip.Width(), clip.Height(), &memDC, 0, 0, SRCCOPY);   
 	memDC.SelectObject(oldBitmap);
@@ -371,14 +401,7 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
     _ASSERT(pDoc && pApp && pMain);
     if (!pDoc || !pApp || !pMain) return;
 
-    m_recalc_embeddded_object_data = pMain->m_at_embedded_object_category; //set to true only for EMF
-    const CChartCache::ECacheType should_be = pMain->m_at_embedded_object_category ? CChartCache::CACHE_EMF : CChartCache::CACHE_RECORDING;
-    if (pMain->m_at_embedded_object_category && m_cache.GetCacheType()!=CChartCache::CACHE_EMF )
-        m_highlight_fallback_images = true;
-    m_cache.SetCacheType(should_be);
-    m_cache.SetData(&pDoc->m_ChartShown);
-    m_chartOrigin.x = pDoc->m_ChartShown.GetMscTotal().x.from;
-    m_chartOrigin.y = pDoc->m_ChartShown.GetPageYShift();
+    m_chartOrigin = pDoc->m_ChartShown.GetPageOrigin(pDoc->m_ChartShown.GetPage());
     ClearViewCache();
 
 	//Delete the cached bitmap
@@ -585,10 +608,10 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	if (pDoc->m_bTrackMode) {
 		pDoc->UpdateTrackRects(point);
 	} else {
-		Element *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
+        Element *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);
 		if (arc) {
 			pDoc->StartFadingAll();
-			pDoc->AddTrackArc(arc, TrackedArc::TRACKRECT, int(delay_before_fade));
+			pDoc->AddAnimationElement(AnimationElement::TRACKRECT, arc, int(delay_before_fade));
 			pDoc->HighLightArc(arc);
 			CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 			ASSERT(pApp != NULL);

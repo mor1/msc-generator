@@ -168,7 +168,8 @@ public:
         ContourAttr(const Contour &c, const FillAttr &f) : area(c), line(LINE_NONE), fill(f) {}
     };
 
-    MscError     Error;
+    MscProgress  Progress;
+	MscError     Error;
     unsigned     current_file;  /* The number of the file under parsing, plus the error location */
 
     EntityList                    AllEntities;
@@ -180,7 +181,7 @@ public:
     std::map<string, Context>     Designs;
     std::map<string, MarkerType>  Markers;
     std::map<string, RefType>     ReferenceNames;
-    std::map<double, FillAttr> Background;
+    std::map<double, FillAttr>    Background;
     std::string                   copyrightText;
     LineToArcMapType              AllArcs;
     AreaList                      AllCovers;
@@ -188,7 +189,7 @@ public:
     PBDataVector                  pageBreakData; /** The starting ypos of each page, one for each page. pageBreakData[0] is always 0. */
 
     CommandNoteList               Notes;            /** all floating notes after PostParseProcess */
-    PtrList<const Element> NoteBlockers;   /** Ptr to all elements that may block a floating note*/
+    PtrList<const Element>        NoteBlockers;   /** Ptr to all elements that may block a floating note*/
     
     std::list<ContourAttr>        DebugContours;
 
@@ -281,7 +282,7 @@ public:
     void PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool resetiterators, EIterator &left,
                                  EIterator &right, Numbering &number, bool top_level, Element **note_target);
     void PostParseProcess(Canvas &canvas);
-    template <typename list> void FinalizeLabelsArcList(list &arcs, Canvas &canvas) {for (auto i=arcs.begin(); i!=arcs.end(); i++) (*i)->FinalizeLabels(canvas);}
+    template <typename list> void FinalizeLabelsArcList(list &arcs, Canvas &canvas);
 
     EDirType GetTouchedEntitiesArcList(const ArcList &, EntityList &el, EDirType dir=MSC_DIR_INDETERMINATE) const;
 
@@ -309,6 +310,9 @@ public:
     void PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker);
     void PlaceFloatingNotes(Canvas &canvas);
 
+    void InvalidateNotesToThisTarget(const Element *target);
+    void RemoveFromNotes(const CommandNote *note);
+
     void HideEntityLines(const Contour &area) {HideELinesHere += area;}
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
@@ -327,16 +331,34 @@ public:
     void DrawPageBreaks(Canvas &canvas);
     void DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page);
 
-    void DrawToOutput(Canvas::EOutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks, 
-                      Canvas::EPageSize pageSize=Canvas::NO_PAGE, const double margins[4]=NULL, 
-                      int ha=-1, int va=-1, bool generateErrors=false);
-
-    void InvalidateNotesToThisTarget(const Element *target);
-    void RemoveFromNotes(const CommandNote *note);
+    bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks, 
+                    Canvas::EPageSize pageSize=Canvas::NO_PAGE, const double margins[4]=NULL, 
+                    int ha=-1, int va=-1, bool generateErrors=false);
+#ifdef CAIRO_HAS_WIN32_SURFACE
+    HENHMETAFILE DrawToMetaFile(Canvas::EOutputType, unsigned page, bool bPageBreaks, 
+                                double fallback_image_resolution=-1, size_t *metafile_size=NULL,
+                                Contour *fallback_images=NULL, bool generateErrors=false);
+    bool DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
+                  unsigned page, bool bPageBreaks,
+                  double fallback_image_resolution=-1, 
+                  bool generateErrors=false);
+#endif
+    cairo_surface_t *DrawToRecordingSurface(Canvas::EOutputType, bool bPageBreaks, 
+                                            bool generateErrors=false);
+    cairo_surface_t *ReDrawOnePage(cairo_surface_t *full, unsigned page, 
+                                   bool generateErrors=false);
 };
 
-
 void MscParse(Msc &msc, const char *buff, unsigned len);
+
+template <typename list> 
+void Msc::FinalizeLabelsArcList(list &arcs, Canvas &canvas) 
+{
+	for (auto i=arcs.begin(); i!=arcs.end(); i++) {
+		(*i)->FinalizeLabels(canvas);
+		Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->GetProgressCategory());
+	}
+}
 
 #endif
 

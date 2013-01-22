@@ -144,12 +144,30 @@ void CScaleDlg::OnBnClicked()
     GetDlgItem(IDC_EDIT_XY_Y)->EnableWindow(m_selected==4);
 }
 
-TrackedArc::TrackedArc(Element *a, ElementType et, int delay, 
+AnimationElement::AnimationElement(Element *a, ElementType et, int delay, 
                        int appear, int disappear) :
     arc(a), what(et), status(APPEARING), fade_value(0), fade_delay(delay),
     appe_time(appear), disa_time(disappear)
 {
+    _ASSERT(et==CONTROL || et==TRACKRECT);
+    _ASSERT(arc);
+    if (appe_time<0) appe_time = default_appear_time[what];
+    if (disa_time<0) disa_time = default_disapp_time[what];
 }
+
+AnimationElement::AnimationElement(ElementType et, int delay, 
+                       int appear, int disappear) :
+    arc(NULL), what(et), status(APPEARING), fade_value(0), fade_delay(delay),
+    appe_time(appear), disa_time(disappear)
+{
+    _ASSERT(et==FALLBACK_IMAGE || et==COMPILING_GREY);
+    if (appe_time<0) appe_time = default_appear_time[what];
+    if (disa_time<0) disa_time = default_disapp_time[what];
+}
+
+
+const unsigned AnimationElement::default_appear_time[MAX_TYPE] = {100, 300, 1, 100};
+const unsigned AnimationElement::default_disapp_time[MAX_TYPE] = {100, 300, 1500, 100};
 
 
 // CMscGenDoc
@@ -203,7 +221,7 @@ BEGIN_MESSAGE_MAP(CMscGenDoc, COleServerDocEx)
 	ON_COMMAND(ID_BUTTON_TRACK, OnButtonTrack)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_TRACK, OnUpdateButtonTrack)
 	ON_COMMAND(ID_INDICATOR_TRK, OnButtonTrack)
-	ON_COMMAND(ID_HELP_HELP, &CMscGenDoc::OnHelpHelp)
+	ON_COMMAND(ID_HELP_HELP, OnHelpHelp)
 END_MESSAGE_MAP()
 
 CLIPFORMAT NEAR CMscGenDoc::m_cfPrivate = NULL;
@@ -224,12 +242,20 @@ CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
 	m_last_arc = NULL;
 	m_pViewFadingTimer = NULL;
 
-	m_charts.push_back(m_ChartShown);
+    m_charts.push_back(CChartData());
 	m_itrEditing = m_charts.begin();
 	m_itrShown = m_charts.end();
 	m_itrSaved = m_itrEditing; //start as unmodified
 	m_bAttemptingToClose = false;
     serialize_doc_overhead = 0;
+    m_page_serialized_in = -1; //no page data available from serialize
+    m_highlight_fallback_images = false;
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    m_ChartShown.SetFallbackResolution(pApp->m_uFallbackResolution);
+    m_ChartShown.SetPageBreaks(pApp->m_bPageBreaks);
+    m_ChartShown.CompileIfNeeded();
+    m_pCompilingThread = NULL;
 }
 
 CMscGenDoc::~CMscGenDoc()
@@ -284,43 +310,33 @@ void CMscGenDoc::Dump(CDumpContext& dc) const
 // CMscGenDoc serialization
 void CMscGenDoc::Serialize(CArchive& ar)
 {
-    unsigned forced_page = m_ChartShown.GetPage(); //dummy
-    SerializePage(ar, forced_page, false);  //do not use forced_page
-}
-
-void CMscGenDoc::SerializePage(CArchive& ar, unsigned &forced_page, bool force_page)
-{
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	if (ar.IsStoring()) {
-        SerializeHelper(ar, m_ChartShown, forced_page, force_page);
-    } else {
-        CChartData chart;
-        SerializeHelper(ar, chart, forced_page, force_page);
-        InsertNewChart(chart);
-	} /* not IsStoring */
+    unsigned page = m_ChartShown.GetPage(); 
+    SerializePage(ar, page);
+    if (!ar.IsStoring())
+        m_page_serialized_in = page;
+    m_uSavedPage = page;
 }
 
 
-//if "force_page" is true, we force a certain page (or all) stored in "forced_page" (only at store)
-//else we use the page in "chart"
 #define NEW_VERSION_STRING "@@@Msc-generator later than 2.3.4"
-void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page) 
+
+void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
 {
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 	if (ar.IsStoring()) {
 		ar << CString(NEW_VERSION_STRING); //if format starts with this string, we have file version afterwards
 		ar << unsigned(5); //file format version
-		ar << chart.GetDesign();
-		ar << (force_page ? forced_page : chart.GetPage());
-		ar << chart.GetText();
-        ar << (force_page ? forced_page : chart.GetPage()); //dummy
+        ar << m_ChartShown.GetDesign();
+		ar << page;
+		ar << m_ChartShown.GetText();
+        ar << page; //dummy
         ar << unsigned(LIBMSCGEN_MAJOR);
         ar << unsigned(LIBMSCGEN_MINOR);
         ar << unsigned(LIBMSCGEN_SUPERMINOR);
-        ar << unsigned(chart.GetForcedArcCollapse().size());
-        for (auto i = chart.GetForcedArcCollapse().begin(); i!=chart.GetForcedArcCollapse().end(); i++) {
+        ar << unsigned(m_ChartShown.GetForcedArcCollapse().size());
+        for (auto i = m_ChartShown.GetForcedArcCollapse().begin(); 
+                  i !=m_ChartShown.GetForcedArcCollapse().end(); i++) {
             ar << unsigned(i->first.file_pos.start.file);
             ar << unsigned(i->first.file_pos.start.line);
             ar << unsigned(i->first.file_pos.start.col);
@@ -329,12 +345,14 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
             ar << unsigned(i->first.file_pos.end.col);
             ar << unsigned(i->second);
         }
-        ar << unsigned(chart.GetForcedEntityCollapse().size());
-        for (auto i = chart.GetForcedEntityCollapse().begin(); i!=chart.GetForcedEntityCollapse().end(); i++)
+        ar << unsigned(m_ChartShown.GetForcedEntityCollapse().size());
+        for (auto i = m_ChartShown.GetForcedEntityCollapse().begin();
+                   i!=m_ChartShown.GetForcedEntityCollapse().end(); i++)
             ar << CString(i->first.c_str()) << unsigned(i->second);
         ar << pApp->m_uFallbackResolution;
         ar << pApp->m_bPageBreaks;
-	} else {
+    } else {
+        CChartData chart;
 		CString text;
 		CString design;
 		unsigned read_page;
@@ -381,14 +399,10 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
 		ReplaceTAB(text);
         chart.Set(text);
         chart.SetDesign(design);
-        chart.SetPage(read_page);
         unsigned force_entity_size, force_arc_size;
         unsigned a=0, b=0, c=0;
         if (file_version >= 4) { //since 3.4.3
-            if (force_page)
-                ar >> forced_page; //read forced page for links (unused, quite much)
-            else 
-                ar >> a; //keep "forced_page" intact, "a" is dummy, will be overwritten below
+            ar >> a; //keep "forced_page" intact, "a" is dummy, will be overwritten below
         }
         if (file_version >= 3) { //since 3.1.3 : read version and force arc collapse
             ar >> a;
@@ -432,14 +446,28 @@ void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forc
             CMFCRibbonSlider *s = dynamic_cast<CMFCRibbonSlider *>(arButtons[0]);
             if (s) s->SetPos(pApp->m_uFallbackResolution);
         }
+        InsertNewChart(chart);
+	} /* not IsStoring */
+}
+
+
+//if "force_page" is true, we force a certain page (or all) stored in "forced_page" (only at store)
+//else we use the page in "chart"
+void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page) 
+{
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	if (ar.IsStoring()) {
+	} else {
 	} /* not IsStoring */
 }
 
 void CMscGenDoc::DeleteContents()
 {
-	m_charts.clear();
-	m_ChartShown = CChartData();
-	m_charts.push_back(m_ChartShown);
+    KillCompilation();
+    m_charts.clear();
+	m_ChartShown.Delete();
+	m_charts.push_back(CChartData());
 	m_itrEditing = m_charts.begin();
 	m_itrShown = m_charts.end();
 	m_itrSaved = m_charts.end(); //start as modified
@@ -473,16 +501,9 @@ BOOL CMscGenDoc::OnNewDocument()
 	m_charts.push_back(data);
 	m_itrEditing = m_charts.begin();
 	m_itrSaved = m_itrEditing; //start as unmodified
-	ShowEditingChart(true);
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
-    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-    if (pWnd) {
-        pWnd->FillDesignComboBox(m_itrEditing->GetDesign(), true);
-        pWnd->FillPageComboBox(m_ChartShown.GetPages(), m_ChartShown.GetPage());
-        pWnd->FillZoomComboBox(m_zoom);
-    }
-	SetZoom(); //reset toolbar
+	StartShowingEditingChart(true);
 	if (restartEditor)
 		m_ExternalEditor.Start("Untitled");
 	return TRUE;
@@ -504,6 +525,11 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 		//this one will use serialize which sets m_itrCurrent to loaded entry
 		if (!COleServerDocEx::OnOpenDocument(lpszPathName))
 			return FALSE;
+        //Copy the saved display parameters to current chart showing from where they
+        //will be copied to the chart under compilation
+        m_ChartShown.SetPage(m_uSavedPage);
+        m_ChartShown.SetFallbackResolution(m_uSavedFallbackResolution);
+        m_ChartShown.SetPageBreaks(m_bSavedPageBreaks);
 	} else {
 		// always register the document before opening it
 		Revoke();
@@ -537,7 +563,7 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	//Here we set all our m_itr* iterators to valid values afterwards
 	m_charts.erase(m_charts.begin(), m_itrEditing);
 	m_itrSaved = m_itrEditing;
-	ShowEditingChart(true);
+	StartShowingEditingChart(true);
 
 	// if the app was started only to print, don't set user control
 	//Copied from COleLinkingDoc
@@ -547,12 +573,6 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	{
 		AfxOleSetUserCtrl(TRUE);
 	}
-	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-    if (pWnd) {
-        pWnd->FillDesignComboBox(m_itrEditing->GetDesign(), true);
-        pWnd->FillPageComboBox(m_ChartShown.GetPages(), m_ChartShown.GetPage());
-        pWnd->FillZoomComboBox(m_zoom); //reset toolbar, do not chnage zoom
-    }
 	if (restartEditor)
 		m_ExternalEditor.Start(lpszPathName);
 	return TRUE;
@@ -696,8 +716,6 @@ void CMscGenDoc::OnEditUndo()
 	CheckIfChanged();     
 	if (restartEditor)
 		m_ExternalEditor.Start();
-	if (m_itrEditing->m_wasDrawn)
-		ShowEditingChart(true);
 }
 
 void CMscGenDoc::OnUpdateEditRedo(CCmdUI *pCmdUI)
@@ -720,8 +738,6 @@ void CMscGenDoc::OnEditRedo()
 	CheckIfChanged();     
 	if (restartEditor)
 		m_ExternalEditor.Start();
-	if (m_itrEditing->m_wasDrawn)
-		ShowEditingChart(true);
 }
 
 void CMscGenDoc::OnUpdateEditCutCopy(CCmdUI *pCmdUI)
@@ -877,9 +893,11 @@ void CMscGenDoc::DoPasteData(COleDataObject &dataObject)
 		GlobalUnlock(hGlobal);
 		GlobalFree(hGlobal);
 		if (restartEditor) m_ExternalEditor.Stop(STOPEDITOR_FORCE);
-		InsertNewChart(CChartData(text, m_itrEditing->GetDesign())); //all pages visible
+		InsertNewChart(CChartData(text, m_itrEditing->GetDesign())); 
+        m_page_serialized_in = 0; //all pages visible
 	}
-	ShowEditingChart(true);
+	StartShowingEditingChart(true);
+    m_page_serialized_in = -1;
 	//Copy text to the internal editor
 	if (pApp->IsInternalEditorRunning())
 		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
@@ -926,7 +944,7 @@ void CMscGenDoc::OnUpdateButtonEdittext(CCmdUI *pCmdUI)
 void CMscGenDoc::OnEditUpdate()
 {
 	//update the View, update zoom, 
-	ShowEditingChart(true);
+	StartShowingEditingChart(true);
 }
 
 void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
@@ -993,7 +1011,8 @@ void CMscGenDoc::DoViewNexterror(bool next)
         m_ExternalEditor.JumpToLine(line, col);
 
     //Show tracking boxes for the error
-    AddTrackArc(m_ChartShown.GetArcByLine(line, col), TrackedArc::TRACKRECT);
+    AddAnimationElement(AnimationElement::TRACKRECT,
+                        m_ChartShown.GetArcByLine(line, col));
 }
 
 //Selection in the error window changes
@@ -1020,20 +1039,13 @@ void CMscGenDoc::ChangeDesign(const char *design)
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo, keep page shown
 	m_itrEditing->SetDesign(design);
     pApp->m_pWndEditor->m_ctrlEditor.SetForcedDesign(design);
-	ShowEditingChart(true);
+	StartShowingEditingChart(true);
 }
 
 void CMscGenDoc::ChangePage(unsigned page)
 {
-	if (page == m_ChartShown.GetPage())
-		return;
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-    //if we are not viewing read-only, then duplicate current chart, loose redo
-    if (pApp && !pApp->m_bFullScreenViewMode) 
-        InsertNewChart(CChartData(*m_itrEditing)); 
-	m_itrEditing->SetPage(page);  //set new page
-	ShowEditingChart(true);
+    m_ChartShown.SetPage(page);
+    UpdateAllViews(NULL);
 }
 
 void CMscGenDoc::StepPage(signed int step)
@@ -1051,27 +1063,13 @@ void CMscGenDoc::StepPage(signed int step)
 //true if actual change happened
 void CMscGenDoc::SetZoom(int zoom)
 {
-	//No zooming by ourselves during in-place editing
-	if (IsInPlaceActive()) {
-		zoom = m_zoom = 100;
-		return;
-	}
-
 	if (zoom < 1) zoom = m_zoom;
 	if (zoom > 10000) zoom = 10000;
 	if (zoom < 10) zoom = 10;
 
 	if (zoom == m_zoom) return;
 	m_zoom = zoom;
-	POSITION pos = GetFirstViewPosition();
-	while (pos != NULL) {
-        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-  	    if (pView) {
-	        pView->ResyncScrollSize();
-            pView->ClearViewCache();
-			pView->Invalidate();
-		}
-	}
+    UpdateAllViews(NULL);
 	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
 	if (pWnd)
         pWnd->FillZoomComboBox(m_zoom);
@@ -1084,7 +1082,6 @@ void CMscGenDoc::SetZoom(int zoom)
 void CMscGenDoc::ArrangeViews(EZoomMode mode)
 {
 	if (mode == NONE) return;
-	if (IsInPlaceActive()) return;
 	POSITION pos = GetFirstViewPosition();
 	if (pos == NULL) return;
     CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
@@ -1176,15 +1173,7 @@ void CMscGenDoc::ArrangeViews(EZoomMode mode)
 			SetZoom(zoom);
 			break;
 	}
-	pos = GetFirstViewPosition();
-	while (pos != NULL) {
-        CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-  	    if (pView) {
-	        pView->ResyncScrollSize();
-            pView->ClearViewCache();
-			pView->Invalidate();
-		}
-	}
+    UpdateAllViews(NULL);
 }
 
 void CMscGenDoc::OnViewZoomnormalize()
@@ -1298,7 +1287,7 @@ void CMscGenDoc::SyncShownWithEditing(const CString &action)
 		message.Append("Do you want to include the changes and redraw the chart before I " + action + "?\n");
 
 	if (IDYES == AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO)) 
-		ShowEditingChart(true);
+		StartShowingEditingChart(true);
 }
 
 bool CMscGenDoc::CheckIfChanged()
@@ -1314,7 +1303,7 @@ bool CMscGenDoc::CheckIfChanged()
 	if (m_itrSaved != m_itrEditing) {
 		if (m_itrSaved->GetText() != m_itrEditing->GetText()) goto modified;
 		if (IsEmbedded()) {
-			if (m_itrSaved->GetPage() != m_itrEditing->GetPage()) goto modified;
+			if (m_uSavedPage != m_ChartShown.GetPage()) goto modified;
 			if (m_itrSaved->GetDesign() != m_itrEditing->GetDesign()) goto modified;
             if (!(m_itrSaved->GetForcedEntityCollapse() == m_itrEditing->GetForcedEntityCollapse())) goto modified;
             if (!(m_itrSaved->GetForcedArcCollapse() == m_itrEditing->GetForcedArcCollapse())) goto modified;
@@ -1333,10 +1322,8 @@ modified:
 void CMscGenDoc::OnExternalEditorChange(const CChartData &data) 
 {
 	SetTrackMode(false);
-	int current_page = m_itrEditing->GetPage();
 	InsertNewChart(data);
-	m_itrEditing->SetPage(current_page);
-	ShowEditingChart(true);
+	StartShowingEditingChart(true);
 
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -1364,8 +1351,7 @@ void CMscGenDoc::OnInternalEditorChange()
 	//Usually no notification of this sort arrives when only sel changes
 	//But when it does (e.g., at multi-line TAB identation) we store a new version just for the selection
 	if (text != m_itrEditing->GetText() || cr.cpMax != m_itrEditing->m_sel.cpMax || cr.cpMin != m_itrEditing->m_sel.cpMin) {
-		int page = m_itrEditing->GetPage();
-        CChartData chart(text, cr, m_itrEditing->GetDesign(), page);
+        CChartData chart(text, cr, m_itrEditing->GetDesign());
         chart.ForceEntityCollapse(m_itrEditing->GetForcedEntityCollapse());
 		InsertNewChart(chart);
 		CheckIfChanged();     
@@ -1386,16 +1372,45 @@ void CMscGenDoc::OnInternalEditorSelChange()
 	pApp->m_pWndEditor->m_ctrlEditor.ConvertPosToLineCol(start, line, col);
 	//Add new track arc and update the views if there is a change
 	StartFadingAll();
-	AddTrackArc(m_ChartShown.GetArcByLine(line+1, col+1), TrackedArc::TRACKRECT); 
+    AddAnimationElement(AnimationElement::TRACKRECT,
+                        m_ChartShown.GetArcByLine(line+1, col+1)); 
 }
 
-void CMscGenDoc::ShowEditingChart(bool resetZoom)
+struct CompileThreadData
+{
+    CMscGenDoc *pDoc;
+    HWND hMainWnd;
+};
+
+UINT CompileThread( LPVOID pParam )
+{
+    CompileThreadData *pData = (CompileThreadData *)pParam;
+    CSingleLock lock(&pData->pDoc->m_SectionCompiling);
+    lock.Lock();
+    pData->pDoc->m_ChartCompiling.CompileIfNeeded();
+    PostMessage(pData->hMainWnd, WM_APP+293, 0, 0);
+    delete pParam;
+    lock.Unlock();
+    return 0;
+}
+
+bool ProgressCallback(double percent, void *data)
+{
+    CMscGenDoc *pDoc = (CMscGenDoc *)data;
+    pDoc->m_Progress = percent/100;
+    return true;
+}
+
+void CMscGenDoc::StartShowingEditingChart(bool resetZoom)
 {
 	CWaitCursor wait;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
 
-	m_itrEditing->RemoveSpacesAtLineEnds();
+    //Change showing only if not viewing in full screen mode
+    if (pApp->m_bFullScreenViewMode && m_charts.size()>1) return;
+
+    m_itrEditing->RemoveSpacesAtLineEnds();
 	if (pApp->IsInternalEditorRunning()) {
 		//Adjust text in the internal editor
 		int lStartLine, lStartCol, lEndLine, lEndCol;
@@ -1407,58 +1422,102 @@ void CMscGenDoc::ShowEditingChart(bool resetZoom)
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
 	}
 
-    //Change showing only if not viewing in full screen mode
-    if (!pApp->m_bFullScreenViewMode || m_charts.size()==1) {
-        m_itrShown = m_itrEditing;
-        m_itrShown->m_wasDrawn = true;
-        m_ChartShown = *m_itrEditing;
+    CMainFrame *pWnd = m_bAttemptingToClose ? NULL : dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+
+    //Prepare m_ChartCompiling
+    m_itrShown = m_itrEditing;
+    if (pWnd) {
+        //See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar            
+        if (!pWnd->FillDesignComboBox(m_itrShown->GetDesign(), true)) 
+            m_itrShown->SetDesign("");
     }
+    m_ChartCompiling = *m_itrShown;
+    if (m_page_serialized_in>=0) 
+        m_ChartCompiling.SetPage(m_page_serialized_in);
+    else 
+        m_ChartCompiling.SetPage(m_ChartShown.GetPage());
+    m_page_serialized_in = -1;
+    m_ChartCompiling.SetFallbackResolution(m_ChartShown.GetFallbackResolution());
+    m_ChartCompiling.SetPageBreaks(m_ChartShown.GetPageBreaks());
+    const CDrawingChartData::ECacheType should_be = pWnd->m_at_embedded_object_category ? 
+                        CDrawingChartData::CACHE_EMF : CDrawingChartData::CACHE_RECORDING;
+    if (pWnd && pWnd->m_at_embedded_object_category && 
+        m_ChartShown.GetCacheType()!=CDrawingChartData::CACHE_EMF)
+        m_highlight_fallback_images = true;
+    m_ChartCompiling.SetCacheType(should_be);
+    m_ChartCompiling.SetProgressCallback(ProgressCallback, this);
 
-	int max_page = m_ChartShown.GetPages(); //This GetPages compiles
-	if (max_page == 1) max_page=0;
-
-	if (max_page<m_ChartShown.GetPage()) {
-		m_ChartShown.SetPage(max_page);
-		m_itrEditing->SetPage(max_page);
-	}
-	
-	//Display error messages
-	if (pApp->m_pWndOutputView && !m_bAttemptingToClose) 
-        pApp->m_pWndOutputView->ShowCompilationErrors(m_ChartShown);
-
-	if (!m_bAttemptingToClose) {
-        CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-        if (pWnd) {
-            //See if we have the (potentially) new ForcedDesign verified & copied to the combo box of DesignBar            
-            if (!pWnd->FillDesignComboBox(m_ChartShown.GetDesign(), true)) {
-                m_ChartShown.SetDesign("");
-                m_itrShown->SetDesign("");
-            }
-            //Update page controls and variables
-            pWnd->FillPageComboBox(m_ChartShown.GetPages(), m_ChartShown.GetPage());
-		}
-	}
-
-	//Abruptly delete all tracking rectangles
-    CSingleLock lock(&m_SectionTrackingMembers);
-    lock.Lock();
-    m_trackArcs.clear();
-    lock.Unlock();
+	//All tracking rectangles, but add grey area
 	SetTrackMode(false);
+    AddAnimationElement(AnimationElement::COMPILING_GREY);
+    
+    m_hadArrangeViews = resetZoom;    
+    
+    CompileThreadData * p = new CompileThreadData;
+    p->pDoc = this;
+    p->hMainWnd = *pWnd;
+
+    m_pCompilingThread = AfxBeginThread(CompileThread, (LPVOID)p);
+
+    //If there is an internal editor, reset focus to it.
+    if (pApp->IsInternalEditorRunning()) 
+        pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
+}
+
+
+
+void CMscGenDoc::CompleteShowingEditingChart()
+{
+    _ASSERT(m_ChartCompiling.IsCompiled());
+    CSingleLock lock(&m_SectionCompiling);
+    lock.Lock();
+    m_ChartShown.swap(m_ChartCompiling);
+    m_ChartCompiling.Delete();
+    m_pCompilingThread = NULL;
+    lock.Unlock();
     if (CheckIfChanged()) {
         NotifyChanged();
         if (IsEmbedded())
             m_itrSaved = m_itrShown;
     }
+    if (m_bAttemptingToClose) return;
+    StartFadingAll(); //start fading the grey area
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd) {
+        pWnd->FillDesignComboBox(m_ChartShown.GetDesign(), true);
+        pWnd->FillPageComboBox(m_ChartShown.GetPages(), m_ChartShown.GetPage());
+        pWnd->FillZoomComboBox(m_zoom);
+        //If we show the WMF, let us update the embedded object size shown in the ribbon
+        if (m_ChartShown.GetCacheType() == CDrawingChartData::CACHE_EMF
+            && pWnd->m_at_embedded_object_category) {
+            const size_t size = m_ChartShown.GetWMFSize() + serialize_doc_overhead + 
+                                m_ChartShown.GetText().GetLength();
+                const double total = double(m_ChartShown.GetSize().cx)*m_ChartShown.GetSize().cy;
+                pWnd->FillEmbeddedPanel(size, 100*m_ChartShown.GetWMFFallbackImagePos().GetArea() / total);
+        }
+        if (m_highlight_fallback_images) {
+            StartTrackFallbackImageLocations(m_ChartShown.GetWMFFallbackImagePos());
+            m_highlight_fallback_images = false;
+        }
+    }
+	//SetZoom(); //reset toolbar
+    if (m_hadArrangeViews)
+        ArrangeViews();
+    UpdateAllViews(NULL);
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+	//Display error messages
+	if (pApp->m_pWndOutputView) 
+        pApp->m_pWndOutputView->ShowCompilationErrors(m_ChartShown);
+    //If there is an internal editor, reset focus to it.
+    if (pApp->IsInternalEditorRunning()) 
+        pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
+}
 
-	if (!m_bAttemptingToClose) {
-		UpdateAllViews(NULL);
-		if (resetZoom) ArrangeViews();
-		else SetZoom(); //just make sure combo shows right value
-
-		//If there is an internal editor, reset focus to it.
-		if (pApp->IsInternalEditorRunning()) pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
-	}
+void CMscGenDoc::KillCompilation()
+{
+    if (!m_pCompilingThread) return;
+    //TODO
 }
 
 void CMscGenDoc::StartFadingTimer() 
@@ -1476,127 +1535,134 @@ void CMscGenDoc::StartFadingTimer()
 //return false if no fading rect remained
 bool CMscGenDoc::DoFading()
 {
-    Block bounding; bounding.MakeInvalid();
-    CSingleLock lock(&m_SectionTrackingMembers);
+    CSingleLock lock(&m_SectionAnimations);
     lock.Lock();
-	for (auto ta = m_trackArcs.begin(); ta != m_trackArcs.end(); /*nope*/) {
-        const Contour &draw_area = ta->what == TrackedArc::FALLBACK_IMAGE ? m_fallback_image_location : ta->arc->GetAreaToDraw();
+    for (auto ta = m_animations.begin(); ta != m_animations.end(); /*nope*/) {
         switch (ta->status) {
-            case TrackedArc::SHOWING:
+            case AnimationElement::SHOWING:
                 if (ta->fade_delay>0) 
                     ta->fade_delay = std::max(0, ta->fade_delay-FADE_TIMER);
                 if (ta->fade_delay==0) 
-                    ta->status = TrackedArc::FADING;
+                    ta->status = AnimationElement::FADING;
                 ta++;
                 break;
-            case TrackedArc::APPEARING:
-                bounding += draw_area.GetBoundingBox();
+            case AnimationElement::APPEARING:
                 ta->fade_value += double(FADE_TIMER)/ta->appe_time;
                 if (ta->fade_value >= 1) {
                     ta->fade_value = 1;
-                    ta->status = TrackedArc::SHOWING;
+                    ta->status = AnimationElement::SHOWING;
                 }
                 ta++;
                 break;
-            case TrackedArc::FADING:
-                bounding += draw_area.GetBoundingBox();
+            case AnimationElement::FADING:
                 ta->fade_value -= double(FADE_TIMER)/ta->disa_time;
                 if (ta->fade_value > 0) {
                     ta++;
                     break;
                 }
                 /*Fallthrough*/
-            case TrackedArc::OFF:
+            case AnimationElement::OFF:
                 //if a control, remove from m_controlsShowing
-                if (ta->what==TrackedArc::CONTROL) 
+                if (ta->what==AnimationElement::CONTROL) 
                     for (auto ii=m_controlsShowing.begin(); ii!=m_controlsShowing.end(); /*nope*/)
                         if (ii->second == ta->arc) m_controlsShowing.erase(ii++);
                         else ii++;
-                ta = m_trackArcs.erase(ta);
+                ta = m_animations.erase(ta);
                 break;
 		}
     }
-    if (bounding.IsInvalid()) //nothing to update
-        return m_trackArcs.size()>0;  //return true if we need to keep the timer
     lock.Unlock();
 	POSITION pos = GetFirstViewPosition();
 	while(pos) {
 		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-		if (pView) pView->InvalidateBlock(bounding);
+		if (pView) pView->Invalidate();
 	}
-	return true;
+	return m_animations.size()>0;
 }
 
 
 //Add a tracking element to the list. Updates Views if needed & rets ture if so
-bool CMscGenDoc::AddTrackArc(Element *arc, TrackedArc::ElementType type, int delay)
+bool CMscGenDoc::AddAnimationElement(AnimationElement::ElementType type, 
+                                     Element *arc, int delay)
 {
-    //For fallback images we set the "arc" to 0x1
-    if (type==TrackedArc::FALLBACK_IMAGE) arc = (Element*)1;
-    else if (arc==NULL) return false;
-	//Do not add if it has no visual element
-    const Contour &draw = type==TrackedArc::FALLBACK_IMAGE ? m_fallback_image_location : arc->GetAreaToDraw();
-    if (type != TrackedArc::CONTROL && draw.IsEmpty()) 
-		return false;
+    //sanitize input & find drawing area
+    const Contour *draw;
+    switch (type) {
+    case AnimationElement::COMPILING_GREY:
+        _ASSERT(arc==NULL);
+        arc = NULL;
+        draw = NULL; 
+        break;
+    case AnimationElement::FALLBACK_IMAGE:
+        _ASSERT(arc==NULL);
+        arc = NULL;
+        if (m_fallback_image_location.IsEmpty()) 
+            return false;
+        draw = &m_fallback_image_location; 
+        break;
+    case AnimationElement::CONTROL:
+    case AnimationElement::TRACKRECT:
+        //Do not add if it has no visual element
+        if (arc==NULL) return false;
+        draw = &arc->GetAreaToDraw(); 
+        if (draw->IsEmpty()) 
+            return false;
+        break;
+    default:
+        _ASSERT(0);
+    }
+
+    //Look for this arc. If already on list and still fully visible return false - no need to update
 	bool found = false;
-    Block b; b.MakeInvalid();
-	//Look for this arc. If already on list and still fully visible return false - no need to update
-    CSingleLock lock(&m_SectionTrackingMembers);
+    CSingleLock lock(&m_SectionAnimations);
     lock.Lock();
-	for (auto i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) {
-        if (i->what == type && (type == TrackedArc::FALLBACK_IMAGE || i->arc == arc)) {
+	for (auto i = m_animations.begin(); i!=m_animations.end(); i++) 
+        if (i->what == type && i->arc == arc) {
 			i->fade_delay = delay;
-			if (i->status == TrackedArc::SHOWING) 
+			if (i->status == AnimationElement::SHOWING) 
 				return false; //we found and it is fully highlighted
 			else {
-				i->status = TrackedArc::APPEARING;
+				i->status = AnimationElement::APPEARING;
 				found = true;
 			}
 		} 
-
-        b += (i->what == TrackedArc::FALLBACK_IMAGE ? m_fallback_image_location : i->arc->GetAreaToDraw()).GetBoundingBox();
-    }
+ 
     //We always redraw all the tracked rectangles, to look better
 	if (!found) {
-        const int appear = type == TrackedArc::TRACKRECT ? 300 : type == TrackedArc::FALLBACK_IMAGE ? 1 : 100;
-        const int disapp = type == TrackedArc::TRACKRECT ? 300 : type == TrackedArc::FALLBACK_IMAGE ? 1500 : 100;
-		m_trackArcs.push_back(TrackedArc(arc, type, delay, appear, disapp));
-        if (type == TrackedArc::CONTROL) {
-            _ASSERT(arc);
+        if (arc)
+            m_animations.push_back(AnimationElement(arc, type, delay));
+        else
+            m_animations.push_back(AnimationElement(type, delay));
+        if (type == AnimationElement::CONTROL) 
             m_controlsShowing[arc->GetControlLocation()] = arc;
-            b += arc->GetControlLocation();
-        } else
-            b += draw.GetBoundingBox();
     } 
-    if (b.IsInvalid()) 
-        return true;
     lock.Unlock();
     POSITION pos = GetFirstViewPosition();
 	while(pos) {
 		CMscGenView* pView = dynamic_cast<CMscGenView*>(GetNextView(pos));
-		if (pView) pView->InvalidateBlock(b);
+		if (pView) pView->Invalidate();
 	}
+    StartFadingTimer();
 	return true;
 }
 
 void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 {
     m_fallback_image_location = c;
-    AddTrackArc(NULL, TrackedArc::FALLBACK_IMAGE, 0);
-    StartFadingTimer();
+    AddAnimationElement(AnimationElement::FALLBACK_IMAGE, 0);
 }
 
 
 //Start the fading process for all rectangles (even for delay<0)
-void CMscGenDoc::StartFadingAll(TrackedArc::ElementType type, const Element *except) 
+void CMscGenDoc::StartFadingAll(AnimationElement::ElementType type, const Element *except) 
 {
-    CSingleLock lock(&m_SectionTrackingMembers);
+    CSingleLock lock(&m_SectionAnimations);
     lock.Lock();
-    for (auto i = m_trackArcs.begin(); i!=m_trackArcs.end(); i++) 
-        if (type == i->what && (type == TrackedArc::FALLBACK_IMAGE || i->arc == except)) 
+    for (auto i = m_animations.begin(); i!=m_animations.end(); i++) 
+        if (type == i->what && i->arc == except) 
             continue;
         else
-            i->status = TrackedArc::FADING;
+            i->status = AnimationElement::FADING;
     lock.Unlock();
 	//If fading in progress we exit
 	POSITION pos = GetFirstViewPosition();
@@ -1638,18 +1704,18 @@ void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
     //Start fading all controls and track rectangles, except the one under cursor
 	Element *arc = m_ChartShown.GetArcByCoordinate(mouse);
-	StartFadingAll(TrackedArc::TRACKRECT, arc); 
+	StartFadingAll(AnimationElement::TRACKRECT, arc); 
     //re-add those controls which are under mouse
     for (auto i = m_controlsShowing.begin(); i!=m_controlsShowing.end(); i++)
         if (inside(i->first.IsWithin(XY(mouse.x, mouse.y))))
-            AddTrackArc(i->second, TrackedArc::CONTROL);
+            AddAnimationElement(AnimationElement::CONTROL, i->second);
     if (arc && arc->GetControls().size()) 
-        AddTrackArc(arc, TrackedArc::CONTROL);
+        AddAnimationElement(AnimationElement::CONTROL, arc);
     //if we do not display tracking rectangles, exit
 	if (!m_bTrackMode) return;
     //Re-add tracking rectangle under cursor
     if (arc) 
-        AddTrackArc(arc, TrackedArc::TRACKRECT);
+        AddAnimationElement(AnimationElement::TRACKRECT, arc);
 	//If arc has not changed, do nothing
 	if (arc == m_last_arc) 
 		return;
@@ -1719,13 +1785,13 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
         }
     }
     if (!changed) return false;
-    CSingleLock lock(&m_SectionTrackingMembers);
+    CSingleLock lock(&m_SectionAnimations);
     lock.Lock();
-    m_trackArcs.clear();
+    m_animations.clear();
     m_controlsShowing.clear();
     lock.Unlock();
 	InsertNewChart(chart);
-    ShowEditingChart(true);
+    StartShowingEditingChart(true);
     return true;
 }
 

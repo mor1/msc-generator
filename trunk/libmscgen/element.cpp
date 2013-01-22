@@ -199,7 +199,7 @@ const XY Element::control_size = XY(25, 25);
  * @param cr The cairo context to draw the controls to. 
  *           The transformation matrix shall be so that we can draw on chart space.
  * @param [in] size A number between [0.01..1] indicating a scale factor. */
-void Element::DrawControls(cairo_t *cr, double size)
+void Element::DrawControls(cairo_t *cr, double size) const
 {
     if (size<0.01 || size>1 || controls.size()==0 || cr==NULL) return;
     cairo_save(cr);

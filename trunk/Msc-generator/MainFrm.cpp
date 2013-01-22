@@ -92,6 +92,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_UPDATE_COMMAND_UI(ID_BUTTON_EDITINTERNAL, OnUpdateViewInternalEditor)
     ON_UPDATE_COMMAND_UI(ID_BUTTON_DEFAULT_TEXT, OnUpdateButtonDefaultText)
     ON_UPDATE_COMMAND_UI(ID_EMBEDDEDOPTIONS_FALLBACK_RES, OnUpdateEmbeddedoptionsFallbackRes)
+    ON_MESSAGE(WM_APP+293, OnCompilationDone)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -423,6 +424,15 @@ void CMainFrame::OnViewFullScreen()
         }
 	}
 }
+
+LRESULT CMainFrame::OnCompilationDone(WPARAM wParam, LPARAM lParam)
+{
+    CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
+    if (pDoc) 
+        pDoc->CompleteShowingEditingChart();
+    return 0; //OK, we processed it
+}
+
 
 bool CMainFrame::AddToFullScreenToolbar() //finds the adds our buttons to it
 {
