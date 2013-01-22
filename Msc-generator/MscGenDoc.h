@@ -28,15 +28,26 @@
 
 class CMscGenSrvrItem;
 
-struct TrackedArc {
-	Element * arc;
-    enum ElementType {CONTROL, TRACKRECT, FALLBACK_IMAGE} what;
+struct AnimationElement {
+	const Element *arc;
+    enum ElementType {
+        CONTROL = 0, 
+        TRACKRECT, 
+        FALLBACK_IMAGE, 
+        COMPILING_GREY,
+        MAX_TYPE
+    } what;
+    static const unsigned default_appear_time[MAX_TYPE];
+    static const unsigned default_disapp_time[MAX_TYPE];
     enum {APPEARING, SHOWING, FADING, OFF} status;
 	int    fade_delay;  //After appear this much delay is there to fade in ms. <0 never fade
     int    appe_time;
     int    disa_time;
 	double fade_value;  //0 is not shown, 1 is fully shown
-	TrackedArc(Element *a, ElementType et, int delay = -1, int appear=300, int disappear=300);
+	AnimationElement(Element *a, ElementType et, int delay = -1, 
+                     int appear=-1, int disappear=-1);
+	AnimationElement(ElementType et, int delay = -1, 
+                     int appear=-1, int disappear=-1);
 };
 
 class CMscGenDoc : public COleServerDocEx
@@ -63,18 +74,26 @@ public:
 	IChartData m_itrEditing; //The chart that is the current one in the editor
 	IChartData m_itrShown; //The chart that is compiled and shown in view. Iterator may be invalid if user undoed the shown chart 
 	CDrawingChartData m_ChartShown; //The chart that is currently showing
+    CDrawingChartData m_ChartCompiling; //The chart that is compiling.
+    int m_page_serialized_in; //the page read by last Serialize();
+    bool m_hadArrangeViews; //If we shall arrange views after compilation 
+    bool m_highlight_fallback_images; //if we have just switched to EMF view
+    CCriticalSection m_SectionCompiling; //To protect m_ChartCompiling
+    CWinThread *m_pCompilingThread;
+    double m_Progress;
 
     unsigned m_uSavedFallbackResolution; //for embedded charts 
     bool     m_bSavedPageBreaks;          //for embedded charts 
+    unsigned m_uSavedPage; //The page we have embedded
 
 	// Zoom related 
 	unsigned m_zoom; //In percentage. 100 is normal
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
 	// Track mode related
 	bool m_bTrackMode; //True if mouse is tracked over arcs
-    CCriticalSection m_SectionTrackingMembers; //To protect m_trackArcs below from simultaneous access
+    CCriticalSection m_SectionAnimations; //To protect m_animations below from simultaneous access
     Contour m_fallback_image_location;
-	std::vector<TrackedArc> m_trackArcs;  //arcs to track currently
+	std::vector<AnimationElement> m_animations;  //arcs to track currently
     std::map<Block, Element*> m_controlsShowing; //Controls currently appearing
 	CHARRANGE m_saved_charrange;
 	Element *m_last_arc; //During tracking the arc highlighted in the editor
@@ -91,7 +110,7 @@ public:
 public:
 	virtual void Serialize(CArchive& ar);
             void SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page);
-            void SerializePage(CArchive& ar, unsigned &forced_page, bool force_page);
+            void SerializePage(CArchive& ar, unsigned &page);
 	virtual void DeleteContents(); // Destroys existing data, updates views
 	virtual BOOL CanCloseFrame(CFrameWnd* pFrame);
 	virtual BOOL OnNewDocument();
@@ -158,14 +177,16 @@ public:
     void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
-	void ShowEditingChart(bool resetZoom);               //Call this to show the currently edited chart, it compiles and updates the views, calls NotifyChanged()
+	void StartShowingEditingChart(bool resetZoom);       //Call this to show the currently edited chart, it compiles and updates the views, calls NotifyChanged()
+    void CompleteShowingEditingChart();                  //This will be called once the 
+    void KillCompilation(); 
 
 	void StartFadingTimer();                             //Ensure that one and only one View runs a fading timer;
 	bool DoFading();                                     //Do one step fading. Return true if there are still elements in the process of fading
-	bool AddTrackArc(Element *, 
-                 TrackedArc::ElementType, int delay=-1); //Add a tracking element to the list. Updates Views if needed & rets ture if so
+	bool AddAnimationElement(AnimationElement::ElementType, Element *arc=NULL, 
+                             int delay=-1); //Add a tracking element to the list. Updates Views if needed & rets ture if so
     void StartTrackFallbackImageLocations(const Contour &);
-    void StartFadingAll(TrackedArc::ElementType type=TrackedArc::TRACKRECT, const Element *except=NULL); //Start the fading process for all rectangles (even for delay<0, except one)
+    void StartFadingAll(AnimationElement::ElementType type=AnimationElement::TRACKRECT, const Element *except=NULL); //Start the fading process for all rectangles (even for delay<0, except one)
 	void SetTrackMode(bool on);                          //Turns tracking mode on
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 	void HighLightArc(const Element *arc);      //Select in internal editor

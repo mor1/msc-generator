@@ -575,7 +575,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
         }
 
         //Now cycle through pages and write them to individual files or a full-page  one
-        msc.DrawToOutput(oOutType, scale, oOutputFile, false, oPageSize, margins, oHA, oVA, true);
+        msc.DrawToFile(oOutType, scale, oOutputFile, false, oPageSize, margins, oHA, oVA, true);
+        msc.Progress.Done();
     }
     free(input);
     if (msc.Error.hasFatal()) goto fatal;

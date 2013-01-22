@@ -73,7 +73,7 @@ public:
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	        BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnViewFullScreen();
-
+    afx_msg LRESULT OnCompilationDone(WPARAM wParam, LPARAM lParam);
     bool IsInAutoSplitMode() const {return m_bAutoSplit;}
     void SetSplitSize(unsigned coord);
     bool AddToFullScreenToolbar(); //finds the fulls screen toolbar and adds our buttons to it

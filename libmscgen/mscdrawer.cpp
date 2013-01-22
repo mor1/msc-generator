@@ -264,12 +264,14 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::ve
                         one of the pages - but why would you do so?
   @param error If the height next page does not fit the output page size
                This is where we emit a warning (if not NULL).
+  @returns False if an error (but not warning) has been encountered, 
+           irrespective of the value of `error` parameter.
 */
- void Canvas::TurnPage(const PBDataVector *pageBreakData, unsigned next_page, 
+ bool Canvas::TurnPage(const PBDataVector *pageBreakData, unsigned next_page, 
                          MscError *error) 
 {
     if (status!=ERR_OK) 
-        return;
+        return false;
     //Complete the old page
     cairo_destroy(cr);
     cairo_surface_show_page(surface);
@@ -281,7 +283,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::ve
         CloseOutput();
         ErrorAfterCreation(error, pageBreakData, false);
         candraw = false;
-        return;
+        return false;
     }
     //Complain if this page is too 
     if (error && raw_page_clip.y.Spans() < (origYSize+copyrightTextHeight)*user_scale.y) {
@@ -291,6 +293,7 @@ Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::ve
         error->Warning(FileLineCol(0, 0), err + "% longer than the paper size and will be cropped."); 
     }
     candraw = true;
+    return true;
 }
 
 /** Records the errors/warnings happened during any constructor.

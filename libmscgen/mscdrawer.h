@@ -230,7 +230,7 @@ public:
     EErrorType Status() const {return status;}
     /** Returns the physical size of `ps` in points (1/72 inch)*/
     static XY GetPhysicalPageSize(EPageSize ps);
-    void TurnPage(const PBDataVector *pageBreakData, unsigned next_page, 
+    bool TurnPage(const PBDataVector *pageBreakData, unsigned next_page, 
                   MscError *error=NULL);
     bool ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakData, bool fatal);
 #ifdef CAIRO_HAS_WIN32_SURFACE

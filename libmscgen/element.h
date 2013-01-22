@@ -135,7 +135,7 @@ public:
 
     /** Return the location of our GUI controls*/
     const Block &GetControlLocation() const {return control_location;}
-    void DrawControls(cairo_t*, double size);
+    void DrawControls(cairo_t*, double size) const;
     EGUIControlType WhichControl(const XY &xy);
 
     Block GetIndicatorCover(const XY &pos);

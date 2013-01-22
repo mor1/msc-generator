@@ -81,7 +81,7 @@ void CMscGenSrvrItem::Serialize(CArchive& ar)
     CMscGenDoc* pDoc = GetDocument();
     ASSERT_VALID(pDoc);
     unsigned fp = GetPage();
-    pDoc->SerializePage(ar, fp, true);  //overwrite page stored in pDoc with fp, but keep m_forcedpage on read
+    pDoc->SerializePage(ar, fp);  //overwrite page stored in pDoc with fp, but keep m_forcedpage on read
 }
 
 BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
@@ -100,7 +100,7 @@ BOOL CMscGenSrvrItem::OnGetExtent(DVASPECT dwDrawAspect, CSize& rSize)
     CMscGenDoc* pDoc = GetDocument();
     ASSERT_VALID(pDoc);
     if (!pDoc) return FALSE;
-    rSize = pDoc->m_ChartShown.GetSize(true, GetPage());
+    rSize = pDoc->m_ChartShown.GetSize(pDoc->m_ChartShown.GetPage());
 
 	CClientDC dc(NULL);
 	// use a mapping mode based on logical units
@@ -127,7 +127,8 @@ BOOL CMscGenSrvrItem::OnDraw(CDC* pDC, CSize& rSize)
     CMscGenDoc* pDoc = GetDocument();
     ASSERT_VALID(pDoc);
     if (!pDoc || !pApp) return FALSE;
-    size_t size = pDoc->m_ChartShown.DrawToMetafile(pDC->m_hDC, Canvas::WMF, pApp->m_bPageBreaks, true, GetPage());
+    size_t size = pDoc->m_ChartShown.DrawToDC(Canvas::WMF,
+        pDC->m_hDC, XY(1,1), pDoc->m_ChartShown.GetPage(), pApp->m_bPageBreaks, pApp->m_uFallbackResolution);
     size += pDoc->serialize_doc_overhead + pDoc->m_ChartShown.GetText().GetLength();
     //CMainFrame *pMainFrame = dynamic_cast<CMainFrame *>(pDoc->GetFirstFrame());
     //if (pMainFrame)
