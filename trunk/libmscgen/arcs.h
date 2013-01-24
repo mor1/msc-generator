@@ -102,6 +102,7 @@ protected:
 private:
     bool had_add_attr_list;    //TODO: debug only, remove
 protected:
+    MscProgress::ECategory myProgressCategory; //filled in at registration (AddAttributeList() or ArcBoxSeries::ArcBoxSeries and ArcPipeSeries::ArcPipeSeries
     bool         valid;        /* If false, then construction failed, arc does not exist */
     bool         at_top_level; /* if at top level by PostParseProcess() */
     bool         compress;     /* if compress mechanism is on for this arc */

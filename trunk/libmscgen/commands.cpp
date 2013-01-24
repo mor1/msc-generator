@@ -701,9 +701,25 @@ ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &
         Element *dummy4;
         //at_to_level must be true, or else it complains...
         autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, true, &dummy4);
+        chart->Progress.DoneItem(MscProgress::POST_PARSE, autoHeading->GetProgressCategory());
     }
     return ArcCommand::PostParseProcess(canvas, hide, left, right, number, top_level, note_target);
 }
+
+void CommandNewpage::FinalizeLabels(Canvas &canvas)
+{
+    if (autoHeading)
+        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, autoHeading->GetProgressCategory());
+}
+
+void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances) 
+{
+    if (autoHeading) {
+        autoHeading->Width(canvas, distances);
+        chart->Progress.DoneItem(MscProgress::WIDTH, autoHeading->GetProgressCategory());
+    }
+}
+
 
 void CommandNewpage::Layout(Canvas &canvas, AreaList &cover)
 {
@@ -711,6 +727,7 @@ void CommandNewpage::Layout(Canvas &canvas, AreaList &cover)
     if (autoHeading) {
         AreaList dummy;
         autoHeading->Layout(canvas, dummy); 
+        chart->Progress.DoneItem(MscProgress::LAYOUT, autoHeading->GetProgressCategory());    
     }
 }
 
@@ -728,6 +745,28 @@ void CommandNewpage::CollectPageBreak(double hSize)
     if (!valid) return;
     chart->pageBreakData.push_back(PageBreakData(yPos, manual, autoHeading));
 }
+
+void CommandNewpage::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
+{
+    if (autoHeading)
+        chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, autoHeading->GetProgressCategory());
+}
+
+void CommandNewpage::PostPosProcess(Canvas &/*cover*/)
+{
+    if (autoHeading)
+        chart->Progress.DoneItem(MscProgress::POST_POS, autoHeading->GetProgressCategory());
+}
+
+void CommandNewpage::Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/)
+{
+    //We cheat here. These will not be drawn only if a single page
+    //is being drawn - but there we will not report them ready.
+    if (autoHeading)
+        chart->Progress.DoneItem(MscProgress::DRAW, autoHeading->GetProgressCategory());
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 

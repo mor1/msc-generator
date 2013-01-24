@@ -1964,7 +1964,6 @@ void Msc::CompleteParse(Canvas::EOutputType ot, bool avoidEmpty,
     //Sort Entities, add numbering, fill in auto-calculated values,
     //and throw warnings for badly constructed diagrams.
     headingSize = 0;
-	Progress.StartSection(MscProgress::POST_PARSE);
     PostParseProcess(canvas); 
 	Progress.StartSection(MscProgress::FINALIZE_LABELS);
     FinalizeLabelsArcList(Arcs, canvas);
