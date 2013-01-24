@@ -89,9 +89,14 @@ public:
 
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
                                       Numbering &number, bool top_level, Element **note_target);
+    virtual void FinalizeLabels(Canvas &canvas);
+    virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList &cover);
     virtual void ShiftBy(double y);
     virtual void CollectPageBreak(double hSize);
+    virtual void PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/);
+    virtual void PostPosProcess(Canvas &cover);
+    virtual void Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/);
 };
 
 class CommandNewBackground : public ArcCommand

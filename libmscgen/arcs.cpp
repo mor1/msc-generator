@@ -292,7 +292,7 @@ ArcBase::ArcBase(EArcType t, Msc *msc) :
 
 ArcBase::~ArcBase()
 {
-	//chart->Progress.UnRegisterArc(GetProgressCategory());
+	chart->Progress.UnRegisterArc(myProgressCategory);
 }
 
 Area ArcBase::GetCover4Compress(const Area &a) const
@@ -308,7 +308,8 @@ Area ArcBase::GetCover4Compress(const Area &a) const
 //l can be an empty list
 ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 {
-	chart->Progress.RegisterArc(GetProgressCategory());
+    myProgressCategory = GetProgressCategory();
+	chart->Progress.RegisterArc(myProgressCategory);
     had_add_attr_list = true;
     if (l==NULL || !valid) return this;
     for (AttributeList::iterator i=l->begin(); i!=l->end(); i++)
@@ -2360,6 +2361,9 @@ ArcBoxSeries::ArcBoxSeries(ArcBox *first) :
     series.Append(first);
     draw_pass = first->draw_pass;
     keep_together = true; //we will do our own pagination if needed, we shall not be cut in half by Msc::ArcHeightList()
+    //We will not get an AddAttributeList, so we register ourselves
+    myProgressCategory = GetProgressCategory();
+    chart->Progress.RegisterArc(myProgressCategory);
 }
 
 
@@ -2621,6 +2625,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
         ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level, target); //ret is an arcblockarrow if we need to collapse
+        chart->Progress.DoneItem(MscProgress::POST_PARSE, (*i)->GetProgressCategory());
 		//Check if we are collapsed to a block arrow
 		if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW) {
 			_ASSERT(series.size()==1);
@@ -2691,8 +2696,10 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
 
 void ArcBoxSeries::FinalizeLabels(Canvas &canvas)
 {
-    for (auto i=series.begin(); i!=series.end(); i++)
+    for (auto i=series.begin(); i!=series.end(); i++) {
         (*i)->FinalizeLabels(canvas);
+        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->GetProgressCategory());
+    }
     ArcBase::FinalizeLabels(canvas);
 }
 
@@ -2722,6 +2729,7 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
             (*i)->sx_text = (*i)->dx_text = overall_style.line.LineWidth();
         }
         max_width = max(max_width, width);
+        chart->Progress.DoneItem(MscProgress::WIDTH, (*i)->GetProgressCategory());
     }
 
     //Now d contains distance requirements within this emph box series
@@ -2855,6 +2863,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList &cover)
             (*i)->height_w_lower_line = (*i)->height + lw;
         else
             (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.line.LineWidth();
+        chart->Progress.DoneItem(MscProgress::LAYOUT, (*i)->GetProgressCategory());
     } /* for cycle through segments */
     //Final advance of linewidth, the inner edge (y) is on integer
     total_height = y + lw - yPos;
@@ -3014,9 +3023,11 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
 
 void ArcBoxSeries::PlaceWithMarkers(Canvas &canvas, double autoMarker)
 {
-    for (auto i = series.begin(); i!=series.end(); i++)
+    for (auto i = series.begin(); i!=series.end(); i++) {
+        chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, (*i)->GetProgressCategory());
         if ((*i)->valid && (*i)->content.size()) 
             chart->PlaceWithMarkersArcList(canvas, (*i)->content, autoMarker);
+    }
 }
 
 
@@ -3045,6 +3056,7 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
                     break;
                 }
             (*i)->ArcLabelled::PostPosProcess(canvas);
+            chart->Progress.DoneItem(MscProgress::POST_POS, (*i)->GetProgressCategory());
             if ((*i)->content.size()) 
                 chart->PostPosProcessArcList(canvas, (*i)->content);
         }
@@ -3167,6 +3179,9 @@ ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
 {
     series.Append(first);
     keep_together = false; //we can be cut in half
+    //We will not get an AddAttributeList, so we register ourselves
+    myProgressCategory = GetProgressCategory();
+    chart->Progress.RegisterArc(myProgressCategory);
 }
 
 ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
@@ -3294,8 +3309,10 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     if (!valid) return NULL;
 
     //Add numbering, if needed 
-    for (auto i = series.begin(); i!=series.end(); i++) 
+    for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
+        chart->Progress.DoneItem(MscProgress::POST_PARSE, (*i)->GetProgressCategory());
+    }
     //Postparse the content;
     EIterator content_left, content_right;
     content_right = content_left = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
@@ -3514,8 +3531,10 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
 
 void ArcPipeSeries::FinalizeLabels(Canvas &canvas)
 {
-    for (auto i=series.begin(); i!=series.end(); i++)
+    for (auto i=series.begin(); i!=series.end(); i++) {
         (*i)->FinalizeLabels(canvas);
+        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->GetProgressCategory());
+    }
     chart->FinalizeLabelsArcList(content, canvas);
     ArcBase::FinalizeLabels(canvas);
 }
@@ -3576,6 +3595,7 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
         else
             d_pipe.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
                                 (*i)->right_space + ilw + radius + shadow_to_add);
+        chart->Progress.DoneItem(MscProgress::WIDTH, (*i)->GetProgressCategory());
     }
     d_pipe.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     distances += d_pipe;
@@ -3869,6 +3889,7 @@ void ArcPipeSeries::PlaceWithMarkers(Canvas &canvas, double autoMarker)
 {
     if (content.size())
         chart->PlaceWithMarkersArcList(canvas, content, autoMarker);
+    chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, MscProgress::PIPE, series.size());
 }
 
 void ArcPipeSeries::PostPosProcess(Canvas &canvas)
@@ -3878,14 +3899,18 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
     //then the content (only in the first segment)
     //then those segments, which are fully opaque
     //(this is because search is backwards and this arrangement fits the visual best
-    for (auto i = series.begin(); i!=series.end(); i++)
-        if ((*i)->valid && (*i)->style.solid.second < 255)
+    for (auto i = series.begin(); i!=series.end(); i++) 
+        if ((*i)->valid && (*i)->style.solid.second < 255) {
             (*i)->ArcLabelled::PostPosProcess(canvas);
+            chart->Progress.DoneItem(MscProgress::POST_POS, (*i)->GetProgressCategory());
+        }
     if (content.size())
         chart->PostPosProcessArcList(canvas, content);
     for (auto i = series.begin(); i!=series.end(); i++)
-        if ((*i)->valid && (*i)->style.solid.second == 255)
+        if ((*i)->valid && (*i)->style.solid.second == 255) {
             (*i)->ArcLabelled::PostPosProcess(canvas);
+            chart->Progress.DoneItem(MscProgress::POST_POS, (*i)->GetProgressCategory());
+        }
     for (auto i = series.begin(); i!=series.end(); i++)
         chart->HideEntityLines((*i)->pipe_shadow);
 }

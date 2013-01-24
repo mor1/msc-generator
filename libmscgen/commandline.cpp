@@ -181,6 +181,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     string ss;
 
     Msc msc;
+    msc.Progress.Read("load.txt");
     msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
                         "http://msc-generator.sourceforge.net ";
     msc.copyrightText.append(VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
@@ -577,6 +578,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         //Now cycle through pages and write them to individual files or a full-page  one
         msc.DrawToFile(oOutType, scale, oOutputFile, false, oPageSize, margins, oHA, oVA, true);
         msc.Progress.Done();
+        msc.Progress.Write("load.txt");
     }
     free(input);
     if (msc.Error.hasFatal()) goto fatal;
