@@ -163,7 +163,8 @@ static void licence()
 }
 
 int do_main(const std::list<std::string> &args, const char *designs,
-            string csh_textformat)
+            string csh_textformat, 
+            MscProgress::ProgressCallback cb, void *param)
 {
     Canvas::EOutputType oOutType=Canvas::PNG;
     string                oOutputFile;
@@ -181,6 +182,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
     string ss;
 
     Msc msc;
+    msc.Progress.callback = cb;
+    msc.Progress.data = param;
     msc.Progress.Read("load.txt");
     msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
                         "http://msc-generator.sourceforge.net ";

@@ -102,7 +102,6 @@ protected:
 private:
     bool had_add_attr_list;    //TODO: debug only, remove
 protected:
-    MscProgress::ECategory myProgressCategory; //filled in at registration (AddAttributeList() or ArcBoxSeries::ArcBoxSeries and ArcPipeSeries::ArcPipeSeries
     bool         valid;        /* If false, then construction failed, arc does not exist */
     bool         at_top_level; /* if at top level by PostParseProcess() */
     bool         compress;     /* if compress mechanism is on for this arc */
@@ -113,10 +112,10 @@ protected:
     mutable double height;     /* calculated by Layout()*/
 public:
     const EArcType type;
+    const MscProgress::ECategory myProgressCategory; 
 
-    ArcBase(EArcType t, Msc *msc);
+    ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc);
 	virtual ~ArcBase();
-    virtual MscProgress::ECategory GetProgressCategory() const {_ASSERT(0); return MscProgress::NO_CATEGORY;}
     bool IsValid() const {return valid;}
     virtual const ArcSignature* GetSignature() const {return NULL;}
     bool IsParallel() const {return parallel;}
@@ -205,8 +204,8 @@ protected:
     NumberingStyle  numberingStyle;  //This is not part of styles in general, but of contexts
     string          number_text;     //the formatted number (for references, e.g., notes)
 public:
-    ArcLabelled(EArcType t, Msc *msc, const MscStyle &);
-    ArcLabelled(EArcType t, const ArcLabelled &al);
+    ArcLabelled(EArcType t, MscProgress::ECategory c, Msc *msc, const MscStyle &);
+    ArcLabelled(EArcType t, MscProgress::ECategory c, const ArcLabelled &al);
     const MscStyle &GetStyle() const {return style;}
     virtual bool CanBeNoted() const {return true;}
     void SetStyleWithText(const char *style_name); //set style to this name, but combine it with default text style
@@ -227,8 +226,8 @@ public:
 class ArcArrow : public ArcLabelled
 {
 public:
-    ArcArrow(EArcType t, Msc *msc, const MscStyle &s) : ArcLabelled(t, msc, s) {}
-    ArcArrow(EArcType t, const ArcLabelled &al) : ArcLabelled(t, al) {}
+    ArcArrow(EArcType t, MscProgress::ECategory c, Msc *msc, const MscStyle &s) : ArcLabelled(t, c, msc, s) {}
+    ArcArrow(EArcType t, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(t, c, al) {}
     virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l) = 0;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -251,7 +250,6 @@ protected:
 public:
     ArcSelfArrow(EArcType t, const char *s, FileLineColRange sl,
         Msc *msc, const MscStyle &, double ys);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::SELF_ARROW;}
     virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
@@ -269,11 +267,11 @@ class ArcDirArrow : public ArcArrow
 {
 protected:
     EIterator                src, dst;
-    FileLineCol                linenum_src, linenum_dst;
+    FileLineCol              linenum_src, linenum_dst;
     std::vector<EIterator>   middle;
-    std::vector<FileLineCol>   linenum_middle;
-    std::vector<EArcType>  segment_types; //one for each segment ([0] is the one from src), set during AddSegment()s
-    std::vector<LineAttr> segment_lines; //one for each segment ([0] is the one from src), set during AddAttributeList()
+    std::vector<FileLineCol> linenum_middle;
+    std::vector<EArcType>    segment_types; //one for each segment ([0] is the one from src), set during AddSegment()s
+    std::vector<LineAttr>    segment_lines; //one for each segment ([0] is the one from src), set during AddAttributeList()
     const bool               specified_as_forward; //true if user specified "a->b", false if "b<-a"
     double                   slant_angle;
 
@@ -290,7 +288,6 @@ public:
     ArcDirArrow(EArcType t, const char *s, FileLineColRange sl,
         const char *d, FileLineColRange dl, Msc *msc, bool fw, const MscStyle &);
     ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::DIR_ARROW;}
     virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     ArcBase *AddAttributeList(AttributeList *l);
     bool AddAttribute(const Attribute &);
@@ -327,7 +324,6 @@ public:
     ArcBigArrow(const ArcDirArrow &, const MscStyle &);
     ArcBigArrow(const EntityList &, bool bidir, const ArcLabelled &al, const ArcSignature *s);
     ~ArcBigArrow() {if (sig) delete sig;}
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::BLOCK_ARROW;}
     virtual const MscStyle *GetRefinementStyle(EArcType t) const;
     virtual const ArcSignature* GetSignature() const {return sig;}
     static void AttributeNames(Csh &csh);
@@ -374,7 +370,6 @@ protected:
     mutable std::vector<Contour> outer_contours;
 public:
     ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::VERTICAL;}
     ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     ArcVerticalArrow* AddXpos(VertXPos *p);
     virtual const MscStyle *GetRefinementStyle(EArcType t) const;
@@ -416,7 +411,6 @@ public:
     //Constructor to construct the first box/pipe in a series
     ArcBox(EArcType t, const char *s, FileLineColRange sl,
         const char *d, FileLineColRange dl, Msc *msc);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::BOX;}
     virtual bool CanBeNoted() const {return true;}
     virtual const ArcSignature* GetSignature() const;
     ArcBox* AddArcList(ArcList*l);
@@ -444,7 +438,6 @@ protected:
 public:
     //Constructor to construct the first box/pipe in a series
     ArcBoxSeries(ArcBox *first);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::BOX_SERIES;}
     ArcBoxSeries* AddFollow(ArcBox *f);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
@@ -484,7 +477,6 @@ protected:
 public:
     //Constructor to construct the first box/pipe in a series
     ArcPipe(ArcBox *box);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::PIPE;}
     virtual bool CanBeNoted() const {return true;}
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -508,7 +500,6 @@ protected:
 public:
     //Constructor to construct the first box/pipe in a series
     ArcPipeSeries(ArcPipe *first);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::PIPE_SERIES;}
     ArcPipeSeries* AddFollowWithAttributes(ArcPipe*f, AttributeList *l);
     ArcPipeSeries* AddArcList(ArcList*l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
@@ -545,7 +536,6 @@ protected:
     mutable Contour text_cover;
 public:
     ArcDivider(EArcType t, Msc *msc);
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::DIVIDER;}
     static const char *MyStyleName(EArcType t);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh, bool nudge, bool title);
@@ -565,8 +555,7 @@ class ArcParallel : public ArcBase
 protected:
     std::vector<ArcList> blocks;
 public:
-    ArcParallel(Msc *msc) : ArcBase(MSC_ARC_PARALLEL, msc) {}
-	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::PARALLEL;}
+    ArcParallel(Msc *msc) : ArcBase(MSC_ARC_PARALLEL, MscProgress::PARALLEL, msc) {}
     ArcParallel* AddArcList(ArcList*l) {if (l) {blocks.push_back(std::move(*l)); l->clear(); delete l; keep_together = false;} return this;}
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;

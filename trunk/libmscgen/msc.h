@@ -356,7 +356,7 @@ void Msc::FinalizeLabelsArcList(list &arcs, Canvas &canvas)
 {
 	for (auto i=arcs.begin(); i!=arcs.end(); i++) {
 		(*i)->FinalizeLabels(canvas);
-		Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->GetProgressCategory());
+		Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->myProgressCategory);
 	}
 }
 
