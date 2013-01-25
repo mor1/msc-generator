@@ -966,7 +966,7 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
         
 		//Below we only report elements done, that we do not delete
         if (replace == *i) {
-			Progress.DoneItem(MscProgress::POST_PARSE, (*i)->GetProgressCategory());
+			Progress.DoneItem(MscProgress::POST_PARSE, (*i)->myProgressCategory);
 			i++;
 		} else {
             delete *i;
@@ -974,7 +974,7 @@ void Msc::PostParseProcessArcList(Canvas &canvas, bool hide, ArcList &arcs, bool
             else {
                 CommandArcList *al = dynamic_cast<CommandArcList *>(replace);
                 if (al == NULL) {
-					Progress.DoneItem(MscProgress::POST_PARSE, replace->GetProgressCategory());
+					Progress.DoneItem(MscProgress::POST_PARSE, replace->myProgressCategory);
                     (*i++) = replace;
 				} else {
                     auto j = i;
@@ -1152,7 +1152,7 @@ void Msc::WidthArcList(Canvas &canvas, ArcList &arcs, EntityDistanceMap &distanc
             distances.was_activated.insert((*i)->index);
     for (ArcList::iterator i = arcs.begin();i!=arcs.end(); i++) {
         (*i)->Width(canvas, distances);
-		Progress.DoneItem(MscProgress::WIDTH, (*i)->GetProgressCategory());
+		Progress.DoneItem(MscProgress::WIDTH, (*i)->myProgressCategory);
 	}
 }
 
@@ -1183,7 +1183,7 @@ double Msc::LayoutArcList(Canvas &canvas, ArcList &arcs, AreaList &cover)
     for (ArcList::iterator i = arcs.begin(); i!=arcs.end(); i++) {
         AreaList arc_cover;
         (*i)->Layout(canvas, arc_cover);
-        Progress.DoneItem(MscProgress::LAYOUT, (*i)->GetProgressCategory());
+        Progress.DoneItem(MscProgress::LAYOUT, (*i)->myProgressCategory);
         double h = (*i)->GetHeight();
 
         //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
@@ -1305,7 +1305,7 @@ std::vector<double> Msc::LayoutArcLists(Canvas &canvas, std::vector<ArcList> &ar
         for (; i!=arcs[col].end(); i++)  {
             AreaList arc_cover;
             (*i)->Layout(canvas, arc_cover);
-            Progress.DoneItem(MscProgress::LAYOUT, (*i)->GetProgressCategory());
+            Progress.DoneItem(MscProgress::LAYOUT, (*i)->myProgressCategory);
             double h = (*i)->GetHeight();
 
             //increase h, if arc_cover.Expand() (in "Height()") pushed outer boundary. This ensures that we
@@ -1905,7 +1905,7 @@ void Msc::PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMark
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++) {
         (*j)->PlaceWithMarkers(canvas, autoMarker);
-        Progress.DoneItem(MscProgress::PLACEWITHMARKERS, (*j)->GetProgressCategory());
+        Progress.DoneItem(MscProgress::PLACEWITHMARKERS, (*j)->myProgressCategory);
     }
 }
 
@@ -1917,7 +1917,7 @@ void Msc::PlaceFloatingNotes(Canvas &canvas)
     for (auto note = Notes.begin(); note!=Notes.end(); note++) {
         (*note)->PlaceFloating(canvas);
         new_total += (*note)->GetAreaToDraw().GetBoundingBox();
-        Progress.DoneItem(MscProgress::NOTES, (*note)->GetProgressCategory());
+        Progress.DoneItem(MscProgress::NOTES, (*note)->myProgressCategory);
     }
     if (new_total.IsInvalid()) return;
     new_total.Expand(sideNoteGap);
@@ -1944,7 +1944,7 @@ void Msc::PostPosProcessArcList(Canvas &canvas, ArcList &arcs)
 {
     for (auto j = arcs.begin(); j != arcs.end(); j++) {
         (*j)->PostPosProcess(canvas);
-		Progress.DoneItem(MscProgress::POST_POS, (*j)->GetProgressCategory());
+		Progress.DoneItem(MscProgress::POST_POS, (*j)->myProgressCategory);
 	}
 }
 
@@ -2024,7 +2024,7 @@ void Msc::DrawArcList(Canvas &canvas, ArcList &arcs, EDrawPassType pass)
         if ((*i)->GetYExtent().Overlaps(yDrawing)) {
             (*i)->Draw(canvas, pass);
             if ((*i)->draw_pass == pass)
-                Progress.DoneItem(MscProgress::DRAW, (*i)->GetProgressCategory());
+                Progress.DoneItem(MscProgress::DRAW, (*i)->myProgressCategory);
         }
 }
 

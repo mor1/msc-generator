@@ -46,7 +46,7 @@ void ArcCommand::Layout(Canvas &canvas, AreaList &cover)
 //////////////////////////////////////////////////////////////////////////////////////
 
 CommandEntity::CommandEntity(EntityDefHelper *e, Msc *msc, bool in)
-    : ArcCommand(MSC_COMMAND_ENTITY, msc), 
+    : ArcCommand(MSC_COMMAND_ENTITY, MscProgress::ENTITY, msc), 
     tmp_stored_notes(true), internally_defined(in)
     //tmp_stored_notes is responsible for its content - if the CommandEntity is
     //destroyed during parse, these notes must also get deleted
@@ -655,10 +655,10 @@ void CommandEntity::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandNewpage::CommandNewpage(Msc *msc, bool m, CommandEntity *ah)
-        : ArcCommand(MSC_COMMAND_NEWPAGE, msc), 
-        auto_heading_attr(msc->Contexts.back().auto_heading.second), 
-        autoHeading(ah), manual(m) 
+CommandNewpage::CommandNewpage(Msc *msc, bool m, CommandEntity *ah) : 
+    ArcCommand(MSC_COMMAND_NEWPAGE, MscProgress::NEWPAGE, msc), 
+    auto_heading_attr(msc->Contexts.back().auto_heading.second), 
+    autoHeading(ah), manual(m) 
 {
     compress=false;
 }
@@ -701,7 +701,7 @@ ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &
         Element *dummy4;
         //at_to_level must be true, or else it complains...
         autoHeading->PostParseProcess(canvas, false, dummy1, dummy2, dummy3, true, &dummy4);
-        chart->Progress.DoneItem(MscProgress::POST_PARSE, autoHeading->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::POST_PARSE, autoHeading->myProgressCategory);
     }
     return ArcCommand::PostParseProcess(canvas, hide, left, right, number, top_level, note_target);
 }
@@ -709,14 +709,14 @@ ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &
 void CommandNewpage::FinalizeLabels(Canvas &canvas)
 {
     if (autoHeading)
-        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, autoHeading->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, autoHeading->myProgressCategory);
 }
 
 void CommandNewpage::Width(Canvas &canvas, EntityDistanceMap &distances) 
 {
     if (autoHeading) {
         autoHeading->Width(canvas, distances);
-        chart->Progress.DoneItem(MscProgress::WIDTH, autoHeading->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::WIDTH, autoHeading->myProgressCategory);
     }
 }
 
@@ -727,7 +727,7 @@ void CommandNewpage::Layout(Canvas &canvas, AreaList &cover)
     if (autoHeading) {
         AreaList dummy;
         autoHeading->Layout(canvas, dummy); 
-        chart->Progress.DoneItem(MscProgress::LAYOUT, autoHeading->GetProgressCategory());    
+        chart->Progress.DoneItem(MscProgress::LAYOUT, autoHeading->myProgressCategory);    
     }
 }
 
@@ -749,13 +749,13 @@ void CommandNewpage::CollectPageBreak(double hSize)
 void CommandNewpage::PlaceWithMarkers(Canvas &/*cover*/, double /*autoMarker*/)
 {
     if (autoHeading)
-        chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, autoHeading->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, autoHeading->myProgressCategory);
 }
 
 void CommandNewpage::PostPosProcess(Canvas &/*cover*/)
 {
     if (autoHeading)
-        chart->Progress.DoneItem(MscProgress::POST_POS, autoHeading->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::POST_POS, autoHeading->myProgressCategory);
 }
 
 void CommandNewpage::Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/)
@@ -763,7 +763,7 @@ void CommandNewpage::Draw(Canvas &/*canvas*/, EDrawPassType /*pass*/)
     //We cheat here. These will not be drawn only if a single page
     //is being drawn - but there we will not report them ready.
     if (autoHeading)
-        chart->Progress.DoneItem(MscProgress::DRAW, autoHeading->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::DRAW, autoHeading->myProgressCategory);
 }
 
 
@@ -798,7 +798,7 @@ ArcBase* CommandNumbering::PostParseProcess(Canvas &/*canvas*/, bool hide, EIter
 //////////////////////////////////////////////////////////////////////////////////////
 
 CommandMark::CommandMark(const char *m, FileLineColRange ml, Msc *msc) :
-    ArcCommand(MSC_COMMAND_MARK, msc), name(m)
+    ArcCommand(MSC_COMMAND_MARK, MscProgress::MARKER, msc), name(m)
 {
     map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
     if (i != chart->Markers.end()) {
@@ -850,10 +850,6 @@ void CommandMark::ShiftBy(double y)
 
 #define EMPTY_MARGIN_X 50
 #define EMPTY_MARGIN_Y 5
-
-CommandEmpty::CommandEmpty(Msc *msc) : ArcCommand(MSC_COMMAND_EMPTY, msc)
-{
-}
 
 void CommandEmpty::Width(Canvas &canvas, EntityDistanceMap &distances)
 {
@@ -912,7 +908,8 @@ void CommandEmpty::Draw(Canvas &canvas, EDrawPassType pass)
 
 /////////////////////////////////////////////////////////////////
 CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
-    ArcCommand(MSC_COMMAND_HSPACE, msc), format(msc->Contexts.back().text),
+    ArcCommand(MSC_COMMAND_HSPACE, MscProgress::HSPACE, msc), 
+    format(msc->Contexts.back().text),
     label(false, string()), space(false, 0)
 {
     if (enp==NULL) {
@@ -1009,7 +1006,8 @@ void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
 
 //////////////////////////////////////////////////////////////////////////////////
 
-CommandVSpace::CommandVSpace(Msc*msc)  : ArcCommand(MSC_COMMAND_VSPACE, msc),
+CommandVSpace::CommandVSpace(Msc*msc)  : 
+    ArcCommand(MSC_COMMAND_VSPACE, MscProgress::VSPACE, msc),
     format(msc->Contexts.back().text), label(false, string()),
     space(false, 0), compressable(false)
 {
@@ -1129,7 +1127,7 @@ const double CommandSymbol::ellipsis_space_ratio = 2.0/3.0;
 
 CommandSymbol::CommandSymbol(Msc*msc, const char *symbol, const NamePair *enp,
                 const ExtVertXPos *vxpos1, const ExtVertXPos *vxpos2) :
-    ArcCommand(MSC_COMMAND_SYMBOL, msc),
+    ArcCommand(MSC_COMMAND_SYMBOL, MscProgress::SYMBOL, msc),
     style(chart->Contexts.back().styles["symbol"]),
     hpos1(vxpos1 ? *vxpos1 : ExtVertXPos(*msc)),
     hpos2(vxpos2 ? *vxpos2 : ExtVertXPos(*msc)),
@@ -1452,7 +1450,8 @@ void CommandSymbol::Draw(Canvas &canvas, EDrawPassType pass)
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CommandNote::CommandNote(Msc*msc, bool is_note, const char *pt, const FileLineColRange &ptm)
-    : ArcLabelled(MSC_COMMAND_NOTE, msc, msc->Contexts.back().styles[is_note ? "note" : "comment"]),
+    : ArcLabelled(MSC_COMMAND_NOTE, is_note ? MscProgress::NOTE : MscProgress::COMMENT, 
+                  msc, msc->Contexts.back().styles[is_note ? "note" : "comment"]),
     is_float(is_note), target(NULL), point_toward(pt ? pt : ""), point_toward_pos(ptm),
     float_dist(false, 0), float_dir_x(0), float_dir_y(0)
 {

@@ -280,14 +280,15 @@ using namespace std;
 
 template class PtrList<ArcBase>;
 
-ArcBase::ArcBase(EArcType t, Msc *msc) :
+ArcBase::ArcBase(EArcType t, MscProgress::ECategory c, Msc *msc) :
     Element(msc), valid(true), compress(false), parallel(false),
     keep_together(true), keep_with_next(false),
-    type(t)
+    type(t), myProgressCategory(c)
 {
     if (msc) 
         compress = msc->Contexts.back().compress.second;
     had_add_attr_list = false;
+	chart->Progress.RegisterArc(myProgressCategory);
 }
 
 ArcBase::~ArcBase()
@@ -308,8 +309,6 @@ Area ArcBase::GetCover4Compress(const Area &a) const
 //l can be an empty list
 ArcBase* ArcBase::AddAttributeList(AttributeList *l)
 {
-    myProgressCategory = GetProgressCategory();
-	chart->Progress.RegisterArc(myProgressCategory);
     had_add_attr_list = true;
     if (l==NULL || !valid) return this;
     for (AttributeList::iterator i=l->begin(); i!=l->end(); i++)
@@ -434,7 +433,7 @@ void ArcBase::PostPosProcess(Canvas &canvas)
 }
 
 ArcIndicator::ArcIndicator(Msc *chart, const MscStyle &st, const FileLineColRange &l) : 
-    ArcBase(MSC_ARC_INDICATOR, chart), style(st)
+    ArcBase(MSC_ARC_INDICATOR, MscProgress::INDICATOR, chart), style(st)
 {
     dst = src = chart->AllEntities.Find_by_Name(NONE_ENT_STR);
     AddAttributeList(NULL);
@@ -442,7 +441,7 @@ ArcIndicator::ArcIndicator(Msc *chart, const MscStyle &st, const FileLineColRang
 }
 
 ArcIndicator::ArcIndicator(Msc *chart, EIterator s, const MscStyle &st, const FileLineColRange &l) : 
-    ArcBase(MSC_ARC_INDICATOR, chart), style(st), src(s), dst(s)
+    ArcBase(MSC_ARC_INDICATOR, MscProgress::INDICATOR, chart), style(st), src(s), dst(s)
 {
     AddAttributeList(NULL);
     SetLineEnd(l);
@@ -512,8 +511,8 @@ void ArcIndicator::Draw(Canvas &canvas, EDrawPassType pass)
 //////////////////////////////////////////////////////////////////////////////////////
 
 //Take numbering style from the current context
-ArcLabelled::ArcLabelled(EArcType t, Msc *msc, const MscStyle &s) :
-    ArcBase(t, msc), concrete_number(-1), style(s),
+ArcLabelled::ArcLabelled(EArcType t, MscProgress::ECategory c, Msc *msc, const MscStyle &s) :
+    ArcBase(t, c, msc), concrete_number(-1), style(s),
     numberingStyle(msc->Contexts.back().numberingStyle)
 {
     SetStyleWithText();  //keep existing style, just combine with default text style, numbering and refinement
@@ -522,8 +521,8 @@ ArcLabelled::ArcLabelled(EArcType t, Msc *msc, const MscStyle &s) :
 //This is only used to convert an ArcBox to an ArcBigArrow in
 //ArcBoxSeries::PostParseProcess (when the box is collapsed to a block arrow)
 //So PostPProcess was not called for "al", but will be called for this
-ArcLabelled::ArcLabelled(EArcType t, const ArcLabelled &al)
-    : ArcBase(t, al.chart), label(al.label), parsed_label(al.parsed_label),
+ArcLabelled::ArcLabelled(EArcType t, MscProgress::ECategory c, const ArcLabelled &al)
+    : ArcBase(t, c, al.chart), label(al.label), parsed_label(al.parsed_label),
     concrete_number(al.concrete_number), style(al.style), numberingStyle(al.numberingStyle)
 {
     //Element members
@@ -864,7 +863,7 @@ bool ArcArrow::AttributeValues(const std::string attr, Csh &csh)
 
 ArcSelfArrow::ArcSelfArrow(EArcType t, const char *s, FileLineColRange sl,
                            Msc *msc, const MscStyle &st, double ys) :
-    ArcArrow(t, msc, st), YSize(ys), XSizeUnit(0.375)
+    ArcArrow(t, MscProgress::SELF_ARROW, msc, st), YSize(ys), XSizeUnit(0.375)
 {
     src = chart->FindAllocEntity(s, sl);
 }
@@ -1015,7 +1014,7 @@ void ArcSelfArrow::Draw(Canvas &canvas, EDrawPassType pass)
 
 ArcDirArrow::ArcDirArrow(EArcType t, const char *s, FileLineColRange sl,
                          const char *d, FileLineColRange dl, Msc *msc, bool fw, const MscStyle &st) :
-    ArcArrow(t, msc, st), linenum_src(sl.start), linenum_dst(dl.start), specified_as_forward(fw), slant_angle(0)
+    ArcArrow(t, MscProgress::DIR_ARROW, msc, st), linenum_src(sl.start), linenum_dst(dl.start), specified_as_forward(fw), slant_angle(0)
 {
     src = chart->FindAllocEntity(s, sl);
     dst = chart->FindAllocEntity(d, dl);
@@ -1024,7 +1023,8 @@ ArcDirArrow::ArcDirArrow(EArcType t, const char *s, FileLineColRange sl,
 };
 
 ArcDirArrow::ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al) :
-    ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, al), specified_as_forward(false), slant_angle(0)
+    ArcArrow(bidir ? MSC_ARC_BIG_BIDIR : MSC_ARC_BIG, MscProgress::BLOCK_ARROW, al), 
+    specified_as_forward(false), slant_angle(0)
 {
     src = chart->AllEntities.Find_by_Ptr(*el.begin());
     dst = chart->AllEntities.Find_by_Ptr(*el.rbegin());
@@ -1602,12 +1602,15 @@ ArcBigArrow::ArcBigArrow(const ArcDirArrow &dirarrow, const MscStyle &s) :
  ArcDirArrow(dirarrow), sig(NULL)
 {
     SetStyleWithText(&s);
+    //No need to unregister a DIR_ARROW: above copy constructor did not register    
+    const_cast<MscProgress::ECategory&>(myProgressCategory) = MscProgress::BLOCK_ARROW;
+    chart->Progress.RegisterArc(MscProgress::BLOCK_ARROW);
 }
 
 //This invocation is from ArcBoxSeries::PostParseProcess
 ArcBigArrow::ArcBigArrow(const EntityList &el, bool bidir, const ArcLabelled &al,
     const ArcSignature *s)
-    : ArcDirArrow(el, bidir, al), sig(s)
+    : ArcDirArrow(el, bidir, al), sig(s) //this sets myProgressCategory to BLOCK_ARROW
 {
     slant_angle = 0;
 }
@@ -1938,7 +1941,7 @@ double VertXPos::CalculatePos(Msc &chart, double width, double aw) const
 
 
 ArcVerticalArrow::ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc) :
-    ArcArrow(t, msc, msc->Contexts.back().styles["vertical"]), pos(*msc), ypos(2)
+    ArcArrow(t, MscProgress::VERTICAL, msc, msc->Contexts.back().styles["vertical"]), pos(*msc), ypos(2)
 {
     if (s) src = s;
     if (d) dst = d;
@@ -2335,7 +2338,7 @@ bool ArcSignature::operator == (const ArcSignature&o) const
 
 ArcBox::ArcBox(EArcType t, const char *s, FileLineColRange sl,
                          const char *d, FileLineColRange dl, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.back().styles["emptybox"]),
+    ArcLabelled(t, MscProgress::BOX, msc, msc->Contexts.back().styles["emptybox"]),
     collapsed(BOX_COLLAPSE_EXPAND), drawEntityLines(true)
 {
     src = chart->FindAllocEntity(s, sl);
@@ -2356,14 +2359,12 @@ const ArcSignature* ArcBox::GetSignature() const
 }
 
 ArcBoxSeries::ArcBoxSeries(ArcBox *first) : 
-    ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
+    ArcBase(MSC_EMPH_SOLID, MscProgress::BOX_SERIES, first->chart), 
+    series(true), drawing_variant(1)
 {
     series.Append(first);
     draw_pass = first->draw_pass;
     keep_together = true; //we will do our own pagination if needed, we shall not be cut in half by Msc::ArcHeightList()
-    //We will not get an AddAttributeList, so we register ourselves
-    myProgressCategory = GetProgressCategory();
-    chart->Progress.RegisterArc(myProgressCategory);
 }
 
 
@@ -2625,7 +2626,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
         ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level, target); //ret is an arcblockarrow if we need to collapse
-        chart->Progress.DoneItem(MscProgress::POST_PARSE, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::POST_PARSE, MscProgress::BOX);
 		//Check if we are collapsed to a block arrow
 		if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW) {
 			_ASSERT(series.size()==1);
@@ -2698,7 +2699,7 @@ void ArcBoxSeries::FinalizeLabels(Canvas &canvas)
 {
     for (auto i=series.begin(); i!=series.end(); i++) {
         (*i)->FinalizeLabels(canvas);
-        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, MscProgress::BOX);
     }
     ArcBase::FinalizeLabels(canvas);
 }
@@ -2729,7 +2730,7 @@ void ArcBoxSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
             (*i)->sx_text = (*i)->dx_text = overall_style.line.LineWidth();
         }
         max_width = max(max_width, width);
-        chart->Progress.DoneItem(MscProgress::WIDTH, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::WIDTH, MscProgress::BOX);
     }
 
     //Now d contains distance requirements within this emph box series
@@ -2863,7 +2864,7 @@ void ArcBoxSeries::Layout(Canvas &canvas, AreaList &cover)
             (*i)->height_w_lower_line = (*i)->height + lw;
         else
             (*i)->height_w_lower_line = (*i)->height + (*((++i)--))->style.line.LineWidth();
-        chart->Progress.DoneItem(MscProgress::LAYOUT, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::LAYOUT, MscProgress::BOX);
     } /* for cycle through segments */
     //Final advance of linewidth, the inner edge (y) is on integer
     total_height = y + lw - yPos;
@@ -3024,7 +3025,7 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
 void ArcBoxSeries::PlaceWithMarkers(Canvas &canvas, double autoMarker)
 {
     for (auto i = series.begin(); i!=series.end(); i++) {
-        chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, MscProgress::BOX);
         if ((*i)->valid && (*i)->content.size()) 
             chart->PlaceWithMarkersArcList(canvas, (*i)->content, autoMarker);
     }
@@ -3056,7 +3057,7 @@ void ArcBoxSeries::PostPosProcess(Canvas &canvas)
                     break;
                 }
             (*i)->ArcLabelled::PostPosProcess(canvas);
-            chart->Progress.DoneItem(MscProgress::POST_POS, (*i)->GetProgressCategory());
+            chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::BOX);
             if ((*i)->content.size()) 
                 chart->PostPosProcessArcList(canvas, (*i)->content);
         }
@@ -3156,7 +3157,7 @@ void ArcBoxSeries::Draw(Canvas &canvas, EDrawPassType pass)
 /////////////////////////////////////////////////////////////////
 
 ArcPipe::ArcPipe(ArcBox *box) :
-    ArcLabelled(box->type, box->chart, box->chart->Contexts.back().styles["pipe"]),
+    ArcLabelled(box->type, MscProgress::PIPE, box->chart, box->chart->Contexts.back().styles["pipe"]),
     src(box->src), dst(box->dst), drawEntityLines(false)
 {
     delete box;
@@ -3175,13 +3176,10 @@ ArcPipe::ArcPipe(ArcBox *box) :
 }
 
 ArcPipeSeries::ArcPipeSeries(ArcPipe *first) :
-    ArcBase(MSC_EMPH_SOLID, first->chart), series(true), drawing_variant(1)
+    ArcBase(MSC_EMPH_SOLID, MscProgress::PIPE_SERIES, first->chart), series(true), drawing_variant(1)
 {
     series.Append(first);
     keep_together = false; //we can be cut in half
-    //We will not get an AddAttributeList, so we register ourselves
-    myProgressCategory = GetProgressCategory();
-    chart->Progress.RegisterArc(myProgressCategory);
 }
 
 ArcPipeSeries* ArcPipeSeries::AddArcList(ArcList*l)
@@ -3311,7 +3309,7 @@ ArcBase* ArcPipeSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &l
     //Add numbering, if needed 
     for (auto i = series.begin(); i!=series.end(); i++) {
         (*i)->PostParseProcess(canvas, hide, left, right, number, top_level, target);
-        chart->Progress.DoneItem(MscProgress::POST_PARSE, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::POST_PARSE, MscProgress::PIPE);
     }
     //Postparse the content;
     EIterator content_left, content_right;
@@ -3533,7 +3531,7 @@ void ArcPipeSeries::FinalizeLabels(Canvas &canvas)
 {
     for (auto i=series.begin(); i!=series.end(); i++) {
         (*i)->FinalizeLabels(canvas);
-        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, MscProgress::PIPE);
     }
     chart->FinalizeLabelsArcList(content, canvas);
     ArcBase::FinalizeLabels(canvas);
@@ -3595,7 +3593,7 @@ void ArcPipeSeries::Width(Canvas &canvas, EntityDistanceMap &distances)
         else
             d_pipe.Insert((*(*i)->dst)->index, DISTANCE_RIGHT,
                                 (*i)->right_space + ilw + radius + shadow_to_add);
-        chart->Progress.DoneItem(MscProgress::WIDTH, (*i)->GetProgressCategory());
+        chart->Progress.DoneItem(MscProgress::WIDTH, MscProgress::PIPE);
     }
     d_pipe.CombineLeftRightToPair_Sum(chart->hscaleAutoXGap);
     distances += d_pipe;
@@ -3790,6 +3788,7 @@ void ArcPipeSeries::Layout(Canvas &canvas, AreaList &cover)
             //collect the highest label of opaque segments for later use
             lowest_label_on_opaque_segments_bottom = std::max(lowest_label_on_opaque_segments_bottom, y);
         }
+        chart->Progress.DoneItem(MscProgress::LAYOUT, MscProgress::PIPE);
     }
     double y = lowest_label_on_transculent_bottom;
     //Calculate the Height of the content
@@ -3902,14 +3901,14 @@ void ArcPipeSeries::PostPosProcess(Canvas &canvas)
     for (auto i = series.begin(); i!=series.end(); i++) 
         if ((*i)->valid && (*i)->style.solid.second < 255) {
             (*i)->ArcLabelled::PostPosProcess(canvas);
-            chart->Progress.DoneItem(MscProgress::POST_POS, (*i)->GetProgressCategory());
+            chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
     if (content.size())
         chart->PostPosProcessArcList(canvas, content);
     for (auto i = series.begin(); i!=series.end(); i++)
         if ((*i)->valid && (*i)->style.solid.second == 255) {
             (*i)->ArcLabelled::PostPosProcess(canvas);
-            chart->Progress.DoneItem(MscProgress::POST_POS, (*i)->GetProgressCategory());
+            chart->Progress.DoneItem(MscProgress::POST_POS, MscProgress::PIPE);
         }
     for (auto i = series.begin(); i!=series.end(); i++)
         chart->HideEntityLines((*i)->pipe_shadow);
@@ -4035,7 +4034,7 @@ void ArcPipeSeries::Draw(Canvas &canvas, EDrawPassType pass)
 //////////////////////////////////////////////////////////////////////////////////////
 
 ArcDivider::ArcDivider(EArcType t, Msc *msc) :
-    ArcLabelled(t, msc, msc->Contexts.back().styles[MyStyleName(t)]),
+    ArcLabelled(t, MscProgress::DIVIDER, msc, msc->Contexts.back().styles[MyStyleName(t)]),
     nudge(t==MSC_COMMAND_NUDGE),
     title(t==MSC_COMMAND_TITLE || t==MSC_COMMAND_SUBTITLE),
     wide(false),

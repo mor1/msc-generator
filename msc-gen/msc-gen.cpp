@@ -23,6 +23,7 @@
 #include "stdafx.h"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <assert.h>
 #include "commandline.h"
 #include "cairo.h"
@@ -55,6 +56,21 @@ string ReadDesigns(const char *fileName)
 }
 
 
+bool progressbar(double percent, void *p) 
+{
+    HANDLE hOut = HANDLE(p);
+    CONSOLE_SCREEN_BUFFER_INFO bInfo;
+    COORD crStart, crCurr;
+    GetConsoleScreenBufferInfo(hOut, &bInfo);
+    crCurr = bInfo.dwCursorPosition; //the old position
+    crStart.X = 0;
+    crStart.Y = crCurr.Y;
+    SetConsoleCursorPosition(hOut, crStart);
+    printf("%3d%%", unsigned(floor(percent+0.5)));
+    SetConsoleCursorPosition(hOut, crCurr);
+    return false;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
     std::list<std::string> args;
@@ -65,7 +81,8 @@ int _tmain(int argc, _TCHAR* argv[])
     if (designs.length()==0) 
         designs = ReadDesigns("original_designlib.signalling");
 
-    return do_main(args, designs.c_str(), "\\f(courier new)\\mn(12)");
-	return 0;
+    HANDLE hOut = GetStdHandle(STD_ERROR_HANDLE);
+
+    return do_main(args, designs.c_str(), "\\f(courier new)\\mn(12)", progressbar, hOut);
 }
 

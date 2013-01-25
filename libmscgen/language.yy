@@ -348,7 +348,8 @@ msckey:       TOK_MSC TOK_EQUAL
     if (msg.length())
         csh.AddCSH_Error(@3, msg.c_str());
   #else
-    msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
+    ArcBase *dummy = msc.AddAttribute(Attribute("msc", $3, MSC_POS(@1), MSC_POS(@3)));
+	if (dummy) delete dummy;
   #endif
     free($1);
     free($3);

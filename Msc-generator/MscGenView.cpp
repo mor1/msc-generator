@@ -312,10 +312,10 @@ void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, CRect clip)
         cairo_fill(cr);
         cairo_pattern_destroy(pattern);
         if (grey_fade_value==1.0) {
-            const double w = clip.Width()/3;
+            const int w = clip.Width()/3;
             clip.left += w;
             clip.right -=w;
-            const double m = (clip.top+clip.bottom)/2;
+            const int m = (clip.top+clip.bottom)/2;
             clip.top = m-10;
             clip.bottom = m+10;
             cairo_rectangle(cr, clip.left, clip.top, clip.Width(), clip.Height());
