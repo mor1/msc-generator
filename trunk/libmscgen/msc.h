@@ -143,7 +143,7 @@ struct PageBreakData {
     bool manual;
     CommandEntity *autoHeading;
     double autoHeadingSize;
-    PageBreakData(double _y, bool m, CommandEntity *ce=NULL, double h=0) : 
+    PageBreakData(double _y, bool m, CommandEntity *ce=NULL, double h=0) :
         y(_y), manual(m), autoHeading(ce), autoHeadingSize(h ? h : ce ? ce->GetHeight() : 0) {}
 };
 
@@ -169,7 +169,7 @@ public:
     };
 
     MscProgress  Progress;
-	MscError     Error;
+    MscError     Error;
     unsigned     current_file;  /* The number of the file under parsing, plus the error location */
 
     EntityList                    AllEntities;
@@ -298,14 +298,14 @@ public:
                           double top_y, const AreaList &area_top,
                           bool forceCompress=false, AreaList *ret_cover=NULL);
     void ShiftByArcList(ArcList &arcs, double y);
-    void InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i, 
+    void InsertAutoPageBreak(Canvas &canvas, ArcList &arcs, ArcList::iterator i,
                              double pageBreak, bool addHeading);
     double PageBreakArcList(Canvas &canvas, ArcList &arcs, double netPrevPageSize,
-                            double pageBreak, bool &addCommandNewpage, bool addHeading, 
+                            double pageBreak, bool &addCommandNewpage, bool addHeading,
                             bool canChangePBPos, bool dontshiftall);
     void CollectPageBreakArcList(ArcList &arcs);
     void AutoPaginate(Canvas &canvas, double pageSize, bool addHeading);
-    void CalculateWidthHeight(Canvas &canvas, 
+    void CalculateWidthHeight(Canvas &canvas,
                               bool autoPaginate, bool addHeading, XY pageSize, bool fitWidth);
     void PlaceWithMarkersArcList(Canvas &canvas, ArcList &arcs, double autoMarker);
     void PlaceFloatingNotes(Canvas &canvas);
@@ -317,7 +317,7 @@ public:
     void HideEntityLines(const Block &area) {HideELinesHere += Contour(area);}
     void PostPosProcessArcList(Canvas &canvas, ArcList &arcs);
 
-    void CompleteParse(Canvas::EOutputType, bool avoidEmpty, 
+    void CompleteParse(Canvas::EOutputType, bool avoidEmpty,
                        bool autoPaginate=false, bool addHeading=true, XY pageSize=XY(0,0), bool fitWidth=true);
 
     void DrawEntityLines(Canvas &canvas, double y, double height, EIterator from, EIterator to);
@@ -331,28 +331,28 @@ public:
     void DrawPageBreaks(Canvas &canvas);
     void DrawComplete(Canvas &canvas, bool pageBreaks, unsigned page);
 
-    bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks, 
-                    Canvas::EPageSize pageSize=Canvas::NO_PAGE, const double margins[4]=NULL, 
+    bool DrawToFile(Canvas::EOutputType, const std::vector<XY> &scale, const string &fn, bool bPageBreaks,
+                    Canvas::EPageSize pageSize=Canvas::NO_PAGE, const double margins[4]=NULL,
                     int ha=-1, int va=-1, bool generateErrors=false);
 #ifdef CAIRO_HAS_WIN32_SURFACE
-    HENHMETAFILE DrawToMetaFile(Canvas::EOutputType, unsigned page, bool bPageBreaks, 
+    HENHMETAFILE DrawToMetaFile(Canvas::EOutputType, unsigned page, bool bPageBreaks,
                                 double fallback_image_resolution=-1, size_t *metafile_size=NULL,
                                 Contour *fallback_images=NULL, bool generateErrors=false);
     bool DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
                   unsigned page, bool bPageBreaks,
-                  double fallback_image_resolution=-1, 
+                  double fallback_image_resolution=-1,
                   bool generateErrors=false);
 #endif
-    cairo_surface_t *DrawToRecordingSurface(Canvas::EOutputType, bool bPageBreaks, 
+    cairo_surface_t *DrawToRecordingSurface(Canvas::EOutputType, bool bPageBreaks,
                                             bool generateErrors=false);
-    cairo_surface_t *ReDrawOnePage(cairo_surface_t *full, unsigned page, 
+    cairo_surface_t *ReDrawOnePage(cairo_surface_t *full, unsigned page,
                                    bool generateErrors=false);
 };
 
 void MscParse(Msc &msc, const char *buff, unsigned len);
 
-template <typename list> 
-void Msc::FinalizeLabelsArcList(list &arcs, Canvas &canvas) 
+template <typename list>
+void Msc::FinalizeLabelsArcList(list &arcs, Canvas &canvas)
 {
 	for (auto i=arcs.begin(); i!=arcs.end(); i++) {
 		(*i)->FinalizeLabels(canvas);

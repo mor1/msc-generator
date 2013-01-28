@@ -375,12 +375,17 @@ void CDrawingChartData::Invalidate() const
 void CDrawingChartData::CompileIfNeeded() const
 {
 	//To force a recompilation, call ReCompile()
+    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+    ASSERT(pApp);
+    const bool did_compilation = m_msc==NULL;
 	if (!m_msc) {
-	    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	    ASSERT(pApp);
 	    m_msc = new Msc;
-        m_msc->Progress.callback = m_callback;
-        m_msc->Progress.data = m_callback_data;
+        if (m_callback) {
+            m_msc->Progress.callback = m_callback;
+            m_msc->Progress.data = m_callback_data;
+            CString load_data = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA);
+            m_msc->Progress.ReadLoadData(load_data);
+        }
         //copy pedantic flag from app settings
 	    if (pApp) 
 		    m_msc->pedantic = pApp->m_Pedantic;
@@ -391,6 +396,7 @@ void CDrawingChartData::CompileIfNeeded() const
             msg << ", which is newer than the current version. Please update Msc-generator, see Help|About...";
             m_msc->Error.Warning(FileLineCol(0, 0, 0), msg);
         }
+        m_msc->Progress.StartSection(MscProgress::PARSE);
         //compile preamble and set forced design
 	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
 		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
@@ -440,6 +446,11 @@ void CDrawingChartData::CompileIfNeeded() const
         }
     }
     compiled = true;
+    if (did_compilation && m_callback && m_text.GetLength()>0) {
+        const std::string load_data = m_msc->Progress.WriteLoadData();
+        pApp->WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA, 
+                                 load_data.c_str());
+    }
 }
 
 unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {

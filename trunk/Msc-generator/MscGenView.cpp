@@ -421,8 +421,6 @@ BOOL CMscGenView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
 	if (pDoc->DispatchMouseWheel(nFlags, zDelta, pt)) return TRUE;
-	if (pDoc->IsInPlaceActive()) 
-		return CView::OnMouseWheel(nFlags, zDelta, pt);
 	return TRUE;
 }
 
@@ -437,9 +435,9 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	if (!view.PtInRect(pt)) return FALSE;
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	//if we fall within, and in-place active, do default action
-	if (pDoc->IsInPlaceActive()) 
-		return CView::OnMouseWheel(nFlags, zDelta, pt);
+	//if we fall within, and compiling, do nothing, but return true
+	if (pDoc->m_pCompilingThread) 
+		return true;
 	//If no control, just scroll
 	if (!(nFlags & MK_CONTROL)) {
 		CRect client;
@@ -482,6 +480,7 @@ void CMscGenView::ResyncScrollSize(void)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
+    if (pDoc->m_pCompilingThread) return; //skip if compiling
     SetScrollSizes(MM_TEXT, ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
 }
 
@@ -500,8 +499,8 @@ void CMscGenView::OnLButtonDown(UINT nFlags, CPoint point)
 	CScrollView::OnLButtonDown(nFlags, point);
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
+    if (pDoc->m_pCompilingThread) return; //skip if compiling
 	if (1) {
-		if (pDoc->IsInPlaceActive()) return;
 		//Mouse drag scrolling
 		m_DragPoint = point;
 		m_DragStartPoint = point;
@@ -524,6 +523,7 @@ void CMscGenView::OnMouseMove(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL) return CScrollView::OnMouseMove(nFlags, point);
+    if (pDoc->m_pCompilingThread) return; //skip if compiling
 	//If we are in drag mode
 	if (GetCapture() == this) { 
 		//allow only horizontal or vertical scrolling if SHIFT is down
@@ -591,6 +591,7 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (point != m_DragStartPoint)
 			return;
 	}
+    if (pDoc->m_pCompilingThread) return; //skip if compiling
 
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling
@@ -629,6 +630,7 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	if (pDoc == NULL) return;
+    if (pDoc->m_pCompilingThread) return; //skip if compiling
     //First transform the point to the chart coordinate space
 	//updateTrackRects expects the point to be in the native chart coordinate space as used by class MscDrawer.
 	//Distort for embedded objects, for windowed ones (MM_TEXT) cater for scrolling

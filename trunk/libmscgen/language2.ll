@@ -56,6 +56,8 @@
 #include "language_misc.h"
 #endif
 
+#ifdef C_S_H_IS_COMPILED
+
 #define YY_INPUT(buffer, res, max_size)             \
 do {                                                \
     parse_parm *pp = yyget_extra(yyscanner);        \
@@ -70,7 +72,6 @@ do {                                                \
     }                                               \
 } while (0)
 
-#ifdef C_S_H_IS_COMPILED
 #define YY_USER_ACTION do {                     \
     yylloc->first_pos = yylloc->last_pos+1;     \
     yylloc->last_pos = yylloc->last_pos+yyleng; \
@@ -93,6 +94,25 @@ do {                                                \
     while (YYID (0))
 
 #else
+
+//Read in 512-byte chunks
+//We use this low value to make progress reporint more frequent
+#define YY_READ_BUF_SIZE 512
+
+#define YY_INPUT(buffer, res, max_size)             \
+do {                                                \
+    parse_parm *pp = yyget_extra(yyscanner);        \
+    if (pp->pos >= pp->length)                      \
+        res = YY_NULL;                              \
+    else                                            \
+    {                                               \
+        res = pp->length - pp->pos;                 \
+        res > (int)max_size ? res = max_size : 0;   \
+        memcpy(buffer, pp->buf + pp->pos, res);     \
+		pp->msc->Progress.DoneItem(MscProgress::PARSE, res); \
+        pp->pos += res;                             \
+    }                                               \
+} while (0)
 
 #define YY_USER_ACTION do {                              \
     yylloc->first_line = yylloc->last_line;              \

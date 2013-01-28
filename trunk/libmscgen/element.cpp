@@ -44,7 +44,7 @@ Element::~Element()
 
 Element::Element(const Element&o) :
     chart(o.chart), hidden(o.hidden), linenum_final(o.linenum_final),
-    area(o.area), yPos(o.yPos), area_draw(o.area_draw),
+    yPos(o.yPos), area(o.area), area_draw(o.area_draw),
     draw_is_different(o.draw_is_different), area_draw_is_frame(o.area_draw_is_frame), 
     area_to_note(o.area_to_note),
     comments(false), comment_height(0),//we do not copy comments!!!
@@ -170,8 +170,9 @@ void Element::PostPosProcess(Canvas &/*canvas*/)
                                                2, 2);
         if (!expanded_area.IsEmpty())
             area = expanded_area;
-        else 
+        else {
             _ASSERT(0);
+        }
         area.arc = this;
         chart->AllCovers += area;
         //Determine, where the controls shall be shown

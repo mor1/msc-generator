@@ -71,6 +71,9 @@ bool progressbar(double percent, void *p)
     return false;
 }
 
+#define REG_SUBKEY_SETTINGS "Software\\Zoltan Turanyi\\Msc-generator\\Settings"
+#define REG_KEY_LOAD_DATA "LoadData"
+
 int _tmain(int argc, _TCHAR* argv[])
 {
     std::list<std::string> args;
@@ -83,6 +86,24 @@ int _tmain(int argc, _TCHAR* argv[])
 
     HANDLE hOut = GetStdHandle(STD_ERROR_HANDLE);
 
-    return do_main(args, designs.c_str(), "\\f(courier new)\\mn(12)", progressbar, hOut);
+    DWORD len=0;
+    char *buffer=NULL;
+    std::string load_data;
+    LONG res = RegGetValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
+                           REG_KEY_LOAD_DATA, RRF_RT_REG_SZ, NULL, NULL, &len);
+    if (res==ERROR_MORE_DATA || res==ERROR_SUCCESS) {
+        buffer = (char*)malloc(len+1);
+        res = RegGetValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
+                          REG_KEY_LOAD_DATA, RRF_RT_REG_SZ, NULL, buffer, &len);
+        if (res==ERROR_SUCCESS) {
+            buffer[len] = 0;
+            load_data = buffer;
+        }
+    }
+    int ret = do_main(args, designs.c_str(), "\\f(courier new)\\mn(12)", 
+                      progressbar, hOut, &load_data);
+    RegSetKeyValue(HKEY_CURRENT_USER, REG_SUBKEY_SETTINGS,
+                   REG_KEY_LOAD_DATA, REG_SZ, load_data.c_str(), load_data.length()+1);
+    return ret;
 }
 

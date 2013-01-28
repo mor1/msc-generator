@@ -228,7 +228,10 @@ CLIPFORMAT NEAR CMscGenDoc::m_cfPrivate = NULL;
 
 // CMscGenDoc construction/destruction
 
-CMscGenDoc::CMscGenDoc() : m_ExternalEditor(this)
+CMscGenDoc::CMscGenDoc() : 
+    m_SectionCompiling(), 
+    m_CompilationLock(&m_SectionCompiling),  
+    m_ExternalEditor(this)
 {
 	// Use OLE compound files, may not be needed for new environment
 	EnableCompoundFile();
@@ -961,6 +964,7 @@ void CMscGenDoc::OnUdpateEditUpdate(CCmdUI *pCmdUI)
 
 void CMscGenDoc::OnButtonTrack()
 {
+    if (m_pCompilingThread && !m_bTrackMode) return;  //Do not turn TrackMode, when compiling
 	SetTrackMode(!m_bTrackMode);
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -974,8 +978,9 @@ void CMscGenDoc::OnUpdateButtonTrack(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_bTrackMode);
 	CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
-	if (!IsInPlaceActive() && pWnd) 
+	if (pWnd) 
 		pWnd->m_wndStatusBar.SetPaneTextColor(1, m_bTrackMode?RGB(0,0,0):RGB(100,100,100));
+    pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
 void CMscGenDoc::OnViewNexterror()
@@ -1044,6 +1049,8 @@ void CMscGenDoc::ChangeDesign(const char *design)
 
 void CMscGenDoc::ChangePage(unsigned page)
 {
+    //skip if compiling
+    if (m_pCompilingThread) return;
     m_ChartShown.SetPage(page);
     UpdateAllViews(NULL);
 }
@@ -1063,6 +1070,7 @@ void CMscGenDoc::StepPage(signed int step)
 //true if actual change happened
 void CMscGenDoc::SetZoom(int zoom)
 {
+    if (m_pCompilingThread) return; //skip if compiling
 	if (zoom < 1) zoom = m_zoom;
 	if (zoom > 10000) zoom = 10000;
 	if (zoom < 10) zoom = 10;
@@ -1081,6 +1089,7 @@ void CMscGenDoc::SetZoom(int zoom)
 
 void CMscGenDoc::ArrangeViews(EZoomMode mode)
 {
+    if (m_pCompilingThread) return; //skip if compiling
 	if (mode == NONE) return;
 	POSITION pos = GetFirstViewPosition();
 	if (pos == NULL) return;
@@ -1220,16 +1229,19 @@ void CMscGenDoc::OnZoommodeKeepfittingtowidth()
 void CMscGenDoc::OnUpdateZoommodeKeepinoverview(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_ZoomMode == OVERVIEW);
+    pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
 void CMscGenDoc::OnUpdateZoommodeKeepadjustingwindowwidth(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_ZoomMode == WINDOW_WIDTH);
+    pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
 void CMscGenDoc::OnUpdateZoommodeKeepfittingtowidth(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_ZoomMode == ZOOM_WIDTH);
+    pCmdUI->Enable(m_pCompilingThread==NULL);
 }
 
 //Check where is the mouse (which view or the internal editor) and call that function's DoMouseWheel
@@ -1376,21 +1388,11 @@ void CMscGenDoc::OnInternalEditorSelChange()
                         m_ChartShown.GetArcByLine(line+1, col+1)); 
 }
 
-struct CompileThreadData
-{
-    CMscGenDoc *pDoc;
-    HWND hMainWnd;
-};
-
 UINT CompileThread( LPVOID pParam )
 {
-    CompileThreadData *pData = (CompileThreadData *)pParam;
-    CSingleLock lock(&pData->pDoc->m_SectionCompiling);
-    lock.Lock();
-    pData->pDoc->m_ChartCompiling.CompileIfNeeded();
-    PostMessage(pData->hMainWnd, WM_APP+293, 0, 0);
-    delete pParam;
-    lock.Unlock();
+    CMscGenDoc *pDoc = (CMscGenDoc*)pParam;
+    pDoc->m_ChartCompiling.CompileIfNeeded();
+    PostMessage(pDoc->m_hMainWndToSignalCompilationEnd, WM_APP+293, 0, 0);
     return 0;
 }
 
@@ -1398,6 +1400,12 @@ bool ProgressCallback(double percent, void *data)
 {
     CMscGenDoc *pDoc = (CMscGenDoc *)data;
     pDoc->m_Progress = percent/100;
+    if (pDoc->m_killCompilation) {
+        pDoc->m_killCompilation = false;
+        pDoc->m_pCompilingThread = NULL;
+        pDoc->m_CompilationLock.Unlock();
+        AfxEndThread(1);
+    }
     return true;
 }
 
@@ -1431,6 +1439,10 @@ void CMscGenDoc::StartShowingEditingChart(bool resetZoom)
         if (!pWnd->FillDesignComboBox(m_itrShown->GetDesign(), true)) 
             m_itrShown->SetDesign("");
     }
+
+    KillCompilation();
+
+    m_CompilationLock.Lock();
     m_ChartCompiling = *m_itrShown;
     if (m_page_serialized_in>=0) 
         m_ChartCompiling.SetPage(m_page_serialized_in);
@@ -1452,12 +1464,9 @@ void CMscGenDoc::StartShowingEditingChart(bool resetZoom)
     AddAnimationElement(AnimationElement::COMPILING_GREY);
     
     m_hadArrangeViews = resetZoom;    
-    
-    CompileThreadData * p = new CompileThreadData;
-    p->pDoc = this;
-    p->hMainWnd = *pWnd;
-
-    m_pCompilingThread = AfxBeginThread(CompileThread, (LPVOID)p);
+    m_hMainWndToSignalCompilationEnd = *pWnd;
+    m_killCompilation = false;
+    m_pCompilingThread = AfxBeginThread(CompileThread, (LPVOID)this);
 
     //If there is an internal editor, reset focus to it.
     if (pApp->IsInternalEditorRunning()) 
@@ -1469,12 +1478,11 @@ void CMscGenDoc::StartShowingEditingChart(bool resetZoom)
 void CMscGenDoc::CompleteShowingEditingChart()
 {
     _ASSERT(m_ChartCompiling.IsCompiled());
-    CSingleLock lock(&m_SectionCompiling);
-    lock.Lock();
     m_ChartShown.swap(m_ChartCompiling);
     m_ChartCompiling.Delete();
     m_pCompilingThread = NULL;
-    lock.Unlock();
+    m_killCompilation = false;
+    m_CompilationLock.Unlock();
     if (CheckIfChanged()) {
         NotifyChanged();
         if (IsEmbedded())
@@ -1514,10 +1522,27 @@ void CMscGenDoc::CompleteShowingEditingChart()
         pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
 }
 
+
+//Kill any ongoing compilation - a blocking call.
 void CMscGenDoc::KillCompilation()
 {
-    if (!m_pCompilingThread) return;
-    //TODO
+    if (!m_pCompilingThread) return; //if we do not compile, do nothing
+    m_killCompilation = true; //this causes the thread to stop
+    CSingleLock lock(&m_SectionCompiling);    
+    lock.Lock(); //wait for thread to exit
+    while (m_killCompilation) 
+        Sleep(10);
+    m_ChartCompiling.Delete();
+    m_pCompilingThread = NULL;
+    m_killCompilation = false;
+    lock.Unlock();
+    if (m_bAttemptingToClose) return;
+    StartFadingAll(); //start fading the grey area
+    //If there is an internal editor, reset focus to it.
+	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
+	ASSERT(pApp != NULL);
+    if (pApp->IsInternalEditorRunning()) 
+        pApp->m_pWndEditor->m_ctrlEditor.SetFocus();
 }
 
 void CMscGenDoc::StartFadingTimer() 
@@ -1585,6 +1610,7 @@ bool CMscGenDoc::DoFading()
 bool CMscGenDoc::AddAnimationElement(AnimationElement::ElementType type, 
                                      Element *arc, int delay)
 {
+    if (m_pCompilingThread) return false;
     //sanitize input & find drawing area
     const Contour *draw;
     switch (type) {
@@ -1656,6 +1682,7 @@ void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 //Start the fading process for all rectangles (even for delay<0)
 void CMscGenDoc::StartFadingAll(AnimationElement::ElementType type, const Element *except) 
 {
+    if (m_pCompilingThread) return;
     CSingleLock lock(&m_SectionAnimations);
     lock.Lock();
     for (auto i = m_animations.begin(); i!=m_animations.end(); i++) 
@@ -1677,6 +1704,7 @@ void CMscGenDoc::StartFadingAll(AnimationElement::ElementType type, const Elemen
 void CMscGenDoc::SetTrackMode(bool on)
 {
 	if (on == m_bTrackMode) return;
+    if (m_pCompilingThread && on) return;
 	m_bTrackMode = on;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
@@ -1702,6 +1730,7 @@ void CMscGenDoc::SetTrackMode(bool on)
 //if not, we only check for controls
 void CMscGenDoc::UpdateTrackRects(CPoint mouse)
 {
+    if (m_pCompilingThread) return; //skip if compiling
     //Start fading all controls and track rectangles, except the one under cursor
 	Element *arc = m_ChartShown.GetArcByCoordinate(mouse);
 	StartFadingAll(AnimationElement::TRACKRECT, arc); 
@@ -1762,6 +1791,7 @@ void CMscGenDoc::HighLightArc(const Element *arc)
 bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
 {
     if (arc==NULL || t==MSC_CONTROL_INVALID) return false;
+    if (m_pCompilingThread) return false; //skip if compiling
     CChartData chart(*m_itrEditing);
     EntityDef *ed = dynamic_cast<EntityDef*>(arc);
     bool changed = false;

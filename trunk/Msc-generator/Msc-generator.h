@@ -186,4 +186,5 @@ extern CMscGenApp theApp;
 #define REG_KEY_HINT_COMPACT "HintCompact"
 #define REG_KEY_HINT_FILTER "HintFilter"
 #define REG_KEY_SHOW_CONTROLS "ShowElementControls"
+#define REG_KEY_LOAD_DATA "LoadData"
 

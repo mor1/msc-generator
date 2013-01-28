@@ -245,7 +245,7 @@ EContourRelationType SimpleContour::CheckContainmentHelper(const SimpleContour &
 /** Determines the relation of two simplecontours assuming none of their edges cross.
  *
  * Gives valid result only if the two contours have no crosspoints.
- * Clockwiseness fully ignored: the inside of counterclockwise contours is the 
+ * Clockwiseness fully ignored: the inside of counterclockwise contours is the
  * limited space they encloses.
  */
 EContourRelationType SimpleContour::CheckContainment(const SimpleContour &other) const
@@ -364,7 +364,7 @@ void SimpleContour::CalculateClockwise()
  * Checks that we do not append a degenerate (start==end) edge.
  * Checks if the edge to append is a direct continuation of the last edge, in which case
  * we merge the two.
- * WE DO NOT UPDATE `area_cache`, `clockwise`, `boundingBox` and do not ensure 
+ * WE DO NOT UPDATE `area_cache`, `clockwise`, `boundingBox` and do not ensure
  * we leave the shape closed.
  */
 void SimpleContour::AppendDuringWalk(const Edge &edge)
@@ -639,12 +639,12 @@ XY SimpleContour::CentroidUpscaled() const
 }
 
 /** Calculates the touchpoint of tangents drawn from a given point.
- * 
+ *
  * Given the point `from` draw tangents to the shape (two can be drawn)
  * and calculate where these tangents touch the shape.
  * Tangent is anything touching the shape (at a vertex, at the middle of a curvy edge
  * or going along, in parallel with a full straight edge).
- * In this context the *clockwise tangent* is the one which is traversed from 
+ * In this context the *clockwise tangent* is the one which is traversed from
  * `from` towards the shape touches the shape in the clockwise direction.
  * @param [in] from The point from which the tangents are drawn.
  * @param [out] clockwise The point where the clockwise tangent touches the shape.
@@ -667,8 +667,8 @@ bool SimpleContour::TangentFrom(const XY &from, XY &clockwise, XY &cclockwise) c
 }
 
 /** Calculates the touchpoint of tangents drawn to touch two shapes.
- * 
- * Given the two shapes, four such tangents can be drawn, here we focus on the two 
+ *
+ * Given the two shapes, four such tangents can be drawn, here we focus on the two
  * outer ones, the ones that touch either both shapes clockwise or both of them
  * counterclockwise, but not mixed.
  * Tangent is anything touching the shape (at a vertex, at the middle of a curvy edge
@@ -687,7 +687,7 @@ bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY c
     clockwise[1] = cclockwise[1] = from.at(0).GetStart();
     bool was = false;
     for (unsigned u=0; u<size(); u++)
-        for(unsigned v=0; v<from.size(); v++) 
+        for(unsigned v=0; v<from.size(); v++)
             was |= at(u).TangentFrom(from[v], clockwise, cclockwise);
     return was;
 }
@@ -697,7 +697,7 @@ bool SimpleContour::TangentFrom(const SimpleContour &from, XY clockwise[2], XY c
 
 /** Helper that creates a half circle for EXPAND_ROUND or EXPAND_MITER_ROUND type expansion,
  * where expanded edges are parallel.
- * 
+ *
  * @param [in] start The start of the half circle (end of the previous expanded edge)
  * @param [in] end The end of the half circle (the start of the next previous edge)
  * @param [in] old The position of the vertex before expanding the edges.
@@ -726,23 +726,23 @@ Edge SimpleContour::CreateRoundForExpand(const XY &start, const XY &end, const X
 
 /** Expands a shape.
  *
- * Expansion aims to create a shape whose edges run parallel along the edges of the 
+ * Expansion aims to create a shape whose edges run parallel along the edges of the
  * original, but at `gap` pixels away. Positive `gap` values result in actual expansion
- * negative values in shrinkage (the new shape is inside the original). 
+ * negative values in shrinkage (the new shape is inside the original).
  * The function works for counterclockwise shapes, the meaning of the sign of `gap` is
  * reversed.
- * 
- * After the expansion, we check if there are edges crossing each other and 
- * remove them by walking. In this space we also may end up in multiple separate 
- * SimpleContours. (E.g., shrinking a dog-bone shape may lead us to two circles, 
+ *
+ * After the expansion, we check if there are edges crossing each other and
+ * remove them by walking. In this space we also may end up in multiple separate
+ * SimpleContours. (E.g., shrinking a dog-bone shape may lead us to two circles,
  * like `O=O` becomes `o o`.) This is why the result is stored in a full Contour
  * which may hold multiple SimpleContours.
  *
  * @param [in] type There are multiple typical ways to handle edge joins, see EExpandType.
  * @param [in] gap The amount of expansion/shrinkage. No-op if zero.
  * @param [out] res The expanded shape.
- * @param miter_limit Tells us that with EXPAND_MITER_* how long the miter edges can be 
- *                    in terms of the `gap`. 
+ * @param miter_limit Tells us that with EXPAND_MITER_* how long the miter edges can be
+ *                    in terms of the `gap`.
  *                    E.g., miter_limit=2 says they can be as long as `2*gap`.
  *                    The rest is cut away with a bevel-like edge.
  */
@@ -772,7 +772,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
     //Expand all the edges
     for (size_t i = 0; i<r.size(); i++)
-        if (!r[i].Expand(gap)) {  
+        if (!r[i].Expand(gap)) {
             //Expand() returns false if a circle has shrunken to degenerate into a line or point.
             //If so, we replace them with straight lines
             r[i] = o[i];
@@ -795,11 +795,11 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
     //Remove those edges which changed direction
     // This may happen especially at shrinkage, see the example below.
-    //     +->-+                          
-    //    /     \      after shrinkage    +---+ 
+    //     +->-+
+    //    /     \      after shrinkage    +---+
     //   /       \     this becomes ->     \ /
     //  /         \                         o
-    // /           \                       / \
+    // /           \                       / \    .
     //
     // Here the top horizontal edge is walked in the opposite direction (from right to left)
     // as before the expansion (left to right). Such edges (and the small triangle associated
@@ -813,7 +813,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
             prev_size = r.size();
             XY tmp_point;
             Edge::EExpandCPType tmp_type;
-            //Kill edges if 
+            //Kill edges if
             //1. they have good crosspoints with both previus and next edge;
             //2. if those good crosspoints are in opposite order than the originals; and
             //3. if the previous and next edges has a good cp with each other.
@@ -884,7 +884,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                 //We got degenerate, do not insert
                 cross_point[i] = new_end = new_start; //Use this from now on.
             }
-            //See below if we need to insert additional edges 
+            //See below if we need to insert additional edges
             if (Edge::HasCP(cross_type[i])) {
                 //If we have a normal crosspoint, the only reason to add an edge if
                 //the miter would be too long. In this case we need to add a straight
@@ -934,7 +934,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     case EXPAND_BEVEL:
     case EXPAND_ROUND:
         //Here we have not yet removed edges that changed dir, so we rate them here.
-        //We actually allow edges that change dir to persist and will remove them during 
+        //We actually allow edges that change dir to persist and will remove them during
         //an untangle at the end. We do this because with round or bevel modes, the inserted
         //join element (a round edge or bevel) may replace such an edge that changed direction
         //resulting in better outcome.
@@ -973,10 +973,10 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                                                   o[i].GetEnd(), gap>0));  //circle
         }
         //Now check all inserted edges.
-        //If any edge in "r2" befor or after an inserted edge 
-        //1. is an original edge; 
+        //If any edge in "r2" befor or after an inserted edge
+        //1. is an original edge;
         //2. has changed direction; and he
-        //3. the inserted edge has a good cp with the edge beyond the neighbour 
+        //3. the inserted edge has a good cp with the edge beyond the neighbour
         //then skip the neighbour that changed dir.
         bool all_orig_changed_dir = true;
         for (size_t u = 0; u<r2.size(); u++) {
@@ -1075,9 +1075,9 @@ void SimpleContour::Expand2DHelper(const XY &gap, std::vector<Edge> &a,
     }
 }
 
-/** Expand2D the shape. 
+/** Expand2D the shape.
  *
- * See the contour library definition on what Expand2D means. 
+ * See the contour library definition on what Expand2D means.
  *
  * @param [in] gap The rectangle used for the expansion.
  * @param [out] res The result.
@@ -1125,7 +1125,7 @@ EContourRelationType SimpleContour::RelationTo(const SimpleContour &c) const
     return CheckContainment(c);
 }
 
-/** Draw the shape as a path to a cairo context. 
+/** Draw the shape as a path to a cairo context.
  *
  * @param [in] cr The cairo context.
  * @param [in] show_hidden If false, we skip edges marked not visible.
@@ -1169,9 +1169,9 @@ void SimpleContour::PathDashed(cairo_t *cr, const double pattern[], unsigned num
             at(i).PathDashed(cr, pattern, num, pos, offset);
 }
 
-/** Determine the relative vertical distance between two shapes. 
+/** Determine the relative vertical distance between two shapes.
  *
- * This is a helper for OffsetBelow, that is called if the x range of bounding boxes 
+ * This is a helper for OffsetBelow, that is called if the x range of bounding boxes
  * actually overlap and there is a chance of resuling in an offset less than infinity.
  */
 double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpoint, double offset) const
@@ -1269,7 +1269,7 @@ double SimpleContour::Distance(const XY &o, XY &ret) const
 
 /** Calculates the distance between a point and us by finding our closest point and returns two tangent points.
  *
- * Same as Distance(const XY &o, XY &ret), but in addition we return two tangent points 
+ * Same as Distance(const XY &o, XY &ret), but in addition we return two tangent points
  * from the tangent of the shape at `ret`. See @ref contour for a description of tangents.
  *
  * @param [in] o The point to take the distance from.
@@ -1327,7 +1327,7 @@ Range SimpleContour::Cut(const Edge &s) const
  * returned and a forward tangent point for them. In case the edge cuts the shape
  * at a non-smooth vertex, then we take the tangent line of both edges of the vertex
  * average them and return a point from this middle line in the forward direction.
- * 
+ *
  * @param [in] e The edge to cut with.
  * @param [out] from Values correspond to the position returned in `from`. `first` is the coordinate of the point, `second` is the forward tangent point.
  * @param [out] till Values correspond to the position returned in `till`. `first` is the coordinate of the point, `second` is the forward tangent point.
@@ -1350,7 +1350,7 @@ Range SimpleContour::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std:
                 const XY delta = prev_t_norm+tangen_norm;
                 if (delta.length_sqr()<1e-8)
                     tangent.Rotate90CW();
-                else 
+                else
                     tangent = at(u).GetStart() + delta/2;
             }
             if (ret.from > pos[i]) {
@@ -1376,7 +1376,7 @@ Range SimpleContour::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std:
  *
  * @param [in] A One point of the infinite line.
  * @param [in] B Another point of the infinite line.
- * @param [out] map A DoubleMap containing true for points inside the shape, false for outside. 
+ * @param [out] map A DoubleMap containing true for points inside the shape, false for outside.
  */
 void SimpleContour::Cut(const XY &A, const XY &B, DoubleMap<bool> &map) const
 {
