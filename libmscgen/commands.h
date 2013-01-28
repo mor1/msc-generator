@@ -104,7 +104,7 @@ public:
     FillAttr fill;
 
     CommandNewBackground(Msc *msc, FillAttr f) : 
-        ArcCommand(MSC_COMMAND_NEWBACKGROUND, MscProgress::BACKGROUND, msc), 
+        ArcCommand(MSC_COMMAND_NEWBACKGROUND, MscProgress::TINY_EFFORT, msc), 
         fill(f) {}
     virtual void PostPosProcess(Canvas &cover);
 };
@@ -117,7 +117,7 @@ public:
     size_t  length;
 
     CommandNumbering(Msc *msc, EAction a, size_t l=0) :
-        ArcCommand(MSC_COMMAND_NUMBERING, MscProgress::NUMBERING, msc), 
+        ArcCommand(MSC_COMMAND_NUMBERING, MscProgress::TINY_EFFORT, msc), 
         action(a), length(l) 
         {if (l) action = EAction(action | SIZE); AddAttributeList(NULL);}
     virtual ArcBase* PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EIterator &right,
@@ -273,7 +273,7 @@ public:
     virtual void FinalizeLabels(Canvas &canvas);
     virtual void Width(Canvas &canvas, EntityDistanceMap &distances);
     virtual void Layout(Canvas &canvas, AreaList &cover);
-    virtual void ShiftBy(double y) {} //Comments are shifted by their owner, notes are laid out last and shall not be shifted anyway
+    virtual void ShiftBy(double /*y*/) {} //Comments are shifted by their owner, notes are laid out last and shall not be shifted anyway
 
     Contour CoverBody(Canvas &canvas, const XY &center) const; //places upper left corner to 0,0
     Contour CoverPointer(Canvas &canvas, const XY &pointto, const XY &center) const //places upper left corner of the body to 0,0
@@ -303,11 +303,11 @@ protected:
     ArcList content;
 public:
     explicit CommandArcList(Msc *m) : 
-        ArcCommand(MSC_ARC_ARCLIST, MscProgress::LIST, m), content(true) {}
+        ArcCommand(MSC_ARC_ARCLIST, MscProgress::TINY_EFFORT, m), content(true) {}
     CommandArcList(Msc *m, ArcBase *p) :  
-        ArcCommand(MSC_ARC_ARCLIST, MscProgress::LIST, m), content(true) {Append(p);}
+        ArcCommand(MSC_ARC_ARCLIST, MscProgress::TINY_EFFORT, m), content(true) {Append(p);}
     CommandArcList(Msc *m, ArcList *l) :  
-        ArcCommand(MSC_ARC_ARCLIST, MscProgress::LIST, m), content(true) {Append(l);}
+        ArcCommand(MSC_ARC_ARCLIST, MscProgress::TINY_EFFORT, m), content(true) {Append(l);}
 
     void Append(ArcBase *p) {content.Append(p);}
     void Append(ArcList *l) {content.splice(content.end(), *l);}

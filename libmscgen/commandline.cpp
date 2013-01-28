@@ -114,7 +114,7 @@ static void usage()
 "             is specified, the aspect ratio is kept. Only for PNG output.\n"
 " -s=<scale>  Can be used to scale chart size up or down. Default is 1.0.\n"
 "             Cannot be used together with any of -x or -y.\n"
-"             Only for PNG or full-page output (-p).\n" 
+"             Only for PNG or full-page output (-p).\n"
 "             For full-page output, you can set <scale> to 'width' which\n"
 "             results in the chart width being set to the page width, or\n"
 "             'auto', which scales such that all pages fits. For full-page\n"
@@ -163,8 +163,9 @@ static void licence()
 }
 
 int do_main(const std::list<std::string> &args, const char *designs,
-            string csh_textformat, 
-            MscProgress::ProgressCallback cb, void *param)
+            string csh_textformat,
+            MscProgress::ProgressCallback cb, void *param,
+            std::string *load_data)
 {
     Canvas::EOutputType oOutType=Canvas::PNG;
     string                oOutputFile;
@@ -184,7 +185,8 @@ int do_main(const std::list<std::string> &args, const char *designs,
     Msc msc;
     msc.Progress.callback = cb;
     msc.Progress.data = param;
-    msc.Progress.Read("load.txt");
+    if (load_data)
+        msc.Progress.ReadLoadData(load_data->c_str());
     msc.copyrightText = "\\md(0)\\mu(2)\\mr(0)\\mn(10)\\f(arial)\\pr\\c(150,150,150)"
                         "http://msc-generator.sourceforge.net ";
     msc.copyrightText.append(VersionText(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR));
@@ -194,6 +196,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     const FileLineColRange opt_pos_range(opt_pos, opt_pos);
     bool show_usage = false;
 
+    msc.Progress.StartSection(MscProgress::PARSE);
     //Load deisgn definitions
     if (designs)
         msc.ParseText(designs, "[designlib]");
@@ -215,27 +218,27 @@ int do_main(const std::list<std::string> &args, const char *designs,
             }
         } else if (i->at(0) == '-' && i->at(1) == 's') {
             double os;
-            if (i->at(2) != '=' || 
+            if (i->at(2) != '=' ||
                 (sscanf(i->c_str()+3, "%lf", &os)!=1 && tolower(i->at(3)) != 'a' && tolower(i->at(3)) != 'w'))
                 msc.Error.Error(opt_pos, "Missing scale after '-s='. Using native size.");
             else if (tolower(i->at(3)) == 'a')
                 oScale.push_back(-2); //auto
             else if (tolower(i->at(3)) == 'w')
                 oScale.push_back(-1); //width
-            else if (os<=0.001 || os>100) 
+            else if (os<=0.001 || os>100)
                 msc.Error.Error(opt_pos, "Invalid scale, it should be between [0.001..100]. Ignoring it.");
-            else 
-                oScale.push_back(os); 
+            else
+                oScale.push_back(os);
         } else if (i->at(0) == '-' && i->at(1) == 'p') {
-            if (i->length()==2) 
+            if (i->length()==2)
                 oPageSize = Canvas::A4P;
-            else 
+            else
                 oPageSize = i->at(2)=='=' ? Canvas::ConvertPageSize(i->c_str()+3) : Canvas::NO_PAGE;
             if (oPageSize == Canvas::NO_PAGE) {
                 msc.Error.Error(opt_pos, "Invalid page size. Should be one of the ISO A-series, such as 'A4p' or 'A3l', or 'letter', 'legal', 'ledger' or 'tabloid'. Using 'A4p' as default.");
                 oPageSize = Canvas::A4P;
             }
-        } else if (i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') && 
+        } else if (i->at(0) == '-' && (i->at(1) == 'v' || i->at(1) == 'h') &&
                    i->at(2) == 'a') {
             if (i->length()<5 || i->at(3) != '=')
                 msc.Error.Error(opt_pos, "I need a value for " + i->substr(0,3) + ". Ignoring this.");
@@ -244,7 +247,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 static const char h_err[] = "left/center/right", v_err[] = "up/center/down";
                 const char * const at = strchr(i->at(1)=='h' ? h : v, tolower(i->at(4)));
                 if (at==NULL)
-                    msc.Error.Error(opt_pos, "Bad value for "+ i->substr(0,3) + ". Use one of " + 
+                    msc.Error.Error(opt_pos, "Bad value for "+ i->substr(0,3) + ". Use one of " +
                                    (i->at(1)=='h' ? h_err : v_err) + ". Ignoring this.");
                 else
                     (i->at(1)=='h' ? oHA : oVA) = int(at - (i->at(1)=='h' ? h : v)) - 1;
@@ -252,7 +255,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
         } else if (i->at(0) == '-' && i->at(1) == 'm') {
             static const char *dirs = "lrud";
             const char *at = strchr(dirs, tolower(i->at(2)));
-            if (at==NULL) 
+            if (at==NULL)
                 msc.Error.Error(opt_pos, "Invalid margin selector. Use one of '-ml', '-mr', '-mu' or '-md' for left, right, upper or lower margins, respectively.  Ignoring this.");
             else if (i->at(3) != '=')
                 msc.Error.Error(opt_pos, "After the marging option, I need a number with no spaces, like '-mu=1.2cm'. Ignoring this.");
@@ -262,11 +265,11 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 buff[0] = 0;
                 double res;
                 if (sscanf(i->c_str()+4, "%lf%s", &res, buff)==0)
-                    msc.Error.Error(opt_pos, "After the marging option, I need a number with no spaces, like '-mu=1.2cm'. Ignoring this.");            
+                    msc.Error.Error(opt_pos, "After the marging option, I need a number with no spaces, like '-mu=1.2cm'. Ignoring this.");
                 else {
                     if (!strcmp("cm", buff)) mul=28.3464567; //cm to points, see http://www.asknumbers.com/CentimetersToPointsConversion.aspx
-                    else if (buff[0] && strcmp("in", buff)) 
-                        msc.Error.Error(opt_pos, "After margin size value, specify the measurement unit: 'in' or 'cm'. Assuming inches.");            
+                    else if (buff[0] && strcmp("in", buff))
+                        msc.Error.Error(opt_pos, "After margin size value, specify the measurement unit: 'in' or 'cm'. Assuming inches.");
                     free(buff);
                     margins[at-dirs] = res*mul;
                 }
@@ -366,7 +369,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 a.error = true;  //supress errors in AddAttribute
                 if (msc.AddAttribute(a)) continue;
                 ArcBase *ret;
-                switch (msc.SetDesign(true, a.name, true, &ret)) { 
+                switch (msc.SetDesign(true, a.name, true, &ret)) {
                 case 1:
                 case 2:
                 case 3:
@@ -477,7 +480,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     }
     if (oA) {
         bool had_auto = false;
-        for (int s=0; s<oScale.size() && !had_auto; s++) 
+        for (int s=0; s<(int)oScale.size() && !had_auto; s++)
             if (oScale[s]==-2) {
                 had_auto = true;
                 oScale.erase(oScale.begin()+s);
@@ -495,10 +498,10 @@ int do_main(const std::list<std::string> &args, const char *designs,
         }
     }
 
+    char *input = NULL;
     if (msc.Error.hasFatal()) goto fatal;
 
     /* Parse input, either from a file, or stdin */
-    char *input;
     if (oInputFile == "" || oInputFile == "-") {
         input = ReadFile(stdin);
     } else {
@@ -541,9 +544,9 @@ int do_main(const std::list<std::string> &args, const char *designs,
             pageSize = Canvas::GetPhysicalPageSize(oPageSize);
             pageSize.x -= margins[0] + margins[1];
             pageSize.y -= margins[2] + margins[3];
-            if (oScale[0]>0) 
+            if (oScale[0]>0)
                 pageSize /= oScale[0];
-            if (pageSize.x<10 || pageSize.y<10) 
+            if (pageSize.x<10 || pageSize.y<10)
                 oA=false;
         }
         msc.CompleteParse(oOutType, true, oA, oAH, pageSize, oScale.size() ? oScale[0]==-1 : false);
@@ -581,9 +584,11 @@ int do_main(const std::list<std::string> &args, const char *designs,
         //Now cycle through pages and write them to individual files or a full-page  one
         msc.DrawToFile(oOutType, scale, oOutputFile, false, oPageSize, margins, oHA, oVA, true);
         msc.Progress.Done();
-        msc.Progress.Write("load.txt");
+        if (load_data)
+            *load_data = msc.Progress.WriteLoadData();
     }
-    free(input);
+    if (input)
+        free(input);
     if (msc.Error.hasFatal()) goto fatal;
 
     std::cerr << msc.Error.Print(oWarning);

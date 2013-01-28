@@ -20,52 +20,23 @@
 /** @file progress.cpp The implementation of progress reporting functions
  * @ingroup libmscgen_files */
 
-#include <fstream>
+#include <sstream>
 #include "progress.h"
 
-const double MscProgress::default_arc_ticks[MAX_CATEGORY][MAX_ARC_SECTION] =
-{
-//   POPA FILA  WID  LAY MARK  NOTE POPO DRAW
-    {   0,   0,   0,   0,   0,    0,   0,   0},  /* NO_CATEGORY */
-    {   0,   0,   1,   1,   0,    0,   0,   1},  /* INDICATOR */
-    {   2,   3,   3,   3,   0,    0,   1,   3},  /* SELF_ARROW */
-    {  10,   3,  11,  21,   0,    0,  10,  21},  /* DIR_ARROW */
-    {  10,   3,  21,  31,   0,    0,  20,  41},  /* BLOCK_ARROW */
-    {  10,   3,  21,   0,  31,    0,  20,  41},  /* VERTICAL */
-    {  10,   3,   0,   0,   0,    0,   0,   0},  /* BOX */
-    {  10,   0,  30,  30,   0,    0,  40,  40},  /* BOX_SERIES */
-    {  10,   3,   0,   1,   0,    0,   0,   1},  /* PIPE */
-    {  10,   0,  20,  50,   0,    0,  30,  50},  /* PIPE_SERIES */
-    {  10,   3,   5,   5,   0,    0,   5,   5},  /* DIVIDER */
-    {   0,   0,   0,   0,   0,    0,   0,   0},  /* PARALLEL */
-    {  20,   0,  11,  11,   0,    0,  10,  11},  /* ENTITY */
-    {   5,   0,   5,   5,   0,    0,   5,   0},  /* NEWPAGE */
-    {   0,   0,   0,   0,   0,    0,   1,   0},  /* BACKGROUND */
-    {   0,   0,   0,   0,   0,    0,   0,   0},  /* NUMBERING */
-    {   0,   0,   0,   1,   0,    0,   0,   0},  /* MARKER */
-    {   5,   0,   5,   3,   0,    0,   2,   3},  /* EMPTY */
-    {   0,   0,   0,   0,   0,    0,   0,   0},  /* HSPACE */
-    {   0,   0,   0,   0,   0,    0,   0,   0},  /* VSPACE */
-    {   5,   3,   5,   3,   0,    0,   0,   2},  /* SYMBOL */
-    {   5,   3,   0,   0,   0,    0,   0,   2},  /* COMMENT */
-    {   1,   3,   0,   0,   0,  200,  10,  11},  /* NOTE */
-    {   0,   0,   0,   0,   0,    0,   0,   0},  /* LIST */
-    {   0,   0,   0,   0,   0,    0,   0,   0}   /* REMAINDER */
-};
-
-const double MscProgress::default_relative_effort[MAX_BULK_SECTION] =
-{ };
+#ifndef _ASSERT
+#define  _ASSERT(A)
+#endif
 
 MscProgress::MscProgress(ProgressCallback cb, void *d, double g) : 
     loaded_arc_ticks(MAX_CATEGORY, std::vector<double>(MAX_ARC_SECTION, 0)),
-    counted_arc_ticks(MAX_CATEGORY, std::vector<clock_t>(MAX_ARC_SECTION, 0)),
     loaded_arc_number(MAX_CATEGORY, 0),
     total_loaded_arc_ticks(0),
-    total_done_arc_ticks(0),
-    loaded_relative_effort(MAX_BULK_SECTION, 0),
+    counted_arc_ticks(MAX_CATEGORY, std::vector<clock_t>(MAX_ARC_SECTION, 0)),
+    loaded_relative_effort(MAX_BULK_SECTION, 1.0/MAX_BULK_SECTION),
     counted_relative_effort(MAX_BULK_SECTION, 0),
     arc_items_regsitered(MAX_CATEGORY, 0), 
     arc_items_done_in_current_section(MAX_CATEGORY, 0),
+    arc_sections_completed(MAX_ARC_SECTION, false),
     bulk_items_regsitered(MAX_BULK_SECTION, 0),
     bulk_items_done(MAX_BULK_SECTION, 0),
     current_arc_section(NO_ARC_SECTION), 
@@ -73,15 +44,19 @@ MscProgress::MscProgress(ProgressCallback cb, void *d, double g) :
     started(clock()), 
     section_started(started), 
     item_started(started),
-    total_done_progress(0),
     last_reported(-101),
     granularity(g), 
     callback(cb), 
     data(d)
 {
-    Read("load.txt");
-    for (unsigned u = 1; u<MAX_ARC_SECTION; u++) 
+    for (unsigned u = 1; u<MAX_ARC_SECTION; u++) {
         arc_items_regsitered[REMAINDER] = 1;
+        total_loaded_arc_ticks += loaded_arc_ticks[REMAINDER][u];
+    }
+    loaded_relative_effort[0] = 0.90;  //Arc processing
+    loaded_relative_effort[STARTUP] = 0.07;
+    loaded_relative_effort[PARSE] = 0.025;
+    loaded_relative_effort[AUTOPAGINATE] = 0.005;
     Callback();
 };    
 
@@ -91,55 +66,60 @@ void MscProgress::RegisterBulk(EBulkSection section, unsigned len)
     bulk_items_regsitered[section] += len;
 }
 
-void MscProgress::RegisterArc(ECategory category, unsigned num)
+void MscProgress::RegisterArc(ECategory category)
 {
-    arc_items_regsitered[category] += num;
+    arc_items_regsitered[category]++;
     for (unsigned u = 1; u<MAX_ARC_SECTION; u++)
-        total_loaded_arc_ticks += num*loaded_arc_ticks[category][u];
+        total_loaded_arc_ticks += loaded_arc_ticks[category][u];
 }
 
 
-void MscProgress::UnRegisterArc(ECategory category, unsigned num)
+void MscProgress::UnRegisterArc(ECategory category)
 {
     _ASSERT(arc_items_regsitered[category] > 0);
-    arc_items_regsitered[category] -= num;
+    arc_items_regsitered[category]--;
     for (unsigned u = 1; u<MAX_ARC_SECTION; u++)
-        total_loaded_arc_ticks -= num*loaded_arc_ticks[category][u];
+        total_loaded_arc_ticks -= loaded_arc_ticks[category][u];
 }
 
-void MscProgress::DoneItem(EArcSection section, ECategory category, unsigned number) 
+void MscProgress::DoneItem(EArcSection section, ECategory category) 
 {
     const clock_t now = clock();
     _ASSERT(section == current_arc_section);
-    arc_items_done_in_current_section[category] += number;
-    if (current_arc_section != DRAW)
-        _ASSERT(arc_items_done_in_current_section[category] <= arc_items_regsitered[category]);
-    counted_arc_ticks[category][section] += now - item_started;
+    //We may call draw multiple times
+    //We may delete arcs (content of ArcBox) already processed, due to gouped entity hiding
+    if (current_arc_section != DRAW && current_arc_section != POST_PARSE && current_arc_section != NOTES) {
+        _ASSERT(arc_items_done_in_current_section[category] < arc_items_regsitered[category]);
+    }
+    if (arc_items_done_in_current_section[category] == arc_items_regsitered[category]) {
+        //We have already reported the processing of all registered items.
+        //Do nothing now, the time spent processing this extra item will go
+        //unaccounted for.
+        item_started = now;
+        return;
+    } else if (arc_items_done_in_current_section[category] < arc_items_regsitered[category]) {
+        arc_items_done_in_current_section[category]++;
+        counted_arc_ticks[category][section] += now - item_started;
+    } else {
+        arc_items_done_in_current_section[category] = arc_items_regsitered[category];
+    }
     item_started = now;
-    total_done_arc_ticks += number*loaded_arc_ticks[category][section];
-    total_done_progress += number*loaded_arc_ticks[category][section]*loaded_relative_effort[0]/total_loaded_arc_ticks;
     Callback();
 }
 
 void MscProgress::DoneItem(EBulkSection section, unsigned number) 
 {
+    //Bulk item reporting is usually precise, thus we do
+    //do not cater for overreporting here.
     const clock_t now = clock();
     _ASSERT(section == current_bulk_section);
     bulk_items_done[section] += number;
     _ASSERT(bulk_items_done[section] <= bulk_items_regsitered[section]);
     counted_relative_effort[section] = now - section_started;
-    ReCalcSectionDoneLoad();
     Callback();
 }
 
-void MscProgress::ReCalcSectionDoneLoad()
-{
-    double r = total_done_arc_ticks * loaded_relative_effort[0];
-    for (unsigned u = 1; u<MAX_BULK_SECTION; u++)
-        r += double(bulk_items_done[u])/bulk_items_regsitered[u] * 
-                 loaded_relative_effort[u];
-    total_done_progress = r;
-}
+
 
 void MscProgress::CloseSection()
 {
@@ -147,9 +127,13 @@ void MscProgress::CloseSection()
     //Close previous section (if any)
     if (current_arc_section != NO_ARC_SECTION) {
         DoneItem(current_arc_section, REMAINDER);
-        if (current_arc_section!=NOTES && current_arc_section!=DRAW)
-            for (unsigned u=1; u<MAX_CATEGORY; u++)
-                _ASSERT(arc_items_done_in_current_section[u] == arc_items_regsitered[u]);
+        for (unsigned u=1; u<MAX_CATEGORY; u++) {
+            if (current_arc_section!=DRAW  && current_arc_section!=POST_PARSE && current_arc_section != NOTES)
+                if (u != NOTE) {
+                    _ASSERT(arc_items_done_in_current_section[u] == arc_items_regsitered[u]);
+                }
+        }
+        arc_sections_completed[current_arc_section] = true;
         current_arc_section = NO_ARC_SECTION;
     }
     if (current_bulk_section != NO_BULK_SECTION) {
@@ -159,19 +143,46 @@ void MscProgress::CloseSection()
     }
     section_started = now;
     item_started = now;
+    Callback();
 }
 
 
 void MscProgress::Callback()
 {
     if (!callback) return;
-    if (total_done_progress*100 < last_reported+granularity) return;
-    callback(last_reported = total_done_progress*100, data);
+    //recalculate total_done_arc_ticks
+    register double p = 0, q = 0;
+    for (register unsigned u=1; u<MAX_CATEGORY; u++) 
+        for (register unsigned v=1; v<MAX_ARC_SECTION; v++) {
+            if (v==current_arc_section) 
+                p += loaded_arc_ticks[u][v] * arc_items_done_in_current_section[u];
+            else if (arc_sections_completed[v])
+                p += loaded_arc_ticks[u][v] * arc_items_regsitered[u];
+            q += loaded_arc_ticks[u][v] * arc_items_regsitered[u];
+        }
+
+    //p is now the total load_tick for arcs weighted by the number
+    //of registered arc categories
+    p /= q; //now p is the ratio of work done in arc sections
+    //now calculate the total progress
+    q = loaded_relative_effort[0];
+    for (unsigned u = 1; u<MAX_BULK_SECTION; u++)
+        if (bulk_items_regsitered[u]) 
+            q += loaded_relative_effort[u];
+    //q is now the total weight to distribute
+    p *= loaded_relative_effort[0]; //weight each section by the relative effort
+    for (unsigned u = 1; u<MAX_BULK_SECTION; u++)
+        if (bulk_items_regsitered[u]) 
+            p += loaded_relative_effort[u] * bulk_items_done[u] / 
+                 bulk_items_regsitered[u];
+    p*=100/q;
+    if (p > last_reported+granularity) 
+        callback(last_reported = p, data);
 }
 
 void MscProgress::Done() 
 {
-    StartSection(MAX_BULK_SECTION);
+    CloseSection();
 
     const double ewma = 0.1;
     //normalize and merge arc_ticks
@@ -193,7 +204,6 @@ void MscProgress::Done()
     double total_ticks = sum_arc_ticks;
     for (unsigned u = 1; u<MAX_BULK_SECTION; u++) 
         total_ticks += counted_relative_effort[u];
-    _ASSERT(section_started - started == total_ticks);
     double sum = 
         loaded_relative_effort[0] = 
             (1-ewma) * loaded_relative_effort[0] +
@@ -208,10 +218,10 @@ void MscProgress::Done()
 }
 
 
-bool MscProgress::Write(const char *fn)
+std::string MscProgress::WriteLoadData() const
 {
-    std::ofstream out(fn);
-    if (out.fail()) return false;
+    std::stringstream out;
+    out << unsigned(0) << " "; //version
     for (unsigned u = 0; u<MAX_BULK_SECTION; u++) 
         out << loaded_relative_effort[u] << " ";
     out << std::endl;
@@ -220,20 +230,33 @@ bool MscProgress::Write(const char *fn)
             out << loaded_arc_ticks[u][v] << " ";
         out << loaded_arc_number[u] << std::endl;
     }
-    if (out.fail()) return false;
-    return true;
+    return out.str();
 }
-bool MscProgress::Read(const char *fn)
+bool MscProgress::ReadLoadData(const char *inp)
 {
-    std::ifstream in(fn);
-    if (in.fail()) return false;
+    std::stringstream in(inp);
+    unsigned ver;
+    if (!in.good()) goto fail;
+    in >> ver;
+    if (ver > 0) goto fail; //too advanced version
     for (unsigned u = 0; u<MAX_BULK_SECTION; u++) 
-        in >> loaded_relative_effort[u];
+        if (in.good())
+            in >> loaded_relative_effort[u];
+        else
+            goto fail;
     for (unsigned u=0; u<MAX_CATEGORY; u++) {
         for (unsigned v=0; v<MAX_ARC_SECTION; v++)
-            in >> loaded_arc_ticks[u][v];
-        in >> loaded_arc_number[u];
+            if (in.good())
+                in >> loaded_arc_ticks[u][v];
+            else 
+                goto fail;
+        if (in.good())
+            in >> loaded_arc_number[u];
+        else 
+            goto fail;
     }
-    if (in.fail()) return false;
     return true;
+fail:
+
+    return false;
 }

@@ -13,6 +13,7 @@ const char *VersionText(char a=LIBMSCGEN_MAJOR,
 char *ReadFile(FILE *in);
 int do_main(const std::list<std::string> &args, const char *designs,
             std::string csh_textformat,
-            MscProgress::ProgressCallback cb = NULL, void *param=NULL);
+            MscProgress::ProgressCallback cb = NULL, void *param=NULL,
+            std::string *load_data=NULL);
 
 #endif /* COMMANDLINE_H */

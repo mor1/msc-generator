@@ -46,7 +46,7 @@
 
 struct PageBreakData;
 /** A collection holding relevant data for all the page breaks in the chart*/
-typedef std::vector<const PageBreakData> PBDataVector;
+typedef std::vector<PageBreakData> PBDataVector;
 
 /** A class encapsulating a cairo drawing conext.
  * Besides relaying drawing calls to the cario context Canvas has the following functionality.

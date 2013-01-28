@@ -31,7 +31,7 @@ string ArcCommand::Print(int ident) const
     return ss;
 }
 
-void ArcCommand::Layout(Canvas &canvas, AreaList &cover)
+void ArcCommand::Layout(Canvas &/*canvas*/, AreaList &/*cover*/)
 {
     height = 0;
     if (!valid) return;
@@ -617,10 +617,10 @@ void CommandEntity::ShiftBy(double y)
 //We never split a heading. Here we sould add a full_header if addHeader is set: TODO.
 //Rght now we just updtae the running state in Msc::AllEntities
 double CommandEntity::SplitByPageBreak(Canvas &/*canvas*/, double /*netPrevPageSize*/,
-                                    double /*pageBreak*/, bool &/*addCommandNewpage*/, 
+                                    double /*pageBreak*/, bool &/*addCommandNewpage*/,
                                     bool addHeading, ArcList &/*res*/)
 {
-    if (addHeading) 
+    if (addHeading)
         for (auto i_def = entities.begin(); i_def!=entities.end(); i_def++) {
             Entity *ent = *(*i_def)->itr;
             ent->running_draw_pass = (*i_def)->draw_pass;
@@ -655,10 +655,10 @@ void CommandEntity::Draw(Canvas &canvas, EDrawPassType pass)
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-CommandNewpage::CommandNewpage(Msc *msc, bool m, CommandEntity *ah) : 
-    ArcCommand(MSC_COMMAND_NEWPAGE, MscProgress::NEWPAGE, msc), 
-    auto_heading_attr(msc->Contexts.back().auto_heading.second), 
-    autoHeading(ah), manual(m) 
+CommandNewpage::CommandNewpage(Msc *msc, bool m, CommandEntity *ah) :
+    ArcCommand(MSC_COMMAND_NEWPAGE, MscProgress::NEWPAGE, msc),
+    auto_heading_attr(msc->Contexts.back().auto_heading.second),
+    autoHeading(ah), manual(m)
 {
     compress=false;
 }
@@ -689,8 +689,8 @@ bool CommandNewpage::AttributeValues(const std::string attr, Csh &csh)
     return false;
 }
 
-ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, 
-                                          EIterator &right, Numbering &number, 
+ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &left,
+                                          EIterator &right, Numbering &number,
                                           bool top_level, Element **note_target)
 {
     if (auto_heading_attr && !autoHeading) {
@@ -706,7 +706,7 @@ ArcBase* CommandNewpage::PostParseProcess(Canvas &canvas, bool hide, EIterator &
     return ArcCommand::PostParseProcess(canvas, hide, left, right, number, top_level, note_target);
 }
 
-void CommandNewpage::FinalizeLabels(Canvas &canvas)
+void CommandNewpage::FinalizeLabels(Canvas &)
 {
     if (autoHeading)
         chart->Progress.DoneItem(MscProgress::FINALIZE_LABELS, autoHeading->myProgressCategory);
@@ -740,7 +740,7 @@ void CommandNewpage::ShiftBy(double y)
 }
 
 
-void CommandNewpage::CollectPageBreak(double hSize)
+void CommandNewpage::CollectPageBreak(double /*hSize*/)
 {
     if (!valid) return;
     chart->pageBreakData.push_back(PageBreakData(yPos, manual, autoHeading));
@@ -798,7 +798,7 @@ ArcBase* CommandNumbering::PostParseProcess(Canvas &/*canvas*/, bool hide, EIter
 //////////////////////////////////////////////////////////////////////////////////////
 
 CommandMark::CommandMark(const char *m, FileLineColRange ml, Msc *msc) :
-    ArcCommand(MSC_COMMAND_MARK, MscProgress::MARKER, msc), name(m)
+    ArcCommand(MSC_COMMAND_MARK, MscProgress::TINY_EFFORT, msc), name(m)
 {
     map<string, Msc::MarkerType>::iterator i = chart->Markers.find(name);
     if (i != chart->Markers.end()) {
@@ -864,7 +864,7 @@ void CommandEmpty::Width(Canvas &canvas, EntityDistanceMap &distances)
     distances.Insert(lside_index, rside_index, width);
 }
 
-void CommandEmpty::Layout(Canvas &canvas, AreaList &cover)
+void CommandEmpty::Layout(Canvas &/*canvas*/, AreaList &cover)
 {
     height = 0;
     if (!valid) return;
@@ -908,7 +908,7 @@ void CommandEmpty::Draw(Canvas &canvas, EDrawPassType pass)
 
 /////////////////////////////////////////////////////////////////
 CommandHSpace::CommandHSpace(Msc*msc, const NamePair*enp) :
-    ArcCommand(MSC_COMMAND_HSPACE, MscProgress::HSPACE, msc), 
+    ArcCommand(MSC_COMMAND_HSPACE, MscProgress::TINY_EFFORT, msc), 
     format(msc->Contexts.back().text),
     label(false, string()), space(false, 0)
 {
@@ -1007,7 +1007,7 @@ void CommandHSpace::Width(Canvas &canvas, EntityDistanceMap &distances)
 //////////////////////////////////////////////////////////////////////////////////
 
 CommandVSpace::CommandVSpace(Msc*msc)  : 
-    ArcCommand(MSC_COMMAND_VSPACE, MscProgress::VSPACE, msc),
+    ArcCommand(MSC_COMMAND_VSPACE, MscProgress::TINY_EFFORT, msc),
     format(msc->Contexts.back().text), label(false, string()),
     space(false, 0), compressable(false)
 {
@@ -1577,7 +1577,7 @@ void CommandNote::Width(Canvas &/*canvas*/, EntityDistanceMap &distances)
     }
 }
 
-void CommandNote::Layout(Canvas &canvas, AreaList &cover)
+void CommandNote::Layout(Canvas &/*canvas*/, AreaList &/*cover*/)
 {
     if (!valid) return;
     if (!is_float)  //Only comments added here. Notes will be added after their placement

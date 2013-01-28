@@ -2169,7 +2169,7 @@ void ArcVerticalArrow::Width(Canvas &canvas, EntityDistanceMap &distances)
 
 //Height and parameters of this can only be calculated in PostPosProcess, when all other edges are set
 //So here we do nothing. yPos is not used for this
-void ArcVerticalArrow::Layout(Canvas &canvas, AreaList &cover)
+void ArcVerticalArrow::Layout(Canvas &/*canvas*/, AreaList &/*cover*/)
 {
     //We will not have notes or comments, so no need to call CommentHeight()
     height = 0;
@@ -2565,12 +2565,14 @@ ArcBase* ArcBox::PostParseProcess(Canvas &canvas, bool hide, EIterator &left, EI
         const bool hide_i = hide || (collapsed!=BOX_COLLAPSE_EXPAND);
         chart->PostParseProcessArcList(canvas, hide_i, content, false, 
                                        left_content, right_content, number, top_level, target);
-        //If we are collapsed, but not hidden and "indicator" attribute is set, 
+        //If we are collapsed (but not to blockarrow), but not hidden and "indicator" attribute is set, 
         //then add an indicator to the end of the list (which will have only elements
         //with zero height here, the rest removed themselves due to hide_i==true
-        if (collapsed!=BOX_COLLAPSE_EXPAND && style.indicator.second && !hide) 
+        if (collapsed==BOX_COLLAPSE_COLLAPSE && style.indicator.second && !hide) {
             //src and dst of the ArcIndicator will be set in ArcBoxSeries::PostParseProcess
-            content.Append(new ArcIndicator(chart, indicator_style, file_pos));  
+            content.Append(new ArcIndicator(chart, indicator_style, file_pos)); 
+            chart->Progress.DoneItem(MscProgress::POST_PARSE, MscProgress::INDICATOR);
+        }
         number.decrementOnAddingLevels = false;
     } 
     //left & right will not expand if src and dst is unspecified
@@ -2626,7 +2628,6 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
         //Add numbering, do content, add NULL for indicators to "content", adjust src/dst,
         //and collect left and right if needed
         ret = (*i)->PostParseProcess(canvas, hide, src, dst, number, top_level, target); //ret is an arcblockarrow if we need to collapse
-        chart->Progress.DoneItem(MscProgress::POST_PARSE, MscProgress::BOX);
 		//Check if we are collapsed to a block arrow
 		if ((*i)->collapsed == BOX_COLLAPSE_BLOCKARROW) {
 			_ASSERT(series.size()==1);
@@ -2635,6 +2636,7 @@ ArcBase* ArcBoxSeries::PostParseProcess(Canvas &canvas, bool hide, EIterator &le
 			else *target = DELETE_NOTE; //ArcBox can be noted, so if replacement cannot, we shall silently delete note
 			return ret;
 		}
+        chart->Progress.DoneItem(MscProgress::POST_PARSE, MscProgress::BOX);
 		_ASSERT(*i==ret);
     }
     //parallel flag can be either on the series or on the first element
@@ -2923,7 +2925,7 @@ void ArcBoxSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcBoxSeries::CollectPageBreak(double /*hSize*/) 
+void ArcBoxSeries::CollectPageBreak(double /*hSize*/)
 {
     if (!valid) return;
     for (auto i=series.begin(); i!=series.end(); i++) 
@@ -2931,7 +2933,7 @@ void ArcBoxSeries::CollectPageBreak(double /*hSize*/)
 }
 
 double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
-                                       double pageBreak, bool &addCommandNewpage, 
+                                       double pageBreak, bool &addCommandNewpage,
                                        bool addHeading, ArcList &res)
 {
     if (series.size()==0) return -1; //we cannot split if no content
@@ -2951,12 +2953,12 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         //if we have content and the pageBreak goes through the content
         //(top: if we have a label, use the bottom of that, if not then y_text)
         //(bottom: height contains height without the lower line)
-        if ((*i)->content.size() && !(*i)->keep_together && 
+        if ((*i)->content.size() && !(*i)->keep_together &&
             ((*i)->text_cover.IsEmpty() ? (*i)->y_text : (*i)->text_cover.GetBoundingBox().y.till) <= pageBreak &&
             ((*i)->yPos + (*i)->height) >= pageBreak) {
             //break the list, but do not shift all of it to the next page
             const double ret = chart->PageBreakArcList(canvas, (*i)->content, netPrevPageSize,
-                                                       pageBreak, addCommandNewpage, addHeading, 
+                                                       pageBreak, addCommandNewpage, addHeading,
                                                        false, true);
             if (ret>=0) {
                 //if we did split the list somewhere in its middle
@@ -2987,7 +2989,7 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         const double shift_rest = shift_top + increase_top;
         //copy line style to the first one
         (*abs->series.begin())->style.line = (*series.begin())->style.line;
-        (*--series.end())->height_w_lower_line += increase_top; 
+        (*--series.end())->height_w_lower_line += increase_top;
         (*abs->series.begin())->height += increase_top;
         (*abs->series.begin())->height_w_lower_line += increase_top;
         (*abs->series.begin())->ShiftBy(shift_rest);
@@ -3007,9 +3009,9 @@ double ArcBoxSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         for (auto ii = series.begin(); ii!=series.end(); ii++)
             total_height += (*ii)->height;
         abs->total_height = shift_top;
-        for (auto ii = abs->series.begin(); ii!=abs->series.end(); ii++) 
+        for (auto ii = abs->series.begin(); ii!=abs->series.end(); ii++)
             abs->total_height += (*ii)->height;
-        for (auto ii = ++abs->series.begin(); ii!=abs->series.end(); ii++) 
+        for (auto ii = ++abs->series.begin(); ii!=abs->series.end(); ii++)
             (*ii)->ShiftBy(shift_rest);
         res.Append(abs);
         return shift_rest;
@@ -3613,7 +3615,6 @@ void ArcPipeSeries::CalculateContours(Area *pipe_body_cover)
     const ESideType side = (*series.begin())->style.side.second;
     const double radius = (*series.begin())->style.line.radius.second;
     //the largest of the shadow offsets
-    double max_offset = 0;
     for (auto i = series.begin(); i!=series.end(); i++) {
         //No need to clean up. If any of the pipe_* or area, area_draw, area_important
         //has values here, they will get simply overwritten
@@ -3855,13 +3856,13 @@ void ArcPipeSeries::ShiftBy(double y)
     ArcBase::ShiftBy(y);
 }
 
-void ArcPipeSeries::CollectPageBreak(double /*hSize*/) 
+void ArcPipeSeries::CollectPageBreak(double /*hSize*/)
 {
     chart->CollectPageBreakArcList(content);
 }
 
 double ArcPipeSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
-                                       double pageBreak, bool &addCommandNewpage, 
+                                       double pageBreak, bool &addCommandNewpage,
                                        bool addHeading, ArcList &/*res*/)
 {
     if (content.size()==0 || keep_together) return -1; //we cannot split if no content
@@ -3870,7 +3871,7 @@ double ArcPipeSeries::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         if ((*i)->text_cover.GetBoundingBox().y.till > pageBreak || (*i)->keep_together)
             return -1;
     const double ret = chart->PageBreakArcList(canvas, content, netPrevPageSize,
-                                               pageBreak, addCommandNewpage, addHeading, 
+                                               pageBreak, addCommandNewpage, addHeading,
                                                false, true);
     //if pb makes *all* of the list go to the next page, just shift the
     //whole pipe series to the next page
@@ -3888,7 +3889,8 @@ void ArcPipeSeries::PlaceWithMarkers(Canvas &canvas, double autoMarker)
 {
     if (content.size())
         chart->PlaceWithMarkersArcList(canvas, content, autoMarker);
-    chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, MscProgress::PIPE, series.size());
+    for (unsigned u=0; u<series.size(); u++)
+    chart->Progress.DoneItem(MscProgress::PLACEWITHMARKERS, MscProgress::PIPE);
 }
 
 void ArcPipeSeries::PostPosProcess(Canvas &canvas)
@@ -4334,13 +4336,13 @@ void FindFirstNonZero(ArcList::iterator &e, ArcList *list, ArcList &result)
 {
     while (e != list->end() && (*e)->GetHeight() == 0)
         e++;
-    if (e == list->end()) 
+    if (e == list->end())
         result.Append(list);
 }
 
 
 double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
-                                    double pageBreak, bool &addCommandNewpage, 
+                                    double pageBreak, bool &addCommandNewpage,
                                     bool addHeading, ArcList &/*res*/)
 {
     if (keep_together) return -1;
@@ -4370,8 +4372,8 @@ double ArcParallel::SplitByPageBreak(Canvas &canvas, double netPrevPageSize,
         blocks.resize(1);
     }
     //We may return -1 if all of us would move to the next page
-    return chart->PageBreakArcList(canvas, blocks[0], netPrevPageSize, 
-                                   pageBreak, addCommandNewpage, addHeading, 
+    return chart->PageBreakArcList(canvas, blocks[0], netPrevPageSize,
+                                   pageBreak, addCommandNewpage, addHeading,
                                    false, true);
 }
 

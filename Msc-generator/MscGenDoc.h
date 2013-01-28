@@ -81,6 +81,9 @@ public:
     CCriticalSection m_SectionCompiling; //To protect m_ChartCompiling
     CWinThread *m_pCompilingThread;
     double m_Progress;
+    bool m_killCompilation; 
+    HWND m_hMainWndToSignalCompilationEnd; 
+    CSingleLock m_CompilationLock;
 
     unsigned m_uSavedFallbackResolution; //for embedded charts 
     bool     m_bSavedPageBreaks;          //for embedded charts 
@@ -178,8 +181,9 @@ public:
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
 	void StartShowingEditingChart(bool resetZoom);       //Call this to show the currently edited chart, it compiles and updates the views, calls NotifyChanged()
-    void CompleteShowingEditingChart();                  //This will be called once the 
-    void KillCompilation(); 
+    void CompleteShowingEditingChart();                  //This will be called once the compilation is complete
+    void AbortShowingEditingChart();                     //This will be called once the compilation is aborted
+    void KillCompilation();                              //Abort the compilation
 
 	void StartFadingTimer();                             //Ensure that one and only one View runs a fading timer;
 	bool DoFading();                                     //Do one step fading. Return true if there are still elements in the process of fading

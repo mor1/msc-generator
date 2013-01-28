@@ -29,74 +29,62 @@
 class MscProgress
 {
 public:
-	typedef bool (*ProgressCallback)(double percent, void*data); //Callback function to report progress at;
+    typedef bool (*ProgressCallback)(double percent, void*data); //Callback function to report progress at;
     typedef enum {
-		NO_BULK_SECTION = 0, ///< The invalid value
+        NO_BULK_SECTION = 0, ///< The invalid value
         STARTUP,
         PARSE,
-		AUTOPAGINATE,   ///<Automatic pagination
+        AUTOPAGINATE,   ///<Automatic pagination
         MAX_BULK_SECTION
     } EBulkSection;
-	typedef enum {
-		NO_ARC_SECTION = 0, ///< The invalid value
-		POST_PARSE,     ///<PostParseProcess
-		FINALIZE_LABELS,///<FinalizeLabels
-		WIDTH,          ///<Width calculation, including entity spacing
-		LAYOUT,         ///<Layout calculation
-		PLACEWITHMARKERS,///Msc::PlaceWithMarkers
-		NOTES,          ///<Note placement
-		POST_POS,       ///<Msc::PostPosProcess
-		DRAW,           ///<Drawing 
-		MAX_ARC_SECTION///<Not used, the max value
-	} EArcSection;
-	typedef enum {
-		NO_CATEGORY = 0,
-		INDICATOR,
-		SELF_ARROW,
-		DIR_ARROW,
-		BLOCK_ARROW,
-		VERTICAL,
-		BOX,
-		BOX_SERIES,
-		PIPE,
-		PIPE_SERIES,
-		DIVIDER,
-		PARALLEL,
-		ENTITY,
-		NEWPAGE,
-		BACKGROUND,
-		NUMBERING,
-		MARKER,
-		EMPTY,
-		HSPACE,
-		VSPACE,
-		SYMBOL,
-		COMMENT,
-		NOTE,
-		LIST,
+    typedef enum {
+        NO_ARC_SECTION = 0, ///< The invalid value
+        POST_PARSE,     ///<PostParseProcess
+        FINALIZE_LABELS,///<FinalizeLabels
+        WIDTH,          ///<Width calculation, including entity spacing
+        LAYOUT,         ///<Layout calculation
+        PLACEWITHMARKERS,///Msc::PlaceWithMarkers
+        NOTES,          ///<Note placement
+        POST_POS,       ///<Msc::PostPosProcess
+        DRAW,           ///<Drawing 
+        MAX_ARC_SECTION///<Not used, the max value
+    } EArcSection;
+    typedef enum {
+        NO_CATEGORY = 0,
+        INDICATOR,
+        SELF_ARROW,
+        DIR_ARROW,
+        BLOCK_ARROW,
+        VERTICAL,
+        BOX,
+        BOX_SERIES,
+        PIPE,
+        PIPE_SERIES,
+        DIVIDER,
+        PARALLEL,
+        ENTITY,
+        NEWPAGE,
+        TINY_EFFORT,
+        EMPTY,
+        SYMBOL,
+        COMMENT,
+        NOTE,
         REMAINDER,
         MAX_CATEGORY
-	} ECategory;
+    } ECategory;
 protected:
-    /** Shows the ticks needed to do one section for one arc of a given category 
-     * (factory default)*/
-    static const double default_arc_ticks[MAX_CATEGORY][MAX_ARC_SECTION]; 
     /** Shows the ticks needed to do one section for one arc of a given category 
      * (loaded from file)*/
     std::vector<std::vector<double>> loaded_arc_ticks;
     /** How many arcs were used to generate the info in `loaded_arc_ticks` */
     std::vector<unsigned> loaded_arc_number;
+    /** The `loaded_arc_ticks` multiplied by the number of registered items.*/
+    double total_loaded_arc_ticks;
     /** During progress, counts how many ticks were spent on doing a section 
      * of a category of arcs. Counting is done cumulatively for all arcs of 
      * that category.*/
-    double total_loaded_arc_ticks;
-    double total_done_arc_ticks;
     std::vector<std::vector<clock_t>> counted_arc_ticks;
 
-    /** Shows the relative effort of processing arc sections (inde of zero) 
-     * and bulk sections (index of 1..n). These values sum up to 1. 
-     * (factory default)*/
-    static const double default_relative_effort[MAX_BULK_SECTION];
     /** Shows the relative effort of processing arc sections (inde of zero) 
      * and bulk sections (index of 1..n). These values sum up to 1. 
      * (loaded from file)*/
@@ -106,27 +94,25 @@ protected:
     std::vector<clock_t> counted_relative_effort;
 
     /** The number of arcs registered per category */
-	std::vector<unsigned> arc_items_regsitered;
+    std::vector<unsigned> arc_items_regsitered;
     /** The number of arcs already done in this section per category*/
-	std::vector<unsigned> arc_items_done_in_current_section;
+    std::vector<unsigned> arc_items_done_in_current_section;
+    /** The sections we have completed*/
+    std::vector<bool> arc_sections_completed;
     /** The number of bulk items registered per section */
-	std::vector<unsigned> bulk_items_regsitered;
+    std::vector<unsigned> bulk_items_regsitered;
     /** The number of items processed in the current bulk section*/
     std::vector<unsigned> bulk_items_done;
     /** The current arc section. Either this is set or `current_bulk_section`*/
-	EArcSection current_arc_section;
+    EArcSection current_arc_section;
     /** The current bulk section. Either this is set or `current_arc_section`*/
-	EBulkSection current_bulk_section;
+    EBulkSection current_bulk_section;
     /** When the whole processing has started */
-	const clock_t started;
+    const clock_t started;
     /** When the current section has started */
-	clock_t section_started;
+    clock_t section_started;
     /** When the current item has started */
     clock_t item_started;
-
-
-    double total_done_progress;
-    void ReCalcSectionDoneLoad();
 
     double last_reported; //Last percentage value reported
     void Callback();      //Report `total_done_progress` if granularity demands it
@@ -138,17 +124,15 @@ public:
     ProgressCallback callback;
     /** The supplemental value to send to the callback */
     void * data;
-	explicit MscProgress(ProgressCallback cb = NULL, void*data=NULL, double g=1);
-	void RegisterBulk(EBulkSection section, unsigned len);
-	void RegisterArc(ECategory, unsigned num=1); ///<Register an item to be done in the future
-	void UnRegisterArc(ECategory, unsigned num=1); ///<Register an item to be done in the future
-
-    void RecalcLoad();
-
+    explicit MscProgress(ProgressCallback cb = NULL, void*data=NULL, double g=1);
+    void RegisterBulk(EBulkSection section, unsigned len);
+    void RegisterArc(ECategory); ///<Register an item to be done in the future
+    void UnRegisterArc(ECategory); ///<Register an item to be done in the future
+    
     void CloseSection();
     void StartSection(EArcSection section) {CloseSection(); current_arc_section = section; arc_items_done_in_current_section.assign(MAX_CATEGORY, 0);}
-	void StartSection(EBulkSection section) {CloseSection(); current_bulk_section = section;}
-    void DoneItem(EArcSection section, ECategory category, unsigned number=1);
+    void StartSection(EBulkSection section) {CloseSection(); current_bulk_section = section;}
+    void DoneItem(EArcSection section, ECategory category);
     void DoneItem(EBulkSection section, unsigned number);
     void Done();
 
@@ -156,11 +140,14 @@ public:
     std::vector<double>              &GetRelLoad() {return loaded_relative_effort;}
     std::vector<unsigned>            &GetArcNum() {return loaded_arc_number;}
 
-    /** Write `loaded_relative_effort` and `loaded_arc_ticks` into file*/
-    bool Write(const char *fn);
-    /** Load `loaded_relative_effort` and `loaded_arc_ticks` from file,
-     * our use their default values to fill.*/
-    bool Read(const char *fn);
+    /** Write `loaded_relative_effort`, `loaded_arc_ticks` 
+     * and `loaded_arc_number` into string */
+    std::string WriteLoadData() const;
+    /** Load `loaded_relative_effort`, `loaded_arc_ticks` and
+     * `loaded_arc_number` from the string.
+     * @returns True if OK, false if not. In the latter case load data 
+     *          is substituted with the defaults.*/
+    bool ReadLoadData(const char *in);
 };
 
 #endif //PROGRESS_H

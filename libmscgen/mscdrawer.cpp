@@ -56,11 +56,11 @@
 /** Creates an empty canvas to query font sizes 
  * Drawing on this will fire a debug assertion or
  * do nothing for a release build.*/
-Canvas::Canvas(EOutputType ot) : 
-    fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), 
-    outType(PNG), total(0,0,0,0), status(ERR_PARAM), candraw(false), 
-    external_surface(false), copyrightTextHeight(0), 
-    raw_page_clip(0,0,0,0), user_scale(1,1), h_alignment(0), v_alignment(0)
+Canvas::Canvas(EOutputType) : 
+    outFile(NULL), surface(NULL), cr(NULL), status(ERR_PARAM), candraw(false),
+    fake_dash_offset(0), outType(PNG), total(0,0,0,0),
+    external_surface(false), copyrightTextHeight(0),
+    user_scale(1,1), raw_page_clip(0,0,0,0), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -94,10 +94,10 @@ Canvas::Canvas(EOutputType ot) :
 Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth, 
                const string &fn, const XY &scale,
                const PBDataVector *pageBreakData, unsigned page) :
-    fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), 
+    outFile(NULL), surface(NULL), cr(NULL), status(ERR_PARAM), candraw(false),
+    fake_dash_offset(0), outType(ot), total(tot),
     external_surface(false), copyrightTextHeight(ctexth),
-    raw_page_clip(0,0,0,0), user_scale(scale), h_alignment(0), v_alignment(0)
+    user_scale(scale), raw_page_clip(0,0,0,0), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -171,9 +171,9 @@ Canvas::Canvas(EOutputType ot, const Block &tot, double ctexth,
 Canvas::Canvas(EOutputType ot, const Block &tot, const string &fn, const std::vector<XY>  &scale, 
                      Canvas::EPageSize pageSize, const double margins[4],  int ha, int va, 
                      double ctexth, const PBDataVector *pageBreakData) :
-    fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
-    total(tot), status(ERR_PARAM), candraw(false), 
-    copyrightTextHeight(ctexth), external_surface(false), 
+    outFile(NULL), surface(NULL), cr(NULL), status(ERR_PARAM), candraw(false),
+    fake_dash_offset(0), outType(ot), total(tot),
+    external_surface(false), copyrightTextHeight(ctexth),
     raw_page_clip(0,0,0,0), h_alignment(ha), v_alignment(va)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
@@ -347,9 +347,9 @@ bool Canvas::ErrorAfterCreation(MscError *error,  const PBDataVector *pageBreakD
 
 Canvas::EPageSize Canvas::ConvertPageSize(const char *c)
 {
-    if (tolower(c[0])=='a' && '0'<=c[1] && c[1]<='6' && 
+    if (tolower(c[0])=='a' && '0'<=c[1] && c[1]<='6' &&
         (c[2]==0 || ((tolower(c[2])=='l' || tolower(c[2])=='p') && c[3]==0))) {
-            unsigned hm =(c[1] - '0' + 1)*2 + (tolower(c[2])=='l'); 
+            unsigned hm =(c[1] - '0' + 1)*2 + (tolower(c[2])=='l');
             return EPageSize(hm);
     }
     if (CaseInsensitiveEqual(c, "letter") || CaseInsensitiveEqual(c, "letter_p"))
@@ -417,10 +417,11 @@ XY Canvas::GetPhysicalPageSize(EPageSize ps)
                    the whole chart as one page.*/
 Canvas::Canvas(EOutputType ot, cairo_surface_t *surf, const Block &tot, double ctexth, const XY &scale, 
               const PBDataVector *pageBreakData, unsigned page) :
-    fake_dash_offset(0), outFile(NULL), surface(surf), cr(NULL), 
-    outType(ot), total(tot), status(ERR_PARAM), candraw(false), 
+
+    outFile(NULL), surface(surf), cr(NULL), status(ERR_PARAM), candraw(false),
+    fake_dash_offset(0), outType(ot), total(tot),
     external_surface(true), copyrightTextHeight(ctexth),
-    raw_page_clip(0,0,0,0), user_scale(scale), h_alignment(0), v_alignment(0)
+    user_scale(scale), raw_page_clip(0,0,0,0), h_alignment(0), v_alignment(0)
 #ifdef CAIRO_HAS_WIN32_SURFACE
 	, stored_metafile_size(0), win32_dc(NULL), original_hdc(NULL)
 #endif
@@ -756,7 +757,7 @@ Canvas::EErrorType Canvas::CreateContext(double origYSize, double origYOffset,
 //Use this to display a chart, use other constructors without a DC to save the chart to a file
 Canvas::Canvas(EOutputType ot, HDC hdc, const Block &tot, double ctexth, 
                      const XY &scale, const PBDataVector *pageBreakData, unsigned page) :
-    fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot), 
+    fake_dash_offset(0), outFile(NULL), surface(NULL), cr(NULL), outType(ot),
     total(tot), status(ERR_PARAM), candraw(false), 
     external_surface(false), copyrightTextHeight(ctexth),
     raw_page_clip(0,0,0,0), user_scale(scale), h_alignment(0), v_alignment(0),
