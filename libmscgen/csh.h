@@ -110,7 +110,8 @@ typedef enum
     COLOR_FLAG_BOLD = 1,
     COLOR_FLAG_ITALICS = 2,
     COLOR_FLAG_UNDERLINE = 4,
-    COLOR_FLAG_COLOR = 8
+    COLOR_FLAG_COLOR = 8,
+    COLOR_FLAG_DIFFERENT = 16
 } EColorSyntaxFlag;
 
 /** Describes the appearance of colored text*/
@@ -122,6 +123,7 @@ struct ColorSyntaxAppearance {
     unsigned char b;     ///<Blue value
     void SetColor(unsigned char rr, unsigned char gg, unsigned char bb)
     {r=rr; g=gg; b=bb;} ///<Set the color
+    bool operator==(const struct ColorSyntaxAppearance &p) const;
 };
 
 /** How many coloring schemes shall we have.*/
@@ -264,8 +266,8 @@ public:
     std::map<std::string, CshContext> FullDesigns;    ///<The names and content of full designs defined so far
     std::map<std::string, CshContext> PartialDesigns; ///<The names and content of partial designs defined so far
     std::list<CshContext>             Contexts;       ///<The context stack
-    EHintType                       hintType;       ///<The type of hint we found the cursor is at
-    EHintStatus                     hintStatus;     ///<Shows if we have located the hint type and if we have filled in the hints or not
+    EHintType                         hintType;       ///<The type of hint we found the cursor is at
+    EHintStatus                       hintStatus;     ///<Shows if we have located the hint type and if we have filled in the hints or not
     CshPos                            hintedStringPos;///<The actual text location the hints refer to (can be the cursor only, which is a zero length range)
     std::string                       hintAttrName;   ///<In case of an ATTR_VALUE contains the name of the attribute
     bool                              addMarkersAtEnd;///<Set to true if at the end of the csh parsing we shall add the name of the markers to the hint list.
@@ -276,6 +278,7 @@ public:
     unsigned              cshScheme;       ///<What color shceme is used by the app now (to format hints)
     std::string           ForcedDesign;    ///<What design is forced on us (so its colors and styles can be offered)
     int                   cursor_pos;      ///<The location of the cursor now (used to identify partial keyword names & hint list)
+    unsigned             *use_scheme;      ///<A pointer to the color scheme to use or NULL if unknown. Used to ignore CSH entries same as COLOR_NORMAL.                   
     /** @} */
 
     Csh();

@@ -238,104 +238,124 @@ void CMscGenView::ClearViewCache()
 //clip is understood as window surface coordinates 
 //scale tells me how much to scale m_size to get surface coords.
 //the DC window origin is at 0,0 here
-void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, CRect clip)
+void CMscGenView::DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip)
 {
 	CMscGenDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	if (pDoc->m_animations.size()==0 || NULL==pDC) return;
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    cairo_surface_t *surf = cairo_win32_surface_create(pDC->m_hDC);
-    cairo_t *cr = cairo_create(surf);
-    cairo_save(cr);
-    cairo_translate(cr, -clip.left, -clip.top);
-    cairo_scale(cr, scale.x, scale.y);
-    cairo_translate(cr, -m_chartOrigin.x, -m_chartOrigin.y);
-
     double grey_fade_value = 0;
-    CSingleLock lock(&pDoc->m_SectionAnimations);
-    lock.Lock();
-    for (std::vector<AnimationElement>::const_iterator i = pDoc->m_animations.begin(); 
-         i!=pDoc->m_animations.end(); i++) 
-        switch (i->what) {
-        case AnimationElement::TRACKRECT:
-            cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
-                                      GetGValue(pApp->m_trackFillColor)/255., 
-                                      GetBValue(pApp->m_trackFillColor)/255., 
-                                      GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Fill(cr);
-	        cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
-                                      GetGValue(pApp->m_trackLineColor)/255., 
-                                      GetBValue(pApp->m_trackLineColor)/255., 
-                                      GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
-            i->arc->GetAreaToDraw().Line(cr);
-            break;
-        case AnimationElement::FALLBACK_IMAGE:
-            if (!pDoc->m_fallback_image_location.IsEmpty()) {
-                cairo_save(cr);
-                const Block &total = pDoc->m_ChartShown.GetMscTotal();
-                const double width = 0.2;
-                const double off = (width*4 + 1.0)*(1-i->fade_value);
-                cairo_pattern_t *pattern = cairo_pattern_create_linear(total.x.from, total.y.from, total.x.till, total.y.till);
-                cairo_pattern_add_color_stop_rgba(pattern, off+width*0.0, 1, 1, 1, 0);
-                cairo_pattern_add_color_stop_rgba(pattern, off+width*0.5, 1, 1, 1, 1);
-                cairo_pattern_add_color_stop_rgba(pattern, off+width*1.5, 0, 0, 0, 1);
-                cairo_pattern_add_color_stop_rgba(pattern, off+width*2.0, 0, 0, 0, 0);
-                cairo_set_source(cr, pattern);
-                cairo_set_line_width(cr, 3);
-                cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
-                pDoc->m_fallback_image_location.Path(cr, true);
-                cairo_stroke(cr);
-                cairo_pattern_destroy(pattern);
-                cairo_restore(cr);
-            }
-            break;
-        case AnimationElement::CONTROL:
-            if (pApp->m_bShowControls) 
-                i->arc->DrawControls(cr, i->fade_value);
-            break;
-        case AnimationElement::COMPILING_GREY:
-            grey_fade_value = i->fade_value;
-            break;
-        default:
-            _ASSERT(0);
+    //cairo seems not thread-safe, at least win32 surface
+    //so if we compile (which means we also draw), we skip animations
+    //except for COMPILING_GREY
+    if (pDoc->m_pCompilingThread == NULL) {
+        cairo_surface_t *surf = cairo_win32_surface_create(pDC->m_hDC);
+        cairo_t *cr = cairo_create(surf);
+        cairo_translate(cr, -clip.left, -clip.top);
+        cairo_scale(cr, scale.x, scale.y);
+        cairo_translate(cr, -m_chartOrigin.x, -m_chartOrigin.y);
+        for (std::vector<AnimationElement>::const_iterator i = pDoc->m_animations.begin(); 
+             i!=pDoc->m_animations.end(); i++) 
+            switch (i->what) {
+            case AnimationElement::TRACKRECT:
+                cairo_set_source_rgba(cr, GetRValue(pApp->m_trackFillColor)/255., 
+                                          GetGValue(pApp->m_trackFillColor)/255., 
+                                          GetBValue(pApp->m_trackFillColor)/255., 
+                                          GetAValue(pApp->m_trackFillColor)/255.*i->fade_value);
+                i->arc->GetAreaToDraw().Fill(cr);
+	            cairo_set_source_rgba(cr, GetRValue(pApp->m_trackLineColor)/255., 
+                                          GetGValue(pApp->m_trackLineColor)/255., 
+                                          GetBValue(pApp->m_trackLineColor)/255., 
+                                          GetAValue(pApp->m_trackLineColor)/255.*i->fade_value);
+                i->arc->GetAreaToDraw().Line(cr);
+                break;
+            case AnimationElement::FALLBACK_IMAGE:
+                if (!pDoc->m_fallback_image_location.IsEmpty()) {
+                    cairo_save(cr);
+                    const Block &total = pDoc->m_ChartShown.GetMscTotal();
+                    const double width = 0.2;
+                    const double off = (width*4 + 1.0)*(1-i->fade_value);
+                    cairo_pattern_t *pattern = cairo_pattern_create_linear(total.x.from, total.y.from, total.x.till, total.y.till);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*0.0, 1, 1, 1, 0);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*0.5, 1, 1, 1, 1);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*1.5, 0, 0, 0, 1);
+                    cairo_pattern_add_color_stop_rgba(pattern, off+width*2.0, 0, 0, 0, 0);
+                    cairo_set_source(cr, pattern);
+                    cairo_set_line_width(cr, 3);
+                    cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+                    pDoc->m_fallback_image_location.Path(cr, true);
+                    cairo_stroke(cr);
+                    cairo_pattern_destroy(pattern);
+                    cairo_restore(cr);
+                }
+                break;
+            case AnimationElement::CONTROL:
+                if (pApp->m_bShowControls) 
+                    //i->arc->DrawControls(cr, i->fade_value);
+                break;
+            case AnimationElement::COMPILING_GREY:
+                grey_fade_value = i->fade_value;
+                break;
+            default:
+                _ASSERT(0);
         }
-    //Do grey only once and at last
-    if (grey_fade_value) {
-        cairo_restore(cr); //remove clip & translation
-        cairo_rectangle(cr, clip.left, clip.top, clip.Width(), clip.Height());
-        cairo_pattern_t *pattern = cairo_pattern_create_linear(0,0, 3, 3);
-        cairo_pattern_add_color_stop_rgba(pattern, 0, 1, 1, 1, grey_fade_value*0.9);
-        cairo_pattern_add_color_stop_rgba(pattern, 1, 0.7, 0.7, 0.7, grey_fade_value*0.9);
-        cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REFLECT);
-        cairo_set_source(cr, pattern);
-        cairo_fill(cr);
-        cairo_pattern_destroy(pattern);
-        if (grey_fade_value==1.0) {
-            const int w = clip.Width()/3;
-            clip.left += w;
-            clip.right -=w;
-            const int m = (clip.top+clip.bottom)/2;
-            clip.top = m-10;
-            clip.bottom = m+10;
-            cairo_rectangle(cr, clip.left, clip.top, clip.Width(), clip.Height());
-            cairo_set_source_rgb(cr, 1, 1, 1);
-            cairo_fill(cr);
-            cairo_rectangle(cr, clip.left, clip.top, clip.Width()*pDoc->m_Progress, clip.Height());
-            cairo_pattern_t *pattern = cairo_pattern_create_linear(0,0, 3, 3);
-            cairo_pattern_add_color_stop_rgb(pattern, 0, 0, 1, 0);
-            cairo_pattern_add_color_stop_rgb(pattern, 1, 0, 0.7, 0);
-            cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REFLECT);
-            cairo_set_source(cr, pattern);
-            cairo_fill(cr);
-            cairo_pattern_destroy(pattern);
-            cairo_rectangle(cr, clip.left, clip.top, clip.Width(), clip.Height());
-            cairo_set_source_rgb(cr, 0, 0, 0);
-            cairo_stroke(cr);
-        }
+        cairo_destroy(cr);
+        cairo_surface_destroy(surf);
+    } else {
+        for (std::vector<AnimationElement>::const_iterator i = pDoc->m_animations.begin(); 
+             i!=pDoc->m_animations.end(); i++) 
+             if (i->what == AnimationElement::COMPILING_GREY) {
+                 grey_fade_value = i->fade_value;
+                 break;
+             }
     }
-    cairo_destroy(cr);
-    cairo_surface_destroy(surf);
+    //Do grey only once and at last
+    if (grey_fade_value==0) return;
+
+	CDC srcDC;
+	srcDC.CreateCompatibleDC(pDC);
+	CBitmap bitmap;
+	CBitmap *oldBitmap;
+    bitmap.CreateCompatibleBitmap(pDC, clip.Width(), clip.Height());
+    const CRect rect(0,0,clip.Width(), clip.Height());
+    oldBitmap = srcDC.SelectObject(&bitmap);
+    srcDC.FillSolidRect(rect, RGB(255,255,255));
+    CBrush brush;
+    brush.CreateHatchBrush(HS_FDIAGONAL, RGB(200,200,200));
+    srcDC.FillRect(rect, &brush);
+    BLENDFUNCTION blend;
+    blend.BlendOp = AC_SRC_OVER;
+    blend.BlendFlags = 0;
+    blend.SourceConstantAlpha = BYTE(200*grey_fade_value);
+    blend.AlphaFormat = 0;
+    pDC->AlphaBlend(0,0,clip.Width(),clip.Height(), &srcDC, 
+                    0,0,clip.Width(),clip.Height(), blend);
+    srcDC.SelectObject(oldBitmap);
+
+    if (grey_fade_value<1.0) return;
+
+    CRect progress;
+    const int w = clip.Width()/3;
+    progress.left = clip.left + w;
+    progress.right = clip.right - w;
+    const int m = (clip.top+clip.bottom)/2;
+    progress.top = m-10;
+    progress.bottom = m+10;
+    pDC->FillSolidRect(progress, RGB(255,255,255));
+    //cover with white
+    pDC->FillSolidRect(progress.left, progress.top, 
+                       int(progress.Width()*pDoc->m_Progress), 
+                       progress.Height(),
+                       RGB(0,255,0));
+    //line around
+    CPen penBlack;
+    penBlack.CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+    CPen* pOldPen = pDC->SelectObject(&penBlack);
+    HGDIOBJ hOldBrush = pDC->SelectObject(GetStockObject(NULL_BRUSH));
+    pDC->Rectangle(progress);
+    pDC->SelectObject(pOldPen);
+    pDC->SelectObject(hOldBrush);
 }
 
 void CMscGenView::OnDraw(CDC* pDC)
@@ -387,6 +407,7 @@ void CMscGenView::OnViewRedraw()
 
 void CMscGenView::OnInitialUpdate()
 {
+	ResyncScrollSize();
 	CScrollView::OnInitialUpdate();
 	//m_pDropTarget is a CWnd memeber and holds the droptarget object
 	//If we are already registered, do not register again.
@@ -410,9 +431,8 @@ void CMscGenView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHin
 		Invalidate();
 		return;
 	}
-
-	Invalidate();
 	ResyncScrollSize();
+    Invalidate();
 }
 
 //Zoom functions
@@ -442,14 +462,16 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	if (!(nFlags & MK_CONTROL)) {
 		CRect client;
 		GetClientRect(client);
+        const double ysize = pDoc->m_ChartShown.GetSize().cy*pDoc->m_zoom/100;
+        if (client.Height() > ysize) 
+            return TRUE;
 		//scoll 10% of the view height (zDelta can be negative for up)
 		const int amount = int(client.Height()*0.1*zDelta/WHEEL_DELTA);
 		CPoint pos = GetScrollPosition();
 		pos.y -= amount;
 		if (pos.y<0) pos.y = 0;
-        const double ysize = pDoc->m_ChartShown.GetSize().cy;
-		if (pos.y + client.bottom > ysize*pDoc->m_zoom/100)
-			pos.y = int(ysize*pDoc->m_zoom/100 - client.bottom);
+		if (pos.y > ysize - client.bottom)
+			pos.y = int(ysize - client.bottom);
 		//See that we do not go out of the map
 		ScrollToPosition(pos);
 		return TRUE;
@@ -476,11 +498,13 @@ BOOL CMscGenView::DoMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	return TRUE;
 }
 
+
 void CMscGenView::ResyncScrollSize(void)
 {
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-    if (pDoc->m_pCompilingThread) return; //skip if compiling
+    //if (pDoc->m_pCompilingThread) 
+    //    return; //skip if compiling
     SetScrollSizes(MM_TEXT, ScaleSize(pDoc->m_ChartShown.GetSize(), pDoc->m_zoom/100.0));
 }
 
@@ -488,7 +512,7 @@ void CMscGenView::OnSize(UINT /*nType*/, int cx, int cy)
 { 
 	CMscGenDoc *pDoc = GetDocument();
 	ASSERT(pDoc);
-	if (!pDoc->IsInPlaceActive() && pDoc->m_ZoomMode == CMscGenDoc::ZOOM_WIDTH)
+	if (pDoc->m_ZoomMode == CMscGenDoc::ZOOM_WIDTH)
 		pDoc->ArrangeViews();
 	else 
 		ResyncScrollSize(); 

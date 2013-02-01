@@ -1,4 +1,4 @@
-/*
+msc/*
     This file is part of Msc-generator.
 	Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
@@ -555,6 +555,7 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 		bFound = finder.FindNextFile();
 		CDrawingChartData data;
 		if (data.Load(finder.GetFilePath(), false)) {
+            data.CompileIfNeeded();
 			unsigned num = data.GetErrorNum(true);
 			if (num) {
 				msg.Append("Problems in design file: ");
@@ -717,7 +718,7 @@ void CMscGenApp::OnCheckPedantic()
     //recompile if it was a recently compiled
     CMscGenDoc *pDoc = GetDoc();
     if (pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->StartShowingEditingChart(false);
+        pDoc->CompileEditingChart(false, false);
 }
 
 
@@ -734,7 +735,7 @@ void CMscGenApp::OnCheckWarnings()
     //recompile if it was a recently compiled
     CMscGenDoc *pDoc = GetDoc();
     if (pDoc->m_itrShown == pDoc->m_itrEditing)
-        pDoc->StartShowingEditingChart(false);
+        pDoc->CompileEditingChart(false, false);
 }
 
 

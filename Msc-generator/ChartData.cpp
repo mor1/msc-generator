@@ -217,9 +217,23 @@ CDrawingChartData::CDrawingChartData(const CDrawingChartData&o) :
     m_msc(NULL), compiled(false), m_cacheType(o.m_cacheType), m_cache_EMF(NULL), 
     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
     m_fallback_resolution(o.m_fallback_resolution), m_page(o.m_page), 
-    m_pageBreaks(o.m_pageBreaks), m_callback(o.m_callback), m_callback_data(o.m_callback_data)
+    m_pageBreaks(o.m_pageBreaks), m_callback(o.m_callback), 
+    m_callback_data(o.m_callback_data), m_load_data(o.m_load_data),
+    m_designs(o.m_designs), m_copyright(o.m_copyright)
 {
 }
+
+void CDrawingChartData::Delete(void) 
+{
+    Invalidate(); 
+    CChartData::Delete();
+    m_designs.Empty();
+    m_copyright.Empty();
+    m_callback=NULL; 
+    m_callback_data=NULL;
+    m_load_data.Empty();
+}
+
 
 void CDrawingChartData::swap(CDrawingChartData &o)
 {
@@ -235,8 +249,12 @@ void CDrawingChartData::swap(CDrawingChartData &o)
     std::swap(m_fallback_resolution, o.m_fallback_resolution);
     std::swap(m_page, o.m_page);
     std::swap(m_pageBreaks, o.m_pageBreaks);
+    std::swap(m_pedantic, o.m_pedantic);
+    std::swap(m_designs, o.m_designs);
+    std::swap(m_copyright, o.m_copyright);
     std::swap(m_callback, o.m_callback);
     std::swap(m_callback_data, o.m_callback_data);
+    std::swap(m_load_data, o.m_load_data);
 }
 
 void CDrawingChartData::ClearCache() const
@@ -286,6 +304,27 @@ void CDrawingChartData::SetFitWidth(bool b)
 	if (GetFitWidth() == b) return;
 	Invalidate();
 	m_fitWidth = b;
+}
+
+void CDrawingChartData::SetPedantic(bool b)
+{
+    if (m_pedantic == b) return;
+	Invalidate();
+    m_pedantic = b;
+}
+
+void CDrawingChartData::SetDesigns(const char *c)
+{
+    if (m_designs == c) return;
+	Invalidate();
+	m_addHeading = c;
+}
+
+void CDrawingChartData::SetCopyRightText(const char *c)
+{
+	if (m_copyright== c) return;
+	Invalidate();
+	m_copyright = c;
 }
 
 
@@ -374,21 +413,17 @@ void CDrawingChartData::Invalidate() const
 
 void CDrawingChartData::CompileIfNeeded() const
 {
-	//To force a recompilation, call ReCompile()
-    CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-    ASSERT(pApp);
     const bool did_compilation = m_msc==NULL;
 	if (!m_msc) {
 	    m_msc = new Msc;
         if (m_callback) {
             m_msc->Progress.callback = m_callback;
-            m_msc->Progress.data = m_callback_data;
-            CString load_data = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA);
-            m_msc->Progress.ReadLoadData(load_data);
+            m_msc->Progress.data = m_callback_data;   
+            if (m_load_data.GetLength())
+                m_msc->Progress.ReadLoadData(m_load_data);
         }
         //copy pedantic flag from app settings
-	    if (pApp) 
-		    m_msc->pedantic = pApp->m_Pedantic;
+        m_msc->pedantic = m_pedantic;
         if (HasVersion() && CompareVersion(LIBMSCGEN_MAJOR, LIBMSCGEN_MINOR, LIBMSCGEN_SUPERMINOR)<0) {
             string msg = "This chart was created with Msc-Generator v";
             msg << ver_a << "." << ver_b;
@@ -398,8 +433,8 @@ void CDrawingChartData::CompileIfNeeded() const
         }
         m_msc->Progress.StartSection(MscProgress::PARSE);
         //compile preamble and set forced design
-	    if (pApp && !pApp->m_ChartSourcePreamble.IsEmpty()) {
-		    m_msc->ParseText(pApp->m_ChartSourcePreamble, "[designlib]");
+	    if (!m_designs.IsEmpty()) {
+		    m_msc->ParseText(m_designs, "[designlib]");
 		    if (!m_ForcedDesign.IsEmpty()) {
                 ArcBase *ret;
 			    if (m_msc->SetDesign(true, (const char*)m_ForcedDesign, true, &ret)) 
@@ -414,8 +449,7 @@ void CDrawingChartData::CompileIfNeeded() const
         //parse chart text
 	    m_msc->ParseText(m_text, "");
         //set copyright text
-	    if (pApp) 
-		    m_msc->copyrightText = (const char*)pApp->m_CopyrightText;
+        m_msc->copyrightText = m_copyright;
 	    //Do postparse, compile, calculate sizes and sort errors by line
         m_msc->CompleteParse(Canvas::PNG, false, m_page_size.x>0 && m_page_size.y>0, 
                              m_addHeading, m_page_size, m_fitWidth);
@@ -447,9 +481,7 @@ void CDrawingChartData::CompileIfNeeded() const
     }
     compiled = true;
     if (did_compilation && m_callback && m_text.GetLength()>0) {
-        const std::string load_data = m_msc->Progress.WriteLoadData();
-        pApp->WriteProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA, 
-                                 load_data.c_str());
+        m_load_data = m_msc->Progress.WriteLoadData().c_str();
     }
 }
 
@@ -573,7 +605,7 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
 
 Element *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
-	CompileIfNeeded();
+	_ASSERT(m_msc);
 	if (m_page>1)
         point.y += LONG(m_msc->pageBreakData[m_page-1].y - m_msc->pageBreakData[m_page-1].autoHeadingSize);
     else
@@ -586,7 +618,7 @@ Element *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 
 Element *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
 {
-	CompileIfNeeded();
+	_ASSERT(m_msc);
 	FileLineCol linenum(m_msc->Error.Files.size()-1, line, col);
 	Msc::LineToArcMapType::const_iterator itr;
 	//in the map linenum_ranges are sorted by increasing length, we search the shortest first
@@ -604,7 +636,7 @@ Element *CDrawingChartData::GetArcByLine(unsigned line, unsigned col) const
 //chart (a small window), then the scaled chart is 200x200 and clip will be (60x60)->(140x140)
 void CDrawingChartData::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, const CRect &clip, bool bPageBreaks) 
 {
-    CompileIfNeeded();
+    _ASSERT(m_msc);
     if (!m_msc) return;
     switch (m_cacheType) {
     case CACHE_EMF: {

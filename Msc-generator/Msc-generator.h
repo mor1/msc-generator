@@ -68,14 +68,14 @@ public:
 	bool m_bPageBreaks;
 	unsigned m_uFallbackResolution;
     CString m_ChartSourcePreamble;
-	CString m_SetOfDesigns;
 	CString m_CopyrightText;
+	CString m_SetOfDesigns;
 	bool m_bAlwaysOpen;
     bool m_bDoCshProcessing;
 	bool m_bShowCsh;
     bool m_bShowCshErrors;
     bool m_bShowCshErrorsInWindow;
-	int m_nCshScheme;
+	unsigned m_nCshScheme;
 	bool m_bSmartIdent;
 	CHARFORMAT m_csh_cf[CSH_SCHEME_MAX][COLOR_MAX];
 	COLORREF m_trackFillColor;

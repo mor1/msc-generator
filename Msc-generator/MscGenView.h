@@ -60,7 +60,7 @@ public:
 	virtual void OnPrepareDC(CDC* pDC, CPrintInfo* pInfo = NULL);
 			void InvalidateBlock(const Block &);                 //Invalidate this block (block is in Msc page space)
             void ClearViewCache(); //Clear the bitmap cache
-			void DrawAnimation(CDC *pDC, const XY &scale, CRect clip);
+			void DrawAnimation(CDC *pDC, const XY &scale, const CRect &clip);
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	afx_msg void OnViewRedraw();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

@@ -34,6 +34,14 @@
 
 using namespace std;
 
+bool ColorSyntaxAppearance::operator==(const struct ColorSyntaxAppearance &p) const
+{
+    if ((effects & mask) != (p.effects & p.mask)) return false;
+    if (mask != p.mask) return false;
+    return r==p.r && g==p.g && b==p.b;
+}
+
+
 void CshErrorList::Add(CshPos &pos, const char *t)
 {
     resize(size()+1);
@@ -50,10 +58,22 @@ void MscInitializeCshAppearanceList(void)
     //shorter alias to make things easier to see below
     ColorSyntaxAppearance (&l)[CSH_SCHEME_MAX][COLOR_MAX] = MscCshAppearanceList;
 
+    //case should be taken. Any value that equals to COLOR_NORMAL may not get a CSH entry
+    //(to optimize away CSH entries of no effect).
+    //However, some of the CSH entries are not only applied to plain text, but also 
+    //on top of other CSH entries. E.g., text escapes on top of text, and often comments on
+    //top of text, perhaps also error.
+    //For these we widen the mask with COLOR_FLAG_DIFFERENT, so they become different from 
+    //COLOR_NORMAL
+
     //Set the mask to default: we set all parameters
-    for (unsigned scheme=0; scheme<CSH_SCHEME_MAX; scheme++)
-        for (unsigned i=0; i<COLOR_MAX; i++)
+    for (unsigned scheme=0; scheme<CSH_SCHEME_MAX; scheme++) {
+        for (unsigned i=0; i<COLOR_MAX; i++) 
             l[scheme][i].mask = COLOR_FLAG_BOLD | COLOR_FLAG_ITALICS | COLOR_FLAG_UNDERLINE | COLOR_FLAG_COLOR;
+        l[scheme][COLOR_LABEL_ESCAPE].mask |= COLOR_FLAG_DIFFERENT;
+        l[scheme][COLOR_COMMENT].mask |= COLOR_FLAG_DIFFERENT;
+    }
+
 
     //CSH_SCHEME ==0 is the Minimal one
     l[0][COLOR_KEYWORD].           SetColor(  0,  0,  0); l[0][COLOR_KEYWORD].effects = COLOR_FLAG_BOLD;
@@ -298,6 +318,10 @@ void CshHint::swap(CshHint &o)
 ////////////////////////////////////////////////////////////////////
 void Csh::AddCSH(CshPos&pos, EColorSyntaxType i)
 {
+    if (use_scheme && 
+          MscCshAppearanceList[*use_scheme][i] == 
+          MscCshAppearanceList[*use_scheme][COLOR_NORMAL])
+        return;
     if (pos.first_pos>pos.last_pos) return;
     CshEntry e;
     e.first_pos = pos.first_pos;
@@ -698,7 +722,8 @@ void CshContext::SetPlain()
         StyleNames.insert(i->first);
 }
 
-Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1)
+Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1), 
+    use_scheme(NULL)
 {
     for (auto i=ArcBase::defaultDesign.styles.begin(); i!=ArcBase::defaultDesign.styles.end(); i++)
         ForbiddenStyles.insert(i->first);

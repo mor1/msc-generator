@@ -83,7 +83,6 @@ public:
     double m_Progress;
     bool m_killCompilation; 
     HWND m_hMainWndToSignalCompilationEnd; 
-    CSingleLock m_CompilationLock;
 
     unsigned m_uSavedFallbackResolution; //for embedded charts 
     bool     m_bSavedPageBreaks;          //for embedded charts 
@@ -94,7 +93,6 @@ public:
 	enum EZoomMode {NONE=0, OVERVIEW, WINDOW_WIDTH, ZOOM_WIDTH} m_ZoomMode;
 	// Track mode related
 	bool m_bTrackMode; //True if mouse is tracked over arcs
-    CCriticalSection m_SectionAnimations; //To protect m_animations below from simultaneous access
     Contour m_fallback_image_location;
 	std::vector<AnimationElement> m_animations;  //arcs to track currently
     std::map<Block, Element*> m_controlsShowing; //Controls currently appearing
@@ -180,9 +178,8 @@ public:
     void OnExternalEditorChange(const CChartData &data); //this is called by m_ExternalEditor if the text in the external editor changes
     void OnInternalEditorChange();                       //this is called by CMiniEditor if the text in the internal editor changes
     void OnInternalEditorSelChange();                    //this is called by CMiniEditor if the selection in the internal editor changes
-	void StartShowingEditingChart(bool resetZoom);       //Call this to show the currently edited chart, it compiles and updates the views, calls NotifyChanged()
-    void CompleteShowingEditingChart();                  //This will be called once the compilation is complete
-    void AbortShowingEditingChart();                     //This will be called once the compilation is aborted
+	void CompileEditingChart(bool resetZoom, bool block);//Call this to show the currently edited chart, it compiles and updates the views, calls NotifyChanged()
+    void CompleteCompilingEditingChart();                //This will be called once the compilation is complete
     void KillCompilation();                              //Abort the compilation
 
 	void StartFadingTimer();                             //Ensure that one and only one View runs a fading timer;
