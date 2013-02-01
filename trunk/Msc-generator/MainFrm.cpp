@@ -196,7 +196,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     _ASSERT(arButtons.GetSize()==1);
 	CMFCRibbonComboBox *c = dynamic_cast<CMFCRibbonComboBox*>(arButtons[0]);
     _ASSERT(c);
-    c->SelectItem(pApp->m_nCshScheme);
+    c->SelectItem(int(pApp->m_nCshScheme));
 
     //Set initial value for tracking color button
     m_wndRibbonBar.GetElementsByID(ID_BUTTON_TRACK_COLOR, arButtons);
@@ -429,7 +429,7 @@ LRESULT CMainFrame::OnCompilationDone(WPARAM wParam, LPARAM lParam)
 {
     CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
     if (pDoc) 
-        pDoc->CompleteShowingEditingChart();
+        pDoc->CompleteCompilingEditingChart();
     return 0; //OK, we processed it
 }
 

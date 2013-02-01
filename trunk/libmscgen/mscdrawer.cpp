@@ -961,7 +961,7 @@ Contour Canvas::FallbackImages(HENHMETAFILE hemf, LPRECT lpRECT)
  * A complete replacement for CloseOutput().*/
 HENHMETAFILE Canvas::CloseAndGetEMF()
 {
-    _ASSERT(outType == EMF || outType==EMFWMF);
+    _ASSERT(outType == EMF || outType==EMFWMF || outType==PRINTER);
     _ASSERT(original_hdc == NULL);
     _ASSERT(surface);
     _ASSERT(!external_surface);

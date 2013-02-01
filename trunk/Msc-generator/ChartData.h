@@ -86,7 +86,7 @@ public:
 protected:
 	mutable Msc         *m_msc;
     mutable bool         compiled;
-	Msc *GetMsc() const {CompileIfNeeded(); return m_msc;}
+	Msc *GetMsc() const {_ASSERT(m_msc); return m_msc;}
 
     //Caching related
     ECacheType               m_cacheType;
@@ -100,6 +100,9 @@ protected:
     double                   m_fallback_resolution;
     unsigned                 m_page;
     bool                     m_pageBreaks;
+    bool                     m_pedantic;       
+    CString                  m_designs;
+    CString                  m_copyright;
 
     MscProgress::ProgressCallback m_callback;
     void *m_callback_data;
@@ -110,6 +113,7 @@ protected:
     void InvalidatePage() const;
 
 public:
+    mutable CString m_load_data;
     CDrawingChartData() : m_msc(NULL), compiled(false), m_cacheType(CACHE_RECORDING), m_cache_EMF(NULL), 
                     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
                     m_fallback_resolution(300), m_page(0), m_pageBreaks(false), 
@@ -117,14 +121,14 @@ public:
 	CDrawingChartData(const CChartData&o);
 	CDrawingChartData(const CDrawingChartData&o);
 	CDrawingChartData & operator = (const CChartData& o) {Invalidate(); CChartData::operator =(o); return *this;}
-	virtual void Delete(void) {Invalidate(); CChartData::Delete(); m_callback=NULL; m_callback_data=NULL;}
+	virtual void Delete(void);
     void swap(CDrawingChartData &o);
     void SetProgressCallback(MscProgress::ProgressCallback cb=NULL, void *d=NULL) {m_callback = cb; m_callback_data = d;}
 //Set parameters - these require recompile
 	virtual void SetDesign (const char *design);
-    virtual void SetPageSize(const XY &s);
     virtual void SetAddHeading(bool b);
     virtual void SetFitWidth(bool b);
+    virtual void SetPedantic(bool b);
     bool ForceEntityCollapse(const std::string &s, bool b);
     bool ForceEntityCollapse(const EntityCollapseCatalog &);
     bool ForceArcCollapse(const ArcSignature &, BoxCollapseType t);
@@ -138,6 +142,9 @@ public:
     bool GetPageBreaks() const {return m_pageBreaks;}
     void SetFallbackResolution(double d);
     bool GetFallbackResolution() const {return m_fallback_resolution;}
+    void SetPageSize(const XY &s);
+    void SetDesigns(const char *);
+    void SetCopyRightText(const char *);
 //Compilation
     bool IsCompiled() const {return compiled;}
 	void CompileIfNeeded() const;
