@@ -148,6 +148,8 @@ typedef unsigned CshHintGraphicParam;
 /** A callback to draw the small symbols in hint popups.*/
 typedef bool (*CshHintGraphicCallback)(Canvas*, CshHintGraphicParam);
 
+class Context;
+
 /** The current context during a csh parse.*/
 class CshContext
 {
@@ -156,8 +158,8 @@ public:
     ColorSet              Colors;      ///<The colors defined so far
     std::set<std::string> StyleNames;  ///<The names of styles defined so far
     CshContext() : full(false) {}
-    /** Set the context to plain design (default styles and colors)*/
-    void SetPlain();                   
+    /** Set the context to a given design (styles and colors)*/
+    void SetToDesign(const Context &);                   
     /** Combine two contexts */
     CshContext &operator+=(const CshContext &o) {
         Colors.insert(o.Colors.begin(), o.Colors.end());
@@ -281,7 +283,12 @@ public:
     unsigned             *use_scheme;      ///<A pointer to the color scheme to use or NULL if unknown. Used to ignore CSH entries same as COLOR_NORMAL.                   
     /** @} */
 
-    Csh();
+    /** Initializes the Csh Object.
+     * @param [in] defaultDesign Specifies a Context to collect 
+     *   forbidden and default style names; color names and definitons to learn 
+     *   from. If not in the initialization of a global variable, best to use 
+     *   ArcBase::defaultDesign.*/
+    explicit Csh(const Context &defaultDesign);
 
     /** @name Functions to add a CSH entry 
      * @{  */

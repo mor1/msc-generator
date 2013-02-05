@@ -67,9 +67,10 @@ public:
 	bool m_Warnings;
 	bool m_bPageBreaks;
 	unsigned m_uFallbackResolution;
-    CString m_ChartSourcePreamble;
+    std::map<string, Context> m_Designs;
+    MscError m_DesignErrors;
+	Csh m_designlib_csh;
 	CString m_CopyrightText;
-	CString m_SetOfDesigns;
 	bool m_bAlwaysOpen;
     bool m_bDoCshProcessing;
 	bool m_bShowCsh;

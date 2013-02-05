@@ -101,7 +101,8 @@ protected:
     unsigned                 m_page;
     bool                     m_pageBreaks;
     bool                     m_pedantic;       
-    CString                  m_designs;
+    const std::map<std::string, Context> *m_designs;
+    const MscError          *m_design_errors;
     CString                  m_copyright;
 
     MscProgress::ProgressCallback m_callback;
@@ -116,7 +117,8 @@ public:
     mutable CString m_load_data;
     CDrawingChartData() : m_msc(NULL), compiled(false), m_cacheType(CACHE_RECORDING), m_cache_EMF(NULL), 
                     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
-                    m_fallback_resolution(300), m_page(0), m_pageBreaks(false), 
+                    m_fallback_resolution(300), m_page(0), m_pageBreaks(false), m_pedantic(false),
+                    m_designs(NULL), m_design_errors(NULL),
                     m_callback(NULL), m_callback_data(NULL) {}
 	CDrawingChartData(const CChartData&o);
 	CDrawingChartData(const CDrawingChartData&o);
@@ -141,13 +143,15 @@ public:
     void SetPageBreaks(bool pageBreaks);
     bool GetPageBreaks() const {return m_pageBreaks;}
     void SetFallbackResolution(double d);
-    bool GetFallbackResolution() const {return m_fallback_resolution;}
+    double GetFallbackResolution() const {return m_fallback_resolution;}
     void SetPageSize(const XY &s);
-    void SetDesigns(const char *);
+    void SetDesigns(const std::map<std::string, Context> *, const MscError *);
     void SetCopyRightText(const char *);
+    const std::map<std::string, Context> &GetDesigns() const {return GetMsc()->Designs;}
 //Compilation
     bool IsCompiled() const {return compiled;}
-	void CompileIfNeeded() const;
+    //true if something changed
+	bool CompileIfNeeded() const;
 
 //Error related
 	unsigned GetErrorNum(bool oWarnings) const;
@@ -155,7 +159,7 @@ public:
 	unsigned GetErrorLine(unsigned num, bool oWarnings) const;
 	unsigned GetErrorCol(unsigned num, bool oWarnings) const;
 	CString GetErrorText(unsigned num, bool oWarnings) const;
-	CString GetDesigns() const;
+	CString GetDesignNames() const;
 //Drawing related
 	unsigned GetPages() const;
 	CSize GetSize(unsigned forced_page=0) const;
@@ -163,7 +167,8 @@ public:
 	XY GetPageOrigin(unsigned page) const;
     double GetHeadingSize() const;
 	void DrawToFile(const char* fileName, bool bPageBreaks, double x_scale=1.0, double y_scale=1.0) const;
-    bool DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
+    /** Returns the size of the metafile or zero if error.*/
+    size_t DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
                   unsigned page, bool bPageBreaks,
                   double fallback_image_resolution=-1, 
                   bool generateErrors=false) const

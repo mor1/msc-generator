@@ -378,7 +378,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
                 case 0:
                     msc.Error.Error(opt_pos,
                                     "Unknown chart design: '" + a.name + "'. Using 'plain'.",
-                                    " Available designs are: " + msc.GetDesigns(true) +".");
+                                    " Available designs are: " + msc.GetDesignNames(true) +".");
                     break;
                 default:
                     _ASSERT(0);
@@ -518,7 +518,7 @@ int do_main(const std::list<std::string> &args, const char *designs,
     if (oCshize) {
         //Replace chart text with the cshized version of it
         MscInitializeCshAppearanceList();
-        Csh csh;
+        Csh csh(ArcBase::defaultDesign);
         if (strlen(input)>std::numeric_limits<string::size_type>::max()-10) {
             string err = "The input '";
             err << oInputFile << "' is too long (" << strlen(input) << " bytes).";

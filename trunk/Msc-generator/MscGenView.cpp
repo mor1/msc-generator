@@ -598,8 +598,8 @@ void CMscGenView::OnMouseHover(UINT nFlags, CPoint point)
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
 	//take zooming into account.
-	point.x = int(point.x*100./pDoc->m_zoom);
-	point.y = int(point.y*100./pDoc->m_zoom);
+	point.x = int(point.x*100./pDoc->m_zoom) + m_chartOrigin.x;
+	point.y = int(point.y*100./pDoc->m_zoom) + m_chartOrigin.y;
 	pDoc->UpdateTrackRects(point);
 }
 
@@ -623,8 +623,8 @@ void CMscGenView::OnLButtonUp(UINT nFlags, CPoint point)
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
 	//then take zooming into account.
-	point.x = int(point.x*100./pDoc->m_zoom);
-	point.y = int(point.y*100./pDoc->m_zoom);
+    point.x = int(point.x*100./pDoc->m_zoom) + m_chartOrigin.x;
+	point.y = int(point.y*100./pDoc->m_zoom) + m_chartOrigin.y;
     for (auto i = pDoc->m_controlsShowing.begin(); i!=pDoc->m_controlsShowing.end(); i++)
         if (inside(i->first.IsWithin(XY(point.x, point.y))))
             if (i->second)
@@ -662,8 +662,8 @@ void CMscGenView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	OnPrepareDC(&dc);
 	dc.DPtoLP(&point);
 	//then take zooming into account.
-	point.x = int(point.x*100./pDoc->m_zoom);
-	point.y = int(point.y*100./pDoc->m_zoom);
+    point.x = int(point.x*100./pDoc->m_zoom) + m_chartOrigin.x;
+	point.y = int(point.y*100./pDoc->m_zoom) + m_chartOrigin.y;
 
     //If the click is on an element that has controls, activate the first one
 	Element *arc = pDoc->m_ChartShown.GetArcByCoordinate(point);

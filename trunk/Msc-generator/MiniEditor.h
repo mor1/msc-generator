@@ -35,7 +35,6 @@ class CCshRichEditCtrl : public CRichEditCtrl
 {
 	bool m_bCshUpdateInProgress; //if the process of setting colors for syntax is in progress
 	Csh  m_csh;
-	Csh  m_designlib_csh;
     bool m_bWasReturnKey;        //if the return key was pressed
     bool m_bUserRequested;       //the incarnation of the hints session was due to Ctrl+Space
     bool m_bTillCursorOnly;      //the incarnation of this hints session started at the beginning of a word
@@ -65,7 +64,6 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
 
 	//Color Syntax Highlighting functions
-    void SetForcedDesign(const CString &fd) {m_designlib_csh.ForcedDesign = fd;}
 	void UpdateText(const char *text, CHARRANGE &cr, bool preventNotification);
 	void UpdateText(const char *text, int lStartLine, int lStartCol, int lEndLine, int lEndCol, bool preventNotification);
 	bool UpdateCsh(bool force = false); //retuns true if the past and new m_csh.hintedStringPos overlap

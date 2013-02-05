@@ -32,7 +32,8 @@ BEGIN_MESSAGE_MAP(CCshRichEditCtrl, CRichEditCtrl)
 END_MESSAGE_MAP()
 
 
-CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : m_hintsPopup(parent, this)
+CCshRichEditCtrl::CCshRichEditCtrl(CWnd *parent) : 
+    m_csh(ArcBase::defaultDesign), m_hintsPopup(parent, this)
 {
     m_tabsize = 4;
 	m_bCshUpdateInProgress = false;  
@@ -48,9 +49,7 @@ BOOL CCshRichEditCtrl::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd,
 	if (pApp) {
         m_tabsize = pApp->GetProfileInt(REG_SECTION_SETTINGS, REG_KEY_TABSIZE, 4);
         m_csh.use_scheme = &pApp->m_nCshScheme;
-        m_designlib_csh.ParseText(pApp->m_ChartSourcePreamble, pApp->m_ChartSourcePreamble.GetLength(), -1, 1);
-    } else 
-        m_designlib_csh.ParseText("", 0, -1, 1);
+    } 
 
     if (!CRichEditCtrl::Create(dwStyle, rect, pParentWnd, nID))
         return false;
@@ -566,7 +565,7 @@ bool CCshRichEditCtrl::UpdateCsh(bool force)
         //Take the last hinted string from m_csh (before overwriting it by m_designlib_csh)
         CshPos old_uc = m_csh.hintedStringPos;
         //Take the design, color and style definitions from the designlib
-        m_csh = m_designlib_csh;
+        m_csh = pApp->m_designlib_csh;
         m_csh.use_scheme = &pApp->m_nCshScheme;
 		m_csh.ParseText(text, text.GetLength(), cr.cpMax == cr.cpMin ? cr.cpMin : -1, pApp->m_nCshScheme);
         //If we consider the hinted string only up to the cursor, trim the returned pos
