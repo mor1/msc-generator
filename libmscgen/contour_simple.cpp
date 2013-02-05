@@ -825,7 +825,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     if (Edge::HasCP(tmp_type)) {
                         cross_type[r.prev(i)] = tmp_type;
                         cross_point[r.prev(i)]= tmp_point;
-                        r.edges.erase(r.edges.begin()+i);
+                        r.edges.erase(r.edges.begin()+i);   //TODO recalc crosspoint!!
                         o.edges.erase(o.edges.begin()+i);
                         cross_type.erase(cross_type.begin()+i);
                         cross_point.erase(cross_point.begin()+i);
@@ -852,6 +852,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     case EXPAND_MITER_ROUND:
     case EXPAND_MITER_BEVEL:
     case EXPAND_MITER_SQUARE:
+        {
+        bool need_miter_limit_bevel = cross_type[r.size()-1] == Edge::CP_EXTENDED &&
+                   cross_point[r.size()-1].Distance(r[r.size()-1].GetEnd()) > gap_limit;
         //In these cases we have already removed edges that changed direction.
         for (size_t i = 0; i<r.size(); i++) {
             //The new start and endpoint for us (edge #i)
@@ -860,13 +863,12 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
 
             //If we connected to previous edge via a too long miter, we limit its length
             //The bevel needed in this case was added when we processed the previous edge.
-            if (cross_type[r.prev(i)] == Edge::CP_EXTENDED &&
-                   new_start.Distance(r[i].GetStart()) > gap_limit)
+            if (need_miter_limit_bevel)
                 new_start = r[i].GetStart() + (new_start-r[i].GetStart()).Normalize()*gap_limit;
             //Check if we connect to the next edge via a too long miter.
-            bool need_miter_limit_bevel = false;
-            if (cross_type[i] == Edge::CP_EXTENDED &&
-                   new_end.Distance(r[i].GetEnd()) > gap_limit) {
+            need_miter_limit_bevel = cross_type[i] == Edge::CP_EXTENDED &&
+                   new_end.Distance(r[i].GetEnd()) > gap_limit;
+            if (need_miter_limit_bevel) {
                 //Adjust the endpoint of us to where the miter shall end.
                 new_end = r[i].GetEnd() + (new_end-r[i].GetEnd()).Normalize()*gap_limit;
                 need_miter_limit_bevel = true;
@@ -929,6 +931,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
                     r2.edges.push_back(Edge(second, next_start));
                     break;
                 }
+        }
         }
         break; //EXPAND_MITER_*
     case EXPAND_BEVEL:

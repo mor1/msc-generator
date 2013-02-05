@@ -249,7 +249,7 @@ public:
 
     void AddStandardDesigns(void);
     int SetDesign(bool full, const string &design, bool force, ArcBase **ret, const FileLineColRange &l = FileLineColRange(FileLineCol(0,0,0), FileLineCol(0,0,0)));
-    string GetDesigns(bool full) const;
+    string GetDesignNames(bool full) const;
 
     CommandEntity *CEForComments(const MscStyle &s, const FileLineColRange &l);
     ArcBase *AddAttribute(const Attribute&);
@@ -338,7 +338,8 @@ public:
     HENHMETAFILE DrawToMetaFile(Canvas::EOutputType, unsigned page, bool bPageBreaks,
                                 double fallback_image_resolution=-1, size_t *metafile_size=NULL,
                                 Contour *fallback_images=NULL, bool generateErrors=false);
-    bool DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
+    /** Returns the size of the metafile or zero at error.*/
+    size_t DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
                   unsigned page, bool bPageBreaks,
                   double fallback_image_resolution=-1,
                   bool generateErrors=false);

@@ -207,6 +207,7 @@ CDrawingChartData::CDrawingChartData(const CChartData&o) :
     m_msc(NULL), compiled(false), m_cacheType(CACHE_RECORDING), m_cache_EMF(NULL), 
     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
     m_fallback_resolution(300), m_page(0), m_pageBreaks(false),
+    m_pedantic(false), m_designs(NULL), m_design_errors(NULL),
     m_callback(NULL), m_callback_data(NULL)
 {
     operator=(o);
@@ -217,9 +218,9 @@ CDrawingChartData::CDrawingChartData(const CDrawingChartData&o) :
     m_msc(NULL), compiled(false), m_cacheType(o.m_cacheType), m_cache_EMF(NULL), 
     m_cache_rec(NULL), m_cache_rec_full_no_pb(NULL), m_wmf_size(0),
     m_fallback_resolution(o.m_fallback_resolution), m_page(o.m_page), 
-    m_pageBreaks(o.m_pageBreaks), m_callback(o.m_callback), 
-    m_callback_data(o.m_callback_data), m_load_data(o.m_load_data),
-    m_designs(o.m_designs), m_copyright(o.m_copyright)
+    m_pageBreaks(o.m_pageBreaks), m_pedantic(o.m_pedantic),
+    m_designs(o.m_designs), m_design_errors(o.m_design_errors), m_copyright(o.m_copyright),
+    m_callback(o.m_callback), m_callback_data(o.m_callback_data), m_load_data(o.m_load_data)
 {
 }
 
@@ -227,7 +228,6 @@ void CDrawingChartData::Delete(void)
 {
     Invalidate(); 
     CChartData::Delete();
-    m_designs.Empty();
     m_copyright.Empty();
     m_callback=NULL; 
     m_callback_data=NULL;
@@ -251,6 +251,7 @@ void CDrawingChartData::swap(CDrawingChartData &o)
     std::swap(m_pageBreaks, o.m_pageBreaks);
     std::swap(m_pedantic, o.m_pedantic);
     std::swap(m_designs, o.m_designs);
+    std::swap(m_design_errors, o.m_design_errors);
     std::swap(m_copyright, o.m_copyright);
     std::swap(m_callback, o.m_callback);
     std::swap(m_callback_data, o.m_callback_data);
@@ -313,11 +314,12 @@ void CDrawingChartData::SetPedantic(bool b)
     m_pedantic = b;
 }
 
-void CDrawingChartData::SetDesigns(const char *c)
+void CDrawingChartData::SetDesigns(const std::map<std::string, Context> *p, const MscError *e)
 {
-    if (m_designs == c) return;
+    if (m_designs == p && m_design_errors == e) return;
 	Invalidate();
-	m_addHeading = c;
+    m_designs = p;
+    m_design_errors = e;
 }
 
 void CDrawingChartData::SetCopyRightText(const char *c)
@@ -411,7 +413,7 @@ void CDrawingChartData::Invalidate() const
 }
 
 
-void CDrawingChartData::CompileIfNeeded() const
+bool CDrawingChartData::CompileIfNeeded() const
 {
     const bool did_compilation = m_msc==NULL;
 	if (!m_msc) {
@@ -431,22 +433,23 @@ void CDrawingChartData::CompileIfNeeded() const
             msg << ", which is newer than the current version. Please update Msc-generator, see Help|About...";
             m_msc->Error.Warning(FileLineCol(0, 0, 0), msg);
         }
-        m_msc->Progress.StartSection(MscProgress::PARSE);
-        //compile preamble and set forced design
-	    if (!m_designs.IsEmpty()) {
-		    m_msc->ParseText(m_designs, "[designlib]");
+        //add designs
+        if (m_designs) {
+            m_msc->Designs = *m_designs;
+            m_msc->Error = *m_design_errors; 
 		    if (!m_ForcedDesign.IsEmpty()) {
-                ArcBase *ret;
+                ArcBase *ret=NULL;
 			    if (m_msc->SetDesign(true, (const char*)m_ForcedDesign, true, &ret)) 
-				    m_msc->ignore_designs = true;
-                m_msc->Arcs.Append(ret);
+                    m_msc->ignore_designs = true;
+                if (ret)
+                    m_msc->Arcs.Append(ret);
             }
-	    }
+        }
         //copy forced collapse/expand entities/boxes
         m_msc->force_entity_collapse = m_ForcedEntityCollapse;
         m_msc->force_box_collapse = m_ForcedArcCollapse;
-
         //parse chart text
+        m_msc->Progress.StartSection(MscProgress::PARSE);
 	    m_msc->ParseText(m_text, "");
         //set copyright text
         m_msc->copyrightText = m_copyright;
@@ -463,26 +466,32 @@ void CDrawingChartData::CompileIfNeeded() const
         if (m_page > m_msc->pageBreakData.size())
             const_cast<unsigned&>(m_page) = m_msc->pageBreakData.size();
     }
+    bool did_redraw = did_compilation;
     //Now regenerate the cache
     if (m_cacheType==CACHE_EMF) {
-        if (m_cache_EMF==NULL)
+        if (m_cache_EMF==NULL) {
             m_cache_EMF = m_msc->DrawToMetaFile(Canvas::EMFWMF, m_page, m_pageBreaks, 
                 m_fallback_resolution, &m_wmf_size, &m_fallback_image_places);
+            did_redraw = true;
+        }
     } else if (!m_cache_rec) {
         if (m_page==0 && m_pageBreaks) {
             //If we draw all of it with page breaks, redraw it
             m_cache_rec = m_msc->DrawToRecordingSurface(Canvas::SVG, true);
+            did_redraw = true;
         } else {
             //If not (no page breaks or just one page), reuse the full no pb member
             if (!m_cache_rec_full_no_pb) 
                 m_cache_rec_full_no_pb = m_msc->DrawToRecordingSurface(Canvas::SVG, false);            
             m_cache_rec = m_msc->ReDrawOnePage(m_cache_rec_full_no_pb, m_page);
+            did_redraw = true;
         }
     }
     compiled = true;
     if (did_compilation && m_callback && m_text.GetLength()>0) {
         m_load_data = m_msc->Progress.WriteLoadData().c_str();
     }
+    return did_redraw;
 }
 
 unsigned CDrawingChartData::GetErrorNum(bool oWarnings) const {
@@ -520,9 +529,9 @@ CString CDrawingChartData::GetErrorText(unsigned num, bool oWarnings) const
         return "";
 }
 
-CString CDrawingChartData::GetDesigns() const 
+CString CDrawingChartData::GetDesignNames() const 
 {
-	return CString(GetMsc()->GetDesigns(true).c_str());
+	return CString(GetMsc()->GetDesignNames(true).c_str());
 }
 
 
@@ -603,15 +612,11 @@ void CDrawingChartData::DrawToFile(const char* fileName, bool bPageBreaks, doubl
     GetMsc()->DrawToFile(ot, std::vector<XY>(1, XY(x_scale, y_scale)), fn, bPageBreaks);
 }
 
+//This one expects point in chart coordinates
 Element *CDrawingChartData::GetArcByCoordinate(CPoint point) const
 {
 	_ASSERT(m_msc);
-	if (m_page>1)
-        point.y += LONG(m_msc->pageBreakData[m_page-1].y - m_msc->pageBreakData[m_page-1].autoHeadingSize);
-    else
-        point.y += LONG(m_msc->GetTotal().y.from);
-    const XY point_msc(point.x + m_msc->GetTotal().x.from, point.y + m_msc->GetTotal().y.from);
-    const Area *area = m_msc->AllCovers.InWhichFromBack(point_msc);
+    const Area *area = m_msc->AllCovers.InWhichFromBack(XY(point.x, point.y));
 	if (area==NULL) return NULL;
 	return area->arc;
 }
@@ -640,7 +645,7 @@ void CDrawingChartData::DrawToMemDC(CDC &memDC, double x_scale, double y_scale, 
     if (!m_msc) return;
     switch (m_cacheType) {
     case CACHE_EMF: {
-        if (m_cache_EMF) break;
+        if (!m_cache_EMF) break;
         const CSize size = GetSize();
         const CRect full(0,0, int(size.cx*x_scale), int(size.cy*y_scale));
         memDC.SaveDC();

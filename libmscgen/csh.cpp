@@ -713,24 +713,24 @@ EColorSyntaxType Csh::GetCshAt(int pos)
     return COLOR_NORMAL;
 }
 
-void CshContext::SetPlain()
+void CshContext::SetToDesign(const Context &design)
 {
     full = true;
-    for (auto i=ArcBase::defaultDesign.colors.begin(); i!=ArcBase::defaultDesign.colors.end(); i++)
+    for (auto i=design.colors.begin(); i!=design.colors.end(); i++)
         Colors[i->first] = i->second;
-    for (auto i=ArcBase::defaultDesign.styles.begin(); i!=ArcBase::defaultDesign.styles.end(); i++)
+    for (auto i=design.styles.begin(); i!=design.styles.end(); i++)
         StyleNames.insert(i->first);
 }
 
-Csh::Csh() : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1), 
+Csh::Csh(const Context &defaultDesign) : was_partial(false), hintStatus(HINT_NONE), addMarkersAtEnd(false), cursor_pos(-1), 
     use_scheme(NULL)
 {
-    for (auto i=ArcBase::defaultDesign.styles.begin(); i!=ArcBase::defaultDesign.styles.end(); i++)
+    for (auto i=defaultDesign.styles.begin(); i!=defaultDesign.styles.end(); i++)
         ForbiddenStyles.insert(i->first);
     ForbiddenStyles.erase("weak");
     ForbiddenStyles.erase("strong");
     PushContext(true);
-    Contexts.back().SetPlain();
+    Contexts.back().SetToDesign(defaultDesign);
     FullDesigns["plain"] = Contexts.back();
 }
 

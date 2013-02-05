@@ -77,7 +77,7 @@ public:
     CDrawingChartData m_ChartCompiling; //The chart that is compiling.
     int m_page_serialized_in; //the page read by last Serialize();
     bool m_hadArrangeViews; //If we shall arrange views after compilation 
-    bool m_highlight_fallback_images; //if we have just switched to EMF view
+    bool m_highlight_fallback_images; //if we shall highlight fallback image loc after compilation
     CCriticalSection m_SectionCompiling; //To protect m_ChartCompiling
     CWinThread *m_pCompilingThread;
     double m_Progress;
@@ -110,7 +110,6 @@ public:
 //Menu and toolbar functions
 public:
 	virtual void Serialize(CArchive& ar);
-            void SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page);
             void SerializePage(CArchive& ar, unsigned &page);
 	virtual void DeleteContents(); // Destroys existing data, updates views
 	virtual BOOL CanCloseFrame(CFrameWnd* pFrame);
@@ -192,6 +191,8 @@ public:
 	void UpdateTrackRects(CPoint mouse);                 //updates tracking rectangles depending on the mouse position (position is in MscDrawer coord space)
 	void HighLightArc(const Element *arc);      //Select in internal editor
     bool OnControlClicked(Element *arc, EGUIControlType t); //Do what is needed if a control is clicked. Ture if chart invalidated.
+    void OnChangeRibbonCategory(bool embedded);
+    void ReDrawEMF();
 	afx_msg void OnHelpHelp();
     afx_msg void OnEditSelectAll();
 };

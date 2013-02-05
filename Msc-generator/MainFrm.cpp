@@ -592,20 +592,15 @@ bool CMainFrame::FillDesignComboBox(const char *current, bool updateComboContent
 		c->RemoveAllItems();
         CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
         ASSERT(pApp != NULL);
-		if (pApp->m_SetOfDesigns.GetLength()) {
+        if (pApp->m_Designs.size()) {
 			c->AddItem("(use chart-defined)");
-			c->AddItem("plain");
+			c->AddItem("plain"); //place 'plain' as first
 			int pos = 0;
-			while (pApp->m_SetOfDesigns.GetLength()>pos) {
-				int pos2 = pApp->m_SetOfDesigns.Find(' ', pos);
-				if (pos2==-1) pos2 = pApp->m_SetOfDesigns.GetLength();
-				if (pos2>pos && pApp->m_SetOfDesigns.Mid(pos, pos2-pos).CompareNoCase("plain")!=0)
-					c->AddItem(pApp->m_SetOfDesigns.Mid(pos, pos2-pos));
-				pos = pos2+1;
-			}	
-		} else {
+            for (auto i=pApp->m_Designs.begin(); i!=pApp->m_Designs.end(); i++) 
+                if (i->first != "plain" && i->second.is_full)
+                    c->AddItem(i->first.c_str());
+		} else 
 			c->AddItem("-(only plain is available)-");
-		}
 	}
 	//restore the selection to the given style if it can be found
 	int index = (current==NULL || current[0]==0) ? 0 : c->FindItem(current);
@@ -632,7 +627,7 @@ void CMainFrame::OnUpdateDesignDesign(CCmdUI *pCmdUI)
 {
     CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-    pCmdUI->Enable(pApp->m_SetOfDesigns.GetLength()>0);
+    pCmdUI->Enable(pApp->m_Designs.size()>1);
 }
 
 
@@ -815,8 +810,8 @@ void CMainFrame::TriggerIfRibbonCategoryChange()
     if (category_is_embedded == m_at_embedded_object_category) return;
     m_at_embedded_object_category = category_is_embedded;
     CMscGenDoc *pDoc = dynamic_cast<CMscGenDoc *>(GetActiveDocument());
-    if (!pDoc) return;
-    pDoc->UpdateAllViews(NULL);
+    if (pDoc) 
+        pDoc->OnChangeRibbonCategory(category_is_embedded);
 }
 
 

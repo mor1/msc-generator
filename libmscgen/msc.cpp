@@ -340,7 +340,7 @@ int Msc::SetDesign(bool full, const string&name, bool force, ArcBase **ret, cons
     return full ? 3 : 2;
 }
 
-string Msc::GetDesigns(bool full) const
+string Msc::GetDesignNames(bool full) const
 {
     string retval;
     for (auto i = Designs.begin(); i!=Designs.end(); i++)
@@ -541,7 +541,7 @@ ArcBase *Msc::AddAttribute(const Attribute &a)
         case 0:
             Error.Error(a, true, "Unknown chart design: '" + a.value +
                         "'. Ignoring design selection.",
-                        "Available designs are: " + GetDesigns(full) +".");
+                        "Available designs are: " + GetDesignNames(full) +".");
             break;
         case 2:
             Error.Warning(a, true, "Use of '+=' to set a full design.", "Use 'msc = " + a.value + "' to suppress this warning.");
@@ -2236,7 +2236,7 @@ HENHMETAFILE Msc::DrawToMetaFile(Canvas::EOutputType ot,
     return ret;
 }
 
-bool Msc::DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
+size_t Msc::DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
                    unsigned page, bool bPageBreaks,
                    double fallback_image_resolution, bool generateErrors)
 {
@@ -2248,7 +2248,8 @@ bool Msc::DrawToDC(Canvas::EOutputType ot, HDC hdc, const XY &scale,
 	if (fallback_image_resolution>0)
         canvas.SetFallbackImageResolution(fallback_image_resolution);
     DrawComplete(canvas, bPageBreaks, page);
-    return canvas.CloseAndGetEMF();
+    canvas.CloseOutput();
+    return canvas.GetMetaFileSize();
 }
 
 #endif

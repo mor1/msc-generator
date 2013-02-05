@@ -1,4 +1,4 @@
-msc/*
+/*
     This file is part of Msc-generator.
 	Copyright 2008,2009,2010,2011,2012,2013 Zoltan Turanyi
 	Distributed under GNU Affero General Public License.
@@ -229,7 +229,7 @@ inline CMscGenDoc *CMscGenApp::GetDoc(void)
 }
 
 
-CMscGenApp::CMscGenApp()
+CMscGenApp::CMscGenApp() : m_designlib_csh(Context(true))
 {
 	m_bHiColorIcons = TRUE;
 
@@ -542,42 +542,38 @@ int CMscGenApp::ReadDesigns(bool reportProblem, const char *fileName)
 	CString designlib_filename = dir.substr(0,pos).append("\\").append(fileName).c_str();
 
 	//clear existing designs
-    m_SetOfDesigns.Empty();
-    m_ChartSourcePreamble = ";\n";
+    m_Designs.clear();
 
-    CString preamble;
 	CString msg;
 	CFileFind finder;
 	bool errors = false;
 	BOOL bFound = finder.FindFile(designlib_filename);
-    if (!bFound) return 1;
+    if (!bFound) {
+		CDrawingChartData data;
+        data.CompileIfNeeded();
+        m_Designs.insert(data.GetDesigns().begin(), data.GetDesigns().end()); //insert 'plain' design
+        m_designlib_csh.ParseText("", 0, -1, 1);
+        return 1;
+    }
+
+    CString text;
+    Msc msc;
+    msc.Progress.StartSection(MscProgress::PARSE);
 	while (bFound) {
 		bFound = finder.FindNextFile();
 		CDrawingChartData data;
 		if (data.Load(finder.GetFilePath(), false)) {
-            data.CompileIfNeeded();
-			unsigned num = data.GetErrorNum(true);
-			if (num) {
-				msg.Append("Problems in design file: ");
-				msg.Append(finder.GetFileName());
-				msg.Append("\n");
-				for (unsigned i=0; i<num; i++) {
-					msg.Append(data.GetErrorText(i, true));
-					msg.Append("\n");
-				}
-				errors = true;
-			}
-			preamble.Append(data.GetText());
-			if (m_SetOfDesigns.GetLength()>0) m_SetOfDesigns.Append(" ");
-			m_SetOfDesigns.Append(data.GetDesigns());
+            msc.ParseText(data.GetText(), finder.GetFilePath());
+            text.Append(data.GetText());
 		}
 	}
-	if (msg.GetLength()>0 && reportProblem)
-		MessageBox(NULL, msg, "Msc-generator", MB_OK);
-	if (preamble.GetLength()>0) 
-		m_ChartSourcePreamble = preamble;
-	else 
-		m_ChartSourcePreamble = ";\n";
+    //copy the designs & errors from data to m_Designs/m_DesignErrors
+    m_Designs = std::move(msc.Designs);
+    m_DesignErrors = std::move(msc.Error);
+    //create pre-parsed data for csh
+    m_designlib_csh.ParseText(text, text.GetLength(), -1, 1);
+    if (m_DesignErrors.GetErrorNum(false) && reportProblem) 
+		MessageBox(NULL, "Error in design file!", "Msc-generator", MB_OK);
 	return errors?2:0;
 }
 
@@ -1047,6 +1043,9 @@ void CMscGenApp::OnEmbeddedoptionsFallbackRes()
     WriteProfileInt(REG_SECTION_SETTINGS, REG_KEY_FALLBACK_RESOLUTION, m_uFallbackResolution);
     //recompile if it is embdedded
     CMscGenDoc *pDoc = GetDoc();
-    if (pDoc && pDoc->IsEmbedded()) 
+    if (pDoc && pDoc->IsEmbedded()) {
         pDoc->m_ChartShown.SetFallbackResolution(m_uFallbackResolution);
+        pDoc->ReDrawEMF();
+        pDoc->CheckIfChanged();
+    }
 }

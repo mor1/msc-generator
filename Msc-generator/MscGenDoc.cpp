@@ -454,18 +454,6 @@ void CMscGenDoc::SerializePage(CArchive& ar, unsigned &page)
 	} /* not IsStoring */
 }
 
-
-//if "force_page" is true, we force a certain page (or all) stored in "forced_page" (only at store)
-//else we use the page in "chart"
-void CMscGenDoc::SerializeHelper(CArchive& ar, CChartData &chart, unsigned &forced_page, bool force_page) 
-{
-	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
-	ASSERT(pApp != NULL);
-	if (ar.IsStoring()) {
-	} else {
-	} /* not IsStoring */
-}
-
 void CMscGenDoc::DeleteContents()
 {
     KillCompilation();
@@ -588,28 +576,37 @@ BOOL CMscGenDoc::OnOpenDocument(LPCTSTR lpszPathName)
 
 BOOL CMscGenDoc::OnSaveDocument(LPCTSTR lpszPathName)
 {
-	if (lpszPathName==NULL) {
-		SyncShownWithEditing("update the container document");
-		return COleServerDocEx::OnSaveDocument(lpszPathName);
-	}
-
 	CMscGenApp *pApp = dynamic_cast<CMscGenApp *>(AfxGetApp());
 	ASSERT(pApp != NULL);
-	//Restart external editor only if file name changes
-	bool restartEditor = lpszPathName!=GetPathName() && m_ExternalEditor.IsRunning();
-	if (restartEditor) 
-		m_ExternalEditor.Stop(STOPEDITOR_WAIT);
-	SyncShownWithEditing("save");
-	if (!m_itrEditing->Save(lpszPathName)) {
-		CFileException e;
-		ReportSaveLoadException(lpszPathName, &e,
-			TRUE, AFX_IDP_FAILED_TO_SAVE_DOC);
-		return FALSE;
-	}
-	if (restartEditor) 
-		m_ExternalEditor.Start(lpszPathName);
-	m_itrSaved = m_itrEditing;
-	CheckIfChanged();     
+    bool restartEditor = false;
+	if (lpszPathName==NULL) {
+		SyncShownWithEditing("update the container document");
+        if (!COleServerDocEx::OnSaveDocument(lpszPathName)) 
+            return FALSE;
+	} else {
+	    //Restart external editor only if file name changes
+	    restartEditor = lpszPathName!=GetPathName() && m_ExternalEditor.IsRunning();
+	    if (restartEditor) 
+		    m_ExternalEditor.Stop(STOPEDITOR_WAIT);
+	    SyncShownWithEditing("save");
+	    if (!m_itrShown->Save(lpszPathName)) {
+		    CFileException e;
+		    ReportSaveLoadException(lpszPathName, &e,
+			    TRUE, AFX_IDP_FAILED_TO_SAVE_DOC);
+		    return FALSE;
+	    }
+    }
+    //SyncShownWithEditing() above either made m_itrShown equal to 
+    //m_itrEditing by compiling, or left them different. In the latter
+    //case we effectively perform an Undo to m_itrShown.
+	m_itrSaved = m_itrEditing = m_itrShown;
+	if (pApp->IsInternalEditorRunning()) 
+		pApp->m_pWndEditor->m_ctrlEditor.UpdateText(m_itrEditing->GetText(), m_itrEditing->m_sel, true);
+    if (restartEditor) 
+        m_ExternalEditor.Start(lpszPathName);
+    m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
+    m_bSavedPageBreaks = pApp->m_bPageBreaks;
+    _ASSERT(!CheckIfChanged());
 	return TRUE;
 }
 
@@ -1048,7 +1045,7 @@ void CMscGenDoc::ChangeDesign(const char *design)
 	if (CString(design) == m_itrEditing->GetDesign()) return;
 	InsertNewChart(CChartData(*m_itrEditing)); //duplicate current chart, loose undo, keep page shown
 	m_itrEditing->SetDesign(design);
-    pApp->m_pWndEditor->m_ctrlEditor.SetForcedDesign(design);
+    pApp->m_designlib_csh.ForcedDesign = design;
 	CompileEditingChart(true, false);
 }
 
@@ -1330,8 +1327,6 @@ not_modified:
 	SetModifiedFlag(FALSE);
 	return false;
 modified:
-    m_uSavedFallbackResolution = pApp->m_uFallbackResolution;
-    m_bSavedPageBreaks = pApp->m_bPageBreaks;
 	SetModifiedFlag(TRUE);
     return true;
 }
@@ -1447,6 +1442,7 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
 		pApp->m_pWndEditor->m_ctrlEditor.GetSel(m_itrEditing->m_sel);
 	}
 
+    //This can be nil if we are shutting down...
     CMainFrame *pWnd = m_bAttemptingToClose ? NULL : dynamic_cast<CMainFrame *>(AfxGetMainWnd());
 
     //Prepare m_ChartCompiling
@@ -1467,15 +1463,17 @@ void CMscGenDoc::CompileEditingChart(bool resetZoom, bool block)
     m_page_serialized_in = -1;
     m_ChartCompiling.SetFallbackResolution(m_ChartShown.GetFallbackResolution());
     m_ChartCompiling.SetPageBreaks(m_ChartShown.GetPageBreaks());
-    const CDrawingChartData::ECacheType should_be = pWnd->m_at_embedded_object_category ? 
+    if (pWnd) {
+        const CDrawingChartData::ECacheType should_be = pWnd->m_at_embedded_object_category ? 
                         CDrawingChartData::CACHE_EMF : CDrawingChartData::CACHE_RECORDING;
-    if (pWnd && pWnd->m_at_embedded_object_category && 
-        m_ChartShown.GetCacheType()!=CDrawingChartData::CACHE_EMF)
-        m_highlight_fallback_images = true;
-    m_ChartCompiling.SetCacheType(should_be);
+        if (pWnd && pWnd->m_at_embedded_object_category && 
+            m_ChartShown.GetCacheType()!=CDrawingChartData::CACHE_EMF)
+            m_highlight_fallback_images = true;
+        m_ChartCompiling.SetCacheType(should_be);
+    }
     m_ChartCompiling.SetProgressCallback(ProgressCallback, this);
     m_ChartCompiling.SetPedantic(pApp->m_Pedantic);
-    m_ChartCompiling.SetDesigns(pApp->m_ChartSourcePreamble);
+    m_ChartCompiling.SetDesigns(&pApp->m_Designs, &pApp->m_DesignErrors);
     m_ChartCompiling.SetCopyRightText(pApp->m_CopyrightText);
     m_ChartCompiling.m_load_data = pApp->GetProfileString(REG_SECTION_SETTINGS, REG_KEY_LOAD_DATA);
 
@@ -1542,8 +1540,8 @@ void CMscGenDoc::CompleteCompilingEditingChart()
         //If we show the WMF, let us update the embedded object size shown in the ribbon
         if (m_ChartShown.GetCacheType() == CDrawingChartData::CACHE_EMF
             && pWnd->m_at_embedded_object_category) {
-            const size_t size = m_ChartShown.GetWMFSize() + serialize_doc_overhead + 
-                                m_ChartShown.GetText().GetLength();
+                const size_t size = m_ChartShown.GetWMFSize() + serialize_doc_overhead + 
+                                    m_ChartShown.GetText().GetLength();
                 const double total = double(m_ChartShown.GetSize().cx)*m_ChartShown.GetSize().cy;
                 pWnd->FillEmbeddedPanel(size, 100*m_ChartShown.GetWMFFallbackImagePos().GetArea() / total);
         }
@@ -1712,6 +1710,7 @@ void CMscGenDoc::StartTrackFallbackImageLocations(const Contour &c)
 {
     m_fallback_image_location = c;
     AddAnimationElement(AnimationElement::FALLBACK_IMAGE, 0);
+    StartFadingAll();
 }
 
 
@@ -1851,6 +1850,37 @@ bool CMscGenDoc::OnControlClicked(Element *arc, EGUIControlType t)
 	InsertNewChart(chart);
     CompileEditingChart(true,false);
     return true;
+}
+
+void CMscGenDoc::OnChangeRibbonCategory(bool embedded)
+{
+    if (m_pCompilingThread) return;
+    if (embedded) {
+        m_ChartShown.SetCacheType(CDrawingChartData::CACHE_EMF);
+        ReDrawEMF();
+    } else {
+        m_ChartShown.SetCacheType(CDrawingChartData::CACHE_RECORDING);
+        m_ChartShown.CompileIfNeeded(); //just redraws recording
+        UpdateAllViews(NULL);
+    }
+}
+
+void CMscGenDoc::ReDrawEMF()
+{
+    if (!m_ChartShown.CompileIfNeeded()) //just redraws EMF
+        return; //if no redraw happened
+    if (m_ChartShown.GetCacheType()!=CDrawingChartData::CACHE_EMF)
+        return;
+    StartTrackFallbackImageLocations(m_ChartShown.GetWMFFallbackImagePos());
+    CMainFrame *pWnd = dynamic_cast<CMainFrame *>(AfxGetMainWnd());
+    if (pWnd) {
+        const size_t size = m_ChartShown.GetWMFSize() + serialize_doc_overhead + 
+                            m_ChartShown.GetText().GetLength();
+        const double total = double(m_ChartShown.GetSize().cx)*m_ChartShown.GetSize().cy;
+        pWnd->FillEmbeddedPanel(size, 100*m_ChartShown.GetWMFFallbackImagePos().GetArea() / total);
+    }
+    UpdateAllViews(NULL);
+    NotifyChanged();
 }
 
 
