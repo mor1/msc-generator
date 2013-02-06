@@ -39,7 +39,9 @@ DOC: Add Hide/Show to commands. Document Activate/deactivate better.
 DOC: auto_heading chart option and attribute.
 DOC: Document full page printing.
 DOC: classic_parallel_layout
-FIX: Why Michael.signalling disappears from time to time?
+FIXED: Why Michael.signalling disappears from time to time? (was cairo not being thread-safe)
+FIX: Memory leak in contour (moved objects not cleaned up afterwards)
+FIXED: Hideentitylines problem of michael
 CHANGE: Speedup
 - CSH
 - Remove cover if not compress or parallel

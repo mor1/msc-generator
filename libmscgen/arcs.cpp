@@ -1544,16 +1544,22 @@ void ArcDirArrow::PostPosProcess(Canvas &canvas)
     const XY c(sx, yPos+centerline);
     Contour tmp;
     tmp = style.arrow.EntityLineCover(XY(sx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_START);
-    tmp.RotateAround(c, slant_angle);
-    chart->HideEntityLines(tmp);
+    if (!tmp.IsEmpty()) {
+        tmp.RotateAround(c, slant_angle);
+        chart->HideEntityLines(tmp);
+    }
     tmp = style.arrow.EntityLineCover(XY(dx, yPos+centerline), sx<dx, isBidir(), MSC_ARROW_END);
-    tmp.RotateAround(c, slant_angle);
-    chart->HideEntityLines(tmp);
+    if (!tmp.IsEmpty()) {
+        tmp.RotateAround(c, slant_angle);
+        chart->HideEntityLines(tmp);
+    }
     //for multi-segment arrows
     for (unsigned i=1; i<xPos.size()-1; i++) {
         tmp = style.arrow.EntityLineCover(XY(xPos[i], yPos+centerline), sx<dx, isBidir(), MSC_ARROW_MIDDLE);
-        tmp.RotateAround(c, slant_angle);
-        chart->HideEntityLines(tmp);
+        if (!tmp.IsEmpty()) {
+            tmp.RotateAround(c, slant_angle);
+            chart->HideEntityLines(tmp);
+        }
     }
 }
 
