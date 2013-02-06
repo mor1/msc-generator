@@ -1706,11 +1706,12 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
             //coverage within "c" using the assumptions on C1 and C2 being nice.
             //Now, it may be that C_other is already empty, if we have already moved all its
             //content to "list". In that case we have to traverse the "list"
+            const bool clockwise_us = C1==C_other ? clockwise_C2 : clockwise_C1;
+            const bool clockwise_other = C1==C_other ? clockwise_C1 : clockwise_C2;
             if (C_other->IsEmpty()) {
                 const int cov_from_other = CoverageInNodeList(*list, c->outline);
                 //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
                 //if our whole surface is ccl then 0 or -1
-                const bool clockwise_us = C1==C_other ? clockwise_C2 : clockwise_C1;
                 const int cov_from_us = clockwise_us ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
                 coverage_in_c = cov_from_us + cov_from_other;
             } else {
@@ -1718,11 +1719,10 @@ void ContoursHelper::InsertIfNotInRays(std::list<node> *list, const ContourWithH
                 _ASSERT(is_within_other != WI_ON_EDGE && is_within_other != WI_ON_VERTEX);
                 //if we are outside the other, coverage from that is zero
                 //if we are inside, then coverage is either +1 or -1 depending on dir
-                const int cov_from_other = inside(is_within_other) ? C_other->GetClockWise() ? 1 : -1 : 0;
+                const int cov_from_other = inside(is_within_other) ? (clockwise_other ? 1 : -1) : 0;
                 //if our whole surface is clockwise, then coverage inside "c" us can be +1 or 0
                 //if our whole surface is ccl then 0 or -1
-                const Contour * const C_us = C1==C_other ? C2 : C1;
-                const int cov_from_us = C_us->GetClockWise() ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
+                const int cov_from_us = clockwise_us ? (c->GetClockWise() ? 1 : 0) : (c->GetClockWise() ? 0 : -1);
                 coverage_in_c = cov_from_us + cov_from_other;
             }
         }
@@ -1793,6 +1793,7 @@ inline bool ContoursHelper::OperationWithAnEmpty(Contour::EOperationType type, b
     //if the sole non-empty contoutr is to be included, we return this
     return IsCoverageToInclude(clockwise ? 1 : 0, type);
 }
+
 
 /** The main function for carrying out the operation.
  *
