@@ -59,19 +59,19 @@ class EntityStatusMap
 public:
 
 protected:
-    contour::DoubleMap<MscStyle>      styleStatus; ///<Style of the entity line, fill, text, etc. at and beyond a position
+    contour::DoubleMap<StyleCoW>      styleStatus; ///<Style of the entity line, fill, text, etc. at and beyond a position
     contour::DoubleMap<EEntityStatus> showStatus;  ///<Status of the entity at and beyond a position
 public:
     /** Creates a map with the entity being inactive and off everywhere and having style `def`*/
-    explicit EntityStatusMap(const MscStyle &def) : styleStatus(def), showStatus(EEntityStatus::SHOW_OFF) {}
+    explicit EntityStatusMap(const StyleCoW &def) : styleStatus(def), showStatus(EEntityStatus::SHOW_OFF) {}
     /** Applies a style at `pos` (merging styles) and onwards up till the next existing change.*/
-    void ApplyStyle(double pos, const MscStyle &style) {styleStatus.Add(pos, style);}
+    void ApplyStyle(double pos, const StyleCoW &style) {styleStatus.Add(pos, style);}
     /** Applies a style within range `pos` (merging styles).*/
-    void ApplyStyle(Range pos, const MscStyle &style) {styleStatus.Add(pos, style);}
+    void ApplyStyle(Range pos, const StyleCoW &style) {styleStatus.Add(pos, style);}
     /** Set the entity status at `pos` and onwards up till the next existing change.*/
     void SetStatus(double pos, EEntityStatus status) {showStatus.Set(pos, status);}
     /** Get the current style at `pos`*/
-    const MscStyle &GetStyle(double pos) const {return *styleStatus.Get(pos);}
+    const StyleCoW &GetStyle(double pos) const {return *styleStatus.Get(pos);}
     /** Get the current status at `pos`*/
     EEntityStatus GetStatus(double pos) const {return *showStatus.Get(pos);}
     /** Return the next change of status strictly after `pos`. */
@@ -103,9 +103,9 @@ public:
     const double     pos_exp;   ///<The position of the entity if all group entities were expanded (for a->b->c sanity checking)
     unsigned         index;     ///<The index of the entity, counting entities left to right
     EntityStatusMap  status;    ///<Contains vertical line status & type & color and on/off active/inactive status.
-    MscStyle         running_style;     ///<Used during PostParse process to make EntityDef::style's fully specified. Also used in AutoPaginate to gather the style for automatically inserted headers.
+    StyleCoW         running_style;     ///<Used during PostParse process to make EntityDef::style's fully specified. Also used in AutoPaginate to gather the style for automatically inserted headers.
     EEntityStatus    running_shown;     ///<Used during PostParse process to see if it is shown/hidden active/inactive.
-    EDrawPassType     running_draw_pass; ///<The running Z-order position of this arc during PostParse process
+    EDrawPassType    running_draw_pass; ///<The running Z-order position of this arc during PostParse process
     double           maxwidth;          ///<Used during PostParse process to collect the maximum width of the entity
 
     string           parent_name;    ///<Empty if we are not part of an entity group, otherwise the name of the parent entity.
@@ -113,7 +113,7 @@ public:
     const bool       collapsed;      ///<True if we are group, but show collapsed
 
     Entity(const string &n, const string &l, const string &ol, double p, double pe,
-           const MscStyle &entity_style, const FileLineCol &fp, bool coll);
+           const StyleCoW &entity_style, const FileLineCol &fp, bool coll);
     void AddChildrenList(const EntityDefList *children, Msc *chart);
     double GetRunningWidth(double activeEntitySize) const;
     string Print(int ident = 0) const;
@@ -233,7 +233,7 @@ public:
     bool                           active_is_explicit;  ///<True if an active attribute was specified by the user. In this case an "activate/deactivate" command/prefix will not override the `active` member.
 
     EIterator                      itr;         ///<Points to the entity in Msc::AllEntities, set during PostParse.
-    MscStyle                       style;       ///<The complete style of the entity at this point. Finalized during PostParse taking unset attributes from running_style.
+    StyleCoW                       style;       ///<The complete style of the entity at this point. Finalized during PostParse taking unset attributes from running_style.
     Label                          parsed_label;///<The complete label with the right formatting. Finalized during PostParse.
     bool                           defining;    ///<True if this is the first EntityDef object for this entity = this EntityDef created the entity (set in AddAttrList).
     bool                           draw_heading;///True if we have to draw heading of this entity at this point. Set in PostParse.

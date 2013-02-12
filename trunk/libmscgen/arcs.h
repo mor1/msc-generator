@@ -174,12 +174,12 @@ typedef PtrList<ArcBase> ArcList;
 
 class ArcIndicator : public ArcBase
 {
-    const MscStyle style;
+    const StyleCoW style;
     EIterator src;  //Shall always point to ActiveEntities
     EIterator dst;  //Shall always point to ActiveEntities
 public:
-    ArcIndicator(Msc *chart, const MscStyle &st, const FileLineColRange &l);
-    ArcIndicator(Msc *chart, EIterator s, const MscStyle &st, const FileLineColRange &l);
+    ArcIndicator(Msc *chart, const StyleCoW &st, const FileLineColRange &l);
+    ArcIndicator(Msc *chart, EIterator s, const StyleCoW &st, const FileLineColRange &l);
 	virtual MscProgress::ECategory GetProgressCategory() const {return MscProgress::INDICATOR;}
     bool IsComplete() const;
     void SetEntities(EIterator s, EIterator d) {src=s; dst=d;}
@@ -200,17 +200,17 @@ protected:
     string          label;
     Label           parsed_label;
     int             concrete_number; //if >=0 it shows what number the user wanted for this arc. if <0 automatic or no numerbing
-    MscStyle        style;           //numbering and compress fields of style are not used. The Arc member fields are used instead.
+    StyleCoW        style;           //numbering and compress fields of style are not used. The Arc member fields are used instead.
     NumberingStyle  numberingStyle;  //This is not part of styles in general, but of contexts
     string          number_text;     //the formatted number (for references, e.g., notes)
 public:
-    ArcLabelled(EArcType t, MscProgress::ECategory c, Msc *msc, const MscStyle &);
+    ArcLabelled(EArcType t, MscProgress::ECategory c, Msc *msc, const StyleCoW &);
     ArcLabelled(EArcType t, MscProgress::ECategory c, const ArcLabelled &al);
-    const MscStyle &GetStyle() const {return style;}
+    const StyleCoW &GetStyle() const {return style;}
     virtual bool CanBeNoted() const {return true;}
     void SetStyleWithText(const char *style_name); //set style to this name, but combine it with default text style
-    void SetStyleWithText(const MscStyle *style_to_use=NULL); //set style to this name, but combine it with default text style
-    virtual const MscStyle *GetRefinementStyle(EArcType t) const;
+    void SetStyleWithText(const StyleCoW *style_to_use=NULL); //set style to this name, but combine it with default text style
+    virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
     ArcBase* AddAttributeList(AttributeList *);
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
@@ -226,7 +226,7 @@ public:
 class ArcArrow : public ArcLabelled
 {
 public:
-    ArcArrow(EArcType t, MscProgress::ECategory c, Msc *msc, const MscStyle &s) : ArcLabelled(t, c, msc, s) {}
+    ArcArrow(EArcType t, MscProgress::ECategory c, Msc *msc, const StyleCoW &s) : ArcLabelled(t, c, msc, s) {}
     ArcArrow(EArcType t, MscProgress::ECategory c, const ArcLabelled &al) : ArcLabelled(t, c, al) {}
     virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l) = 0;
     bool AddAttribute(const Attribute &);
@@ -249,7 +249,7 @@ protected:
     mutable double src_act;
 public:
     ArcSelfArrow(EArcType t, const char *s, FileLineColRange sl,
-        Msc *msc, const MscStyle &, double ys);
+        Msc *msc, const StyleCoW &, double ys);
     virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     virtual EDirType GetToucedEntities(EntityList &el) const;
     string Print(int ident=0) const;
@@ -286,7 +286,7 @@ protected:
     mutable Contour clip_area; //Used only by DirArrow to mask out the line at arrowheads
 public:
     ArcDirArrow(EArcType t, const char *s, FileLineColRange sl,
-        const char *d, FileLineColRange dl, Msc *msc, bool fw, const MscStyle &);
+        const char *d, FileLineColRange dl, Msc *msc, bool fw, const StyleCoW &);
     ArcDirArrow(const EntityList &el, bool bidir, const ArcLabelled &al);
     virtual ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     ArcBase *AddAttributeList(AttributeList *l);
@@ -321,10 +321,10 @@ protected:
     mutable double sm, dm;    //filled by Width: margin (left and right) for text
     mutable std::vector<Contour> outer_contours; //the outer line of all segments
 public:
-    ArcBigArrow(const ArcDirArrow &, const MscStyle &);
+    ArcBigArrow(const ArcDirArrow &, const StyleCoW &);
     ArcBigArrow(const EntityList &, bool bidir, const ArcLabelled &al, const ArcSignature *s);
     ~ArcBigArrow() {if (sig) delete sig;}
-    virtual const MscStyle *GetRefinementStyle(EArcType t) const;
+    virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
     virtual const ArcSignature* GetSignature() const {return sig;}
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);
@@ -372,7 +372,7 @@ public:
     ArcVerticalArrow(EArcType t, const char *s, const char *d, Msc *msc);
     ArcArrow *AddSegment(EArcType t, const char *m, FileLineColRange ml, FileLineColRange l);
     ArcVerticalArrow* AddXpos(VertXPos *p);
-    virtual const MscStyle *GetRefinementStyle(EArcType t) const;
+    virtual const StyleCoW *GetRefinementStyle(EArcType t) const;
     bool AddAttribute(const Attribute &);
     static void AttributeNames(Csh &csh);
     static bool AttributeValues(const std::string attr, Csh &csh);

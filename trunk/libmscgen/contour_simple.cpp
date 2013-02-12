@@ -51,8 +51,9 @@ SimpleContour::SimpleContour(XY a, XY b, XY c)
         break;
     }
     boundingBox.MakeInvalid();
-    for (size_t i=0; i<size(); i++)
-        boundingBox += at(i).GetBoundingBox();
+    boundingBox += a;
+    boundingBox += b;
+    boundingBox += c;
     clockwise = true;
     area_cache.first=false;
 }
@@ -73,10 +74,10 @@ SimpleContour::SimpleContour(const XY &c, double radius_x, double radius_y, doub
     clockwise = true;
     if (radius_y==0) radius_y = radius_x;
     Edge edge(c, radius_x, radius_y, tilt_deg, s_deg, d_deg);
-    boundingBox = edge.GetBoundingBox();
+    boundingBox = edge.arc->boundingBox;
     edges.push_back(edge);
     area_cache.first=false;
-    if (edge.GetType()==Edge::FULL_CIRCLE) return; //full circle
+    if (edge.arc->type==EdgeArc::FULL_CIRCLE) return; //full circle
     edges.push_back(Edge(edge.GetEnd(), edge.GetStart()));
     edges.rbegin()->visible = false;
 }
@@ -252,13 +253,13 @@ EContourRelationType SimpleContour::CheckContainment(const SimpleContour &other)
 {
     //special case of two full ellipses touching - not caught otherwise
     if (size()==1 && other.size()==1 && at(0).GetStart() == other.at(0).GetStart()) {
-        if (at(0).ell==other[0].ell) return REL_SAME;
+        if (at(0).arc->ell==other[0].arc->ell) return REL_SAME;
         //if one of the centers is in the other ellipses then x_INSIDE_y
-        if (inside(IsWithin(other[0].ell.GetCenter())) ||
-            inside(other.IsWithin(at(0).ell.GetCenter()))) {
+        if (inside(IsWithin(other[0].arc->ell.GetCenter())) ||
+            inside(other.IsWithin(at(0).arc->ell.GetCenter()))) {
                 //the center closer to the touchpoint will be inside
-                if (at(0).GetStart().Distance(at(0).ell.GetCenter()) <
-                    at(0).GetStart().Distance(other[0].ell.GetCenter()))
+                if (at(0).GetStart().Distance(at(0).arc->ell.GetCenter()) <
+                    at(0).GetStart().Distance(other[0].arc->ell.GetCenter()))
                     return REL_A_INSIDE_B;
                 else
                     return REL_B_INSIDE_A;
@@ -352,7 +353,7 @@ void SimpleContour::CalculateClockwise()
     //determine if this is clockwise.
     if (size()==1)
         clockwise = at(0).GetClockWise();
-    else if (size()==2 && at(0).GetType() != Edge::STRAIGHT && at(1).GetType() != Edge::STRAIGHT && at(0).GetClockWise() == at(1).GetClockWise())
+    else if (size()==2 && at(0).arc && at(1).arc && at(0).GetClockWise() == at(1).GetClockWise())
         clockwise = at(0).GetClockWise();
     else
         clockwise = GetArea()>0;
@@ -373,7 +374,7 @@ void SimpleContour::AppendDuringWalk(const Edge &edge)
     //if the last point equals to the startpoint of edge, skip the last edge added
     //except if the last edge is a full circle
     if (size()>0 && edge.GetStart().test_equal(edges.rbegin()->GetStart()))
-        if (edges.rbegin()->GetType() != Edge::FULL_CIRCLE)
+        if (edges.rbegin()->arc && edges.rbegin()->arc->type!= EdgeArc::FULL_CIRCLE)
             edges.pop_back();
     //check if "edge" is a direct continuation of the last edge and can be combined
     //if not, append "edge"
@@ -404,28 +405,43 @@ bool SimpleContour::PostWalk()
     if (size()>1 && at(0).GetStart().test_equal(at(size()-1).GetStart()))
         edges.pop_back();
 
-    //set "end" values. Not known previously
-    for (size_t i=0; i<size(); i++)
-        at(i).SetEndLiberal(at_next(i).GetStart(), true);
+    if (size()>1) {
+        //set "end" values. Not known previously
+        //remove empty edges - which we get if a crosspoint falls exactly on pos==0 of an edge
+        //and we do not use the edge
+        bool was = false;
+        for (size_t i=0; i<size(); /*nope*/) 
+            if (at(i).GetStart() == at_next(i).GetStart()) {
+                edges.erase(edges.begin()+i);
+                was = true;
+            } else {
+                at(i).SetEndLiberal(at_next(i).GetStart(), true);
+                if (was && at_prev(i).CheckAndCombine(at(i))) 
+                    edges.erase(edges.begin()+i);
+                else
+                    i++;
+                was = false;
+            }
 
-    //Also, the beginning point (at(0]) can fall on an edge
-    //if both the last and the first edge are straight and are in-line
-    //such as when two side-by-side rectangles are merged
-    if (size()>2) {
-        if (at(size()-2).CheckAndCombine(at(size()-1)))
-            edges.pop_back();
-        if (at(size()-1).CheckAndCombine(at(0)))
-            edges.erase(edges.begin());
+        //Also, the beginning point (at(0]) can fall on an edge
+        //if both the last and the first edge are straight and are in-line
+        //such as when two side-by-side rectangles are merged
+        if (size()>2) {
+            if (at(size()-2).CheckAndCombine(at(size()-1)))
+                edges.pop_back();
+            if (at(size()-1).CheckAndCombine(at(0)))
+                edges.erase(edges.begin());
+        }
+
+        //also two semi-circles combined should give a single edge (a circle)
+        if (size()==2 && at(0).arc && at(1).arc)
+            if (at(0).CheckAndCombine(at(1)))
+                edges.pop_back();
     }
-
-    //also two semi-circles combined should give a single edge (a circle)
-    if (size()==2 && at(0).GetType()!=Edge::STRAIGHT && at(1).GetType()!=Edge::STRAIGHT)
-        if (at(0).CheckAndCombine(at(1)))
-            edges.pop_back();
-
+    
     //Sanity checks
-    if (size()>0 && at(0).GetType()==Edge::STRAIGHT)
-        if (size()==1 || (size()==2 && at(1).GetType()==Edge::STRAIGHT))
+    if (size()>0 && !at(0).arc)
+        if (size()==1 || (size()==2 && !at(1).arc))
             clear();
     if (size()==0) return false;
 
@@ -434,6 +450,9 @@ bool SimpleContour::PostWalk()
         at(0).SetFullCircle();
 
     //compute the bounding box & clockwise
+    for (size_t i=0; i<size(); i++) 
+        if (at(i).arc)
+            at(i).CalculateBoundingBoxCurvy();
     CalculateBoundingBox();
     CalculateClockwise();
     _ASSERT(IsSane());
@@ -479,14 +498,14 @@ bool SimpleContour::IsSane() const
 {
     if (size()==0) return true;
     if (size()==1)
-        return at(0).GetType() == Edge::FULL_CIRCLE;
+        return at(0).arc && at(0).arc->type == EdgeArc::FULL_CIRCLE;
     for (size_t u=0; u<size(); u++) {
-        if (at(u).GetStart().test_equal(at(u).GetEnd()) &&
-            at(u).GetType() != Edge::FULL_CIRCLE)
+        if (at(u).GetStart().test_equal(at(u).GetEnd()))
+            if (!at(u).arc || at(u).arc->type != EdgeArc::FULL_CIRCLE)
             return false;
         if (!at(u).IsSane()) return false;
     }
-    if (size()==2 && at(0).GetType()==Edge::STRAIGHT && at(1).GetType()==Edge::STRAIGHT)
+    if (size()==2 && !at(0).arc && !at(1).arc)
         return false;
     return true;
 }
@@ -501,11 +520,12 @@ bool SimpleContour::Sanitize()
     bool ret = true;
     if (size()==0) return true;
     if (size()==1) {
-        if (at(0).GetType() == Edge::FULL_CIRCLE) return true;
+        if (at(0).arc && at(0).arc->type == EdgeArc::FULL_CIRCLE) return true;
         goto clear;
     }
     for (size_t u=0; u<size(); /*nope*/)
-        if (at(u).GetType()!=Edge::FULL_CIRCLE && at(u).GetStart().test_equal(at(u).GetEnd())) {
+        if (at(u).GetStart().test_equal(at(u).GetEnd()) && 
+            (!at(u).arc || at(u).arc->type!=EdgeArc::FULL_CIRCLE)) {
             edges.erase(edges.begin()+u);
             ret = false;
         } else
@@ -513,10 +533,13 @@ bool SimpleContour::Sanitize()
     switch (size()) {
     case 0: return false;
     case 1:
-        if (at(0).GetType() == Edge::FULL_CIRCLE) return true;
+        if (at(0).arc && at(0).arc->type == EdgeArc::FULL_CIRCLE) {
+            at(0).CalculateBoundingBoxCurvy();
+            return true;
+        }
         goto clear;
     case 2:
-        if (at(0).GetType()==Edge::STRAIGHT && at(1).GetType()==Edge::STRAIGHT)
+        if (!at(0).arc && !at(1).arc)
             goto clear;
         /*fallthrough*/
     default:
@@ -525,6 +548,9 @@ bool SimpleContour::Sanitize()
             if (!at(u).GetEnd().test_equal(at_next(u).GetStart()))
                 goto clear;
     }
+    for (size_t i=0; i<size(); i++) 
+        if (at(i).arc)
+            at(i).CalculateBoundingBoxCurvy();
     CalculateBoundingBox();
     CalculateClockwise();
     return ret;
@@ -533,12 +559,16 @@ clear:
     return false;
 }
 
-/** Calculate the boundingBox of edges and the whole shape. */
+/** Calculate the boundingBox of the whole shape. 
+ *  Assumes the bounding box of curved edges is already calculated.*/
 const Block &SimpleContour::CalculateBoundingBox()
 {
     boundingBox.MakeInvalid();
-    for(size_t i=0; i<size(); i++)
-        boundingBox += at(i).CalculateBoundingBox();
+    for(size_t i=0; i<size(); i++) 
+        if (at(i).arc)
+            boundingBox += at(i).arc->boundingBox;
+        else
+            boundingBox += at(i).GetStart();
     return boundingBox;
 }
 
@@ -566,9 +596,13 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
     }
     //insert edge
     ret.edges.push_back(edge);
+    //calculate bounding box (for sure)
+    if (ret.edges.rbegin()->arc)
+        ret.edges.rbegin()->CalculateBoundingBoxCurvy();
+
     size_t num_to_check = 1;
     //if edge is curvy and does not end in at(0).start, insert a straight edge afterwards
-    if (edge.GetType()!=Edge::STRAIGHT) {
+    if (edge.arc) {
         if (!edge.GetEnd().test_equal(ret[0].GetStart())) {
             ret.edges.push_back(Edge(edge.GetEnd(), ret[0].GetStart()));
             //check if this edge to insert do not cross the previously inserted edge
@@ -579,7 +613,7 @@ bool SimpleContour::AddAnEdge(const Edge &edge)
     }
     //now check if inserted edges cross any of the ones before
     //check if edge->end is crossing any existing edges
-    ret.CalculateBoundingBox(); //needed by crossing
+    ret.CalculateBoundingBox(); 
     for (size_t i = 0; i<ret.size()-num_to_check-1; i++)
         for (size_t j = ret.size()-num_to_check-1; j<ret.size(); j++)
             if (ret[i].Crossing(ret[j], dum1, dum2, dum2))
@@ -762,8 +796,9 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     SimpleContour o(*this);  //In this we keep track of the original edges
     //If a full circle, do it quick.
     if (size()==1) {
-        _ASSERT(at(0).GetType()==Edge::FULL_CIRCLE);
+        _ASSERT(at(0).arc && at(0).arc->type==EdgeArc::FULL_CIRCLE);
         if (!r[0].Expand(gap)) return; //full circle disappeared, we return empty "res"
+        r[0].CalculateBoundingBoxCurvy();
         r.CalculateBoundingBox();
         r.area_cache.first = false;
         res = std::move(r);
@@ -776,12 +811,13 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
             //Expand() returns false if a circle has shrunken to degenerate into a line or point.
             //If so, we replace them with straight lines
             r[i] = o[i];
-            r[i].type = Edge::STRAIGHT;
+            delete r[i].arc;
+            r[i].arc = NULL;
             r[i].Expand(gap);
         }
 
     //We had two arcs, both became straight lines, we became empty.
-    if (r.size()==2 && r[0].GetType()==Edge::STRAIGHT && r[1].GetType()==Edge::STRAIGHT)
+    if (r.size()==2 && !r[0].arc && !r[1].arc)
         return;
 
 
@@ -1034,6 +1070,7 @@ void SimpleContour::Expand(EExpandType type, double gap, Contour &res, double mi
     if (r2.size()==0) return; //An empty shape
     if (r2.size()==1) {
         r2[0].SetFullCircle();
+        r2[0].CalculateBoundingBoxCurvy();
         res_before_untangle.boundingBox = r2.CalculateBoundingBox();  //also calculates bounding boxes of edges
         res = std::move(res_before_untangle);
         return;
@@ -1182,7 +1219,7 @@ double SimpleContour::do_offsetbelow(const SimpleContour &below, double &touchpo
     double tp = 0;
     for (size_t i = 0; i<size(); i++)
         for (size_t j = 0; j<below.size(); j++)
-            if (at(i).boundingBox.x.Overlaps(below.at(j).boundingBox.x)) {
+            if (at(i).CreateBoundingBox().x.Overlaps(below.at(j).CreateBoundingBox().x)) {
                 double off = at(i).OffsetBelow(below.at(j), tp);
                 if (off < offset) {
                     offset = off;
@@ -1228,9 +1265,9 @@ void SimpleContour::Distance(const SimpleContour &o, DistanceType &ret) const
     //both running and tmp are positive throught this call, except at the very end
     for (unsigned u = 0; u<size(); u++)
         for (unsigned v=0; v<o.size(); v++) {
-            if (at(u).GetType() == Edge::STRAIGHT && o[v].GetType() == Edge::STRAIGHT)
+            if (!at(u).arc && !o[v].arc)
                 tmp = at(u).Distance(o[v]);
-            else if (running.ConsiderBB(fabs(at(u).GetBoundingBox().Distance(o[v].GetBoundingBox()))))
+            else if (running.ConsiderBB(fabs(at(u).CreateBoundingBox().Distance(o[v].CreateBoundingBox()))))
                 //if not both are straight try to avoid calculation if bbs are far enough
                 tmp = at(u).Distance(o[v]);
             else continue;
@@ -1340,7 +1377,7 @@ Range SimpleContour::CutWithTangent(const Edge &e, std::pair<XY, XY> &from, std:
 {
     Range ret;
     ret.MakeInvalid();
-    if (!boundingBox.Overlaps(e.GetBoundingBox())) return ret;
+    if (!boundingBox.Overlaps(e.CreateBoundingBox())) return ret;
     XY point[2];
     double pos[2], scpos[2];
     for (unsigned u = 0; u<size(); u++)

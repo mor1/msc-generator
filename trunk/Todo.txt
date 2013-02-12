@@ -33,19 +33,25 @@ ADD: Check if file changed on disk
 ADD: URL's to PNG
 
 Later
-ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
-ADD: Pagination options to the GUI (preferably in print preview)
 DOC: Add Hide/Show to commands. Document Activate/deactivate better.
 DOC: auto_heading chart option and attribute.
 DOC: Document full page printing.
 DOC: classic_parallel_layout
-FIXED: Why Michael.signalling disappears from time to time? (was cairo not being thread-safe)
-FIX: Memory leak in contour (moved objects not cleaned up afterwards)
-FIXED: Hideentitylines problem of michael
+ADD: Automatic word wrapping in hscale=1 mode. Allow hspace in this mode, as well.
+ADD: Pagination options to the GUI (preferably in print preview)
+FIX: first_entity EntityDef leaks
+FIX: Contour test mistakes (esp 740_006)
+CHECK: Moved objects containment
 CHANGE: Speedup
-- CSH
+- CSH in parallel thread, incremental update of richedit
 - Remove cover if not compress or parallel
 - Remove Area if not needed
+CHANGE: Memory
+- StyleCOW - DONE
+- EdgeArc - DONE
+- Rectangle in SimpleContour
+FIXED: Why Michael.signalling disappears from time to time? (was cairo not being thread-safe)
+FIXED: Hideentitylines problem of michael
 ADDED: Progress feedback (both to command-line and GUI)
 ADDED: Automatic pagination
 CHANGED: Parallel layout - add switch to reset to old behaviour 'classic_parallel_layout'

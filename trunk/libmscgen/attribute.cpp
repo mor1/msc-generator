@@ -328,7 +328,7 @@ bool LineAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.back().styles[a.name].read();
         if (style.f_line) operator +=(style.line);
         return true;
     }
@@ -773,7 +773,7 @@ bool FillAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.back().styles[a.name].read();
         if (style.f_fill) operator +=(style.fill);
         return true;
     }
@@ -912,7 +912,7 @@ bool ShadowAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.back().styles[a.name].read();
         if (style.f_shadow) operator +=(style.shadow);
         return true;
     }
@@ -1076,7 +1076,7 @@ bool NoteAttr::AddAttribute(const Attribute &a, Msc *msc, EStyleType t)
             a.InvalidStyleError(msc->Error);
             return true;
         }
-        const MscStyle &style = msc->Contexts.back().styles[a.name];
+        const MscStyle &style = msc->Contexts.back().styles[a.name].read();
         if (style.f_note) operator +=(style.note);
         return true;
     }

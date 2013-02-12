@@ -936,12 +936,12 @@ void contour_test(void)
 {
     //contour_test_basic();
     //contour_test_assign(111);
-    //contour_test_lohere();
-    //contour_test_area(400);
-    //contour_test_relations(7000);
-    //contour_test_distance(7100);
-    //contour_test_cut(7300);
-    //contour_test_expand2D(7400);
+    contour_test_lohere();
+    contour_test_area(400);
+    contour_test_relations(7000);
+    contour_test_distance(7100);
+    contour_test_cut(7300);
+    contour_test_expand2D(7400);
     contour_test_tangent(7500);
 }
 
